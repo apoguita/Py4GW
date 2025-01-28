@@ -1,0 +1,136 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{a60e9375-0f36-4eec-95f2-056795445781}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>Widgets\Py4GW_DEMO.py</StartupFile>
+    <SearchPath>stubs\</SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId>Global|PythonCore|3.12-32-32</InterpreterId>
+    <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="docs\filter sample.txt" />
+    <Content Include="docs\rosetta_stone.txt" />
+    <Content Include="docs\Vector Fields Differences.txt" />
+    <Content Include="Legacy code and tests\readme.txt" />
+    <Content Include="Py4GWCoreLib\readme.txt" />
+    <Content Include="readme.txt" />
+    <Content Include="stubs\Readme.txt" />
+    <Content Include="Widgets\imgui.ini" />
+    <Content Include="Widgets\__pycache__\Instance Timer.cpython-312.pyc" />
+    <Content Include="Widgets\__pycache__\Instance Timer.cpython-313.pyc" />
+    <Content Include="Widgets\__pycache__\Instance_Timer - Copy.cpython-312.pyc" />
+    <Content Include="Widgets\__pycache__\Instance_Timer.cpython-312.pyc" />
+    <Content Include="Widgets\__pycache__\Return to outpost on defeat.cpython-312.pyc" />
+    <Content Include="Widgets\__pycache__\Return to outpost on defeat.cpython-313.pyc" />
+    <Content Include="Widgets\__pycache__\Skip Cinematics.cpython-312.pyc" />
+    <Content Include="Widgets\__pycache__\Skip Cinematics.cpython-313.pyc" />
+    <Content Include="Widgets\__pycache__\test_widget.cpython-312.pyc" />
+    <Content Include="Widgets\__pycache__\Vanquish.cpython-312.pyc" />
+    <Content Include="Widgets\__pycache__\Vanquish.cpython-313.pyc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Barebones_Example_module.py" />
+    <Compile Include="BorealBot.py" />
+    <Compile Include="called_targets.py" />
+    <Compile Include="DEMO\DEMO_PyAgent.py" />
+    <Compile Include="DEMO\DEMO_PyImGui.py" />
+    <Compile Include="DEMO\DEMO_PyInventory.py" />
+    <Compile Include="DEMO\DEMO_PyItem.py" />
+    <Compile Include="DEMO\DEMO_PyMap.py" />
+    <Compile Include="DEMO\DEMO_PyMerchant.py" />
+    <Compile Include="DEMO\DEMO_PyParty.py" />
+    <Compile Include="DEMO\DEMO_PyPlayer.py" />
+    <Compile Include="DEMO\DEMO_PySkill.py" />
+    <Compile Include="DEMO\DEMO_PySkillbar.py" />
+    <Compile Include="DEMO\__init__.py" />
+    <Compile Include="Enter_character_on_load.py" />
+    <Compile Include="follower.py" />
+    <Compile Include="fake_keyboard.py" />
+    <Compile Include="Hello_World.py" />
+    <Compile Include="Widgets\HeroAI.py" />
+    <Compile Include="HeroAI\candidates.py" />
+    <Compile Include="HeroAI\combat.py" />
+    <Compile Include="HeroAI\constants.py" />
+    <Compile Include="HeroAI\custom_skill.py" />
+    <Compile Include="HeroAI\game_option.py" />
+    <Compile Include="HeroAI\globals.py" />
+    <Compile Include="HeroAI\players.py" />
+    <Compile Include="HeroAI\shared_memory_manager.py" />
+    <Compile Include="HeroAI\targetting.py" />
+    <Compile Include="HeroAI\types.py" />
+    <Compile Include="HeroAI\utils.py" />
+    <Compile Include="HeroAI\windows.py" />
+    <Compile Include="HeroAI\__init__.py" />
+    <Compile Include="PCons.py" />
+    <Compile Include="Py4GWCoreLib\IconsFontAwesome5.py" />
+    <Compile Include="Py4GWCoreLib\Merchant.py" />
+    <Compile Include="Py4GWCoreLib\model_data.py" />
+    <Compile Include="Py4GWCoreLib\Quest.py" />
+    <Compile Include="Legacy code and tests\Barebones_Example_module.py" />
+    <Compile Include="Legacy code and tests\BorealDEMO.py" />
+    <Compile Include="Legacy code and tests\Hello_World.py" />
+    <Compile Include="Legacy code and tests\move_to_target_test.py" />
+    <Compile Include="Legacy code and tests\PingHandler.py" />
+    <Compile Include="Legacy code and tests\Py4GWcorelib.py" />
+    <Compile Include="Legacy code and tests\Py4GW_DEMO.py" />
+    <Compile Include="Legacy code and tests\RUN BOT.py" />
+    <Compile Include="Legacy code and tests\Script_Template.py" />
+    <Compile Include="Legacy code and tests\test.py" />
+    <Compile Include="Legacy code and tests\test_function_contrainer.py" />
+    <Compile Include="Py4GWCoreLib\Agent.py" />
+    <Compile Include="Py4GWCoreLib\AgentArray.py" />
+    <Compile Include="Py4GWCoreLib\Effect.py" />
+    <Compile Include="Py4GWCoreLib\ImGui.py" />
+    <Compile Include="Py4GWCoreLib\Inventory.py" />
+    <Compile Include="Py4GWCoreLib\Item.py" />
+    <Compile Include="Py4GWCoreLib\ItemArray.py" />
+    <Compile Include="Py4GWCoreLib\Map.py" />
+    <Compile Include="Py4GWCoreLib\Overlay.py" />
+    <Compile Include="Py4GWCoreLib\Party.py" />
+    <Compile Include="Py4GWCoreLib\Player.py" />
+    <Compile Include="Py4GWCoreLib\Py4GWcorelib.py" />
+    <Compile Include="Py4GWCoreLib\Skill.py" />
+    <Compile Include="Py4GWCoreLib\Skillbar.py" />
+    <Compile Include="Py4GWCoreLib\__init__.py" />
+    <Compile Include="Widgets\Py4GW_DEMO.py" />
+    <Compile Include="Py4GW_LAUNCHER.py" />
+    <Compile Include="Py4GW_widget_manager.py" />
+    <Compile Include="Script_Template.py" />
+    <Compile Include="Travel.py" />
+    <Compile Include="travel_cinematic.py" />
+    <Compile Include="VaettirBot.py" />
+    <Compile Include="Widgets\Enter character on load.py" />
+    <Compile Include="Widgets\Instance Timer.py" />
+    <Compile Include="Widgets\PCons.py" />
+    <Compile Include="Widgets\Return to outpost on defeat.py" />
+    <Compile Include="Widgets\Skip Cinematics.py" />
+    <Compile Include="Widgets\Travel.py" />
+    <Compile Include="Widgets\Vanquish.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="DEMO" />
+    <Folder Include="docs" />
+    <Folder Include="Legacy code and tests" />
+    <Folder Include="HeroAI\" />
+    <Folder Include="Py4GWCoreLib" />
+    <Folder Include="stubs" />
+    <Folder Include="Widgets\" />
+    <Folder Include="Widgets\__pycache__\" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="Global|PythonCore|3.12-32-32" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>

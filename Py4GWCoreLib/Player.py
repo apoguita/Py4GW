@@ -1,0 +1,331 @@
+import Py4GW
+import PyPlayer
+
+
+from .enums import *
+from .Map import *
+from .Agent import *
+
+
+# Player
+class Player:
+    @staticmethod
+    def player_instance():
+        """
+        Helper method to create and return a PyPlayer instance.
+        Args:
+            None
+        Returns:
+            PyAgent: The PyAgent instance for the given ID.
+        """
+        return PyPlayer.PyPlayer()
+
+    @staticmethod
+    def GetAgentID():
+        """
+        Purpose: Retrieve the agent ID of the player.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().id
+
+    @staticmethod
+    def GetName():
+        """
+        Purpose: Retrieve the player's name.
+        Args: None
+        Returns: str
+        """
+        return Agent.GetName(Player.GetAgentID())
+
+    @staticmethod
+    def GetXY():
+        """
+        Purpose: Retrieve the player's current X and Y coordinates.
+        Args: None
+        Returns: tuple (x, y)
+        """
+        return Agent.GetXY(Player.GetAgentID())
+
+    
+    @staticmethod
+    def GetTargetID():
+        """
+        Purpose: Retrieve the ID of the player's target.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().target_id
+
+    @staticmethod
+    def GetAgent():
+        """
+        Purpose: Retrieve the player's agent.
+        Args: None
+        Returns: PyAgent
+        """
+        return Player.player_instance().agent
+
+    @staticmethod
+    def GetMouseOverID():
+        """
+        Purpose: Retrieve the ID of the agent the mouse is currently over.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().mouse_over_id
+
+    @staticmethod
+    def GetObservingID():
+        """
+        Purpose: Retrieve the ID of the agent the player is observing.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().observing_id
+
+    @staticmethod
+    def SendDialog(dialog_id):
+        """
+        Purpose: Send a dialog response.
+        Args:
+            dialog_id (int): The ID of the dialog.
+        Returns: None
+        """
+        Player.player_instance().SendDialog(dialog_id)
+
+    @staticmethod
+    def SendChatCommand(command):
+        """
+        Purpose: Send a '/' chat command.
+        Args:
+            command (str): The command to send.
+        Returns: None
+        """
+        Player.player_instance().SendChatCommand(command)
+
+    @staticmethod
+    def SendChat(channel, message):
+        """
+        Purpose: Send a chat message to a channel.
+        Args:
+            channel (char): The channel to send the message to.
+            message (str): The message to send.
+        Returns: None
+        """
+        Player.player_instance().SendChat(channel, message)
+
+    @staticmethod
+    def SendWhisper(target_name, message):
+        """
+        Purpose: Send a whisper to a target player.
+        Args:
+            target_name (str): The name of the target player.
+            message (str): The message to send.
+        Returns: None
+        """
+        Player.player_instance().SendWhisper(target_name, message)
+
+    @staticmethod
+    def ChangeTarget (agent_id):
+        """
+        Purpose: Change the player's target.
+        Args:
+            agent_id (int): The ID of the agent to target.
+        Returns: None
+        """
+        Player.player_instance().ChangeTarget(agent_id)
+               
+    @staticmethod
+    def Interact(agent_id, call_target=False):
+        """
+        Purpose: Interact with an agent.
+        Args:
+            agent_id (int): The ID of the agent to interact with.
+            call_target (bool, optional): Whether to call the agent as a target.
+        Returns: None
+        """
+        Player.player_instance().InteractAgent(agent_id, call_target)
+
+    @staticmethod
+    def OpenLockedChest(use_key=False):
+        """
+        Purpose: Open a locked chest. This function is no longer available from toolbox!!
+        Args:
+            use_key (bool): Whether to use a key to open the chest.
+        Returns: None
+        """
+        #This function is no longer available from toolbox!!
+        Player.player_instance().OpenLockedChest(use_key)
+
+    @staticmethod
+    def Move(x, y):
+        """
+        Purpose: Move the player to specified X and Y coordinates.
+        Args:
+            x (float): X coordinate.
+            y (float): Y coordinate.
+        Returns: None
+        """
+        Player.player_instance().Move(x, y)
+
+    @staticmethod
+    def MoveXYZ(x, y, zindex=1):
+        """
+        Purpose: Move the player to specified X and Y coordinates.
+        Args:
+            x (float): X coordinate.
+            y (float): Y coordinate.
+        Returns: None
+        """
+        Player.player_instance().Move(x, y, zindex)
+
+    @staticmethod
+    def CancelMove():
+        """
+        Purpose: Cancel the player's current move action.
+        Args: None
+        Returns: None
+        """
+        player_agent = Player.GetAgent()
+        if Map.IsMapReady():
+            Player.player_instance().Move(player_agent.x, player_agent.y)
+    
+    @staticmethod
+    def GetAccountName():
+        """
+        Purpose: Retrieve the player's account name.
+        Args: None
+        Returns: str
+        """
+        return Player.player_instance().account_name
+    
+    @staticmethod
+    def GetRankData():
+        """
+        Purpose: Retrieve the player's current rank data.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().rank, Player.player_instance().rating, Player.player_instance().qualifier_points, Player.player_instance().wins, Player.player_instance().losses
+    @staticmethod
+    def GetTournamentRewardPoints():
+        """
+        Purpose: Retrieve the player's current tournament reward points.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().tournament_reward_points
+    
+    @staticmethod
+    def GetMorale():
+        """
+        Purpose: Retrieve the player's current morale.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().morale
+    
+    @staticmethod
+    def GetExperience():
+        """
+        Purpose: Retrieve the player's current experience.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().experience
+    
+    @staticmethod
+    def GetSkillPointData():
+        """
+        Purpose: Retrieve the player's current skill point data.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().current_skill_points, Player.player_instance().total_earned_skill_points
+    
+    @staticmethod
+    def GetKurzickData():
+        """
+        Purpose: Retrieve the player's current Kurzick data.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().current_kurzick, Player.player_instance().total_earned_kurzick, Player.player_instance().max_kurzick
+    
+    @staticmethod
+    def GetLuxonData():
+        """
+        Purpose: Retrieve the player's current Luxon data.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().current_luxon, Player.player_instance().total_earned_luxon, Player.player_instance().max_luxon
+    
+    
+    @staticmethod
+    def GetImperialData():
+        """
+        Purpose: Retrieve the player's current Imperial faction.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().current_imperial, Player.player_instance().total_earned_imperial, Player.player_instance().max_imperial
+    
+    @staticmethod
+    def GetBalthazarData():
+        """
+        Purpose: Retrieve the player's current Balthazar faction.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().current_balth, Player.player_instance().total_earned_balth, Player.player_instance().max_balth
+    
+    @staticmethod
+    def GetActiveTitleID():
+        """
+        Purpose: Retrieve the player's active title ID.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().GetActiveTitleId()
+    
+    @staticmethod
+    def GetTitle(title_id):
+        """
+        Purpose: Retrieve the player's title data.
+        Args:
+            title_id (int): The ID of the title to retrieve.
+        Returns: int
+        """
+        return PyPlayer.PyTitle(title_id)
+    
+    @staticmethod
+    def RemoveActiveTitle():
+        """
+        Purpose: Remove the player's active title.
+        Args: None
+        Returns: None
+        """
+        Player.player_instance().RemoveActiveTitle()
+        
+    @staticmethod
+    def SetActiveTitle(title_id):
+        """
+        Purpose: Set the player's active title.
+        Args:
+            title_id (int): The ID of the title to set.
+        Returns: None
+        """
+        Player.player_instance().SetActiveTitle(title_id)
+        
+    @staticmethod
+    def DepositFaction(faction_id):
+        """
+        Purpose: Deposit faction points. need to be talking with an embassador.
+        Args:
+            faction_id (int): The ID of the faction to deposit.
+            amount (int): The amount of points to deposit.
+        Returns: None
+        """
+        Player.player_instance().DepositFaction(faction_id)
