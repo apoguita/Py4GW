@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{0cedbc5c-6774-44d4-923a-a4b5f9c2f9db}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>Py4GW_DEMO.py</StartupFile>
+    <SearchPath>stubs\</SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId>Global|PythonCore|3.12-32-32</InterpreterId>
+    <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
+    <TestFramework>none</TestFramework>
+    <UnitTestPattern>test*.py</UnitTestPattern>
+    <UnitTestRootDirectory>.</UnitTestRootDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Barebones_Example_module.py" />
+    <Compile Include="BorealDEMO.py" />
+    <Compile Include="DEMO\DEMO_ImGui_py.py" />
+    <Compile Include="DEMO\DEMO_PyAgent.py" />
+    <Compile Include="DEMO\DEMO_PyInventory.py" />
+    <Compile Include="DEMO\DEMO_PyItem.py" />
+    <Compile Include="DEMO\DEMO_PyMap.py" />
+    <Compile Include="DEMO\DEMO_PyMerchant.py" />
+    <Compile Include="DEMO\DEMO_PyParty.py" />
+    <Compile Include="DEMO\DEMO_PyPlayer.py" />
+    <Compile Include="DEMO\DEMO_PySkill.py" />
+    <Compile Include="DEMO\DEMO_PySkillbar.py" />
+    <Compile Include="DEMO\__init__.py" />
+    <Compile Include="Hello_World.py" />
+    <Compile Include="move_to_target_test.py" />
+    <Compile Include="PingHandler.py" />
+    <Compile Include="Py4GWcorelib.py" />
+    <Compile Include="Py4GW_DEMO.py" />
+    <Compile Include="Script_Template.py" />
+    <Compile Include="test.py" />
+    <Compile Include="test_function_contrainer.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="DEMO" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="Global|PythonCore|3.12-32-32" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>

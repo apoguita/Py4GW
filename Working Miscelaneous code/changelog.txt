@@ -1,0 +1,27 @@
+# Changelog
+
+## [v1.0.0-beta.1] - 2024-10-14
+
+### Overview
+This is the first beta release of version `1.0.0` of Py4GW. 
+The release includes all planned major features but may still contain bugs or missing data/methods. 
+
+### Added
+	Libraries for Handling game interactions
+	Demo tutorial files 
+
+### For AutoIt Users
+- The library has a dictionary "./docs/rosetta_stone.txt" that maps AutoIt functions to Py4GW functions.
+
+### Known Issues
+- trading with merchants not working
+
+### Missing Features
+- player trading
+- quest data
+
+### Notes for Beta Testers
+- Please provide feedback on the library, 
+- provide ideas for functionality
+- report bugs if any.
+- share your code.

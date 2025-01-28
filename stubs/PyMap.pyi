@@ -1,0 +1,209 @@
+# PyMap.pyi - Auto-generated .pyi file for PyMap module
+
+from typing import Any
+
+class PathingTrapezoid:
+    id: int
+    h0014: int
+    XTL: float
+    XTR: float
+    YT: float
+    XBL: float
+    XBR: float
+    YB: float
+    adjacent: List[Optional[PathingTrapezoid]]
+
+    def __init__(self) -> None: ...
+    def __init__(self, original: GW.PathingTrapezoid) -> None: ...
+
+class PathingMap:
+    zplane: int
+    h0004: int
+    h0008: int
+    h000C: int
+    h0010: int
+    h0014: int
+    trapezoid_count: int
+    trapezoids: List[PathingTrapezoid]
+
+    def __init__(self, original: GW.PathingMap) -> None: ...
+
+# Enum InstanceType
+class InstanceType:
+    Outpost: int
+    Explorable: int
+    Loading: int
+
+# Class Instance
+class Instance:
+    def __init__(self, instance_type: 'InstanceType') -> None: ...
+    def Set(self, instance_type: 'InstanceType') -> None: ...
+    def Get(self) -> 'InstanceType': ...
+    def ToInt(self) -> int: ...
+    def GetName(self) -> str: ...
+    def __eq__(self, other: Any) -> bool: ...
+    def __ne__(self, other: Any) -> bool: ...
+
+# Enum ServerRegionType
+class ServerRegionType:
+    International: int
+    America: int
+    Korea: int
+    Europe: int
+    China: int
+    Japan: int
+    Unknown: int
+
+# Class ServerRegion
+class ServerRegion:
+    def __init__(self, region: int) -> None: ...
+    def Set(self, region: int) -> None: ...
+    def Get(self) -> 'ServerRegionType': ...
+    def ToInt(self) -> int: ...
+    def GetName(self) -> str: ...
+    def __eq__(self, other: Any) -> bool: ...
+    def __ne__(self, other: Any) -> bool: ...
+
+# Enum LanguageType
+class LanguageType:
+    English: int
+    Korean: int
+    French: int
+    German: int
+    Italian: int
+    Spanish: int
+    TraditionalChinese: int
+    Japanese: int
+    Polish: int
+    Russian: int
+    BorkBorkBork: int
+    Unknown: int
+
+# Class Language
+class Language:
+    def __init__(self, language: int) -> None: ...
+    def Set(self, language: int) -> None: ...
+    def Get(self) -> 'LanguageType': ...
+    def ToInt(self) -> int: ...
+    def GetName(self) -> str: ...
+    def __eq__(self, other: Any) -> bool: ...
+    def __ne__(self, other: Any) -> bool: ...
+
+# Enum CampaignType
+class CampaignType:
+    Core: int
+    Prophecies: int
+    Factions: int
+    Nightfall: int
+    EyeOfTheNorth: int
+    BonusMissionPack: int
+    Undefined: int
+
+# Class Campaign
+class Campaign:
+    def __init__(self, campaign: int) -> None: ...
+    def Set(self, campaign: int) -> None: ...
+    def Get(self) -> 'CampaignType': ...
+    def ToInt(self) -> int: ...
+    def GetName(self) -> str: ...
+    def __eq__(self, other: Any) -> bool: ...
+    def __ne__(self, other: Any) -> bool: ...
+
+# Enum RegionType
+class RegionType:
+    AllianceBattle: int
+    Arena: int
+    ExplorableZone: int
+    GuildBattleArea: int
+    GuildHall: int
+    MissionOutpost: int
+    CooperativeMission: int
+    CompetitiveMission: int
+    EliteMission: int
+    Challenge: int
+    Outpost: int
+    ZaishenBattle: int
+    HeroesAscent: int
+    City: int
+    MissionArea: int
+    HeroBattleOutpost: int
+    HeroBattleArea: int
+    EotnMission: int
+    Dungeon: int
+    Marketplace: int
+    Unknown: int
+    DevRegion: int
+
+# Class Region
+class Region:
+    def __init__(self, region_type: int) -> None: ...
+    def Set(self, region_type: int) -> None: ...
+    def Get(self) -> 'RegionType': ...
+    def ToInt(self) -> int: ...
+    def GetName(self) -> str: ...
+    def __eq__(self, other: Any) -> bool: ...
+    def __ne__(self, other: Any) -> bool: ...
+
+# Enum ContinentType
+class ContinentType:
+    Kryta: int
+    DevContinent: int
+    Cantha: int
+    BattleIsles: int
+    Elona: int
+    RealmOfTorment: int
+    Undefined: int
+
+# Class Continent
+class Continent:
+    def __init__(self, continent: int) -> None: ...
+    def Set(self, continent: int) -> None: ...
+    def Get(self) -> 'ContinentType': ...
+    def ToInt(self) -> int: ...
+    def GetName(self) -> str: ...
+    def __eq__(self, other: Any) -> bool: ...
+    def __ne__(self, other: Any) -> bool: ...
+
+# Class MapID
+class MapID:
+    def __init__(self, map_id: 'MapID') -> None: ...
+    def Set(self, map_id: 'MapID') -> None: ...
+    def Get(self) -> 'MapID': ...
+    def ToInt(self) -> int: ...
+    def GetName(self) -> str: ...
+    def __eq__(self, other: Any) -> bool: ...
+    def __ne__(self, other: Any) -> bool: ...
+
+# Class PyMap
+class PyMap:
+    instance_type: 'InstanceType'
+    is_map_ready: bool
+    instance_time: int
+    map_id: 'MapID'
+    server_region: 'ServerRegionType'
+    district: int
+    language: 'LanguageType'
+    foes_killed: int
+    foes_to_kill: int
+    is_in_cinematic: bool
+    campaign: 'CampaignType'
+    continent: 'ContinentType'
+    region_type: 'RegionType'
+    max_party_size: int
+    has_enter_button: bool
+    is_on_world_map: bool
+    is_pvp: bool
+    is_guild_hall: bool
+    is_vanquishable_area: bool
+
+    def __init__(self) -> None: ...
+    def GetContext(self) -> None: ...
+    def Travel(self, region_id: int) -> None: ...
+    def Travel(self, region_id: int, district: int, language: int) -> None: ...
+    def RegionFromDistrict(self, district: int) -> 'RegionType': ...
+    def LanguageFromDistrict(self, district: int) -> 'LanguageType': ...
+    def GetIsMapUnlocked(self, map_id: int) -> bool: ...
+    def SkipCinematic(self) -> None: ...
+    def EnterChallenge(self) -> None: ...
+    def CancelEnterChallenge(self) -> None: ...
+    def GetPathingMap() -> List[PathingMap]: ...

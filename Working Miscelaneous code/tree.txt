@@ -1,0 +1,90 @@
+ if player_number == 0:
+        tree_name = "Control All"
+        PyImGui.set_next_item_open(True)
+
+    if PyImGui.tree_node(tree_name):
+        if PyImGui.begin_table("Player" + player.name, 5, PyImGui.TableFlags.NoFlag):
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+
+            follow_buton = ImGui.toggle_button("F", player.follow,30,30)
+            ImGui.show_tooltip("Follow")
+            PyImGui.table_next_column()
+            collision_button = ImGui.toggle_button("C", player.collision,30,30)
+            ImGui.show_tooltip("Collision")
+            PyImGui.table_next_column()
+            looting_button = ImGui.toggle_button("L", player.looting,30,30)
+            ImGui.show_tooltip("Loot")
+            PyImGui.table_next_column()
+            target_button = ImGui.toggle_button("T", player.target,30,30)
+            ImGui.show_tooltip("Target")
+            PyImGui.table_next_column()
+            combat_button = ImGui.toggle_button("X", player.combat,30,30)
+            ImGui.show_tooltip("Combat")
+
+
+            if looting_button != player.looting:
+                hero_ai_handler.SetLooting(player.player_number, looting_button)
+
+            if follow_buton != player.follow:
+                hero_ai_handler.SetFollowing(player.player_number, follow_buton)
+
+            if collision_button != player.collision:
+                hero_ai_handler.SetCollision(player.player_number, collision_button)
+                       
+            if target_button != player.target:
+                hero_ai_handler.SetTargetting(player.player_number, target_button)
+
+            if combat_button != player.combat:
+                hero_ai_handler.SetCombat(player.player_number, combat_button)
+
+            PyImGui.end_table()
+
+            PyImGui.separator()
+
+            if PyImGui.begin_table("Skills" + str(player_number), 9, PyImGui.TableFlags.NoFlag):
+                PyImGui.table_next_row()
+                for i, skill in enumerate(player.skills):
+                    PyImGui.table_next_column()
+                    skill_button = ImGui.toggle_button(f"{i+1}", skill, 20, 20)
+                    ImGui.show_tooltip(f"Skill {i+1}")
+                    if skill_button != player.skills[i]:
+                        hero_ai_handler.SetSkill(player.player_number, i+1, skill_button)
+                PyImGui.end_table()
+
+            PyImGui.separator() 
+            PyImGui.text(f"Commands")
+            if PyImGui.begin_table("PlayerCommands" + player.name, 5, PyImGui.TableFlags.NoFlag):
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                resign_button = False
+                resign_button = ImGui.toggle_button("R", resign_button,30,30)
+                ImGui.show_tooltip("Resign")
+                PyImGui.table_next_column()
+                take_quest_button = False
+                take_quest_button = ImGui.toggle_button("Q", take_quest_button,30,30)
+                ImGui.show_tooltip("Take Quest")
+                PyImGui.table_next_column()
+                identify_button = False
+                identify_button = ImGui.toggle_button("I", identify_button,30,30)
+                ImGui.show_tooltip("Identify Items")
+                PyImGui.table_next_column()
+                salvage_button = False
+                salvage_button = ImGui.toggle_button("S", salvage_button,30,30)
+                ImGui.show_tooltip("Salvage First Item")
+                PyImGui.table_next_column()
+                PyImGui.end_table()
+
+                if resign_button:
+                    hero_ai_handler.Resign(player.player_number)
+
+                if take_quest_button:
+                    hero_ai_handler.TakeQuest(player.player_number)
+
+                if identify_button:
+                    hero_ai_handler.Identify(player.player_number)
+
+                if salvage_button:
+                    hero_ai_handler.Salvage(player.player_number)
+
+            PyImGui.tree_pop()
