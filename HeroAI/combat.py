@@ -85,6 +85,44 @@ class CombatClass:
         self.stay_alert_timer = Timer()
         self.stay_alert_timer.Start()
         self.oldCalledTarget = 0
+        self.custom_skill_evaluations = {}
+        self.PopulateSkillEvaluation()
+
+    def PopulateSkillEvaluation(self):
+        self.custom_skill_evaluations[Skill.GetID("Energy_Drain")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+        self.custom_skill_evaluations[Skill.GetID("Energy_Tap")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+        self.custom_skill_evaluations[Skill.GetID("Ether_Lord")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+        self.custom_skill_evaluations[Skill.GetID("Essence_Strike")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy and (TargetNearestSpirit() != 0)
+        self.custom_skill_evaluations[Skill.GetID("Glowing_Signet")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy and self.HasEffect(vTarget, Skill.GetID("Burning"))
+        self.custom_skill_evaluations[Skill.GetID("Clamor_of_Souls")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy and Agent.GetWeaponType(Player.GetAgentID())[0] == 0
+        self.custom_skill_evaluations[Skill.GetID("Waste_Not_Want_Not")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy and not Agent.IsCasting(vTarget) and not Agent.IsAttacking(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Mend_Body_and_Soul")] = lambda Conditions, vTarget: Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife and not Agent.IsCasting(vTarget) and not Agent.IsConditioned(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Grenths_Balance")] = lambda Conditions, vTarget: Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife and Agent.GetHealth(Player.GetAgentID()) < Agent.GetHealth(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Deaths_Retreat")] = lambda Conditions, vTarget: Agent.GetHealth(Player.GetAgentID()) < Agent.GetHealth(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Plague_Sending")] = lambda Conditions, vTarget: Agent.IsConditioned(Player.GetAgentID())
+        self.custom_skill_evaluations[Skill.GetID("Plague_Signet")] = lambda Conditions, vTarget: Agent.IsConditioned(Player.GetAgentID())
+        self.custom_skill_evaluations[Skill.GetID("Plague_Touch")] = lambda Conditions, vTarget: Agent.IsConditioned(Player.GetAgentID())
+        self.custom_skill_evaluations[Skill.GetID("Golden_Fang_Strike")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
+        self.custom_skill_evaluations[Skill.GetID("Golden_Fox_Strike")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
+        self.custom_skill_evaluations[Skill.GetID("Golden_Lotus_Strike")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
+        self.custom_skill_evaluations[Skill.GetID("Golden_Phoenix_Strike")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
+        self.custom_skill_evaluations[Skill.GetID("Golden_Skull_Strike")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
+        self.custom_skill_evaluations[Skill.GetID("Brutal_Weapon")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
+        self.custom_skill_evaluations[Skill.GetID("Signet_of_Removal")] = lambda Conditions, vTarget: not Agent.IsEnchanted(vTarget) and Agent.IsConditioned(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Dwaynas_Kiss")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsEnchanted(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Unnatural_Signet")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsEnchanted(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Toxic_Chill")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsEnchanted(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Discord")] = lambda Conditions, vTarget: (Agent.IsHexed(vTarget) and Agent.IsConditioned(vTarget)) or Agent.IsEnchanted(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Empathic_Removal")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Iron_Palm")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Melandrus_Resilience")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Necrosis")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Peace_and_Harmony")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Purge_Signet")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Resilient_Weapon")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
+        self.custom_skill_evaluations[Skill.GetID("Gaze_from_Beyond")] = lambda Conditions, vTarget: TargetNearestSpirit() != 0
+        self.custom_skill_evaluations[Skill.GetID("Spirit_Burn")] = lambda Conditions, vTarget: TargetNearestSpirit() != 0
+        self.custom_skill_evaluations[Skill.GetID("Signet_of_Ghostly_Might")] = lambda Conditions, vTarget: TargetNearestSpirit() != 0
 
     def PrioritizeSkills(self):
         """
@@ -380,85 +418,10 @@ class CombatClass:
 
         if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
             """ check all UniqueProperty skills """
-            if (self.skills[slot].skill_id == Skill.GetID("Energy_Drain") or 
-                self.skills[slot].skill_id == Skill.GetID("Energy_Tap") or
-                self.skills[slot].skill_id == Skill.GetID("Ether_Lord") 
-                ):
-                return Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
-        
-            if (self.skills[slot].skill_id == Skill.GetID("Essence_Strike")):
-                energy = Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
-                return energy and (TargetNearestSpirit() != 0)
-
-            if (self.skills[slot].skill_id == Skill.GetID("Glowing_Signet")):
-                energy= Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
-                return energy and self.HasEffect(vTarget, Skill.GetID("Burning"))
-
-            if (self.skills[slot].skill_id == Skill.GetID("Clamor_of_Souls")):
-                energy = Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
-                weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
-                return energy and weapon_type == 0
-
-            if (self.skills[slot].skill_id == Skill.GetID("Waste_Not_Want_Not")):
-                energy= Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
-                return energy and not Agent.IsCasting(vTarget) and not Agent.IsAttacking(vTarget)
-
-            if (self.skills[slot].skill_id == Skill.GetID("Mend_Body_and_Soul")):
-                life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
-                return life and Agent.IsConditioned(vTarget)
-
-            if (self.skills[slot].skill_id == Skill.GetID("Grenths_Balance")):
-                life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
-                return life and Agent.GetHealth(Player.GetAgentID()) < Agent.GetHealth(vTarget)
-
-            if (self.skills[slot].skill_id == Skill.GetID("Deaths_Retreat")):
-                return Agent.GetHealth(Player.GetAgentID()) < Agent.GetHealth(vTarget)
-
-            if (self.skills[slot].skill_id == Skill.GetID("Plague_Sending") or
-                self.skills[slot].skill_id == Skill.GetID("Plague_Signet") or
-                self.skills[slot].skill_id == Skill.GetID("Plague_Touch")
-                ):
-                return Agent.IsConditioned(Player.GetAgentID())
-
-            if (self.skills[slot].skill_id == Skill.GetID("Golden_Fang_Strike") or
-                self.skills[slot].skill_id == Skill.GetID("Golden_Fox_Strike") or
-                self.skills[slot].skill_id == Skill.GetID("Golden_Lotus_Strike") or
-                self.skills[slot].skill_id == Skill.GetID("Golden_Phoenix_Strike") or
-                self.skills[slot].skill_id == Skill.GetID("Golden_Skull_Strike")
-                ):
-                return Agent.IsEnchanted(Player.GetAgentID())
-
-            if (self.skills[slot].skill_id == Skill.GetID("Brutal_Weapon")):
-                return not Agent.IsEnchanted(Player.GetAgentID())
-
-            if (self.skills[slot].skill_id == Skill.GetID("Signet_of_Removal")):
-                return not Agent.IsEnchanted(vTarget) and Agent.IsConditioned(vTarget)
-
-            if (self.skills[slot].skill_id == Skill.GetID("Dwaynas_Kiss") or
-                self.skills[slot].skill_id == Skill.GetID("Unnatural_Signet") or
-                self.skills[slot].skill_id == Skill.GetID("Toxic_Chill")
-                ):
-                return Agent.IsHexed(vTarget) or Agent.IsEnchanted(vTarget)
-
-            if (self.skills[slot].skill_id == Skill.GetID("Discord")):
-                return (Agent.IsHexed(vTarget) and Agent.IsConditioned(vTarget)) or (Agent.IsEnchanted(vTarget))
-
-            if (self.skills[slot].skill_id == Skill.GetID("Empathic_Removal") or
-                self.skills[slot].skill_id == Skill.GetID("Iron_Palm") or
-                self.skills[slot].skill_id == Skill.GetID("Melandrus_Resilience") or
-                self.skills[slot].skill_id == Skill.GetID("Necrosis") or
-                self.skills[slot].skill_id == Skill.GetID("Peace_and_Harmony") or
-                self.skills[slot].skill_id == Skill.GetID("Purge_Signet") or
-                self.skills[slot].skill_id == Skill.GetID("Resilient_Weapon")
-                ):
-                return Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
-
-            if (self.skills[slot].skill_id == Skill.GetID("Gaze_from_Beyond") or
-                self.skills[slot].skill_id == Skill.GetID("Spirit_Burn") or
-                self.skills[slot].skill_id == Skill.GetID("Signet_of_Ghostly_Might")
-                ):
-                return True if TargetNearestSpirit() != 0 else False
-
+            if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
+            """ check all UniqueProperty skills """
+            if self.skills[slot].skill_id in self.custom_skill_evaluations:
+                return self.custom_skill_evaluations[self.skills[slot].skill_id](Conditions, vTarget)
             return True  # if no unique property is configured, return True for all UniqueProperty
 
         feature_count += (1 if Conditions.IsAlive else 0)
