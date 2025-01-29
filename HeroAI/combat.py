@@ -419,10 +419,10 @@ class CombatClass:
         if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
             """ check all UniqueProperty skills """
             if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
-            """ check all UniqueProperty skills """
-            if self.skills[slot].skill_id in self.custom_skill_evaluations:
-                return self.custom_skill_evaluations[self.skills[slot].skill_id](Conditions, vTarget)
-            return True  # if no unique property is configured, return True for all UniqueProperty
+                """ check all UniqueProperty skills """
+                if self.skills[slot].skill_id in self.custom_skill_evaluations:
+                    return self.custom_skill_evaluations[self.skills[slot].skill_id](Conditions, vTarget)
+                return True  # if no unique property is configured, return True for all UniqueProperty
 
         feature_count += (1 if Conditions.IsAlive else 0)
         feature_count += (1 if Conditions.HasCondition else 0)
