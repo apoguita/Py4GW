@@ -1,7 +1,7 @@
 from Py4GWCoreLib import *
 from .custom_skill import *
 from .types import *
-from .utils import IsCombatEnabled, IsTargettingEnabled
+from .utils import IsCombatEnabled, IsTargetingEnabled
 from .targetting import *
 
 MAX_SKILLS = 8
@@ -85,49 +85,6 @@ class CombatClass:
         self.stay_alert_timer = Timer()
         self.stay_alert_timer.Start()
         self.oldCalledTarget = 0
-        self.custom_skill_evaluations = {}
-        self.PopulteSkillEvaluation()
-
-    def PopulteSkillEvaluation(self):
-        self.custom_skill_evaluations[Skill.GetID("Energy_Drain")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
-        self.custom_skill_evaluations[Skill.GetID("Energy_Tap")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
-        self.custom_skill_evaluations[Skill.GetID("Ether_Lord")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
-        self.custom_skill_evaluations[Skill.GetID("Essence_Strike")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy and (TargetNearestSpirit() != 0)
-        self.custom_skill_evaluations[Skill.GetID("Glowing_Signet")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy and self.HasEffect(vTarget, Skill.GetID("Burning"))
-        self.custom_skill_evaluations[Skill.GetID("Clamor_of_Souls")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy and Agent.GetWeaponType(Player.GetAgentID())[0] == 0
-        self.custom_skill_evaluations[Skill.GetID("Waste_Not_Want_Not")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy and not Agent.IsCasting(vTarget) and not Agent.IsAttacking(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Mend_Body_and_Soul")] = lambda Conditions, vTarget: Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife and not Agent.IsCasting(vTarget) and not Agent.IsConditioned(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Grenths_Balance")] = lambda Conditions, vTarget: Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife and Agent.GetHealth(Player.GetAgentID()) < Agent.GetHealth(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Deaths_Retreat")] = lambda Conditions, vTarget: Agent.GetHealth(Player.GetAgentID()) < Agent.GetHealth(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Plague_Sending")] = lambda Conditions, vTarget: Agent.IsConditioned(Player.GetAgentID())
-        self.custom_skill_evaluations[Skill.GetID("Plague_Signet")] = lambda Conditions, vTarget: Agent.IsConditioned(Player.GetAgentID())
-        self.custom_skill_evaluations[Skill.GetID("Plague_Touch")] = lambda Conditions, vTarget: Agent.IsConditioned(Player.GetAgentID())
-        self.custom_skill_evaluations[Skill.GetID("Golden_Fang_Strike")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
-        self.custom_skill_evaluations[Skill.GetID("Golden_Fox_Strike")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
-        self.custom_skill_evaluations[Skill.GetID("Golden_Lotus_Strike")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
-        self.custom_skill_evaluations[Skill.GetID("Golden_Phoenix_Strike")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
-        self.custom_skill_evaluations[Skill.GetID("Golden_Skull_Strike")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
-        self.custom_skill_evaluations[Skill.GetID("Brutal_Weapon")] = lambda Conditions, vTarget: Agent.IsEnchanted(Player.GetAgentID())
-        self.custom_skill_evaluations[Skill.GetID("Signet_of_Removal")] = lambda Conditions, vTarget: not Agent.IsEnchanted(vTarget) and Agent.IsConditioned(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Dwaynas_Kiss")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsEnchanted(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Unnatural_Signet")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsEnchanted(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Toxic_Chill")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsEnchanted(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Discord")] = lambda Conditions, vTarget: (Agent.IsHexed(vTarget) and Agent.IsConditioned(vTarget)) or Agent.IsEnchanted(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Empathic_Removal")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Iron_Palm")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Melandrus_Resilience")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Necrosis")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Peace_and_Harmony")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Purge_Signet")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Resilient_Weapon")] = lambda Conditions, vTarget: Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
-        self.custom_skill_evaluations[Skill.GetID("Gaze_from_Beyond")] = lambda Conditions, vTarget: TargetNearestSpirit() != 0
-        self.custom_skill_evaluations[Skill.GetID("Spirit_Burn")] = lambda Conditions, vTarget: TargetNearestSpirit() != 0
-        self.custom_skill_evaluations[Skill.GetID("Signet_of_Ghostly_Might")] = lambda Conditions, vTarget: TargetNearestSpirit() != 0
-
-
-
-
-
 
     def PrioritizeSkills(self):
         """
@@ -287,7 +244,7 @@ class CombatClass:
     def GetPartyTarget(self):
         party_number = Party.GetOwnPartyNumber()
         party_target = self.GetPartyTargetID()
-        if IsTargettingEnabled(party_number) and party_target != 0:
+        if IsTargetingEnabled(party_number) and party_target != 0:
             current_target = Player.GetTargetID()
             if current_target != party_target:
                 if Agent.IsLiving(party_target):
@@ -311,64 +268,64 @@ class CombatClass:
         v_target = 0
 
         party_number = Party.GetOwnPartyNumber()
-        if not IsTargettingEnabled(party_number): 
+        if not IsTargetingEnabled(party_number):
             return Player.GetTargetID()
 
-        targetting_strict = self.skills[slot].custom_skill_data.Conditions.TargettingStrict
-        target_alliegance = self.skills[slot].custom_skill_data.TargetAllegiance
+        targeting_strict = self.skills[slot].custom_skill_data.Conditions.TargetingStrict
+        target_allegiance = self.skills[slot].custom_skill_data.TargetAllegiance
 
-        if target_alliegance == Skilltarget.Enemy.value:
+        if target_allegiance == Skilltarget.Enemy.value:
             v_target = self.GetPartyTarget()
             if v_target == 0:
                 v_target = TargetNearestEnemy(self.get_combat_distance())
-        elif target_alliegance == Skilltarget.EnemyCaster.value:
+        elif target_allegiance == Skilltarget.EnemyCaster.value:
             v_target = TargetNearestEnemyCaster()
-            if v_target == 0 and not targetting_strict:
+            if v_target == 0 and not targeting_strict:
                 v_target = TargetNearestEnemy(self.get_combat_distance())
-        elif target_alliegance == Skilltarget.EnemyMartial.value:
+        elif target_allegiance == Skilltarget.EnemyMartial.value:
             v_target = TargetNearestEnemyMartial(self.get_combat_distance())
-            if v_target == 0 and not targetting_strict:
+            if v_target == 0 and not targeting_strict:
                 v_target = TargetNearestEnemy(self.get_combat_distance())
-        elif target_alliegance == Skilltarget.EnemyMartialMelee.value:
+        elif target_allegiance == Skilltarget.EnemyMartialMelee.value:
             v_target = TargetNearestEnemyMelee(self.get_combat_distance())
-            if v_target == 0 and not targetting_strict:
+            if v_target == 0 and not targeting_strict:
                 v_target = TargetNearestEnemy(self.get_combat_distance())
-        elif target_alliegance == Skilltarget.AllyMartialRanged.value:
+        elif target_allegiance == Skilltarget.AllyMartialRanged.value:
             v_target = TargetNearestEnemyRanged(self.get_combat_distance())
-            if v_target == 0 and not targetting_strict:
+            if v_target == 0 and not targeting_strict:
                 v_target = TargetNearestEnemy(self.get_combat_distance())
-        elif target_alliegance == Skilltarget.Ally.value:
+        elif target_allegiance == Skilltarget.Ally.value:
             v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-        elif target_alliegance == Skilltarget.AllyCaster.value:
+        elif target_allegiance == Skilltarget.AllyCaster.value:
             v_target = TargetLowestAllyCaster(filter_skill_id=self.skills[slot].skill_id)
-            if v_target == 0 and not targetting_strict:
+            if v_target == 0 and not targeting_strict:
                 v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-        elif target_alliegance == Skilltarget.AllyMartial.value:
+        elif target_allegiance == Skilltarget.AllyMartial.value:
             v_target = TargetLowestAllyMartial(filter_skill_id=self.skills[slot].skill_id)
-            if v_target == 0 and not targetting_strict:
+            if v_target == 0 and not targeting_strict:
                 v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-        elif target_alliegance == Skilltarget.AllyMartialMelee.value:
+        elif target_allegiance == Skilltarget.AllyMartialMelee.value:
             v_target = TargetLowestAllyMelee(filter_skill_id=self.skills[slot].skill_id)
-            if v_target == 0 and not targetting_strict:
+            if v_target == 0 and not targeting_strict:
                 v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-        elif target_alliegance == Skilltarget.AllyMartialRanged.value:
+        elif target_allegiance == Skilltarget.AllyMartialRanged.value:
             v_target = TargetLowestAllyRanged(filter_skill_id=self.skills[slot].skill_id)
-            if v_target == 0 and not targetting_strict:
+            if v_target == 0 and not targeting_strict:
                 v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-        elif target_alliegance == Skilltarget.OtherAlly.value:
+        elif target_allegiance == Skilltarget.OtherAlly.value:
             if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff.value:
                 v_target = TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
             else:
                 v_target = TargetLowestAlly(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
-        elif target_alliegance == Skilltarget.Self.value:
+        elif target_allegiance == Skilltarget.Self.value:
             v_target = Player.GetAgentID()
-        elif target_alliegance == Skilltarget.DeadAlly.value:
+        elif target_allegiance == Skilltarget.DeadAlly.value:
             v_target = TargetDeadAllyInAggro()
-        elif target_alliegance == Skilltarget.Spirit.value:
+        elif target_allegiance == Skilltarget.Spirit.value:
             v_target = TargetNearestSpirit()
-        elif target_alliegance == Skilltarget.Minion.value:
+        elif target_allegiance == Skilltarget.Minion.value:
             v_target = TargetLowestMinion()
-        elif target_alliegance == Skilltarget.Corpse.value:
+        elif target_allegiance == Skilltarget.Corpse.value:
             v_target = TargetNearestCorpse()
         else:
             v_target = self.GetPartyTarget()
@@ -423,8 +380,85 @@ class CombatClass:
 
         if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
             """ check all UniqueProperty skills """
-            if self.skills[slot].skill_id in self.custom_skill_evaluations:
-                return self.custom_skill_evaluations[self.skills[slot].skill_id](Conditions, vTarget)
+            if (self.skills[slot].skill_id == Skill.GetID("Energy_Drain") or 
+                self.skills[slot].skill_id == Skill.GetID("Energy_Tap") or
+                self.skills[slot].skill_id == Skill.GetID("Ether_Lord") 
+                ):
+                return Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+        
+            if (self.skills[slot].skill_id == Skill.GetID("Essence_Strike")):
+                energy = Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+                return energy and (TargetNearestSpirit() != 0)
+
+            if (self.skills[slot].skill_id == Skill.GetID("Glowing_Signet")):
+                energy= Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+                return energy and self.HasEffect(vTarget, Skill.GetID("Burning"))
+
+            if (self.skills[slot].skill_id == Skill.GetID("Clamor_of_Souls")):
+                energy = Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+                weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
+                return energy and weapon_type == 0
+
+            if (self.skills[slot].skill_id == Skill.GetID("Waste_Not_Want_Not")):
+                energy= Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+                return energy and not Agent.IsCasting(vTarget) and not Agent.IsAttacking(vTarget)
+
+            if (self.skills[slot].skill_id == Skill.GetID("Mend_Body_and_Soul")):
+                life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
+                return life and Agent.IsConditioned(vTarget)
+
+            if (self.skills[slot].skill_id == Skill.GetID("Grenths_Balance")):
+                life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
+                return life and Agent.GetHealth(Player.GetAgentID()) < Agent.GetHealth(vTarget)
+
+            if (self.skills[slot].skill_id == Skill.GetID("Deaths_Retreat")):
+                return Agent.GetHealth(Player.GetAgentID()) < Agent.GetHealth(vTarget)
+
+            if (self.skills[slot].skill_id == Skill.GetID("Plague_Sending") or
+                self.skills[slot].skill_id == Skill.GetID("Plague_Signet") or
+                self.skills[slot].skill_id == Skill.GetID("Plague_Touch")
+                ):
+                return Agent.IsConditioned(Player.GetAgentID())
+
+            if (self.skills[slot].skill_id == Skill.GetID("Golden_Fang_Strike") or
+                self.skills[slot].skill_id == Skill.GetID("Golden_Fox_Strike") or
+                self.skills[slot].skill_id == Skill.GetID("Golden_Lotus_Strike") or
+                self.skills[slot].skill_id == Skill.GetID("Golden_Phoenix_Strike") or
+                self.skills[slot].skill_id == Skill.GetID("Golden_Skull_Strike")
+                ):
+                return Agent.IsEnchanted(Player.GetAgentID())
+
+            if (self.skills[slot].skill_id == Skill.GetID("Brutal_Weapon")):
+                return not Agent.IsEnchanted(Player.GetAgentID())
+
+            if (self.skills[slot].skill_id == Skill.GetID("Signet_of_Removal")):
+                return not Agent.IsEnchanted(vTarget) and Agent.IsConditioned(vTarget)
+
+            if (self.skills[slot].skill_id == Skill.GetID("Dwaynas_Kiss") or
+                self.skills[slot].skill_id == Skill.GetID("Unnatural_Signet") or
+                self.skills[slot].skill_id == Skill.GetID("Toxic_Chill")
+                ):
+                return Agent.IsHexed(vTarget) or Agent.IsEnchanted(vTarget)
+
+            if (self.skills[slot].skill_id == Skill.GetID("Discord")):
+                return (Agent.IsHexed(vTarget) and Agent.IsConditioned(vTarget)) or (Agent.IsEnchanted(vTarget))
+
+            if (self.skills[slot].skill_id == Skill.GetID("Empathic_Removal") or
+                self.skills[slot].skill_id == Skill.GetID("Iron_Palm") or
+                self.skills[slot].skill_id == Skill.GetID("Melandrus_Resilience") or
+                self.skills[slot].skill_id == Skill.GetID("Necrosis") or
+                self.skills[slot].skill_id == Skill.GetID("Peace_and_Harmony") or
+                self.skills[slot].skill_id == Skill.GetID("Purge_Signet") or
+                self.skills[slot].skill_id == Skill.GetID("Resilient_Weapon")
+                ):
+                return Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
+
+            if (self.skills[slot].skill_id == Skill.GetID("Gaze_from_Beyond") or
+                self.skills[slot].skill_id == Skill.GetID("Spirit_Burn") or
+                self.skills[slot].skill_id == Skill.GetID("Signet_of_Ghostly_Might")
+                ):
+                return True if TargetNearestSpirit() != 0 else False
+
             return True  # if no unique property is configured, return True for all UniqueProperty
 
         feature_count += (1 if Conditions.IsAlive else 0)
@@ -445,7 +479,7 @@ class CombatClass:
         feature_count += (1 if Conditions.HasHex else 0)
         feature_count += (1 if Conditions.HasChant else 0)
         feature_count += (1 if Conditions.IsCasting else 0)
-        feature_count += (1 if Conditions.IsNockedDown else 0)
+        feature_count += (1 if Conditions.IsKnockedDown else 0)
         feature_count += (1 if Conditions.IsMoving else 0)
         feature_count += (1 if Conditions.IsAttacking else 0)
         feature_count += (1 if Conditions.IsHoldingItem else 0)
@@ -566,7 +600,7 @@ class CombatClass:
                         if casting_skill_id in Conditions.CastingSkillList:
                             number_of_features += 1
 
-        if Conditions.IsNockedDown:
+        if Conditions.IsKnockedDown:
             if Agent.IsKnockedDown(vTarget):
                 number_of_features += 1
                             
@@ -729,7 +763,7 @@ class CombatClass:
         from .utils import InAggro
         own_party_number = Party.GetOwnPartyNumber()
         
-        if not IsTargettingEnabled(own_party_number):
+        if not IsTargetingEnabled(own_party_number):
             return
 
         if not InAggro():
