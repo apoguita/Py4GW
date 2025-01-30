@@ -113,6 +113,8 @@ class AgentArray:
             Sorts agents by a specific attribute (e.g., health, distance, etc.).
             sorted_agents_by_health = Sort.ByAttribute(agent_array, 'GetHealth', descending=True)
             """
+            if agent_array is None:
+                return []
             return AgentArray.Sort.ByCondition(
                 agent_array,
                 condition_func=lambda agent_id: getattr(Agent, attribute)(agent_id),
@@ -128,6 +130,8 @@ class AgentArray:
                 condition_func=lambda agent_id: (Utils.Distance(Agent.GetXY(agent_id), (100, 200)), Agent.GetHealth(agent_id))
             )
             """
+            if agent_array is None:
+                return []
             return sorted(agent_array, key=condition_func, reverse=reverse)
 
 
@@ -137,6 +141,8 @@ class AgentArray:
             Sorts agents by their distance to a given (x, y) position.
             sorted_agents_by_distance = Sort.ByDistance(agent_array, (100, 200))
             """
+            if agent_array is None:
+                return []
             return AgentArray.Sort.ByCondition(
                 agent_array,
                 condition_func=lambda agent_id: Utils.Distance(
@@ -152,6 +158,8 @@ class AgentArray:
             Sorts agents by their health (HP).
             sorted_agents_by_health_desc = Sort.ByHealth(agent_array, descending=True)
             """
+            if agent_array is None:
+                return []
             return AgentArray.Sort.ByCondition(
                 agent_array,
                 condition_func=lambda agent_id: Agent.GetHealth(agent_id),
@@ -165,6 +173,8 @@ class AgentArray:
             Filters agents by an attribute, with support for negation.
             moving_agents = AgentArray.Filter.ByAttribute(agent_array, 'IsMoving')
             """
+            if agent_array is None:
+                return []
             def attribute_filter(agent_id):
                 if hasattr(Agent, attribute):
                     # Fetch the attribute value dynamically
@@ -190,6 +200,8 @@ class AgentArray:
                 lambda agent_id: Agent.IsMoving(agent_id) and Utils.Distance(Agent.GetXY(agent_id), (100, 200)) <= 500
             )
             """
+            if agent_array is None:
+                return []
             return list(filter(filter_func, agent_array))
 
 
@@ -199,6 +211,8 @@ class AgentArray:
             Filters agents based on their distance from a given position.
             agents_within_range = AgentArray.Filter.ByDistance(agent_array, (100, 200), 500)
             """
+            if agent_array is None:
+                return []
             def distance_filter(agent_id):
                 agent_x, agent_y = Agent.GetXY(agent_id)
                 distance = Utils.Distance((agent_x, agent_y), (pos[0], pos[1]))

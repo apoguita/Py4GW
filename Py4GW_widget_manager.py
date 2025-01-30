@@ -1,4 +1,3 @@
-
 from Py4GWCoreLib import *
 import importlib.util
 import os
@@ -6,49 +5,66 @@ import os
 module_name = "Widget Manager"
 ini_file_location = "Py4GW.ini"
 ini_handler = IniHandler(ini_file_location)
+sync_interval = 1000
 
 class WidgetHandler:
-    global ini_file_location, ini_handler
+    global ini_file_location, ini_handler, sync_interval
 
     def __init__(self, widgets_path="Widgets"):
         self.widgets_path = widgets_path
         self.widgets = {}  # {widget_name: {"module": module, "enabled": False, "configuring": False}}
+        self.widget_data_cache = {}  # Caches INI data to avoid constant reads
+        self.sync_interval = sync_interval
+        self.last_write_time = Timer()
+        self.last_write_time.Start()
+        
+        self._load_widget_cache()
+
+
+    def _load_widget_cache(self):
+        """Caches all INI settings **once** at startup to avoid repeated disk reads."""
+        for section in ini_handler.list_sections():
+            self.widget_data_cache[section] = {
+                "category": ini_handler.read_key(section, "category", "Miscellaneous"),
+                "subcategory": ini_handler.read_key(section, "subcategory", "Others"),
+                "enabled": ini_handler.read_bool(section, "enabled", True)
+            }
 
     def discover_widgets(self):
-        """Discover and load all valid widgets from the widgets directory."""
+        """Discover and load all valid widgets from the widgets directory (loads INI data once)."""
         try:
+            self._load_widget_cache()  # Cache INI values before discovery
+
             for file in os.listdir(self.widgets_path):
                 if file.endswith(".py"):
                     widget_path = os.path.join(self.widgets_path, file)
                     widget_name = os.path.splitext(file)[0]
+
                     try:
-                        # Load the widget module
+                        # Load widget module
                         widget_module = self.load_widget(widget_path)
 
-                        # Check if keys for the widget exist; if not, create them with defaults
-                        if not ini_handler.has_key(widget_name, "category"):
-                            ini_handler.write_key(widget_name, "category", "Miscellaneous")
-                        if not ini_handler.has_key(widget_name, "subcategory"):
-                            ini_handler.write_key(widget_name, "subcategory", "Others")
-                        if not ini_handler.has_key(widget_name, "enabled"):
-                            ini_handler.write_key(widget_name, "enabled", "True")
+                        # Load settings from cache instead of real-time INI reads
+                        category = self.widget_data_cache.get(widget_name, {}).get("category", "Miscellaneous")
+                        subcategory = self.widget_data_cache.get(widget_name, {}).get("subcategory", "Others")
+                        enabled = self.widget_data_cache.get(widget_name, {}).get("enabled", True)
 
-                        # Add the widget to the handler
+                        # Store widget
                         self.widgets[widget_name] = {
                             "module": widget_module,
-                            "enabled": ini_handler.read_bool(widget_name, "enabled", True),
-                            "configuring": False  # Default state for configuring
+                            "enabled": enabled,
+                            "configuring": False
                         }
 
                         Py4GW.Console.Log("WidgetHandler", f"Loaded widget: {widget_name}", Py4GW.Console.MessageType.Info)
+
                     except Exception as e:
                         Py4GW.Console.Log("WidgetHandler", f"Failed to load widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                         Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+
         except Exception as e:
             Py4GW.Console.Log("WidgetHandler", f"Unexpected error during widget discovery: {str(e)}", Py4GW.Console.MessageType.Error)
             Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
-
-
 
     def load_widget(self, widget_path):
         """Load a widget module dynamically from the given path."""
@@ -94,34 +110,58 @@ class WidgetHandler:
             Py4GW.Console.Log("WidgetHandler", f"Unexpected error during widget execution: {str(e)}", Py4GW.Console.MessageType.Error)
             Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
 
-    def save_widget_states(self):
-        """Save widget states to INI file."""
-        for widget_name, widget_info in self.widgets.items():
-            ini_handler.write_key(widget_name, "enabled", str(widget_info["enabled"]))
+    def save_widget_state(self, widget_name):
+        """Saves the state of a single widget instead of all at once."""
+        if widget_name in self.widgets:
+            ini_handler.write_key(widget_name, "enabled", str(self.widgets[widget_name]["enabled"]))
+
 
 
 
 initialized = False
 handler = WidgetHandler("Widgets")
 enable_all = ini_handler.read_bool(module_name, "enable_all", True)
+old_enable_all = enable_all
+
 window_module = ImGui.WindowModule(module_name, window_name="Widget Manager", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
 window_x = ini_handler.read_int(module_name, "x", 100)
 window_y = ini_handler.read_int(module_name, "y", 100)
-window_collapsed = ini_handler.read_bool(module_name, "collapsed", False)
-
 window_module.window_pos = (window_x, window_y)
-window_module.collapse = window_collapsed
 
-"""PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.153, 0.318, 0.929, 1.0))  # On color
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.6, 0.6, 0.9, 1.0))  # Hover color
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.6, 0.6, 0.6, 1.0))"""
+window_module.collapse = ini_handler.read_bool(module_name, "collapsed", True)
+current_window_collapsed = window_module.collapse
 
-def RGBToNormal(r, g, b, a):
-    return r / 255.0, g / 255.0, b / 255.0, a / 255.0
+
+write_timer = Timer()
+write_timer.Start()
+
+current_window_pos = window_module.window_pos
+
+
+
+def write_ini():
+    global module_name, window_module, enable_all, ini_handler
+    global write_timer, current_window_pos, current_window_collapsed, old_enable_all
+    if write_timer.HasElapsed(1000):
+        if current_window_pos[0] != window_module.window_pos[0] or current_window_pos[1] != window_module.window_pos[1]:
+            window_module.window_pos = (int(current_window_pos[0]), int(current_window_pos[1]))
+            ini_handler.write_key(module_name, "x", str(int(current_window_pos[0])))
+            ini_handler.write_key(module_name, "y", str(int(current_window_pos[1])))
+        
+        if current_window_collapsed != window_module.collapse:
+            window_module.collapse = current_window_collapsed
+            ini_handler.write_key(module_name, "collapsed", str(current_window_collapsed))
+            
+        if old_enable_all != enable_all:
+            enable_all = old_enable_all
+            ini_handler.write_key(module_name, "enable_all", str(enable_all))
+            
+        write_timer.Reset()
 
 def main():
-    global module_name,window_module, initialized, handler, enable_all, window_collapsed, ini_handler
+    global module_name,window_module, initialized, handler, enable_all, ini_handler
+    global current_window_pos, current_window_collapsed, old_enable_all
     try:
         if not initialized:
             handler.discover_widgets()
@@ -131,21 +171,14 @@ def main():
             PyImGui.set_next_window_size(window_module.window_size[0], window_module.window_size[1])     
             PyImGui.set_next_window_pos(window_module.window_pos[0], window_module.window_pos[1])
             PyImGui.set_next_window_collapsed(window_module.collapse, 0)
-
             window_module.first_run = False
 
-        new_collapsed = True
+        current_window_collapsed = True
         old_enable_all = enable_all
 
         if PyImGui.begin(window_module.window_name, window_module.window_flags):
-            pos = PyImGui.get_window_pos()
-            new_collapsed = PyImGui.is_window_collapsed()
-
-            if pos[0] != window_module.window_pos[0] or pos[1] != window_module.window_pos[1]:
-
-                ini_handler.write_key(module_name, "x", str(int(pos[0])))
-                ini_handler.write_key(module_name, "y", str(int(pos[1])))
-
+            current_window_pos = PyImGui.get_window_pos()
+            current_window_collapsed = False
             
             enable_all = PyImGui.checkbox("Toggle All Widgets", enable_all)
 
@@ -154,18 +187,22 @@ def main():
             if enable_all:
                 categorized_widgets = {}
                 
-                subcategory_color = RGBToNormal(255, 200, 100, 255)  # Example color for category
-                category_color = RGBToNormal(200, 255, 150, 255)  # Example color for subcategory
+                subcategory_color = Utils.RGBToNormal(255, 200, 100, 255)  # Example color for category
+                category_color = Utils.RGBToNormal(200, 255, 150, 255)  # Example color for subcategory
                     
+                # Use cached INI data instead of real-time INI reads
                 for widget_name, widget_info in handler.widgets.items():
-                    category = ini_handler.read_key(widget_name, "category", "Miscellaneous")
-                    subcategory = ini_handler.read_key(widget_name, "subcategory", "")
+                    widget_data = handler.widget_data_cache.get(widget_name, {})
+                    category = widget_data.get("category", "Miscellaneous")
+                    subcategory = widget_data.get("subcategory", "")
 
                     if category not in categorized_widgets:
                         categorized_widgets[category] = {}
                     if subcategory not in categorized_widgets[category]:
                         categorized_widgets[category][subcategory] = []
                     categorized_widgets[category][subcategory].append(widget_name)
+                  
+                # Render the UI using cached widget data
                   
                 for category, subcategories in categorized_widgets.items():
                     if PyImGui.collapsing_header(category):  # Render category
@@ -188,7 +225,8 @@ def main():
                                             new_enabled = PyImGui.checkbox(f"{widget_name}", widget_info["enabled"])
                                             if new_enabled != widget_info["enabled"]:
                                                 widget_info["enabled"] = new_enabled
-                                                handler.save_widget_states()
+                                                handler.save_widget_state(widget_name) 
+
                                             PyImGui.table_set_column_index(1)
                                             widget_info["configuring"] = ImGui.toggle_button(
                                                 IconsFontAwesome5.ICON_COG + f"##Configure{widget_name}",
@@ -202,12 +240,8 @@ def main():
                                     PyImGui.pop_style_color(1)
                     
         PyImGui.end()
-
-        if new_collapsed != window_collapsed:
-            ini_handler.write_key(module_name, "collapsed", str(new_collapsed))
-
-        if old_enable_all != enable_all:
-            ini_handler.write_key(module_name, "enable_all", str(enable_all))
+        
+        write_ini()
 
         if enable_all:
             handler.execute_enabled_widgets()

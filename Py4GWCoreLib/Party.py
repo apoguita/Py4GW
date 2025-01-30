@@ -1,12 +1,4 @@
 
-
-
-
-
-
-
-
-
 import PyParty
 
 from .Player import Player

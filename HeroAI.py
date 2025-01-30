@@ -24,7 +24,8 @@ def HandleOutOfCombat():
     if InAggro():
         return False
 
-    combat_handler.HandleCombat(ooc= True)
+    return combat_handler.HandleCombat(ooc= True)
+
 
 
 def HandleCombat():
@@ -35,8 +36,7 @@ def HandleCombat():
     if not InAggro():
         return False
 
-    combat_handler.ResetStayAlertTimer()
-    combat_handler.HandleCombat()
+    return combat_handler.HandleCombat()
 
 
 looting_item =0
@@ -52,11 +52,12 @@ def Loot():
     party_number = Party.GetOwnPartyNumber()
     if not IsLootingEnabled(party_number):  # halt operation if looting is disabled
         return False
-
+    
     if Inventory.GetFreeSlotCount() == 0:
         return False
-
+    
     item = TargetNearestItem()
+    
 
     if item == 0:
         looting_item = 0
@@ -69,14 +70,16 @@ def Loot():
 
     if target != looting_item:
         Player.ChangeTarget(looting_item)
+        #loot_timer.Reset()
         return True
-
-    if loot_timer.HasElapsed(500):
+    
+    if loot_timer.HasElapsed(500) and target == looting_item:
         Keystroke.PressAndRelease(Key.Space.value)
         loot_timer.Reset()
         #Player.Interact(item)
-
-    return True
+        return True
+    
+    return False
 
 
 
@@ -119,7 +122,7 @@ def Follow():
         follow_distance = FOLLOW_DISTANCE_OUT_OF_COMBAT
 
     if (oldAngle != follow_angle) and not Angle_changed:
-        oldAngle = follow_angle;
+        oldAngle = follow_angle
         Angle_changed = True
 
     angle_changed_pass = False
@@ -150,7 +153,7 @@ def UpdateStatus():
     global game_throttle_timer
     global combat_handler
 
-    throttle_allow = game_throttle_timer.HasElapsed(50)
+    throttle_allow = game_throttle_timer.HasElapsed(100)
     if throttle_allow:
         game_throttle_timer.Reset()
 
@@ -184,7 +187,7 @@ def UpdateStatus():
     if Agent.IsKnockedDown(Player.GetAgentID()): # halt operation if player is knocked down
         return
 
-
+    
     if throttle_allow:
         if combat_handler.InCastingRoutine():
             return
@@ -193,7 +196,7 @@ def UpdateStatus():
 
         if HandleOutOfCombat():
             return
-    
+        
         if Agent.IsMoving(Player.GetAgentID()):  # halt operation if player is moving
             return
 
@@ -205,6 +208,14 @@ def UpdateStatus():
 
         if HandleCombat():
            return
+       
+        #if were here we are not doing anything
+        #auto attack
+        combat_handler.ChooseTarget()
+
+
+       
+
 
 def TrueFalseColor(condition):
     if condition:

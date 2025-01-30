@@ -764,12 +764,14 @@ class CombatClass:
         own_party_number = Party.GetOwnPartyNumber()
         
         if not IsTargetingEnabled(own_party_number):
-            return
+            return False
 
         if not InAggro():
-            return
+            return False
 
-        if Player.GetTargetID() == 0 or (Player.GetTargetID() == Player.GetAgentID()):
+        _, target_aliegance = Agent.GetAlliegance(Player.GetTargetID())
+        
+        if Player.GetTargetID() == 0 or (target_aliegance != 'Enemy'):
                             
             nearest = TargetNearestEnemy()
             called_target = self.GetPartyTarget()
@@ -781,20 +783,26 @@ class CombatClass:
             elif nearest != 0:
                 attack_target = nearest
             else:
-                return
+                return False
 
-            #Player.ChangeTarget(attack_target)
-            weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
-            if weapon_type != 0 and interact and IsCombatEnabled(own_party_number):
-                Player.Interact(attack_target)
-                self.ResetStayAlertTimer()
+            Player.ChangeTarget(attack_target)
+            return True
+            """
+            if IsCombatEnabled(own_party_number):
+                weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
+                if weapon_type != 0 and interact:
+
+                    Player.Interact(attack_target)
+                    self.ResetStayAlertTimer()
+                    return True
+            """
         else:
             target_id = Player.GetTargetID()
             if not Agent.IsLiving(target_id):
                 return
 
             _, alliegeance = Agent.GetAlliegance(target_id)
-            if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and IsCombatEnabled(own_party_number):
+            if alliegeance == 'Enemy' and IsCombatEnabled(own_party_number):
                 Player.Interact(Player.GetTargetID())
                 self.ResetStayAlertTimer()
 
@@ -830,7 +838,7 @@ class CombatClass:
             return False
 
         if not Agent.IsLiving(target_agent_id):
-            return
+            return False
             
         self.in_casting_routine = True
 
