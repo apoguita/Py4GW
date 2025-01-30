@@ -34,6 +34,7 @@ class ItemArray:
         for bag_enum in bags_to_check:
             try:
                 # Create a Bag instance
+                
                 bag_instance = PyInventory.Bag(bag_enum.value, bag_enum.name)
             
                 # Get all items in the bag
@@ -42,7 +43,7 @@ class ItemArray:
                 # Extract item IDs and append to the result list
                 item_ids_in_bag = [item.item_id for item in items_in_bag]
                 all_item_ids.extend(item_ids_in_bag)
-            
+
             except Exception as e:
                 Py4GW.Console.Log("GetItemArray", f"Error retrieving items from {bag_enum.name}: {str(e)}", Py4GW.Console.MessageType.Error)
     

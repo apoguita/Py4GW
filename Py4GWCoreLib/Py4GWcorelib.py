@@ -38,18 +38,20 @@ class IniHandler:
         Initialize the handler with the given INI file.
         """
         self.filename = filename
+        self.last_modified = 0
+        self.config = configparser.ConfigParser()
 
     # ----------------------------
     # Core Methods
     # ----------------------------
 
     def reload(self) -> configparser.ConfigParser:
-        """
-        Reload the INI file and return a fresh config object.
-        """
-        config = configparser.ConfigParser()
-        config.read(self.filename)
-        return config
+        """Reload the INI file only if it has changed."""
+        current_mtime = os.path.getmtime(self.filename)
+        if current_mtime != self.last_modified:
+            self.last_modified = current_mtime
+            self.config.read(self.filename)
+        return self.config
 
     def save(self, config: configparser.ConfigParser) -> None:
         """
@@ -177,6 +179,7 @@ class IniHandler:
             for key, value in config.items(source_section):
                 config.set(target_section, key, value)
             self.save(config)
+
 
 #utility Functions not especific of any process
 # Utils
