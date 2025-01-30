@@ -7,6 +7,7 @@ from .utils import *
 from .candidates import SendPartyCommand
 from .targetting import *
 from HeroAI import game_option
+from .combat import CombatClass
 
 
 def DrawBuffWindow():
@@ -37,27 +38,29 @@ def TrueFalseColor(condition):
         return RGBToNormal(255, 0, 0, 255)
 
 skill_slot = 0
-def DrawPrioritizedSkills():
+def DrawPrioritizedSkills(combat_handler: CombatClass):
     global skill_slot
     from .constants import NUMBER_OF_SKILLS
     from .combat import CombatClass
-    
 
-    combat_handler = CombatClass()
+    # combat_handler.PrioritizeSkills()
 
-    combat_handler.PrioritizeSkills()
- 
-    PyImGui.text(f"skill pointer: : {combat_handler.skill_pointer}")
     in_casting_routine = combat_handler.InCastingRoutine()
     PyImGui.text_colored(f"InCastingRoutine: {in_casting_routine}",TrueFalseColor(not in_casting_routine))
     PyImGui.text(f"aftercast_timer: {combat_handler.aftercast_timer.GetElapsedTime()}")
-
+    ordered_skills = combat_handler.GetOrderedSkills()
+    if ordered_skills is not None:
+        txt = "Sorted Utility Evaluations [{0:.0f}:{1:.2f}, {2:.0f}:{3:.2f}, {4:.0f}:{5:.2f}, {6:.0f}:{7:.2f}, {8:.0f}:{9:.2f}, {10:.0f}:{11:.2f}, {12:.0f}:{13:.2f}, {14:.0f}:{15:.2f}]"
+        txt2 = "Indexed Utility Evaluations [{0:.0f}:{1:.2f}, {2:.0f}:{3:.2f}, {4:.0f}:{5:.2f}, {6:.0f}:{7:.2f}, {8:.0f}:{9:.2f}, {10:.0f}:{11:.2f}, {12:.0f}:{13:.2f}, {14:.0f}:{15:.2f}]"
+        PyImGui.text(txt.format(ordered_skills[0][0]+1, ordered_skills[0][1], ordered_skills[1][0]+1, ordered_skills[1][1], ordered_skills[2][0]+1, ordered_skills[2][1], ordered_skills[3][0]+1, ordered_skills[3][1], ordered_skills[4][0]+1, ordered_skills[4][1], ordered_skills[5][0]+1, ordered_skills[5][1], ordered_skills[6][0]+1, ordered_skills[6][1], ordered_skills[7][0]+1, ordered_skills[7][1]))
+        ordered_skills = combat_handler.GetUnorderedSkillUtility()
+        if ordered_skills is not None:
+            PyImGui.text(txt2.format(ordered_skills[0][0]+1, ordered_skills[0][1], ordered_skills[1][0]+1, ordered_skills[1][1], ordered_skills[2][0]+1, ordered_skills[2][1], ordered_skills[3][0]+1, ordered_skills[3][1], ordered_skills[4][0]+1, ordered_skills[4][1], ordered_skills[5][0]+1, ordered_skills[5][1], ordered_skills[6][0]+1, ordered_skills[6][1], ordered_skills[7][0]+1, ordered_skills[7][1]))
     if PyImGui.begin_tab_bar("OrderedSkills"):
         skills = combat_handler.GetSkills()
         for i in range(len(skills)):
             slot = i
             skill = skills[i]
-        
             if PyImGui.begin_tab_item(Skill.GetName(skill.skill_id)):
                 if PyImGui.tree_node(f"Custom Properties"):
                     # Display skill properties
@@ -81,11 +84,11 @@ def DrawPrioritizedSkills():
                             PyImGui.text(f"{attr_name}: {attr_value}")
                     PyImGui.tree_pop()
 
-                
+
                 if PyImGui.tree_node(f"Combat debug"):
-                
+
                     is_skill_ready = combat_handler.IsSkillReady(slot)
-                    is_ooc_skill = combat_handler.IsOOCSkill(slot)  
+                    is_ooc_skill = combat_handler.IsOOCSkill(slot)
                     is_ready_to_cast, v_target = combat_handler.IsReadyToCast(skill_slot)
 
                     self_id = Player.GetAgentID()
@@ -112,9 +115,9 @@ def DrawPrioritizedSkills():
                     PyImGui.separator()
 
                     PyImGui.text_colored(f"IsSkillReady: {is_skill_ready}",TrueFalseColor(is_skill_ready))
-                    
+
                     PyImGui.text_colored(f"IsReadyToCast: {is_ready_to_cast}", TrueFalseColor(is_ready_to_cast))
-                    if PyImGui.tree_node(f"IsReadyToCast: {is_ready_to_cast}"): 
+                    if PyImGui.tree_node(f"IsReadyToCast: {is_ready_to_cast}"):
                         is_casting = Agent.IsCasting(Player.GetAgentID())
                         casting_skill = Agent.GetCastingSkill(Player.GetAgentID())
                         skillbar_casting = SkillBar.GetCasting()
@@ -127,7 +130,7 @@ def DrawPrioritizedSkills():
 
                         adrenaline_required = Skill.Data.GetAdrenaline(combat_handler.GetOrderedSkill(skill_slot).skill_id)
                         adrenaline_a = combat_handler.GetOrderedSkill(skill_slot).skillbar_data.adrenaline_a
-                    
+
                         current_overcast = Agent.GetOvercast(Player.GetAgentID())
                         overcast_target = combat_handler.GetOrderedSkill(skill_slot).custom_skill_data.Conditions.Overcast
                         skill_overcast = Skill.Data.GetOvercast(combat_handler.GetOrderedSkill(skill_slot).skill_id)
@@ -139,13 +142,13 @@ def DrawPrioritizedSkills():
                         PyImGui.text_colored(f"IsCasting: {is_casting}", TrueFalseColor(not is_casting))
                         PyImGui.text_colored(f"CastingSkill: {casting_skill}", TrueFalseColor(not casting_skill != 0))
                         PyImGui.text_colored(f"SkillBar Casting: {skillbar_casting}", TrueFalseColor(not skillbar_casting != 0))
-                        PyImGui.text_colored(f"SkillBar recharge: {skillbar_recharge}", TrueFalseColor(skillbar_recharge == 0))  
+                        PyImGui.text_colored(f"SkillBar recharge: {skillbar_recharge}", TrueFalseColor(skillbar_recharge == 0))
                         PyImGui.text_colored(f"Energy: {current_energy} / Cost {energy_cost}", TrueFalseColor(current_energy >= energy_cost))
 
                         PyImGui.text_colored(f"Current HP: {current_hp} / Target HP: {target_hp} / Health Cost: {health_cost}", TrueFalseColor(health_cost == 0 or current_hp >= health_cost))
                         PyImGui.text_colored(f"Adrenaline Required: {adrenaline_required}", TrueFalseColor(adrenaline_required == 0 or (adrenaline_a >= adrenaline_required)))
                         PyImGui.text_colored(f"Current Overcast: {current_overcast} / Overcast Target: {overcast_target} / Skill Overcast: {skill_overcast}", TrueFalseColor(current_overcast >= overcast_target or skill_overcast == 0))
-                    
+
                         PyImGui.text_colored(f"AreCastConditionsMet: {are_cast_conditions_met}", TrueFalseColor(are_cast_conditions_met))
                         PyImGui.text_colored(f"SpiritBuffExists: {spirit_buff_exists}", TrueFalseColor(not spirit_buff_exists))
                         PyImGui.text_colored(f"HasEffect: {has_effect}", TrueFalseColor(not has_effect))
@@ -155,7 +158,7 @@ def DrawPrioritizedSkills():
                     PyImGui.tree_pop()
 
                     PyImGui.text_colored(f"IsOOCSkill: {is_ooc_skill}",TrueFalseColor(is_ooc_skill))
-                
+
                 PyImGui.end_tab_item()
         PyImGui.end_tab_bar()
 
@@ -506,11 +509,10 @@ def DrawFlagDebug():
         if HeroFlags[i]:
             PyImGui.text(f"Hero {i + 1} is flagged")
 
-def DrawFollowDebug():
+def DrawFollowDebug(combat_handler: CombatClass):
     global show_area_rings, show_hero_follow_grid, show_distance_on_followers, overlay
     global Angle_changed
-    from .combat import CombatClass
-    combat_handler = CombatClass()
+
 
     if PyImGui.button("reset overlay"):
         overlay.RefreshDrawList()
@@ -567,7 +569,7 @@ def DrawFollowDebug():
 
 
 
-def DrawDebugWindow():
+def DrawDebugWindow(combat_handler: CombatClass):
     global MAX_NUM_PLAYERS, HeroAI_vars, Debug_window_vars
 
     if PyImGui.collapsing_header("Candidates Debug"):
@@ -586,13 +588,13 @@ def DrawDebugWindow():
         if PyImGui.collapsing_header("Flag Debug"):
             DrawFlagDebug()
         if PyImGui.collapsing_header("Prioritized Skills"):
-            DrawPrioritizedSkills()
+            DrawPrioritizedSkills(combat_handler)
         if PyImGui.collapsing_header("Buff Debug"):
             DrawBuffWindow()
 
 
 
-def DrawMultiboxTools():
+def DrawMultiboxTools(combat_handler: CombatClass):
     global MAX_NUM_PLAYERS, HeroAI_vars, HeroAI_windows
 
     HeroAI_windows.tools_window.initialize()
@@ -605,7 +607,7 @@ def DrawMultiboxTools():
             if PyImGui.collapsing_header("Flagging"):
                 DrawFlaggingWindow()
         if PyImGui.collapsing_header("Debug Options"):
-            DrawDebugWindow()
+            DrawDebugWindow(combat_handler)
 
     
     HeroAI_windows.tools_window.process_window()

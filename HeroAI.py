@@ -168,7 +168,7 @@ def UpdateStatus():
 
     DrawMainWindow()
     DrawControlPanelWindow()
-    DrawMultiboxTools()
+    DrawMultiboxTools(combat_handler)
 
     if not Map.IsExplorable():  # halt operation outside explorable areas
         return
@@ -189,7 +189,7 @@ def UpdateStatus():
         if combat_handler.InCastingRoutine():
             return
 
-        combat_handler.PrioritizeSkills()
+        # combat_handler.PrioritizeSkills()
 
         if HandleOutOfCombat():
             return

@@ -5,6 +5,14 @@ from .utils import IsCombatEnabled, IsTargetingEnabled
 from .targetting import *
 
 MAX_SKILLS = 8
+# Starting evaluation, assume skill is moderately viable action. This can be tuned as more of the engine uses utility evals
+SKILL_STARTING_EVALUATION = 0.5
+# Weight skills left to right for dynamic in game user priority options
+SKILL_SLOT_WEIGHTS = [1, 0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93]
+# Set to 1 to disable, this is a used to slightly penalize spamming the same skill
+SKILL_REPETITION_PENALTY = 0.95
+# integer representing how many skills are remembered in history to apply repetition penalty
+SKILL_REPETITION_DEPTH = 3
 custom_skill_data_handler = CustomSkillClass()
 
 SPIRIT_BUFF_MAP = {
@@ -62,7 +70,7 @@ SPIRIT_BUFF_MAP = {
 }
 
 class CombatClass:
-    global MAX_SKILLS, custom_skill_data_handler
+    global MAX_SKILLS, custom_skill_data_handler, SKILL_STARTING_EVALUATION, SKILL_SLOT_WEIGHTS, SKILL_REPETITION_PENALTY, SKILL_REPETITION_DEPTH
 
     class SkillData:
         def __init__(self, slot):
@@ -76,7 +84,6 @@ class CombatClass:
         """
         self.skills = []
         self.skill_order = [0] * MAX_SKILLS
-        self.skill_pointer = 0
         self.in_casting_routine = False
         self.aftercast = 0
         self.aftercast_timer = Timer()
@@ -87,6 +94,49 @@ class CombatClass:
         self.oldCalledTarget = 0
         self.custom_skill_evaluations = {}
         self.PopulateSkillEvaluation()
+        self.PopulateSkills()
+        self.ordered_skill_utility = None
+        self.unordered_skill_utility = None
+        # this will be a 1 based index that uses the 0 index element as a pointer to the current index location
+        self.skill_history = [0] * (SKILL_REPETITION_DEPTH + 1)
+        self.skillnature_priorities = {
+            SkillNature.Interrupt : 2,
+            SkillNature.Enchantment_Removal : 1.95,
+            SkillNature.Healing : 1.9,
+            SkillNature.Hex_Removal : 1.85,
+            SkillNature.Condi_Cleanse : 1.8,
+            SkillNature.EnergyBuff : 1.75,
+            SkillNature.Resurrection : 1.7,
+            SkillNature.Buff : 1.6
+        }
+        self.skilltype_priorities = {
+            SkillType.Form: 1,
+            SkillType.Enchantment : 0.99,
+            SkillType.EchoRefrain : 0.98,
+            SkillType.WeaponSpell : 0.97,
+            SkillType.Chant : 0.96,
+            SkillType.Preparation : 0.95,
+            SkillType.Ritual : 0.94,
+            SkillType.Ward : 0.93,
+            SkillType.Well : 0.92,
+            SkillType.Stance : 0.91,
+            SkillType.Shout : 0.90,
+            SkillType.Glyph : 0.89,
+            SkillType.Signet : 0.88,
+            SkillType.Hex : 0.87,
+            SkillType.Trap : 0.86,
+            SkillType.Spell : 0.85,
+            SkillType.Skill : 0.84,
+            SkillType.PetAttack : 0.83,
+            SkillType.Attack : 0.82,
+        }
+
+
+    def PopulateSkills(self):
+        original_skills = []
+        for i in range(MAX_SKILLS):
+            original_skills.append(self.SkillData(i + 1))
+        self.skills = original_skills
 
     def PopulateSkillEvaluation(self):
         self.custom_skill_evaluations[Skill.GetID("Energy_Drain")] = lambda Conditions, vTarget: Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
@@ -123,6 +173,57 @@ class CombatClass:
         self.custom_skill_evaluations[Skill.GetID("Gaze_from_Beyond")] = lambda Conditions, vTarget: TargetNearestSpirit() != 0
         self.custom_skill_evaluations[Skill.GetID("Spirit_Burn")] = lambda Conditions, vTarget: TargetNearestSpirit() != 0
         self.custom_skill_evaluations[Skill.GetID("Signet_of_Ghostly_Might")] = lambda Conditions, vTarget: TargetNearestSpirit() != 0
+
+    def EvaluateSkillUtility(self, slot, ooc) -> float:
+        """Evaluate the utility of a skill in the given slot"""
+        eval = 0.5
+        eval *= self.IsSkillReady(slot)
+        if not eval: return 0
+        is_read_to_cast, target_agent_id = self.IsReadyToCast(slot)
+        eval *= is_read_to_cast
+        if not eval: return 0
+        if ooc and not self.IsOOCSkill(slot): eval = 0
+        if target_agent_id == 0: eval = 0
+        if not Agent.IsLiving(target_agent_id): eval = 0
+        eval *= SKILL_SLOT_WEIGHTS[slot]
+        rep_pen = self.skill_history.count(slot) * SKILL_REPETITION_PENALTY
+        if rep_pen: eval *= rep_pen
+
+        skill = self.skills[slot]
+        skill_id = self.skills[slot].skill_id
+        energy_cost = Skill.Data.GetEnergyCost(skill_id)
+        if energy_cost > 0:
+            current_energy_percent = Agent.GetEnergy(Player.GetAgentID())
+            current_energy = current_energy_percent * Agent.GetMaxEnergy(Player.GetAgentID())
+            # cost percent inverse, abbreviated for readability on following line
+            cpi = 1 - (energy_cost / current_energy)
+            # cubic ease in and out math function below
+            energy_penalty = 4 * cpi ** 3 if cpi < 0.5 else 1 - (-2 * cpi + 2) ** 3 / 2
+            eval *= energy_penalty
+
+        health_cost = Skill.Data.GetHealthCost(skill_id)
+        if health_cost > 0:
+            current_hp = Agent.GetHealth(Player.GetAgentID())
+            cpi = 1 - (energy_cost / current_health)
+            # cubic ease in and out math function below
+            health_penalty = 4 * cpi ** 3 if cpi < 0.5 else 1 - (-2 * cpi + 2) ** 3 / 2
+            eval *= health_penalty
+
+        if skill.custom_skill_data.Nature in self.skillnature_priorities: eval *= self.skillnature_priorities[skill.custom_skill_data.Nature]
+        if skill.custom_skill_data.SkillType in self.skilltype_priorities: eval *= self.skilltype_priorities[skill.custom_skill_data.SkillType]
+
+        return round(eval, 5)
+
+    def CalcSkillsUtility(self, ooc):
+        evals = [0] * MAX_SKILLS
+        for i in range(MAX_SKILLS):
+            evals[i] = (i, self.EvaluateSkillUtility(i, ooc))
+        self.unordered_skill_utility = list(evals)
+        evals.sort(key=lambda n: n[1], reverse=True)
+        return evals
+
+    def GetSkillTypePriority(self, slot):
+        return None
 
     def PrioritizeSkills(self):
         """
@@ -211,13 +312,17 @@ class CombatClass:
         
         self.skills = ordered_skills
         
-        
     def GetSkills(self):
         """
         Retrieve the prioritized skill set.
         """
         return self.skills
-        
+
+    def GetOrderedSkills(self):
+        return self.ordered_skill_utility
+
+    def GetUnorderedSkillUtility(self):
+        return self.unordered_skill_utility
 
     def GetOrderedSkill(self, index):
         """
@@ -226,11 +331,6 @@ class CombatClass:
         if 0 <= index < MAX_SKILLS:
             return self.skills[index]
         return None  # Return None if the index is out of bounds
-
-    def AdvanceSkillPointer(self):
-        self.skill_pointer += 1
-        if self.skill_pointer >= MAX_SKILLS:
-            self.skill_pointer = 0
 
     def IsSkillReady(self, slot):
         if self.skills[slot].skill_id == 0:
@@ -276,8 +376,7 @@ class CombatClass:
         if target is None or target == 0:
             return 0
         else:
-            return target   
-
+            return target
 
     def GetPartyTarget(self):
         party_number = Party.GetOwnPartyNumber()
@@ -403,7 +502,6 @@ class CombatClass:
          
         return result
 
-
     def AreCastConditionsMet(self, slot, vTarget):
         from .globals import HeroAI_vars
         number_of_features = 0
@@ -418,11 +516,9 @@ class CombatClass:
 
         if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
             """ check all UniqueProperty skills """
-            if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
-                """ check all UniqueProperty skills """
-                if self.skills[slot].skill_id in self.custom_skill_evaluations:
-                    return self.custom_skill_evaluations[self.skills[slot].skill_id](Conditions, vTarget)
-                return True  # if no unique property is configured, return True for all UniqueProperty
+            if self.skills[slot].skill_id in self.custom_skill_evaluations:
+                return self.custom_skill_evaluations[self.skills[slot].skill_id](Conditions, vTarget)
+            return True  # if no unique property is configured, return True for all UniqueProperty
 
         feature_count += (1 if Conditions.IsAlive else 0)
         feature_count += (1 if Conditions.HasCondition else 0)
@@ -610,7 +706,6 @@ class CombatClass:
 
         return False
 
-
     def SpiritBuffExists(self,skill_id):
         spirit_array = AgentArray.GetSpiritPetArray()
         distance = Range.Earshot.value
@@ -622,7 +717,6 @@ class CombatClass:
             if SPIRIT_BUFF_MAP.get(spirit_model_id) == skill_id:
                 return True
         return False
-
 
     def IsReadyToCast(self, slot):
         # Check if the player is already casting
@@ -761,39 +855,18 @@ class CombatClass:
                 Player.Interact(Player.GetTargetID())
                 self.ResetStayAlertTimer()
 
-
     def HandleCombat(self, ooc=False):
         """
-        tries to Execute the next skill in the skill order.
+        tries to Execute the best skill available.
         """
-       
-        slot = self.skill_pointer
+        global SKILL_REPETITION_DEPTH
+        self.PopulateSkills() #This also updates the skillbar data
+        self.ordered_skill_utility = self.CalcSkillsUtility(ooc)
+        slot = self.ordered_skill_utility[0][0]
+        eval = self.ordered_skill_utility[0][1]
+        if not eval: return False
         skill_id = self.skills[slot].skill_id
-        
-        is_skill_ready = self.IsSkillReady(slot)
-            
-        if not is_skill_ready:
-            self.AdvanceSkillPointer()
-            return False
-            
-        is_read_to_cast, target_agent_id = self.IsReadyToCast(slot)
-            
-        if not is_read_to_cast:
-            self.AdvanceSkillPointer()
-            return False
-        
-        is_ooc_skill = self.IsOOCSkill(slot)
-
-        if ooc and not is_ooc_skill:
-            self.AdvanceSkillPointer()
-            return False
-
-        if target_agent_id == 0:
-            self.AdvanceSkillPointer()
-            return False
-
-        if not Agent.IsLiving(target_agent_id):
-            return
+        _, target_agent_id = self.IsReadyToCast(slot)
             
         self.in_casting_routine = True
 
@@ -802,8 +875,11 @@ class CombatClass:
         self.aftercast += self.ping_handler.GetCurrentPing()
 
         self.aftercast_timer.Reset()
-        SkillBar.UseSkill(self.skill_order[self.skill_pointer]+1, target_agent_id)
+        SkillBar.UseSkill(slot+1, target_agent_id)
+        self.skill_history[self.skill_history[0]] = slot
+        self.skill_history[0] += 1
+        if self.skill_history[0] > SKILL_REPETITION_DEPTH:
+            self.skill_history[0] = 1
         if not ooc:
             self.ResetStayAlertTimer()
-        self.AdvanceSkillPointer()
         return True
