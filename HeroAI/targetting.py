@@ -27,10 +27,10 @@ def FilterAllyArray(array, distance, other_ally=False, filter_skill_id=0):
     return array
 
 
-
-
-
 def GetFirstFromArray(array):
+    if array is None:
+        return 0
+    
     if len(array) > 0:
         return array[0]
     return 0

@@ -7,7 +7,13 @@ root_directory = os.path.normpath(os.path.join(script_directory, ".."))
 ini_file_location = os.path.join(root_directory, "Widgets/Config/Travel.ini")
 
 ini_handler = IniHandler(ini_file_location)
+save_throttle_time = 1000
+save_throttle_timer = Timer()
+save_throttle_timer.Start()
 
+game_throttle_time = 50
+game_throttle_timer = Timer()
+game_throttle_timer.Start()
 
 class Config:
     global ini_handler, module_name
@@ -32,6 +38,8 @@ config_module = ImGui.WindowModule(f"Config {module_name}", window_name="Travel 
 
 search_outpost = ""
 is_traveling = False
+is_map_ready = False
+is_party_loaded = False
 
 window_x = ini_handler.read_int(module_name +str(" Config"), "x", 100)
 window_y = ini_handler.read_int(module_name +str(" Config"), "y", 100)
@@ -73,14 +81,18 @@ def configure():
     PyImGui.end()
     
     if end_pos[0] != config_module.window_pos[0] or end_pos[1] != config_module.window_pos[1]:
-            ini_handler.write_key(module_name + " Config", "config_x", str(int(end_pos[0])))
-            ini_handler.write_key(module_name + " Config", "config_y", str(int(end_pos[1])))
+        config_module.window_pos = (int(end_pos[0]), int(end_pos[1]))
+        ini_handler.write_key(module_name + " Config", "config_x", str(int(end_pos[0])))
+        ini_handler.write_key(module_name + " Config", "config_y", str(int(end_pos[1])))
 
     if new_collapsed != config_module.collapse:
+        config_module.collapse = new_collapsed
         ini_handler.write_key(module_name + " Config", "config_collapsed", str(new_collapsed))
+        
 
 def DrawWindow():
     global is_traveling, widget_config, search_outpost, window_module
+    global game_throttle_time, game_throttle_timer
     
     try:
         if window_module.first_run:
@@ -145,12 +157,17 @@ def DrawWindow():
             end_pos = PyImGui.get_window_pos()
         PyImGui.end()
 
-        if end_pos[0] != window_module.window_pos[0] or end_pos[1] != window_module.window_pos[1]:
-            ini_handler.write_key(module_name + " Config", "x", str(int(end_pos[0])))
-            ini_handler.write_key(module_name + " Config", "y", str(int(end_pos[1])))
+        if save_throttle_timer.HasElapsed(save_throttle_time):
+            if end_pos[0] != window_module.window_pos[0] or end_pos[1] != window_module.window_pos[1]:
+                window_module.window_pos = (int(end_pos[0]), int(end_pos[1]))
+                ini_handler.write_key(module_name + " Config", "x", str(int(end_pos[0])))
+                ini_handler.write_key(module_name + " Config", "y", str(int(end_pos[1])))
 
-        if new_collapsed != window_module.collapse:
-            ini_handler.write_key(module_name + " Config", "collapsed", str(new_collapsed))
+            if new_collapsed != window_module.collapse:
+                window_module.collapse = new_collapsed
+                ini_handler.write_key(module_name + " Config", "collapsed", str(new_collapsed))
+                
+            save_throttle_timer.Reset()
 
     except Exception as e:
         is_traveling = False
@@ -159,9 +176,17 @@ def DrawWindow():
 
 def main():
     """Required main function for the widget"""
+    global game_throttle_timer, game_throttle_time
+    global is_map_ready, is_party_loaded
     try:
-        if Map.IsMapReady() and Party.IsPartyLoaded():
+        if game_throttle_timer.HasElapsed(game_throttle_time):
+            is_map_ready = Map.IsMapReady()
+            is_party_loaded = Party.IsPartyLoaded()
+            game_throttle_timer.Start()
+            
+        if is_map_ready and is_party_loaded:
             DrawWindow()
+            
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in main: {str(e)}", Py4GW.Console.MessageType.Debug)
         return False

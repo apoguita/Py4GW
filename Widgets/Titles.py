@@ -65,9 +65,36 @@ lightbringer_map_names = {
     "The Sulfurous Wastes", "Throne of Secrets", "Vehtendi Valley", "Yatendi Canyons"
 }
 
+game_throttle_time = 50
+game_throttle_timer = Timer()
+game_throttle_timer.Start()
+
+is_map_ready = False
+is_party_loaded = False
+is_explorable = False
+map_name = ""
+
+
 def main():
     global widget_config
-    if (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded() and widget_config.title_applied == False):
+    global game_throttle_timer, game_throttle_time
+    global asuran_map_names, deldrimor_map_names, norn_map_names, vanguard_map_names, lightbringer_map_names
+    global is_map_ready, is_party_loaded, is_explorable, map_name
+    
+    if game_throttle_timer.HasElapsed(game_throttle_time):
+        is_map_ready = Map.IsMapReady()
+        is_party_loaded = Party.IsPartyLoaded()
+        is_explorable = Map.IsExplorable()
+        
+        if is_map_ready and is_party_loaded and is_explorable:
+             map_name = Map.GetMapName()
+             
+        game_throttle_timer.Reset()
+    
+    if not is_explorable:
+        widget_config.title_applied = False
+    
+    if (is_map_ready and is_party_loaded and is_explorable and widget_config.title_applied == False):
          # Check which set the map name belongs to and return the corresponding TitleID
         map_name = Map.GetMapName()
         if map_name in asuran_map_names:
@@ -80,12 +107,8 @@ def main():
             Player.SetActiveTitle(TitleID.Vanguard.value)
         elif map_name in lightbringer_map_names:
             Player.SetActiveTitle(TitleID.Lightbringer.value)
-        else:
-            return None  # Default if no match found
         widget_config.title_applied = True
         
-    if not Map.IsExplorable():
-        widget_config.title_applied = False
 
 if __name__ == "__main__":
     main()
