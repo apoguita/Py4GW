@@ -1,65 +1,46 @@
 from Py4GWCoreLib import *
 from .constants import MAX_NUM_PLAYERS
-from .globals import HeroAI_vars, overlay
+from .globals import overlay
 from .targetting import *
 
 import math
 
-def DistanceFromLeader():
-    return Utils.Distance(Agent.GetXY(Party.GetPartyLeaderID()),Player.GetXY())
+def DistanceFromLeader(cached_data):
+    return Utils.Distance(cached_data.party_leader_xy,cached_data.player_xy)
 
 def DistanceFromWaypoint(posX,posY):
     return Utils.Distance((posX,posY), Player.GetXY())
 
 
-def DegToRad(degrees):
-    return degrees * (math.pi / 180)
-
-
-def RadToDeg(radians):
-    return radians * (180 / math.pi)
-
-
-def RGBToColor(r, g, b, a):
-    return (a << 24) | (b << 16) | (g << 8) | r
-
-
-def RGBToNormal(r, g, b, a):
-    return r / 255.0, g / 255.0, b / 255.0, a / 255.0
-    
-
 """ main configuration helpers """
 
-def IsFollowingEnabled(index):
-    global HeroAI_vars
-    return HeroAI_vars.all_game_option_struct[index].Following
+def IsFollowingEnabled(all_game_option_struct,index):
+    return all_game_option_struct[index].Following
 
-def IsAvoidanceEnabled(index):
-    global HeroAI_vars
-    return HeroAI_vars.all_game_option_struct[index].Avoidance
+def IsAvoidanceEnabled(all_game_option_struct,index):
+    return all_game_option_struct[index].Avoidance
 
-def IsLootingEnabled(index):
-    global HeroAI_vars
-    return HeroAI_vars.all_game_option_struct[index].Looting
+def IsLootingEnabled(all_game_option_struct,index):
+    return all_game_option_struct[index].Looting
 
-def IsTargetingEnabled(index):
-    global HeroAI_vars
-    return HeroAI_vars.all_game_option_struct[index].Targetting
+def IsTargetingEnabled(all_game_option_struct,index):
+    return all_game_option_struct[index].Targetting
 
-def IsCombatEnabled(index):
-    global HeroAI_vars
-    return HeroAI_vars.all_game_option_struct[index].Combat
+def IsCombatEnabled(all_game_option_struct,index):
+    return all_game_option_struct[index].Combat
+
+def IsSkillEnabled(all_game_option_struct,index,slot):
+    return all_game_option_struct[index].Skills[slot]
 
 
 def CheckForEffect(agent_id, skill_id):
     """this function needs to be expanded as more functionality is added"""
-    from .globals import HeroAI_vars
-
+    from .globals import HeroAI_varsClass  
+    shared_memory_handler = HeroAI_varsClass().shared_memory_handler
     def IsPartyMember(agent_id):
-        from .globals import HeroAI_vars
 
         for i in range(MAX_NUM_PLAYERS):
-            player_data = HeroAI_vars.shared_memory_handler.get_player(i)
+            player_data = shared_memory_handler.get_player(i)
             if player_data["IsActive"] and player_data["PlayerID"] == agent_id:
                 return True
         
@@ -67,7 +48,7 @@ def CheckForEffect(agent_id, skill_id):
 
     result = False
     if IsPartyMember(agent_id):
-        player_buffs = HeroAI_vars.shared_memory_handler.get_agent_buffs(agent_id)
+        player_buffs = shared_memory_handler.get_agent_buffs(agent_id)
         for buff in player_buffs:
             #Py4GW.Console.Log("HasEffect-player_buff", f"IsPartyMember: {self.IsPartyMember(agent_id)} agent ID: {agent_id}, effect {skill_id} buff {buff}", Py4GW.Console.MessageType.Info)
             if buff == skill_id:
@@ -78,15 +59,17 @@ def CheckForEffect(agent_id, skill_id):
     return result
 
 def GetEnergyValues(agent_id):
-    global HeroAI_vars
+    from .globals import HeroAI_varsClass
+    shared_memory_handler = HeroAI_varsClass().shared_memory_handler
+
     for i in range(MAX_NUM_PLAYERS):
-        if HeroAI_vars.all_player_struct[i].IsActive and HeroAI_vars.all_player_struct[i].PlayerID == agent_id:
-            return HeroAI_vars.all_player_struct[i].Energy #, HeroAI_vars.all_player_struct[i].Energy_Regen
+        player_data = shared_memory_handler.get_player(i)
+        if player_data["IsActive"] and player_data["PlayerID"] == agent_id:
+            return player_data["Energy"]
     return 1.0 #default return full energy to prevent issues
 
 
-def InAggro(aggro_range = Range.Earshot.value):
-    enemy_array = AgentArray.GetEnemyArray()
+def InAggro(enemy_array, aggro_range = Range.Earshot.value):
     distance = aggro_range
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= distance)
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
@@ -97,12 +80,11 @@ def InAggro(aggro_range = Range.Earshot.value):
     return False
 
 
-def IsHeroFlagged(index):
-    global HeroAI_vars
-    if  index != 0 and index <= Party.GetHeroCount():
+def IsHeroFlagged(cached_data,index):
+    if  index != 0 and index <= cached_data.party_hero_count:
         return Party.Heroes.IsHeroFlagged(index)
     else:
-        return HeroAI_vars.all_player_struct[index-Party.GetHeroCount()].IsFlagged and HeroAI_vars.all_player_struct[index-Party.GetHeroCount()].IsActive
+        return cached_data.HeroAI_vars.all_player_struct[index-cached_data.party_hero_count].IsFlagged and cached_data.HeroAI_vars.all_player_struct[index-cached_data.party_hero_count].IsActive
 
 
 def DrawFlagAll(pos_x, pos_y):

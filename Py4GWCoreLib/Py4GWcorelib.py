@@ -195,17 +195,28 @@ class Utils:
         """
         return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
     
+    @staticmethod
     def RGBToNormal(r, g, b, a):
         return r / 255.0, g / 255.0, b / 255.0, a / 255.0
     
+    @staticmethod
     def RGBToColor(r, g, b, a):
         return (a << 24) | (b << 16) | (g << 8) | r
     
+    @staticmethod
     def DegToRad(degrees):
         return degrees * (math.pi / 180)
 
+    @staticmethod
     def RadToDeg(radians):
         return radians * (180 / math.pi)
+    
+    @staticmethod
+    def TrueFalseColor(condition):
+        if condition:
+            return Utils.RGBToNormal(0, 255, 0, 255)
+        else:
+            return Utils.RGBToNormal(255, 0, 0, 255)
 
     class VectorFields:
         """
