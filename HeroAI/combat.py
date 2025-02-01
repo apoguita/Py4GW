@@ -1,7 +1,6 @@
 from Py4GWCoreLib import *
 from .custom_skill import *
 from .types import *
-from .utils import IsCombatEnabled, IsTargetingEnabled
 from .targetting import *
 
 MAX_SKILLS = 8
@@ -71,6 +70,7 @@ class CombatClass:
             self.custom_skill_data = custom_skill_data_handler.get_skill(self.skill_id)  # Retrieve custom skill data
 
     def __init__(self):
+        from .globals import HeroAI_varsClass
         """
         Initializes the CombatClass with an empty skill set and order.
         """
@@ -85,6 +85,26 @@ class CombatClass:
         self.stay_alert_timer = Timer()
         self.stay_alert_timer.Start()
         self.oldCalledTarget = 0
+        self.shared_memory_handler = HeroAI_varsClass().shared_memory_handler
+        
+        self.in_aggro = False
+        self.is_targetting_enabled = False
+        self.is_combat_enabled = False
+        
+        self.nearest_enemy = TargetNearestEnemy()
+        self.lowest_ally = TargetLowestAlly()
+        self.lowest_ally_energy = TargetLowestAllyEnergy()
+        self.nearest_npc = TargetNearestNpc()
+        self.nearest_item = TargetNearestItem()
+        self.nearest_spirit = TargetNearestSpirit()
+        self.lowest_minion = TargetLowestMinion()
+        self.nearest_corpse = TargetNearestCorpse()
+        
+    def Update(self, in_aggro, is_targetting_enabled, is_combat_enabled):
+        self.in_aggro = in_aggro
+        self.is_targetting_enabled = is_targetting_enabled
+        self.is_combat_enabled = is_combat_enabled
+        
 
     def PrioritizeSkills(self):
         """
@@ -197,35 +217,32 @@ class CombatClass:
     def IsSkillReady(self, slot):
         if self.skills[slot].skill_id == 0:
             return False
+        
+        
 
         if self.skills[slot].skillbar_data.recharge != 0:
             return False
         return True
         
     def InCastingRoutine(self):
-        from .utils import InAggro
         if self.aftercast_timer.HasElapsed(self.aftercast):
             self.in_casting_routine = False
-            #if InAggro():
+            #if self.in_aggro:
             #    self.ChooseTarget(interact=True)
             self.aftercast_timer.Reset()
 
         return self.in_casting_routine
 
     def StartStayAlertTimer(self):
-        self.stay_alert_timer
         self.stay_alert_timer.Start()
 
     def StopStayAlertTimer(self):
-        self.stay_alert_timer
         self.stay_alert_timer.Stop()
 
     def ResetStayAlertTimer(self):
-        self.stay_alert_timer
         self.stay_alert_timer.Reset()
 
     def GetStayAlertTimer(self):
-        self.stay_alert_timer
         return self.stay_alert_timer.GetElapsedTime()
  
     def GetPartyTargetID(self):
@@ -244,12 +261,12 @@ class CombatClass:
     def GetPartyTarget(self):
         party_number = Party.GetOwnPartyNumber()
         party_target = self.GetPartyTargetID()
-        if IsTargetingEnabled(party_number) and party_target != 0:
+        if self.is_targetting_enabled and party_target != 0:
             current_target = Player.GetTargetID()
             if current_target != party_target:
                 if Agent.IsLiving(party_target):
                     _, alliegeance = Agent.GetAlliegance(party_target)
-                    if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and IsCombatEnabled(party_number):
+                    if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
                         Player.ChangeTarget(party_target)
                         #Player.Interact(party_target)
                         self.ResetStayAlertTimer()
@@ -257,18 +274,13 @@ class CombatClass:
         return 0
 
     def get_combat_distance(self):
-        from .utils import InAggro
-        from .constants import STAY_ALERT_TIME
-        aggro_range = Range.Spellcast.value if self.GetStayAlertTimer() < STAY_ALERT_TIME else Range.Earshot.value
-        in_aggro = InAggro(aggro_range)
-        stay_alert = self.GetStayAlertTimer() < STAY_ALERT_TIME
-        return Range.Spellcast.value if (stay_alert or in_aggro) else Range.Earshot.value
+        return Range.Spellcast.value if self.in_aggro else Range.Earshot.value
 
     def GetAppropiateTarget(self, slot):
         v_target = 0
 
         party_number = Party.GetOwnPartyNumber()
-        if not IsTargetingEnabled(party_number):
+        if not self.is_targetting_enabled:
             return Player.GetTargetID()
 
         targeting_strict = self.skills[slot].custom_skill_data.Conditions.TargetingStrict
@@ -334,20 +346,17 @@ class CombatClass:
         return v_target
 
     def IsPartyMember(self, agent_id):
-        from .globals import HeroAI_vars
-
         for i in range(MAX_NUM_PLAYERS):
-            player_data = HeroAI_vars.shared_memory_handler.get_player(i)
+            player_data = self.shared_memory_handler.get_player(i)
             if player_data["IsActive"] and player_data["PlayerID"] == agent_id:
                 return True
         
         return False
         
     def HasEffect(self, agent_id, skill_id, exact_weapon_spell=False):
-        from .globals import HeroAI_vars
         result = False
         if self.IsPartyMember(agent_id):
-            player_buffs = HeroAI_vars.shared_memory_handler.get_agent_buffs(agent_id)
+            player_buffs = self.shared_memory_handler.get_agent_buffs(agent_id)
             for buff in player_buffs:
                 #Py4GW.Console.Log("HasEffect-player_buff", f"IsPartyMember: {self.IsPartyMember(agent_id)} agent ID: {agent_id}, effect {skill_id} buff {buff}", Py4GW.Console.MessageType.Info)
                 if buff == skill_id:
@@ -367,7 +376,6 @@ class CombatClass:
 
 
     def AreCastConditionsMet(self, slot, vTarget):
-        from .globals import HeroAI_vars
         number_of_features = 0
         feature_count = 0
 
@@ -558,7 +566,7 @@ class CombatClass:
 
         if Conditions.HasDervishEnchantment:
             if Player.GetAgentID() == vTarget:
-                buff_list = HeroAI_vars.shared_memory_handler.get_agent_buffs(vTarget)
+                buff_list = self.shared_memory_handler.get_agent_buffs(vTarget)
                 for buff in buff_list:
                     skill_type, _ = Skill.GetType(buff)
                     if skill_type == SkillType.Enchantment.value:
@@ -579,7 +587,7 @@ class CombatClass:
 
         if Conditions.HasChant:
             if self.IsPartyMember(vTarget):
-                buff_list = HeroAI_vars.shared_memory_handler.get_agent_buffs(vTarget)
+                buff_list = self.shared_memory_handler.get_agent_buffs(vTarget)
                 for buff in buff_list:
                     skill_type, _ = Skill.GetType(buff)
                     if skill_type == SkillType.Chant.value:
@@ -628,7 +636,7 @@ class CombatClass:
         if Conditions.LessEnergy != 0:
             if self.IsPartyMember(vTarget):
                 for i in range(MAX_NUM_PLAYERS):
-                    player_data = HeroAI_vars.shared_memory_handler.get_player(i)
+                    player_data = self.shared_memory_handler.get_player(i)
                     if player_data["IsActive"] and player_data["PlayerID"] == vTarget:
                         if player_data["Energy"] < Conditions.LessEnergy:
                             number_of_features += 1
@@ -760,13 +768,12 @@ class CombatClass:
         return False
 
     def ChooseTarget(self, interact=True):
-        from .utils import InAggro
         own_party_number = Party.GetOwnPartyNumber()
         
-        if not IsTargetingEnabled(own_party_number):
+        if not self.is_targetting_enabled:
             return False
 
-        if not InAggro():
+        if not self.in_aggro:
             return False
 
         _, target_aliegance = Agent.GetAlliegance(Player.GetTargetID())
@@ -788,7 +795,7 @@ class CombatClass:
             Player.ChangeTarget(attack_target)
             return True
             """
-            if IsCombatEnabled(own_party_number):
+            if self.is_combat_enabled:
                 weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
                 if weapon_type != 0 and interact:
 
@@ -802,12 +809,12 @@ class CombatClass:
                 return
 
             _, alliegeance = Agent.GetAlliegance(target_id)
-            if alliegeance == 'Enemy' and IsCombatEnabled(own_party_number):
+            if alliegeance == 'Enemy' and self.is_combat_enabled:
                 Player.Interact(Player.GetTargetID())
                 self.ResetStayAlertTimer()
 
 
-    def HandleCombat(self, ooc=False):
+    def HandleCombat(self,ooc=False):
         """
         tries to Execute the next skill in the skill order.
         """

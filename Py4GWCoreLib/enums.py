@@ -1,5 +1,16 @@
 from enum import Enum, IntEnum
 
+class Range(Enum):
+    Touch = 144.0
+    Adjacent = 166.0
+    Nearby = 252.0
+    Area = 322.0
+    Earshot = 1012.0
+    Spellcast = 1248.0
+    Spirit = 2500.0
+    SafeCompass = 4800.0 #made up distance to make easy checks
+    Compass = 5000.0
+
 # ServerRegion
 class ServerRegion(Enum):
     International = 0
@@ -23,7 +34,24 @@ class Language(Enum):
     Polish = 8
     Russian = 9
     BorkBorkBork = 10
-    Unknown = 11
+    Unknown = 0xff
+
+class District(Enum):
+    Current = 0
+    International =1
+    American = 2
+    EuropeEnglish = 3
+    EuropeFrench = 4
+    EuropeGerman = 5
+    EuropeItalian = 6
+    EuropeSpanish = 7
+    EuropePolish = 8
+    EuropeRussian = 9
+    AsiaKorean = 10
+    AsiaChinese = 11
+    AsiaJapanese = 12
+    Unknown = 0xff
+
 
 # Campaign
 class Campaign(Enum):

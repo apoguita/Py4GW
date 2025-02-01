@@ -1,7 +1,7 @@
 from Py4GWCoreLib import *
 
 from multiprocessing import shared_memory, Lock
-from ctypes import Structure, c_int, c_float, c_bool, c_ulonglong, sizeof
+from ctypes import sizeof
 import time
 
 from .constants import (
@@ -15,11 +15,6 @@ from .constants import (
 )
 
 from .types import (
-    PlayerStruct,
-    CandidateStruct,
-    MemSkill,
-    GameOptionStruct,
-    PlayerBuff,
     GameStruct,
 )
 

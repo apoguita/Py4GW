@@ -9,12 +9,13 @@ from .targetting import *
 from HeroAI import game_option
 
 
-def DrawBuffWindow():
-    if not Map.IsExplorable():
+def DrawBuffWindow(cached_data):
+    global MAX_NUM_PLAYERS
+    if not cached_data.is_explorable:
         return
 
     for index in range(MAX_NUM_PLAYERS):
-        player_struct = HeroAI_vars.all_player_struct[index]
+        player_struct = cached_data.HeroAI_vars.all_player_struct[index]
         if player_struct.IsActive:
             if Agent.IsPlayer(player_struct.PlayerID):
                 player_name = Agent.GetName(player_struct.PlayerID)
@@ -23,7 +24,7 @@ def DrawBuffWindow():
 
             if PyImGui.tree_node(f"{player_name}##DebugBuffsPlayer{index}"):
                 # Retrieve buffs for the player
-                player_buffs = HeroAI_vars.shared_memory_handler.get_agent_buffs(player_struct.PlayerID)
+                player_buffs = cached_data.HeroAI_vars.shared_memory_handler.get_agent_buffs(player_struct.PlayerID)
                 headers = ["Skill ID", "Skill Name"]
                 data = [(skill_id, Skill.GetName(skill_id)) for skill_id in player_buffs]
                 ImGui.table(f"{player_name} Buffs", headers, data)
@@ -37,23 +38,17 @@ def TrueFalseColor(condition):
         return RGBToNormal(255, 0, 0, 255)
 
 skill_slot = 0
-def DrawPrioritizedSkills():
+def DrawPrioritizedSkills(cached_data):
     global skill_slot
     from .constants import NUMBER_OF_SKILLS
-    from .combat import CombatClass
-    
-
-    combat_handler = CombatClass()
-
-    combat_handler.PrioritizeSkills()
  
-    PyImGui.text(f"skill pointer: : {combat_handler.skill_pointer}")
-    in_casting_routine = combat_handler.InCastingRoutine()
+    PyImGui.text(f"skill pointer: : {cached_data.combat_handler.skill_pointer}")
+    in_casting_routine = cached_data.combat_handler.InCastingRoutine()
     PyImGui.text_colored(f"InCastingRoutine: {in_casting_routine}",TrueFalseColor(not in_casting_routine))
-    PyImGui.text(f"aftercast_timer: {combat_handler.aftercast_timer.GetElapsedTime()}")
+    PyImGui.text(f"aftercast_timer: {cached_data.combat_handler.aftercast_timer.GetElapsedTime()}")
 
     if PyImGui.begin_tab_bar("OrderedSkills"):
-        skills = combat_handler.GetSkills()
+        skills = cached_data.combat_handler.GetSkills()
         for i in range(len(skills)):
             slot = i
             skill = skills[i]
@@ -84,19 +79,19 @@ def DrawPrioritizedSkills():
                 
                 if PyImGui.tree_node(f"Combat debug"):
                 
-                    is_skill_ready = combat_handler.IsSkillReady(slot)
-                    is_ooc_skill = combat_handler.IsOOCSkill(slot)  
-                    is_ready_to_cast, v_target = combat_handler.IsReadyToCast(skill_slot)
+                    is_skill_ready = cached_data.combat_handler.IsSkillReady(slot)
+                    is_ooc_skill = cached_data.combat_handler.IsOOCSkill(slot)  
+                    is_ready_to_cast, v_target = cached_data.combat_handler.IsReadyToCast(skill_slot)
 
                     self_id = Player.GetAgentID()
-                    nearest_enemy = TargetNearestEnemy()
-                    nearest_ally = TargetLowestAlly()
-                    nearest_npc = TargetNearestNpc()
-                    nearest_item = TargetNearestItem()
-                    nearest_spirit = TargetNearestSpirit()
-                    nearest_minion = TargetLowestMinion()
-                    nearest_corpse = TargetNearestCorpse()
-                    pet_id = TargetPet(self_id)
+                    nearest_enemy = cached_data.nearest_enemy
+                    nearest_ally = cached_data.lowest_ally
+                    nearest_npc = cached_data.nearest_npc
+                    nearest_item = cached_data.nearest_item
+                    nearest_spirit = cached_data.nearest_spirit
+                    nearest_minion = cached_data.lowest_minion
+                    nearest_corpse = cached_data.nearest_corpse
+                    pet_id = cached_data.pet_id
 
                     headers = ["Self", "Nearest Enemy", "Nearest Ally", "Nearest NPC", "Nearest Item", "Nearest Spirit", "Nearest Minion", "Nearest Corpse", "Pet"]
 
@@ -115,26 +110,26 @@ def DrawPrioritizedSkills():
                     
                     PyImGui.text_colored(f"IsReadyToCast: {is_ready_to_cast}", TrueFalseColor(is_ready_to_cast))
                     if PyImGui.tree_node(f"IsReadyToCast: {is_ready_to_cast}"): 
-                        is_casting = Agent.IsCasting(Player.GetAgentID())
-                        casting_skill = Agent.GetCastingSkill(Player.GetAgentID())
-                        skillbar_casting = SkillBar.GetCasting()
-                        skillbar_recharge = combat_handler.skills[skill_slot].skillbar_data.recharge
-                        current_energy = Agent.GetEnergy(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
-                        energy_cost = Skill.Data.GetEnergyCost(combat_handler.GetOrderedSkill(skill_slot).skill_id)
-                        current_hp = Agent.GetHealth(Player.GetAgentID())
-                        target_hp = combat_handler.GetOrderedSkill(skill_slot).custom_skill_data.Conditions.SacrificeHealth
-                        health_cost = Skill.Data.GetHealthCost(combat_handler.GetOrderedSkill(skill_slot).skill_id)
+                        is_casting = cached_data.player_is_casting
+                        casting_skill = cached_data.player_casting_skill
+                        skillbar_casting = cached_data.player_skillbar_casting
+                        skillbar_recharge = cached_data.combat_handler.skills[skill_slot].skillbar_data.recharge
+                        current_energy = cached_data.energy * cached_data.max_energy
+                        energy_cost = Skill.Data.GetEnergyCost(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
+                        current_hp = cached_data.player_hp
+                        target_hp = cached_data.combat_handler.GetOrderedSkill(skill_slot).custom_skill_data.Conditions.SacrificeHealth
+                        health_cost = Skill.Data.GetHealthCost(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
 
-                        adrenaline_required = Skill.Data.GetAdrenaline(combat_handler.GetOrderedSkill(skill_slot).skill_id)
-                        adrenaline_a = combat_handler.GetOrderedSkill(skill_slot).skillbar_data.adrenaline_a
+                        adrenaline_required = Skill.Data.GetAdrenaline(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
+                        adrenaline_a = cached_data.combat_handler.GetOrderedSkill(skill_slot).skillbar_data.adrenaline_a
                     
-                        current_overcast = Agent.GetOvercast(Player.GetAgentID())
-                        overcast_target = combat_handler.GetOrderedSkill(skill_slot).custom_skill_data.Conditions.Overcast
-                        skill_overcast = Skill.Data.GetOvercast(combat_handler.GetOrderedSkill(skill_slot).skill_id)
+                        current_overcast = cached_data.player_overcast
+                        overcast_target = cached_data.combat_handler.GetOrderedSkill(skill_slot).custom_skill_data.Conditions.Overcast
+                        skill_overcast = Skill.Data.GetOvercast(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
 
-                        are_cast_conditions_met = combat_handler.AreCastConditionsMet(skill_slot,v_target)
-                        spirit_buff_exists = combat_handler.SpiritBuffExists(combat_handler.GetOrderedSkill(skill_slot).skill_id)
-                        has_effect = combat_handler.HasEffect(v_target, combat_handler.GetOrderedSkill(skill_slot).skill_id)
+                        are_cast_conditions_met = cached_data.combat_handler.AreCastConditionsMet(skill_slot,v_target)
+                        spirit_buff_exists = cached_data.combat_handler.SpiritBuffExists(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
+                        has_effect = cached_data.combat_handler.HasEffect(v_target, cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
 
                         PyImGui.text_colored(f"IsCasting: {is_casting}", TrueFalseColor(not is_casting))
                         PyImGui.text_colored(f"CastingSkill: {casting_skill}", TrueFalseColor(not casting_skill != 0))
@@ -164,8 +159,8 @@ HeroFlags: bool = [False, False, False, False, False, False, False, False, False
 AllFlag = False
 CLearFlags = False
 one_time_set_flag = False
-def DrawFlags():
-    global HeroAI_vars,capture_flag_all, capture_hero_flag, capture_hero_index, overlay
+def DrawFlags(cached_data):
+    global capture_flag_all, capture_hero_flag, capture_hero_index, overlay
     global one_time_set_flag, CLearFlags
 
     if capture_hero_flag:
@@ -181,7 +176,7 @@ def DrawFlags():
             return
 
         if PyImGui.is_mouse_clicked(0) and not one_time_set_flag:
-            if capture_hero_index > 0 and capture_hero_index <= Party.GetHeroCount():
+            if capture_hero_index > 0 and capture_hero_index <= cached_data.party_hero_count:
                 if not capture_flag_all:   
                     agent_id = Party.Heroes.GetHeroAgentIDByPartyPosition(capture_hero_index)
                     Party.Heroes.FlagHero(agent_id, x, y)
@@ -191,11 +186,11 @@ def DrawFlags():
                     hero_ai_index = 0
                     Party.Heroes.FlagAllHeroes(x, y)
                 else:
-                    hero_ai_index = capture_hero_index - Party.GetHeroCount()
-                HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "IsFlagged", True)
-                HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosX", x)
-                HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosY", y)
-                HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", Agent.GetRotationAngle(Player.GetAgentID()))
+                    hero_ai_index = capture_hero_index - cached_data.party_hero_count
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "IsFlagged", True)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosX", x)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosY", y)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", cached_data.party_leader_rotation_angle)
                 
                 one_time_set_flag = True
 
@@ -205,29 +200,29 @@ def DrawFlags():
             capture_mouse_timer.Stop()
 
     #All flag is handled by the game even with no heroes
-    if HeroAI_vars.all_player_struct[0].IsFlagged:
-        DrawFlagAll(HeroAI_vars.all_player_struct[0].FlagPosX, HeroAI_vars.all_player_struct[0].FlagPosY)
+    if cached_data.HeroAI_vars.all_player_struct[0].IsFlagged:
+        DrawFlagAll(cached_data.HeroAI_vars.all_player_struct[0].FlagPosX, cached_data.HeroAI_vars.all_player_struct[0].FlagPosY)
         
     for i in range(1, MAX_NUM_PLAYERS):
-        if HeroAI_vars.all_player_struct[i].IsFlagged and HeroAI_vars.all_player_struct[i].IsActive and not HeroAI_vars.all_player_struct[i].IsHero:
-            DrawHeroFlag(HeroAI_vars.all_player_struct[i].FlagPosX,HeroAI_vars.all_player_struct[i].FlagPosY)
+        if cached_data.HeroAI_vars.all_player_struct[i].IsFlagged and cached_data.HeroAI_vars.all_player_struct[i].IsActive and not cached_data.HeroAI_vars.all_player_struct[i].IsHero:
+            DrawHeroFlag(cached_data.HeroAI_vars.all_player_struct[i].FlagPosX,cached_data.HeroAI_vars.all_player_struct[i].FlagPosY)
 
     if CLearFlags:
         for i in range(MAX_NUM_PLAYERS):
-            HeroAI_vars.shared_memory_handler.set_player_property(i, "IsFlagged", False)
-            HeroAI_vars.shared_memory_handler.set_player_property(i, "FlagPosX", 0.0)
-            HeroAI_vars.shared_memory_handler.set_player_property(i, "FlagPosY", 0.0)
-            HeroAI_vars.shared_memory_handler.set_player_property(i, "FollowAngle", 0.0)
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "IsFlagged", False)
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "FlagPosX", 0.0)
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "FlagPosY", 0.0)
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "FollowAngle", 0.0)
             Party.Heroes.UnflagHero(i)
         Party.Heroes.UnflagAllHeroes()
         CLearFlags = False
             
         
 
-def DrawFlaggingWindow():
+def DrawFlaggingWindow(cache_data):
     global HeroFlags, AllFlag, capture_flag_all, capture_hero_flag, capture_hero_index, one_time_set_flag
     global CLearFlags
-    party_size = Party.GetPartySize()
+    party_size = cache_data.party_size
     if party_size == 1:
         PyImGui.text("No Follower or Heroes to Flag.")
         return
@@ -236,34 +231,34 @@ def DrawFlaggingWindow():
         PyImGui.table_next_row()
         PyImGui.table_next_column()
         if party_size >= 2:
-            HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(1), 30, 30)
+            HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(cache_data,1), 30, 30)
         PyImGui.table_next_column()
         if party_size >= 3:
-            HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(2),30,30)
+            HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(cache_data,2),30,30)
         PyImGui.table_next_column()
         if party_size >= 4:
-            HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(3),30,30)
+            HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(cache_data,3),30,30)
         PyImGui.table_next_row()
         PyImGui.table_next_column()
         if party_size >= 5:
-            HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(4),30,30)
+            HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(cache_data,4),30,30)
         PyImGui.table_next_column()
-        AllFlag = ImGui.toggle_button("All", IsHeroFlagged(0), 30, 30)
+        AllFlag = ImGui.toggle_button("All", IsHeroFlagged(cache_data,0), 30, 30)
         PyImGui.table_next_column()
         if party_size >= 6:
-            HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(5),30,30)
+            HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(cache_data,5),30,30)
         PyImGui.table_next_row()
         PyImGui.table_next_column()
         if party_size >= 7:
-            HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(6),30,30)
+            HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(cache_data,6),30,30)
         PyImGui.table_next_column()
         if party_size >= 8:
-            HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(7), 30, 30)
+            HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(cache_data,7), 30, 30)
         PyImGui.table_next_column()
         CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
         PyImGui.end_table()
 
-    if AllFlag != IsHeroFlagged(0):
+    if AllFlag != IsHeroFlagged(cache_data,0):
         capture_hero_flag = True
         capture_flag_all = True
         capture_hero_index = 0
@@ -271,7 +266,7 @@ def DrawFlaggingWindow():
         capture_mouse_timer.Start()
 
     for i in range(1, party_size):
-        if HeroFlags[i-1] != IsHeroFlagged(i):
+        if HeroFlags[i-1] != IsHeroFlagged(cache_data,i):
             capture_hero_flag = True
             capture_flag_all = False
             capture_hero_index = i
@@ -279,9 +274,8 @@ def DrawFlaggingWindow():
             capture_mouse_timer.Start()
         
 
-def DrawCandidateWindow():
-    global HeroAI_vars, HeroAI_windows
-    global party_config_first_run
+def DrawCandidateWindow(cache_data):
+    global MAX_NUM_PLAYERS
 
     candidate_count = 0
 
@@ -292,6 +286,7 @@ def DrawCandidateWindow():
         PyImGui.table_setup_column("Candidate", PyImGui.TableColumnFlags.NoFlag)
         PyImGui.table_headers_row()
 
+        """
         sort_specs = PyImGui.table_get_sort_specs()
 
         column_index = 1  # Default to Candidate column
@@ -302,20 +297,21 @@ def DrawCandidateWindow():
             column_index = spec.ColumnIndex
             sort_direction = spec.SortDirection
 
-        sorted_candidates = HeroAI_vars.all_candidate_struct[:]
+        sorted_candidates = cache_data.HeroAI_vars.all_candidate_struct[:]
         if column_index == 1:  # Sort by Candidate Name
             sorted_candidates.sort(
                 key=lambda x: Agent.GetName(x.PlayerID),
                 reverse=(sort_direction == 2)  # 2 = Descending
             )
-
+        """
+        
         for index in range(MAX_NUM_PLAYERS):
-            candidate = HeroAI_vars.all_candidate_struct[index]
+            candidate = cache_data.HeroAI_vars.all_candidate_struct[index]
             if (candidate.PlayerID and
-                candidate.PlayerID != Player.GetAgentID() and
-                candidate.MapID == Map.GetMapID() and
-                candidate.MapRegion == Map.GetRegion()[0] and
-                candidate.MapDistrict == Map.GetDistrict()):
+                candidate.PlayerID != cache_data.player_agent_id and
+                candidate.MapID == cache_data.map_id and
+                candidate.MapRegion == cache_data.region and
+                candidate.MapDistrict == cache_data.district):
 
                 candidate_count += 1
 
@@ -323,7 +319,7 @@ def DrawCandidateWindow():
 
                 PyImGui.table_set_column_index(0)
                 if PyImGui.button(f"Invite##invite_{candidate.PlayerID}"):
-                    SendPartyCommand(index, "Invite")
+                    SendPartyCommand(index, cache_data, "Invite")
 
                 PyImGui.table_set_column_index(1)
                 PyImGui.text(Agent.GetName(candidate.PlayerID))     
@@ -336,25 +332,25 @@ def DrawCandidateWindow():
     PyImGui.separator()
 
     for index in range(MAX_NUM_PLAYERS):
-        candidate = HeroAI_vars.all_candidate_struct[index]
+        candidate = cache_data.HeroAI_vars.all_candidate_struct[index]
         if ((candidate.PlayerID and candidate.PlayerID != Player.GetAgentID()) and
-            (candidate.MapID != Map.GetMapID() or
-            candidate.MapRegion != Map.GetRegion()[0] or
-            candidate.MapDistrict != Map.GetDistrict())):
+            (candidate.MapID != cache_data.map_id or
+            candidate.MapRegion != cache_data.region or
+            candidate.MapDistrict != cache_data.district)):
 
             if PyImGui.button(f"Summon from map {Map.GetMapName(candidate.MapID)}##summon_{candidate.PlayerID}"):
-                SendPartyCommand(index, "Summon")  
+                SendPartyCommand(index, cache_data, "Summon")  
 
 
-def DrawCandidatesDebug():
-    global MAX_NUM_PLAYERS, Debug_window_vars
+def DrawCandidatesDebug(cache_data):
+    global MAX_NUM_PLAYERS
 
     candidate_count = 0     
     headers = ["Slot","MapID", "MapRegion", "MapDistrict","PlayerID", "InvitedBy", "SummonedBy", "LastUpdated"]
 
     data = []
     for i in range(MAX_NUM_PLAYERS):
-        candidate = HeroAI_vars.all_candidate_struct[i]
+        candidate = cache_data.HeroAI_vars.all_candidate_struct[i]
         data.append((
             i,  # Slot index
             candidate.MapID,
@@ -369,31 +365,31 @@ def DrawCandidatesDebug():
     ImGui.table("Candidate Debug Table", headers, data)
 
 slot_to_write = 0
-def DrawPlayersDebug():
-    global MAX_NUM_PLAYERS, Debug_window_vars   , slot_to_write, HeroAI_vars
+def DrawPlayersDebug(cache_data):
+    global MAX_NUM_PLAYERS, slot_to_write
 
-    own_party_number = Party.GetOwnPartyNumber()
+    own_party_number = cache_data.own_party_number
     PyImGui.text(f"Own Party Number: {own_party_number}")
     slot_to_write = PyImGui.input_int("Slot to write", slot_to_write)
 
     if PyImGui.button("Submit"):
-        self_id = Player.GetAgentID()
+        self_id = cache_data.player_agent_id
 
-        HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "PlayerID", self_id)
-        HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy_Regen", Agent.GetEnergyRegen(self_id))
-        HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy", Agent.GetEnergy(self_id))
-        HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsActive", True)
-        HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsHero", False)
-        HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsFlagged", False)
-        HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "FlagPosX", 0.0)
-        HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "FlagPosY", 0.0)
+        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "PlayerID", self_id)
+        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy_Regen", cache_data.energy_regen)
+        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy", cache_data.energy)
+        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsActive", True)
+        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsHero", False)
+        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsFlagged", False)
+        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "FlagPosX", 0.0)
+        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "FlagPosY", 0.0)
 
 
     headers = ["Slot","PlayerID", "EnergyRegen", "Energy","IsActive", "IsHero", "IsFlagged", "FlagPosX", "FlagPosY", "LastUpdated"]
 
     data = []
     for i in range(MAX_NUM_PLAYERS):
-        player = HeroAI_vars.all_player_struct[i]
+        player = cache_data.HeroAI_vars.all_player_struct[i]
         data.append((
             i,  # Slot index
             player.PlayerID,
@@ -410,12 +406,12 @@ def DrawPlayersDebug():
     ImGui.table("Players Debug Table", headers, data)
 
 
-def DrawHeroesDebug(): 
-    global MAX_NUM_PLAYERS, Debug_window_vars
+def DrawHeroesDebug(cache_data): 
+    global MAX_NUM_PLAYERS
     headers = ["Slot", "agent_id", "owner_player_id", "hero_id", "hero_name"]
     data = []
 
-    heroes = Party.GetHeroes() 
+    heroes = cache_data.heroes
     for index, hero in enumerate(heroes):
         data.append((
             index,  # Slot index
@@ -427,8 +423,8 @@ def DrawHeroesDebug():
     ImGui.table("Heroes Debug Table", headers, data)
 
 
-def DrawGameOptionsDebug():
-    global MAX_NUM_PLAYERS, HeroAI_vars
+def DrawGameOptionsDebug(cache_data):
+    global MAX_NUM_PLAYERS
 
     data = []
     PyImGui.text("Remote Control Variables")
@@ -436,16 +432,16 @@ def DrawGameOptionsDebug():
     headers += [f"Skill {j + 1}" for j in range(NUMBER_OF_SKILLS)]
     row = [
         "Remote",  
-        HeroAI_vars.global_control_game_struct.Following,
-        HeroAI_vars.global_control_game_struct.Avoidance,
-        HeroAI_vars.global_control_game_struct.Looting,
-        HeroAI_vars.global_control_game_struct.Targetting,
-        HeroAI_vars.global_control_game_struct.Combat,
-        HeroAI_vars.global_control_game_struct.WindowVisible
+        cache_data.HeroAI_vars.global_control_game_struct.Following,
+        cache_data.HeroAI_vars.global_control_game_struct.Avoidance,
+        cache_data.HeroAI_vars.global_control_game_struct.Looting,
+        cache_data.HeroAI_vars.global_control_game_struct.Targetting,
+        cache_data.HeroAI_vars.global_control_game_struct.Combat,
+        cache_data.HeroAI_vars.global_control_game_struct.WindowVisible
     ]
 
     row += [
-        HeroAI_vars.global_control_game_struct.Skills[j].Active for j in range(NUMBER_OF_SKILLS)
+        cache_data.HeroAI_vars.global_control_game_struct.Skills[j].Active for j in range(NUMBER_OF_SKILLS)
     ]
     data.append(tuple(row))
     ImGui.table("Control Debug Table", headers, data)
@@ -457,16 +453,16 @@ def DrawGameOptionsDebug():
     for i in range(MAX_NUM_PLAYERS):
         row = [
             i,  
-            HeroAI_vars.all_game_option_struct[i].Following,
-            HeroAI_vars.all_game_option_struct[i].Avoidance,
-            HeroAI_vars.all_game_option_struct[i].Looting,
-            HeroAI_vars.all_game_option_struct[i].Targetting,
-            HeroAI_vars.all_game_option_struct[i].Combat,
-            HeroAI_vars.all_game_option_struct[i].WindowVisible
+            cache_data.HeroAI_vars.all_game_option_struct[i].Following,
+            cache_data.HeroAI_vars.all_game_option_struct[i].Avoidance,
+            cache_data.HeroAI_vars.all_game_option_struct[i].Looting,
+            cache_data.HeroAI_vars.all_game_option_struct[i].Targetting,
+            cache_data.HeroAI_vars.all_game_option_struct[i].Combat,
+            cache_data.HeroAI_vars.all_game_option_struct[i].WindowVisible
         ]
 
         row += [
-            HeroAI_vars.all_game_option_struct[i].Skills[j].Active for j in range(NUMBER_OF_SKILLS)
+            cache_data.HeroAI_vars.all_game_option_struct[i].Skills[j].Active for j in range(NUMBER_OF_SKILLS)
         ]
 
         data.append(tuple(row))
@@ -474,8 +470,10 @@ def DrawGameOptionsDebug():
     ImGui.table("Game Options Debug Table", headers, data)
 
 draw_fake_flag = True
-def DrawFlagDebug():
+def DrawFlagDebug(cached_data):
     global capture_flag_all, capture_hero_flag,draw_fake_flag, overlay
+    global MAX_NUM_PLAYERS
+    
     PyImGui.text("Flag Debug")
     PyImGui.text(f"capture_flag_all: {capture_flag_all}")
     PyImGui.text(f"capture_hero_flag: {capture_hero_flag}")
@@ -491,7 +489,7 @@ def DrawFlagDebug():
     PyImGui.text_colored("Having GetMouseWorldPos active will crash your client on map change",(1, 0.5, 0.05, 1))
     mouse_x, mouse_y = overlay.GetMouseCoords()
     PyImGui.text(f"Mouse Coords: {mouse_x}, {mouse_y}")
-    PyImGui.text(f"Player Position: {Agent.GetXYZ(Player.GetAgentID())}")
+    PyImGui.text(f"Player Position: {cached_data.player_xyz}")
     draw_fake_flag = PyImGui.checkbox("Draw Fake Flag", draw_fake_flag)
 
     if draw_fake_flag:
@@ -506,11 +504,10 @@ def DrawFlagDebug():
         if HeroFlags[i]:
             PyImGui.text(f"Hero {i + 1} is flagged")
 
-def DrawFollowDebug():
+def DrawFollowDebug(cached_data):
     global show_area_rings, show_hero_follow_grid, show_distance_on_followers, overlay
-    global Angle_changed
-    from .combat import CombatClass
-    combat_handler = CombatClass()
+    global MAX_NUM_PLAYERS
+
 
     if PyImGui.button("reset overlay"):
         overlay.RefreshDrawList()
@@ -518,17 +515,17 @@ def DrawFollowDebug():
     show_hero_follow_grid = PyImGui.checkbox("Show Hero Follow Grid", show_hero_follow_grid)
     show_distance_on_followers = PyImGui.checkbox("Show Distance on Followers", show_distance_on_followers)
     PyImGui.separator()
-    PyImGui.text(f"InAggro: {InAggro()}")
-    PyImGui.text(f"IsMelee: {Agent.IsMelee(Player.GetAgentID())}")
-    PyImGui.text(f"Nearest Enemy: {TargetNearestEnemy()}")
-    PyImGui.text(f"stay_alert_timer: {combat_handler.GetStayAlertTimer()}")
-    PyImGui.text(f"Leader Rotation Angle: {Agent.GetRotationAngle(Party.GetPartyLeaderID())}")
-    PyImGui.text(f"Angle_changed: {Angle_changed}")
+    PyImGui.text(f"InAggro: {cached_data.in_aggro}")
+    PyImGui.text(f"IsMelee: {Agent.IsMelee(cached_data.player_agent_id)}")
+    PyImGui.text(f"Nearest Enemy: {cached_data.nearest_enemy}")
+    PyImGui.text(f"stay_alert_timer: {cached_data.combat_handler.GetStayAlertTimer()}")
+    PyImGui.text(f"Leader Rotation Angle: {cached_data.party_leader_rotation_angle}")
+    PyImGui.text(f"Angle_changed: {cached_data.angle_changed}")
 
     segments = 32
     overlay.BeginDraw()
     if show_area_rings:
-        player_x, player_y, player_z = Agent.GetXYZ(Player.GetAgentID())
+        player_x, player_y, player_z = cached_data.player_xyz
 
         overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Touch.value / 2, color=RGBToColor(255, 255, 0 , 128),numsegments=segments,thickness=2.0)
         overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Touch.value    , color=RGBToColor(255, 200, 0 , 128),numsegments=segments,thickness=2.0)
@@ -539,12 +536,12 @@ def DrawFollowDebug():
         overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Spellcast.value, color=RGBToColor(255, 12 , 0 , 128), numsegments=segments, thickness=2.0)
 
     if show_hero_follow_grid:
-        leader_x, leader_y, leader_z = Agent.GetXYZ(Party.GetPartyLeaderID())
+        leader_x, leader_y, leader_z = cached_data.party_leader_xyz
 
         for index, angle in enumerate(hero_formation):
             if index == 0:
                 continue
-            angle_on_hero_grid = Agent.GetRotationAngle(Party.GetPartyLeaderID()) + DegToRad(angle)
+            angle_on_hero_grid = cached_data.party_leader_rotation_angle + DegToRad(angle)
             hero_x = Range.Touch.value * math.cos(angle_on_hero_grid) + leader_x
             hero_y = Range.Touch.value * math.sin(angle_on_hero_grid) + leader_y
             
@@ -552,10 +549,10 @@ def DrawFollowDebug():
  
     if show_distance_on_followers:
         for i in range(MAX_NUM_PLAYERS):
-            if HeroAI_vars.all_player_struct[i].IsActive:
+            if cached_data.HeroAI_vars.all_player_struct[i].IsActive:
                 overlay.BeginDraw()
-                player_id = HeroAI_vars.all_player_struct[i].PlayerID
-                if player_id == Player.GetAgentID():
+                player_id = cached_data.HeroAI_vars.all_player_struct[i].PlayerID
+                if player_id == cached_data.player_agent_id:
                     continue
                 target_x, target_y, target_z = Agent.GetXYZ(player_id)
                 overlay.DrawPoly3D(target_x, target_y, target_z, radius=72, color=RGBToColor(255, 255, 255, 128),numsegments=segments,thickness=2.0)
@@ -567,114 +564,110 @@ def DrawFollowDebug():
 
 
 
-def DrawDebugWindow():
-    global MAX_NUM_PLAYERS, HeroAI_vars, Debug_window_vars
+def DrawDebugWindow(cache_data):
+    global MAX_NUM_PLAYERS
 
     if PyImGui.collapsing_header("Candidates Debug"):
-        DrawCandidatesDebug()
+        DrawCandidatesDebug(cache_data)
     if PyImGui.collapsing_header("Players Debug"):
-        DrawPlayersDebug()
+        DrawPlayersDebug(cache_data)
     if PyImGui.collapsing_header("Game Options Debug"):
-        DrawGameOptionsDebug()
+        DrawGameOptionsDebug(cache_data)
 
     if PyImGui.collapsing_header("Heroes Debug"):
-        DrawHeroesDebug()
+        DrawHeroesDebug(cache_data)
 
-    if Map.IsExplorable():
+    if cache_data.is_explorable:
         if PyImGui.collapsing_header("Follow Debug"):
-            DrawFollowDebug()
+            DrawFollowDebug(cache_data)
         if PyImGui.collapsing_header("Flag Debug"):
-            DrawFlagDebug()
+            DrawFlagDebug(cache_data)
         if PyImGui.collapsing_header("Prioritized Skills"):
-            DrawPrioritizedSkills()
+            DrawPrioritizedSkills(cache_data)
         if PyImGui.collapsing_header("Buff Debug"):
-            DrawBuffWindow()
+            DrawBuffWindow(cache_data)
 
 
 
-def DrawMultiboxTools():
-    global MAX_NUM_PLAYERS, HeroAI_vars, HeroAI_windows
+def DrawMultiboxTools(cache_data):
+    global MAX_NUM_PLAYERS
+    cache_data.HeroAI_windows.tools_window.initialize()
 
-    HeroAI_windows.tools_window.initialize()
-
-    if HeroAI_windows.tools_window.begin():
-        if Map.IsOutpost() and Player.GetAgentID() == Party.GetPartyLeaderID():
+    if cache_data.HeroAI_windows.tools_window.begin():
+        if cache_data.is_outpost and cache_data.player_agent_id == cache_data.party_leader_id:
             if PyImGui.collapsing_header("Party Setup",PyImGui.TreeNodeFlags.DefaultOpen):
-                DrawCandidateWindow()
-        if Map.IsExplorable() and Player.GetAgentID() == Party.GetPartyLeaderID():
+                DrawCandidateWindow(cache_data)
+        if cache_data.is_explorable and cache_data.player_agent_id == cache_data.party_leader_id:
             if PyImGui.collapsing_header("Flagging"):
-                DrawFlaggingWindow()
+                DrawFlaggingWindow(cache_data)
         if PyImGui.collapsing_header("Debug Options"):
-            DrawDebugWindow()
+            DrawDebugWindow(cache_data)
+   
+    cache_data.HeroAI_windows.tools_window.process_window()
+    cache_data.HeroAI_windows.tools_window.end()
 
-    
-    HeroAI_windows.tools_window.process_window()
-    HeroAI_windows.tools_window.end()
 
-
-def CompareAndSubmitGameOptions(game_option: GameOptionStruct):
-    global HeroAI_vars
-
+def CompareAndSubmitGameOptions(cache_data, game_option: GameOptionStruct):
+    global MAX_NUM_PLAYERS
     # Core Options
-    if game_option.Following != HeroAI_vars.global_control_game_struct.Following:
-        HeroAI_vars.global_control_game_struct.Following = game_option.Following
+    if game_option.Following != cache_data.HeroAI_vars.global_control_game_struct.Following:
+        cache_data.HeroAI_vars.global_control_game_struct.Following = game_option.Following
         for i in range(MAX_NUM_PLAYERS):
-            HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Following", game_option.Following)
+            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Following", game_option.Following)
 
-    if game_option.Avoidance != HeroAI_vars.global_control_game_struct.Avoidance:
-        HeroAI_vars.global_control_game_struct.Avoidance = game_option.Avoidance
+    if game_option.Avoidance != cache_data.HeroAI_vars.global_control_game_struct.Avoidance:
+        cache_data.HeroAI_vars.global_control_game_struct.Avoidance = game_option.Avoidance
         for i in range(MAX_NUM_PLAYERS):
-            HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Avoidance", game_option.Avoidance)
+            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Avoidance", game_option.Avoidance)
 
-    if game_option.Looting != HeroAI_vars.global_control_game_struct.Looting:
-        HeroAI_vars.global_control_game_struct.Looting = game_option.Looting
+    if game_option.Looting != cache_data.HeroAI_vars.global_control_game_struct.Looting:
+        cache_data.HeroAI_vars.global_control_game_struct.Looting = game_option.Looting
         for i in range(MAX_NUM_PLAYERS):
-            HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Looting", game_option.Looting)
+            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Looting", game_option.Looting)
 
-    if game_option.Targetting != HeroAI_vars.global_control_game_struct.Targetting:
-        HeroAI_vars.global_control_game_struct.Targetting = game_option.Targetting
+    if game_option.Targetting != cache_data.HeroAI_vars.global_control_game_struct.Targetting:
+        cache_data.HeroAI_vars.global_control_game_struct.Targetting = game_option.Targetting
         for i in range(MAX_NUM_PLAYERS):
-            HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Targetting", game_option.Targetting)
+            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Targetting", game_option.Targetting)
 
-    if game_option.Combat != HeroAI_vars.global_control_game_struct.Combat:
-        HeroAI_vars.global_control_game_struct.Combat = game_option.Combat
+    if game_option.Combat != cache_data.HeroAI_vars.global_control_game_struct.Combat:
+        cache_data.HeroAI_vars.global_control_game_struct.Combat = game_option.Combat
         for i in range(MAX_NUM_PLAYERS):
-            HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Combat", game_option.Combat)
+            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Combat", game_option.Combat)
 
     # Skills
     for skill_index in range(NUMBER_OF_SKILLS):
-        if game_option.Skills[skill_index].Active != HeroAI_vars.global_control_game_struct.Skills[skill_index].Active:
-            HeroAI_vars.global_control_game_struct.Skills[skill_index].Active = game_option.Skills[skill_index].Active
+        if game_option.Skills[skill_index].Active != cache_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active:
+            cache_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active = game_option.Skills[skill_index].Active
             for i in range(MAX_NUM_PLAYERS):
-                HeroAI_vars.shared_memory_handler.set_game_option_property(
+                cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(
                     i, f"Skill_{skill_index + 1}", game_option.Skills[skill_index].Active
                 )
 
 
-def SubmitGameOptions(index,game_option,original_game_option):
+def SubmitGameOptions(cache_data,index,game_option,original_game_option):
     # Core Options
     if game_option.Following != original_game_option.Following:
-        HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Following", game_option.Following)
+        cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Following", game_option.Following)
 
     if game_option.Avoidance != original_game_option.Avoidance:
-        HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Avoidance", game_option.Avoidance)
+        cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Avoidance", game_option.Avoidance)
 
     if game_option.Looting != original_game_option.Looting:
-        HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Looting", game_option.Looting)
+        cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Looting", game_option.Looting)
 
     if game_option.Targetting != original_game_option.Targetting:
-        HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targetting", game_option.Targetting)
+        cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targetting", game_option.Targetting)
 
     if game_option.Combat != original_game_option.Combat:
-        HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Combat", game_option.Combat)
+        cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Combat", game_option.Combat)
 
     # Skills
     for i in range(NUMBER_OF_SKILLS):
         if game_option.Skills[i].Active != original_game_option.Skills[i].Active:
-            HeroAI_vars.shared_memory_handler.set_game_option_property(index, f"Skill_{i + 1}", game_option.Skills[i].Active)
+            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, f"Skill_{i + 1}", game_option.Skills[i].Active)
 
 def DrawPanelButtons(source_game_option):
-    global HeroAI_vars
     game_option = GameOptionStruct()
     if PyImGui.begin_table("GameOptionTable", 5):
         PyImGui.table_next_row()
@@ -705,53 +698,49 @@ def DrawPanelButtons(source_game_option):
 
     return game_option
 
-def DrawMainWindow():
-    global HeroAI_vars, HeroAI_windows
-
-    own_party_number = Party.GetOwnPartyNumber()
-
+def DrawMainWindow(cache_data):
+    own_party_number = cache_data.own_party_number
     game_option = GameOptionStruct()
-    original_game_option = HeroAI_vars.all_game_option_struct[own_party_number]
-        
+    original_game_option = cache_data.HeroAI_vars.all_game_option_struct[own_party_number]
+     
     if not original_game_option.WindowVisible:
         return
 
-    if own_party_number == 0:
+    if own_party_number <= 0:
         return
 
-    HeroAI_windows.main_window.initialize()
-    if HeroAI_windows.main_window.begin():
+    cache_data.HeroAI_windows.main_window.initialize()
+    if cache_data.HeroAI_windows.main_window.begin():
         game_option = DrawPanelButtons(original_game_option) 
-        SubmitGameOptions(own_party_number,game_option,original_game_option)
+        SubmitGameOptions(cache_data,own_party_number,game_option,original_game_option)
 
-        HeroAI_windows.main_window.process_window()
-        HeroAI_windows.main_window.end()
+        cache_data.HeroAI_windows.main_window.process_window()
+        cache_data.HeroAI_windows.main_window.end()
 
 
-def DrawControlPanelWindow():
-    global HeroAI_vars, HeroAI_windows
-
-    own_party_number = Party.GetOwnPartyNumber()
+def DrawControlPanelWindow(cache_data):
+    global MAX_NUM_PLAYERS
+    own_party_number = cache_data.own_party_number
     game_option = GameOptionStruct()     
     if own_party_number != 0:
         return
 
-    HeroAI_windows.control_window.initialize()
-    if HeroAI_windows.control_window.begin():   
-        game_option = DrawPanelButtons(HeroAI_vars.global_control_game_struct) 
-        CompareAndSubmitGameOptions(game_option)
+    cache_data.HeroAI_windows.control_window.initialize()
+    if cache_data.HeroAI_windows.control_window.begin():   
+        game_option = DrawPanelButtons(cache_data.HeroAI_vars.global_control_game_struct) 
+        CompareAndSubmitGameOptions(cache_data,game_option)
 
         if PyImGui.collapsing_header("Player Control"):
             for index in range(MAX_NUM_PLAYERS):
-                if HeroAI_vars.all_player_struct[index].IsActive and not HeroAI_vars.all_player_struct[index].IsHero:
-                    original_game_option = HeroAI_vars.all_game_option_struct[index]
-                    player_name = Agent.GetName(HeroAI_vars.all_player_struct[index].PlayerID)
+                if cache_data.HeroAI_vars.all_player_struct[index].IsActive and not cache_data.HeroAI_vars.all_player_struct[index].IsHero:
+                    original_game_option = cache_data.HeroAI_vars.all_game_option_struct[index]
+                    player_name = Agent.GetName(cache_data.HeroAI_vars.all_player_struct[index].PlayerID)
                     if PyImGui.tree_node(f"{player_name}##ControlPlayer{index}"):
                         game_option = DrawPanelButtons(original_game_option)
-                        SubmitGameOptions(index, game_option, original_game_option)
+                        SubmitGameOptions(cache_data, index, game_option, original_game_option)
                         PyImGui.tree_pop()
 
-        HeroAI_windows.control_window.process_window()
-    HeroAI_windows.control_window.end()
+        cache_data.HeroAI_windows.control_window.process_window()
+    cache_data.HeroAI_windows.control_window.end()
    
 
