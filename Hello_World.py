@@ -4,10 +4,9 @@ from Py4GWCoreLib import *
 def DrawWindow():
 
     try:
-        if PyImGui.begin("Tester"):
-            PyImGui.text("Hello World")
-            if PyImGui.button("create bag"):
-                bag_instance = PyInventory.Bag(1,"bag1")
+        if PyImGui.begin("Has Buff?"):
+            has_buff = Effects.BuffExists(Player.GetAgentID(), 2546) or Effects.EffectExists(Player.GetAgentID(), 2546)
+            PyImGui.text(f"status of the buff {has_buff}")
         PyImGui.end()
 
     except Exception as e:
