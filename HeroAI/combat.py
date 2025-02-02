@@ -82,8 +82,6 @@ class CombatClass:
         self.aftercast_timer = Timer()
         self.aftercast_timer.Start()
         self.ping_handler = Py4GW.PingHandler()
-        self.stay_alert_timer = Timer()
-        self.stay_alert_timer.Start()
         self.oldCalledTarget = 0
         self.shared_memory_handler = HeroAI_varsClass().shared_memory_handler
         
@@ -232,18 +230,6 @@ class CombatClass:
             self.aftercast_timer.Reset()
 
         return self.in_casting_routine
-
-    def StartStayAlertTimer(self):
-        self.stay_alert_timer.Start()
-
-    def StopStayAlertTimer(self):
-        self.stay_alert_timer.Stop()
-
-    def ResetStayAlertTimer(self):
-        self.stay_alert_timer.Reset()
-
-    def GetStayAlertTimer(self):
-        return self.stay_alert_timer.GetElapsedTime()
  
     def GetPartyTargetID(self):
         if not Party.IsPartyLoaded():
@@ -269,7 +255,6 @@ class CombatClass:
                     if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
                         Player.ChangeTarget(party_target)
                         #Player.Interact(party_target)
-                        self.ResetStayAlertTimer()
                         return party_target
         return 0
 
@@ -800,7 +785,6 @@ class CombatClass:
                 if weapon_type != 0 and interact:
 
                     Player.Interact(attack_target)
-                    self.ResetStayAlertTimer()
                     return True
             """
         else:
@@ -811,7 +795,6 @@ class CombatClass:
             _, alliegeance = Agent.GetAlliegance(target_id)
             if alliegeance == 'Enemy' and self.is_combat_enabled:
                 Player.Interact(Player.GetTargetID())
-                self.ResetStayAlertTimer()
 
 
     def HandleCombat(self,ooc=False):
@@ -855,7 +838,5 @@ class CombatClass:
 
         self.aftercast_timer.Reset()
         SkillBar.UseSkill(self.skill_order[self.skill_pointer]+1, target_agent_id)
-        if not ooc:
-            self.ResetStayAlertTimer()
         self.AdvanceSkillPointer()
         return True

@@ -22,6 +22,12 @@ class CacheData:
         self.game_throttle_time = throttle_time
         self.game_throttle_timer = Timer()
         self.game_throttle_timer.Start()
+        self.stay_alert_timer = Timer()
+        self.aftercast_timer = Timer()
+        
+        self.reset()
+        
+    def reset(self):
         #Map data
         self.is_map_ready = False
         self.is_outpost = False
@@ -91,9 +97,11 @@ class CacheData:
     def Update(self):
         if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
             self.game_throttle_timer.Reset()
+            self.reset()
             #Map data
             self.is_map_ready = Map.IsMapReady()
             if not self.is_map_ready:
+                self.is_party_loaded = False
                 return
             self.map_id = Map.GetMapID()
             self.is_outpost = Map.IsOutpost()
@@ -129,7 +137,7 @@ class CacheData:
             self.player_hp = Agent.GetHealth(self.player_agent_id)
             self.player_is_alive = Agent.IsAlive(self.player_agent_id)
             self.player_overcast = Agent.GetOvercast(self.player_agent_id)
-            self.player_is_knocked_down = Agent.IsKnockedDown(self.player_agent_id)
+            self.player_is_k0nocked_down = Agent.IsKnockedDown(self.player_agent_id)
             self.player_is_moving = Agent.IsMoving(self.player_agent_id)
             self.player_is_melee = Agent.IsMelee(self.player_agent_id)
             #AgentArray data
@@ -296,9 +304,6 @@ def UpdateStatus(cached_data):
     RegisterHeroes(cached_data)
     UpdatePlayers(cached_data)      
     UpdateGameOptions(cached_data)   
-
-    if cached_data.is_in_cinematic:  # halt operation during cinematic
-        return
     
     DrawMainWindow(cached_data)   
     DrawControlPanelWindow(cached_data)
@@ -307,18 +312,17 @@ def UpdateStatus(cached_data):
     if not cached_data.is_explorable:  # halt operation if not in explorable area
         return
     
+    if cached_data.is_in_cinematic:  # halt operation during cinematic
+        return
+    
     DrawFlags(cached_data)
     
-    if not cached_data.player_is_alive:  # halt operation if player is dead
-        return  
-
-    if DistanceFromLeader(cached_data) >= Range.SafeCompass.value:  # halt operation if player is too far from leader
-        return
-
-    if cached_data.player_is_knocked_down:  # halt operation if player is knocked down
-        return
-
-    if cached_data.combat_handler.InCastingRoutine():
+    if (
+        not cached_data.player_is_alive or
+        DistanceFromLeader(cached_data) >= Range.SafeCompass.value or
+        cached_data.player_is_knocked_down or 
+        cached_data.combat_handler.InCastingRoutine()
+    ):
         return
     
     cached_data.combat_handler.PrioritizeSkills()
@@ -329,7 +333,8 @@ def UpdateStatus(cached_data):
         return
     
     if Loot(cached_data):
-        return
+       return
+    
     if Follow(cached_data):
         return
 
@@ -338,7 +343,7 @@ def UpdateStatus(cached_data):
     
     #if were here we are not doing anything
     #auto attack
-    cache_data.combat_handler.ChooseTarget()
+    cached_data.combat_handler.ChooseTarget()
 
    
 def configure():
