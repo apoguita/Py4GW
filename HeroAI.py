@@ -137,7 +137,7 @@ class CacheData:
             self.player_hp = Agent.GetHealth(self.player_agent_id)
             self.player_is_alive = Agent.IsAlive(self.player_agent_id)
             self.player_overcast = Agent.GetOvercast(self.player_agent_id)
-            self.player_is_k0nocked_down = Agent.IsKnockedDown(self.player_agent_id)
+            self.player_is_knocked_down = Agent.IsKnockedDown(self.player_agent_id)
             self.player_is_moving = Agent.IsMoving(self.player_agent_id)
             self.player_is_melee = Agent.IsMelee(self.player_agent_id)
             #AgentArray data
