@@ -256,8 +256,8 @@ class Agent:
         """Purpose: Get the name of an agent by its ID."""
         agent_instance = Agent.agent_instance(agent_id)
         model_id = agent_instance.living_agent.player_number
-        #return ModelData.get(model_id, {}).get('name', agent_instance.living_agent.name)
-        return agent_instance.living_agent.name
+        return ModelData.get(model_id, {}).get('name', agent_instance.living_agent.name)
+        #return agent_instance.living_agent.GetName()
 
     @staticmethod
     def GetProfessions(agent_id):

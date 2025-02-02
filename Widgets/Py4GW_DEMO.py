@@ -46,7 +46,7 @@ def calculate_grid_layout(total_buttons):
 
 
 ping_handler = Py4GW.PingHandler()
-timer_instance = Py4GW.Timer()
+timer_instance = Timer()
 overlay = Overlay()
 show_mouse_world_pos = False
 show_area_rings = False
@@ -381,11 +381,11 @@ def ShowPy4GW_Window_main():
                 if PyImGui.button("Show Timer Info"):
                     description_index = 3
 
-                elapsed_time = timer_instance.get_elapsed_time()
-                is_stopped = timer_instance.is_stopped()
-                is_running = timer_instance.is_running()
-                is_paused = timer_instance.is_paused()
-                has_elapsed_5000ms = timer_instance.has_elapsed(5000)
+                elapsed_time = timer_instance.GetElapsedTime()
+                is_stopped = timer_instance.IsStopped()
+                is_running = timer_instance.IsRunning()
+                is_paused = timer_instance.IsPaused()
+                has_elapsed_5000ms = timer_instance.HasElapsed(5000)
 
                 headers = ["Value", "Data"]
                 data = [
@@ -397,16 +397,16 @@ def ShowPy4GW_Window_main():
                  ]
 
                 if PyImGui.button("Start Timer"):
-                    timer_instance.start()
+                    timer_instance.Start()
 
                 if PyImGui.button("Stop Timer"):
-                    timer_instance.stop()
+                    timer_instance.Stop()
 
                 if PyImGui.button("Pause Timer"):
-                    timer_instance.pause()
+                    timer_instance.Pause()
 
                 if PyImGui.button("Resume Timer"):
-                    timer_instance.resume()
+                    timer_instance.Resume()
 
                 ImGui.table("Timer info", headers, data)
 
