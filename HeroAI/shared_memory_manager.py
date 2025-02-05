@@ -18,11 +18,12 @@ from .types import (
     GameStruct,
 )
 
+last_hour = int(time.time() // 3600 * 3600)
 def get_base_timestamp():
-    # Use midnight today as the reference point
+    global last_hour
     now = time.time()
-    last_hour = int(now // 3600 * 3600) 
     return int((now - last_hour) * 1000)  # Delta from last hour in milliseconds
+
 
 class SharedMemoryManager:
     global SMM_MODULE_NAME, MAX_NUM_PLAYERS, SHARED_MEMORY_FILE_NAME,LOCK_MUTEX_TIMEOUT, SUBSCRIBE_TIMEOUT_SECONDS          
@@ -122,7 +123,7 @@ class SharedMemoryManager:
             candidate = self.game_struct.Candidates[index]
             # Timeout check
             current_offset = get_base_timestamp()
-            if current_offset - candidate.LastUpdated > SUBSCRIBE_TIMEOUT_SECONDS:
+            if (current_offset - candidate.LastUpdated) > SUBSCRIBE_TIMEOUT_SECONDS:
                 self.reset_candidate(index)
 
             # Return candidate data
@@ -248,7 +249,7 @@ class SharedMemoryManager:
                 
             # Timeout check
             current_offset = get_base_timestamp()
-            if current_offset - player.LastUpdated > SUBSCRIBE_TIMEOUT_SECONDS:
+            if (current_offset - player.LastUpdated) > SUBSCRIBE_TIMEOUT_SECONDS:
                 self.reset_player(index)
 
             data = {
@@ -414,7 +415,7 @@ class SharedMemoryManager:
             for buff_index, buff in enumerate(self.game_struct.PlayerBuffs):
                 if buff.PlayerID == agent_id:
                     current_offset = get_base_timestamp()
-                    if current_offset - buff.LastUpdated > SUBSCRIBE_TIMEOUT_SECONDS:
+                    if (current_offset - buff.LastUpdated) > SUBSCRIBE_TIMEOUT_SECONDS:
                         self.reset_buff(buff_index)
                     else:
                         buff_list.append(buff.Buff_id)

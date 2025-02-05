@@ -6,7 +6,7 @@ from .targetting import *
 import math
 
 def DistanceFromLeader(cached_data):
-    return Utils.Distance(cached_data.party_leader_xy,cached_data.player_xy)
+    return Utils.Distance(cached_data.data.party_leader_xy,cached_data.data.player_xy)
 
 def DistanceFromWaypoint(posX,posY):
     return Utils.Distance((posX,posY), Player.GetXY())
@@ -81,10 +81,10 @@ def InAggro(enemy_array, aggro_range = Range.Earshot.value):
 
 
 def IsHeroFlagged(cached_data,index):
-    if  index != 0 and index <= cached_data.party_hero_count:
+    if  index != 0 and index <= cached_data.data.party_hero_count:
         return Party.Heroes.IsHeroFlagged(index)
     else:
-        return cached_data.HeroAI_vars.all_player_struct[index-cached_data.party_hero_count].IsFlagged and cached_data.HeroAI_vars.all_player_struct[index-cached_data.party_hero_count].IsActive
+        return cached_data.HeroAI_vars.all_player_struct[index-cached_data.data.party_hero_count].IsFlagged and cached_data.HeroAI_vars.all_player_struct[index-cached_data.data.party_hero_count].IsActive
 
 
 def DrawFlagAll(pos_x, pos_y):
@@ -93,12 +93,12 @@ def DrawFlagAll(pos_x, pos_y):
     pos_z = overlay.FindZ(pos_x, pos_y)
 
     overlay.BeginDraw()
-    overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, RGBToColor(0, 255, 0, 255), 3)
+    overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, Utils.RGBToColor(0, 255, 0, 255), 3)
     overlay.DrawFilledTriangle3D(
         pos_x, pos_y, pos_z - 150,               # Base point
         pos_x, pos_y, pos_z - 120,               # 30 units up
         pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
-        RGBToColor(0, 255, 0, 255)
+        Utils.RGBToColor(0, 255, 0, 255)
     )
 
     overlay.EndDraw()
@@ -110,12 +110,12 @@ def DrawHeroFlag(pos_x, pos_y):
     pos_z = overlay.FindZ(pos_x, pos_y)
 
     overlay.BeginDraw()
-    overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, RGBToColor(0, 255, 0, 255), 3)
+    overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, Utils.RGBToColor(0, 255, 0, 255), 3)
     overlay.DrawFilledTriangle3D(
         pos_x + 25, pos_y, pos_z - 150,          # Right base
         pos_x - 25, pos_y, pos_z - 150,          # Left base
         pos_x, pos_y, pos_z - 100,               # 50 units up
-        RGBToColor(0, 255, 0, 255)
+        Utils.RGBToColor(0, 255, 0, 255)
     )
     overlay.EndDraw()
 
