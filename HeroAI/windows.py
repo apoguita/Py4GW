@@ -11,7 +11,7 @@ from HeroAI import game_option
 
 def DrawBuffWindow(cached_data):
     global MAX_NUM_PLAYERS
-    if not cached_data.is_explorable:
+    if not cached_data.data.is_explorable:
         return
 
     for index in range(MAX_NUM_PLAYERS):
@@ -33,9 +33,9 @@ def DrawBuffWindow(cached_data):
 
 def TrueFalseColor(condition):
     if condition:
-        return RGBToNormal(0, 255, 0, 255)
+        return Utils.RGBToNormal(0, 255, 0, 255)
     else:
-        return RGBToNormal(255, 0, 0, 255)
+        return Utils.RGBToNormal(255, 0, 0, 255)
 
 skill_slot = 0
 def DrawPrioritizedSkills(cached_data):
@@ -222,7 +222,7 @@ def DrawFlags(cached_data):
 def DrawFlaggingWindow(cache_data):
     global HeroFlags, AllFlag, capture_flag_all, capture_hero_flag, capture_hero_index, one_time_set_flag
     global CLearFlags
-    party_size = cache_data.party_size
+    party_size = cache_data.data.party_size
     if party_size == 1:
         PyImGui.text("No Follower or Heroes to Flag.")
         return
@@ -308,10 +308,10 @@ def DrawCandidateWindow(cache_data):
         for index in range(MAX_NUM_PLAYERS):
             candidate = cache_data.HeroAI_vars.all_candidate_struct[index]
             if (candidate.PlayerID and
-                candidate.PlayerID != cache_data.player_agent_id and
-                candidate.MapID == cache_data.map_id and
-                candidate.MapRegion == cache_data.region and
-                candidate.MapDistrict == cache_data.district):
+                candidate.PlayerID != cache_data.data.player_agent_id and
+                candidate.MapID == cache_data.data.map_id and
+                candidate.MapRegion == cache_data.data.region and
+                candidate.MapDistrict == cache_data.data.district):
 
                 candidate_count += 1
 
@@ -334,9 +334,9 @@ def DrawCandidateWindow(cache_data):
     for index in range(MAX_NUM_PLAYERS):
         candidate = cache_data.HeroAI_vars.all_candidate_struct[index]
         if ((candidate.PlayerID and candidate.PlayerID != Player.GetAgentID()) and
-            (candidate.MapID != cache_data.map_id or
-            candidate.MapRegion != cache_data.region or
-            candidate.MapDistrict != cache_data.district)):
+            (candidate.MapID != cache_data.data.map_id or
+            candidate.MapRegion != cache_data.data.region or
+            candidate.MapDistrict != cache_data.data.district)):
 
             if PyImGui.button(f"Summon from map {Map.GetMapName(candidate.MapID)}##summon_{candidate.PlayerID}"):
                 SendPartyCommand(index, cache_data, "Summon")  
@@ -368,16 +368,16 @@ slot_to_write = 0
 def DrawPlayersDebug(cache_data):
     global MAX_NUM_PLAYERS, slot_to_write
 
-    own_party_number = cache_data.own_party_number
+    own_party_number = cache_data.data.own_party_number
     PyImGui.text(f"Own Party Number: {own_party_number}")
     slot_to_write = PyImGui.input_int("Slot to write", slot_to_write)
 
     if PyImGui.button("Submit"):
-        self_id = cache_data.player_agent_id
+        self_id = cache_data.data.player_agent_id
 
         cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "PlayerID", self_id)
-        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy_Regen", cache_data.energy_regen)
-        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy", cache_data.energy)
+        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy_Regen", cache_data.data.energy_regen)
+        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy", cache_data.data.energy)
         cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsActive", True)
         cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsHero", False)
         cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsFlagged", False)
@@ -411,7 +411,7 @@ def DrawHeroesDebug(cache_data):
     headers = ["Slot", "agent_id", "owner_player_id", "hero_id", "hero_name"]
     data = []
 
-    heroes = cache_data.heroes
+    heroes = cache_data.data.heroes
     for index, hero in enumerate(heroes):
         data.append((
             index,  # Slot index
@@ -489,7 +489,7 @@ def DrawFlagDebug(cached_data):
     PyImGui.text_colored("Having GetMouseWorldPos active will crash your client on map change",(1, 0.5, 0.05, 1))
     mouse_x, mouse_y = overlay.GetMouseCoords()
     PyImGui.text(f"Mouse Coords: {mouse_x}, {mouse_y}")
-    PyImGui.text(f"Player Position: {cached_data.player_xyz}")
+    PyImGui.text(f"Player Position: {cached_data.data.player_xyz}")
     draw_fake_flag = PyImGui.checkbox("Draw Fake Flag", draw_fake_flag)
 
     if draw_fake_flag:
@@ -515,49 +515,49 @@ def DrawFollowDebug(cached_data):
     show_hero_follow_grid = PyImGui.checkbox("Show Hero Follow Grid", show_hero_follow_grid)
     show_distance_on_followers = PyImGui.checkbox("Show Distance on Followers", show_distance_on_followers)
     PyImGui.separator()
-    PyImGui.text(f"InAggro: {cached_data.in_aggro}")
-    PyImGui.text(f"IsMelee: {Agent.IsMelee(cached_data.player_agent_id)}")
-    PyImGui.text(f"Nearest Enemy: {cached_data.nearest_enemy}")
-    PyImGui.text(f"stay_alert_timer: {cached_data.combat_handler.GetStayAlertTimer()}")
-    PyImGui.text(f"Leader Rotation Angle: {cached_data.party_leader_rotation_angle}")
-    PyImGui.text(f"Angle_changed: {cached_data.angle_changed}")
+    PyImGui.text(f"InAggro: {cached_data.data.in_aggro}")
+    PyImGui.text(f"IsMelee: {Agent.IsMelee(cached_data.data.player_agent_id)}")
+    PyImGui.text(f"Nearest Enemy: {cached_data.data.nearest_enemy}")
+    PyImGui.text(f"stay_alert_timer: {cached_data.stay_alert_timer.GetElapsedTime()}")
+    PyImGui.text(f"Leader Rotation Angle: {cached_data.data.party_leader_rotation_angle}")
+    PyImGui.text(f"Angle_changed: {cached_data.data.angle_changed}")
 
     segments = 32
     overlay.BeginDraw()
     if show_area_rings:
-        player_x, player_y, player_z = cached_data.player_xyz
+        player_x, player_y, player_z = Agent.GetXYZ(Player.GetAgentID()) #cached_data.data.player_xyz # needs to be live
 
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Touch.value / 2, color=RGBToColor(255, 255, 0 , 128),numsegments=segments,thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Touch.value    , color=RGBToColor(255, 200, 0 , 128),numsegments=segments,thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Adjacent.value , color=RGBToColor(255, 150, 0 , 128), numsegments=segments, thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Nearby.value   , color=RGBToColor(255, 100, 0 , 128), numsegments=segments, thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Area.value     , color=RGBToColor(255, 50 , 0 , 128), numsegments=segments, thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Earshot.value  , color=RGBToColor(255, 25 , 0 , 128), numsegments=segments, thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Spellcast.value, color=RGBToColor(255, 12 , 0 , 128), numsegments=segments, thickness=2.0)
+        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Touch.value / 2, color=Utils.RGBToColor(255, 255, 0 , 128), numsegments=segments, thickness=2.0)
+        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Touch.value    , color=Utils.RGBToColor(255, 200, 0 , 128), numsegments=segments, thickness=2.0)
+        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Adjacent.value , color=Utils.RGBToColor(255, 150, 0 , 128), numsegments=segments, thickness=2.0)
+        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Nearby.value   , color=Utils.RGBToColor(255, 100, 0 , 128), numsegments=segments, thickness=2.0)
+        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Area.value     , color=Utils.RGBToColor(255, 50 , 0 , 128), numsegments=segments, thickness=2.0)
+        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Earshot.value  , color=Utils.RGBToColor(255, 25 , 0 , 128), numsegments=segments, thickness=2.0)
+        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Spellcast.value, color=Utils.RGBToColor(255, 12 , 0 , 128), numsegments=segments, thickness=2.0)
 
     if show_hero_follow_grid:
-        leader_x, leader_y, leader_z = cached_data.party_leader_xyz
+        leader_x, leader_y, leader_z = Agent.GetXYZ(Party.GetPartyLeaderID()) #cached_data.data.party_leader_xyz #needs to be live 
 
         for index, angle in enumerate(hero_formation):
             if index == 0:
                 continue
-            angle_on_hero_grid = cached_data.party_leader_rotation_angle + DegToRad(angle)
+            angle_on_hero_grid = Agent.GetRotationAngle(Party.GetPartyLeaderID()) + Utils.DegToRad(angle)
             hero_x = Range.Touch.value * math.cos(angle_on_hero_grid) + leader_x
             hero_y = Range.Touch.value * math.sin(angle_on_hero_grid) + leader_y
             
-            overlay.DrawPoly3D(hero_x, hero_y, leader_z, radius=Range.Touch.value /2, color=RGBToColor(255, 0, 255, 128), numsegments=segments, thickness=2.0)
+            overlay.DrawPoly3D(hero_x, hero_y, leader_z, radius=Range.Touch.value /2, color=Utils.RGBToColor(255, 0, 255, 128), numsegments=segments, thickness=2.0)
  
     if show_distance_on_followers:
         for i in range(MAX_NUM_PLAYERS):
             if cached_data.HeroAI_vars.all_player_struct[i].IsActive:
                 overlay.BeginDraw()
                 player_id = cached_data.HeroAI_vars.all_player_struct[i].PlayerID
-                if player_id == cached_data.player_agent_id:
+                if player_id == cached_data.data.player_agent_id:
                     continue
                 target_x, target_y, target_z = Agent.GetXYZ(player_id)
-                overlay.DrawPoly3D(target_x, target_y, target_z, radius=72, color=RGBToColor(255, 255, 255, 128),numsegments=segments,thickness=2.0)
+                overlay.DrawPoly3D(target_x, target_y, target_z, radius=72, color=Utils.RGBToColor(255, 255, 255, 128),numsegments=segments,thickness=2.0)
                 z_coord = overlay.FindZ(target_x, target_y, 0)
-                overlay.DrawText3D(target_x, target_y, z_coord-130, f"{DistanceFromWaypoint(target_x, target_y):.1f}",color=RGBToColor(255, 255, 255, 128), autoZ=False, centered=True, scale=2.0)
+                overlay.DrawText3D(target_x, target_y, z_coord-130, f"{DistanceFromWaypoint(target_x, target_y):.1f}",color=Utils.RGBToColor(255, 255, 255, 128), autoZ=False, centered=True, scale=2.0)
     
     overlay.EndDraw()
     
@@ -577,7 +577,7 @@ def DrawDebugWindow(cache_data):
     if PyImGui.collapsing_header("Heroes Debug"):
         DrawHeroesDebug(cache_data)
 
-    if cache_data.is_explorable:
+    if cache_data.data.is_explorable:
         if PyImGui.collapsing_header("Follow Debug"):
             DrawFollowDebug(cache_data)
         if PyImGui.collapsing_header("Flag Debug"):
@@ -594,10 +594,10 @@ def DrawMultiboxTools(cache_data):
     cache_data.HeroAI_windows.tools_window.initialize()
 
     if cache_data.HeroAI_windows.tools_window.begin():
-        if cache_data.is_outpost and cache_data.player_agent_id == cache_data.party_leader_id:
+        if cache_data.data.is_outpost and cache_data.data.player_agent_id == cache_data.data.party_leader_id:
             if PyImGui.collapsing_header("Party Setup",PyImGui.TreeNodeFlags.DefaultOpen):
                 DrawCandidateWindow(cache_data)
-        if cache_data.is_explorable and cache_data.player_agent_id == cache_data.party_leader_id:
+        if cache_data.data.is_explorable and cache_data.data.player_agent_id == cache_data.data.party_leader_id:
             if PyImGui.collapsing_header("Flagging"):
                 DrawFlaggingWindow(cache_data)
         if PyImGui.collapsing_header("Debug Options"):
@@ -699,7 +699,7 @@ def DrawPanelButtons(source_game_option):
     return game_option
 
 def DrawMainWindow(cache_data):
-    own_party_number = cache_data.own_party_number
+    own_party_number = cache_data.data.own_party_number
     game_option = GameOptionStruct()
     original_game_option = cache_data.HeroAI_vars.all_game_option_struct[own_party_number]
      
@@ -720,7 +720,7 @@ def DrawMainWindow(cache_data):
 
 def DrawControlPanelWindow(cache_data):
     global MAX_NUM_PLAYERS
-    own_party_number = cache_data.own_party_number
+    own_party_number = cache_data.data.own_party_number
     game_option = GameOptionStruct()     
     if own_party_number != 0:
         return
