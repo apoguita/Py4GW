@@ -7,23 +7,23 @@ from .constants import (
 
 def RegisterPlayer(cache_data):
     """Register the current player to the shared memory."""
-    if cache_data.own_party_number == -1:
+    if cache_data.data.own_party_number == -1:
         return False
 
-    cache_data.HeroAI_vars.shared_memory_handler.set_player_property(cache_data.own_party_number, "PlayerID", cache_data.player_agent_id)
-    cache_data.HeroAI_vars.shared_memory_handler.set_player_property(cache_data.own_party_number, "Energy_Regen", cache_data.energy_regen)
-    cache_data.HeroAI_vars.shared_memory_handler.set_player_property(cache_data.own_party_number, "Energy", cache_data.energy)
-    cache_data.HeroAI_vars.shared_memory_handler.set_player_property(cache_data.own_party_number, "IsActive", True)
-    cache_data.HeroAI_vars.shared_memory_handler.set_player_property(cache_data.own_party_number, "IsHero", False)
+    cache_data.HeroAI_vars.shared_memory_handler.set_player_property(cache_data.data.own_party_number, "PlayerID", cache_data.data.player_agent_id)
+    cache_data.HeroAI_vars.shared_memory_handler.set_player_property(cache_data.data.own_party_number, "Energy_Regen", cache_data.data.energy_regen)
+    cache_data.HeroAI_vars.shared_memory_handler.set_player_property(cache_data.data.own_party_number, "Energy", cache_data.data.energy)
+    cache_data.HeroAI_vars.shared_memory_handler.set_player_property(cache_data.data.own_party_number, "IsActive", True)
+    cache_data.HeroAI_vars.shared_memory_handler.set_player_property(cache_data.data.own_party_number, "IsHero", False)
 
-    cache_data.HeroAI_vars.shared_memory_handler.register_buffs(cache_data.player_agent_id)
+    cache_data.HeroAI_vars.shared_memory_handler.register_buffs(cache_data.data.player_agent_id)
 
 
 def RegisterHeroes(cache_data):
-    for index, hero in enumerate(cache_data.heroes):
-        hero_party_number =cache_data.party_player_count + index
+    for index, hero in enumerate(cache_data.data.heroes):
+        hero_party_number =cache_data.data.party_player_count + index
         agent_id = hero.agent_id
-        if hero.owner_player_id == cache_data.player_login_number: 
+        if hero.owner_player_id == cache_data.data.player_login_number: 
             cache_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "PlayerID", agent_id)
             cache_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "Energy_Regen", Agent.GetEnergyRegen(agent_id))
             cache_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "Energy", Agent.GetEnergy(agent_id))

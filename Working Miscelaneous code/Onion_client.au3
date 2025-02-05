@@ -1,4 +1,6 @@
 #include <GUIConstantsEx.au3>
+#include <ButtonConstants.au3>
+#include <EditConstants.au3>
 #include <WindowsConstants.au3>
 
 Global $g_TCPConnected = False
@@ -12,6 +14,9 @@ Global $hGUI = GUICreate("TCP Client", 400, 200)
 Global $btnConnect = GUICtrlCreateButton("Connect to Server", 20, 50, 150, 30)
 Global $btnDisconnect = GUICtrlCreateButton("Disconnect", 200, 50, 150, 30)
 Global $lblStatus = GUICtrlCreateLabel("Status: Disconnected", 20, 100, 360, 20)
+Global $btnEnterChallenge = GUICtrlCreateButton("ENTER_CHALLENGE_MISSION", 100, 150, 200, 40)
+Global $lblAgentID = GUICtrlCreateLabel("message: Not received", 20, 120, 300, 30)
+
 
 GUISetState(@SW_SHOW)
 
@@ -26,6 +31,11 @@ While 1
             If Not $g_TCPConnected Then ConnectToServer()
         Case $btnDisconnect
             If $g_TCPConnected Then DisconnectFromServer()
+		Case $btnEnterChallenge
+            If $g_TCPConnected Then
+                Local $agentID = EnterChallenge()
+                GUICtrlSetData($lblAgentID, "Result: " & $agentID)
+            EndIf
     EndSwitch
     
     ; If connected, check for messages from the server
@@ -88,4 +98,56 @@ Func CheckForServerMessage()
     
     ; Display the received message
     GUICtrlSetData($lblStatus, "Server: " & $received)
+EndFunc
+
+Func RequestAgentID()
+    If Not $g_TCPConnected Then Return "Not connected"
+	
+	Local $timer = TimerInit() ; Start timing
+
+    TCPSend($g_TCPSocket, "GET_AGENT_ID")
+	
+    Local $response = ""
+    Local $maxWaitTime = 5000 
+	
+	While TimerDiff($timer) < $maxWaitTime
+        $response = TCPRecv($g_TCPSocket, 1024)
+        If $response <> "" Then ExitLoop
+        Sleep(1) ; Minimize CPU usage while looping
+    WEnd
+    
+	Local $elapsedTime = TimerDiff($timer) ; Measure time in milliseconds
+    
+    
+    If $response = "" Then
+        Return "No response (Time: " & Round($elapsedTime, 2) & " ms)"
+    EndIf
+
+    Return "Agent ID: " & StringStripWS($response, 3) & " (Time: " & Round($elapsedTime, 2) & " ms)"
+EndFunc
+
+Func EnterChallenge()
+    If Not $g_TCPConnected Then Return "Not connected"
+	
+	Local $timer = TimerInit() ; Start timing
+
+    TCPSend($g_TCPSocket, "ENTER_CHALLENGE_MISSION")
+	
+    Local $response = ""
+    Local $maxWaitTime = 5000 
+	
+	While TimerDiff($timer) < $maxWaitTime
+        $response = TCPRecv($g_TCPSocket, 1024)
+        If $response <> "" Then ExitLoop
+        Sleep(1) ; Minimize CPU usage while looping
+    WEnd
+    
+	Local $elapsedTime = TimerDiff($timer) ; Measure time in milliseconds
+    
+    
+    If $response = "" Then
+        Return "No response (Time: " & Round($elapsedTime, 2) & " ms)"
+    EndIf
+
+    Return "Agent ID: " & StringStripWS($response, 3) & " (Time: " & Round($elapsedTime, 2) & " ms)"
 EndFunc

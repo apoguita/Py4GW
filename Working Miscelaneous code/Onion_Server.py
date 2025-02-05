@@ -6,8 +6,10 @@ module_name = "TCP Server"
 server = None
 server_thread = None
 
+global_enter_challenge = False
 
 class TCPServer:
+    global global_enter_challenge
     def __init__(self, host='127.0.0.1', port=12345, buffer_size=4096):
         self.host = host
         self.port = port
@@ -47,6 +49,7 @@ class TCPServer:
                 Py4GW.Console.Log(module_name, f"Error while waiting for client: {e}", Py4GW.Console.MessageType.Warning)
 
     def handle_client(self):
+        global global_enter_challenge
         """Handle communication with the client."""
         while self.running:
             with self.lock:
@@ -57,6 +60,17 @@ class TCPServer:
                             message = data.decode()
                             Py4GW.Console.Log(module_name, f"Received: {message}", Py4GW.Console.MessageType.Info)
                             self.send_message(f"Echo: {message}")
+                            
+                            if message == "GET_AGENT_ID":
+                                agent_id = str(Player.GetAgentID())  # Obtain agent ID from Py4GW
+                                self.send_message(agent_id)  # Send agent ID to AutoIt client
+                            if message == "ENTER_CHALLENGE_MISSION":
+                                global_enter_challenge = True
+                                self.send_message("SUCCESS") 
+                            else:
+                                self.send_message(f"Echo: {message}")  # Default echo response
+
+
                         else:
                             Py4GW.Console.Log(module_name, "Client disconnected.", Py4GW.Console.MessageType.Info)
                             self.cleanup_client()
@@ -164,7 +178,7 @@ def stop_server():
 
 # GUI Rendering Function
 def DrawWindow():
-    global module_name, server_thread
+    global module_name, server_thread, global_enter_challenge
     try:
         if PyImGui.begin(module_name):
             PyImGui.text("TCP Server")
@@ -178,6 +192,11 @@ def DrawWindow():
                 if PyImGui.button("Stop Server"):
                     stop_server()
                     Py4GW.Console.Log(module_name, "Server stopped.", Py4GW.Console.MessageType.Info)
+                    
+            if global_enter_challenge:
+                Map.EnterChallenge()
+                global_enter_challenge = False
+                Py4GW.Console.Log(module_name, f"Entered Challenge: {str(e)}", Py4GW.Console.MessageType.Info)
 
             PyImGui.end()
     except Exception as e:
