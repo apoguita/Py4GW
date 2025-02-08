@@ -1,0 +1,422 @@
+Folder PATH listing
+Volume serial number is 6E39-5F2A
+C:.
+³   .gitattributes
+³   .gitignore
+³   accounts.json
+³   Barebones_Example_module.py
+³   BorealBot.py
+³   Hello_World.py
+³   HeroAI.py
+³   HeroAI.rar
+³   imgui.ini
+³   load_lua_script.py
+³   lua_test.py
+³   Patcher.py
+³   project_structure.txt
+³   Py4GW.dll
+³   Py4GW.ini
+³   Py4GW_1.0.56.rar
+³   Py4GW_Launcher.exe
+³   Py4GW_Launcher.ini
+³   Py4GW_Launcher.py
+³   Py4GW_LAUNCHER.spec
+³   Py4GW_python.pyproj
+³   Py4GW_widget_manager.py
+³   README.md
+³   readme.txt
+³   requirements.txt
+³   VaettirBot 1.9.26.py
+³   VaettirBot 2.0.py
+³   VaettirBot.py
+³   
+ÃÄÄÄ.idea
+³   ³   .gitignore
+³   ³   misc.xml
+³   ³   modules.xml
+³   ³   Py4GW_python_files.iml
+³   ³   vcs.xml
+³   ³   workspace.xml
+³   ³   
+³   ÀÄÄÄinspectionProfiles
+³           profiles_settings.xml
+³           
+ÃÄÄÄAddons
+³       GWBlackBOX.dll
+³       
+ÃÄÄÄbuild
+³   ÃÄÄÄimgui_window
+³   ³   ³   Analysis-00.toc
+³   ³   ³   base_library.zip
+³   ³   ³   EXE-00.toc
+³   ³   ³   imgui_window.pkg
+³   ³   ³   PKG-00.toc
+³   ³   ³   PYZ-00.pyz
+³   ³   ³   PYZ-00.toc
+³   ³   ³   warn-imgui_window.txt
+³   ³   ³   xref-imgui_window.html
+³   ³   ³   
+³   ³   ÀÄÄÄlocalpycs
+³   ³           pyimod01_archive.pyc
+³   ³           pyimod02_importers.pyc
+³   ³           pyimod03_ctypes.pyc
+³   ³           pyimod04_pywin32.pyc
+³   ³           struct.pyc
+³   ³           
+³   ÀÄÄÄPy4GW_LAUNCHER
+³       ³   Analysis-00.toc
+³       ³   base_library.zip
+³       ³   EXE-00.toc
+³       ³   PKG-00.toc
+³       ³   Py4GW_Launcher.pkg
+³       ³   PYZ-00.pyz
+³       ³   PYZ-00.toc
+³       ³   warn-Py4GW_Launcher.txt
+³       ³   xref-Py4GW_Launcher.html
+³       ³   
+³       ÀÄÄÄlocalpycs
+³               pyimod01_archive.pyc
+³               pyimod02_importers.pyc
+³               pyimod03_ctypes.pyc
+³               pyimod04_pywin32.pyc
+³               struct.pyc
+³               
+ÃÄÄÄDEMO
+³   ³   DEMO_PyAgent.py
+³   ³   DEMO_PyImGui.py
+³   ³   DEMO_PyInventory.py
+³   ³   DEMO_PyItem.py
+³   ³   DEMO_PyMap.py
+³   ³   DEMO_PyMerchant.py
+³   ³   DEMO_PyParty.py
+³   ³   DEMO_PyPlayer.py
+³   ³   DEMO_PySkill.py
+³   ³   DEMO_PySkillbar.py
+³   ³   __init__.py
+³   ³   
+³   ÀÄÄÄ__pycache__
+³           Barebones_Example_module.cpython-312.pyc
+³           BorealDEMO.cpython-312.pyc
+³           BorealYieldDEMO.cpython-312.pyc
+³           Boreal_ChestRun.cpython-312.pyc
+³           DEMO_ImGui_py.cpython-312.pyc
+³           DEMO_PyAgent.cpython-312.pyc
+³           DEMO_PyImGui.cpython-312.pyc
+³           DEMO_PyInventory.cpython-312.pyc
+³           DEMO_PyItem.cpython-312.pyc
+³           DEMO_PyMap.cpython-312.pyc
+³           DEMO_PyMerchant.cpython-312.pyc
+³           DEMO_PyParty.cpython-312.pyc
+³           DEMO_PyPlayer.cpython-312.pyc
+³           DEMO_PySkill.cpython-312.pyc
+³           DEMO_PySkillbar.cpython-312.pyc
+³           headers.cpython-312.pyc
+³           Hello_World.cpython-312.pyc
+³           move_to_target_test.cpython-312.pyc
+³           PingHandler.cpython-312.pyc
+³           Py4GWcorelib.cpython-312.pyc
+³           Py4GW_DEMO.cpython-312.pyc
+³           test.cpython-312.pyc
+³           test_function_contrainer.cpython-312.pyc
+³           
+ÃÄÄÄdist
+³       Py4GW_Launcher.exe
+³       
+ÃÄÄÄdocs
+³       rosetta_stone.txt
+³       
+ÃÄÄÄfonts
+³       Font Awesome 6 Brands-Regular-400.otf
+³       Font Awesome 6 Free-Regular-400.otf
+³       Font Awesome 6 Free-Solid-900.otf
+³       friz-quadrata-std-bold-587034a220f9f.otf
+³       friz-quadrata-std-bold-italic-587033d6d4298.otf
+³       friz-quadrata-std-italic-587033b2c95df.otf
+³       friz-quadrata-std-medium-5870338ec7ef8.otf
+³       
+ÃÄÄÄHeroAI
+³   ³   candidates.py
+³   ³   combat.py
+³   ³   constants.py
+³   ³   custom_skill.py
+³   ³   game_option.py
+³   ³   globals.py
+³   ³   players.py
+³   ³   shared_memory_manager.py
+³   ³   targetting.py
+³   ³   types.py
+³   ³   utils.py
+³   ³   windows.py
+³   ³   __init__.py
+³   ³   
+³   ÀÄÄÄ__pycache__
+³           candidates.cpython-313.pyc
+³           combat.cpython-313.pyc
+³           constants.cpython-313.pyc
+³           custom_skill.cpython-313.pyc
+³           flaging.cpython-313.pyc
+³           game_option.cpython-313.pyc
+³           globals.cpython-313.pyc
+³           players.cpython-313.pyc
+³           shared_memory.cpython-313.pyc
+³           shared_memory_manager.cpython-313.pyc
+³           targetting.cpython-313.pyc
+³           types.cpython-313.pyc
+³           utils.cpython-313.pyc
+³           windows.cpython-313.pyc
+³           __init__.cpython-313.pyc
+³           
+ÃÄÄÄLegacy code and tests
+³   ³   Barebones_Example_module.py
+³   ³   BorealDEMO.py
+³   ³   Hello_World.py
+³   ³   move_to_target_test.py
+³   ³   PingHandler.py
+³   ³   Py4GW.pyproj
+³   ³   Py4GWcorelib.py
+³   ³   Py4GW_DEMO.py
+³   ³   readme.txt
+³   ³   RUN BOT.py
+³   ³   Script_Template.py
+³   ³   test.py
+³   ³   test_function_contrainer.py
+³   ³   
+³   ÀÄÄÄ__pycache__
+³           BorealDEMO.cpython-312.pyc
+³           Py4GWcorelib.cpython-312.pyc
+³           Py4GW_DEMO.cpython-312.pyc
+³           test_function_contrainer.cpython-312.pyc
+³           
+ÃÄÄÄLUACoreLib
+³       Agent.lua
+³       AgentArray.lua
+³       Effects.lua
+³       IMGUI.lua
+³       Inventory.lua
+³       Item.lua
+³       ItemArray.lua
+³       LUACoreLib.lua
+³       lua_bridge.py
+³       Map.lua
+³       Merchant.lua
+³       Party.lua
+³       Quest.lua
+³       Skill.lua
+³       SkillBar.lua
+³       __init__.py
+³       
+ÃÄÄÄlua_scripts
+³       map_id_tester.lua
+³       
+ÃÄÄÄPy4GWCoreLib
+³   ³   Agent.py
+³   ³   AgentArray.py
+³   ³   Effect.py
+³   ³   enums.py
+³   ³   IconsFontAwesome5.py
+³   ³   ImGui.py
+³   ³   Inventory.py
+³   ³   Item.py
+³   ³   ItemArray.py
+³   ³   Map.py
+³   ³   Merchant.py
+³   ³   model_data.py
+³   ³   model_id_converter.py
+³   ³   Overlay.py
+³   ³   Party.py
+³   ³   Player.py
+³   ³   Py4GWcorelib.py
+³   ³   Quest.py
+³   ³   readme.txt
+³   ³   Skill.py
+³   ³   Skillbar.py
+³   ³   __init__.py
+³   ³   
+³   ÀÄÄÄ__pycache__
+³           Agent.cpython-312.pyc
+³           Agent.cpython-313.pyc
+³           AgentArray.cpython-312.pyc
+³           AgentArray.cpython-313.pyc
+³           Effect.cpython-312.pyc
+³           Effect.cpython-313.pyc
+³           enums.cpython-313.pyc
+³           HeroAI.cpython-312.pyc
+³           IconsFontAwesome5.cpython-312.pyc
+³           IconsFontAwesome5.cpython-313.pyc
+³           IconsFontAwesome6.cpython-312.pyc
+³           ImGui.cpython-312.pyc
+³           ImGui.cpython-313.pyc
+³           Inventory.cpython-312.pyc
+³           Inventory.cpython-313.pyc
+³           Item.cpython-312.pyc
+³           Item.cpython-313.pyc
+³           ItemArray.cpython-312.pyc
+³           ItemArray.cpython-313.pyc
+³           Map.cpython-312.pyc
+³           Map.cpython-313.pyc
+³           Merchant.cpython-312.pyc
+³           Merchant.cpython-313.pyc
+³           model_data.cpython-313.pyc
+³           Overlay.cpython-312.pyc
+³           Overlay.cpython-313.pyc
+³           Party.cpython-312.pyc
+³           Party.cpython-313.pyc
+³           Player.cpython-312.pyc
+³           Player.cpython-313.pyc
+³           Py4GWcorelib.cpython-312.pyc
+³           Py4GWcorelib.cpython-313.pyc
+³           Quest.cpython-312.pyc
+³           Quest.cpython-313.pyc
+³           Routine.cpython-312.pyc
+³           Skill.cpython-312.pyc
+³           Skill.cpython-313.pyc
+³           Skillbar.cpython-312.pyc
+³           Skillbar.cpython-313.pyc
+³           __init__.cpython-312.pyc
+³           __init__.cpython-313.pyc
+³           
+ÃÄÄÄstubs
+³       ImGui_Py.pyi
+³       Py4GW.pyi
+³       PyAgent.pyi
+³       PyEffects.pyi
+³       PyInventory.pyi
+³       PyItem.pyi
+³       PyMap.pyi
+³       PyMerchant.pyi
+³       PyParty.pyi
+³       PyPlayer.pyi
+³       PySkillbar.pyi
+³       Readme.txt
+³       
+ÃÄÄÄWidgets
+³   ³   Enter character on load.py
+³   ³   imgui.ini
+³   ³   Instance Timer.py
+³   ³   PCons.py
+³   ³   Py4GW_DEMO.py
+³   ³   Resign on enter Map.py
+³   ³   Return to outpost on defeat.py
+³   ³   Skip Cinematics.py
+³   ³   Titles.py
+³   ³   Travel.py
+³   ³   Vanquish.py
+³   ³   
+³   ÃÄÄÄConfig
+³   ³       InstanceTimer.ini
+³   ³       PCons.ini
+³   ³       Travel.ini
+³   ³       Vanquish.ini
+³   ³       
+³   ÀÄÄÄ__pycache__
+³           Enter character on load.cpython-313.pyc
+³           HeroAI.cpython-313.pyc
+³           Instance Timer.cpython-312.pyc
+³           Instance Timer.cpython-313.pyc
+³           Instance_Timer - Copy.cpython-312.pyc
+³           Instance_Timer.cpython-312.pyc
+³           PCons.cpython-313.pyc
+³           Py4GW_DEMO.cpython-313.pyc
+³           Resign on enter Map.cpython-313.pyc
+³           Return to outpost on defeat.cpython-312.pyc
+³           Return to outpost on defeat.cpython-313.pyc
+³           Skip Cinematics.cpython-312.pyc
+³           Skip Cinematics.cpython-313.pyc
+³           test_widget.cpython-312.pyc
+³           Titles.cpython-313.pyc
+³           Travel.cpython-313.pyc
+³           Vanquish.cpython-312.pyc
+³           Vanquish.cpython-313.pyc
+³           
+ÃÄÄÄWorking Miscelaneous code
+³   ³   advanced_traffic_light.py
+³   ³   Boreal_bot_tutorial.py
+³   ³   called_targets.py
+³   ³   changelog.txt
+³   ³   fake_keyboard.py
+³   ³   follower.py
+³   ³   GWMapper.py
+³   ³   imgui.ini
+³   ³   ItemCompare.py
+³   ³   Multilauncher.py
+³   ³   multithreading.py
+³   ³   named_pipe_python.txt
+³   ³   Old_VaettirBot.py
+³   ³   Onion_client.au3
+³   ³   Onion_client.py
+³   ³   Onion_Server.py
+³   ³   pathing_maps - Native - TESSELATION.py
+³   ³   pathing_maps - Native.py
+³   ³   pathing_maps.py
+³   ³   PointLogger.py
+³   ³   Py4GW_injector.py
+³   ³   pyHeroAI_DEMO.py
+³   ³   quest_handler_test.py
+³   ³   results_log.py
+³   ³   salvage.py
+³   ³   scraper_model_id_list.py
+³   ³   Script_Template.py
+³   ³   skill_spam.py
+³   ³   TCP server.py
+³   ³   ToC RA (1).py
+³   ³   traffic_light.py
+³   ³   travel_cinematic.py
+³   ³   Tree example.py
+³   ³   tree.txt
+³   ³   
+³   ÀÄÄÄ__pycache__
+³           Onion_Server.cpython-313.pyc
+³           
+ÀÄÄÄ__pycache__
+        advanced_traffic_light.cpython-312.pyc
+        Barebones_Example_module.cpython-312.pyc
+        BorealBot.cpython-312.pyc
+        Boreal_bot_tutorial.cpython-312.pyc
+        called_targets.cpython-312.pyc
+        fake_keyboard.cpython-313.pyc
+        follower.cpython-312.pyc
+        good_day.cpython-312.pyc
+        GWMapper.cpython-312.pyc
+        GWMapper.cpython-313.pyc
+        Hello_World.cpython-312.pyc
+        Hello_World.cpython-313.pyc
+        HeroAI.cpython-312.pyc
+        HeroAI.cpython-313.pyc
+        HeroAI_test.cpython-312.pyc
+        ItemCompare.cpython-312.pyc
+        load_lua_script.cpython-313.pyc
+        lua_bridge.cpython-313.pyc
+        multithreading.cpython-312.pyc
+        NamedPipes.cpython-312.pyc
+        Onion_client.cpython-312.pyc
+        Onion_Server.cpython-312.pyc
+        Patcher.cpython-313.pyc
+        pathing_maps - Native - TESSELATION.cpython-312.pyc
+        pathing_maps - Native - TESSELATION.cpython-313.pyc
+        pathing_maps - Native.cpython-312.pyc
+        pathing_maps - Native.cpython-313.pyc
+        pathing_maps.cpython-312.pyc
+        pathing_maps.cpython-313.pyc
+        PCOns.cpython-313.pyc
+        PointLogger.cpython-312.pyc
+        Py4GWcorelib.cpython-312.pyc
+        Py4GW_DEMO.cpython-312.pyc
+        Py4GW_DEMO.cpython-313.pyc
+        Py4GW_widget_manager.cpython-312.pyc
+        Py4GW_widget_manager.cpython-313.pyc
+        pyHeroAI_DEMO.cpython-312.pyc
+        quest_handler_test.cpython-312.pyc
+        salvage.cpython-312.pyc
+        skill_spam.cpython-312.pyc
+        TCP server.cpython-312.pyc
+        test_function_contrainer.cpython-312.pyc
+        ToC RA (1).cpython-313.pyc
+        traffic_light.cpython-312.pyc
+        Travel.cpython-313.pyc
+        Tree example.cpython-312.pyc
+        VaettirBot 1.9.25.cpython-313.pyc
+        VaettirBot 1.9.26.cpython-313.pyc
+        VaettirBot 2.0.cpython-313.pyc
+        VaettirBot.cpython-312.pyc
+        VaettirBot.cpython-313.pyc
+        

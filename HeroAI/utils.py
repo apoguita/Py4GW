@@ -30,7 +30,7 @@ def IsCombatEnabled(all_game_option_struct,index):
     return all_game_option_struct[index].Combat
 
 def IsSkillEnabled(all_game_option_struct,index,slot):
-    return all_game_option_struct[index].Skills[slot]
+    return all_game_option_struct[index].Skills[slot].Active
 
 
 def CheckForEffect(agent_id, skill_id):
@@ -59,6 +59,7 @@ def CheckForEffect(agent_id, skill_id):
     return result
 
 def GetEnergyValues(agent_id):
+    return 1.0
     from .globals import HeroAI_varsClass
     shared_memory_handler = HeroAI_varsClass().shared_memory_handler
 

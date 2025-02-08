@@ -199,7 +199,7 @@ def DrawWindow():
                         ("Has Arrived:", f"{FSM_vars.movement_handler.has_arrived()}"),
                         ("Distance to Waypoint:", f"{FSM_vars.movement_handler.get_distance_to_waypoint()}"),
                         ("Time Elapsed:", f"{FSM_vars.movement_handler.get_time_elapsed()}"),
-                        ("wait Timer:", f"{FSM_vars.movement_handler.wait_timer.get_elapsed_time()}"),
+                        ("wait Timer:", f"{FSM_vars.movement_handler.wait_timer.GetElapsedTime()}"),
                         ("wait timer run once", f"{FSM_vars.movement_handler.wait_timer_run_once}"),
                         ("is casting", f"{Agent.IsCasting(Player.GetAgentID())}"),
                         ("is moving", f"{Agent.IsMoving(Player.GetAgentID())}"),

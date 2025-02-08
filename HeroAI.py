@@ -118,7 +118,7 @@ class GameData:
         self.player_login_number = Agent.GetLoginNumber(self.player_agent_id)
         self.energy_regen = Agent.GetEnergyRegen(self.player_agent_id)
         self.max_energy = Agent.GetMaxEnergy(self.player_agent_id)
-        self.energy = Agent.GetEnergy(self.player_agent_id)
+        self.energy = GetEnergyValues(self.player_agent_id)
         self.player_xy = Agent.GetXY(self.player_agent_id)
         self.player_xyz = Agent.GetXYZ(self.player_agent_id)
         self.player_is_casting = Agent.IsCasting(self.player_agent_id)
@@ -134,10 +134,11 @@ class GameData:
         self.enemy_array = AgentArray.GetEnemyArray()
         self.pet_id = TargetPet(self.player_agent_id)
         #combat field data
-        self.in_aggro = InAggro(self.enemy_array)
         self.free_slots_in_inventory = Inventory.GetFreeSlotCount()
         self.nearest_item = TargetNearestItem()
         self.target_id = Player.GetTargetID()
+        
+    
 
     
 
@@ -152,6 +153,7 @@ class CacheData:
         self.shared_memory_timer = Timer()
         self.shared_memory_timer.Start()
         self.stay_alert_timer = Timer()
+        self.stay_alert_timer.Start()
         self.aftercast_timer = Timer()
         self.data = GameData()
         self.reset()
@@ -166,6 +168,22 @@ class CacheData:
             self.data.reset()
             self.data.update()
             
+            if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
+                self.data.in_aggro = InAggro(self.data.enemy_array, Range.Earshot.value)
+            else:
+                self.data.in_aggro = InAggro(self.data.enemy_array, Range.Spellcast.value)
+                
+            if self.data.in_aggro:
+                self.stay_alert_timer.Reset()
+                
+            if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
+                self.data.in_aggro = True
+                
+            if self.data.in_aggro:
+                distance = Range.Spellcast.value
+            else:
+                distance = Range.Earshot.value
+            
             #control status vars
             self.data.is_following_enabled = IsFollowingEnabled(self.HeroAI_vars.all_game_option_struct,self.data.own_party_number)
             self.data.is_avoidance_enabled = IsAvoidanceEnabled(self.HeroAI_vars.all_game_option_struct,self.data.own_party_number)
@@ -174,6 +192,8 @@ class CacheData:
             self.data.is_combat_enabled = IsCombatEnabled(self.HeroAI_vars.all_game_option_struct,self.data.own_party_number)
             for i in range(NUMBER_OF_SKILLS):
                 self.data.is_skill_enabled[i] = IsSkillEnabled(self.HeroAI_vars.all_game_option_struct,self.data.own_party_number, i)
+                
+            self.combat_handler.Update(self.data)
                      
 
 cache_data = CacheData()

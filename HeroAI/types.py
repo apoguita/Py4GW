@@ -1,4 +1,4 @@
-from ctypes import Structure, c_int, c_float, c_bool, c_ulonglong, Array
+from ctypes import Structure, c_int, c_float, c_bool
 from enum import Enum
 from .constants import (
     MAX_NUM_PLAYERS,
