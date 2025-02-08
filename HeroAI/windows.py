@@ -84,19 +84,18 @@ def DrawPrioritizedSkills(cached_data):
                     is_ready_to_cast, v_target = cached_data.combat_handler.IsReadyToCast(skill_slot)
 
                     self_id = Player.GetAgentID()
-                    nearest_enemy = cached_data.nearest_enemy
-                    nearest_ally = cached_data.lowest_ally
-                    nearest_npc = cached_data.nearest_npc
-                    nearest_item = cached_data.nearest_item
-                    nearest_spirit = cached_data.nearest_spirit
-                    nearest_minion = cached_data.lowest_minion
-                    nearest_corpse = cached_data.nearest_corpse
-                    pet_id = cached_data.pet_id
+                    nearest_enemy = cached_data.data.nearest_enemy
+                    nearest_ally = cached_data.data.lowest_ally
+                    nearest_item = cached_data.data.nearest_item
+                    nearest_spirit = cached_data.data.nearest_spirit
+                    nearest_minion = cached_data.data.lowest_minion
+                    nearest_corpse = cached_data.data.nearest_corpse
+                    pet_id = cached_data.data.pet_id
 
-                    headers = ["Self", "Nearest Enemy", "Nearest Ally", "Nearest NPC", "Nearest Item", "Nearest Spirit", "Nearest Minion", "Nearest Corpse", "Pet"]
+                    headers = ["Self", "Nearest Enemy", "Nearest Ally", "Nearest Item", "Nearest Spirit", "Nearest Minion", "Nearest Corpse", "Pet"]
 
                     data = [
-                        (self_id, nearest_enemy, nearest_ally, nearest_npc, nearest_item,
+                        (self_id, nearest_enemy, nearest_ally, nearest_item,
                          nearest_spirit, nearest_minion, nearest_corpse, pet_id)
                     ]
 
@@ -105,25 +104,30 @@ def DrawPrioritizedSkills(cached_data):
                     PyImGui.text(f"Target to Cast: {v_target}")
 
                     PyImGui.separator()
+                    
+                    PyImGui.text(f"InAggro: {cached_data.data.in_aggro}")
+                    PyImGui.text(f"stayt_alert_timer: {cached_data.stay_alert_timer.GetElapsedTime()}")
+                    
+                    PyImGui.separator()
 
                     PyImGui.text_colored(f"IsSkillReady: {is_skill_ready}",TrueFalseColor(is_skill_ready))
                     
                     PyImGui.text_colored(f"IsReadyToCast: {is_ready_to_cast}", TrueFalseColor(is_ready_to_cast))
                     if PyImGui.tree_node(f"IsReadyToCast: {is_ready_to_cast}"): 
-                        is_casting = cached_data.player_is_casting
-                        casting_skill = cached_data.player_casting_skill
-                        skillbar_casting = cached_data.player_skillbar_casting
+                        is_casting = cached_data.data.player_is_casting
+                        casting_skill = cached_data.data.player_casting_skill
+                        skillbar_casting = cached_data.data.player_skillbar_casting
                         skillbar_recharge = cached_data.combat_handler.skills[skill_slot].skillbar_data.recharge
-                        current_energy = cached_data.energy * cached_data.max_energy
+                        current_energy = cached_data.data.energy * cached_data.data.max_energy
                         energy_cost = Skill.Data.GetEnergyCost(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
-                        current_hp = cached_data.player_hp
+                        current_hp = cached_data.data.player_hp
                         target_hp = cached_data.combat_handler.GetOrderedSkill(skill_slot).custom_skill_data.Conditions.SacrificeHealth
                         health_cost = Skill.Data.GetHealthCost(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
 
                         adrenaline_required = Skill.Data.GetAdrenaline(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
                         adrenaline_a = cached_data.combat_handler.GetOrderedSkill(skill_slot).skillbar_data.adrenaline_a
                     
-                        current_overcast = cached_data.player_overcast
+                        current_overcast = cached_data.data.player_overcast
                         overcast_target = cached_data.combat_handler.GetOrderedSkill(skill_slot).custom_skill_data.Conditions.Overcast
                         skill_overcast = Skill.Data.GetOvercast(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
 
@@ -176,7 +180,7 @@ def DrawFlags(cached_data):
             return
 
         if PyImGui.is_mouse_clicked(0) and not one_time_set_flag:
-            if capture_hero_index > 0 and capture_hero_index <= cached_data.party_hero_count:
+            if capture_hero_index > 0 and capture_hero_index <= cached_data.data.party_hero_count:
                 if not capture_flag_all:   
                     agent_id = Party.Heroes.GetHeroAgentIDByPartyPosition(capture_hero_index)
                     Party.Heroes.FlagHero(agent_id, x, y)
@@ -186,7 +190,7 @@ def DrawFlags(cached_data):
                     hero_ai_index = 0
                     Party.Heroes.FlagAllHeroes(x, y)
                 else:
-                    hero_ai_index = capture_hero_index - cached_data.party_hero_count
+                    hero_ai_index = capture_hero_index - cached_data.data.party_hero_count
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "IsFlagged", True)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosX", x)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosY", y)
@@ -219,10 +223,10 @@ def DrawFlags(cached_data):
             
         
 
-def DrawFlaggingWindow(cache_data):
+def DrawFlaggingWindow(cached_data):
     global HeroFlags, AllFlag, capture_flag_all, capture_hero_flag, capture_hero_index, one_time_set_flag
     global CLearFlags
-    party_size = cache_data.data.party_size
+    party_size = cached_data.data.party_size
     if party_size == 1:
         PyImGui.text("No Follower or Heroes to Flag.")
         return
@@ -231,34 +235,34 @@ def DrawFlaggingWindow(cache_data):
         PyImGui.table_next_row()
         PyImGui.table_next_column()
         if party_size >= 2:
-            HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(cache_data,1), 30, 30)
+            HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(cached_data,1), 30, 30)
         PyImGui.table_next_column()
         if party_size >= 3:
-            HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(cache_data,2),30,30)
+            HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(cached_data,2),30,30)
         PyImGui.table_next_column()
         if party_size >= 4:
-            HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(cache_data,3),30,30)
+            HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(cached_data,3),30,30)
         PyImGui.table_next_row()
         PyImGui.table_next_column()
         if party_size >= 5:
-            HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(cache_data,4),30,30)
+            HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(cached_data,4),30,30)
         PyImGui.table_next_column()
-        AllFlag = ImGui.toggle_button("All", IsHeroFlagged(cache_data,0), 30, 30)
+        AllFlag = ImGui.toggle_button("All", IsHeroFlagged(cached_data,0), 30, 30)
         PyImGui.table_next_column()
         if party_size >= 6:
-            HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(cache_data,5),30,30)
+            HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(cached_data,5),30,30)
         PyImGui.table_next_row()
         PyImGui.table_next_column()
         if party_size >= 7:
-            HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(cache_data,6),30,30)
+            HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(cached_data,6),30,30)
         PyImGui.table_next_column()
         if party_size >= 8:
-            HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(cache_data,7), 30, 30)
+            HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(cached_data,7), 30, 30)
         PyImGui.table_next_column()
         CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
         PyImGui.end_table()
 
-    if AllFlag != IsHeroFlagged(cache_data,0):
+    if AllFlag != IsHeroFlagged(cached_data,0):
         capture_hero_flag = True
         capture_flag_all = True
         capture_hero_index = 0
@@ -266,7 +270,7 @@ def DrawFlaggingWindow(cache_data):
         capture_mouse_timer.Start()
 
     for i in range(1, party_size):
-        if HeroFlags[i-1] != IsHeroFlagged(cache_data,i):
+        if HeroFlags[i-1] != IsHeroFlagged(cached_data,i):
             capture_hero_flag = True
             capture_flag_all = False
             capture_hero_index = i
@@ -274,7 +278,7 @@ def DrawFlaggingWindow(cache_data):
             capture_mouse_timer.Start()
         
 
-def DrawCandidateWindow(cache_data):
+def DrawCandidateWindow(cached_data):
     global MAX_NUM_PLAYERS
 
     candidate_count = 0
@@ -297,7 +301,7 @@ def DrawCandidateWindow(cache_data):
             column_index = spec.ColumnIndex
             sort_direction = spec.SortDirection
 
-        sorted_candidates = cache_data.HeroAI_vars.all_candidate_struct[:]
+        sorted_candidates = cached_data.HeroAI_vars.all_candidate_struct[:]
         if column_index == 1:  # Sort by Candidate Name
             sorted_candidates.sort(
                 key=lambda x: Agent.GetName(x.PlayerID),
@@ -306,12 +310,12 @@ def DrawCandidateWindow(cache_data):
         """
         
         for index in range(MAX_NUM_PLAYERS):
-            candidate = cache_data.HeroAI_vars.all_candidate_struct[index]
+            candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
             if (candidate.PlayerID and
-                candidate.PlayerID != cache_data.data.player_agent_id and
-                candidate.MapID == cache_data.data.map_id and
-                candidate.MapRegion == cache_data.data.region and
-                candidate.MapDistrict == cache_data.data.district):
+                candidate.PlayerID != cached_data.data.player_agent_id and
+                candidate.MapID == cached_data.data.map_id and
+                candidate.MapRegion == cached_data.data.region and
+                candidate.MapDistrict == cached_data.data.district):
 
                 candidate_count += 1
 
@@ -319,7 +323,7 @@ def DrawCandidateWindow(cache_data):
 
                 PyImGui.table_set_column_index(0)
                 if PyImGui.button(f"Invite##invite_{candidate.PlayerID}"):
-                    SendPartyCommand(index, cache_data, "Invite")
+                    SendPartyCommand(index, cached_data, "Invite")
 
                 PyImGui.table_set_column_index(1)
                 PyImGui.text(Agent.GetName(candidate.PlayerID))     
@@ -332,17 +336,17 @@ def DrawCandidateWindow(cache_data):
     PyImGui.separator()
 
     for index in range(MAX_NUM_PLAYERS):
-        candidate = cache_data.HeroAI_vars.all_candidate_struct[index]
+        candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
         if ((candidate.PlayerID and candidate.PlayerID != Player.GetAgentID()) and
-            (candidate.MapID != cache_data.data.map_id or
-            candidate.MapRegion != cache_data.data.region or
-            candidate.MapDistrict != cache_data.data.district)):
+            (candidate.MapID != cached_data.data.map_id or
+            candidate.MapRegion != cached_data.data.region or
+            candidate.MapDistrict != cached_data.data.district)):
 
             if PyImGui.button(f"Summon from map {Map.GetMapName(candidate.MapID)}##summon_{candidate.PlayerID}"):
-                SendPartyCommand(index, cache_data, "Summon")  
+                SendPartyCommand(index, cached_data, "Summon")  
 
 
-def DrawCandidatesDebug(cache_data):
+def DrawCandidatesDebug(cached_data):
     global MAX_NUM_PLAYERS
 
     candidate_count = 0     
@@ -350,7 +354,7 @@ def DrawCandidatesDebug(cache_data):
 
     data = []
     for i in range(MAX_NUM_PLAYERS):
-        candidate = cache_data.HeroAI_vars.all_candidate_struct[i]
+        candidate = cached_data.HeroAI_vars.all_candidate_struct[i]
         data.append((
             i,  # Slot index
             candidate.MapID,
@@ -365,31 +369,31 @@ def DrawCandidatesDebug(cache_data):
     ImGui.table("Candidate Debug Table", headers, data)
 
 slot_to_write = 0
-def DrawPlayersDebug(cache_data):
+def DrawPlayersDebug(cached_data):
     global MAX_NUM_PLAYERS, slot_to_write
 
-    own_party_number = cache_data.data.own_party_number
+    own_party_number = cached_data.data.own_party_number
     PyImGui.text(f"Own Party Number: {own_party_number}")
     slot_to_write = PyImGui.input_int("Slot to write", slot_to_write)
 
     if PyImGui.button("Submit"):
-        self_id = cache_data.data.player_agent_id
+        self_id = cached_data.data.player_agent_id
 
-        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "PlayerID", self_id)
-        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy_Regen", cache_data.data.energy_regen)
-        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy", cache_data.data.energy)
-        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsActive", True)
-        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsHero", False)
-        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsFlagged", False)
-        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "FlagPosX", 0.0)
-        cache_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "FlagPosY", 0.0)
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "PlayerID", self_id)
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy_Regen", cached_data.data.energy_regen)
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy", cached_data.data.energy)
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsActive", True)
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsHero", False)
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsFlagged", False)
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "FlagPosX", 0.0)
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "FlagPosY", 0.0)
 
 
     headers = ["Slot","PlayerID", "EnergyRegen", "Energy","IsActive", "IsHero", "IsFlagged", "FlagPosX", "FlagPosY", "LastUpdated"]
 
     data = []
     for i in range(MAX_NUM_PLAYERS):
-        player = cache_data.HeroAI_vars.all_player_struct[i]
+        player = cached_data.HeroAI_vars.all_player_struct[i]
         data.append((
             i,  # Slot index
             player.PlayerID,
@@ -406,12 +410,12 @@ def DrawPlayersDebug(cache_data):
     ImGui.table("Players Debug Table", headers, data)
 
 
-def DrawHeroesDebug(cache_data): 
+def DrawHeroesDebug(cached_data): 
     global MAX_NUM_PLAYERS
     headers = ["Slot", "agent_id", "owner_player_id", "hero_id", "hero_name"]
     data = []
 
-    heroes = cache_data.data.heroes
+    heroes = cached_data.data.heroes
     for index, hero in enumerate(heroes):
         data.append((
             index,  # Slot index
@@ -423,25 +427,26 @@ def DrawHeroesDebug(cache_data):
     ImGui.table("Heroes Debug Table", headers, data)
 
 
-def DrawGameOptionsDebug(cache_data):
+def DrawGameOptionsDebug(cached_data):
     global MAX_NUM_PLAYERS
 
     data = []
     PyImGui.text("Remote Control Variables")
+    PyImGui.text(f"own_party_number: {cached_data.data.own_party_number}")
     headers = ["Control", "Following", "Avoidance", "Looting", "Targetting", "Combat"]
     headers += [f"Skill {j + 1}" for j in range(NUMBER_OF_SKILLS)]
     row = [
         "Remote",  
-        cache_data.HeroAI_vars.global_control_game_struct.Following,
-        cache_data.HeroAI_vars.global_control_game_struct.Avoidance,
-        cache_data.HeroAI_vars.global_control_game_struct.Looting,
-        cache_data.HeroAI_vars.global_control_game_struct.Targetting,
-        cache_data.HeroAI_vars.global_control_game_struct.Combat,
-        cache_data.HeroAI_vars.global_control_game_struct.WindowVisible
+        cached_data.HeroAI_vars.global_control_game_struct.Following,
+        cached_data.HeroAI_vars.global_control_game_struct.Avoidance,
+        cached_data.HeroAI_vars.global_control_game_struct.Looting,
+        cached_data.HeroAI_vars.global_control_game_struct.Targetting,
+        cached_data.HeroAI_vars.global_control_game_struct.Combat,
+        cached_data.HeroAI_vars.global_control_game_struct.WindowVisible
     ]
 
     row += [
-        cache_data.HeroAI_vars.global_control_game_struct.Skills[j].Active for j in range(NUMBER_OF_SKILLS)
+        cached_data.HeroAI_vars.global_control_game_struct.Skills[j].Active for j in range(NUMBER_OF_SKILLS)
     ]
     data.append(tuple(row))
     ImGui.table("Control Debug Table", headers, data)
@@ -453,16 +458,16 @@ def DrawGameOptionsDebug(cache_data):
     for i in range(MAX_NUM_PLAYERS):
         row = [
             i,  
-            cache_data.HeroAI_vars.all_game_option_struct[i].Following,
-            cache_data.HeroAI_vars.all_game_option_struct[i].Avoidance,
-            cache_data.HeroAI_vars.all_game_option_struct[i].Looting,
-            cache_data.HeroAI_vars.all_game_option_struct[i].Targetting,
-            cache_data.HeroAI_vars.all_game_option_struct[i].Combat,
-            cache_data.HeroAI_vars.all_game_option_struct[i].WindowVisible
+            cached_data.HeroAI_vars.all_game_option_struct[i].Following,
+            cached_data.HeroAI_vars.all_game_option_struct[i].Avoidance,
+            cached_data.HeroAI_vars.all_game_option_struct[i].Looting,
+            cached_data.HeroAI_vars.all_game_option_struct[i].Targetting,
+            cached_data.HeroAI_vars.all_game_option_struct[i].Combat,
+            cached_data.HeroAI_vars.all_game_option_struct[i].WindowVisible
         ]
 
         row += [
-            cache_data.HeroAI_vars.all_game_option_struct[i].Skills[j].Active for j in range(NUMBER_OF_SKILLS)
+            cached_data.HeroAI_vars.all_game_option_struct[i].Skills[j].Active for j in range(NUMBER_OF_SKILLS)
         ]
 
         data.append(tuple(row))
@@ -564,108 +569,108 @@ def DrawFollowDebug(cached_data):
 
 
 
-def DrawDebugWindow(cache_data):
+def DrawDebugWindow(cached_data):
     global MAX_NUM_PLAYERS
 
     if PyImGui.collapsing_header("Candidates Debug"):
-        DrawCandidatesDebug(cache_data)
+        DrawCandidatesDebug(cached_data)
     if PyImGui.collapsing_header("Players Debug"):
-        DrawPlayersDebug(cache_data)
+        DrawPlayersDebug(cached_data)
     if PyImGui.collapsing_header("Game Options Debug"):
-        DrawGameOptionsDebug(cache_data)
+        DrawGameOptionsDebug(cached_data)
 
     if PyImGui.collapsing_header("Heroes Debug"):
-        DrawHeroesDebug(cache_data)
+        DrawHeroesDebug(cached_data)
 
-    if cache_data.data.is_explorable:
+    if cached_data.data.is_explorable:
         if PyImGui.collapsing_header("Follow Debug"):
-            DrawFollowDebug(cache_data)
+            DrawFollowDebug(cached_data)
         if PyImGui.collapsing_header("Flag Debug"):
-            DrawFlagDebug(cache_data)
+            DrawFlagDebug(cached_data)
         if PyImGui.collapsing_header("Prioritized Skills"):
-            DrawPrioritizedSkills(cache_data)
+            DrawPrioritizedSkills(cached_data)
         if PyImGui.collapsing_header("Buff Debug"):
-            DrawBuffWindow(cache_data)
+            DrawBuffWindow(cached_data)
 
 
 
-def DrawMultiboxTools(cache_data):
+def DrawMultiboxTools(cached_data):
     global MAX_NUM_PLAYERS
-    cache_data.HeroAI_windows.tools_window.initialize()
+    cached_data.HeroAI_windows.tools_window.initialize()
 
-    if cache_data.HeroAI_windows.tools_window.begin():
-        if cache_data.data.is_outpost and cache_data.data.player_agent_id == cache_data.data.party_leader_id:
+    if cached_data.HeroAI_windows.tools_window.begin():
+        if cached_data.data.is_outpost and cached_data.data.player_agent_id == cached_data.data.party_leader_id:
             if PyImGui.collapsing_header("Party Setup",PyImGui.TreeNodeFlags.DefaultOpen):
-                DrawCandidateWindow(cache_data)
-        if cache_data.data.is_explorable and cache_data.data.player_agent_id == cache_data.data.party_leader_id:
+                DrawCandidateWindow(cached_data)
+        if cached_data.data.is_explorable and cached_data.data.player_agent_id == cached_data.data.party_leader_id:
             if PyImGui.collapsing_header("Flagging"):
-                DrawFlaggingWindow(cache_data)
+                DrawFlaggingWindow(cached_data)
         if PyImGui.collapsing_header("Debug Options"):
-            DrawDebugWindow(cache_data)
+            DrawDebugWindow(cached_data)
    
-    cache_data.HeroAI_windows.tools_window.process_window()
-    cache_data.HeroAI_windows.tools_window.end()
+    cached_data.HeroAI_windows.tools_window.process_window()
+    cached_data.HeroAI_windows.tools_window.end()
 
 
-def CompareAndSubmitGameOptions(cache_data, game_option: GameOptionStruct):
+def CompareAndSubmitGameOptions(cached_data, game_option: GameOptionStruct):
     global MAX_NUM_PLAYERS
     # Core Options
-    if game_option.Following != cache_data.HeroAI_vars.global_control_game_struct.Following:
-        cache_data.HeroAI_vars.global_control_game_struct.Following = game_option.Following
+    if game_option.Following != cached_data.HeroAI_vars.global_control_game_struct.Following:
+        cached_data.HeroAI_vars.global_control_game_struct.Following = game_option.Following
         for i in range(MAX_NUM_PLAYERS):
-            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Following", game_option.Following)
+            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Following", game_option.Following)
 
-    if game_option.Avoidance != cache_data.HeroAI_vars.global_control_game_struct.Avoidance:
-        cache_data.HeroAI_vars.global_control_game_struct.Avoidance = game_option.Avoidance
+    if game_option.Avoidance != cached_data.HeroAI_vars.global_control_game_struct.Avoidance:
+        cached_data.HeroAI_vars.global_control_game_struct.Avoidance = game_option.Avoidance
         for i in range(MAX_NUM_PLAYERS):
-            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Avoidance", game_option.Avoidance)
+            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Avoidance", game_option.Avoidance)
 
-    if game_option.Looting != cache_data.HeroAI_vars.global_control_game_struct.Looting:
-        cache_data.HeroAI_vars.global_control_game_struct.Looting = game_option.Looting
+    if game_option.Looting != cached_data.HeroAI_vars.global_control_game_struct.Looting:
+        cached_data.HeroAI_vars.global_control_game_struct.Looting = game_option.Looting
         for i in range(MAX_NUM_PLAYERS):
-            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Looting", game_option.Looting)
+            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Looting", game_option.Looting)
 
-    if game_option.Targetting != cache_data.HeroAI_vars.global_control_game_struct.Targetting:
-        cache_data.HeroAI_vars.global_control_game_struct.Targetting = game_option.Targetting
+    if game_option.Targetting != cached_data.HeroAI_vars.global_control_game_struct.Targetting:
+        cached_data.HeroAI_vars.global_control_game_struct.Targetting = game_option.Targetting
         for i in range(MAX_NUM_PLAYERS):
-            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Targetting", game_option.Targetting)
+            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Targetting", game_option.Targetting)
 
-    if game_option.Combat != cache_data.HeroAI_vars.global_control_game_struct.Combat:
-        cache_data.HeroAI_vars.global_control_game_struct.Combat = game_option.Combat
+    if game_option.Combat != cached_data.HeroAI_vars.global_control_game_struct.Combat:
+        cached_data.HeroAI_vars.global_control_game_struct.Combat = game_option.Combat
         for i in range(MAX_NUM_PLAYERS):
-            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Combat", game_option.Combat)
+            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Combat", game_option.Combat)
 
     # Skills
     for skill_index in range(NUMBER_OF_SKILLS):
-        if game_option.Skills[skill_index].Active != cache_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active:
-            cache_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active = game_option.Skills[skill_index].Active
+        if game_option.Skills[skill_index].Active != cached_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active:
+            cached_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active = game_option.Skills[skill_index].Active
             for i in range(MAX_NUM_PLAYERS):
-                cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(
+                cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(
                     i, f"Skill_{skill_index + 1}", game_option.Skills[skill_index].Active
                 )
 
 
-def SubmitGameOptions(cache_data,index,game_option,original_game_option):
+def SubmitGameOptions(cached_data,index,game_option,original_game_option):
     # Core Options
     if game_option.Following != original_game_option.Following:
-        cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Following", game_option.Following)
+        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Following", game_option.Following)
 
     if game_option.Avoidance != original_game_option.Avoidance:
-        cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Avoidance", game_option.Avoidance)
+        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Avoidance", game_option.Avoidance)
 
     if game_option.Looting != original_game_option.Looting:
-        cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Looting", game_option.Looting)
+        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Looting", game_option.Looting)
 
     if game_option.Targetting != original_game_option.Targetting:
-        cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targetting", game_option.Targetting)
+        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targetting", game_option.Targetting)
 
     if game_option.Combat != original_game_option.Combat:
-        cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Combat", game_option.Combat)
+        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Combat", game_option.Combat)
 
     # Skills
     for i in range(NUMBER_OF_SKILLS):
         if game_option.Skills[i].Active != original_game_option.Skills[i].Active:
-            cache_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, f"Skill_{i + 1}", game_option.Skills[i].Active)
+            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, f"Skill_{i + 1}", game_option.Skills[i].Active)
 
 def DrawPanelButtons(source_game_option):
     game_option = GameOptionStruct()
@@ -698,10 +703,10 @@ def DrawPanelButtons(source_game_option):
 
     return game_option
 
-def DrawMainWindow(cache_data):
-    own_party_number = cache_data.data.own_party_number
+def DrawMainWindow(cached_data):
+    own_party_number = cached_data.data.own_party_number
     game_option = GameOptionStruct()
-    original_game_option = cache_data.HeroAI_vars.all_game_option_struct[own_party_number]
+    original_game_option = cached_data.HeroAI_vars.all_game_option_struct[own_party_number]
      
     if not original_game_option.WindowVisible:
         return
@@ -709,38 +714,38 @@ def DrawMainWindow(cache_data):
     if own_party_number <= 0:
         return
 
-    cache_data.HeroAI_windows.main_window.initialize()
-    if cache_data.HeroAI_windows.main_window.begin():
+    cached_data.HeroAI_windows.main_window.initialize()
+    if cached_data.HeroAI_windows.main_window.begin():
         game_option = DrawPanelButtons(original_game_option) 
-        SubmitGameOptions(cache_data,own_party_number,game_option,original_game_option)
+        SubmitGameOptions(cached_data,own_party_number,game_option,original_game_option)
 
-        cache_data.HeroAI_windows.main_window.process_window()
-        cache_data.HeroAI_windows.main_window.end()
+        cached_data.HeroAI_windows.main_window.process_window()
+        cached_data.HeroAI_windows.main_window.end()
 
 
-def DrawControlPanelWindow(cache_data):
+def DrawControlPanelWindow(cached_data):
     global MAX_NUM_PLAYERS
-    own_party_number = cache_data.data.own_party_number
+    own_party_number = cached_data.data.own_party_number
     game_option = GameOptionStruct()     
     if own_party_number != 0:
         return
 
-    cache_data.HeroAI_windows.control_window.initialize()
-    if cache_data.HeroAI_windows.control_window.begin():   
-        game_option = DrawPanelButtons(cache_data.HeroAI_vars.global_control_game_struct) 
-        CompareAndSubmitGameOptions(cache_data,game_option)
+    cached_data.HeroAI_windows.control_window.initialize()
+    if cached_data.HeroAI_windows.control_window.begin():   
+        game_option = DrawPanelButtons(cached_data.HeroAI_vars.global_control_game_struct) 
+        CompareAndSubmitGameOptions(cached_data,game_option)
 
         if PyImGui.collapsing_header("Player Control"):
             for index in range(MAX_NUM_PLAYERS):
-                if cache_data.HeroAI_vars.all_player_struct[index].IsActive and not cache_data.HeroAI_vars.all_player_struct[index].IsHero:
-                    original_game_option = cache_data.HeroAI_vars.all_game_option_struct[index]
-                    player_name = Agent.GetName(cache_data.HeroAI_vars.all_player_struct[index].PlayerID)
+                if cached_data.HeroAI_vars.all_player_struct[index].IsActive and not cached_data.HeroAI_vars.all_player_struct[index].IsHero:
+                    original_game_option = cached_data.HeroAI_vars.all_game_option_struct[index]
+                    player_name = Agent.GetName(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
                     if PyImGui.tree_node(f"{player_name}##ControlPlayer{index}"):
                         game_option = DrawPanelButtons(original_game_option)
-                        SubmitGameOptions(cache_data, index, game_option, original_game_option)
+                        SubmitGameOptions(cached_data, index, game_option, original_game_option)
                         PyImGui.tree_pop()
 
-        cache_data.HeroAI_windows.control_window.process_window()
-    cache_data.HeroAI_windows.control_window.end()
+        cached_data.HeroAI_windows.control_window.process_window()
+    cached_data.HeroAI_windows.control_window.end()
    
 

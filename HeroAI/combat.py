@@ -2,6 +2,7 @@ from Py4GWCoreLib import *
 from .custom_skill import *
 from .types import *
 from .targetting import *
+from .utils import *
 
 MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
@@ -88,6 +89,7 @@ class CombatClass:
         self.in_aggro = False
         self.is_targetting_enabled = False
         self.is_combat_enabled = False
+        self.is_skill_enabled = []
         
         self.nearest_enemy = TargetNearestEnemy()
         self.lowest_ally = TargetLowestAlly()
@@ -98,10 +100,55 @@ class CombatClass:
         self.lowest_minion = TargetLowestMinion()
         self.nearest_corpse = TargetNearestCorpse()
         
-    def Update(self, in_aggro, is_targetting_enabled, is_combat_enabled):
-        self.in_aggro = in_aggro
-        self.is_targetting_enabled = is_targetting_enabled
-        self.is_combat_enabled = is_combat_enabled
+        self.energy_drain = Skill.GetID("Energy_Drain") 
+        self.energy_tap = Skill.GetID("Energy_Tap")
+        self.ether_lord = Skill.GetID("Ether_Lord")
+        self.essence_strike = Skill.GetID("Essence_Strike")
+        self.glowing_signet = Skill.GetID("Glowing_Signet")
+        self.clamor_of_souls = Skill.GetID("Clamor_of_Souls")
+        self.waste_not_want_not = Skill.GetID("Waste_Not_Want_Not")
+        self.mend_body_and_soul = Skill.GetID("Mend_Body_and_Soul")
+        self.grenths_balance = Skill.GetID("Grenths_Balance")
+        self.deaths_retreat = Skill.GetID("Deaths_Retreat")
+        self.plague_sending = Skill.GetID("Plague_Sending")
+        self.plague_signet = Skill.GetID("Plague_Signet")
+        self.plague_touch = Skill.GetID("Plague_Touch")
+        self.golden_fang_strike = Skill.GetID("Golden_Fang_Strike")
+        self.golden_fox_strike = Skill.GetID("Golden_Fox_Strike")
+        self.golden_lotus_strike = Skill.GetID("Golden_Lotus_Strike")
+        self.golden_phoenix_strike = Skill.GetID("Golden_Phoenix_Strike")
+        self.golden_skull_strike = Skill.GetID("Golden_Skull_Strike")
+        self.brutal_weapon = Skill.GetID("Brutal_Weapon")
+        self.signet_of_removal = Skill.GetID("Signet_of_Removal")
+        self.dwaynas_kiss = Skill.GetID("Dwaynas_Kiss")
+        self.unnatural_signet = Skill.GetID("Unnatural_Signet")
+        self.toxic_chill = Skill.GetID("Toxic_Chill")
+        self.discord = Skill.GetID("Discord")
+        self.empathic_removal = Skill.GetID("Empathic_Removal")
+        self.iron_palm = Skill.GetID("Iron_Palm")
+        self.melandrus_resilience = Skill.GetID("Melandrus_Resilience")
+        self.necrosis = Skill.GetID("Necrosis")
+        self.peace_and_harmony = Skill.GetID("Peace_and_Harmony")
+        self.purge_signet = Skill.GetID("Purge_Signet")
+        self.resilient_weapon = Skill.GetID("Resilient_Weapon")
+        self.gaze_from_beyond = Skill.GetID("Gaze_from_Beyond")
+        self.spirit_burn = Skill.GetID("Spirit_Burn")
+        self.signet_of_ghostly_might = Skill.GetID("Signet_of_Ghostly_Might")
+        self.burning = Skill.GetID("Burning")
+        self.blind = Skill.GetID("Blind")
+        self.cracked_armor = Skill.GetID("Cracked_Armor")
+        self.crippled = Skill.GetID("Crippled")
+        self.dazed = Skill.GetID("Dazed")
+        self.deep_wound = Skill.GetID("Deep_Wound")
+        self.disease = Skill.GetID("Disease")
+        self.poison = Skill.GetID("Poison")
+        self.weakness = Skill.GetID("Weakness")
+        
+    def Update(self, cached_data):
+        self.in_aggro = cached_data.in_aggro
+        self.is_targetting_enabled = cached_data.is_targetting_enabled
+        self.is_combat_enabled = cached_data.is_combat_enabled
+        self.is_skill_enabled = cached_data.is_skill_enabled
         
 
     def PrioritizeSkills(self):
@@ -215,12 +262,10 @@ class CombatClass:
     def IsSkillReady(self, slot):
         if self.skills[slot].skill_id == 0:
             return False
-        
-        
 
         if self.skills[slot].skillbar_data.recharge != 0:
             return False
-        return True
+        return True and self.is_skill_enabled[slot]
         
     def InCastingRoutine(self):
         if self.aftercast_timer.HasElapsed(self.aftercast):
@@ -373,82 +418,82 @@ class CombatClass:
 
         if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
             """ check all UniqueProperty skills """
-            if (self.skills[slot].skill_id == Skill.GetID("Energy_Drain") or 
-                self.skills[slot].skill_id == Skill.GetID("Energy_Tap") or
-                self.skills[slot].skill_id == Skill.GetID("Ether_Lord") 
+            if (self.skills[slot].skill_id == self.energy_drain or 
+                self.skills[slot].skill_id == self.energy_tap or
+                self.skills[slot].skill_id == self.ether_lord 
                 ):
-                return Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+                return GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
         
-            if (self.skills[slot].skill_id == Skill.GetID("Essence_Strike")):
-                energy = Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+            if (self.skills[slot].skill_id == self.essence_strike):
+                energy = GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
                 return energy and (TargetNearestSpirit() != 0)
 
-            if (self.skills[slot].skill_id == Skill.GetID("Glowing_Signet")):
-                energy= Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
-                return energy and self.HasEffect(vTarget, Skill.GetID("Burning"))
+            if (self.skills[slot].skill_id == self.glowing_signet):
+                energy= GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                return energy and self.HasEffect(vTarget, self.burning)
 
-            if (self.skills[slot].skill_id == Skill.GetID("Clamor_of_Souls")):
-                energy = Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+            if (self.skills[slot].skill_id == self.clamor_of_souls):
+                energy = GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
                 weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
                 return energy and weapon_type == 0
 
-            if (self.skills[slot].skill_id == Skill.GetID("Waste_Not_Want_Not")):
-                energy= Agent.GetEnergy(Player.GetAgentID()) < Conditions.LessEnergy
+            if (self.skills[slot].skill_id == self.waste_not_want_not):
+                energy= GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
                 return energy and not Agent.IsCasting(vTarget) and not Agent.IsAttacking(vTarget)
 
-            if (self.skills[slot].skill_id == Skill.GetID("Mend_Body_and_Soul")):
+            if (self.skills[slot].skill_id == self.mend_body_and_soul):
                 life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
                 return life and Agent.IsConditioned(vTarget)
 
-            if (self.skills[slot].skill_id == Skill.GetID("Grenths_Balance")):
+            if (self.skills[slot].skill_id == self.grenths_balance):
                 life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
                 return life and Agent.GetHealth(Player.GetAgentID()) < Agent.GetHealth(vTarget)
 
-            if (self.skills[slot].skill_id == Skill.GetID("Deaths_Retreat")):
+            if (self.skills[slot].skill_id == self.deaths_retreat):
                 return Agent.GetHealth(Player.GetAgentID()) < Agent.GetHealth(vTarget)
 
-            if (self.skills[slot].skill_id == Skill.GetID("Plague_Sending") or
-                self.skills[slot].skill_id == Skill.GetID("Plague_Signet") or
-                self.skills[slot].skill_id == Skill.GetID("Plague_Touch")
+            if (self.skills[slot].skill_id == self.plague_sending or
+                self.skills[slot].skill_id == self.plague_signet or
+                self.skills[slot].skill_id == self.plague_touch
                 ):
                 return Agent.IsConditioned(Player.GetAgentID())
 
-            if (self.skills[slot].skill_id == Skill.GetID("Golden_Fang_Strike") or
-                self.skills[slot].skill_id == Skill.GetID("Golden_Fox_Strike") or
-                self.skills[slot].skill_id == Skill.GetID("Golden_Lotus_Strike") or
-                self.skills[slot].skill_id == Skill.GetID("Golden_Phoenix_Strike") or
-                self.skills[slot].skill_id == Skill.GetID("Golden_Skull_Strike")
+            if (self.skills[slot].skill_id == self.golden_fang_strike or
+                self.skills[slot].skill_id == self.golden_fox_strike or
+                self.skills[slot].skill_id == self.golden_lotus_strike or
+                self.skills[slot].skill_id == self.golden_phoenix_strike or
+                self.skills[slot].skill_id == self.golden_skull_strike
                 ):
                 return Agent.IsEnchanted(Player.GetAgentID())
 
-            if (self.skills[slot].skill_id == Skill.GetID("Brutal_Weapon")):
+            if (self.skills[slot].skill_id == self.brutal_weapon):
                 return not Agent.IsEnchanted(Player.GetAgentID())
 
-            if (self.skills[slot].skill_id == Skill.GetID("Signet_of_Removal")):
+            if (self.skills[slot].skill_id == self.signet_of_removal):
                 return not Agent.IsEnchanted(vTarget) and Agent.IsConditioned(vTarget)
 
-            if (self.skills[slot].skill_id == Skill.GetID("Dwaynas_Kiss") or
-                self.skills[slot].skill_id == Skill.GetID("Unnatural_Signet") or
-                self.skills[slot].skill_id == Skill.GetID("Toxic_Chill")
+            if (self.skills[slot].skill_id == self.dwaynas_kiss or
+                self.skills[slot].skill_id == self.unnatural_signet or
+                self.skills[slot].skill_id == self.toxic_chill
                 ):
                 return Agent.IsHexed(vTarget) or Agent.IsEnchanted(vTarget)
 
-            if (self.skills[slot].skill_id == Skill.GetID("Discord")):
+            if (self.skills[slot].skill_id == self.discord):
                 return (Agent.IsHexed(vTarget) and Agent.IsConditioned(vTarget)) or (Agent.IsEnchanted(vTarget))
 
-            if (self.skills[slot].skill_id == Skill.GetID("Empathic_Removal") or
-                self.skills[slot].skill_id == Skill.GetID("Iron_Palm") or
-                self.skills[slot].skill_id == Skill.GetID("Melandrus_Resilience") or
-                self.skills[slot].skill_id == Skill.GetID("Necrosis") or
-                self.skills[slot].skill_id == Skill.GetID("Peace_and_Harmony") or
-                self.skills[slot].skill_id == Skill.GetID("Purge_Signet") or
-                self.skills[slot].skill_id == Skill.GetID("Resilient_Weapon")
+            if (self.skills[slot].skill_id == self.empathic_removal or
+                self.skills[slot].skill_id == self.iron_palm or
+                self.skills[slot].skill_id == self.melandrus_resilience or
+                self.skills[slot].skill_id == self.necrosis or
+                self.skills[slot].skill_id == self.peace_and_harmony or
+                self.skills[slot].skill_id == self.purge_signet or
+                self.skills[slot].skill_id == self.resilient_weapon
                 ):
                 return Agent.IsHexed(vTarget) or Agent.IsConditioned(vTarget)
 
-            if (self.skills[slot].skill_id == Skill.GetID("Gaze_from_Beyond") or
-                self.skills[slot].skill_id == Skill.GetID("Spirit_Burn") or
-                self.skills[slot].skill_id == Skill.GetID("Signet_of_Ghostly_Might")
+            if (self.skills[slot].skill_id == self.gaze_from_beyond or
+                self.skills[slot].skill_id == self.spirit_burn or
+                self.skills[slot].skill_id == self.signet_of_ghostly_might
                 ):
                 return True if TargetNearestSpirit() != 0 else False
 
@@ -494,15 +539,15 @@ class CombatClass:
                 number_of_features += 1
 
         if Conditions.HasBlindness:
-            if self.HasEffect(vTarget, Skill.GetID("Blind")):
+            if self.HasEffect(vTarget, self.blind):
                 number_of_features += 1
 
         if Conditions.HasBurning:
-            if self.HasEffect(vTarget, Skill.GetID("Burning")):
+            if self.HasEffect(vTarget, self.burning):
                 number_of_features += 1
 
         if Conditions.HasCrackedArmor:
-            if self.HasEffect(vTarget, Skill.GetID("Cracked_Armor")):
+            if self.HasEffect(vTarget, self.cracked_armor):
                 number_of_features += 1
           
         if Conditions.HasCrippled:
@@ -510,15 +555,15 @@ class CombatClass:
                 number_of_features += 1
                 
         if Conditions.HasDazed:
-            if self.HasEffect(vTarget, Skill.GetID("Dazed")):
+            if self.HasEffect(vTarget, self.dazed):
                 number_of_features += 1
           
         if Conditions.HasDeepWound:
-            if self.HasEffect(vTarget, Skill.GetID("Deep_Wound")):
+            if self.HasEffect(vTarget, self.deep_wound):
                 number_of_features += 1
                 
         if Conditions.HasDisease:
-            if self.HasEffect(vTarget, Skill.GetID("Disease")):
+            if self.HasEffect(vTarget, self.disease):
                 number_of_features += 1
 
         if Conditions.HasPoison:
@@ -526,7 +571,7 @@ class CombatClass:
                 number_of_features += 1
 
         if Conditions.HasWeakness:
-            if self.HasEffect(vTarget, Skill.GetID("Weakness")):
+            if self.HasEffect(vTarget, self.weakness):
                 number_of_features += 1
          
         if Conditions.HasWeaponSpell:
@@ -681,7 +726,7 @@ class CombatClass:
             return False, v_target
         
         # Check if there is enough energy
-        current_energy = Agent.GetEnergy(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
+        current_energy = GetEnergyValues(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
         if current_energy < Skill.Data.GetEnergyCost(self.skills[slot].skill_id):
             self.in_casting_routine = False
             return False, v_target
