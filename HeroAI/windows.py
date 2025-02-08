@@ -739,7 +739,8 @@ def DrawControlPanelWindow(cached_data):
             for index in range(MAX_NUM_PLAYERS):
                 if cached_data.HeroAI_vars.all_player_struct[index].IsActive and not cached_data.HeroAI_vars.all_player_struct[index].IsHero:
                     original_game_option = cached_data.HeroAI_vars.all_game_option_struct[index]
-                    player_name = Agent.GetName(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
+                    login_number = Party.Players.GetLoginNumberByAgentID(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
+                    player_name = Party.Players.GetPlayerNameByLoginNumber(login_number)
                     if PyImGui.tree_node(f"{player_name}##ControlPlayer{index}"):
                         game_option = DrawPanelButtons(original_game_option)
                         SubmitGameOptions(cached_data, index, game_option, original_game_option)
