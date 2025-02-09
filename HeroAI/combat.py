@@ -84,7 +84,7 @@ class CombatClass:
         self.aftercast_timer.Start()
         self.ping_handler = Py4GW.PingHandler()
         self.oldCalledTarget = 0
-        self.shared_memory_handler = None #HeroAI_varsClass().shared_memory_handler
+        self.shared_memory_handler = HeroAI_varsClass().shared_memory_handler
         self.action_queue = None
         
         self.in_aggro = False
@@ -145,9 +145,9 @@ class CombatClass:
         self.poison = Skill.GetID("Poison")
         self.weakness = Skill.GetID("Weakness")
         
-    def Update(self, cached_data, shared_memory_handler, action_queue):
+    def Update(self, cached_data, action_queue):
         self.in_aggro = cached_data.in_aggro
-        self.shared_memory_handler = shared_memory_handler
+        #self.shared_memory_handler = shared_memory_handler
         self.action_queue = action_queue
         self.is_targetting_enabled = cached_data.is_targetting_enabled
         self.is_combat_enabled = cached_data.is_combat_enabled

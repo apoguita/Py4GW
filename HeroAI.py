@@ -194,7 +194,7 @@ class CacheData:
             for i in range(NUMBER_OF_SKILLS):
                 self.data.is_skill_enabled[i] = IsSkillEnabled(self.HeroAI_vars.all_game_option_struct,self.data.own_party_number, i)
                 
-            self.combat_handler.Update(self.data, self.HeroAI_vars.shared_memory_handler,self.action_queue)
+            self.combat_handler.Update(self.data,self.action_queue)
                      
 
 cache_data = CacheData()
