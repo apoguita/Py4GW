@@ -2,7 +2,7 @@ import traceback
 import math
 from enum import Enum
 import time
-from collections import namedtuple
+from collections import namedtuple, deque
 
 import Py4GW
 from Py4GWCoreLib.Skillbar import SkillBar
@@ -1818,3 +1818,28 @@ class MultiThreading:
         for name in thread_names:
             self.stop_thread(name)
 
+
+class ActionQueue:
+    def __init__(self):
+        """Initialize the action queue."""
+        self.queue = deque() # Use deque for efficient FIFO operations
+
+    def add_action(self, action, *args, **kwargs):
+        """
+        Add an action to the queue.
+
+        :param action: Function to execute.
+        :param args: Positional arguments for the function.
+        :param kwargs: Keyword arguments for the function.
+        """
+        self.queue.append((action, args, kwargs))
+        
+    def execute_next(self):
+        """Execute the next action in the queue."""
+        if self.queue:
+            action, args, kwargs = self.queue.popleft()
+            action(*args, **kwargs)
+            
+    def is_empty(self):
+        """Check if the action queue is empty."""
+        return not bool(self.queue)
