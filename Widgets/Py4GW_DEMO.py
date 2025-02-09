@@ -1696,6 +1696,8 @@ def ShowLivingAgentData(agent_id):
 
                 alliegance_id, alliegance_name = Agent.GetAlliegance(agent_id)
                 alliegance = f"{alliegance_id}/{alliegance_name}"
+                
+                Agent.RequestName(agent_id)
 
                 # Combine info and value into a single string
                 combined_data = [
