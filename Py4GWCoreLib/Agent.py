@@ -250,17 +250,22 @@ class Agent:
         """
         agent = Agent.agent_instance(agent_id)
         return agent.velocity_x, agent.velocity_y
+    
+    @staticmethod
+    def RequestName(agent_id):
+        """Purpose: Request the name of an agent."""
+        Agent.agent_instance(agent_id).living_agent.RequestName()
 
     @staticmethod
     def GetName(agent_id):
         """Purpose: Get the name of an agent by its ID."""
         
-        return "Placeholder"
         #agent_instance = Agent.agent_instance(agent_id)
         #model_id = agent_instance.living_agent.player_number
         #return ModelData.get(model_id, {}).get('name', agent_instance.living_agent.name)
-        
-        #return Agent.agent_instance(agent_id).living_agent.GetName()
+
+        return Agent.agent_instance(agent_id).living_agent.GetName()
+
 
     @staticmethod
     def GetProfessions(agent_id):
