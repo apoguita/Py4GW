@@ -3,6 +3,12 @@ accounts.json
 accounts - Copy.json
 Py4GW_Launcher.exe
 
+imgui.ini
+Inject.au3
+Widgets/Config/Travel.ini
+Widgets/Config/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
