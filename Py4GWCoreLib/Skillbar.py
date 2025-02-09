@@ -74,6 +74,7 @@ class SkillBar:
         skillbar_instance = PySkillbar.Skillbar()
         skillbar_instance.HeroUseSkill(target_agent_id, skill_number, hero_number)
 
+    @staticmethod
     def ChangeHeroSecondary(hero_index, secondary_profession):
         """
         Purpose: Change the secondary profession of a hero.
