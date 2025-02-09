@@ -156,6 +156,7 @@ class CacheData:
         self.stay_alert_timer.Start()
         self.aftercast_timer = Timer()
         self.data = GameData()
+        self.action_queue = ActionQueue()
         self.reset()
         
     def reset(self):
@@ -193,7 +194,7 @@ class CacheData:
             for i in range(NUMBER_OF_SKILLS):
                 self.data.is_skill_enabled[i] = IsSkillEnabled(self.HeroAI_vars.all_game_option_struct,self.data.own_party_number, i)
                 
-            self.combat_handler.Update(self.data)
+            self.combat_handler.Update(self.data, self.HeroAI_vars.shared_memory_handler,self.action_queue)
                      
 
 cache_data = CacheData()
@@ -248,12 +249,14 @@ def Loot(cached_data):
     target =cached_data.data.target_id
 
     if target != looting_item:
-        Player.ChangeTarget(looting_item)
+        #Player.ChangeTarget(looting_item)
+        cache_data.action_queue.add_action(Player.ChangeTarget, looting_item)
         #loot_timer.Reset()
         return True
     
     if loot_timer.HasElapsed(500) and target == looting_item:
-        Keystroke.PressAndRelease(Key.Space.value)
+        #Keystroke.PressAndRelease(Key.Space.value)
+        cache_data.action_queue.add_action(Keystroke.PressAndRelease, Key.Space.value)
         loot_timer.Reset()
         #Player.Interact(item)
         return True
@@ -319,7 +322,8 @@ def Follow(cached_data):
     yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y
 
     cached_data.data.angle_changed = False
-    Player.Move(xx, yy)
+    #Player.Move(xx, yy)
+    cache_data.action_queue.add_action(Player.Move, xx, yy)
     return True
 
 
@@ -387,6 +391,9 @@ def main():
         cache_data.Update()
         if cache_data.data.is_map_ready and cache_data.data.is_party_loaded:
             UpdateStatus(cache_data)
+            
+            if not cache_data.action_queue.is_empty():
+                cache_data.action_queue.execute_next()
 
     except ImportError as e:
         Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)

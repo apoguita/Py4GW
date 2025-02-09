@@ -84,7 +84,8 @@ class CombatClass:
         self.aftercast_timer.Start()
         self.ping_handler = Py4GW.PingHandler()
         self.oldCalledTarget = 0
-        self.shared_memory_handler = HeroAI_varsClass().shared_memory_handler
+        self.shared_memory_handler = None #HeroAI_varsClass().shared_memory_handler
+        self.action_queue = None
         
         self.in_aggro = False
         self.is_targetting_enabled = False
@@ -144,8 +145,10 @@ class CombatClass:
         self.poison = Skill.GetID("Poison")
         self.weakness = Skill.GetID("Weakness")
         
-    def Update(self, cached_data):
+    def Update(self, cached_data, shared_memory_handler, action_queue):
         self.in_aggro = cached_data.in_aggro
+        self.shared_memory_handler = shared_memory_handler
+        self.action_queue = action_queue
         self.is_targetting_enabled = cached_data.is_targetting_enabled
         self.is_combat_enabled = cached_data.is_combat_enabled
         self.is_skill_enabled = cached_data.is_skill_enabled
@@ -882,6 +885,7 @@ class CombatClass:
         self.aftercast += self.ping_handler.GetCurrentPing()
 
         self.aftercast_timer.Reset()
-        SkillBar.UseSkill(self.skill_order[self.skill_pointer]+1, target_agent_id)
+        #SkillBar.UseSkill(self.skill_order[self.skill_pointer]+1, target_agent_id)
+        self.action_queue.add_action(SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
         self.AdvanceSkillPointer()
         return True
