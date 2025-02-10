@@ -3,6 +3,7 @@ import math
 from enum import Enum
 import time
 import inspect
+import sys
 from dataclasses import dataclass, field
 
 import Py4GW
@@ -60,3 +61,15 @@ PySkillbar = PySkillbar
 PyMerchant = PyMerchant
 PyEffects = PyEffects
 PyKeystroke = PyKeystroke
+
+class Py4GWLogger:
+    def write(self, message):
+        if message.strip():  # Avoid logging empty lines
+            Py4GW.Console.Log("Py4GW", f"Chat: {message.strip()}", Py4GW.Console.MessageType.Info)
+
+    def flush(self):  
+        pass  # Required for sys.stdout but does nothing
+
+# Redirect Python's print output to Py4GW Console
+sys.stdout = Py4GWLogger()
+sys.stderr = Py4GWLogger()  # Redirect errors as well
