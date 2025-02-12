@@ -255,6 +255,11 @@ class Agent:
     def RequestName(agent_id):
         """Purpose: Request the name of an agent."""
         Agent.agent_instance(agent_id).living_agent.RequestName()
+        
+    @staticmethod
+    def IsNameReady(agent_id):
+        """Purpose: Check if the agent name is ready."""
+        return Agent.agent_instance(agent_id).living_agent.IsAgentNameReady()
 
     @staticmethod
     def GetName(agent_id):

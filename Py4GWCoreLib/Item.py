@@ -87,9 +87,19 @@ class Item:
             return None  # Return None if no matching item is found
 
         @staticmethod
+        def RequestName(item_id):
+            """Purpose: Request the name of an item by its ID."""
+            return Item.item_instance(item_id).RequestName()
+        
+        @staticmethod
+        def IsNameReady(item_id):
+            """Purpose: Check if the name of an item is ready by its ID."""
+            return Item.item_instance(item_id).IsItemNameReady()
+        
+        @staticmethod
         def GetName(item_id):
             """Purpose: Retrieve the name of an item by its ID."""
-            return Item.item_instance(item_id).name
+            return Item.item_instance(item_id).GetName()
         
         @staticmethod
         def GetItemType(item_id):
