@@ -93,7 +93,34 @@ class Player:
         Returns: None
         """
         Player.player_instance().SendDialog(dialog_id)
+        
+    @staticmethod
+    def RequestChatHistory():
+        """
+        Purpose: Request the player's chat history.
+        Args: None
+        Returns: None
+        """
+        Player.player_instance().RequestChatHistory()
+    
+    @staticmethod
+    def IsChatHistoryReady():
+        """
+        Purpose: Check if the player's chat history is ready.
+        Args: None
+        Returns: bool
+        """
+        return Player.player_instance().IsChatHistoryReady()
 
+    @staticmethod
+    def GetChatHistory():
+        """
+        Purpose: Retrieve the player's chat history.
+        Args: None
+        Returns: list
+        """
+        return Player.player_instance().GetChatHistory()
+    
     @staticmethod
     def SendChatCommand(command):
         """

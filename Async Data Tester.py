@@ -124,6 +124,9 @@ def DrawWindow():
                 PyImGui.text("this routine will send a chat command and then will parse the outcome")
                 if PyImGui.button("Parse Chat Entry"):
                     parse_chat_log = []
+                    #the action queue is for sending commands to the game in an orderly fashion
+                    #this is to prevent the game from being overwhelmed with commands and time to process them
+                    #it is not necessary to send the commands in this way, but its easier for this example
                     action_queue.add_action(Player.SendChatCommand,"deaths")
                     action_queue.add_action(Player.RequestChatHistory)
                     parse_chat_log_recieved = False
@@ -133,7 +136,7 @@ def DrawWindow():
                     parse_chat_log = Player.GetChatHistory()
                     if len(parse_chat_log) > 0:
                         last_line = parse_chat_log[-1]
-                        numbers = re.findall(r"\d{1,3}(?:,\d{3})*", last_line)
+                        numbers = re.findall(r"\d{1,3}(?:,\d{3})*", last_line) #this is a regex formula to search for the desired numbers
                         numeric_values = [int(num.replace(",", "")) for num in numbers] if numbers else []
                         
                         PyImGui.text(last_line)
@@ -156,11 +159,17 @@ def DrawWindow():
     except Exception as e:
         Py4GW.Console.Log("tester", f"Unexpected Error: {str(e)}", Py4GW.Console.MessageType.Error)
 
+chat_throttle_ms = 100 #we need to wait for chat messages to process
+chat_throttle_timer = Timer()
+chat_throttle_timer.Start()
 
 def main():
+    global chat_throttle_timer, chat_throttle_ms
     DrawWindow()
-    if not action_queue.is_empty():
+    
+    if chat_throttle_timer.HasElapsed(chat_throttle_ms) and not action_queue.is_empty():
         action_queue.execute_next()
+        chat_throttle_timer.Reset()
 
 if __name__ == "__main__":
     main()
