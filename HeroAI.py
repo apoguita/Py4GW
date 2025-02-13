@@ -19,6 +19,13 @@ from typing import List, Tuple
 
 @dataclass
 class GameData:
+    _instance = None  # Singleton instance
+    def __new__(cls, name=SHARED_MEMORY_FILE_NAME, num_players=MAX_NUM_PLAYERS):
+        if cls._instance is None:
+            cls._instance = super(GameData, cls).__new__(cls)
+            cls._instance._initialized = False  # this class doesnt need to be locked on initialization
+        return cls._instance
+    
     def __init__(self):
         #Map data
         self.is_map_ready = False
@@ -116,9 +123,9 @@ class GameData:
         #Player data
         self.player_agent_id = Player.GetAgentID()
         self.player_login_number = Agent.GetLoginNumber(self.player_agent_id)
-        self.energy_regen = Agent.GetEnergyRegen(self.player_agent_id)
-        self.max_energy = Agent.GetMaxEnergy(self.player_agent_id)
-        self.energy = GetEnergyValues(self.player_agent_id)
+        self.player_energy_regen = Agent.GetEnergyRegen(self.player_agent_id)
+        self.player_max_energy = Agent.GetMaxEnergy(self.player_agent_id)
+        self.player_energy = Agent.GetEnergy(self.player_agent_id)
         self.player_xy = Agent.GetXY(self.player_agent_id)
         self.player_xyz = Agent.GetXYZ(self.player_agent_id)
         self.player_is_casting = Agent.IsCasting(self.player_agent_id)
@@ -140,24 +147,30 @@ class GameData:
         
     
 
-    
-
 class CacheData:
+    _instance = None  # Singleton instance
+    def __new__(cls, name=SHARED_MEMORY_FILE_NAME, num_players=MAX_NUM_PLAYERS):
+        if cls._instance is None:
+            cls._instance = super(CacheData, cls).__new__(cls)
+            cls._instance._initialized = False  # Ensure __init__ runs only once
+        return cls._instance
+    
     def __init__(self, throttle_time=75):
-        self.combat_handler = CombatClass()
-        self.HeroAI_vars = HeroAI_varsClass()
-        self.HeroAI_windows = HeroAI_Window_varsClass()
-        self.game_throttle_time = throttle_time
-        self.game_throttle_timer = Timer()
-        self.game_throttle_timer.Start()
-        self.shared_memory_timer = Timer()
-        self.shared_memory_timer.Start()
-        self.stay_alert_timer = Timer()
-        self.stay_alert_timer.Start()
-        self.aftercast_timer = Timer()
-        self.data = GameData()
-        self.action_queue = ActionQueue()
-        self.reset()
+        if not self._initialized:
+            self.combat_handler = CombatClass()
+            self.HeroAI_vars = HeroAI_varsClass()
+            self.HeroAI_windows = HeroAI_Window_varsClass()
+            self.game_throttle_time = throttle_time
+            self.game_throttle_timer = Timer()
+            self.game_throttle_timer.Start()
+            self.shared_memory_timer = Timer()
+            self.shared_memory_timer.Start()
+            self.stay_alert_timer = Timer()
+            self.stay_alert_timer.Start()
+            self.aftercast_timer = Timer()
+            self.data = GameData()
+            self.action_queue = ActionQueue()
+            self.reset()
         
     def reset(self):
         self.data.reset()   
@@ -195,9 +208,14 @@ class CacheData:
                 self.data.is_skill_enabled[i] = IsSkillEnabled(self.HeroAI_vars.all_game_option_struct,self.data.own_party_number, i)
                 
             self.combat_handler.Update(self.data,self.action_queue)
+            
+            if self.data.is_map_ready and self.data.is_party_loaded and not self.action_queue.is_empty():
+                self.action_queue.execute_next()
+            else:
+                self.action_queue.clear()
                      
 
-cache_data = CacheData()
+cached_data = CacheData()
 
 def HandleOutOfCombat(cached_data):
     party_number = cached_data.data.own_party_number
@@ -250,13 +268,13 @@ def Loot(cached_data):
 
     if target != looting_item:
         #Player.ChangeTarget(looting_item)
-        cache_data.action_queue.add_action(Player.ChangeTarget, looting_item)
+        cached_data.action_queue.add_action(Player.ChangeTarget, looting_item)
         #loot_timer.Reset()
         return True
     
     if loot_timer.HasElapsed(500) and target == looting_item:
         #Keystroke.PressAndRelease(Key.Space.value)
-        cache_data.action_queue.add_action(Keystroke.PressAndRelease, Key.Space.value)
+        cached_data.action_queue.add_action(Keystroke.PressAndRelease, Key.Space.value)
         loot_timer.Reset()
         #Player.Interact(item)
         return True
@@ -323,15 +341,13 @@ def Follow(cached_data):
 
     cached_data.data.angle_changed = False
     #Player.Move(xx, yy)
-    cache_data.action_queue.add_action(Player.Move, xx, yy)
+    cached_data.action_queue.add_action(Player.Move, xx, yy)
     return True
 
 
 
 
 def UpdateStatus(cached_data):
-
-    #if cached_data.shared_memory_timer.HasElapsed(cache_data.game_throttle_time):
     RegisterCandidate(cached_data) 
     UpdateCandidates(cached_data)           
     ProcessCandidateCommands(cached_data)   
@@ -339,7 +355,6 @@ def UpdateStatus(cached_data):
     RegisterHeroes(cached_data)
     UpdatePlayers(cached_data)      
     UpdateGameOptions(cached_data)   
-    #cache_data.shared_memory_timer.Reset()
     
     DrawMainWindow(cached_data)   
     DrawControlPanelWindow(cached_data)
@@ -386,15 +401,12 @@ def configure():
     pass
 
 def main():
-    global cache_data
+    global cached_data
     try:
-        cache_data.Update()
-        if cache_data.data.is_map_ready and cache_data.data.is_party_loaded:
-            UpdateStatus(cache_data)
+        cached_data.Update()
+        if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
+            UpdateStatus(cached_data)
             
-            if not cache_data.action_queue.is_empty():
-                cache_data.action_queue.execute_next()
-
     except ImportError as e:
         Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
         Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)

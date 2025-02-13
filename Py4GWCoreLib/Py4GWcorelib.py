@@ -494,7 +494,7 @@ class Timer:
         return FormatTime(self.GetElapsedTime(), mask)
     
     def __repr__(self):
-        return f"<Timer running={self.is_running()}>"
+        return f"<Timer running={self.IsRunning()}>"
 
 def FormatTime(time_ms, mask="hh:mm:ss:ms"):
         """Get the formatted elapsed time string based on the mask provided."""
@@ -1843,3 +1843,7 @@ class ActionQueue:
     def is_empty(self):
         """Check if the action queue is empty."""
         return not bool(self.queue)
+    
+    def clear(self):
+        """Clear all actions from the queue."""
+        self.queue.clear()

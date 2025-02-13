@@ -263,12 +263,15 @@ class CombatClass:
             self.skill_pointer = 0
 
     def IsSkillReady(self, slot):
+        original_index = self.skill_order[slot] 
+        
         if self.skills[slot].skill_id == 0:
             return False
 
         if self.skills[slot].skillbar_data.recharge != 0:
             return False
-        return True and self.is_skill_enabled[slot]
+        
+        return self.is_skill_enabled[original_index]
         
     def InCastingRoutine(self):
         if self.aftercast_timer.HasElapsed(self.aftercast):
@@ -301,7 +304,8 @@ class CombatClass:
                 if Agent.IsLiving(party_target):
                     _, alliegeance = Agent.GetAlliegance(party_target)
                     if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
-                        Player.ChangeTarget(party_target)
+                        self.action_queue.add_action(Player.ChangeTarget, party_target)
+                        self.action_queue.ad
                         #Player.Interact(party_target)
                         return party_target
         return 0
@@ -825,7 +829,7 @@ class CombatClass:
             else:
                 return False
 
-            Player.ChangeTarget(attack_target)
+            self.action_queue.add_action(Player.ChangeTarget, attack_target)
             return True
             """
             if self.is_combat_enabled:
@@ -842,7 +846,8 @@ class CombatClass:
 
             _, alliegeance = Agent.GetAlliegance(target_id)
             if alliegeance == 'Enemy' and self.is_combat_enabled:
-                Player.Interact(Player.GetTargetID())
+                target_id = Player.GetTargetID()
+                self.action_queue.add_action(Player.Interact, target_id)
 
 
     def HandleCombat(self,ooc=False):

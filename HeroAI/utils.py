@@ -59,7 +59,6 @@ def CheckForEffect(agent_id, skill_id):
     return result
 
 def GetEnergyValues(agent_id):
-    return 1.0
     from .globals import HeroAI_varsClass
     shared_memory_handler = HeroAI_varsClass().shared_memory_handler
 
