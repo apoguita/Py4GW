@@ -28,6 +28,7 @@ class GameAreas:
     def __init__(self):
         self.Area = 1600 
         self.Area_1 = 2000
+        self.Area_2 = 2200
 
 ModelData = {}
 text_input = "resign"
@@ -37,10 +38,8 @@ area_distance = GameAreas()
 PyPlayer.PyPlayer()
 player_instance = PyPlayer.PyPlayer()
 
-
 bot_vars = BotVars(map_id=148) #ASCALON
 bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Py4GW - LDoA", window_size=(300, 350))
-
 agent_id = Player.GetAgentID()
 
 #COORDS
@@ -115,6 +114,9 @@ spider_leg_coordinate_list_2 = [(21072, -6376),(19635, -4807),(17780, -3376),(16
 
 #UNNATURAL SEEDS
 unnatural_seeds_coordinate_list = [(-7910, 1418),(-7555, -1752),(-8062, -3071),(-12424, -3125),(-10948, -5876),(-8324, -8323),(-13903, -2822),(-14847, -707),(-15180, 2976),(-16849, 70448),(-20397, 8233),(-20550, 6263),(-20964, 3164),(-18933, 3676),(-17504, 3399),(-20758, -1853),(-20250, -5231),(-19147, -6511),(-16715, -7669),(-16317, -9650),(-16739, -11548),(-12792, -14235),(-15378, -15096)]
+
+#NICHOLAS GIFTS
+nicholas_sandford_coordinate_list = [(22237, 4061),(17213, 2817),(16320, 3621),(16757, 8255),(17315, 8812),(14385, 11414),(14159, 13931),(15257, 16442)]
 
 ascalon_coordinate_list = [(7420, 5450)]
 rurikpause_coordinate_list = [(5987, 4087),(6537,4449)]
@@ -248,6 +250,10 @@ def ResetEnvironment():
     FSM_vars.state_machine_unnatural_seeds.reset()
     FSM_vars.unnatural_seeds_pathing.reset()   
 
+    #NICHOLAS SANDFORD
+    FSM_vars.state_machine_nicholas_sandford.reset()
+    FSM_vars.nicholas_sandford_pathing.reset()   
+
     FSM_vars.ascalon_pathing.reset()
     FSM_vars.ascalon_pathing_1.reset()
     FSM_vars.rurikpause_pathing.reset()
@@ -276,7 +282,8 @@ def ResetEnvironment():
     FSM_vars.state_machine_barradin.reset()
     FSM_vars.state_machine_grandtour.reset()
     FSM_vars.movement_handler.reset()
-    
+
+#ITEMS FUNCTIONS   
 def useitem(model_id):
     item = Item.GetItemIdFromModelID(model_id)
     Inventory.UseItem(item)
@@ -338,7 +345,7 @@ def end_killing_routine_1():
     global area_distance
     player_x, player_y = Player.GetXY()
     enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Area)
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Area_2)
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
     if len(enemy_array) < 2:
@@ -412,15 +419,13 @@ def handle_map_path(map_pathing):
         Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler) 
 
 #LOOT MAP PATHING FUNCTION WORKING
-def handle_map_path_loot(map_pathing):  
+def handle_loot():
+    """
+    Function to handle the looting logic separately from the main map handling.
+    """
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
-    current_time = time.time()
-    
-    enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1200)
-    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
     item_array = AgentArray.GetItemArray()
     item_array = AgentArray.Filter.ByDistance(item_array, (my_x, my_y), 1200)
@@ -432,7 +437,7 @@ def handle_map_path_loot(map_pathing):
 
     filtered_items = list(agent_to_item_map.values())
     filtered_items = ItemArray.Filter.ByCondition(
-        filtered_items, lambda item_id: Item.GetItemType(item_id)[0] == 30 or Item.GetItemType(item_id)[0] == 10 or Item.GetItemType(item_id)[0] == 20
+        filtered_items, lambda item_id: Item.GetItemType(item_id)[0] in {30, 10, 20}
     )
 
     filtered_agent_ids = [
@@ -440,26 +445,9 @@ def handle_map_path_loot(map_pathing):
         if item_id in filtered_items
     ]
 
-    if len(enemy_array) > 0:
-        target_id = enemy_array[0]
-        if target_id and Agent.IsAlive(target_id):
-            Player.Interact(target_id, call_target=False)
-            target_x, target_y = Agent.GetXY(target_id)
-            distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
-
-            if distance_to_target > 1200:
-                Routines.Targeting.InteractTarget()
-                return
-
-            if current_time - FSM_vars.last_skill_time >= 2.0:
-                if IsSkillReady2(FSM_vars.current_skill_index):
-                    SkillBar.UseSkill(FSM_vars.current_skill_index)
-                    FSM_vars.last_skill_time = current_time
-                    FSM_vars.current_skill_index = (FSM_vars.current_skill_index % 8) + 1
-
-    elif len(filtered_agent_ids) > 0:
+    if len(filtered_agent_ids) > 0:
         looting_item = filtered_agent_ids[0]
-        
+
         if Player.GetTargetID() != looting_item:
             Player.ChangeTarget(looting_item)
             loot_timer.Reset()
@@ -468,7 +456,36 @@ def handle_map_path_loot(map_pathing):
         if loot_timer.HasElapsed(1000) and Player.GetTargetID() == looting_item:
             Keystroke.PressAndRelease(Key.Space.value)
             loot_timer.Reset()
-            return  
+            return
+
+def handle_map_path_loot(map_pathing):
+    """
+    Main function to handle combat, loot, and movement separately.
+    """
+    global FSM_vars
+    my_id = Player.GetAgentID()
+    my_x, my_y = Agent.GetXY(my_id)
+    current_time = time.time()
+
+    enemy_array = AgentArray.GetEnemyArray()
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1200)
+    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
+
+    if len(enemy_array) > 0:
+        target_id = enemy_array[0]
+        if target_id and Agent.IsAlive(target_id):
+            Player.Interact(target_id, call_target=False)
+            target_x, target_y = Agent.GetXY(target_id)
+            distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
+
+            if current_time - FSM_vars.last_skill_time >= 2.0:
+                if IsSkillReady2(FSM_vars.current_skill_index):
+                    SkillBar.UseSkill(FSM_vars.current_skill_index)
+                    FSM_vars.last_skill_time = current_time
+                    FSM_vars.current_skill_index = (FSM_vars.current_skill_index % 8) + 1
+
+    else:
+        handle_loot() 
 
     Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)
 
@@ -689,6 +706,10 @@ class StateMachineVars:
         #FSM for UNNATURAL SEEDS
         self.state_machine_unnatural_seeds = FSM("UNNATURAL SEEDS")
         self.unnatural_seeds_pathing = Routines.Movement.PathHandler(unnatural_seeds_coordinate_list)
+
+        #FSM for NICHOLAS SANDFORD
+        self.state_machine_nicholas_sandford = FSM("NICHOLAS SANDFORD")
+        self.nicholas_sandford_pathing = Routines.Movement.PathHandler(nicholas_sandford_coordinate_list)
 
         #FSM for Ashford Abbey
         self.state_machine_abbey = FSM("ASHFORD ABBEY")
@@ -2160,7 +2181,7 @@ FSM_vars.state_machine_lvl2_10.AddState(name="WAITING RURIK KILLING",
                        run_once=False)
 
 FSM_vars.state_machine_lvl2_10.AddState(name="LEAVING MAP",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 2-10", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ascalon_map,6,0)),
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 2-10", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ascalon_map,7,0)),
                        exit_condition=lambda: Map.IsOutpost(),
                        run_once=True)
 
@@ -2208,7 +2229,7 @@ FSM_vars.state_machine_dull_carapaces.AddState(name="GOING OUT IN DANGEROUS LAND
 
 FSM_vars.state_machine_dull_carapaces.AddState(name="WAITING YOUR SLOW PC TO LOAD",
                        exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - DULL CARAPACES FARM", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=1000)
+                       transition_delay_ms=3000)
 
 FSM_vars.state_machine_dull_carapaces.AddState(name="GOING OUT IN DANGEROUS LANDS",
                        execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.dull_carapaces_pathing_1, FSM_vars.movement_handler),
@@ -2275,11 +2296,11 @@ FSM_vars.state_machine_grawl_necklaces.AddState(name="GOING OUT IN DANGEROUS LAN
                        run_once=False)
 
 FSM_vars.state_machine_grawl_necklaces.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GRAWL NECKLACES FARM", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=000)
+                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - GRAWL NECKLACES FARM", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
+                       transition_delay_ms=3000)
 
 FSM_vars.state_machine_grawl_necklaces.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GRAWL NECKLACES FARM", "USING FIRE STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - GRAWL NECKLACES FARM", "USING FIRE STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
                        run_once=False)
 
 FSM_vars.state_machine_grawl_necklaces.AddState(name="FARMING LODESTONES",
@@ -2327,7 +2348,7 @@ FSM_vars.state_machine_lodestone.AddState(name="GOING OUT IN DANGEROUS LANDS",
 
 FSM_vars.state_machine_lodestone.AddState(name="WAITING YOUR SLOW PC TO LOAD",
                        exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - ENCHANTED LODESTONE FARM", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=000)
+                       transition_delay_ms=3000)
 
 FSM_vars.state_machine_lodestone.AddState(name="HEY THERE IS A FIRE ALLY",
                        execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - ENCHANTED LODESTONE FARM", "USING FIRE STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
@@ -2337,6 +2358,7 @@ FSM_vars.state_machine_lodestone.AddState(name="FARMING LODESTONES",
                        execute_fn=lambda:handle_map_path_loot(FSM_vars.enchanted_lodestone_pathing),
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.enchanted_lodestone_pathing, FSM_vars.movement_handler),
                        run_once=False)
+
 #RED IRIS FLOWERS
 FSM_vars.state_machine_red_iris_flowers.AddState(name="ARE WE IN ASCALON?", 
                        execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ascalon_map,6,0)),                                             
@@ -2583,6 +2605,47 @@ FSM_vars.state_machine_unnatural_seeds.AddState(name="FARMING LODESTONES",
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.unnatural_seeds_pathing, FSM_vars.movement_handler),
                        run_once=False)
 
+#NICHOLAS SANDFORD
+FSM_vars.state_machine_nicholas_sandford.AddState(name="BARRADIN", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO NICHOLAS SANDFORD", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ranik_map,6,0)),  
+                       exit_condition=lambda: Map.IsOutpost(),
+                       transition_delay_ms=1000,
+                       run_once=True)
+
+FSM_vars.state_machine_nicholas_sandford.AddState(name="GOING OUT IN DANGEROUS LANDS",
+                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ranik_goingtofarm_pathing, FSM_vars.movement_handler),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranik_goingtofarm_pathing, FSM_vars.movement_handler),
+                       run_once=False)
+
+FSM_vars.state_machine_nicholas_sandford.AddState(name="WAITING YOUR SLOW PC TO LOAD",
+                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO NICHOLAS SANDFORD", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
+                       transition_delay_ms=3000)
+
+FSM_vars.state_machine_nicholas_sandford.AddState(name="GOING OUT IN DANGEROUS LANDS",
+                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.nicholas_sandford_pathing, FSM_vars.movement_handler),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.nicholas_sandford_pathing, FSM_vars.movement_handler),
+                       run_once=False)
+
+FSM_vars.state_machine_nicholas_sandford.AddState(name="INTERACTING WITH TOWN CRIER",
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO NICHOLAS SANDFORD", "INTERACTING WITH NICHOLAS SANDFORD WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
+                       transition_delay_ms=1000,
+                       run_once=True)
+
+FSM_vars.state_machine_nicholas_sandford.AddState(name="INTERACTING WITH TOWN CRIER",
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO NICHOLAS SANDFORD", "INTERACTING WITH NICHOLAS SANDFORD WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
+                       transition_delay_ms=1000,
+                       run_once=True)
+
+FSM_vars.state_machine_nicholas_sandford.AddState(name="TAKING QUEST",
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO NICHOLAS SANDFORD", "TAKING GIFTS FROM NICHOLAS SANDFORD", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x85", 16))),
+                       transition_delay_ms=100,
+                       run_once=True)
+
+FSM_vars.state_machine_nicholas_sandford.AddState(name="TAKING QUEST",
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO NICHOLAS SANDFORD", "TAKING GIFTS FROM NICHOLAS SANDFORD", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x86", 16))),
+                       transition_delay_ms=100,
+                       run_once=True)
+
 #FSM TRAVEL TO ASHFORD ABBEY
 FSM_vars.state_machine_abbey.AddState(name="ARE WE IN HEAVEN?", 
                        execute_fn=lambda: Map.Travel(bot_vars.ascalon_map),
@@ -2607,12 +2670,6 @@ FSM_vars.state_machine_abbey.AddState(name="GOING TO FIND HOGWARTS",
                        execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.abbey_pathing, FSM_vars.movement_handler),
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.abbey_pathing, FSM_vars.movement_handler) or Map.IsOutpost(),             
                        run_once=False)
-
-FSM_vars.state_machine_abbey.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.ascalon_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
 
 #FSM TRAVEL TO FOIBLE'S FAIR
 FSM_vars.state_machine_foible.AddState(name="ARE WE IN HEAVEN?", 
@@ -2651,12 +2708,6 @@ FSM_vars.state_machine_foible.AddState(name="GOING TO FIND HOGWARTS",
                        execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_coordinate_list_two_pathing, FSM_vars.movement_handler),
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_coordinate_list_two_pathing, FSM_vars.movement_handler),           
                        run_once=False)
-
-FSM_vars.state_machine_foible.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.abbey_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
 
 #FSM TRAVEL TO FORT RANIK
 FSM_vars.state_machine_ranik.AddState(name="ARE WE IN HEAVEN?", 
@@ -2739,12 +2790,6 @@ FSM_vars.state_machine_barradin.AddState(name="GOING TO FIND THE DUKE",
                        execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.barradin_coordinate_list_two_pathing, FSM_vars.movement_handler),
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_coordinate_list_two_pathing, FSM_vars.movement_handler) or Map.IsOutpost(),           
                        run_once=False)
-
-FSM_vars.state_machine_barradin.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.ascalon_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
 
 #THE GRAND TOUR
 FSM_vars.state_machine_grandtour.AddState(name="ARE WE IN HEAVEN?", 
@@ -2899,10 +2944,74 @@ FSM_vars.state_machine_grandtour.AddState(name="ARE WE IN HEAVEN?",
                        exit_condition=lambda: Map.IsOutpost(),
                        transition_delay_ms=1000,
                        run_once=True)
+#STATS MANAGER
+class InventoryTracker:
+    def __init__(self):
+        self.initial_quantities = {} 
+        self.tracked_model_ids = {  
+            433: "BAKED HUSKS",
+            423: "CHARR CARVINGS",
+            425: "DULL CARAPACES",
+            431: "ENCHANTED LODESTONES",
+            426: "GARGOYLE SKULLS",
+            432: "GRAWL NECKLACES",
+            424: "ICY LODESTONES",
+            2994: "RED IRIS FLOWERS",
+            429: "SKALE FINS",
+            430: "SKELETAL LIMBS",
+            422: "SPIDER LEGS",
+            428: "UNNATURAL SEEDS",
+            427: "WORN BELTS",
+            31149: "GIFTS OF THE HUNTSMAN"
+        }
 
-def show_info_table():
+    def initialize(self):
+        self.initial_quantities = {}
+        bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)  
+        item_array = ItemArray.GetItemArray(bags_to_check)
+
+        for item_id in item_array:
+            model_id = Item.GetModelID(item_id)
+            if model_id in self.tracked_model_ids: 
+                quantity = Item.Properties.GetQuantity(item_id)
+                self.initial_quantities[model_id] = quantity  
+
+    def get_farmed_items(self):
+        farmed_items = {model_id: 0 for model_id in self.tracked_model_ids}  
+        bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+        item_array = ItemArray.GetItemArray(bags_to_check)
+
+        for item_id in item_array:
+            model_id = Item.GetModelID(item_id)
+            if model_id in self.tracked_model_ids:  
+                current_quantity = Item.Properties.GetQuantity(item_id)
+                initial_quantity = self.initial_quantities.get(model_id, 0)
+                farmed_items[model_id] = max(0, current_quantity - initial_quantity)  
+
+        return farmed_items
+
+
+inventory_tracker = InventoryTracker()
+
+def show_info_table_item():
+    headers = ["ITEM NAME", "ITEM QTY", "FARMED ITEMS"]  
+
+    farmed_items = inventory_tracker.get_farmed_items()  
+
+    data = []
+    
+    for model_id, name in inventory_tracker.tracked_model_ids.items():
+        quantity = Inventory.GetModelCount(model_id)  
+        farmed = farmed_items.get(model_id, 0)  
+
+        farmed_text = f"+{farmed}" if farmed > 0 else "0"
+
+        data.append((name, str(quantity), farmed_text))  
+
+    ImGui.table("INVENTARIO", headers, data)
+
+def show_info_table_xp():
     headers_info = ["INFO", "DATA"] 
-    headers_items = ["ITEM", "QUANTITY"]
 
     agent_id = agent_id = Player.GetAgentID()
     level = Agent.GetLevel(agent_id) 
@@ -2916,25 +3025,8 @@ def show_info_table():
         ("EXPERIENCE", f"{experience}/{max_experience}"),
     ]
 
-    item_data = [
-        ("BAKED HUSKS", str(Inventory.GetModelCount(433))),  
-        ("CHARR CARVINGS", str(Inventory.GetModelCount(423))),
-        ("DULL CARAPACES", str(Inventory.GetModelCount(425))),
-        ("ENCHANTED LODESTONES", str(Inventory.GetModelCount(431))),
-        ("GARGOYLE SKULLS", str(Inventory.GetModelCount(426))),
-        ("GRAWL NECKLACES", str(Inventory.GetModelCount(432))),
-        ("ICY LODESTONES", str(Inventory.GetModelCount(424))),
-        ("RED IRIS FLOWERS", str(Inventory.GetModelCount(2994))),
-        ("SKALE FINS", str(Inventory.GetModelCount(429))),
-        ("SKELETAL LIMBS", str(Inventory.GetModelCount(430))),
-        ("SPIDER LEGS", str(Inventory.GetModelCount(422))),
-        ("UNNATURAL SEEDS", str(Inventory.GetModelCount(428))),
-        ("WORN BELTS", str(Inventory.GetModelCount(427))),
-        ("GIFTS OF THE HUNTSMAN", str(Inventory.GetModelCount(31149))),
-    ]
-
     ImGui.table("PLAYER INFO", headers_info, data_info)
-    ImGui.table("ITEM INFO", headers_items, item_data)
+
     
 
 #GUI
@@ -2942,7 +3034,7 @@ def DrawWindow():
     global module_name
     global state
 
-    if PyImGui.begin("TH3KUM1KO'S LDoA"):
+    if PyImGui.begin("TH3KUM1KO'S PRESEARING BIBLE"):
         if PyImGui.begin_tab_bar("MainTabBar"): 
 
             if PyImGui.begin_tab_item("LDoA"):
@@ -2999,6 +3091,8 @@ def DrawWindow():
                state.radio_button_selected = PyImGui.radio_button("\uf717 SPIDER LEGS", state.radio_button_selected, 16)
                state.radio_button_selected = PyImGui.radio_button("\uf4d8 UNNATURAL SEEDS", state.radio_button_selected, 17)
                # state.radio_button_selected = PyImGui.radio_button("\ue19b WORN BELTS", state.radio_button_selected, 18)
+               state.radio_button_selected = PyImGui.radio_button("\uf06b NICHOLAS SANDFORD", state.radio_button_selected, 26)
+
                if IsBotStarted():        
                     if PyImGui.button(" \uf04d   STOP"):
                         ResetEnvironment()
@@ -3012,7 +3106,8 @@ def DrawWindow():
 
         if PyImGui.begin_tab_item("STATS"):
                
-               show_info_table()
+               show_info_table_xp()
+               show_info_table_item()
 
         PyImGui.spacing()
 
@@ -3021,11 +3116,15 @@ def DrawWindow():
     PyImGui.end()
 
 def main():
-    global bot_vars,FSM_vars
+    global bot_vars, FSM_vars, inventory_tracker
     try:
         DrawWindow()
 
         if IsBotStarted():
+            if not inventory_tracker.initial_quantities: 
+                inventory_tracker.initialize() 
+
+            inventory_tracker.get_farmed_items()  
             
             # LEVEL 2-10
             if state.radio_button_selected == 0:  
@@ -3093,6 +3192,7 @@ def main():
             elif state.radio_button_selected == 2:  
                 if FSM_vars.state_machine_abbey.is_finished():
                     ResetEnvironment()
+                    StopBot()
                 else:
                     FSM_vars.state_machine_abbey.update()
 
@@ -3100,6 +3200,7 @@ def main():
             elif state.radio_button_selected == 3:  
                 if FSM_vars.state_machine_foible.is_finished():
                     ResetEnvironment()
+                    StopBot()
                 else:
                     FSM_vars.state_machine_foible.update()
                     
@@ -3107,6 +3208,7 @@ def main():
             elif state.radio_button_selected == 4:  
                 if FSM_vars.state_machine_ranik.is_finished():
                     ResetEnvironment()
+                    StopBot()
                 else:
                     FSM_vars.state_machine_ranik.update()
                     
@@ -3114,6 +3216,7 @@ def main():
             elif state.radio_button_selected == 5:  
                 if FSM_vars.state_machine_barradin.is_finished():
                     ResetEnvironment()
+                    StopBot()
                 else:
                     FSM_vars.state_machine_barradin.update()
                     
@@ -3121,6 +3224,7 @@ def main():
             elif state.radio_button_selected == 19:  
                 if FSM_vars.state_machine_grandtour.is_finished():
                     ResetEnvironment()
+                    StopBot()
                 else:
                     FSM_vars.state_machine_grandtour.update()
 
@@ -3193,7 +3297,14 @@ def main():
                     ResetEnvironment()
                 else:
                     FSM_vars.state_machine_unnatural_seeds.update()
-
+    
+            # UNNATURAL SEEDS  
+            elif state.radio_button_selected == 26:  
+                if FSM_vars.state_machine_nicholas_sandford.is_finished():
+                    ResetEnvironment()
+                    StopBot()
+                else:
+                    FSM_vars.state_machine_nicholas_sandford.update()
 
     except ImportError as e:
         Py4GW.Console.Log(bot_vars.window_module.module_name, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
