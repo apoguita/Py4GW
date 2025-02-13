@@ -1,5 +1,6 @@
 from Py4GWCoreLib import *
 import re
+import sys
 
 MODULE_NAME = "chat logger"
 
@@ -143,22 +144,56 @@ def DrawWindow():
                             parsed_string = f"Died: {numeric_values[0]}, Experience: {numeric_values[1]}"
                     
                 PyImGui.text(parsed_string)
-
-
-
-
-
-            
-                
-                          
+                     
         PyImGui.end()
 
     except Exception as e:
         Py4GW.Console.Log("tester", f"Unexpected Error: {str(e)}", Py4GW.Console.MessageType.Error)
 
 
+previous_user_vars = {}
+
+def render_user_variable_monitor():
+    global previous_user_vars
+
+    if PyImGui.begin("User Variable Monitor"):
+        PyImGui.text("Tracking actively used variables:")
+
+        # Capture the global scope (user script variables)
+        global_vars = globals().copy()
+
+        # Capture the local scope of the function that called this one
+        frame = sys._getframe(1)  # Get caller's frame
+        local_vars = frame.f_locals.copy()  # Get current function locals
+
+        # Merge local and global variables (excluding built-ins and functions)
+        user_vars = {k: v for k, v in {**global_vars, **local_vars}.items()
+                     if not k.startswith("__") and not callable(v)}
+
+        for key, value in user_vars.items():
+            if key not in previous_user_vars:
+                PyImGui.text_colored(f"[NEW] {key} = {value}", (0, 1, 0, 1))  # Green for new variables
+            elif previous_user_vars[key] != value:
+                PyImGui.text_colored(f"[UPDATED] {key} = {value}", (1, 1, 0, 1))  # Yellow for updated variables
+            else:
+                PyImGui.text(f"{key} = {value}")
+
+        # Detect deleted variables
+        for key in previous_user_vars.keys():
+            if key not in user_vars:
+                PyImGui.text_colored(f"[REMOVED] {key}", (1, 0, 0, 1))  # Red for removed variables
+
+        # Store the current state of variables
+        previous_user_vars = user_vars.copy()
+
+    PyImGui.end()
+
+
+
+
 def main():
     DrawWindow()
+    render_user_variable_monitor()
     if not action_queue.is_empty():
         action_queue.execute_next()
 

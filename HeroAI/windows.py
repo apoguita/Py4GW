@@ -277,9 +277,13 @@ def DrawFlaggingWindow(cached_data):
             one_time_set_flag = False
             capture_mouse_timer.Start()
         
+async_name_gettet_timer = Timer()
+async_name_gettet_timer.Start()
+cached_names = {}
 
 def DrawCandidateWindow(cached_data):
     global MAX_NUM_PLAYERS
+    global async_name_gettet_timer,cached_names
 
     candidate_count = 0
 
@@ -311,6 +315,11 @@ def DrawCandidateWindow(cached_data):
         
         for index in range(MAX_NUM_PLAYERS):
             candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
+            
+            if async_name_gettet_timer.HasElapsed(1000):
+                Agent.RequestName(candidate.PlayerID)
+               
+            
             if (candidate.PlayerID and
                 candidate.PlayerID != cached_data.data.player_agent_id and
                 candidate.MapID == cached_data.data.map_id and
@@ -326,12 +335,20 @@ def DrawCandidateWindow(cached_data):
                     SendPartyCommand(index, cached_data, "Invite")
 
                 PyImGui.table_set_column_index(1)
-                PyImGui.text(Agent.GetName(candidate.PlayerID))     
+                name = Agent.GetName(candidate.PlayerID)
+                
+                if name:
+                    cached_names[candidate.PlayerID] = name
+
+                PyImGui.text(cached_names.get(candidate.PlayerID, ""))    
 
         PyImGui.end_table()
 
         if candidate_count == 0:
             PyImGui.text("No candidates found.")
+            
+        if async_name_gettet_timer.HasElapsed(1000):
+            async_name_gettet_timer.Reset()
 
     PyImGui.separator()
 

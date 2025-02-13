@@ -26,61 +26,40 @@ def get_base_timestamp():
 
 
 class SharedMemoryManager:
-    global SMM_MODULE_NAME, MAX_NUM_PLAYERS, SHARED_MEMORY_FILE_NAME,LOCK_MUTEX_TIMEOUT, SUBSCRIBE_TIMEOUT_SECONDS          
+    global SMM_MODULE_NAME, MAX_NUM_PLAYERS, SHARED_MEMORY_FILE_NAME,LOCK_MUTEX_TIMEOUT, SUBSCRIBE_TIMEOUT_SECONDS    
+    
+    _instance = None  # Singleton instance
+    def __new__(cls, name=SHARED_MEMORY_FILE_NAME, num_players=MAX_NUM_PLAYERS):
+        if cls._instance is None:
+            cls._instance = super(SharedMemoryManager, cls).__new__(cls)
+            cls._instance._initialized = False  # Ensure __init__ runs only once
+        return cls._instance
+          
     def __init__(self, name=SHARED_MEMORY_FILE_NAME, num_players=MAX_NUM_PLAYERS):
-        # Settings
-        self.shm_name = name
-        self.num_players = num_players
-        self.size = sizeof(GameStruct)
+        if not self._initialized:
+            self.shm_name = name
+            self.num_players = num_players
+            self.size = sizeof(GameStruct)
 
-        # Locks for each slot
-        self.locks = [Lock() for _ in range(num_players)]
-        self.property_locks = [
-            {
-                "PlayerID": Lock(),
-                "Energy": Lock(),
-                "Energy_Regen": Lock(),
-                "IsActive": Lock(),
-                "IsHero": Lock(),
-                "IsFlagged": Lock(),
-                "FlagPosX": Lock(),
-                "FlagPosY": Lock(),
-                "FollowAngle": Lock(),
-                "LastUpdated": Lock(),
-            }
-            for _ in range(num_players)
-        ]
+            # Create or attach shared memory
+            try:
+                self.shm = shared_memory.SharedMemory(name=self.shm_name)
+                Py4GW.Console.Log(SMM_MODULE_NAME, "Attached to existing shared memory.", Py4GW.Console.MessageType.Info)
+            except FileNotFoundError:
+                self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
+                Py4GW.Console.Log(SMM_MODULE_NAME, "Shared memory area created.", Py4GW.Console.MessageType.Info)
 
-        self.game_option_locks = [
-            {
-                "Following": Lock(),
-                "Avoidance": Lock(),
-                "Looting": Lock(),
-                "Targetting": Lock(),
-                "Combat": Lock(),
-                "WindowVisible": Lock(),
-                "Skills": [Lock() for _ in range(NUMBER_OF_SKILLS)]
-            }
-            for _ in range(num_players)
-        ]
+            # Attach the shared memory structure
+            self.game_struct = GameStruct.from_buffer(self.shm.buf)
 
-        # Create or attach shared memory
-        try:
-            self.shm = shared_memory.SharedMemory(name=self.shm_name)
-            Py4GW.Console.Log(SMM_MODULE_NAME, "Attached to existing shared memory.", Py4GW.Console.MessageType.Info)
-        except FileNotFoundError:
-            self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
-            Py4GW.Console.Log(SMM_MODULE_NAME, "Shared memory area created.", Py4GW.Console.MessageType.Info)
-
-        # Attach the shared memory structure
-        self.game_struct = GameStruct.from_buffer(self.shm.buf)
-
-        # Initialize default values
-        for i in range(self.num_players):
-            self.reset_candidate(i)
-            self.reset_player(i)
-            self.reset_game_option(i)
-        self.reset_party_buffs()
+            # Initialize default values
+            for i in range(self.num_players):
+                self.reset_candidate(i)
+                self.reset_player(i)
+                self.reset_game_option(i)
+            self.reset_party_buffs()
+            
+            self._initialized = True
 
     # ---------------------
     # Candidate Management
