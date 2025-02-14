@@ -180,64 +180,82 @@ def main():
             current_window_pos = PyImGui.get_window_pos()
             current_window_collapsed = False
             
-            enable_all = PyImGui.checkbox("Toggle All Widgets", enable_all)
-
+            # Define button label dynamically based on enable_all state
+            toggle_label = "All Widgets toggled: ON" if enable_all else "All Widgets toggled: OFF"
+            
+            if PyImGui.button("Reload Widgets"):
+                Py4GW.Console.Log(module_name, "Reloading Widgets...", Py4GW.Console.MessageType.Info)
+                # This might not be needed, but just in case.
+                if "handler" in globals():
+                    del handler  
+                initialized = False
+                handler = WidgetHandler("Widgets")
+                handler.discover_widgets()
+                initialized = True
+    
+            PyImGui.same_line(0.0, 10)
+            
+            # Create a toggle button to enable/disable all widgets
+            if PyImGui.button(toggle_label):
+                enable_all = not enable_all  # Toggle state
+                ini_handler.write_key(module_name, "enable_all", str(enable_all))  # Save state
+            
             PyImGui.separator()
 
-            if enable_all:
-                categorized_widgets = {}
+            
+            categorized_widgets = {}
+            
+            subcategory_color = Utils.RGBToNormal(255, 200, 100, 255)  # Example color for category
+            category_color = Utils.RGBToNormal(200, 255, 150, 255)  # Example color for subcategory
                 
-                subcategory_color = Utils.RGBToNormal(255, 200, 100, 255)  # Example color for category
-                category_color = Utils.RGBToNormal(200, 255, 150, 255)  # Example color for subcategory
-                    
-                # Use cached INI data instead of real-time INI reads
-                for widget_name, widget_info in handler.widgets.items():
-                    widget_data = handler.widget_data_cache.get(widget_name, {})
-                    category = widget_data.get("category", "Miscellaneous")
-                    subcategory = widget_data.get("subcategory", "")
+            # Use cached INI data instead of real-time INI reads
+            for widget_name, widget_info in handler.widgets.items():
+                widget_data = handler.widget_data_cache.get(widget_name, {})
+                category = widget_data.get("category", "Miscellaneous")
+                subcategory = widget_data.get("subcategory", "")
 
-                    if category not in categorized_widgets:
-                        categorized_widgets[category] = {}
-                    if subcategory not in categorized_widgets[category]:
-                        categorized_widgets[category][subcategory] = []
-                    categorized_widgets[category][subcategory].append(widget_name)
-                  
-                # Render the UI using cached widget data
-                  
-                for category, subcategories in categorized_widgets.items():
-                    if PyImGui.collapsing_header(category):  # Render category
-                        for subcategory, widgets in subcategories.items():
-                            if subcategory:  # Render subcategory if present
-                                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, subcategory_color)
-                                if PyImGui.tree_node(subcategory):
-                                    PyImGui.pop_style_color(1)
-                                    if PyImGui.begin_table(f"Widgets {category}{subcategory}", 2,PyImGui.TableFlags.Borders):
-                                        for widget_name in widgets:
-                                            widget_info = handler.widgets[widget_name]
-                                            
-                                            color_status = widget_info["enabled"]
-                                            if color_status:
-                                                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, category_color)
+                if category not in categorized_widgets:
+                    categorized_widgets[category] = {}
+                if subcategory not in categorized_widgets[category]:
+                    categorized_widgets[category][subcategory] = []
+                categorized_widgets[category][subcategory].append(widget_name)
+                
+            # Render the UI using cached widget data
+                
+            for category, subcategories in categorized_widgets.items():
+                if PyImGui.collapsing_header(category):  # Render category
+                    for subcategory, widgets in subcategories.items():
+                        if subcategory:  # Render subcategory if present
+                            PyImGui.push_style_color(PyImGui.ImGuiCol.Text, subcategory_color)
+                            if PyImGui.tree_node(subcategory):
+                                PyImGui.pop_style_color(1)
+                                if PyImGui.begin_table(f"Widgets {category}{subcategory}", 2,PyImGui.TableFlags.Borders):
+                                    for widget_name in widgets:
+                                        widget_info = handler.widgets[widget_name]
+                                        
+                                        color_status = widget_info["enabled"]
+                                        if color_status:
+                                            PyImGui.push_style_color(PyImGui.ImGuiCol.Text, category_color)
 
-                                            # Render widget checkbox and config button
-                                            PyImGui.table_next_row()
-                                            PyImGui.table_set_column_index(0)
-                                            new_enabled = PyImGui.checkbox(f"{widget_name}", widget_info["enabled"])
-                                            if new_enabled != widget_info["enabled"]:
-                                                widget_info["enabled"] = new_enabled
-                                                handler.save_widget_state(widget_name) 
+                                        # Render widget checkbox and config button
+                                        PyImGui.table_next_row()
+                                        PyImGui.table_set_column_index(0)
+                                        new_enabled = PyImGui.checkbox(f"{widget_name}", widget_info["enabled"])
+                                        if new_enabled != widget_info["enabled"]:
+                                            widget_info["enabled"] = new_enabled
+                                            handler.save_widget_state(widget_name) 
 
-                                            PyImGui.table_set_column_index(1)
-                                            widget_info["configuring"] = ImGui.toggle_button(
-                                                IconsFontAwesome5.ICON_COG + f"##Configure{widget_name}",
-                                                widget_info["configuring"]
-                                            )
-                                            if color_status:
-                                                PyImGui.pop_style_color(1)
-                                        PyImGui.end_table()
-                                    PyImGui.tree_pop()
-                                else:
-                                    PyImGui.pop_style_color(1)
+                                        PyImGui.table_set_column_index(1)
+                                        widget_info["configuring"] = ImGui.toggle_button(
+                                            IconsFontAwesome5.ICON_COG + f"##Configure{widget_name}",
+                                            widget_info["configuring"]
+                                        )
+                                        if color_status:
+                                            PyImGui.pop_style_color(1)
+                                    PyImGui.end_table()
+                                PyImGui.tree_pop()
+                            else:
+                                PyImGui.pop_style_color(1)
                     
         PyImGui.end()
         
