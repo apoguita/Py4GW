@@ -956,3 +956,9 @@ def collapsing_header(label: str, flags: int) -> bool:
     Returns: bool: True if open.
     """
     pass
+
+def dummy(width: int, height: int) -> None:
+    """Creates a dummy element.
+    Args: width (int): Width, height (int): Height.
+    """
+    pass
