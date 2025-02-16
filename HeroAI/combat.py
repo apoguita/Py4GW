@@ -305,7 +305,6 @@ class CombatClass:
                     _, alliegeance = Agent.GetAlliegance(party_target)
                     if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
                         self.action_queue.add_action(Player.ChangeTarget, party_target)
-                        self.action_queue.ad
                         #Player.Interact(party_target)
                         return party_target
         return 0
