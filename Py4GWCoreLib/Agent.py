@@ -143,7 +143,7 @@ class Agent:
     @staticmethod
     def GetModelID(agent_id):
         """Retrieve the model of an agent."""
-        return Agent.agent_instance(agent_id).model_id
+        return Agent.agent_instance(agent_id).living_agent.player_number
 
     @staticmethod
     def IsLiving(agent_id):
