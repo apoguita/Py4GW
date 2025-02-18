@@ -1,4 +1,5 @@
 from Py4GWCoreLib import*
+import time
 
 
 #VARIABLES
@@ -23,12 +24,14 @@ class BotVars:
 
 follow_delay_timer = Timer()
 loot_timer = Timer() 
+start_time = time.time()  
+run_counter = 0  
 
 class GameAreas:
     def __init__(self):
         self.Area = 1600 
         self.Area_1 = 2000
-        self.Area_2 = 2200
+        self.Area_2 = 2500
 
 ModelData = {}
 text_input = "resign"
@@ -37,9 +40,10 @@ text_dialog = "dialog take"
 area_distance = GameAreas()
 PyPlayer.PyPlayer()
 player_instance = PyPlayer.PyPlayer()
+action_queue = ActionQueue()
 
 bot_vars = BotVars(map_id=148) #ASCALON
-bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Py4GW - LDoA", window_size=(300, 350))
+bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Py4GW - LDoA", window_size=(700, 1000))
 agent_id = Player.GetAgentID()
 
 #COORDS
@@ -61,7 +65,7 @@ ranger_quest_coordinate_list = [(4873, 1278),(5005, -1706),(5546, -4058)]
 
 #MONK 
 ciglo_coordinate_list = [(6355, 4323),(6008, 4203)]
-monk_quest_coordinate_list_1 = [(5241, 1122),(4353, -2354),(3820, -4486)]
+monk_quest_coordinate_list_1 = [(4832, -54),(5948, -2922),(6710, -3284),(5894, -4254),(4011, -2569),(3886, -4384)]
 monk_quest_coordinate_list_2 = [(4406, -1190),(5229, 1849),(5905, 4164)]
 
 #NECROMANCER
@@ -115,12 +119,16 @@ spider_leg_coordinate_list_2 = [(21072, -6376),(19635, -4807),(17780, -3376),(16
 #UNNATURAL SEEDS
 unnatural_seeds_coordinate_list = [(-7910, 1418),(-7555, -1752),(-8062, -3071),(-12424, -3125),(-10948, -5876),(-8324, -8323),(-13903, -2822),(-14847, -707),(-15180, 2976),(-16849, 70448),(-20397, 8233),(-20550, 6263),(-20964, 3164),(-18933, 3676),(-17504, 3399),(-20758, -1853),(-20250, -5231),(-19147, -6511),(-16715, -7669),(-16317, -9650),(-16739, -11548),(-12792, -14235),(-15378, -15096)]
 
+#WORN BELTS
+worn_belts_coordinate_list = [(-7926, 1415),(-11055, 1227),(-12315, -2885),(-14281, -2275),(-15024, 1351),(-16472, 6562),(-18774, 8704),(-20803, 9038),(-20203, 7347),(-19635, 5800),(-18700, 2386),(-20420, 1201),(-21388, -174),(-18041, -1241),(-18791, -3534),(-20430, -6529),(-17984, -6975),(-21071, -8679),(-17327, -10461),(-16030, -11243),(-16017, -14750),(-14710, -15286),(-11258, -14416),(-10075, -14528),(-7392, -12948),(-5987, -15648),(-10315, -14775),(-14548, -13886),(-17675, -12879),(-18913, -11854),(-20070, -13160),(-20386, -14388),(-22363, -15209),(-22475, -12587)]
+
 #NICHOLAS GIFTS
 nicholas_sandford_coordinate_list = [(22237, 4061),(17213, 2817),(16320, 3621),(16757, 8255),(17315, 8812),(14385, 11414),(14159, 13931),(15257, 16442)]
 
+#LVL 2-10
 ascalon_coordinate_list = [(7420, 5450)]
-rurikpause_coordinate_list = [(5987, 4087),(6537,4449)]
-rurik_coordinate_list = [(6068, 4180),(5835, 4323),(5602, 4493),(5371, 4672),(5147, 4858),(4933, 5058),(4721, 5255),(4504, 5446),(4283, 5637),(4068, 5825),(3845, 6010),(3577, 6131),(3299, 6199),(3012, 6249),(2720, 6290),(2438, 6324),(2147, 6362),(1860, 6416),(1575, 6433),(1284, 6437),(995, 6441),(702, 6477),(428, 6576),(208, 6759),(-7, 6959),(-221, 7157),(-437, 7358),(-649, 7555),(-861, 7751),(-1080, 7944),(-1301, 8129),(-1522, 8312),(-1750, 8496),(-1997, 8641),(-2260, 8776),(-2519, 8910),(-2753, 9078),(-2902, 9324),(-3020, 9584),(-3137, 9847),(-3252, 10115),(-3367, 10386),(-3486, 10655),(-3724, 10822),(-3981, 10957),(-4241, 11095),(-4483, 11222)]
+rurikpause_coordinate_list = [(5987, 4087),(5977, 4077)]
+rurik_coordinate_list = [(6068, 4180),(5835, 4323),(5602, 4493),(5371, 4672),(5147, 4858),(4933, 5058),(4721, 5255),(4504, 5446),(4283, 5637),(4068, 5825),(3845, 6010),(3577, 6131),(3299, 6199),(3012, 6249),(2720, 6290),(2438, 6324),(2147, 6362),(1860, 6416),(1575, 6433),(1284, 6437),(995, 6441),(702, 6477),(428, 6576),(208, 6759),(-7, 6959),(-221, 7157),(-437, 7358),(-649, 7555),(-861, 7751),(-1080, 7944),(-1301, 8129),(-1522, 8312),(-1750, 8496),(-1997, 8641),(-2260, 8776),(-2519, 8910),(-2753, 9078),(-2902, 9324),(-3020, 9584),(-3137, 9847),(-3252, 10115),(-3367, 10386),(-3486, 10655),(-3724, 10822),(-3981, 10957),(-4241, 11095),(-4483, 11222),(-3823, 11060),(-5253, 11672)]
 
 
 foible_coordinate_list = [(344, 7832), (367, 7790)]
@@ -143,8 +151,9 @@ barradin_coordinate_list_two = [(21932, 12966),(20720, 13561),(19394, 13174),(18
 
 #FUNCTIONS
 def StartBot():
-    global bot_vars
+    global bot_vars, start_time
     bot_vars.bot_started = True
+    start_time = time.time()  
 
 def StopBot():
     global bot_vars
@@ -250,9 +259,14 @@ def ResetEnvironment():
     FSM_vars.state_machine_unnatural_seeds.reset()
     FSM_vars.unnatural_seeds_pathing.reset()   
 
+    #WORN BELTS
+    FSM_vars.state_machine_worn_belts.reset()
+    FSM_vars.worn_belts_pathing.reset()  
+
     #NICHOLAS SANDFORD
     FSM_vars.state_machine_nicholas_sandford.reset()
     FSM_vars.nicholas_sandford_pathing.reset()   
+
 
     FSM_vars.ascalon_pathing.reset()
     FSM_vars.ascalon_pathing_1.reset()
@@ -299,6 +313,21 @@ def equipitem(model_id, agent_id):
     Inventory.EquipItem(item, agent_id)
 
 inventory = PyInventory.PyInventory()
+
+def GetFirstFromArray(array):
+    if array is None:
+        return 0
+    
+    if len(array) > 0:
+        return array[0]
+    return 0
+
+def TargetNearestItem():
+    distance = Range.Spellcast.value
+    item_array = AgentArray.GetItemArray()
+    item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), distance)
+    item_array = AgentArray.Sort.ByDistance(item_array, Player.GetXY())
+    return GetFirstFromArray(item_array)
 
 #USED TO FOLLOW RURIK
 def FollowPathwithDelayTimer(path_handler,follow_handler, log_actions=False, delay=3000):
@@ -360,7 +389,15 @@ def Survivor():
     max_health = Agent.GetMaxHealth(Player. GetAgentID())
     current_health = Agent.GetHealth(Player. GetAgentID()) * max_health    
     
-    if current_health < 55:
+    if current_health < 40:
+        return True  
+    return False 
+
+def Death():
+    max_health = Agent.GetMaxHealth(Player. GetAgentID())
+    current_health = Agent.GetHealth(Player. GetAgentID()) * max_health    
+    
+    if current_health < 1:
         return True  
     return False 
 
@@ -383,9 +420,29 @@ def get_called_target():
                 return player.called_target_id
     return 0
 
-def IsSkillReady2(skill_slot):
-    skill = SkillBar.GetSkillData(skill_slot)
-    return skill.recharge == 0
+def GetAbsoluteEnergy():
+
+    my_id = Player.GetAgentID()
+    max_energy = Agent.GetMaxEnergy(my_id) 
+    current_energy = Agent.GetEnergy(my_id) * max_energy  
+    return current_energy
+
+def IsSkillReady2(slot):
+    skill_id = SkillBar.GetSkillIDBySlot(slot)
+
+    if not skill_id or skill_id == 0:
+        return False  
+
+    recharge_time = Skill.Data.GetRecharge(skill_id) or 0
+    if recharge_time > 0:
+        return False 
+
+    energy_cost = Skill.Data.GetEnergyCost(skill_id) or 0
+    if GetAbsoluteEnergy() < energy_cost:
+        return False  
+
+    return True  
+
 
 #STANDARD
 def handle_map_path(map_pathing):
@@ -393,32 +450,41 @@ def handle_map_path(map_pathing):
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
     current_time = time.time()
-    
+
     enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1320)
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1200)
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
-    if len(enemy_array) > 0:
-        target_id = enemy_array[0]
-        
-        if target_id and Agent.IsAlive(target_id):
-            Player.ChangeTarget(target_id)
-            target_x, target_y = Agent.GetXY(target_id)
-            distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
-            
-            if distance_to_target > 1200:
-                Routines.Targeting.InteractTarget()
-                return
-            
-            if current_time - FSM_vars.last_skill_time >= 2.0:
-                if IsSkillReady2(FSM_vars.current_skill_index):
-                    SkillBar.UseSkill(FSM_vars.current_skill_index)
-                    FSM_vars.last_skill_time = current_time
-                    FSM_vars.current_skill_index = FSM_vars.current_skill_index % 8 + 1
-    else:
-        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler) 
+    if not enemy_array:
+        FSM_vars.current_target_id = None
+        FSM_vars.has_interacted = False 
+        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)  
+        return
 
-#LOOT MAP PATHING FUNCTION WORKING
+ 
+    if FSM_vars.current_target_id is None or not Agent.IsAlive(FSM_vars.current_target_id):
+        FSM_vars.current_target_id = enemy_array[0]  
+        FSM_vars.has_interacted = False  
+
+    if FSM_vars.current_target_id:
+        target_id = FSM_vars.current_target_id
+        target_x, target_y = Agent.GetXY(target_id)
+        distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
+
+        if not FSM_vars.has_interacted:
+            Player.Interact(target_id, call_target=False)
+            FSM_vars.has_interacted = True  
+        
+        if Agent.IsAlive(target_id):
+            if current_time - FSM_vars.last_skill_time >= 2.0:
+                skill_slot = FSM_vars.current_skill_index
+                Player.Interact(target_id, call_target=False)                 
+                SkillBar.UseSkill(skill_slot)  
+                FSM_vars.last_skill_time = current_time  
+                FSM_vars.current_skill_index = (skill_slot % 4) + 1  
+
+            return 
+
 def handle_loot():
     """
     Function to handle the looting logic separately from the main map handling.
@@ -471,136 +537,233 @@ def handle_map_path_loot(map_pathing):
     enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1200)
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
-    if len(enemy_array) > 0:
-        target_id = enemy_array[0]
-        if target_id and Agent.IsAlive(target_id):
+    if not enemy_array:
+        FSM_vars.current_target_id = None
+        FSM_vars.has_interacted = False 
+        handle_loot()  
+        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)  
+        return
+
+ 
+    if FSM_vars.current_target_id is None or not Agent.IsAlive(FSM_vars.current_target_id):
+        FSM_vars.current_target_id = enemy_array[0]  
+        FSM_vars.has_interacted = False  
+
+    if FSM_vars.current_target_id:
+        target_id = FSM_vars.current_target_id
+        target_x, target_y = Agent.GetXY(target_id)
+        distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
+
+        if not FSM_vars.has_interacted:
             Player.Interact(target_id, call_target=False)
-            target_x, target_y = Agent.GetXY(target_id)
-            distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
-
+            FSM_vars.has_interacted = True  
+        
+        if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
-                if IsSkillReady2(FSM_vars.current_skill_index):
-                    SkillBar.UseSkill(FSM_vars.current_skill_index)
-                    FSM_vars.last_skill_time = current_time
-                    FSM_vars.current_skill_index = (FSM_vars.current_skill_index % 8) + 1
+                skill_slot = FSM_vars.current_skill_index
+                Player.Interact(target_id, call_target=False)                 
+                SkillBar.UseSkill(skill_slot)  
+                FSM_vars.last_skill_time = current_time  
+                FSM_vars.current_skill_index = (skill_slot % 4) + 1  
 
-    else:
-        handle_loot() 
-
-    Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)
-
-
-
+            return 
 
 #FOR WARRIOR LVL 1
-def handle_map_path_warrior(map_pathing):
-
+def warrior_handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
     current_time = time.time()
-    
+
     enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1320)
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1200)
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
-    if len(enemy_array) > 0:
-        target_id = enemy_array[0]
+    if not enemy_array:
+        FSM_vars.current_target_id = None
+        FSM_vars.has_interacted = False 
+        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)  
+        return
+
+    if FSM_vars.current_target_id is None or not Agent.IsAlive(FSM_vars.current_target_id):
+        FSM_vars.current_target_id = enemy_array[0]  
+        FSM_vars.has_interacted = False  
+
+    if FSM_vars.current_target_id:
+        target_id = FSM_vars.current_target_id
+        target_x, target_y = Agent.GetXY(target_id)
+        distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
+
+        if not FSM_vars.has_interacted:
+            Player.Interact(target_id, call_target=False)
+            FSM_vars.has_interacted = True  
         
-        if target_id and Agent.IsAlive(target_id):
-            Player.ChangeTarget(target_id)
-            target_x, target_y = Agent.GetXY(target_id)
-            distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
-            
-            if distance_to_target > 1200:
-                Routines.Targeting.InteractTarget()
-                return
-            
+        if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
-                if IsSkillReady2(FSM_vars.current_skill_index):
-                    SkillBar.UseSkill(FSM_vars.current_skill_index)
-                    FSM_vars.last_skill_time = current_time
-                    
-                    FSM_vars.current_skill_index = (FSM_vars.current_skill_index - 1) % 3 + 2
-    else:
-        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)
+                skill_slot = FSM_vars.current_skill_index
+                Player.Interact(target_id, call_target=False)                 
+                SkillBar.UseSkill(skill_slot)  
+                FSM_vars.last_skill_time = current_time  
+
+                FSM_vars.current_skill_index = 2 if skill_slot >= 8 else skill_slot + 1  
+
+            return
+
 
 #FOR MESMER LVL 1
-def handle_map_path_mesmer(map_pathing):
+def mesmer_handle_map_path(map_pathing):
 
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
     current_time = time.time()
-    
+
     enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1320)
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1200)
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
-    if len(enemy_array) > 0:
-        target_id = enemy_array[0]
+    if not enemy_array:
+        FSM_vars.current_target_id = None
+        FSM_vars.has_interacted = False 
+        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)  
+        return
+
+    if FSM_vars.current_target_id is None or not Agent.IsAlive(FSM_vars.current_target_id):
+        FSM_vars.current_target_id = enemy_array[0]  
+        FSM_vars.has_interacted = False  
+
+    if FSM_vars.current_target_id:
+        target_id = FSM_vars.current_target_id
+        target_x, target_y = Agent.GetXY(target_id)
+        distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
+
+        if not FSM_vars.has_interacted:
+            Player.Interact(target_id, call_target=False)
+            FSM_vars.has_interacted = True  
         
-        if target_id and Agent.IsAlive(target_id):
-            Player.ChangeTarget(target_id)
-            target_x, target_y = Agent.GetXY(target_id)
-            distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
-            
-            if distance_to_target > 1200:
-                Routines.Targeting.InteractTarget()
-                return
-            
+        if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
-                if IsSkillReady2(FSM_vars.current_skill_index):
-                    SkillBar.UseSkill(FSM_vars.current_skill_index)
-                    FSM_vars.last_skill_time = current_time
-                    
-                    FSM_vars.current_skill_index = FSM_vars.current_skill_index % 3 + 1
+                skill_slot = FSM_vars.current_skill_index
+                Player.Interact(target_id, call_target=False)                 
+                SkillBar.UseSkill(skill_slot)  
+                FSM_vars.last_skill_time = current_time  
+
+                FSM_vars.current_skill_index = 1 if skill_slot >= 3 else skill_slot + 1  
+
+            return  
     else:
         Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)
+
 
 #FOR EVERYONE LVL 1
-def handle_map_path_early(map_pathing):
-
+def early_handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
     current_time = time.time()
-    
+
     enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1320)
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 1200)
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
-    if len(enemy_array) > 0:
-        target_id = enemy_array[0]
-        
-        if target_id and Agent.IsAlive(target_id):
-            Player.ChangeTarget(target_id)
-            target_x, target_y = Agent.GetXY(target_id)
-            distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
-            
-            if distance_to_target > 1200:
-                Routines.Targeting.InteractTarget()
-                return
-            
-            if current_time - FSM_vars.last_skill_time >= 2.0:
-                if IsSkillReady2(FSM_vars.current_skill_index):
-                    SkillBar.UseSkill(FSM_vars.current_skill_index)
-                    FSM_vars.last_skill_time = current_time
-                    
-                    FSM_vars.current_skill_index = FSM_vars.current_skill_index % 4 + 1
+    if not enemy_array:
+        FSM_vars.current_target_id = None
+        FSM_vars.has_interacted = False 
+        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)  
+        return
 
+    if FSM_vars.current_target_id is None or not Agent.IsAlive(FSM_vars.current_target_id):
+        FSM_vars.current_target_id = enemy_array[0]  
+        FSM_vars.has_interacted = False  
+
+    if FSM_vars.current_target_id:
+        target_id = FSM_vars.current_target_id
+        target_x, target_y = Agent.GetXY(target_id)
+        distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
+
+        if not FSM_vars.has_interacted:
+            Player.Interact(target_id, call_target=False)
+            FSM_vars.has_interacted = True  
+        
+        if Agent.IsAlive(target_id):
+            if current_time - FSM_vars.last_skill_time >= 2.0:
+                skill_slot = FSM_vars.current_skill_index
+                Player.Interact(target_id, call_target=False)                 
+                SkillBar.UseSkill(skill_slot)  
+                FSM_vars.last_skill_time = current_time  
+
+                FSM_vars.current_skill_index = 1 if skill_slot >= 4 else skill_slot + 1  
+
+            return  
 
     else:
         Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)
+
+
+def handle_npc_interaction():
+    global FSM_vars
+    my_id = Player.GetAgentID()
+    my_x, my_y = Agent.GetXY(my_id)
+    current_time = time.time()
+
+    npc_array = AgentArray.GetNPCMinipetArray()
+    npc_array = AgentArray.Filter.ByDistance(npc_array, (my_x, my_y), 800)
+
+    if not npc_array:
+        FSM_vars.current_target_id = None
+        FSM_vars.has_interacted = False
+        FSM_vars.last_interaction_time = 0 
+        return  
+
+    if FSM_vars.current_target_id is None or FSM_vars.current_target_id not in npc_array:
+        FSM_vars.current_target_id = npc_array[0]  
+        FSM_vars.has_interacted = False  
+
+    target_id = FSM_vars.current_target_id
+
+    if not FSM_vars.has_interacted or (current_time - FSM_vars.last_interaction_time >= 5):  
+        Player.Interact(target_id, call_target=False)
+        FSM_vars.has_interacted = True
+        FSM_vars.last_interaction_time = current_time  
+
+def handle_item_interaction():
+    global FSM_vars
+    my_id = Player.GetAgentID()
+    my_x, my_y = Agent.GetXY(my_id)
+    current_time = time.time()
+
+    item_array = AgentArray.GetItemArray()
+    item_array = AgentArray.Filter.ByDistance(item_array, (my_x, my_y), 1200)
+
+    if not item_array:
+        FSM_vars.current_target_id = None
+        FSM_vars.has_interacted = False
+        FSM_vars.last_interaction_time = 0  
+        return  
+
+    item_array = AgentArray.Sort.ByDistance(item_array, (my_x, my_y))
+
+    if FSM_vars.current_target_id is None or FSM_vars.current_target_id not in item_array:
+        FSM_vars.current_target_id = None  
+        FSM_vars.has_interacted = False  
+
+    for target_id in item_array:
+        if current_time - FSM_vars.last_interaction_time >= 6:
+            Player.Interact(target_id, call_target=False)
+            FSM_vars.last_interaction_time = current_time   
+            FSM_vars.has_interacted = True  
+
 
 #FSM
 class StateMachineVars:
-    def __init__(self):
-
+    def __init__(self):     
+  
         self.movement_handler = Routines.Movement.FollowXY()
         self.last_skill_time = 0
         self.current_skill_index = 1
         self.last_item_pickup_time = 0
+        self.current_target_id = None  
+        self.has_interacted = False 
 
         #FSM for lvl 1
         self.town_crier_pathing =  Routines.Movement.PathHandler(town_crier_coordinate_list)
@@ -707,6 +870,10 @@ class StateMachineVars:
         self.state_machine_unnatural_seeds = FSM("UNNATURAL SEEDS")
         self.unnatural_seeds_pathing = Routines.Movement.PathHandler(unnatural_seeds_coordinate_list)
 
+        #FSM for UNNATURAL SEEDS
+        self.state_machine_worn_belts = FSM("WORN BELTS")
+        self.worn_belts_pathing = Routines.Movement.PathHandler(worn_belts_coordinate_list)
+
         #FSM for NICHOLAS SANDFORD
         self.state_machine_nicholas_sandford = FSM("NICHOLAS SANDFORD")
         self.nicholas_sandford_pathing = Routines.Movement.PathHandler(nicholas_sandford_coordinate_list)
@@ -736,1484 +903,293 @@ class StateMachineVars:
 
         #FSM Grand Tour
         self.state_machine_grandtour = FSM("THE BARRADIN ESTATE")
-        
+     
+    
 FSM_vars = StateMachineVars()
 
-#FSM LVL 1 - WARRIOR
-FSM_vars.state_machine_warrior.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ascalon_map,6,0)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="BONUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "CREATING BONUS ITEMS", Py4GW.Console.MessageType.Info),player_instance.SendChatCommand(text_bonus)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="EQUIP WAND",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING WAND", Py4GW.Console.MessageType.Info),equipitem(6508,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="EQUIP SHIELD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING SHIELD", Py4GW.Console.MessageType.Info),equipitem(6514,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="GOING NEAR TOWN CRIER",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM TOWN CRIER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805001", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)
- 
-FSM_vars.state_machine_warrior.AddState(name="GOING NEAR SIR TYDUS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH SIR TYDUS WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING REWARD QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805007", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendChatCommand(text_dialog)),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_warrior.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000)
-
-#WARRIOR ROUTINE
-FSM_vars.state_machine_warrior.AddState(name="GOING NEAR VAN",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.van_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.van_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "INTERACTING WITH VAN THE WARRIOR WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "INTERACTING WITH VAN THE WARRIOR WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "TAKING REWARD FROM VAN THE WARRIOR", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80DD07", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "TAKING QUEST FROM VAN THE WARRIOR", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805501", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="GOING TO KILL",
-                       execute_fn=lambda: handle_map_path(FSM_vars.warrior_quest_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.warrior_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_warrior.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="GOING NEAR VAN",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.van_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.van_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "INTERACTING WITH VAN THE WARRIOR WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "INTERACTING WITH VAN THE WARRIOR WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "TAKING REWARD FROM VAN THE WARRIOR", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805507", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
+#___________________________ WARRIOR LVL 1 ___________________________#
+#START COMMON ROUTINE PART ONE
+FSM_vars.state_machine_warrior.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warrior.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805001", 16)), transition_delay_ms=300, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="GOING NEAR SIR TYDUS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warrior.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805007", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80DD01", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_warrior.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART ONE
+#START WARRIOR ROUTINE
+FSM_vars.state_machine_warrior.AddState(name="GOING NEAR VAN", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.van_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.van_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warrior.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80DD07", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805501", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="GOING TO KILL", execute_fn=lambda: handle_map_path(FSM_vars.warrior_quest_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.warrior_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warrior.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_warrior.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="GOING NEAR VAN", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.van_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.van_pathing_1, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warrior.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805507", 16)), transition_delay_ms=1500, run_once=True)
 #END WARRIOR ROUTINE
+#START COMMON ROUTINE PART TWO
+FSM_vars.state_machine_warrior.AddState(name="GOING NEAR ALTHEA", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warrior.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x804703", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="TAKING SKILLS", execute_fn=lambda: Player.SendDialog(int("0x804701", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="SECOND MAP PATH", execute_fn=lambda: warrior_handle_map_path(FSM_vars.leveling_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warrior.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="GOING NEAR PRINCE RURIK", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warrior.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART TWO
 
-FSM_vars.state_machine_warrior.AddState(name="GOING NEAR ALTHEA",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804703", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="TAKING SKILL",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING SKILL LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804701", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="SECOND MAP PATH",
-                       execute_fn=lambda: handle_map_path_warrior(FSM_vars.leveling_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_warrior.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 WARRIOR", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="GOING NEAR PRINCE RURIK",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM RURIK", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x802E01", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-#FSM LVL 1 - RANGER
-FSM_vars.state_machine_ranger.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ascalon_map,6,0)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="BONUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "CREATING BONUS ITEMS", Py4GW.Console.MessageType.Info),player_instance.SendChatCommand(text_bonus)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="EQUIP WAND",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING WAND", Py4GW.Console.MessageType.Info),equipitem(6508,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="EQUIP SHIELD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING SHIELD", Py4GW.Console.MessageType.Info),equipitem(6514,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="GOING NEAR TOWN CRIER",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM TOWN CRIER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805001", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)
- 
-FSM_vars.state_machine_ranger.AddState(name="GOING NEAR SIR TYDUS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH SIR TYDUS WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING REWARD QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805007", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80DE01", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_ranger.AddState(name="RUNNING OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000)
-
-#RANGER ROUTINE
-FSM_vars.state_machine_ranger.AddState(name="GOING NEAR ARTEMIS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.artemis_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.artemis_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH ",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "INTERACTING WITH ARTEMIS THE RANGER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "INTERACTING WITH ARTEMIS THE RANGER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "TAKING REWARD ARTEMIS THE RANGER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80DE07", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "TAKING QUEST FROM ARTEMIS THE RANGER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805601", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="GOING TO KILL",
-                       execute_fn=lambda: handle_map_path(FSM_vars.ranger_quest_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranger_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_ranger.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_ranger.AddState(name="RUNNIN OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="GOING NEAR VAN",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.artemis_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.artemis_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH ARTEMIS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "INTERACTING WITH ARTEMIS THE RANGER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "INTERACTING WITH ARTEMIS THE RANGER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 RANGER", "TAKING REWARD FROM ARTEMIS THE RANGER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805607", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
+#___________________________ RANGER LVL 1 ___________________________#
+#START COMMON ROUTINE PART ONE
+FSM_vars.state_machine_ranger.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="EQUIP BOW", execute_fn=lambda: equipitem(5831, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_ranger.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805001", 16)), transition_delay_ms=300, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="GOING NEAR SIR TYDUS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_ranger.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805007", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80DE01", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_ranger.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART ONE
+#START RANGER ROUTINE
+FSM_vars.state_machine_ranger.AddState(name="GOING NEAR ARTEMIS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.artemis_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.artemis_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_ranger.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80DE07", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805601", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="GOING TO KILL", execute_fn=lambda: handle_map_path(FSM_vars.ranger_quest_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranger_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_ranger.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_ranger.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="GOING NEAR VAN", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.artemis_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.artemis_pathing_1, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_ranger.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805607", 16)), transition_delay_ms=1500, run_once=True)
 #END RANGER ROUTINE
-FSM_vars.state_machine_ranger.AddState(name="GOING NEAR ALTHEA",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       run_once=False)
+#START COMMON ROUTINE PART TWO
+FSM_vars.state_machine_ranger.AddState(name="GOING NEAR ALTHEA", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_ranger.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x804703", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="TAKING SKILLS", execute_fn=lambda: Player.SendDialog(int("0x804701", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="SECOND MAP PATH", execute_fn=lambda: early_handle_map_path(FSM_vars.leveling_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_ranger.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="GOING NEAR PRINCE RURIK", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_ranger.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+#END COMMON ROUTINE PART TWO
 
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
 
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804703", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="TAKING SKILL",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING SKILL LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804701", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="SECOND MAP PATH",
-                       execute_fn=lambda: handle_map_path_early(FSM_vars.leveling_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_ranger.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="GOING NEAR PRINCE RURIK",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranger.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM RURIK", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x802E01", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)
-
- #FSM LVL 1 - MONK
-FSM_vars.state_machine_monk.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ascalon_map,6,0)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="BONUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "CREATING BONUS ITEMS", Py4GW.Console.MessageType.Info),player_instance.SendChatCommand(text_bonus)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="EQUIP WAND",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING WAND", Py4GW.Console.MessageType.Info),equipitem(6508,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="EQUIP SHIELD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING SHIELD", Py4GW.Console.MessageType.Info),equipitem(6514,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="GOING NEAR TOWN CRIER",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM TOWN CRIER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805001", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
- 
-FSM_vars.state_machine_monk.AddState(name="GOING NEAR SIR TYDUS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH SIR TYDUS WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING REWARD QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805007", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80DC01", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_monk.AddState(name="RUNNING OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000)
-
-#MONK ROUTINE
-FSM_vars.state_machine_monk.AddState(name="GOING NEAR CIGLO",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ciglo_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ciglo_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH CIGLO THE MONK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MONK", "INTERACTING WITH CIGLO THE MONK WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH CIGLO",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MONK", "INTERACTING WITH CIGLO THE MONK WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MONK", "TAKING REWARD CIGLO THE MONK", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80DC07", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MONK", "TAKING QUEST FROM CIGLO THE MONK", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805401", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="GOING TO GWEN",
-                       execute_fn=lambda: handle_map_path(FSM_vars.monk_quest_pathing_1),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.monk_quest_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH GWEN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MONK", "INTERACTING WITH GWEN WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH GWEN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MONK", "INTERACTING WITH GWEN WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="GOING BACK TO CIGLO",
-                       execute_fn=lambda: handle_map_path(FSM_vars.monk_quest_pathing_2),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.monk_quest_pathing_2, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH CIGLO THE MONK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MONK", "INTERACTING WITH CIGLO THE MONK WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH CIGLO",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MONK", "INTERACTING WITH CIGLO THE MONK WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MONK", "TAKING REWARD CIGLO THE MONK", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805407", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
+#___________________________ MONK LVL 1 ___________________________#
+#START COMMON ROUTINE PART ONE
+FSM_vars.state_machine_monk.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_monk.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805001", 16)), transition_delay_ms=300, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="GOING NEAR SIR TYDUS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_monk.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805007", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80DC01", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_monk.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART ONE
+#START MONK ROUTINE
+FSM_vars.state_machine_monk.AddState(name="GOING NEAR CIGLO", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ciglo_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ciglo_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_monk.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80DC07", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805401", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="GOING TO GWEN", execute_fn=lambda: handle_map_path(FSM_vars.monk_quest_pathing_1), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.monk_quest_pathing_1, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_monk.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="GOING BACK TO CIGLO", execute_fn=lambda: handle_map_path(FSM_vars.monk_quest_pathing_2), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.monk_quest_pathing_2, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_monk.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805407", 16)), transition_delay_ms=1500, run_once=True)
 #END MONK ROUTINE
+#START COMMON ROUTINE PART TWO
+FSM_vars.state_machine_monk.AddState(name="GOING NEAR ALTHEA", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_monk.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x804703", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="TAKING SKILLS", execute_fn=lambda: Player.SendDialog(int("0x804701", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_monk.AddState(name="SECOND MAP PATH", execute_fn=lambda: early_handle_map_path(FSM_vars.leveling_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_monk.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="GOING NEAR PRINCE RURIK", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_monk.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART TWO
 
-FSM_vars.state_machine_monk.AddState(name="GOING NEAR ALTHEA",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804703", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="TAKING SKILL",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING SKILL LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804701", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="SECOND MAP PATH",
-                       execute_fn=lambda: handle_map_path_early(FSM_vars.leveling_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_monk.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="GOING NEAR PRINCE RURIK",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM RURIK", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x802E01", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)                   
-  
-#FSM LVL 1 - NECROMANCER
-FSM_vars.state_machine_necromancer.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ascalon_map,6,0)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="BONUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "CREATING BONUS ITEMS", Py4GW.Console.MessageType.Info),player_instance.SendChatCommand(text_bonus)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="EQUIP WAND",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING WAND", Py4GW.Console.MessageType.Info),equipitem(6508,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_monk.AddState(name="EQUIP SHIELD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING SHIELD", Py4GW.Console.MessageType.Info),equipitem(6514,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR TOWN CRIER",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM TOWN CRIER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805001", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)
- 
-FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR SIR TYDUS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH SIR TYDUS WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING REWARD QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805007", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80DA01", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_necromancer.AddState(name="RUNNING OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000)          
-                       
-#NECROMANCER ROUTINE
-FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR ARTEMIS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.verata_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.verata_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH ",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "INTERACTING WITH VERATA THE NECROMANCER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "INTERACTING WITH VERATA THE NECROMANCER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "TAKING REWARD VERATA THE NECROMANCER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80DA07", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "TAKING QUEST FROM VERATA THE NECROMANCER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805201", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="GOING TO KILL",
-                       execute_fn=lambda: handle_map_path(FSM_vars.necromancer_quest_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.necromancer_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_necromancer.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_necromancer.AddState(name="RUNNIN OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR VAN",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.verata_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.verata_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH ARTEMIS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "INTERACTING WITH VERATA THE NECROMANCER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "INTERACTING WITH VERATA THE NECROMANCER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 NECROMANCER", "TAKING REWARD FROM VERATA THE NECROMANCER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805207", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
+#___________________________ NECROMANCER LVL 1 ___________________________#
+#START COMMON ROUTINE PART ONE
+FSM_vars.state_machine_necromancer.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_necromancer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805001", 16)), transition_delay_ms=300, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR SIR TYDUS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_necromancer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805007", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80DA01", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_necromancer.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART ONE
+#START NECROMANCER ROUTINE
+FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR ARTEMIS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.verata_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.verata_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_necromancer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80DA07", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805201", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="GOING TO KILL", execute_fn=lambda: handle_map_path(FSM_vars.necromancer_quest_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.necromancer_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_necromancer.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_necromancer.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR VAN", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.verata_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.verata_pathing_1, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_necromancer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805207", 16)), transition_delay_ms=1500, run_once=True)
 #END NECROMANCER ROUTINE
+#START COMMON ROUTINE PART TWO
+FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR ALTHEA", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_necromancer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x804703", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="TAKING SKILLS", execute_fn=lambda: Player.SendDialog(int("0x804701", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="SECOND MAP PATH", execute_fn=lambda: early_handle_map_path(FSM_vars.leveling_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_necromancer.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR PRINCE RURIK", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_necromancer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART TW0
 
-FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR ALTHEA",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804703", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="TAKING SKILL",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING SKILL LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804701", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="SECOND MAP PATH",
-                       execute_fn=lambda: handle_map_path_early(FSM_vars.leveling_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_necromancer.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR PRINCE RURIK",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM RURIK", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x802E01", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-#FSM LVL 1 - MESMER
-FSM_vars.state_machine_mesmer.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ascalon_map,6,0)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="BONUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "CREATING BONUS ITEMS", Py4GW.Console.MessageType.Info),player_instance.SendChatCommand(text_bonus)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="EQUIP WAND",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING WAND", Py4GW.Console.MessageType.Info),equipitem(6508,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="EQUIP SHIELD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING SHIELD", Py4GW.Console.MessageType.Info),equipitem(6514,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR TOWN CRIER",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM TOWN CRIER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805001", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)
- 
-FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR SIR TYDUS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH SIR TYDUS WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING REWARD QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805007", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80D901", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_mesmer.AddState(name="RUNNING OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000)  
-
-#MESMER ROUTINE
-FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR SEBEDOH",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.sebedoh_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sebedoh_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH ",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "INTERACTING WITH SEBEDOH THE MESMER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "INTERACTING WITH SEBEDOH THE MESMER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "TAKING REWARD SEBEDOH THE MESMER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80D907", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "TAKING QUEST FROM SEBEDOH THE MESMER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805101", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="GOING TO KILL",
-                       execute_fn=lambda: handle_map_path(FSM_vars.mesmer_quest_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.mesmer_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_mesmer.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_mesmer.AddState(name="RUNNIN OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR VAN",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.sebedoh_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sebedoh_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH ARTEMIS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "INTERACTING WITH SEBEDOH THE MESMER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "INTERACTING WITH SEBEDOH THE MESMER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 MESMER", "TAKING REWARD FROM SEBEDOH THE MESMER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805107", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
+#___________________________ MESMER LVL 1 ___________________________#
+#START COMMON ROUTINE PART ONE
+FSM_vars.state_machine_mesmer.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_mesmer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805001", 16)), transition_delay_ms=300, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR SIR TYDUS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_mesmer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805007", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80D901", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_mesmer.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART ONE
+#START MESMER ROUTINE
+FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR SEBEDOH", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.sebedoh_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sebedoh_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_mesmer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80D907", 16)), transition_delay_ms=300, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805101", 16)), transition_delay_ms=300, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="GOING TO KILL", execute_fn=lambda: handle_map_path(FSM_vars.mesmer_quest_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.mesmer_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_mesmer.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_mesmer.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR VAN", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.sebedoh_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sebedoh_pathing_1, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_mesmer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805107", 16)), transition_delay_ms=300, run_once=True)
 #END MESMER ROUTINE
+#START COMMON ROUTINE PART TWO
+FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR ALTHEA", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_mesmer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x804703", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="TAKING SKILLS", execute_fn=lambda: Player.SendDialog(int("0x804701", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="SECOND MAP PATH", execute_fn=lambda: early_handle_map_path(FSM_vars.leveling_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_mesmer.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR PRINCE RURIK", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_mesmer.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART TWO
 
-FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR ALTHEA",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804703", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="TAKING SKILL",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING SKILL LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804701", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="SECOND MAP PATH",
-                       execute_fn=lambda: handle_map_path_mesmer(FSM_vars.leveling_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_mesmer.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR PRINCE RURIK",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_mesmer.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM RURIK", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x802E01", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-#FSM LVL 1 - ELEMENTALIST
-FSM_vars.state_machine_elementalist.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ascalon_map,6,0)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="BONUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "CREATING BONUS ITEMS", Py4GW.Console.MessageType.Info),player_instance.SendChatCommand(text_bonus)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="EQUIP WAND",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING WAND", Py4GW.Console.MessageType.Info),equipitem(6508,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="EQUIP SHIELD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "EQUIPPING SHIELD", Py4GW.Console.MessageType.Info),equipitem(6514,agent_id)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR TOWN CRIER",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH TOWN CRIER",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM TOWN CRIER", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805001", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)
- 
-FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR SIR TYDUS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH SIR TYDUS WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH SIR TYDUS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH TOWN CRIER WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING REWARD QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805007", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM SIR TYDUS", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80DB01", 16))),
-                       transition_delay_ms=1500,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_elementalist.AddState(name="RUNNING OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000) 
-
-#ELEMENTALIST ROUTINE
-
-FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR SEBEDOH",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.howland_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.howland_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH ",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "INTERACTING WITH HOWLAND THE ELEMENTALIST WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "INTERACTING WITH HOWLAND THE ELEMENTALIST WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "TAKING REWARD HOWLAND THE ELEMENTALIST", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x80DB07", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "TAKING QUEST FROM HOWLAND THE ELEMENTALIST", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805301", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="GOING TO KILL",
-                       execute_fn=lambda: handle_map_path(FSM_vars.elementalist_quest_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.elementalist_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_elementalist.AddState(name="LOOTING 1",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "INTERACTING WITH LOOT WITH NUMPAD1", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Numpad1.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="LOOTING 1",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "INTERACTING WITH LOOT WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=7000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="LOOTING 2",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "INTERACTING WITH LOOT WITH NUMPAD1", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Numpad1.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="LOOTING 2",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "INTERACTING WITH LOOT WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=7000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="LOOTING 3",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "INTERACTING WITH LOOT WITH NUMPAD1", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Numpad1.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="LOOTING 3",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "INTERACTING WITH LOOT WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=7000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_elementalist.AddState(name="RUNNIN OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR HOWLAND",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.howland_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.howland_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH ARTEMIS",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "INTERACTING WITH HOWLAND THE ELEMENTALIST WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "INTERACTING WITH HOWLAND THE ELEMENTALIST WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="TAKING REWARD",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1 ELEMENTALIST", "TAKING REWARD FROM HOWLAND THE ELEMENTALIST", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x805307", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
+#___________________________ ELEMENTALIST LVL 1 ___________________________#
+#START COMMON ROUTINE PART ONE
+FSM_vars.state_machine_elementalist.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: Map.IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_elementalist.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805001", 16)), transition_delay_ms=300, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR SIR TYDUS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.sir_tydus_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_elementalist.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x805007", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80DB01", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_elementalist.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART ONE
+#START ELEMENTALIST ROUTINE
+FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR SEBEDOH", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.howland_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.howland_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_elementalist.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="TAKING REWARD", execute_fn=lambda: Player.SendDialog(int("0x80DB07", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805301", 16)), transition_delay_ms=300, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="GOING TO KILL", execute_fn=lambda: handle_map_path_loot(FSM_vars.elementalist_quest_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.elementalist_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_elementalist.AddState(name="CHECK ITEM", execute_fn=lambda: handle_item_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_elementalist.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR HOWLAND", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.howland_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.howland_pathing_1, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_elementalist.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x805307", 16)), transition_delay_ms=300, run_once=True)
 #END ELEMENTALIST ROUTINE
+#START COMMON ROUTINE PART TWO
+FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR ALTHEA", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_elementalist.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x804703", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="TAKING SKILLS", execute_fn=lambda: Player.SendDialog(int("0x804701", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="SECOND MAP PATH", execute_fn=lambda: early_handle_map_path(FSM_vars.leveling_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_elementalist.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR PRINCE RURIK", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_elementalist.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
+#END COMMON ROUTINE PART TWO
 
-FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR ALTHEA",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.althea_pathing, FSM_vars.movement_handler),
-                       run_once=False)
+#___________________________ CHARR AT THE GATE ___________________________#
+FSM_vars.state_machine_lvl2_10.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_lvl2_10.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_lvl2_10.AddState(name="PAUSE BEFORE FOLLOWING", execute_fn=lambda: FollowPathwithDelayTimer(FSM_vars.rurikpause_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.rurikpause_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_lvl2_10.AddState(name="FOLLOWING RURIK", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.rurik_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.rurik_pathing, FSM_vars.movement_handler) or Survivor() or Death(), run_once=False)
+FSM_vars.state_machine_lvl2_10.AddState(name="WAITING RURIK KILLING", execute_fn=lambda: set_killing_routine(), exit_condition=lambda: end_killing_routine_1() or Survivor() or Death(), run_once=False)
+FSM_vars.state_machine_lvl2_10.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_lvl2_10.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_lvl2_10.AddState(name="COUNTER", execute_fn=lambda: increment_run_counter(), exit_condition=lambda: Party.IsPartyLoaded() and Map.IsMapReady(), transition_delay_ms=1000, run_once=True)
 
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
+#___________________________ FARMER HAMNET ___________________________#
+FSM_vars.state_machine_lvl11_20.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.foible_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_lvl11_20.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_lvl11_20.AddState(name="GOING OUT IN DANGEROUS LANDS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_lvl11_20.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_lvl11_20.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_lvl11_20.AddState(name="LUCKILY THERE IS A PRIEST", execute_fn=lambda: handle_map_path(FSM_vars.bandit_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.bandit_pathing, FSM_vars.movement_handler) or Survivor_Hamnet(), run_once=False)
+FSM_vars.state_machine_lvl11_20.AddState(name="FIRE IMP IS FIRING", execute_fn=lambda: set_killing_routine(), exit_condition=lambda: end_killing_routine() or Survivor_Hamnet(), run_once=False)
+FSM_vars.state_machine_lvl11_20.AddState(name="COUNTER", execute_fn=lambda: increment_run_counter(), exit_condition=lambda: Party.IsPartyLoaded() and Map.IsMapReady(), transition_delay_ms=1000, run_once=True)
 
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH VAN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH LADY ALTHEA WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804703", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="TAKING SKILL",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING SKILL LADY ALTHEA", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x804701", 16))),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="USING IMP STONE",
-                       execute_fn=lambda:(Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "USING IMP STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="SECOND MAP PATH",
-                       execute_fn=lambda: handle_map_path_early(FSM_vars.leveling_pathing),  
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.leveling_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_elementalist.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.Travel(bot_vars.ascalon_map)),                                             
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="WAITING OUTPOST MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "WAITING FOR OUTPOST MAP", Py4GW.Console.MessageType.Info),Map.IsOutpost()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR PRINCE RURIK",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH V", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.V.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="INTERACTING WITH PRINCE RURIK",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "INTERACTING WITH PRINCE RURIK WITH SPACE", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Space.value)),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_elementalist.AddState(name="TAKING QUEST",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 1", "TAKING QUEST FROM RURIK", Py4GW.Console.MessageType.Info),Player.SendDialog(int("0x802E01", 16))),
-                       transition_delay_ms=100,
-                       run_once=True)
-
-#FSM LVL 2-10
-FSM_vars.state_machine_lvl2_10.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_lvl2_10.AddState(name="WAITING EXPLORABLE MAP",
-                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 2-10", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=2000,
-                       run_once=True)
-
-FSM_vars.state_machine_lvl2_10.AddState(name="PAUSE BEFORE FOLLOWING",
-                       execute_fn=lambda: FollowPathwithDelayTimer(FSM_vars.rurikpause_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.rurikpause_pathing, FSM_vars.movement_handler) or Map.IsMapLoading(),
-                       run_once=False)
-
-FSM_vars.state_machine_lvl2_10.AddState(name="MESSAGE",
-                       execute_fn=lambda: Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 2-10", "GOING TO KILL SOME CHARRS", Py4GW.Console.MessageType.Info),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_lvl2_10.AddState(name="FOLLOWING RURIK",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.rurik_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.rurik_pathing, FSM_vars.movement_handler) or Map.IsMapLoading(),
-                       run_once=False)
-
-FSM_vars.state_machine_lvl2_10.AddState(name="WAITING RURIK KILLING",
-                       execute_fn=lambda: set_killing_routine(),
-                       exit_condition=lambda: end_killing_routine_1() or Survivor(),
-                       run_once=False)
-
-FSM_vars.state_machine_lvl2_10.AddState(name="LEAVING MAP",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 2-10", "GOING BACK TO ASCALON", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ascalon_map,7,0)),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       run_once=True)
-
-#FSM LVL 11-20
-FSM_vars.state_machine_lvl11_20.AddState(name="ARE WE IN HOGWARTS?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.foible_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_lvl11_20.AddState(name="GOING OUT IN DANGEROUS LANDS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_pathing, FSM_vars.movement_handler) or Map.IsMapLoading(),
-                       run_once=False)
-
-FSM_vars.state_machine_lvl11_20.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000)
-
-FSM_vars.state_machine_lvl11_20.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_lvl11_20.AddState(name="LUCKILY THERE IS A PRIEST",
-                       execute_fn=lambda: handle_map_path(FSM_vars.bandit_pathing),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.bandit_pathing, FSM_vars.movement_handler) or Map.IsMapLoading() or Survivor_Hamnet(),
-                       run_once=False)
-
-FSM_vars.state_machine_lvl11_20.AddState(name="FIRE IMP IS FIRING",
-                       execute_fn=lambda: set_killing_routine(),
-                       exit_condition=lambda: end_killing_routine() or Survivor_Hamnet(),
-                       run_once=False)
 
 #DULL CARAPACES
 FSM_vars.state_machine_dull_carapaces.AddState(name="ASCALON", 
@@ -2242,8 +1218,13 @@ FSM_vars.state_machine_dull_carapaces.AddState(name="HEY THERE IS A FIRE ALLY",
 
 FSM_vars.state_machine_dull_carapaces.AddState(name="FARMING LODESTONES",
                        execute_fn=lambda:handle_map_path_loot(FSM_vars.dull_carapaces_pathing_2),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.dull_carapaces_pathing_2, FSM_vars.movement_handler),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.dull_carapaces_pathing_2, FSM_vars.movement_handler) or Death(),
                        run_once=False)
+
+FSM_vars.state_machine_dull_carapaces.AddState(name="COUNTER", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - DULL CARAPACES FARM", "ADD COUNTER", Py4GW.Console.MessageType.Info),increment_run_counter()),  
+                       transition_delay_ms=1000,
+                       run_once=True)
 
 #GARGOYLE SKULLS
 FSM_vars.state_machine_gargoyle_skulls.AddState(name="BARRADIN", 
@@ -2259,7 +1240,7 @@ FSM_vars.state_machine_gargoyle_skulls.AddState(name="GOING OUT IN DANGEROUS LAN
 
 FSM_vars.state_machine_gargoyle_skulls.AddState(name="WAITING YOUR SLOW PC TO LOAD",
                        exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - GARGOYLE SKULLS FARM", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=1000)
+                       transition_delay_ms=5000)
 
 FSM_vars.state_machine_gargoyle_skulls.AddState(name="HEY THERE IS A FIRE ALLY",
                        execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - GARGOYLE SKULLS FARM", "USING FIRE STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
@@ -2272,16 +1253,21 @@ FSM_vars.state_machine_gargoyle_skulls.AddState(name="GOING OUT IN DANGEROUS LAN
 
 FSM_vars.state_machine_gargoyle_skulls.AddState(name="WAITING YOUR SLOW PC TO LOAD",
                        exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - GARGOYLE SKULLS FARM", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=1000)
+                       transition_delay_ms=5000)
 
 FSM_vars.state_machine_gargoyle_skulls.AddState(name="HEY THERE IS A FIRE ALLY",
                        execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - GARGOYLE SKULLS FARM", "USING FIRE STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
-                       run_once=False)
+                       run_once=True)
 
 FSM_vars.state_machine_gargoyle_skulls.AddState(name="FARMING LODESTONES",
                        execute_fn=lambda:handle_map_path_loot(FSM_vars.gargoyle_skulls_pathing),
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.gargoyle_skulls_pathing, FSM_vars.movement_handler),
                        run_once=False)
+
+FSM_vars.state_machine_gargoyle_skulls.AddState(name="COUNTER", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - LDoA LVL 2-10", "ADD COUNTER", Py4GW.Console.MessageType.Info),increment_run_counter()),  
+                       transition_delay_ms=1000,
+                       run_once=True)
 
 #GRAWL NECKLACES
 FSM_vars.state_machine_grawl_necklaces.AddState(name="BARRADIN", 
@@ -2305,8 +1291,14 @@ FSM_vars.state_machine_grawl_necklaces.AddState(name="HEY THERE IS A FIRE ALLY",
 
 FSM_vars.state_machine_grawl_necklaces.AddState(name="FARMING LODESTONES",
                        execute_fn=lambda:handle_map_path_loot(FSM_vars.grawl_necklaces_pathing),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.grawl_necklaces_pathing, FSM_vars.movement_handler),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.grawl_necklaces_pathing, FSM_vars.movement_handler) or Survivor(),
                        run_once=False)
+
+FSM_vars.state_machine_grawl_necklaces.AddState(name="COUNTER", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - GRAWL NECKLACES FARM", "ADD COUNTER", Py4GW.Console.MessageType.Info),increment_run_counter()),  
+                       exit_condition=lambda: Map.IsExplorable(),
+                       transition_delay_ms=1000,
+                       run_once=True)
 
 #ICY LODESTONES
 FSM_vars.state_machine_icy_lodestones.AddState(name="ARE WE IN HOGWARTS?", 
@@ -2322,7 +1314,7 @@ FSM_vars.state_machine_icy_lodestones.AddState(name="GOING OUT IN DANGEROUS LAND
 
 FSM_vars.state_machine_icy_lodestones.AddState(name="WAITING YOUR SLOW PC TO LOAD",
                        exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000)
+                       transition_delay_ms=3000)
 
 FSM_vars.state_machine_icy_lodestones.AddState(name="HEY THERE IS A FIRE ALLY",
                        execute_fn=lambda: useitem(30847),
@@ -2330,8 +1322,14 @@ FSM_vars.state_machine_icy_lodestones.AddState(name="HEY THERE IS A FIRE ALLY",
 
 FSM_vars.state_machine_icy_lodestones.AddState(name="LUCKILY THERE IS A PRIEST",
                        execute_fn=lambda: handle_map_path_loot(FSM_vars.icy_lodestones_pathing),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.icy_lodestones_pathing, FSM_vars.movement_handler),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.icy_lodestones_pathing, FSM_vars.movement_handler) or Survivor(),
                        run_once=False)
+
+FSM_vars.state_machine_icy_lodestones.AddState(name="COUNTER", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - ICY LODESTONES FARM", "ADD COUNTER", Py4GW.Console.MessageType.Info),increment_run_counter()), 
+                       exit_condition=lambda: Map.IsExplorable(),
+                       transition_delay_ms=1000,
+                       run_once=True)
 
 
 #ENCHANTED LODESTONES
@@ -2400,7 +1398,7 @@ FSM_vars.state_machine_red_iris_flowers.AddState(name="PATH 2",
                        run_once=False)
 
 FSM_vars.state_machine_red_iris_flowers.AddState(name="RUNNING OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Numpad1.value)),
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),TargKeystroke.PressAndRelease(Key.Numpad1.value)),
                        transition_delay_ms=100,
                        run_once=True)
 
@@ -2492,7 +1490,7 @@ FSM_vars.state_machine_skele_limbs.AddState(name="FARMING LODESTONES",
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.skele_limbs_pathing, FSM_vars.movement_handler),
                        run_once=False)
 
-#ENCHANTED LODESTONES
+#SKALE FINS
 FSM_vars.state_machine_skale_fin.AddState(name="BARRADIN", 
                        execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - SKALE FIN FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ranik_map,6,0)),  
                        exit_condition=lambda: Map.IsOutpost(),
@@ -2506,7 +1504,7 @@ FSM_vars.state_machine_skale_fin.AddState(name="GOING OUT IN DANGEROUS LANDS",
 
 FSM_vars.state_machine_skale_fin.AddState(name="WAITING YOUR SLOW PC TO LOAD",
                        exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - SKALE FIN FARM", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
-                       transition_delay_ms=1000)
+                       transition_delay_ms=5000)
 
 FSM_vars.state_machine_skale_fin.AddState(name="HEY THERE IS A FIRE ALLY",
                        execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - SKALE FIN FARM", "USING FIRE STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
@@ -2516,6 +1514,12 @@ FSM_vars.state_machine_skale_fin.AddState(name="FARMING LODESTONES",
                        execute_fn=lambda:handle_map_path_loot(FSM_vars.skale_fin_pathing),
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.skale_fin_pathing, FSM_vars.movement_handler),
                        run_once=False)
+
+FSM_vars.state_machine_skale_fin.AddState(name="COUNTER", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO  WORN BELTS", "ADD COUNTER", Py4GW.Console.MessageType.Info),increment_run_counter()), 
+                       exit_condition=lambda: Map.IsExplorable(),
+                       transition_delay_ms=1000,
+                       run_once=True)
 
 #SPIDER LEGS
 FSM_vars.state_machine_spider_leg.AddState(name="FORT RANIK", 
@@ -2605,6 +1609,37 @@ FSM_vars.state_machine_unnatural_seeds.AddState(name="FARMING LODESTONES",
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.unnatural_seeds_pathing, FSM_vars.movement_handler),
                        run_once=False)
 
+#WORN BELTS
+FSM_vars.state_machine_worn_belts.AddState(name="BARRADIN", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - WORN BELTS", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.barradin_map,6,0)),  
+                       exit_condition=lambda: Map.IsOutpost(),
+                       transition_delay_ms=1000,
+                       run_once=True)
+
+FSM_vars.state_machine_worn_belts.AddState(name="GOING OUT IN DANGEROUS LANDS",
+                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.barradin_goingtofarm_pathing, FSM_vars.movement_handler),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_goingtofarm_pathing, FSM_vars.movement_handler),
+                       run_once=False)
+
+FSM_vars.state_machine_worn_belts.AddState(name="WAITING YOUR SLOW PC TO LOAD",
+                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO -  TH3KUM1KO - WORN BELTS", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
+                       transition_delay_ms=3000)
+
+FSM_vars.state_machine_worn_belts.AddState(name="HEY THERE IS A FIRE ALLY",
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  TH3KUM1KO - WORN BELTS", "USING FIRE STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
+                       run_once=True)
+
+FSM_vars.state_machine_worn_belts.AddState(name="FARMING WORN BELTS",
+                       execute_fn=lambda:handle_map_path_loot(FSM_vars.worn_belts_pathing),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.worn_belts_pathing, FSM_vars.movement_handler) or Survivor(),
+                       run_once=False)
+
+FSM_vars.state_machine_worn_belts.AddState(name="COUNTER", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO  WORN BELTS", "ADD COUNTER", Py4GW.Console.MessageType.Info),increment_run_counter()), 
+                       exit_condition=lambda: Map.IsExplorable(),
+                       transition_delay_ms=1000,
+                       run_once=True)
+
 #NICHOLAS SANDFORD
 FSM_vars.state_machine_nicholas_sandford.AddState(name="BARRADIN", 
                        execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO NICHOLAS SANDFORD", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),Map.TravelToDistrict(bot_vars.ranik_map,6,0)),  
@@ -2620,6 +1655,10 @@ FSM_vars.state_machine_nicholas_sandford.AddState(name="GOING OUT IN DANGEROUS L
 FSM_vars.state_machine_nicholas_sandford.AddState(name="WAITING YOUR SLOW PC TO LOAD",
                        exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO NICHOLAS SANDFORD", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
                        transition_delay_ms=3000)
+
+FSM_vars.state_machine_nicholas_sandford.AddState(name="HEY THERE IS A FIRE ALLY",
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  TH3KUM1KO - GOING TO NICHOLAS SANDFORD", "USING FIRE STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
+                       run_once=True)
 
 FSM_vars.state_machine_nicholas_sandford.AddState(name="GOING OUT IN DANGEROUS LANDS",
                        execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.nicholas_sandford_pathing, FSM_vars.movement_handler),
@@ -2944,6 +1983,7 @@ FSM_vars.state_machine_grandtour.AddState(name="ARE WE IN HEAVEN?",
                        exit_condition=lambda: Map.IsOutpost(),
                        transition_delay_ms=1000,
                        run_once=True)
+
 #STATS MANAGER
 class InventoryTracker:
     def __init__(self):
@@ -2994,59 +2034,107 @@ class InventoryTracker:
 inventory_tracker = InventoryTracker()
 
 def show_info_table_item():
-    headers = ["ITEM NAME", "ITEM QTY", "FARMED ITEMS"]  
+    headers = ["ITEM NAME", "FARMED ITEMS"] 
 
     farmed_items = inventory_tracker.get_farmed_items()  
 
     data = []
     
     for model_id, name in inventory_tracker.tracked_model_ids.items():
-        quantity = Inventory.GetModelCount(model_id)  
         farmed = farmed_items.get(model_id, 0)  
-
         farmed_text = f"+{farmed}" if farmed > 0 else "0"
 
-        data.append((name, str(quantity), farmed_text))  
+        data.append((name, farmed_text))
 
-    ImGui.table("INVENTARIO", headers, data)
+    ImGui.table("INVENTARY", headers, data)
 
-def show_info_table_xp():
-    headers_info = ["INFO", "DATA"] 
 
-    agent_id = agent_id = Player.GetAgentID()
-    level = Agent.GetLevel(agent_id) 
+
+def increment_run_counter():
+    global run_counter
+    run_counter += 1  
+
+def GetElapsedRunTime():
+    if bot_vars.bot_started:
+        return time.time() - start_time
+    return 0  
+
+level_experience = {
+    1: 2000, 2: 4600, 3: 7800, 4: 11600, 5: 16000,
+    6: 21000, 7: 26600, 8: 32800, 9: 39600, 10: 47000,
+    11: 55000, 12: 63600, 13: 72800, 14: 82600, 15: 93000,
+    16: 104000, 17: 115600, 18: 127800, 19: 140600, 20: 140600
+}
+
+def get_required_experience(level):
+    return level_experience.get(level, 140600)
+
+def show_info_table_run():
+    headers_info = ["INFO", "DATA"]
+
+    agent_id = Player.GetAgentID()
+    level = Agent.GetLevel(agent_id)
     experience = Player.GetExperience()
 
-    max_level = 20  
-    max_experience = 140000  
+    required_experience = get_required_experience(level)
+
+    elapsed_time = GetElapsedRunTime()
+    elapsed_time_formatted = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+
+    average_run_time = elapsed_time / run_counter if run_counter > 0 else 0
+    average_run_time_formatted = time.strftime("%H:%M:%S", time.gmtime(average_run_time))
+
+
 
     data_info = [
-        ("LEVEL", f"{level}/{max_level}"),
-        ("EXPERIENCE", f"{experience}/{max_experience}"),
+        ("TIMER", elapsed_time_formatted),
+        ("RUN COUNTER", str(run_counter)),
+        ("AVERAGE RUN TIMER", average_run_time_formatted),
+        ("LEVEL", f"{level}/20"),
+        ("EXPERIENCE", f"{experience}/{required_experience}"),
     ]
 
     ImGui.table("PLAYER INFO", headers_info, data_info)
 
-    
 
 #GUI
 def DrawWindow():
     global module_name
     global state
 
-    if PyImGui.begin("TH3KUM1KO'S PRESEARING BIBLE"):
+    if PyImGui.begin("\uf647  TH3KUM1KO'S PRESEARING BIBLE"):
         if PyImGui.begin_tab_bar("MainTabBar"): 
+            if PyImGui.begin_tab_item("INFO"):
+                PyImGui.spacing()
+                PyImGui.text_colored("\uf647  TH3KUM1KO'S PRESEARING BIBLE", [1.0, 0.2, 0.8, 1.0])
+                PyImGui.text_wrapped("A BOT DESIGNED FOR PRESEARING, BUILT TO HELP YOU ACHIEVE THE LEGENDARY DEFENDER OF ASCALON (LDoA) TITLE. IT AUTOMATICALLY FARMS UP TO LEVEL 2 BASED ON YOUR SELECTED PROFESSION, THEN CONTINUES TO LEVEL 10 WITH THE 'CHARR AT THE GATE' QUEST, AND REACHES LEVEL 20 THROUGH THE 'FARMER HAMNET' QUEST. FULL SURVIVOR COMPATIBILITY")
+                PyImGui.spacing()
+                PyImGui.text_wrapped("THE BOT ALSO FEATURES AN OUTPOST UNLOCK FUNCTION, ALLOWING YOU TO UNLOCK ALL PRESEARING OUTPOSTS INDIVIDUALLY OR ALL AT ONCE USING THE GRAND TOUR FUNCTION.")
+                PyImGui.spacing()
+                PyImGui.text_wrapped("IN ADDITION, THE BOT CAN FARM ALL ITEMS REQUESTED BY NICHOLAS SANDFORD TO OBTAIN HIS GIFTS. WITH THE INVENTORY TAB, YOU CAN MONITOR YOUR ITEM COUNT IN REAL TIME, TRACKING BOTH YOUR CURRENT INVENTORY AND THE TOTAL ITEMS FARMED USING THE SCRIPT.")
+                PyImGui.spacing()  
+                PyImGui.text_wrapped("THANK YOU FOR DOWNLOADING AND USING MY SCRIPT! PLEASE NOTE THAT I HAVE NO FORMAL BACKGROUND IN PROGRAMMING OR COMPUTER SCIENCE - EVERYTHING YOU SEE HERE WAS ACHIEVED THROUGH STUDY AND WITH THE SUPPORT OF THE Py4GW COMMUNITY. JOIN OUR DISCORD TO STAY UPDATED, HELP IMPROVE THIS SCRIPT, AND CONTRIBUTE TO THE CREATION OF FUTURE BOTS!")
+                PyImGui.end_tab_item()
 
             if PyImGui.begin_tab_item("LDoA"):
-                state.radio_button_selected = PyImGui.radio_button(" \uf132 LEVEL 1 - WARRIOR", state.radio_button_selected, 20)
-                state.radio_button_selected = PyImGui.radio_button(" \uf1bb LEVEL 1 - RANGER", state.radio_button_selected, 21)
-                state.radio_button_selected = PyImGui.radio_button(" \uf644  LEVEL 1 - MONK", state.radio_button_selected, 22)
-                state.radio_button_selected = PyImGui.radio_button(" \uf54c LEVEL 1 - NECROMANCER", state.radio_button_selected, 23)
-                state.radio_button_selected = PyImGui.radio_button(" \ue2ca LEVEL 1 - MESMER", state.radio_button_selected, 24)
-                state.radio_button_selected = PyImGui.radio_button(" \uf6e8 LEVEL 1 - ELEMENTALIST", state.radio_button_selected, 25)
+                PyImGui.spacing()
+                PyImGui.text_wrapped("WITH THESE FUNCTIONS, THE BOT WILL LEVEL UP YOUR CHARACTER BASED ON ITS PROFESSION, REACHING LEVEL 2 THROUGH THE INITIAL QUESTS. ONCE LEVEL 2 IS ACHIEVED, THE BOT WILL AUTOMATICALLY TAKE THE 'CHARR AT THE GATE' QUEST.")
+                state.radio_button_selected = PyImGui.radio_button(" \uf132 WARRIOR", state.radio_button_selected, 20)
+                PyImGui.same_line(200, -1.0)
+                state.radio_button_selected = PyImGui.radio_button(" \uf54c NECROMANCER", state.radio_button_selected, 23)
+                state.radio_button_selected = PyImGui.radio_button(" \uf1bb RANGER", state.radio_button_selected, 21)
+                PyImGui.same_line(200, -1.0)
+                state.radio_button_selected = PyImGui.radio_button(" \ue2ca MESMER", state.radio_button_selected, 24)
+                state.radio_button_selected = PyImGui.radio_button(" \uf644 MONK", state.radio_button_selected, 22)
+                PyImGui.same_line(200, -1.0)
+                state.radio_button_selected = PyImGui.radio_button(" \uf6e8 ELEMENTALIST", state.radio_button_selected, 25)
+                PyImGui.spacing()
+                PyImGui.text_wrapped("WITH THIS FUNCTION, THE BOT WILL LEAVE ASCALON USING THE 'CHARR AT THE GATE' QUEST, FOLLOW RURIK, AND WAIT FOR THE PRINCE TO KILL THREE CHARR BEFORE RETURNING TO THE CITY AND RESTARTING THE LOOP. THIS FUNCTION ENSURES SURVIVOR TITLE PROGRESSION. DO IT UNTILL LVL 10.")
                 state.radio_button_selected = PyImGui.radio_button(" \uf443 LEVEL 2-10 - CHARR AT THE GATE", state.radio_button_selected, 0)
+                PyImGui.spacing()
+                PyImGui.text_wrapped("ONCE YOU REACH LEVEL 10, WAIT FOR THE ROTATION OF THE VANGUARD QUESTS UNTIL THE 'FARMER HAMNET' QUEST BECOMES AVAILABLE. THE BOT WILL KILL THE FIRST TWO MOBS OUTSIDE FOIBLE'S FAIR AND REPEAT THE LOOP UNTIL LEVEL 20. THIS FUNCTION ENSURES SURVIVOR TITLE PROGRESSION.")
                 state.radio_button_selected = PyImGui.radio_button(" \uf43f LEVEL 11-20 - FARMER HAMNET", state.radio_button_selected, 1) 
-
+                PyImGui.spacing()
                 if IsBotStarted():        
                     if PyImGui.button(" \uf04d   STOP"):
                         ResetEnvironment()
@@ -3077,7 +2165,8 @@ def DrawWindow():
                 PyImGui.end_tab_item()
 
 
-        if PyImGui.begin_tab_item("NIC ITEMS"):                
+        if PyImGui.begin_tab_item("NIC ITEMS"): 
+               PyImGui.spacing()
                # state.radio_button_selected = PyImGui.radio_button("\ue599 BAKED HUSKS", state.radio_button_selected, 6)
                # state.radio_button_selected = PyImGui.radio_button("\uf1b0 CHARR CARVINGS", state.radio_button_selected, 7)
                state.radio_button_selected = PyImGui.radio_button("\uf188 DULL CARAPACES", state.radio_button_selected, 8)
@@ -3090,7 +2179,7 @@ def DrawWindow():
                state.radio_button_selected = PyImGui.radio_button("\ue4f2 SKALE FINS", state.radio_button_selected, 15)
                state.radio_button_selected = PyImGui.radio_button("\uf717 SPIDER LEGS", state.radio_button_selected, 16)
                state.radio_button_selected = PyImGui.radio_button("\uf4d8 UNNATURAL SEEDS", state.radio_button_selected, 17)
-               # state.radio_button_selected = PyImGui.radio_button("\ue19b WORN BELTS", state.radio_button_selected, 18)
+               state.radio_button_selected = PyImGui.radio_button("\ue19b WORN BELTS", state.radio_button_selected, 18)
                state.radio_button_selected = PyImGui.radio_button("\uf06b NICHOLAS SANDFORD", state.radio_button_selected, 26)
 
                if IsBotStarted():        
@@ -3101,16 +2190,17 @@ def DrawWindow():
                     if PyImGui.button(" \uf04b   START"):
                         ResetEnvironment()
                         StartBot()
-
                PyImGui.end_tab_item()
 
-        if PyImGui.begin_tab_item("STATS"):
-               
-               show_info_table_xp()
-               show_info_table_item()
+        if PyImGui.begin_tab_item("INVENTORY"):            
+                show_info_table_item()
+                PyImGui.spacing()
+                PyImGui.end_tab_item()
 
-        PyImGui.spacing()
-
+        if PyImGui.begin_tab_item("STATS"):            
+                show_info_table_run()
+                PyImGui.spacing()
+                PyImGui.end_tab_item()
 
         
     PyImGui.end()
@@ -3118,7 +2208,8 @@ def DrawWindow():
 def main():
     global bot_vars, FSM_vars, inventory_tracker
     try:
-        DrawWindow()
+        if Party.IsPartyLoaded() and Map.IsMapReady():
+            DrawWindow()
 
         if IsBotStarted():
             if not inventory_tracker.initial_quantities: 
@@ -3297,8 +2388,15 @@ def main():
                     ResetEnvironment()
                 else:
                     FSM_vars.state_machine_unnatural_seeds.update()
-    
-            # UNNATURAL SEEDS  
+
+             # UNNATURAL SEEDS  
+            elif state.radio_button_selected == 18:  
+                if FSM_vars.state_machine_worn_belts.is_finished():
+                    ResetEnvironment()
+                else:
+                    FSM_vars.state_machine_worn_belts.update()   
+
+            # NICHOLAS SANDFORD  
             elif state.radio_button_selected == 26:  
                 if FSM_vars.state_machine_nicholas_sandford.is_finished():
                     ResetEnvironment()
