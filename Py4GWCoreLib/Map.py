@@ -117,6 +117,40 @@ class Map:
         Returns: None
         """
         Map.map_instance().Travel(map_id, district, district_number)
+        
+    #bool Travel(int map_id, int server_region, int district_number, int language);
+    @staticmethod
+    def TravelToRegion(map_id, server_region, district_number, language=0):
+        """
+        Travel to a map by its ID and region.
+        Args:
+            map_id (int): The ID of the map to travel to.
+            server_region (int): The region to travel to.
+            district_number (int): The number of the district to travel to.
+            language (int): The language to travel to.
+        Returns: None
+        """
+        Map.map_instance().Travel(map_id, server_region, district_number, language)
+    
+    @staticmethod
+    def TravelGH():
+        """Travel to the Guild Hall."""
+        Map.map_instance().TravelGH()
+        
+    @staticmethod
+    def LeaveGH():
+        """Leave the Guild Hall."""
+        Map.map_instance().LeaveGH()
+
+    @staticmethod
+    def SetFog(state):
+        """
+        Set the fog state of the map.
+        Args:
+            state (bool): The state of the fog.
+        Returns: None
+        """
+        Py4GW.Game.SetFog(state)
 
     @staticmethod
     def GetInstanceUptime():
