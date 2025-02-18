@@ -31,7 +31,7 @@ class Quest:
             quest_id (int): The quest ID to abandon.
         Returns: None
         """
-        Quest.quest_instance().abandon_quest(quest_id)
+        Quest.quest_instance().abandon_quest_id(quest_id)
         
     @staticmethod
     def IsQuestCompleted(quest_id):
