@@ -106,45 +106,49 @@ class ItemTypeClass:
 # Class DyeColorClass (SafeDyeColorClass)
 class DyeColorClass:
     def __init__(self, dye_color: int) -> None: ...
-    
     def ToInt(self) -> int: ...
     def ToString(self) -> str: ...
-    
-    def __eq__(self, other: Any) -> bool: ...
-    def __ne__(self, other: Any) -> bool: ...
+    def __eq__(self, other: "DyeColorClass") -> bool: ...
+    def __ne__(self, other: "DyeColorClass") -> bool: ...
 
 # Class DyeInfo (SafeDyeInfoClass)
 class DyeInfo:
+    dye_tint: int
+    dye1: DyeColorClass
+    dye2: DyeColorClass
+    dye3: DyeColorClass
+    dye4: DyeColorClass
+
     def __init__(self) -> None: ...
-    def __init__(self, dye_info: 'DyeInfo') -> None: ...
-    
+    def __init__(self, dye_info: Any) -> None: ...
     def ToString(self) -> str: ...
-    
-    def __eq__(self, other: Any) -> bool: ...
-    def __ne__(self, other: Any) -> bool: ...
+    def __eq__(self, other: "DyeInfo") -> bool: ...
+    def __ne__(self, other: "DyeInfo") -> bool: ...
 
 # Class Item (SafeItem)
 class Item:
     item_id: int
     agent_id: int
-    modifiers: List['ItemModifier']
+    agent_item_id: int
+    name: str
+    modifiers: List[ItemModifier]
     is_customized: bool
-    item_type: 'ItemType'
-    dye_info: 'DyeInfo'
+    item_type: int
+    dye_info: DyeInfo
     value: int
-    interaction: Any
+    interaction: int
     model_id: int
     item_formula: int
-    is_material_salvageable: bool
+    is_material_salvageable: int
     quantity: int
-    equipped: bool
+    equipped: int
     profession: int
     slot: int
     is_stackable: bool
     is_inscribable: bool
     is_material: bool
     is_zcoin: bool
-    rarity: 'Rarity'
+    rarity: int
     uses: int
     is_id_kit: bool
     is_salvage_kit: bool
@@ -173,5 +177,7 @@ class Item:
     is_rarity_gold: bool
 
     def __init__(self, item_id: int) -> None: ...
-    
     def GetContext(self) -> None: ...
+    def RequestName(self) -> None: ...
+    def IsItemNameReady(self) -> bool: ...
+    def GetName(self) -> str: ...

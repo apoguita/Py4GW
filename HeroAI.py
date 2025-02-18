@@ -23,7 +23,6 @@ class GameData:
     def __new__(cls, name=SHARED_MEMORY_FILE_NAME, num_players=MAX_NUM_PLAYERS):
         if cls._instance is None:
             cls._instance = super(GameData, cls).__new__(cls)
-            cls._instance._initialized = False  # this class doesnt need to be locked on initialization
         return cls._instance
     
     def __init__(self):
@@ -90,6 +89,11 @@ class GameData:
         self.is_targetting_enabled = True
         self.is_combat_enabled = True
         self.is_skill_enabled = [True for _ in range(NUMBER_OF_SKILLS)]
+        
+    
+        
+        
+
         
     def reset(self):
         self.__init__()
@@ -171,6 +175,8 @@ class CacheData:
             self.data = GameData()
             self.action_queue = ActionQueue()
             self.reset()
+            
+            self._initialized = True 
         
     def reset(self):
         self.data.reset()   

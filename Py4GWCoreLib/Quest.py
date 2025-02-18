@@ -32,3 +32,23 @@ class Quest:
         Returns: None
         """
         Quest.quest_instance().abandon_quest(quest_id)
+        
+    @staticmethod
+    def IsQuestCompleted(quest_id):
+        """
+        Purpose: Check if a quest is completed.
+        Args:
+            quest_id (int): The quest ID to check.
+        Returns: bool
+        """
+        return Quest.quest_instance().is_quest_completed(quest_id)
+
+    @staticmethod
+    def IsQuestPrimary(quest_id):
+        """
+        Purpose: Check if a quest is primary.
+        Args:
+            quest_id (int): The quest ID to check.
+        Returns: bool
+        """
+        return Quest.quest_instance().is_quest_primary(quest_id)
