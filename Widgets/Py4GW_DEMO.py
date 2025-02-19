@@ -1693,7 +1693,7 @@ def ShowLivingAgentData(agent_id):
                 profs_name = f"{pprof_name}/{sprof_name}"
                 profs_short = f"{pprof_short}/{sprof_short}"
 
-                alliegance_id, alliegance_name = Agent.GetAlliegance(agent_id)
+                alliegance_id, alliegance_name = Agent.GetAllegiance(agent_id)
                 alliegance = f"{alliegance_id}/{alliegance_name}"
                 
                 Agent.RequestName(agent_id)
