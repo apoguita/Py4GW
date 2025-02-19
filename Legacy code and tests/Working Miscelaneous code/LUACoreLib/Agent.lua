@@ -294,7 +294,7 @@ function Agent.GetDaggerStatus(agent_id)
     return agent_instance.living_agent.dagger_status
 end
 
-function Agent.GetAlliegance(agent_id)
+function Agent.GetAllegiance(agent_id)
     local agent_instance = Agent.agent_instance(agent_id)
     return agent_instance.living_agent.allegiance.ToInt(), agent_instance.living_agent.allegiance.GetName()
 end
