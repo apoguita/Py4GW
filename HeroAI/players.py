@@ -4,8 +4,10 @@ from .constants import (
     MAX_NUM_PLAYERS,
 )
 
+from .cache_data import CacheData
 
-def RegisterPlayer(cached_data):
+
+def RegisterPlayer(cached_data:CacheData):
     """Register the current player to the shared memory."""
     if cached_data.data.own_party_number == -1:
         return False
@@ -19,7 +21,7 @@ def RegisterPlayer(cached_data):
     cached_data.HeroAI_vars.shared_memory_handler.register_buffs(cached_data.data.player_agent_id)
 
 
-def RegisterHeroes(cached_data):
+def RegisterHeroes(cached_data:CacheData):
     for index, hero in enumerate(cached_data.data.heroes):
         hero_party_number =cached_data.data.party_player_count + index
         agent_id = hero.agent_id
@@ -32,11 +34,13 @@ def RegisterHeroes(cached_data):
 
             cached_data.HeroAI_vars.shared_memory_handler.register_buffs(agent_id)
 
-def UpdatePlayers(cached_data):
+def UpdatePlayers(cached_data:CacheData):
     """Update the player list from shared memory."""
     global MAX_NUM_PLAYERS
     for player in range(MAX_NUM_PLAYERS):
         player_data = cached_data.HeroAI_vars.shared_memory_handler.get_player(player)
+        if player_data is None:
+            continue
 
         cached_data.HeroAI_vars.all_player_struct[player].PlayerID = player_data["PlayerID"]
         cached_data.HeroAI_vars.all_player_struct[player].Energy_Regen = player_data["Energy_Regen"]

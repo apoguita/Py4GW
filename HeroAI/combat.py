@@ -2,8 +2,8 @@ from Py4GWCoreLib import *
 from .custom_skill import *
 from .types import *
 from .targetting import *
-from .utils import *
 from typing import Optional
+
 
 MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
@@ -250,7 +250,7 @@ class CombatClass:
         return self.skills
         
 
-    def GetOrderedSkill(self, index):
+    def GetOrderedSkill(self, index:int)-> Optional[SkillData]:
         """
         Retrieve the skill at the given index in the prioritized order.
         """
@@ -262,6 +262,13 @@ class CombatClass:
         self.skill_pointer += 1
         if self.skill_pointer >= MAX_SKILLS:
             self.skill_pointer = 0
+            
+    def GetEnergyValues(self,agent_id):
+        for i in range(MAX_NUM_PLAYERS):
+            player_data = self.shared_memory_handler.get_player(i)
+            if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
+                return player_data["Energy"]
+        return 1.0 #default return full energy to prevent issues
 
     def IsSkillReady(self, slot):
         original_index = self.skill_order[slot] 
@@ -430,23 +437,23 @@ class CombatClass:
                 self.skills[slot].skill_id == self.energy_tap or
                 self.skills[slot].skill_id == self.ether_lord 
                 ):
-                return GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                return self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
         
             if (self.skills[slot].skill_id == self.essence_strike):
-                energy = GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy = self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
                 return energy and (TargetNearestSpirit() != 0)
 
             if (self.skills[slot].skill_id == self.glowing_signet):
-                energy= GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy= self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
                 return energy and self.HasEffect(vTarget, self.burning)
 
             if (self.skills[slot].skill_id == self.clamor_of_souls):
-                energy = GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy = self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
                 weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
                 return energy and weapon_type == 0
 
             if (self.skills[slot].skill_id == self.waste_not_want_not):
-                energy= GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy= self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
                 return energy and not Agent.IsCasting(vTarget) and not Agent.IsAttacking(vTarget)
 
             if (self.skills[slot].skill_id == self.mend_body_and_soul):
@@ -734,7 +741,7 @@ class CombatClass:
             return False, v_target
         
         # Check if there is enough energy
-        current_energy = GetEnergyValues(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
+        current_energy = self.GetEnergyValues(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
         if current_energy < Skill.Data.GetEnergyCost(self.skills[slot].skill_id):
             self.in_casting_routine = False
             return False, v_target

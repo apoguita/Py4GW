@@ -6,9 +6,11 @@ from .constants import (
     NUMBER_OF_SKILLS
 )
 
+from .cache_data import CacheData
 
 
-def UpdateGameOptions(cache_data):
+
+def UpdateGameOptions(cache_data:CacheData):
     """Update the player list from shared memory."""
     global GAME_OPTION_MODULE_NAME, MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
     try:
@@ -17,6 +19,8 @@ def UpdateGameOptions(cache_data):
         if own_party_number == 0:
             for index in range(MAX_NUM_PLAYERS):
                 game_option = cache_data.HeroAI_vars.shared_memory_handler.get_game_option(index)
+                if game_option is None:
+                    continue
        
                 cache_data.HeroAI_vars.all_game_option_struct[index].Following = game_option["Following"]
                 cache_data.HeroAI_vars.all_game_option_struct[index].Avoidance = game_option["Avoidance"]
@@ -29,6 +33,8 @@ def UpdateGameOptions(cache_data):
                     cache_data.HeroAI_vars.all_game_option_struct[index].Skills[skill_index].Active = game_option["Skills"][skill_index]
         else:
             game_option = cache_data.HeroAI_vars.shared_memory_handler.get_game_option(own_party_number)
+            if game_option is None:
+                return
 
             cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Following = game_option["Following"]
             cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Avoidance = game_option["Avoidance"]
