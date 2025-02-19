@@ -109,7 +109,7 @@ def ProcessCandidateCommands(cached_data):
                     return False
 
                 leader = cached_data.HeroAI_vars.all_candidate_struct[leader_index]
-
+                updated_candidate = None
                 if leader.PlayerID == candidate.SummonedBy:
                     updated_candidate = CandidateStruct(
                     PlayerID=candidate.PlayerID,

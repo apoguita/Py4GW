@@ -1,6 +1,7 @@
 # PyItem.pyi - Auto-generated .pyi file for PyItem module
 
-from typing import Any, List
+from typing import Any, List, overload
+from enum import Enum, IntEnum
 
 # Enum DyeColor (SafeDyeColor)
 class DyeColor:
@@ -74,12 +75,12 @@ class IdentifyAllType:
     Gold: int
 
 # Enum Rarity
-class Rarity:
-    White: int
-    Blue: int
-    Purple: int
-    Gold: int
-    Green: int
+class Rarity(IntEnum):
+    White = 0
+    Blue = 1
+    Purple = 2
+    Gold = 3
+    Green = 4
 
 # Class ItemModifier (SafeItemModifier)
 class ItemModifier:
@@ -108,8 +109,6 @@ class DyeColorClass:
     def __init__(self, dye_color: int) -> None: ...
     def ToInt(self) -> int: ...
     def ToString(self) -> str: ...
-    def __eq__(self, other: "DyeColorClass") -> bool: ...
-    def __ne__(self, other: "DyeColorClass") -> bool: ...
 
 # Class DyeInfo (SafeDyeInfoClass)
 class DyeInfo:
@@ -119,21 +118,22 @@ class DyeInfo:
     dye3: DyeColorClass
     dye4: DyeColorClass
 
+    @overload
     def __init__(self) -> None: ...
+    @overload
     def __init__(self, dye_info: Any) -> None: ...
     def ToString(self) -> str: ...
-    def __eq__(self, other: "DyeInfo") -> bool: ...
-    def __ne__(self, other: "DyeInfo") -> bool: ...
+
 
 # Class Item (SafeItem)
-class Item:
+class PyItem:
     item_id: int
     agent_id: int
     agent_item_id: int
     name: str
     modifiers: List[ItemModifier]
     is_customized: bool
-    item_type: int
+    item_type: ItemTypeClass
     dye_info: DyeInfo
     value: int
     interaction: int
@@ -148,7 +148,7 @@ class Item:
     is_inscribable: bool
     is_material: bool
     is_zcoin: bool
-    rarity: int
+    rarity: Rarity
     uses: int
     is_id_kit: bool
     is_salvage_kit: bool

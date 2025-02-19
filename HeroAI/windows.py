@@ -159,7 +159,7 @@ def DrawPrioritizedSkills(cached_data):
         PyImGui.end_tab_bar()
 
 
-HeroFlags: bool = [False, False, False, False, False, False, False, False, False]
+HeroFlags: list[bool] = [False, False, False, False, False, False, False, False, False]
 AllFlag = False
 CLearFlags = False
 one_time_set_flag = False

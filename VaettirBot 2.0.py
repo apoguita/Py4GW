@@ -50,11 +50,11 @@ class WindowStatistics:
         self.lap_history = []
         self.min_time = 0
         self.max_time = 0
-        self.avg_time = 0
+        self.avg_time = 0.0
         self.runs_attempted = 0
         self.runs_completed = 0
         self.runs_failed = 0
-        self.success_rate = 0
+        self.success_rate = 0.0
         self.deaths = 0
         self.kills = 0
         self.left_alive = 0
@@ -125,7 +125,7 @@ class BotVars:
     def __init__(self, map_id=0):
         self.starting_map = map_id
         self.bot_started = False
-        self.window_module = None
+        self.window_module = ImGui.WindowModule()
         self.variables = {}
         self.window_statistics = WindowStatistics()
         self.show_config_options = False
@@ -155,8 +155,8 @@ class StateMachineVars:
             self.in_killing_routine = False
             self.auto_stuck_command_timer = Timer()
             self.auto_stuck_command_timer.Start()
-            self.old_player_x = 0
-            self.old_player_y = 0
+            self.old_player_x = 0.0
+            self.old_player_y = 0.0
             self.stuck_count = 0
             self.non_movement_timer = Timer()
             self.non_movement_timer.Start()
@@ -173,7 +173,7 @@ def progress_bar_value():
     max_value = FSM_vars.state_machine.get_state_count()
 
     first_phase_name = "Outpost Handling"
-    first_phase_steps = 3 + FSM_vars.sell_to_vendor.get_state_count() + FSM_vars.outpost_pathing.get_state_count()
+    first_phase_steps = 3 + FSM_vars.sell_to_vendor.get_state_count() + FSM_vars.outpost_pathing.get_position_count()
 
     if current_value < 3:
         return current_value /first_phase_steps, "Initializing"
@@ -182,10 +182,10 @@ def progress_bar_value():
         sub_fsm_max_value = FSM_vars.sell_to_vendor.get_state_count()
         return 3 + sub_fsm_current_value/first_phase_steps, FSM_vars.sell_to_vendor.get_current_step_name()
     if current_value == 5:
-        sub_fsm_current_value = FSM_vars.outpost_pathing.get_current_state_number()
-        sub_fsm_max_value = FSM_vars.outpost_pathing.get_state_count()
+        sub_fsm_current_value = FSM_vars.outpost_pathing.get_position()
+        sub_fsm_max_value = FSM_vars.outpost_pathing.get_position_count()
         offset = 3 + FSM_vars.sell_to_vendor.get_state_count()
-        return offset + sub_fsm_current_value/first_phase_steps, FSM_vars.outpost_pathing.get_current_step_name()
+        return offset + sub_fsm_current_value/first_phase_steps, FSM_vars.outpost_pathing.get_position_count()
 
 
 #Helper Functions
@@ -247,7 +247,8 @@ def HasThingsToSell():
     items_to_sell = ItemArray.GetItemArray(bags_to_check)
 
     # Log initial items
-    current_function = inspect.currentframe().f_code.co_name
+    frame = inspect.currentframe()
+    current_function = frame.f_code.co_name if frame else "Unknown"
     Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - Initial items: {items_to_sell}", Py4GW.Console.MessageType.Info)
 
     # General material filtering
@@ -330,7 +331,8 @@ def IsSkillBarLoaded():
 
     primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
     if primary_profession != "Assassin" and secondary_profession != "Mesmer":
-        current_function = inspect.currentframe().f_code.co_name
+        frame = inspect.currentframe()
+        current_function = frame.f_code.co_name if frame else "Unknown"
         Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - This bot requires A/Me to work, halting.", Py4GW.Console.MessageType.Error)
         ResetEnvironment()
         StopBot()
@@ -2046,7 +2048,8 @@ def DrawWindow():
         PyImGui.end()
 
     except Exception as e:
-        current_function = inspect.currentframe().f_code.co_name
+        frame = inspect.currentframe()
+        current_function = frame.f_code.co_name if frame else "Unknown"
         Py4GW.Console.Log(bot_vars.window_module.module_name, f"Error in {current_function}: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 

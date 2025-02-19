@@ -124,7 +124,8 @@ class SharedMemoryManager:
         """Register a candidate in the first available slot."""
         for i in range(self.num_players):
             existing_candidate = self.get_candidate(i)
-            if (existing_candidate["PlayerID"] == candidate_data.PlayerID and 
+            if (existing_candidate and
+                existing_candidate["PlayerID"] == candidate_data.PlayerID and 
                 existing_candidate["MapID"] == candidate_data.MapID and
                 existing_candidate["MapRegion"] == candidate_data.MapRegion and
                 existing_candidate["MapDistrict"] == candidate_data.MapDistrict):
@@ -135,7 +136,8 @@ class SharedMemoryManager:
                 return True
 
         for i in range(self.num_players):
-            if self.get_candidate(i)["PlayerID"] == 0:
+            candidate = self.get_candidate(i)
+            if candidate and candidate.get("PlayerID") == 0:
                 self.set_candidate(i, candidate_data)
                 return True
         return False
@@ -345,13 +347,13 @@ class SharedMemoryManager:
     # ---------------------
     def reset_party_buffs(self):
         """Reset all buffs for a specific player."""
+        buff_index = 0
         try:
-
             for buff_index in range(MAX_NUMBER_OF_BUFFS):
                 self.reset_buff(buff_index)
 
         except Exception as e:
-            Py4GW.Console.Log(SMM_MODULE_NAME, f"Failed to reset buffs for player {player_index}: {e}", Py4GW.Console.MessageType.Error)
+            Py4GW.Console.Log(SMM_MODULE_NAME, f"Failed to reset buffs for player {buff_index}: {e}", Py4GW.Console.MessageType.Error)
 
     def reset_buff(self, index):
         """Reset a specific party buff."""
@@ -367,6 +369,7 @@ class SharedMemoryManager:
 
     def get_buff(self,agent_id, skill_id):
         """Retrieve a specific buff with timeout checks."""
+        buff_index = 0
         try:
 
             for buff_index, buff in enumerate(self.game_struct.PlayerBuffs):

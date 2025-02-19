@@ -1,11 +1,12 @@
 # PyPlayer.pyi - Auto-generated .pyi file for PyPlayer module
 
-from typing import Any, List
+from typing import Any, List, overload
+from PyAgent import PyAgent
 
 # Class PyPlayer
 class PyPlayer:
     id: int
-    agent: int
+    agent: PyAgent
     target_id: int
     mouse_over_id: int
     observing_id: int
@@ -51,7 +52,9 @@ class PyPlayer:
     def SendChat(self, channel: str, msg: str) -> None: ...
     def SendWhisper(self, name: str, msg: str) -> None: ...
     def ChangeTarget(self, target_id: int) -> bool: ...
+    @overload
     def Move(self, x: float, y: float, zplane: int) -> bool: ...
+    @overload
     def Move(self, x: float, y: float) -> bool: ...
     def InteractAgent(self, agent_id: int, call_target: bool) -> bool: ...
     def OpenLockedChest(self, use_key: bool) -> bool: ...
@@ -60,3 +63,19 @@ class PyPlayer:
     def RemoveActiveTitle(self) -> bool: ...
     def DepositFaction(self, allegiance: int) -> bool: ...
     def GetActiveTitleId(self) -> int: ...
+
+class PyTitle:
+    title_id: int
+    props: int
+    current_points: int
+    current_title_tier_index: int
+    points_needed_current_rank: int
+    next_title_tier_index: int
+    points_needed_next_rank: int
+    max_title_rank: int
+    max_title_tier_index: int
+    is_percentage_based: bool
+    has_tiers: bool
+
+    def __init__(self, title_id: int) -> None: ...
+    def GetContext(self) -> None: ...

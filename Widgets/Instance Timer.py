@@ -43,7 +43,18 @@ class Config:
 
 
 widget_config = Config()
-window_module = ImGui.WindowModule(module_name, window_name="Intance Timer", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize | PyImGui.WindowFlags.NoBackground | PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoCollapse)
+window_module = ImGui.WindowModule(
+    module_name, 
+    window_name="Intance Timer##Instance Timer",
+    window_size=(100, 100), 
+    window_flags=PyImGui.WindowFlags(
+        PyImGui.WindowFlags.AlwaysAutoResize | 
+        PyImGui.WindowFlags.NoBackground | 
+        PyImGui.WindowFlags.NoTitleBar | 
+        PyImGui.WindowFlags.NoCollapse
+    )
+)
+
 config_module = ImGui.WindowModule(f"Config {module_name}", window_name="Instance Timer Configuration##Instance Timer", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 window_x = ini_handler.read_int(module_name + " Config", "config_x", 100)
 window_y = ini_handler.read_int(module_name + " Config", "config_y", 100)

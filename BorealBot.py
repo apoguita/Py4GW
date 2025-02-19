@@ -10,7 +10,7 @@ class BotVars:
     def __init__(self, map_id=0):
         self.starting_map = map_id
         self.bot_started = False
-        self.window_module = None
+        self.window_module = ImGui.WindowModule()
         self.variables = {}
 
 bot_vars = BotVars(map_id=675) #boreal station
@@ -23,7 +23,7 @@ class StateMachineVars:
             self.sell_to_vendor = FSM("SellToVendor")
             self.outpost_pathing = Routines.Movement.PathHandler(outpost_coordinate_list)
             self.explorable_pathing = Routines.Movement.PathHandler(explorable_coordinate_list)
-            self.chest_found_pathing = None
+            self.chest_found_pathing = Routines.Movement.PathHandler([])
             self.movement_handler = Routines.Movement.FollowXY()
 
 FSM_vars = StateMachineVars()
@@ -83,7 +83,8 @@ def IsSkillBarLoaded():
     global bot_vars
     primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
     if primary_profession != "Assassin" and secondary_profession != "Assassin":
-        current_function = inspect.currentframe().f_code.co_name
+        frame = inspect.currentframe()
+        current_function = frame.f_code.co_name if frame else "Unknown"
         Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - This bot requires A/Any or Any/A to work, halting.", Py4GW.Console.MessageType.Error)
         ResetEnvironment()
         StopBot()
@@ -222,7 +223,8 @@ def DrawWindow():
         PyImGui.end()
 
     except Exception as e:
-        current_function = inspect.currentframe().f_code.co_name
+        frame = inspect.currentframe()
+        current_function = frame.f_code.co_name if frame else "Unknown"
         Py4GW.Console.Log(bot_vars.window_module.module_name, f"Error in {current_function}: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 

@@ -1,27 +1,31 @@
-from typing import List
+from typing import List, overload
+from PyMap import Campaign
+from PyAgent import Profession, AttributeClass
 
 class SkillID:
     id: int
 
+    @overload
     def __init__(self) -> None: ...
+    @overload
     def __init__(self, skillid: int) -> None: ...
+    @overload
     def __init__(self, skillname: str) -> None: ...
     def GetName(self) -> str: ...
-    def __eq__(self, skillid: int) -> bool: ...
-    def __ne__(self, skillid: int) -> bool: ...
+
 
 class SkillType:
     id: int
 
+    @overload
     def __init__(self) -> None: ...
+    @overload
     def __init__(self, skilltype: int) -> None: ...
     def GetName(self) -> str: ...
-    def __eq__(self, skilltype: int) -> bool: ...
-    def __ne__(self, skilltype: int) -> bool: ...
 
 class Skill:
     id: SkillID
-    campaign: int
+    campaign: Campaign
     type: SkillType
     special: int
     combo_req: int
@@ -29,8 +33,8 @@ class Skill:
     condition: int
     effect2: int
     weapon_req: int
-    profession: int
-    attribute: int
+    profession: Profession
+    attribute: AttributeClass
     title: int
     id_pvp: int
     combo: int
@@ -76,7 +80,10 @@ class Skill:
     adrenaline_b: int
     recharge2: int
 
+    @overload
     def __init__(self) -> None: ...
+    @overload
     def __init__(self, skillid: int) -> None: ...
+    @overload
     def __init__(self, skillname: str) -> None: ...
     def GetContext(self) -> None: ...
