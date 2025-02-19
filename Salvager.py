@@ -178,10 +178,13 @@ class BasicWindow:
                                 self.PrintTextByRarity(name, item.item_id)
                                 PyImGui.table_next_column()
                                 if identified:
-                                    if PyImGui.button(f"Salvage ID: {item.item_id}"):
-                                        # start salvage on item_id
-                                        self.item_to_salvage = item.item_id
-                                        StartSalvage(name, item.item_id)
+                                    if SalvagerExecuting() or IdentifierExecuting():
+                                        PyImGui.text("Working..")
+                                    else:
+                                        if PyImGui.button(f"Salvage ID: {item.item_id}"):
+                                            # start salvage on item_id
+                                            self.item_to_salvage = item.item_id
+                                            StartSalvage(name, item.item_id)
                                 else:
                                     PyImGui.dummy(0, 0) # comment out if not on version with dummy implementation
                                     self.PrintTextByRarity("(Unidentified)", item.item_id)
@@ -210,10 +213,13 @@ class BasicWindow:
                                 self.PrintTextByRarity(name, item.item_id)
                                 PyImGui.table_next_column()
                                 if identified:
-                                    if PyImGui.button(f"Salvage ID: {item.item_id}"):
-                                        # start salvage on item_id
-                                        self.item_to_salvage = item.item_id
-                                        StartSalvage(name, item.item_id)
+                                    if SalvagerExecuting() or IdentifierExecuting():
+                                        PyImGui.text("Working..")
+                                    else:
+                                        if PyImGui.button(f"Salvage ID: {item.item_id}"):
+                                            # start salvage on item_id
+                                            self.item_to_salvage = item.item_id
+                                            StartSalvage(name, item.item_id)
                                 else:
                                     PyImGui.dummy(0, 0) # comment out if not on version with dummy implementation
                                     self.PrintTextByRarity("(Unidentified)", item.item_id)
@@ -242,10 +248,13 @@ class BasicWindow:
                                 self.PrintTextByRarity(name, item.item_id)
                                 PyImGui.table_next_column()
                                 if identified:
-                                    if PyImGui.button(f"Salvage ID: {item.item_id}"):
-                                        # start salvage on item_id
-                                        self.item_to_salvage = item.item_id
-                                        StartSalvage(name, item.item_id)
+                                    if SalvagerExecuting() or IdentifierExecuting():
+                                        PyImGui.text("Working..")
+                                    else:
+                                        if PyImGui.button(f"Salvage ID: {item.item_id}"):
+                                            # start salvage on item_id
+                                            self.item_to_salvage = item.item_id
+                                            StartSalvage(name, item.item_id)
                                 else:
                                     PyImGui.dummy(0, 0) # comment out if not on version with dummy implementation
                                     self.PrintTextByRarity("(Unidentified)", item.item_id)
@@ -274,10 +283,13 @@ class BasicWindow:
                                 self.PrintTextByRarity(name, item.item_id)
                                 PyImGui.table_next_column()
                                 if identified:
-                                    if PyImGui.button(f"Salvage ID: {item.item_id}"):
-                                        # start salvage on item_id
-                                        self.item_to_salvage = item.item_id
-                                        StartSalvage(name, item.item_id)
+                                    if SalvagerExecuting() or IdentifierExecuting():
+                                        PyImGui.text("Working..")
+                                    else:
+                                        if PyImGui.button(f"Salvage ID: {item.item_id}"):
+                                            # start salvage on item_id
+                                            self.item_to_salvage = item.item_id
+                                            StartSalvage(name, item.item_id)
                                 else:
                                     PyImGui.dummy(0, 0) # comment out if not on version with dummy implementation
                                     self.PrintTextByRarity("(Unidentified)", item.item_id)
