@@ -25,6 +25,8 @@ def main():
     global is_map_ready, is_party_loaded, is_in_cinematic, is_explorable
     global game_throttle_time, game_throttle_timer
     
+    party_leader_id = 0
+    player_agent_id = 0
     if game_throttle_timer.HasElapsed(game_throttle_time):
         is_map_ready = Map.IsMapReady()
         is_party_loaded = Party.IsPartyLoaded()

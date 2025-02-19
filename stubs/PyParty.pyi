@@ -1,6 +1,6 @@
 # PyParty.pyi - Auto-generated .pyi file for PyParty module
 
-from typing import List, Any
+from typing import List, Any, overload
 from .PyAgent import Profession
 
 # Enum HeroType
@@ -58,9 +58,11 @@ class PetInfo :
 	
 # Class Hero
 class Hero:
+    @overload
     def __init__(self, hero_id: int) -> None: ...
+    @overload
     def __init__(self, hero_name: str) -> None: ...
-    def GetId(self) -> int: ...
+    def GetID(self) -> int: ...
     def GetName(self) -> str: ...
     def GetProfession(self) -> "Profession": ...
     def GetFlaggingState(self) -> int: ...
@@ -90,7 +92,7 @@ class PlayerPartyMember:
 class HeroPartyMember:
     agent_id: int
     owner_player_id: int
-    hero_id: int
+    hero_id: Hero
     level: int
     primary: "Profession"
     secondary: "Profession"

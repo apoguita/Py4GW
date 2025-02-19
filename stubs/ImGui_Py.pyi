@@ -1,10 +1,10 @@
 # ImGui_Py.pyi - Auto-generated .pyi file for ImGui_Py module
 
-from typing import Tuple, List, Any
+from typing import Tuple, List, Any, overload
 
 # Enum WindowFlags
 class WindowFlags:
-    None: int
+    NowindowFlag: int
     NoTitleBar: int
     NoResize: int
     NoMove: int
@@ -28,7 +28,7 @@ class WindowFlags:
 
 # Enum InputTextFlags
 class InputTextFlags:
-    None: int
+    NoInputTextFlag: int
     CharsDecimal: int
     CharsHexadecimal: int
     CharsUppercase: int
@@ -51,7 +51,7 @@ class InputTextFlags:
 
 # Enum TreeNodeFlags
 class TreeNodeFlags:
-    None: int
+    NoTreeNodeFlag: int
     Selected: int
     Framed: int
     AllowItemOverlap: int
@@ -70,7 +70,7 @@ class TreeNodeFlags:
 
 # Enum SelectableFlags
 class SelectableFlags:
-    None: int
+    NoSelectableFlag: int
     DontClosePopups: int
     SpanAllColumns: int
     AllowDoubleClick: int
@@ -79,7 +79,7 @@ class SelectableFlags:
 
 # Enum TableFlags
 class TableFlags:
-    None: int
+    NoTableFlag: int
     Resizable: int
     Reorderable: int
     Hideable: int
@@ -91,7 +91,7 @@ class TableFlags:
     BordersOuterH: int
     BordersInnerV: int
     BordersOuterV: int
-	Borders: int
+    Borders: int
     NoBordersInBody: int
     NoBordersInBodyUntilResize: int
     SizingFixedFit: int
@@ -113,7 +113,7 @@ class TableFlags:
 
 # Enum TableColumnFlags
 class TableColumnFlags:
-    None: int
+    NoTableColumnFlag: int
     DefaultHide: int
     DefaultSort: int
     WidthStretch: int
@@ -134,12 +134,12 @@ class TableColumnFlags:
 
 # Enum TableRowFlags
 class TableRowFlags:
-    None: int
+    NoTableRowFlag: int
     Headers: int
 
 # Enum FocusedFlags
 class FocusedFlags:
-    None: int
+    NoFocusedFlag: int
     ChildWindows: int
     RootWindow: int
     AnyWindow: int
@@ -147,7 +147,7 @@ class FocusedFlags:
 
 # Enum HoveredFlags
 class HoveredFlags:
-    None: int
+    NoHoveredFlag: int
     ChildWindows: int
     RootWindow: int
     AnyWindow: int
@@ -327,6 +327,7 @@ def slider_int(label: str, v: int, min_val: int, max_val: int) -> bool:
     """
     pass
 
+@overload
 def input_text(label: str, text: str) -> str:
     """Creates a text input box.
     Args: label (str): Label, text (str): Input value.
@@ -334,6 +335,7 @@ def input_text(label: str, text: str) -> str:
     """
     pass
 
+@overload
 def input_text(label: str, text: str, flags: int) -> str:
     """Creates a text input box with flags.
     Args: label (str): Label, text (str): Input value, flags (int): Input flags.
@@ -560,6 +562,7 @@ def bullet_text(text: str) -> None:
     """
     pass
 
+@overload
 def begin(name: str) -> bool:
     """Begins a window.
     Args: name (str): Window name.
@@ -567,6 +570,7 @@ def begin(name: str) -> bool:
     """
     pass
 
+@overload
 def begin(name: str, flags: int) -> bool:
     """Begins a window with flags.
     Args: name (str): Window name, flags (int): Window flags.
@@ -726,6 +730,7 @@ def close_current_popup() -> None:
     """Closes the current popup."""
     pass
 
+@overload
 def begin_table(label: str, column: int) -> bool:
     """Begins a table.
     Args: label (str): Table label, column (int): Number of columns.
@@ -733,6 +738,7 @@ def begin_table(label: str, column: int) -> bool:
     """
     pass
 
+@overload
 def begin_table(label: str, column: int, flags: int) -> bool:
     """Begins a table with flags.
     Args: label (str): Table label, column (int): Number of columns, flags (int): Table flags.
@@ -744,12 +750,14 @@ def end_table() -> None:
     """Ends a table."""
     pass
 
+@overload
 def table_setup_column(label: str) -> None:
     """Sets up a table column.
     Args: label (str): Column label.
     """
     pass
 
+@overload
 def table_setup_column(label: str, flags: str) -> None:
     """Sets up a table column with flags.
     Args: label (str): Column label, flags (str): Column flags.
@@ -899,6 +907,7 @@ def log_to_clipboard() -> None:
     """Logs content to the clipboard."""
     pass
 
+@overload
 def tree_node(label: str) -> bool:
     """Creates a tree node.
     Args: label (str): Tree node label.
@@ -906,6 +915,7 @@ def tree_node(label: str) -> bool:
     """
     pass
 
+@overload
 def tree_node(label: str, label_end: str) -> bool:
     """Creates a tree node with an end label.
     Args: label (str): Tree node label, label_end (str): End label.
@@ -913,6 +923,7 @@ def tree_node(label: str, label_end: str) -> bool:
     """
     pass
 
+@overload
 def tree_node_ex(label: str, flags: int) -> bool:
     """Creates an extended tree node.
     Args: label (str): Tree node label, flags (int): Tree node flags.
@@ -920,6 +931,7 @@ def tree_node_ex(label: str, flags: int) -> bool:
     """
     pass
 
+@overload
 def tree_node_ex(label: str, flags: int, label_end: str) -> bool:
     """Creates an extended tree node with an end label.
     Args: label (str): Tree node label, flags (int): Tree node flags, label_end (str): End label.
@@ -943,6 +955,7 @@ def set_next_item_open(is_open: bool, cond: int = 0) -> None:
     """
     pass
 
+@overload
 def collapsing_header(label: str) -> bool:
     """Creates a collapsing header.
     Args: label (str): Header label.
@@ -950,6 +963,7 @@ def collapsing_header(label: str) -> bool:
     """
     pass
 
+@overload
 def collapsing_header(label: str, flags: int) -> bool:
     """Creates a collapsing header with flags.
     Args: label (str): Header label, flags (int): Header flags.

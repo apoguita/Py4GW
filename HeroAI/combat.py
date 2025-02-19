@@ -3,6 +3,7 @@ from .custom_skill import *
 from .types import *
 from .targetting import *
 from .utils import *
+from typing import Optional
 
 MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
@@ -85,7 +86,7 @@ class CombatClass:
         self.ping_handler = Py4GW.PingHandler()
         self.oldCalledTarget = 0
         self.shared_memory_handler = HeroAI_varsClass().shared_memory_handler
-        self.action_queue = None
+        self.action_queue: Optional[ActionQueue] = None
         
         self.in_aggro = False
         self.is_targetting_enabled = False
@@ -145,7 +146,7 @@ class CombatClass:
         self.poison = Skill.GetID("Poison")
         self.weakness = Skill.GetID("Weakness")
         
-    def Update(self, cached_data, action_queue):
+    def Update(self, cached_data, action_queue: ActionQueue):
         self.in_aggro = cached_data.in_aggro
         #self.shared_memory_handler = shared_memory_handler
         self.action_queue = action_queue
@@ -304,7 +305,8 @@ class CombatClass:
                 if Agent.IsLiving(party_target):
                     _, alliegeance = Agent.GetAlliegance(party_target)
                     if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
-                        self.action_queue.add_action(Player.ChangeTarget, party_target)
+                        if self.action_queue is not None:
+                            self.action_queue.add_action(Player.ChangeTarget, party_target)
                         #Player.Interact(party_target)
                         return party_target
         return 0
@@ -384,7 +386,7 @@ class CombatClass:
     def IsPartyMember(self, agent_id):
         for i in range(MAX_NUM_PLAYERS):
             player_data = self.shared_memory_handler.get_player(i)
-            if player_data["IsActive"] and player_data["PlayerID"] == agent_id:
+            if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
                 return True
         
         return False
@@ -673,7 +675,7 @@ class CombatClass:
             if self.IsPartyMember(vTarget):
                 for i in range(MAX_NUM_PLAYERS):
                     player_data = self.shared_memory_handler.get_player(i)
-                    if player_data["IsActive"] and player_data["PlayerID"] == vTarget:
+                    if player_data and player_data["IsActive"] and player_data["PlayerID"] == vTarget:
                         if player_data["Energy"] < Conditions.LessEnergy:
                             number_of_features += 1
             else:
@@ -828,8 +830,9 @@ class CombatClass:
             else:
                 return False
 
-            self.action_queue.add_action(Player.ChangeTarget, attack_target)
-            return True
+            if self.action_queue is not None:
+                self.action_queue.add_action(Player.ChangeTarget, attack_target)
+                return True
             """
             if self.is_combat_enabled:
                 weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
@@ -846,7 +849,8 @@ class CombatClass:
             _, alliegeance = Agent.GetAlliegance(target_id)
             if alliegeance == 'Enemy' and self.is_combat_enabled:
                 target_id = Player.GetTargetID()
-                self.action_queue.add_action(Player.Interact, target_id)
+                if self.action_queue is not None:
+                    self.action_queue.add_action(Player.Interact, target_id)
 
 
     def HandleCombat(self,ooc=False):
@@ -890,6 +894,7 @@ class CombatClass:
 
         self.aftercast_timer.Reset()
         #SkillBar.UseSkill(self.skill_order[self.skill_pointer]+1, target_agent_id)
-        self.action_queue.add_action(SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
+        if self.action_queue is not None:
+            self.action_queue.add_action(SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
         self.AdvanceSkillPointer()
         return True

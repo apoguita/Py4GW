@@ -167,7 +167,7 @@ class Trading:
 
     class Collector:
         @staticmethod
-        def ExghangeItem(item_id, item_list, item_quantities):
+        def ExghangeItem(item_id, cost =0, item_list=[], item_quantities=[]):
             """
             Purpose: Exchange an item.
             Args:
@@ -177,7 +177,7 @@ class Trading:
                 cost (int): The cost of the item.
             Returns: None
             """
-            Trading.merchant_instance().collector_exchange_item(item_id, 0,  item_list, item_quantities)
+            Trading.merchant_instance().collector_buy_item(item_id, cost,  item_list, item_quantities)
 
         @staticmethod
         def GetOfferedItems():

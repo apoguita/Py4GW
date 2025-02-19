@@ -4,6 +4,7 @@ import Py4GW
 from .Item import *
 
 class ItemArray:
+    @staticmethod
     def CreateBagList(*bag_ids):
         """
         Given a variable number of integer bag IDs, convert them to Bag enums.
@@ -22,6 +23,7 @@ class ItemArray:
 
         return bags_to_check
 
+    @staticmethod
     def GetItemArray(bags_to_check):
         """
         Given a list of Bag enum members, retrieve the item IDs across all those bags.

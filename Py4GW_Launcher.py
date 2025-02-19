@@ -539,7 +539,7 @@ class Patcher:
         """
         Retrieve the HWND (window handle) associated with a given PID.
         """
-        hwnd = None  # Default handle if not found
+        hwnd = wintypes.HWND(0)  # Default handle if not found
 
         # Callback function for EnumWindows
         def callback(handle, extra):
@@ -999,11 +999,12 @@ def show_log_console():
 
     # Start scrollable child window
     imgui.begin_child(
-        "LogConsoleWindow",
-        imgui.ImVec2(0, 0),  # Auto size
-        imgui.ChildFlags_.borders,
-        imgui.WindowFlags_.horizontal_scrollbar
-    )
+    str_id="LogConsoleWindow",
+    size=imgui.ImVec2(0, 0),
+    child_flags=int(imgui.ChildFlags_.borders.value),  # Ensure it's an int
+    window_flags=int(imgui.WindowFlags_.horizontal_scrollbar.value)  # Ensure window_flags is also an int
+)
+    
 
     # Track scroll position
     scroll_y = imgui.get_scroll_y()                      # Current scroll position
@@ -1093,7 +1094,8 @@ def show_main_content():
     # Update the selected team if a selection is made
     if changed and selected_index != -1:
         selected_team = team_manager.get_team(team_names[selected_index])
-        log_history.append(f"Selected team: {selected_team.name}")
+        if selected_team:
+            log_history.append(f"Selected team: {selected_team.name}")
     imgui.same_line()
 
     if not selected_team:
@@ -1372,8 +1374,9 @@ def show_configuration_content():
     # Update the selected team if a selection is made
     if changed and selected_index != -1:
         selected_team = team_manager.get_team(team_names[selected_index])
-        entered_team_name = selected_team.name  # Pre-fill the team name field
-        log_history.append(f"Selected team from combo box: {selected_team.name}")
+        if selected_team:
+            entered_team_name = selected_team.name  # Pre-fill the team name field
+            log_history.append(f"Selected team from combo box: {selected_team.name}")
     imgui.same_line()
     imgui.set_next_item_width(150)  # Standardized field width
     _, entered_team_name = imgui.input_text("Team Name", entered_team_name, 128)
@@ -1410,7 +1413,7 @@ def show_configuration_content():
                 imgui.spacing()
 
         
-                password_flags = 0 if show_password else imgui.InputTextFlags_.password
+                password_flags = 0 if show_password else imgui.InputTextFlags_.password.value
                 imgui.set_next_item_width(300)
 
                 _, account.password = imgui.input_text(
@@ -1451,12 +1454,12 @@ def show_configuration_content():
                     log_history.append(f"Deleted account: {account.character_name}")
 
         # Collapsible section for new account form
-        if imgui.collapsing_header("Add New Account", imgui.TreeNodeFlags_.default_open):
+        if imgui.collapsing_header("Add New Account", imgui.TreeNodeFlags_.default_open.value):
             imgui.spacing()
     
             for key in new_account_data.keys():
                 if key == "password":  # Special handling for the password field
-                    password_flags = 0 if show_password else imgui.InputTextFlags_.password
+                    password_flags = 0 if show_password else imgui.InputTextFlags_.password.value
                     imgui.set_next_item_width(300)  # Standardized field width
             
                     # Input field for password

@@ -696,10 +696,12 @@ arrived_timer = Timer()
 class Routines:
     class Checks:
         class Inventory:
+            @staticmethod
             def InventoryAndLockpickCheck():
                 return Inventory.GetFreeSlotCount() > 0 and Inventory.GetModelCount(22751) > 0 
 
         class Skills:
+            @staticmethod
             def HasEnoughEnergy(agent_id, skill_id):
                 """
                 Purpose: Check if the player has enough energy to use the skill.
@@ -711,7 +713,8 @@ class Routines:
                 player_energy = Agent.GetEnergy(agent_id) * Agent.GetMaxEnergy(agent_id)
                 skill_energy = Skill.Data.GetEnergyCost(skill_id)
                 return player_energy >= skill_energy
-
+            
+            @staticmethod
             def HasEnoughLife(agent_id, skill_id):
                 """
                 Purpose: Check if the player has enough life to use the skill.
@@ -724,6 +727,7 @@ class Routines:
                 skill_life = Skill.Data.GetHealthCost(skill_id)
                 return player_life > skill_life
 
+            @staticmethod
             def HasEnoughAdrenaline(agent_id, skill_id):
                 """
                 Purpose: Check if the player has enough adrenaline to use the skill.
@@ -742,6 +746,7 @@ class Routines:
 
                 return False
 
+            @staticmethod
             def DaggerStatusPass(agent_id, skill_id):
                 """
                 Purpose: Check if the player attack dagger status match tha skill requirement.
@@ -765,6 +770,7 @@ class Routines:
                 return True
 
     class Transition:
+        @staticmethod
         def TravelToOutpost(outpost_id, log= True):
             """
             Purpose: Travel to the specified outpost by ID.
@@ -777,14 +783,14 @@ class Routines:
             if Map.IsMapReady():
                 if Map.GetMapID() != outpost_id and arrived_timer.IsStopped():
                     if log:
-                        current_function = inspect.currentframe().f_code.co_name
+                        current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
                         Py4GW.Console.Log(f"{current_function}", f"Outpost Check Failed. ({Map.GetMapName(outpost_id)}), Travelling.", Py4GW.Console.MessageType.Info)
                     Map.Travel(outpost_id)
                     arrived_timer.Start()
                     return
 
                 if log and arrived_timer.IsStopped():
-                    current_function = inspect.currentframe().f_code.co_name
+                    current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
                     Py4GW.Console.Log(f"{current_function}", f"Outpost Check Passed. ({Map.GetMapName(outpost_id)}).", Py4GW.Console.MessageType.Info)
 
         @staticmethod
@@ -800,7 +806,7 @@ class Routines:
 
             if Map.GetMapID() == outpost_id and Routines.Transition.IsOutpostLoaded():
                 if log:
-                    current_function = inspect.currentframe().f_code.co_name
+                    current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
                     Py4GW.Console.Log(f"{current_function}", f"Outpost Arrive Passed. @{Map.GetMapName(outpost_id)}.", Py4GW.Console.MessageType.Info)
                     arrived_timer.Stop()
                     return True
@@ -808,16 +814,17 @@ class Routines:
                     if arrived_timer.HasElapsed(5000):
                         arrived_timer.Stop()
                         if log:
-                            current_function = inspect.currentframe().f_code.co_name
+                            current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
                             Py4GW.Console.Log(f"{current_function}", f"Outpost Arrive Timeout. @{Map.GetMapName(outpost_id)}.", Py4GW.Console.MessageType.Info)
                         return False
             
             if log:
-                current_function = inspect.currentframe().f_code.co_name
+                current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
                 Py4GW.Console.Log(f"{current_function}", f"Outpost Arrive Failed. @{Map.GetMapName(outpost_id)}. Retrying.", Py4GW.Console.MessageType.Info)
                 
             return False
 
+        @staticmethod
         def IsOutpostLoaded():
             """
             Purpose: Check if the outpost map is loaded.
@@ -833,6 +840,7 @@ class Routines:
             
             return map_loaded
 
+        @staticmethod
         def IsExplorableLoaded(log_actions=False):
             """
             Purpose: Check if the explorable map is loaded.
@@ -850,15 +858,17 @@ class Routines:
             return map_loaded
 
     class Targeting:
-
+        @staticmethod
         def TargetMerchant():
             """Target the nearest merchant. within 5000 units"""
             Player.SendChatCommand("target [Merchant]")
-
+            
+        @staticmethod
         def InteractTarget():
             """Interact with the target"""
             Player.Interact(Player.GetTargetID())
-       
+            
+        @staticmethod
         def HasArrivedToTarget():
             """Check if the player has arrived at the target."""
             player_x, player_y = Player.GetXY()
@@ -866,7 +876,7 @@ class Routines:
             target_x, target_y = Agent.GetXY(target_id)
             return Utils.Distance((player_x, player_y), (target_x, target_y)) < 100
 
-
+        @staticmethod
         def GetNearestItem(max_distance=5000):
             from .AgentArray import AgentArray
             """
@@ -881,6 +891,7 @@ class Routines:
             if len(item_array) > 0:
                 return item_array[0]    
 
+        @staticmethod
         def GetNearestChest(max_distance=5000):
             from .AgentArray import AgentArray
             """
@@ -898,6 +909,7 @@ class Routines:
 
             return 0
 
+        @staticmethod
         def GetBestTarget(a_range=1320, casting_only=False, no_hex_only=False, enchanted_only=False):
             """
             Purpose: Returns the best target within the specified range based on criteria like whether the agent is casting, enchanted, or hexed.
@@ -908,6 +920,7 @@ class Routines:
                 enchanted_only (bool): If True, only select agents that are enchanted.
             Returns: PyAgent.PyAgent: The best target agent object, or None if no target matches.
             """
+            from .AgentArray import AgentArray
             best_target = None
             lowest_sum = float('inf')
             nearest_enemy = None
@@ -916,23 +929,24 @@ class Routines:
             lowest_hp = float('inf')
 
             player = PyPlayer.PyPlayer()
-            player_pos = Player.GetPlayerXY()
+            player_pos = Player.GetXY()
             agents = player.GetEnemyArray()
-            agents = Utils.Filters.FilterAgentArrayByAlive(player_pos, agents, a_range) #filter out Dead and Far agents
+            agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsAlive(agent_id))
+            agents = AgentArray.Filter.ByDistance(agents, player_pos, a_range)
 
             if enchanted_only:
-                agents = Utils.Filters.FilterArrayByHasEnchantment(agents)
+                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsEnchanted(agent_id))
 
             if no_hex_only:
-                agents = Utils.Filters.FilterArrayByHasHex(agents)
+                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsHexed(agent_id))
 
             if casting_only:
-                agents = Utils.Filters.FilterArrayByIsCasting(agents)
+                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsCasting(agent_id))
 
             for agent_id in agents:
                 agent = PyAgent.PyAgent(agent_id)
 
-                distance_to_self = Utils.Distance(Player.GetPlayerXY(), (agent.x, agent.y))
+                distance_to_self = Utils.Distance(Player.GetXY(), (agent.x, agent.y))
 
                 # Track the nearest enemy
                 if distance_to_self < nearest_distance:
@@ -959,6 +973,7 @@ class Routines:
 
             return best_target
 
+        @staticmethod
         def GetBestMeleeTarget(a_range=1320, casting_only=False, no_hex_only=False, enchanted_only=False):
             """
             Purpose: Returns the best melee most baslled up target within the specified range based on criteria like whether the agent is casting, enchanted, or hexed.
@@ -969,6 +984,7 @@ class Routines:
                 enchanted_only (bool): If True, only select agents that are enchanted.
             Returns: PyAgent.PyAgent: The best melee target agent object, or None if no target matches.
             """
+            from .AgentArray import AgentArray
             best_target = None
             lowest_sum = float('inf')
             nearest_enemy = None
@@ -977,26 +993,29 @@ class Routines:
             lowest_hp = float('inf')
 
             player = PyPlayer.PyPlayer()
-            player_pos = Player.GetPlayerXY()
+            player_pos = Player.GetXY()
             agents = player.GetEnemyArray()
 
             # Filter out dead, distant, and non-melee agents
-            agents = Utils.Filters.FilterAgentArrayByAlive(player_pos, agents, a_range)
-            agents = Utils.Filters.FilterAgentArrayByIsMelee(player_pos, agents, a_range)
+            agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsAlive(agent_id))
+            agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsMelee(agent_id))
+            agents = AgentArray.Filter.ByDistance(agents, player_pos, a_range)
+
 
             if enchanted_only:
-                agents = Utils.Filters.FilterArrayByHasEnchantment(agents)
+                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsEnchanted(agent_id))
 
             if no_hex_only:
-                agents = Utils.Filters.FilterArrayByHasHex(agents)
+                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsHexed(agent_id))
 
             if casting_only:
-                agents = Utils.Filters.FilterArrayByIsCasting(agents)
+                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsCasting(agent_id))
+
 
             for agent_id in agents:
                 agent = PyAgent.PyAgent(agent_id)
 
-                distance_to_self = Utils.Distance(Player.GetPlayerXY(), (agent.x, agent.y))
+                distance_to_self = Utils.Distance(Player.GetXY(), (agent.x, agent.y))
 
                 # Track the nearest melee enemy
                 if distance_to_self < nearest_distance:
@@ -1023,6 +1042,7 @@ class Routines:
             return best_target
 
     class Movement:
+        @staticmethod
         def FollowPath(path_handler,follow_handler, log_actions=False):
             """
             Purpose: Follow a path using the path handler and follow handler objects.
@@ -1044,6 +1064,7 @@ class Routines:
                 if log_actions:
                     Py4GW.Console.Log("FollowPath", f"Moving to {point}", Py4GW.Console.MessageType.Info)
 
+        @staticmethod
         def IsFollowPathFinished(path_handler,follow_handler):
             return path_handler.is_finished() and follow_handler.has_arrived()
 
@@ -1267,17 +1288,17 @@ class BehaviorTree:
         RUNNING = 0
         SUCCESS = 1
         FAILURE = 2
-
+ 
     class Node(ABC):
         def __init__(self):
-            self.state = BehaviorTree.NodeState.RUNNING  # Default state
+            self.state: "BehaviorTree.NodeState" = BehaviorTree.NodeState.RUNNING  # Default state
 
         @abstractmethod
-        def tick(self):
+        def tick(self) -> "BehaviorTree.NodeState":
             """This method should be implemented in subclasses to define behavior."""
             pass
 
-        def run(self):
+        def run(self) -> "BehaviorTree.NodeState":
             """Executes the tick method and returns the node's current state."""
             self.state = self.tick()  # Calls the tick method
             return self.state
@@ -1530,7 +1551,7 @@ class FSM:
         def set_next_state(self, next_state):
             """Set the next state for transitions."""
             self.next_state = next_state
-
+            
     class ConditionState(State):
         def __init__(self, id, name=None, condition_fn=None, sub_fsm=None):
             """
@@ -1552,7 +1573,7 @@ class FSM:
             """
             if self.sub_fsm_active:
                 # If the sub-FSM is running, update it and check if it is finished
-                if not self.sub_fsm.is_finished():
+                if self.sub_fsm is not None and not self.sub_fsm.is_finished():
                     self.sub_fsm.update()
                 else:
                     self.sub_fsm_active = False  # Sub-FSM finished, can continue execution
@@ -1683,6 +1704,7 @@ class FSM:
     def is_finished(self):
         """Check whether the FSM has finished executing all states."""
         return self.finished
+
 
     def jump_to_state(self, state_id):
         """Jump to a specific state by its ID."""

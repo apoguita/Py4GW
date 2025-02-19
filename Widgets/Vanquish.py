@@ -35,7 +35,18 @@ class Config:
         ini_handler.write_key(module_name, "color_a", str(self.color[3]))
         
 widget_config = Config()
-window_module = ImGui.WindowModule(module_name, window_name="Vanquish Monitor##Vanquish Monitor", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize | PyImGui.WindowFlags.NoBackground | PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoCollapse)
+window_module = ImGui.WindowModule(
+    module_name, 
+    window_name="Vanquish Monitor##Vanquish Monitor",
+    window_size=(100, 100), 
+    window_flags=PyImGui.WindowFlags(
+        PyImGui.WindowFlags.AlwaysAutoResize | 
+        PyImGui.WindowFlags.NoBackground | 
+        PyImGui.WindowFlags.NoTitleBar | 
+        PyImGui.WindowFlags.NoCollapse
+    )
+)
+
 config_module = ImGui.WindowModule(f"Config {module_name}", window_name="Vanquish Monitor##Vanquish Monitor config", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 window_x = ini_handler.read_int(module_name +str(" Config"), "config_x", 100)
 window_y = ini_handler.read_int(module_name +str(" Config"), "config_y", 100)

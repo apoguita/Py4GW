@@ -60,7 +60,10 @@ PySkill = PySkill
 PySkillbar = PySkillbar
 PyMerchant = PyMerchant
 PyEffects = PyEffects
-PyKeystroke = PyKeystroke
+#PyKeystroke = PyKeystroke
+PyOverlay = PyOverlay
+PyQuest = PyQuest
+PyPathing = PyPathing
 
 #redirect print output to Py4GW Console
 class Py4GWLogger:

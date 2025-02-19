@@ -43,6 +43,7 @@ class SortDirection(Enum):
     Descending = 2
 
 class ImGui:
+    @staticmethod
     def show_tooltip(text: str):
         """
         Purpose: Display a tooltip with the provided text.
@@ -56,6 +57,7 @@ class ImGui:
             PyImGui.end_tooltip()
 
 
+    @staticmethod
     def toggle_button(label: str, v: bool, width=0, height =0) -> bool:
         """
         Purpose: Create a toggle button that changes its state and color based on the current state.
@@ -86,10 +88,13 @@ class ImGui:
 
         return v
 
+    @staticmethod
     def floating_button(x, y, caption, width=25, height=25):
         # Set the position and size of the floating button
         PyImGui.set_next_window_pos(x-width/2, y-height/2)
         PyImGui.set_next_window_size(width, height)  # Button window size
+        
+        clicked = False
 
         # Create a floating, borderless window for the button
         windowflags = PyImGui.WindowFlags.NoTitleBar #| PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoMove | PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse | PyImGui.WindowFlags.NoBackground | PyImGui.WindowFlags.NoBringToFrontOnFocus
@@ -109,8 +114,8 @@ class ImGui:
         return clicked  # Return True if clicked, False otherwise
 
 
-
-    def table(title, headers, data):
+    @staticmethod
+    def table(title:str, headers, data):
         """
         Purpose: Display a table using PyImGui.
         Args:
@@ -148,7 +153,7 @@ class ImGui:
 
             PyImGui.end_table()
 
-
+    @staticmethod
     def DrawTextWithTitle(title, text_content, lines_visible=10):
         """
         Function to display a title and multi-line text in a scrollable and configurable area.
@@ -217,8 +222,10 @@ class ImGui:
 
 
     class WindowModule:
-        def __init__(self, module_name, window_name="", window_size=(100,100), window_pos=(0,0), window_flags=PyImGui.WindowFlags.NoFlag, collapse= False):
+        def __init__(self, module_name="", window_name="", window_size=(100,100), window_pos=(0,0), window_flags=PyImGui.WindowFlags.NoFlag, collapse= False):
             self.module_name = module_name
+            if not self.module_name:
+                return
             self.window_name = window_name if window_name else module_name
             self.window_size = window_size
             self.collapse = collapse
@@ -237,6 +244,8 @@ class ImGui:
             self.tracking_position = self.window_pos
 
         def initialize(self):
+            if not self.module_name:
+                return
             if self.first_run:
                 PyImGui.set_next_window_size(self.window_size[0], self.window_size[1])     
                 PyImGui.set_next_window_pos(self.window_pos[0], self.window_pos[1])
@@ -244,15 +253,21 @@ class ImGui:
                 self.first_run = False
 
         def begin(self):
+            if not self.module_name:
+                return
             self.collapsed_status = True
             self.tracking_position = self.window_pos
             return PyImGui.begin(self.window_name, self.window_flags)
 
         def process_window(self):
+            if not self.module_name:
+                return
             self.collapsed_status = PyImGui.is_window_collapsed()
             self.end_pos = PyImGui.get_window_pos()
 
         def end(self):
+            if not self.module_name:
+                return
             PyImGui.end()
             """ INI FILE ROUTINES NEED WORK 
             if end_pos[0] != window_module.window_pos[0] or end_pos[1] != window_module.window_pos[1]:

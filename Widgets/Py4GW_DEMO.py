@@ -1080,8 +1080,8 @@ def ShowItemDataWindow(item_id):
 
                 if PyImGui.collapsing_header("Modifiers"):
 
-                    modifiers = Item.Customization.GetModifiers(item_id)
-                    modifier_count = Item.Customization.GetModifierCount(item_id)
+                    modifiers = Item.Customization.Modifiers.GetModifiers(item_id)
+                    modifier_count = Item.Customization.Modifiers.GetModifierCount(item_id)
 
                     PyImGui.text("Modifier Count: " + str(modifier_count))
 
@@ -1317,8 +1317,6 @@ def ShowPartyWindow():
                 if PyImGui.button("Kick Henchman"):
                     Party.Henchmen.KickHenchman(PyParty_window_state.values[3])
 
-                if PyImGui.button("Kick All Henchmen"):
-                    Party.Henchmen.KickAllHenchmen()
 
                 PyImGui.separator()
 
@@ -1376,8 +1374,8 @@ def ShowPartyWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowPartyWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
-PyPlayer_window_state.values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-PyPlayer_window_state.values[2] = ""
+PyPlayer_window_state.values = [0, 0, "", 0.0, 0.0, 0, 0, 0, 0, 0, 0]
+
 def ShowPlayerWindow():
     global PyPlayer_window_state
     try: 
@@ -1467,10 +1465,11 @@ def ShowPlayerWindow():
                 max_title_tier_index = title_data.max_title_tier_index
                 is_percentage_based = title_data.is_percentage_based
                 has_tiers = title_data.has_tiers
-                
+                title_name = TITLE_NAME.get(TitleID(current_title), "Unknown")
+
                 data = [
                     ("TitleID:", current_title),
-                    ("Name:", TITLE_NAME.get(current_title, "Unknown")),
+                    ("Name:",title_name),
                     ("Properties:", props),
                     ("Current Points:", current_points),
                     ("Current Tier Index:", current_title_tier_index),
@@ -2410,7 +2409,6 @@ def ShowPyImGuiSelectablesWindow():
             PyImGui.text(f"Checkbox is {'checked' if ImGui_selectables_window_state.values[0] else 'unchecked'}")
             PyImGui.separator()
         
-             # Radio Buttons with a single integer state variable
             ImGui_selectables_window_state.values[1] = PyImGui.radio_button("Radio Button 1", ImGui_selectables_window_state.values[1], 0)
             ImGui_selectables_window_state.values[1] = PyImGui.radio_button("Radio Button 2", ImGui_selectables_window_state.values[1], 1)
             ImGui_selectables_window_state.values[1] = PyImGui.radio_button("Radio Button 3", ImGui_selectables_window_state.values[1], 2)
