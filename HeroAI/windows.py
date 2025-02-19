@@ -7,9 +7,10 @@ from .utils import *
 from .candidates import SendPartyCommand
 from .targetting import *
 from HeroAI import game_option
+from .cache_data import CacheData
 
 
-def DrawBuffWindow(cached_data):
+def DrawBuffWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
     if not cached_data.data.is_explorable:
         return
@@ -38,7 +39,7 @@ def TrueFalseColor(condition):
         return Utils.RGBToNormal(255, 0, 0, 255)
 
 skill_slot = 0
-def DrawPrioritizedSkills(cached_data):
+def DrawPrioritizedSkills(cached_data:CacheData):
     global skill_slot
     from .constants import NUMBER_OF_SKILLS
  
@@ -119,35 +120,37 @@ def DrawPrioritizedSkills(cached_data):
                         skillbar_casting = cached_data.data.player_skillbar_casting
                         skillbar_recharge = cached_data.combat_handler.skills[skill_slot].skillbar_data.recharge
                         current_energy = cached_data.data.energy * cached_data.data.max_energy
-                        energy_cost = Skill.Data.GetEnergyCost(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
-                        current_hp = cached_data.data.player_hp
-                        target_hp = cached_data.combat_handler.GetOrderedSkill(skill_slot).custom_skill_data.Conditions.SacrificeHealth
-                        health_cost = Skill.Data.GetHealthCost(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
+                        ordered_skill = cached_data.combat_handler.GetOrderedSkill(skill_slot)
+                        if ordered_skill:                        
+                            energy_cost = Skill.Data.GetEnergyCost(ordered_skill.skill_id)
+                            current_hp = cached_data.data.player_hp
+                            target_hp = ordered_skill.custom_skill_data.Conditions.SacrificeHealth
+                            health_cost = Skill.Data.GetHealthCost(ordered_skill.skill_id)
 
-                        adrenaline_required = Skill.Data.GetAdrenaline(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
-                        adrenaline_a = cached_data.combat_handler.GetOrderedSkill(skill_slot).skillbar_data.adrenaline_a
-                    
-                        current_overcast = cached_data.data.player_overcast
-                        overcast_target = cached_data.combat_handler.GetOrderedSkill(skill_slot).custom_skill_data.Conditions.Overcast
-                        skill_overcast = Skill.Data.GetOvercast(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
+                            adrenaline_required = Skill.Data.GetAdrenaline(ordered_skill.skill_id)
+                            adrenaline_a = ordered_skill.skillbar_data.adrenaline_a
+                        
+                            current_overcast = cached_data.data.player_overcast
+                            overcast_target = ordered_skill.custom_skill_data.Conditions.Overcast
+                            skill_overcast = Skill.Data.GetOvercast(ordered_skill.skill_id)
 
-                        are_cast_conditions_met = cached_data.combat_handler.AreCastConditionsMet(skill_slot,v_target)
-                        spirit_buff_exists = cached_data.combat_handler.SpiritBuffExists(cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
-                        has_effect = cached_data.combat_handler.HasEffect(v_target, cached_data.combat_handler.GetOrderedSkill(skill_slot).skill_id)
+                            are_cast_conditions_met = cached_data.combat_handler.AreCastConditionsMet(skill_slot,v_target)
+                            spirit_buff_exists = cached_data.combat_handler.SpiritBuffExists(ordered_skill.skill_id)
+                            has_effect = cached_data.combat_handler.HasEffect(v_target, ordered_skill.skill_id)
 
-                        PyImGui.text_colored(f"IsCasting: {is_casting}", TrueFalseColor(not is_casting))
-                        PyImGui.text_colored(f"CastingSkill: {casting_skill}", TrueFalseColor(not casting_skill != 0))
-                        PyImGui.text_colored(f"SkillBar Casting: {skillbar_casting}", TrueFalseColor(not skillbar_casting != 0))
-                        PyImGui.text_colored(f"SkillBar recharge: {skillbar_recharge}", TrueFalseColor(skillbar_recharge == 0))  
-                        PyImGui.text_colored(f"Energy: {current_energy} / Cost {energy_cost}", TrueFalseColor(current_energy >= energy_cost))
+                            PyImGui.text_colored(f"IsCasting: {is_casting}", TrueFalseColor(not is_casting))
+                            PyImGui.text_colored(f"CastingSkill: {casting_skill}", TrueFalseColor(not casting_skill != 0))
+                            PyImGui.text_colored(f"SkillBar Casting: {skillbar_casting}", TrueFalseColor(not skillbar_casting != 0))
+                            PyImGui.text_colored(f"SkillBar recharge: {skillbar_recharge}", TrueFalseColor(skillbar_recharge == 0))  
+                            PyImGui.text_colored(f"Energy: {current_energy} / Cost {energy_cost}", TrueFalseColor(current_energy >= energy_cost))
 
-                        PyImGui.text_colored(f"Current HP: {current_hp} / Target HP: {target_hp} / Health Cost: {health_cost}", TrueFalseColor(health_cost == 0 or current_hp >= health_cost))
-                        PyImGui.text_colored(f"Adrenaline Required: {adrenaline_required}", TrueFalseColor(adrenaline_required == 0 or (adrenaline_a >= adrenaline_required)))
-                        PyImGui.text_colored(f"Current Overcast: {current_overcast} / Overcast Target: {overcast_target} / Skill Overcast: {skill_overcast}", TrueFalseColor(current_overcast >= overcast_target or skill_overcast == 0))
-                    
-                        PyImGui.text_colored(f"AreCastConditionsMet: {are_cast_conditions_met}", TrueFalseColor(are_cast_conditions_met))
-                        PyImGui.text_colored(f"SpiritBuffExists: {spirit_buff_exists}", TrueFalseColor(not spirit_buff_exists))
-                        PyImGui.text_colored(f"HasEffect: {has_effect}", TrueFalseColor(not has_effect))
+                            PyImGui.text_colored(f"Current HP: {current_hp} / Target HP: {target_hp} / Health Cost: {health_cost}", TrueFalseColor(health_cost == 0 or current_hp >= health_cost))
+                            PyImGui.text_colored(f"Adrenaline Required: {adrenaline_required}", TrueFalseColor(adrenaline_required == 0 or (adrenaline_a >= adrenaline_required)))
+                            PyImGui.text_colored(f"Current Overcast: {current_overcast} / Overcast Target: {overcast_target} / Skill Overcast: {skill_overcast}", TrueFalseColor(current_overcast >= overcast_target or skill_overcast == 0))
+                        
+                            PyImGui.text_colored(f"AreCastConditionsMet: {are_cast_conditions_met}", TrueFalseColor(are_cast_conditions_met))
+                            PyImGui.text_colored(f"SpiritBuffExists: {spirit_buff_exists}", TrueFalseColor(not spirit_buff_exists))
+                            PyImGui.text_colored(f"HasEffect: {has_effect}", TrueFalseColor(not has_effect))
 
                         PyImGui.tree_pop()
 
@@ -163,7 +166,7 @@ HeroFlags: list[bool] = [False, False, False, False, False, False, False, False,
 AllFlag = False
 CLearFlags = False
 one_time_set_flag = False
-def DrawFlags(cached_data):
+def DrawFlags(cached_data:CacheData):
     global capture_flag_all, capture_hero_flag, capture_hero_index, overlay
     global one_time_set_flag, CLearFlags
 
@@ -194,7 +197,7 @@ def DrawFlags(cached_data):
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "IsFlagged", True)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosX", x)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosY", y)
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", cached_data.party_leader_rotation_angle)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", cached_data.data.party_leader_rotation_angle)
                 
                 one_time_set_flag = True
 
@@ -223,7 +226,7 @@ def DrawFlags(cached_data):
             
         
 
-def DrawFlaggingWindow(cached_data):
+def DrawFlaggingWindow(cached_data:CacheData):
     global HeroFlags, AllFlag, capture_flag_all, capture_hero_flag, capture_hero_index, one_time_set_flag
     global CLearFlags
     party_size = cached_data.data.party_size
@@ -281,7 +284,7 @@ async_name_gettet_timer = Timer()
 async_name_gettet_timer.Start()
 cached_names = {}
 
-def DrawCandidateWindow(cached_data):
+def DrawCandidateWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
     global async_name_gettet_timer,cached_names
 
@@ -363,7 +366,7 @@ def DrawCandidateWindow(cached_data):
                 SendPartyCommand(index, cached_data, "Summon")  
 
 
-def DrawCandidatesDebug(cached_data):
+def DrawCandidatesDebug(cached_data:CacheData):
     global MAX_NUM_PLAYERS
 
     candidate_count = 0     
@@ -386,7 +389,7 @@ def DrawCandidatesDebug(cached_data):
     ImGui.table("Candidate Debug Table", headers, data)
 
 slot_to_write = 0
-def DrawPlayersDebug(cached_data):
+def DrawPlayersDebug(cached_data:CacheData):
     global MAX_NUM_PLAYERS, slot_to_write
 
     own_party_number = cached_data.data.own_party_number
@@ -427,7 +430,7 @@ def DrawPlayersDebug(cached_data):
     ImGui.table("Players Debug Table", headers, data)
 
 
-def DrawHeroesDebug(cached_data): 
+def DrawHeroesDebug(cached_data:CacheData): 
     global MAX_NUM_PLAYERS
     headers = ["Slot", "agent_id", "owner_player_id", "hero_id", "hero_name"]
     data = []
@@ -444,7 +447,7 @@ def DrawHeroesDebug(cached_data):
     ImGui.table("Heroes Debug Table", headers, data)
 
 
-def DrawGameOptionsDebug(cached_data):
+def DrawGameOptionsDebug(cached_data:CacheData):
     global MAX_NUM_PLAYERS
 
     data = []
@@ -492,7 +495,7 @@ def DrawGameOptionsDebug(cached_data):
     ImGui.table("Game Options Debug Table", headers, data)
 
 draw_fake_flag = True
-def DrawFlagDebug(cached_data):
+def DrawFlagDebug(cached_data:CacheData):
     global capture_flag_all, capture_hero_flag,draw_fake_flag, overlay
     global MAX_NUM_PLAYERS
     
@@ -526,7 +529,7 @@ def DrawFlagDebug(cached_data):
         if HeroFlags[i]:
             PyImGui.text(f"Hero {i + 1} is flagged")
 
-def DrawFollowDebug(cached_data):
+def DrawFollowDebug(cached_data:CacheData):
     global show_area_rings, show_hero_follow_grid, show_distance_on_followers, overlay
     global MAX_NUM_PLAYERS
 
@@ -586,7 +589,7 @@ def DrawFollowDebug(cached_data):
 
 
 
-def DrawDebugWindow(cached_data):
+def DrawDebugWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
 
     if PyImGui.collapsing_header("Candidates Debug"):
@@ -611,7 +614,7 @@ def DrawDebugWindow(cached_data):
 
 
 
-def DrawMultiboxTools(cached_data):
+def DrawMultiboxTools(cached_data:CacheData):
     global MAX_NUM_PLAYERS
     cached_data.HeroAI_windows.tools_window.initialize()
 
@@ -629,7 +632,7 @@ def DrawMultiboxTools(cached_data):
     cached_data.HeroAI_windows.tools_window.end()
 
 
-def CompareAndSubmitGameOptions(cached_data, game_option: GameOptionStruct):
+def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionStruct):
     global MAX_NUM_PLAYERS
     # Core Options
     if game_option.Following != cached_data.HeroAI_vars.global_control_game_struct.Following:
@@ -667,7 +670,7 @@ def CompareAndSubmitGameOptions(cached_data, game_option: GameOptionStruct):
                 )
 
 
-def SubmitGameOptions(cached_data,index,game_option,original_game_option):
+def SubmitGameOptions(cached_data:CacheData,index,game_option,original_game_option):
     # Core Options
     if game_option.Following != original_game_option.Following:
         cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Following", game_option.Following)
@@ -720,7 +723,7 @@ def DrawPanelButtons(source_game_option):
 
     return game_option
 
-def DrawMainWindow(cached_data):
+def DrawMainWindow(cached_data:CacheData):
     own_party_number = cached_data.data.own_party_number
     game_option = GameOptionStruct()
     original_game_option = cached_data.HeroAI_vars.all_game_option_struct[own_party_number]
@@ -740,7 +743,7 @@ def DrawMainWindow(cached_data):
         cached_data.HeroAI_windows.main_window.end()
 
 
-def DrawControlPanelWindow(cached_data):
+def DrawControlPanelWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
     own_party_number = cached_data.data.own_party_number
     game_option = GameOptionStruct()     

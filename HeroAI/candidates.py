@@ -9,7 +9,9 @@ from .types import (
     CandidateStruct,
 )
 
-def RegisterCandidate(cached_data):
+from .cache_data import CacheData
+
+def RegisterCandidate(cached_data:CacheData):
     """Register the current player as a candidate."""
     if not cached_data.data.is_outpost:
         return False
@@ -23,7 +25,7 @@ def RegisterCandidate(cached_data):
         cached_data.HeroAI_vars.shared_memory_handler.register_candidate(cached_data.HeroAI_vars.submit_candidate_struct)
 
 
-def UpdateCandidates(cached_data):
+def UpdateCandidates(cached_data:CacheData):
     """Update the candidate list from shared memory."""
     global MAX_NUM_PLAYERS
 
@@ -32,6 +34,8 @@ def UpdateCandidates(cached_data):
 
     for player in range(MAX_NUM_PLAYERS):
         candidate_data = cached_data.HeroAI_vars.shared_memory_handler.get_candidate(player)
+        if candidate_data is None:
+            continue
 
         cached_data.HeroAI_vars.all_candidate_struct[player].PlayerID = candidate_data["PlayerID"]
         cached_data.HeroAI_vars.all_candidate_struct[player].MapID = candidate_data["MapID"]
@@ -42,7 +46,7 @@ def UpdateCandidates(cached_data):
         cached_data.HeroAI_vars.all_candidate_struct[player].LastUpdated = candidate_data["LastUpdated"]
 
 
-def SendPartyCommand(index, cached_data, command="Invite"):
+def SendPartyCommand(index, cached_data:CacheData, command="Invite"):
     candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
 
     if command == "Invite":
@@ -62,7 +66,7 @@ def SendPartyCommand(index, cached_data, command="Invite"):
 
 
 
-def ProcessCandidateCommands(cached_data):
+def ProcessCandidateCommands(cached_data:CacheData):
     global MAX_NUM_PLAYERS
     try:
         if not cached_data.data.is_outpost or not cached_data.data.is_map_ready:

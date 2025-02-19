@@ -3,6 +3,7 @@ from .constants import (
     Range,
     BLOOD_IS_POWER,
     BLOOD_RITUAL,
+    MAX_NUM_PLAYERS,
 )
 
 
@@ -85,9 +86,18 @@ def TargetLowestAlly(other_ally=False,filter_skill_id=0):
     
 
 def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0):
-    from .utils import (GetEnergyValues, CheckForEffect)
     global BLOOD_IS_POWER, BLOOD_RITUAL
+    from .utils import (CheckForEffect)
+    def GetEnergyValues(agent_id):
+        from .globals import HeroAI_varsClass
+        shared_memory_handler = HeroAI_varsClass().shared_memory_handler
 
+        for i in range(MAX_NUM_PLAYERS):
+            player_data = shared_memory_handler.get_player(i)
+            if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
+                return player_data["Energy"]
+        return 1.0 #default return full energy to prevent issues
+    
     distance = Range.Spellcast.value
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
