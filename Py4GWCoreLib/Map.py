@@ -290,8 +290,7 @@ class Map:
             map_id = Map.GetMapID()
         else:
             map_id = mapid
-        map_id_instance = PyMap.MapID(map_id)
-        return map_id_instance.GetIsMapUnlocked(map_id_instance.map_id.ToInt())
+        return Map.map_instance().GetIsMapUnlocked(map_id)
 
     @staticmethod
     def GetAmountOfPlayersInInstance():

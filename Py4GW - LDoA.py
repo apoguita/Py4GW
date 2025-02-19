@@ -7,7 +7,7 @@ module_name = "Py4GW - LDoA"
 
 class AppState :
     def __init__(self) :
-        self.radio_button_selected = 20
+        self.radio_button_selected = 39
 
 state = AppState()
 
@@ -19,8 +19,9 @@ class BotVars:
         self.barradin_map = 163 #BARRADIN ESTATE
         self.ranik_map = 166 #FORT RANIK
         self.bot_started = False
-        self.window_module = None
+        self.window_module = ImGui.WindowModule()
         self.variables = {}
+        self.CharrAtTheGate = 46
 
 follow_delay_timer = Timer()
 loot_timer = Timer() 
@@ -43,7 +44,7 @@ player_instance = PyPlayer.PyPlayer()
 action_queue = ActionQueue()
 
 bot_vars = BotVars(map_id=148) #ASCALON
-bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Py4GW - LDoA", window_size=(700, 1000))
+bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Py4GW - LDoA", window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 agent_id = Player.GetAgentID()
 
 #COORDS
@@ -130,6 +131,17 @@ ascalon_coordinate_list = [(7420, 5450)]
 rurikpause_coordinate_list = [(5987, 4087),(5977, 4077)]
 rurik_coordinate_list = [(6068, 4180),(5835, 4323),(5602, 4493),(5371, 4672),(5147, 4858),(4933, 5058),(4721, 5255),(4504, 5446),(4283, 5637),(4068, 5825),(3845, 6010),(3577, 6131),(3299, 6199),(3012, 6249),(2720, 6290),(2438, 6324),(2147, 6362),(1860, 6416),(1575, 6433),(1284, 6437),(995, 6441),(702, 6477),(428, 6576),(208, 6759),(-7, 6959),(-221, 7157),(-437, 7358),(-649, 7555),(-861, 7751),(-1080, 7944),(-1301, 8129),(-1522, 8312),(-1750, 8496),(-1997, 8641),(-2260, 8776),(-2519, 8910),(-2753, 9078),(-2902, 9324),(-3020, 9584),(-3137, 9847),(-3252, 10115),(-3367, 10386),(-3486, 10655),(-3724, 10822),(-3981, 10957),(-4241, 11095),(-4483, 11222),(-3823, 11060),(-5253, 11672)]
 
+#TAME PET
+goingout_ashfordabbey = [(-11962, -6244),(-11445, -6239),(-11400, -6273)]
+tamepet_coordinate_list_1 = [(-6395, -7016),(-4560, -12326),(1040, -16292),(4070, -19779),(4200, -19700)]
+tamepet_coordinate_list_2 = [(-15573, 14259),(-17445, 11742),(-17017, 10411)]
+tamepet_coordinate_list_3 = [(-17263, 10142),(-18774, 8436),(-20164, 6922),(-19424, 4220),(-14998, -475)]
+
+#WARRIOR REQ
+warrior_skill_coordinate_list_1 = [(21932, 12966),(21258, 13066)]
+warrior_skill_coordinate_list_2 = [(-6407, 1383),(-6475, 1551)]
+warrior_skill_coordinate_list_3 = [(-6670, 1402),(-6781, 1231)]
+
 
 foible_coordinate_list = [(344, 7832), (367, 7790)]
 bandit_coordinate_list = [(2312, 5970), (2586,4429)]
@@ -173,6 +185,8 @@ def ResetEnvironment():
     FSM_vars.althea_pathing.reset()
     FSM_vars.leveling_pathing.reset()
     FSM_vars.taking_quest_pathing.reset()
+    FSM_vars.ascalon_pathing.reset()
+    FSM_vars.ascalon_pathing_1.reset()
 
     #WARRIOR LVL 1
     FSM_vars.state_machine_warrior.reset()
@@ -267,9 +281,20 @@ def ResetEnvironment():
     FSM_vars.state_machine_nicholas_sandford.reset()
     FSM_vars.nicholas_sandford_pathing.reset()   
 
+    #TAME PET
+    FSM_vars.state_machine_TamePet.reset()
+    FSM_vars.goingout_ashfordabbey.reset()
+    FSM_vars.tamepet_pathing_1.reset()
+    FSM_vars.tamepet_pathing_2.reset()
+    FSM_vars.tamepet_pathing_3.reset()
 
-    FSM_vars.ascalon_pathing.reset()
-    FSM_vars.ascalon_pathing_1.reset()
+    #WARRIOREQ
+    FSM_vars.state_machine_warriorreq.reset()
+    FSM_vars.warrior_skill_pathing_1.reset()
+    FSM_vars.warrior_skill_pathing_2.reset()
+    FSM_vars.warrior_skill_pathing_3.reset()
+
+
     FSM_vars.rurikpause_pathing.reset()
     FSM_vars.rurik_pathing.reset()
     FSM_vars.foible_pathing.reset()
@@ -289,6 +314,7 @@ def ResetEnvironment():
     
 
     FSM_vars.state_machine_lvl2_10.reset()
+    FSM_vars.state_machine_ResetQuest.reset()
     FSM_vars.state_machine_lvl11_20.reset()
     FSM_vars.state_machine_abbey.reset()
     FSM_vars.state_machine_foible.reset()
@@ -312,7 +338,7 @@ def equipitem(model_id, agent_id):
 
     Inventory.EquipItem(item, agent_id)
 
-inventory = PyInventory.PyInventory()
+inventory = PyInventory.PyInventory()  
 
 def GetFirstFromArray(array):
     if array is None:
@@ -415,8 +441,7 @@ def get_called_target():
     players = Party.GetPlayers()
     for player in players:
         if player.called_target_id != 0:
-            target = PyAgent.PyAgent(player.called_target_id)
-            if target.is_alive:
+            if Agent.IsAlive(player.called_target_id):
                 return player.called_target_id
     return 0
 
@@ -481,7 +506,7 @@ def handle_map_path(map_pathing):
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
-                FSM_vars.current_skill_index = (skill_slot % 4) + 1  
+                FSM_vars.current_skill_index = (skill_slot % 8) + 1  
 
             return 
 
@@ -564,7 +589,7 @@ def handle_map_path_loot(map_pathing):
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
-                FSM_vars.current_skill_index = (skill_slot % 4) + 1  
+                FSM_vars.current_skill_index = (skill_slot % 8) + 1  
 
             return 
 
@@ -753,17 +778,86 @@ def handle_item_interaction():
             FSM_vars.last_interaction_time = current_time   
             FSM_vars.has_interacted = True  
 
+def handle_quest_interaction():
+    global FSM_vars
+    my_id = Player.GetAgentID()
+    my_x, my_y = Agent.GetXY(my_id)
+    current_time = time.time() 
+
+    ally_array = AgentArray.GetNPCMinipetArray()
+    ally_array = AgentArray.Filter.ByDistance(ally_array, (my_x, my_y), 5000)
+
+    allies_with_quest = [agent_id for agent_id in ally_array if Agent.HasQuest(agent_id)]
+
+    if not allies_with_quest:
+        FSM_vars.current_target_id = None
+        FSM_vars.has_interacted = False
+        return  
+
+    if FSM_vars.current_target_id is None or not Agent.HasQuest(FSM_vars.current_target_id):
+        FSM_vars.current_target_id = allies_with_quest[0]
+        FSM_vars.has_interacted = False
+        FSM_vars.last_interaction_time = 0 
+
+    if FSM_vars.current_target_id:
+        target_id = FSM_vars.current_target_id
+
+        if not FSM_vars.has_interacted:
+            Player.Interact(target_id, call_target=False)
+            FSM_vars.has_interacted = True
+            FSM_vars.last_interaction_time = current_time  
+
+        if FSM_vars.has_interacted and (current_time - FSM_vars.last_interaction_time >= 5):
+            FSM_vars.has_interacted = False  
+            FSM_vars.current_target_id = None  
+
+def TargetNearestNeutral():
+    distance = 5000 
+    neutral_array = AgentArray.GetNeutralArray() 
+    neutral_array = AgentArray.Filter.ByDistance(neutral_array, Player.GetXY(), distance)
+    neutral_array = AgentArray.Sort.ByDistance(neutral_array, Player.GetXY())  
+
+    
+    return GetFirstFromArray(neutral_array)
+
+def UseSkillByID(skill_id):
+    for slot in range(1, 9): 
+        if SkillBar.GetSkillIDBySlot(slot) == skill_id:
+            SkillBar.UseSkill(slot)
+            return True  
+    return False  
+
+def UseSkillByIDOnNearestNeutral(skill_id):
+    target = TargetNearestNeutral()  
+    if not target:
+        return False
+
+    for slot in range(1, 9):
+        if SkillBar.GetSkillIDBySlot(slot) == skill_id:
+            SkillBar.UseSkill(slot, target)  
+            return True 
+    
+    return False 
+
+def InteractPet():
+    pet = TargetNearestNeutral()
+    if pet:
+        Player.Interact(pet)
 
 #FSM
 class StateMachineVars:
     def __init__(self):     
   
         self.movement_handler = Routines.Movement.FollowXY()
-        self.last_skill_time = 0
+        self.last_skill_time = 0.0
         self.current_skill_index = 1
         self.last_item_pickup_time = 0
         self.current_target_id = None  
         self.has_interacted = False 
+        self.last_interaction_time = 0.0
+        
+        self.in_waiting_routine = True
+        self.in_killing_routine = True
 
         #FSM for lvl 1
         self.town_crier_pathing =  Routines.Movement.PathHandler(town_crier_coordinate_list)
@@ -815,7 +909,10 @@ class StateMachineVars:
         self.ascalon_pathing = Routines.Movement.PathHandler(ascalon_coordinate_list)
         self.rurikpause_pathing = Routines.Movement.PathHandler(rurikpause_coordinate_list)
         self.rurik_pathing = Routines.Movement.PathHandler(rurik_coordinate_list)
-        
+
+        #FSM for lvl 2-10 - SUBROUTINE
+        self.state_machine_ResetQuest = FSM("RESET QUEST")
+
         #FSM for lvl 11-20
         self.state_machine_lvl11_20 = FSM("LEVEL 11-20")
         self.foible_pathing = Routines.Movement.PathHandler(foible_coordinate_list)
@@ -878,6 +975,13 @@ class StateMachineVars:
         self.state_machine_nicholas_sandford = FSM("NICHOLAS SANDFORD")
         self.nicholas_sandford_pathing = Routines.Movement.PathHandler(nicholas_sandford_coordinate_list)
 
+        #FSM for TAME PET
+        self.state_machine_TamePet = FSM("TAME PET")
+        self.goingout_ashfordabbey = Routines.Movement.PathHandler(goingout_ashfordabbey)
+        self.tamepet_pathing_1 = Routines.Movement.PathHandler(tamepet_coordinate_list_1)
+        self.tamepet_pathing_2 = Routines.Movement.PathHandler(tamepet_coordinate_list_2)
+        self.tamepet_pathing_3 = Routines.Movement.PathHandler(tamepet_coordinate_list_3)
+
         #FSM for Ashford Abbey
         self.state_machine_abbey = FSM("ASHFORD ABBEY")
         self.abbeyout_pathing = Routines.Movement.PathHandler(abbeyout_coordinate_list)
@@ -903,8 +1007,14 @@ class StateMachineVars:
 
         #FSM Grand Tour
         self.state_machine_grandtour = FSM("THE BARRADIN ESTATE")
-     
-    
+
+        #FSM WARRIOR SKILL REQ
+        self.state_machine_warriorreq = FSM("WARRIOR REQ")
+        self.warrior_skill_pathing_1 = Routines.Movement.PathHandler(warrior_skill_coordinate_list_1)
+        self.warrior_skill_pathing_2 = Routines.Movement.PathHandler(warrior_skill_coordinate_list_2)
+        self.warrior_skill_pathing_3 = Routines.Movement.PathHandler(warrior_skill_coordinate_list_3)
+
+
 FSM_vars = StateMachineVars()
 
 #___________________________ WARRIOR LVL 1 ___________________________#
@@ -1172,23 +1282,143 @@ FSM_vars.state_machine_elementalist.AddState(name="TAKING QUEST", execute_fn=lam
 
 #___________________________ CHARR AT THE GATE ___________________________#
 FSM_vars.state_machine_lvl2_10.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
-FSM_vars.state_machine_lvl2_10.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_lvl2_10.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
 FSM_vars.state_machine_lvl2_10.AddState(name="PAUSE BEFORE FOLLOWING", execute_fn=lambda: FollowPathwithDelayTimer(FSM_vars.rurikpause_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.rurikpause_pathing, FSM_vars.movement_handler), run_once=False)
 FSM_vars.state_machine_lvl2_10.AddState(name="FOLLOWING RURIK", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.rurik_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.rurik_pathing, FSM_vars.movement_handler) or Survivor() or Death(), run_once=False)
 FSM_vars.state_machine_lvl2_10.AddState(name="WAITING RURIK KILLING", execute_fn=lambda: set_killing_routine(), exit_condition=lambda: end_killing_routine_1() or Survivor() or Death(), run_once=False)
 FSM_vars.state_machine_lvl2_10.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
-FSM_vars.state_machine_lvl2_10.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_lvl2_10.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
 FSM_vars.state_machine_lvl2_10.AddState(name="COUNTER", execute_fn=lambda: increment_run_counter(), exit_condition=lambda: Party.IsPartyLoaded() and Map.IsMapReady(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_lvl2_10.AddSubroutine(name="CHECK QUEST STATUS", sub_fsm = FSM_vars.state_machine_ResetQuest,  condition_fn=lambda: Quest.IsQuestCompleted(bot_vars.CharrAtTheGate))
+FSM_vars.state_machine_lvl2_10.AddState(name="RESET CHECK QUEST ROUTINE", execute_fn=lambda: FSM_vars.state_machine_ResetQuest.reset())
+
+FSM_vars.state_machine_ResetQuest.AddState(name="ABANDON QUEST", execute_fn=lambda: Quest.AbandonQuest(bot_vars.CharrAtTheGate),transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_ResetQuest.AddState(name="GOING NEAR PRINCE RURIK", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.taking_quest_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_ResetQuest.AddState(name="CHECK NPC", execute_fn=lambda: handle_npc_interaction(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_ResetQuest.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
 
 #___________________________ FARMER HAMNET ___________________________#
 FSM_vars.state_machine_lvl11_20.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.foible_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
-FSM_vars.state_machine_lvl11_20.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_lvl11_20.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
 FSM_vars.state_machine_lvl11_20.AddState(name="GOING OUT IN DANGEROUS LANDS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
-FSM_vars.state_machine_lvl11_20.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=2000, run_once=True)
+FSM_vars.state_machine_lvl11_20.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
 FSM_vars.state_machine_lvl11_20.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
-FSM_vars.state_machine_lvl11_20.AddState(name="LUCKILY THERE IS A PRIEST", execute_fn=lambda: handle_map_path(FSM_vars.bandit_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.bandit_pathing, FSM_vars.movement_handler) or Survivor_Hamnet(), run_once=False)
+FSM_vars.state_machine_lvl11_20.AddState(name="LUCKILY THERE IS A PRIEST", execute_fn=lambda: early_handle_map_path(FSM_vars.bandit_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.bandit_pathing, FSM_vars.movement_handler) or Survivor_Hamnet(), run_once=False)
 FSM_vars.state_machine_lvl11_20.AddState(name="FIRE IMP IS FIRING", execute_fn=lambda: set_killing_routine(), exit_condition=lambda: end_killing_routine() or Survivor_Hamnet(), run_once=False)
 FSM_vars.state_machine_lvl11_20.AddState(name="COUNTER", execute_fn=lambda: increment_run_counter(), exit_condition=lambda: Party.IsPartyLoaded() and Map.IsMapReady(), transition_delay_ms=1000, run_once=True)
+
+#___________________________ TAME PET ___________________________#
+FSM_vars.state_machine_TamePet.AddState(name="GOING OUT ASHFORD ABBEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_TamePet.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_TamePet.AddState(name="WALKING TO REGENT VALLEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.tamepet_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.tamepet_pathing_1, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_TamePet.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_TamePet.AddState(name="SECOND MAP PATH", execute_fn=lambda: handle_map_path(FSM_vars.tamepet_pathing_2), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.tamepet_pathing_2, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_TamePet.AddState(name="CHECK QUEST", execute_fn=lambda: handle_quest_interaction(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_TamePet.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x804C03", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_TamePet.AddState(name="TAKING SKILLS", execute_fn=lambda: Player.SendDialog(int("0x804C01", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_TamePet.AddState(name="TAKING SKILLS", execute_fn=lambda: Player.SendDialog(int("0x85", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_TamePet.AddState(name="SECOND MAP PATH", execute_fn=lambda: handle_map_path(FSM_vars.tamepet_pathing_3), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.tamepet_pathing_3, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_TamePet.AddState(name="CHECK QUEST", execute_fn=lambda: InteractPet(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_TamePet.AddState(name="TAME PET", execute_fn=lambda: UseSkillByIDOnNearestNeutral(411), transition_delay_ms=20000, run_once=True)
+FSM_vars.state_machine_TamePet.AddState(name="GOING BACK TO ASHFORD ABBEY", execute_fn=lambda: Map.Travel(bot_vars.abbey_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_TamePet.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+
+#___________________________ TRAVEL TO ASHFORD ABBEY ___________________________#
+FSM_vars.state_machine_abbey.AddState(name="GOING BACK TO ASHFORD ABBEY", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_abbey.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_abbey.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_abbey.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_abbey.AddState(name="WALKING TO ASHFORD ABBEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.abbey_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.abbey_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_abbey.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+
+#___________________________ TRAVEL TO FOIBLE'S FAIR ___________________________#
+FSM_vars.state_machine_foible.AddState(name="GOING OUT ASHFORD ABBEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_foible.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_foible.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_foible.AddState(name="WALKING TO WIZARD'S FOLLY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_coordinate_list_one_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_coordinate_list_one_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_foible.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_foible.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_foible.AddState(name="WALKING TO WIZARD'S FOLLY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_coordinate_list_two_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_coordinate_list_two_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_foible.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+
+#___________________________ TRAVEL TO FORT RANIK ___________________________#
+FSM_vars.state_machine_ranik.AddState(name="GOING OUT ASHFORD ABBEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_ranik.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_ranik.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_ranik.AddState(name="WALKING TO REGENT VALLEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.tamepet_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.tamepet_pathing_1, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_ranik.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_ranik.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_ranik.AddState(name="WALKING TO REGENT VALLEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ranik_coordinate_list_two_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranik_coordinate_list_two_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_ranik.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+
+#___________________________ TRAVEL TO BARRADIN ESTATE  ___________________________#
+FSM_vars.state_machine_barradin.AddState(name="ABANDON QUEST", execute_fn=lambda: Quest.AbandonQuest(bot_vars.CharrAtTheGate),transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_barradin.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_barradin.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_barradin.AddState(name="WALKING TO REGENT VALLEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.barradin_coordinate_list_one_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_coordinate_list_one_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_barradin.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_barradin.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_barradin.AddState(name="WALKING TO BARRADIN ESTATE", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.barradin_coordinate_list_two_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_coordinate_list_two_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_barradin.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+
+#___________________________ THE GRAND TOUR  ___________________________#
+FSM_vars.state_machine_grandtour.AddState(name="GOING BACK TO ASHFORD ABBEY", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="WALKING TO ASHFORD ABBEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.abbey_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.abbey_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="GOING OUT ASHFORD ABBEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="WALKING TO WIZARD'S FOLLY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_coordinate_list_one_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_coordinate_list_one_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="WALKING TO WIZARD'S FOLLY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_coordinate_list_two_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_coordinate_list_two_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="GOING BACK TO ASHFORD ABBEY", execute_fn=lambda: Map.Travel(bot_vars.abbey_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="GOING OUT ASHFORD ABBEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="WALKING TO REGENT VALLEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.tamepet_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.tamepet_pathing_1, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="WALKING TO REGENT VALLEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ranik_coordinate_list_two_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranik_coordinate_list_two_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="ABANDON QUEST", execute_fn=lambda: Quest.AbandonQuest(bot_vars.CharrAtTheGate),transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="WALKING TO REGENT VALLEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.barradin_coordinate_list_one_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_coordinate_list_one_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_grandtour.AddState(name="WALKING TO BARRADIN ESTATE", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.barradin_coordinate_list_two_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_coordinate_list_two_pathing, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_grandtour.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+
+#___________________________ WARRIOR REQ  ___________________________#
+FSM_vars.state_machine_warriorreq.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: Map.Travel(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="ABANDON QUEST", execute_fn=lambda: Quest.AbandonQuest(bot_vars.CharrAtTheGate),transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="GOING OUT ASCALON", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing_1, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
+FSM_vars.state_machine_warriorreq.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="WALKING TO REGENT VALLEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.barradin_coordinate_list_one_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_coordinate_list_one_pathing, FSM_vars.movement_handler) and Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), run_once=False)
+FSM_vars.state_machine_warriorreq.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="WALKING TO QUEST", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.warrior_skill_pathing_1, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.warrior_skill_pathing_1, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warriorreq.AddState(name="CHECK QUEST", execute_fn=lambda: handle_quest_interaction(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x804B03", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x804B01", 16)), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="GOING TO BARRADIN", execute_fn=lambda: Map.Travel(bot_vars.barradin_map), exit_condition=lambda: Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="WALKING TO QUEST", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.warrior_skill_pathing_2, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.warrior_skill_pathing_2, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warriorreq.AddState(name="CHECK QUEST", execute_fn=lambda: handle_quest_interaction(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x803C03", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x803C01", 16)), transition_delay_ms=3000, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="WALKING TO QUEST", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.warrior_skill_pathing_2, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.warrior_skill_pathing_2, FSM_vars.movement_handler), run_once=False)
+FSM_vars.state_machine_warriorreq.AddState(name="CHECK QUEST", execute_fn=lambda: handle_quest_interaction(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802803", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802801", 16)), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="PRESS ESC", execute_fn=lambda: Keystroke.PressAndRelease(Key.Escape.value), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_warriorreq.AddState(name="PRESS ESC", execute_fn=lambda: Keystroke.PressAndRelease(Key.Escape.value), transition_delay_ms=1500, run_once=True)
+
 
 
 #DULL CARAPACES
@@ -1398,7 +1628,7 @@ FSM_vars.state_machine_red_iris_flowers.AddState(name="PATH 2",
                        run_once=False)
 
 FSM_vars.state_machine_red_iris_flowers.AddState(name="RUNNING OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),TargKeystroke.PressAndRelease(Key.Numpad1.value)),
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.Numpad1.value)),
                        transition_delay_ms=100,
                        run_once=True)
 
@@ -1685,304 +1915,6 @@ FSM_vars.state_machine_nicholas_sandford.AddState(name="TAKING QUEST",
                        transition_delay_ms=100,
                        run_once=True)
 
-#FSM TRAVEL TO ASHFORD ABBEY
-FSM_vars.state_machine_abbey.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.ascalon_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_abbey.AddState(name="GOING OUT IN DANGEROUS LANDS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.abbeyout_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.abbeyout_pathing, FSM_vars.movement_handler) or Map.IsMapLoading(),
-                       run_once=False)
-
-FSM_vars.state_machine_abbey.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000)
-
-FSM_vars.state_machine_abbey.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_abbey.AddState(name="GOING TO FIND HOGWARTS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.abbey_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.abbey_pathing, FSM_vars.movement_handler) or Map.IsOutpost(),             
-                       run_once=False)
-
-#FSM TRAVEL TO FOIBLE'S FAIR
-FSM_vars.state_machine_foible.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.abbey_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_foible.AddState(name="GOING OUT IN DANGEROUS LANDS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.foibleout_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foibleout_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_foible.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000)
-
-FSM_vars.state_machine_foible.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_foible.AddState(name="GOING TO FIND HOGWARTS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_coordinate_list_one_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_coordinate_list_one_pathing, FSM_vars.movement_handler),             
-                       run_once=False)
-
-FSM_vars.state_machine_foible.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=3000)
-
-FSM_vars.state_machine_foible.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_foible.AddState(name="GOING TO FIND HOGWARTS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_coordinate_list_two_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_coordinate_list_two_pathing, FSM_vars.movement_handler),           
-                       run_once=False)
-
-#FSM TRAVEL TO FORT RANIK
-FSM_vars.state_machine_ranik.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.abbey_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_ranik.AddState(name="GOING OUT IN DANGEROUS LANDS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ranikout_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranikout_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_ranik.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000)
-
-FSM_vars.state_machine_ranik.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_ranik.AddState(name="GOING TO FIND HOGWARTS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ranik_coordinate_list_one_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranik_coordinate_list_one_pathing, FSM_vars.movement_handler),             
-                       run_once=False)
-
-FSM_vars.state_machine_ranik.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=3000)
-
-FSM_vars.state_machine_ranik.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_ranik.AddState(name="GOING TO FIND HOGWARTS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ranik_coordinate_list_two_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranik_coordinate_list_two_pathing, FSM_vars.movement_handler) or Map.IsOutpost(),           
-                       run_once=False)
-
-FSM_vars.state_machine_ranik.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.abbey_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-#FSM TRAVEL TO THE BARRADIN ESTATE
-FSM_vars.state_machine_barradin.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.ascalon_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_barradin.AddState(name="GOING OUT IN DANGEROUS LANDS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.barradinout_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradinout_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_barradin.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000)
-
-FSM_vars.state_machine_barradin.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_barradin.AddState(name="GOING TO FIND THE DUKE",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.barradin_coordinate_list_one_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_coordinate_list_one_pathing, FSM_vars.movement_handler),             
-                       run_once=False)
-
-FSM_vars.state_machine_barradin.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=3000)
-
-FSM_vars.state_machine_barradin.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_barradin.AddState(name="GOING TO FIND THE DUKE",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.barradin_coordinate_list_two_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_coordinate_list_two_pathing, FSM_vars.movement_handler) or Map.IsOutpost(),           
-                       run_once=False)
-
-#THE GRAND TOUR
-FSM_vars.state_machine_grandtour.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.ascalon_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING OUT IN DANGEROUS LANDS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.abbeyout_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.abbeyout_pathing, FSM_vars.movement_handler) or Map.IsMapLoading(),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000)
-
-FSM_vars.state_machine_grandtour.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING TO FIND HOGWARTS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.abbey_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.abbey_pathing, FSM_vars.movement_handler) or Map.IsOutpost(),             
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.abbey_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING OUT IN DANGEROUS LANDS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.foibleout_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foibleout_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000)
-
-FSM_vars.state_machine_grandtour.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING TO FIND HOGWARTS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_coordinate_list_one_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_coordinate_list_one_pathing, FSM_vars.movement_handler),             
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=3000)
-
-FSM_vars.state_machine_grandtour.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING TO FIND HOGWARTS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_coordinate_list_two_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_coordinate_list_two_pathing, FSM_vars.movement_handler),           
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.abbey_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_grandtour.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.abbey_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING OUT IN DANGEROUS LANDS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ranikout_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranikout_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000)
-
-FSM_vars.state_machine_grandtour.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING TO FIND HOGWARTS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ranik_coordinate_list_one_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranik_coordinate_list_one_pathing, FSM_vars.movement_handler),             
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=3000)
-
-FSM_vars.state_machine_grandtour.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING TO FIND HOGWARTS",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ranik_coordinate_list_two_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ranik_coordinate_list_two_pathing, FSM_vars.movement_handler) or Map.IsOutpost(),           
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.abbey_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_grandtour.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.ascalon_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING OUT IN DANGEROUS LANDS",
-                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.barradinout_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradinout_pathing, FSM_vars.movement_handler),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000)
-
-FSM_vars.state_machine_grandtour.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING TO FIND THE DUKE",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.barradin_coordinate_list_one_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_coordinate_list_one_pathing, FSM_vars.movement_handler),             
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="WAITING YOUR SLOW PC TO LOAD",
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=3000)
-
-FSM_vars.state_machine_grandtour.AddState(name="HEY THERE IS A FIRE ALLY",
-                       execute_fn=lambda: useitem(30847),
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="GOING TO FIND THE DUKE",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.barradin_coordinate_list_two_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.barradin_coordinate_list_two_pathing, FSM_vars.movement_handler) or Map.IsOutpost(),           
-                       run_once=False)
-
-FSM_vars.state_machine_grandtour.AddState(name="ARE WE IN HEAVEN?", 
-                       execute_fn=lambda: Map.Travel(bot_vars.ascalon_map),
-                       exit_condition=lambda: Map.IsOutpost(),
-                       transition_delay_ms=1000,
-                       run_once=True)
 
 #STATS MANAGER
 class InventoryTracker:
@@ -2104,18 +2036,6 @@ def DrawWindow():
 
     if PyImGui.begin("\uf647  TH3KUM1KO'S PRESEARING BIBLE"):
         if PyImGui.begin_tab_bar("MainTabBar"): 
-            if PyImGui.begin_tab_item("INFO"):
-                PyImGui.spacing()
-                PyImGui.text_colored("\uf647  TH3KUM1KO'S PRESEARING BIBLE", [1.0, 0.2, 0.8, 1.0])
-                PyImGui.text_wrapped("A BOT DESIGNED FOR PRESEARING, BUILT TO HELP YOU ACHIEVE THE LEGENDARY DEFENDER OF ASCALON (LDoA) TITLE. IT AUTOMATICALLY FARMS UP TO LEVEL 2 BASED ON YOUR SELECTED PROFESSION, THEN CONTINUES TO LEVEL 10 WITH THE 'CHARR AT THE GATE' QUEST, AND REACHES LEVEL 20 THROUGH THE 'FARMER HAMNET' QUEST. FULL SURVIVOR COMPATIBILITY")
-                PyImGui.spacing()
-                PyImGui.text_wrapped("THE BOT ALSO FEATURES AN OUTPOST UNLOCK FUNCTION, ALLOWING YOU TO UNLOCK ALL PRESEARING OUTPOSTS INDIVIDUALLY OR ALL AT ONCE USING THE GRAND TOUR FUNCTION.")
-                PyImGui.spacing()
-                PyImGui.text_wrapped("IN ADDITION, THE BOT CAN FARM ALL ITEMS REQUESTED BY NICHOLAS SANDFORD TO OBTAIN HIS GIFTS. WITH THE INVENTORY TAB, YOU CAN MONITOR YOUR ITEM COUNT IN REAL TIME, TRACKING BOTH YOUR CURRENT INVENTORY AND THE TOTAL ITEMS FARMED USING THE SCRIPT.")
-                PyImGui.spacing()  
-                PyImGui.text_wrapped("THANK YOU FOR DOWNLOADING AND USING MY SCRIPT! PLEASE NOTE THAT I HAVE NO FORMAL BACKGROUND IN PROGRAMMING OR COMPUTER SCIENCE - EVERYTHING YOU SEE HERE WAS ACHIEVED THROUGH STUDY AND WITH THE SUPPORT OF THE Py4GW COMMUNITY. JOIN OUR DISCORD TO STAY UPDATED, HELP IMPROVE THIS SCRIPT, AND CONTRIBUTE TO THE CREATION OF FUTURE BOTS!")
-                PyImGui.end_tab_item()
-
             if PyImGui.begin_tab_item("LDoA"):
                 PyImGui.spacing()
                 PyImGui.text_wrapped("WITH THESE FUNCTIONS, THE BOT WILL LEVEL UP YOUR CHARACTER BASED ON ITS PROFESSION, REACHING LEVEL 2 THROUGH THE INITIAL QUESTS. ONCE LEVEL 2 IS ACHIEVED, THE BOT WILL AUTOMATICALLY TAKE THE 'CHARR AT THE GATE' QUEST.")
@@ -2129,7 +2049,7 @@ def DrawWindow():
                 PyImGui.same_line(200, -1.0)
                 state.radio_button_selected = PyImGui.radio_button(" \uf6e8 ELEMENTALIST", state.radio_button_selected, 25)
                 PyImGui.spacing()
-                PyImGui.text_wrapped("WITH THIS FUNCTION, THE BOT WILL LEAVE ASCALON USING THE 'CHARR AT THE GATE' QUEST, FOLLOW RURIK, AND WAIT FOR THE PRINCE TO KILL THREE CHARR BEFORE RETURNING TO THE CITY AND RESTARTING THE LOOP. THIS FUNCTION ENSURES SURVIVOR TITLE PROGRESSION. DO IT UNTILL LVL 10.")
+                PyImGui.text_wrapped("WITH THIS FUNCTION, THE BOT WILL LEAVE ASCALON USING THE 'CHARR AT THE GATE' QUEST, FOLLOW RURIK, AND WAIT FOR THE PRINCE TO KILL THREE CHARR BEFORE RETURNING TO THE CITY AND RESTARTING THE LOOP. THIS FUNCTION ENSURES SURVIVOR TITLE PROGRESSION.")
                 state.radio_button_selected = PyImGui.radio_button(" \uf443 LEVEL 2-10 - CHARR AT THE GATE", state.radio_button_selected, 0)
                 PyImGui.spacing()
                 PyImGui.text_wrapped("ONCE YOU REACH LEVEL 10, WAIT FOR THE ROTATION OF THE VANGUARD QUESTS UNTIL THE 'FARMER HAMNET' QUEST BECOMES AVAILABLE. THE BOT WILL KILL THE FIRST TWO MOBS OUTSIDE FOIBLE'S FAIR AND REPEAT THE LOOP UNTIL LEVEL 20. THIS FUNCTION ENSURES SURVIVOR TITLE PROGRESSION.")
@@ -2196,6 +2116,74 @@ def DrawWindow():
                 show_info_table_item()
                 PyImGui.spacing()
                 PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("MISC"):   
+                        
+               state.radio_button_selected = PyImGui.radio_button("\uf6be TAME PET", state.radio_button_selected, 27)
+
+               if IsBotStarted():        
+                   if PyImGui.button(" \uf04d   STOP"):
+                        ResetEnvironment()
+                        StopBot()
+               else:
+                   if PyImGui.button(" \uf04b   START"):
+                        ResetEnvironment()
+                        StartBot()
+
+               PyImGui.end_tab_item()
+
+        if PyImGui.begin_tab_item("SKILLS"):  
+                    PyImGui.spacing()                    
+                    PyImGui.text_colored("\uf132 UNLOCK WARRIOR SKILL", [1.0, 1.0, 0.2, 1.0])
+                    PyImGui.pop_style_color(1)
+                    PyImGui.same_line(300, -1.0)
+                    PyImGui.text_colored("\uf54c UNLOCK NECROMANCER SKILL", [0.7, 0.1, 1.0, 1.0])
+                    PyImGui.pop_style_color(1)
+
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##WARRIOR_REQ", state.radio_button_selected, 28)
+                    PyImGui.same_line(300, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##NECRO_REQ", state.radio_button_selected, 34)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##WARRRIOR_NOREQ", state.radio_button_selected, 29)               
+                    PyImGui.same_line(300, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##NECRO_NOREQ", state.radio_button_selected, 35)
+
+                    PyImGui.text_colored("\uf1bb UNLOCK RANGER SKILL", [0.0, 1.0, 0.3, 1.0])
+                    PyImGui.pop_style_color(1)
+                    PyImGui.same_line(300, -1.0)
+                    PyImGui.text_colored("\ue2ca UNLOCK MESMER SKILL", [1.0, 0.1, 0.8, 1.0])
+                    PyImGui.pop_style_color(1)
+
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##RANGER_REQ", state.radio_button_selected, 30)
+                    PyImGui.same_line(300, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##MESMER_REQ", state.radio_button_selected, 36)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##RANGER_NOREQ", state.radio_button_selected, 31)               
+                    PyImGui.same_line(300, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##MESMER_NOREQ", state.radio_button_selected, 37)
+
+                    PyImGui.text_colored("\uf644 UNLOCK MONK SKILL", [0.2, 1.0, 1.0, 1.0])
+                    PyImGui.pop_style_color(1)
+                    PyImGui.same_line(300, -1.0)
+                    PyImGui.text_colored("\uf6e8 UNLOCK ELEMENTALIST SKILL", [1.0, 0.0, 0.2, 1.0])  
+                    PyImGui.pop_style_color(1)
+
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##MONK_REQ", state.radio_button_selected, 32)
+                    PyImGui.same_line(300, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##ELEMENTALIST_REQ", state.radio_button_selected, 38)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##MONK_NOREQ", state.radio_button_selected, 33)               
+                    PyImGui.same_line(300, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##ELEMENTALIST_NOREQ", state.radio_button_selected, 39)
+                    PyImGui.spacing()
+
+
+                    if IsBotStarted():        
+                        if PyImGui.button(" \uf04d   STOP"):
+                                ResetEnvironment()
+                                StopBot()
+                    else:
+                        if PyImGui.button(" \uf04b   START"):
+                                ResetEnvironment()
+                                StartBot()
+
+                    PyImGui.end_tab_item()        
 
         if PyImGui.begin_tab_item("STATS"):            
                 show_info_table_run()
@@ -2403,6 +2391,22 @@ def main():
                     StopBot()
                 else:
                     FSM_vars.state_machine_nicholas_sandford.update()
+
+            # TAME PET 
+            elif state.radio_button_selected == 27:  
+                if FSM_vars.state_machine_TamePet.is_finished():
+                    ResetEnvironment()
+                    StopBot()
+                else:
+                    FSM_vars.state_machine_TamePet.update()
+
+            # TAME PET 
+            elif state.radio_button_selected == 28:  
+                if FSM_vars.state_machine_warriorreq.is_finished():
+                    ResetEnvironment()
+                    StopBot()
+                else:
+                    FSM_vars.state_machine_warriorreq.update()
 
     except ImportError as e:
         Py4GW.Console.Log(bot_vars.window_module.module_name, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)

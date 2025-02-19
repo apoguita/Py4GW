@@ -417,7 +417,7 @@ class Party:
             Returns: int
             """
             hero = PyParty.Hero(hero_name)
-            return hero.GetId()
+            return hero.GetID()
 
         @staticmethod
         def GetHeroNameById(hero_id):

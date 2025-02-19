@@ -5,6 +5,7 @@ module_name = "PCons Manager"
 script_directory = os.path.dirname(os.path.abspath(__file__))
 root_directory = os.path.normpath(os.path.join(script_directory, ".."))
 ini_file_location = os.path.join(root_directory, "Widgets/Config/PCons.ini")
+matching_items = []
 
 ini_handler = IniHandler(ini_file_location)
 
@@ -134,7 +135,7 @@ window_module.collapse = window_collapsed
 
 def handle_pcons():
     """Check and use PCONS if needed"""
-    global widget_config
+    global widget_config, matching_items
     try:
         player_id = Player.GetAgentID()
         for pcon_name, data in widget_config.pcons.items():
@@ -166,7 +167,7 @@ def handle_pcons():
 
 def DrawWindow():
     """Draw the PCONS manager window"""
-    global window_module, widget_config
+    global window_module, widget_config, matching_items
     try:
         if window_module.first_run:
             PyImGui.set_next_window_size(window_module.window_size[0], window_module.window_size[1])     

@@ -70,6 +70,9 @@ class WidgetHandler:
         """Load a widget module dynamically from the given path."""
         try:
             spec = importlib.util.spec_from_file_location("widget", widget_path)
+            if spec is None or spec.loader is None:
+                raise ValueError(f"Failed to load widget: Invalid spec from {widget_path}")
+
             widget_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(widget_module)
 

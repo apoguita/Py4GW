@@ -15,7 +15,7 @@ class Overlay:
         world_pos = self.overlay_instance.GetMouseWorldPos()
         return world_pos.x, world_pos.y, world_pos.z
 
-    def WorldToScreen(self, x,y,z=0):
+    def WorldToScreen(self, x,y,z=0.0):
         if z == 0:
             z = self.overlay_instance.FindZ(x, y)
 

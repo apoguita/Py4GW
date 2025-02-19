@@ -451,7 +451,7 @@ class Inventory:
             bag_items = ItemArray.GetItemArray([bag_enum])  # Get items in the specific bag
             for item in bag_items:
                 if item == item_id:
-                    slot = Item.Properties.GetSlot(item)  # Get the item's slot
+                    slot = Item.GetSlot(item)  # Get the item's slot
                     return bag_enum.value, slot  # Return bag ID and slot
         return None, None
 

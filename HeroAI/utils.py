@@ -41,7 +41,7 @@ def CheckForEffect(agent_id, skill_id):
 
         for i in range(MAX_NUM_PLAYERS):
             player_data = shared_memory_handler.get_player(i)
-            if player_data["IsActive"] and player_data["PlayerID"] == agent_id:
+            if player_data and  player_data["IsActive"] and player_data["PlayerID"] == agent_id:
                 return True
         
         return False
@@ -64,7 +64,7 @@ def GetEnergyValues(agent_id):
 
     for i in range(MAX_NUM_PLAYERS):
         player_data = shared_memory_handler.get_player(i)
-        if player_data["IsActive"] and player_data["PlayerID"] == agent_id:
+        if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
             return player_data["Energy"]
     return 1.0 #default return full energy to prevent issues
 
