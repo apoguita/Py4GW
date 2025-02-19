@@ -2,10 +2,11 @@ from Py4GWCoreLib import *
 from .constants import MAX_NUM_PLAYERS
 from .globals import overlay
 from .targetting import *
+from .cache_data import CacheData
 
 import math
 
-def DistanceFromLeader(cached_data):
+def DistanceFromLeader(cached_data:CacheData):
     return Utils.Distance(cached_data.data.party_leader_xy,cached_data.data.player_xy)
 
 def DistanceFromWaypoint(posX,posY):
@@ -13,25 +14,6 @@ def DistanceFromWaypoint(posX,posY):
 
 
 """ main configuration helpers """
-
-def IsFollowingEnabled(all_game_option_struct,index):
-    return all_game_option_struct[index].Following
-
-def IsAvoidanceEnabled(all_game_option_struct,index):
-    return all_game_option_struct[index].Avoidance
-
-def IsLootingEnabled(all_game_option_struct,index):
-    return all_game_option_struct[index].Looting
-
-def IsTargetingEnabled(all_game_option_struct,index):
-    return all_game_option_struct[index].Targetting
-
-def IsCombatEnabled(all_game_option_struct,index):
-    return all_game_option_struct[index].Combat
-
-def IsSkillEnabled(all_game_option_struct,index,slot):
-    return all_game_option_struct[index].Skills[slot].Active
-
 
 def CheckForEffect(agent_id, skill_id):
     """this function needs to be expanded as more functionality is added"""
@@ -58,29 +40,7 @@ def CheckForEffect(agent_id, skill_id):
     
     return result
 
-def GetEnergyValues(agent_id):
-    from .globals import HeroAI_varsClass
-    shared_memory_handler = HeroAI_varsClass().shared_memory_handler
-
-    for i in range(MAX_NUM_PLAYERS):
-        player_data = shared_memory_handler.get_player(i)
-        if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
-            return player_data["Energy"]
-    return 1.0 #default return full energy to prevent issues
-
-
-def InAggro(enemy_array, aggro_range = Range.Earshot.value):
-    distance = aggro_range
-    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= distance)
-    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
-    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
-    enemy_array = AgentArray.Sort.ByDistance(enemy_array, Player.GetXY())
-    if len(enemy_array) > 0:
-        return True
-    return False
-
-
-def IsHeroFlagged(cached_data,index):
+def IsHeroFlagged(cached_data:CacheData,index):
     if  index != 0 and index <= cached_data.data.party_hero_count:
         return Party.Heroes.IsHeroFlagged(index)
     else:
