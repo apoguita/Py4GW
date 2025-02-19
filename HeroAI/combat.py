@@ -164,7 +164,6 @@ class CombatClass:
         for i in range(MAX_SKILLS):
             original_skills.append(self.SkillData(i+1))
 
-        
         # Initialize the pointer and tracking list
         ptr = 0
         ptr_chk = [False] * MAX_SKILLS
