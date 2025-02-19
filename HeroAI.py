@@ -157,7 +157,7 @@ def UpdateStatus(cached_data:CacheData):
     UpdateGameOptions(cached_data)   
     
     cached_data.UpdateGameOptions()
-    
+
     DrawMainWindow(cached_data)   
     DrawControlPanelWindow(cached_data)
     DrawMultiboxTools(cached_data)
@@ -167,7 +167,7 @@ def UpdateStatus(cached_data:CacheData):
     
     if cached_data.data.is_in_cinematic:  # halt operation during cinematic
         return
-    
+
     DrawFlags(cached_data)
     
     if (
@@ -179,6 +179,7 @@ def UpdateStatus(cached_data:CacheData):
         return
     
     cached_data.UdpateCombat()
+    
     if HandleOutOfCombat(cached_data):
         return
     
@@ -198,6 +199,7 @@ def UpdateStatus(cached_data:CacheData):
     #auto attack
     if cached_data.data.is_combat_enabled:
         cached_data.combat_handler.ChooseTarget()
+    
 
    
 def configure():
@@ -206,6 +208,10 @@ def configure():
 def main():
     global cached_data
     try:
+        if Map.IsMapLoading():
+            cached_data.action_queue.clear()
+            return
+        
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
             UpdateStatus(cached_data)
