@@ -310,7 +310,7 @@ class CombatClass:
             current_target = Player.GetTargetID()
             if current_target != party_target:
                 if Agent.IsLiving(party_target):
-                    _, alliegeance = Agent.GetAlliegance(party_target)
+                    _, alliegeance = Agent.GetAllegiance(party_target)
                     if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
                         if self.action_queue is not None:
                             self.action_queue.add_action(Player.ChangeTarget, party_target)
@@ -821,7 +821,7 @@ class CombatClass:
         if not self.in_aggro:
             return False
 
-        _, target_aliegance = Agent.GetAlliegance(Player.GetTargetID())
+        _, target_aliegance = Agent.GetAllegiance(Player.GetTargetID())
         
         if Player.GetTargetID() == 0 or (target_aliegance != 'Enemy'):
                             
@@ -853,7 +853,7 @@ class CombatClass:
             if not Agent.IsLiving(target_id):
                 return
 
-            _, alliegeance = Agent.GetAlliegance(target_id)
+            _, alliegeance = Agent.GetAllegiance(target_id)
             if alliegeance == 'Enemy' and self.is_combat_enabled:
                 target_id = Player.GetTargetID()
                 if self.action_queue is not None:

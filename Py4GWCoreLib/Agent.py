@@ -579,7 +579,7 @@ class Agent:
         return Agent.agent_instance(agent_id).living_agent.dagger_status
 
     @staticmethod
-    def GetAlliegance(agent_id):
+    def GetAllegiance(agent_id):
         """Purpose: Retrieve the allegiance of the agent."""
         return  Agent.agent_instance(agent_id).living_agent.allegiance.ToInt(), Agent.agent_instance(agent_id).living_agent.allegiance.GetName()
 

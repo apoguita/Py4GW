@@ -354,7 +354,7 @@ def KillRotation():
   
         # target
         target_id = Player.GetTargetID()
-        if target_id == 0 or Agent.GetAlliegance(target_id)[0] != 3 or Agent.IsDead(target_id) or Utils.Distance(Agent.GetXY(target_id),Player.GetXY()) > 200:
+        if target_id == 0 or Agent.GetAllegiance(target_id)[0] != 3 or Agent.IsDead(target_id) or Utils.Distance(Agent.GetXY(target_id),Player.GetXY()) > 200:
             enemy_array = AgentArray.GetEnemyArray()
             enemy_array = AgentArray.Filter.ByAttribute(enemy_array,'IsAlive')
             enemy_array = AgentArray.Sort.ByDistance(enemy_array,(-15706,-9035))
