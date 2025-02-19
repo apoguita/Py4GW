@@ -79,7 +79,7 @@ class LogWindow:
 ### --- BASIC WINDOW --- ###
 class BasicWindow:
     name = "Basic Window"
-    size = [350.0, 400.0]
+    size = (350.0, 400.0)
     script_running = False
     script_status = "Stopped"
     current_state = "Idle"
@@ -97,7 +97,7 @@ class BasicWindow:
     item_to_salvage = 0
     items_to_identify = []
     
-    def __init__(self, window_name="Basic Window", window_size = [350.0, 440.0]):
+    def __init__(self, window_name="Basic Window", window_size = (350.0, 440.0)):
         self.name = window_name
         self.size = window_size
         self.PopulateSalvageList()
@@ -154,7 +154,7 @@ class BasicWindow:
 
     def ShowMainControls(self):
         PyImGui.text("=== Salvage Items ===")
-        PyImGui.begin_child("Salvage Content", [350, 130], False, int(PyImGui.WindowFlags.HorizontalScrollbar))
+        PyImGui.begin_child("Salvage Content", (350, 130), False, int(PyImGui.WindowFlags.HorizontalScrollbar))
 
         #self.Log(len(self.salve_items_bag_one))
         if len(self.salve_items_bag_one) > 0:
@@ -179,7 +179,7 @@ class BasicWindow:
                                 PyImGui.table_next_column()
                                 if identified:
                                     if SalvagerExecuting() or IdentifierExecuting():
-                                        PyImGui.text("Working..")
+                                        PyImGui.text("Working")
                                     else:
                                         if PyImGui.button(f"Salvage ID: {item.item_id}"):
                                             # start salvage on item_id
@@ -214,7 +214,7 @@ class BasicWindow:
                                 PyImGui.table_next_column()
                                 if identified:
                                     if SalvagerExecuting() or IdentifierExecuting():
-                                        PyImGui.text("Working..")
+                                        PyImGui.text("Working")
                                     else:
                                         if PyImGui.button(f"Salvage ID: {item.item_id}"):
                                             # start salvage on item_id
@@ -249,7 +249,7 @@ class BasicWindow:
                                 PyImGui.table_next_column()
                                 if identified:
                                     if SalvagerExecuting() or IdentifierExecuting():
-                                        PyImGui.text("Working..")
+                                        PyImGui.text("Working")
                                     else:
                                         if PyImGui.button(f"Salvage ID: {item.item_id}"):
                                             # start salvage on item_id
@@ -284,7 +284,7 @@ class BasicWindow:
                                 PyImGui.table_next_column()
                                 if identified:
                                     if SalvagerExecuting() or IdentifierExecuting():
-                                        PyImGui.text("Working..")
+                                        PyImGui.text("Working")
                                     else:
                                         if PyImGui.button(f"Salvage ID: {item.item_id}"):
                                             # start salvage on item_id
