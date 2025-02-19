@@ -153,7 +153,7 @@ def TargetDeadAllyInAggro():
 
 
 def AllowedAlliegance(agent_id):
-    _, alliegance = Agent.GetAlliegance(agent_id)
+    _, alliegance = Agent.GetAllegiance(agent_id)
 
     if (alliegance == "Ally" or
         alliegance == "Neutral" or 
