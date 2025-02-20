@@ -31,21 +31,13 @@ class LogWindow:
     def AddLogs(self, logs):
         if type(logs) == list:
             for _, log in enumerate(logs):
-                self.Log(log)
                 if type(log) == LogItem:
-                    self.Log(log)
+                    self.Log(log.text, log.msgType)
                 elif type(log) == str:
                     self.Log(log, Py4Gw.Console.MessageType.Info)
     def ClearLog(self):
         if self.output:
                 self.output.clear()
-
-    # check type of log, append or create LogItem
-    def Log(self, logItem):
-        if type(logItem) == LogItem:
-            self.output.insert(0, logItem)
-        elif type(logItem) == str:
-            self.Log(logItem, Py4GW.Console.MessageType.Info)
 
     # create a new LogItem from string and apply message type.
     def Log(self, text, msgType):
@@ -58,17 +50,17 @@ class LogWindow:
     # Must be called from within a PyImGui.being()
     def DrawWindow(self):
         PyImGui.text("Logs:")
-        PyImGui.begin_child("OutputLog", size=[0.0, -60.0], flags=PyImGui.WindowFlags.HorizontalScrollbar)        
+        PyImGui.begin_child("OutputLog", (0.0, -60.0),False, int(PyImGui.WindowFlags.HorizontalScrollbar))        
         for _, logg in enumerate(self.output):
             if logg.msgType == Py4GW.Console.MessageType.Info:
                 PyImGui.text_wrapped(logg.text)
             elif logg.msgType == Py4GW.Console.MessageType.Warning:
-                PyImGui.push_style_color(PyImGui, (1, 1, 0, 1)) 
-                PyImGui.text_wrapped(logg.text) #, [1, 1, 0, 1])
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1, 1, 0, 1)) 
+                PyImGui.text_wrapped(logg.text)
                 PyImGui.pop_style_color(1)
             else:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1, 0, 0, 1))
-                PyImGui.text_wrapped(logg.text) #, [1 ,0, 0, 1])
+                PyImGui.text_wrapped(logg.text)
                 PyImGui.pop_style_color(1)
         PyImGui.end_child()
         
@@ -156,146 +148,10 @@ class BasicWindow:
         PyImGui.text("=== Salvage Items ===")
         PyImGui.begin_child("Salvage Content", (350, 130), False, int(PyImGui.WindowFlags.HorizontalScrollbar))
 
-        #self.Log(len(self.salve_items_bag_one))
-        if len(self.salve_items_bag_one) > 0:
-            if PyImGui.collapsing_header("Backpack", PyImGui.TreeNodeFlags.DefaultOpen):
-                if PyImGui.begin_table("Back_Salv_table", 2, int(PyImGui.TableFlags.SizingStretchProp)):
-                    PyImGui.table_setup_column("Item")
-                    PyImGui.table_setup_column("Click to Salvage")
-                    PyImGui.table_headers_row()
-                    for item in self.salve_items_bag_one:
-                        if Item.IsNameReady(item.item_id):
-                            name = Item.GetName(item.item_id)
-
-                            if name:                                
-                                PyImGui.table_next_row()
-                                PyImGui.table_next_column()
-                                size = PyImGui.calc_text_size(name)
-
-                                if size[0] < 200:
-                                    PyImGui.dummy(0, 1) # comment out if not on version with dummy implementation
-                                identified = Item.Usage.IsIdentified(item.item_id)
-                                self.PrintTextByRarity(name, item.item_id)
-                                PyImGui.table_next_column()
-                                if identified:
-                                    if SalvagerExecuting() or IdentifierExecuting():
-                                        PyImGui.text("Working")
-                                    else:
-                                        if PyImGui.button(f"Salvage ID: {item.item_id}"):
-                                            # start salvage on item_id
-                                            self.item_to_salvage = item.item_id
-                                            StartSalvage(name, item.item_id)
-                                else:
-                                    PyImGui.dummy(0, 0) # comment out if not on version with dummy implementation
-                                    self.PrintTextByRarity("(Unidentified)", item.item_id)
-                    
-                    PyImGui.table_next_row()
-                    PyImGui.end_table()
-
-        if len(self.salve_items_bag_two) > 0:
-            if PyImGui.collapsing_header("Belt Pouch", PyImGui.TreeNodeFlags.DefaultOpen):
-                if PyImGui.begin_table("Belt_Salv_table", 2, int(PyImGui.TableFlags.SizingStretchProp)):
-                    PyImGui.table_setup_column("Item")
-                    PyImGui.table_setup_column("Click to Salvage")
-                    PyImGui.table_headers_row()
-                    for item in self.salve_items_bag_two:
-                        if Item.IsNameReady(item.item_id):
-                            name = Item.GetName(item.item_id)
-
-                            if name:
-                                PyImGui.table_next_row()
-                                PyImGui.table_next_column()
-                                size = PyImGui.calc_text_size(name)
-
-                                if size[0] < 200:
-                                    PyImGui.dummy(0, 1) # comment out if not on version with dummy implementation
-                                identified = Item.Usage.IsIdentified(item.item_id)
-                                self.PrintTextByRarity(name, item.item_id)
-                                PyImGui.table_next_column()
-                                if identified:
-                                    if SalvagerExecuting() or IdentifierExecuting():
-                                        PyImGui.text("Working")
-                                    else:
-                                        if PyImGui.button(f"Salvage ID: {item.item_id}"):
-                                            # start salvage on item_id
-                                            self.item_to_salvage = item.item_id
-                                            StartSalvage(name, item.item_id)
-                                else:
-                                    PyImGui.dummy(0, 0) # comment out if not on version with dummy implementation
-                                    self.PrintTextByRarity("(Unidentified)", item.item_id)
-                    
-                    PyImGui.table_next_row()
-                    PyImGui.end_table()
-            
-        if len(self.salve_items_bag_three) > 0:
-            if PyImGui.collapsing_header("Bag 1", PyImGui.TreeNodeFlags.DefaultOpen):
-                if PyImGui.begin_table("Bag1_Salv_table", 2, int(PyImGui.TableFlags.SizingStretchProp)):
-                    PyImGui.table_setup_column("Item")
-                    PyImGui.table_setup_column("Click to Salvage")
-                    PyImGui.table_headers_row()
-                    for item in self.salve_items_bag_three:
-                        if Item.IsNameReady(item.item_id):
-                            name = Item.GetName(item.item_id)
-
-                            if name:
-                                PyImGui.table_next_row()
-                                PyImGui.table_next_column()
-                                size = PyImGui.calc_text_size(name)
-
-                                if size[0] < 200:
-                                    PyImGui.dummy(0, 1) # comment out if not on version with dummy implementation
-                                identified = Item.Usage.IsIdentified(item.item_id)
-                                self.PrintTextByRarity(name, item.item_id)
-                                PyImGui.table_next_column()
-                                if identified:
-                                    if SalvagerExecuting() or IdentifierExecuting():
-                                        PyImGui.text("Working")
-                                    else:
-                                        if PyImGui.button(f"Salvage ID: {item.item_id}"):
-                                            # start salvage on item_id
-                                            self.item_to_salvage = item.item_id
-                                            StartSalvage(name, item.item_id)
-                                else:
-                                    PyImGui.dummy(0, 0) # comment out if not on version with dummy implementation
-                                    self.PrintTextByRarity("(Unidentified)", item.item_id)
-                    
-                    PyImGui.table_next_row()
-                    PyImGui.end_table()
-            
-        if len(self.salve_items_bag_four) > 0:
-            if PyImGui.collapsing_header("Bag 2", PyImGui.TreeNodeFlags.DefaultOpen):
-                if PyImGui.begin_table("Bag2_Salv_table", 2, int(PyImGui.TableFlags.SizingStretchProp)):
-                    PyImGui.table_setup_column("Item")
-                    PyImGui.table_setup_column("Click to Salvage")
-                    PyImGui.table_headers_row()
-                    for item in self.salve_items_bag_four:
-                        if Item.IsNameReady(item.item_id):
-                            name = Item.GetName(item.item_id)
-
-                            if name:
-                                PyImGui.table_next_row()
-                                PyImGui.table_next_column()
-                                size = PyImGui.calc_text_size(name)
-
-                                if size[0] < 200:
-                                    PyImGui.dummy(0, 1) # comment out if not on version with dummy implementation
-                                identified = Item.Usage.IsIdentified(item.item_id)
-                                self.PrintTextByRarity(name, item.item_id)
-                                PyImGui.table_next_column()
-                                if identified:
-                                    if SalvagerExecuting() or IdentifierExecuting():
-                                        PyImGui.text("Working")
-                                    else:
-                                        if PyImGui.button(f"Salvage ID: {item.item_id}"):
-                                            # start salvage on item_id
-                                            self.item_to_salvage = item.item_id
-                                            StartSalvage(name, item.item_id)
-                                else:
-                                    PyImGui.dummy(0, 0) # comment out if not on version with dummy implementation
-                                    self.PrintTextByRarity("(Unidentified)", item.item_id)
-                    
-                    PyImGui.table_next_row()
-                    PyImGui.end_table()
+        self.MakeTableAndItemList("Backpack", "Back_Salv_table", self.salve_items_bag_one)            
+        self.MakeTableAndItemList("Belt Pouch", "Belt_Salv_table", self.salve_items_bag_two)            
+        self.MakeTableAndItemList("Bag 1", "Bag1_Salv_table", self.salve_items_bag_three)                        
+        self.MakeTableAndItemList("Bag 2", "Bag2_Salv_table", self.salve_items_bag_four)
 
         PyImGui.end_child()
         PyImGui.separator()
@@ -323,23 +179,63 @@ class BasicWindow:
         
         PyImGui.separator()
 
-    def PrintTextByRarity(self, name, item_id):
+    def MakeTableAndItemList(self, bag_collapse_name, table_name, bag_items):
+        if not isinstance(bag_items, list) or len(bag_items) == 0:
+            return
+        
+        if PyImGui.collapsing_header(bag_collapse_name, PyImGui.TreeNodeFlags.DefaultOpen):
+            if PyImGui.begin_table(table_name, 2, int(PyImGui.TableFlags.SizingStretchProp)):
+                PyImGui.table_setup_column("Item")
+                PyImGui.table_setup_column("Click to Salvage")
+                PyImGui.table_headers_row()
+                for item in bag_items:
+                    if Item.IsNameReady(item.item_id):
+                        name = Item.GetName(item.item_id)
+
+                        if name:                                
+                            PyImGui.table_next_row()
+                            PyImGui.table_next_column()
+                            size = PyImGui.calc_text_size(name)
+
+                            if size[0] < 200:
+                                PyImGui.dummy(0, 1) # comment out if not on version with dummy implementation
+                            identified = Item.Usage.IsIdentified(item.item_id)
+                            rarity = Item.Rarity.GetRarity(item.item_id)[0]
+                            isWhite = rarity == Rarity.White.value
+                            self.PrintTextByRarity(name, rarity)
+                            PyImGui.table_next_column()
+                            if identified or isWhite:
+                                if SalvagerExecuting() or IdentifierExecuting():
+                                    PyImGui.text("Working..")
+                                else:
+                                    if PyImGui.button(f"Salvage ID: {item.item_id}"):
+                                        # start salvage on item_id
+                                        self.item_to_salvage = item.item_id
+                                        StartSalvage(name, item.item_id)
+                            else:
+                                PyImGui.dummy(0, 0) # comment out if not on version with dummy implementation
+                                self.PrintTextByRarity("(Unidentified)", item.item_id)
+                
+                PyImGui.table_next_row()
+                PyImGui.end_table()
+
+    def PrintTextByRarity(self, name, rarity):
         if name:
-            rarity = Item.Rarity.GetRarity(item_id)[1]
-            if rarity == Rarity.White.name:
+            if rarity == Rarity.White.value:
                 PyImGui.text_wrapped(f"{name}")
-            if rarity == Rarity.Blue.name:
+            if rarity == Rarity.Blue.value:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, .64, 0.91, 1))
-                PyImGui.text_wrapped(f"{name}") #, [0, .64, 0.91, 1])
-            if rarity == Rarity.Purple.name:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.57, .25, 0.57, 1))
-                PyImGui.text_wrapped(f"{name}") #, [0.57, .25, 0.57, 1])
-            if rarity == Rarity.Gold.name:
+                PyImGui.text_wrapped(f"{name}")
+            if rarity == Rarity.Purple.value:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.76, .34, 0.76, 1))
+                PyImGui.text_wrapped(f"{name}")
+            if rarity == Rarity.Gold.value:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1, .79, 0.05, 1))
-                PyImGui.text_wrapped(f"{name}") #, [1, .79, 0.05, 1])
-            if rarity == Rarity.Green.name:
+                PyImGui.text_wrapped(f"{name}")
+            # Greens aren't salvagable so should NOT get to this ever
+            if rarity == Rarity.Green.value:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (.13, .68, 0.29, 1))
-                PyImGui.text_wrapped(f"{name}") #, [.13, .68, 0.29, 1])
+                PyImGui.text_wrapped(f"{name}")
                 
             PyImGui.pop_style_color(1)
 
@@ -432,11 +328,7 @@ class BasicWindow:
     def ClearLog(self):
         if self.Logger:
             self.Logger.ClearLog()
-            
-    def Log(self, logItem):
-        if self.Logger:
-           self.Logger.Log(logItem)
-           
+                       
     def Log(self, text, msgType=Py4GW.Console.MessageType.Info):
         if self.Logger:
            self.Logger.Log(text, msgType)
@@ -446,7 +338,7 @@ class BasicWindow:
 class SalvageFsm(FSM):
     inventoryHandler = PyInventory.PyInventory()   
     logFunc = None
-    window = None
+    window = BasicWindow()
     salvage_Items = []
     current_salvage = 0
     current_quantity = 0
@@ -459,7 +351,7 @@ class SalvageFsm(FSM):
     salvager_finish = "Finish Salvage"
     salvager_check_done = "Salvaging Done?"
 
-    def __init__(self, window=None, name="SalvageFsm", logFunc=None):
+    def __init__(self, window=BasicWindow(), name="SalvageFsm", logFunc=None):
         super().__init__(name)
 
         self.window = window
@@ -598,7 +490,7 @@ class SalvageFsm(FSM):
 
 class IdentifyFsm(FSM):
     logFunc = None
-    window = None
+    window = BasicWindow()
 
     inventory_id_items = "ID Items"
     inventory_id_check = "ID Items Check"
@@ -606,7 +498,7 @@ class IdentifyFsm(FSM):
     identifyItems = []
     has_id_kit = True
 
-    def __init__(self, window=None, name="IdentifyFsm", logFunc=None):
+    def __init__(self, window=BasicWindow(), name="IdentifyFsm", logFunc=None):
         super().__init__(name)
 
         self.window = window
