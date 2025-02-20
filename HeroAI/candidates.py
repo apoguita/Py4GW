@@ -51,7 +51,7 @@ def SendPartyCommand(index, cached_data:CacheData, command="Invite"):
 
     if command == "Invite":
         invited_by = Agent.GetName(candidate.PlayerID)
-        cached_data.action_queue.add_action(Party.Players.InvitePlayer, invited_by)
+        Party.Players.InvitePlayer(invited_by)
 
     cached_data.HeroAI_vars.all_candidate_struct[index].InvitedBy=cached_data.data.player_agent_id
     updated_candidate = CandidateStruct(
@@ -97,7 +97,7 @@ def ProcessCandidateCommands(cached_data:CacheData):
                 cached_data.HeroAI_vars.shared_memory_handler.set_candidate(self_index, updated_candidate)
 
                 invited_by = Agent.GetName(candidate.InvitedBy)
-                cached_data.action_queue.add_action(Party.Players.InvitePlayer,invited_by)
+                Party.Players.InvitePlayer(invited_by)
                 return True
 
             if (candidate.PlayerID == cached_data.data.player_agent_id) and (candidate.SummonedBy != 0):
