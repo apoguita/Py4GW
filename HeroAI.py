@@ -205,10 +205,20 @@ def UpdateStatus(cached_data:CacheData):
 def configure():
     pass
 
+def MapValidityCheck():
+    if Map.IsMapLoading():
+        return False
+    if not Map.IsMapReady():
+        return False
+    if not Party.IsPartyLoaded():
+        return False
+    return True
+
+
 def main():
     global cached_data
     try:
-        if Map.IsMapLoading():
+        if not MapValidityCheck():
             cached_data.action_queue.clear()
             return
         
