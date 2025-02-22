@@ -44,9 +44,20 @@ class IniHandler:
     # ----------------------------
     # Core Methods
     # ----------------------------
-
+    
     def reload(self) -> configparser.ConfigParser:
-        """Reload the INI file only if it has changed."""
+        """Reload the INI file only if it has changed.
+        
+        If the file doesn't exist, create an empty file.
+        """
+        if not os.path.exists(self.filename):
+            # Create an empty file if it doesn't exist.
+            with open(self.filename, 'w') as f:
+                f.write("")
+            # Update last_modified since a new file was created.
+            self.last_modified = os.path.getmtime(self.filename)
+            return self.config
+
         current_mtime = os.path.getmtime(self.filename)
         if current_mtime != self.last_modified:
             self.last_modified = current_mtime
