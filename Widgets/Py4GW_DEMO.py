@@ -1269,6 +1269,8 @@ def ShowPartyWindow():
                 PyParty_window_state.values[4] = PyImGui.input_float("Hero X Position", PyParty_window_state.values[4])
                 PyParty_window_state.values[5] = PyImGui.input_float("Hero Y Position", PyParty_window_state.values[5])
 
+                if PyImGui.button("Hero Use Skill #4"):
+                    Party.Heroes.UseSkill(PyParty_window_state.values[1], 4,Player.GetTargetID())
                 if PyImGui.button("Flag Hero"):
                     Party.Heroes.FlagHero(PyParty_window_state.values[1], PyParty_window_state.values[4], PyParty_window_state.values[5])
 
