@@ -856,7 +856,8 @@ class CombatClass:
             if alliegeance == 'Enemy' and self.is_combat_enabled:
                 target_id = Player.GetTargetID()
                 if self.action_queue is not None:
-                    self.action_queue.add_action(Player.Interact, target_id)
+                    #self.action_queue.add_action(Player.Interact, target_id) #removed in hopes of fixing the crashes
+                    self.action_queue.add_action(Keystroke.PressAndRelease, Key.Space.value)
 
 
     def HandleCombat(self,ooc=False):

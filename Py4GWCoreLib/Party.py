@@ -489,6 +489,17 @@ class Party:
             Args: None
             """
             Party.party_instance().KickAllHeroes()
+            
+        @staticmethod
+        def UseSkill(hero_agent_id, slot, target_id):
+            """
+            Use a skill on a hero.
+            Args:
+                hero_id (int): The hero ID.
+                slot (int): The skill slot.
+            """
+            return #function is not working atm
+            Party.party_instance().UseHeroSkill(hero_agent_id, slot, target_id)
 
         @staticmethod
         def FlagHero (hero_id, x, y):

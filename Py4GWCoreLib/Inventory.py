@@ -289,6 +289,14 @@ class Inventory:
             return True
 
         return False
+    
+    @staticmethod
+    def AcceptSalvageMaterialsWindow():
+        """
+        Purpose: accept "you can only salvage materials with a lesser salvage kit".
+        Returns: bool: True if the salvage window is accepted, False if not.
+        """
+        return Inventory.inventory_instance().AcceptSalvageWindow()
 
     @staticmethod
     def OpenXunlaiWindow():

@@ -10,6 +10,9 @@ def DrawWindow():
         if PyImGui.begin("Async data Tester"):
             if PyImGui.button("travel to GH"):
                 Map.TravelGH()
+                
+            if PyImGui.button("accept salvage window"):
+                Inventory.AcceptSalvageWindow()
                              
         PyImGui.end()
 
