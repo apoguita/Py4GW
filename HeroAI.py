@@ -37,7 +37,6 @@ def HandleCombat(cached_data:CacheData):
 
     return cached_data.combat_handler.HandleCombat(ooc= False)
 
-
 looting_item =0
 loot_timer = Timer()
 loot_timer.Start()
@@ -80,7 +79,6 @@ def Loot(cached_data:CacheData):
         return True
     
     return False
-
 
 
 def Follow(cached_data:CacheData):
@@ -178,6 +176,9 @@ def UpdateStatus(cached_data:CacheData):
     ):
         return
     
+    if Loot(cached_data):
+       return
+     
     cached_data.UdpateCombat()
     
     if HandleOutOfCombat(cached_data):
@@ -185,9 +186,6 @@ def UpdateStatus(cached_data:CacheData):
     
     if cached_data.data.player_is_moving:
         return
-    
-    if Loot(cached_data):
-       return
     
     if Follow(cached_data):
         return
@@ -197,7 +195,7 @@ def UpdateStatus(cached_data:CacheData):
     
     #if were here we are not doing anything
     #auto attack
-    if cached_data.data.is_combat_enabled:
+    if cached_data.data.is_combat_enabled and not cached_data.data.player_is_attacking:
         cached_data.combat_handler.ChooseTarget()
     
 
