@@ -51,6 +51,7 @@ class GameData:
         self.player_is_alive = True
         self.player_overcast = 0.0
         self.player_is_knocked_down = False
+        self.player_is_attacking = False
         self.player_is_moving = False
         self.is_melee = False
         #AgentArray data
@@ -125,6 +126,7 @@ class GameData:
         self.player_is_alive = Agent.IsAlive(self.player_agent_id)
         self.player_overcast = Agent.GetOvercast(self.player_agent_id)
         self.player_is_knocked_down = Agent.IsKnockedDown(self.player_agent_id)
+        self.player_is_attacking = Agent.IsAttacking(self.player_agent_id)
         self.player_is_moving = Agent.IsMoving(self.player_agent_id)
         self.player_is_melee = Agent.IsMelee(self.player_agent_id)
         #AgentArray data
