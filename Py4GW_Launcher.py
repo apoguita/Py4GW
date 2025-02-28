@@ -2,17 +2,9 @@ from imgui_bundle import hello_imgui, imgui
 import json
 import tkinter as tk
 from tkinter import filedialog
-
-
-# --- patcher ---
 import ctypes
 import ctypes.wintypes
 from ctypes import wintypes
-user32 = ctypes.windll.user32
-kernel32 = ctypes.windll.kernel32
-from typing import List, Optional
-
-# --- injector ---
 import threading
 import time
 import win32gui
@@ -21,22 +13,95 @@ import psutil
 import sys
 import configparser
 import os
+import tempfile
+import shutil
+from typing import Optional
+import logging
+
+# Initialize Windows API libraries
+user32 = ctypes.windll.user32
+kernel32 = ctypes.windll.kernel32
+
+# Setup logging
+log_lock = threading.Lock()
+logger = logging.getLogger("Py4GW")
+logger.setLevel(logging.INFO)
+log_file = os.path.join(os.getcwd(), "Py4GW.log")
+file_handler = logging.FileHandler(log_file, mode="a")
+file_handler.setLevel(logging.INFO)
+file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_formatter = logging.Formatter("%(message)s")
+console_handler.setFormatter(console_formatter)
+logger.addHandler(console_handler)
+log_history = []
+MAX_LOG_HISTORY = 1000
+
+def log_message(message: str, level: str = "info") -> None:
+    """Log a message to file and optionally to console/UI."""
+    with log_lock:
+        if level == "info":
+            logger.info(message)
+            log_history.append(message)
+        elif level == "warning":
+            logger.warning(message)
+            log_history.append(f"WARNING: {message}")
+        elif level == "error":
+            logger.error(message)
+            log_history.append(f"ERROR: {message}")
+        elif level == "debug":
+            logger.debug(message)
+            log_history.append(f"DEBUG: {message}")
+        if len(log_history) > MAX_LOG_HISTORY:
+            log_history.pop(0)
+
+# Global application state
+error_message = ""
+show_error_popup = False
+team_filter = ""
+current_page = 0
+items_per_page = 5
+account_header_states = {}
+account_password_visibility = {}
+visible_windows = {
+    "TreeView": True,
+    "MainDockSpace": True,
+    "Console": True,
+}
+
+def get_embedded_dll_path(dll_name: Optional[str], subdir: Optional[str] = None) -> str:
+    if dll_name is None:
+        raise ValueError("DLL name cannot be None")
+    if getattr(sys, "frozen", False):
+        base_path = getattr(sys, "_MEIPASS", os.getcwd())
+        dll_src = os.path.join(base_path, dll_name if not subdir else os.path.join(subdir, dll_name))
+        launcher_dir = os.path.dirname(sys.executable)
+        dll_dest = os.path.join(launcher_dir, dll_name)
+        if not os.path.exists(dll_dest):
+            shutil.copy2(dll_src, dll_dest)
+            log_message(f"Copied {dll_name} to {launcher_dir}", level="info")
+        return dll_dest
+    return os.path.join(os.getcwd(), dll_name if not subdir else os.path.join(subdir, dll_name))
 
 class IniHandler:
-    def __init__(self, filename: str):
-        """
-        Initialize the handler with the given INI file.
-        """
-        self.filename = filename
+    def __init__(self, filename: str = "Py4GW.ini"):
+        self.filename = os.path.join(os.getcwd(), filename)
         self.last_modified = 0
         self.config = configparser.ConfigParser()
-
-    # ----------------------------
-    # Core Methods
-    # ----------------------------
+        if not os.path.exists(self.filename):
+            self.config["settings"] = {
+                "account_config_file": "accounts.json",
+                "py4gw_dll_name": "Py4GW.dll",
+                "blackbox_dll_name": "GWBlackBOX.dll",
+            }
+            with open(self.filename, "w") as configfile:
+                self.config.write(configfile)
+            log_message(f"Created default INI file: {self.filename}", level="info")
 
     def reload(self) -> configparser.ConfigParser:
-        """Reload the INI file only if it has changed."""
         current_mtime = os.path.getmtime(self.filename)
         if current_mtime != self.last_modified:
             self.last_modified = current_mtime
@@ -44,247 +109,196 @@ class IniHandler:
         return self.config
 
     def save(self, config: configparser.ConfigParser) -> None:
-        """
-        Save changes to the INI file.
-        """
-        with open(self.filename, 'w') as configfile:
+        with open(self.filename, "w") as configfile:
             config.write(configfile)
 
-    # ----------------------------
-    # Read Methods
-    # ----------------------------
-
     def read_key(self, section: str, key: str, default_value: str = "") -> str:
-        """
-        Read a string value from the INI file.
-        """
         config = self.reload()
         try:
             return config.get(section, key)
         except (configparser.NoOptionError, configparser.NoSectionError):
             return default_value
 
-    def read_int(self, section: str, key: str, default_value: int = 0) -> int:
-        """
-        Read an integer value.
-        """
-        config = self.reload()
-        try:
-            return config.getint(section, key)
-        except (ValueError, configparser.NoOptionError, configparser.NoSectionError):
-            return default_value
-
-    def read_float(self, section: str, key: str, default_value: float = 0.0) -> float:
-        """
-        Read a float value.
-        """
-        config = self.reload()
-        try:
-            return config.getfloat(section, key)
-        except (ValueError, configparser.NoOptionError, configparser.NoSectionError):
-            return default_value
-
-    def read_bool(self, section: str, key: str, default_value: bool = False) -> bool:
-        """
-        Read a boolean value.
-        """
-        config = self.reload()
-        try:
-            return config.getboolean(section, key)
-        except (ValueError, configparser.NoOptionError, configparser.NoSectionError):
-            return default_value
-
-    # ----------------------------
-    # Write Methods
-    # ----------------------------
-
     def write_key(self, section: str, key: str, value: str) -> None:
-        """
-        Write or update a key-value pair.
-        """
         config = self.reload()
         if not config.has_section(section):
             config.add_section(section)
         config.set(section, key, str(value))
         self.save(config)
 
-    # ----------------------------
-    # Delete Methods
-    # ----------------------------
+class TeamManager:
+    def __init__(self):
+        self.teams = {}
 
-    def delete_key(self, section: str, key: str) -> None:
-        """
-        Delete a specific key.
-        """
-        config = self.reload()
-        if config.has_section(section) and config.has_option(section, key):
-            config.remove_option(section, key)
-            self.save(config)
+    def add_team(self, team: 'Team') -> None:
+        self.teams[team.name] = team
 
-    def delete_section(self, section: str) -> None:
-        """
-        Delete an entire section.
-        """
-        config = self.reload()
-        if config.has_section(section):
-            config.remove_section(section)
-            self.save(config)
+    def save_to_json(self, base_path: str, file_path: str) -> None:
+        config_file_path = os.path.join(base_path, file_path)
+        data = {team_name: team.to_dict() for team_name, team in self.teams.items()}
+        os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
+        with open(config_file_path, "w") as file:
+            json.dump(data, file, indent=4)
+        log_message(f"Saved teams to {config_file_path}", level="info")
 
+    def load_from_json(self, base_path: str, file_path: str) -> None:
+        config_file_path = os.path.join(base_path, file_path)
+        if os.path.exists(config_file_path):
+            try:
+                with open(config_file_path, "r") as file:
+                    data = json.load(file)
+                    self.teams = {
+                        team_name: Team.from_dict(team_name, accounts)
+                        for team_name, accounts in data.items()
+                    }
+                    log_message(f"Loaded teams from {config_file_path}", level="info")
+            except json.JSONDecodeError as e:
+                log_message(f"Error parsing JSON from {config_file_path}: {e}", level="error")
+                self.teams = {}
+        else:
+            log_message(f"No accounts.json found at {config_file_path}, starting fresh", level="info")
+            self.teams = {}
 
-    # ----------------------------
-    # Utility Methods
-    # ----------------------------
+    def get_team(self, team_name: str) -> Optional['Team']:
+        return self.teams.get(team_name)
 
-    def list_sections(self) -> list:
-        """
-        List all sections in the INI file.
-        """
-        config = self.reload()
-        return config.sections()
+    def get_first_team(self) -> Optional['Team']:
+        return next(iter(self.teams.values()), None)
 
-    def list_keys(self, section: str) -> dict:
-        """
-        List all keys and values in a section.
-        """
-        config = self.reload()
-        if config.has_section(section):
-            return dict(config.items(section))
-        return {}
-
-    def has_key(self, section: str, key: str) -> bool:
-        """
-        Check if a key exists in a section.
-        """
-        config = self.reload()
-        return config.has_section(section) and config.has_option(section, key)
-
-    def clone_section(self, source_section: str, target_section: str) -> None:
-        """
-        Clone all keys from one section to another.
-        """
-        config = self.reload()
-        if config.has_section(source_section):
-            if not config.has_section(target_section):
-                config.add_section(target_section)
-            for key, value in config.items(source_section):
-                config.set(target_section, key, value)
-            self.save(config)
-
-
+# Initialize paths and log
 current_directory = os.getcwd()
 ini_file = "Py4GW.ini"
-ini_handler = IniHandler(ini_file)
+config_file = "accounts.json"
+py4gw_dll_name = get_embedded_dll_path("Py4GW.dll")
+blackbox_dll_name = get_embedded_dll_path("GWBlackBOX.dll", "Addons")
+gmod_dll_name = get_embedded_dll_path("gMod.dll", "Addons")
+log_message("Welcome To Py4GW!", level="info")
+team_manager = TeamManager()
 
-config_file = ini_handler.read_key("settings","account_config_file","accounts.json")
-py4gw_dll_name = ini_handler.read_key("settings","py4gw_dll_name","Py4GW.dll")
-blackbox_dll_name = ini_handler.read_key("settings","blackbox_dll_name","GWBlackBOX.dll")
-
-log_history = []
-log_history.append("Welcome To Py4GW!")
-
+# Windows API constants
 PROCESS_ALL_ACCESS = 0x1F0FFF
-VIRTUAL_MEM = 0x1000 | 0x2000  # MEM_COMMIT | MEM_RESERVE
+VIRTUAL_MEM = 0x1000 | 0x2000
 PAGE_READWRITE = 0x04
 MEM_RELEASE = 0x8000
-
 PROCESS_VM_OPERATION = 0x0008
 PROCESS_VM_READ = 0x0010
 PROCESS_VM_WRITE = 0x0020
 PROCESS_QUERY_INFORMATION = 0x0400
-MAX_PATH = 260  
+MAX_PATH = 260
 TH32CS_SNAPPROCESS = 0x00000002
-
-# Constants
 SWP_NOZORDER = 0x0004
 SWP_NOACTIVATE = 0x0010
 HWND_TOP = 0
 WM_SETTEXT = 0x000C
-
-# Load libraries
-#user32 = ctypes.WinDLL('user32', use_last_error=True)
-
-# Define WNDENUMPROC correctly
+CREATE_SUSPENDED = 0x00000004
 WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
-# Function signatures for User32
+# Configure Windows API function signatures
 user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
 user32.GetWindowThreadProcessId.restype = wintypes.DWORD
-
 user32.EnumWindows.argtypes = [WNDENUMPROC, wintypes.LPARAM]
 user32.EnumWindows.restype = wintypes.BOOL
-
 user32.IsWindowVisible.argtypes = [wintypes.HWND]
 user32.IsWindowVisible.restype = wintypes.BOOL
-
 user32.SetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPCWSTR]
 user32.SetWindowTextW.restype = wintypes.BOOL
 
-
-
 class PROCESS_BASIC_INFORMATION(ctypes.Structure):
-    _fields_ = [("Reserved1", ctypes.c_void_p),
-                ("PebBaseAddress", ctypes.c_void_p),
-                ("Reserved2", ctypes.c_void_p * 2),
-                ("UniqueProcessId", ctypes.c_ulong),
-                ("Reserved3", ctypes.c_void_p)]
+    _fields_ = [
+        ("Reserved1", ctypes.c_void_p),
+        ("PebBaseAddress", ctypes.c_void_p),
+        ("Reserved2", ctypes.c_void_p * 2),
+        ("UniqueProcessId", ctypes.c_ulong),
+        ("Reserved3", ctypes.c_void_p),
+    ]
 
 class PEB(ctypes.Structure):
-    _fields_ = [("InheritedAddressSpace", ctypes.c_ubyte),
-                ("ReadImageFileExecOptions", ctypes.c_ubyte),
-                ("BeingDebugged", ctypes.c_ubyte),
-                ("BitField", ctypes.c_ubyte),
-                ("Mutant", ctypes.c_void_p),
-                ("ImageBaseAddress", ctypes.c_void_p)]
+    _fields_ = [
+        ("InheritedAddressSpace", ctypes.c_ubyte),
+        ("ReadImageFileExecOptions", ctypes.c_ubyte),
+        ("BeingDebugged", ctypes.c_ubyte),
+        ("BitField", ctypes.c_ubyte),
+        ("Mutant", ctypes.c_void_p),
+        ("ImageBaseAddress", ctypes.c_void_p),
+    ]
 
 class PROCESSENTRY32(ctypes.Structure):
-    _fields_ = [("dwSize", ctypes.c_ulong),
-                ("cntUsage", ctypes.c_ulong),
-                ("th32ProcessID", ctypes.c_ulong),
-                ("th32DefaultHeapID", ctypes.POINTER(ctypes.c_ulong)),
-                ("th32ModuleID", ctypes.c_ulong),
-                ("cntThreads", ctypes.c_ulong),
-                ("th32ParentProcessID", ctypes.c_ulong),
-                ("pcPriClassBase", ctypes.c_long),
-                ("dwFlags", ctypes.c_ulong),
-                ("szExeFile", ctypes.c_char * MAX_PATH)]
-
-CREATE_SUSPENDED = 0x00000004
+    _fields_ = [
+        ("dwSize", ctypes.c_ulong),
+        ("cntUsage", ctypes.c_ulong),
+        ("th32ProcessID", ctypes.c_ulong),
+        ("th32DefaultHeapID", ctypes.POINTER(ctypes.c_ulong)),
+        ("th32ModuleID", ctypes.c_ulong),
+        ("cntThreads", ctypes.c_ulong),
+        ("th32ParentProcessID", ctypes.c_ulong),
+        ("pcPriClassBase", ctypes.c_long),
+        ("dwFlags", ctypes.c_ulong),
+        ("szExeFile", ctypes.c_char * MAX_PATH),
+    ]
 
 class STARTUPINFO(ctypes.Structure):
-    _fields_ = [("cb", ctypes.c_ulong),
-                ("lpReserved", ctypes.c_wchar_p),
-                ("lpDesktop", ctypes.c_wchar_p),
-                ("lpTitle", ctypes.c_wchar_p),
-                ("dwX", ctypes.c_ulong),
-                ("dwY", ctypes.c_ulong),
-                ("dwXSize", ctypes.c_ulong),
-                ("dwYSize", ctypes.c_ulong),
-                ("dwXCountChars", ctypes.c_ulong),
-                ("dwYCountChars", ctypes.c_ulong),
-                ("dwFillAttribute", ctypes.c_ulong),
-                ("dwFlags", ctypes.c_ulong),
-                ("wShowWindow", ctypes.c_ushort),
-                ("cbReserved2", ctypes.c_ushort),
-                ("lpReserved2", ctypes.c_void_p), 
-                ("hStdInput", ctypes.c_void_p),
-                ("hStdOutput", ctypes.c_void_p),
-                ("hStdError", ctypes.c_void_p)]
+    _fields_ = [
+        ("cb", ctypes.c_ulong),
+        ("lpReserved", ctypes.c_wchar_p),
+        ("lpDesktop", ctypes.c_wchar_p),
+        ("lpTitle", ctypes.c_wchar_p),
+        ("dwX", ctypes.c_ulong),
+        ("dwY", ctypes.c_ulong),
+        ("dwXSize", ctypes.c_ulong),
+        ("dwYSize", ctypes.c_ulong),
+        ("dwXCountChars", ctypes.c_ulong),
+        ("dwYCountChars", ctypes.c_ulong),
+        ("dwFillAttribute", ctypes.c_ulong),
+        ("dwFlags", ctypes.c_ulong),
+        ("wShowWindow", ctypes.c_ushort),
+        ("cbReserved2", ctypes.c_ushort),
+        ("lpReserved2", ctypes.c_void_p),
+        ("hStdInput", ctypes.c_void_p),
+        ("hStdOutput", ctypes.c_void_p),
+        ("hStdError", ctypes.c_void_p),
+    ]
 
 class PROCESS_INFORMATION(ctypes.Structure):
-    _fields_ = [("hProcess", ctypes.c_void_p),
-                ("hThread", ctypes.c_void_p),
-                ("dwProcessId", ctypes.c_ulong),
-                ("dwThreadId", ctypes.c_ulong)]
+    _fields_ = [
+        ("hProcess", ctypes.c_void_p),
+        ("hThread", ctypes.c_void_p),
+        ("dwProcessId", ctypes.c_ulong),
+        ("dwThreadId", ctypes.c_ulong),
+    ]
 
-kernel32 = ctypes.windll.kernel32
 ntdll = ctypes.windll.ntdll
 
 class Account:
-    def __init__(self, character_name, email, password, gw_client_name, gw_path, extra_args, run_as_admin,
-                 inject_py4gw, inject_blackbox, script_path="", enable_client_rename=False, use_character_name=False,
-                 custom_client_name="", last_launch_time=None, total_runtime=0.0, current_session_time=0.0,
-                 average_runtime=0.0, min_runtime=0.0, max_runtime=0.0, top_left=(0, 0), width=800, height=600,
-                 preview_area=False, resize_client=False):
+    def __init__(
+        self,
+        character_name: str,
+        email: str,
+        password: str,
+        gw_client_name: str,
+        gw_path: str,
+        extra_args: str,
+        run_as_admin: bool,
+        inject_py4gw: bool,
+        inject_blackbox: bool,
+        script_path: str = "",
+        enable_client_rename: bool = False,
+        use_character_name: bool = False,
+        custom_client_name: str = "",
+        last_launch_time: Optional[float] = None,
+        total_runtime: float = 0.0,
+        current_session_time: float = 0.0,
+        average_runtime: float = 0.0,
+        min_runtime: float = 0.0,
+        max_runtime: float = 0.0,
+        top_left: tuple[int, int] = (0, 0),
+        width: int = 800,
+        height: int = 600,
+        preview_area: bool = False,
+        resize_client: bool = False,
+        gmod_enabled: bool = False,
+        mod_list: Optional[list[str]] = None,
+    ):
+        self.mod_list = mod_list if mod_list is not None else []
         self.character_name = character_name
         self.email = email
         self.password = password
@@ -294,23 +308,35 @@ class Account:
         self.run_as_admin = run_as_admin
         self.inject_py4gw = inject_py4gw
         self.inject_blackbox = inject_blackbox
-        self.script_path = script_path  # Path to the Python script
-        self.enable_client_rename = enable_client_rename  # Whether client renaming is enabled
-        self.use_character_name = use_character_name  # Whether to use the character name for renaming
-        self.custom_client_name = custom_client_name  # Custom client name for renaming
-        self.last_launch_time = last_launch_time  # Timestamp of the last launch
-        self.total_runtime = total_runtime  # Total runtime in hours
-        self.current_session_time = current_session_time  # Current session runtime in hours
-        self.average_runtime = average_runtime  # Average runtime in hours
-        self.min_runtime = min_runtime  # Minimum runtime recorded
-        self.max_runtime = max_runtime  # Maximum runtime recorded
-        self.top_left = top_left  # Top-left position of the window
-        self.width = width  # Window width
-        self.height = height  # Window height
-        self.preview_area = preview_area  # Whether to preview the configured area
-        self.resize_client = resize_client  # Whether to enable client resizing
+        self.script_path = script_path
+        self.enable_client_rename = enable_client_rename
+        self.use_character_name = use_character_name
+        self.custom_client_name = custom_client_name
+        self.last_launch_time = last_launch_time
+        self.total_runtime = total_runtime
+        self.current_session_time = current_session_time
+        self.average_runtime = average_runtime
+        self.min_runtime = min_runtime
+        self.max_runtime = max_runtime
+        self.top_left = top_left
+        self.width = width
+        self.height = height
+        self.preview_area = preview_area
+        self.resize_client = resize_client
+        self.gmod_enabled = gmod_enabled
+        self.mod_list = mod_list if mod_list is not None else []
+        self.ini_handler = IniHandler()
+        self.has_changes = False
 
-    def to_dict(self):
+    def mark_changed(self) -> None:
+        self.has_changes = True
+        log_message(f"Marked changes for account: {self.character_name}", level="info")
+
+    def clear_changes(self) -> None:
+        self.has_changes = False
+        log_message(f"Cleared changes for account: {self.character_name}", level="info")
+
+    def to_dict(self) -> dict:
         return {
             "character_name": self.character_name,
             "email": self.email,
@@ -336,151 +362,50 @@ class Account:
             "height": self.height,
             "preview_area": self.preview_area,
             "resize_client": self.resize_client,
+            "gmod_enabled": self.gmod_enabled,
+            "mod_list": self.mod_list,
         }
 
     @staticmethod
-    def from_dict(data):
-        return Account(
-            character_name=data["character_name"],
-            email=data["email"],
-            password=data["password"],
-            gw_client_name=data["gw_client_name"],
-            gw_path=data["gw_path"],
-            extra_args=data["extra_args"],
-            run_as_admin=data["run_as_admin"],
-            inject_py4gw=data["inject_py4gw"],
-            inject_blackbox=data["inject_blackbox"],
-            script_path=data.get("script_path", ""),  # Default to an empty string if not present
-            enable_client_rename=data.get("enable_client_rename", False),
-            use_character_name=data.get("use_character_name", False),
-            custom_client_name=data.get("custom_client_name", ""),
-            last_launch_time=data.get("last_launch_time", None),
-            total_runtime=data.get("total_runtime", 0.0),
-            current_session_time=data.get("current_session_time", 0.0),
-            average_runtime=data.get("average_runtime", 0.0),
-            min_runtime=data.get("min_runtime", 0.0),
-            max_runtime=data.get("max_runtime", 0.0),
-            top_left=tuple(data.get("top_left", (0, 0))),  # Convert to tuple if not present
-            width=data.get("width", 800),
-            height=data.get("height", 600),
-            preview_area=data.get("preview_area", False),
-            resize_client=data.get("resize_client", False),
+    def from_dict(data: dict) -> 'Account':
+        account = Account(
+            **{k: v for k, v in data.items() if k in Account.__init__.__code__.co_varnames}
         )
+        account.has_changes = False
+        return account
 
 class Team:
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.name = name
         self.accounts = []
 
-    def add_account(self, account):
-        """
-        Add an account to the team.
-        """
+    def add_account(self, account: Account) -> None:
         self.accounts.append(account)
 
-    def to_dict(self):
-        """
-        Convert the team and its accounts to a dictionary.
-        """
+    def to_dict(self) -> list:
         return [account.to_dict() for account in self.accounts]
 
     @staticmethod
-    def from_dict(name, accounts_data):
-        """
-        Create a Team object from a dictionary.
-        """
+    def from_dict(name: str, accounts_data: list) -> 'Team':
         team = Team(name)
         for account_data in accounts_data:
             team.add_account(Account.from_dict(account_data))
         return team
 
-
-class TeamManager:
-    global log_history
-    def __init__(self):
-        self.teams = {}
-
-    def add_team(self, team):
-        """
-        Add a team to the manager.
-        """
-        self.teams[team.name] = team
-
-    def save_to_json(self, file_path):
-        """
-        Save all teams and their accounts to a JSON file.
-        """
-        data = {team_name: team.to_dict() for team_name, team in self.teams.items()}
-        with open(file_path, "w") as file:
-            json.dump(data, file, indent=4)
-
-    def load_from_json(self, file_path):
-        """
-        Load teams and their accounts from a JSON file.
-        Create the file if it does not exist.
-        """
-        try:
-            with open(file_path, "r") as file:
-                data = json.load(file)
-                self.teams = {team_name: Team.from_dict(team_name, accounts) for team_name, accounts in data.items()}
-        except FileNotFoundError:
-            # Create the file if it doesn't exist
-            with open(file_path, "w") as file:
-                json.dump({}, file)
-            log_history.append(f"File {file_path} not found. Created an empty file.")
-            self.teams = {}
-        except json.JSONDecodeError as e:
-            log_history.append(f"Error parsing JSON from {file_path}: {e}")
-            self.teams = {}
-
-
-    def get_team(self, team_name):
-        """
-        Retrieve a team by name.
-        """
-        return self.teams.get(team_name)
-
-    def get_first_team(self):
-        """
-        Get the first team in the manager.
-        """
-        if self.teams:
-            return next(iter(self.teams.values()))
-
-    def filter_accounts(self, team_name=None, character_name=None):
-        """
-        Filter accounts by team and/or character name.
-        """
-        results = []
-        for team in self.teams.values():
-            if team_name and team.name != team_name:
-                continue
-            for account in team.accounts:
-                if character_name and account.character_name != character_name:
-                    continue
-                results.append(account)
-        return results
-
 class Patcher:
-    global log_history
-
     def __init__(self):
         pass
 
     def get_process_module_base(self, process_handle: int) -> Optional[int]:
         pbi = PROCESS_BASIC_INFORMATION()
         return_length = ctypes.c_ulong(0)
-
         if ntdll.NtQueryInformationProcess(process_handle, 0, ctypes.byref(pbi), ctypes.sizeof(pbi), ctypes.byref(return_length)) != 0:
             return None
-
         peb_address = pbi.PebBaseAddress
         buffer = ctypes.create_string_buffer(ctypes.sizeof(PEB))
-
         bytes_read = ctypes.c_size_t()
         if not kernel32.ReadProcessMemory(process_handle, peb_address, buffer, ctypes.sizeof(PEB), ctypes.byref(bytes_read)):
             return None
-
         peb = PEB.from_buffer(buffer)
         return peb.ImageBaseAddress
 
@@ -491,274 +416,170 @@ class Patcher:
             return -1
 
     def patch(self, pid: int) -> bool:
-
         process_handle = kernel32.OpenProcess(
-            PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, 
-            False, 
-            pid
+            PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION,
+            False,
+            pid,
         )
-        
-        if process_handle is None:
-            log_history.append(f"Patcher - Could not open process with PID {pid}: {ctypes.GetLastError()}")
+        if not process_handle:
+            log_message(f"Patcher - Could not open process with PID {pid}: {ctypes.GetLastError()}", level="error")
             return False
-
         sig_patch = bytes([0x56, 0x57, 0x68, 0x00, 0x01, 0x00, 0x00, 0x89, 0x85, 0xF4, 0xFE, 0xFF, 0xFF, 0xC7, 0x00, 0x00, 0x00, 0x00, 0x00])
         module_base = self.get_process_module_base(process_handle)
         if module_base is None:
-            log_history.append("Patcher - Failed to get module base")
             kernel32.CloseHandle(process_handle)
             return False
         gwdata = ctypes.create_string_buffer(0x48D000)
-
         bytes_read = ctypes.c_size_t()
         if not kernel32.ReadProcessMemory(process_handle, module_base, gwdata, 0x48D000, ctypes.byref(bytes_read)):
-            log_history.append(f"Patcher - Failed to read process memory: {ctypes.GetLastError()}")
             kernel32.CloseHandle(process_handle)
             return False
-
         idx = self.search_bytes(gwdata.raw, sig_patch)
         if idx == -1:
-            log_history.append("Patcher - Failed to find signature")
             kernel32.CloseHandle(process_handle)
             return False
-
         mcpatch_address = module_base + idx - 0x1A
         payload = bytes([0x31, 0xC0, 0x90, 0xC3])
-
         bytes_written = ctypes.c_size_t()
         if not kernel32.WriteProcessMemory(process_handle, mcpatch_address, payload, len(payload), ctypes.byref(bytes_written)):
-            log_history.append(f"Patcher - Failed to write process memory: {ctypes.GetLastError()}")
             kernel32.CloseHandle(process_handle)
             return False
-        
-        log_history.append(f"Patcher - Patched at address: {hex(mcpatch_address)}")
+        log_message(f"Patcher - Patched at address: {hex(mcpatch_address)}", level="info")
         kernel32.CloseHandle(process_handle)
         return True
-
-    def get_hwnd_by_pid(self, pid: int) -> wintypes.HWND:
-        """
-        Retrieve the HWND (window handle) associated with a given PID.
-        """
-        hwnd = wintypes.HWND(0)  # Default handle if not found
-
-        # Callback function for EnumWindows
-        def callback(handle, extra):
-            nonlocal hwnd
-            window_pid = wintypes.DWORD()
-            user32.GetWindowThreadProcessId(handle, ctypes.byref(window_pid))
-            if window_pid.value == pid and user32.IsWindowVisible(handle):
-                hwnd = handle
-                return False  # Stop enumeration
-            return True  # Continue enumeration
-
-        # Enumerate all windows and find the one matching the PID
-        user32.EnumWindows(WNDENUMPROC(callback), 0)
-        return hwnd
-
 
     def launch_and_patch(self, gw_exe_path: str, account: str, password: str, character: str, extra_args: str, elevated: bool) -> Optional[int]:
         command_line = f'"{gw_exe_path}" -email "{account}" -password "{password}"'
         if character:
             command_line += f' -character "{character}"'
         command_line += f" {extra_args}"
-
         startup_info = STARTUPINFO()
         startup_info.cb = ctypes.sizeof(startup_info)
         process_info = PROCESS_INFORMATION()
-
-        success = kernel32.CreateProcessW(
-            None,  
-            command_line,
-            None, 
-            None,
-            False,
-            CREATE_SUSPENDED,
-            None,
-            None,
-            ctypes.byref(startup_info),
-            ctypes.byref(process_info)
-        )
-
+        success = kernel32.CreateProcessW(None, command_line, None, None, False, CREATE_SUSPENDED, None, None, ctypes.byref(startup_info), ctypes.byref(process_info))
         if not success:
-            log_history.append(f"Patcher - Failed to create process: {ctypes.GetLastError()}")
+            log_message(f"Patcher - Failed to create process: {ctypes.GetLastError()}", level="error")
             return None
-
         pid = process_info.dwProcessId
-
         if self.patch(pid):
-            log_history.append("Patcher - Multiclient patch applied successfully.")
+            log_message("Patcher - Multiclient patch applied successfully.", level="info")
         else:
-            log_history.append("Patcher - Failed to apply multiclient patch.")
+            log_message("Patcher - Failed to apply multiclient patch.", level="error")
             kernel32.TerminateProcess(process_info.hProcess, 0)
             kernel32.CloseHandle(process_info.hProcess)
             kernel32.CloseHandle(process_info.hThread)
             return None
-        
         if kernel32.ResumeThread(process_info.hThread) == -1:
-            log_history.append(f"Python - Failed to resume thread: {ctypes.GetLastError()}")
+            log_message(f"Patcher - Failed to resume thread: {ctypes.GetLastError()}", level="error")
             kernel32.TerminateProcess(process_info.hProcess, 0)
             kernel32.CloseHandle(process_info.hProcess)
             kernel32.CloseHandle(process_info.hThread)
             return None
-
-        log_history.append("Patcher - Process resumed.")
-
+        log_message("Patcher - Process resumed.", level="info")
         kernel32.CloseHandle(process_info.hProcess)
         kernel32.CloseHandle(process_info.hThread)
-
         return pid
 
 class GWLauncher:
-    global log_history, current_directory, py4gw_dll_name, blackbox_dll_name, ini_handler
-
-    def __init__(self):     
+    def __init__(self):
         self.active_pids = []
 
-    def wait_for_gw_window(self, pid, timeout=30):
-        """Wait for GW window to be created and fully loaded"""
-        log_history.append(f"Waiting for GW window (PID: {pid})")
+    def wait_for_gw_window(self, pid: int, timeout: int = 30) -> bool:
+        log_message(f"Waiting for GW window (PID: {pid})", level="info")
         start_time = time.time()
         found_windows = []
-        
-        def enum_windows_callback(hwnd, _):
+
+        def enum_windows_callback(hwnd, _) -> bool:
             if win32gui.IsWindowVisible(hwnd):
                 try:
                     _, window_pid = win32process.GetWindowThreadProcessId(hwnd)
                     if window_pid == pid:
                         title = win32gui.GetWindowText(hwnd)
-                        log_history.append(f"Wait for GW Window - Found window with title: '{title}' for PID: {pid}")
-                        # Accept any window from the process initially
+                        log_message(f"Wait for GW Window - Found window: '{title}' (PID: {pid})", level="info")
                         found_windows.append(hwnd)
                 except Exception as e:
-                    log_history.append(f"Wait for GW Window - Error in callback: {str(e)}")
+                    log_message(f"Wait for GW Window - Callback error: {str(e)}", level="error")
             return True
 
         while time.time() - start_time < timeout:
             try:
                 process = psutil.Process(pid)
                 if process.status() != psutil.STATUS_RUNNING:
-                    log_history.append(f"Wait for GW Window - Process {pid} is not running")
+                    log_message(f"Wait for GW Window - Process {pid} not running", level="error")
                     return False
-
-                # Clear previous findings
                 found_windows.clear()
                 win32gui.EnumWindows(enum_windows_callback, None)
-                
                 if found_windows:
-                    log_history.append(f"Wait for GW Window - Found {len(found_windows)} windows for process {pid}")
-                    # Return True if we found any window from the process
+                    for account, pid_in_list in self.active_pids:
+                        if pid_in_list == pid:
+                            if account.gw_client_name:
+                                log_message(f"Attempting to set window title to: {account.gw_client_name}", level="info")
+                                result = user32.SetWindowTextW(found_windows[0], account.gw_client_name)
+                                if result:
+                                    log_message(f"SetWindowTextW succeeded for title: {account.gw_client_name}", level="info")
+                                else:
+                                    log_message(f"SetWindowTextW failed with error: {ctypes.GetLastError()}", level="error")
+                                time.sleep(1)
+                                current_title = win32gui.GetWindowText(found_windows[0])
+                                log_message(f"Window title after set: '{current_title}' (PID: {pid})", level="info")
+                            else:
+                                log_message(f"Title set skipped for PID {pid} (GW Client Name is blank — add one if you’d like!)", level="info")
+                    log_message(f"Wait for GW Window - Found {len(found_windows)} windows for PID {pid}", level="info")
                     return True
-                
             except psutil.NoSuchProcess:
-                log_history.append(f"Wait for GW Window - Process {pid} no longer exists")
+                log_message(f"Wait for GW Window - Process {pid} no longer exists", level="error")
                 return False
             except Exception as e:
-                log_history.append(f"Wait for GW Window - Error while waiting for GW window: {str(e)}")
+                log_message(f"Wait for GW Window - Error: {str(e)}", level="error")
                 return False
-                
             time.sleep(0.5)
-            
-            # Add progress indicator every 5 seconds
-            elapsed = time.time() - start_time
-            if elapsed % 5 < 0.5:
-                log_history.append(f"Wait for GW Window - Still waiting... ({int(elapsed)}s)")
-                # List all windows for the process
-                try:
-                    process = psutil.Process(pid)
-                    log_history.append(f"Wait for GW Window - Process status: {process.status()}")
-                    log_history.append(f"Wait for GW Window - Process command line: {process.cmdline()}")
-                except Exception as e:
-                    log_history.append(f"Wait for GW Window - Error getting process info: {str(e)}")
-        
-        log_history.append(f"Wait for GW Window - Timeout waiting for window of process {pid}")
+        log_message(f"Wait for GW Window - Timeout after {timeout}s for PID {pid}", level="warning")
         return False
 
-    def inject_dll(self, pid, dll_path):
+    def inject_dll(self, pid: int, dll_path: str) -> bool:
         if not dll_path or not os.path.exists(dll_path):
-            log_history.append("Inject DLL - Invalid DLL path")
+            log_message(f"Inject DLL - Invalid or missing path: {dll_path}", level="error")
             return False
-
-        log_history.append(f"Inject DLL - Starting DLL injection for PID: {pid}")
-        kernel32 = ctypes.windll.kernel32
+        log_message(f"Inject DLL - Starting injection for PID {pid} with {dll_path}", level="info")
         process_handle = None
         allocated_memory = None
         thread_handle = None
-
         try:
-            # Get process handle
             process_handle = kernel32.OpenProcess(PROCESS_ALL_ACCESS, False, pid)
             if not process_handle:
-                log_history.append(f"Inject DLL - Failed to open process. Error: {ctypes.get_last_error()}")
+                log_message(f"Inject DLL - Failed to open process {pid}: Error {ctypes.get_last_error()}", level="error")
                 return False
-
-            # Get LoadLibraryA address
-            loadlib_addr = kernel32.GetProcAddress(
-                kernel32._handle,
-                b"LoadLibraryA"
-            )
+            kernel32_handle = kernel32.GetModuleHandleA(b"kernel32.dll")
+            if not kernel32_handle:
+                log_message("Inject DLL - Failed to get kernel32.dll handle", level="error")
+                return False
+            loadlib_addr = kernel32.GetProcAddress(kernel32_handle, b"LoadLibraryA")
             if not loadlib_addr:
-                log_history.append("Inject DLL - Failed to get LoadLibraryA address")
+                log_message("Inject DLL - Failed to get LoadLibraryA address", level="error")
                 return False
-
-            # Prepare DLL path
-            dll_path_bytes = dll_path.encode('ascii') + b'\0'
+            dll_path_bytes = dll_path.encode("ascii") + b"\0"
             path_size = len(dll_path_bytes)
-
-            # Allocate memory in target process
-            allocated_memory = kernel32.VirtualAllocEx(
-                process_handle,
-                0,
-                path_size,
-                VIRTUAL_MEM,
-                PAGE_READWRITE
-            )
+            allocated_memory = kernel32.VirtualAllocEx(process_handle, 0, path_size, VIRTUAL_MEM, PAGE_READWRITE)
             if not allocated_memory:
-                log_history.append("Inject DLL - Failed to allocate memory")
+                log_message("Inject DLL - Failed to allocate memory", level="error")
                 return False
-
-            # Write DLL path to allocated memory
             written = ctypes.c_size_t(0)
-            write_success = kernel32.WriteProcessMemory(
-                process_handle,
-                allocated_memory,
-                dll_path_bytes,
-                path_size,
-                ctypes.byref(written)
-            )
-            if not write_success or written.value != path_size:
-                log_history.append("Inject DLL - Failed to write to process memory")
+            if not kernel32.WriteProcessMemory(process_handle, allocated_memory, dll_path_bytes, path_size, ctypes.byref(written)):
+                log_message("Inject DLL - Failed to write to process memory", level="error")
                 return False
-
-            # Create remote thread
-            thread_handle = kernel32.CreateRemoteThread(
-                process_handle,
-                None,
-                0,
-                loadlib_addr,
-                allocated_memory,
-                0,
-                None
-            )
+            thread_handle = kernel32.CreateRemoteThread(process_handle, None, 0, loadlib_addr, allocated_memory, 0, None)
             if not thread_handle:
-                log_history.append("Inject DLL - Failed to create remote thread")
+                log_message("Inject DLL - Failed to create remote thread", level="error")
                 return False
-
-            # Wait for thread completion
-            kernel32.WaitForSingleObject(thread_handle, 5000)  # 5 second timeout
-
-            # Get thread exit code
+            kernel32.WaitForSingleObject(thread_handle, 5000)
             exit_code = ctypes.c_ulong(0)
-            if kernel32.GetExitCodeThread(thread_handle, ctypes.byref(exit_code)):
-                log_history.append(f"Inject DLL - Injection completed with exit code: {exit_code.value}")
-                return exit_code.value != 0
-            return False
-
+            kernel32.GetExitCodeThread(thread_handle, ctypes.byref(exit_code))
+            log_message(f"Inject DLL - Completed with exit code: {exit_code.value}", level="info")
+            return exit_code.value != 0
         except Exception as e:
-            log_history.append(f"Inject DLL - DLL injection failed with error: {str(e)}")
+            log_message(f"Inject DLL - Exception: {str(e)}", level="error")
             return False
-
         finally:
-            # Cleanup
             if thread_handle:
                 kernel32.CloseHandle(thread_handle)
             if allocated_memory and process_handle:
@@ -766,107 +587,101 @@ class GWLauncher:
             if process_handle:
                 kernel32.CloseHandle(process_handle)
 
-    def inject_BlackBox(self, pid, dll_path):
-        """Inject GWBlackBoxdll.dll into the process"""
-        
-        if not os.path.exists(os.path.join(current_directory, "Addons", blackbox_dll_name)):
-            log_history.append("GWBlackBox DLL path not valid")
+    def inject_BlackBox(self, pid: int, dll_path: str) -> bool:
+        if not os.path.exists(dll_path):
+            log_message(f"Inject BlackBox - Invalid path: {dll_path}", level="error")
             return False
+        log_message(f"Injecting BlackBox from: {dll_path}", level="info")
+        result = self.inject_dll(pid, dll_path)
+        log_message(f"GWBlackBox injection {'successful' if result else 'failed'}", level="info")
+        return result
 
-        log_history.append(f"Injecting BlackBox from: {os.path.join(current_directory, "Addons", blackbox_dll_name)}")
-        
-        # Store original DLL path
-        original_dll_path = os.path.join(current_directory, "Addons", blackbox_dll_name)
-        
-        try:
-            # Use existing inject_dll method
-            result = self.inject_dll(pid,original_dll_path)
-            log_history.append("GWBlackBox injection " + ("successful" if result else "failed"))
-            return result
-        finally:
-            pass
-
-    def is_process_running(self, pid):
+    def is_process_running(self, pid: int) -> bool:
         try:
             process = psutil.Process(pid)
             return process.status() == psutil.STATUS_RUNNING
         except psutil.NoSuchProcess:
             return False
 
-    def attempt_dll_injection(self, pid, delay=0, dll_type="Py4GW"):
-
+    def attempt_dll_injection(self, pid: int, delay: int = 0, dll_type: str = "Py4GW") -> bool:
         if delay > 0:
-            log_history.append(f"Waiting {delay} seconds before injecting {dll_type} DLL...")
+            log_message(f"Waiting {delay}s before injecting {dll_type} DLL...", level="info")
             time.sleep(delay)
-        
         if not self.is_process_running(pid):
-            log_history.append(f"Process no longer running, skipping {dll_type} DLL injection")
+            log_message(f"Process {pid} not running, skipping {dll_type} injection", level="warning")
             return False
-       
-        
-        if dll_type == "Py4GW":
-            log_history.append("Attempting Py4GW DLL injection...")
-            dll_dir = os.path.join(current_directory, py4gw_dll_name)
-            return self.inject_dll(pid,dll_dir)
+        if dll_type == "gMod":
+            log_message("Attempting gMod DLL injection...", level="info")
+            return self.inject_dll(pid, gmod_dll_name)
+        elif dll_type == "Py4GW":
+            log_message("Attempting Py4GW DLL injection...", level="info")
+            return self.inject_dll(pid, py4gw_dll_name)
         elif dll_type == "BlackBox":
-            log_history.append("Attempting BlackBox DLL injection...")
-            dll_dir = os.path.join(current_directory, "Addons", "GWBlackBOX.dll")
-            return self.inject_BlackBox(pid,dll_dir)
-
-        log_history.append(f"Skipping {dll_type} DLL injection (not enabled).")
+            log_message("Attempting BlackBox DLL injection...", level="info")
+            return self.inject_BlackBox(pid, blackbox_dll_name)
+        log_message(f"Skipping {dll_type} DLL injection (not enabled)", level="info")
         return False
 
-    def start_injection_thread(self, pid, account: Account):
+    def start_injection_thread(self, pid: int, account: Account) -> None:
         def injection_thread():
-            try:
-                if self.wait_for_gw_window(pid):
-                    log_history.append("Injection - GW window found, waiting for initialization...")
-                    time.sleep(5)
-
-                    if account.inject_blackbox:
-                        if self.attempt_dll_injection(pid, dll_type="BlackBox"):
-                            log_history.append("GWBlackBOX.dll injection successful")
-                        else:
-                            log_history.append("GWBlackBOX.dll injection failed")
-
-                    custom_dll_delay = 0 if account.inject_blackbox else 0 
-                        
-                    if account.inject_py4gw:
-                        ini_handler.write_key("settings", "autoexec_script", account.script_path)
-
-                        if self.attempt_dll_injection(pid, delay=custom_dll_delay, dll_type="Py4GW"):
-                            log_history.append("Py4GW DLL injection successful")
-                        else:
-                            log_history.append("Py4GW DLL injection failed")
+            if self.wait_for_gw_window(pid):
+                log_message("Injection - GW window found, waiting 2s...", level="info")
+                time.sleep(2)
+                if account.gmod_enabled:
+                    self.attempt_dll_injection(pid, dll_type="gMod")
+                custom_dll_delay = 2 if account.gmod_enabled else 0
+                if account.inject_blackbox:
+                    self.attempt_dll_injection(pid, delay=custom_dll_delay, dll_type="BlackBox")
+                if account.inject_py4gw:
+                    account.ini_handler.write_key("settings", "autoexec_script", account.script_path)
+                    self.attempt_dll_injection(pid, delay=custom_dll_delay, dll_type="Py4GW")
+                log_message(f"Retrying title set post-injection for PID {pid} with: {account.gw_client_name}", level="info")
+                found_windows = []
+                def update_title_callback(hwnd, _) -> bool:
+                    if win32gui.IsWindowVisible(hwnd):
+                        try:
+                            _, window_pid = win32process.GetWindowThreadProcessId(hwnd)
+                            if window_pid == pid:
+                                found_windows.append(hwnd)
+                        except Exception as e:
+                            log_message(f"Update title callback error: {str(e)}", level="error")
+                    return True
+                win32gui.EnumWindows(update_title_callback, None)
+                if found_windows:
+                    if account.gw_client_name:
+                        for _ in range(3):
+                            result = user32.SetWindowTextW(found_windows[0], account.gw_client_name)
+                            if result:
+                                log_message(f"Post-injection title set to: {account.gw_client_name}", level="info")
+                            else:
+                                log_message(f"Post-injection SetWindowTextW failed with error: {ctypes.GetLastError()}", level="error")
+                            time.sleep(1)
+                            current_title = win32gui.GetWindowText(found_windows[0])
+                            log_message(f"Post-injection window title: '{current_title}'", level="info")
+                            if current_title == account.gw_client_name:
+                                break
+                    else:
+                        log_message(f"Title set skipped for PID {pid} (GW Client Name is blank — add one if you’d like!)", level="info")
                 else:
-                    log_history.append("Failed to detect GW window")
-            except Exception as e:
-                log_history.append(f"Error in injection thread: {str(e)}")
-
+                    log_message(f"No window found for PID {pid} after injections", level="warning")
+            else:
+                log_message("Injection - Failed to detect GW window", level="error")
         threading.Thread(target=injection_thread, daemon=True).start()
 
-    def start_team_launch_thread(self, team):
+    def start_team_launch_thread(self, team: Team) -> None:
         def team_launch_thread():
-            log_history.append(f"Launching team: {team.name}")
+            log_message(f"Launching team: {team.name}", level="info")
             for account in team.accounts:
                 self.launch_gw(account)
-
-                # Dynamic idle message update
-                idle_time = 10  # Seconds
+                idle_time = 10
                 for remaining in range(idle_time, 0, -1):
-                    log_history[-1] = f"Idling... {remaining}s remaining to prevent log-in throttle"
-                    time.sleep(1)  # Sleep 1 second and update countdown dynamically
-
-                log_history.append("Idle complete, continuing...")
-
-            log_history.append(f"Finished launching team: {team.name}")
-
-        # Start the thread for launching the team
+                    log_message(f"Idling... {remaining}s to prevent login throttle", level="info")
+                    time.sleep(1)
+                log_message("Idle complete, continuing...", level="info")
+            log_message(f"Finished launching team: {team.name}", level="info")
         threading.Thread(target=team_launch_thread, daemon=True).start()
 
-
-
-    def launch_gw(self, account: Account):
+    def launch_gw(self, account: Account) -> None:
         patcher = Patcher()
         try:
             pid = patcher.launch_and_patch(
@@ -875,448 +690,598 @@ class GWLauncher:
                 account.password,
                 account.character_name,
                 account.extra_args,
-                account.run_as_admin
+                account.run_as_admin,
             )
-
             if pid is None:
-                log_history.append("Launch GW - Failed to launch or patch Guild Wars.")
+                log_message(f"Failed to launch Guild Wars for {account.character_name}. Check path and credentials.", level="error")
                 return
-
-            log_history.append(f"Launch GW - Launched and patched GW with PID: {pid}")
+            log_message(f"Launched and patched GW with PID: {pid} for {account.character_name}", level="info")
             self.active_pids.append((account, pid))
-
-            if account.inject_py4gw or account.inject_blackbox:
+            gw_dir = os.path.dirname(os.path.normpath(account.gw_path))
+            d3d9_path = os.path.join(gw_dir, "d3d9.dll")
+            d3d9_bak_path = os.path.join(gw_dir, "d3d9.dll.bak")
+            if account.gmod_enabled:
+                if os.path.exists(d3d9_path):
+                    shutil.move(d3d9_path, d3d9_bak_path)
+                    log_message(f"Renamed existing {d3d9_path} to {d3d9_bak_path}", level="info")
+                shutil.copy2(gmod_dll_name, d3d9_path)
+                log_message(f"Copied {gmod_dll_name} to {d3d9_path}", level="info")
+            if account.inject_py4gw or account.inject_blackbox or account.gmod_enabled:
                 self.start_injection_thread(pid, account)
-
-            """
-            if account.resize_client or account.enable_client_rename:
-                log_history.append(f"Launch GW - Waiting for window handle to be created.")
-
-                hwnd = None
-                retries = 10  # Maximum number of attempts
-                retry_interval = 0.5  # Seconds between retries
-
-                for attempt in range(retries):
-                    hwnd = patcher.get_hwnd_by_pid(pid)
-                    if hwnd:
-                        break  # Exit the loop if hwnd is found
-                    time.sleep(retry_interval)  # Wait before retrying
-
-                if not hwnd:
-                    log_history.append("Launch GW - Failed to find Guild Wars window after retries.")
-                    return
-
-                log_history.append(f"Launch GW - Found window handle: {hwnd}")
-
-
-                if hwnd and account.enable_client_rename:
-                    # Set the new title
-                    client_name =  account.character_name if account.use_character_name else account.custom_client_name
-                    log_history.append(f"Launch GW - renaming client to: {client_name}")
-                    user32.SetWindowTextW(hwnd, client_name)
-        
-                if hwnd and account_data.resize_client:
-                    # Move and resize the window
-                    pos_x, pos_y = account_data.top_left
-                    width, height = account_data.width, account_data.height
-                    user32.MoveWindow(hwnd, account_data.top_left[0], account_data.top_left[1],
-                                      account_data.width, account_data.height, True)
-
-                    log_history.append(f"Patcher - Window Renamed: {client_name}, Pos({pos_x}, {pos_y}), Size({width}x{height})")
-                else:
-                    log_history.append("Patcher - Failed to find Guild Wars window.")
-
-                kernel32.CloseHandle(process_info.hProcess)
-                kernel32.CloseHandle(process_info.hThread)
-                """
-            #threading.Thread(target=self.monitor_game_process, args=(account, pid), daemon=True).start()
+            log_message(f"Successfully launched {account.character_name}", level="info")
         except Exception as e:
-            log_history.append(f"Error launching GW: {str(e)}")
-
-
-# -------------------------------------------------#
-# -------------- GUI Functions --------------------#
-
-def create_docking_splits() -> list[hello_imgui.DockingSplit]:
-    """
-    Define the dockable layout:
-    - Bottom: Log Console
-    - Left: Tree View
-    - Right: Main Content
-    """
-    return [
-        # Bottom split for the Log Console
-        hello_imgui.DockingSplit(
-            initial_dock_="MainDockSpace",
-            new_dock_="LogConsole",
-            direction_=imgui.Dir.down,
-            ratio_=0.25
-        ),
-        # Left split for the Tree View
-        hello_imgui.DockingSplit(
-            initial_dock_="MainDockSpace",
-            new_dock_="TreeView",
-            direction_=imgui.Dir.left,
-            ratio_=0.25
-        )
-    ]
-
-
-def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
-    """
-    Define the dockable windows:
-    - Log Console
-    - Tree View
-    - Main Content
-    """
-    return [
-        hello_imgui.DockableWindow(
-            label_="Log Console",
-            dock_space_name_="LogConsole",
-            gui_function_=show_log_console
-        ),
-        hello_imgui.DockableWindow(
-            label_="Teams",
-            dock_space_name_="TreeView",
-            gui_function_=show_tree_view
-        ),
-        hello_imgui.DockableWindow(
-            label_="Account Configuration",
-            dock_space_name_="MainDockSpace",
-            gui_function_=show_configuration_content
-        ),
-        hello_imgui.DockableWindow(
-            label_="Launch Configuration",
-            dock_space_name_="MainDockSpace",
-            gui_function_=show_main_content
-        )
-    ]
-
-def show_log_console():
-    """Content for the Log Console"""
-    imgui.text("Log Console")
-    imgui.separator()
-
-    # Start scrollable child window
-    imgui.begin_child(
-    str_id="LogConsoleWindow",
-    size=imgui.ImVec2(0, 0),
-    child_flags=int(imgui.ChildFlags_.borders.value),  # Ensure it's an int
-    window_flags=int(imgui.WindowFlags_.horizontal_scrollbar.value)  # Ensure window_flags is also an int
-)
-    
-
-    # Track scroll position
-    scroll_y = imgui.get_scroll_y()                      # Current scroll position
-    scroll_max_y = imgui.get_scroll_max_y()              # Max scroll position
-    is_scrolled_to_bottom = (scroll_y >= scroll_max_y)   # Detect if at the bottom
-
-    # Display log messages
-    for i in range(len(log_history)):
-        imgui.text(log_history[i])
-
-    # Auto-scroll only if user was at the bottom
-    if is_scrolled_to_bottom:
-        imgui.set_scroll_here_y(1.0)
-
-    imgui.end_child()
-
-
+            log_message(f"Error launching GW for {account.character_name}: {str(e)}", level="error")
 
 launch_gw = GWLauncher()
 
+def create_docking_splits() -> list[hello_imgui.DockingSplit]:
+    global visible_windows
+    if visible_windows["MainDockSpace"] or visible_windows["Console"] or visible_windows["TreeView"]:
+        return [
+            hello_imgui.DockingSplit(
+                initial_dock_="MainDockSpace",
+                new_dock_="Console",
+                direction_=imgui.Dir.down,
+                ratio_=0.20,
+            ),
+            hello_imgui.DockingSplit(
+                initial_dock_="MainDockSpace",
+                new_dock_="TreeView",
+                direction_=imgui.Dir.left,
+                ratio_=0.60,
+            ),
+        ]
+    return []
 
+def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
+    global visible_windows
+    dockable_windows = []
+    if visible_windows.get("TreeView", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Account Configuration",
+                dock_space_name_="TreeView",
+                gui_function_=show_account_configuration,
+                can_be_closed_=False,
+                is_visible_=True
+            )
+        )
+    if visible_windows.get("MainDockSpace", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Teams Manager",
+                dock_space_name_="MainDockSpace",
+                gui_function_=show_teams_manager,
+                can_be_closed_=False,
+                is_visible_=True
+            )
+        )
+    if visible_windows.get("Console", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Console",
+                dock_space_name_="Console",
+                gui_function_=show_log_console,
+                can_be_closed_=False,
+                is_visible_=True
+            )
+        )
+    return dockable_windows
 
-def show_tree_view():
-    """
-    Content for the Tree View - Displays all teams and their accounts in a tree view.
-    """
-    global team_manager, launch_gw
+def show_log_console() -> None:
+    imgui.text("Console")
+    imgui.separator()
+    imgui.begin_child(
+        "ConsoleWindow",
+        imgui.ImVec2(0, 0),
+        child_flags=int(imgui.ChildFlags_.borders.value),
+        window_flags=int(imgui.WindowFlags_.horizontal_scrollbar.value),
+    )
+    scroll_y = imgui.get_scroll_y()
+    scroll_max_y = imgui.get_scroll_max_y()
+    is_scrolled_to_bottom = scroll_y >= scroll_max_y
+    for i in range(len(log_history)):
+        imgui.text(log_history[i])
+    if is_scrolled_to_bottom:
+        imgui.set_scroll_here_y(1.0)
+    imgui.end_child()
 
+def show_teams_manager() -> None:
+    global team_manager, launch_gw, team_filter, current_page, items_per_page, visible_windows
+    imgui.push_style_color(imgui.Col_.text, (0.2, 0.4, 0.8, 1.0))
     imgui.text("Teams Manager")
+    imgui.pop_style_color()
     imgui.separator()
 
-    if not team_manager.teams:
-        imgui.text("No teams available. Please add teams in the configuration window.")
-        return
-
-    for team_name, team in team_manager.teams.items():
-        if imgui.tree_node(f"{team_name}##{id(team)}"):
-            imgui.spacing()
-            
-            # Button to launch all accounts in the team sequentially
-            if imgui.button(f"Launch {team_name}##{id(team)}"):
-                log_history.append(f"Launching all accounts for team: {team_name}")
-                launch_gw.start_team_launch_thread(team)  # Use the new threaded function
-
-
-            imgui.spacing()
-            imgui.separator()
-
-            # List all accounts in the team
-            for account in team.accounts:
-                if imgui.tree_node(f"{account.character_name}##{id(account)}"):
-                    imgui.spacing()
-                    
-                    # Launch individual accounts
-                    if imgui.button(f"Launch {account.character_name}##{id(account)}"):
-                        log_history.append(f"Launching account: {account.character_name}")
-                        launch_gw.launch_gw(account)
-
-                    imgui.tree_pop()
-
-            imgui.tree_pop()
-
-
-
-def show_main_content():
-    """
-    Content for the Main Content Window
-    with auto-saving for any modifications.
-    """
-    global selected_team, team_manager, config_file, launch_gw
-
+    hide_others = not visible_windows["TreeView"]
+    _, hide_others = imgui.checkbox("Advanced View##visibility_toggle" if not hide_others else "Compact View##visibility_toggle", hide_others)
     
-    # Generate a list of team names
+    if imgui.is_item_hovered():
+        if hide_others:
+            imgui.set_tooltip("Toggle for Advanced View")
+        else:
+            imgui.set_tooltip("Toggle to Compact View")
+
+    imgui.separator()
+    
+    if hide_others != (not visible_windows["TreeView"]):
+        visible_windows["TreeView"] = not hide_others
+        visible_windows["Console"] = not hide_others
+        visible_windows["MainDockSpace"] = True
+        if hide_others:
+            hello_imgui.change_window_size((350, 450))
+        else:
+            hello_imgui.change_window_size((800, 600))
+        log_message(f"Visibility toggled: TreeView={visible_windows['TreeView']}, Console={visible_windows['Console']}, MainDockSpace={visible_windows['MainDockSpace']}", level="info")
+
+    imgui.text("Filter teams below:")
+    imgui.set_next_item_width(200)
+    _, team_filter = imgui.input_text("Filter Teams", team_filter, flags=imgui.InputTextFlags_.enter_returns_true)
+    if imgui.is_item_hovered():
+        imgui.set_tooltip("Type to filter teams by name.")
+    filtered_teams = {name: team for name, team in team_manager.teams.items() if team_filter.lower() in name.lower()}
+    team_list = list(filtered_teams.items())
+    start_idx = current_page * items_per_page
+    end_idx = min(start_idx + items_per_page, len(team_list))
+    for team_name, team in team_list[start_idx:end_idx]:
+        if team_manager.get_first_team() and (selected_team is not None and team_name == selected_team.name):
+            imgui.set_next_item_open(True)
+            if imgui.tree_node(f"{team_name}##{id(team)}"):
+                imgui.push_style_color(imgui.Col_.button, (0.2, 0.6, 0.2, 1.0))
+                if imgui.button(f"Launch {team_name}##{id(team)}"):
+                    launch_gw.start_team_launch_thread(team)
+                imgui.pop_style_color()
+                imgui.separator()
+                for account in team.accounts:
+                    if imgui.tree_node(f"{account.character_name}##{id(account)}"):
+                        imgui.push_style_color(imgui.Col_.button, (0.2, 0.6, 0.2, 1.0))
+                        if imgui.button(f"Launch {account.character_name}##{id(account)}"):
+                            launch_gw.launch_gw(account)
+                        imgui.pop_style_color()
+                        imgui.text("Run Python script at launch")
+                        if account.script_path:
+                            filename = os.path.basename(account.script_path)
+                            imgui.text(f" - {filename}")
+                            if imgui.is_item_hovered():
+                                imgui.set_tooltip(account.script_path)
+                            imgui.same_line()
+                            if imgui.button(f"Remove##{id(account)}_script_remove"):
+                                account.script_path = ""
+                                team_manager.save_to_json(os.getcwd(), config_file)
+                                log_message(f"Removed script for account: {account.character_name}", level="info")
+                        imgui.same_line()
+                        if imgui.button(f"Select Script##{id(account)}_select_script"):
+                            selected_script = select_python_script()
+                            if selected_script:
+                                account.script_path = selected_script
+                                team_manager.save_to_json(os.getcwd(), config_file)
+                                log_message(f"Selected script for account: {account.character_name} - {selected_script}", level="info")
+                        if imgui.is_item_hovered():
+                            imgui.set_tooltip("Select a Python script (e.g., .py) to run at launch.")
+                        imgui.tree_pop()
+                imgui.tree_pop()
+        else:
+            if len(team.accounts) > 5 and not imgui.get_tree_node_to_label_spacing() > 0:
+                imgui.set_next_item_open(False)
+            if imgui.tree_node(f"{team_name}##{id(team)}"):
+                imgui.push_style_color(imgui.Col_.button, (0.2, 0.6, 0.2, 1.0))
+                if imgui.button(f"Launch {team_name}##{id(team)}"):
+                    launch_gw.start_team_launch_thread(team)
+                imgui.pop_style_color()
+                imgui.separator()
+                for account in team.accounts:
+                    if imgui.tree_node(f"{account.character_name}##{id(account)}"):
+                        imgui.push_style_color(imgui.Col_.button, (0.2, 0.6, 0.2, 1.0))
+                        if imgui.button(f"Launch {account.character_name}##{id(account)}"):
+                            launch_gw.launch_gw(account)
+                        imgui.pop_style_color()
+                        imgui.text("Run Python script at launch")
+                        if account.script_path:
+                            filename = os.path.basename(account.script_path)
+                            imgui.text(f" - {filename}")
+                            if imgui.is_item_hovered():
+                                imgui.set_tooltip(account.script_path)
+                            imgui.same_line()
+                            if imgui.button(f"Remove##{id(account)}_script_remove"):
+                                account.script_path = ""
+                                team_manager.save_to_json(os.getcwd(), config_file)
+                                log_message(f"Removed script for account: {account.character_name}", level="info")
+                        imgui.same_line()
+                        if imgui.button(f"Select Script##{id(account)}_select_script"):
+                            selected_script = select_python_script()
+                            if selected_script:
+                                account.script_path = selected_script
+                                team_manager.save_to_json(os.getcwd(), config_file)
+                                log_message(f"Selected script for account: {account.character_name} - {selected_script}", level="info")
+                        if imgui.is_item_hovered():
+                            imgui.set_tooltip("Select a Python script (e.g., .py) to run at launch.")
+                        imgui.tree_pop()
+                imgui.tree_pop()
+    if not team_manager.teams:
+        imgui.text("No teams available. Add teams in the Account Configuration window.")
+
+def show_account_configuration() -> None:
+    global config_file, team_manager, selected_team, entered_team_name, data_loaded, new_account_data, account_header_states, show_error_popup, error_message, account_password_visibility, visible_windows
+    if visible_windows["TreeView"]:
+        imgui.set_next_window_focus()
+    
+    if not data_loaded:
+        try:
+            team_manager.load_from_json(os.getcwd(), config_file)
+            first_team = team_manager.get_first_team()
+            if first_team:
+                selected_team = first_team
+                entered_team_name = first_team.name
+                log_message(f"Account Configuration: Auto-selected first team: {first_team.name}", level="info")
+            else:
+                log_message("No teams found. Please create one.", level="info")
+        except Exception as e:
+            log_message(f"Error loading teams: {e}", level="error")
+        data_loaded = True
+
+    imgui.push_style_color(imgui.Col_.text, (0.2, 0.4, 0.8, 1.0))
+    imgui.text("Account Configuration")
+    imgui.pop_style_color()
+    imgui.separator()
+    imgui.push_style_var(imgui.StyleVar_.frame_padding, (4, 4))
+    imgui.text("Step 1: Select or Create a Team")
+    imgui.pop_style_var()
+    imgui.push_style_color(imgui.Col_.text, (0.8, 0.8, 0.8, 1.0))
+    imgui.text_wrapped("Select an existing team from the dropdown, or enter a new name and click 'Create Team'.")
+    imgui.pop_style_color()
     team_names = [team.name for team in team_manager.teams.values()]
-
-    # Keep track of the currently selected team index
-    selected_index = -1  # Default to -1, meaning no selection
-    if selected_team:
-        selected_index = team_names.index(selected_team.name) if selected_team.name in team_names else -1
-
-    # Combo box for existing teams
-    imgui.set_next_item_width(300)
-    changed, selected_index = imgui.combo(
-        "Select Team", selected_index, team_names
-    )
-
-    # Update the selected team if a selection is made
+    selected_index = team_names.index(selected_team.name) if selected_team and selected_team.name in team_names else -1
+    imgui.text("Select Existing Team:")
+    imgui.set_next_item_width(200)
+    changed, selected_index = imgui.combo("Existing Teams", selected_index, team_names)
     if changed and selected_index != -1:
         selected_team = team_manager.get_team(team_names[selected_index])
-        if selected_team:
-            log_history.append(f"Selected team: {selected_team.name}")
+        if selected_team is not None:
+            entered_team_name = selected_team.name
+            log_message(f"Selected team: {selected_team.name}", level="info")
+    imgui.text("Or Create New Team:")
+    imgui.set_next_item_width(200)
+    _, entered_team_name = imgui.input_text("Team Name", entered_team_name, flags=imgui.InputTextFlags_.enter_returns_true)
+    if imgui.is_item_hovered():
+        imgui.set_tooltip("Enter a unique name and press Enter or click 'Create Team'.")
     imgui.same_line()
-
-    if not selected_team:
-        imgui.text("No team selected. Please select a team from the dropdown.")
-        return
-
+    imgui.push_style_color(imgui.Col_.button, (0.2, 0.6, 0.2, 1.0))
+    if imgui.button("Create Team") or (imgui.is_item_active() and imgui.is_key_pressed(imgui.Key.enter)):
+        if entered_team_name.strip():
+            if entered_team_name in team_manager.teams:
+                log_message(f"Team '{entered_team_name}' already exists. Select it or use a different name.", level="warning")
+            else:
+                new_team = Team(entered_team_name)
+                team_manager.add_team(new_team)
+                selected_team = new_team
+                log_message(f"Created new team: {entered_team_name}", level="info")
+        else:
+            log_message("Team name cannot be empty.", level="error")
+    imgui.pop_style_color()
     imgui.separator()
-    imgui.text(f"Managing Team: {selected_team.name}")
-    imgui.separator()
-
-    # Iterate over accounts in the selected team
-    for account in selected_team.accounts:
-        if imgui.collapsing_header(f"{account.character_name}##{id(account)}"):
-
-            # Launch Account Button
-            if imgui.button(f"Launch Account##{id(account)}"):
-                launch_gw.launch_gw(account)
-                log_history.append(f"Launching account: {account.character_name}")
-
-            # Python Script Path
-            imgui.text("Run python script at launch")
+    if selected_team is not None:
+        imgui.text(f"Selected Team: {selected_team.name}")
+        imgui.separator()
+        default_open_flag = imgui.TreeNodeFlags_.default_open.value if not selected_team.accounts else 0
+        if imgui.collapsing_header("Add New Account", default_open_flag):
+            imgui.push_style_var(imgui.StyleVar_.frame_padding, (4, 4))
+            imgui.text("Step 2: Add Account Details")
+            imgui.pop_style_var()
+            imgui.push_style_color(imgui.Col_.text, (0.8, 0.8, 0.8, 1.0))
+            imgui.text_wrapped("Fill in all required fields (*) and click 'Add Account'.")
+            imgui.pop_style_color()
+            required_fields = ["character_name", "email", "password", "gw_path"]
+            imgui.push_style_color(imgui.Col_.text, (1.0, 0.5, 0.5, 1.0))
             imgui.set_next_item_width(300)
-            _, account.script_path = imgui.input_text(f"##{id(account)}", account.script_path, 256)
+            _, new_account_data["character_name"] = imgui.input_text("Character Name *", new_account_data["character_name"])
+            imgui.pop_style_color()
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Enter the in-game character name (required).")
+            imgui.set_next_item_width(300)
+            _, new_account_data["email"] = imgui.input_text("Email *", new_account_data["email"])
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Guild Wars account email (required).")
+            imgui.set_next_item_width(300)
+            password_flags = imgui.InputTextFlags_.password.value if "new" not in account_password_visibility or not account_password_visibility["new"] else 0
+            _, new_account_data["password"] = imgui.input_text("Password *", new_account_data["password"], flags=password_flags)
             imgui.same_line()
-            if imgui.button(f"Select Script##{id(account)}"):
-                selected_script = select_python_script()
-                if selected_script:
-                    account.script_path = selected_script
-                    team_manager.save_to_json(config_file)  # Auto-save
+            _, account_password_visibility["new"] = imgui.checkbox("Show##new_show", "new" in account_password_visibility and account_password_visibility["new"])
+            imgui.push_style_color(imgui.Col_.text, (1.0, 0.5, 0.5, 1.0))
+            imgui.set_next_item_width(300)
+            _, new_account_data["gw_path"] = imgui.input_text("Guild Wars Path *", new_account_data["gw_path"])
+            imgui.pop_style_color()
+            imgui.same_line()
+            if imgui.button("Browse"):
+                selected_exe = select_gw_exe()
+                if selected_exe:
+                    new_account_data["gw_path"] = selected_exe
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Path to Gw.exe (required).")
+            imgui.set_next_item_width(300)
+            _, new_account_data["gw_client_name"] = imgui.input_text("GW Client Name", new_account_data["gw_client_name"])
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Optional name for renaming the GW client.")
+            imgui.set_next_item_width(300)
+            _, new_account_data["extra_args"] = imgui.input_text("Extra Arguments", new_account_data["extra_args"])
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Additional command-line arguments for Guild Wars (optional).")
+            _, new_account_data["run_as_admin"] = imgui.checkbox("Run As Admin", new_account_data["run_as_admin"])
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Run Guild Wars with administrative privileges.")
+            _, new_account_data["inject_py4gw"] = imgui.checkbox("Inject Py4GW", new_account_data["inject_py4gw"])
+            _, new_account_data["inject_blackbox"] = imgui.checkbox("Inject Blackbox", new_account_data["inject_blackbox"])
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Inject the Blackbox DLL for additional functionality.")
+            _, new_account_data["gmod_enabled"] = imgui.checkbox("Inject gMod", new_account_data["gmod_enabled"])
+            if imgui.is_item_hovered():
+                imgui.set_tooltip("Inject the gMod DLL to enable mod support (requires modlist.txt).")
+            imgui.separator()
+            imgui.push_style_color(imgui.Col_.button, (0.2, 0.6, 0.2, 1.0))
+            if imgui.button("Add Account"):
+                missing = [k.replace("_", " ").title() for k in required_fields if not new_account_data[k].strip()]
+                if missing:
+                    log_message(f"Missing required fields: {', '.join(missing)}", level="error")
+                elif not os.path.exists(new_account_data["gw_path"]):
+                    error_message = f"GW path does not exist: {new_account_data['gw_path']}"
+                    show_error_popup = True
+                else:
+                    new_account = Account(**new_account_data)
+                    selected_team.add_account(new_account)
+                    team_manager.save_to_json(os.getcwd(), config_file)
+                    log_message(f"Added account: {new_account.character_name}", level="info")
+                    account_password_visibility[id(new_account)] = False
+                    for key in new_account_data:
+                        new_account_data[key] = "" if isinstance(new_account_data[key], str) else False
+            imgui.pop_style_color()
+            imgui.same_line()
+            if imgui.button("Clear Form"):
+                for key in new_account_data:
+                    new_account_data[key] = "" if isinstance(new_account_data[key], str) else False
+                log_message("Cleared account form", level="info")
 
-            """
-            # Custom colors for the Client Configuration header
-            imgui.push_style_color(imgui.Col_.header, (0.3, 0.4, 0.2, 1.0))  # Greenish header
-            imgui.push_style_color(imgui.Col_.header_hovered, (0.35, 0.45, 0.25, 1.0))
-            imgui.push_style_color(imgui.Col_.header_active, (0.25, 0.35, 0.15, 1.0))
+        if imgui.begin_child("ExistingAccounts", imgui.ImVec2(0, 0), child_flags=int(imgui.ChildFlags_.borders.value)):
+            imgui.push_style_color(imgui.Col_.text, (0.2, 0.4, 0.8, 1.0))
+            imgui.text("Existing Accounts")
+            imgui.pop_style_color()
+            for i, account in enumerate(selected_team.accounts):
+                account_id = id(account)
+                if account_id not in account_header_states:
+                    account_header_states[account_id] = True
+                if account_id not in account_password_visibility:
+                    account_password_visibility[account_id] = False
 
-            if imgui.collapsing_header(f"Client Configuration##{id(account)}"):
-                imgui.pop_style_color(3)  # Restore header colors
-                imgui.spacing()
+                is_open = account_header_states[account_id]
+                if imgui.collapsing_header(f"{account.character_name or 'Unnamed'}##{id(account)}", flags=imgui.TreeNodeFlags_.default_open if is_open else 0):
+                    new_is_open = imgui.get_tree_node_to_label_spacing() > 0
+                    if new_is_open != is_open:
+                        account_header_states[account_id] = new_is_open
 
-                # Set background color for the Client Configuration block
-                imgui.push_style_color(imgui.Col_.child_bg, (0.3, 0.4, 0.2, 0.5))  # Greenish background
-                if imgui.begin_child(
-                    f"ClientConfigBlock##{id(account)}",
-                    imgui.ImVec2(0, 150),  # Define size
-                    child_flags=0,  # Optional child-specific flags
-                    window_flags=imgui.WindowFlags_.no_move,  # Window-specific flags
-                    ):
+                    changed = False
 
-                    #Client Rename Options
-                    _, account.enable_client_rename = imgui.checkbox(f"Enable Client Rename##{id(account)}", account.enable_client_rename)
-                    team_manager.save_to_json(config_file)  # Auto-save
+                    imgui.text("Character Name:")
+                    imgui.set_next_item_width(300)
+                    char_changed, new_char_name = imgui.input_text(
+                        f"##{id(account)}_char", account.character_name or ""
+                    )
+                    if char_changed and (imgui.is_item_edited() or imgui.is_item_deactivated_after_edit()):
+                        account.character_name = new_char_name
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        log_message(f"Updated character name for {account.character_name}", level="info")
+                        changed = True
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Enter the in-game character name.")
 
-                    if account.enable_client_rename:
-                        _, account.use_character_name = imgui.checkbox(f"Use Character Name##{id(account)}", account.use_character_name)
-                        team_manager.save_to_json(config_file)  # Auto-save
+                    imgui.text("Email:")
+                    imgui.set_next_item_width(300)
+                    email_changed, new_email = imgui.input_text(f"##{id(account)}_email", account.email)
+                    if email_changed and (imgui.is_item_edited() or imgui.is_item_deactivated_after_edit()):
+                        account.email = new_email
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        log_message(f"Updated email for {account.character_name}", level="info")
+                        changed = True
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Guild Wars account email.")
 
-                        if not account.use_character_name:
-                            imgui.set_next_item_width(300)
-                            _, account.custom_client_name = imgui.input_text(f"Custom Client Name##{id(account)}", account.custom_client_name, 128)
-                            team_manager.save_to_json(config_file)  # Auto-save
+                    imgui.text("Password:")
+                    password_flags = (
+                        imgui.InputTextFlags_.password.value if not account_password_visibility[account_id] else 0
+                    )
+                    imgui.set_next_item_width(300)
+                    pwd_changed, new_password = imgui.input_text(
+                        f"##{id(account)}_pwd", account.password, flags=password_flags
+                    )
+                    if pwd_changed and (imgui.is_item_edited() or imgui.is_item_deactivated_after_edit()):
+                        account.password = new_password
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        log_message(f"Updated password for {account.character_name}", level="info")
+                        changed = True
+                    imgui.same_line()
+                    _, account_password_visibility[account_id] = imgui.checkbox(
+                        f"Show##{id(account)}_show", account_password_visibility[account_id]
+                    )
+
+                    imgui.text("Guild Wars Path:")
+                    imgui.set_next_item_width(300)
+                    path_changed, new_gw_path = imgui.input_text(f"##{id(account)}_path", account.gw_path)
+                    if path_changed and (imgui.is_item_edited() or imgui.is_item_deactivated_after_edit()):
+                        account.gw_path = new_gw_path
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        changed = True
+                    imgui.same_line()
+                    if imgui.button(f"Browse##{id(account)}_browse"):
+                        selected_exe = select_gw_exe()
+                        if selected_exe:
+                            account.gw_path = selected_exe
+                            team_manager.save_to_json(os.getcwd(), config_file)
+                            changed = True
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Path to Gw.exe (required).")
+
+                    imgui.text("GW Client Name:")
+                    imgui.set_next_item_width(300)
+                    client_changed, new_client_name = imgui.input_text(f"##{id(account)}_client", account.gw_client_name)
+                    if client_changed and (imgui.is_item_edited() or imgui.is_item_deactivated_after_edit()):
+                        account.gw_client_name = new_client_name
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        log_message(f"Updated GW Client Name for {account.character_name}", level="info")
+                        changed = True
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Optional name for renaming the GW client.")
+
+                    imgui.text("Extra Arguments:")
+                    imgui.set_next_item_width(300)
+                    args_changed, new_extra_args = imgui.input_text(f"##{id(account)}_args", account.extra_args)
+                    if args_changed and (imgui.is_item_edited() or imgui.is_item_deactivated_after_edit()):
+                        account.extra_args = new_extra_args
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        log_message(f"Updated Extra Arguments for {account.character_name}", level="info")
+                        changed = True
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Additional command-line arguments for Guild Wars (optional).")
+
+                    if account.run_as_admin:
+                        imgui.push_style_color(imgui.Col_.text, (1.0, 0.0, 0.0, 1.0))
+                    else:
+                        imgui.push_style_color(imgui.Col_.text, (0.0, 1.0, 0.0, 1.0))
+                    admin_changed, account.run_as_admin = imgui.checkbox(f"Run As Admin##{id(account)}_admin", account.run_as_admin)
+                    imgui.pop_style_color()
+                    if admin_changed:
+                        log_message(f"Change detected in Run As Admin for {account.character_name}", level="info")
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        changed = True
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Run Guild Wars with administrative privileges.")
+
+                    py4gw_changed, account.inject_py4gw = imgui.checkbox(f"Inject Py4GW##{id(account)}_py4gw", account.inject_py4gw)
+                    if py4gw_changed:
+                        log_message(f"Change detected in Inject Py4GW for {account.character_name}", level="info")
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        changed = True
+
+                    bb_changed, account.inject_blackbox = imgui.checkbox(f"Inject Blackbox##{id(account)}_bb", account.inject_blackbox)
+                    if bb_changed:
+                        log_message(f"Change detected in Inject Blackbox for {account.character_name}", level="info")
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        changed = True
+                    if imgui.is_item_hovered():
+                        imgui.set_tooltip("Inject the Blackbox DLL for additional functionality.")
+
+                    gmod_changed, account.gmod_enabled = imgui.checkbox(f"Inject gMod##{id(account)}_gmod", account.gmod_enabled)
+                    if gmod_changed:
+                        log_message(f"Change detected in Inject gMod for {account.character_name}", level="info")
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        changed = True
+                        if not account.gmod_enabled:
+                            account.mark_changed()
+
+                    if imgui.button(f"Add Mod##{id(account)}_addmod"):
+                        root = tk.Tk()
+                        root.withdraw()
+                        mod_file = filedialog.askopenfilename(title="Select .tpf Mod", filetypes=[("TPF Files", "*.tpf")])
+                        root.destroy()
+                        if mod_file and mod_file not in account.mod_list:
+                            account.mod_list.append(mod_file)
+                            log_message(f"Change detected in Mod list (Add) for {account.character_name}", level="info")
+                            team_manager.save_to_json(os.getcwd(), config_file)
+                            changed = True
+
+                    for j, mod in enumerate(account.mod_list[:]):
+                        filename = os.path.basename(mod)
+                        imgui.text(f" - {filename}")
+                        if imgui.is_item_hovered():
+                            imgui.set_tooltip(mod)
+                        imgui.same_line()
+                        if imgui.button(f"Remove##{id(account)}_{j}_remove"):
+                            account.mod_list.pop(j)
+                            log_message(f"Change detected in Mod list (Remove) for {account.character_name}", level="info")
+                            team_manager.save_to_json(os.getcwd(), config_file)
+                            changed = True
 
                     imgui.separator()
-                    # Resize Client Checkbox
-                    _, account.resize_client = imgui.checkbox(f"Resize Client##{id(account)}", account.resize_client)
-                    team_manager.save_to_json(config_file)  # Auto-save
 
-                    if account.resize_client:
-                        # Preview Area Checkbox
-                        _, account.preview_area = imgui.checkbox(f"Preview Area##{id(account)}", account.preview_area)
-                        team_manager.save_to_json(config_file)  # Auto-save
+                    if changed:
+                        account.mark_changed()
 
-                        imgui.text("Top-Left Position")
-                        imgui.set_next_item_width(100)
-                        changed_x, top_left_x = imgui.input_int(f"X##TopLeft{id(account)}", account.top_left[0])
-                        imgui.same_line()
-                        imgui.set_next_item_width(100)
-                        changed_y, top_left_y = imgui.input_int(f"Y##TopLeft{id(account)}", account.top_left[1])
-                        if changed_x or changed_y:
-                            account.top_left = (top_left_x, top_left_y)
-                            team_manager.save_to_json(config_file)  # Auto-save
+                    imgui.push_style_color(imgui.Col_.button, (0.5, 0.5, 0.5, 1.0) if not account.has_changes else (0.2, 0.6, 0.2, 1.0))
+                    if imgui.button(f"Save##{id(account)}_save") and account.has_changes:
+                        if not account.gw_path:
+                            error_message = f"No GW path specified for {account.character_name}."
+                            show_error_popup = True
+                        elif not os.path.exists(account.gw_path):
+                            error_message = f"GW path does not exist for {account.character_name}: {account.gw_path}"
+                            show_error_popup = True
+                        else:
+                            gw_dir = os.path.dirname(os.path.normpath(account.gw_path))
+                            modlist_path = os.path.join(gw_dir, "modlist.txt")
+                            os.makedirs(os.path.dirname(modlist_path), exist_ok=True)
+                            with open(modlist_path, "w") as f:
+                                f.write("\n".join(account.mod_list) if account.mod_list else "")
+                            log_message(f"Wrote modlist.txt to {modlist_path}", level="info")
+                            d3d9_path = os.path.join(gw_dir, "d3d9.dll")
+                            if not account.gmod_enabled and os.path.exists(d3d9_path):
+                                try:
+                                    os.remove(d3d9_path)
+                                    log_message(f"Removed {d3d9_path} as gMod is disabled", level="info")
+                                except Exception as e:
+                                    log_message(f"Failed to remove {d3d9_path}: {str(e)}", level="error")
+                            team_manager.save_to_json(os.getcwd(), config_file)
+                            log_message(f"Saved account: {account.character_name}", level="info")
+                            account.clear_changes()
+                    imgui.pop_style_color()
+                    imgui.same_line()
+                    imgui.push_style_color(imgui.Col_.button, (0.6, 0.2, 0.2, 1.0))
+                    if imgui.button(f"Delete##{id(account)}_delete"):
+                        selected_team.accounts.pop(i)
+                        del account_header_states[account_id]
+                        del account_password_visibility[account_id]
+                        team_manager.save_to_json(os.getcwd(), config_file)
+                        log_message(f"Deleted account: {account.character_name}", level="info")
+                    imgui.pop_style_color()
 
-                        imgui.spacing()
+        if show_error_popup and visible_windows["TreeView"]:
+            imgui.open_popup("Error")
+            if imgui.begin_popup_modal("Error", flags=imgui.WindowFlags_.always_auto_resize)[0]:
+                imgui.text(error_message)
+                if imgui.button("OK"):
+                    show_error_popup = False
+                    error_message = ""
+                    log_message(f"User acknowledged error: {error_message}", level="info")
+                imgui.end_popup()
 
-                        # Width and Height
-                        imgui.text("Client Size")
-                        imgui.set_next_item_width(100)
-                        changed_width, account.width = imgui.input_int(f"Width##{id(account)}", account.width)
-                        imgui.same_line()
-                        imgui.set_next_item_width(100)
-                        changed_height, account.height = imgui.input_int(f"Height##{id(account)}", account.height)
-                        if changed_width or changed_height:
-                            team_manager.save_to_json(config_file)  # Auto-save
+        imgui.end_child()
 
-                        imgui.spacing()
-
-                    imgui.end_child()
-                imgui.pop_style_color(1)  # Restore background color
-
-            else:
-                imgui.pop_style_color(3)  # Restore header colors if not open
-
-            # Account Statistics Collapsible Section
-            imgui.push_style_color(imgui.Col_.header, (0.2, 0.35, 0.45, 1.0))  # Custom color for the header
-            imgui.push_style_color(imgui.Col_.header_hovered, (0.25, 0.4, 0.5, 1.0))
-            imgui.push_style_color(imgui.Col_.header_active, (0.15, 0.3, 0.4, 1.0))
-
-            if imgui.collapsing_header(f"Account Statistics##{id(account)}"):
-                imgui.pop_style_color(3)  # Restore the previous header colors
-                imgui.spacing()
-
-                # Set background color for the statistics block
-                imgui.push_style_color(imgui.Col_.child_bg, (0.2, 0.35, 0.45, 0.5))
-                if imgui.begin_child(
-                    f"StatsBlock##{id(account)}",
-                    imgui.ImVec2(0, 200),  # Define size
-                    child_flags=0,  # Optional child-specific flags
-                    window_flags=imgui.WindowFlags_.no_move,  # Window-specific flags
-                ):
-                    if imgui.begin_table(f"##StatsTable{id(account)}", 2, imgui.TableFlags_.borders | imgui.TableFlags_.row_bg):
-                        imgui.table_setup_column("Metric", imgui.TableColumnFlags_.width_stretch)
-                        imgui.table_setup_column("Value", imgui.TableColumnFlags_.width_stretch)
-                        imgui.table_headers_row()
-
-                        stats = {
-                            "Last Launch Time": account.last_launch_time or "N/A",
-                            "Total Runtime (hours)": f"{account.total_runtime:.2f}",
-                            "Session Time (hours)": f"{account.current_session_time:.2f}",
-                            "Average Runtime (hours)": f"{account.average_runtime:.2f}",
-                            "Min Runtime (hours)": f"{account.min_runtime:.2f}",
-                            "Max Runtime (hours)": f"{account.max_runtime:.2f}",
-                        }
-
-                        for metric, value in stats.items():
-                            imgui.table_next_row()
-                            imgui.table_set_column_index(0)
-                            imgui.text(metric)
-                            imgui.table_set_column_index(1)
-                            imgui.text(value)
-
-                        imgui.end_table()
-
-                    imgui.end_child()
-                imgui.pop_style_color(1)
-
-
-            else:
-                imgui.pop_style_color(3)  # Restore the previous header colors if not open
-            """
-            # Save changes after any modification
-            team_manager.save_to_json(config_file)
-
-
-
-def save_teams_to_json(name):
-    global config_file
-    imgui.separator()
-    if imgui.button("Save##" + str(name)):
-        try:
-            team_manager.save_to_json(config_file)
-            log_history.append("Config saved!")
-        except Exception as e:
-            log_history.append(f"Error saving teams: {e}")
-
-def select_folder():
-    """
-    Open a folder selection dialog and return the selected folder path.
-    """
+def select_folder() -> str:
     root = tk.Tk()
-    root.withdraw()  # Hide the main Tkinter window
+    root.withdraw()
     folder_path = filedialog.askdirectory(title="Select Guild Wars Path")
     root.destroy()
     return folder_path
 
-def select_gw_exe():
-    """
-    Open a file selection dialog to select the 'Gw.exe' file.
-    """
+def select_gw_exe() -> str:
     root = tk.Tk()
-    root.withdraw()  # Hide the main Tkinter window
-    file_path = filedialog.askopenfilename(
-        title="Select Guild Wars Executable",
-        filetypes=[("Executable Files", "*.exe")],  # Restrict to .exe files
-        initialfile="Gw.exe"  # Suggest Gw.exe as the default file
-    )
+    root.withdraw()
+    file_path = filedialog.askopenfilename(title="Select Guild Wars Executable", filetypes=[("Executable Files", "*.exe")], initialfile="Gw.exe")
     root.destroy()
     return file_path
 
-def select_dll(name):
-    """
-    Open a file selection dialog to select the 'DLL' file.
-    """
+def select_dll(name: str) -> str:
     root = tk.Tk()
-    root.withdraw()  # Hide the main Tkinter window
-    file_path = filedialog.askopenfilename(
-        title="Select DLL",
-        filetypes=[("dynamic Libraries", "*.dll")],  # Restrict to .exe files
-        initialfile=name  # Suggest Gw.exe as the default file
-    )
+    root.withdraw()
+    file_path = filedialog.askopenfilename(title="Select DLL", filetypes=[("Dynamic Libraries", "*.dll")], initialfile=name)
     root.destroy()
     return file_path
 
-def select_python_script():
-    """
-    Open a file selection dialog to select the 'DLL' file.
-    """
+def select_python_script() -> str:
     root = tk.Tk()
-    root.withdraw()  # Hide the main Tkinter window
-    file_path = filedialog.askopenfilename(
-        title="Select Python script",
-        filetypes=[("Python Scripts", "*.py")]  # Restrict to .exe files
-    )
+    root.withdraw()
+    file_path = filedialog.askopenfilename(title="Select Python Script", filetypes=[("Python Scripts", "*.py")])
     root.destroy()
     return file_path
 
-
-team_manager = TeamManager()
-selected_team = None
+# Application state for UI
+selected_team: Optional[Team] = None
 entered_team_name = ""
 data_loaded = False
-show_password = False
 new_account_data = {
     "character_name": "",
     "email": "",
@@ -1327,204 +1292,28 @@ new_account_data = {
     "run_as_admin": False,
     "inject_py4gw": True,
     "inject_blackbox": False,
+    "gmod_enabled": False,
 }
 
-def show_configuration_content():
-    global config_file, team_manager, selected_team, entered_team_name, data_loaded, show_password,new_account_data
+def main() -> None:
+    try:
+        runner_params = hello_imgui.RunnerParams()
+        runner_params.app_window_params.window_title = "Py4GW Launcher"
+        runner_params.app_window_params.window_geometry.size = (800, 600)
+        runner_params.imgui_window_params.default_imgui_window_type = hello_imgui.DefaultImGuiWindowType.provide_full_screen_dock_space
+        runner_params.docking_params.docking_splits = create_docking_splits()
 
-    # Automatically load data from JSON if not already loaded
-    if not data_loaded:
-        try:
-            team_manager.load_from_json(config_file)
-            log_history.append(f"Teams loaded from {config_file}")
+        def update_gui():
+            global visible_windows
+            runner_params.docking_params.dockable_windows = create_dockable_windows()
+            runner_params.docking_params.docking_splits = create_docking_splits()
+            if not visible_windows["TreeView"] and not visible_windows["Console"]:
+                imgui.set_next_window_size(imgui.ImVec2(0, 0), imgui.Cond_.always)
 
-            # Attempt to auto-select the first team
-            first_team = team_manager.get_first_team()
-            if first_team:
-                selected_team = first_team
-                entered_team_name = first_team.name  # Pre-fill the team name input
-                log_history.append(f"Team Configuration: Auto-selected first team: {first_team.name}")
-            else:
-                log_history.append("No teams found. Please create one.")
-        except Exception as e:
-            log_history.append(f"Error loading teams: {e}")
-        data_loaded = True
-
-
-    # Title and separator
-    imgui.text("Team Management")
-    imgui.separator()
-
-    imgui.text("Select or enter a team name:")
-    imgui.set_next_item_width(150)  # Standardized field width
-
-    # Generate a list of team names
-    team_names = [team.name for team in team_manager.teams.values()]
-
-    # Keep track of the currently selected team index
-    selected_index = -1  # Default to -1, meaning no selection
-    if selected_team:
-        selected_index = team_names.index(selected_team.name) if selected_team.name in team_names else -1
-
-    # Combo box for existing teams
-    changed, selected_index = imgui.combo(
-        "Existing Teams", selected_index, team_names
-    )
-
-    # Update the selected team if a selection is made
-    if changed and selected_index != -1:
-        selected_team = team_manager.get_team(team_names[selected_index])
-        if selected_team:
-            entered_team_name = selected_team.name  # Pre-fill the team name field
-            log_history.append(f"Selected team from combo box: {selected_team.name}")
-    imgui.same_line()
-    imgui.set_next_item_width(150)  # Standardized field width
-    _, entered_team_name = imgui.input_text("Team Name", entered_team_name, 128)
-    imgui.same_line()
-
-    if imgui.button("Select/Create Team"):
-        if entered_team_name.strip():
-            existing_team = team_manager.get_team(entered_team_name)
-            if existing_team:
-                selected_team = existing_team
-                log_history.append(f"Selected existing team: {entered_team_name}")
-            else:
-                new_team = Team(entered_team_name)
-                team_manager.add_team(new_team)
-                selected_team = new_team
-                log_history.append(f"Created new team: {entered_team_name}")
-        else:
-            log_history.append("Please enter a valid team name.")
-    imgui.separator()
-
-    if selected_team:
-        imgui.text(f"Managing Team: {selected_team.name}")
-        imgui.separator()
-
-        # Display existing accounts
-        for account in selected_team.accounts:
-            if imgui.collapsing_header(f"{account.character_name}##{id(account)}"):
-                imgui.spacing()
-                imgui.set_next_item_width(300)  # Standardized field width
-                _, account.character_name = imgui.input_text(f"Character Name##{id(account)}", account.character_name, 128)
-                imgui.spacing()
-                imgui.set_next_item_width(300)
-                _, account.email = imgui.input_text(f"Email##{id(account)}", account.email, 128)
-                imgui.spacing()
-
-        
-                password_flags = 0 if show_password else imgui.InputTextFlags_.password.value
-                imgui.set_next_item_width(300)
-
-                _, account.password = imgui.input_text(
-                    label=f"Password##{id(account)}",                # Label for the input box
-                    str=account.password,            # Existing value to display and modify
-                    flags=password_flags  # Password flag to obscure text
-                )
-
-                imgui.same_line()
-
-                _, show_password = imgui.checkbox(f"Show Password##{id(account)}", show_password)
-
-
-                imgui.spacing()
-
-                imgui.set_next_item_width(300)
-                _, account.gw_client_name = imgui.input_text(f"Rename GW Client##{id(account)}", account.gw_client_name, 128)
-                imgui.set_next_item_width(300)
-                _, account.gw_path = imgui.input_text(f"GW Path##{id(account)}", account.gw_path, 128)
-                # Button for folder selection
-                imgui.same_line()
-                if imgui.button(f"Select Gw.exe##{id(account)}"):
-                    selected_exe = select_gw_exe()
-                    if selected_exe:
-                        account.gw_path = selected_exe
-                imgui.set_next_item_width(300)
-                _, account.extra_args = imgui.input_text(f"Extra Args##{id(account)}", account.extra_args, 128)
-                _, account.run_as_admin = imgui.checkbox(f"Run as Admin##{id(account)}", account.run_as_admin)
-                _, account.inject_py4gw = imgui.checkbox(f"Inject Py4GW##{id(account)}", account.inject_py4gw)
-                _, account.inject_blackbox = imgui.checkbox(f"Inject Blackbox##{id(account)}", account.inject_blackbox)
-
-                save_teams_to_json(id(account))
-
-                imgui.same_line()
-
-                if imgui.button(f"Delete Account##{id(account)}"):
-                    selected_team.accounts.remove(account)
-                    log_history.append(f"Deleted account: {account.character_name}")
-
-        # Collapsible section for new account form
-        if imgui.collapsing_header("Add New Account", imgui.TreeNodeFlags_.default_open.value):
-            imgui.spacing()
-    
-            for key in new_account_data.keys():
-                if key == "password":  # Special handling for the password field
-                    password_flags = 0 if show_password else imgui.InputTextFlags_.password.value
-                    imgui.set_next_item_width(300)  # Standardized field width
-            
-                    # Input field for password
-                    _, new_account_data[key] = imgui.input_text(
-                    label=f"Password##new_item",  # Label for the input box
-                    str=new_account_data[key],    # Existing value to display and modify
-                    flags=password_flags  # Password flag to obscure text
-                    )
-
-                    # Checkbox for toggling password visibility
-                    imgui.same_line()
-                    _, show_password = imgui.checkbox("Show Password##new_item", show_password)
-                elif key == "gw_path":  # Special handling for the GW Path field
-                    imgui.set_next_item_width(300)  # Standardized field width
-            
-                    # Input field for GW Path
-                    _, new_account_data[key] = imgui.input_text(
-                        key.replace("_", " ").title() + "##new_item", 
-                        new_account_data[key], 
-                        128
-                    )
-
-                    # Button for folder selection
-                    imgui.same_line()
-                    if imgui.button(f"Select Gw.exe##new_item"):
-                        selected_exe = select_gw_exe()
-                        if selected_exe:
-                            new_account_data[key] = selected_exe
-
-                elif isinstance(new_account_data[key], bool):
-                    _, new_account_data[key] = imgui.checkbox(key.replace("_", " ").title() + "##new_item", new_account_data[key])
-                else:
-                    imgui.set_next_item_width(300)  # Standardized field width
-                    _, new_account_data[key] = imgui.input_text(key.replace("_", " ").title() + "##new_item", new_account_data[key], 128)
-
-            if imgui.button("Add Account"):
-                new_account = Account(**new_account_data)
-                selected_team.add_account(new_account)
-                log_history.append(f"Added account: {new_account.character_name} to team: {selected_team.name}")
-                team_manager.save_to_json(config_file)
-            imgui.same_line()
-            if imgui.button("Clear Form"):
-                for key in new_account_data.keys():
-                    new_account_data[key] = "" if isinstance(new_account_data[key], str) else False
-
-
-
-def main():
-    """
-    Main function to set up Hello ImGui RunnerParams and run the application.
-    """
-    # Set up Hello ImGui parameters
-    runner_params = hello_imgui.RunnerParams()
-    runner_params.app_window_params.window_title = "Py4GW Launcher"
-    runner_params.app_window_params.window_geometry.size = (800, 768)
-    runner_params.imgui_window_params.default_imgui_window_type = (
-        hello_imgui.DefaultImGuiWindowType.provide_full_screen_dock_space
-    )
-    runner_params.docking_params.docking_splits = create_docking_splits()
-    runner_params.docking_params.dockable_windows = create_dockable_windows()
-
-    # Run the application
-    hello_imgui.run(runner_params)
-
+        runner_params.callbacks.show_gui = update_gui
+        hello_imgui.run(runner_params)
+    except Exception as e:
+        log_message(f"Application error: {str(e)}", level="error")
 
 if __name__ == "__main__":
     main()
-    
