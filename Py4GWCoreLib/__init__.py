@@ -22,6 +22,7 @@ import PyKeystroke
 import PyOverlay
 import PyQuest
 import PyPathing
+import PyUIManager
 
 from .enums import *
 from .IconsFontAwesome5 import *
@@ -43,6 +44,7 @@ from .Quest import *
 
 from .Py4GWcorelib import *
 from .Overlay import *
+from .UIManager import *
 
 traceback = traceback
 math = math
@@ -64,6 +66,7 @@ PyEffects = PyEffects
 PyOverlay = PyOverlay
 PyQuest = PyQuest
 PyPathing = PyPathing
+PyUIManager = PyUIManager
 
 #redirect print output to Py4GW Console
 class Py4GWLogger:

@@ -498,7 +498,7 @@ class Party:
                 hero_id (int): The hero ID.
                 slot (int): The skill slot.
             """
-            return #function is not working atm
+            #return #function is not working atm
             Party.party_instance().UseHeroSkill(hero_agent_id, slot, target_id)
 
         @staticmethod
