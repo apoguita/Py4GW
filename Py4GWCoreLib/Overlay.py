@@ -65,3 +65,31 @@ class Overlay:
 
     def GetDisplaySize(self):
         return self.overlay_instance.GetDisplaySize()
+    
+    def DrawQuad(self, x1, y1, x2, y2, x3, y3, x4, y4, color=0xFFFFFFFF, thickness=1.0):
+        p1 = PyOverlay.Point2D(x1, y1)
+        p2 = PyOverlay.Point2D(x2, y2)
+        p3 = PyOverlay.Point2D(x3, y3)
+        p4 = PyOverlay.Point2D(x4, y4)
+        self.overlay_instance.DrawQuad(p1, p2, p3, p4, color, thickness)
+        
+    def DrawQuadFilled(self, x1, y1, x2, y2, x3, y3, x4, y4, color=0xFFFFFFFF):
+        p1 = PyOverlay.Point2D(x1, y1)
+        p2 = PyOverlay.Point2D(x2, y2)
+        p3 = PyOverlay.Point2D(x3, y3)
+        p4 = PyOverlay.Point2D(x4, y4)
+        self.overlay_instance.DrawQuadFilled(p1, p2, p3, p4, color)
+        
+    def DrawQuad3D(self, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4, color=0xFFFFFFFF, thickness=1.0):
+        p1 = PyOverlay.Point3D(x1, y1, z1)
+        p2 = PyOverlay.Point3D(x2, y2, z2)
+        p3 = PyOverlay.Point3D(x3, y3, z3)
+        p4 = PyOverlay.Point3D(x4, y4, z4)
+        self.overlay_instance.DrawQuad3D(p1, p2, p3, p4, color, thickness)
+        
+    def DrawQuadFilled3D(self, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4, color=0xFFFFFFFF):
+        p1 = PyOverlay.Point3D(x1, y1, z1)
+        p2 = PyOverlay.Point3D(x2, y2, z2)
+        p3 = PyOverlay.Point3D(x3, y3, z3)
+        p4 = PyOverlay.Point3D(x4, y4, z4)
+        self.overlay_instance.DrawQuadFilled3D(p1, p2, p3, p4, color)
