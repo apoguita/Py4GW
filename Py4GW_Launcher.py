@@ -991,22 +991,22 @@ class GWLauncher:
 def create_docking_splits() -> list[hello_imgui.DockingSplit]:
     """
     Define the dockable layout:
-    - Bottom: Console
+    - Bottom: ConsoleDockSpace
     - Left: MainDockSpace
-    - Right: AdvancedDock
+    - Right: AdvDockSpace
     """
     return [
         # Bottom split for the Console
         hello_imgui.DockingSplit(
             initial_dock_="MainDockSpace",
-            new_dock_="LogConsole",
+            new_dock_="ConsoleDockSpace",
             direction_=imgui.Dir.down,
             ratio_=0.25
         ),
         # Right split for the Advanced View
         hello_imgui.DockingSplit(
             initial_dock_="MainDockSpace",
-            new_dock_="AdvancedDock",
+            new_dock_="AdvDockSpace",
             direction_=imgui.Dir.right,
             ratio_=0.70
         )
@@ -1016,15 +1016,15 @@ def create_docking_splits() -> list[hello_imgui.DockingSplit]:
 def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
     """
     Define the dockable windows:
-    - Console
+    - ConsoleDockSpace
     - MainDockSpace
-    - AdvancedDock
+    - AdvDockSpace
     """
     return [
         hello_imgui.DockableWindow(
             label_="Console",
-            dock_space_name_="LogConsole",
-            gui_function_=show_log_console
+            dock_space_name_="ConsoleDockSpace",
+            gui_function_=show_console
         ),
         hello_imgui.DockableWindow(
             label_="Teams",
@@ -1033,24 +1033,24 @@ def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
         ),
         hello_imgui.DockableWindow(
             label_="Account Configuration",
-            dock_space_name_="AdvancedDock",
+            dock_space_name_="AdvDockSpace",
             gui_function_=show_configuration_content
         ),
         hello_imgui.DockableWindow(
             label_="Launch Configuration",
-            dock_space_name_="AdvancedDock",
+            dock_space_name_="AdvDockSpace",
             gui_function_=show_account_content
         )
     ]
 
-def show_log_console():
+def show_console():
     """Content for the Console"""
     imgui.text("Console")
     imgui.separator()
 
     # Start scrollable child window
     imgui.begin_child(
-    str_id="LogConsoleWindow",
+    str_id="ConsoleDockSpaceWindow",
     size=imgui.ImVec2(0, 0),
     child_flags=int(imgui.ChildFlags_.borders.value),  # Ensure it's an int
     window_flags=int(imgui.WindowFlags_.horizontal_scrollbar.value)  # Ensure window_flags is also an int
