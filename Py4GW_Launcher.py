@@ -991,12 +991,12 @@ class GWLauncher:
 def create_docking_splits() -> list[hello_imgui.DockingSplit]:
     """
     Define the dockable layout:
-    - Bottom: Log Console
+    - Bottom: Console
     - Left: Tree View
-    - Right: Main Content
+    - Right: Advanced Content
     """
     return [
-        # Bottom split for the Log Console
+        # Bottom split for the Console
         hello_imgui.DockingSplit(
             initial_dock_="TreeView",
             new_dock_="LogConsole",
@@ -1006,7 +1006,7 @@ def create_docking_splits() -> list[hello_imgui.DockingSplit]:
         # Left split for the Tree View
         hello_imgui.DockingSplit(
             initial_dock_="TreeView",
-            new_dock_="MainDockSpace",
+            new_dock_="AdvancedDock",
             direction_=imgui.Dir.left,
             ratio_=0.25
         )
@@ -1016,13 +1016,13 @@ def create_docking_splits() -> list[hello_imgui.DockingSplit]:
 def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
     """
     Define the dockable windows:
-    - Log Console
+    - Console
     - Tree View
     - Main Content
     """
     return [
         hello_imgui.DockableWindow(
-            label_="Log Console",
+            label_="Console",
             dock_space_name_="LogConsole",
             gui_function_=show_log_console
         ),
@@ -1033,19 +1033,19 @@ def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
         ),
         hello_imgui.DockableWindow(
             label_="Account Configuration",
-            dock_space_name_="MainDockSpace",
+            dock_space_name_="AdvancedDock",
             gui_function_=show_configuration_content
         ),
         hello_imgui.DockableWindow(
             label_="Launch Configuration",
-            dock_space_name_="MainDockSpace",
+            dock_space_name_="AdvancedDock",
             gui_function_=show_main_content
         )
     ]
 
 def show_log_console():
-    """Content for the Log Console"""
-    imgui.text("Log Console")
+    """Content for the Console"""
+    imgui.text("Console")
     imgui.separator()
 
     # Start scrollable child window
