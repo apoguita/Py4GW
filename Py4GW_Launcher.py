@@ -186,6 +186,40 @@ gmod_dll_name = ini_handler.read_key("settings", "gmod_dll_name", "gMod.dll")
 log_history = []
 log_history.append("Welcome To Py4GW!")
 
+APP_VERSION = "1.0.0"  # Update this with each release as needed
+
+def check_and_handle_version_mismatch(ini_filename: str):
+    """
+    Check if the stored application version matches the current version.
+    If there's a mismatch, clear the Hello ImGui settings file and update the stored version.
+    Args:
+        ini_filename: The path to the Hello ImGui settings file (e.g., Py4GW_settings.ini).
+    """
+    global ini_handler, log_history
+
+    # Read the stored version from Py4GW.ini
+    stored_version = ini_handler.read_key("Py4GW_Launcher", "APP_VERSION", "0.0.0")
+
+    # Compare with the current version
+    if stored_version != APP_VERSION:
+        log_history.append(f"Version mismatch detected: Stored={stored_version}, Current={APP_VERSION}")
+        
+        # Clear the Hello ImGui settings file to reset layout settings
+        if os.path.exists(ini_filename):
+            try:
+                os.remove(ini_filename)
+                log_history.append(f"Cleared Hello ImGui settings: {ini_filename}")
+            except Exception as e:
+                log_history.append(f"Error clearing Hello ImGui settings: {str(e)}")
+        else:
+            log_history.append(f"No Hello ImGui settings file found at {ini_filename}")
+
+        # Update the stored version in Py4GW.ini
+        ini_handler.write_key("Py4GW_Launcher", "APP_VERSION", APP_VERSION)
+        log_history.append(f"Updated stored version to {APP_VERSION}")
+    else:
+        log_history.append(f"Version check passed: {APP_VERSION}")
+
 PROCESS_ALL_ACCESS = 0x1F0FFF
 VIRTUAL_MEM = 0x1000 | 0x2000  # MEM_COMMIT | MEM_RESERVE
 PAGE_READWRITE = 0x04
@@ -1120,8 +1154,10 @@ def show_team_view():
 
     # Display the current view mode
     current_mode = "Compact View" if is_compact_view else "Advanced View"
+    imgui.push_style_color(imgui.Col_.text, (0.0, 1.0, 0.0, 1.0))  # Green text
     imgui.text(f"View Mode: {current_mode}")
-
+    imgui.pop_style_color()
+    
     # Checkbox to toggle between Compact and Advanced View
     _, is_compact_view = imgui.checkbox("Toggle View##visibility_toggle", is_compact_view)
     
@@ -1752,6 +1788,13 @@ def main() -> None:
         runner_params.app_window_params.window_geometry.size = (800, 600)
         runner_params.imgui_window_params.default_imgui_window_type = hello_imgui.DefaultImGuiWindowType.provide_full_screen_dock_space
         runner_params.docking_params.docking_splits = create_docking_splits()
+
+        # Explicitly set the ini_filename for Hello ImGui settings
+        runner_params.ini_filename = "Py4GW_Launcher.ini"
+        log_history.append(f"Using Hello ImGui ini_filename: {runner_params.ini_filename}")
+
+        # Check for version mismatch and handle it before initializing ImGui
+        check_and_handle_version_mismatch(runner_params.ini_filename)
 
         def update_gui():
             global visible_windows
