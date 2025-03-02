@@ -994,24 +994,34 @@ def create_docking_splits() -> list[hello_imgui.DockingSplit]:
     - Bottom: ConsoleDockSpace
     - Left: MainDockSpace
     - Right: AdvDockSpace
+    Only active in Advanced View (when is_compact_view is False).
     """
-    return [
-        # Bottom split for the Console
-        hello_imgui.DockingSplit(
-            initial_dock_="MainDockSpace",
-            new_dock_="ConsoleDockSpace",
-            direction_=imgui.Dir.down,
-            ratio_=0.25
-        ),
-        # Right split for the Advanced View
-        hello_imgui.DockingSplit(
-            initial_dock_="MainDockSpace",
-            new_dock_="AdvDockSpace",
-            direction_=imgui.Dir.right,
-            ratio_=0.70
-        )
-    ]
-
+    global is_compact_view, visible_windows
+    if is_compact_view:
+        visible_windows["AdvDockSpace"] = False
+        visible_windows["ConsoleDockSpace"] = False
+        visible_windows["MainDockSpace"] = True
+        return []  # No splits in Compact View, MainDockSpace takes full space
+    else:
+        visible_windows["AdvDockSpace"] = True
+        visible_windows["ConsoleDockSpace"] = True
+        visible_windows["MainDockSpace"] = True
+        return [
+            # Bottom split for the Console
+            hello_imgui.DockingSplit(
+                initial_dock_="MainDockSpace",
+                new_dock_="ConsoleDockSpace",
+                direction_=imgui.Dir.down,
+                ratio_=0.20
+            ),
+            # Right split for the Advanced View
+            hello_imgui.DockingSplit(
+                initial_dock_="MainDockSpace",
+                new_dock_="AdvDockSpace",
+                direction_=imgui.Dir.right,
+                ratio_=0.70
+            )
+        ]
 
 def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
     """
@@ -1019,31 +1029,52 @@ def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
     - ConsoleDockSpace
     - MainDockSpace
     - AdvDockSpace
+    Visibility depends on view mode (Compact hides Console and AdvDockSpace).
     """
-    return [
-        hello_imgui.DockableWindow(
-            label_="Console",
-            dock_space_name_="ConsoleDockSpace",
-            gui_function_=show_console
-        ),
-        hello_imgui.DockableWindow(
-            label_="Teams",
-            dock_space_name_="MainDockSpace",
-            gui_function_=show_tree_view
-        ),
-        hello_imgui.DockableWindow(
-            label_="Account Configuration",
-            dock_space_name_="AdvDockSpace",
-            gui_function_=show_configuration_content
-        ),
-        hello_imgui.DockableWindow(
-            label_="Launch Configuration",
-            dock_space_name_="AdvDockSpace",
-            gui_function_=show_account_content
+    global visible_windows
+    dockable_windows = []
+    if visible_windows.get("MainDockSpace", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Teams",
+                dock_space_name_="MainDockSpace",
+                gui_function_=show_team_view,
+                can_be_closed_=False,
+                is_visible_=True
+            )
         )
-    ]
+    if visible_windows.get("AdvDockSpace", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Account Configuration",
+                dock_space_name_="AdvDockSpace",
+                gui_function_=show_configuration_content,
+                can_be_closed_=False,
+                is_visible_=True
+            )
+        )   
+    if visible_windows.get("AdvDockSpace", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Launch Configuration",
+                dock_space_name_="AdvDockSpace",
+                gui_function_=show_account_content,
+                can_be_closed_=False,
+                is_visible_=True
+            )
+        )         
+    if visible_windows.get("ConsoleDockSpace", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Console",
+                dock_space_name_="ConsoleDockSpace",
+                gui_function_=show_log_console,
+                is_visible_=True
+            )
+        )
+    return dockable_windows
 
-def show_console():
+def show_log_console():
     """Content for the Console"""
     imgui.text("Console")
     imgui.separator()
@@ -1078,14 +1109,51 @@ launch_gw = GWLauncher()
 
 
 
-def show_tree_view():
+def show_team_view():
     """
     Content for the MainDockSpace - Displays all teams and their accounts in a MainDockSpace.
     """
-    global team_manager, launch_gw
+    global team_manager, launch_gw, visible_windows, is_compact_view, last_is_compact_view
 
     imgui.text("Teams Manager")
     imgui.separator()
+
+    # Display the current view mode
+    current_mode = "Compact View" if is_compact_view else "Advanced View"
+    imgui.text(f"View Mode: {current_mode}")
+
+    # Checkbox to toggle between Compact and Advanced View
+    _, is_compact_view = imgui.checkbox("Toggle View##visibility_toggle", is_compact_view)
+    
+    if imgui.is_item_hovered():
+        if is_compact_view:
+            imgui.set_tooltip("Switch to Advanced View to show Console and Configuration panels")
+        else:
+            imgui.set_tooltip("Switch to Compact View to hide Console and Configuration panels")
+    imgui.separator()
+
+    # Update visibility and window size only if the view mode changed
+    if is_compact_view != last_is_compact_view:
+        if is_compact_view:
+            hello_imgui.change_window_size((350, 450))
+            visible_windows["AdvDockSpace"] = False
+            visible_windows["ConsoleDockSpace"] = False
+            visible_windows["MainDockSpace"] = True
+        else:
+            hello_imgui.change_window_size((800, 600))
+            visible_windows["AdvDockSpace"] = True
+            visible_windows["ConsoleDockSpace"] = True
+            visible_windows["MainDockSpace"] = True
+
+        # Log the visibility state only when it changes
+        log_history.append(
+            f"Visibility toggled: AdvDockSpace={visible_windows['AdvDockSpace']}, "
+            f"ConsoleDockSpace={visible_windows['ConsoleDockSpace']}, "
+            f"MainDockSpace={visible_windows['MainDockSpace']}"
+        )
+
+        # Update the last state
+        last_is_compact_view = is_compact_view
 
     if not team_manager.teams:
         imgui.text("No teams available. Please add teams in the configuration window.")
@@ -1099,7 +1167,6 @@ def show_tree_view():
             if imgui.button(f"Launch {team_name}##{id(team)}"):
                 log_history.append(f"Launching all accounts for team: {team_name}")
                 launch_gw.start_team_launch_thread(team)  # Use the new threaded function
-
 
             imgui.spacing()
             imgui.separator()
@@ -1395,6 +1462,14 @@ new_account_data = {
     "inject_gmod": False,
     "gmod_mods": []
 }
+is_compact_view = False  # True for Compact View, False for Advanced View
+visible_windows = {
+    "AdvDockSpace": True,
+    "MainDockSpace": True,
+    "ConsoleDockSpace": True,
+}
+is_compact_view = False  # True for Compact View, False for Advanced View
+last_is_compact_view = False  # Tracks the previous state of is_compact_view for change detection
 
 def show_configuration_content():
     global config_file, team_manager, selected_team, entered_team_name, data_loaded, show_password, new_account_data
@@ -1669,24 +1744,25 @@ def show_configuration_content():
                     else:
                         new_account_data[key] = False
 
-def main():
-    """
-    Main function to set up Hello ImGui RunnerParams and run the application.
-    """
-    # Set up Hello ImGui parameters
-    runner_params = hello_imgui.RunnerParams()
-    runner_params.app_window_params.window_title = "Py4GW Launcher"
-    runner_params.app_window_params.window_geometry.size = (800, 768)
-    runner_params.imgui_window_params.default_imgui_window_type = (
-        hello_imgui.DefaultImGuiWindowType.provide_full_screen_dock_space
-    )
-    runner_params.docking_params.docking_splits = create_docking_splits()
-    runner_params.docking_params.dockable_windows = create_dockable_windows()
+def main() -> None:
+    """Run the Py4GW Launcher application with ImGui."""
+    try:
+        runner_params = hello_imgui.RunnerParams()
+        runner_params.app_window_params.window_title = "Py4GW Launcher"
+        runner_params.app_window_params.window_geometry.size = (800, 600)
+        runner_params.imgui_window_params.default_imgui_window_type = hello_imgui.DefaultImGuiWindowType.provide_full_screen_dock_space
+        runner_params.docking_params.docking_splits = create_docking_splits()
 
-    # Run the application
-    hello_imgui.run(runner_params)
+        def update_gui():
+            global visible_windows
+            runner_params.docking_params.dockable_windows = create_dockable_windows()
+            runner_params.docking_params.docking_splits = create_docking_splits()
+
+        runner_params.callbacks.show_gui = update_gui
+        hello_imgui.run(runner_params)
+    except Exception as e:
+        log_history.append(f"Application error: {str(e)}")
 
 
 if __name__ == "__main__":
     main()
-    
