@@ -174,10 +174,13 @@ class IniHandler:
 current_directory = os.getcwd()
 ini_file = "Py4GW.ini"
 ini_handler = IniHandler(ini_file)
+mods_directory = os.path.join(current_directory, "Addons", "mods")
+os.makedirs(mods_directory, exist_ok=True)  # Create Addons/Mods if it doesn't exist
 
 config_file = ini_handler.read_key("settings","account_config_file","accounts.json")
 py4gw_dll_name = ini_handler.read_key("settings","py4gw_dll_name","Py4GW.dll")
 blackbox_dll_name = ini_handler.read_key("settings","blackbox_dll_name","GWBlackBOX.dll")
+gmod_dll_name = ini_handler.read_key("settings", "gmod_dll_name", "gMod.dll")
 
 log_history = []
 log_history.append("Welcome To Py4GW!")
@@ -284,7 +287,7 @@ class Account:
                  inject_py4gw, inject_blackbox, script_path="", enable_client_rename=False, use_character_name=False,
                  custom_client_name="", last_launch_time=None, total_runtime=0.0, current_session_time=0.0,
                  average_runtime=0.0, min_runtime=0.0, max_runtime=0.0, top_left=(0, 0), width=800, height=600,
-                 preview_area=False, resize_client=False):
+                 preview_area=False, resize_client=False, inject_gmod=False, gmod_mods=None):
         self.character_name = character_name
         self.email = email
         self.password = password
@@ -294,6 +297,8 @@ class Account:
         self.run_as_admin = run_as_admin
         self.inject_py4gw = inject_py4gw
         self.inject_blackbox = inject_blackbox
+        self.inject_gmod = inject_gmod          # New: Flag for gMod injection
+        self.gmod_mods = gmod_mods if gmod_mods is not None else []  # New: List of mod file names
         self.script_path = script_path  # Path to the Python script
         self.enable_client_rename = enable_client_rename  # Whether client renaming is enabled
         self.use_character_name = use_character_name  # Whether to use the character name for renaming
@@ -321,6 +326,8 @@ class Account:
             "run_as_admin": self.run_as_admin,
             "inject_py4gw": self.inject_py4gw,
             "inject_blackbox": self.inject_blackbox,
+            "inject_gmod": self.inject_gmod,
+            "gmod_mods": self.gmod_mods,
             "script_path": self.script_path,
             "enable_client_rename": self.enable_client_rename,
             "use_character_name": self.use_character_name,
@@ -350,6 +357,8 @@ class Account:
             run_as_admin=data["run_as_admin"],
             inject_py4gw=data["inject_py4gw"],
             inject_blackbox=data["inject_blackbox"],
+            inject_gmod=data.get("inject_gmod", False),
+            gmod_mods=data.get("gmod_mods", []),
             script_path=data.get("script_path", ""),  # Default to an empty string if not present
             enable_client_rename=data.get("enable_client_rename", False),
             use_character_name=data.get("use_character_name", False),
@@ -613,6 +622,7 @@ class GWLauncher:
 
     def __init__(self):     
         self.active_pids = []
+        self.gmod_injection_delay = 0.5  # Delay before gMod injection (configurable)
 
     def wait_for_gw_window(self, pid, timeout=30):
         """Wait for GW window to be created and fully loaded"""
@@ -786,6 +796,17 @@ class GWLauncher:
         finally:
             pass
 
+    def inject_gmod(self, pid):
+        gmod_path = os.path.join(current_directory, "Addons", gmod_dll_name)
+        if not os.path.exists(gmod_path):
+            log_history.append("gMod DLL path not valid")
+            return False
+
+        log_history.append(f"Injecting gMod from: {gmod_path}")
+        result = self.inject_dll(pid, gmod_path)
+        log_history.append("gMod injection " + ("successful" if result else "failed"))
+        return result
+                
     def is_process_running(self, pid):
         try:
             process = psutil.Process(pid)
@@ -812,7 +833,10 @@ class GWLauncher:
             log_history.append("Attempting BlackBox DLL injection...")
             dll_dir = os.path.join(current_directory, "Addons", "GWBlackBOX.dll")
             return self.inject_BlackBox(pid,dll_dir)
-
+        elif dll_type == "gMod":
+            log_history.append("Attempting gMod DLL injection...")
+            return self.inject_gmod(pid)
+        
         log_history.append(f"Skipping {dll_type} DLL injection (not enabled).")
         return False
 
@@ -821,7 +845,18 @@ class GWLauncher:
             try:
                 if self.wait_for_gw_window(pid):
                     log_history.append("Injection - GW window found, waiting for initialization...")
-                    time.sleep(5)
+                    time.sleep(1)  # 1-second delay after window is found
+
+                    """
+                    ***** Moved to launch_gw *****
+                                        # Inject gMod first
+                    if account.inject_gmod:
+                        if self.attempt_dll_injection(pid, dll_type="gMod"):
+                            log_history.append("gMod DLL injection successful")
+                            time.sleep(1)  # Add 1-second delay after gMod injection
+                        else:
+                            log_history.append("gMod DLL injection failed")
+                    """
 
                     if account.inject_blackbox:
                         if self.attempt_dll_injection(pid, dll_type="BlackBox"):
@@ -829,11 +864,9 @@ class GWLauncher:
                         else:
                             log_history.append("GWBlackBOX.dll injection failed")
 
-                    custom_dll_delay = 0 if account.inject_blackbox else 0 
-                        
+                    custom_dll_delay = 0
                     if account.inject_py4gw:
                         ini_handler.write_key("settings", "autoexec_script", account.script_path)
-
                         if self.attempt_dll_injection(pid, delay=custom_dll_delay, dll_type="Py4GW"):
                             log_history.append("Py4GW DLL injection successful")
                         else:
@@ -844,6 +877,27 @@ class GWLauncher:
                 log_history.append(f"Error in injection thread: {str(e)}")
 
         threading.Thread(target=injection_thread, daemon=True).start()
+
+    def create_modlist_for_gmod(self, account: Account):
+        if not account.gw_path:
+            log_history.append("Cannot create modlist.txt: gw_path not specified")
+            return
+
+        # Get the directory containing Gw.exe
+        gw_dir = os.path.dirname(account.gw_path)
+        modlist_path = os.path.join(gw_dir, "modlist.txt")
+
+        # Generate list of full paths to .tpf files
+        mod_paths = account.gmod_mods  # Already full paths from select_mod_file()
+
+        # Write to modlist.txt (create an empty file if no mods)
+        try:
+            with open(modlist_path, "w") as f:
+                for mod_path in mod_paths:
+                    f.write(f"{mod_path}\n")
+            log_history.append(f"Updated modlist.txt with {len(mod_paths)} mods at {modlist_path}")
+        except Exception as e:
+            log_history.append(f"Error updating modlist.txt at {modlist_path}: {str(e)}")
 
     def start_team_launch_thread(self, team):
         def team_launch_thread():
@@ -864,8 +918,6 @@ class GWLauncher:
         # Start the thread for launching the team
         threading.Thread(target=team_launch_thread, daemon=True).start()
 
-
-
     def launch_gw(self, account: Account):
         patcher = Patcher()
         try:
@@ -884,6 +936,15 @@ class GWLauncher:
 
             log_history.append(f"Launch GW - Launched and patched GW with PID: {pid}")
             self.active_pids.append((account, pid))
+
+            # Create modlist.txt and inject gMod.dll
+            if account.inject_gmod:
+                self.create_modlist_for_gmod(account)
+                if self.attempt_dll_injection(pid, dll_type="gMod"):
+                    log_history.append("gMod DLL injection successful")
+                    time.sleep(3)  # 3-second delay after gMod, this may need to be adjusted to longer delay.
+                else:
+                    log_history.append("gMod DLL injection failed")
 
             if account.inject_py4gw or account.inject_blackbox:
                 self.start_injection_thread(pid, account)
@@ -1311,6 +1372,20 @@ def select_python_script():
     root.destroy()
     return file_path
 
+# Function for mod selection
+def select_mod_file():
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename(
+        title="Select Mod File",
+        filetypes=[("Mod Files", "*.tpf")]
+    )
+    root.destroy()
+    if file_path:
+        # Return the full path directly
+        log_history.append(f"Selected mod file: {file_path}")
+        return file_path
+    return None
 
 team_manager = TeamManager()
 selected_team = None
@@ -1327,10 +1402,12 @@ new_account_data = {
     "run_as_admin": False,
     "inject_py4gw": True,
     "inject_blackbox": False,
+    "inject_gmod": False,
+    "gmod_mods": []
 }
 
 def show_configuration_content():
-    global config_file, team_manager, selected_team, entered_team_name, data_loaded, show_password,new_account_data
+    global config_file, team_manager, selected_team, entered_team_name, data_loaded, show_password, new_account_data
 
     # Automatically load data from JSON if not already loaded
     if not data_loaded:
@@ -1342,7 +1419,7 @@ def show_configuration_content():
             first_team = team_manager.get_first_team()
             if first_team:
                 selected_team = first_team
-                entered_team_name = first_team.name  # Pre-fill the team name input
+                entered_team_name = first_team.name
                 log_history.append(f"Team Configuration: Auto-selected first team: {first_team.name}")
             else:
                 log_history.append("No teams found. Please create one.")
@@ -1350,35 +1427,25 @@ def show_configuration_content():
             log_history.append(f"Error loading teams: {e}")
         data_loaded = True
 
-
-    # Title and separator
     imgui.text("Team Management")
     imgui.separator()
 
     imgui.text("Select or enter a team name:")
-    imgui.set_next_item_width(150)  # Standardized field width
+    imgui.set_next_item_width(150)
 
-    # Generate a list of team names
     team_names = [team.name for team in team_manager.teams.values()]
-
-    # Keep track of the currently selected team index
-    selected_index = -1  # Default to -1, meaning no selection
+    selected_index = -1
     if selected_team:
         selected_index = team_names.index(selected_team.name) if selected_team.name in team_names else -1
 
-    # Combo box for existing teams
-    changed, selected_index = imgui.combo(
-        "Existing Teams", selected_index, team_names
-    )
-
-    # Update the selected team if a selection is made
+    changed, selected_index = imgui.combo("Existing Teams", selected_index, team_names)
     if changed and selected_index != -1:
         selected_team = team_manager.get_team(team_names[selected_index])
         if selected_team:
-            entered_team_name = selected_team.name  # Pre-fill the team name field
+            entered_team_name = selected_team.name
             log_history.append(f"Selected team from combo box: {selected_team.name}")
     imgui.same_line()
-    imgui.set_next_item_width(150)  # Standardized field width
+    imgui.set_next_item_width(150)
     _, entered_team_name = imgui.input_text("Team Name", entered_team_name, 128)
     imgui.same_line()
 
@@ -1401,98 +1468,171 @@ def show_configuration_content():
         imgui.text(f"Managing Team: {selected_team.name}")
         imgui.separator()
 
-        # Display existing accounts
         for account in selected_team.accounts:
             if imgui.collapsing_header(f"{account.character_name}##{id(account)}"):
                 imgui.spacing()
-                imgui.set_next_item_width(300)  # Standardized field width
+                imgui.set_next_item_width(300)
                 _, account.character_name = imgui.input_text(f"Character Name##{id(account)}", account.character_name, 128)
                 imgui.spacing()
                 imgui.set_next_item_width(300)
                 _, account.email = imgui.input_text(f"Email##{id(account)}", account.email, 128)
                 imgui.spacing()
 
-        
                 password_flags = 0 if show_password else imgui.InputTextFlags_.password.value
                 imgui.set_next_item_width(300)
-
                 _, account.password = imgui.input_text(
-                    label=f"Password##{id(account)}",                # Label for the input box
-                    str=account.password,            # Existing value to display and modify
-                    flags=password_flags  # Password flag to obscure text
+                    label=f"Password##{id(account)}",
+                    str=account.password,
+                    flags=password_flags
                 )
-
                 imgui.same_line()
-
                 _, show_password = imgui.checkbox(f"Show Password##{id(account)}", show_password)
 
-
                 imgui.spacing()
-
                 imgui.set_next_item_width(300)
                 _, account.gw_client_name = imgui.input_text(f"Rename GW Client##{id(account)}", account.gw_client_name, 128)
                 imgui.set_next_item_width(300)
+                old_gw_path = account.gw_path
                 _, account.gw_path = imgui.input_text(f"GW Path##{id(account)}", account.gw_path, 128)
-                # Button for folder selection
                 imgui.same_line()
                 if imgui.button(f"Select Gw.exe##{id(account)}"):
                     selected_exe = select_gw_exe()
                     if selected_exe:
                         account.gw_path = selected_exe
+                        if account.inject_gmod:
+                            launch_gw.create_modlist_for_gmod(account)
+                # Check if gw_path is in a protected directory
+                if account.gw_path:
+                    normalized_path = os.path.normpath(account.gw_path).lower()
+                    protected_dirs = [
+                        os.path.normpath("C:/Program Files (x86)").lower(),
+                        os.path.normpath("C:/Program Files").lower()
+                    ]
+                    is_protected = any(normalized_path.startswith(protected_dir) for protected_dir in protected_dirs)
+                    if is_protected:
+                        imgui.push_style_color(imgui.Col_.text, (1.0, 0.0, 0.0, 1.0))  # Red text
+                        imgui.text_wrapped(
+                                "Warning: GW Path is in a protected directory (C:/Program Files (x86) or C:/Program Files). "
+                                "The launcher requires admin privileges to create/modify files (e.g., modlist.txt) in this location. "
+                                "Use an unprotected directory such as 'C:/Games/Guild Wars', or run the launcher with elevated privileges (as administrator)." 
+                            )
+                        imgui.pop_style_color()
+                # If gw_path changed manually, update modlist.txt
+                if old_gw_path != account.gw_path and account.inject_gmod:
+                    launch_gw.create_modlist_for_gmod(account)
                 imgui.set_next_item_width(300)
                 _, account.extra_args = imgui.input_text(f"Extra Args##{id(account)}", account.extra_args, 128)
                 _, account.run_as_admin = imgui.checkbox(f"Run as Admin##{id(account)}", account.run_as_admin)
                 _, account.inject_py4gw = imgui.checkbox(f"Inject Py4GW##{id(account)}", account.inject_py4gw)
                 _, account.inject_blackbox = imgui.checkbox(f"Inject Blackbox##{id(account)}", account.inject_blackbox)
 
+                old_inject_gmod = account.inject_gmod
+                _, account.inject_gmod = imgui.checkbox(f"Inject gMod##{id(account)}", account.inject_gmod)
+                if old_inject_gmod != account.inject_gmod:
+                    if account.inject_gmod:
+                        launch_gw.create_modlist_for_gmod(account)
+                    else:
+                        gw_dir = os.path.dirname(account.gw_path)
+                        modlist_path = os.path.join(gw_dir, "modlist.txt")
+                        if os.path.exists(modlist_path):
+                            try:
+                                os.remove(modlist_path)
+                                log_history.append(f"Removed modlist.txt at {modlist_path} as gMod injection was disabled")
+                            except Exception as e:
+                                log_history.append(f"Error removing modlist.txt at {modlist_path}: {str(e)}")
+
+                if account.inject_gmod:
+                    imgui.text("gMod Mods:")
+                    for i, mod in enumerate(account.gmod_mods):
+                        imgui.text(f" - {mod}")
+                        imgui.same_line()
+                        if imgui.button(f"Remove##{i}_{id(account)}"):
+                            account.gmod_mods.pop(i)
+                            team_manager.save_to_json(config_file)
+                            launch_gw.create_modlist_for_gmod(account)
+                    if imgui.button(f"Add Mod##{id(account)}"):
+                        mod_file = select_mod_file()
+                        if mod_file and mod_file not in account.gmod_mods:
+                            account.gmod_mods.append(mod_file)
+                            team_manager.save_to_json(config_file)
+                            launch_gw.create_modlist_for_gmod(account)
+
                 save_teams_to_json(id(account))
-
                 imgui.same_line()
-
                 if imgui.button(f"Delete Account##{id(account)}"):
                     selected_team.accounts.remove(account)
                     log_history.append(f"Deleted account: {account.character_name}")
+                    gw_dir = os.path.dirname(account.gw_path)
+                    modlist_path = os.path.join(gw_dir, "modlist.txt")
+                    if os.path.exists(modlist_path):
+                        try:
+                            os.remove(modlist_path)
+                            log_history.append(f"Removed modlist.txt at {modlist_path} as account was deleted")
+                        except Exception as e:
+                            log_history.append(f"Error removing modlist.txt at {modlist_path}: {str(e)}")
 
         # Collapsible section for new account form
         if imgui.collapsing_header("Add New Account", imgui.TreeNodeFlags_.default_open.value):
             imgui.spacing()
-    
+        
             for key in new_account_data.keys():
-                if key == "password":  # Special handling for the password field
+                if key == "password":
                     password_flags = 0 if show_password else imgui.InputTextFlags_.password.value
-                    imgui.set_next_item_width(300)  # Standardized field width
-            
-                    # Input field for password
+                    imgui.set_next_item_width(300)
                     _, new_account_data[key] = imgui.input_text(
-                    label=f"Password##new_item",  # Label for the input box
-                    str=new_account_data[key],    # Existing value to display and modify
-                    flags=password_flags  # Password flag to obscure text
+                        label=f"Password##new_item",
+                        str=new_account_data[key],
+                        flags=password_flags
                     )
-
-                    # Checkbox for toggling password visibility
                     imgui.same_line()
                     _, show_password = imgui.checkbox("Show Password##new_item", show_password)
-                elif key == "gw_path":  # Special handling for the GW Path field
-                    imgui.set_next_item_width(300)  # Standardized field width
-            
-                    # Input field for GW Path
+                elif key == "gw_path":
+                    imgui.set_next_item_width(300)
                     _, new_account_data[key] = imgui.input_text(
                         key.replace("_", " ").title() + "##new_item", 
                         new_account_data[key], 
                         128
                     )
-
-                    # Button for folder selection
                     imgui.same_line()
                     if imgui.button(f"Select Gw.exe##new_item"):
                         selected_exe = select_gw_exe()
                         if selected_exe:
                             new_account_data[key] = selected_exe
-
+                    # Check if gw_path is in a protected directory for new account
+                    if new_account_data[key]:
+                        normalized_path = os.path.normpath(new_account_data[key]).lower()
+                        protected_dirs = [
+                            os.path.normpath("C:/Program Files (x86)").lower(),
+                            os.path.normpath("C:/Program Files").lower()
+                        ]
+                        is_protected = any(normalized_path.startswith(protected_dir) for protected_dir in protected_dirs)
+                        if is_protected:
+                            imgui.push_style_color(imgui.Col_.text, (1.0, 0.0, 0.0, 1.0))  # Red text
+                            imgui.text_wrapped(
+                                "Warning: GW Path is in a protected directory (C:/Program Files (x86) or C:/Program Files). "
+                                "The launcher requires admin privileges to create/modify files (e.g., modlist.txt) in this location. "
+                                "Use an unprotected directory such as 'C:/Games/Guild Wars', or run the launcher with elevated privileges (as administrator)." 
+                            )
+                            imgui.pop_style_color()
+                elif key == "gmod_mods":
+                    _, new_account_data["inject_gmod"] = imgui.checkbox("Inject gMod##new_item", new_account_data["inject_gmod"])
+                    if new_account_data["inject_gmod"]:
+                        imgui.text("gMod Mods:")
+                        for i, mod in enumerate(new_account_data["gmod_mods"]):
+                            imgui.text(f" - {mod}")
+                            imgui.same_line()
+                            if imgui.button(f"Remove##{i}_new"):
+                                new_account_data["gmod_mods"].pop(i)
+                        if imgui.button("Add Mod##new"):
+                            mod_file = select_mod_file()
+                            if mod_file and mod_file not in new_account_data["gmod_mods"]:
+                                new_account_data["gmod_mods"].append(mod_file)
+                elif key == "inject_gmod":
+                    continue
                 elif isinstance(new_account_data[key], bool):
                     _, new_account_data[key] = imgui.checkbox(key.replace("_", " ").title() + "##new_item", new_account_data[key])
-                else:
-                    imgui.set_next_item_width(300)  # Standardized field width
+                elif isinstance(new_account_data[key], str):
+                    imgui.set_next_item_width(300)
                     _, new_account_data[key] = imgui.input_text(key.replace("_", " ").title() + "##new_item", new_account_data[key], 128)
 
             if imgui.button("Add Account"):
@@ -1500,12 +1640,18 @@ def show_configuration_content():
                 selected_team.add_account(new_account)
                 log_history.append(f"Added account: {new_account.character_name} to team: {selected_team.name}")
                 team_manager.save_to_json(config_file)
+                if new_account.inject_gmod:
+                    launch_gw.create_modlist_for_gmod(new_account)
+                new_account_data["gmod_mods"] = []
             imgui.same_line()
             if imgui.button("Clear Form"):
                 for key in new_account_data.keys():
-                    new_account_data[key] = "" if isinstance(new_account_data[key], str) else False
-
-
+                    if key == "gmod_mods":
+                        new_account_data[key] = []
+                    elif isinstance(new_account_data[key], str):
+                        new_account_data[key] = ""
+                    else:
+                        new_account_data[key] = False
 
 def main():
     """
