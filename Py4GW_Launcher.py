@@ -998,16 +998,16 @@ def create_docking_splits() -> list[hello_imgui.DockingSplit]:
     return [
         # Bottom split for the Log Console
         hello_imgui.DockingSplit(
-            initial_dock_="MainDockSpace",
+            initial_dock_="TreeView",
             new_dock_="LogConsole",
             direction_=imgui.Dir.down,
             ratio_=0.25
         ),
         # Left split for the Tree View
         hello_imgui.DockingSplit(
-            initial_dock_="MainDockSpace",
-            new_dock_="TreeView",
-            direction_=imgui.Dir.left,
+            initial_dock_="TreeView",
+            new_dock_="MainDockSpace",
+            direction_=imgui.Dir.right,
             ratio_=0.25
         )
     ]
