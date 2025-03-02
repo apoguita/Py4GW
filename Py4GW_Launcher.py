@@ -992,8 +992,8 @@ def create_docking_splits() -> list[hello_imgui.DockingSplit]:
     """
     Define the dockable layout:
     - Bottom: Console
-    - Left: Tree View
-    - Right: Advanced Content
+    - Left: TreeView
+    - Right: AdvancedDock
     """
     return [
         # Bottom split for the Console
@@ -1017,8 +1017,8 @@ def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
     """
     Define the dockable windows:
     - Console
-    - Tree View
-    - Main Content
+    - TreeView
+    - AdvancedDock
     """
     return [
         hello_imgui.DockableWindow(
