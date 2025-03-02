@@ -1007,7 +1007,7 @@ def create_docking_splits() -> list[hello_imgui.DockingSplit]:
         hello_imgui.DockingSplit(
             initial_dock_="TreeView",
             new_dock_="MainDockSpace",
-            direction_=imgui.Dir.right,
+            direction_=imgui.Dir.left,
             ratio_=0.25
         )
     ]
