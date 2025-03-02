@@ -845,18 +845,7 @@ class GWLauncher:
             try:
                 if self.wait_for_gw_window(pid):
                     log_history.append("Injection - GW window found, waiting for initialization...")
-                    time.sleep(1)  # 1-second delay after window is found
-
-                    """
-                    ***** Moved to launch_gw *****
-                                        # Inject gMod first
-                    if account.inject_gmod:
-                        if self.attempt_dll_injection(pid, dll_type="gMod"):
-                            log_history.append("gMod DLL injection successful")
-                            time.sleep(1)  # Add 1-second delay after gMod injection
-                        else:
-                            log_history.append("gMod DLL injection failed")
-                    """
+                    time.sleep(3)  # delay after window is found
 
                     if account.inject_blackbox:
                         if self.attempt_dll_injection(pid, dll_type="BlackBox"):
@@ -1419,7 +1408,7 @@ def show_configuration_content():
             first_team = team_manager.get_first_team()
             if first_team:
                 selected_team = first_team
-                entered_team_name = first_team.name
+                entered_team_name = first_team.name  # Pre-fill the team name input
                 log_history.append(f"Team Configuration: Auto-selected first team: {first_team.name}")
             else:
                 log_history.append("No teams found. Please create one.")
@@ -1427,25 +1416,35 @@ def show_configuration_content():
             log_history.append(f"Error loading teams: {e}")
         data_loaded = True
 
+
+    # Title and separator
     imgui.text("Team Management")
     imgui.separator()
 
     imgui.text("Select or enter a team name:")
-    imgui.set_next_item_width(150)
+    imgui.set_next_item_width(150)  # Standardized field width
 
+    # Generate a list of team names
     team_names = [team.name for team in team_manager.teams.values()]
-    selected_index = -1
+
+    # Keep track of the currently selected team index
+    selected_index = -1  # Default to -1, meaning no selection
     if selected_team:
         selected_index = team_names.index(selected_team.name) if selected_team.name in team_names else -1
 
-    changed, selected_index = imgui.combo("Existing Teams", selected_index, team_names)
+    # Combo box for existing teams
+    changed, selected_index = imgui.combo(
+        "Existing Teams", selected_index, team_names
+    )
+
+    # Update the selected team if a selection is made
     if changed and selected_index != -1:
         selected_team = team_manager.get_team(team_names[selected_index])
         if selected_team:
-            entered_team_name = selected_team.name
+            entered_team_name = selected_team.name  # Pre-fill the team name field
             log_history.append(f"Selected team from combo box: {selected_team.name}")
     imgui.same_line()
-    imgui.set_next_item_width(150)
+    imgui.set_next_item_width(150)  # Standardized field width
     _, entered_team_name = imgui.input_text("Team Name", entered_team_name, 128)
     imgui.same_line()
 
@@ -1468,32 +1467,40 @@ def show_configuration_content():
         imgui.text(f"Managing Team: {selected_team.name}")
         imgui.separator()
 
+        # Display existing accounts
         for account in selected_team.accounts:
             if imgui.collapsing_header(f"{account.character_name}##{id(account)}"):
                 imgui.spacing()
-                imgui.set_next_item_width(300)
+                imgui.set_next_item_width(300)  # Standardized field width
                 _, account.character_name = imgui.input_text(f"Character Name##{id(account)}", account.character_name, 128)
                 imgui.spacing()
                 imgui.set_next_item_width(300)
                 _, account.email = imgui.input_text(f"Email##{id(account)}", account.email, 128)
                 imgui.spacing()
 
+        
                 password_flags = 0 if show_password else imgui.InputTextFlags_.password.value
                 imgui.set_next_item_width(300)
+
                 _, account.password = imgui.input_text(
-                    label=f"Password##{id(account)}",
-                    str=account.password,
-                    flags=password_flags
+                    label=f"Password##{id(account)}",                # Label for the input box
+                    str=account.password,            # Existing value to display and modify
+                    flags=password_flags  # Password flag to obscure text
                 )
+
                 imgui.same_line()
+
                 _, show_password = imgui.checkbox(f"Show Password##{id(account)}", show_password)
 
+
                 imgui.spacing()
+
                 imgui.set_next_item_width(300)
                 _, account.gw_client_name = imgui.input_text(f"Rename GW Client##{id(account)}", account.gw_client_name, 128)
                 imgui.set_next_item_width(300)
                 old_gw_path = account.gw_path
                 _, account.gw_path = imgui.input_text(f"GW Path##{id(account)}", account.gw_path, 128)
+                # Button for folder selection
                 imgui.same_line()
                 if imgui.button(f"Select Gw.exe##{id(account)}"):
                     selected_exe = select_gw_exe()
@@ -1574,25 +1581,33 @@ def show_configuration_content():
         # Collapsible section for new account form
         if imgui.collapsing_header("Add New Account", imgui.TreeNodeFlags_.default_open.value):
             imgui.spacing()
-        
+    
             for key in new_account_data.keys():
-                if key == "password":
+                if key == "password":  # Special handling for the password field
                     password_flags = 0 if show_password else imgui.InputTextFlags_.password.value
-                    imgui.set_next_item_width(300)
+                    imgui.set_next_item_width(300)  # Standardized field width
+            
+                    # Input field for password
                     _, new_account_data[key] = imgui.input_text(
-                        label=f"Password##new_item",
-                        str=new_account_data[key],
-                        flags=password_flags
+                    label=f"Password##new_item",  # Label for the input box
+                    str=new_account_data[key],    # Existing value to display and modify
+                    flags=password_flags  # Password flag to obscure text
                     )
+
+                    # Checkbox for toggling password visibility
                     imgui.same_line()
                     _, show_password = imgui.checkbox("Show Password##new_item", show_password)
-                elif key == "gw_path":
-                    imgui.set_next_item_width(300)
+                elif key == "gw_path":  # Special handling for the GW Path field
+                    imgui.set_next_item_width(300)  # Standardized field width
+            
+                    # Input field for GW Path
                     _, new_account_data[key] = imgui.input_text(
                         key.replace("_", " ").title() + "##new_item", 
                         new_account_data[key], 
                         128
                     )
+
+                    # Button for folder selection
                     imgui.same_line()
                     if imgui.button(f"Select Gw.exe##new_item"):
                         selected_exe = select_gw_exe()
@@ -1632,7 +1647,7 @@ def show_configuration_content():
                 elif isinstance(new_account_data[key], bool):
                     _, new_account_data[key] = imgui.checkbox(key.replace("_", " ").title() + "##new_item", new_account_data[key])
                 elif isinstance(new_account_data[key], str):
-                    imgui.set_next_item_width(300)
+                    imgui.set_next_item_width(300)  # Standardized field width
                     _, new_account_data[key] = imgui.input_text(key.replace("_", " ").title() + "##new_item", new_account_data[key], 128)
 
             if imgui.button("Add Account"):
