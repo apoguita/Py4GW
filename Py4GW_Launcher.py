@@ -992,23 +992,23 @@ def create_docking_splits() -> list[hello_imgui.DockingSplit]:
     """
     Define the dockable layout:
     - Bottom: Console
-    - Left: TreeView
+    - Left: MainDockSpace
     - Right: AdvancedDock
     """
     return [
         # Bottom split for the Console
         hello_imgui.DockingSplit(
-            initial_dock_="TreeView",
+            initial_dock_="MainDockSpace",
             new_dock_="LogConsole",
             direction_=imgui.Dir.down,
             ratio_=0.25
         ),
-        # Left split for the Tree View
+        # Right split for the Advanced View
         hello_imgui.DockingSplit(
-            initial_dock_="TreeView",
+            initial_dock_="MainDockSpace",
             new_dock_="AdvancedDock",
-            direction_=imgui.Dir.left,
-            ratio_=0.25
+            direction_=imgui.Dir.right,
+            ratio_=0.70
         )
     ]
 
@@ -1017,7 +1017,7 @@ def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
     """
     Define the dockable windows:
     - Console
-    - TreeView
+    - MainDockSpace
     - AdvancedDock
     """
     return [
@@ -1028,7 +1028,7 @@ def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
         ),
         hello_imgui.DockableWindow(
             label_="Teams",
-            dock_space_name_="TreeView",
+            dock_space_name_="MainDockSpace",
             gui_function_=show_tree_view
         ),
         hello_imgui.DockableWindow(
@@ -1039,7 +1039,7 @@ def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
         hello_imgui.DockableWindow(
             label_="Launch Configuration",
             dock_space_name_="AdvancedDock",
-            gui_function_=show_main_content
+            gui_function_=show_account_content
         )
     ]
 
@@ -1080,7 +1080,7 @@ launch_gw = GWLauncher()
 
 def show_tree_view():
     """
-    Content for the Tree View - Displays all teams and their accounts in a tree view.
+    Content for the MainDockSpace - Displays all teams and their accounts in a MainDockSpace.
     """
     global team_manager, launch_gw
 
@@ -1120,7 +1120,7 @@ def show_tree_view():
 
 
 
-def show_main_content():
+def show_account_content():
     """
     Content for the Main Content Window
     with auto-saving for any modifications.
