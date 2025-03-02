@@ -174,6 +174,8 @@ class IniHandler:
 current_directory = os.getcwd()
 ini_file = "Py4GW.ini"
 ini_handler = IniHandler(ini_file)
+
+'''For Future Use'''
 mods_directory = os.path.join(current_directory, "Addons", "mods")
 os.makedirs(mods_directory, exist_ok=True)  # Create Addons/Mods if it doesn't exist
 
