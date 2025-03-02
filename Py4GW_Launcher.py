@@ -193,7 +193,7 @@ def check_and_handle_version_mismatch(ini_filename: str):
     Check if the stored application version matches the current version.
     If there's a mismatch, clear the Hello ImGui settings file and update the stored version.
     Args:
-        ini_filename: The path to the Hello ImGui settings file (e.g., Py4GW_settings.ini).
+        ini_filename: The path to the Hello ImGui settings file (e.g., Py4GW_Launcher.ini).
     """
     global ini_handler, log_history
 
