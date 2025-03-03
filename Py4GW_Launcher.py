@@ -171,16 +171,53 @@ class IniHandler:
             self.save(config)
 
 
-current_directory = os.getcwd()
-ini_file = "Py4GW.ini"
+# Determine the base directory for persistent files (Documents\Py4GW)
+user_home = os.path.expanduser("~")  # Gets C:\Users\Chris on Windows
+documents_dir = os.path.join(user_home, "Documents")
+base_dir = os.path.join(documents_dir, "Py4GW")
+
+# Create the Py4GW directory if it doesn't exist
+os.makedirs(base_dir, exist_ok=True)
+
+# Define paths for persistent files
+ini_file = os.path.join(base_dir, "Py4GW.ini")
+config_file = os.path.join(base_dir, "accounts.json")
+
+# Check if Py4GW.ini exists in Documents\Py4GW; if not, copy the default from the bundle or script directory
+if not os.path.exists(ini_file):
+    if getattr(sys, 'frozen', False):
+        # Running as a PyInstaller bundle; default is in sys._MEIPASS
+        default_ini = os.path.join(sys._MEIPASS, "Py4GW.ini")
+    else:
+        # Running as a regular script; default is in the script's directory
+        default_ini = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Py4GW.ini")
+    
+    if os.path.exists(default_ini):
+        import shutil
+        shutil.copyfile(default_ini, ini_file)
+        log_history.append(f"Copied default Py4GW.ini to {ini_file}")
+    else:
+        log_history.append(f"Default Py4GW.ini not found at {default_ini}; creating empty file")
+        with open(ini_file, "w") as f:
+            f.write("[settings]\n")
+
+# Initialize the IniHandler with the new ini_file path
 ini_handler = IniHandler(ini_file)
-'''For Future Use'''
-mods_directory = os.path.join(current_directory, "Addons", "mods")
+
+# Update paths for other resources (e.g., Addons directory)
+if getattr(sys, 'frozen', False):
+    # Running as a PyInstaller bundle; Addons are in sys._MEIPASS
+    addons_base_dir = sys._MEIPASS
+else:
+    # Running as a regular Python script; Addons are in the script's directory
+    addons_base_dir = os.path.dirname(os.path.abspath(__file__))
+
+mods_directory = os.path.join(addons_base_dir, "Addons", "mods")
 os.makedirs(mods_directory, exist_ok=True)  # Create Addons/Mods if it doesn't exist
 
-config_file = ini_handler.read_key("settings","account_config_file","accounts.json")
-py4gw_dll_name = ini_handler.read_key("settings","py4gw_dll_name","Py4GW.dll")
-blackbox_dll_name = ini_handler.read_key("settings","blackbox_dll_name","GWBlackBOX.dll")
+# Read initial settings using IniHandler
+py4gw_dll_name = ini_handler.read_key("settings", "py4gw_dll_name", "Py4GW.dll")
+blackbox_dll_name = ini_handler.read_key("settings", "blackbox_dll_name", "GWBlackBOX.dll")
 gmod_dll_name = ini_handler.read_key("settings", "gmod_dll_name", "gMod.dll")
 
 log_history = []
@@ -1789,8 +1826,8 @@ def main() -> None:
         runner_params.imgui_window_params.default_imgui_window_type = hello_imgui.DefaultImGuiWindowType.provide_full_screen_dock_space
         runner_params.docking_params.docking_splits = create_docking_splits()
 
-        # Explicitly set the ini_filename for Hello ImGui settings
-        runner_params.ini_filename = "Py4GW_Launcher.ini"
+        # Set the ini_filename to the Documents\Py4GW directory
+        runner_params.ini_filename = os.path.join(base_dir, "Py4GW_Launcher.ini")
         log_history.append(f"Using Hello ImGui ini_filename: {runner_params.ini_filename}")
 
         # Check for version mismatch and handle it before initializing ImGui
