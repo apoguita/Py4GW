@@ -222,11 +222,16 @@ launcher_ini_file = os.path.join(root_dir, "Py4GW_Launcher.ini")
 addons_dir = os.path.join(root_dir, "Addons")
 mods_directory = os.path.join(addons_dir, "mods")
 
-# DLL paths (stored in root_dir or root_dir/Addons)
+# DLL paths (Py4GW.dll location differs between script and packaged modes)
 py4gw_dll_name = "Py4GW.dll"
 blackbox_dll_name = "GWBlackBOX.dll"
 gmod_dll_name = "gMod.dll"
-py4gw_dll_path = os.path.join(root_dir, py4gw_dll_name)
+if getattr(sys, 'frozen', False):
+    # Packaged mode: Py4GW.dll goes to Addons directory
+    py4gw_dll_path = os.path.join(addons_dir, py4gw_dll_name)
+else:
+    # Script mode: Py4GW.dll is in the project root
+    py4gw_dll_path = os.path.join(root_dir, py4gw_dll_name)
 blackbox_dll_path = os.path.join(addons_dir, blackbox_dll_name)
 gmod_dll_path = os.path.join(addons_dir, gmod_dll_name)
 
@@ -261,8 +266,10 @@ os.makedirs(mods_directory, exist_ok=True)
 # Copy DLLs from resource_dir to root_dir/Addons (packaged mode only)
 if getattr(sys, 'frozen', False):
     for dll in [py4gw_dll_name, blackbox_dll_name, gmod_dll_name]:
+        # Py4GW.dll is in the root of sys._MEIPASS, others are in sys._MEIPASS/Addons
         src = os.path.join(resource_dir, "Addons" if dll != py4gw_dll_name else "", dll)
-        dst = os.path.join(root_dir if dll == py4gw_dll_name else addons_dir, dll)
+        # All DLLs go to Addons directory in packaged mode
+        dst = os.path.join(addons_dir, dll)
         if os.path.exists(src) and not os.path.exists(dst):
             shutil.copyfile(src, dst)
             log_history.append(f"Copied {dll} to {dst}")
