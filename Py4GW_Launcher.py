@@ -174,13 +174,51 @@ class IniHandler:
 current_directory = os.getcwd()
 ini_file = "Py4GW.ini"
 ini_handler = IniHandler(ini_file)
+'''For Future Use'''
+mods_directory = os.path.join(current_directory, "Addons", "mods")
+os.makedirs(mods_directory, exist_ok=True)  # Create Addons/Mods if it doesn't exist
 
 config_file = ini_handler.read_key("settings","account_config_file","accounts.json")
 py4gw_dll_name = ini_handler.read_key("settings","py4gw_dll_name","Py4GW.dll")
 blackbox_dll_name = ini_handler.read_key("settings","blackbox_dll_name","GWBlackBOX.dll")
+gmod_dll_name = ini_handler.read_key("settings", "gmod_dll_name", "gMod.dll")
 
 log_history = []
 log_history.append("Welcome To Py4GW!")
+
+APP_VERSION = "1.0.0"  # Update this with each release as needed
+
+def check_and_handle_version_mismatch(ini_filename: str):
+    """
+    Check if the stored application version matches the current version.
+    If there's a mismatch, clear the Hello ImGui settings file and update the stored version.
+    Args:
+        ini_filename: The path to the Hello ImGui settings file (e.g., Py4GW_Launcher.ini).
+    """
+    global ini_handler, log_history
+
+    # Read the stored version from Py4GW.ini
+    stored_version = ini_handler.read_key("Py4GW_Launcher", "APP_VERSION", "0.0.0")
+
+    # Compare with the current version
+    if stored_version != APP_VERSION:
+        log_history.append(f"Version mismatch detected: Stored={stored_version}, Current={APP_VERSION}")
+        
+        # Clear the Hello ImGui settings file to reset layout settings
+        if os.path.exists(ini_filename):
+            try:
+                os.remove(ini_filename)
+                log_history.append(f"Cleared Hello ImGui settings: {ini_filename}")
+            except Exception as e:
+                log_history.append(f"Error clearing Hello ImGui settings: {str(e)}")
+        else:
+            log_history.append(f"No Hello ImGui settings file found at {ini_filename}")
+
+        # Update the stored version in Py4GW.ini
+        ini_handler.write_key("Py4GW_Launcher", "APP_VERSION", APP_VERSION)
+        log_history.append(f"Updated stored version to {APP_VERSION}")
+    else:
+        log_history.append(f"Version check passed: {APP_VERSION}")
 
 PROCESS_ALL_ACCESS = 0x1F0FFF
 VIRTUAL_MEM = 0x1000 | 0x2000  # MEM_COMMIT | MEM_RESERVE
@@ -284,7 +322,7 @@ class Account:
                  inject_py4gw, inject_blackbox, script_path="", enable_client_rename=False, use_character_name=False,
                  custom_client_name="", last_launch_time=None, total_runtime=0.0, current_session_time=0.0,
                  average_runtime=0.0, min_runtime=0.0, max_runtime=0.0, top_left=(0, 0), width=800, height=600,
-                 preview_area=False, resize_client=False):
+                 preview_area=False, resize_client=False, inject_gmod=False, gmod_mods=None):
         self.character_name = character_name
         self.email = email
         self.password = password
@@ -294,6 +332,8 @@ class Account:
         self.run_as_admin = run_as_admin
         self.inject_py4gw = inject_py4gw
         self.inject_blackbox = inject_blackbox
+        self.inject_gmod = inject_gmod          # New: Flag for gMod injection
+        self.gmod_mods = gmod_mods if gmod_mods is not None else []  # New: List of mod file names
         self.script_path = script_path  # Path to the Python script
         self.enable_client_rename = enable_client_rename  # Whether client renaming is enabled
         self.use_character_name = use_character_name  # Whether to use the character name for renaming
@@ -321,6 +361,8 @@ class Account:
             "run_as_admin": self.run_as_admin,
             "inject_py4gw": self.inject_py4gw,
             "inject_blackbox": self.inject_blackbox,
+            "inject_gmod": self.inject_gmod,
+            "gmod_mods": self.gmod_mods,
             "script_path": self.script_path,
             "enable_client_rename": self.enable_client_rename,
             "use_character_name": self.use_character_name,
@@ -350,6 +392,8 @@ class Account:
             run_as_admin=data["run_as_admin"],
             inject_py4gw=data["inject_py4gw"],
             inject_blackbox=data["inject_blackbox"],
+            inject_gmod=data.get("inject_gmod", False),
+            gmod_mods=data.get("gmod_mods", []),
             script_path=data.get("script_path", ""),  # Default to an empty string if not present
             enable_client_rename=data.get("enable_client_rename", False),
             use_character_name=data.get("use_character_name", False),
@@ -613,6 +657,7 @@ class GWLauncher:
 
     def __init__(self):     
         self.active_pids = []
+        self.gmod_injection_delay = 0.5  # Delay before gMod injection (configurable)
 
     def wait_for_gw_window(self, pid, timeout=30):
         """Wait for GW window to be created and fully loaded"""
@@ -786,6 +831,17 @@ class GWLauncher:
         finally:
             pass
 
+    def inject_gmod(self, pid):
+        gmod_path = os.path.join(current_directory, "Addons", gmod_dll_name)
+        if not os.path.exists(gmod_path):
+            log_history.append("gMod DLL path not valid")
+            return False
+
+        log_history.append(f"Injecting gMod from: {gmod_path}")
+        result = self.inject_dll(pid, gmod_path)
+        log_history.append("gMod injection " + ("successful" if result else "failed"))
+        return result
+                
     def is_process_running(self, pid):
         try:
             process = psutil.Process(pid)
@@ -812,7 +868,10 @@ class GWLauncher:
             log_history.append("Attempting BlackBox DLL injection...")
             dll_dir = os.path.join(current_directory, "Addons", "GWBlackBOX.dll")
             return self.inject_BlackBox(pid,dll_dir)
-
+        elif dll_type == "gMod":
+            log_history.append("Attempting gMod DLL injection...")
+            return self.inject_gmod(pid)
+        
         log_history.append(f"Skipping {dll_type} DLL injection (not enabled).")
         return False
 
@@ -821,7 +880,7 @@ class GWLauncher:
             try:
                 if self.wait_for_gw_window(pid):
                     log_history.append("Injection - GW window found, waiting for initialization...")
-                    time.sleep(5)
+                    time.sleep(3)  # delay after window is found
 
                     if account.inject_blackbox:
                         if self.attempt_dll_injection(pid, dll_type="BlackBox"):
@@ -829,11 +888,9 @@ class GWLauncher:
                         else:
                             log_history.append("GWBlackBOX.dll injection failed")
 
-                    custom_dll_delay = 0 if account.inject_blackbox else 0 
-                        
+                    custom_dll_delay = 0
                     if account.inject_py4gw:
                         ini_handler.write_key("settings", "autoexec_script", account.script_path)
-
                         if self.attempt_dll_injection(pid, delay=custom_dll_delay, dll_type="Py4GW"):
                             log_history.append("Py4GW DLL injection successful")
                         else:
@@ -844,6 +901,27 @@ class GWLauncher:
                 log_history.append(f"Error in injection thread: {str(e)}")
 
         threading.Thread(target=injection_thread, daemon=True).start()
+
+    def create_modlist_for_gmod(self, account: Account):
+        if not account.gw_path:
+            log_history.append("Cannot create modlist.txt: gw_path not specified")
+            return
+
+        # Get the directory containing Gw.exe
+        gw_dir = os.path.dirname(account.gw_path)
+        modlist_path = os.path.join(gw_dir, "modlist.txt")
+
+        # Generate list of full paths to .tpf files
+        mod_paths = account.gmod_mods  # Already full paths from select_mod_file()
+
+        # Write to modlist.txt (create an empty file if no mods)
+        try:
+            with open(modlist_path, "w") as f:
+                for mod_path in mod_paths:
+                    f.write(f"{mod_path}\n")
+            log_history.append(f"Updated modlist.txt with {len(mod_paths)} mods at {modlist_path}")
+        except Exception as e:
+            log_history.append(f"Error updating modlist.txt at {modlist_path}: {str(e)}")
 
     def start_team_launch_thread(self, team):
         def team_launch_thread():
@@ -864,8 +942,6 @@ class GWLauncher:
         # Start the thread for launching the team
         threading.Thread(target=team_launch_thread, daemon=True).start()
 
-
-
     def launch_gw(self, account: Account):
         patcher = Patcher()
         try:
@@ -884,6 +960,15 @@ class GWLauncher:
 
             log_history.append(f"Launch GW - Launched and patched GW with PID: {pid}")
             self.active_pids.append((account, pid))
+
+            # Create modlist.txt and inject gMod.dll
+            if account.inject_gmod:
+                self.create_modlist_for_gmod(account)
+                if self.attempt_dll_injection(pid, dll_type="gMod"):
+                    log_history.append("gMod DLL injection successful")
+                    time.sleep(3)  # 3-second delay after gMod, this may need to be adjusted to longer delay.
+                else:
+                    log_history.append("gMod DLL injection failed")
 
             if account.inject_py4gw or account.inject_blackbox:
                 self.start_injection_thread(pid, account)
@@ -940,66 +1025,97 @@ class GWLauncher:
 def create_docking_splits() -> list[hello_imgui.DockingSplit]:
     """
     Define the dockable layout:
-    - Bottom: Log Console
-    - Left: Tree View
-    - Right: Main Content
+    - Bottom: ConsoleDockSpace
+    - Left: MainDockSpace
+    - Right: AdvDockSpace
+    Only active in Advanced View (when is_compact_view is False).
     """
-    return [
-        # Bottom split for the Log Console
-        hello_imgui.DockingSplit(
-            initial_dock_="MainDockSpace",
-            new_dock_="LogConsole",
-            direction_=imgui.Dir.down,
-            ratio_=0.25
-        ),
-        # Left split for the Tree View
-        hello_imgui.DockingSplit(
-            initial_dock_="MainDockSpace",
-            new_dock_="TreeView",
-            direction_=imgui.Dir.left,
-            ratio_=0.25
-        )
-    ]
-
+    global is_compact_view, visible_windows
+    if is_compact_view:
+        visible_windows["AdvDockSpace"] = False
+        visible_windows["ConsoleDockSpace"] = False
+        visible_windows["MainDockSpace"] = True
+        return []  # No splits in Compact View, MainDockSpace takes full space
+    else:
+        visible_windows["AdvDockSpace"] = True
+        visible_windows["ConsoleDockSpace"] = True
+        visible_windows["MainDockSpace"] = True
+        return [
+            # Bottom split for the Console
+            hello_imgui.DockingSplit(
+                initial_dock_="MainDockSpace",
+                new_dock_="ConsoleDockSpace",
+                direction_=imgui.Dir.down,
+                ratio_=0.20
+            ),
+            # Right split for the Advanced View
+            hello_imgui.DockingSplit(
+                initial_dock_="MainDockSpace",
+                new_dock_="AdvDockSpace",
+                direction_=imgui.Dir.right,
+                ratio_=0.70
+            )
+        ]
 
 def create_dockable_windows() -> list[hello_imgui.DockableWindow]:
     """
     Define the dockable windows:
-    - Log Console
-    - Tree View
-    - Main Content
+    - ConsoleDockSpace
+    - MainDockSpace
+    - AdvDockSpace
+    Visibility depends on view mode (Compact hides Console and AdvDockSpace).
     """
-    return [
-        hello_imgui.DockableWindow(
-            label_="Log Console",
-            dock_space_name_="LogConsole",
-            gui_function_=show_log_console
-        ),
-        hello_imgui.DockableWindow(
-            label_="Teams",
-            dock_space_name_="TreeView",
-            gui_function_=show_tree_view
-        ),
-        hello_imgui.DockableWindow(
-            label_="Account Configuration",
-            dock_space_name_="MainDockSpace",
-            gui_function_=show_configuration_content
-        ),
-        hello_imgui.DockableWindow(
-            label_="Launch Configuration",
-            dock_space_name_="MainDockSpace",
-            gui_function_=show_main_content
+    global visible_windows
+    dockable_windows = []
+    if visible_windows.get("MainDockSpace", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Teams",
+                dock_space_name_="MainDockSpace",
+                gui_function_=show_team_view,
+                can_be_closed_=False,
+                is_visible_=True
+            )
         )
-    ]
+    if visible_windows.get("AdvDockSpace", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Account Configuration",
+                dock_space_name_="AdvDockSpace",
+                gui_function_=show_configuration_content,
+                can_be_closed_=False,
+                is_visible_=True
+            )
+        )   
+    if visible_windows.get("AdvDockSpace", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Launch Configuration",
+                dock_space_name_="AdvDockSpace",
+                gui_function_=show_account_content,
+                can_be_closed_=False,
+                is_visible_=True
+            )
+        )         
+    if visible_windows.get("ConsoleDockSpace", True):
+        dockable_windows.append(
+            hello_imgui.DockableWindow(
+                label_="Console",
+                dock_space_name_="ConsoleDockSpace",
+                gui_function_=show_log_console,
+                is_visible_=True
+            )
+        )
+    return dockable_windows
 
 def show_log_console():
-    """Content for the Log Console"""
-    imgui.text("Log Console")
+    """Content for the Console"""
+    imgui.text("Console")
     imgui.separator()
 
     # Start scrollable child window
     imgui.begin_child(
-    str_id="LogConsoleWindow",
+    str_id="ConsoleDockSpaceWindow",
     size=imgui.ImVec2(0, 0),
     child_flags=int(imgui.ChildFlags_.borders.value),  # Ensure it's an int
     window_flags=int(imgui.WindowFlags_.horizontal_scrollbar.value)  # Ensure window_flags is also an int
@@ -1027,14 +1143,53 @@ launch_gw = GWLauncher()
 
 
 
-def show_tree_view():
+def show_team_view():
     """
-    Content for the Tree View - Displays all teams and their accounts in a tree view.
+    Content for the MainDockSpace - Displays all teams and their accounts in a MainDockSpace.
     """
-    global team_manager, launch_gw
+    global team_manager, launch_gw, visible_windows, is_compact_view, last_is_compact_view
 
     imgui.text("Teams Manager")
     imgui.separator()
+
+    # Display the current view mode
+    current_mode = "Compact View" if is_compact_view else "Advanced View"
+    imgui.push_style_color(imgui.Col_.text, (0.0, 1.0, 0.0, 1.0))  # Green text
+    imgui.text(f"View Mode: {current_mode}")
+    imgui.pop_style_color()
+    
+    # Checkbox to toggle between Compact and Advanced View
+    _, is_compact_view = imgui.checkbox("Toggle View##visibility_toggle", is_compact_view)
+    
+    if imgui.is_item_hovered():
+        if is_compact_view:
+            imgui.set_tooltip("Switch to Advanced View to show Console and Configuration panels")
+        else:
+            imgui.set_tooltip("Switch to Compact View to hide Console and Configuration panels")
+    imgui.separator()
+
+    # Update visibility and window size only if the view mode changed
+    if is_compact_view != last_is_compact_view:
+        if is_compact_view:
+            hello_imgui.change_window_size((350, 450))
+            visible_windows["AdvDockSpace"] = False
+            visible_windows["ConsoleDockSpace"] = False
+            visible_windows["MainDockSpace"] = True
+        else:
+            hello_imgui.change_window_size((800, 600))
+            visible_windows["AdvDockSpace"] = True
+            visible_windows["ConsoleDockSpace"] = True
+            visible_windows["MainDockSpace"] = True
+
+        # Log the visibility state only when it changes
+        log_history.append(
+            f"Visibility toggled: AdvDockSpace={visible_windows['AdvDockSpace']}, "
+            f"ConsoleDockSpace={visible_windows['ConsoleDockSpace']}, "
+            f"MainDockSpace={visible_windows['MainDockSpace']}"
+        )
+
+        # Update the last state
+        last_is_compact_view = is_compact_view
 
     if not team_manager.teams:
         imgui.text("No teams available. Please add teams in the configuration window.")
@@ -1048,7 +1203,6 @@ def show_tree_view():
             if imgui.button(f"Launch {team_name}##{id(team)}"):
                 log_history.append(f"Launching all accounts for team: {team_name}")
                 launch_gw.start_team_launch_thread(team)  # Use the new threaded function
-
 
             imgui.spacing()
             imgui.separator()
@@ -1069,7 +1223,7 @@ def show_tree_view():
 
 
 
-def show_main_content():
+def show_account_content():
     """
     Content for the Main Content Window
     with auto-saving for any modifications.
@@ -1311,6 +1465,20 @@ def select_python_script():
     root.destroy()
     return file_path
 
+# Function for mod selection
+def select_mod_file():
+    root = tk.Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename(
+        title="Select Mod File",
+        filetypes=[("Mod Files", "*.tpf")]
+    )
+    root.destroy()
+    if file_path:
+        # Return the full path directly
+        log_history.append(f"Selected mod file: {file_path}")
+        return file_path
+    return None
 
 team_manager = TeamManager()
 selected_team = None
@@ -1327,10 +1495,20 @@ new_account_data = {
     "run_as_admin": False,
     "inject_py4gw": True,
     "inject_blackbox": False,
+    "inject_gmod": False,
+    "gmod_mods": []
 }
+is_compact_view = False  # True for Compact View, False for Advanced View
+visible_windows = {
+    "AdvDockSpace": True,
+    "MainDockSpace": True,
+    "ConsoleDockSpace": True,
+}
+is_compact_view = False  # True for Compact View, False for Advanced View
+last_is_compact_view = False  # Tracks the previous state of is_compact_view for change detection
 
 def show_configuration_content():
-    global config_file, team_manager, selected_team, entered_team_name, data_loaded, show_password,new_account_data
+    global config_file, team_manager, selected_team, entered_team_name, data_loaded, show_password, new_account_data
 
     # Automatically load data from JSON if not already loaded
     if not data_loaded:
@@ -1432,6 +1610,7 @@ def show_configuration_content():
                 imgui.set_next_item_width(300)
                 _, account.gw_client_name = imgui.input_text(f"Rename GW Client##{id(account)}", account.gw_client_name, 128)
                 imgui.set_next_item_width(300)
+                old_gw_path = account.gw_path
                 _, account.gw_path = imgui.input_text(f"GW Path##{id(account)}", account.gw_path, 128)
                 # Button for folder selection
                 imgui.same_line()
@@ -1439,19 +1618,77 @@ def show_configuration_content():
                     selected_exe = select_gw_exe()
                     if selected_exe:
                         account.gw_path = selected_exe
+                        if account.inject_gmod:
+                            launch_gw.create_modlist_for_gmod(account)
+                # Check if gw_path is in a protected directory
+                if account.gw_path:
+                    normalized_path = os.path.normpath(account.gw_path).lower()
+                    protected_dirs = [
+                        os.path.normpath("C:/Program Files (x86)").lower(),
+                        os.path.normpath("C:/Program Files").lower()
+                    ]
+                    is_protected = any(normalized_path.startswith(protected_dir) for protected_dir in protected_dirs)
+                    if is_protected:
+                        imgui.push_style_color(imgui.Col_.text, (1.0, 0.0, 0.0, 1.0))  # Red text
+                        imgui.text_wrapped(
+                                "Warning: GW Path is in a protected directory (C:/Program Files (x86) or C:/Program Files). "
+                                "The launcher requires admin privileges to create/modify files (e.g., modlist.txt) in this location. "
+                                "Use an unprotected directory such as 'C:/Games/Guild Wars', or run the launcher with elevated privileges (as administrator)." 
+                            )
+                        imgui.pop_style_color()
+                # If gw_path changed manually, update modlist.txt
+                if old_gw_path != account.gw_path and account.inject_gmod:
+                    launch_gw.create_modlist_for_gmod(account)
                 imgui.set_next_item_width(300)
                 _, account.extra_args = imgui.input_text(f"Extra Args##{id(account)}", account.extra_args, 128)
                 _, account.run_as_admin = imgui.checkbox(f"Run as Admin##{id(account)}", account.run_as_admin)
                 _, account.inject_py4gw = imgui.checkbox(f"Inject Py4GW##{id(account)}", account.inject_py4gw)
                 _, account.inject_blackbox = imgui.checkbox(f"Inject Blackbox##{id(account)}", account.inject_blackbox)
 
+                old_inject_gmod = account.inject_gmod
+                _, account.inject_gmod = imgui.checkbox(f"Inject gMod##{id(account)}", account.inject_gmod)
+                if old_inject_gmod != account.inject_gmod:
+                    if account.inject_gmod:
+                        launch_gw.create_modlist_for_gmod(account)
+                    else:
+                        gw_dir = os.path.dirname(account.gw_path)
+                        modlist_path = os.path.join(gw_dir, "modlist.txt")
+                        if os.path.exists(modlist_path):
+                            try:
+                                os.remove(modlist_path)
+                                log_history.append(f"Removed modlist.txt at {modlist_path} as gMod injection was disabled")
+                            except Exception as e:
+                                log_history.append(f"Error removing modlist.txt at {modlist_path}: {str(e)}")
+
+                if account.inject_gmod:
+                    imgui.text("gMod Mods:")
+                    for i, mod in enumerate(account.gmod_mods):
+                        imgui.text(f" - {mod}")
+                        imgui.same_line()
+                        if imgui.button(f"Remove##{i}_{id(account)}"):
+                            account.gmod_mods.pop(i)
+                            team_manager.save_to_json(config_file)
+                            launch_gw.create_modlist_for_gmod(account)
+                    if imgui.button(f"Add Mod##{id(account)}"):
+                        mod_file = select_mod_file()
+                        if mod_file and mod_file not in account.gmod_mods:
+                            account.gmod_mods.append(mod_file)
+                            team_manager.save_to_json(config_file)
+                            launch_gw.create_modlist_for_gmod(account)
+
                 save_teams_to_json(id(account))
-
                 imgui.same_line()
-
                 if imgui.button(f"Delete Account##{id(account)}"):
                     selected_team.accounts.remove(account)
                     log_history.append(f"Deleted account: {account.character_name}")
+                    gw_dir = os.path.dirname(account.gw_path)
+                    modlist_path = os.path.join(gw_dir, "modlist.txt")
+                    if os.path.exists(modlist_path):
+                        try:
+                            os.remove(modlist_path)
+                            log_history.append(f"Removed modlist.txt at {modlist_path} as account was deleted")
+                        except Exception as e:
+                            log_history.append(f"Error removing modlist.txt at {modlist_path}: {str(e)}")
 
         # Collapsible section for new account form
         if imgui.collapsing_header("Add New Account", imgui.TreeNodeFlags_.default_open.value):
@@ -1488,10 +1725,40 @@ def show_configuration_content():
                         selected_exe = select_gw_exe()
                         if selected_exe:
                             new_account_data[key] = selected_exe
-
+                    # Check if gw_path is in a protected directory for new account
+                    if new_account_data[key]:
+                        normalized_path = os.path.normpath(new_account_data[key]).lower()
+                        protected_dirs = [
+                            os.path.normpath("C:/Program Files (x86)").lower(),
+                            os.path.normpath("C:/Program Files").lower()
+                        ]
+                        is_protected = any(normalized_path.startswith(protected_dir) for protected_dir in protected_dirs)
+                        if is_protected:
+                            imgui.push_style_color(imgui.Col_.text, (1.0, 0.0, 0.0, 1.0))  # Red text
+                            imgui.text_wrapped(
+                                "Warning: GW Path is in a protected directory (C:/Program Files (x86) or C:/Program Files). "
+                                "The launcher requires admin privileges to create/modify files (e.g., modlist.txt) in this location. "
+                                "Use an unprotected directory such as 'C:/Games/Guild Wars', or run the launcher with elevated privileges (as administrator)." 
+                            )
+                            imgui.pop_style_color()
+                elif key == "gmod_mods":
+                    _, new_account_data["inject_gmod"] = imgui.checkbox("Inject gMod##new_item", new_account_data["inject_gmod"])
+                    if new_account_data["inject_gmod"]:
+                        imgui.text("gMod Mods:")
+                        for i, mod in enumerate(new_account_data["gmod_mods"]):
+                            imgui.text(f" - {mod}")
+                            imgui.same_line()
+                            if imgui.button(f"Remove##{i}_new"):
+                                new_account_data["gmod_mods"].pop(i)
+                        if imgui.button("Add Mod##new"):
+                            mod_file = select_mod_file()
+                            if mod_file and mod_file not in new_account_data["gmod_mods"]:
+                                new_account_data["gmod_mods"].append(mod_file)
+                elif key == "inject_gmod":
+                    continue
                 elif isinstance(new_account_data[key], bool):
                     _, new_account_data[key] = imgui.checkbox(key.replace("_", " ").title() + "##new_item", new_account_data[key])
-                else:
+                elif isinstance(new_account_data[key], str):
                     imgui.set_next_item_width(300)  # Standardized field width
                     _, new_account_data[key] = imgui.input_text(key.replace("_", " ").title() + "##new_item", new_account_data[key], 128)
 
@@ -1500,31 +1767,45 @@ def show_configuration_content():
                 selected_team.add_account(new_account)
                 log_history.append(f"Added account: {new_account.character_name} to team: {selected_team.name}")
                 team_manager.save_to_json(config_file)
+                if new_account.inject_gmod:
+                    launch_gw.create_modlist_for_gmod(new_account)
+                new_account_data["gmod_mods"] = []
             imgui.same_line()
             if imgui.button("Clear Form"):
                 for key in new_account_data.keys():
-                    new_account_data[key] = "" if isinstance(new_account_data[key], str) else False
+                    if key == "gmod_mods":
+                        new_account_data[key] = []
+                    elif isinstance(new_account_data[key], str):
+                        new_account_data[key] = ""
+                    else:
+                        new_account_data[key] = False
 
+def main() -> None:
+    """Run the Py4GW Launcher application with ImGui."""
+    try:
+        runner_params = hello_imgui.RunnerParams()
+        runner_params.app_window_params.window_title = "Py4GW Launcher"
+        runner_params.app_window_params.window_geometry.size = (800, 600)
+        runner_params.imgui_window_params.default_imgui_window_type = hello_imgui.DefaultImGuiWindowType.provide_full_screen_dock_space
+        runner_params.docking_params.docking_splits = create_docking_splits()
 
+        # Explicitly set the ini_filename for Hello ImGui settings
+        runner_params.ini_filename = "Py4GW_Launcher.ini"
+        log_history.append(f"Using Hello ImGui ini_filename: {runner_params.ini_filename}")
 
-def main():
-    """
-    Main function to set up Hello ImGui RunnerParams and run the application.
-    """
-    # Set up Hello ImGui parameters
-    runner_params = hello_imgui.RunnerParams()
-    runner_params.app_window_params.window_title = "Py4GW Launcher"
-    runner_params.app_window_params.window_geometry.size = (800, 768)
-    runner_params.imgui_window_params.default_imgui_window_type = (
-        hello_imgui.DefaultImGuiWindowType.provide_full_screen_dock_space
-    )
-    runner_params.docking_params.docking_splits = create_docking_splits()
-    runner_params.docking_params.dockable_windows = create_dockable_windows()
+        # Check for version mismatch and handle it before initializing ImGui
+        check_and_handle_version_mismatch(runner_params.ini_filename)
 
-    # Run the application
-    hello_imgui.run(runner_params)
+        def update_gui():
+            global visible_windows
+            runner_params.docking_params.dockable_windows = create_dockable_windows()
+            runner_params.docking_params.docking_splits = create_docking_splits()
+
+        runner_params.callbacks.show_gui = update_gui
+        hello_imgui.run(runner_params)
+    except Exception as e:
+        log_history.append(f"Application error: {str(e)}")
 
 
 if __name__ == "__main__":
     main()
-    
