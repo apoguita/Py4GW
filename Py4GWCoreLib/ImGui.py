@@ -136,7 +136,7 @@ class ImGui:
             num_columns = 1  # Single values will be displayed in one column
 
         # Start the table with dynamic number of columns
-        if PyImGui.begin_table(title, num_columns, PyImGui.TableFlags.Borders):
+        if PyImGui.begin_table(title, num_columns, PyImGui.TableFlags.Borders | PyImGui.TableFlags.SizingStretchSame | PyImGui.TableFlags.Resizable):
             for i, header in enumerate(headers):
                 PyImGui.table_setup_column(header)
             PyImGui.table_headers_row()

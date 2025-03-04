@@ -1,4 +1,8 @@
+import ctypes
 import PyUIManager
+
+CALLBACK_FUNC_TYPE = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)
+
 
 class UIManager:
     @staticmethod
@@ -113,4 +117,29 @@ class UIManager:
         :param limit: The frame limit.
         """
         PyUIManager.UIManager.set_frame_limit(limit)
+        
+    @staticmethod
+    def ExecuteCallback(callback: PyUIManager.UIInteractionCallback, message_id: int, wParam=None, lParam=None):
+        """
+        Execute a UI interaction callback function.
+
+        :param callback: The callback object.
+        :param message_id: The UIMessage ID to send.
+        :param wParam: Optional parameter, defaults to None.
+        :param lParam: Optional parameter, defaults to None.
+        """
+        if not callback:
+            raise ValueError("Callback is None")
+
+        address = callback.get_address()
+        if not address:
+            raise ValueError(f"Invalid callback function pointer: {hex(address)}")
+
+        func = CALLBACK_FUNC_TYPE(address)
+
+        func(
+            ctypes.c_uint32(message_id),  # Convert int to uint32 when calling
+            ctypes.c_void_p(wParam) if wParam is not None else None,
+            ctypes.c_void_p(lParam) if lParam is not None else None
+        )
     
