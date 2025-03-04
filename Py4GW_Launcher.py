@@ -25,25 +25,6 @@ import os
 #Config File and Addons copying to Documents
 import shutil
 
-# Initialize log_history early to avoid NameError
-from imgui_bundle import hello_imgui, imgui
-import json
-import tkinter as tk
-from tkinter import filedialog
-import ctypes
-import ctypes.wintypes
-from ctypes import wintypes
-user32 = ctypes.windll.user32
-import threading
-import time
-import win32gui
-import win32process
-import psutil
-import sys
-import configparser  # Required for IniHandler
-import os
-import shutil
-
 log_history = []
 log_history.append("Welcome To Py4GW!")
 APP_VERSION = "1.0.0"  # Update this with each release as needed
