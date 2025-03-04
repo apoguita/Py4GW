@@ -58,5 +58,8 @@
     "2874675009": "Inventory Window",
     "3821778954": "Equipment Pack Slot",
     "2327665746": "Destroy Item Slot",
-    "1020120166": "Guild Battle Window"
+    "1020120166": "Guild Battle Window",
+    "641635682,6": "Skillbar.Skill7",
+    "641635682,6,2": "Skillbar.Skill7.Frame",
+    "641635682,6,2,6": "Skillbar.Skill7.Frame.Number"
 }
