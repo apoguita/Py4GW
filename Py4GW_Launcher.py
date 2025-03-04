@@ -71,11 +71,13 @@ class IniHandler:
 
     def save(self, config: configparser.ConfigParser) -> None:
         """
-        Save changes to the INI file.
+        Save changes to the INI file and ensure the write is flushed to disk.
         """
         with open(self.filename, 'w') as configfile:
             config.write(configfile)
-
+            configfile.flush()  # Explicitly flush to disk
+            os.fsync(configfile.fileno())  # Ensure OS buffers are written
+        log_history.append(f"Saved INI file: {self.filename}")
     # ----------------------------
     # Read Methods
     # ----------------------------
@@ -1198,9 +1200,6 @@ launch_gw = GWLauncher()
 
 
 def show_team_view():
-    """
-    Content for the MainDockSpace - Displays all teams and their accounts in a MainDockSpace.
-    """
     global team_manager, launch_gw, visible_windows, is_compact_view, last_is_compact_view
 
     imgui.text("Teams Manager")
@@ -1213,13 +1212,20 @@ def show_team_view():
     imgui.pop_style_color()
     
     # Checkbox to toggle between Compact and Advanced View
-    _, is_compact_view = imgui.checkbox("Toggle View##visibility_toggle", is_compact_view)
+    changed, new_is_compact_view = imgui.checkbox("Toggle View##visibility_toggle", is_compact_view)
     
     if imgui.is_item_hovered():
         if is_compact_view:
             imgui.set_tooltip("Switch to Advanced View to show Console and Configuration panels")
         else:
             imgui.set_tooltip("Switch to Compact View to hide Console and Configuration panels")
+    
+    # Save to INI if changed
+    if changed:
+        is_compact_view = new_is_compact_view  # Update global variable
+        ini_handler.write_key("Py4GW_Launcher", "is_compact_view", str(is_compact_view))
+        log_history.append(f"Saved is_compact_view to [Py4GW_Launcher]: {is_compact_view}")
+
     imgui.separator()
 
     # Update visibility and window size only if the view mode changed
@@ -1553,14 +1559,14 @@ new_account_data = {
     "inject_gmod": False,
     "gmod_mods": []
 }
-is_compact_view = False  # True for Compact View, False for Advanced View
+# is_compact_view = False  # True for Compact View, False for Advanced View
 visible_windows = {
     "AdvDockSpace": True,
     "MainDockSpace": True,
     "ConsoleDockSpace": True,
 }
 is_compact_view = False  # True for Compact View, False for Advanced View
-last_is_compact_view = False  # Tracks the previous state of is_compact_view for change detection
+# last_is_compact_view = False  # Tracks the previous state of is_compact_view for change detection
 
 def show_configuration_content():
     global config_file, team_manager, selected_team, entered_team_name, data_loaded, show_password, new_account_data
@@ -1837,10 +1843,17 @@ def show_configuration_content():
 
 def main() -> None:
     """Run the Py4GW Launcher application with ImGui."""
+    global is_compact_view, last_is_compact_view
     try:
+        # Load is_compact_view from Py4GW.ini before setting up the GUI
+        is_compact_view = ini_handler.read_bool("Py4GW_Launcher", "is_compact_view", False)
+        last_is_compact_view = is_compact_view
+        log_history.append(f"Loaded is_compact_view from [Py4GW_Launcher]: {is_compact_view}")
+
         runner_params = hello_imgui.RunnerParams()
         runner_params.app_window_params.window_title = "Py4GW Launcher"
-        runner_params.app_window_params.window_geometry.size = (800, 600)
+        # Set initial size based on loaded view mode
+        runner_params.app_window_params.window_geometry.size = (350, 450) if is_compact_view else (800, 600)
         runner_params.imgui_window_params.default_imgui_window_type = hello_imgui.DefaultImGuiWindowType.provide_full_screen_dock_space
         runner_params.docking_params.docking_splits = create_docking_splits()
 
