@@ -162,6 +162,12 @@ class CacheData:
             self.aftercast_timer = Timer()
             self.data = GameData()
             self.action_queue = ActionQueue()
+            self.action_queue_timer = Timer()
+            self.action_queue_timer.Start()
+            self.action_queue_time = throttle_time
+            self.auto_attack_timer = Timer()
+            self.auto_attack_timer.Start()
+            self.auto_attack_time = 750
             self.reset()
             
             self._initialized = True 
@@ -194,10 +200,11 @@ class CacheData:
         self.combat_handler.PrioritizeSkills()
         
     def UpdateActionQueue(self):
+        if not self.action_queue_timer.HasElapsed(self.action_queue_time):
+            return
         if self.data.is_map_ready and self.data.is_party_loaded and not self.action_queue.is_empty():
                 self.action_queue.execute_next()
-        else:
-            self.action_queue.clear()
+
     
     def Update(self):
         if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
@@ -216,10 +223,6 @@ class CacheData:
             if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
                 self.data.in_aggro = True
                 
-            if self.data.in_aggro:
-                distance = Range.Spellcast.value
-            else:
-                distance = Range.Earshot.value
                        
             
                      
