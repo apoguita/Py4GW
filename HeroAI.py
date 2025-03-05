@@ -64,6 +64,9 @@ def Loot(cached_data:CacheData):
         looting_item = item
 
     target =cached_data.data.target_id
+    
+    if looting_item == 0:
+        return False
 
     if target != looting_item:
         #Player.ChangeTarget(looting_item)
@@ -71,14 +74,18 @@ def Loot(cached_data:CacheData):
         #loot_timer.Reset()
         return True
     
-    if loot_timer.HasElapsed(500) and target == looting_item:
+    if loot_timer.HasElapsed(750) and target == looting_item:
         #Keystroke.PressAndRelease(Key.Space.value)
         cached_data.action_queue.add_action(Keystroke.PressAndRelease, Key.Space.value)
         loot_timer.Reset()
         #Player.Interact(item)
         return True
-    
-    return False
+    else:
+        if target == 0:
+            return False
+        cached_data.action_queue.add_action(Player.ChangeTarget, target)
+        return True
+
 
 
 def Follow(cached_data:CacheData):
@@ -195,8 +202,10 @@ def UpdateStatus(cached_data:CacheData):
     
     #if were here we are not doing anything
     #auto attack
-    if cached_data.data.is_combat_enabled and not cached_data.data.player_is_attacking:
-        cached_data.combat_handler.ChooseTarget()
+    if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time):
+        if cached_data.data.is_combat_enabled and not cached_data.data.player_is_attacking:
+            cached_data.combat_handler.ChooseTarget()
+        cached_data.auto_attack_timer.Reset()
     
 
    
