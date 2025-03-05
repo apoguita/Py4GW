@@ -1,4 +1,5 @@
 import PyOverlay
+from typing import Tuple
 
 class Overlay:
     def __init__(self):
@@ -7,7 +8,7 @@ class Overlay:
     def IsMouseClicked(self):
         return self.overlay_instance.IsMouseClicked(0)
 
-    def GetMouseCoords(self):
+    def GetMouseCoords(self) -> Tuple[float, float]:
         mouse_point = self.overlay_instance.GetMouseCoords()
         return mouse_point.x, mouse_point.y
 

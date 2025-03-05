@@ -47,7 +47,6 @@ def calculate_grid_layout(total_buttons):
 
 ping_handler = Py4GW.PingHandler()
 timer_instance = Timer()
-overlay = Overlay()
 show_mouse_world_pos = False
 show_area_rings = False
 mark_target = False
@@ -296,13 +295,13 @@ Py4GW_descriptions.values[0] = "Py4Gw Provides a set of complementary classes th
 Py4GW_descriptions.values[1] = "PyKeystroke class is in charge of handling the keystrokes.\nIt provides methods to send keystrokes aswell as key combos.\nIt has methods pertinent to the keystrokes and related to controlling key, keybind actions. \nYou can Interact with the game Keybind Engine aswell as controlling your character."
 Py4GW_descriptions.values[2] = "PingHandler class is in charge of getting latency data froim the game.\nIt stores a given number of ticks in history and can handle basic statistics."       
 Py4GW_descriptions.values[3] = "Timer class is in charge of handling timers.\n It provides methods to create, start, stop, and reset timers.\nIt has methods pertinent to the timers and related to controlling timer actions."
-Py4GW_descriptions.values[4] = "Overlay class is in charge of handling the overlay.\nIt provides methods to show, hide, and toggle the overlay.\nIt has methods pertinent to the overlay and related to controlling overlay actions."
+Py4GW_descriptions.values[4] = "Overlay() class is in charge of handling the Overlay().\nIt provides methods to show, hide, and toggle the Overlay().\nIt has methods pertinent to the Overlay() and related to controlling Overlay() actions."
 
 description_index = 0
 
 def ShowPy4GW_Window_main():
     global Py4GW_window_state, Py4GW_descriptions, description_index, ping_handler, timer_instance
-    global overlay, show_mouse_world_pos, show_area_rings,mark_target
+    global show_mouse_world_pos, show_area_rings,mark_target
     global test_keystroke
     try: 
         width, height = 500,800
@@ -410,35 +409,35 @@ def ShowPy4GW_Window_main():
 
                 ImGui.table("Timer info", headers, data)
 
-            if PyImGui.collapsing_header("Overlay"):
-                if PyImGui.button("Show Overlay Info"):
+            if PyImGui.collapsing_header("Overlay()"):
+                if PyImGui.button("Show Overlay() Info"):
                     description_index = 4
 
-                mouse_x, mouse_y = overlay.GetMouseCoords()
+                mouse_x, mouse_y = Overlay().GetMouseCoords()
 
                 headers = ["Mouse X", "Mouse Y"]
                 data = [
                     (mouse_x, mouse_y)
                 ]
 
-                ImGui.table("Overlay info", headers, data)
+                ImGui.table("Overlay() info", headers, data)
 
                 mark_target = PyImGui.checkbox("Mark Target", mark_target)
                 if mark_target:
                     target_id = Player.GetTargetID()
                     if target_id:
                         target_x, target_y, target_z = Agent.GetXYZ(target_id)
-                        overlay.DrawPoly3D(target_x, target_y, target_z, radius=72, color=0xFFFF0000,numsegments=32,thickness=5.0)
-                        z_coord = overlay.FindZ(target_x, target_y)
-                        screen_x, screen_y = overlay.WorldToScreen(target_x, target_y, z_coord)
-                        overlay.DrawText3D(target_x, target_y, target_z-130, "TARGET", color=0xFFFF0000, autoZ=False, centered=True, scale=2.0)
+                        Overlay().DrawPoly3D(target_x, target_y, target_z, radius=72, color=0xFFFF0000,numsegments=32,thickness=5.0)
+                        z_coord = Overlay().FindZ(target_x, target_y)
+                        screen_x, screen_y = Overlay().WorldToScreen(target_x, target_y, z_coord)
+                        Overlay().DrawText3D(target_x, target_y, target_z-130, "TARGET", color=0xFFFF0000, autoZ=False, centered=True, scale=2.0)
 
 
                 show_mouse_world_pos= PyImGui.checkbox("Show Mouse World Position", show_mouse_world_pos)
                 if show_mouse_world_pos:
                     PyImGui.text_colored("Do not abuse this function!",(1, 0, 0, 1))
                     PyImGui.text_colored("it is unstable on some conditions",(1, 0, 0, 1))
-                    x,y,z = overlay.GetMouseWorldPos()
+                    x,y,z = Overlay().GetMouseWorldPos()
                     agent_id = Player.GetAgentID()
                     player_x, player_y, player_z = Agent.GetXYZ(agent_id)
                     
@@ -457,7 +456,7 @@ def ShowPy4GW_Window_main():
                     ImGui.table("Player Position", headers, data)
 
                 PyImGui.separator()
-                overlay.DrawLine(100, 100, 500, 500)
+                Overlay().DrawLine(100, 100, 500, 500)
 
                 show_area_rings = PyImGui.checkbox("Show Area Rings", show_area_rings)
                 if show_area_rings:
@@ -474,11 +473,11 @@ def ShowPy4GW_Window_main():
                     Compass = 5000
 
                     segments = 64
-                    overlay.DrawPoly3D(player_x, player_y, player_z, radius=72, color=0xFF1E90FF,numsegments=segments,thickness=5.0)
-                    overlay.DrawPoly3D(player_x, player_y, player_z, radius=Touch, color=0xAB5A1EFF,numsegments=segments,thickness=5.0)
-                    overlay.DrawPoly3D(player_x, player_y, player_z, radius=Adjacent, color=0x3BC154FF,numsegments=segments,thickness=5.0)
-                    overlay.DrawPoly3D(player_x, player_y, player_z, radius=Nearby, color=0xE39626FF,numsegments=segments,thickness=5.0)
-                    overlay.DrawPoly3D(player_x, player_y, player_z, radius=Area, color=0xE3357EFF,numsegments=segments,thickness=5.0)
+                    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=72, color=0xFF1E90FF,numsegments=segments,thickness=5.0)
+                    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Touch, color=0xAB5A1EFF,numsegments=segments,thickness=5.0)
+                    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Adjacent, color=0x3BC154FF,numsegments=segments,thickness=5.0)
+                    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Nearby, color=0xE39626FF,numsegments=segments,thickness=5.0)
+                    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Area, color=0xE3357EFF,numsegments=segments,thickness=5.0)
 
 
         PyImGui.end()
