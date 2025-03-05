@@ -5,110 +5,9 @@ import json
 import ctypes
 
 MODULE_NAME = "Frame Tester"
-json_file_name = "frame_aliases.json"
-json_offset_file_name = "frame_offset_aliases.json"
+json_file_name = ".\\Py4GWCoreLib\\frame_aliases.json"
+
 overlay = Overlay()
-
-def find_closest_hashed_parent_hash(frame_id: int):
-    """
-    Finds the closest parent frame with a hash, including itself if it has one.
-
-    :param frame_id: The starting frame ID.
-    :return: The frame hash if found, else None.
-    """
-    current_frame = PyUIManager.UIFrame(frame_id)
-
-    while current_frame.frame_id != 0:  # Avoid infinite loops
-        if current_frame.frame_hash:  # If the frame has a hash, return it immediately
-            return current_frame.frame_hash
-
-        current_frame = PyUIManager.UIFrame(current_frame.parent_id)
-
-    return 0  # No hashed parent found
-
-
-def construct_frame_path(frame_id: int) -> str:
-    """
-    Constructs the full path for an offset-based frame by traversing up the parent chain.
-
-    :param frame_id: The frame ID to construct the path for.
-    :return: A string path in the format "hashed_parent,offset1,offset2,...", or None if no valid hashed parent is found.
-    """
-    if frame_id == 0:
-        return ""
-    try:
-        current_frame = PyUIManager.UIFrame(frame_id)
-    except Exception as e:
-        print(f"[ERROR] Failed to create UIFrame with frame_id={frame_id}: {e}")
-        return ""  # Return empty string on error
-    
-    # If the frame itself has a hash, return it immediately
-    if current_frame.frame_hash != 0:
-        return str(current_frame.frame_hash)
-
-    path = []
-    parent_hash = None
-
-    # Traverse up the parent hierarchy until we find a hashed parent
-    while current_frame.frame_id != 0:
-        parent_frame = PyUIManager.UIFrame(current_frame.parent_id)
-
-        # Store child offset
-        path.append(str(current_frame.child_offset_id))
-
-        # If we found a parent with a hash, stop and use it as the root
-        if parent_frame.frame_hash:
-            parent_hash = parent_frame.frame_hash
-            break
-
-        current_frame = parent_frame  # Move up to the parent
-
-    # If no hashed parent was found, return None (invalid case)
-    if parent_hash == 0:
-        return ""
-
-    # Construct and return the full path
-    return str(parent_hash) + "," + ",".join(reversed(path))
-
-
-#region JSON Hash
-def save_entry_to_json(filename: str, frame_id: int, alias: str):
-    """Writes or updates an entry in a JSON file."""
-    try:
-        with open(filename, "r", encoding="utf-8") as file:
-            data: Dict[str, str] = json.load(file)  # Load existing data
-    except (FileNotFoundError, json.JSONDecodeError):
-        data = {}  # Start fresh if file doesn't exist or is invalid
-
-    frame_path = construct_frame_path(frame_id)
-
-    if frame_path:  # Ensure the path is valid before saving
-        data[frame_path] = alias
-
-    with open(filename, "w", encoding="utf-8") as file:
-        json.dump(data, file, indent=4)  # Save back to file
-
-
-def get_entry_from_json(filename: str, frame_id: int) -> str:
-    """
-    Reads an entry from a JSON file by constructing the frame's path.
-
-    :param filename: The JSON file to read from.
-    :param frame_id: The frame ID to locate.
-    :return: The alias if found, otherwise None.
-    """
-    try:
-        with open(filename, "r", encoding="utf-8") as file:
-            data = json.load(file)  # Load JSON data
-    except (FileNotFoundError, json.JSONDecodeError):
-        return "" # Return empty string if file doesn't exist or is invalid
-
-    frame_path = construct_frame_path(frame_id)
-    
-    return data.get(frame_path) or ""  # Return the alias if found, otherwise an empty string
-
-
-# endregion
 
 
 #region config options
@@ -141,7 +40,7 @@ class FrameNode:
         self.info_window = InfoWindow(self.frame_obj)
         self.frame_hash = self.frame_obj.frame_hash
         self.child_offset_id = self.frame_obj.child_offset_id
-        self.label = get_entry_from_json(json_file_name, self.frame_id) or ""
+        self.label = UIManager.GetEntryFromJSON(json_file_name, self.frame_id) or ""
         self.parent = None  # Will be set when building the tree
         self.children = []  # Stores child nodes
         self.show_frame_data = False
@@ -149,7 +48,7 @@ class FrameNode:
     def update(self):
         self.frame_obj.get_context()
         self.frame_hash = self.frame_obj.frame_hash
-        self.label = get_entry_from_json(json_file_name, self.frame_id) or ""
+        self.label = UIManager.GetEntryFromJSON(json_file_name, self.frame_id) or ""
 
     def get_parent(self):
         """Returns the parent node of this frame."""
@@ -188,7 +87,7 @@ class FrameNode:
                                 ("Is Visible:", self.frame_obj.is_visible),
                                 ("Is Created:", self.frame_obj.is_created),
                             ]
-                            ImGui.table("PingHandler info", headers, data)
+                            ImGui.table("frametester info##{self.frame_id}", headers, data)
                 PyImGui.separator()
                 
                 for child in self.children:
@@ -208,7 +107,7 @@ class FrameNode:
                         ("Is Visible:", self.frame_obj.is_visible),
                         ("Is Created:", self.frame_obj.is_created),
                     ]
-                    ImGui.table("PingHandler info", headers, data)
+                    ImGui.table("frametester info##{self.frame_id}", headers, data)
             PyImGui.separator()
                     
         if self.show_frame_data:
@@ -258,8 +157,6 @@ class FrameTree:
 #end region
 
 
-
-
 #region InfoWindow
 
 class InfoWindow:
@@ -270,7 +167,7 @@ class InfoWindow:
         self.draw_frame = True
         self.draw_color :int = Utils.RGBToColor(0, 255, 0, 125)
         self.monitor_callbacks = False
-        self.frame_alias = get_entry_from_json(json_file_name, self.frame.frame_id)  
+        self.frame_alias = UIManager.GetEntryFromJSON(json_file_name, self.frame.frame_id)  
         self.submit_value = self.frame_alias or "" 
         self.window_name = ""
         self.setWindowName()
@@ -284,15 +181,7 @@ class InfoWindow:
           
       
     def DrawFrame(self):
-        global overlay
-        top = self.frame.position.top_on_screen
-        left = self.frame.position.left_on_screen
-        bottom = self.frame.position.bottom_on_screen
-        right = self.frame.position.right_on_screen
-                        
-        overlay.BeginDraw()
-        overlay.DrawQuadFilled(top, left, top,right, bottom, right, bottom, left,self.draw_color)
-        overlay.EndDraw()
+        UIManager().DrawFrame(self.frame.frame_id, self.draw_color)
         
     def MonitorCallbacks(self):
         pass
@@ -339,10 +228,13 @@ class InfoWindow:
                         self.submit_value = PyImGui.input_text(f"Alias##Edit{self.frame.frame_id}", self.submit_value)
                         PyImGui.same_line(0,-1)
                         if PyImGui.button(f"Save Alias##{self.frame.frame_id}"):
-                            save_entry_to_json(json_file_name, self.frame.frame_id, self.submit_value)
-                            self.frame_alias = get_entry_from_json(json_file_name, self.frame.frame_id)  
+                            UIManager.SaveEntryToJSON(json_file_name, self.frame.frame_id, self.submit_value)
+                            self.frame_alias = UIManager.GetEntryFromJSON(json_file_name, self.frame.frame_id)  
                             self.setWindowName()          
 
+                        if PyImGui.button(f"Click on frame{self.frame.frame_id}##click{self.frame.frame_id}"):
+                            UIManager.FrameClick(self.frame.frame_id)
+                            print (f"Clicked on frame {self.frame.frame_id}")
                 
                 
                         PyImGui.text(f"Parent ID: {self.frame.parent_id}")
@@ -392,10 +284,6 @@ class InfoWindow:
                     if PyImGui.begin_tab_item(f"Callbacks##{self.frame.frame_id}"):
                         for i, callback in enumerate(self.frame.frame_callbacks):
                             PyImGui.text(f"{i}: {callback.get_address()} - Hex({self.to_hex(callback.get_address())})")
-
-                            if PyImGui.button(f"Call##{i}"):
-                                UIManager.ExecuteCallback(callback, PyUIManager.UIMessage.kSkillActivated.value)
-
 
 
                         PyImGui.end_tab_item()
