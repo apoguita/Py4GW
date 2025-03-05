@@ -4,6 +4,10 @@ class Point2D:
     y: int
 
     def __init__(self, x: int, y: int) -> None: ...
+    
+    def __iter__(self):
+        yield self.x
+        yield self.y
 
 class Point3D:
     x: float
@@ -11,6 +15,7 @@ class Point3D:
     z: float
 
     def __init__(self, x: float, y: float, z: float) -> None: ...
+    
 
 class Overlay:
     def __init__(self) -> None: ...

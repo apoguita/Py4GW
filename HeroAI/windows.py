@@ -167,11 +167,11 @@ AllFlag = False
 CLearFlags = False
 one_time_set_flag = False
 def DrawFlags(cached_data:CacheData):
-    global capture_flag_all, capture_hero_flag, capture_hero_index, overlay
+    global capture_flag_all, capture_hero_flag, capture_hero_index
     global one_time_set_flag, CLearFlags
 
     if capture_hero_flag:
-        x, y, _ = overlay.GetMouseWorldPos()
+        x, y, _ = Overlay().GetMouseWorldPos()
         if capture_flag_all:
             DrawFlagAll(x, y)
             pass
@@ -496,7 +496,7 @@ def DrawGameOptionsDebug(cached_data:CacheData):
 
 draw_fake_flag = True
 def DrawFlagDebug(cached_data:CacheData):
-    global capture_flag_all, capture_hero_flag,draw_fake_flag, overlay
+    global capture_flag_all, capture_hero_flag,draw_fake_flag
     global MAX_NUM_PLAYERS
     
     PyImGui.text("Flag Debug")
@@ -508,11 +508,11 @@ def DrawFlagDebug(cached_data:CacheData):
 
     PyImGui.separator()
 
-    x, y, z = overlay.GetMouseWorldPos()
+    x, y, z = Overlay().GetMouseWorldPos()
 
     PyImGui.text(f"Mouse Position: {x:.2f}, {y:.2f}, {z:.2f}")
     PyImGui.text_colored("Having GetMouseWorldPos active will crash your client on map change",(1, 0.5, 0.05, 1))
-    mouse_x, mouse_y = overlay.GetMouseCoords()
+    mouse_x, mouse_y = Overlay().GetMouseCoords()
     PyImGui.text(f"Mouse Coords: {mouse_x}, {mouse_y}")
     PyImGui.text(f"Player Position: {cached_data.data.player_xyz}")
     draw_fake_flag = PyImGui.checkbox("Draw Fake Flag", draw_fake_flag)
@@ -530,12 +530,12 @@ def DrawFlagDebug(cached_data:CacheData):
             PyImGui.text(f"Hero {i + 1} is flagged")
 
 def DrawFollowDebug(cached_data:CacheData):
-    global show_area_rings, show_hero_follow_grid, show_distance_on_followers, overlay
+    global show_area_rings, show_hero_follow_grid, show_distance_on_followers
     global MAX_NUM_PLAYERS
 
 
     if PyImGui.button("reset overlay"):
-        overlay.RefreshDrawList()
+        Overlay().RefreshDrawList()
     show_area_rings = PyImGui.checkbox("Show Area Rings", show_area_rings)
     show_hero_follow_grid = PyImGui.checkbox("Show Hero Follow Grid", show_hero_follow_grid)
     show_distance_on_followers = PyImGui.checkbox("Show Distance on Followers", show_distance_on_followers)
@@ -548,17 +548,17 @@ def DrawFollowDebug(cached_data:CacheData):
     PyImGui.text(f"Angle_changed: {cached_data.data.angle_changed}")
 
     segments = 32
-    overlay.BeginDraw()
+    Overlay().BeginDraw()
     if show_area_rings:
         player_x, player_y, player_z = Agent.GetXYZ(Player.GetAgentID()) #cached_data.data.player_xyz # needs to be live
 
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Touch.value / 2, color=Utils.RGBToColor(255, 255, 0 , 128), numsegments=segments, thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Touch.value    , color=Utils.RGBToColor(255, 200, 0 , 128), numsegments=segments, thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Adjacent.value , color=Utils.RGBToColor(255, 150, 0 , 128), numsegments=segments, thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Nearby.value   , color=Utils.RGBToColor(255, 100, 0 , 128), numsegments=segments, thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Area.value     , color=Utils.RGBToColor(255, 50 , 0 , 128), numsegments=segments, thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Earshot.value  , color=Utils.RGBToColor(255, 25 , 0 , 128), numsegments=segments, thickness=2.0)
-        overlay.DrawPoly3D(player_x, player_y, player_z, radius=Range.Spellcast.value, color=Utils.RGBToColor(255, 12 , 0 , 128), numsegments=segments, thickness=2.0)
+        Overlay().DrawPoly3D(player_x, player_y, player_z, Range.Touch.value / 2, Utils.RGBToColor(255, 255, 0 , 128), numsegments=segments, thickness=2.0)
+        Overlay().DrawPoly3D(player_x, player_y, player_z, Range.Touch.value    , Utils.RGBToColor(255, 200, 0 , 128), numsegments=segments, thickness=2.0)
+        Overlay().DrawPoly3D(player_x, player_y, player_z, Range.Adjacent.value , Utils.RGBToColor(255, 150, 0 , 128), numsegments=segments, thickness=2.0)
+        Overlay().DrawPoly3D(player_x, player_y, player_z, Range.Nearby.value   , Utils.RGBToColor(255, 100, 0 , 128), numsegments=segments, thickness=2.0)
+        Overlay().DrawPoly3D(player_x, player_y, player_z, Range.Area.value     , Utils.RGBToColor(255, 50 , 0 , 128), numsegments=segments, thickness=2.0)
+        Overlay().DrawPoly3D(player_x, player_y, player_z, Range.Earshot.value  , Utils.RGBToColor(255, 25 , 0 , 128), numsegments=segments, thickness=2.0)
+        Overlay().DrawPoly3D(player_x, player_y, player_z, Range.Spellcast.value, Utils.RGBToColor(255, 12 , 0 , 128), numsegments=segments, thickness=2.0)
 
     if show_hero_follow_grid:
         leader_x, leader_y, leader_z = Agent.GetXYZ(Party.GetPartyLeaderID()) #cached_data.data.party_leader_xyz #needs to be live 
@@ -570,21 +570,21 @@ def DrawFollowDebug(cached_data:CacheData):
             hero_x = Range.Touch.value * math.cos(angle_on_hero_grid) + leader_x
             hero_y = Range.Touch.value * math.sin(angle_on_hero_grid) + leader_y
             
-            overlay.DrawPoly3D(hero_x, hero_y, leader_z, radius=Range.Touch.value /2, color=Utils.RGBToColor(255, 0, 255, 128), numsegments=segments, thickness=2.0)
+            Overlay().DrawPoly3D(hero_x, hero_y, leader_z, radius=Range.Touch.value /2, color=Utils.RGBToColor(255, 0, 255, 128), numsegments=segments, thickness=2.0)
  
     if show_distance_on_followers:
         for i in range(MAX_NUM_PLAYERS):
             if cached_data.HeroAI_vars.all_player_struct[i].IsActive:
-                overlay.BeginDraw()
+                Overlay().BeginDraw()
                 player_id = cached_data.HeroAI_vars.all_player_struct[i].PlayerID
                 if player_id == cached_data.data.player_agent_id:
                     continue
                 target_x, target_y, target_z = Agent.GetXYZ(player_id)
-                overlay.DrawPoly3D(target_x, target_y, target_z, radius=72, color=Utils.RGBToColor(255, 255, 255, 128),numsegments=segments,thickness=2.0)
-                z_coord = overlay.FindZ(target_x, target_y, 0)
-                overlay.DrawText3D(target_x, target_y, z_coord-130, f"{DistanceFromWaypoint(target_x, target_y):.1f}",color=Utils.RGBToColor(255, 255, 255, 128), autoZ=False, centered=True, scale=2.0)
+                Overlay().DrawPoly3D(target_x, target_y, target_z, radius=72, color=Utils.RGBToColor(255, 255, 255, 128),numsegments=segments,thickness=2.0)
+                z_coord = Overlay().FindZ(target_x, target_y, 0)
+                Overlay().DrawText3D(target_x, target_y, z_coord-130, f"{DistanceFromWaypoint(target_x, target_y):.1f}",color=Utils.RGBToColor(255, 255, 255, 128), autoZ=False, centered=True, scale=2.0)
     
-    overlay.EndDraw()
+    Overlay().EndDraw()
     
 
 
