@@ -9,12 +9,12 @@ MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
 
 SPIRIT_BUFF_MAP = {
-    2882: Skill.GetID("Frozen Soil"),
+    2882: Skill.GetID("Frozen_Soil"),
     4218: Skill.GetID("Life"),
     4227: Skill.GetID("Bloodsong"),
-    4229: Skill.GetID("Signet of Spirits"),  # anger
-    4230: Skill.GetID("Signet of Spirits"),  # hate
-    4231: Skill.GetID("Signet of Spirits"),  # suffering
+    4229: Skill.GetID("Signet_of_Spirits"),  # anger
+    4230: Skill.GetID("Signet_of_Spirits"),  # hate
+    4231: Skill.GetID("Signet_of_Spirits"),  # suffering
     5720: Skill.GetID("Anguish"),
     4225: Skill.GetID("Disenchantment"),
     4221: Skill.GetID("Dissonance"),
@@ -40,11 +40,11 @@ SPIRIT_BUFF_MAP = {
     4237: Skill.GetID("Conflagration"),
     2885: Skill.GetID("Energizing Wind"),
     4236: Skill.GetID("Equinox"),
-    2876: Skill.GetID("Edge of Extinction"),
+    2876: Skill.GetID("Edge_of_Extinction"),
     4238: Skill.GetID("Famine"),
-    2883: Skill.GetID("Favorable Winds"),
-    2878: Skill.GetID("Fertile Season"),
-    2877: Skill.GetID("Greater Conflagration"),
+    2883: Skill.GetID("Favorable_Winds"),
+    2878: Skill.GetID("Fertile_Season"),
+    2877: Skill.GetID("Greater_Conflagration"),
     5715: Skill.GetID("Infuriating Heat"),
     4232: Skill.GetID("Lacerate"),
     2888: Skill.GetID("Muddy Terrain"),

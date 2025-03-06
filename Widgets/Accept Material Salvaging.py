@@ -10,6 +10,10 @@ class config:
         self.frame_id = 0
         self.dialog_accepted = False
         self.map_valid = False
+        self.parent_hash = 140452905
+        self.child_offsets = [6,98]
+        self.yes_button_offsets = [6,98,6]
+        self.frame_label = "Salvage Materials Dialog"
         
         self.game_throttle_time = 100
         self.game_throttle_timer = Timer()
@@ -39,7 +43,7 @@ def main():
         widget_config.map_valid = widget_config.is_map_ready and widget_config.is_party_loaded
         
         if widget_config.map_valid:
-            widget_config.frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = "Salvage Materials Dialog.Yes Button")
+            widget_config.frame_id = UIManager.GetChildFrameID(parent_hash = widget_config.parent_hash, child_offsets = widget_config.child_offsets)
             if widget_config.frame_id != 0:
                 widget_config.material_salvaging_window = UIManager.FrameExists(widget_config.frame_id)
                 if not widget_config.material_salvaging_window:
@@ -52,10 +56,12 @@ def main():
         widget_config.game_throttle_timer.Start()
         
     if widget_config.map_valid and widget_config.material_salvaging_window and not widget_config.dialog_accepted:
-        UIManager.FrameClick(frame_id = widget_config.frame_id)
+        clickable_frame = UIManager.GetChildFrameID(parent_hash = widget_config.parent_hash, child_offsets = widget_config.yes_button_offsets)
+        UIManager.FrameClick(frame_id = clickable_frame)
         #print(f"Clicked on Bounty on frame_id: {clickable_frame}")
         widget_config.dialog_accepted = True
-
+        #draw_color:int = Utils.RGBToColor(0, 255, 0, 125)
+        #UIManager().DrawFrame(widget_config.frame_id,draw_color)
         
 
 if __name__ == "__main__":

@@ -9,10 +9,7 @@ class config:
         self.is_explorable = False
         self.bounty_window_exists = False
         self.frame_id = 0
-        self.frame_hash = 3856160816
         self.bounty_taken = False
-        self.bounty_taken_timer = Timer()
-        self.bounty_taken_timer.Start()
         self.map_valid = False
         
         self.game_throttle_time = 100
@@ -44,21 +41,16 @@ def main():
         widget_config.map_valid = widget_config.is_map_ready and widget_config.is_party_loaded and widget_config.is_explorable
         
         if widget_config.map_valid:
-            widget_config.frame_id = UIManager.GetFrameIDByHash(widget_config.frame_hash)
+            widget_config.frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = "NPC Bounty Dialog.Option1.Icon")
             if widget_config.frame_id != 0:
                 widget_config.bounty_window_exists = UIManager.FrameExists(widget_config.frame_id)
         widget_config.game_throttle_timer.Start()
         
     if widget_config.map_valid and widget_config.bounty_window_exists and not widget_config.bounty_taken:
-        frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = "NPC Bounty Dialog.Option1.Icon") or 0
-        clickable_frame = UIManager.GetParentID(frame_id)
+        clickable_frame = UIManager.GetParentID(widget_config.frame_id)
         UIManager.FrameClick(frame_id = clickable_frame)
         #print(f"Clicked on Bounty on frame_id: {clickable_frame}")
         widget_config.bounty_taken = True
-        
-    if widget_config.bounty_taken and widget_config.bounty_taken_timer.HasElapsed(1000):
-        widget_config.bounty_taken = False
-        widget_config.bounty_taken_timer.Reset()
 
         
 
