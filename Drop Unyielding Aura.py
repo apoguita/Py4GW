@@ -1,5 +1,5 @@
 from Py4GWCoreLib import *
-module_name = "Return to Outpost"
+module_name = "Get Bounty"
 
 class config:
     def __init__(self):
@@ -7,12 +7,7 @@ class config:
         self.is_map_ready = False
         self.is_party_loaded = False
         self.is_explorable = False
-        self.bounty_window_exists = False
-        self.frame_id = 0
-        self.frame_hash = 3856160816
-        self.bounty_taken = False
-        self.bounty_taken_timer = Timer()
-        self.bounty_taken_timer.Start()
+        self.buff_exists = False
         self.map_valid = False
         
         self.game_throttle_time = 100
@@ -30,12 +25,10 @@ def configure():
 
 def main():
     global widget_config
-    
+    pass
     if widget_config.game_throttle_timer.HasElapsed(widget_config.game_throttle_time):
         widget_config.is_map_loading = Map.IsMapLoading()
         if widget_config.is_map_loading:
-            widget_config.bounty_taken = False
-            widget_config.bounty_window_exists = False
             return
         
         widget_config.is_map_ready = Map.IsMapReady()
@@ -44,21 +37,16 @@ def main():
         widget_config.map_valid = widget_config.is_map_ready and widget_config.is_party_loaded and widget_config.is_explorable
         
         if widget_config.map_valid:
-            widget_config.frame_id = UIManager.GetFrameIDByHash(widget_config.frame_hash)
-            if widget_config.frame_id != 0:
-                widget_config.bounty_window_exists = UIManager.FrameExists(widget_config.frame_id)
+            player_id = Player.GetAgentID()
+            unyielding_aura = Skill.GetID("Unyielding Aura")
+            widget_config.buff_exists = Effects.EffectExists(player_id, data['effect_id']) or Effects.BuffExists(player_id, data['effect_id'])
         widget_config.game_throttle_timer.Start()
         
     if widget_config.map_valid and widget_config.bounty_window_exists and not widget_config.bounty_taken:
-        frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = "NPC Bounty Dialog.Option1.Icon") or 0
-        clickable_frame = UIManager.GetParentID(frame_id)
+        clickable_frame = UIManager.GetParentID(widget_config.frame_id)
         UIManager.FrameClick(frame_id = clickable_frame)
         #print(f"Clicked on Bounty on frame_id: {clickable_frame}")
         widget_config.bounty_taken = True
-        
-    if widget_config.bounty_taken and widget_config.bounty_taken_timer.HasElapsed(1000):
-        widget_config.bounty_taken = False
-        widget_config.bounty_taken_timer.Reset()
 
         
 

@@ -209,6 +209,17 @@ class UIManager:
         return PyUIManager.UIManager.get_root_frame_id()
     
     @staticmethod
+    def GetChildFrameID (parent_hash: int, child_offsets: List[int]) -> int:
+        """
+        Get the child frame ID.
+
+        :param parent_hash: The parent hash value.
+        :param child_offsets: The list of child offsets.
+        :return: int: The child frame ID.
+        """
+        return PyUIManager.UIManager.get_child_frame_id(parent_hash, child_offsets)
+    
+    @staticmethod
     def IsWorldMapShowing():
         """
         Check if the world map is showing.
