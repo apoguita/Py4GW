@@ -357,7 +357,11 @@ class ReportsProgress():
         self.collect_gold_coins = collect_coins
         self.collect_dye_white_black = collect_dye
         self.collect_event_items = collect_events
-        
+
+    
+    def ApplyConfigSettings(self, min_slots) -> None:
+        self.default_min_slots = min_slots
+
 ### --- REPORTS PROGRESS --- ###
 
 ### --- SALVAGE ROUTINE --- ###
@@ -754,6 +758,9 @@ class InventoryFsm(FSM):
         self.salvGrapes = salvGrapes
         self.salvGold = salvGolds
         
+    def GetMinimumSlots(self) -> int:
+        return self.default_min_slots
+    
     def Log(self, text, msgType=Py4GW.Console.MessageType.Info):
         if not self.logFunc:
             return
@@ -1331,4 +1338,3 @@ def GetInventoryItemSlots(bags=None):
             Py4GW.Console.Log("Utilities", f"GetInventoryItemSlots: {str(e)}", Py4GW.Console.MessageType.Error)
 
     return all_item_ids
-
