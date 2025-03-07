@@ -92,6 +92,29 @@ class BasicWindow:
     salvage_items_blue = False
     salvage_items_grape = False
     salvage_items_gold = False
+    minimum_slots = 3
+    
+    loot_test_id_Items = id_Items
+    loot_test_collect_coins = collect_coins
+    loot_test_collect_events = collect_events
+    loot_test_collect_items_white = collect_items_white
+    loot_test_collect_items_blue = collect_items_blue
+    loot_test_collect_items_grape = collect_items_grape
+    loot_test_collect_items_gold = collect_items_gold
+    loot_test_collect_dye = collect_dye
+    loot_test_sell_items = sell_items
+    loot_test_sell_items_white = sell_items_white
+    loot_test_sell_items_blue = sell_items_blue 
+    loot_test_sell_items_grape = sell_items_grape 
+    loot_test_sell_items_gold = sell_items_gold
+    loot_test_sell_items_green = sell_items_green
+    loot_test_salvage_items = salvage_items
+    loot_test_salvage_items_white = salvage_items_white
+    loot_test_salvage_items_blue = salvage_items_blue
+    loot_test_salvage_items_grape = salvage_items_grape
+    loot_test_salvage_items_gold = salvage_items_gold
+    config_test_minimum_slot = minimum_slots
+
 
     def __init__(self, window_name="Basic Window", window_size = (300.0, 400.0), show_logger = True, show_state = True):
         self.name = window_name
@@ -153,6 +176,17 @@ class BasicWindow:
     def ShowLootMerchantControls(self):        
         if PyImGui.collapsing_header("Setup"):          
             if PyImGui.begin_tab_bar("Collectables"):
+                if PyImGui.begin_tab_item("Config##settings"):
+                    if PyImGui.begin_table("Config_table", 2):
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        PyImGui.dummy(0, 1)
+                        PyImGui.text("Minimum Slots:")
+                        PyImGui.table_next_column()
+                        self.minimum_slots = PyImGui.input_int("# Slots", self.minimum_slots)
+                        PyImGui.table_next_row()
+                        PyImGui.end_table()
+                    PyImGui.end_tab_item()
                 if PyImGui.begin_tab_item("Lootables"):
                     if PyImGui.begin_table("Lootables_table", 3):
                         PyImGui.table_next_row()
@@ -225,6 +259,8 @@ class BasicWindow:
                         PyImGui.end_table()
                     PyImGui.end_tab_item()
                 
+                self.CheckAndApplyNewLootMerchantSettings()
+
                 PyImGui.end_tab_bar()
 
     def ShowResults(self):
@@ -250,6 +286,64 @@ class BasicWindow:
                 PyImGui.text_wrapped(f"{name}") #, [.13, .68, 0.29, 1])
                 
             PyImGui.pop_style_color(1)
+    
+    """
+        Checks whether any lootable, sellable and/or salvageable settings have changed and calls the function that will apply them.
+    """
+    def CheckAndApplyNewLootMerchantSettings(self):
+        if self.loot_test_id_Items != self.id_Items or \
+            self.loot_test_collect_coins != self.collect_coins or \
+            self.loot_test_collect_events != self.collect_events or \
+            self.loot_test_collect_items_white != self.collect_items_white or \
+            self.loot_test_collect_items_blue != self.collect_items_blue or \
+            self.loot_test_collect_items_grape != self.collect_items_grape or \
+            self.loot_test_collect_items_gold != self.collect_items_gold or \
+            self.loot_test_collect_dye != self.collect_dye or \
+            self.loot_test_sell_items != self.sell_items or \
+            self.loot_test_sell_items_white != self.sell_items_white or \
+            self.loot_test_sell_items_blue != self.sell_items_blue or \
+            self.loot_test_sell_items_grape != self.sell_items_grape or \
+            self.loot_test_sell_items_gold != self.sell_items_gold or \
+            self.loot_test_sell_items_green != self.sell_items_green or \
+            self.loot_test_salvage_items != self.salvage_items or \
+            self.loot_test_salvage_items_white != self.salvage_items_white or \
+            self.loot_test_salvage_items_blue != self.salvage_items_blue or \
+            self.loot_test_salvage_items_grape != self.salvage_items_grape or \
+            self.loot_test_salvage_items_gold != self.salvage_items_gold:
+            self.ApplyLootMerchantSettings()
+
+        if self.config_test_minimum_slot != self.minimum_slots:
+            self.ApplyConfigSettings()
+            
+        self.loot_test_id_Items = self.id_Items
+        self.loot_test_collect_coins = self.collect_coins
+        self.loot_test_collect_events = self.collect_events
+        self.loot_test_collect_items_white = self.collect_items_white
+        self.loot_test_collect_items_blue = self.collect_items_blue
+        self.loot_test_collect_items_grape = self.collect_items_grape
+        self.loot_test_collect_items_gold = self.collect_items_gold
+        self.loot_test_collect_dye = self.collect_dye
+        self.loot_test_sell_items = self.sell_items
+        self.loot_test_sell_items_white = self.sell_items_white
+        self.loot_test_sell_items_blue = self.sell_items_blue 
+        self.loot_test_sell_items_grape = self.sell_items_grape 
+        self.loot_test_sell_items_gold = self.sell_items_gold
+        self.loot_test_sell_items_green = self.sell_items_green
+        self.loot_test_salvage_items = self.salvage_items
+        self.loot_test_salvage_items_white = self.salvage_items_white
+        self.loot_test_salvage_items_blue = self.salvage_items_blue
+        self.loot_test_salvage_items_grape = self.salvage_items_grape
+        self.loot_test_salvage_items_gold = self.salvage_items_gold
+        self.config_test_minimum_slot = self.minimum_slots
+
+    """
+        Method to override to apply the new settings for lootable, sellable and salvageable items.
+    """
+    def ApplyLootMerchantSettings(self):
+        pass
+
+    def ApplyConfigSettings(self):
+        pass
 
     '''
     *   Override in extended classes to customize controls on window.
