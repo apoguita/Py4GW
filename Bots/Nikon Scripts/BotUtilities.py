@@ -357,48 +357,76 @@ class ReportsProgress():
         self.collect_gold_coins = collect_coins
         self.collect_dye_white_black = collect_dye
         self.collect_event_items = collect_events
-        
+    
+    def ApplyConfigSettings(self, min_slots) -> None:
+        self.default_min_slots = min_slots
+
+    def GetMinimumSlots(self) -> int:
+        return self.default_min_slots
+
 ### --- REPORTS PROGRESS --- ###
 
 ### --- SALVAGE ROUTINE --- ###
 class SalvageFsm(FSM):
     inventoryHandler = PyInventory.PyInventory()   
-    logFunc = None
-    window = BasicWindow()
     salvage_Items = []
     current_salvage = 0
     current_quantity = 0
+    current_ping = 0
     confirmed = False
     pending_stop = False
     salvage_kit = False
 
+    salvager_get_ping = "Salvage Get Ping"
+    salvager_ping_check_1 = "Salvage Ping Check##1"
+    salvager_ping_check_2 = "Salvage Ping Check##2"
+    salvager_ping_check_3 = "Salvage Ping Check##3"
     salvager_start = "Start Salvage"
     salvager_continue = "Continue Salvage"
     salvager_finish = "Finish Salvage"
     salvager_check_done = "Salvaging Done?"
 
-    def __init__(self, window=BasicWindow(), name="SalvageFsm", logFunc=None):
+    def __init__(self, window=BasicWindow(), name="SalvageFsm", logFunc=None, pingHandler=Py4GW.PingHandler()):
         super().__init__(name)
 
         self.window = window
         self.name = name
         self.logFunc = logFunc
+        self.pingHandler = pingHandler
+        
+        if self.pingHandler:
+            self.ping_timer = Timer()
 
+        self.AddState(self.salvager_get_ping,
+                      execute_fn=lambda: self.ExecuteStep(self.salvager_get_ping, self.SetMaxPing()),
+                      transition_delay_ms=150)
         self.AddState(self.salvager_start,
                         execute_fn=lambda: self.ExecuteStep(self.salvager_start, self.StartSalvage()),
-                        transition_delay_ms=100)
+                        transition_delay_ms=150)
+        self.AddState(self.salvager_ping_check_1,
+                        execute_fn=lambda: self.ExecuteStep(self.salvager_ping_check_1, None),
+                        exit_condition=lambda: self.CheckPingContinue(),
+                        run_once=False)
         self.AddState(self.salvager_continue,
                         execute_fn=lambda: self.ExecuteStep(self.salvager_continue, self.ContinueSalvage()),
-                        transition_delay_ms=100)
+                        transition_delay_ms=150)
+        self.AddState(self.salvager_ping_check_2,
+                        execute_fn=lambda: self.ExecuteStep(self.salvager_ping_check_2, None),
+                        exit_condition=lambda: self.CheckPingContinue(),
+                        run_once=False)
         self.AddState(self.salvager_finish,
                         execute_fn=lambda: self.ExecuteStep(self.salvager_finish, self.FinishSalvage()),
-                        transition_delay_ms=100)
+                        transition_delay_ms=150)        
+        self.AddState(self.salvager_ping_check_3,
+                        execute_fn=lambda: self.ExecuteStep(self.salvager_ping_check_3, None),
+                        exit_condition=lambda: self.CheckPingContinue(),
+                        run_once=False)
         self.AddState(self.salvager_check_done,
                         execute_fn=lambda: self.EndSalvageLoop(),
-                        transition_delay_ms=100)
+                        transition_delay_ms=150)
     
     def Log(self, text, msgType=Py4GW.Console.MessageType.Info):
-        if issubclass(type(self.window), BasicWindow):            
+        if isinstance(self.window, BasicWindow):            
             self.window.Log(text, msgType)
 
     def ExecuteStep(self, state, function):
@@ -412,19 +440,34 @@ class SalvageFsm(FSM):
             self.Log(f"Calling function {function.__name__} failed. {str(e)}", Py4GW.Console.MessageType.Error)
 
     def UpdateState(self, state):
-        if issubclass(type(self.window), BasicWindow):
+        if isinstance(self.window, BasicWindow):
             self.window.UpdateState(state)
 
     def IsExecuting(self):
         return self.is_started() and not self.is_finished()
     
+    def SetMaxPing(self):        
+        if self.pingHandler:
+            self.current_ping = self.pingHandler.GetMaxPing()
+
+    def CheckPingContinue(self):
+        if self.ping_timer:
+            if not self.ping_timer.IsRunning():
+                self.ping_timer.Start()
+
+            if not self.ping_timer.HasElapsed(self.current_ping*2):
+                return False
+            
+            self.ping_timer.Stop()
+        return True
+
     def SetSalvageItems(self, salvageItems):
         self.salvage_Items = salvageItems
 
     def StartSalvage(self):
-        salvage_kit = Inventory.GetFirstSalvageKit()
+        kitId = Inventory.GetFirstSalvageKit()
         
-        if salvage_kit == 0:
+        if kitId == 0:
             self.Log("No Salvage Kit")
             self.salvage_kit = False
             self.confirmed = False
@@ -439,28 +482,28 @@ class SalvageFsm(FSM):
         if self.current_salvage == 0:
             return False        
 
-        self.inventoryHandler.StartSalvage(salvage_kit, self.current_salvage)
+        self.inventoryHandler.StartSalvage(kitId, self.current_salvage)
 
     def ContinueSalvage(self):
         if not self.salvage_kit:
             return
         
-        if not Item.Rarity.IsWhite(self.current_salvage):  
-            self.confirmed = True
-            Keystroke.PressAndRelease(Key.Y.value)
-        #this is a fix for salvaging with a lesser kit, it will press Y to confirm the salvage
-        #this produces the default key for minions to open, need to implenet an IF statement 
-        #to check wich type os salvaging youre performing
-        #the game itself wont salvage an unidentified item, so be aware of that   
-        self.inventoryHandler.HandleSalvageUI()
-        pass
+        if self.ping_timer:
+            if not self.ping_timer.IsRunning():
+                self.ping_timer.Start()
+
+            if not self.ping_timer.HasElapsed(self.current_ping):
+                return
+        
+            self.ping_timer.Reset()
+
+        Inventory.AcceptSalvageMaterialsWindow()
 
     def FinishSalvage(self):
         if not self.salvage_kit:
             return
         
         self.inventoryHandler.FinishSalvage()
-        pass
 
     def EndSalvageLoop(self):
         if not self.salvage_kit or self.pending_stop:
@@ -488,8 +531,9 @@ class SalvageFsm(FSM):
         
         return
     
-    def IsFinishedSalvage(self): 
-        salvage_kit = Inventory.GetFirstSalvageKit()
+    def IsFinishedSalvage(self):
+        if len(self.salvage_Items) > 0:
+            return False
         
         if self.current_salvage != 0:
             self.current_quantity -= 1
@@ -497,11 +541,14 @@ class SalvageFsm(FSM):
             if self.current_quantity == 0:
                 self.current_salvage = 0
 
-        if self.current_salvage == 0:
-            return True
+            if self.current_salvage == 0:
+                return True
         
-        if salvage_kit == 0:
+        kitId = Inventory.GetFirstSalvageKit()
+        
+        if kitId == 0:
             self.Log("No Salvage Kit")
+            self.salvage_kit = False
             return True
 
         return False
@@ -509,6 +556,7 @@ class SalvageFsm(FSM):
     def start(self):
         self.pending_stop = False
         super().start()
+
     def stop(self):
         self.current_salvage = 0
         self.pending_stop = True
@@ -627,13 +675,9 @@ class InventoryFsm(FSM):
     inventory_deposit_items = "Deposit Items"
 
     action_timer = Timer()
-    stop_action_timer = Timer()
-    
-    merchant_path = None
-    merchant_map_id = Mapping.Kamadan
+    stop_action_timer = Timer()    
     movement_handler = Routines.Movement.FollowXY(50)
 
-    salvager = SalvageFsm()
     salvager_name = "SalvageFsm"
 
     # keeps list of inventory at time of creation, ensuring not to sell those items.
@@ -641,8 +685,6 @@ class InventoryFsm(FSM):
 
     # keeps the listed model ids in inventory, ensuring not to sell those items
     keep_items = []
-    logFunc = None
-    window = BasicWindow()
 
     def __init__(self, window, name, merchantMapId, pathToMerchant, currentInventory=None, modelIdsToKeep=None, 
                  idItems = True, sellItems=True, sellWhites=True, sellBlues=True, 
@@ -673,10 +715,11 @@ class InventoryFsm(FSM):
         self.gold_to_keep = goldToKeep
         self.logFunc = logFunc
         
-        self.salvager = SalvageFsm(self.window, self.salvager_name, self.logFunc)
+        self.ping_handler = Py4GW.PingHandler()
+        self.salvager = SalvageFsm(self.window, self.salvager_name, self.logFunc, self.ping_handler)
 
         self.AddState(name=self.inventory_setup_salv,
-            execute_fn=lambda: self.ExecuteStep(self.inventory_handle_gold, self.SetupSalvageRoutine()),
+            execute_fn=lambda: self.ExecuteStep(self.inventory_setup_salv, self.SetupSalvageRoutine()),
             transition_delay_ms=2000)
                 
         self.AddState(name=self.inventory_handle_gold,
@@ -707,6 +750,11 @@ class InventoryFsm(FSM):
             run_once=False,
             exit_condition=lambda: self.BuyIdKitsComplete())
         
+        self.AddState(name=self.inventory_buy_salve_kits,
+            execute_fn=lambda: self.ExecuteStep(self.inventory_buy_salve_kits, self.BuySalvageKits()),
+            run_once=False,
+            exit_condition=lambda: self.BuySalvageKitsComplete())       
+        
         self.AddState(name=self.inventory_id_items,
             execute_fn=lambda: self.ExecuteStep(self.inventory_id_items, self.IdentifyItems()),
             run_once=False,
@@ -715,12 +763,7 @@ class InventoryFsm(FSM):
         self.AddSubroutine(name=self.inventory_salv_items,
             sub_fsm = self.salvager,
             condition_fn=lambda: not self.salvager.IsFinishedSalvage())
-        
-        self.AddState(name=self.inventory_buy_salve_kits,
-            execute_fn=lambda: self.ExecuteStep(self.inventory_buy_salve_kits, self.BuySalvageKits()),
-            run_once=False,
-            exit_condition=lambda: self.BuySalvageKitsComplete())       
-        
+                
         self.AddState(name=self.inventory_sell_items,
             execute_fn=lambda: self.ExecuteStep(self.inventory_sell_items, self.SellItems()),
             run_once=False,
@@ -753,14 +796,14 @@ class InventoryFsm(FSM):
         self.salvBlues = salvBlue
         self.salvGrapes = salvGrapes
         self.salvGold = salvGolds
-        
+            
     def Log(self, text, msgType=Py4GW.Console.MessageType.Info):
         if not self.logFunc:
             return
         self.logFunc(text, msgType)
 
     def UpdateState(self, state):
-        if issubclass(type(self.window), BasicWindow):
+        if isinstance(self.window, BasicWindow):
             self.window.UpdateState(state)
 
     def ExecuteStep(self, state, function):
@@ -993,10 +1036,12 @@ class InventoryFsm(FSM):
     def CheckGold(self):
         charGold = Inventory.GetGoldOnCharacter()
 
-        if charGold < self.gold_to_keep:
-            Inventory.WithdrawGold(self.gold_to_keep - charGold)
-        else:
-            Inventory.DepositGold(charGold - self.gold_to_keep)        
+        dif = self.gold_to_keep - charGold
+        
+        if dif > 0:
+            Inventory.WithdrawGold(dif)
+        elif dif < 0:
+            Inventory.DepositGold(-dif)
 
     def DepositItems(self):
         # selling so no deposit
@@ -1062,7 +1107,7 @@ class InventoryFsm(FSM):
         if not self.action_timer.IsRunning():
             self.action_timer.Start()
 
-        if not self.action_timer.HasElapsed(250):
+        if not self.action_timer.HasElapsed(100):
             return
                 
         self.action_timer.Reset()
@@ -1078,7 +1123,7 @@ class InventoryFsm(FSM):
         if len(unidentified_items) > 0:
             Inventory.IdentifyItem(unidentified_items[0], id_kit)
 
-    def IdentifyItemsComplete(self):                    
+    def IdentifyItemsComplete(self):
         if not self.idItems:
             return True
         
@@ -1107,7 +1152,7 @@ class InventoryFsm(FSM):
     def Reset(self):
         if self.get_state_count() > 0:
             self.reset()
-        
+        self.salvager.reset()
         self.action_timer.Stop()
 
         # resetting to 1 to prev
@@ -1198,7 +1243,7 @@ def GetInventoryNonKeepItemsByModelId(keepItems = [], input = None):
         model = Item.GetModelID(item.item_id)
 
         if model in keepItems:
-            if model != Items.Dye:
+            if model != Items.Dye.Dye_ModelId:
                 continue
             else:
                 itemAgent = Agent.GetItemAgent(item.agent_id)

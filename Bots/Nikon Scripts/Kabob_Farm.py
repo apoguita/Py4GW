@@ -24,11 +24,14 @@ class Kabob_Window(BasicWindow):
     def ShowMainControls(self):
         global kabob_selected, kabob_input, do_kabob_exchange, show_about_popup
 
-        if PyImGui.collapsing_header("About"):
+        if PyImGui.collapsing_header("About"):            
+            PyImGui.text("- Required Quest: Drakes on the Plain")
+            PyImGui.text("- Full windwalker, +4 Earth, +1 Scyth, +1 Mysticism")
+            PyImGui.text("- Whatever HP rune you can afford and attunement.")
             PyImGui.text("- Suggest Zealous Enchanting Scythe.")
             PyImGui.text("  \t*Droknars Reaper is perfect.")
             PyImGui.text("- Equip Scythe in Slot 2 if not already.")
-            PyImGui.text("- Equip Staff in Slot 1 if not already.")
+            PyImGui.text("- Equip Staff in Slot 1 if not already (not required).")
             PyImGui.text(f"- Inventory Snapshot Taken : Current Slots Safe.")
             PyImGui.text(f"- During salvage, saved slots are not touched.")
             PyImGui.text(f"- Moving items you risk losing during sell.")
@@ -117,6 +120,13 @@ class Kabob_Window(BasicWindow):
             PyImGui.table_next_row()
             PyImGui.end_table()
 
+    def ApplyLootMerchantSettings(self) -> None:
+        ApplyLootAndMerchantSelections()
+
+    def ApplyConfigSettings(self) -> None:
+        ApplyKabobConfigSettings(self.minimum_slots)
+        pass
+
     def GetKabobSettings(self):
         global kabob_input
 
@@ -140,7 +150,6 @@ class Kabob_Farm(ReportsProgress):
     # Kabob_Routine is the FSM instance
     Kabob_Routine = FSM("Kabob_Main")
     Kabob_Exchange_Routine = FSM("Kabob_Exchange")
-    inventoryRoutine = InventoryFsm(None, None, 0, None, None)
 
     Kabob_Skillbar_Code = "Ogek8Np5Kzmj59brdbu731L7FBC"
     Kabob_Hero_Skillbar_Code = "OQkiUxm8sjJxsYAAAAAAAAAA"
@@ -176,6 +185,7 @@ class Kabob_Farm(ReportsProgress):
     kabob_inventory_state_name = "Kabob- Handle Inventory"
     kabob_inventory_state_name_end = "Kabob-Handle Inventory#2"
     kabob_end_state_name = "Kabob- End Routine"
+    kabob_forced_stop = "Kabob- End Forced"
     kabob_outpost_portal = [(-15022, 8470)] # Used by itself if spawn close to Floodplain portal
     kabob_outpost_pathing = [(-15480, 11138), (-16009, 10219), (-15022, 8470)] # Used when spawn location is near xunlai chest or merchant
     kabob_farm_run_pathing = [(-14512, 8238), (-12469, 9387), (-12243, 10163), (-10703, 10952), (-10066, 11265), (-9595, 11343), (-8922, 11625), (-8501, 11756)]
@@ -195,7 +205,7 @@ class Kabob_Farm(ReportsProgress):
     keep_list.extend(Items.IdSalveItems_Array)  #[(Items.Drake_Flesh), (Items.Salve_Kit_Basic), (Items.Salve_Kit_Advanced), (Items.Salve_Kit_Superior), (Items.Id_Kit_Basic), (Items.Id_Kit_Superior)]
     keep_list.extend(Items.EventItems_Array)
     keep_list.append(Items.Drake_Flesh)
-    keep_list.append(Items.Dye)
+    keep_list.append(Items.Dye.Dye_ModelId)
     
     kabob_first_after_reset = False
     kabob_wait_to_kill = False
@@ -207,6 +217,8 @@ class Kabob_Farm(ReportsProgress):
 
     player_stuck = False
     player_stuck_hos_count = 0
+    player_skillbar_load_count = 0
+    player_previous_hp = 100
 
     weapon_slot_staff = 1
     weapon_slot_scythe = 2
@@ -221,8 +233,6 @@ class Kabob_Farm(ReportsProgress):
     
     second_timer_elapsed = 1000
     loot_timer_elapsed = 1500
-
-    skillBar = Kabob_Skillbar()
     
     pyParty = PyParty.PyParty()
     pyMerchant = PyMerchant.PyMerchant()
@@ -297,8 +307,9 @@ class Kabob_Farm(ReportsProgress):
                        run_once=False)
         self.Kabob_Routine.AddSubroutine(self.kabob_inventory_state_name,
                        sub_fsm = self.inventoryRoutine, # dont add execute function wrapper here
-                       condition_fn=lambda: not self.kabob_first_after_reset and Inventory.GetFreeSlotCount() <= self.default_min_slots)        
-        self.Kabob_Routine.AddState(self.kabob_check_inventory_after_handle_inventory, execute_fn=lambda: self.CheckInventory())
+                       condition_fn=lambda: not self.kabob_first_after_reset and Inventory.GetFreeSlotCount() <= self.GetMinimumSlots())        
+        self.Kabob_Routine.AddState(self.kabob_check_inventory_after_handle_inventory, 
+                                    execute_fn=lambda: self.CheckInventory())
         self.Kabob_Routine.AddState(self.kabob_change_weapon_staff,
                                     execute_fn=lambda: self.ExecuteStep(self.kabob_change_weapon_staff, ChangeWeaponSet(self.weapon_slot_staff)),
                                     #exit_condition=lambda: CheckWeaponEquipped("Staff", self.Log),
@@ -344,10 +355,12 @@ class Kabob_Farm(ReportsProgress):
                        sub_fsm = self.inventoryRoutine)       
         self.Kabob_Routine.AddSubroutine(self.kabob_exchange_Kabobs_routine_end,
                                          condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(Items.Drake_Flesh))
+        self.Kabob_Routine.AddState(self.kabob_forced_stop,                                    
+                                    execute_fn=lambda: self.ExecuteStep(self.kabob_forced_stop, None))
 
     def CheckExchangeKabobs(self):
         global do_kabob_exchange
-        self.Log(f"Check Kabob Exchange: {do_kabob_exchange}")
+        self.Log(f"Do Kabob Exchange: {do_kabob_exchange}")
         return do_kabob_exchange
     
     # Start the kabob routine from the first state after soft reset in case player moved around.
@@ -365,6 +378,10 @@ class Kabob_Farm(ReportsProgress):
         if self.Kabob_Routine.is_started():
             self.Kabob_Routine.stop()
             self.window.StopBot()
+
+    def InternalStop(self):
+        self.Kabob_Routine.jump_to_state_by_name(self.kabob_forced_stop)
+        self.window.StopBot()
 
     def PrintData(self):
         if self.current_inventory != None:
@@ -482,15 +499,16 @@ class Kabob_Farm(ReportsProgress):
 
     def CheckSurrounded(self):
         enemy_array = AgentArray.GetEnemyArray()
-        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), GameAreas.Lesser_Earshot)
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), GameAreas.Earshot)
         enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
-        return len(enemy_array) > 7 or self.player_stuck
+        return len(enemy_array) > 6 or self.player_stuck
     
     def CheckInventory(self):
         if Inventory.GetFreeSlotCount() <= self.default_min_slots:
             self.Log("Bags Full - Manually Handle")
-            self.Stop()
+            self.InternalStop()
+            
 
     def Log(self, text, msgType=Py4GW.Console.MessageType.Info):
         if self.window:
@@ -499,23 +517,42 @@ class Kabob_Farm(ReportsProgress):
 
     ### --- ROUTINE FUNCTIONS --- ###
     def LoadSkillBar(self):
-        primary_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+        primary_profession, secondary = Agent.GetProfessionNames(Player.GetAgentID())
 
         if primary_profession != "Dervish":
             self.Log("Bot Requires Dervish Primary")
-            self.Stop()
+            self.InternalStop()  
+        elif secondary != "Assassin":
+            self.Log("Bot Requires Assassin Secondary")
+            self.InternalStop()
         else:
             SkillBar.LoadSkillTemplate(self.Kabob_Skillbar_Code)
+
+            # Dont really care about koss if he doesnt have the skills, but try to set a build anyway
             SkillBar.LoadHeroSkillTemplate (1, self.Kabob_Hero_Skillbar_Code)
     
     def IsSkillBarLoaded(self):
-        primary_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
-        if primary_profession != "Dervish":        
-            self.Log("Bot Requires Dervish Primary", Py4GW.Console.MessageType.Error)
-            self.Stop()
-            return False        
+        primary_profession, secondary = Agent.GetProfessionNames(Player.GetAgentID())
         
-        return True
+        if primary_profession != "Dervish":        
+            self.Log("Bot Requires Dervish Primary", Py4GW.Console.MessageType.Error)            
+            self.InternalStop()
+            return False        
+        elif secondary != "Assassin":
+            self.Log("Bot Requires Assassin Secondary")
+            self.InternalStop()
+            return False
+        else:
+            if SkillBar.GetSkillIDBySlot(1) == 0 or SkillBar.GetSkillIDBySlot(2) == 0 or \
+            SkillBar.GetSkillIDBySlot(3) == 0 or SkillBar.GetSkillIDBySlot(4) == 0 or \
+            SkillBar.GetSkillIDBySlot(5) == 0 or SkillBar.GetSkillIDBySlot(6) == 0 or \
+            SkillBar.GetSkillIDBySlot(7) == 0 or SkillBar.GetSkillIDBySlot(8) == 0:
+                self.player_skillbar_load_count += 1
+                if self.player_skillbar_load_count > 10:
+                    self.Log("Unable to Load Skills")
+                    self.InternalStop()
+                return False
+            return True
 
     def PutKossInParty(self):
         self.pyParty.LeaveParty()
@@ -528,7 +565,7 @@ class Kabob_Farm(ReportsProgress):
         # If Koss not added after ~5 seconds, fail and end kabob farming.
         if self.add_koss_tries >= 5:
             self.Log("Unable to add Koss to Party!")
-            self.Stop()
+            self.InternalStop()
             return True
         
         return False
@@ -540,6 +577,9 @@ class Kabob_Farm(ReportsProgress):
         SkillBar.HeroUseSkill(agent_id, 1, 1)
         
         self.pyParty.FlagHero(self.pyParty.GetHeroAgentID(1), -16749, 5382)
+
+        maxHp = Agent.GetMaxHealth(Player.GetAgentID())                
+        self.player_previous_hp = Agent.GetHealth(Player.GetAgentID()) * maxHp
 
     def TimeToRunToDrakes(self):
         if not self.kabob_second_timer.IsRunning():
@@ -613,14 +653,17 @@ class Kabob_Farm(ReportsProgress):
             enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), GameAreas.Spellcast)
             enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
 
-            if len(enemies) > 0 or self.player_stuck:
-                # Cast stay alive spells if needed.
-                maxHp = Agent.GetMaxHealth(player_id)                
-                hp = Agent.GetHealth(player_id) * maxHp
-                dangerHp = .7 * maxHp
-                
+            # Cast stay alive spells if needed.
+            maxHp = Agent.GetMaxHealth(player_id)                
+            hp = Agent.GetHealth(player_id) * maxHp
+            dangerHp = .7 * maxHp
+
+            temp = self.player_previous_hp
+            self.player_previous_hp = hp
+
+            if len(enemies) > 0 or self.player_stuck or hp < temp:
                 # Cast HOS is available but find enemy behind if able, otherwise just use since need to heal.
-                if self.player_stuck or hp < dangerHp:
+                if self.player_stuck or hp < dangerHp or (len(enemies) == 0 and hp < temp):
                     if len(enemies) > 0:
                         if not IsEnemyInFront(enemies[0]):
                             for enemy in enemies:
@@ -642,7 +685,8 @@ class Kabob_Farm(ReportsProgress):
                     
                 regen_time_remain = 0
                 intimidate_time_remain = 0
-                sanctity_time_remain = 0 
+                sanctity_time_remain = 0
+                shards_time_remain = 0 
                                   
                 player_buffs = Effects.GetEffects(player_id)
 
@@ -652,16 +696,12 @@ class Kabob_Farm(ReportsProgress):
                     if buff.skill_id == self.skillBar.intimidating:
                         intimidate_time_remain = buff.time_remaining
                     if buff.skill_id == self.skillBar.sanctity:
-                        sanctity_time_remain = buff.time_remaining                    
+                        sanctity_time_remain = buff.time_remaining     
+                    if buff.skill_id == self.skillBar.sand_shards:
+                        shards_time_remain = buff.time_remaining
 
                 if regen_time_remain < 3000 and HasEnoughEnergy(self.skillBar.regen) and IsSkillReadyById(self.skillBar.regen):
                     CastSkillById(self.skillBar.regen)
-                    return
-                
-                hasShards = HasBuff(player_id, self.skillBar.sand_shards)
-
-                if not hasShards and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
-                    CastSkillById(self.skillBar.sand_shards)
                     return
                                  
                 # Only cast these when waiting for the killing to start.
@@ -672,6 +712,10 @@ class Kabob_Farm(ReportsProgress):
 
                     if sanctity_time_remain < 3000 and HasEnoughEnergy(self.skillBar.sanctity) and IsSkillReadyById(self.skillBar.sanctity):
                         CastSkillById(self.skillBar.sanctity)
+                        return
+                
+                if shards_time_remain < 10000 and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
+                    CastSkillById(self.skillBar.sand_shards)
         except Exception as e:
             Py4GW.Console.Log("StayAlive", str(e), Py4GW.Console.MessageType.Error)
 
@@ -899,10 +943,11 @@ class Kabob_Farm(ReportsProgress):
                     self.UpdateState(self.kabob_inventory_state_name)
                     self.Kabob_Routine.jump_to_state_by_name(self.kabob_inventory_state_name)
                 else:
-                    self.Kabob_Routine.jump_to_state_by_name(self.kabob_pathing_2_state_name)
+                    self.Kabob_Routine.jump_to_state_by_name(self.kabob_change_weapon_staff)
         else:
             self.Log("Kabob Count Matched - AutoStop")
-    
+            self.InternalStop()
+
     def HandleStuck(self):  
         try:
             if (Map.IsExplorable() and Party.IsPartyLoaded()):
@@ -931,6 +976,20 @@ class Kabob_Farm(ReportsProgress):
         except Exception as e:
             Py4GW.Console.Log("Handle Stuck", f"Error during checking stuck {str(e)}", Py4GW.Console.MessageType.Error)
   
+    def ApplySelections(self, main_item_collect_count, id_items, collect_coins, collect_events, collect_items_white, collect_items_blue, \
+                        collect_items_grape, collect_items_gold, collect_dye, sell_items, sell_items_white, \
+                        sell_items_blue, sell_items_grape, sell_items_gold, sell_items_green, sell_materials, salvage_items, salvage_items_white, \
+                        salvage_items_blue, salvage_items_grape, salvage_items_gold):
+        super().ApplySelections(main_item_collect_count, id_items, collect_coins, collect_events, collect_items_white, collect_items_blue, \
+                                collect_items_grape, collect_items_gold, collect_dye, sell_items, sell_items_white, \
+                                sell_items_blue, sell_items_grape, sell_items_gold, sell_items_green, sell_materials, salvage_items, salvage_items_white, \
+                                salvage_items_blue, salvage_items_grape, salvage_items_gold)
+        
+        self.inventoryRoutine.ApplySelections(idItems=id_items, sellItems=sell_items, sellWhites=sell_items_white,
+                                              sellBlues=sell_items_blue, sellGrapes=sell_items_grape, sellGolds=sell_items_gold, sellGreens=sell_items_green,
+                                              sellMaterials=sell_materials, salvageItems=salvage_items, salvWhites=salvage_items_white, salvBlue=salvage_items_blue,
+                                              salvGrapes=salvage_items_grape, salvGolds=salvage_items_gold)
+
   ### --- ROUTINE FUNCTIONS --- ###
 
 def GetKabobCollected():
@@ -942,12 +1001,17 @@ def GetKabobData():
 kabob_Window = Kabob_Window(bot_name)
 kabob_Routine = Kabob_Farm(kabob_Window)
 
-def StartBot():
+def ApplyLootAndMerchantSelections():
     global kabob_input
     kabob_Routine.ApplySelections(kabob_input, kabob_Window.id_Items, kabob_Window.collect_coins, kabob_Window.collect_events, kabob_Window.collect_items_white, kabob_Window.collect_items_blue, \
                 kabob_Window.collect_items_grape, kabob_Window.collect_items_gold, kabob_Window.collect_dye, kabob_Window.sell_items, kabob_Window.sell_items_white, \
                 kabob_Window.sell_items_blue, kabob_Window.sell_items_grape, kabob_Window.sell_items_gold, kabob_Window.sell_items_green, kabob_Window.sell_materials, kabob_Window.salvage_items, kabob_Window.salvage_items_white, \
                 kabob_Window.salvage_items_blue, kabob_Window.salvage_items_grape, kabob_Window.salvage_items_gold)
+def ApplyKabobConfigSettings(min_slots):
+    kabob_Routine.ApplyConfigSettings(min_slots)
+
+def StartBot():
+    ApplyLootAndMerchantSelections()
     kabob_Routine.Start()
 
 def StopBot():
