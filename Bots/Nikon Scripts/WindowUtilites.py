@@ -1,4 +1,5 @@
 from Py4GWCoreLib import *
+import Py4GW
 from datetime import datetime
 
 #### --- LOGGING ROUTINE --- ####
@@ -31,7 +32,7 @@ class LogWindow:
                 if type(log) == LogItem:
                     self.Log(log.text, log.msgType)
                 elif type(log) == str:
-                    self.Log(log, Py4Gw.Console.MessageType.Info)
+                    self.Log(log, Py4GW.Console.MessageType.Info)
     def ClearLog(self):
         if self.output:
                 self.output.clear()
@@ -177,15 +178,7 @@ class BasicWindow:
         if PyImGui.collapsing_header("Setup"):          
             if PyImGui.begin_tab_bar("Collectables"):
                 if PyImGui.begin_tab_item("Config##settings"):
-                    if PyImGui.begin_table("Config_table", 2):
-                        PyImGui.table_next_row()
-                        PyImGui.table_next_column()
-                        PyImGui.dummy(0, 1)
-                        PyImGui.text("Minimum Slots:")
-                        PyImGui.table_next_column()
-                        self.minimum_slots = PyImGui.input_int("# Slots", self.minimum_slots)
-                        PyImGui.table_next_row()
-                        PyImGui.end_table()
+                    self.ShowConfigSettingsTabItem()
                     PyImGui.end_tab_item()
                 if PyImGui.begin_tab_item("Lootables"):
                     if PyImGui.begin_table("Lootables_table", 3):
@@ -262,6 +255,17 @@ class BasicWindow:
                 self.CheckAndApplyNewLootMerchantSettings()
 
                 PyImGui.end_tab_bar()
+
+    def ShowConfigSettingsTabItem(self):
+        if PyImGui.begin_table("Config_table", 2):
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            PyImGui.dummy(0, 1)
+            PyImGui.text("Minimum Slots:")
+            PyImGui.table_next_column()
+            self.minimum_slots = PyImGui.input_int("# Slots", self.minimum_slots)
+            PyImGui.table_next_row()
+            PyImGui.end_table()
 
     def ShowResults(self):
         PyImGui.text("-Show Results - Override This-")
