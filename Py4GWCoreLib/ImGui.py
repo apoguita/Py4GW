@@ -5,44 +5,43 @@ from .Overlay import Overlay
 
 from enum import IntEnum
 
-class ImGuiStyleVar(IntEnum):
-    Alpha = 0
-    DisabledAlpha = 1
-    WindowPadding = 2
-    WindowRounding = 3
-    WindowBorderSize = 4
-    WindowMinSize = 5
-    WindowTitleAlign = 6
-    ChildRounding = 7
-    ChildBorderSize = 8
-    PopupRounding = 9
-    PopupBorderSize = 10
-    FramePadding = 11
-    FrameRounding = 12
-    FrameBorderSize = 13
-    ItemSpacing = 14
-    ItemInnerSpacing = 15
-    IndentSpacing = 16
-    CellPadding = 17
-    ScrollbarSize = 18
-    ScrollbarRounding = 19
-    GrabMinSize = 20
-    GrabRounding = 21
-    TabRounding = 22
-    ButtonTextAlign = 23
-    SelectableTextAlign = 24
-    SeparatorTextBorderSize = 25
-    SeparatorTextAlign = 26
-    SeparatorTextPadding = 27
-    COUNT = 28
-
-
 class SortDirection(Enum):
     No_Sort = 0
     Ascending = 1
     Descending = 2
 
 class ImGui:
+    class ImGuiStyleVar(IntEnum):
+        Alpha = 0
+        DisabledAlpha = 1
+        WindowPadding = 2
+        WindowRounding = 3
+        WindowBorderSize = 4
+        WindowMinSize = 5
+        WindowTitleAlign = 6
+        ChildRounding = 7
+        ChildBorderSize = 8
+        PopupRounding = 9
+        PopupBorderSize = 10
+        FramePadding = 11
+        FrameRounding = 12
+        FrameBorderSize = 13
+        ItemSpacing = 14
+        ItemInnerSpacing = 15
+        IndentSpacing = 16
+        CellPadding = 17
+        ScrollbarSize = 18
+        ScrollbarRounding = 19
+        GrabMinSize = 20
+        GrabRounding = 21
+        TabRounding = 22
+        ButtonTextAlign = 23
+        SelectableTextAlign = 24
+        SeparatorTextBorderSize = 25
+        SeparatorTextAlign = 26
+        SeparatorTextPadding = 27
+        COUNT = 28
+    
     @staticmethod
     def show_tooltip(text: str):
         """
@@ -89,7 +88,7 @@ class ImGui:
         return v
 
     @staticmethod
-    def floating_button(x, y, caption, width=25, height=25):
+    def floating_button(caption,x, y, width=25, height=25):
         # Set the position and size of the floating button
         PyImGui.set_next_window_pos(x-width/2, y-height/2)
         PyImGui.set_next_window_size(width, height)  # Button window size
@@ -97,12 +96,19 @@ class ImGui:
         clicked = False
 
         # Create a floating, borderless window for the button
-        windowflags = PyImGui.WindowFlags.NoTitleBar #| PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoMove | PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse | PyImGui.WindowFlags.NoBackground | PyImGui.WindowFlags.NoBringToFrontOnFocus
-        if PyImGui.begin(f"FloatingButton_{caption}", windowflags):
+        flags=( PyImGui.WindowFlags.NoCollapse | 
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoScrollbar |
+            PyImGui.WindowFlags.NoScrollWithMouse |
+            PyImGui.WindowFlags.NoResize |
+            PyImGui.WindowFlags.NoBackground 
+        ) 
+        
+        if PyImGui.begin(f"FloatingButton_{caption}", flags):
 
             # Style adjustments for padding and alignment
-            PyImGui.push_style_var2(ImGuiStyleVar.ButtonTextAlign, 0.5, 0.5)  # Center text
-            PyImGui.push_style_var2(ImGuiStyleVar.FramePadding, -15.0, -5.0)  # Padding inside the button
+            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.ButtonTextAlign, 0.5, 0.5)  # Center text
+            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, -15.0, -5.0)  # Padding inside the button
 
             # Create the button and check if it is clicked
             clicked = PyImGui.button(caption, width, height)
@@ -112,6 +118,36 @@ class ImGui:
 
         PyImGui.end()
         return clicked  # Return True if clicked, False otherwise
+    
+    @staticmethod
+    def floating_checkbox(caption, state,x,y):
+        width=25
+        height=25
+        # Set the position and size of the floating button
+        PyImGui.set_next_window_pos(x, y)
+        PyImGui.set_next_window_size(width, height)
+        
+
+        flags=( PyImGui.WindowFlags.NoCollapse | 
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoScrollbar |
+            PyImGui.WindowFlags.NoScrollWithMouse |
+            PyImGui.WindowFlags.AlwaysAutoResize 
+        ) 
+        
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding,0.0,0.0)
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+
+            
+        result = state
+        if PyImGui.begin(f"##invisible_window{caption}", flags):
+            result = PyImGui.checkbox(f"##floating_checkbox{caption}", state)
+
+        PyImGui.end()
+        PyImGui.pop_style_var(2)
+        return result
+            
+        
 
 
     @staticmethod
