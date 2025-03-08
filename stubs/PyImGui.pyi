@@ -1,5 +1,5 @@
 from typing import Optional, Tuple, Any, overload
-from enum import IntEnum
+from enum import Enum, IntEnum
 
 class SortDirection(IntEnum):
     NoDirection = 0
@@ -271,61 +271,6 @@ class ImGuiCol(IntEnum):
     NavWindowingDimBg = 51
     ModalWindowDimBg = 52
     
-class ImGuiStyle:
-    Alpha: float
-    DisabledAlpha: float
-    WindowRounding: float
-    WindowBorderSize: float
-    ChildRounding: float
-    ChildBorderSize: float
-    PopupRounding: float
-    PopupBorderSize: float
-    FrameRounding: float
-    FrameBorderSize: float
-    IndentSpacing: float
-    ColumnsMinSpacing: float
-    ScrollbarSize: float
-    ScrollbarRounding: float
-    GrabMinSize: float
-    GrabRounding: float
-    LogSliderDeadzone: float
-    TabRounding: float
-    TabBorderSize: float
-    TabMinWidthForCloseButton: float
-    MouseCursorScale: float
-    CurveTessellationTol: float
-    CircleTessellationMaxError: float
-
-    WindowPadding: Tuple[float, float]
-    WindowMinSize: Tuple[float, float]
-    WindowTitleAlign: Tuple[float, float]
-    FramePadding: Tuple[float, float]
-    ItemSpacing: Tuple[float, float]
-    ItemInnerSpacing: Tuple[float, float]
-    CellPadding: Tuple[float, float]
-    TouchExtraPadding: Tuple[float, float]
-    ButtonTextAlign: Tuple[float, float]
-    SelectableTextAlign: Tuple[float, float]
-    SeparatorTextAlign: Tuple[float, float]
-    SeparatorTextPadding: Tuple[float, float]
-    DisplayWindowPadding: Tuple[float, float]
-    DisplaySafeAreaPadding: Tuple[float, float]
-
-    AntiAliasedLines: bool
-    AntiAliasedLinesUseTex: bool
-    AntiAliasedFill: bool
-
-    WindowMenuButtonPosition: int
-    ColorButtonPosition: int
-
-    HoverStationaryDelay: float
-    HoverDelayShort: float
-    HoverDelayNormal: float
-    HoverFlagsForTooltipMouse: int
-    HoverFlagsForTooltipNav: int
-
-    def __init__(self) -> None: ...
-    def ScaleAllSizes(self, scale_factor: float) -> None: ...
 
 @staticmethod
 def text(text: str) -> None: ...
@@ -378,14 +323,20 @@ def get_scroll_max_y() -> float: ...
 def get_scroll_x() -> float: ...
 @staticmethod
 def get_scroll_y() -> float: ...
-@staticmethod
-def get_style() -> ImGuiStyle: ...
+#@staticmethod
+#def get_style() -> ImGuiStyle: ...
 @staticmethod
 def get_cursor_pos() -> Tuple[float, float]: ...
 @staticmethod
+def set_cursor_pos(x: float, y: float) -> None: ...
+@staticmethod
 def get_cursor_pos_x() -> float: ...
 @staticmethod
+def set_cursor_pos_x(x: float) -> None: ...
+@staticmethod
 def get_cursor_pos_y() -> float: ...
+@staticmethod
+def set_cursor_pos_y(y: float) -> None: ...
 @staticmethod
 def get_cursor_start_pos() -> Tuple[float, float]: ...
 @staticmethod

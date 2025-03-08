@@ -331,6 +331,23 @@ class UIManager:
         overlay.EndDraw()
     
         
+    def DrawFrameOutline(self,frame_id, draw_color):
+        """
+        Draw an outline of a frame on the UI.
+
+        :param frame_id: The ID of the frame.
+        """
+        if not UIManager.FrameExists(frame_id):
+            return
+        
+        left, top, right, bottom = UIManager.GetFrameCoords(frame_id)
+        p1 = PyOverlay.Point2D(left, top)
+        p2 = PyOverlay.Point2D(right, top)
+        p3 = PyOverlay.Point2D(right, bottom)
+        p4 = PyOverlay.Point2D(left, bottom)
+        overlay.BeginDraw()
+        overlay.DrawQuad(p1,p2,p3,p4, draw_color)
+        overlay.EndDraw()
 
 
     
