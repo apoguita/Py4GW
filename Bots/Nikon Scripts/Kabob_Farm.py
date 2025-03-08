@@ -24,7 +24,7 @@ class Kabob_Window(BasicWindow):
     def ShowMainControls(self):
         global kabob_selected, kabob_input, do_kabob_exchange, show_about_popup
 
-        if PyImGui.collapsing_header("About"):            
+        if PyImGui.collapsing_header("About - Farm Requirements"):            
             PyImGui.text("- Required Quest: Drakes on the Plain")
             PyImGui.text("- Full windwalker, +4 Earth, +1 Scyth, +1 Mysticism")
             PyImGui.text("- Whatever HP rune you can afford and attunement.")
@@ -188,7 +188,7 @@ class Kabob_Farm(ReportsProgress):
     kabob_forced_stop = "Kabob- End Forced"
     kabob_outpost_portal = [(-15022, 8470)] # Used by itself if spawn close to Floodplain portal
     kabob_outpost_pathing = [(-15480, 11138), (-16009, 10219), (-15022, 8470)] # Used when spawn location is near xunlai chest or merchant
-    kabob_farm_run_pathing = [(-14512, 8238), (-12469, 9387), (-12243, 10163), (-10703, 10952), (-10066, 11265), (-9595, 11343), (-8922, 11625), (-8501, 11756)]
+    kabob_farm_run_pathing = [(-14512, 8238), (-12469, 9387), (-12243, 10163), (-10703, 10952), (-10066, 11265), (-9550, 11550), (-9179, 11663), (-8740, 11771)]
     kabob_outpost_resign_pathing = [(-15743, 9784)]
     kabob_merchant_position = [(-15082, 11368)]
     kabob_pathing_portal_only_handler_1 = Routines.Movement.PathHandler(kabob_outpost_portal)
@@ -621,9 +621,8 @@ class Kabob_Farm(ReportsProgress):
 
         return pathDone or surrounded or forceStep
 
-    def KillLoopStart(self):
-        self.StayAliveLoop()
-        self.Kill()
+    def KillLoopStart(self):        
+        self.Kill(self.StayAliveLoop())
 
     # Stay alive using all heal buffs and hos if available
     def StayAliveLoop(self):
@@ -631,7 +630,7 @@ class Kabob_Farm(ReportsProgress):
             self.kabob_stay_alive_timer.Start()
 
         if not self.kabob_stay_alive_timer.HasElapsed(1000):
-            return
+            return False
         
         self.kabob_stay_alive_timer.Reset()
 
@@ -640,14 +639,13 @@ class Kabob_Farm(ReportsProgress):
 
             if Agent.IsDead(player_id):
                 self.FailResign()
-                return
+                return False
                 
             if not CanCast(player_id):
-                return
+                return False
              
-            if self.kabob_killing_staggering_casted:
-                return
-
+            if self.kabob_killing_staggering_casted and HasBuff(player_id, self.skillBar.staggering):
+                return False
 
             enemies = AgentArray.GetEnemyArray()
             enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), GameAreas.Spellcast)
@@ -679,9 +677,8 @@ class Kabob_Farm(ReportsProgress):
                             if self.player_stuck_hos_count > 2:
                                 # kill shit then if not already
                                 self.kabob_ready_to_kill = True
-                                self.Kabob_Routine.jump_to_state_by_name(self.kabob_waiting_kill_state_name)
-                                return
-                        return
+                                self.Kabob_Routine.jump_to_state_by_name(self.kabob_change_weapon_scythe)
+                        return True
                     
                 regen_time_remain = 0
                 intimidate_time_remain = 0
@@ -699,31 +696,35 @@ class Kabob_Farm(ReportsProgress):
                         sanctity_time_remain = buff.time_remaining     
                     if buff.skill_id == self.skillBar.sand_shards:
                         shards_time_remain = buff.time_remaining
-
-                if regen_time_remain < 3000 and HasEnoughEnergy(self.skillBar.regen) and IsSkillReadyById(self.skillBar.regen):
-                    CastSkillById(self.skillBar.regen)
-                    return
                                  
                 # Only cast these when waiting for the killing to start.
                 if self.Kabob_Routine.get_current_step_name() == self.kabob_waiting_kill_state_name or hp < dangerHp:
                     if intimidate_time_remain < 3000 and HasEnoughEnergy(self.skillBar.intimidating) and IsSkillReadyById(self.skillBar.intimidating):
                         CastSkillById(self.skillBar.intimidating)
-                        return
+                        return True
 
                     if sanctity_time_remain < 3000 and HasEnoughEnergy(self.skillBar.sanctity) and IsSkillReadyById(self.skillBar.sanctity):
                         CastSkillById(self.skillBar.sanctity)
-                        return
+                        return True
+                
+                if regen_time_remain < 3000 and HasEnoughEnergy(self.skillBar.regen) and IsSkillReadyById(self.skillBar.regen):
+                    CastSkillById(self.skillBar.regen)
+                    return True 
                 
                 if shards_time_remain < 10000 and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
                     CastSkillById(self.skillBar.sand_shards)
+                    return True
+                                    
         except Exception as e:
             Py4GW.Console.Log("StayAlive", str(e), Py4GW.Console.MessageType.Error)
+        
+        return False
 
-    def Kill(self):
+    def Kill(self, stayAliveCasting):
         if not self.kabob_second_timer.IsRunning():
             self.kabob_second_timer.Start()
 
-        if not self.kabob_second_timer.HasElapsed(1000):
+        if stayAliveCasting or not self.kabob_second_timer.HasElapsed(1000):
             return
         
         self.kabob_second_timer.Reset()
@@ -782,9 +783,8 @@ class Kabob_Farm(ReportsProgress):
 
                     Player.ChangeTarget(target)
                         
-                    if self.kabob_killing_staggering_casted and IsSkillReadyById(self.skillBar.eremites) and HasEnoughEnergy(self.skillBar.eremites):  
+                    if self.kabob_killing_staggering_casted and HasBuff(player_id, self.skillBar.staggering) and IsSkillReadyById(self.skillBar.eremites) and HasEnoughEnergy(self.skillBar.eremites):  
                         self.kabob_killing_staggering_casted = False
-                        # self.Log("eremites")
                         CastSkillById(self.skillBar.eremites)
                         return                    
                     
