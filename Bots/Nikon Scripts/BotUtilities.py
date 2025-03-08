@@ -199,6 +199,30 @@ def IsEnemyInFront (agent_id) -> bool:  # code originally taken from vaettir bot
         return True
     return False
 
+def IsEnemyBehind(agent_id) -> bool:
+    player_agent_id = Player.GetAgentID()
+    player_x, player_y = Agent.GetXY(player_agent_id)
+    player_angle = Agent.GetRotationAngle(player_agent_id)  # Player's facing direction
+    nearest_enemy = agent_id
+    #if target is None:
+    Player.ChangeTarget(nearest_enemy)
+    #target = nearest_enemy
+    nearest_enemy_x, nearest_enemy_y = Agent.GetXY(nearest_enemy)                
+
+    # Calculate the angle between the player and the enemy
+    dx = nearest_enemy_x - player_x
+    dy = nearest_enemy_y - player_y
+    angle_to_enemy = math.atan2(dy, dx)  # Angle in radians
+    angle_to_enemy = math.degrees(angle_to_enemy)  # Convert to degrees
+    angle_to_enemy = (angle_to_enemy + 360) % 360  # Normalize to [0, 360]
+
+    # Calculate the relative angle to the enemy
+    angle_diff = (angle_to_enemy - player_angle + 360) % 360
+
+    if angle_diff > 60 and angle_diff < 300:
+        return True
+    return False
+
 ### --- HEROES --- ###
 # Check if hero in party
 def IsHeroInParty(id: int) -> bool:

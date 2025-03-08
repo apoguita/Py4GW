@@ -24,7 +24,8 @@ class Kabob_Window(BasicWindow):
     def ShowMainControls(self):
         global kabob_selected, kabob_input, do_kabob_exchange, show_about_popup
 
-        if PyImGui.collapsing_header("About - Farm Requirements"):            
+        if PyImGui.collapsing_header("About - Farm Requirements"):
+            PyImGui.begin_child("About_child_window", (0, 250))
             PyImGui.text("- Required Quest: Drakes on the Plain")
             PyImGui.text("- Full windwalker, +4 Earth, +1 Scyth, +1 Mysticism")
             PyImGui.text("- Whatever HP rune you can afford and attunement.")
@@ -37,65 +38,115 @@ class Kabob_Window(BasicWindow):
             PyImGui.text(f"- Moving items you risk losing during sell.")
             PyImGui.text(f"- Just dont move items.")
             PyImGui.text(f"- Will not sell Drake Flesh, Salv or Id kits.")
-
+            PyImGui.end_child()
         PyImGui.separator()
-        PyImGui.begin_child("MainCollectPanel", (0.0, 70.0), False, 0)
+
+        #PyImGui.begin_child("MainCollectPanel", (0.0, 70.0), False, 0)
+        # if PyImGui.begin_table("Collect_Inputs", 2):
+        #     PyImGui.table_next_row()
+        #     PyImGui.table_next_column()
+        #     kabob_selected = PyImGui.checkbox("Farm Drake Flesh", kabob_selected)  
+        #     PyImGui.table_next_column()
+        #     kabob_input = PyImGui.input_int("# Flesh", kabob_input) if kabob_input >= 0 else 0 
+        #     PyImGui.table_next_row()
+        #     PyImGui.table_next_column()
+        #     do_kabob_exchange = PyImGui.checkbox("Exchange Drake Flesh", do_kabob_exchange)  
+        #     PyImGui.end_table()
+        #PyImGui.end_child()
+        #PyImGui.separator()
+
+    def ShowConfigSettingsTabItem(self):
+        global kabob_selected, kabob_input, do_kabob_exchange
+
         if PyImGui.begin_table("Collect_Inputs", 2):
             PyImGui.table_next_row()
             PyImGui.table_next_column()
             kabob_selected = PyImGui.checkbox("Farm Drake Flesh", kabob_selected)  
             PyImGui.table_next_column()
-            kabob_input = PyImGui.input_int("# Flesh", kabob_input) if kabob_input >= 0 else 0 
+            kabob_input = PyImGui.input_int("# Flesh##1", kabob_input) if kabob_input >= 0 else 0 
             PyImGui.table_next_row()
             PyImGui.table_next_column()
-            do_kabob_exchange = PyImGui.checkbox("Exchange Drake Flesh", do_kabob_exchange)  
+            do_kabob_exchange = PyImGui.checkbox("Exchange Drake Flesh", do_kabob_exchange)
             PyImGui.end_table()
-        PyImGui.end_child()
+        
         PyImGui.separator()
+
+        # Base only shows the table with minimum slots in it atm.
+        super().ShowConfigSettingsTabItem()
 
     def ShowResults(self):
         global kabob_input
 
         PyImGui.separator()
-        PyImGui.text("Results:")
+        
+        if PyImGui.collapsing_header("Results##Kabob", int(PyImGui.TreeNodeFlags.DefaultOpen)):
+            if PyImGui.begin_table("Runs_Results", 6):
+                kabob_data = GetKabobData()
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text(f"Runs:")
+                PyImGui.table_next_column() 
+                PyImGui.text(f"{kabob_data[0]}")
+                PyImGui.table_next_column() 
+                PyImGui.text(f"Success: ")
+                PyImGui.table_next_column()
+                PyImGui.text_colored(f"{kabob_data[1]}", (0, 1, 0, 1))
+                PyImGui.table_next_column()
+                PyImGui.text(f"Fails:")
+                PyImGui.table_next_column()
+                fails = kabob_data[0] - kabob_data[1]
 
-        if PyImGui.begin_table("Runs_Results", 5):
-            kabob_data = GetKabobData()
-            PyImGui.table_next_row()
-            PyImGui.table_next_column()
-            PyImGui.text(f"Runs: {kabob_data[0]}")
-            PyImGui.table_next_column()
-            PyImGui.text(f"Success: ")
-            PyImGui.table_next_column()
-            PyImGui.text_colored(f"{kabob_data[1]}", (0, 1, 0, 1))
-            PyImGui.table_next_column()
-            PyImGui.text(f"Fails:")
-            PyImGui.table_next_column()
-            fails = kabob_data[0] - kabob_data[1]
+                if fails > 0:
+                    PyImGui.text_colored(f"{fails}", (1, 0, 0, 1))
+                else:
+                    PyImGui.text(f"{fails}")
 
-            if fails > 0:
-                PyImGui.text_colored(f"{fails}", (1, 0, 0, 1))
-            else:
-                PyImGui.text(f"{fails}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text("Kabobs:")
+                PyImGui.table_next_column()
+                if kabob_selected and kabob_input > 0 and GetKabobCollected() == 0:            
+                    PyImGui.text_colored(f"{GetKabobCollected()}", (1, 0, 0, 1))
+                else:
+                    PyImGui.text_colored(f"{GetKabobCollected()}", (0, 1, 0, 1))
+                PyImGui.table_next_column()
+                PyImGui.text(f"collected of")
+                PyImGui.table_next_column()                
+                PyImGui.text(f"{kabob_input}")
+                PyImGui.table_next_row()
+                PyImGui.end_table()
 
-            PyImGui.table_next_row()
-            PyImGui.end_table()
+            # if PyImGui.begin_table("Collect_Results", 3):  # Use begin_table for starting a table
+            #     # Drake Kabob
+            #     PyImGui.table_next_row()
+            #     PyImGui.table_next_column()
+            #     PyImGui.text("Kabobs:")
+            #     PyImGui.table_next_column()
+            #     if kabob_selected and kabob_input > 0 and GetKabobCollected() == 0:            
+            #         PyImGui.text_colored(f"{GetKabobCollected()}", (1, 0, 0, 1))
+            #     else:
+            #         PyImGui.text_colored(f"{GetKabobCollected()}", (0, 1, 0, 1))
+            #     PyImGui.table_next_column()
+            #     PyImGui.text(f"collected of {kabob_input}")
 
-        if PyImGui.begin_table("Collect_Results", 3):  # Use begin_table for starting a table
-            # Drake Kabob
-            PyImGui.table_next_row()
-            PyImGui.table_next_column()
-            PyImGui.text("Kabobs:")
-            PyImGui.table_next_column()
-            if kabob_selected and kabob_input > 0 and GetKabobCollected() == 0:            
-                PyImGui.text_colored(f"{GetKabobCollected()}", (1, 0, 0, 1))
-            else:
-                PyImGui.text_colored(f"{GetKabobCollected()}", (0, 1, 0, 1))
-            PyImGui.table_next_column()
-            PyImGui.text(f"collected of {kabob_input}")
+            #     PyImGui.table_next_row()
+            #     PyImGui.end_table() 
 
-            PyImGui.table_next_row()
-            PyImGui.end_table()
+            if PyImGui.begin_table("Run_Times", 2):
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text(f"Last Run:")
+                PyImGui.table_next_column()
+                PyImGui.text(f"{FormatTime(GetRunTime(), "mm:ss:ms")}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text(f"Avg. Run:")
+                PyImGui.table_next_column()
+                PyImGui.text(f"{FormatTime(GetAverageRunTime(), "mm:ss:ms")}")
+                PyImGui.table_next_row()
+                PyImGui.end_table()
+
+        PyImGui.separator()
 
     def ShowBotControls(self):
         if PyImGui.begin_table("Bot_Controls", 4):
@@ -115,10 +166,9 @@ class Kabob_Window(BasicWindow):
 
             PyImGui.table_next_column()            
             if PyImGui.button("Print Saved Slots"):
-                PrintData()   
+                PrintData()  
 
-            PyImGui.table_next_row()
-            PyImGui.end_table()
+            PyImGui.end_table() 
 
     def ApplyLootMerchantSettings(self) -> None:
         ApplyLootAndMerchantSelections()
@@ -226,6 +276,9 @@ class Kabob_Farm(ReportsProgress):
     add_koss_tries = 0
     current_lootable = 0
     current_loot_tries = 0
+    current_run_time = 0
+    average_run_time = 0
+    average_run_history = []
     
     kabob_runs = 0
     kabob_success = 0
@@ -345,7 +398,7 @@ class Kabob_Farm(ReportsProgress):
                        exit_condition=lambda: Agent.IsDead(Player.GetAgentID()) or Map.GetMapID() == Mapping.Rilohn_Refuge,
                        transition_delay_ms=3000)
         self.Kabob_Routine.AddState(self.kabob_wait_return_state_name,
-                       execute_fn=lambda: self.ExecuteTimedStep(self.kabob_wait_return_state_name, Party.ReturnToOutpost()),
+                       execute_fn=lambda: self.ExecuteTimedStep(self.kabob_wait_return_state_name, self.RunEnding()),
                        exit_condition=lambda: Map.GetMapID() == Mapping.Rilohn_Refuge and Party.IsPartyLoaded() or self.ShouldForceTransitionStep(),
                        transition_delay_ms=3000)
         self.Kabob_Routine.AddState(self.kabob_end_state_name,
@@ -357,6 +410,8 @@ class Kabob_Farm(ReportsProgress):
                                          condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(Items.Drake_Flesh))
         self.Kabob_Routine.AddState(self.kabob_forced_stop,                                    
                                     execute_fn=lambda: self.ExecuteStep(self.kabob_forced_stop, None))
+        
+        self.RunTimer = Timer()
 
     def CheckExchangeKabobs(self):
         global do_kabob_exchange
@@ -403,7 +458,10 @@ class Kabob_Farm(ReportsProgress):
         self.kabob_success = 0
         self.kabob_fails = 0
 
-        self.kabob_first_after_reset = True      
+        self.kabob_first_after_reset = True     
+        self.average_run_history.clear()
+        self.average_run_time = 0
+        self.current_run_time = 0 
 
         self.SoftReset()
 
@@ -466,6 +524,21 @@ class Kabob_Farm(ReportsProgress):
     def FailResign(self):
         self.Resign()
         self.kabob_fails += 1
+
+    def RunStarting(self):
+        self.RunTimer.Reset()
+
+    def RunEnding(self):
+        elapsed = self.RunTimer.GetElapsedTime()
+        self.RunTimer.Stop()
+
+        self.average_run_history.append(elapsed)
+
+        if len(self.average_run_history) >= 10:
+            self.average_run_history.pop(0)
+
+        self.average_run_time = sum(self.average_run_history) / len(self.average_run_history)
+        Party.ReturnToOutpost()
 
     def ExchangeKabobs(self):
         if not self.kabob_exchange_timer.IsRunning():
@@ -571,6 +644,7 @@ class Kabob_Farm(ReportsProgress):
         return False
     
     def KillKoss(self):
+        self.RunStarting()
         agent_id = Player.GetAgentID()
         SkillBar.HeroUseSkill(agent_id, 2, 1)
         SkillBar.HeroUseSkill(agent_id, 3, 1)
@@ -660,10 +734,17 @@ class Kabob_Farm(ReportsProgress):
             self.player_previous_hp = hp
 
             if len(enemies) > 0 or self.player_stuck or hp < temp:
-                # Cast HOS is available but find enemy behind if able, otherwise just use since need to heal.
-                if self.player_stuck or hp < dangerHp or (len(enemies) == 0 and hp < temp):
+                # Cast HOS is available but find enemy in behind if able, otherwise just use since need to heal.
+                if self.player_stuck or (self.kabob_ready_to_kill and hp < dangerHp) or (len(enemies) == 0 and hp < temp):
                     if len(enemies) > 0:
-                        if not IsEnemyInFront(enemies[0]):
+                        # If stuck, find enemy behind to cast hos
+                        if self.player_stuck:
+                            if not IsEnemyBehind(enemies[0]):
+                                for enemy in enemies:
+                                    if IsEnemyBehind(enemy):
+                                        break
+                        # not stuck, just need heal.
+                        elif not IsEnemyInFront(enemies[0]):
                             for enemy in enemies:
                                 if IsEnemyInFront(enemy):
                                     break
@@ -676,6 +757,7 @@ class Kabob_Farm(ReportsProgress):
 
                             if self.player_stuck_hos_count > 2:
                                 # kill shit then if not already
+                                self.player_stuck = False
                                 self.kabob_ready_to_kill = True
                                 self.Kabob_Routine.jump_to_state_by_name(self.kabob_change_weapon_scythe)
                         return True
@@ -916,10 +998,10 @@ class Kabob_Farm(ReportsProgress):
                 #     self.kabob_success += 1
                 #     return True
 
-            return False
         except Exception as e:
             Py4GW.Console.Log("Loot Loop Complete", f"Error during looting {str(e)}", Py4GW.Console.MessageType.Error)
     
+        return False
     def GetKabobCollected(self):
         return self.kabob_collected
 
@@ -1025,6 +1107,12 @@ def ResetBot():
 
 def PrintData():
     kabob_Routine.PrintData()
+
+def GetRunTime():
+    return kabob_Routine.RunTimer.GetElapsedTime()
+
+def GetAverageRunTime():
+    return kabob_Routine.average_run_time
 
 ### --- MAIN --- ###
 def main():
