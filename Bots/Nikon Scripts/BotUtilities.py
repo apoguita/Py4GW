@@ -219,7 +219,7 @@ def IsEnemyBehind(agent_id) -> bool:
     # Calculate the relative angle to the enemy
     angle_diff = (angle_to_enemy - player_angle + 360) % 360
 
-    if angle_diff > 60 and angle_diff < 300:
+    if angle_diff > 90 and angle_diff < 270:
         return True
     return False
 

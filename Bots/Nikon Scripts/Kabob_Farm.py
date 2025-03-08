@@ -137,12 +137,17 @@ class Kabob_Window(BasicWindow):
                 PyImGui.table_next_column()
                 PyImGui.text(f"Last Run:")
                 PyImGui.table_next_column()
-                PyImGui.text(f"{FormatTime(GetRunTime(), "mm:ss:ms")}")
+                PyImGui.text(f"     {FormatTime(GetRunTime(), "mm:ss:ms")}")
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
                 PyImGui.text(f"Avg. Run:")
                 PyImGui.table_next_column()
-                PyImGui.text(f"{FormatTime(GetAverageRunTime(), "mm:ss:ms")}")
+                PyImGui.text(f"     {FormatTime(GetAverageRunTime(), "mm:ss:ms")}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text(f"Total:")
+                PyImGui.table_next_column()
+                PyImGui.text(f"{FormatTime(GetTotalRunTime())}")
                 PyImGui.table_next_row()
                 PyImGui.end_table()
 
@@ -341,7 +346,7 @@ class Kabob_Farm(ReportsProgress):
                        transition_delay_ms=1000)
         self.Kabob_Routine.AddState(self.kabob_initial_check_inventory, execute_fn=lambda: self.CheckInventory())
         self.Kabob_Routine.AddState(self.kabob_set_normal_mode,
-                       execute_fn=lambda: self.ExecuteStep(self.kabob_set_normal_mode, Party.SetNormalMode()),
+                       execute_fn=lambda: self.ExecuteStep(self.kabob_set_normal_mode, self.InternalStart()),
                        transition_delay_ms=1000)
         self.Kabob_Routine.AddState(self.kabob_add_hero_state_name,
                        execute_fn=lambda: self.ExecuteStep(self.kabob_add_hero_state_name, self.PutKossInParty()), # Ensure only one hero in party
@@ -364,7 +369,7 @@ class Kabob_Farm(ReportsProgress):
         self.Kabob_Routine.AddState(self.kabob_check_inventory_after_handle_inventory, 
                                     execute_fn=lambda: self.CheckInventory())
         self.Kabob_Routine.AddState(self.kabob_change_weapon_staff,
-                                    execute_fn=lambda: self.ExecuteStep(self.kabob_change_weapon_staff, ChangeWeaponSet(self.weapon_slot_staff)),
+                                    execute_fn=lambda: self.ExecuteStep(self.kabob_change_weapon_staff, self.RunStarting()),
                                     #exit_condition=lambda: CheckWeaponEquipped("Staff", self.Log),
                                     transition_delay_ms=1000)
         self.Kabob_Routine.AddState(self.kabob_pathing_2_state_name,
@@ -398,7 +403,7 @@ class Kabob_Farm(ReportsProgress):
                        exit_condition=lambda: Agent.IsDead(Player.GetAgentID()) or Map.GetMapID() == Mapping.Rilohn_Refuge,
                        transition_delay_ms=3000)
         self.Kabob_Routine.AddState(self.kabob_wait_return_state_name,
-                       execute_fn=lambda: self.ExecuteTimedStep(self.kabob_wait_return_state_name, self.RunEnding()),
+                       execute_fn=lambda: self.ExecuteTimedStep(self.kabob_wait_return_state_name, Party.ReturnToOutpost()),
                        exit_condition=lambda: Map.GetMapID() == Mapping.Rilohn_Refuge and Party.IsPartyLoaded() or self.ShouldForceTransitionStep(),
                        transition_delay_ms=3000)
         self.Kabob_Routine.AddState(self.kabob_end_state_name,
@@ -412,6 +417,7 @@ class Kabob_Farm(ReportsProgress):
                                     execute_fn=lambda: self.ExecuteStep(self.kabob_forced_stop, None))
         
         self.RunTimer = Timer()
+        self.TotalTimer = Timer()
 
     def CheckExchangeKabobs(self):
         global do_kabob_exchange
@@ -430,13 +436,17 @@ class Kabob_Farm(ReportsProgress):
         if not self.Kabob_Routine:
             return
         
-        if self.Kabob_Routine.is_started():
-            self.Kabob_Routine.stop()
-            self.window.StopBot()
+        self.InternalStop()
+
+    def InternalStart(self):
+        Party.SetNormalMode()
+        self.TotalTimer.Start()
 
     def InternalStop(self):
         self.Kabob_Routine.jump_to_state_by_name(self.kabob_forced_stop)
         self.window.StopBot()
+        self.TotalTimer.Stop()
+        self.RunTimer.Stop()
 
     def PrintData(self):
         if self.current_inventory != None:
@@ -450,8 +460,9 @@ class Kabob_Farm(ReportsProgress):
 
     def Reset(self):     
         if self.Kabob_Routine:
-            self.Kabob_Routine.reset()
-            self.Kabob_Routine.stop()
+            # self.Kabob_Routine.reset()
+            # self.Kabob_Routine.stop()
+            self.InternalStop()
         
         self.kabob_collected = 0    
         self.kabob_runs = 0
@@ -528,6 +539,12 @@ class Kabob_Farm(ReportsProgress):
     def RunStarting(self):
         self.RunTimer.Reset()
 
+        if not self.TotalTimer.IsRunning():
+            self.TotalTimer.Start()
+
+        # starting new run, change to staff if available
+        ChangeWeaponSet(self.weapon_slot_staff)
+
     def RunEnding(self):
         elapsed = self.RunTimer.GetElapsedTime()
         self.RunTimer.Stop()
@@ -538,7 +555,15 @@ class Kabob_Farm(ReportsProgress):
             self.average_run_history.pop(0)
 
         self.average_run_time = sum(self.average_run_history) / len(self.average_run_history)
-        Party.ReturnToOutpost()
+
+    def GetCurrentRunTime(self):
+        return self.RunTimer.GetElapsedTime()
+    
+    def GetAverageTime(self):
+        return self.average_run_time
+    
+    def GetTotalTime(self):
+        return self.TotalTimer.GetElapsedTime()
 
     def ExchangeKabobs(self):
         if not self.kabob_exchange_timer.IsRunning():
@@ -695,7 +720,7 @@ class Kabob_Farm(ReportsProgress):
 
         return pathDone or surrounded or forceStep
 
-    def KillLoopStart(self):        
+    def KillLoopStart(self):
         self.Kill(self.StayAliveLoop())
 
     # Stay alive using all heal buffs and hos if available
@@ -739,12 +764,11 @@ class Kabob_Farm(ReportsProgress):
                     if len(enemies) > 0:
                         # If stuck, find enemy behind to cast hos
                         if self.player_stuck:
-                            if not IsEnemyBehind(enemies[0]):
-                                for enemy in enemies:
-                                    if IsEnemyBehind(enemy):
-                                        break
+                            for enemy in enemies:
+                                if IsEnemyBehind(enemy):
+                                    break
                         # not stuck, just need heal.
-                        elif not IsEnemyInFront(enemies[0]):
+                        else:
                             for enemy in enemies:
                                 if IsEnemyInFront(enemy):
                                     break
@@ -757,7 +781,6 @@ class Kabob_Farm(ReportsProgress):
 
                             if self.player_stuck_hos_count > 2:
                                 # kill shit then if not already
-                                self.player_stuck = False
                                 self.kabob_ready_to_kill = True
                                 self.Kabob_Routine.jump_to_state_by_name(self.kabob_change_weapon_scythe)
                         return True
@@ -793,7 +816,7 @@ class Kabob_Farm(ReportsProgress):
                     CastSkillById(self.skillBar.regen)
                     return True 
                 
-                if shards_time_remain < 10000 and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
+                if not self.kabob_ready_to_kill and shards_time_remain < 5000 and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
                     CastSkillById(self.skillBar.sand_shards)
                     return True
                                     
@@ -845,17 +868,16 @@ class Kabob_Farm(ReportsProgress):
                         self.kabob_ready_to_kill = True
 
                         # Use hos so we get them balled up a bit better (sometimes)
-                        if not IsEnemyInFront(enemies[0]):
-                            for enemy in enemies:
-                                if IsEnemyInFront(enemy):
-                                    break
+                        for enemy in enemies:
+                            if IsEnemyInFront(enemy):
+                                break
 
                         if HasEnoughEnergy(self.skillBar.hos) and IsSkillReadyById(self.skillBar.hos):
                             CastSkillById(self.skillBar.hos)
                             return
                     
                     # Ensure have damage mitigation up before attacking
-                    if len(enemies) > 1 and (not HasBuff(player_id, self.skillBar.intimidating) or not HasBuff(player_id, self.skillBar.sanctity)):
+                    if len(enemies) > 2 and (not HasBuff(player_id, self.skillBar.intimidating) or not HasBuff(player_id, self.skillBar.sanctity)):
                         return
                     
                     target = Player.GetTargetID()
@@ -871,37 +893,34 @@ class Kabob_Farm(ReportsProgress):
                         return                    
                     
                     vos_time_remain = 0
+                    shards_time_remain = 0
 
                     # Cast stay alive spells if needed.      
                     player_buffs = Effects.GetEffects(player_id)
                     
                     for buff in player_buffs:
                         if buff.skill_id == self.skillBar.vos:
-                            vos_time_remain = buff.time_remaining
-                                                
-                    hasShards = HasBuff(player_id, self.skillBar.sand_shards)
+                            vos_time_remain = buff.time_remaining    
+                        if buff.skill_id == self.skillBar.sand_shards:
+                            shards_time_remain = buff.time_remaining
 
-                    if not self.kabob_killing_staggering_casted and not hasShards and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
-                        # self.Log("shards")
+                    if not self.kabob_killing_staggering_casted and shards_time_remain < 5000 and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
                         CastSkillById(self.skillBar.sand_shards)
                         return
                                             
                     # Get Ready for killing
                     # Need find a way to change weapon set since  sending the change keys is not working for F1-F4
                     # For now assume we're good to go.
-                    if not self.kabob_killing_staggering_casted and vos_time_remain < 3000 and IsSkillReadyById(self.skillBar.vos) and HasEnoughEnergy(self.skillBar.vos):                        
-                        # self.Log("vos")
+                    if not self.kabob_killing_staggering_casted and vos_time_remain < 3000 and IsSkillReadyById(self.skillBar.vos) and HasEnoughEnergy(self.skillBar.vos):   
                         CastSkillById(self.skillBar.vos)
                         return
                         
                     if IsSkillReadyById(self.skillBar.eremites) and HasEnoughEnergy(self.skillBar.eremites):
                         if IsSkillReadyById(self.skillBar.staggering) and HasEnoughEnergy(self.skillBar.staggering):
                             self.kabob_killing_staggering_casted = True
-                            # self.Log("stagger")
                             CastSkillById(self.skillBar.staggering)
                     elif not Agent.IsAttacking(player_id) and not Agent.IsCasting(player_id):
                         # Normal Attack
-                        #self.Log("attack")
                         Player.Interact(target)
         except Exception as e:
             Py4GW.Console.Log("Kill Loop Error", f"Kill Loop Error {str(e)}", Py4GW.Console.MessageType.Error)
@@ -1002,6 +1021,7 @@ class Kabob_Farm(ReportsProgress):
             Py4GW.Console.Log("Loot Loop Complete", f"Error during looting {str(e)}", Py4GW.Console.MessageType.Error)
     
         return False
+    
     def GetKabobCollected(self):
         return self.kabob_collected
 
@@ -1011,6 +1031,7 @@ class Kabob_Farm(ReportsProgress):
     # Jump back to output pathing if not done collecting
     def CheckKabobRoutineEnd(self):
         # Don't reset the kabob count
+        self.RunEnding()
         self.SoftReset()
 
         self.kabob_first_after_reset = False
@@ -1109,10 +1130,13 @@ def PrintData():
     kabob_Routine.PrintData()
 
 def GetRunTime():
-    return kabob_Routine.RunTimer.GetElapsedTime()
+    return kabob_Routine.GetCurrentRunTime()
 
 def GetAverageRunTime():
-    return kabob_Routine.average_run_time
+    return kabob_Routine.GetAverageTime()
+
+def GetTotalRunTime():
+    return kabob_Routine.GetTotalTime()
 
 ### --- MAIN --- ###
 def main():
