@@ -219,13 +219,7 @@ class Inventory:
         Returns: None
         """
         inventory = PyInventory.PyInventory()
-        if not inventory.IsSalvaging():
-            inventory.StartSalvage(salvage_kit_id, item_id)
-
-        #you add the dialgos HERE!!!!!
-
-        if inventory.IsSalvaging() and inventory.IsSalvageTransactionDone():
-            inventory.FinishSalvage()
+        inventory.Salvage(salvage_kit_id, item_id)
 
     @staticmethod
     def SalvageFirst():
@@ -251,44 +245,12 @@ class Inventory:
 
         # Use the Salvage Kit to salvage the item
         inventory = PyInventory.PyInventory()
-        inventory.StartSalvage(salvage_kit_id, salvage_item_id)
+        inventory.Salvage(salvage_kit_id, salvage_item_id)
         Py4GW.Console.Log("SalvageFirst", f"Started salvaging item with Item ID: {salvage_item_id} using Salvage Kit ID: {salvage_kit_id}")
-        
-        if inventory.IsSalvaging() and inventory.IsSalvageTransactionDone():
-            inventory.FinishSalvage()
-            Py4GW.Console.Log("SalvageFirst", f"Finished salvaging item with Item ID: {salvage_item_id}.")
-            return True
 
         return False
 
-    @staticmethod
-    def IsInSalvageSession():
-        """
-        Purpose: Check if the player is currently salvaging.
-        Returns: bool: True if the player is salvaging, False if not.
-        """
-        return Inventory.inventory_instance().IsSalvaging()
-
-    @staticmethod
-    def IsSalvageSessionDone():
-        """
-        Purpose: Check if the salvage transaction is completed.
-        Returns: bool: True if the salvage transaction is done, False if not.
-        """
-        return Inventory.inventory_instance().IsSalvageTransactionDone()
-
-    @staticmethod
-    def FinishSalvage():
-        """
-        Purpose: Finish the salvage process.
-        Returns: bool: True if the salvage process is finished, False if not.
-        """
-        if Inventory.inventory_instance().IsSalvaging() and Inventory.inventory_instance().IsSalvageTransactionDone():
-            Inventory.inventory_instance().FinishSalvage()
-            Py4GW.Console.Log("FinishSalvage", "Finished the salvage process.")
-            return True
-
-        return False
+    
     
     @staticmethod
     def AcceptSalvageMaterialsWindow():

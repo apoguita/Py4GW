@@ -76,7 +76,7 @@ def Loot(cached_data:CacheData):
     
     if loot_timer.HasElapsed(750) and target == looting_item:
         #Keystroke.PressAndRelease(Key.Space.value)
-        cached_data.action_queue.add_action(Keystroke.PressAndRelease, Key.Space.value)
+        cached_data.action_queue.add_action(Player.Interact, target)
         loot_timer.Reset()
         #Player.Interact(item)
         return True

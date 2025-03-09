@@ -8,6 +8,8 @@ MAX_BAGS = 4
 inventory_frame_hash = 291586130
 parent_frame_id = 0
 
+#region rarity colors
+
 rarity_colors = {
     "White": {
         "frame": Utils.RGBToColor(255, 255, 255, 125),
@@ -41,6 +43,10 @@ rarity_colors = {
     },
 }
 
+#endregion
+
+#region Types
+# ActionQueue
 class ActionQueueClass:
     def __init__(self,throttle_time=250):
         self.action_queue = ActionQueue()
@@ -48,36 +54,22 @@ class ActionQueueClass:
         self.action_queue_timer.Start()
         self.action_queue_time = throttle_time
         
-identification_queue = ActionQueueClass()
-salvage_queue = ActionQueueClass()
-
+#ColorizeType
 class ColorizeType(Enum):
     colorize = 1
     identification = 2
     salvage = 3
     text_filter = 4
     
+#TabType 
 class TabType(Enum):
     colorize = 1
     identification = 2
     salvage = 3
     xunlai_vault = 4
     config = 5
-
-class ChildFrameCacheNode:
-    def __init__(self, parent_hash, child_offsets):
-        self.parent_hash = parent_hash
-        self.child_offsets = child_offsets  # No tuple conversion
-        self.frame_id = 0  # Initialize first
-        self.frame_id = self.GetFrameID()
-
-    def GetFrameID(self):
-        if self.frame_id == 0:
-            self.frame_id = UIManager.GetChildFrameID(self.parent_hash, self.child_offsets)
-        return self.frame_id
-
-
-
+    
+#Colorize config
 class color_config:
     def __init__(self):
         self.colorize_whites = False
@@ -87,9 +79,57 @@ class color_config:
         self.colorize_golds = True
         self.colorize_ignored = True
         
-colorize_config = color_config()
+#Xunlai Vault config
+class xunlaivault_config:
+    def __init__(self):
+        self.synch_vault_with_inventory = True
+        self.frame_id = 0
+        self.xunlai_window_exists = False
+    
+#id config    
+class id_config:
+    def __init__(self):
+        self.enabled = False
+        self.frame_id = 0
+        self.inventory_window_exists = False
+  
+#salvage config      
+class salvage_config:
+    def __init__(self):
+        self.enabled = False
+        self.frame_id = 0
+        self.inventory_window_exists = False
+        
+#bag config       
+class bag_config:
+    def __init__(self):
+        self.bag_id = 0
+        self.items : List[item_config] = []
+        
+#global config
+class config:
+    global parent_frame_id, inventory_frame_hash, MAX_BAGS
+    
+    def __init__(self):
+        self.map_valid = False
+        self.is_map_loading = False
+        self.is_map_ready = False
+        self.is_party_loaded = False
+        self.inventory_window_exists = False
+        
+        self.game_throttle_time = 500
+        self.game_throttle_timer = Timer()
+        self.game_throttle_timer.Start()
+        self.id_vars = id_config()
+        self.salvage_vars = salvage_config()
+        self.bags: List[bag_config] = [bag_config() for _ in range(MAX_BAGS)]
+        self.colorize_vars = ColorizeType.colorize
+        self.selected_tab = TabType.colorize
+        
+        
+#endregion
 
-
+#region Floating_Checkbox
 @staticmethod
 def floating_checkbox(caption, state,x,y, color):
     width=20
@@ -122,10 +162,32 @@ def floating_checkbox(caption, state,x,y, color):
     PyImGui.pop_style_var(2)
     PyImGui.pop_style_color(1)
     return result
-            
+#endregion
+
+#region globals
+identification_queue = ActionQueueClass()
+salvage_queue = ActionQueueClass(350)       
+colorize_config = color_config()
 identification_checkbox_states: Dict[int, bool] = {}
+salvage_checkbox_states: Dict[int, bool] = {}
+xunlai_vault_config = xunlaivault_config()
+inventory_object = PyInventory.PyInventory()
+
+widget_config = config()
+
+window_module = ImGui.WindowModule(
+    module_name, 
+    window_name="ID & Salvage", 
+    window_size=(300, 200),
+    window_flags=PyImGui.WindowFlags.AlwaysAutoResize
+)
+
 total_id_uses = 0
 total_salvage_uses = 0
+
+#endregion
+
+#region item config
 class item_config:
     global colorize_config
     global rarity_colors
@@ -134,15 +196,24 @@ class item_config:
     
     def __init__(self, bag_id, item_id):
         global total_id_uses
+        global total_salvage_uses
         self.item_id = item_id
         self.slot = Item.GetSlot(self.item_id)
         self.bags_offsets = [0,0,0,bag_id-1,self.slot+2]
         self.frame_id = UIManager.GetChildFrameID(inventory_frame_hash, self.bags_offsets)
         _, self.rarity = Item.Rarity.GetRarity(self.item_id)
         self.is_identified = Item.Usage.IsIdentified(self.item_id)
+        self.is_salvageable = Item.Usage.IsSalvageable(self.item_id)
         self.is_id_kit = Item.Usage.IsIDKit(self.item_id)
+        self.is_salv_kit = ( Item.Usage.IsSalvageKit(self.item_id) or 
+                             Item.Usage.IsExpertSalvageKit(self.item_id) or
+                             Item.Usage.IsPerfectSalvageKit(self.item_id) or
+                             Item.Usage.IsLesserKit(self.item_id)
+        )
         if self.is_id_kit:
             total_id_uses += Item.Usage.GetUses(self.item_id)
+        if self.is_salv_kit:
+            total_salvage_uses += Item.Usage.GetUses(self.item_id)
         self.left,self.top, self.right, self.bottom = UIManager.GetFrameCoords(self.frame_id)
       
     def can_draw(self):
@@ -184,81 +255,34 @@ class item_config:
                 self.bottom-20,
                 Utils.ColorToTuple(rarity_colors[self.rarity]["frame"])
             )
-
-        
-
-
-class xunlaivault_config:
-    def __init__(self):
-        self.synch_vault_with_inventory = True
-        self.frame_id = 0
-        self.xunlai_window_exists = False
-        
-xunlai_vault_config = xunlaivault_config()
-
-class id_config:
-    def __init__(self):
-        self.enabled = False
-        self.frame_id = 0
-        self.inventory_window_exists = False
-        
-class salvage_config:
-    def __init__(self):
-        self.enabled = False
-        self.frame_id = 0
-        self.inventory_window_exists = False
-        
-        
-class bag_config:
-    def __init__(self):
-        self.bag_id = 0
-        self.items : List[item_config] = []
-
-class config:
-    global parent_frame_id, inventory_frame_hash, MAX_BAGS
-    
-    def __init__(self):
-        self.map_valid = False
-        self.is_map_loading = False
-        self.is_map_ready = False
-        self.is_party_loaded = False
-        self.inventory_window_exists = False
-        
-        self.game_throttle_time = 500
-        self.game_throttle_timer = Timer()
-        self.game_throttle_timer.Start()
-        self.id_vars = id_config()
-        self.salvage_vars = salvage_config()
-        self.bags: List[bag_config] = [bag_config() for _ in range(MAX_BAGS)]
-        self.colorize_vars = ColorizeType.colorize
-        self.selected_tab = TabType.colorize
-        
             
+    def draw_salvage(self):
+        color_content = rarity_colors[self.rarity]["content"]
+        color_frame = rarity_colors[self.rarity]["frame"]
+        if not (self.is_identified and self.is_salvageable) and not self.is_salv_kit:
+            color_content = rarity_colors["Ignored"]["content"]
+            color_frame = rarity_colors["Ignored"]["frame"]
+            
+        UIManager().DrawFrame(self.frame_id, color_content)
+        UIManager().DrawFrameOutline(self.frame_id, color_frame)
+        
+        if self.is_identified and self.is_salvageable:
+            if self.item_id not in salvage_checkbox_states:
+                salvage_checkbox_states[self.item_id] = False  # Set default state
 
-widget_config = config()
+            salvage_checkbox_states[self.item_id] = floating_checkbox(
+                f"{self.item_id}", 
+                salvage_checkbox_states[self.item_id], 
+                self.right -20, 
+                self.bottom-20,
+                Utils.ColorToTuple(rarity_colors[self.rarity]["frame"])
+            )
+        
 
-window_module = ImGui.WindowModule(
-    module_name, 
-    window_name="ID & Salvage", 
-    window_size=(300, 200),
-    window_flags=PyImGui.WindowFlags.AlwaysAutoResize
-)
 
-def IdentifyItems():
-    global identification_queue
-    global identification_checkbox_states
-    global total_id_uses
-    for item_id in identification_checkbox_states:
-        if identification_checkbox_states[item_id]:
-            first_id_kit = Inventory.GetFirstIDKit()
-            if first_id_kit == 0:
-                return
-            identification_queue.action_queue.add_action(Inventory.IdentifyItem, item_id, first_id_kit)
-            identification_checkbox_states[item_id] = False
-            total_id_uses -= 1
-            if total_id_uses <= 0:
-                return
+#endregion
 
+#region ImGuiTemplates
 def bottom_window_flags():
     return ( PyImGui.WindowFlags.NoCollapse | 
             PyImGui.WindowFlags.NoTitleBar |
@@ -285,6 +309,9 @@ def push_transparent_window():
 def pop_transparent_window():
     PyImGui.pop_style_var(3)
     
+#endregion
+    
+#region colorize options
 def DrawColorizeOptions():
     global colorize_config, rarity_colors
     left, top, right, bottom = UIManager.GetFrameCoords(parent_frame_id)  
@@ -318,6 +345,10 @@ def DrawColorizeOptions():
         PyImGui.pop_style_color(4)
     PyImGui.end()
     PyImGui.pop_style_var(1)
+    
+# endregion
+
+#region ID options
   
 selected_item = 0
 def DrawIDOptions():
@@ -381,7 +412,75 @@ def DrawIDOptions():
         
     PyImGui.end()
     PyImGui.pop_style_var(1)
+    
+#endregion
 
+#region Salv options
+def DrawSalvOptions():
+    global colorize_config, rarity_colors
+    global selected_item
+    global total_id_uses, total_salvage_uses
+    left, top, right, bottom = UIManager.GetFrameCoords(parent_frame_id)  
+    title_offset = 20
+    frame_offset = 5
+    height = bottom - top - title_offset
+    width = right - left - frame_offset
+
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+    flags=bottom_window_flags()
+    
+    PyImGui.set_next_window_pos(left, bottom)
+    PyImGui.set_next_window_size(width, 40)
+    
+    if PyImGui.begin("Salvage##SalvageWindow",True, flags):
+        select_item_list = ["All", "Whites", "Blues", "Purples", "Golds", "None"]
+        PyImGui.push_item_width(100)
+        selected_item = PyImGui.combo("##SalvCombo", selected_item, select_item_list)
+        PyImGui.pop_item_width()
+        PyImGui.same_line(0,-1)
+        if PyImGui.button(f"Select {select_item_list[selected_item]}"):
+            if selected_item == 0:
+                for item_id in salvage_checkbox_states:
+                    salvage_checkbox_states[item_id] = True
+            elif selected_item == 1:
+                for item_id in salvage_checkbox_states:
+                    if item_id in salvage_checkbox_states:
+                        if Item.Rarity.IsWhite(item_id):
+                            salvage_checkbox_states[item_id] = True                 
+            elif selected_item == 2:
+                for item_id in salvage_checkbox_states:
+                    if item_id in salvage_checkbox_states:
+                        if Item.Rarity.IsBlue(item_id):
+                            salvage_checkbox_states[item_id] = True
+            elif selected_item == 3:
+                for item_id in salvage_checkbox_states:
+                    if item_id in salvage_checkbox_states:
+                        if Item.Rarity.IsPurple(item_id):
+                            salvage_checkbox_states[item_id] = True
+            elif selected_item == 4:
+                for item_id in salvage_checkbox_states:
+                    if item_id in salvage_checkbox_states:
+                        if Item.Rarity.IsGold(item_id):
+                            salvage_checkbox_states[item_id] = True                
+            elif selected_item == 5:
+                for item_id in salvage_checkbox_states:
+                    salvage_checkbox_states[item_id] = False
+
+        PyImGui.same_line(0,-1)
+        PyImGui.text(f"{total_salvage_uses} Salvage uses remaining")
+        PyImGui.same_line(0,-1)
+        available_width= PyImGui.get_window_width()
+    
+        PyImGui.set_cursor_pos_x(available_width -125)
+        if PyImGui.button("Salvage Selected"):
+            SalvageItems()
+        
+    PyImGui.end()
+    PyImGui.pop_style_var(1)
+    
+#endregion
+
+#region DrawWindow
 def DrawWindow():
     global parent_frame_id, MAX_BAGS
     global colorize_config, rarity_colors
@@ -431,9 +530,13 @@ def DrawWindow():
     if widget_config.selected_tab == TabType.identification:
         DrawIDOptions()
         
+    if widget_config.selected_tab == TabType.salvage:
+        DrawSalvOptions()
+        
     
     items: List[item_config] = []
     total_id_uses = 0
+    total_salvage_uses = 0
     for bag_id in range(1, MAX_BAGS+1):
         bag_to_check = ItemArray.CreateBagList(bag_id)
         item_array = ItemArray.GetItemArray(bag_to_check)
@@ -446,17 +549,65 @@ def DrawWindow():
         if widget_config.colorize_vars == ColorizeType.colorize:
             item.draw_colorized()
         elif widget_config.colorize_vars == ColorizeType.identification:
-            item.draw_identification()    
-        
-    
+            item.draw_identification()  
+        elif widget_config.colorize_vars == ColorizeType.salvage:
+            item.draw_salvage()  
+ 
+ #endregion       
+ 
+#region inventory routines
+def IdentifyItems():
+    global identification_queue
+    global identification_checkbox_states
+    global total_id_uses
+    for item_id in identification_checkbox_states:
+        if identification_checkbox_states[item_id]:
+            first_id_kit = Inventory.GetFirstIDKit()
+            if first_id_kit == 0:
+                return
+            identification_queue.action_queue.add_action(Inventory.IdentifyItem, item_id, first_id_kit)
+            identification_checkbox_states[item_id] = False
+            total_id_uses -= 1
+            if total_id_uses <= 0:
+                return   
+            
+def AutoSalvage(item_id):
+    first_salv_kit = Inventory.GetFirstSalvageKit()
+    if first_salv_kit == 0:
+        return
+    Inventory.SalvageItem(item_id, first_salv_kit)
+
+def SalvageItems():
+    global salvage_queue
+    global salvage_checkbox_states
+    global total_salvage_uses
+    global inventory_object
+    for item_id in salvage_checkbox_states:
+        if salvage_checkbox_states[item_id]:
+            quantity = Item.Properties.GetQuantity(item_id)
+            if total_salvage_uses < quantity:
+                quantity = total_salvage_uses
+            for _ in range(quantity):
+                first_salv_kit = Inventory.GetFirstSalvageKit()
+                if first_salv_kit == 0:
+                    return
+                salvage_queue.action_queue.add_action(AutoSalvage, item_id)
+
+            salvage_checkbox_states[item_id] = False
+            total_salvage_uses -= quantity
+            if total_salvage_uses <= 0:
+                return   
+#endregion
 
 def configure():
     pass
 
+#region main
 def main():
     global parent_frame_id, inventory_frame_hash, bags_offsets, MAX_BAGS
     global widget_config
     global identification_queue, salvage_queue
+    global inventory_object
     
     if widget_config.game_throttle_timer.HasElapsed(widget_config.game_throttle_time):
         widget_config.is_map_loading = Map.IsMapLoading()
@@ -495,8 +646,13 @@ def main():
         if not identification_queue.action_queue.is_empty():
             identification_queue.action_queue_timer.Reset()
             identification_queue.action_queue.execute_next()
+            
+    if salvage_queue.action_queue_timer.HasElapsed(salvage_queue.action_queue_time):      
+        if not salvage_queue.action_queue.is_empty():
+            salvage_queue.action_queue_timer.Reset()
+            salvage_queue.action_queue.execute_next()
         
-        
+#endregion    
 
 if __name__ == "__main__":
     main()

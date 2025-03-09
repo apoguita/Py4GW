@@ -866,28 +866,6 @@ def ShowSkillWindow():
         raise
 
 inventory_handler = PyInventory.PyInventory()
-salvage_timer = Timer()
-salvage_timer.Stop()
-
-confirm_key = Key.Y
-
-def UpdateSalvageSession():
-    global inventory_handler , salvage_timer, confirm_key
-
-    if salvage_timer.HasElapsed(250):
-        salvage_timer.Stop()
-
-        Keystroke.PressAndRelease(Key.Y.value)
-        #this is a fix for salvaging with a lesser kit, it will press Y to confirm the salvage
-        #this produces the default key for minions to open, need to implenet an IF statement 
-        #to check wich type os salvaging youre performing
-        #the game itself wont salvage an unidentified item, so be aware of that
-
-        inventory_handler.HandleSalvageUI()
-        
-    if inventory_handler.IsSalvageTransactionDone():
-        inventory_handler.FinishSalvage()
-        Py4GW.Console.Log("SalvageFirst", f"Finished salvaging transaction")
 
 def ShowInventoryWindow():
     global PyAgent_agent_window_state, inventory_handler, salvage_timer
@@ -921,43 +899,29 @@ def ShowInventoryWindow():
             if PyImGui.button("Identify First Available Item"):
                 Inventory.IdentifyFirst()
 
-            
-            
-
             PyImGui.separator()
-            PyImGui.text(f'Salgave timer: {salvage_timer.FormatElapsedTime("ss:ms")}')
-            UpdateSalvageSession()
 
             if PyImGui.button("Salvage First Available Item"):
-                if not Inventory.IsInSalvageSession():
-                    # Get the first available Salvage Kit
-                    salvage_kit_id = Inventory.GetFirstSalvageKit()
-                    if salvage_kit_id == 0:
-                        Py4GW.Console.Log("SalvageFirst", "No salvage kit found.")
-                        return False
 
-                    # Find the first salvageable item based on the rarity filter
-                    salvage_item_id = Inventory.GetFirstSalvageableItem()
-                    if salvage_item_id == 0:
-                        Py4GW.Console.Log("SalvageFirst", "No salvageable item found.")
-                        return False
-                    """
-                    if Item(salvage_kit_id).Usage.IsLesserKit() or Item(salvage_item_id).Usage.IsIdentified():
-                        # Use the Lesser Salvage Kit to salvage the item
-                        inventory_handler.StartSalvage(salvage_kit_id, salvage_item_id)
-                        salvage_timer.Start()
-                        Py4GW.Console.Log("SalvageFirst", f"Started salvaging item with Item ID: {salvage_item_id} using Lesser Salvage Kit ID: {salvage_kit_id}")
-                    """
-                    # Use the Salvage Kit to salvage the item
-                    inventory_handler.StartSalvage(salvage_kit_id, salvage_item_id)
-                    salvage_timer.Start()
-                    Py4GW.Console.Log("SalvageFirst", f"Started salvaging item with Item ID: {salvage_item_id} using Salvage Kit ID: {salvage_kit_id}")
+                # Get the first available Salvage Kit
+                salvage_kit_id = Inventory.GetFirstSalvageKit()
+                if salvage_kit_id == 0:
+                    Py4GW.Console.Log("SalvageFirst", "No salvage kit found.")
+                    return False
+
+                # Find the first salvageable item based on the rarity filter
+                salvage_item_id = Inventory.GetFirstSalvageableItem()
+                if salvage_item_id == 0:
+                    Py4GW.Console.Log("SalvageFirst", "No salvageable item found.")
+                    return False
+
+                # Use the Salvage Kit to salvage the item
+                Inventory.SalvageItem(salvage_item_id,salvage_kit_id)
+                Py4GW.Console.Log("SalvageFirst", f"Started salvaging item with Item ID: {salvage_item_id} using Salvage Kit ID: {salvage_kit_id}")
 
             if PyImGui.button("Handle Salvage UI"):
-                inventory_handler.HandleSalvageUI()
+                inventory_handler.AcceptSalvageWindow()
 
-            if PyImGui.button("Finish Salvage Session"):
-                inventory_handler.FinishSalvage()
 
             PyImGui.separator()
             if Inventory.IsStorageOpen():
