@@ -1901,4 +1901,24 @@ class ActionQueue:
         """Clear all actions from the queue."""
         self.queue.clear()
         
+class ActionQueueNode:
+    def __init__(self,throttle_time=250):
+        self.action_queue = ActionQueue()
+        self.action_queue_timer = Timer()
+        self.action_queue_timer.Start()
+        self.action_queue_time = throttle_time
+
+    def execute_next(self):
+        if self.action_queue_timer.HasElapsed(self.action_queue_time):      
+            self.action_queue.execute_next()
+            self.action_queue_timer.Reset()
+                
+    def add_action(self, action, *args, **kwargs):
+        self.action_queue.add_action(action, *args, **kwargs)
         
+    def is_empty(self):
+        return self.action_queue.is_empty()
+    
+    def clear(self):
+        self.action_queue.clear()
+            
