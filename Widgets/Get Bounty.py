@@ -15,7 +15,7 @@ class config:
         self.bounty_taken_timer.Start()
         self.map_valid = False
         
-        self.game_throttle_time = 100
+        self.game_throttle_time = 500
         self.game_throttle_timer = Timer()
         self.game_throttle_timer.Start()
 
@@ -30,6 +30,7 @@ def configure():
 
 def main():
     global widget_config
+    return
     
     if widget_config.game_throttle_timer.HasElapsed(widget_config.game_throttle_time):
         widget_config.is_map_loading = Map.IsMapLoading()
@@ -47,16 +48,18 @@ def main():
             widget_config.frame_id = UIManager.GetFrameIDByHash(widget_config.frame_hash)
             if widget_config.frame_id != 0:
                 widget_config.bounty_window_exists = UIManager.FrameExists(widget_config.frame_id)
+            else:
+                widget_config.bounty_window_exists = False
         widget_config.game_throttle_timer.Start()
         
-    if widget_config.map_valid and widget_config.bounty_window_exists and not widget_config.bounty_taken:
-        frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = "NPC Bounty Dialog.Option1.Icon") or 0
-        clickable_frame = UIManager.GetParentID(frame_id)
-        UIManager.FrameClick(frame_id = clickable_frame)
-        #print(f"Clicked on Bounty on frame_id: {clickable_frame}")
-        widget_config.bounty_taken = True
-        
-    if widget_config.bounty_taken and widget_config.bounty_taken_timer.HasElapsed(1000):
+        if widget_config.map_valid and widget_config.bounty_window_exists and not widget_config.bounty_taken:
+            frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = "NPC Bounty Dialog.Option1.Icon") or 0
+            clickable_frame = UIManager.GetParentID(frame_id)
+            if UIManager.FrameExists(clickable_frame):
+                UIManager.FrameClick(frame_id = clickable_frame)
+            widget_config.bounty_taken = True
+            
+    if widget_config.bounty_taken and widget_config.bounty_taken_timer.HasElapsed(5000):
         widget_config.bounty_taken = False
         widget_config.bounty_taken_timer.Reset()
 

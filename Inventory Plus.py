@@ -46,14 +46,6 @@ rarity_colors = {
 #endregion
 
 #region Types
-# ActionQueue
-class ActionQueueClass:
-    def __init__(self,throttle_time=250):
-        self.action_queue = ActionQueue()
-        self.action_queue_timer = Timer()
-        self.action_queue_timer.Start()
-        self.action_queue_time = throttle_time
-        
 #ColorizeType
 class ColorizeType(Enum):
     colorize = 1
@@ -165,8 +157,8 @@ def floating_checkbox(caption, state,x,y, color):
 #endregion
 
 #region globals
-identification_queue = ActionQueueClass()
-salvage_queue = ActionQueueClass(350)       
+identification_queue = ActionQueueNode()
+salvage_queue = ActionQueueNode(350)       
 colorize_config = color_config()
 identification_checkbox_states: Dict[int, bool] = {}
 salvage_checkbox_states: Dict[int, bool] = {}
@@ -642,15 +634,8 @@ def main():
     DrawWindow()
 
     
-    if identification_queue.action_queue_timer.HasElapsed(identification_queue.action_queue_time):
-        if not identification_queue.action_queue.is_empty():
-            identification_queue.action_queue_timer.Reset()
-            identification_queue.action_queue.execute_next()
-            
-    if salvage_queue.action_queue_timer.HasElapsed(salvage_queue.action_queue_time):      
-        if not salvage_queue.action_queue.is_empty():
-            salvage_queue.action_queue_timer.Reset()
-            salvage_queue.action_queue.execute_next()
+    identification_queue.execute_next()
+    salvage_queue.execute_next()
         
 #endregion    
 

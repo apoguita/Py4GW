@@ -10,6 +10,23 @@ timer.Start()
 
 outpost_coord_list = [(-24380, 15074), (-26375, 161)]
 
+bjora_coord_list = [
+    (17810, -17649), (16582, -17136), (15257, -16568), (14084, -15748), (12940, -14873),
+    (11790, -14004), (10640, -13136), (9404 , -12411), (8677 , -11176), (8581 , -9742 ),
+    (7892 , -8494 ), (6989 , -7377 ), (6184 , -6180 ), (5384 , -4980 ), (4549 , -3809 ),
+    (3622 , -2710 ), (2601 , -1694 ), (1185 , -1535 ), (-251 , -1514 ), (-1690, -1626 ),
+    (-3122, -1771 ), (-4556, -1752 ), (-5809, -1109 ), (-6966,  -291 ), (-8390,  -142 ),
+    (-9831,  -138 ), (-11272, -156 ), (-12685, -198 ), (-13933,  267 ), (-14914, 1325 ),
+    (-15822, 2441 ), (-16917, 3375 ), (-18048, 4223 ), (-19196, 4986 ), (-20000, 5595 ),
+    (-20300, 5600 )
+]
+
+path_to_killing_spot = [
+    (13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220),
+    (12703, -17239), (12684, -17184), (12526, -17275),
+]
+
+
 farming_route = [
     (11375, -22761), (10925, -23466), (10917, -24311), (10280, -24620),
     (9640, -23175), (7815, -23200), (7765, -22940), (8213, -22829), (8740, -22475),
@@ -22,7 +39,7 @@ farming_route2 = [
     (11670, -15457), (12604, -15320), (12450, -14800), (12725, -14850), (12476, -16157)
 ]
 
-path_to_killing_spot = [
+path_to_killing_spot2 = [
     (13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220),
     (12703, -17239), (12684, -17184)
 ]
@@ -38,21 +55,33 @@ new_farming_route2 = [
 	(9457, -16814), (10114, -16948), (10729, -16273), (10505, -14750), (10815, -14790),
 	(11090, -15345), (11670, -15457), (12494, -15250), (12603, -14824), (12750, -15685)
 ]
+
+exit_jaga_moraine = [(12289, -17700) ,(15400, -20400),(15775,-20500),(15750,-20550)]
+
+exit_jaga_moraine2 = [(12289, -17700) ,(13970, -18920), (15400, -20400),(15850,-20550)]
+
+
 new_path = []
 
 draw_original_route = False
 draw_new_route = False
 # Example of additional utility function
-overlay = Overlay()
 def DrawWindow():
     global module_name, started, polling_time, timer
     global draw_original_route, farming_route, farming_route2, path_to_killing_spot
-    global overlay, new_path, draw_new_route
+    global new_path, draw_new_route
     try:
         if PyImGui.begin(module_name):
         
             PyImGui.text("Coordinate logger")
             PyImGui.separator()
+            
+            mwp_x, mwp_y, mwp_z = Overlay().GetMouseWorldPos()
+            
+            pos_x, pos_y = Player.GetXY()
+
+            PyImGui.text(f"Mouse World Pos: x:{mwp_x:.0f} y:{mwp_y:.0f} z:{mwp_z:.0f}")
+            PyImGui.text(f"Player Pos: x:{pos_x:.0f} y:{pos_y:.0f}")
 
             polling_time = PyImGui.input_int("Polling Time (s)", polling_time)
             
@@ -86,43 +115,53 @@ def DrawWindow():
             draw_original_route = ImGui.toggle_button("Draw Original Route", draw_original_route)
             draw_new_route = ImGui.toggle_button("Draw New Route", draw_new_route)
 
-            route = farming_route
+            Overlay().BeginDraw()
+            route = exit_jaga_moraine
+            new_path = exit_jaga_moraine2
+
             if draw_original_route:
                 for i in range(len(route) - 1):
                     x1,y1 = route[i]
-                    z1 = overlay.FindZ(x1, y1)
+                    z1 = Overlay().FindZ(x1, y1)
                     x2,y2 = route[i + 1]
-                    z2 = overlay.FindZ(x2, y2)
-                    overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFF00FF00, 2.0)
+                    z2 = Overlay().FindZ(x2, y2)
+                    Overlay().DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFF00FF00, 2.0)
+                    
+                """
                 route = farming_route2
                 for i in range(len(route) - 1):
                     x1,y1 = route[i]
-                    z1 = overlay.FindZ(x1, y1)
+                    z1 = Overlay().FindZ(x1, y1)
                     x2,y2 = route[i + 1]
-                    z2 = overlay.FindZ(x2, y2)
-                    overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFF00FF00, 2.0)
+                    z2 = Overlay().FindZ(x2, y2)
+                    Overlay().DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFF00FF00, 2.0)
+                """
 
             if draw_new_route:
                 for i in range(len(new_path) - 1):
                     x1,y1 = new_path[i]
-                    z1 = overlay.FindZ(x1, y1)
+                    z1 = Overlay().FindZ(x1, y1)
                     x2,y2 = new_path[i + 1]
-                    z2 = overlay.FindZ(x2, y2)
-                    overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFF0000FF, 2.0)
+                    z2 = Overlay().FindZ(x2, y2)
+                    Overlay().DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFF0000FF, 2.0)
+                    
+                """
 
                 for i in range(len(new_farming_route) - 1):
                     x1,y1 = new_farming_route[i]
-                    z1 = overlay.FindZ(x1, y1)
+                    z1 = Overlay().FindZ(x1, y1)
                     x2,y2 = new_farming_route[i + 1]
-                    z2 = overlay.FindZ(x2, y2)
-                    overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFFFF00FF, 2.0)
+                    z2 = Overlay().FindZ(x2, y2)
+                    Overlay().DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFFFF00FF, 2.0)
 
                 for i in range(len(new_farming_route2) - 1):
                     x1,y1 = new_farming_route2[i]
-                    z1 = overlay.FindZ(x1, y1)
+                    z1 = Overlay().FindZ(x1, y1)
                     x2,y2 = new_farming_route2[i + 1]
-                    z2 = overlay.FindZ(x2, y2)
-                    overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFFFF00FF, 2.0)
+                    z2 = Overlay().FindZ(x2, y2)
+                    Overlay().DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFFFF00FF, 2.0)
+                    """
+                Overlay().EndDraw()
                     
             PyImGui.end()
     except Exception as e:
@@ -134,6 +173,12 @@ def DrawWindow():
 def main():
     global module_name
     try:
+        if Map.IsMapLoading():
+            return
+        
+        if not Party.IsPartyLoaded():
+            return
+        
         DrawWindow()
 
     # Handle specific exceptions to provide detailed error messages
