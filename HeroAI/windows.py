@@ -87,7 +87,6 @@ def DrawPrioritizedSkills(cached_data:CacheData):
                     self_id = Player.GetAgentID()
                     nearest_enemy = cached_data.data.nearest_enemy
                     nearest_ally = cached_data.data.lowest_ally
-                    nearest_item = cached_data.data.nearest_item
                     nearest_spirit = cached_data.data.nearest_spirit
                     nearest_minion = cached_data.data.lowest_minion
                     nearest_corpse = cached_data.data.nearest_corpse
@@ -96,7 +95,7 @@ def DrawPrioritizedSkills(cached_data:CacheData):
                     headers = ["Self", "Nearest Enemy", "Nearest Ally", "Nearest Item", "Nearest Spirit", "Nearest Minion", "Nearest Corpse", "Pet"]
 
                     data = [
-                        (self_id, nearest_enemy, nearest_ally, nearest_item,
+                        (self_id, nearest_enemy, nearest_ally,
                          nearest_spirit, nearest_minion, nearest_corpse, pet_id)
                     ]
 
@@ -611,6 +610,21 @@ def DrawDebugWindow(cached_data:CacheData):
             DrawPrioritizedSkills(cached_data)
         if PyImGui.collapsing_header("Buff Debug"):
             DrawBuffWindow(cached_data)
+        
+
+def DrawLootPickup(cached_data:CacheData):
+    cached_data.draw_floating_loot_buttons = PyImGui.checkbox("Draw Floating Loot Buttons", cached_data.draw_floating_loot_buttons)
+    PyImGui.separator()
+    gold_coins = get_gold_coin_array()
+    if not gold_coins:
+        return
+    for agent_id in gold_coins:
+        item_data = Agent.GetItemAgent(agent_id)
+        item_id = item_data.item_id
+        quantity = Item.Properties.GetQuantity(item_id)
+        if PyImGui.button(f"Loot {quantity} Gold coins##loot_{agent_id}"):
+            Player.Interact(agent_id,False)
+    
 
 
 
@@ -625,11 +639,15 @@ def DrawMultiboxTools(cached_data:CacheData):
         if cached_data.data.is_explorable and cached_data.data.player_agent_id == cached_data.data.party_leader_id:
             if PyImGui.collapsing_header("Flagging"):
                 DrawFlaggingWindow(cached_data)
+        if cached_data.data.is_explorable and cached_data.data.player_agent_id == cached_data.data.party_leader_id:
+            if PyImGui.collapsing_header("Loot Pickup"):
+                DrawLootPickup(cached_data)
         if PyImGui.collapsing_header("Debug Options"):
             DrawDebugWindow(cached_data)
    
     cached_data.HeroAI_windows.tools_window.process_window()
     cached_data.HeroAI_windows.tools_window.end()
+
 
 
 def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionStruct):

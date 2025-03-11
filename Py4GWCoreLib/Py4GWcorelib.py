@@ -690,37 +690,34 @@ class Keystroke:
         Keystroke.keystroke_instance().PushKey(key)
 
     @staticmethod
-    def PressCombo(modifiers):
+    def PressCombo(modifiers: list[int]):
         """
         Purpose: Simulate a key press event for multiple keys using scan codes.
         Args:
             modifiers (list of Key): The list of keys to press.
         Returns: None
         """
-        keys = [key.value for key in modifiers]
-        Keystroke.keystroke_instance().PressKeyCombo(keys)
+        Keystroke.keystroke_instance().PressKeyCombo(modifiers)
 
     @staticmethod
-    def ReleaseCombo(modifiers):
+    def ReleaseCombo(modifiers: list[int]):
         """
         Purpose: Simulate a key release event for multiple keys using scan codes.
         Args:
             modifiers (list of Key): The list of keys to release.
         Returns: None
         """
-        keys = [key.value for key in modifiers]
-        Keystroke.keystroke_instance().ReleaseKeyCombo(keys)
+        Keystroke.keystroke_instance().ReleaseKeyCombo(modifiers)
 
     @staticmethod
-    def PressAndReleaseCombo(modifiers):
+    def PressAndReleaseCombo(modifiers: list[int]):
         """
         Purpose: Simulate a key press and release event for multiple keys using scan codes.
         Args:
             modifiers (list of Key): The list of keys to press and release.
         Returns: None
         """
-        keys = [key.value for key in modifiers]
-        Keystroke.keystroke_instance().PushKeyCombo(keys)
+        Keystroke.keystroke_instance().PushKeyCombo(modifiers)
 
 
 arrived_timer = Timer()

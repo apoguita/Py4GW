@@ -55,11 +55,9 @@ class GameData:
         self.player_is_moving = False
         self.is_melee = False
         #AgentArray data
-        self.enemy_array = []
         self.nearest_enemy = 0
         self.lowest_ally = 0
         self.nearest_npc = 0
-        self.nearest_item = 0
         self.nearest_spirit = 0
         self.lowest_minion = 0
         self.nearest_corpse = 0
@@ -70,7 +68,6 @@ class GameData:
         self.angle_changed = False
         self.old_angle = 0.0
         self.free_slots_in_inventory = 0
-        self.nearest_item = 0
         self.target_id = 0
         
         #control status vars
@@ -130,11 +127,9 @@ class GameData:
         self.player_is_moving = Agent.IsMoving(self.player_agent_id)
         self.player_is_melee = Agent.IsMelee(self.player_agent_id)
         #AgentArray data
-        self.enemy_array = AgentArray.GetEnemyArray()
         self.pet_id = TargetPet(self.player_agent_id)
         #combat field data
         self.free_slots_in_inventory = Inventory.GetFreeSlotCount()
-        self.nearest_item = TargetNearestItem()
         self.target_id = Player.GetTargetID()
         
     
@@ -168,6 +163,7 @@ class CacheData:
             self.auto_attack_timer = Timer()
             self.auto_attack_timer.Start()
             self.auto_attack_time = 750
+            self.draw_floating_loot_buttons = False
             self.reset()
             
             self._initialized = True 
@@ -213,9 +209,9 @@ class CacheData:
             self.data.update()
             
             if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
-                self.data.in_aggro = self.InAggro(self.data.enemy_array, Range.Earshot.value)
+                self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
             else:
-                self.data.in_aggro = self.InAggro(self.data.enemy_array, Range.Spellcast.value)
+                self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Spellcast.value)
                 
             if self.data.in_aggro:
                 self.stay_alert_timer.Reset()

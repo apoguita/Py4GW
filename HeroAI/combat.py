@@ -97,7 +97,6 @@ class CombatClass:
         self.lowest_ally = TargetLowestAlly()
         self.lowest_ally_energy = TargetLowestAllyEnergy()
         self.nearest_npc = TargetNearestNpc()
-        self.nearest_item = TargetNearestItem()
         self.nearest_spirit = TargetNearestSpirit()
         self.lowest_minion = TargetLowestMinion()
         self.nearest_corpse = TargetNearestCorpse()
