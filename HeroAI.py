@@ -163,9 +163,11 @@ def draw_targetting_floating_buttons(cached_data:CacheData):
         x,y,z = Agent.GetXYZ(agent_id)
         screen_x,screen_y = Overlay().WorldToScreen(x,y,z+25)
         if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):
-            Player.ChangeTarget(agent_id)
-            Keystroke.PressAndReleaseCombo([Key.Ctrl.value, Key.Space.value])
-            #Player.Interact(agent_id,True)
+            cached_data.action_queue.add_action(Player.ChangeTarget, agent_id)
+            cached_data.action_queue.add_action(Player.Interact, agent_id, True)
+            cached_data.action_queue.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+            
+            
 
 
 def UpdateStatus(cached_data:CacheData):
