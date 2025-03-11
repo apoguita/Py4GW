@@ -16,16 +16,18 @@ class Overlay:
         world_pos = self.overlay_instance.GetMouseWorldPos()
         return world_pos.x, world_pos.y, world_pos.z
 
-    def WorldToScreen(self, x,y,z=0.0):
-        if z == 0:
-            z = self.overlay_instance.FindZ(x, y)
+    @staticmethod
+    def WorldToScreen(x,y,z=0.0):
+        if z == 0.0:
+            z = Overlay.FindZ(x, y)
 
-        screen_pos = self.overlay_instance.WorldToScreen(x, y, z)
+        screen_pos = PyOverlay.Overlay().WorldToScreen(x, y, z)
         return screen_pos.x, screen_pos.y
 
-    def FindZ (self, x, y, z=0):
+    @staticmethod
+    def FindZ (x, y, z=0):
         """Find The altitude of the ground at the given x,y coordinates based on Pathing Maps"""
-        return self.overlay_instance.FindZ(x, y, z)
+        return PyOverlay.Overlay().FindZ(x, y, z)
 
     def RefreshDrawList(self):
         self.overlay_instance.RefreshDrawList()

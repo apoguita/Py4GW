@@ -37,54 +37,45 @@ def HandleCombat(cached_data:CacheData):
 
     return cached_data.combat_handler.HandleCombat(ooc= False)
 
-looting_item =0
-loot_timer = Timer()
-loot_timer.Start()
+   
+        
+
+
+is_looting = False
+looting_timer = Timer()
+looting_timer.Reset()
+is_gold_coin = False
+looting_queue = ActionQueueNode(750)
+
 
 def Loot(cached_data:CacheData):
-    global looting_item
-    global loot_timer
-    if cached_data.data.in_aggro:  # halt operation if in combat:
-        return False
-    
-    party_number = cached_data.data.own_party_number
+    global is_looting
+    global looting_timer, looting_item_id
+    global is_gold_coin
     if not cached_data.data.is_looting_enabled:  # halt operation if looting is disabled
         return False
     
-    if cached_data.data.free_slots_in_inventory == 0:
-        return False
-    
-    item = cached_data.data.nearest_item
-    
-    if item == 0:
-        looting_item = 0
+    if cached_data.data.in_aggro:
         return False
 
-    if looting_item != item:
-        looting_item = item
+    is_gold_coin = False
+    if looting_timer.HasElapsed(750):
+        nearest_item = get_first_owned_item()
+        #if nearest_item == 0 and cached_data.data.party_leader_id == cached_data.data.player_agent_id:
+        #    nearest_item = get_gold_coins()
+            #nearest_item = get_first_unbound_item()
 
-    target =cached_data.data.target_id
-    
-    if looting_item == 0:
-        return False
-
-    if target != looting_item:
-        #Player.ChangeTarget(looting_item)
-        cached_data.action_queue.add_action(Player.ChangeTarget, looting_item)
-        #loot_timer.Reset()
-        return True
-    
-    if loot_timer.HasElapsed(750) and target == looting_item:
-        #Keystroke.PressAndRelease(Key.Space.value)
-        cached_data.action_queue.add_action(Player.Interact, target)
-        loot_timer.Reset()
-        #Player.Interact(item)
-        return True
-    else:
-        if target == 0:
+        if not nearest_item:   
+            is_looting = False
+            looting_item_id = 0
             return False
-        cached_data.action_queue.add_action(Player.ChangeTarget, target)
-        return True
+        
+        if AgentArray.IsAgentIDValid(int(nearest_item)):
+            Player.Interact(nearest_item,False)
+            is_looting = True
+            looting_timer.Reset()
+            return True
+    return False
 
 
 
@@ -148,11 +139,38 @@ def Follow(cached_data:CacheData):
     #Player.Move(xx, yy)
     cached_data.action_queue.add_action(Player.Move, xx, yy)
     return True
+    
 
+def draw_looting_floating_buttons():
+    gold_coins = get_gold_coin_array()
+    if not gold_coins:
+        return
+    for agent_id in gold_coins:
+        x,y,z = Agent.GetXYZ(agent_id)
+        screen_x,screen_y = Overlay().WorldToScreen(x,y,z+25)
+        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_COINS}##fb_{agent_id}",screen_x,screen_y):
+            Player.Interact(agent_id,False)
 
+def draw_targetting_floating_buttons(cached_data:CacheData):
+    if not Map.IsExplorable():
+        return
+    enemies = AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByCondition(enemies, lambda agent_id: Agent.IsAlive(agent_id))
+    
+    if not enemies:
+        return
+    for agent_id in enemies:
+        x,y,z = Agent.GetXYZ(agent_id)
+        screen_x,screen_y = Overlay().WorldToScreen(x,y,z+25)
+        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):
+            Player.ChangeTarget(agent_id)
+            Keystroke.PressAndReleaseCombo([Key.Ctrl.value, Key.Space.value])
+            #Player.Interact(agent_id,True)
 
 
 def UpdateStatus(cached_data:CacheData):
+    global is_looting
+    
     RegisterCandidate(cached_data) 
     UpdateCandidates(cached_data)           
     ProcessCandidateCommands(cached_data)   
@@ -166,7 +184,7 @@ def UpdateStatus(cached_data:CacheData):
     DrawMainWindow(cached_data)   
     DrawControlPanelWindow(cached_data)
     DrawMultiboxTools(cached_data)
-    
+   
     if not cached_data.data.is_explorable:  # halt operation if not in explorable area
         return
     
@@ -175,23 +193,33 @@ def UpdateStatus(cached_data:CacheData):
 
     DrawFlags(cached_data)
     
+    if cached_data.draw_floating_loot_buttons:
+        draw_looting_floating_buttons()
+    draw_targetting_floating_buttons(cached_data)
+    
     if (
         not cached_data.data.player_is_alive or
         DistanceFromLeader(cached_data) >= Range.SafeCompass.value or
         cached_data.data.player_is_knocked_down or 
-        cached_data.combat_handler.InCastingRoutine()
+        cached_data.combat_handler.InCastingRoutine() or 
+        cached_data.data.player_is_casting
     ):
+        return
+    
+     
+    if not is_looting:
+        cached_data.UdpateCombat()
+    
+        if HandleOutOfCombat(cached_data):
+            return
+    
+    if cached_data.data.player_is_moving:
         return
     
     if Loot(cached_data):
        return
-     
-    cached_data.UdpateCombat()
-    
-    if HandleOutOfCombat(cached_data):
-        return
-    
-    if cached_data.data.player_is_moving:
+   
+    if is_looting:
         return
     
     if Follow(cached_data):

@@ -88,7 +88,7 @@ class ImGui:
         return v
 
     @staticmethod
-    def floating_button(caption,x, y, width=25, height=25):
+    def floating_button(caption,x, y, width=45, height=40):
         # Set the position and size of the floating button
         PyImGui.set_next_window_pos(x-width/2, y-height/2)
         PyImGui.set_next_window_size(width, height)  # Button window size
@@ -98,17 +98,19 @@ class ImGui:
         # Create a floating, borderless window for the button
         flags=( PyImGui.WindowFlags.NoCollapse | 
             PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoMove |
             PyImGui.WindowFlags.NoScrollbar |
             PyImGui.WindowFlags.NoScrollWithMouse |
-            PyImGui.WindowFlags.NoResize |
-            PyImGui.WindowFlags.NoBackground 
+            PyImGui.WindowFlags.AlwaysAutoResize |
+            PyImGui.WindowFlags.NoBackground |
+            PyImGui.WindowFlags.NoBringToFrontOnFocus
         ) 
         
         if PyImGui.begin(f"FloatingButton_{caption}", flags):
 
             # Style adjustments for padding and alignment
-            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.ButtonTextAlign, 0.5, 0.5)  # Center text
-            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, -15.0, -5.0)  # Padding inside the button
+            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.ButtonTextAlign, 0.0, 0.0)  # Center text
+            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 5.0, 5.0)  # Padding inside the button
 
             # Create the button and check if it is clicked
             clicked = PyImGui.button(caption, width, height)
@@ -117,6 +119,7 @@ class ImGui:
             PyImGui.pop_style_var(2)
 
         PyImGui.end()
+
         return clicked  # Return True if clicked, False otherwise
     
     @staticmethod
@@ -132,7 +135,8 @@ class ImGui:
             PyImGui.WindowFlags.NoTitleBar |
             PyImGui.WindowFlags.NoScrollbar |
             PyImGui.WindowFlags.NoScrollWithMouse |
-            PyImGui.WindowFlags.AlwaysAutoResize 
+            PyImGui.WindowFlags.AlwaysAutoResize |
+            PyImGui.WindowFlags.NoBackground
         ) 
         
         PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding,0.0,0.0)

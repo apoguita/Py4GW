@@ -47,8 +47,15 @@ class AgentArray:
     def GetItemArray():
         """Purpose: Retrieve the agent array pre-filtered by items."""
         return Player.player_instance().GetItemArray()
-
-
+    @staticmethod
+    def GetOwnedItemArray(agent_id:int):
+        """Purpose: Retrieve the agent array pre filtered by owned items."""
+        return Player.player_instance().GetOwnedItemArray(agent_id)
+    @staticmethod
+    def IsAgentIDValid(agent_id):
+        """Purpose: Check if the agent ID is valid."""
+        return Player.player_instance().IsAgentIDValid(agent_id)
+    
     @staticmethod
     def GetGadgetArray():
         """Purpose: Retrieve the agent array pre filtered by gadgets."""

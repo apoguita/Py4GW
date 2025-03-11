@@ -174,7 +174,55 @@ def TargetNearestCorpse():
 
 
 def IsValidItem(item_id):
-    return (Agent.agent_instance(item_id).item_agent.owner_id == Player.GetAgentID()) or (Agent.agent_instance(item_id).item_agent.owner_id == 0)
+    if item_id == 0:
+        return False
+    
+    item_data = Agent.GetItemAgent(item_id)
+    owner_id = item_data.owner_id
+    
+    is_assigned = (owner_id == Player.GetAgentID()) or (owner_id == 0)
+    return is_assigned
+
+def get_first_owned_item():
+    agent_array = AgentArray.GetOwnedItemArray(Player.GetAgentID()) or []
+    if not agent_array:
+        return 0
+    return agent_array[0]
+
+def get_gold_coin_array():
+    gold_coins = []
+    agent_array = AgentArray.GetItemArray()
+    if not agent_array:
+        return 0
+    for agent_id in agent_array:
+        if not agent_id:
+            continue
+        item_data = Agent.GetItemAgent(agent_id)
+        if item_data.owner_id == 0:
+            item_id = item_data.item_id
+            _, item_type_name = Item.GetItemType(item_id)
+            if item_type_name == "Gold_Coin":
+                gold_coins.append(agent_id)
+                
+    return gold_coins
+
+def get_first_unbound_item():
+    agent_array = AgentArray.GetItemArray()
+    if not agent_array:
+        return 0
+    for agent_id in agent_array:
+        if not agent_id:
+            continue
+        item_data = Agent.GetItemAgent(agent_id)
+        if item_data.owner_id == 0:
+            return agent_id
+        
+def ExistsInArray(agent_id):
+    agent_array = AgentArray.GetAgentArray()
+    for agent in agent_array:
+        if agent == agent_id:
+            return True
+    return False     
 
 def TargetNearestItem():
     distance = Range.Spellcast.value
