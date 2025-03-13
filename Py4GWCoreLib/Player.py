@@ -154,6 +154,44 @@ class Player:
         Player.player_instance().SendWhisper(target_name, message)
 
     @staticmethod
+    def SendFakeChat(channel:ChatChannel, message):
+        """
+        Purpose: Send a fake chat message to a channel.
+        Args:
+            channel (char): The channel to send the message to.
+            message (str): The message to send.
+        Returns: None
+        """
+        Player.player_instance().SendFakeChat(channel.value, message)
+        
+    @staticmethod
+    def SendFakeChatColored(channel:ChatChannel, message, r, g, b):
+        """
+        Purpose: Send a fake chat message to a channel with color.
+        Args:
+            channel (char): The channel to send the message to.
+            message (str): The message to send.
+            r (int): The red color value.
+            g (int): The green color value.
+            b (int): The blue color value.
+        Returns: None
+        """
+        Player.player_instance().SendFakeChatColored(channel.value, message, r, g, b)
+        
+    @staticmethod
+    def FormatChatMessage(message, r, g, b):
+        """
+        Purpose: Format a chat message.
+        Args:
+            message (str): The message to format.
+            r (int): The red color value.
+            g (int): The green color value.
+            b (int): The blue color value.
+        Returns: str
+        """
+        return Player.player_instance().FormatChatMessage(message, r, g, b)
+
+    @staticmethod
     def ChangeTarget (agent_id):
         """
         Purpose: Change the player's target.

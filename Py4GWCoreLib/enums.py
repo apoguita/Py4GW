@@ -323,6 +323,28 @@ class HeroType(Enum):
     MercenaryHero8 = 35
     Miku = 36
     ZeiRi = 37
+    
+class ChatChannel(IntEnum):
+    CHANNEL_ALLIANCE = 0
+    CHANNEL_ALLIES = 1  # Coop with two groups for instance.
+    CHANNEL_GWCA1 = 2
+    CHANNEL_ALL = 3
+    CHANNEL_GWCA2 = 4
+    CHANNEL_MODERATOR = 5
+    CHANNEL_EMOTE = 6
+    CHANNEL_WARNING = 7  # Shows in the middle of the screen and does not parse <c> tags
+    CHANNEL_GWCA3 = 8
+    CHANNEL_GUILD = 9
+    CHANNEL_GLOBAL = 10
+    CHANNEL_GROUP = 11
+    CHANNEL_TRADE = 12
+    CHANNEL_ADVISORY = 13
+    CHANNEL_WHISPER = 14
+    CHANNEL_COUNT = 15
+
+    # Non-standard channels, but useful.
+    CHANNEL_COMMAND = 16
+    CHANNEL_UNKNOW = -1
 
 class TitleID(IntEnum):
     Hero = 0
