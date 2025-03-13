@@ -25,7 +25,7 @@ class Kabob_Window(BasicWindow):
         global kabob_selected, kabob_input, do_kabob_exchange, show_about_popup
 
         if PyImGui.collapsing_header("About - Farm Requirements"):
-            PyImGui.begin_child("About_child_window", (0, 250))
+            PyImGui.begin_child("About_child_window", (0, 235), False, 0)
             PyImGui.text("- Required Quest: Drakes on the Plain")
             PyImGui.text("- Full windwalker, +4 Earth, +1 Scyth, +1 Mysticism")
             PyImGui.text("- Whatever HP rune you can afford and attunement.")
@@ -40,20 +40,6 @@ class Kabob_Window(BasicWindow):
             PyImGui.text(f"- Will not sell Drake Flesh, Salv or Id kits.")
             PyImGui.end_child()
         PyImGui.separator()
-
-        #PyImGui.begin_child("MainCollectPanel", (0.0, 70.0), False, 0)
-        # if PyImGui.begin_table("Collect_Inputs", 2):
-        #     PyImGui.table_next_row()
-        #     PyImGui.table_next_column()
-        #     kabob_selected = PyImGui.checkbox("Farm Drake Flesh", kabob_selected)  
-        #     PyImGui.table_next_column()
-        #     kabob_input = PyImGui.input_int("# Flesh", kabob_input) if kabob_input >= 0 else 0 
-        #     PyImGui.table_next_row()
-        #     PyImGui.table_next_column()
-        #     do_kabob_exchange = PyImGui.checkbox("Exchange Drake Flesh", do_kabob_exchange)  
-        #     PyImGui.end_table()
-        #PyImGui.end_child()
-        #PyImGui.separator()
 
     def ShowConfigSettingsTabItem(self):
         global kabob_selected, kabob_input, do_kabob_exchange
@@ -115,22 +101,6 @@ class Kabob_Window(BasicWindow):
                 PyImGui.text(f"{kabob_input}")
                 PyImGui.table_next_row()
                 PyImGui.end_table()
-
-            # if PyImGui.begin_table("Collect_Results", 3):  # Use begin_table for starting a table
-            #     # Drake Kabob
-            #     PyImGui.table_next_row()
-            #     PyImGui.table_next_column()
-            #     PyImGui.text("Kabobs:")
-            #     PyImGui.table_next_column()
-            #     if kabob_selected and kabob_input > 0 and GetKabobCollected() == 0:            
-            #         PyImGui.text_colored(f"{GetKabobCollected()}", (1, 0, 0, 1))
-            #     else:
-            #         PyImGui.text_colored(f"{GetKabobCollected()}", (0, 1, 0, 1))
-            #     PyImGui.table_next_column()
-            #     PyImGui.text(f"collected of {kabob_input}")
-
-            #     PyImGui.table_next_row()
-            #     PyImGui.end_table() 
 
             if PyImGui.begin_table("Run_Times", 2):
                 PyImGui.table_next_row()
@@ -551,7 +521,7 @@ class Kabob_Farm(ReportsProgress):
 
         self.average_run_history.append(elapsed)
 
-        if len(self.average_run_history) >= 10:
+        if len(self.average_run_history) >= 100:
             self.average_run_history.pop(0)
 
         self.average_run_time = sum(self.average_run_history) / len(self.average_run_history)
@@ -577,16 +547,13 @@ class Kabob_Farm(ReportsProgress):
         try:
             turn_in = GetItemIdFromModelId(Items.Drake_Flesh)
 
-            self.Log(f"Kabob Item Id: {turn_in}")
             if turn_in == 0:
                 return
             
             items3 = self.pyMerchant.get_merchant_item_list()
-                
             if items3:
                 for item in items3:
                     if Item.GetModelID(item) == Items.Drake_Kabob:
-                        self.Log(f"Trading: {item} for a kabob")
                         self.pyMerchant.collector_buy_item(item, 0, [turn_in], [1])
 
         except Exception as e:
