@@ -1105,7 +1105,6 @@ class Routines:
                 """
                 self.waypoint = (0, 0)
                 self.tolerance = tolerance
-                self.player_instance = PyPlayer.PyPlayer()
                 self.following = False
                 self.arrived = False
                 self.timer = Timer()  # Timer to track movement start time
@@ -1119,7 +1118,7 @@ class Routines:
                 """
                 return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
 
-            def move_to_waypoint(self, x, y, tolerance=None):
+            def move_to_waypoint(self, x, y, tolerance=None, action_queue = None):
                 """
                 Move the player to the specified coordinates.
                 Args:
@@ -1132,7 +1131,10 @@ class Routines:
                 self.tolerance = tolerance if tolerance is not None else self.tolerance
                 self.following = True
                 self.arrived = False
-                self.player_instance.Move(x, y)
+                if action_queue is None:
+                    Player.Move(x, y)
+                else:
+                    action_queue.append(Player.Move, x, y)
                 self.timer.Start()
 
             def reset(self):
@@ -1144,7 +1146,7 @@ class Routines:
                 self.timer.Reset()
                 self.wait_timer.Reset()
 
-            def update(self, log_actions = False):
+            def update(self, log_actions = False, action_queue = None):
                 """
                 Update the FollowXY object's state, check if the player has reached the waypoint,
                 and issue new move commands if necessary.
@@ -1173,8 +1175,13 @@ class Routines:
                     # Re-issue the move command if the player is not moving and not casting
                     if self.wait_timer_run_once:
                         # Use the move_to_waypoint function to reissue movement
-                        Player.Move(0,0) #reset movement pointer?
-                        Player.Move(self.waypoint[0], self.waypoint[1])
+                        if action_queue is None:
+                            Player.Move(0,0) #reset movement pointer?
+                            Player.Move(self.waypoint[0], self.waypoint[1])
+                        else:
+                            action_queue.append(Player.Move, 0, 0)
+                            action_queue.append(Player.Move, (self.waypoint[0], self.waypoint[1]))
+                            
                         self.wait_timer_run_once  = False  # Disable immediate re-issue
                         self.wait_timer.Start()  # Start the wait timer to prevent spamming movement
                         if log_actions:
