@@ -1798,11 +1798,11 @@ class FSM:
 
 
 class MultiThreading:
-    def __init__(self, timeout=1.0):
+    def __init__(self, timeout = 1):
         """Initialize the thread manager."""
         self.threads = {}
         self.lock = threading.Lock()
-        self.timeout = timeout  # Time in seconds before a thread shuts down if not updated
+        self.timeout = timeout
 
     def add_thread(self, name, execute_fn, *args, **kwargs):
         """
@@ -1822,22 +1822,17 @@ class MultiThreading:
             last_keepalive = time.time()  # Store last keepalive time
 
             def wrapped_target(*args, **kwargs):
-                """Thread function that exits if not updated within timeout period."""
-                nonlocal last_keepalive
+                """Thread function that runs execute_fn() indefinitely until stopped."""
                 while not stop_event.is_set():
-                    current_time = time.time()
-
-                    # Check if the thread has been updated within the timeout period
-                    if current_time - last_keepalive > self.timeout:
-                        Py4GW.Console.Log("MultiThreading", f"Thread '{name}' shutting down due to inactivity.", Py4GW.Console.MessageType.Warning)
-                        break  # Exit thread
-
                     execute_fn(*args, **kwargs)
                     time.sleep(0.1)  # Prevents tight loops
+
+                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' exited.", Py4GW.Console.MessageType.Info)
 
             thread = threading.Thread(target=wrapped_target, args=args, kwargs=kwargs, daemon=True)
             self.threads[name] = {"thread": thread, "stop_event": stop_event, "last_keepalive": last_keepalive}
             Py4GW.Console.Log("MultiThreading", f"Thread '{name}' added.", Py4GW.Console.MessageType.Info)
+
 
     def start_thread(self, name):
         """Start the thread with the specified name."""
@@ -1858,7 +1853,23 @@ class MultiThreading:
         with self.lock:
             if name in self.threads:
                 self.threads[name]["last_keepalive"] = time.time()
-                #  Py4GW.Console.Log("MultiThreading", f"Thread '{name}' keepalive updated.", Py4GW.Console.MessageType.Debug)
+
+    def should_stop(self, name):
+        """Allows a thread to check if it should stop due to inactivity."""
+        with self.lock:
+            if name not in self.threads:
+                return True  # ✅ Thread doesn't exist, assume it should stop
+
+            thread_info = self.threads[name]
+            last_keepalive = thread_info["last_keepalive"]
+
+            # ✅ If keepalive is too old, set stop event to ensure the thread exits
+            if time.time() - last_keepalive > self.timeout:
+                thread_info["stop_event"].set()
+
+            return thread_info["stop_event"].is_set()
+
+
 
     def stop_thread(self, name):
         """Stop the thread with the specified name."""
@@ -1871,11 +1882,8 @@ class MultiThreading:
             stop_event.set()
             thread = thread_info["thread"]
             thread.join(timeout=2)
-            if thread.is_alive():
-                Py4GW.Console.Log("MultiThreading", f"Failed to stop thread '{name}' gracefully.", Py4GW.Console.MessageType.Warning)
-            else:
-                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' stopped.", Py4GW.Console.MessageType.Info)
             del self.threads[name]
+            Py4GW.Console.Log("MultiThreading", f"Thread '{name}' stopped.", Py4GW.Console.MessageType.Info)
 
     def stop_all_threads(self):
         """Stop all threads managed by this manager."""
