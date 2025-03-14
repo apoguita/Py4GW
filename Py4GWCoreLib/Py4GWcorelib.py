@@ -1264,8 +1264,8 @@ class Routines:
                             Player.Move(0,0) #reset movement pointer?
                             Player.Move(self.waypoint[0], self.waypoint[1])
                         else:
-                            action_queue.append(Player.Move, 0, 0)
-                            action_queue.append(Player.Move, (self.waypoint[0], self.waypoint[1]))
+                            action_queue.add_action(Player.Move, 0, 0)
+                            action_queue.add_action(Player.Move, (self.waypoint[0], self.waypoint[1]))
                             
                         self.wait_timer_run_once  = False  # Disable immediate re-issue
                         self.wait_timer.Start()  # Start the wait timer to prevent spamming movement
@@ -1922,7 +1922,7 @@ class FSM:
 #region MultiThreading
 
 class MultiThreading:
-    def __init__(self, timeout = 1):
+    def __init__(self, timeout = 1.0):
         """Initialize the thread manager."""
         self.threads = {}
         self.lock = threading.Lock()
