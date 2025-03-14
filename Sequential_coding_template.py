@@ -38,24 +38,25 @@ def DrawWindow():
 def SequentialCodeThread():
     """Thread function that manages counting based on ImGui button presses."""
     global MAIN_THREAD_NAME, bot_variables
+    try:
+        while True:
+            if thread_manager.should_stop(MAIN_THREAD_NAME):
+                ConsoleLog(MODULE_NAME,"thread stopping.",log= bot_variables.log_to_console)
+                break  
 
-    while True:
-        if thread_manager.should_stop(MAIN_THREAD_NAME):
-            ConsoleLog(MODULE_NAME,"thread stopping.",log= bot_variables.log_to_console)
-            break  
-
-        if not bot_variables.is_script_running:
-            sleep(1)
-            continue
-        
-        #Your code goes here
-        longeyes_ledge = 650 #Longeyes Ledge
-        Routines.Sequential.Map.TravelToOutpost(longeyes_ledge, bot_variables.action_queue, bot_variables.log_to_console)
-        
-        
-        
-
-        time.sleep(0.1)
+            if not bot_variables.is_script_running:
+                sleep(1)
+                continue
+            
+            #Your code goes here
+            longeyes_ledge = 650 #Longeyes Ledge
+            Routines.Sequential.Map.TravelToOutpost(longeyes_ledge, bot_variables.action_queue, bot_variables.log_to_console)
+            
+            time.sleep(0.1)
+    except Exception as e:
+        ConsoleLog("Main Synch Thread", f"Error in SequentialCodeThread: {str(e)}", Console.MessageType.Error, log=True)
+        bot_variables.is_script_running = False
+        bot_variables.action_queue.clear()
 #endregion
 
 #region Watchdog

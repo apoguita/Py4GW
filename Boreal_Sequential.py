@@ -12,7 +12,7 @@ selected_channel = 0
 is_script_running = False  # Controls counting
 
 # Instantiate MultiThreading manager
-thread_manager = MultiThreading()
+thread_manager = MultiThreading(0.5)
 action_queue = ActionQueueNode(100)
 #endregion
 
@@ -109,99 +109,147 @@ def IsChestFound(max_distance=2500) -> bool:
 def SequentialCodeThread():
     """Thread function that manages counting based on ImGui button presses."""
     global MAIN_THREAD_NAME, is_script_running, action_queue
+    try:
+        while True:
+            if thread_manager.should_stop(MAIN_THREAD_NAME):
+                print("Thread detected inactivity, shutting down.")
+                break  
+            
+            if not is_script_running:
+                time.sleep(0.1)
+                continue
 
-    while True:
-        if thread_manager.should_stop(MAIN_THREAD_NAME):
-            print("Thread detected inactivity, shutting down.")
-            break  
-        
-        if not is_script_running:
-            time.sleep(0.1)
-            continue
-
-        boreal_station = 675
-        #correct map?
-        if Map.GetMapID() != boreal_station:
-            print ("Traveling to boreal station")
-            action_queue.add_action(Map.Travel, boreal_station) #Map.Travel(boreal_station)
-            sleep(1)
+            boreal_station = 675
+            #correct map?
+            if Map.GetMapID() != boreal_station:
+                print ("Traveling to boreal station")
+                action_queue.add_action(Map.Travel, boreal_station) #Map.Travel(boreal_station)
+                sleep(1)
+                waititng_for_map_load = True
+                while waititng_for_map_load:
+                    if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == boreal_station:
+                        waititng_for_map_load = False
+                        break
+                    sleep(1)
+                    
+            print ("We are in boreal station, continue...")
+            print ("Loading skillbar")
+            LoadSkillBar()
+            sleep(0.5)
+            if not IsSkillBarLoaded():
+                is_script_running = False
+                continue
+            print ("Skillbar loaded")
+            if Inventory.GetFreeSlotCount() < 1 :
+                print ("Inventory full")
+                is_script_running = False
+                continue
+            
+            if Inventory.GetModelCount(22751) < 1:
+                print ("No more Lockpicks")
+                is_script_running = False
+                continue
+                
+            print ("all checks passed, starting routine")
+            
+            outpost_path = Routines.Movement.PathHandler(outpost_coordinate_list)
+            explorable_path = Routines.Movement.PathHandler(explorable_coordinate_list)
+            movement_object = Routines.Movement.FollowXY()
+            
+            print ("moving to explorable")
+            
+            follow_path(path_handler=outpost_path, movement_object=movement_object, action_queue=action_queue)
+            
             waititng_for_map_load = True
             while waititng_for_map_load:
-                if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == boreal_station:
+                if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == 499: #499 = Ice cliff chasms
                     waititng_for_map_load = False
                     break
                 sleep(1)
-                
-        print ("We are in boreal station, continue...")
-        print ("Loading skillbar")
-        LoadSkillBar()
-        sleep(0.5)
-        if not IsSkillBarLoaded():
-            is_script_running = False
-            continue
-        print ("Skillbar loaded")
-        if Inventory.GetFreeSlotCount() < 1 :
-            print ("Inventory full")
-            is_script_running = False
-            continue
-        
-        if Inventory.GetModelCount(22751) < 1:
-            print ("No more Lockpicks")
-            is_script_running = False
-            continue
             
-        print ("all checks passed, starting routine")
-        
-        outpost_path = Routines.Movement.PathHandler(outpost_coordinate_list)
-        explorable_path = Routines.Movement.PathHandler(explorable_coordinate_list)
-        movement_object = Routines.Movement.FollowXY()
-        
-        print ("moving to explorable")
-        
-        follow_path(outpost_path, movement_object, action_queue)
-        
-        waititng_for_map_load = True
-        while waititng_for_map_load:
-            if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == 499: #499 = Ice cliff chasms
-                waititng_for_map_load = False
-                break
-            sleep(1)
-        
-        print ("We are in Ice cliff chasms, continue...")
-        
-        follow_path(explorable_path, movement_object, action_queue,custom_exit_condition=lambda: IsChestFound(max_distance=2500))
+            print ("We are in Ice cliff chasms, continue...")
+            
+            follow_path(path_handler=explorable_path, movement_object= movement_object, action_queue = action_queue,custom_exit_condition=lambda: IsChestFound(max_distance=2500))
 
-        if not IsChestFound(max_distance=2500):
-            print ("No chest found") 
-            #is_script_running = False
-            continue #we restart the loop
-        
-        print ("Chest found")
-        chest_id = Routines.Targeting.GetNearestChest(max_distance=2500)
-        chest_x, chest_y = Agent.GetXY(chest_id)
-        found_chest_coord_list = [(chest_x, chest_y)]
-        chest_path = Routines.Movement.PathHandler(found_chest_coord_list)
-        follow_path(chest_path, movement_object, action_queue)
-        sleep(0.5)
-        action_queue.add_action(Player.Interact, chest_id, False)
-        
-        sleep(1)
-        action_queue.add_action(Player.SendDialog,2) #open chest
-        sleep(1)
-        nearest_item = Routines.Targeting.GetNearestItem(max_distance=300)
-        action_queue.add_action(Player.Interact, nearest_item, False)
-        sleep(1)
-        
-        #is_script_running = False #we stop the script
-        #print ("Script finished")
-        #break
+            if not IsChestFound(max_distance=2500):
+                print ("No chest found") 
+                #is_script_running = False
+                continue #we restart the loop
+            
+            print ("Chest found")
+            chest_id = Routines.Targeting.GetNearestChest(max_distance=2500)
+            chest_x, chest_y = Agent.GetXY(chest_id)
+            found_chest_coord_list = [(chest_x, chest_y)]
+            chest_path = Routines.Movement.PathHandler(found_chest_coord_list)
+            follow_path(path_handler=chest_path, movement_object= movement_object, action_queue= action_queue)
+            sleep(0.5)
+            action_queue.add_action(Player.Interact, chest_id, False)
+            
+            sleep(1)
+            action_queue.add_action(Player.SendDialog,2) #open chest
+            sleep(1)
+            nearest_item = Routines.Targeting.GetNearestItem(max_distance=300)
+            action_queue.add_action(Player.Interact, nearest_item, False)
+            sleep(1)
+            
+            #is_script_running = False #we stop the script
+            #print ("Script finished")
+            #break
+    
+    except Exception as e:
+        ConsoleLog("Main Synch Thread", f"Error in SequentialCodeThread: {str(e)}", Console.MessageType.Error, log=True)
+        is_script_running = False
+        action_queue.clear()
+
             
 #endregion   
+
+
+#region Watchdog
+def watchdog_fn():
+    """Daemon thread that monitors all active threads and shuts down unresponsive ones."""
+    global MAIN_THREAD_NAME
+
+    while True:
+        active_threads = list(thread_manager.threads.keys())
+
+        #Check for timeouts and stop unresponsive threads
+        for name in active_threads:
+            if name != "watchdog" and thread_manager.should_stop(name):  # Don't stop itself
+                ConsoleLog(f"Watchdog",f"Thread: {name}' timed out. Stopping it.",Console.MessageType.Notice,log=True)
+                thread_manager.stop_thread(name)
+
+        #If the main thread itself has timed out, shut everything down
+        if MAIN_THREAD_NAME not in thread_manager.threads or thread_manager.should_stop(MAIN_THREAD_NAME):
+            
+            print("[Watchdog] Main thread has timed out. Stopping all threads.")
+            reset_environment()
+            break  # Watchdog exits naturally, no `join()` needed
+
+        time.sleep(1)  #Adjust checking interval as needed
+
+
+#endregion
+
+#region reset_environment
+
+def reset_environment():
+    global is_script_running, action_queue
+    is_script_running = False
+    action_queue.clear()
+    thread_manager.stop_all_threads()
+
+
+#endregion
+
 
 #region globals_threading
 MAIN_THREAD_NAME = "SequentialCodeThread"
 thread_manager.add_thread(MAIN_THREAD_NAME, SequentialCodeThread)
 thread_manager.start_thread(MAIN_THREAD_NAME)
+
+thread_manager.add_thread("watchdog", watchdog_fn)
+thread_manager.start_thread("watchdog")
 #endregion
 
 def main():
@@ -210,8 +258,11 @@ def main():
     
     DrawWindow()
     
-    if action_queue.action_queue_timer.HasElapsed(action_queue.action_queue_time):
-        action_queue.execute_next()
+    if is_script_running:
+        if action_queue.action_queue_timer.HasElapsed(action_queue.action_queue_time):
+            action_queue.execute_next()
+    else:
+        action_queue.clear()
 
 
 if __name__ == "__main__":
