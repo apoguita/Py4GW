@@ -196,69 +196,27 @@ class ImGui:
     @staticmethod
     def DrawTextWithTitle(title, text_content, lines_visible=10):
         """
-        Function to display a title and multi-line text in a scrollable and configurable area.
-        Width is based on the main window's width with a margin.
-        Height is based on the number of lines_visible.
+        Display a title and a scrollable text area with proper wrapping.
         """
         margin = 20
-        max_lines = 10
-        line_padding = 4  # Add a bit of padding for readability
+        line_padding = 4
 
-        # Display the title first
+        # Display title
         PyImGui.text(title)
+        PyImGui.spacing()
 
-        # Get the current window size and adjust for margin to calculate content width
-        window_width = PyImGui.get_window_size()[0]
-        if window_width < 100:
-            window_width = 100
-        content_width = window_width - margin
-        text_block = text_content + "\n" + Py4GW.Console.GetCredits()
+        # Get window width with margin adjustments
+        window_width = max(PyImGui.get_window_size()[0] - margin, 100)
 
-        # Split the text content into lines by newline
-        lines = text_block.split("\n")
-        total_lines = len(lines)
+        # Calculate content height based on number of visible lines
+        line_height = PyImGui.get_text_line_height() + line_padding
+        content_height = max(lines_visible * line_height, 100)
 
-        # Limit total lines to max_lines if provided
-        if max_lines is not None:
-            total_lines = min(total_lines, max_lines)
-
-        # Get the line height from ImGui
-        line_height = PyImGui.get_text_line_height()
-        if line_height == 0:
-            line_height = 10  # Set default line height if it's not valid
-
-        # Add padding between lines and calculate content height based on visible lines
-        content_height = (lines_visible * line_height) + ((lines_visible - 1) * line_padding)
-        if content_height< 100:
-            content_height = 100
-
-        # Set up the scrollable child window with dynamic width and height
-        if PyImGui.begin_child(f"ScrollableTextArea_{title}", size=(content_width, content_height), border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
-
-            # Get the scrolling position and window size for visibility checks
-            scroll_y = PyImGui.get_scroll_y()
-            scroll_max_y = PyImGui.get_scroll_max_y()
-            window_size_y = PyImGui.get_window_size()[1]
-            window_pos_y = PyImGui.get_cursor_pos_y()
-
-            # Display each line only if it's visible based on scroll position
-            for index, line in enumerate(lines):
-                # Calculate the Y position of the line based on index
-                line_start_y = window_pos_y + (index * (line_height + line_padding))
-
-                # Calculate visibility boundaries
-                line_end_y = line_start_y + line_height
-
-                # Skip rendering if the line is above or below the visible area
-                if line_end_y < scroll_y or line_start_y > scroll_y + window_size_y:
-                    continue
-
-                # Render the line if it's within the visible scroll area
-                PyImGui.text_wrapped(line)
-                PyImGui.spacing()  # Add spacing between lines for better readability
-
-            # End the scrollable child window
+        # Set up a scrollable child window
+        if PyImGui.begin_child(f"ScrollableTextArea_{title}", size=(window_width, content_height), border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+            PyImGui.text_wrapped(text_content + "\n" + Py4GW.Console.GetCredits())
             PyImGui.end_child()
+
 
 
     class WindowModule:

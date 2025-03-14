@@ -1,6 +1,4 @@
 from Py4GWCoreLib import *
-import time
-from time import sleep
 
 MODULE_NAME = "tester for everything"
 

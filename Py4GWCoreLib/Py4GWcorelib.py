@@ -2,6 +2,7 @@ import traceback
 import math
 from enum import Enum
 import time
+from time import sleep
 from collections import namedtuple, deque
 
 import Py4GW
@@ -25,6 +26,7 @@ from .Player import Player
 from .Map import Map
 from .Inventory import Inventory
 from .Skill import Skill
+from .enums import *
 
 import inspect
 import threading
@@ -32,6 +34,7 @@ import socket
 import configparser
 import os
 
+#region IniHandler
 class IniHandler:
     def __init__(self, filename: str):
         """
@@ -151,7 +154,6 @@ class IniHandler:
             config.remove_section(section)
             self.save(config)
 
-
     # ----------------------------
     # Utility Methods
     # ----------------------------
@@ -191,8 +193,31 @@ class IniHandler:
                 config.set(target_section, key, value)
             self.save(config)
 
+#endregion
 
-#utility Functions not especific of any process
+@staticmethod
+def ConsoleLog(sender, message, message_type:int=0 , log: bool = True):
+    """Logs a message with an optional message type."""
+    if log:
+        if message_type == 0:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Info)
+        elif message_type == 1:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Warning)
+        elif message_type == 2:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Error)
+        elif message_type == 3:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Debug)
+        elif message_type == 4:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Success)
+        elif message_type == 5:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Performance)
+        elif message_type == 6:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Notice)
+        else:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Info)
+
+
+#region Utils
 # Utils
 class Utils:
     from typing import Tuple
@@ -457,6 +482,8 @@ class Utils:
 
             return escape_vector
 
+#endregion
+#region Timer
 class Timer:
     def __init__(self):
         """Initialize the Timer object with default values."""
@@ -548,7 +575,8 @@ def FormatTime(time_ms, mask="hh:mm:ss:ms"):
             formatted_time = formatted_time.replace("ms", f"{milliseconds:03}")
 
         return formatted_time
-
+#endregion
+#region KeyHandler
 class Key(Enum):
     # Letters
     A = 0x41
@@ -719,7 +747,64 @@ class Keystroke:
         """
         Keystroke.keystroke_instance().PushKeyCombo(modifiers)
 
+#endregion
 
+#region ActionQueue
+
+class ActionQueue:
+    def __init__(self):
+        """Initialize the action queue."""
+        self.queue = deque() # Use deque for efficient FIFO operations
+
+    def add_action(self, action, *args, **kwargs):
+        """
+        Add an action to the queue.
+
+        :param action: Function to execute.
+        :param args: Positional arguments for the function.
+        :param kwargs: Keyword arguments for the function.
+        """
+        self.queue.append((action, args, kwargs))
+        
+    def execute_next(self):
+        """Execute the next action in the queue."""
+        if self.queue:
+            action, args, kwargs = self.queue.popleft()
+            action(*args, **kwargs)
+            
+    def is_empty(self):
+        """Check if the action queue is empty."""
+        return not bool(self.queue)
+    
+    def clear(self):
+        """Clear all actions from the queue."""
+        self.queue.clear()
+        
+class ActionQueueNode:
+    def __init__(self,throttle_time=250):
+        self.action_queue = ActionQueue()
+        self.action_queue_timer = Timer()
+        self.action_queue_timer.Start()
+        self.action_queue_time = throttle_time
+
+    def execute_next(self):
+        if self.action_queue_timer.HasElapsed(self.action_queue_time):      
+            self.action_queue.execute_next()
+            self.action_queue_timer.Reset()
+                
+    def add_action(self, action, *args, **kwargs):
+        self.action_queue.add_action(action, *args, **kwargs)
+        
+    def is_empty(self):
+        return self.action_queue.is_empty()
+    
+    def clear(self):
+        self.action_queue.clear()
+            
+            
+#endregion
+
+#region Routine
 arrived_timer = Timer()
 class Routines:
     class Checks:
@@ -1316,8 +1401,35 @@ class Routines:
                 Returns: int
                 """
                 return len(self.coordinates)
+    class Sequential:
+        class Map:                    
+            @staticmethod
+            def TravelToOutpost(outpost_id,action_queue:ActionQueueNode, log=False):
+                """
+                Purpose: Positions yourself safely on the outpost.
+                Args:
+                    outpost_id (int): The ID of the outpost to travel to.
+                    action_queue (ActionQueueNode): The action queue to add the travel action to.
+                    log (bool) Optional: Whether to log the action. Default is True.
+                Returns: None
+                """
+                from .Party import Party
+                if Map.GetMapID() != outpost_id:
+                    ConsoleLog("TravelToOutpost", f"Travelling to {Map.GetMapName(outpost_id)}", log=log)
+                    action_queue.add_action(Map.Travel, outpost_id)
+                    sleep(1)
+                    waititng_for_map_load = True
+                    while waititng_for_map_load:
+                        if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == outpost_id:
+                            waititng_for_map_load = False
+                            break
+                        sleep(1)
+                
+                ConsoleLog("TravelToOutpost", f"Arrived at {Map.GetMapName(outpost_id)}", log=log)
     
+#endregion
 
+#region BehaviorTree
 class BehaviorTree:
     class NodeState(Enum):
         RUNNING = 0
@@ -1523,6 +1635,9 @@ class BehaviorTree:
         def __init__(self, nodes=None):
             # Initialize the behavior tree with a list of nodes (can be Sequence, Selector, etc.)
             super().__init__(nodes)
+#endregion
+
+#region FSM
 
 class FSM:
 
@@ -1802,7 +1917,9 @@ class FSM:
             return self.states[current_index - 1].name
         return f"{self.name}: No previous state (first state)"
 
+#endregion
 
+#region MultiThreading
 
 class MultiThreading:
     def __init__(self, timeout = 1):
@@ -1865,12 +1982,12 @@ class MultiThreading:
         """Allows a thread to check if it should stop due to inactivity."""
         with self.lock:
             if name not in self.threads:
-                return True  # ✅ Thread doesn't exist, assume it should stop
+                return True  #Thread doesn't exist, assume it should stop
 
             thread_info = self.threads[name]
             last_keepalive = thread_info["last_keepalive"]
 
-            # ✅ If keepalive is too old, set stop event to ensure the thread exits
+            #If keepalive is too old, set stop event to ensure the thread exits
             if time.time() - last_keepalive > self.timeout:
                 thread_info["stop_event"].set()
 
@@ -1893,62 +2010,19 @@ class MultiThreading:
             Py4GW.Console.Log("MultiThreading", f"Thread '{name}' stopped.", Py4GW.Console.MessageType.Info)
 
     def stop_all_threads(self):
-        """Stop all threads managed by this manager."""
+        """Stop all threads except the watchdog, then exit the watchdog cleanly."""
         with self.lock:
-            thread_names = list(self.threads.keys())
+            # Exclude watchdog from stopping itself
+            thread_names = [name for name in self.threads.keys() if name != "watchdog"]
 
+        # Stop all worker threads first
         for name in thread_names:
             self.stop_thread(name)
 
+        #Now allow watchdog to exit naturally
+        if "watchdog" in self.threads:
+            self.threads["watchdog"]["stop_event"].set()
 
 
-class ActionQueue:
-    def __init__(self):
-        """Initialize the action queue."""
-        self.queue = deque() # Use deque for efficient FIFO operations
+#endregion
 
-    def add_action(self, action, *args, **kwargs):
-        """
-        Add an action to the queue.
-
-        :param action: Function to execute.
-        :param args: Positional arguments for the function.
-        :param kwargs: Keyword arguments for the function.
-        """
-        self.queue.append((action, args, kwargs))
-        
-    def execute_next(self):
-        """Execute the next action in the queue."""
-        if self.queue:
-            action, args, kwargs = self.queue.popleft()
-            action(*args, **kwargs)
-            
-    def is_empty(self):
-        """Check if the action queue is empty."""
-        return not bool(self.queue)
-    
-    def clear(self):
-        """Clear all actions from the queue."""
-        self.queue.clear()
-        
-class ActionQueueNode:
-    def __init__(self,throttle_time=250):
-        self.action_queue = ActionQueue()
-        self.action_queue_timer = Timer()
-        self.action_queue_timer.Start()
-        self.action_queue_time = throttle_time
-
-    def execute_next(self):
-        if self.action_queue_timer.HasElapsed(self.action_queue_time):      
-            self.action_queue.execute_next()
-            self.action_queue_timer.Reset()
-                
-    def add_action(self, action, *args, **kwargs):
-        self.action_queue.add_action(action, *args, **kwargs)
-        
-    def is_empty(self):
-        return self.action_queue.is_empty()
-    
-    def clear(self):
-        self.action_queue.clear()
-            
