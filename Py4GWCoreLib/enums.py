@@ -1,5 +1,15 @@
 from enum import Enum, IntEnum
 
+class Console:
+    class MessageType:
+        Info = 0
+        Warning = 1
+        Error = 2
+        Debug = 3
+        Success = 4
+        Performance = 5
+        Notice = 6
+        
 class Range(Enum):
     Touch = 144.0
     Adjacent = 166.0
