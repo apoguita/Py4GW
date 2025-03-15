@@ -169,7 +169,10 @@ def SequentialCodeThread():
             
             print ("We are in Ice cliff chasms, continue...")
             
-            follow_path(path_handler=explorable_path, movement_object= movement_object, action_queue = action_queue,custom_exit_condition=lambda: IsChestFound(max_distance=2500))
+            follow_path(path_handler=explorable_path, 
+                        movement_object= movement_object, 
+                        action_queue = action_queue,
+                        custom_exit_condition=lambda: IsChestFound(max_distance=2500))
 
             if not IsChestFound(max_distance=2500):
                 print ("No chest found") 
