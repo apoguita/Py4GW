@@ -46,7 +46,7 @@ from .Quest import *
 from .Py4GWcorelib import *
 from .Overlay import *
 from .UIManager import *
-
+from .Routines import *
 traceback = traceback
 math = math
 Enum = Enum
@@ -77,7 +77,15 @@ class Py4GWLogger:
 
     def flush(self):  
         pass  # Required for sys.stdout but does nothing
+    
+class Py4GWLoggerError:
+    def write(self, message):
+        if message.strip():  # Avoid logging empty lines
+            Py4GW.Console.Log("print:", f"{message.strip()}", Py4GW.Console.MessageType.Error)
+
+    def flush(self):  
+        pass  # Required for sys.stdout but does nothing
 
 # Redirect Python's print output to Py4GW Console
 sys.stdout = Py4GWLogger()
-sys.stderr = Py4GWLogger()  # Redirect errors as well
+sys.stderr = Py4GWLoggerError()
