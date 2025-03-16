@@ -69,6 +69,13 @@ class Routines:
                 if angle_diff < 90 or angle_diff > 270:
                     return True
                 return False
+            
+            @staticmethod
+            def IsValidItem(item_id):
+                from .Agent import Agent
+                from .Player import Player
+                return (Agent.agent_instance(item_id).item_agent.owner_id == Player.GetAgentID()) or (Agent.agent_instance(item_id).item_agent.owner_id == 0)
+
 
             
         class Skills:
@@ -1388,6 +1395,21 @@ class Routines:
                 
                 return True
 
+            @staticmethod
+            def LootItems(item_array:list[int], action_queue:ActionQueueNode, log=False):
+                from .Agent import Agent
+                if len(item_array) == 0:
+                    action_queue.clear()
+                    return
+                
+                for item_id in item_array:
+                    Routines.Sequential.Player.InteractTarget(action_queue)
+                    
+                while not action_queue.is_empty():
+                    sleep(0.35)
+                    
+                if log and len(item_array) > 0:
+                    ConsoleLog("LootItems", f"Looted {len(item_array)} items.", Console.MessageType.Info)
 
 
 #endregion

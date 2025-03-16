@@ -87,6 +87,21 @@ class SalvageConfig:
         self.salvage_purple_with_sup_kit = False
         self.salvage_gold_with_sup_kit = False
         
+class LootConfig:
+    def __init__(self):
+        self.loot_blues = True
+        self.loot_purples = True
+        self.loot_golds = True
+        self.loot_tomes = True
+        self.loot_white_dyes = True
+        self.loot_black_dyes = True
+        self.loot_lockpicks = True
+        self.loot_whites = True
+        self.loot_dyes = True
+        self.loot_glacial_stones = True
+        self.loot_event_items = True
+        self.loot_map_pieces = False
+        
 class Botconfig:
     def __init__(self):
         self.in_killing_routine = False
@@ -100,11 +115,13 @@ class BOTVARIABLES:
         self.action_queue = ActionQueueNode(50)
         self.merchant_queue = ActionQueueNode(750)
         self.salvage_queue = ActionQueueNode(350)
+        self.loot_queue = ActionQueueNode(1000)
         self.inventory_config = InventoryConfig()
         self.sell_config = SellConfig()
         self.id_config = IDConfig()
         self.salvage_config = SalvageConfig()
         self.config = Botconfig()
+        self.loot_config = LootConfig()
         
         self.skillbar = build()
         
@@ -292,6 +309,94 @@ def handle_death():
         reset_environment()
         return True
     return False
+
+def handle_inventory_check():
+    global bot_variables
+    if Inventory.GetFreeSlotCount() < bot_variables.inventory_config.leave_free_slots:
+        ConsoleLog(MODULE_NAME, f"Inventory is full, going to merchant.", Py4GW.Console.MessageType.Info, log=bot_variables.log_to_console)
+        return True
+    
+    if GetIDKitsToBuy() >= bot_variables.inventory_config.keep_id_kit:
+        ConsoleLog(MODULE_NAME, f"Need to buy ID kits, going to merchant.", Py4GW.Console.MessageType.Info, log=bot_variables.log_to_console)
+        return True
+    
+    if GetSalvageKitsToBuy() >= bot_variables.inventory_config.keep_salvage_kit:
+        ConsoleLog(MODULE_NAME, f"Need to buy Salvage kits, going to merchant.", Py4GW.Console.MessageType.Info, log=bot_variables.log_to_console)
+        return True
+    
+    return False
+    
+
+def GetNotHexedEnemy():
+    player_pos = Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id:not Agent.IsHexed(agent_id))
+    if len(enemy_array) == 0:
+        return 0
+    
+    return enemy_array[0]
+
+def IsValidItem(item_id):
+    return (Agent.agent_instance(item_id).item_agent.owner_id == Player.GetAgentID()) or (Agent.agent_instance(item_id).item_agent.owner_id == 0)
+
+def get_filtered_loot_array():
+    global bot_vars
+    # Get all items in the area
+    item_array = AgentArray.GetItemArray()
+
+    item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), Range.Spellcast.value)
+    item_array = AgentArray.Filter.ByCondition(item_array, lambda item_id: Routines.Checks.Agents.IsValidItem(item_id))
+    
+    # Map agent IDs to item data
+    agent_to_item_map = {
+        agent_id: Agent.GetItemAgent(agent_id).item_id
+        for agent_id in item_array
+    }
+
+    # Extract all item IDs for filtering
+    filtered_items = list(agent_to_item_map.values())
+
+    # Apply filters based on loot preferences
+    loot_preferences = {
+        "loot_event_items": {28435, 28436},
+        "loot_map_pieces": {24629, 24630, 24631, 24632},
+        "loot_glacial_stones": {27047},
+        "loot_lockpicks": {22751},
+        "loot_black_dyes": {10},
+        "loot_white_dyes": {12},
+        "loot_tomes": {21797},
+        "loot_dyes": {146}
+    }
+
+    # Apply filters based on loot preferences
+    for loot_var, banned_models in loot_preferences.items():
+        if not getattr(bot_variables.loot_config, loot_var):
+            filtered_items = ItemArray.Filter.ByCondition(
+                filtered_items, lambda item_id: Item.GetModelID(item_id) not in banned_models
+            )
+
+        
+        
+    if not bot_variables.loot_config.loot_whites:
+        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsWhite(item_id))
+    if not bot_variables.loot_config.loot_blues:
+        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsBlue(item_id))
+    if not bot_variables.loot_config.loot_purples:
+        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsPurple(item_id))
+    if not bot_variables.loot_config.loot_golds:
+        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsGold(item_id))
+
+
+    # Get the agent IDs corresponding to the filtered item IDs
+    filtered_agent_ids = [
+        agent_id for agent_id, item_id in agent_to_item_map.items()
+        if item_id in filtered_items
+    ]
+    
+    filtered_agent_ids = AgentArray.Sort.ByDistance(filtered_agent_ids, Player.GetXY())
+
+    return filtered_agent_ids
+        
 #endregion
   
 
@@ -406,8 +511,19 @@ def RunBotSequentialLogic():
         
         bot_variables.config.in_killing_routine = False
         
-        #loot
-        #salvage
+        filtered_agent_ids = get_filtered_loot_array()
+        
+        Routines.Sequential.Items.LootItems(filtered_agent_ids, bot_variables.loot_queue, log_to_console)
+            
+        items_to_idenfity = filter_identify_array()
+        Routines.Sequential.Items.IdentifyItems(items_to_idenfity, salvage_queue, log_to_console)
+        
+        items_to_salvage = filter_salvage_array()
+        Routines.Sequential.Items.SalvageItems(items_to_salvage, salvage_queue, log_to_console)
+        
+        if handle_inventory_check():
+            continue
+        
         #exit jaga
         #return to jaga
         #restart loop
@@ -538,11 +654,16 @@ def JagaMoraineSkillCasting():
         arcane_echo_slot = 7
         wastrels_demise_slot = 6
         both_ready = Routines.Checks.Skills.IsSkillSlotReady(wastrels_demise_slot) and Routines.Checks.Skills.IsSkillSlotReady(arcane_echo_slot)
-        if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot,action_queue, extra_condition=both_ready, log=log_to_console):
-            sleep(0.350)
-            
-        if Routines.Sequential.Skills.CastSkillSlot(wastrels_demise_slot,action_queue, extra_condition=both_ready, log=log_to_console):
-            sleep(0.350)
+        target = GetNotHexedEnemy()  
+        if target:
+            Routines.Sequential.Agents.ChangeTarget(target, action_queue)
+            if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot,action_queue, extra_condition=both_ready, log=log_to_console):
+                sleep(0.350)
+        target = GetNotHexedEnemy()  
+        if target:   
+            Routines.Sequential.Agents.ChangeTarget(target, action_queue)
+            if Routines.Sequential.Skills.CastSkillSlot(wastrels_demise_slot,action_queue, extra_condition=both_ready, log=log_to_console):
+                sleep(0.350)
 
 #endregion
 
@@ -669,7 +790,12 @@ def main():
             if not bot_variables.merchant_queue.is_empty():
                 bot_variables.merchant_queue.execute_next()
                 ConsoleLog(MODULE_NAME, "Item sold.", Py4GW.Console.MessageType.Info, log=bot_variables.log_to_console)
-            
+        
+        if bot_variables.loot_queue.action_queue_timer.HasElapsed(bot_variables.loot_queue.action_queue_time):
+            if not bot_variables.loot_queue.is_empty():
+                bot_variables.loot_queue.execute_next()
+                ConsoleLog(MODULE_NAME, "Item looted.", Py4GW.Console.MessageType.Info, log=bot_variables.log_to_console)   
+                
     except Exception as e:
         ConsoleLog(MODULE_NAME,f"Error: {str(e)}",Py4GW.Console.MessageType.Error,log=True)
 
