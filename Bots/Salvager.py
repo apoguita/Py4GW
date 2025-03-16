@@ -97,7 +97,7 @@ class BasicWindow:
     
     def Show(self):
         # Start Basic Window
-        PyImGui.begin(self.name, False, int(PyImGui.WindowFlags.AlwaysAutoResize))        
+        PyImGui.begin(self.name, False, int(PyImGui.WindowFlags.AlwaysAutoResize))
     
         # Start Main Content
         PyImGui.begin_child("Main Content", self.size, False, int(PyImGui.WindowFlags.AlwaysAutoResize))
@@ -105,16 +105,13 @@ class BasicWindow:
         # Show the main control, like # drake flesh or skale fins to collect
         self.ShowMainControls()
 
-        # Show the output log along the bottom always if enabled
-        PyImGui.text("ID items and buy salv kits!")
-        PyImGui.separator()
         self.Logger.DrawWindow()
 
         # Show current state of bot (e.g. Started, Outpost, Dungeon, Stopped) if enabled after logs.
         PyImGui.separator()
         PyImGui.text(f"Status: {self.script_status} \t|\t State: {self.current_state}")
 
-        # End MAIN child.        
+        # End MAIN child.
         PyImGui.end_child()
 
         # End Basic Window
@@ -145,38 +142,40 @@ class BasicWindow:
         self.current_state = newState
 
     def ShowMainControls(self):
-        PyImGui.text("=== Salvage Items ===")
-        PyImGui.begin_child("Salvage Content", (350, 130), False, int(PyImGui.WindowFlags.HorizontalScrollbar))
+        if PyImGui.collapsing_header("=== Salvage Items ===", int(PyImGui.TreeNodeFlags.DefaultOpen)):
+            PyImGui.begin_child("Salvage Content", (0, 150), False, int(PyImGui.WindowFlags.AlwaysAutoResize))
 
-        self.MakeTableAndItemList("Backpack", "Back_Salv_table", self.salve_items_bag_one)            
-        self.MakeTableAndItemList("Belt Pouch", "Belt_Salv_table", self.salve_items_bag_two)            
-        self.MakeTableAndItemList("Bag 1", "Bag1_Salv_table", self.salve_items_bag_three)                        
-        self.MakeTableAndItemList("Bag 2", "Bag2_Salv_table", self.salve_items_bag_four)
+            self.MakeTableAndItemList("Backpack", "Back_Salv_table", self.salve_items_bag_one)            
+            self.MakeTableAndItemList("Belt Pouch", "Belt_Salv_table", self.salve_items_bag_two)            
+            self.MakeTableAndItemList("Bag 1", "Bag1_Salv_table", self.salve_items_bag_three)                        
+            self.MakeTableAndItemList("Bag 2", "Bag2_Salv_table", self.salve_items_bag_four)
 
-        PyImGui.end_child()
+            PyImGui.end_child()
         PyImGui.separator()
 
-        PyImGui.text("=== Controls ===")
-        PyImGui.text(f"Salvagable Slots: {self.salve_count}")
-        PyImGui.text(f"Unidentified Slots: {self.id_count}")
+        if PyImGui.collapsing_header("=== Controls ==="):
+            PyImGui.text(f"Salvagable Slots: {self.salve_count}")
+            PyImGui.text(f"Unidentified Slots: {self.id_count}")
 
-        if PyImGui.button("ID All Items"):
-            if len(self.items_to_identify) == 0:
-                self.Log("Nothing to Id")
-                return
-            StartIdentify(self.items_to_identify)
-                  
-        PyImGui.same_line(90, -1.0)
+            if PyImGui.button("ID All Items"):
+                if len(self.items_to_identify) == 0:
+                    self.Log("Nothing to Id")
+                    return
+                StartIdentify(self.items_to_identify)
+                    
+            PyImGui.same_line(90, -1.0)
 
-        if PyImGui.button("Refresh Bags"):
-            self.Log("Salvage & Id List Refreshed")
-            self.PopulateSalvageList()
-            self.PopulateIdentifyList()
+            if PyImGui.button("Refresh Bags"):
+                self.Log("Salvage & Id List Refreshed")
+                self.PopulateSalvageList()
+                self.PopulateIdentifyList()
 
-        PyImGui.same_line(270, -1.0)
-        if PyImGui.button("Stop Action"):
-            Stop()
-        
+            PyImGui.same_line(250, -1.0)
+            if PyImGui.button("Stop Action"):
+                Stop()
+            
+        # Show the output log along the bottom always if enabled
+        PyImGui.text("ID items and buy salv kits!")
         PyImGui.separator()
 
     def MakeTableAndItemList(self, bag_collapse_name, table_name, bag_items):
@@ -337,42 +336,46 @@ class BasicWindow:
 ### --- SALVAGE ROUTINE --- ###
 class SalvageFsm(FSM):
     inventoryHandler = PyInventory.PyInventory()   
-    logFunc = None
-    window = BasicWindow()
     salvage_Items = []
     current_salvage = 0
     current_quantity = 0
-    confirmed = False
+    current_ping = 0
+    default_base_ping = 100
+    default_base_wait_no_ping = 350
     pending_stop = False
     salvage_kit = False
+    needs_confirm = False
 
     salvager_start = "Start Salvage"
-    salvager_continue = "Continue Salvage"
+    salvager_continue = "Using Salvage Kit"
+    salvager_ping_check_1 = "Salvaging"
     salvager_finish = "Finish Salvage"
-    salvager_check_done = "Salvaging Done?"
 
-    def __init__(self, window=BasicWindow(), name="SalvageFsm", logFunc=None):
+    def __init__(self, window=BasicWindow(), name="SalvageFsm", logFunc=None, pingHandler=Py4GW.PingHandler()):
         super().__init__(name)
 
         self.window = window
         self.name = name
         self.logFunc = logFunc
-
+        self.pingHandler = pingHandler        
+        self.ping_timer = Timer()
+        
         self.AddState(self.salvager_start,
-                        execute_fn=lambda: self.ExecuteStep(self.salvager_start, self.StartSalvage()),
-                        transition_delay_ms=100)
+                      execute_fn=lambda: self.ExecuteStep(self.salvager_start, self.SetMaxPing()),
+                      transition_delay_ms=150)
         self.AddState(self.salvager_continue,
-                        execute_fn=lambda: self.ExecuteStep(self.salvager_continue, self.ContinueSalvage()),
-                        transition_delay_ms=100)
+                        execute_fn=lambda: self.ExecuteStep(self.salvager_continue, self.StartSalvage()),
+                        transition_delay_ms=150)
+        self.AddState(self.salvager_ping_check_1,
+                        execute_fn=lambda: self.ExecuteStep(self.salvager_ping_check_1, None),
+                        exit_condition=lambda: self.CheckPingContinue(),
+                        run_once=False)
         self.AddState(self.salvager_finish,
-                        execute_fn=lambda: self.ExecuteStep(self.salvager_finish, self.FinishSalvage()),
-                        transition_delay_ms=100)
-        self.AddState(self.salvager_check_done,
                         execute_fn=lambda: self.EndSalvageLoop(),
-                        transition_delay_ms=100)
+                        transition_delay_ms=150)
     
     def Log(self, text, msgType=Py4GW.Console.MessageType.Info):
-        if issubclass(type(self.window), BasicWindow):            
+        if isinstance(self.window, BasicWindow):
             self.window.Log(text, msgType)
 
     def ExecuteStep(self, state, function):
@@ -386,19 +389,37 @@ class SalvageFsm(FSM):
             self.Log(f"Calling function {function.__name__} failed. {str(e)}", Py4GW.Console.MessageType.Error)
 
     def UpdateState(self, state):
-        if issubclass(type(self.window), BasicWindow):
+        if isinstance(self.window, BasicWindow):
             self.window.UpdateState(state)
 
     def IsExecuting(self):
         return self.is_started() and not self.is_finished()
     
+    def SetMaxPing(self):        
+        if self.pingHandler:
+            self.current_ping = self.pingHandler.GetMaxPing()
+
+    def CheckPingContinue(self):
+        if self.ping_timer:
+            if not self.ping_timer.IsRunning():
+                self.ping_timer.Start()
+
+            if not self.ping_timer.HasElapsed(self.current_ping*2):
+                return False
+            
+            self.ping_timer.Stop()
+        return True
+
     def SetSalvageItems(self, salvageItems):
         self.salvage_Items = salvageItems
+        
+    def GetSalvageItemCount(self) -> int:
+        return len(self.salvage_Items)
 
     def StartSalvage(self):
-        salvage_kit = Inventory.GetFirstSalvageKit()
+        kitId = Inventory.GetFirstSalvageKit()
         
-        if salvage_kit == 0:
+        if kitId == 0:
             self.Log("No Salvage Kit")
             self.salvage_kit = False
             self.confirmed = False
@@ -413,30 +434,11 @@ class SalvageFsm(FSM):
         if self.current_salvage == 0:
             return False        
 
-        self.inventoryHandler.StartSalvage(salvage_kit, self.current_salvage)
-
-    def ContinueSalvage(self):
-        if not self.salvage_kit:
-            return
+        Inventory.SalvageItem(self.current_salvage, kitId)
         
-        if not Item.Rarity.IsWhite(self.current_salvage):  
-            self.confirmed = True
-            Keystroke.PressAndRelease(Key.Y.value)
-        #this is a fix for salvaging with a lesser kit, it will press Y to confirm the salvage
-        #this produces the default key for minions to open, need to implenet an IF statement 
-        #to check wich type os salvaging youre performing
-        #the game itself wont salvage an unidentified item, so be aware of that   
-        self.inventoryHandler.HandleSalvageUI()
-        pass
-
-    def FinishSalvage(self):
-        if not self.salvage_kit:
-            return
-        
-        self.inventoryHandler.FinishSalvage()
-        pass
-
     def EndSalvageLoop(self):
+        Inventory.AcceptSalvageMaterialsWindow()
+
         if not self.salvage_kit or self.pending_stop:
             try:
                 if self.window:
@@ -446,11 +448,7 @@ class SalvageFsm(FSM):
 
             return
         
-        if not self.IsFinishedSalvage():
-            if self.confirmed:  
-                Keystroke.PressAndRelease(Key.Y.value)
-
-            self.confirmed = False            
+        if not self.IsFinishedSalvage():   
             self.jump_to_state_by_name(self.salvager_start)
         else:
             self.finished = True   
@@ -462,32 +460,31 @@ class SalvageFsm(FSM):
         
         return
     
-    def IsFinishedSalvage(self): 
-        salvage_kit = Inventory.GetFirstSalvageKit()
-        
+    def IsFinishedSalvage(self):
         if self.current_salvage != 0:
             self.current_quantity -= 1
 
-            if self.current_quantity == 0:
+            if self.current_quantity <= 0:
                 self.current_salvage = 0
-
-        if self.current_salvage == 0:
-            return True
         
-        if salvage_kit == 0:
+        kitId = Inventory.GetFirstSalvageKit()
+        
+        if kitId == 0:
             self.Log("No Salvage Kit")
+            self.salvage_kit = False
             return True
 
-        return False
+        return len(self.salvage_Items) == 0
         
     def start(self):
         self.pending_stop = False
         super().start()
+
     def stop(self):
         self.current_salvage = 0
         self.pending_stop = True
-### --- SALVAGE ROUTINE --- ###
 
+### --- SALVAGE ROUTINE --- ###
 class IdentifyFsm(FSM):
     logFunc = None
     window = BasicWindow()
