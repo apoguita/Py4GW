@@ -1,9 +1,13 @@
 from Py4GWCoreLib import *
-import time
 import sys
 import os
 import ctypes
 import subprocess
+
+#*******************************************************************************
+#*********  Start of manual import of external libraries  ***********************
+#*******************************************************************************
+# Automatically detect Python installation path
 
 def find_system_python():
     """ Automatically detects the system Python installation path """
@@ -26,7 +30,7 @@ if not system_python_path:
     print("Error: Could not detect system Python!")
     sys.exit(1)
 
-print("Detected system Python path:", system_python_path)
+#print("Detected system Python path:", system_python_path)
 
 # Define paths dynamically
 site_packages_path = os.path.join(system_python_path, "Lib", "site-packages")
@@ -58,6 +62,10 @@ try:
     print("win32pipe successfully imported!")
 except ModuleNotFoundError as e:
     print(f"win32pipe import failed: {e}")
+    
+#*******************************************************************************
+#*********  End of manual import of external libraries  ***********************
+#*******************************************************************************
 
 MODULE_NAME = "tester for everything"
 

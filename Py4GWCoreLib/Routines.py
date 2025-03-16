@@ -5,6 +5,7 @@ from Py4GWCoreLib import ActionQueueNode
 from time import sleep
 from .enums import *
 import inspect
+import math
 
 arrived_timer = Timer()
 
@@ -17,6 +18,59 @@ class Routines:
                 from .Inventory import Inventory
                 return Inventory.GetFreeSlotCount() > 0 and Inventory.GetModelCount(22751) > 0 
 
+        class Effects:
+            @staticmethod
+            def HasBuff(agent_id, skill_id):
+                from .Effect import Effects 
+                if Effects.BuffExists(agent_id, skill_id) or Effects.EffectExists(agent_id, skill_id):
+                    return True
+                return False
+            
+        class Agents:
+            @staticmethod
+            def InDanger(aggro_area=Range.Earshot):
+                from .Agent import Agent
+                from .Player import Player
+                from .AgentArray import AgentArray
+                enemy_array = AgentArray.GetEnemyArray()
+                enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= aggro_area.value)
+                enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
+                enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
+                if len(enemy_array) > 0:
+                    return True
+                return False
+    
+            @staticmethod
+            def IsEnemyBehind (agent_id):
+                from .Agent import Agent
+                from .Player import Player
+
+                player_agent_id = Player.GetAgentID()
+                target = Player.GetTargetID()
+                player_x, player_y = Agent.GetXY(player_agent_id)
+                player_angle = Agent.GetRotationAngle(player_agent_id)  # Player's facing direction
+                nearest_enemy = agent_id
+                if target == 0:
+                    Player.ChangeTarget(nearest_enemy)
+                    target = nearest_enemy
+                nearest_enemy_x, nearest_enemy_y = Agent.GetXY(nearest_enemy)
+                            
+
+                # Calculate the angle between the player and the enemy
+                dx = nearest_enemy_x - player_x
+                dy = nearest_enemy_y - player_y
+                angle_to_enemy = math.atan2(dy, dx)  # Angle in radians
+                angle_to_enemy = math.degrees(angle_to_enemy)  # Convert to degrees
+                angle_to_enemy = (angle_to_enemy + 360) % 360  # Normalize to [0, 360]
+
+                # Calculate the relative angle to the enemy
+                angle_diff = (angle_to_enemy - player_angle + 360) % 360
+
+                if angle_diff < 90 or angle_diff > 270:
+                    return True
+                return False
+
+            
         class Skills:
             @staticmethod
             def HasEnoughEnergy(agent_id, skill_id):
@@ -93,6 +147,295 @@ class Routines:
                     return False
 
                 return True
+            
+            @staticmethod
+            def IsSkillIDReady(skill_id):
+                from .Skillbar import SkillBar
+                skill = SkillBar.GetSkillData(SkillBar.GetSlotBySkillID(skill_id))
+                recharge = skill.recharge
+                return recharge == 0
+
+            @staticmethod
+            def IsSkillSlotReady(skill_slot):
+                from .Skillbar import SkillBar
+                skill = SkillBar.GetSkillData(skill_slot)
+                return skill.recharge == 0
+            
+            @staticmethod    
+            def CanCast():
+                from .Agent import Agent
+                from .Player import Player
+                from .Skillbar import SkillBar
+                
+                player_agent_id = Player.GetAgentID()
+
+                if (
+                    Agent.IsCasting(player_agent_id) 
+                    or Agent.GetCastingSkill(player_agent_id) != 0
+                    or Agent.IsKnockedDown(player_agent_id)
+                    or Agent.IsDead(player_agent_id)
+                    or SkillBar.GetCasting() != 0
+                ):
+                    return False
+                return True
+            
+            @staticmethod
+            def GetEnergyCostWithEffects(skill_id, agent_id):
+                """Retrieve the actual energy cost of a skill by its ID and effects.
+
+                Args:
+                    skill_id (int): ID of the skill.
+                    agent_id (int): ID of the agent (player or hero).
+
+                Returns:
+                    float: Final energy cost after applying all effects.
+                        Values are rounded to integers.
+                        Minimum cost is 0 unless otherwise specified by an effect.
+                """
+                from .Effect import Effects
+                from .Skill import Skill
+                # Get base energy cost for the skill
+                cost = Skill.skill_instance(skill_id).energy_cost
+
+                # Adjust base cost for special cases (API inconsistencies)
+                if cost == 11:
+                    cost = 15    # True cost is 15
+                elif cost == 12:
+                    cost = 25    # True cost is 25
+
+                # Get all active effects on the agent
+                player_effects = Effects.GetEffects(agent_id)
+
+                # Process each effect in order of application
+                # Effects are processed in this specific order to match game mechanics
+                for effect in player_effects:
+                    effect_id = effect.skill_id
+                    attr = Effects.EffectAttributeLevel(agent_id, effect_id)
+
+                    match effect_id:
+                        case 469:  # Primal Echoes - Forces Signets to cost 10 energy
+                            if Skill.Flags.IsSignet(skill_id):
+                                cost = 10  # Fixed cost regardless of other effects
+                                continue  # Allow other effects to modify this cost
+
+                        case 475:  # Quickening Zephyr - Increases energy cost by 30%
+                            cost *= 1.30   # Using multiplication instead of addition for better precision
+                            continue
+
+                        case 1725:  # Roaring Winds - Increases Shout/Chant cost based on attribute level
+                            if Skill.Flags.IsChant(skill_id) or Skill.Flags.IsShout(skill_id):
+                                match attr:
+                                    case a if 0 < a <= 1:
+                                        cost += 1
+                                    case a if 2 <= a <= 5:
+                                        cost += 2
+                                    case a if 6 <= a <= 9:
+                                        cost += 3
+                                    case a if 10 <= a <= 13:
+                                        cost += 4
+                                    case a if 14 <= a <= 16:
+                                        cost += 5
+                                    case a if 17 <= a <= 20:
+                                        cost += 6
+                                continue
+
+                        case 1677:  # Veiled Nightmare - Increases all costs by 40%
+                            cost *= 1.40
+                            continue
+
+                        case 856:  # "Kilroy Stonekin" - Reduces all costs by 50%
+                            cost *= 0.50
+                            continue
+
+                        case 1115:  # Air of Enchantment
+                            if Skill.Flags.IsEnchantment(skill_id):
+                                cost -= 5
+                            continue
+
+                        case 1223:  # Anguished Was Lingwah
+                            if Skill.Flags.IsHex(skill_id) and Skill.GetProfession(skill_id)[0] == 8:
+                                match attr:
+                                    case a if 0 < a <= 1:
+                                        cost -= 1
+                                    case a if 2 <= a <= 5:
+                                        cost -= 2
+                                    case a if 6 <= a <= 9:
+                                        cost -= 3
+                                    case a if 10 <= a <= 13:
+                                        cost -= 4
+                                    case a if 14 <= a <= 16:
+                                        cost -= 5
+                                    case a if 17 <= a <= 20:
+                                        cost -= 6
+                                    case a if a > 20:
+                                        cost -= 7
+                                continue
+
+                        case 1220:  # Attuned Was Songkai
+                            if Skill.Flags.IsSpell(skill_id) or Skill.Flags.IsRitual(skill_id):
+                                percentage = 5 + (attr * 3) if attr <= 20 else 68
+                                cost -= cost * (percentage / 100)
+                            continue
+
+                        case 596:  # Chimera of Intensity
+                            cost -= cost * 0.50
+                            continue
+
+                        case 806:  # Cultist's Fervor
+                            if Skill.Flags.IsSpell(skill_id) and Skill.GetProfession(skill_id)[0] == 4:
+                                match attr:
+                                    case a if 0 < a <= 1:
+                                        cost -= 1
+                                    case a if 2 <= a <= 4:
+                                        cost -= 2
+                                    case a if 5 <= a <= 7:
+                                        cost -= 3
+                                    case a if 8 <= a <= 10:
+                                        cost -= 4
+                                    case a if 11 <= a <= 13:
+                                        cost -= 5
+                                    case a if 14 <= a <= 16:
+                                        cost -= 6
+                                    case a if 17 <= a <= 19:
+                                        cost -= 7
+                                    case a if a > 19:
+                                        cost -= 8
+                                continue
+
+                        case 310:  # Divine Spirit
+                            if Skill.Flags.IsSpell(skill_id) and Skill.GetProfession(skill_id)[0] == 3:
+                                cost -= 5
+                            continue
+
+                        case 1569:  # Energizing Chorus
+                            if Skill.Flags.IsChant(skill_id) or Skill.Flags.IsShout(skill_id):
+                                match attr:
+                                    case a if 0 < a <= 1:
+                                        cost -= 3
+                                    case a if 2 <= a <= 5:
+                                        cost -= 4
+                                    case a if 6 <= a <= 9:
+                                        cost -= 5
+                                    case a if 10 <= a <= 13:
+                                        cost -= 6
+                                    case a if 14 <= a <= 16:
+                                        cost -= 7
+                                    case a if 17 <= a <= 20:
+                                        cost -= 8
+                                    case a if a > 20:
+                                        cost -= 9
+                                continue
+
+                        case 474:  # Energizing Wind
+                            if cost >= 15:
+                                cost -= 15
+                            else:
+                                cost = 0
+                            continue
+
+                        case 2145:  # Expert Focus
+                            if Skill.Flags.IsAttack(skill_id) and Skill.Data.GetWeaponReq(skill_id) == 2:
+                                match attr:
+                                    case a if 0 < a <= 7:
+                                        cost -= 1
+                                    case a if a > 8:
+                                        cost -= 2
+                                    
+
+                        case 199:  # Glyph of Energy
+                            if Skill.Flags.IsSpell(skill_id):
+                                if attr == 0:
+                                    cost -= 10
+                                else:
+                                    cost -= (10 + attr)
+
+                        case 200:  # Glyph of Lesser Energy
+                            if Skill.Flags.IsSpell(skill_id):
+                                match attr:
+                                    case 0:
+                                        cost -= 10
+                                    case a if 1 <= a <= 2:
+                                        cost -= 11
+                                    case a if 3 <= a <= 4:
+                                        cost -= 12
+                                    case a if 5 <= a <= 6:
+                                        cost -= 13
+                                    case a if 7 <= a <= 8:
+                                        cost -= 14
+                                    case a if 9 <= a <= 10:
+                                        cost -= 15
+                                    case a if 11 <= a <= 12:
+                                        cost -= 16
+                                    case a if 13 <= a <= 14:
+                                        cost -= 17
+                                    case 15:
+                                        cost -= 18
+                                    case a if 16 <= a <= 16:
+                                        cost -= 19
+                                    case a if 17 <= a <= 18:
+                                        cost -= 20
+                                    case a if a >= 20:
+                                        cost -= 21
+
+                        case 1394:  # Healer's Covenant
+                            if Skill.Flags.IsSpell(skill_id) and Skill.Attribute.GetAttribute(skill_id) == 15:
+                                match attr:
+                                    case a if 0 < a <= 3:
+                                        cost -= 1
+                                    case a if 4 <= a <= 11:
+                                        cost -= 2
+                                    case a if 12 <= a <= 18:
+                                        cost -= 3
+                                    case a if a >= 19:
+                                        cost -= 4
+
+                        case 763:  # Jaundiced Gaze
+                            if Skill.Flags.IsEnchantment(skill_id):
+                                match attr:
+                                    case 0:
+                                        cost -= 1
+                                    case a if 1 <= a <= 2:
+                                        cost -= 2
+                                    case a if 3 <= a <= 4:
+                                        cost -= 3
+                                    case 5:
+                                        cost -= 4
+                                    case a if 6 <= a <= 7:
+                                        cost -= 5
+                                    case a if 8 <= a <= 9:
+                                        cost -= 6
+                                    case 10:
+                                        cost -= 7
+                                    case a if 11 <= a <= 12:
+                                        cost -= 8
+                                    case a if 13 <= a <= 14:
+                                        cost -= 9
+                                    case 15:
+                                        cost -= 10
+                                    case a if 16 <= a <= 17:
+                                        cost -= 11
+                                    case a if 18 <= a <= 19:
+                                        cost -= 12
+                                    case 20:
+                                        cost -= 13
+                                    case a if a > 20:
+                                        cost -= 14
+
+                        case 1739:  # Renewing Memories
+                            if Skill.Flags.IsItemSpell(skill_id) or Skill.Flags.IsWeaponSpell(skill_id):
+                                percentage = 5 + (attr * 2) if attr <= 20 else 47
+                                cost -= cost * (percentage / 100)
+
+                        case 1240:  # Soul Twisting
+                            if Skill.Flags.IsRitual(skill_id):
+                                cost = 10  # Fixe le coût à 10
+
+                        case 987:  # Way of the Empty Palm
+                            if Skill.Data.GetCombo(skill_id) == 2 or Skill.Data.GetCombo(skill_id) == 3:  # Attaque double ou secondaire
+                                cost = 0
+
+                cost = max(0, cost)
+                return cost
 
     #region Transitions
     class Transition:
@@ -187,14 +530,8 @@ class Routines:
             
             return map_loaded
 
-    #region Targeting
+    #region Targetting
     class Targeting:
-        @staticmethod
-        def TargetMerchant():
-            from .Player import Player
-            """Target the nearest merchant. within 5000 units"""
-            Player.SendChatCommand("target [Merchant]")
-            
         @staticmethod
         def InteractTarget():
             from .Player import Player
@@ -210,9 +547,66 @@ class Routines:
             target_id = Player.GetTargetID()
             target_x, target_y = Agent.GetXY(target_id)
             return Utils.Distance((player_x, player_y), (target_x, target_y)) < 100
-
+    #endregion
+    #region Agents
+    class Agents:    
         @staticmethod
-        def GetNearestItem(max_distance=5000):
+        def GetNearestNPCXY(x,y, distance):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            scan_pos = (x,y)
+            npc_array = AgentArray.GetNPCMinipetArray()
+            npc_array = AgentArray.Filter.ByDistance(npc_array,scan_pos, distance)
+            npc_array = AgentArray.Sort.ByDistance(npc_array, scan_pos)
+            if len(npc_array) > 0:
+                return npc_array[0]
+            return 0    
+                   
+        @staticmethod
+        def GetNearestNPC(distance):
+            from .Player import Player
+            player_pos = Player.GetXY()
+            return Routines.Agents.GetNearestNPCXY(player_pos[0], player_pos[1], distance)
+      
+         
+        @staticmethod
+        def GetFilteredEnemyArray(x,y,max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+            """
+            Purpose: Get the nearest enemy within the specified range.
+            Args:
+                range (int): The maximum distance to search for enemies.
+            Returns: Agent ID or None
+            """
+            enemy_array = AgentArray.GetEnemyArray()
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance((x,y), Agent.GetXY(agent_id)) <= max_distance)
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
+            return enemy_array
+                     
+        @staticmethod
+        def GetNearestEnemy(max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+            """
+            Purpose: Get the nearest enemy within the specified range.
+            Args:
+                range (int): The maximum distance to search for enemies.
+            Returns: Agent ID or None
+            """
+            enemy_array = AgentArray.GetEnemyArray()
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= max_distance)
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
+            if len(enemy_array) > 0:
+                return enemy_array[0]
+            return 0
+            
+        @staticmethod
+        def GetNearestItem(max_distance=5000.0):
             from .AgentArray import AgentArray
             from .Player import Player
             """
@@ -382,6 +776,7 @@ class Routines:
 
             return best_target
 
+
     #region Movement
     class Movement:
         @staticmethod
@@ -497,7 +892,7 @@ class Routines:
                             Player.Move(0,0) #reset movement pointer?
                             Player.Move(self.waypoint[0], self.waypoint[1])
                         else:
-                            action_queue.add_action(Player.Move, 0, 0)
+                            action_queue.add_action(Player.Move, self.waypoint[0]+1, self.waypoint[1]+1)
                             action_queue.add_action(Player.Move, self.waypoint[0], self.waypoint[1])
                             
                         self.wait_timer_run_once  = False  # Disable immediate re-issue
@@ -643,6 +1038,21 @@ class Routines:
                 action_queue.add_action(Player.Interact, Player.GetTargetID())
                 sleep(0.3)
                 
+            @staticmethod
+            def SendDialog(dialog_id:str, action_queue:ActionQueueNode):
+                from .Player import Player
+                action_queue.add_action(Player.SendDialog, int(dialog_id, 16))
+                sleep(0.3)
+
+            @staticmethod
+            def SetTitle(title_id:int, action_queue:ActionQueueNode, log=False):
+                from .Player import Player
+                action_queue.add_action(Player.SetActiveTitle, title_id)
+                sleep(0.3)   
+                if log:
+                    ConsoleLog("SetTitle", f"Setting title to {title_id}", Console.MessageType.Info) 
+
+                
         class Movement:
             @staticmethod
             def FollowPath(path_handler, movement_object, action_queue, custom_exit_condition= lambda: False):  
@@ -654,13 +1064,13 @@ class Routines:
                     #this routine performs the follow, it uses the same movement objects as the asynch method
                     movement_object.update(action_queue=action_queue)
                     if movement_object.is_following():
-                        sleep(0.3)
+                        sleep(0.1)
                         continue
                         
                     point_to_follow = path_handler.advance()
                     if point_to_follow is not None:
                         movement_object.move_to_waypoint(point_to_follow[0], point_to_follow[1])
-                        sleep(0.3)
+                        sleep(0.1)
                 
         class Skills:
             @staticmethod
@@ -677,6 +1087,40 @@ class Routines:
                 action_queue.add_action(SkillBar.LoadSkillTemplate, skill_template)
                 ConsoleLog("LoadSkillbar", f"Loading skill Template {skill_template}", log=log)
                 sleep(0.5)
+            
+            @staticmethod    
+            def CastSkillID (skill_id:int, action_queue:ActionQueueNode,extra_condition=True, log=False):
+                from .Skillbar import SkillBar
+                from .Skill import Skill
+                from .Player import Player
+                player_agent_id = Player.GetAgentID()
+                enough_energy = Routines.Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
+                skill_ready = Routines.Checks.Skills.IsSkillIDReady(skill_id)
+                
+                if not(enough_energy and skill_ready and extra_condition):
+                    return False
+                action_queue.add_action(SkillBar.UseSkill, SkillBar.GetSlotBySkillID(skill_id))
+                if log:
+                    ConsoleLog("CastSkillID", f"Cast {Skill.GetName(skill_id)}, slot: {SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
+                return True
+            
+            
+            @staticmethod
+            def CastSkillSlot(slot:int, action_queue:ActionQueueNode,extra_condition=True, log=False):
+                from .Skillbar import SkillBar
+                from .Skill import Skill
+                from .Player import Player
+                player_agent_id = Player.GetAgentID()
+                skill_id = SkillBar.GetSkillIDBySlot(slot)
+                enough_energy = Routines.Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
+                skill_ready = Routines.Checks.Skills.IsSkillSlotReady(slot)
+                
+                if not(enough_energy and skill_ready and extra_condition):
+                    return False
+                action_queue.add_action(SkillBar.UseSkill, slot)
+                if log:
+                    ConsoleLog("CastSkillSlot", f"Cast {Skill.GetName(skill_id)}, slot: {SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
+                return True
                 
         class Map:  
             @staticmethod
@@ -739,29 +1183,30 @@ class Routines:
                 
                 ConsoleLog("WaitforMapLoad", f"Arrived at {Map.GetMapName(map_id)}", log=log)
                 
-        class Targeting:
+        class Agents:
             @staticmethod
-            def TargetNearestNPC(action_queue:ActionQueueNode):
-                from .AgentArray import AgentArray
+            def ChangeTarget(agent_id, action_queue:ActionQueueNode):
                 from .Player import Player
-                npc_array = AgentArray.GetNPCMinipetArray()
-                npc_array = AgentArray.Filter.ByDistance(npc_array,Player.GetXY(), 200)
-                npc_array = AgentArray.Sort.ByDistance(npc_array, Player.GetXY())
-                if len(npc_array) > 0:
-                    action_queue.add_action(Player.ChangeTarget, npc_array[0])
-                sleep(0.25)
+                action_queue.add_action(Player.ChangeTarget, agent_id)
+                sleep(0.25)    
+                
+            @staticmethod
+            def TargetNearestNPC(distance, action_queue:ActionQueueNode):
+                nearest_npc = Routines.Agents.GetNearestNPC(distance)
+                if nearest_npc != 0:
+                    Routines.Sequential.Agents.ChangeTarget(nearest_npc, action_queue)
 
             @staticmethod
-            def TargetNearestNPCXY(x,y, action_queue:ActionQueueNode):
-                from .AgentArray import AgentArray
-                from .Player import Player
-                scan_pos = (x,y)
-                npc_array = AgentArray.GetNPCMinipetArray()
-                npc_array = AgentArray.Filter.ByDistance(npc_array,scan_pos, 200)
-                npc_array = AgentArray.Sort.ByDistance(npc_array, scan_pos)
-                if len(npc_array) > 0:
-                    action_queue.add_action(Player.ChangeTarget, npc_array[0])
-                sleep(0.25)
+            def TargetNearestNPCXY(x,y,distance, action_queue:ActionQueueNode):
+                nearest_npc = Routines.Agents.GetNearestNPCXY(x,y, distance)
+                if nearest_npc != 0:
+                    Routines.Sequential.Agents.ChangeTarget(nearest_npc, action_queue)
+        
+            @staticmethod
+            def TargetNearestEnemy(distance, action_queue:ActionQueueNode):
+                nearest_enemy = Routines.Agents.GetNearestEnemy(distance)
+                if nearest_enemy != 0: 
+                    Routines.Sequential.Agents.ChangeTarget(nearest_enemy, action_queue)
                 
         class Merchant:
             @staticmethod

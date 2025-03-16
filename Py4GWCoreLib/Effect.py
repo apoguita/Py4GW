@@ -105,3 +105,19 @@ class Effects:
             if effect.skill_id == skill_id:
                 return effect.attribute_level  
         return 0
+
+    @staticmethod
+    def GetEffectTimeRemaining(agent_id: int, skill_id: int):
+        """
+        Purpose: Get the remaining duration of a specific effect.
+        Args:
+            agent_id (int): The agent ID of the party member.
+            skill_id (int): The skill ID of the effect.
+        Returns: int: The remaining duration of the effect, or 0 if effect doesn't exist.
+        """
+        agent_effects = PyEffects.PyEffects(agent_id)
+        effects_list = agent_effects.GetEffects()
+        for effect in effects_list:
+            if effect.skill_id == skill_id:
+                return effect.time_remaining
+        return 0

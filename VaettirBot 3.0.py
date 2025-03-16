@@ -18,6 +18,25 @@ path_points_to_traverse_bjora_marches = [
     (-20300, 5600 )
 ]
 
+path_points_to_bounty_giver = [(13367, -20771)]
+
+path_points_to_farming_route1 = [
+    (12496, -22600), (11375, -22761), (10925, -23466), (10917, -24311), (9910, -24599),
+    (8995, -23177), (8307, -23187), (8213, -22829), (8307, -23187), (8213, -22829),
+    (8740, -22475), (8880, -21384), (8684, -20833), (9665, -20415)
+]
+
+path_points_to_farming_route2 = [
+    (10196, -20124), (9976, -18338, 150), (11316, -18056), (10392, -17512), (10114, -16948),
+    (10729, -16273), (10810, -15058), (11120, -15105, 150), (11670, -15457), (12604, -15320),
+    (12476, -16157)
+]
+
+path_points_to_killing_spot = [
+    (13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220),
+    (12703, -17239), (12684, -17184), (12526, -17275),
+]
+
 #endregion
 
 #region globals
@@ -27,12 +46,9 @@ class build:
     shroud_of_distress:int = 0
     way_of_perfection:int = 0
     heart_of_shadow:int = 0
-    wastrels_worry:int = 0
+    wastrels_demise:int = 0
     arcane_echo:int = 0
     channeling:int = 0
-
-skillbar = build()
-
 
 class InventoryConfig:
     def __init__(self):
@@ -71,24 +87,32 @@ class SalvageConfig:
         self.salvage_purple_with_sup_kit = False
         self.salvage_gold_with_sup_kit = False
         
+class Botconfig:
+    def __init__(self):
+        self.in_killing_routine = False
+        self.in_waiting_routine = False
+        self.in_looting_routine = False
 
 class BOTVARIABLES:
     def __init__(self):
         self.is_script_running = False
         self.log_to_console = True # Controls whether to print to console
-        self.action_queue = ActionQueueNode(75)
+        self.action_queue = ActionQueueNode(50)
         self.merchant_queue = ActionQueueNode(750)
         self.salvage_queue = ActionQueueNode(350)
         self.inventory_config = InventoryConfig()
         self.sell_config = SellConfig()
         self.id_config = IDConfig()
         self.salvage_config = SalvageConfig()
+        self.config = Botconfig()
+        
+        self.skillbar = build()
         
 bot_variables = BOTVARIABLES()
 #endregion
 
 # Instantiate MultiThreading manager
-thread_manager = MultiThreading(0.3)
+thread_manager = MultiThreading()
 
 #region helpers
 
@@ -103,14 +127,14 @@ def IsSkillBarLoaded():
         ConsoleLog(MODULE_NAME, f"{current_function} - This bot requires A/Me to work, halting.", Py4GW.Console.MessageType.Error, log=True)
         return False
 
-    skillbar.deadly_paradox = SkillBar.GetSkillIDBySlot(1)
-    skillbar.shadow_form = SkillBar.GetSkillIDBySlot(2)
-    skillbar.shroud_of_distress = SkillBar.GetSkillIDBySlot(3)
-    skillbar.way_of_perfection = SkillBar.GetSkillIDBySlot(4)
-    skillbar.heart_of_shadow = SkillBar.GetSkillIDBySlot(5)
-    skillbar.wastrels_worry = SkillBar.GetSkillIDBySlot(6)
-    skillbar.arcane_echo = SkillBar.GetSkillIDBySlot(7)
-    skillbar.channeling = SkillBar.GetSkillIDBySlot(8)
+    bot_variables.skillbar.deadly_paradox = Skill.GetID("Deadly_Paradox")
+    bot_variables.skillbar.shadow_form = Skill.GetID("Shadow_Form")
+    bot_variables.skillbar.shroud_of_distress = Skill.GetID("Shroud_of_Distress")
+    bot_variables.skillbar.way_of_perfection = Skill.GetID("Way_of_Perfection")
+    bot_variables.skillbar.heart_of_shadow = Skill.GetID("Heart_of_Shadow")
+    bot_variables.skillbar.wastrels_demise = Skill.GetID("Wastrel's_Demise")
+    bot_variables.skillbar.arcane_echo = Skill.GetID("Arcane_Echo")
+    bot_variables.skillbar.channeling = Skill.GetID("Channeling")
     
     ConsoleLog(MODULE_NAME, f"SkillBar Loaded.", Py4GW.Console.MessageType.Info, log=bot_variables.log_to_console)       
     return True
@@ -255,25 +279,21 @@ def filter_items_to_deposit():
     banned_models = {2992,5899}
     items_to_deposit = ItemArray.Filter.ByCondition(items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_models)
     return items_to_deposit
-    
-#endregion
 
-#region ImGui
-def DrawWindow():
-    """ImGui draw function that runs every frame."""
-    global bot_variables
+def player_is_dead_or_map_loading():
+    return Agent.IsDead(Player.GetAgentID()) or Map.IsMapLoading()
     
-    flags = PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse | PyImGui.WindowFlags.AlwaysAutoResize
-    if PyImGui.begin("Py4GW", flags):
-        PyImGui.text("This is a template for sequential coding.")
-        
-        button_text = "Start script" if not bot_variables.is_script_running else "Stop script"
-        if PyImGui.button(button_text):
-            bot_variables.is_script_running = not bot_variables.is_script_running                
+def player_is_dead():
+    return Agent.IsDead(Player.GetAgentID())
 
-    PyImGui.end()
+def handle_death():
+    if Agent.IsDead(Player.GetAgentID()):
+        ConsoleLog(MODULE_NAME, f"Player is dead while traversing {Map.GetMapName(Map.GetMapID())} . Reseting Environment.", Py4GW.Console.MessageType.Error, log=bot_variables.log_to_console)
+        reset_environment()
+        return True
+    return False
 #endregion
-    
+  
 
 #region Sequential coding
 def RunBotSequentialLogic():
@@ -281,10 +301,6 @@ def RunBotSequentialLogic():
     global MAIN_THREAD_NAME, bot_variables
 
     while True:
-        if thread_manager.should_stop(MAIN_THREAD_NAME):
-            ConsoleLog(MODULE_NAME,"thread stopping.",log= bot_variables.log_to_console)
-            break  
-
         if not bot_variables.is_script_running:
             sleep(1)
             continue
@@ -293,23 +309,28 @@ def RunBotSequentialLogic():
         path_to_merchant = Routines.Movement.PathHandler(path_points_to_merchant)
         path_to_leave_outpost = Routines.Movement.PathHandler(path_points_to_leave_outpost)
         path_to_traverse_bjora_marches = Routines.Movement.PathHandler(path_points_to_traverse_bjora_marches)
+        path_to_quest_giver = Routines.Movement.PathHandler(path_points_to_bounty_giver)
+        path_to_farming_route1 = Routines.Movement.PathHandler(path_points_to_farming_route1)
+        path_to_farming_route2 = Routines.Movement.PathHandler(path_points_to_farming_route2)
+        path_to_killing_spot = Routines.Movement.PathHandler(path_points_to_killing_spot)
         follow_object = Routines.Movement.FollowXY()
+        action_queue = bot_variables.action_queue
+        merchant_queue = bot_variables.merchant_queue
+        salvage_queue = bot_variables.salvage_queue
+        log_to_console = bot_variables.log_to_console
         
         
         longeyes_ledge = 650 #Longeyes Ledge
-        Routines.Sequential.Map.TravelToOutpost(longeyes_ledge, 
-                                                bot_variables.action_queue, 
-                                                bot_variables.log_to_console)
-        Routines.Sequential.Skills.LoadSkillbar("OwVUI2h5lPP8Id2BkAiAvpLBTAA", 
-                                                bot_variables.action_queue, 
-                                                bot_variables.log_to_console)
+        Routines.Sequential.Map.TravelToOutpost(longeyes_ledge, action_queue, log_to_console)
+        Routines.Sequential.Skills.LoadSkillbar("OwVUI2h5lPP8Id2BkAiAvpLBTAA", action_queue,log_to_console)
         
         if not IsSkillBarLoaded():
             reset_environment()
             ConsoleLog(MODULE_NAME, "You need the following build: OwVUI2h5lPP8Id2BkAiAvpLBTAA", Py4GW.Console.MessageType.Error, log=True)
             break
         
-        Routines.Sequential.Map.SetHardMode(bot_variables.action_queue, bot_variables.log_to_console)
+        Routines.Sequential.Map.SetHardMode(action_queue, log_to_console)
+        Routines.Sequential.Player.SetTitle(TitleID.Norn.value, action_queue, log_to_console)
                 
         #inventory management  
         if NeedsToHandleInventory():
@@ -317,82 +338,238 @@ def RunBotSequentialLogic():
             Routines.Sequential.Movement.FollowPath(path_to_merchant, 
                                                     follow_object, 
                                                     bot_variables.action_queue)        
-            Routines.Sequential.Targeting.TargetNearestNPC(bot_variables.action_queue)
+            Routines.Sequential.Agents.TargetNearestNPC(Range.Earshot.value,bot_variables.action_queue)
             Routines.Sequential.Player.InteractTarget(bot_variables.action_queue)
             
             if bot_variables.sell_config.sell_materials:
                 items_to_sell = get_filtered_materials_to_sell()
                 #sell materials to make space
-                Routines.Sequential.Merchant.SellItems(items_to_sell, 
-                                                       bot_variables.merchant_queue, 
-                                                       bot_variables.log_to_console)
-            Routines.Sequential.Merchant.BuyIDKits(GetIDKitsToBuy(), 
-                                                   bot_variables.merchant_queue, 
-                                                   bot_variables.log_to_console)
-            Routines.Sequential.Merchant.BuySalvageKits(GetSalvageKitsToBuy(), 
-                                                        bot_variables.merchant_queue, 
-                                                        bot_variables.log_to_console)
+                Routines.Sequential.Merchant.SellItems(items_to_sell, merchant_queue, log_to_console)
+            Routines.Sequential.Merchant.BuyIDKits(GetIDKitsToBuy(),merchant_queue, log_to_console)
+            Routines.Sequential.Merchant.BuySalvageKits(GetSalvageKitsToBuy(),merchant_queue, log_to_console)
             
             items_to_idenfity = filter_identify_array()
-            Routines.Sequential.Items.IdentifyItems(items_to_idenfity, 
-                                                    bot_variables.salvage_queue, 
-                                                    bot_variables.log_to_console)
+            Routines.Sequential.Items.IdentifyItems(items_to_idenfity, salvage_queue, log_to_console)
+            
             items_to_salvage = filter_salvage_array()
-            Routines.Sequential.Items.SalvageItems(items_to_salvage, 
-                                                   bot_variables.salvage_queue, 
-                                                   bot_variables.log_to_console)
+            Routines.Sequential.Items.SalvageItems(items_to_salvage, salvage_queue, log_to_console)
+            
             if bot_variables.sell_config.sell_materials:
                 items_to_sell = get_filtered_materials_to_sell()
-                Routines.Sequential.Merchant.SellItems(items_to_sell, 
-                                                       bot_variables.merchant_queue, 
-                                                       bot_variables.log_to_console)
+                Routines.Sequential.Merchant.SellItems(items_to_sell, merchant_queue,log_to_console)
+                
             items_to_deposit = filter_items_to_deposit()
-            Routines.Sequential.Items.DepositItems(items_to_deposit, 
-                                                   bot_variables.salvage_queue, 
-                                                   bot_variables.log_to_console)
-            Routines.Sequential.Items.DepositGold(bot_variables.inventory_config.keep_gold_amount, 
-                                                  bot_variables.salvage_queue, 
-                                                  bot_variables.log_to_console)
+            Routines.Sequential.Items.DepositItems(items_to_deposit,salvage_queue,log_to_console)
+            Routines.Sequential.Items.DepositGold(bot_variables.inventory_config.keep_gold_amount,salvage_queue, log_to_console)
         
         #exit outpost
-        Routines.Sequential.Movement.FollowPath(path_handler= path_to_leave_outpost, 
-                                                movement_object = follow_object, 
-                                                action_queue = bot_variables.action_queue,
-                                                custom_exit_condition=lambda: Map.IsMapLoading())
+        Routines.Sequential.Movement.FollowPath(path_handler= path_to_leave_outpost, movement_object = follow_object, action_queue = action_queue, custom_exit_condition=lambda: Map.IsMapLoading())
         bjora_marches = 482 #Bjora Marches
         Routines.Sequential.Map.WaitforMapLoad(bjora_marches, bot_variables.log_to_console)
         #traverse bjora marches
-        Routines.Sequential.Movement.FollowPath(path_to_traverse_bjora_marches, 
-                                                follow_object, 
-                                                bot_variables.action_queue,
-                                                custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()))
-        if Agent.IsDead(Player.GetAgentID()):
-            ConsoleLog(MODULE_NAME, "Player is dead. Stopping script.", Py4GW.Console.MessageType.Error, log=bot_variables.log_to_console)
-            reset_environment()
-            break
+        Routines.Sequential.Movement.FollowPath(path_to_traverse_bjora_marches, follow_object, action_queue, custom_exit_condition=lambda: player_is_dead_or_map_loading())
         
+        if handle_death():
+            continue
         
+        jaga_moraine = 546 #Jaga Moraine
+        Routines.Sequential.Map.WaitforMapLoad(jaga_moraine, bot_variables.log_to_console)
+        #take bounty
         
+        Routines.Sequential.Movement.FollowPath(path_to_quest_giver, follow_object,action_queue)
+        Routines.Sequential.Agents.TargetNearestNPC(Range.Earshot.value, bot_variables.action_queue)
+        Routines.Sequential.Player.InteractTarget(bot_variables.action_queue)
+        Routines.Sequential.Player.SendDialog("0x84", bot_variables.action_queue)
         
+        Routines.Sequential.Movement.FollowPath(path_to_farming_route1,follow_object,action_queue,custom_exit_condition=lambda: player_is_dead())
+        if handle_death():
+            continue
         
+        #wait for aggro ball'
+        ConsoleLog(MODULE_NAME, "Waiting for left aggro ball", Py4GW.Console.MessageType.Info, log=log_to_console)
+        sleep (15)
         
+        Routines.Sequential.Movement.FollowPath(path_to_farming_route2,follow_object,action_queue,custom_exit_condition=lambda: player_is_dead())
+        if handle_death():
+            continue
         
+        ConsoleLog(MODULE_NAME, "Waiting for right aggro ball", Py4GW.Console.MessageType.Info, log=log_to_console)
+        sleep (15)
         
+        Routines.Sequential.Movement.FollowPath(path_to_killing_spot,follow_object,action_queue)
+        bot_variables.config.in_killing_routine = True
+        player_pos = Player.GetXY()
+        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
+        while len(enemy_array) > 3: #sometimes not all enemies are killed
+            sleep(1)
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
+        
+        bot_variables.config.in_killing_routine = False
+        
+        #loot
+        #salvage
+        #exit jaga
+        #return to jaga
+        #restart loop
+ 
         
         bot_variables.is_script_running = False
         ConsoleLog(MODULE_NAME, "Script finished.", Py4GW.Console.MessageType.Info, log=bot_variables.log_to_console)
         time.sleep(0.1)
 #endregion
 
-#region SkillHandler
+#region SkillCasting
+def BjoraMarchesSkillCasting():
+    global bot_variables
+    #we only need to cast skills in bjora marches if we are in danger
+    if not Routines.Checks.Agents.InDanger(Range.Earshot):
+        sleep(0.1)
+        return
+    
+    player_agent_id = Player.GetAgentID()
+    deadly_paradox = bot_variables.skillbar.deadly_paradox
+    shadow_form = bot_variables.skillbar.shadow_form
+    shroud_of_distress = bot_variables.skillbar.shroud_of_distress
+    heart_of_shadow = bot_variables.skillbar.heart_of_shadow
 
-#region Sequential coding
+    action_queue = bot_variables.action_queue
+    log_to_console = bot_variables.log_to_console
+    
+
+    #we need to cast deadly paradox and shadow form and mantain it
+    has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id,shadow_form)
+    shadow_form_buff_time_remaining = Effects.GetEffectTimeRemaining(player_agent_id,shadow_form) if has_shadow_form else 0
+
+    has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id,deadly_paradox)
+    if shadow_form_buff_time_remaining <= 3500: #about to expire, recast
+        #** Cast Deadly Paradox **
+        if Routines.Sequential.Skills.CastSkillID(deadly_paradox,action_queue,extra_condition=(not has_deadly_paradox), log=log_to_console):             
+            sleep(0.1)   
+        # ** Cast Shadow Form **
+        if Routines.Sequential.Skills.CastSkillID(shadow_form,action_queue, log=log_to_console):
+            sleep(1.25)
+        
+    #if were hurt, we need to cast shroud of distress 
+    if Agent.GetHealth(player_agent_id) < 0.45:
+        # ** Cast Shroud of Distress **
+        if Routines.Sequential.Skills.CastSkillID(shroud_of_distress,action_queue, log=log_to_console):
+            sleep(1.25)
+
+    #if we have an enemy behind us, we can escape with Heart of Shadow
+    nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Earshot.value)
+    if nearest_enemy:
+        # ** Cast Heart of Shadow **
+        is_enemy_behind = Routines.Checks.Agents.IsEnemyBehind(player_agent_id)
+        if Routines.Sequential.Skills.CastSkillID(heart_of_shadow,action_queue, extra_condition=is_enemy_behind, log=log_to_console):
+            sleep(0.350)
+            
+     # ** Killing Routine **
+    if bot_variables.config.in_killing_routine:
+        arcane_echo_slot = 7
+        wastrels_demise_slot = 6
+        both_ready = Routines.Checks.Skills.IsSkillSlotReady(wastrels_demise_slot) and Routines.Checks.Skills.IsSkillSlotReady(arcane_echo_slot)
+        if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot,action_queue, extra_condition=both_ready, log=log_to_console):
+            sleep(0.350)
+            
+        if Routines.Sequential.Skills.CastSkillSlot(wastrels_demise_slot,action_queue, extra_condition=both_ready, log=log_to_console):
+            sleep(0.350)
+
+
+def JagaMoraineSkillCasting():
+    player_agent_id = Player.GetAgentID()
+    deadly_paradox = bot_variables.skillbar.deadly_paradox
+    shadow_form = bot_variables.skillbar.shadow_form
+    shroud_of_distress = bot_variables.skillbar.shroud_of_distress
+    way_of_perfection = bot_variables.skillbar.way_of_perfection
+    heart_of_shadow = bot_variables.skillbar.heart_of_shadow
+    wastrels_demise = bot_variables.skillbar.wastrels_demise
+    arcane_echo = bot_variables.skillbar.arcane_echo
+    channeling = bot_variables.skillbar.channeling
+    
+    action_queue = bot_variables.action_queue
+    log_to_console = bot_variables.log_to_console
+    
+    if Routines.Checks.Agents.InDanger(Range.Spellcast):
+        #we need to cast deadly paradox and shadow form and mantain it
+        has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id,shadow_form)
+        shadow_form_buff_time_remaining = Effects.GetEffectTimeRemaining(player_agent_id,shadow_form) if has_shadow_form else 0
+
+        has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id,deadly_paradox)
+        if shadow_form_buff_time_remaining <= 3500: #about to expire, recast
+            #** Cast Deadly Paradox **
+            if Routines.Sequential.Skills.CastSkillID(deadly_paradox,action_queue,extra_condition=(not has_deadly_paradox), log=log_to_console):
+                sleep(0.1)
+            
+            # ** Cast Shadow Form **
+            if Routines.Sequential.Skills.CastSkillID(shadow_form,action_queue, log=log_to_console):
+                sleep(1.25)
+                
+    #if were hurt, we need to cast shroud of distress 
+    if Agent.GetHealth(player_agent_id) < 0.45:
+        # ** Cast Shroud of Distress **
+        if Routines.Sequential.Skills.CastSkillID(shroud_of_distress,action_queue, log =log_to_console):
+            sleep(1.25)
+            
+    #need to keep Channeling up
+    has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id,bot_variables.skillbar.channeling)
+    if not has_channeling:
+        # ** Cast Channeling **
+        if Routines.Sequential.Skills.CastSkillID(channeling,action_queue, log =log_to_console):
+            sleep(1.25)
+            
+    #Keep way of perfection up on recharge
+    # ** Cast Way of Perfection **
+    if Routines.Sequential.Skills.CastSkillID(way_of_perfection,action_queue, log=log_to_console):
+        sleep(0.350)
+        
+    # ** Heart of Shadow to Stay Alive **
+    if not bot_variables.config.in_killing_routine:
+        if Agent.GetHealth(player_agent_id) < 0.35:
+            if bot_variables.config.in_waiting_routine:
+                Routines.Sequential.Agents.ChangeTarget(player_agent_id, bot_variables.action_queue)
+            else:
+                Routines.Sequential.Agents.TargetNearestEnemy(Range.Earshot.value,bot_variables.action_queue)
+
+            if Routines.Sequential.Skills.CastSkillID(heart_of_shadow,action_queue, log=log_to_console):
+                sleep(0.350)
+                
+    # ** Killing Routine **
+    if bot_variables.config.in_killing_routine:
+        arcane_echo_slot = 7
+        wastrels_demise_slot = 6
+        both_ready = Routines.Checks.Skills.IsSkillSlotReady(wastrels_demise_slot) and Routines.Checks.Skills.IsSkillSlotReady(arcane_echo_slot)
+        if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot,action_queue, extra_condition=both_ready, log=log_to_console):
+            sleep(0.350)
+            
+        if Routines.Sequential.Skills.CastSkillSlot(wastrels_demise_slot,action_queue, extra_condition=both_ready, log=log_to_console):
+            sleep(0.350)
+
+#endregion
+
 def SkillHandler():
     """Thread function that manages counting based on ImGui button presses."""
     global MAIN_THREAD_NAME, bot_variables
     while True:
-        sleep(1)
-        #skill handling goes here
+        bjora_marches = 482 #Bjora Marches
+        jaga_moraine = 546 #Jaga Moraine
+        
+        if not (Map.IsMapReady() and Party.IsPartyLoaded() and Map.IsExplorable()):
+            #if not in explorable area, no need to cast skills, skip this iteration
+            sleep(1)
+            continue
+        
+        #if we are occupied with something else, skip this iteration
+        if not Routines.Checks.Skills.CanCast():
+            sleep(0.1)
+            continue
+        
+        if Map.GetMapID() == bjora_marches:
+            BjoraMarchesSkillCasting()
+            sleep(0.1)
+        elif Map.GetMapID() == jaga_moraine:    
+            JagaMoraineSkillCasting()
+
+        
 
 
 #region Watchdog
@@ -400,43 +577,84 @@ def watchdog_fn():
     """Daemon thread that monitors all active threads and shuts down unresponsive ones."""
     global MAIN_THREAD_NAME
 
-    while True:
-        active_threads = list(thread_manager.threads.keys())
+    Py4GW.Console.Log("Watchdog", "Watchdog started.", Py4GW.Console.MessageType.Info)
 
-        #Check for timeouts and stop unresponsive threads
-        for name in active_threads:
-            if name != "watchdog" and thread_manager.should_stop(name):  # Don't stop itself
-                ConsoleLog(f"Watchdog",f"Thread: {name}' timed out. Stopping it.",Console.MessageType.Notice,log=True)
+    while True:
+        current_time = time.time()
+        expired_threads = []
+
+        if Map.IsMapLoading():
+            Py4GW.Console.Log("Watchdog", "Map is loading - refreshing keepalive for all threads.", Py4GW.Console.MessageType.Notice)
+            with thread_manager.lock:
+                # Refresh all threads' keepalive timestamps
+                for name, info in thread_manager.threads.items():
+                    if name == "watchdog":
+                        continue
+                    thread_manager.threads[name]["last_keepalive"] = current_time
+        else:
+            # Normal operation: check for expiration
+            with thread_manager.lock:
+                for name, info in thread_manager.threads.items():
+                    if name == "watchdog":
+                        continue
+
+                    last_keepalive = info["last_keepalive"]
+                    if current_time - last_keepalive > thread_manager.timeout:
+                        expired_threads.append(name)
+
+        # First, log and stop any expired threads (other than main thread)
+        for name in expired_threads:
+            if name != MAIN_THREAD_NAME:
+                ConsoleLog("Watchdog", f"Thread '{name}' timed out. Stopping it.", Console.MessageType.Warning, log=True)
                 thread_manager.stop_thread(name)
 
-        #If the main thread itself has timed out, shut everything down
-        if MAIN_THREAD_NAME not in thread_manager.threads or thread_manager.should_stop(MAIN_THREAD_NAME):
-            
-            print("[Watchdog] Main thread has timed out. Stopping all threads.")
+        # Special case: if MAIN_THREAD_NAME itself timed out → stop EVERYTHING
+        if MAIN_THREAD_NAME in expired_threads:
+            ConsoleLog("Watchdog", f"Main thread '{MAIN_THREAD_NAME}' timed out! Stopping all threads.", Console.MessageType.Error, log=True)
             thread_manager.stop_all_threads()
-            break  # Watchdog exits naturally, no `join()` needed
+            break  # Exit Watchdog itself naturally
 
-        time.sleep(1)  #Adjust checking interval as needed
-
-
+        time.sleep(1)  # Adjust interval as needed
 #endregion
+
 
 MAIN_THREAD_NAME = "RunBotSequentialLogic"
 thread_manager.add_thread(MAIN_THREAD_NAME, RunBotSequentialLogic)
-thread_manager.start_thread(MAIN_THREAD_NAME)
-
 thread_manager.add_thread("SkillHandler", SkillHandler)
-thread_manager.start_thread("SkillHandler")
-
 thread_manager.add_thread("watchdog", watchdog_fn)
-thread_manager.start_thread("watchdog")
+
+#region ImGui
+def DrawWindow():
+    """ImGui draw function that runs every frame."""
+    global bot_variables, MAIN_THREAD_NAME
+    
+    flags = PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse | PyImGui.WindowFlags.AlwaysAutoResize
+    if PyImGui.begin("Py4GW", flags):       
+        button_text = "Start script" if not bot_variables.is_script_running else "Stop script"
+        if PyImGui.button(button_text):
+            bot_variables.is_script_running = not bot_variables.is_script_running      
+            if bot_variables.is_script_running:
+                # --- ONLY start threads, they are already added at script load ---
+                thread_manager.start_thread(MAIN_THREAD_NAME)
+                thread_manager.start_thread("SkillHandler")
+                thread_manager.start_thread("watchdog")
+            else:
+                # Stop all threads
+                reset_environment()
+                thread_manager.stop_all_threads()
+                     
+
+    PyImGui.end()
+#endregion
 
 
 def main():
     global MAIN_THREAD_NAME
+    global bot_variables
     try:
-        thread_manager.update_keepalive(MAIN_THREAD_NAME)
-        thread_manager.update_keepalive("SkillHandler")
+        if bot_variables.is_script_running:
+            thread_manager.update_keepalive(MAIN_THREAD_NAME)
+            thread_manager.update_keepalive("SkillHandler")
 
         DrawWindow()
         

@@ -1,7 +1,26 @@
 from Py4GWCoreLib import *
+
+# Define paths
+site_packages_path = r"C:\Users\Apo\AppData\Local\Programs\Python\Python313-32\Lib\site-packages"
+pywin32_system32 = os.path.join(site_packages_path, "pywin32_system32")
+
+# Ensure site-packages is in sys.path
+if site_packages_path not in sys.path:
+    sys.path.append(site_packages_path)
+
+# Ensure pywin32_system32 is in sys.path
+if pywin32_system32 not in sys.path:
+    sys.path.append(pywin32_system32)
+
+# Load required DLLs manually (forces embedded Python to recognize them)
+ctypes.windll.LoadLibrary(os.path.join(pywin32_system32, "pywintypes313.dll"))
+ctypes.windll.LoadLibrary(os.path.join(pywin32_system32, "pythoncom313.dll"))
+
+# Now try importing the modules
+import pywintypes
 import win32pipe
 import win32file
-import pywintypes
+
 
 module_name = "Pipe Handler"
 server = None
