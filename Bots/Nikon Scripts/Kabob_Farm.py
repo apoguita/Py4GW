@@ -25,7 +25,7 @@ class Kabob_Window(BasicWindow):
         global kabob_selected, kabob_input, do_kabob_exchange, show_about_popup
 
         if PyImGui.collapsing_header("About - Farm Requirements"):
-            PyImGui.begin_child("About_child_window", (0, 235), False, 0)
+            PyImGui.begin_child("About_child_window", (0, 250), False, 0)
             PyImGui.text("- Required Quest: Drakes on the Plain")
             PyImGui.text("- Full windwalker, +4 Earth, +1 Scyth, +1 Mysticism")
             PyImGui.text("- Whatever HP rune you can afford and attunement.")
@@ -44,7 +44,7 @@ class Kabob_Window(BasicWindow):
     def ShowConfigSettingsTabItem(self):
         global kabob_selected, kabob_input, do_kabob_exchange
 
-        if PyImGui.begin_table("Collect_Inputs", 2):
+        if PyImGui.begin_table("Collect_Inputs", 2, PyImGui.TableFlags.SizingStretchSame):
             PyImGui.table_next_row()
             PyImGui.table_next_column()
             kabob_selected = PyImGui.checkbox("Farm Drake Flesh", kabob_selected)  
@@ -54,11 +54,6 @@ class Kabob_Window(BasicWindow):
             PyImGui.table_next_column()
             do_kabob_exchange = PyImGui.checkbox("Exchange Drake Flesh", do_kabob_exchange)
             PyImGui.end_table()
-        
-        PyImGui.separator()
-
-        # Base only shows the table with minimum slots in it atm.
-        super().ShowConfigSettingsTabItem()
 
     def ShowResults(self):
         global kabob_input
@@ -149,8 +144,10 @@ class Kabob_Window(BasicWindow):
         ApplyLootAndMerchantSelections()
 
     def ApplyConfigSettings(self) -> None:
-        ApplyKabobConfigSettings(self.minimum_slots)
-        pass
+        ApplyKabobConfigSettings()
+        
+    def ApplyInventorySettings(self) -> None:
+        ApplyKabobInventorySettings(self.minimum_slots, self.minimum_gold, self.depo_items, self.depo_mats)
 
     def GetKabobSettings(self):
         global kabob_input
@@ -187,7 +184,8 @@ class Kabob_Farm(ReportsProgress):
     kabob_exchange_do_exchange_all = "Kabob- Exchange Kabobs"
     kabob_exchange_Kabobs_routine_start = "Kabob- Go Exchange Kabobs#1"
     kabob_exchange_Kabobs_routine_end = "Kabob- Go Exchange Kabobs#2"
-    
+
+    kabob_start_farm = "Kabob- Check Farm"
     kabob_inventory_routine = "DoInventoryRoutine"
     kabob_initial_check_inventory = "Kabob- Inventory Check"
     kabob_check_inventory_after_handle_inventory = "Kabob- Inventory Handled?"
@@ -222,12 +220,12 @@ class Kabob_Farm(ReportsProgress):
     kabob_pathing_move_to_portal_handler = Routines.Movement.PathHandler(kabob_outpost_pathing)
     kabob_pathing_move_to_kill_handler = Routines.Movement.PathHandler(kabob_farm_run_pathing)
     
-    kabob_exchange_pathing = [(-8400, 14155), (-11170, 15188)]
+    kabob_exchange_pathing = [(-8608, 14646), (-11170, 15188)]
     kabob_exchange_pathing_handler = Routines.Movement.PathHandler(kabob_exchange_pathing)
     movement_Handler = Routines.Movement.FollowXY(50)
     
     keep_list = []
-    keep_list.extend(Items.IdSalveItems_Array)  #[(Items.Drake_Flesh), (Items.Salve_Kit_Basic), (Items.Salve_Kit_Advanced), (Items.Salve_Kit_Superior), (Items.Id_Kit_Basic), (Items.Id_Kit_Superior)]
+    keep_list.extend(Items.IdSalveItems_Array)
     keep_list.extend(Items.EventItems_Array)
     keep_list.append(Items.Drake_Flesh)
     keep_list.append(Items.Dye.Dye_ModelId)
@@ -237,8 +235,6 @@ class Kabob_Farm(ReportsProgress):
     kabob_ready_to_kill = False
     kabob_killing_staggering_casted = False
     kabob_killing_eremites_casted = False
-    #kabob_sanctity = False
-    #kabob_intimidating = False
 
     player_stuck = False
     player_stuck_hos_count = 0
@@ -272,19 +268,17 @@ class Kabob_Farm(ReportsProgress):
     kabob_loot_done_timer = Timer()
     kabob_stay_alive_timer = Timer()
 
-    current_inventory = []
     stuckPosition = []
 
     ### --- SETUP --- ###
     def __init__(self, window):
-        super().__init__(window)
+        self.current_inventory = GetInventoryItemSlots()
+
+        # Base ReportsProgress type now handles inventory also
+        super().__init__(window, Mapping.Rilohn_Refuge, self.kabob_merchant_position, self.current_inventory, self.keep_list)
+        
         self.skillBar = self.Kabob_Skillbar()
 
-        self.current_inventory = GetInventoryItemSlots()
-        self.inventoryRoutine = InventoryFsm(window, self.kabob_inventory_routine, Mapping.Rilohn_Refuge, 
-                                             self.kabob_merchant_position, self.current_inventory, 
-                                             self.keep_list, goldToKeep=5000, logFunc=self.Log)
-        
         self.Kabob_Exchange_Routine.AddState(self.kabob_exchange_travel,
                                              execute_fn=lambda: self.ExecuteStep(self.kabob_exchange_travel, Routines.Transition.TravelToOutpost(Mapping.Kamadan)),
                                              exit_condition=lambda: Routines.Transition.HasArrivedToOutpost(Mapping.Kamadan),
@@ -305,11 +299,12 @@ class Kabob_Farm(ReportsProgress):
         self.Kabob_Exchange_Routine.AddState(name=self.kabob_exchange_do_exchange_all,
                                              execute_fn=lambda: self.ExecuteStep(self.kabob_exchange_do_exchange_all, self.ExchangeKabobs()),
                                              exit_condition=lambda: self.ExchangeKabobsDone(), 
-                                             run_once=False)
-        
+                                             run_once=False)    
         self.Kabob_Routine.AddSubroutine(self.kabob_exchange_Kabobs_routine_start,
-                                         sub_fsm=self.Kabob_Exchange_Routine,
-                                         condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(Items.Drake_Flesh))        
+                       sub_fsm=self.Kabob_Exchange_Routine,
+                       condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(Items.Drake_Flesh))        
+        self.Kabob_Routine.AddState(self.kabob_start_farm,
+                                    execute_fn=lambda: self.ExecuteStep(self.kabob_start_farm, self.CheckIfShouldRunFarm()))
         self.Kabob_Routine.AddState(self.kabob_travel_state_name,
                        execute_fn=lambda: self.ExecuteStep(self.kabob_travel_state_name, Routines.Transition.TravelToOutpost(Mapping.Rilohn_Refuge)),
                        exit_condition=lambda: Routines.Transition.HasArrivedToOutpost(Mapping.Rilohn_Refuge),
@@ -337,11 +332,10 @@ class Kabob_Farm(ReportsProgress):
                        sub_fsm = self.inventoryRoutine, # dont add execute function wrapper here
                        condition_fn=lambda: not self.kabob_first_after_reset and Inventory.GetFreeSlotCount() <= self.GetMinimumSlots())        
         self.Kabob_Routine.AddState(self.kabob_check_inventory_after_handle_inventory, 
-                                    execute_fn=lambda: self.CheckInventory())
+                       execute_fn=lambda: self.CheckInventory())
         self.Kabob_Routine.AddState(self.kabob_change_weapon_staff,
-                                    execute_fn=lambda: self.ExecuteStep(self.kabob_change_weapon_staff, self.RunStarting()),
-                                    #exit_condition=lambda: CheckWeaponEquipped("Staff", self.Log),
-                                    transition_delay_ms=1000)
+                       execute_fn=lambda: self.ExecuteStep(self.kabob_change_weapon_staff, self.RunStarting()),
+                       transition_delay_ms=1000)
         self.Kabob_Routine.AddState(self.kabob_pathing_2_state_name,
                        execute_fn=lambda: self.ExecuteStep(self.kabob_pathing_2_state_name, Routines.Movement.FollowPath(self.kabob_pathing_portal_only_handler_2, self.movement_Handler)),
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(self.kabob_pathing_portal_only_handler_2, self.movement_Handler) or Map.GetMapID() == Mapping.Floodplain_Of_Mahnkelon,
@@ -357,9 +351,8 @@ class Kabob_Farm(ReportsProgress):
                        exit_condition=lambda: self.RunToDrakesDone(),
                        run_once=False)
         self.Kabob_Routine.AddState(self.kabob_change_weapon_scythe,
-                            execute_fn=lambda: self.ExecuteStep(self.kabob_change_weapon_scythe, ChangeWeaponSet(self.weapon_slot_scythe)),
-                            #exit_condition=lambda: CheckWeaponEquipped("Scythe", self.Log),
-                            transition_delay_ms=1000)
+                       execute_fn=lambda: self.ExecuteStep(self.kabob_change_weapon_scythe, ChangeWeaponSet(self.weapon_slot_scythe)),
+                       transition_delay_ms=1500)
         self.Kabob_Routine.AddState(self.kabob_waiting_kill_state_name,
                        execute_fn=lambda: self.ExecuteTimedStep(self.kabob_waiting_kill_state_name, self.KillLoopStart()),
                        exit_condition=lambda: self.KillLoopComplete() or self.ShouldForceTransitionStep(),
@@ -382,9 +375,9 @@ class Kabob_Farm(ReportsProgress):
         self.Kabob_Routine.AddSubroutine(self.kabob_inventory_state_name_end,
                        sub_fsm = self.inventoryRoutine)       
         self.Kabob_Routine.AddSubroutine(self.kabob_exchange_Kabobs_routine_end,
-                                         condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(Items.Drake_Flesh))
+                       condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(Items.Drake_Flesh))
         self.Kabob_Routine.AddState(self.kabob_forced_stop,                                    
-                                    execute_fn=lambda: self.ExecuteStep(self.kabob_forced_stop, None))
+                       execute_fn=lambda: self.ExecuteStep(self.kabob_forced_stop, None))
         
         self.RunTimer = Timer()
         self.TotalTimer = Timer()
@@ -418,20 +411,8 @@ class Kabob_Farm(ReportsProgress):
         self.TotalTimer.Stop()
         self.RunTimer.Stop()
 
-    def PrintData(self):
-        if self.current_inventory != None:
-            totalSlotsFull = 0
-            for (bag, slots) in self.current_inventory:
-                if isinstance(slots, list):
-                    totalSlotsFull += len(slots)
-                    for slot in slots:
-                        self.Log(f"Bag: {bag}, Slot: {slot}")
-            self.Log(f"Total Slots Full: {totalSlotsFull}")
-
     def Reset(self):     
         if self.Kabob_Routine:
-            # self.Kabob_Routine.reset()
-            # self.Kabob_Routine.stop()
             self.InternalStop()
         
         self.kabob_collected = 0    
@@ -462,9 +443,6 @@ class Kabob_Farm(ReportsProgress):
         self.current_lootable = 0
         self.current_loot_tries = 0
 
-        #kabob_Window.kabob_id_items, kabob_Window.kabob_collect_coins, kabob_Window.kabob_collect_events, kabob_Window.kabob_collect_items_white, kabob_Window.kabob_collect_items_blue, \
-        #kabob_Window.kabob_collect_items_grape, kabob_Window.kabob_collect_items_gold, kabob_Window.kabob_collect_dye
-        
         self.inventoryRoutine.Reset()
         self.inventoryRoutine.ApplySelections(idItems=self.idItems, sellItems=self.sellItems, sellWhites=self.sellWhites, 
                                              sellBlues=self.sellBlues, sellGrapes=self.sellGrapes, sellGolds=self.sellGolds, sellGreens=self.sellGreens, 
@@ -526,6 +504,11 @@ class Kabob_Farm(ReportsProgress):
 
         self.average_run_time = sum(self.average_run_history) / len(self.average_run_history)
 
+    def CheckIfShouldRunFarm(self):
+        global kabob_selected
+        if not kabob_selected:
+            self.Kabob_Routine.jump_to_state_by_name(self.kabob_end_state_name)
+
     def GetCurrentRunTime(self):
         return self.RunTimer.GetElapsedTime()
     
@@ -573,7 +556,6 @@ class Kabob_Farm(ReportsProgress):
         if Inventory.GetFreeSlotCount() <= self.default_min_slots:
             self.Log("Bags Full - Manually Handle")
             self.InternalStop()
-            
 
     def Log(self, text, msgType=Py4GW.Console.MessageType.Info):
         if self.window:
@@ -638,11 +620,14 @@ class Kabob_Farm(ReportsProgress):
     def KillKoss(self):
         self.RunStarting()
         agent_id = Player.GetAgentID()
-        SkillBar.HeroUseSkill(agent_id, 2, 1)
+
+        # The echo takes longest, but lasts longest, cast first.
         SkillBar.HeroUseSkill(agent_id, 3, 1)
-        SkillBar.HeroUseSkill(agent_id, 1, 1)
-        
+
+        # Now flag hero to mesmers and use chant then shout.
         self.pyParty.FlagHero(self.pyParty.GetHeroAgentID(1), -16749, 5382)
+        SkillBar.HeroUseSkill(agent_id, 2, 1)
+        SkillBar.HeroUseSkill(agent_id, 1, 1)
 
         maxHp = Agent.GetMaxHealth(Player.GetAgentID())                
         self.player_previous_hp = Agent.GetHealth(Player.GetAgentID()) * maxHp
@@ -997,11 +982,18 @@ class Kabob_Farm(ReportsProgress):
     
     # Jump back to output pathing if not done collecting
     def CheckKabobRoutineEnd(self):
+        global kabob_selected
+
         # Don't reset the kabob count
         self.RunEnding()
         self.SoftReset()
 
         self.kabob_first_after_reset = False
+
+        if not kabob_selected:
+            self.Log("Not Farming Kabob - AutoStop")
+            self.InternalStop()
+            return
 
         if self.kabob_collected < self.main_item_collect:
             # mapping to outpost may have failed OR the threshold was reached. Try to map there and start over.
@@ -1051,9 +1043,9 @@ class Kabob_Farm(ReportsProgress):
                         sell_items_blue, sell_items_grape, sell_items_gold, sell_items_green, sell_materials, salvage_items, salvage_items_white, \
                         salvage_items_blue, salvage_items_grape, salvage_items_gold):
         super().ApplySelections(main_item_collect_count, id_items, collect_coins, collect_events, collect_items_white, collect_items_blue, \
-                                collect_items_grape, collect_items_gold, collect_dye, sell_items, sell_items_white, \
-                                sell_items_blue, sell_items_grape, sell_items_gold, sell_items_green, sell_materials, salvage_items, salvage_items_white, \
-                                salvage_items_blue, salvage_items_grape, salvage_items_gold)
+                                 collect_items_grape, collect_items_gold, collect_dye, sell_items, sell_items_white, \
+                                 sell_items_blue, sell_items_grape, sell_items_gold, sell_items_green, sell_materials, salvage_items, salvage_items_white, \
+                                 salvage_items_blue, salvage_items_grape, salvage_items_gold)
         
         self.inventoryRoutine.ApplySelections(idItems=id_items, sellItems=sell_items, sellWhites=sell_items_white,
                                               sellBlues=sell_items_blue, sellGrapes=sell_items_grape, sellGolds=sell_items_gold, sellGreens=sell_items_green,
@@ -1077,12 +1069,19 @@ def ApplyLootAndMerchantSelections():
                 kabob_Window.collect_items_grape, kabob_Window.collect_items_gold, kabob_Window.collect_dye, kabob_Window.sell_items, kabob_Window.sell_items_white, \
                 kabob_Window.sell_items_blue, kabob_Window.sell_items_grape, kabob_Window.sell_items_gold, kabob_Window.sell_items_green, kabob_Window.sell_materials, kabob_Window.salvage_items, kabob_Window.salvage_items_white, \
                 kabob_Window.salvage_items_blue, kabob_Window.salvage_items_grape, kabob_Window.salvage_items_gold)
-def ApplyKabobConfigSettings(min_slots):
-    kabob_Routine.ApplyConfigSettings(min_slots)
+
+def ApplyKabobConfigSettings():
+    kabob_Routine.ApplyConfigSettings()
+
+def ApplyKabobInventorySettings(min_slots, min_gold, depo_items, depo_mats):
+    kabob_Routine.ApplyInventorySettings(min_slots, min_gold, depo_items, depo_mats)
 
 def StartBot():
-    ApplyLootAndMerchantSelections()
-    kabob_Routine.Start()
+    if not kabob_Routine.IsBotRunning():
+        ApplyLootAndMerchantSelections()
+        # ApplyKabobConfigSettings()
+        # ApplyKabobInventorySettings(kabob_Window.minimum_slots)
+        kabob_Routine.Start()
 
 def StopBot():
     if kabob_Routine.IsBotRunning():

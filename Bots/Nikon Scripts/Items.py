@@ -84,4 +84,9 @@ LunarFortune_Monkey = 29433
 LunarFortune_Rooster = 29434
 
 EventItems_Array = [(Lock_Pick), (Cupcake), (ShamrockAle), (FourLeafClover),  (BottlesGrog),  (LunarFortune_Monkey), (BlueSugarDrink), (WintergreenCandyCane), (VictoryToken), (SnowmanSummons), (GhostInBox), (VialAbsinthe), (SquashSerum), (Eggnog), (CandyCorn), (PumpkinCookies), (TrickOrTreatBags), (Fruitcake), (PeppermintCandyCane), (RainbowCandyCane), (Honeycomb), (WintersdayGift), (SpikedEggnog), (Yuletide), (LunarTokens), (CandyCaneShards), (CandyApple), (GoldenEgg), (PumpkinPie)]
-IdSalveItems_Array = [(Salve_Kit_Basic), (Salve_Kit_Advanced), (Salve_Kit_Superior), (Id_Kit_Basic), (Id_Kit_Superior)]
+IdKits = [Id_Kit_Basic, Id_Kit_Superior]
+SalveKits = [Salve_Kit_Basic, Salve_Kit_Advanced, Salve_Kit_Superior]
+
+IdSalveItems_Array = []
+IdSalveItems_Array.extend(IdKits)
+IdSalveItems_Array.extend(SalveKits)

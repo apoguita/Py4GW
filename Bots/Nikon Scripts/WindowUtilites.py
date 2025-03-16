@@ -94,6 +94,9 @@ class BasicWindow:
     salvage_items_grape = False
     salvage_items_gold = False
     minimum_slots = 3
+    minimum_gold = 5000
+    depo_items = False
+    depo_mats = False
     
     loot_test_id_Items = id_Items
     loot_test_collect_coins = collect_coins
@@ -114,8 +117,10 @@ class BasicWindow:
     loot_test_salvage_items_blue = salvage_items_blue
     loot_test_salvage_items_grape = salvage_items_grape
     loot_test_salvage_items_gold = salvage_items_gold
-    config_test_minimum_slot = minimum_slots
-
+    inventory_test_minimum_slots = minimum_slots
+    inventory_test_minimum_gold = minimum_gold
+    invenotry_test_depo_items = depo_items
+    inventory_test_depo_mats = depo_mats
 
     def __init__(self, window_name="Basic Window", window_size = (300.0, 400.0), show_logger = True, show_state = True):
         self.name = window_name
@@ -180,7 +185,7 @@ class BasicWindow:
                 if PyImGui.begin_tab_item("Config##settings"):
                     self.ShowConfigSettingsTabItem()
                     PyImGui.end_tab_item()
-                if PyImGui.begin_tab_item("Lootables"):
+                if PyImGui.begin_tab_item("Loot"):
                     if PyImGui.begin_table("Lootables_table", 3):
                         PyImGui.table_next_row()
                         PyImGui.table_next_column()
@@ -251,21 +256,32 @@ class BasicWindow:
                         PyImGui.table_next_row()
                         PyImGui.end_table()
                     PyImGui.end_tab_item()
-                
-                self.CheckAndApplyNewLootMerchantSettings()
 
+                if PyImGui.begin_tab_item("Inventory"):
+                    if PyImGui.begin_table("Inv_table##1", 1):
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        self.depo_items = PyImGui.checkbox("Deposit Items", self.depo_items)
+                        PyImGui.table_next_column()
+                        self.depo_mats = PyImGui.checkbox("Deposit Materials", self.depo_mats)
+                        PyImGui.end_table()
+
+                    if PyImGui.begin_table("Inv_table##2", 1, PyImGui.TableFlags.SizingStretchSame):
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        self.minimum_slots = PyImGui.input_int("# Minimum Slots", self.minimum_slots) if self.minimum_slots >= 1 else 1 
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        self.minimum_gold = PyImGui.input_int("# Minimum Gold", self.minimum_gold) if self.minimum_gold >= 0 and self.minimum_gold <= 1000000 else 0 
+                        PyImGui.table_next_row()
+                        PyImGui.end_table()
+                    PyImGui.end_tab_item()
+                
+                self.ApplyAndUpdateSettings()
                 PyImGui.end_tab_bar()
 
     def ShowConfigSettingsTabItem(self):
-        if PyImGui.begin_table("Config_table", 2):
-            PyImGui.table_next_row()
-            PyImGui.table_next_column()
-            PyImGui.dummy(0, 1)
-            PyImGui.text("Minimum Slots:")
-            PyImGui.table_next_column()
-            self.minimum_slots = PyImGui.input_int("# Slots", self.minimum_slots)
-            PyImGui.table_next_row()
-            PyImGui.end_table()
+        pass
 
     def ShowResults(self):
         PyImGui.text("-Show Results - Override This-")
@@ -294,7 +310,7 @@ class BasicWindow:
     """
         Checks whether any lootable, sellable and/or salvageable settings have changed and calls the function that will apply them.
     """
-    def CheckAndApplyNewLootMerchantSettings(self):
+    def ApplyAndUpdateSettings(self):
         if self.loot_test_id_Items != self.id_Items or \
             self.loot_test_collect_coins != self.collect_coins or \
             self.loot_test_collect_events != self.collect_events or \
@@ -316,8 +332,11 @@ class BasicWindow:
             self.loot_test_salvage_items_gold != self.salvage_items_gold:
             self.ApplyLootMerchantSettings()
 
-        if self.config_test_minimum_slot != self.minimum_slots:
-            self.ApplyConfigSettings()
+        if self.inventory_test_minimum_slots != self.minimum_slots or \
+            self.inventory_test_minimum_gold != self.minimum_gold or \
+            self.invenotry_test_depo_items != self.depo_items or \
+            self.inventory_test_depo_mats != self.depo_mats:
+                self.ApplyInventorySettings()
             
         self.loot_test_id_Items = self.id_Items
         self.loot_test_collect_coins = self.collect_coins
@@ -338,7 +357,10 @@ class BasicWindow:
         self.loot_test_salvage_items_blue = self.salvage_items_blue
         self.loot_test_salvage_items_grape = self.salvage_items_grape
         self.loot_test_salvage_items_gold = self.salvage_items_gold
-        self.config_test_minimum_slot = self.minimum_slots
+        self.inventory_test_minimum_slot = self.minimum_slots
+        self.inventory_test_minimum_gold = self.minimum_gold
+        self.inventory_test_depo_items = self.depo_items
+        self.inventory_test_depo_mats = self.depo_mats
 
     """
         Method to override to apply the new settings for lootable, sellable and salvageable items.
@@ -347,6 +369,9 @@ class BasicWindow:
         pass
 
     def ApplyConfigSettings(self):
+        pass
+
+    def ApplyInventorySettings(self):
         pass
 
     '''
