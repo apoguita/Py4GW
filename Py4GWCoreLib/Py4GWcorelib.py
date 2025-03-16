@@ -2,6 +2,7 @@ import traceback
 import math
 from enum import Enum
 import time
+from time import sleep
 from collections import namedtuple, deque
 
 import Py4GW
@@ -25,13 +26,15 @@ from .Player import Player
 from .Map import Map
 from .Inventory import Inventory
 from .Skill import Skill
+from .enums import *
 
-import inspect
+
 import threading
 import socket
 import configparser
 import os
 
+#region IniHandler
 class IniHandler:
     def __init__(self, filename: str):
         """
@@ -151,7 +154,6 @@ class IniHandler:
             config.remove_section(section)
             self.save(config)
 
-
     # ----------------------------
     # Utility Methods
     # ----------------------------
@@ -191,8 +193,31 @@ class IniHandler:
                 config.set(target_section, key, value)
             self.save(config)
 
+#endregion
 
-#utility Functions not especific of any process
+@staticmethod
+def ConsoleLog(sender, message, message_type:int=0 , log: bool = True):
+    """Logs a message with an optional message type."""
+    if log:
+        if message_type == 0:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Info)
+        elif message_type == 1:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Warning)
+        elif message_type == 2:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Error)
+        elif message_type == 3:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Debug)
+        elif message_type == 4:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Success)
+        elif message_type == 5:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Performance)
+        elif message_type == 6:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Notice)
+        else:
+            Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Info)
+
+
+#region Utils
 # Utils
 class Utils:
     from typing import Tuple
@@ -457,6 +482,8 @@ class Utils:
 
             return escape_vector
 
+#endregion
+#region Timer
 class Timer:
     def __init__(self):
         """Initialize the Timer object with default values."""
@@ -548,7 +575,8 @@ def FormatTime(time_ms, mask="hh:mm:ss:ms"):
             formatted_time = formatted_time.replace("ms", f"{milliseconds:03}")
 
         return formatted_time
-
+#endregion
+#region KeyHandler
 class Key(Enum):
     # Letters
     A = 0x41
@@ -719,598 +747,66 @@ class Keystroke:
         """
         Keystroke.keystroke_instance().PushKeyCombo(modifiers)
 
+#endregion
 
-arrived_timer = Timer()
-class Routines:
-    class Checks:
-        class Inventory:
-            @staticmethod
-            def InventoryAndLockpickCheck():
-                return Inventory.GetFreeSlotCount() > 0 and Inventory.GetModelCount(22751) > 0 
+#region ActionQueue
 
-        class Skills:
-            @staticmethod
-            def HasEnoughEnergy(agent_id, skill_id):
-                """
-                Purpose: Check if the player has enough energy to use the skill.
-                Args:
-                    agent_id (int): The agent ID of the player.
-                    skill_id (int): The skill ID to check.
-                Returns: bool
-                """
-                player_energy = Agent.GetEnergy(agent_id) * Agent.GetMaxEnergy(agent_id)
-                skill_energy = Skill.Data.GetEnergyCost(skill_id)
-                return player_energy >= skill_energy
+class ActionQueue:
+    def __init__(self):
+        """Initialize the action queue."""
+        self.queue = deque() # Use deque for efficient FIFO operations
+
+    def add_action(self, action, *args, **kwargs):
+        """
+        Add an action to the queue.
+
+        :param action: Function to execute.
+        :param args: Positional arguments for the function.
+        :param kwargs: Keyword arguments for the function.
+        """
+        self.queue.append((action, args, kwargs))
+        
+    def execute_next(self):
+        """Execute the next action in the queue."""
+        if self.queue:
+            action, args, kwargs = self.queue.popleft()
+            action(*args, **kwargs)
             
-            @staticmethod
-            def HasEnoughLife(agent_id, skill_id):
-                """
-                Purpose: Check if the player has enough life to use the skill.
-                Args:
-                    agent_id (int): The agent ID of the player.
-                    skill_id (int): The skill ID to check.
-                Returns: bool
-                """
-                player_life = Agent.GetHealth(agent_id)
-                skill_life = Skill.Data.GetHealthCost(skill_id)
-                return player_life > skill_life
-
-            @staticmethod
-            def HasEnoughAdrenaline(agent_id, skill_id):
-                """
-                Purpose: Check if the player has enough adrenaline to use the skill.
-                Args:
-                    agent_id (int): The agent ID of the player.
-                    skill_id (int): The skill ID to check.
-                Returns: bool
-                """
-                skill_adrenaline = Skill.Data.GetAdrenaline(skill_id)
-                skill_adrenaline_a = Skill.Data.GetAdrenalineA(skill_id)
-                if skill_adrenaline == 0:
-                    return True
-
-                if skill_adrenaline_a >= skill_adrenaline:
-                    return True
-
-                return False
-
-            @staticmethod
-            def DaggerStatusPass(agent_id, skill_id):
-                """
-                Purpose: Check if the player attack dagger status match tha skill requirement.
-                Args:
-                    agent_id (int): The agent ID of the player.
-                    skill_id (int): The skill ID to check.
-                Returns: bool
-                """
-                dagger_status = Agent.GetDaggerStatus(agent_id)
-                skill_combo = Skill.Data.GetCombo(skill_id)
-
-                if skill_combo == 1 and (dagger_status != 0 and dagger_status != 3):
-                    return False
-
-                if skill_combo == 2 and dagger_status != 1:
-                    return False
-
-                if skill_combo == 3 and dagger_status != 2:
-                    return False
-
-                return True
-
-    class Transition:
-        @staticmethod
-        def TravelToOutpost(outpost_id, log= True):
-            """
-            Purpose: Travel to the specified outpost by ID.
-            Args:
-                outpost_id (int): The ID of the outpost to travel to.
-                log (bool) Optional: Whether to log the action. Default is True.
-            Returns: None
-            """
-            global arrived_timer
-            if Map.IsMapReady():
-                if Map.GetMapID() != outpost_id and arrived_timer.IsStopped():
-                    if log:
-                        current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                        Py4GW.Console.Log(f"{current_function}", f"Outpost Check Failed. ({Map.GetMapName(outpost_id)}), Travelling.", Py4GW.Console.MessageType.Info)
-                    Map.Travel(outpost_id)
-                    arrived_timer.Start()
-                    return
-
-                if log and arrived_timer.IsStopped():
-                    current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                    Py4GW.Console.Log(f"{current_function}", f"Outpost Check Passed. ({Map.GetMapName(outpost_id)}).", Py4GW.Console.MessageType.Info)
-
-        @staticmethod
-        def HasArrivedToOutpost(outpost_id, log= True):
-            """
-            Purpose: Check if the player has arrived at the specified outpost after traveling.
-            Args:
-                outpost_id (int): The ID of the outpost to check.
-                log (bool) Optional: Whether to log the action. Default is True.
-            Returns: bool
-            """
-            global arrived_timer
-
-            if Map.GetMapID() == outpost_id and Routines.Transition.IsOutpostLoaded():
-                if log:
-                    current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                    Py4GW.Console.Log(f"{current_function}", f"Outpost Arrive Passed. @{Map.GetMapName(outpost_id)}.", Py4GW.Console.MessageType.Info)
-                    arrived_timer.Stop()
-                    return True
-                else:
-                    if arrived_timer.HasElapsed(5000):
-                        arrived_timer.Stop()
-                        if log:
-                            current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                            Py4GW.Console.Log(f"{current_function}", f"Outpost Arrive Timeout. @{Map.GetMapName(outpost_id)}.", Py4GW.Console.MessageType.Info)
-                        return False
-            
-            if log:
-                current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                Py4GW.Console.Log(f"{current_function}", f"Outpost Arrive Failed. @{Map.GetMapName(outpost_id)}. Retrying.", Py4GW.Console.MessageType.Info)
-                
-            return False
-
-        @staticmethod
-        def IsOutpostLoaded():
-            """
-            Purpose: Check if the outpost map is loaded.
-            Args: None
-            Returns: bool
-            """
-            from .Party import Party
-            map_loaded = Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded()
-            if map_loaded:
-                Py4GW.Console.Log("IsOutpostLoaded", f"Outpost Map Loaded.", Py4GW.Console.MessageType.Info)
-            else:
-                Py4GW.Console.Log("IsOutpostLoaded", f"Outpost Map Not Loaded. Retrying.", Py4GW.Console.MessageType.Info)
-            
-            return map_loaded
-
-        @staticmethod
-        def IsExplorableLoaded(log_actions=False):
-            """
-            Purpose: Check if the explorable map is loaded.
-            Args: None
-            Returns: bool
-            """
-            from .Party import Party
-            map_loaded =  Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()
-            if log_actions:
-                if map_loaded:
-                    Py4GW.Console.Log("IsExplorableLoaded", f"Explorable Map Loaded.", Py4GW.Console.MessageType.Info)
-                else:
-                    Py4GW.Console.Log("IsExplorableLoaded", f"Explorable Map Not Loaded. Retrying.", Py4GW.Console.MessageType.Info)
-            
-            return map_loaded
-
-    class Targeting:
-        @staticmethod
-        def TargetMerchant():
-            """Target the nearest merchant. within 5000 units"""
-            Player.SendChatCommand("target [Merchant]")
-            
-        @staticmethod
-        def InteractTarget():
-            """Interact with the target"""
-            Player.Interact(Player.GetTargetID())
-            
-        @staticmethod
-        def HasArrivedToTarget():
-            """Check if the player has arrived at the target."""
-            player_x, player_y = Player.GetXY()
-            target_id = Player.GetTargetID()
-            target_x, target_y = Agent.GetXY(target_id)
-            return Utils.Distance((player_x, player_y), (target_x, target_y)) < 100
-
-        @staticmethod
-        def GetNearestItem(max_distance=5000):
-            from .AgentArray import AgentArray
-            """
-            Purpose: Get the nearest item within the specified range.
-            Args:
-                range (int): The maximum distance to search for items.
-            Returns: Agent ID or None
-            """
-            item_array = AgentArray.GetItemArray()
-            item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), max_distance)
-            item_array = AgentArray.Sort.ByDistance(item_array,Player.GetXY())
-            if len(item_array) > 0:
-                return item_array[0]    
-
-        @staticmethod
-        def GetNearestChest(max_distance=5000):
-            from .AgentArray import AgentArray
-            """
-            Purpose: Get the nearest chest within the specified range.
-            Args:
-                range (int): The maximum distance to search for chests.
-            Returns: Agent ID or None
-            """
-            gadget_array = AgentArray.GetGadgetArray()
-            gadget_array = AgentArray.Filter.ByDistance(gadget_array, Player.GetXY(), max_distance)
-            gadget_array = AgentArray.Sort.ByDistance(gadget_array,Player.GetXY())
-            for agent_id in gadget_array:
-                if Agent.GetGadgetID(agent_id) == 8141: #8141 is the ID for a chest
-                    return agent_id
-
-            return 0
-
-        @staticmethod
-        def GetBestTarget(a_range=1320, casting_only=False, no_hex_only=False, enchanted_only=False):
-            """
-            Purpose: Returns the best target within the specified range based on criteria like whether the agent is casting, enchanted, or hexed.
-            Args:
-                a_range (int): The maximum distance for selecting targets.
-                casting_only (bool): If True, only select agents that are casting.
-                no_hex_only (bool): If True, only select agents that are not hexed.
-                enchanted_only (bool): If True, only select agents that are enchanted.
-            Returns: PyAgent.PyAgent: The best target agent object, or None if no target matches.
-            """
-            from .AgentArray import AgentArray
-            best_target = None
-            lowest_sum = float('inf')
-            nearest_enemy = None
-            nearest_distance = float('inf')
-            lowest_hp_target = None
-            lowest_hp = float('inf')
-
-            player = PyPlayer.PyPlayer()
-            player_pos = Player.GetXY()
-            agents = player.GetEnemyArray()
-            agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsAlive(agent_id))
-            agents = AgentArray.Filter.ByDistance(agents, player_pos, a_range)
-
-            if enchanted_only:
-                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsEnchanted(agent_id))
-
-            if no_hex_only:
-                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsHexed(agent_id))
-
-            if casting_only:
-                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsCasting(agent_id))
-
-            for agent_id in agents:
-                agent = PyAgent.PyAgent(agent_id)
-
-                distance_to_self = Utils.Distance(Player.GetXY(), (agent.x, agent.y))
-
-                # Track the nearest enemy
-                if distance_to_self < nearest_distance:
-                    nearest_enemy = agent
-                    nearest_distance = distance_to_self
-
-                # Track the agent with the lowest HP
-                agent_hp = agent.living_agent.hp
-                if agent_hp < lowest_hp:
-                    lowest_hp = agent_hp
-                    lowest_hp_target = agent
-
-                # Calculate the sum of distances between this agent and other agents within range
-                sum_distances = 0
-                for other_agent_id in agents:
-                    other_agent = PyAgent.PyAgent(other_agent_id)
-                    #no need to filter any agent since the array is filtered already
-                    sum_distances += Utils.Distance((agent.x, agent.y), (other_agent.x, other_agent.y))
-
-                # Track the best target based on the sum of distances
-                if sum_distances < lowest_sum:
-                    lowest_sum = sum_distances
-                    best_target = agent
-
-            return best_target
-
-        @staticmethod
-        def GetBestMeleeTarget(a_range=1320, casting_only=False, no_hex_only=False, enchanted_only=False):
-            """
-            Purpose: Returns the best melee most baslled up target within the specified range based on criteria like whether the agent is casting, enchanted, or hexed.
-            Args:
-                a_range (int): The maximum distance for selecting targets.
-                casting_only (bool): If True, only select agents that are casting.
-                no_hex_only (bool): If True, only select agents that are not hexed.
-                enchanted_only (bool): If True, only select agents that are enchanted.
-            Returns: PyAgent.PyAgent: The best melee target agent object, or None if no target matches.
-            """
-            from .AgentArray import AgentArray
-            best_target = None
-            lowest_sum = float('inf')
-            nearest_enemy = None
-            nearest_distance = float('inf')
-            lowest_hp_target = None
-            lowest_hp = float('inf')
-
-            player = PyPlayer.PyPlayer()
-            player_pos = Player.GetXY()
-            agents = player.GetEnemyArray()
-
-            # Filter out dead, distant, and non-melee agents
-            agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsAlive(agent_id))
-            agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsMelee(agent_id))
-            agents = AgentArray.Filter.ByDistance(agents, player_pos, a_range)
-
-
-            if enchanted_only:
-                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsEnchanted(agent_id))
-
-            if no_hex_only:
-                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsHexed(agent_id))
-
-            if casting_only:
-                agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsCasting(agent_id))
-
-
-            for agent_id in agents:
-                agent = PyAgent.PyAgent(agent_id)
-
-                distance_to_self = Utils.Distance(Player.GetXY(), (agent.x, agent.y))
-
-                # Track the nearest melee enemy
-                if distance_to_self < nearest_distance:
-                    nearest_enemy = agent
-                    nearest_distance = distance_to_self
-
-                # Track the agent with the lowest HP
-                agent_hp = agent.living_agent.hp
-                if agent_hp < lowest_hp:
-                    lowest_hp = agent_hp
-                    lowest_hp_target = agent
-
-                # Calculate the sum of distances between this agent and other agents within range
-                sum_distances = 0
-                for other_agent_id in agents:
-                    other_agent = PyAgent.PyAgent(other_agent_id)
-                    sum_distances += Utils.Distance((agent.x, agent.y), (other_agent.x, other_agent.y))
-
-                # Track the best melee target based on the sum of distances
-                if sum_distances < lowest_sum:
-                    lowest_sum = sum_distances
-                    best_target = agent
-
-            return best_target
-
-    class Movement:
-        @staticmethod
-        def FollowPath(path_handler,follow_handler, log_actions=False):
-            """
-            Purpose: Follow a path using the path handler and follow handler objects.
-            Args:
-                path_handler (PathHandler): The PathHandler object containing the path coordinates.
-                follow_handler (FollowXY): The FollowXY object for moving to waypoints.
-            Returns: None
-            """
-            
-            follow_handler.update()
-
-            if follow_handler.is_following():
-                return
-
-
-            point = path_handler.advance()
-            if point is not None:
-                follow_handler.move_to_waypoint(point[0], point[1])
-                if log_actions:
-                    Py4GW.Console.Log("FollowPath", f"Moving to {point}", Py4GW.Console.MessageType.Info)
-
-        @staticmethod
-        def IsFollowPathFinished(path_handler,follow_handler):
-            return path_handler.is_finished() and follow_handler.has_arrived()
-
-
-        class FollowXY:
-            def __init__(self, tolerance=100):
-                """
-                Initialize the FollowXY object with default values.
-                Routine for following a waypoint.
-                """
-                self.waypoint = (0, 0)
-                self.tolerance = tolerance
-                self.player_instance = PyPlayer.PyPlayer()
-                self.following = False
-                self.arrived = False
-                self.timer = Timer()  # Timer to track movement start time
-                self.wait_timer = Timer()  # Timer to track waiting after issuing move command
-                self.wait_timer_run_once = True
-
-
-            def calculate_distance(self, pos1, pos2):
-                """
-                Calculate the Euclidean distance between two points.
-                """
-                return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
-
-            def move_to_waypoint(self, x, y, tolerance=None):
-                """
-                Move the player to the specified coordinates.
-                Args:
-                    x (float): X coordinate of the waypoint.
-                    y (float): Y coordinate of the waypoint.
-                    tolerance (int, optional): The distance threshold to consider arrival. Defaults to the initialized value.
-                """
-                self.reset()
-                self.waypoint = (x, y)
-                self.tolerance = tolerance if tolerance is not None else self.tolerance
-                self.following = True
-                self.arrived = False
-                self.player_instance.Move(x, y)
-                self.timer.Start()
-
-            def reset(self):
-                """
-                Cancel the current move command and reset the waypoint following state.
-                """
-                self.following = False
-                self.arrived = False
-                self.timer.Reset()
-                self.wait_timer.Reset()
-
-            def update(self, log_actions = False):
-                """
-                Update the FollowXY object's state, check if the player has reached the waypoint,
-                and issue new move commands if necessary.
-                """
-                if self.following:
-                    current_position = Player.GetXY()
-                    is_casting = Agent.IsCasting(Player.GetAgentID())
-                    is_moving = Agent.IsMoving(Player.GetAgentID())
-                    is_knocked_down = Agent.IsKnockedDown(Player.GetAgentID())
-                    is_dead = Agent.IsDead(Player.GetAgentID())
-
-                    if is_casting or is_moving or is_knocked_down or is_dead:
-                        return 
-
-                     # Check if the wait timer has elapsed and re-enable movement checks
-                    if self.wait_timer.HasElapsed(1000):
-                        self.wait_timer.Reset()
-                        self.wait_timer_run_once = True
-
-                    # Check if the player has arrived at the waypoint
-                    if self.calculate_distance(current_position, self.waypoint) <= self.tolerance:
-                        self.arrived = True
-                        self.following = False
-                        return
-
-                    # Re-issue the move command if the player is not moving and not casting
-                    if self.wait_timer_run_once:
-                        # Use the move_to_waypoint function to reissue movement
-                        Player.Move(0,0) #reset movement pointer?
-                        Player.Move(self.waypoint[0], self.waypoint[1])
-                        self.wait_timer_run_once  = False  # Disable immediate re-issue
-                        self.wait_timer.Start()  # Start the wait timer to prevent spamming movement
-                        if log_actions:
-                            Py4GW.Console.Log("FollowXY", f"Stopped, R eissue move", Py4GW.Console.MessageType.Info)
-
-                    
-
-            def get_time_elapsed(self):
-                """
-                Get the elapsed time since the player started moving.
-                """
-                return self.timer.GetElapsedTime()
-
-            def get_distance_to_waypoint(self):
-                """
-                Get the distance between the player and the current waypoint.
-                """
-                current_position = Player.GetXY()
-                return Utils.Distance(current_position, self.waypoint)
-
-            def is_following(self):
-                """
-                Check if the player is currently following a waypoint.
-                """
-                return self.following
-
-            def has_arrived(self):
-                """
-                Check if the player has arrived at the current waypoint.
-                """
-                return self.arrived
-
-
-        class PathHandler:
-            def __init__(self, coordinates):
-                """
-                Purpose: Initialize the PathHandler with a list of coordinates.
-                Args:
-                    coordinates (list): A list of tuples representing the points (x, y).
-                Returns: None
-                """
-                self.coordinates = coordinates
-                self.index = 0
-                self.reverse = False  # By default, move forward
-                self.finished = False
-
-            def get_current_point(self):
-                """
-                Purpose: Get the current point in the list of coordinates.
-                Args: None
-                Returns: tuple or None
-                """
-                if not self.coordinates or self.finished:
-                    return None
-                return self.coordinates[self.index]
-
-            def advance(self):
-                """
-                Purpose: Advance the pointer in the list based on the current direction (forward or reverse).
-                Args: None
-                Returns: tuple or None (next point or None if finished)
-                """
-                if self.finished:
-                    return None
-
-                current_point = self.get_current_point()
-
-                # Move forward or backward based on the direction
-                if self.reverse:
-                    if self.index > 0:
-                        self.index -= 1
-                    else:
-                        self.finished = True
-                else:
-                    if self.index < len(self.coordinates) - 1:
-                        self.index += 1
-                    else:
-                        self.finished = True
-
-                return current_point
-
-            def toggle_direction(self):
-                """
-                Purpose: Manually reverse the current direction of traversal.
-                Args: None
-                Returns: None
-                """
-                self.reverse = not self.reverse
-
-            def reset(self):
-                """
-                Purpose: Reset the path traversal to the start or end depending on direction.
-                Args: None
-                Returns: None
-                """
-                self.index = 0 if not self.reverse else len(self.coordinates) - 1
-                self.finished = False
-
-            def is_finished(self):
-                """
-                Purpose: Check if the traversal has finished.
-                Args: None
-                Returns: bool
-                """
-                return self.finished
-
-            def set_position(self, index):
-                """
-                Purpose: Set the current index in the list of coordinates.
-                Args:
-                    index (int): The index to set the position to.
-                Returns: None
-                """
-                if 0 <= index < len(self.coordinates):
-                    self.index = index
-                    self.finished = False
-                else:
-                    raise IndexError(f"Index {index} out of bounds for coordinates list")
-
-            def get_position(self):
-                """
-                Purpose: Get the current index in the list of coordinates.
-                Args: None
-                Returns: int
-                """
-                return self.index
-
-            def get_position_count(self):
-                """
-                Purpose: Get the total number of positions in the list.
-                Args: None
-                Returns: int
-                """
-                return len(self.coordinates)
+    def is_empty(self):
+        """Check if the action queue is empty."""
+        return not bool(self.queue)
     
+    def clear(self):
+        """Clear all actions from the queue."""
+        self.queue.clear()
+        
+class ActionQueueNode:
+    def __init__(self,throttle_time=250):
+        self.action_queue = ActionQueue()
+        self.action_queue_timer = Timer()
+        self.action_queue_timer.Start()
+        self.action_queue_time = throttle_time
 
+    def execute_next(self):
+        if self.action_queue_timer.HasElapsed(self.action_queue_time):      
+            self.action_queue.execute_next()
+            self.action_queue_timer.Reset()
+                
+    def add_action(self, action, *args, **kwargs):
+        self.action_queue.add_action(action, *args, **kwargs)
+        
+    def is_empty(self):
+        return self.action_queue.is_empty()
+    
+    def clear(self):
+        self.action_queue.clear()
+            
+            
+#endregion
+
+
+
+#region BehaviorTree
 class BehaviorTree:
     class NodeState(Enum):
         RUNNING = 0
@@ -1516,6 +1012,9 @@ class BehaviorTree:
         def __init__(self, nodes=None):
             # Initialize the behavior tree with a list of nodes (can be Sequence, Selector, etc.)
             super().__init__(nodes)
+#endregion
+
+#region FSM
 
 class FSM:
 
@@ -1795,12 +1294,16 @@ class FSM:
             return self.states[current_index - 1].name
         return f"{self.name}: No previous state (first state)"
 
+#endregion
+
+#region MultiThreading
 
 class MultiThreading:
-    def __init__(self):
+    def __init__(self, timeout = 1.0):
         """Initialize the thread manager."""
         self.threads = {}
         self.lock = threading.Lock()
+        self.timeout = timeout
 
     def add_thread(self, name, execute_fn, *args, **kwargs):
         """
@@ -1811,20 +1314,26 @@ class MultiThreading:
         :param args: Positional arguments for the target function.
         :param kwargs: Keyword arguments for the target function.
         """
-        target =execute_fn
         with self.lock:
             if name in self.threads:
                 Py4GW.Console.Log("MultiThreading", f"Thread '{name}' already exists.", Py4GW.Console.MessageType.Warning)
                 return
+
             stop_event = threading.Event()
+            last_keepalive = time.time()  # Store last keepalive time
 
             def wrapped_target(*args, **kwargs):
+                """Thread function that runs execute_fn() indefinitely until stopped."""
                 while not stop_event.is_set():
-                    target(*args, **kwargs)
+                    execute_fn(*args, **kwargs)
+                    time.sleep(0.1)  # Prevents tight loops
+
+                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' exited.", Py4GW.Console.MessageType.Info)
 
             thread = threading.Thread(target=wrapped_target, args=args, kwargs=kwargs, daemon=True)
-            self.threads[name] = {"thread": thread, "stop_event": stop_event}
+            self.threads[name] = {"thread": thread, "stop_event": stop_event, "last_keepalive": last_keepalive}
             Py4GW.Console.Log("MultiThreading", f"Thread '{name}' added.", Py4GW.Console.MessageType.Info)
+
 
     def start_thread(self, name):
         """Start the thread with the specified name."""
@@ -1840,6 +1349,29 @@ class MultiThreading:
             thread.start()
             Py4GW.Console.Log("MultiThreading", f"Thread '{name}' started.", Py4GW.Console.MessageType.Success)
 
+    def update_keepalive(self, name):
+        """Update keepalive timestamp for a running thread."""
+        with self.lock:
+            if name in self.threads:
+                self.threads[name]["last_keepalive"] = time.time()
+
+    def should_stop(self, name):
+        """Allows a thread to check if it should stop due to inactivity."""
+        with self.lock:
+            if name not in self.threads:
+                return True  #Thread doesn't exist, assume it should stop
+
+            thread_info = self.threads[name]
+            last_keepalive = thread_info["last_keepalive"]
+
+            #If keepalive is too old, set stop event to ensure the thread exits
+            if time.time() - last_keepalive > self.timeout:
+                thread_info["stop_event"].set()
+
+            return thread_info["stop_event"].is_set()
+
+
+
     def stop_thread(self, name):
         """Stop the thread with the specified name."""
         with self.lock:
@@ -1851,71 +1383,24 @@ class MultiThreading:
             stop_event.set()
             thread = thread_info["thread"]
             thread.join(timeout=2)
-            if thread.is_alive():
-                Py4GW.Console.Log("MultiThreading", f"Failed to stop thread '{name}' gracefully.", Py4GW.Console.MessageType.Warning)
-            else:
-                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' stopped.", Py4GW.Console.MessageType.Info)
             del self.threads[name]
+            Py4GW.Console.Log("MultiThreading", f"Thread '{name}' stopped.", Py4GW.Console.MessageType.Info)
 
     def stop_all_threads(self):
-        """Stop all threads managed by this manager."""
-        thread_names = []
+        """Stop all threads except the watchdog, then exit the watchdog cleanly."""
         with self.lock:
-            # Make a copy of thread names to avoid modifying the dictionary while iterating
-            thread_names = list(self.threads.keys())
+            # Exclude watchdog from stopping itself
+            thread_names = [name for name in self.threads.keys() if name != "watchdog"]
 
-        # Stop threads without holding the lock
+        # Stop all worker threads first
         for name in thread_names:
             self.stop_thread(name)
 
+        #Now allow watchdog to exit naturally
+        if "watchdog" in self.threads:
+            self.threads["watchdog"]["stop_event"].set()
 
-class ActionQueue:
-    def __init__(self):
-        """Initialize the action queue."""
-        self.queue = deque() # Use deque for efficient FIFO operations
 
-    def add_action(self, action, *args, **kwargs):
-        """
-        Add an action to the queue.
+#endregion
 
-        :param action: Function to execute.
-        :param args: Positional arguments for the function.
-        :param kwargs: Keyword arguments for the function.
-        """
-        self.queue.append((action, args, kwargs))
-        
-    def execute_next(self):
-        """Execute the next action in the queue."""
-        if self.queue:
-            action, args, kwargs = self.queue.popleft()
-            action(*args, **kwargs)
-            
-    def is_empty(self):
-        """Check if the action queue is empty."""
-        return not bool(self.queue)
-    
-    def clear(self):
-        """Clear all actions from the queue."""
-        self.queue.clear()
-        
-class ActionQueueNode:
-    def __init__(self,throttle_time=250):
-        self.action_queue = ActionQueue()
-        self.action_queue_timer = Timer()
-        self.action_queue_timer.Start()
-        self.action_queue_time = throttle_time
 
-    def execute_next(self):
-        if self.action_queue_timer.HasElapsed(self.action_queue_time):      
-            self.action_queue.execute_next()
-            self.action_queue_timer.Reset()
-                
-    def add_action(self, action, *args, **kwargs):
-        self.action_queue.add_action(action, *args, **kwargs)
-        
-    def is_empty(self):
-        return self.action_queue.is_empty()
-    
-    def clear(self):
-        self.action_queue.clear()
-            

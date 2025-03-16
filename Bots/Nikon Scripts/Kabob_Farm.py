@@ -499,7 +499,7 @@ class Kabob_Farm(ReportsProgress):
 
         self.average_run_history.append(elapsed)
 
-        if len(self.average_run_history) >= 10:
+        if len(self.average_run_history) >= 100:
             self.average_run_history.pop(0)
 
         self.average_run_time = sum(self.average_run_history) / len(self.average_run_history)
@@ -534,7 +534,6 @@ class Kabob_Farm(ReportsProgress):
                 return
             
             items3 = self.pyMerchant.get_merchant_item_list()
-                
             if items3:
                 for item in items3:
                     if Item.GetModelID(item) == Items.Drake_Kabob:
