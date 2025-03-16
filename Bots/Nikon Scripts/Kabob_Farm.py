@@ -184,7 +184,8 @@ class Kabob_Farm(ReportsProgress):
     kabob_exchange_do_exchange_all = "Kabob- Exchange Kabobs"
     kabob_exchange_Kabobs_routine_start = "Kabob- Go Exchange Kabobs#1"
     kabob_exchange_Kabobs_routine_end = "Kabob- Go Exchange Kabobs#2"
-    
+
+    kabob_start_farm = "Kabob- Check Farm"
     kabob_inventory_routine = "DoInventoryRoutine"
     kabob_initial_check_inventory = "Kabob- Inventory Check"
     kabob_check_inventory_after_handle_inventory = "Kabob- Inventory Handled?"
@@ -219,7 +220,7 @@ class Kabob_Farm(ReportsProgress):
     kabob_pathing_move_to_portal_handler = Routines.Movement.PathHandler(kabob_outpost_pathing)
     kabob_pathing_move_to_kill_handler = Routines.Movement.PathHandler(kabob_farm_run_pathing)
     
-    kabob_exchange_pathing = [(-8400, 14155), (-11170, 15188)]
+    kabob_exchange_pathing = [(-8608, 14646), (-11170, 15188)]
     kabob_exchange_pathing_handler = Routines.Movement.PathHandler(kabob_exchange_pathing)
     movement_Handler = Routines.Movement.FollowXY(50)
     
@@ -298,11 +299,12 @@ class Kabob_Farm(ReportsProgress):
         self.Kabob_Exchange_Routine.AddState(name=self.kabob_exchange_do_exchange_all,
                                              execute_fn=lambda: self.ExecuteStep(self.kabob_exchange_do_exchange_all, self.ExchangeKabobs()),
                                              exit_condition=lambda: self.ExchangeKabobsDone(), 
-                                             run_once=False)
-        
+                                             run_once=False)    
         self.Kabob_Routine.AddSubroutine(self.kabob_exchange_Kabobs_routine_start,
                        sub_fsm=self.Kabob_Exchange_Routine,
                        condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(Items.Drake_Flesh))        
+        self.Kabob_Routine.AddState(self.kabob_start_farm,
+                                    execute_fn=lambda: self.ExecuteStep(self.kabob_start_farm, self.CheckIfShouldRunFarm()))
         self.Kabob_Routine.AddState(self.kabob_travel_state_name,
                        execute_fn=lambda: self.ExecuteStep(self.kabob_travel_state_name, Routines.Transition.TravelToOutpost(Mapping.Rilohn_Refuge)),
                        exit_condition=lambda: Routines.Transition.HasArrivedToOutpost(Mapping.Rilohn_Refuge),
@@ -440,7 +442,7 @@ class Kabob_Farm(ReportsProgress):
         self.player_stuck_hos_count = 0
         self.current_lootable = 0
         self.current_loot_tries = 0
-        
+
         self.inventoryRoutine.Reset()
         self.inventoryRoutine.ApplySelections(idItems=self.idItems, sellItems=self.sellItems, sellWhites=self.sellWhites, 
                                              sellBlues=self.sellBlues, sellGrapes=self.sellGrapes, sellGolds=self.sellGolds, sellGreens=self.sellGreens, 
@@ -501,6 +503,11 @@ class Kabob_Farm(ReportsProgress):
             self.average_run_history.pop(0)
 
         self.average_run_time = sum(self.average_run_history) / len(self.average_run_history)
+
+    def CheckIfShouldRunFarm(self):
+        global kabob_selected
+        if not kabob_selected:
+            self.Kabob_Routine.jump_to_state_by_name(self.kabob_end_state_name)
 
     def GetCurrentRunTime(self):
         return self.RunTimer.GetElapsedTime()
@@ -976,11 +983,18 @@ class Kabob_Farm(ReportsProgress):
     
     # Jump back to output pathing if not done collecting
     def CheckKabobRoutineEnd(self):
+        global kabob_selected
+
         # Don't reset the kabob count
         self.RunEnding()
         self.SoftReset()
 
         self.kabob_first_after_reset = False
+
+        if not kabob_selected:
+            self.Log("Not Farming Kabob - AutoStop")
+            self.InternalStop()
+            return
 
         if self.kabob_collected < self.main_item_collect:
             # mapping to outpost may have failed OR the threshold was reached. Try to map there and start over.
