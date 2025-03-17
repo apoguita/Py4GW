@@ -347,7 +347,7 @@ class Soup_Farm(ReportsProgress):
                        transition_delay_ms=1000)
         self.soup_Routine.AddState(self.soup_initial_check_inventory, execute_fn=lambda: self.CheckInventory())
         self.soup_Routine.AddState(self.soup_set_normal_mode,
-                       execute_fn=lambda: self.ExecuteStep(self.soup_set_normal_mode, Party.SetNormalMode()),
+                       execute_fn=lambda: self.ExecuteStep(self.soup_set_normal_mode, self.InternalStart()),
                        transition_delay_ms=1000)
         self.soup_Routine.AddState(self.soup_leave_party_name,
                        execute_fn=lambda: self.ExecuteStep(self.soup_leave_party_name, Party.LeaveParty()), # Ensure only one hero in party
@@ -371,7 +371,7 @@ class Soup_Farm(ReportsProgress):
         
         # Switch back n forth between staff/scythe to ensure have enough energy at each point.  
         self.soup_Routine.AddState(self.soup_change_weapon_staff,
-                       execute_fn=lambda: self.ExecuteStep(self.soup_change_weapon_staff, ChangeWeaponSet(self.weapon_slot_staff)),
+                       execute_fn=lambda: self.ExecuteStep(self.soup_change_weapon_staff, self.RunStarting()),
                        transition_delay_ms=1000)
         self.soup_Routine.AddState(self.soup_pathing_2_state_name,
                        execute_fn=lambda: self.ExecuteStep(self.soup_pathing_2_state_name, Routines.Movement.FollowPath(self.soup_pathing_portal_only_handler_2, self.post_resign_movement_Handler)),
