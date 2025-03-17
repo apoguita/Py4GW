@@ -556,16 +556,6 @@ class Soup_Farm(ReportsProgress):
         self.TotalTimer.Stop()
         self.RunTimer.Stop()
 
-    # def PrintData(self):
-    #     if self.current_inventory != None:
-    #         totalSlotsFull = 0
-    #         for (bag, slots) in self.current_inventory:
-    #             if isinstance(slots, list):
-    #                 totalSlotsFull += len(slots)
-    #                 for slot in slots:
-    #                     self.Log(f"Bag: {bag}, Slot: {slot}")
-    #         self.Log(f"Total Slots Full: {totalSlotsFull}")
-
     def Reset(self):     
         if self.soup_Routine:
             self.InternalStop()
@@ -978,25 +968,20 @@ class Soup_Farm(ReportsProgress):
                     if test != 0:
                         self.current_loot_tries += 1
                    
-                        if self.current_loot_tries > 10:
+                        if self.current_loot_tries > 5:
                             self.current_lootable = 0
-                            self.current_loot_tries = 0
-                            self.Log("I must be blind, where is this item?")
-                        return  
-                    else:
-                        self.current_lootable = 0
-                        self.current_loot_tries = 0
+                        return
                 
+                self.current_lootable = 0
+                self.current_loot_tries = 0
                 item = self.GetNearestPickupItem()
 
                 if item == 0 or item == None:
                     self.current_lootable = 0
-                    self.current_loot_tries = 0
                     return                
                 
                 if self.current_lootable != item:
                     self.current_lootable = item
-                    self.current_loot_tries = 0
 
                 model = Item.GetModelID(Agent.GetItemAgent(self.current_lootable).item_id)
 
@@ -1016,7 +1001,6 @@ class Soup_Farm(ReportsProgress):
                 self.soup_loot_done_timer.Reset()
 
                 if self.current_lootable == 0 or Inventory.GetFreeSlotCount() == 0:
-                    self.current_loot_tries = 0
                     return True
 
             return False
