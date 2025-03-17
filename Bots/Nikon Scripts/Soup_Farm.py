@@ -99,7 +99,7 @@ class Soup_Window(BasicWindow):
             if PyImGui.begin_table("Run_Times", 2):
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
-                PyImGui.text(f"Last Run:")
+                PyImGui.text(f"Current:")
                 PyImGui.table_next_column()
                 PyImGui.text(f"     {FormatTime(GetRunTime(), "mm:ss:ms")}")
                 PyImGui.table_next_row()
@@ -984,7 +984,8 @@ class Soup_Farm(ReportsProgress):
                    
                         if self.current_loot_tries > 5:
                             self.current_lootable = 0
-                        return
+                        else:
+                            return
                 
                 self.current_lootable = 0
                 self.current_loot_tries = 0

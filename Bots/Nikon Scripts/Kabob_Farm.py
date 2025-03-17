@@ -100,9 +100,9 @@ class Kabob_Window(BasicWindow):
             if PyImGui.begin_table("Run_Times", 2):
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
-                PyImGui.text(f"Last Run:")
+                PyImGui.text(f"Current:")
                 PyImGui.table_next_column()
-                PyImGui.text(f"     {FormatTime(GetRunTime(), "mm:ss:ms")}")
+                PyImGui.text(f"      {FormatTime(GetRunTime(), "mm:ss:ms")}")
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
                 PyImGui.text(f"Avg. Run:")
