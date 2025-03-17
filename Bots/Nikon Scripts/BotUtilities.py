@@ -1303,8 +1303,11 @@ def CheckIfInventoryHasItem(itemModelId, count=1):
 
     return False
 
-def GetItemIdFromModelId(itemModelId):
+def GetItemIdFromModelId(itemModelId, min_count = 1):
     bags = ItemArray.CreateBagList(1,2,3,4)
+
+    count = 0
+    itemIds = []
 
     for bag_enum in bags:
         try:
@@ -1316,7 +1319,15 @@ def GetItemIdFromModelId(itemModelId):
 
             for item in items_in_bag:
                 if item.model_id == itemModelId:
-                    return item.item_id
+                    if item.quantity >= min_count:
+                        itemIds.append(item.item_id)
+                        return itemIds
+                    else:
+                        count += item.quantity
+                        itemIds.append(item.item_id)
+
+                        if count >= min_count:
+                            return itemIds
         except Exception as e:
             Py4GW.Console.Log("Utilities", f"GetItemIdFromModelId: {str(e)}", Py4GW.Console.MessageType.Error)
 

@@ -536,7 +536,7 @@ class Kabob_Farm(ReportsProgress):
             if items3:
                 for item in items3:
                     if Item.GetModelID(item) == Items.Drake_Kabob:
-                        self.pyMerchant.collector_buy_item(item, 0, [turn_in], [1])
+                        self.pyMerchant.collector_buy_item(item, 0, turn_in, [1])
 
         except Exception as e:
             self.Log(f"Error in Exchanging Kabobs: {str(e)}", Py4GW.Console.MessageType.Error)
