@@ -798,7 +798,11 @@ class Soup_Farm(ReportsProgress):
         surrounded = CheckSurrounded(2)
         forceStep = self.ShouldForceTransitionStep()
 
-        return pathDone or surrounded or forceStep or self.player_stuck
+        done = pathDone or surrounded or forceStep or self.player_stuck
+        if done:
+            self.soup_step_done_timer.Stop()
+            
+        return done
 
     def KillLoopStart(self):
         self.StayAliveLoop()
@@ -944,6 +948,10 @@ class Soup_Farm(ReportsProgress):
             enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
 
             if len(enemies) == 0:
+                self.current_lootable = 0
+                self.current_loot_tries = 0
+                self.soup_second_timer.Stop()
+                self.soup_stay_alive_timer.Stop()
                 self.running_movement_Handler.reset()
                 return True
 
@@ -1016,6 +1024,8 @@ class Soup_Farm(ReportsProgress):
                 self.soup_loot_done_timer.Reset()
 
                 if self.current_lootable == 0 or Inventory.GetFreeSlotCount() == 0:
+                    self.soup_loot_timer.Stop()
+                    self.soup_loot_done_timer.Stop()
                     return True
 
             return False
