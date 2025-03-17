@@ -182,6 +182,7 @@ class Soup_Farm(ReportsProgress):
     soup_exchange_soup_routine_start = "Soup- Go Exchange Soup#1"
     soup_exchange_soup_routine_end = "Soup- Go Exchange Soup#2"
     
+    soup_start_farm = "Soup- Check Farm"
     soup_inventory_routine = "DoInventoryRoutine"
     soup_initial_check_inventory = "Soup- Inventory Check"
     soup_check_inventory_after_handle_inventory = "Soup- Inventory Handled?"
@@ -341,6 +342,8 @@ class Soup_Farm(ReportsProgress):
         self.soup_Routine.AddSubroutine(self.soup_exchange_soup_routine_start,
                        sub_fsm=self.soup_Exchange_Routine,
                        condition_fn=lambda: self.CheckExchangeSoups() and CheckIfInventoryHasItem(Items.Skalefin))        
+        self.soup_Routine.AddState(self.soup_start_farm,
+                                    execute_fn=lambda: self.ExecuteStep(self.soup_start_farm, self.CheckIfShouldRunFarm()))
         self.soup_Routine.AddState(self.soup_travel_state_name,
                        execute_fn=lambda: self.ExecuteStep(self.soup_travel_state_name, Routines.Transition.TravelToOutpost(Mapping.Jokanur_Diggings)),
                        exit_condition=lambda: Routines.Transition.HasArrivedToOutpost(Mapping.Jokanur_Diggings),
@@ -660,6 +663,11 @@ class Soup_Farm(ReportsProgress):
             self.average_run_history.pop(0)
 
         self.average_run_time = sum(self.average_run_history) / len(self.average_run_history)
+
+    def CheckIfShouldRunFarm(self):
+        global soup_selected
+        if not soup_selected:
+            self.soup_Routine.jump_to_state_by_name(self.soup_end_state_name)
 
     def GetCurrentRunTime(self):
         return self.RunTimer.GetElapsedTime()
@@ -1019,12 +1027,19 @@ class Soup_Farm(ReportsProgress):
     
     # Jump back to output pathing if not done collecting
     def CheckSoupRoutineEnd(self):
+        global soup_selected
+
         # Don't reset the Soup count
         self.RunEnding()
         self.SoftReset()
 
         self.soup_first_after_reset = False
 
+        if not soup_selected:
+            self.Log("Not Farming Soup - AutoStop")
+            self.InternalStop()
+            return
+        
         if self.soup_collected < self.main_item_collect:
             # mapping to outpost may have failed OR the threshold was reached. Try to map there and start over.
             if Map.GetMapID() != Mapping.Jokanur_Diggings:
