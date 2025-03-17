@@ -1044,11 +1044,15 @@ class InventoryFsm(FSM):
         
         self.action_timer.Reset()
 
-        kits_in_inv = Inventory.GetModelCount(Items.Id_Kit_Superior)
+        kits_in_inv = Inventory.GetFirstIDKit()
 
         if kits_in_inv == 0:
             merchant_item_list = Trading.Merchant.GetOfferedItems()
             merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == Items.Id_Kit_Superior)
+
+            # if no superior, just go with basic since merchant will have that.
+            if len(merchant_item_list) == 0:
+                merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == Items.Id_Kit_Basic)
 
             if len(merchant_item_list) > 0:
                 item_id = merchant_item_list[0]
@@ -1061,7 +1065,7 @@ class InventoryFsm(FSM):
         if not self.idItems:
             return True
         
-        kits_in_inv = Inventory.GetModelCount(Items.Id_Kit_Superior)
+        kits_in_inv = Inventory.GetFirstIDKit()
 
         if kits_in_inv >= 1:
             self.action_timer.Stop()
