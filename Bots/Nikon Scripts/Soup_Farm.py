@@ -977,26 +977,26 @@ class Soup_Farm(ReportsProgress):
 
                     if test != 0:
                         self.current_loot_tries += 1
-
-                        if (self.current_loot_tries == 5):
-                            self.Log("This loot is 50 meters away or im blind")
                    
                         if self.current_loot_tries > 10:
                             self.current_lootable = 0
                             self.current_loot_tries = 0
-                            self.Log("I still can't find it, moving on.")
+                            self.Log("I must be blind, where is this item?")
                         return  
                     else:
                         self.current_lootable = 0
+                        self.current_loot_tries = 0
                 
                 item = self.GetNearestPickupItem()
 
                 if item == 0 or item == None:
                     self.current_lootable = 0
+                    self.current_loot_tries = 0
                     return                
                 
                 if self.current_lootable != item:
                     self.current_lootable = item
+                    self.current_loot_tries = 0
 
                 model = Item.GetModelID(Agent.GetItemAgent(self.current_lootable).item_id)
 
@@ -1016,6 +1016,7 @@ class Soup_Farm(ReportsProgress):
                 self.soup_loot_done_timer.Reset()
 
                 if self.current_lootable == 0 or Inventory.GetFreeSlotCount() == 0:
+                    self.current_loot_tries = 0
                     return True
 
             return False
