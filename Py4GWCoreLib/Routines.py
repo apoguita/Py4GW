@@ -1043,7 +1043,12 @@ class Routines:
             def InteractTarget(action_queue:ActionQueueNode):
                 from .Player import Player
                 action_queue.add_action(Player.Interact, Player.GetTargetID())
-                sleep(0.3)
+                sleep(0.1)
+                
+            @staticmethod
+            def InteractAgent(agent_id:int, action_queue:ActionQueueNode):
+                from .Player import Player
+                action_queue.add_action(Player.Interact, agent_id)
                 
             @staticmethod
             def SendDialog(dialog_id:str, action_queue:ActionQueueNode):
@@ -1059,7 +1064,23 @@ class Routines:
                 if log:
                     ConsoleLog("SetTitle", f"Setting title to {title_id}", Console.MessageType.Info) 
 
-                
+            @staticmethod
+            def SendChatCommand(command:str, action_queue:ActionQueueNode, log=False):
+                from .Player import Player
+                action_queue.add_action(Player.SendChatCommand, command)
+                sleep(0.3)
+                if log:
+                    ConsoleLog("SendChatCommand", f"Sending chat command {command}", Console.MessageType.Info)
+               
+            
+            @staticmethod
+            def Move(x:float, y:float, action_queue:ActionQueueNode, log=False):
+                from .Player import Player
+                action_queue.add_action(Player.Move, x, y)
+                sleep(0.1)
+                if log:
+                    ConsoleLog("MoveTo", f"Moving to {x}, {y}", Console.MessageType.Info)
+                     
         class Movement:
             @staticmethod
             def FollowPath(path_handler, movement_object, action_queue, custom_exit_condition= lambda: False):  
@@ -1068,6 +1089,7 @@ class Routines:
                 while not (path_handler.is_finished() and movement_object.has_arrived()):
                     if custom_exit_condition():
                         break
+
                     #this routine performs the follow, it uses the same movement objects as the asynch method
                     movement_object.update(action_queue=action_queue)
                     if movement_object.is_following():
@@ -1077,7 +1099,6 @@ class Routines:
                     point_to_follow = path_handler.advance()
                     if point_to_follow is not None:
                         movement_object.move_to_waypoint(point_to_follow[0], point_to_follow[1])
-                        sleep(0.1)
                 
         class Skills:
             @staticmethod
@@ -1403,7 +1424,7 @@ class Routines:
                     return
                 
                 for item_id in item_array:
-                    Routines.Sequential.Player.InteractTarget(action_queue)
+                    Routines.Sequential.Player.InteractAgent(item_id,action_queue)
                     
                 while not action_queue.is_empty():
                     sleep(0.35)
