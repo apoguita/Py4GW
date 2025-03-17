@@ -1052,6 +1052,7 @@ class InventoryFsm(FSM):
 
             # if no superior, just go with basic since merchant will have that.
             if len(merchant_item_list) == 0:
+                merchant_item_list = Trading.Merchant.GetOfferedItems()
                 merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == Items.Id_Kit_Basic)
 
             if len(merchant_item_list) > 0:
