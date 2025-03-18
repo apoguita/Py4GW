@@ -21,17 +21,16 @@ class BOTVARIABLES:
         self.config = Botconfig()
         self.window_module = ImGui.WindowModule()
 
-        
+
+MAIN_THREAD_NAME = "RunBotSequentialLogic"
+
 bot_variables = BOTVARIABLES()
 bot_variables.config.window_module = ImGui.WindowModule(MODULE_NAME, window_name=MODULE_NAME, window_size=(300, 300), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
-# Instantiate MultiThreading manager
 thread_manager = MultiThreading(1)
-
 #endregion
 
 #region Window
-
 def DrawWindow():
     global bot_variables
 
@@ -63,7 +62,6 @@ def DrawWindow():
             bot_variables.config.log_to_console = PyImGui.checkbox("Log to Console", bot_variables.config.log_to_console)
     PyImGui.end()   
 
-
 def LoadSkillBar(action_queue: ActionQueueNode):
     primary_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
 
@@ -85,8 +83,7 @@ def LoadSkillBar(action_queue: ActionQueueNode):
         action_queue.add_action(SkillBar.LoadSkillTemplate, template)
 
     sleep(0.5)
-
-        
+      
 def IsSkillBarLoaded():
     primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
     if primary_profession != "Assassin" and secondary_profession != "Assassin":
@@ -95,13 +92,10 @@ def IsSkillBarLoaded():
         Py4GW.Console.Log("Boreal Bot", f"{current_function} - This bot requires A/Any or Any/A to work, halting.", Py4GW.Console.MessageType.Error)
         return False
     return True
-
-                
+               
 def IsChestFound(max_distance=2500) -> bool:
     return Routines.Agents.GetNearestChest(max_distance) != 0
         
-
-
 #endregion
 
 #region skillhandler
@@ -124,7 +118,6 @@ def evaluate_skill_casting_status():
         sleep(0.1)
         return False
     
-
 def SkillHandler():
     """Thread function to handle skill casting based on conditions."""
     global MAIN_THREAD_NAME, bot_variables
@@ -141,13 +134,10 @@ def SkillHandler():
             
         if Routines.Sequential.Skills.CastSkillID(dash,bot_variables.action_queue, log=bot_variables.config.log_to_console):
             sleep(0.05)
-        
-        
-
+    
 #endregion
 
 #region Sequential Code
-
 def pre_run_checks(log_to_console):
     """Verify skillbar, inventory, lockpick checks before starting."""
     if not IsSkillBarLoaded():
@@ -168,9 +158,6 @@ def pre_run_checks(log_to_console):
         return False
 
     return True
-
-
-
 
 
 def RunBotSequentialLogic():
@@ -227,8 +214,6 @@ def RunBotSequentialLogic():
             
 #endregion   
 
-
-
 #region reset_environment
 
 def reset_environment():
@@ -238,32 +223,23 @@ def reset_environment():
     bot_variables.action_queue.clear()
     thread_manager.stop_all_threads()
 
-
-#endregion
-
-
-#region globals_threading
-MAIN_THREAD_NAME = "RunBotSequentialLogic"
-
-
 #endregion
 
 def main():
-    global MAIN_THREAD_NAME, action_queue
     if bot_variables.config.is_script_running:
         thread_manager.update_all_keepalives()
-    
+
     DrawWindow()
-    
+
     if Map.IsMapLoading():
         return
-    
-    if bot_variables.config.is_script_running and not Agent.IsCasting(Player.GetAgentID()):
-        if bot_variables.action_queue.IsExpired():
-            bot_variables.action_queue.execute_next()
-    else:
-        bot_variables.action_queue.clear()
 
+    if bot_variables.config.is_script_running:
+        if not Agent.IsCasting(Player.GetAgentID()):
+            if bot_variables.action_queue.IsExpired():
+                bot_variables.action_queue.execute_next()
+        else:
+            bot_variables.action_queue.clear()
 
 if __name__ == "__main__":
     main()

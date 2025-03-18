@@ -956,111 +956,121 @@ def DrawWindow():
     global bot_variables
 
     try:
+        # First run: set window size and position
         if bot_variables.config.window_module.first_run:
-            PyImGui.set_next_window_size(bot_variables.config.window_module.window_size[0], bot_variables.config.window_module.window_size[1])     
-            PyImGui.set_next_window_pos(bot_variables.config.window_module.window_pos[0], bot_variables.config.window_module.window_pos[1])
+            PyImGui.set_next_window_size(*bot_variables.config.window_module.window_size)     
+            PyImGui.set_next_window_pos(*bot_variables.config.window_module.window_pos)
             bot_variables.config.window_module.first_run = False
 
         if PyImGui.begin(bot_variables.config.window_module.window_name, bot_variables.config.window_module.window_flags):
-            # Start a nested table for controls
+            # Control Table
             if PyImGui.begin_table("ControlTable", 2):
-                # Row 1: Control
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
                 PyImGui.text("Control")
                 PyImGui.table_next_column()
-                
+
+                # Start/Stop Button
                 button_text = "Start script" if not bot_variables.config.is_script_running else "Stop script"
                 if PyImGui.button(button_text):
-                    bot_variables.config.is_script_running = not bot_variables.config.is_script_running      
+                    bot_variables.config.is_script_running = not bot_variables.config.is_script_running
                     if bot_variables.config.is_script_running:
                         thread_manager.stop_all_threads()
                         thread_manager.add_thread(MAIN_THREAD_NAME, RunBotSequentialLogic)
                         thread_manager.add_thread("SkillHandler", SkillHandler)
-                        # Start watchdog
                         thread_manager.start_watchdog(MAIN_THREAD_NAME)
                     else:
-                        # Stop all threads
                         reset_environment()
                         thread_manager.stop_all_threads()
 
-                # Row 4: Progress
                 PyImGui.table_next_row()
-                PyImGui.table_next_column() 
-                # End the nested ControlTable
+                PyImGui.table_next_column()
                 PyImGui.end_table()
 
+            # --- Config Section ---
             if PyImGui.collapsing_header("Config"):
                 bot_variables.config.log_to_console = PyImGui.checkbox("Log to Console", bot_variables.config.log_to_console)
+
                 # Loot Section
                 if PyImGui.tree_node("Loot"):
-                
-                        if PyImGui.tree_node("Lockpicks"):
-                            bot_variables.loot_config.loot_lockpicks = PyImGui.checkbox("Lockpicks", bot_variables.loot_config.loot_lockpicks)
-                            if bot_variables.loot_config.loot_lockpicks:  
-                                PyImGui.tree_pop()
-                            
-                        if PyImGui.tree_node("White Dyes"):
-                            bot_variables.loot_config.loot_white_dyes = PyImGui.checkbox("White Dyes", bot_variables.loot_config.loot_white_dyes)
-                            if bot_variables.loot_config.loot_white_dyes: 
-                                PyImGui.tree_pop()
-                            
-                        if PyImGui.tree_node("Black Dyes"):
-                            bot_variables.loot_config.loot_black_dyes = PyImGui.checkbox("Black Dyes", bot_variables.loot_config.loot_black_dyes)
-                            if bot_variables.loot_config.loot_black_dyes: 
-                                PyImGui.tree_pop()
-                                
-                        if PyImGui.tree_node("Map Pieces"):
-                            bot_variables.loot_config.loot_map_pieces = PyImGui.checkbox("Map Pieces", bot_variables.loot_config.loot_map_pieces)
-                            if bot_variables.loot_config.loot_map_pieces: 
-                                PyImGui.tree_pop()
-                                
-                                
-                    
-                if PyImGui.tree_node("White Looting"):
-                            bot_variables.loot_config.loot_whites = PyImGui.checkbox("Items", bot_variables.loot_config.loot_whites)
-                            bot_variables.loot_config.loot_glacial_stones = PyImGui.checkbox("Glacial Stones", bot_variables.loot_config.loot_glacial_stones)
-                            bot_variables.loot_config.loot_tomes = PyImGui.checkbox("Tomes", bot_variables.loot_config.loot_tomes)
-                            bot_variables.loot_config.loot_dyes = PyImGui.checkbox("Dyes", bot_variables.loot_config.loot_dyes)
-                            bot_variables.loot_config.loot_event_items = PyImGui.checkbox("Event Items", bot_variables.loot_config.loot_event_items)
-                            PyImGui.tree_pop()
-                            bot_variables.loot_config.loot_blues = PyImGui.checkbox("Loot Blues", bot_variables.loot_config.loot_blues)
-                            bot_variables.loot_config.loot_purples = PyImGui.checkbox("Loot Purples", bot_variables.loot_config.loot_purples)
-                            bot_variables.loot_config.loot_golds = PyImGui.checkbox("Loot Golds", bot_variables.loot_config.loot_golds)
-                            PyImGui.tree_pop()
+                    for label, attr in [
+                        ("Lockpicks", "loot_lockpicks"),
+                        ("White Dyes", "loot_white_dyes"),
+                        ("Black Dyes", "loot_black_dyes"),
+                        ("Map Pieces", "loot_map_pieces")
+                    ]:
+                        setattr(bot_variables.loot_config, attr,
+                                PyImGui.checkbox(label, getattr(bot_variables.loot_config, attr)))
+
+                    if PyImGui.tree_node("White Looting"):
+                        for label, attr in [
+                            ("Items", "loot_whites"),
+                            ("Glacial Stones", "loot_glacial_stones"),
+                            ("Tomes", "loot_tomes"),
+                            ("Dyes", "loot_dyes"),
+                            ("Event Items", "loot_event_items")
+                        ]:
+                            setattr(bot_variables.loot_config, attr,
+                                    PyImGui.checkbox(label, getattr(bot_variables.loot_config, attr)))
+                        PyImGui.tree_pop()
+
+                    for label, attr in [
+                        ("Loot Blues", "loot_blues"),
+                        ("Loot Purples", "loot_purples"),
+                        ("Loot Golds", "loot_golds")
+                    ]:
+                        setattr(bot_variables.loot_config, attr,
+                                PyImGui.checkbox(label, getattr(bot_variables.loot_config, attr)))
+
+                    PyImGui.tree_pop()
 
                 # Salvage Section
                 if PyImGui.tree_node("Salvage"):
-                    if bot_variables.salvage_config.salvage_whites:  # Nested options for Salvage Whites
-                        if PyImGui.tree_node("White Salvaging"):
-                            bot_variables.salvage_config.salvage_whites = PyImGui.checkbox("Items", bot_variables.salvage_config.salvage_whites)
-                            bot_variables.salvage_config.salvage_glacial_stones = PyImGui.checkbox("Glacial Stones", bot_variables.salvage_config.salvage_glacial_stones)
-                            PyImGui.tree_pop()
+                    if PyImGui.tree_node("White Salvaging"):
+                        setattr(bot_variables.salvage_config, "salvage_whites",
+                                PyImGui.checkbox("Items", bot_variables.salvage_config.salvage_whites))
+                        setattr(bot_variables.salvage_config, "salvage_glacial_stones",
+                                PyImGui.checkbox("Glacial Stones", bot_variables.salvage_config.salvage_glacial_stones))
+                        PyImGui.tree_pop()
 
-                    bot_variables.salvage_config.salvage_blues = PyImGui.checkbox("Salvage Blues", bot_variables.salvage_config.salvage_blues)
-                    bot_variables.salvage_config.salvage_purples = PyImGui.checkbox("Salvage Purples", bot_variables.salvage_config.salvage_purples)
-                    bot_variables.salvage_config.salvage_golds = PyImGui.checkbox("Salvage Golds", bot_variables.salvage_config.salvage_golds)
+                    for label, attr in [
+                        ("Salvage Blues", "salvage_blues"),
+                        ("Salvage Purples", "salvage_purples"),
+                        ("Salvage Golds", "salvage_golds")
+                    ]:
+                        setattr(bot_variables.salvage_config, attr,
+                                PyImGui.checkbox(label, getattr(bot_variables.salvage_config, attr)))
+
                     PyImGui.tree_pop()
 
                 # Sell Section
                 if PyImGui.tree_node("Sell"):
-                    bot_variables.sell_config.sell_materials = PyImGui.checkbox("Materials", bot_variables.sell_config.sell_materials)
-                    bot_variables.sell_config.sell_granite = PyImGui.checkbox("Granite", bot_variables.sell_config.sell_granite)
-                    bot_variables.sell_config.sell_wood = PyImGui.checkbox("Wood", bot_variables.sell_config.sell_wood)
-                    bot_variables.sell_config.sell_iron = PyImGui.checkbox("Iron", bot_variables.sell_config.sell_iron)
-                    bot_variables.sell_config.sell_dust = PyImGui.checkbox("Dust", bot_variables.sell_config.sell_dust)
-                    bot_variables.sell_config.sell_cloth = PyImGui.checkbox("Cloth", bot_variables.sell_config.sell_cloth)
-                    bot_variables.sell_config.sell_bones = PyImGui.checkbox("Bones", bot_variables.sell_config.sell_bones)
+                    for label, attr in [
+                        ("Materials", "sell_materials"),
+                        ("Granite", "sell_granite"),
+                        ("Wood", "sell_wood"),
+                        ("Iron", "sell_iron"),
+                        ("Dust", "sell_dust"),
+                        ("Cloth", "sell_cloth"),
+                        ("Bones", "sell_bones")
+                    ]:
+                        setattr(bot_variables.sell_config, attr,
+                                PyImGui.checkbox(label, getattr(bot_variables.sell_config, attr)))
                     PyImGui.tree_pop()
 
-                # Misc Config Section
+                # Misc Section
                 if PyImGui.tree_node("Misc"):
-                    bot_variables.inventory_config.keep_id_kit = PyImGui.input_int("Keep ID Kits", bot_variables.inventory_config.keep_id_kit)
-                    bot_variables.inventory_config.keep_salvage_kit = PyImGui.input_int("Keep Salvage Kits", bot_variables.inventory_config.keep_salvage_kit)
-                    bot_variables.inventory_config.keep_gold_amount = PyImGui.input_int("Keep Gold", bot_variables.inventory_config.keep_gold_amount)
-                    bot_variables.inventory_config.leave_free_slots = PyImGui.input_int("Leave Empty Inventory Slots", bot_variables.inventory_config.leave_free_slots)
+                    for label, attr in [
+                        ("Keep ID Kits", "keep_id_kit"),
+                        ("Keep Salvage Kits", "keep_salvage_kit"),
+                        ("Keep Gold", "keep_gold_amount"),
+                        ("Leave Empty Inventory Slots", "leave_free_slots")
+                    ]:
+                        setattr(bot_variables.inventory_config, attr,
+                                PyImGui.input_int(label, getattr(bot_variables.inventory_config, attr)))
                     PyImGui.tree_pop()
-                
+
+            # --- Debug Section ---
             if PyImGui.collapsing_header("Debug"):
                 if PyImGui.button("Print Filtered Arrays"):
                     print_filter_salvage_array()
@@ -1071,8 +1081,6 @@ def DrawWindow():
                 PyImGui.text(f"Salvage Array: {len(salvage_array)}")
                 PyImGui.text(f"Deposit Array: {len(deposit_array)}")
 
-
-
         PyImGui.end()
 
     except Exception as e:
@@ -1080,17 +1088,14 @@ def DrawWindow():
         current_function = frame.f_code.co_name if frame else "Unknown"
         Py4GW.Console.Log(MODULE_NAME, f"Error in {current_function}: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
-        
+
 #endregion
 
 
 def main():
     global MAIN_THREAD_NAME
     global bot_variables
-    try:
-        
-
-            
+    try:   
         if bot_variables.config.is_script_running:
             thread_manager.update_all_keepalives()
             Handle_Stuck()
@@ -1107,20 +1112,20 @@ def main():
             return
             
         if not Agent.IsCasting(Player.GetAgentID()):
-            if bot_variables.action_queue.action_queue_timer.HasElapsed(bot_variables.action_queue.action_queue_time):
+            if bot_variables.action_queue.IsExpired():
                 bot_variables.action_queue.execute_next()
         
-        if bot_variables.salvage_queue.action_queue_timer.HasElapsed(bot_variables.salvage_queue.action_queue_time):
+        if bot_variables.salvage_queue.IsExpired():
             if not bot_variables.salvage_queue.is_empty():
                 bot_variables.salvage_queue.execute_next()
                 ConsoleLog(MODULE_NAME, "Item id/salvaged.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)
         
-        if bot_variables.merchant_queue.action_queue_timer.HasElapsed(bot_variables.merchant_queue.action_queue_time):
+        if bot_variables.merchant_queue.IsExpired():
             if not bot_variables.merchant_queue.is_empty():
                 bot_variables.merchant_queue.execute_next()
                 ConsoleLog(MODULE_NAME, "Item sold.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)
         
-        if bot_variables.loot_queue.action_queue_timer.HasElapsed(bot_variables.loot_queue.action_queue_time):
+        if bot_variables.loot_queue.IsExpired():
             if not bot_variables.loot_queue.is_empty():
                 bot_variables.loot_queue.execute_next()
                 ConsoleLog(MODULE_NAME, "Item looted.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)   
