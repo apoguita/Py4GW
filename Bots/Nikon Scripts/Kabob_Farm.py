@@ -13,10 +13,14 @@ kabob_input = 250
 show_about_popup = False
 
 class Kabob_Window(BasicWindow):
-    global kabob_selected
+    global kabob_selected, kabob_input, do_kabob_exchange
     
     kabob_original_size = [350.0, 400.0]
     kabob_explanded_size = [350.0, 475.0]
+
+    config_test_collect = kabob_input
+    config_test_farm = kabob_selected
+    config_test_exchange = do_kabob_exchange
 
     def __init__(self, window_name="Basic Window", window_size = [350.0, 470.0], show_logger = True, show_state = True):
         super().__init__(window_name, window_size, show_logger, show_state)
@@ -53,6 +57,9 @@ class Kabob_Window(BasicWindow):
             PyImGui.table_next_row()
             PyImGui.table_next_column()
             do_kabob_exchange = PyImGui.checkbox("Exchange Drake Flesh", do_kabob_exchange)
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            self.leave_party = PyImGui.checkbox("Leave Party", self.leave_party)
             PyImGui.end_table()
 
     def ShowResults(self):
@@ -100,9 +107,9 @@ class Kabob_Window(BasicWindow):
             if PyImGui.begin_table("Run_Times", 2):
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
-                PyImGui.text(f"Last Run:")
+                PyImGui.text(f"Current:")
                 PyImGui.table_next_column()
-                PyImGui.text(f"     {FormatTime(GetRunTime(), "mm:ss:ms")}")
+                PyImGui.text(f"      {FormatTime(GetRunTime(), "mm:ss:ms")}")
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
                 PyImGui.text(f"Avg. Run:")
@@ -140,11 +147,25 @@ class Kabob_Window(BasicWindow):
 
             PyImGui.end_table() 
 
+    def ApplyAndUpdateSettings(self):
+        global kabob_input, do_kabob_exchange, kabob_selected
+        super().ApplyAndUpdateSettings()
+
+        if self.config_test_collect != kabob_input or \
+            self.config_test_exchange != do_kabob_exchange or \
+            self.config_test_farm != kabob_selected:
+            self.ApplyConfigSettings()
+    
+            self.config_test_collect = kabob_input
+            self.config_test_farm = do_kabob_exchange
+            self.config_test_exchange = kabob_selected
+
     def ApplyLootMerchantSettings(self) -> None:
         ApplyLootAndMerchantSelections()
 
     def ApplyConfigSettings(self) -> None:
-        ApplyKabobConfigSettings()
+        global kabob_input, do_kabob_exchange
+        ApplyKabobConfigSettings(self.leave_party, kabob_input, do_kabob_exchange)
         
     def ApplyInventorySettings(self) -> None:
         ApplyKabobInventorySettings(self.minimum_slots, self.minimum_gold, self.depo_items, self.depo_mats)
@@ -182,8 +203,8 @@ class Kabob_Farm(ReportsProgress):
     kabob_exchange_target_collector = "Kabob- Exchange Target"
     kabob_exchange_interact_collector = "Kabob- Exchange Interact"
     kabob_exchange_do_exchange_all = "Kabob- Exchange Kabobs"
-    kabob_exchange_Kabobs_routine_start = "Kabob- Go Exchange Kabobs#1"
-    kabob_exchange_Kabobs_routine_end = "Kabob- Go Exchange Kabobs#2"
+    kabob_exchange_Kabobs_routine_start = "Kabob- Go Exchange Kabobs 1"
+    kabob_exchange_Kabobs_routine_end = "Kabob- Go Exchange Kabobs 2"
 
     kabob_start_farm = "Kabob- Check Farm"
     kabob_inventory_routine = "DoInventoryRoutine"
@@ -206,7 +227,7 @@ class Kabob_Farm(ReportsProgress):
     kabob_resign_state_name = "Kabob- Resigning"
     kabob_wait_return_state_name = "Kabob- Wait Return"
     kabob_inventory_state_name = "Kabob- Handle Inventory"
-    kabob_inventory_state_name_end = "Kabob-Handle Inventory#2"
+    kabob_inventory_state_name_end = "Kabob-Handle Inventory 2"
     kabob_end_state_name = "Kabob- End Routine"
     kabob_forced_stop = "Kabob- End Forced"
     kabob_outpost_portal = [(-15022, 8470)] # Used by itself if spawn close to Floodplain portal
@@ -235,6 +256,7 @@ class Kabob_Farm(ReportsProgress):
     kabob_ready_to_kill = False
     kabob_killing_staggering_casted = False
     kabob_killing_eremites_casted = False
+    kabob_exchange = False
 
     player_stuck_hos_count = 0
     player_skillbar_load_count = 0
@@ -382,10 +404,13 @@ class Kabob_Farm(ReportsProgress):
         self.TotalTimer = Timer()
 
     def CheckExchangeKabobs(self):
-        global do_kabob_exchange
-        self.Log(f"Do Kabob Exchange: {do_kabob_exchange}")
-        return do_kabob_exchange
+        self.Log(f"Do Kabob Exchange: {self.kabob_exchange}")
+        return self.kabob_exchange
     
+    def ApplyConfigSettingsOverride(self, leave_party, collect_input, do_kabob_exchange) -> None:
+        self.ApplyConfigSettings(leave_party, collect_input)
+        self.kabob_exchange = do_kabob_exchange
+
     # Start the kabob routine from the first state after soft reset in case player moved around.
     def Start(self):
         if self.Kabob_Routine and not self.Kabob_Routine.is_started():
@@ -593,8 +618,9 @@ class Kabob_Farm(ReportsProgress):
                 return False
             return True
 
-    def PutKossInParty(self):
-        self.pyParty.LeaveParty()
+    def PutKossInParty(self): 
+        if self.leave_party:
+            self.pyParty.LeaveParty()
         self.pyParty.AddHero(Heroes.Koss)
 
     def IsKossInParty(self):
@@ -968,7 +994,7 @@ class Kabob_Farm(ReportsProgress):
     
     # Jump back to output pathing if not done collecting
     def CheckKabobRoutineEnd(self):
-        global kabob_selected
+        global kabob_selected, do_kabob_exchange
 
         # Don't reset the kabob count
         self.RunEnding()
@@ -978,7 +1004,11 @@ class Kabob_Farm(ReportsProgress):
 
         if not kabob_selected:
             self.Log("Not Farming Kabob - AutoStop")
-            self.InternalStop()
+
+            if do_kabob_exchange:
+                self.Kabob_Routine.jump_to_state_by_name(self.kabob_exchange_Kabobs_routine_end)
+            else:
+                self.InternalStop()
             return
 
         if self.kabob_collected < self.main_item_collect:
@@ -992,6 +1022,8 @@ class Kabob_Farm(ReportsProgress):
                     self.Kabob_Routine.jump_to_state_by_name(self.kabob_inventory_state_name)
                 else:
                     self.Kabob_Routine.jump_to_state_by_name(self.kabob_change_weapon_staff)
+        elif do_kabob_exchange:
+            self.Kabob_Routine.jump_to_state_by_name(self.kabob_exchange_Kabobs_routine_end)
         else:
             self.Log("Kabob Count Matched - AutoStop")
             self.InternalStop()
@@ -1056,8 +1088,8 @@ def ApplyLootAndMerchantSelections():
                 kabob_Window.sell_items_blue, kabob_Window.sell_items_grape, kabob_Window.sell_items_gold, kabob_Window.sell_items_green, kabob_Window.sell_materials, kabob_Window.salvage_items, kabob_Window.salvage_items_white, \
                 kabob_Window.salvage_items_blue, kabob_Window.salvage_items_grape, kabob_Window.salvage_items_gold)
 
-def ApplyKabobConfigSettings():
-    kabob_Routine.ApplyConfigSettings()
+def ApplyKabobConfigSettings(leave_party, soup_input, soup_exchange):
+    kabob_Routine.ApplyConfigSettingsOverride(leave_party, soup_input, soup_exchange)
 
 def ApplyKabobInventorySettings(min_slots, min_gold, depo_items, depo_mats):
     kabob_Routine.ApplyInventorySettings(min_slots, min_gold, depo_items, depo_mats)

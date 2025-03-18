@@ -97,6 +97,7 @@ class BasicWindow:
     minimum_gold = 5000
     depo_items = False
     depo_mats = False
+    leave_party = True
     
     loot_test_id_Items = id_Items
     loot_test_collect_coins = collect_coins
@@ -121,6 +122,7 @@ class BasicWindow:
     inventory_test_minimum_gold = minimum_gold
     invenotry_test_depo_items = depo_items
     inventory_test_depo_mats = depo_mats
+    config_test_leave_party = leave_party
 
     def __init__(self, window_name="Basic Window", window_size = (300.0, 400.0), show_logger = True, show_state = True):
         self.name = window_name
@@ -311,6 +313,9 @@ class BasicWindow:
         Checks whether any lootable, sellable and/or salvageable settings have changed and calls the function that will apply them.
     """
     def ApplyAndUpdateSettings(self):
+        if self.config_test_leave_party != self.leave_party:
+            self.ApplyConfigSettings()
+
         if self.loot_test_id_Items != self.id_Items or \
             self.loot_test_collect_coins != self.collect_coins or \
             self.loot_test_collect_events != self.collect_events or \
@@ -338,6 +343,7 @@ class BasicWindow:
             self.inventory_test_depo_mats != self.depo_mats:
                 self.ApplyInventorySettings()
             
+        self.config_test_leave_party = self.leave_party
         self.loot_test_id_Items = self.id_Items
         self.loot_test_collect_coins = self.collect_coins
         self.loot_test_collect_events = self.collect_events
