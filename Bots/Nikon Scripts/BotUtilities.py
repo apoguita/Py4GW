@@ -54,6 +54,7 @@ class GameAreas:
     Adjacent = 166
     Nearby = 252
     Area = 322
+    Far_Area = 650
     Lesser_Earshot = 900
     Earshot = 1012 
     Spellcast = 1248
@@ -169,14 +170,6 @@ def GetAllEffectsTimeRemaining(agent_id):
         effects_time = combo
 
     return effects_time
-
-
-def CheckSurrounded(number_foes, area=GameAreas.Lesser_Earshot):
-    enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), area)
-    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
-
-    return len(enemy_array) > number_foes
 
 ### --- CHECK SKILLS --- ###
 def IsSkillReadyById(skill_id):
@@ -314,6 +307,7 @@ class ReportsProgress():
     collect_event_items = True
     
     default_min_slots = 3
+    player_stuck = False
 
     def __init__(self, window, inventory_map, inventory_merchant_position, keep_slots, keep_models):
         if issubclass(type(window), BasicWindow):
@@ -454,7 +448,8 @@ class ReportsProgress():
         self.deposit_mats = depo_mats
 
     def GetMinimumSlots(self) -> int:
-        return self.default_min_slots
+        return self.default_min_slots    
+    
 ### --- REPORTS PROGRESS --- ###
 
 ### --- SALVAGE ROUTINE --- ###
@@ -1247,6 +1242,18 @@ class InventoryFsm(FSM):
         if self.movement_handler:
             self.movement_handler.reset()
 
+def CheckSurrounded(number_foes, area=GameAreas.Lesser_Earshot):
+    enemy_array = AgentArray.GetEnemyArray()
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), area)
+    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
+    return len(enemy_array) > number_foes
+
+def GetDistance(agent_1, agent_2):
+    agent_1_x, agent_1_y = Agent.GetXY(agent_1)
+    agent_2_x, agent_2_y = Agent.GetXY(agent_2)
+    distance = Utils.Distance((agent_1_x, agent_1_y), (agent_2_x, agent_2_y))
+    return distance
+
 def ChangeWeaponSet(set):
     if set == 1:
         Keystroke.PressAndRelease(Key.F1.value)
@@ -1273,9 +1280,10 @@ def TargetNearestNpc():
         Player.ChangeTarget(npc_array[0])
 
         
-def CheckIfInventoryHasItem(itemModelId):
+def CheckIfInventoryHasItem(itemModelId, count=1):
     bags = ItemArray.CreateBagList(1,2,3,4)
 
+    testCount = 0
     for bag_enum in bags:
         try:
             # Create a Bag instance
@@ -1286,14 +1294,20 @@ def CheckIfInventoryHasItem(itemModelId):
 
             for item in items_in_bag:
                 if item.model_id == itemModelId:
-                    return True
+                    testCount += item.quantity
+
+                    if testCount >= count:
+                        return True
         except Exception as e:
             Py4GW.Console.Log("Utilities", f"GetInventoryHasItem: {str(e)}", Py4GW.Console.MessageType.Error)
 
     return False
 
-def GetItemIdFromModelId(itemModelId):
+def GetItemIdFromModelId(itemModelId, min_count = 1):
     bags = ItemArray.CreateBagList(1,2,3,4)
+
+    count = 0
+    itemIds = []
 
     for bag_enum in bags:
         try:
@@ -1305,12 +1319,39 @@ def GetItemIdFromModelId(itemModelId):
 
             for item in items_in_bag:
                 if item.model_id == itemModelId:
-                    return item.item_id
+                    if item.quantity >= min_count:
+                        itemIds.append(item.item_id)
+                        return itemIds
+                    else:
+                        count += item.quantity
+                        itemIds.append(item.item_id)
+
+                        if count >= min_count:
+                            return itemIds
         except Exception as e:
             Py4GW.Console.Log("Utilities", f"GetItemIdFromModelId: {str(e)}", Py4GW.Console.MessageType.Error)
 
     return 0
 
+def GetModelIdCount(model_id):
+    bags = ItemArray.CreateBagList(1,2,3,4)
+
+    count = 0
+    for bag_enum in bags:
+        try:
+            # Create a Bag instance
+            bag_instance = PyInventory.Bag(bag_enum.value, bag_enum.name)
+        
+            # Get all items in the bag
+            items_in_bag = bag_instance.GetItems()
+                        
+            for item in items_in_bag:
+                if item.model_id == model_id:
+                    count += item.quantity
+        except Exception as e:
+            Py4GW.Console.Log("Utilities", f"GetItemIdFromModelId: {str(e)}", Py4GW.Console.MessageType.Error)
+
+    return count
 '''
     keepItems should be [modelId] regardless of slot
 '''

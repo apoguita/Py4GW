@@ -1179,13 +1179,14 @@ class Routines:
                 if Map.GetMapID() != outpost_id:
                     ConsoleLog("TravelToOutpost", f"Travelling to {Map.GetMapName(outpost_id)}", log=log)
                     action_queue.add_action(Map.Travel, outpost_id)
-                    sleep(1)
+                    sleep(3)
                     waititng_for_map_load = True
                     while waititng_for_map_load:
                         if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == outpost_id:
                             waititng_for_map_load = False
                             break
                         sleep(1)
+                    sleep(1)
                 
                 ConsoleLog("TravelToOutpost", f"Arrived at {Map.GetMapName(outpost_id)}", log=log)
     
@@ -1204,10 +1205,14 @@ class Routines:
 
                 waititng_for_map_load = True
                 while waititng_for_map_load:
-                    if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == map_id:
-                        waititng_for_map_load = False
-                        break
-                    sleep(1)
+                    if Map.IsMapLoading():
+                        sleep(1)
+                        continue
+                    else:
+                        if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == map_id:
+                            waititng_for_map_load = False
+                            break
+                        sleep(1)
                 
                 ConsoleLog("WaitforMapLoad", f"Arrived at {Map.GetMapName(map_id)}", log=log)
                 
@@ -1235,6 +1240,39 @@ class Routines:
                 nearest_enemy = Routines.Agents.GetNearestEnemy(distance)
                 if nearest_enemy != 0: 
                     Routines.Sequential.Agents.ChangeTarget(nearest_enemy, action_queue)
+            
+            @staticmethod
+            def TargetNearestItem(distance, action_queue:ActionQueueNode):
+                nearest_item = Routines.Agents.GetNearestItem(distance)
+                if nearest_item != 0:
+                    Routines.Sequential.Agents.ChangeTarget(nearest_item, action_queue)
+                    
+            @staticmethod
+            def TargetNearestChest(distance, action_queue:ActionQueueNode):
+                nearest_chest = Routines.Agents.GetNearestChest(distance)
+                if nearest_chest != 0:
+                    Routines.Sequential.Agents.ChangeTarget(nearest_chest, action_queue)
+                    
+            @staticmethod
+            def InteractWithNearestChest(action_queue, movement_object):
+                """Target and interact with chest and items."""
+                from .Player import Player
+                from .Agent import Agent
+                Routines.Sequential.Agents.TargetNearestChest(distance=2500, action_queue=action_queue)
+                chest_x, chest_y = Agent.GetXY(Player.GetTargetID())
+                chest_path = Routines.Movement.PathHandler([(chest_x, chest_y)])
+
+                Routines.Sequential.Movement.FollowPath(chest_path, movement_object, action_queue)
+                sleep(0.5)
+            
+                Routines.Sequential.Player.InteractTarget(action_queue)
+                sleep(0.5)
+                action_queue.add_action(Player.SendDialog, 2)
+                sleep(1)
+
+                Routines.Sequential.Agents.TargetNearestItem(distance=300, action_queue=action_queue)
+                Routines.Sequential.Player.InteractTarget(action_queue)
+                sleep(1)
                 
         class Merchant:
             @staticmethod
