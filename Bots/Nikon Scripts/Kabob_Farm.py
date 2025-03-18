@@ -182,13 +182,21 @@ class Kabob_Farm(ReportsProgress):
     class Kabob_Skillbar:    
         def __init__(self):
             self.sand_shards = SkillBar.GetSkillIDBySlot(1)
+            self.sand_shards_slot = 1
             self.vos = SkillBar.GetSkillIDBySlot(2)
+            self.vos_slot = 2
             self.staggering = SkillBar.GetSkillIDBySlot(3)
+            self.staggering_slot = 3
             self.eremites = SkillBar.GetSkillIDBySlot(4)
+            self.eremites_slot = 4
             self.intimidating = SkillBar.GetSkillIDBySlot(5)
+            self.intimidating_slot = 5
             self.sanctity = SkillBar.GetSkillIDBySlot(6)
+            self.sanctity_slot = 6
             self.regen = SkillBar.GetSkillIDBySlot(7)
+            self.regen_slot = 7
             self.hos = SkillBar.GetSkillIDBySlot(8)
+            self.hos_slot = 8
 
     # Kabob_Routine is the FSM instance
     Kabob_Routine = FSM("Kabob_Main")
@@ -249,7 +257,7 @@ class Kabob_Farm(ReportsProgress):
     keep_list.extend(Items.IdSalveItems_Array)
     keep_list.extend(Items.EventItems_Array)
     keep_list.append(Items.Drake_Flesh)
-    keep_list.append(Items.Dye.Dye_ModelId)
+    keep_list.append(Items.Dye)
     
     kabob_first_after_reset = False
     kabob_wait_to_kill = False
@@ -608,15 +616,17 @@ class Kabob_Farm(ReportsProgress):
             return False
         else:
             if SkillBar.GetSkillIDBySlot(1) == 0 or SkillBar.GetSkillIDBySlot(2) == 0 or \
-            SkillBar.GetSkillIDBySlot(3) == 0 or SkillBar.GetSkillIDBySlot(4) == 0 or \
-            SkillBar.GetSkillIDBySlot(5) == 0 or SkillBar.GetSkillIDBySlot(6) == 0 or \
-            SkillBar.GetSkillIDBySlot(7) == 0 or SkillBar.GetSkillIDBySlot(8) == 0:
+                SkillBar.GetSkillIDBySlot(3) == 0 or SkillBar.GetSkillIDBySlot(4) == 0 or \
+                SkillBar.GetSkillIDBySlot(5) == 0 or SkillBar.GetSkillIDBySlot(6) == 0 or \
+                SkillBar.GetSkillIDBySlot(7) == 0 or SkillBar.GetSkillIDBySlot(8) == 0:
                 self.player_skillbar_load_count += 1
                 if self.player_skillbar_load_count > 10:
                     self.Log("Unable to Load Skills")
                     self.InternalStop()
                 return False
-            return True
+            
+        self.skillBar = self.Kabob_Skillbar()
+        return True
 
     def PutKossInParty(self): 
         if self.leave_party:
@@ -744,7 +754,7 @@ class Kabob_Farm(ReportsProgress):
                                     break
 
                     if HasEnoughEnergy(self.skillBar.hos) and IsSkillReadyById(self.skillBar.hos):
-                        CastSkillById(self.skillBar.hos)
+                        CastSkillByIdAndSlot(self.skillBar.hos, self.skillBar.hos_slot)
 
                         if self.player_stuck:
                             self.player_stuck_hos_count += 1
@@ -775,19 +785,19 @@ class Kabob_Farm(ReportsProgress):
                 # Only cast these when waiting for the killing to start.
                 if self.Kabob_Routine.get_current_step_name() == self.kabob_waiting_kill_state_name or hp < dangerHp:
                     if intimidate_time_remain < 3000 and HasEnoughEnergy(self.skillBar.intimidating) and IsSkillReadyById(self.skillBar.intimidating):
-                        CastSkillById(self.skillBar.intimidating)
+                        CastSkillByIdAndSlot(self.skillBar.intimidating, self.skillBar.intimidating_slot)
                         return True
 
                     if sanctity_time_remain < 3000 and HasEnoughEnergy(self.skillBar.sanctity) and IsSkillReadyById(self.skillBar.sanctity):
-                        CastSkillById(self.skillBar.sanctity)
+                        CastSkillByIdAndSlot(self.skillBar.sanctity, self.skillBar.sanctity_slot)
                         return True
                 
                 if regen_time_remain < 3000 and HasEnoughEnergy(self.skillBar.regen) and IsSkillReadyById(self.skillBar.regen):
-                    CastSkillById(self.skillBar.regen)
+                    CastSkillByIdAndSlot(self.skillBar.regen ,self.skillBar.regen_slot)
                     return True 
                 
                 if not self.kabob_ready_to_kill and shards_time_remain < 5000 and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
-                    CastSkillById(self.skillBar.sand_shards)
+                    CastSkillByIdAndSlot(self.skillBar.sand_shards, self.skillBar.sand_shards_slot)
                     return True
                                     
         except Exception as e:
@@ -828,7 +838,7 @@ class Kabob_Farm(ReportsProgress):
 
                         if len(enemies) > 0:
                             if HasEnoughEnergy(self.skillBar.hos) and IsSkillReadyById(self.skillBar.hos):
-                                CastSkillById(self.skillBar.hos)
+                                CastSkillByIdAndSlot(self.skillBar.hos, self.skillBar.hos_slot)
                         return
                                                             
                     if not self.kabob_ready_to_kill:
@@ -843,7 +853,7 @@ class Kabob_Farm(ReportsProgress):
                                 break
 
                         if HasEnoughEnergy(self.skillBar.hos) and IsSkillReadyById(self.skillBar.hos):
-                            CastSkillById(self.skillBar.hos)
+                            CastSkillByIdAndSlot(self.skillBar.hos, self.skillBar.hos_slot)
                             return
                     
                     # Ensure have damage mitigation up before attacking
@@ -859,7 +869,7 @@ class Kabob_Farm(ReportsProgress):
                         
                     if self.kabob_killing_staggering_casted and HasBuff(player_id, self.skillBar.staggering) and IsSkillReadyById(self.skillBar.eremites) and HasEnoughEnergy(self.skillBar.eremites):  
                         self.kabob_killing_staggering_casted = False
-                        CastSkillById(self.skillBar.eremites)
+                        CastSkillByIdAndSlot(self.skillBar.eremites, self.skillBar.eremites_slot)
                         return                    
                     
                     vos_time_remain = 0
@@ -875,20 +885,20 @@ class Kabob_Farm(ReportsProgress):
                             shards_time_remain = buff.time_remaining
 
                     if not self.kabob_killing_staggering_casted and shards_time_remain < 5000 and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
-                        CastSkillById(self.skillBar.sand_shards)
+                        CastSkillByIdAndSlot(self.skillBar.sand_shards, self.skillBar.sand_shards_slot)
                         return
                                             
                     # Get Ready for killing
                     # Need find a way to change weapon set since  sending the change keys is not working for F1-F4
                     # For now assume we're good to go.
                     if not self.kabob_killing_staggering_casted and vos_time_remain < 3000 and IsSkillReadyById(self.skillBar.vos) and HasEnoughEnergy(self.skillBar.vos):   
-                        CastSkillById(self.skillBar.vos)
+                        CastSkillByIdAndSlot(self.skillBar.vos, self.skillBar.vos_slot)
                         return
                         
                     if IsSkillReadyById(self.skillBar.eremites) and HasEnoughEnergy(self.skillBar.eremites):
                         if IsSkillReadyById(self.skillBar.staggering) and HasEnoughEnergy(self.skillBar.staggering):
                             self.kabob_killing_staggering_casted = True
-                            CastSkillById(self.skillBar.staggering)
+                            CastSkillByIdAndSlot(self.skillBar.staggering, self.skillBar.staggering_slot)
                     elif not Agent.IsAttacking(player_id) and not Agent.IsCasting(player_id):
                         # Normal Attack
                         Player.Interact(target)
