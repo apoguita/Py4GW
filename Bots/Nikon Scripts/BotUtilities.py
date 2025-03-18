@@ -305,6 +305,7 @@ class ReportsProgress():
     collect_gold_coins = True
     collect_dye_white_black = True
     collect_event_items = True
+    leave_party = True
     
     default_min_slots = 3
     player_stuck = False
@@ -436,8 +437,9 @@ class ReportsProgress():
         self.collect_dye_white_black = collect_dye
         self.collect_event_items = collect_events
     
-    def ApplyConfigSettings(self) -> None:
-        pass
+    def ApplyConfigSettings(self, leave_party, collect_input) -> None:
+        self.leave_party = leave_party
+        self.main_item_collect = collect_input
 
     def ApplyInventorySettings(self, min_slots, min_gold, depo_items, depo_mats):
         self.default_min_slots = min_slots
@@ -1044,11 +1046,16 @@ class InventoryFsm(FSM):
         
         self.action_timer.Reset()
 
-        kits_in_inv = Inventory.GetModelCount(Items.Id_Kit_Superior)
+        kits_in_inv = Inventory.GetFirstIDKit()
 
         if kits_in_inv == 0:
             merchant_item_list = Trading.Merchant.GetOfferedItems()
             merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == Items.Id_Kit_Superior)
+
+            # if no superior, just go with basic since merchant will have that.
+            if len(merchant_item_list) == 0:
+                merchant_item_list = Trading.Merchant.GetOfferedItems()
+                merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == Items.Id_Kit_Basic)
 
             if len(merchant_item_list) > 0:
                 item_id = merchant_item_list[0]
@@ -1061,7 +1068,7 @@ class InventoryFsm(FSM):
         if not self.idItems:
             return True
         
-        kits_in_inv = Inventory.GetModelCount(Items.Id_Kit_Superior)
+        kits_in_inv = Inventory.GetFirstIDKit()
 
         if kits_in_inv >= 1:
             self.action_timer.Stop()
