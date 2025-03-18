@@ -18,6 +18,9 @@ class Soup_Window(BasicWindow):
     soup_original_size = [350.0, 400.0]
     soup_explanded_size = [350.0, 475.0]
     minimum_slots = 5
+    config_test_collect = soup_input
+    config_test_farm = soup_selected
+    config_test_exchange = soup_exchange
 
     def __init__(self, window_name="Basic Window", window_size = [350.0, 470.0], show_logger = True, show_state = True):
         super().__init__(window_name, window_size, show_logger, show_state)
@@ -50,7 +53,10 @@ class Soup_Window(BasicWindow):
             soup_input = PyImGui.input_int("# Soup", soup_input) if soup_input >= 0 else 0 
             PyImGui.table_next_row()
             PyImGui.table_next_column()
-            soup_exchange = PyImGui.checkbox("Exchange Skalefins", soup_exchange)  
+            soup_exchange = PyImGui.checkbox("Exchange Skalefins", soup_exchange)
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            self.leave_party = PyImGui.checkbox("Leave Party", self.leave_party)
             PyImGui.end_table()
 
     def ShowResults(self):
@@ -138,12 +144,26 @@ class Soup_Window(BasicWindow):
                 PrintData()  
 
             PyImGui.end_table() 
+    
+    def ApplyAndUpdateSettings(self):
+        global soup_input, soup_exchange, soup_selected
+        super().ApplyAndUpdateSettings()
+
+        if self.config_test_collect != soup_input or \
+        self.config_test_exchange != soup_exchange or \
+        self.config_test_farm != soup_selected:
+            self.ApplyConfigSettings()
+    
+            self.config_test_collect = soup_input
+            self.config_test_farm = soup_selected
+            self.config_test_exchange = soup_exchange
 
     def ApplyLootMerchantSettings(self) -> None:
         ApplyLootAndMerchantSelections()
 
     def ApplyConfigSettings(self) -> None:
-        ApplySoupConfigSettings()
+        global soup_input, soup_exchange
+        ApplySoupConfigSettings(self.leave_party, soup_input, soup_exchange)
         
     def ApplyInventorySettings(self) -> None:
         ApplySoupInventorySettings(self.minimum_slots, self.minimum_gold, self.depo_items, self.depo_mats)
@@ -189,7 +209,7 @@ class Soup_Farm(ReportsProgress):
     soup_check_inventory_after_handle_inventory = "Soup- Inventory Handled?"
     soup_travel_state_name = "Soup- Traveling to Jokanur"
     soup_set_normal_mode = "Soup- Set Normal Mode"
-    soup_leave_party_name = "Soup- Leave Party"
+    soup_leave_party_name = "Soup- Leave Party Check"
     soup_load_skillbar_state_name = "Soup- Load Skillbar"
     soup_pathing_1_state_name = "Soup- Leaving Outpost 1"
     soup_resign_pathing_state_name = "Soup- Setup Resign"
@@ -271,6 +291,7 @@ class Soup_Farm(ReportsProgress):
     soup_ready_to_kill = False
     soup_killing_staggering_casted = False
     soup_killing_eremites_casted = False
+    soup_exchange = False
 
     player_stuck = False
     player_stuck_hos_count = 0
@@ -353,7 +374,7 @@ class Soup_Farm(ReportsProgress):
                        execute_fn=lambda: self.ExecuteStep(self.soup_set_normal_mode, self.InternalStart()),
                        transition_delay_ms=1000)
         self.soup_Routine.AddState(self.soup_leave_party_name,
-                       execute_fn=lambda: self.ExecuteStep(self.soup_leave_party_name, Party.LeaveParty()), # Ensure only one hero in party
+                       execute_fn=lambda: self.ExecuteStep(self.soup_leave_party_name, Party.LeaveParty() if self.leave_party else None), # Ensure only one hero in party
                        transition_delay_ms=1000)
         self.soup_Routine.AddState(self.soup_load_skillbar_state_name,
                        execute_fn=lambda: self.ExecuteStep(self.soup_load_skillbar_state_name, self.LoadSkillBar()), # Ensure only one hero in party                       
@@ -527,10 +548,13 @@ class Soup_Farm(ReportsProgress):
         self.TotalTimer = Timer()
 
     def CheckExchangeSoups(self):
-        global soup_exchange
-        self.Log(f"Exchange Skalefins: {soup_exchange}")
-        return soup_exchange
+        self.Log(f"Exchange Skalefins: {self.soup_exchange}")
+        return self.soup_exchange
     
+    def ApplyConfigSettingsOverride(self, leave_party, collect_input, do_soup_exchange) -> None:
+        self.ApplyConfigSettings(leave_party, collect_input)
+        self.soup_exchange = do_soup_exchange
+        
     # Start the Soup routine from the first state after soft reset in case player moved around.
     def Start(self):
         if self.soup_Routine and not self.soup_Routine.is_started():
@@ -1051,7 +1075,7 @@ class Soup_Farm(ReportsProgress):
             self.InternalStop()
             return
         
-        if self.soup_collected < self.main_item_collect:
+        if (self.soup_collected / 2) < self.main_item_collect:
             # mapping to outpost may have failed OR the threshold was reached. Try to map there and start over.
             if Map.GetMapID() != Mapping.Jokanur_Diggings:
                 self.soup_Routine.jump_to_state_by_name(self.soup_travel_state_name)
@@ -1084,8 +1108,8 @@ def ApplyLootAndMerchantSelections():
                 soup_Window.sell_items_blue, soup_Window.sell_items_grape, soup_Window.sell_items_gold, soup_Window.sell_items_green, soup_Window.sell_materials, soup_Window.salvage_items, soup_Window.salvage_items_white, \
                 soup_Window.salvage_items_blue, soup_Window.salvage_items_grape, soup_Window.salvage_items_gold)
 
-def ApplySoupConfigSettings():
-    soup_Routine.ApplyConfigSettings()
+def ApplySoupConfigSettings(leave_party, soup_input, soup_exchange):
+    soup_Routine.ApplyConfigSettingsOverride(leave_party, soup_input, soup_exchange)
 
 def ApplySoupInventorySettings(min_slots, min_gold, depo_items, depo_mats):
     soup_Routine.ApplyInventorySettings(min_slots, min_gold, depo_items, depo_mats)

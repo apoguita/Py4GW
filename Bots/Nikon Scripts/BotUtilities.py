@@ -305,6 +305,7 @@ class ReportsProgress():
     collect_gold_coins = True
     collect_dye_white_black = True
     collect_event_items = True
+    leave_party = False
     
     default_min_slots = 3
     player_stuck = False
@@ -436,8 +437,9 @@ class ReportsProgress():
         self.collect_dye_white_black = collect_dye
         self.collect_event_items = collect_events
     
-    def ApplyConfigSettings(self) -> None:
-        pass
+    def ApplyConfigSettings(self, leave_party, collect_input) -> None:
+        self.leave_party = leave_party
+        self.main_item_collect = collect_input
 
     def ApplyInventorySettings(self, min_slots, min_gold, depo_items, depo_mats):
         self.default_min_slots = min_slots
