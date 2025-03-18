@@ -172,7 +172,7 @@ class Soup_Farm(ReportsProgress):
     soup_Exchange_Routine = FSM("soup_Exchange")
     inventoryRoutine = InventoryFsm(None, None, 0, None, None)
 
-    soup_primary_dervish_skillbar_code = "Ogek8Np5Kzmk513m2VzFAAAgqI7F"
+    soup_primary_dervish_skillbar_code = "Ogek8Np5Kzmk513m2VzFAAAgqI7F" #DASH VARIANT "Ogek8Np5Kzmj59brdbuAAAwEk9C" ABOUT THE SAME SPEED AS DRUNKEN AT 15%#
 
     soup_exchange_travel = "Soup- Exchange Travel Astralarium"
     soup_exchange_wait_map = "Soup- Exchange Waiting Map"
@@ -233,13 +233,13 @@ class Soup_Farm(ReportsProgress):
     soup_outpost_post_resign_pathing = [(-2900, -1090)]
     soup_merchant_position = [(1045, 218),(2809, 2026), (3219, 2257)]
     soup_running_group_1_path = [(17161, 12293)]
-    soup_running_group_2_path = [(16186, 13177), (14681, 13443), (12619, 13250), (11253, 13767), (10976, 15984)]
-    soup_running_group_3_path = [(10648, 17520), (10179, 18780), (8728, 19091)]
-    soup_running_group_4_path = [(6036, 17193), (5925, 14401), (5812, 12975)]
+    soup_running_group_2_path = [(14739, 13352), (12892, 13348), (11291, 14052), (10976, 15984)]
+    soup_running_group_3_path = [(9939, 18724), (9566, 18872)]
+    soup_running_group_4_path = [(6140, 16900), (5925, 14401), (5812, 12975)]
     soup_running_group_5_path = [(4675, 12205), (4220, 10995)]
-    soup_running_group_6_path = [(3113, 11257), (1679, 12360)]
-    soup_running_group_7_path = [(1094, 13490), (2798, 14328)]
-    soup_running_group_8_path = [(955, 13929), (775, 15127), (1026, 16326), (1748, 16596)]
+    soup_running_group_6_path = [(2939, 11926), (1679, 12360)]
+    soup_running_group_7_path = [(1435, 13820), (2798, 14328)]
+    soup_running_group_8_path = [(1248, 14083), (830, 15170), (1748, 16596)]
     soup_pathing_portal_only_handler_1 = Routines.Movement.PathHandler(soup_outpost_portal)
     soup_pathing_portal_only_handler_2 = Routines.Movement.PathHandler(soup_outpost_post_resign_pathing)
     soup_pathing_resign_portal_handler = Routines.Movement.PathHandler(soup_outpost_resign_pathing)
@@ -293,9 +293,7 @@ class Soup_Farm(ReportsProgress):
     soup_fails = 0
     
     second_timer_elapsed = 1000
-    loot_timer_elapsed = 1500
-
-    skillBar = Soup_Skillbar()
+    loot_timer_elapsed = 1000
     
     pyParty = PyParty.PyParty()
     pyMerchant = PyMerchant.PyMerchant()
@@ -801,7 +799,7 @@ class Soup_Farm(ReportsProgress):
         done = pathDone or surrounded or forceStep or self.player_stuck
         if done:
             self.soup_step_done_timer.Stop()
-            
+
         return done
 
     def KillLoopStart(self):
