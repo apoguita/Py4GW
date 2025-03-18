@@ -305,7 +305,7 @@ class ReportsProgress():
     collect_gold_coins = True
     collect_dye_white_black = True
     collect_event_items = True
-    leave_party = False
+    leave_party = True
     
     default_min_slots = 3
     player_stuck = False

@@ -13,11 +13,12 @@ soup_input = 250
 
 
 class Soup_Window(BasicWindow):
-    global soup_selected
+    global soup_selected, soup_input, soup_exchange
     
     soup_original_size = [350.0, 400.0]
     soup_explanded_size = [350.0, 475.0]
     minimum_slots = 5
+
     config_test_collect = soup_input
     config_test_farm = soup_selected
     config_test_exchange = soup_exchange
@@ -150,8 +151,8 @@ class Soup_Window(BasicWindow):
         super().ApplyAndUpdateSettings()
 
         if self.config_test_collect != soup_input or \
-        self.config_test_exchange != soup_exchange or \
-        self.config_test_farm != soup_selected:
+            self.config_test_exchange != soup_exchange or \
+            self.config_test_farm != soup_selected:
             self.ApplyConfigSettings()
     
             self.config_test_collect = soup_input
