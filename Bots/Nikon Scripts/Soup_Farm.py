@@ -201,8 +201,8 @@ class Soup_Farm(ReportsProgress):
     soup_exchange_target_collector = "Soup- Exchange Target"
     soup_exchange_interact_collector = "Soup- Exchange Interact"
     soup_exchange_do_exchange_all = "Soup- Exchange Soup"
-    soup_exchange_soup_routine_start = "Soup- Go Exchange Soup#1"
-    soup_exchange_soup_routine_end = "Soup- Go Exchange Soup#2"
+    soup_exchange_soup_routine_start = "Soup- Go Exchange Soup 1"
+    soup_exchange_soup_routine_end = "Soup- Go Exchange Soup 2"
     
     soup_start_farm = "Soup- Check Farm"
     soup_inventory_routine = "DoInventoryRoutine"
@@ -245,8 +245,8 @@ class Soup_Farm(ReportsProgress):
     soup_run_success = "Soup- Success Run"
     soup_resign_state_name = "Soup- Resigning"
     soup_wait_return_state_name = "Soup- Wait Return"
-    soup_inventory_state_name = "Soup- Handle Inventory"
-    soup_inventory_state_name_end = "Soup-Handle Inventory#2"
+    soup_inventory_state_name = "Soup- Handle Inventory 1"
+    soup_inventory_state_name_end = "Soup-Handle Inventory 2"
     soup_end_state_name = "Soup- End Routine"
     soup_forced_stop = "Soup- End Forced"
     soup_outpost_portal = [(-92, -72), (-1599, -1007), (-2900, -1090)]
@@ -1063,7 +1063,7 @@ class Soup_Farm(ReportsProgress):
     
     # Jump back to output pathing if not done collecting
     def CheckSoupRoutineEnd(self):
-        global soup_selected
+        global soup_selected, soup_exchange
 
         # Don't reset the Soup count
         self.RunEnding()
@@ -1073,7 +1073,10 @@ class Soup_Farm(ReportsProgress):
 
         if not soup_selected:
             self.Log("Not Farming Soup - AutoStop")
-            self.InternalStop()
+            if soup_exchange:
+                self.soup_Routine.jump_to_state_by_name(self.soup_exchange_soup_routine_end)
+            else:
+                self.InternalStop()
             return
         
         if (self.soup_collected / 2) < self.main_item_collect:
@@ -1087,6 +1090,8 @@ class Soup_Farm(ReportsProgress):
                     self.soup_Routine.jump_to_state_by_name(self.soup_inventory_state_name)
                 else:
                     self.soup_Routine.jump_to_state_by_name(self.soup_change_weapon_staff)
+        elif soup_exchange:
+            self.soup_Routine.jump_to_state_by_name(self.soup_exchange_soup_routine_end)
         else:
             self.Log("Soup Count Matched - AutoStop")
             self.InternalStop()
