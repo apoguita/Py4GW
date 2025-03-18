@@ -947,56 +947,8 @@ def SkillHandler():
         
 
 
-#region Watchdog
-def watchdog_fn():
-    """Daemon thread that monitors all active threads and shuts down unresponsive ones."""
-    global MAIN_THREAD_NAME
-
-    Py4GW.Console.Log("Watchdog", "Watchdog started.", Py4GW.Console.MessageType.Info)
-
-    while True:
-        current_time = time.time()
-        expired_threads = []
-
-        if Map.IsMapLoading():
-            Py4GW.Console.Log("Watchdog", "Map is loading - refreshing keepalive for all threads.", Py4GW.Console.MessageType.Notice)
-            with thread_manager.lock:
-                # Refresh all threads' keepalive timestamps
-                for name, info in thread_manager.threads.items():
-                    if name == "watchdog":
-                        continue
-                    thread_manager.threads[name]["last_keepalive"] = current_time
-        else:
-            # Normal operation: check for expiration
-            with thread_manager.lock:
-                for name, info in thread_manager.threads.items():
-                    if name == "watchdog":
-                        continue
-
-                    last_keepalive = info["last_keepalive"]
-                    if current_time - last_keepalive > thread_manager.timeout:
-                        expired_threads.append(name)
-
-        # First, log and stop any expired threads (other than main thread)
-        for name in expired_threads:
-            if name != MAIN_THREAD_NAME:
-                ConsoleLog("Watchdog", f"Thread '{name}' timed out. Stopping it.", Console.MessageType.Warning, log=True)
-                thread_manager.stop_thread(name)
-
-        # Special case: if MAIN_THREAD_NAME itself timed out → stop EVERYTHING
-        if MAIN_THREAD_NAME in expired_threads:
-            ConsoleLog("Watchdog", f"Main thread '{MAIN_THREAD_NAME}' timed out! Stopping all threads.", Console.MessageType.Error, log=True)
-            thread_manager.stop_all_threads()
-            break  # Exit Watchdog itself naturally
-
-        time.sleep(0.3)  # Adjust interval as needed
-#endregion
-
 
 MAIN_THREAD_NAME = "RunBotSequentialLogic"
-thread_manager.add_thread(MAIN_THREAD_NAME, RunBotSequentialLogic)
-thread_manager.add_thread("SkillHandler", SkillHandler)
-thread_manager.add_thread("watchdog", watchdog_fn)
 
 #region ImGui
 
@@ -1022,10 +974,11 @@ def DrawWindow():
                 if PyImGui.button(button_text):
                     bot_variables.config.is_script_running = not bot_variables.config.is_script_running      
                     if bot_variables.config.is_script_running:
-                        # --- ONLY start threads, they are already added at script load ---
-                        thread_manager.start_thread(MAIN_THREAD_NAME)
-                        thread_manager.start_thread("SkillHandler")
-                        thread_manager.start_thread("watchdog")
+                        thread_manager.stop_all_threads()
+                        thread_manager.add_thread(MAIN_THREAD_NAME, RunBotSequentialLogic)
+                        thread_manager.add_thread("SkillHandler", SkillHandler)
+                        # Start watchdog
+                        thread_manager.start_watchdog(MAIN_THREAD_NAME)
                     else:
                         # Stop all threads
                         reset_environment()
@@ -1139,8 +1092,7 @@ def main():
 
             
         if bot_variables.config.is_script_running:
-            thread_manager.update_keepalive(MAIN_THREAD_NAME)
-            thread_manager.update_keepalive("SkillHandler")
+            thread_manager.update_all_keepalives()
             Handle_Stuck()
 
         DrawWindow()
