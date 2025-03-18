@@ -203,8 +203,8 @@ class Kabob_Farm(ReportsProgress):
     kabob_exchange_target_collector = "Kabob- Exchange Target"
     kabob_exchange_interact_collector = "Kabob- Exchange Interact"
     kabob_exchange_do_exchange_all = "Kabob- Exchange Kabobs"
-    kabob_exchange_Kabobs_routine_start = "Kabob- Go Exchange Kabobs#1"
-    kabob_exchange_Kabobs_routine_end = "Kabob- Go Exchange Kabobs#2"
+    kabob_exchange_Kabobs_routine_start = "Kabob- Go Exchange Kabobs 1"
+    kabob_exchange_Kabobs_routine_end = "Kabob- Go Exchange Kabobs 2"
 
     kabob_start_farm = "Kabob- Check Farm"
     kabob_inventory_routine = "DoInventoryRoutine"
@@ -227,7 +227,7 @@ class Kabob_Farm(ReportsProgress):
     kabob_resign_state_name = "Kabob- Resigning"
     kabob_wait_return_state_name = "Kabob- Wait Return"
     kabob_inventory_state_name = "Kabob- Handle Inventory"
-    kabob_inventory_state_name_end = "Kabob-Handle Inventory#2"
+    kabob_inventory_state_name_end = "Kabob-Handle Inventory 2"
     kabob_end_state_name = "Kabob- End Routine"
     kabob_forced_stop = "Kabob- End Forced"
     kabob_outpost_portal = [(-15022, 8470)] # Used by itself if spawn close to Floodplain portal
@@ -994,7 +994,7 @@ class Kabob_Farm(ReportsProgress):
     
     # Jump back to output pathing if not done collecting
     def CheckKabobRoutineEnd(self):
-        global kabob_selected
+        global kabob_selected, do_kabob_exchange
 
         # Don't reset the kabob count
         self.RunEnding()
@@ -1004,7 +1004,11 @@ class Kabob_Farm(ReportsProgress):
 
         if not kabob_selected:
             self.Log("Not Farming Kabob - AutoStop")
-            self.InternalStop()
+
+            if do_kabob_exchange:
+                self.Kabob_Routine.jump_to_state_by_name(self.kabob_exchange_Kabobs_routine_end)
+            else:
+                self.InternalStop()
             return
 
         if self.kabob_collected < self.main_item_collect:
@@ -1018,6 +1022,8 @@ class Kabob_Farm(ReportsProgress):
                     self.Kabob_Routine.jump_to_state_by_name(self.kabob_inventory_state_name)
                 else:
                     self.Kabob_Routine.jump_to_state_by_name(self.kabob_change_weapon_staff)
+        elif do_kabob_exchange:
+            self.Kabob_Routine.jump_to_state_by_name(self.kabob_exchange_Kabobs_routine_end)
         else:
             self.Log("Kabob Count Matched - AutoStop")
             self.InternalStop()
