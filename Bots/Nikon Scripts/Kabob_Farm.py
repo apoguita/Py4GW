@@ -236,7 +236,6 @@ class Kabob_Farm(ReportsProgress):
     kabob_killing_staggering_casted = False
     kabob_killing_eremites_casted = False
 
-    player_stuck = False
     player_stuck_hos_count = 0
     player_skillbar_load_count = 0
     player_previous_hp = 100
@@ -537,20 +536,13 @@ class Kabob_Farm(ReportsProgress):
             if items3:
                 for item in items3:
                     if Item.GetModelID(item) == Items.Drake_Kabob:
-                        self.pyMerchant.collector_buy_item(item, 0, [turn_in], [1])
+                        self.pyMerchant.collector_buy_item(item, 0, turn_in, [1])
 
         except Exception as e:
             self.Log(f"Error in Exchanging Kabobs: {str(e)}", Py4GW.Console.MessageType.Error)
 
     def ExchangeKabobsDone(self):
         return not CheckIfInventoryHasItem(Items.Drake_Flesh)
-
-    def CheckSurrounded(self):
-        enemy_array = AgentArray.GetEnemyArray()
-        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), GameAreas.Earshot)
-        enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
-
-        return len(enemy_array) > 6 or self.player_stuck
     
     def CheckInventory(self):
         if Inventory.GetFreeSlotCount() <= self.default_min_slots:
@@ -667,10 +659,10 @@ class Kabob_Farm(ReportsProgress):
         self.kabob_step_done_timer.Reset()
 
         pathDone = Routines.Movement.IsFollowPathFinished(self.kabob_pathing_move_to_kill_handler, self.movement_Handler)         
-        surrounded = self.CheckSurrounded()
+        surrounded = CheckSurrounded(6)
         forceStep = self.ShouldForceTransitionStep()
 
-        return pathDone or surrounded or forceStep
+        return pathDone or surrounded or forceStep or self.player_stuck
 
     def KillLoopStart(self):
         self.Kill(self.StayAliveLoop())
@@ -962,12 +954,6 @@ class Kabob_Farm(ReportsProgress):
                     self.kabob_runs += 1
                     self.kabob_success += 1
                     return True
-
-                # item = self.GetNearestPickupItem()
-                # if item == 0 or item == None or Inventory.GetFreeSlotCount() == 0:
-                #     self.kabob_runs += 1
-                #     self.kabob_success += 1
-                #     return True
 
         except Exception as e:
             Py4GW.Console.Log("Loot Loop Complete", f"Error during looting {str(e)}", Py4GW.Console.MessageType.Error)

@@ -1,74 +1,91 @@
 from Py4GWCoreLib import *
 
-MODULE_NAME = "tester for everything"
+MODULE_NAME = "Boreal Bot 2.0"
 
 #region globals
-outpost_coordinate_list = [(8180, -27084), (4790, -27870)]
-explorable_coordinate_list = [(2928,-24873), (2724,-22040), (-371,-20086), (-3294,-18164), (-5267,-14941), (-5297,-11045), (-1969,-12627), (1165,-14245), (4565,-15956)]
+path_points_to_exit_outpost = [(8180, -27084), (4790, -27870)]
+path_points_to_look_for_chest = [(2928,-24873), (2724,-22040), (-371,-20086), (-3294,-18164), (-5267,-14941), (-5297,-11045), (-1969,-12627), (1165,-14245), (4565,-15956)]
 
             
-message = "Waiting..."
-selected_channel = 0
-is_script_running = False  # Controls counting
+class Botconfig:
+    def __init__(self):
+        self.is_script_running = False  
+        self.log_to_console = True
+        self.routine_finished = False
+        self.window_module = ImGui.WindowModule()
+
+class BOTVARIABLES:
+    def __init__(self):
+        self.action_queue = ActionQueueNode(100)
+        self.loot_queue = ActionQueueNode(1250)
+        self.config = Botconfig()
+        self.window_module = ImGui.WindowModule()
+
+        
+bot_variables = BOTVARIABLES()
+bot_variables.config.window_module = ImGui.WindowModule(MODULE_NAME, window_name=MODULE_NAME, window_size=(300, 300), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
 # Instantiate MultiThreading manager
-thread_manager = MultiThreading(0.5)
-action_queue = ActionQueueNode(100)
+thread_manager = MultiThreading(1)
+
 #endregion
 
+#region Window
+
 def DrawWindow():
-    """ImGui draw function that runs every frame."""
-    global is_script_running
-    try:
-        flags = PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse | PyImGui.WindowFlags.AlwaysAutoResize
-        if PyImGui.begin("Py4GW", flags):
-            PyImGui.text("This is a boreal bot coded sequentially")
-            
-            button_text = "Start script" if not is_script_running else "Stop script"
-            if PyImGui.button(button_text):
-                is_script_running = not is_script_running 
-             
+    global bot_variables
 
-        PyImGui.end()
+    if bot_variables.config.window_module.first_run:
+        PyImGui.set_next_window_size(bot_variables.config.window_module.window_size[0], bot_variables.config.window_module.window_size[1])     
+        PyImGui.set_next_window_pos(bot_variables.config.window_module.window_pos[0], bot_variables.config.window_module.window_pos[1])
+        bot_variables.config.window_module.first_run = False
 
-    except Exception as e:
-        print(f"Error in DrawWindow: {str(e)}")
+    if PyImGui.begin(bot_variables.config.window_module.window_name, bot_variables.config.window_module.window_flags):
+        button_text = "Start script" if not bot_variables.config.is_script_running else "Stop script"
+        if PyImGui.button(button_text):
+            bot_variables.config.is_script_running = not bot_variables.config.is_script_running      
 
-#region HelperFunctions
+            if bot_variables.config.is_script_running:
+                # Ensure no stale threads
+                thread_manager.stop_all_threads()
 
-def MapValidityCheck():
-    if Map.IsMapLoading():
-        return False
-    if not Map.IsMapReady():
-        return False
-    if not Party.IsPartyLoaded():
-        return False
-    return True
+                # Add threads cleanly
+                thread_manager.add_thread(MAIN_THREAD_NAME, RunBotSequentialLogic)
+                thread_manager.add_thread("SkillHandler", SkillHandler)
+                # Start watchdog
+                thread_manager.start_watchdog(MAIN_THREAD_NAME)
 
-def LoadSkillBar():
-    global action_queue
-    primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
+            else:
+                # Stop all threads and clean environment
+                reset_environment()
 
-    if primary_profession == "Warrior":
-        action_queue.add_action(SkillBar.LoadSkillTemplate, "OQcAQ3lTQ0kAAAAAAAAAAA")
-    elif primary_profession == "Ranger":
-        action_queue.add_action(SkillBar.LoadSkillTemplate, "OgcAQ3lTQ0kAAAAAAAAAAA")
-    elif primary_profession == "Monk":
-        action_queue.add_action(SkillBar.LoadSkillTemplate, "OwcAQ3lTQ0kAAAAAAAAAAA")
-    elif primary_profession == "Necromancer":
-        action_queue.add_action(SkillBar.LoadSkillTemplate, "OAdAQ3lTQ0kAAAAAAAAAAA")
-    elif primary_profession == "Mesmer":
-        action_queue.add_action(SkillBar.LoadSkillTemplate, "OQdAQ3lTQ0kAAAAAAAAAAA")
-    elif primary_profession == "Elementalist":
-        action_queue.add_action(SkillBar.LoadSkillTemplate, "OgdAQ3lTQ0kAAAAAAAAAAA")
-    elif primary_profession == "Assassin":
-        action_queue.add_action(SkillBar.LoadSkillTemplate, "OwBAQ3lTQ0kAAAAAAAAAAA")
-    elif primary_profession == "Ritualist":
-        action_queue.add_action(SkillBar.LoadSkillTemplate, "OAeAQ3lTQ0kAAAAAAAAAAA")
-    elif primary_profession == "Paragon":
-        action_queue.add_action(SkillBar.LoadSkillTemplate, "OQeAQ3lTQ0kAAAAAAAAAAA")
-    elif primary_profession == "Dervish":
-        action_queue.add_action(SkillBar.LoadSkillTemplate, "OgeAQ3lTQ0kAAAAAAAAAAA")
+        if PyImGui.collapsing_header("Config"):
+            bot_variables.config.log_to_console = PyImGui.checkbox("Log to Console", bot_variables.config.log_to_console)
+    PyImGui.end()   
+
+
+def LoadSkillBar(action_queue: ActionQueueNode):
+    primary_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+
+    skill_templates = {
+        "Warrior":      "OQcAQ3lTQ0kAAAAAAAAAAA",
+        "Ranger":       "OgcAQ3lTQ0kAAAAAAAAAAA",
+        "Monk":         "OwcAQ3lTQ0kAAAAAAAAAAA",
+        "Necromancer":  "OAdAQ3lTQ0kAAAAAAAAAAA",
+        "Mesmer":       "OQdAQ3lTQ0kAAAAAAAAAAA",
+        "Elementalist": "OgdAQ3lTQ0kAAAAAAAAAAA",
+        "Assassin":     "OwBAQ3lTQ0kAAAAAAAAAAA",
+        "Ritualist":    "OAeAQ3lTQ0kAAAAAAAAAAA",
+        "Paragon":      "OQeAQ3lTQ0kAAAAAAAAAAA",
+        "Dervish":      "OgeAQ3lTQ0kAAAAAAAAAAA"
+    }
+
+    template = skill_templates.get(primary_profession)
+    if template:
+        action_queue.add_action(SkillBar.LoadSkillTemplate, template)
+
+    sleep(0.5)
+
         
 def IsSkillBarLoaded():
     primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
@@ -79,167 +96,146 @@ def IsSkillBarLoaded():
         return False
     return True
 
-def follow_path(path_handler, movement_object, action_queue, custom_exit_condition=None):  
-        movement_object.reset()
-        if custom_exit_condition is None:
-            custom_exit_condition = lambda: False
-        while not (path_handler.is_finished() and movement_object.has_arrived()):
-            if custom_exit_condition():
-                break
-            #this routine performs the follow, it uses the same movement objects as the asynch method
-            movement_object.update(action_queue=action_queue)
-            if movement_object.is_following():
-                sleep(0.5)
-                continue
-                   
-            point_to_follow = path_handler.advance()
-            if point_to_follow is not None:
-                movement_object.move_to_waypoint(point_to_follow[0], point_to_follow[1])
-                sleep(0.5)
                 
 def IsChestFound(max_distance=2500) -> bool:
-    return Routines.Targeting.GetNearestChest(max_distance) != 0
+    return Routines.Agents.GetNearestChest(max_distance) != 0
         
 
 
 #endregion
 
+#region skillhandler
+def evaluate_skill_casting_status():
+    global bot_variables   
+    """Returns True if the bot can cast skills, False otherwise."""
+    if Map.IsMapLoading():
+        sleep(3)
+        return False
+
+    if not (Map.IsMapReady() and Party.IsPartyLoaded() and Map.IsExplorable()):
+        sleep(1)
+        return False
+
+    if bot_variables.config.routine_finished:
+        sleep(1)
+        return False
+
+    if not Routines.Checks.Skills.CanCast():
+        sleep(0.1)
+        return False
+    
+
+def SkillHandler():
+    """Thread function to handle skill casting based on conditions."""
+    global MAIN_THREAD_NAME, bot_variables
+
+    dwarven_stability = Skill.GetID("Dwarven_Stability")
+    dash = Skill.GetID("Dash")
+
+    while True:
+        if not evaluate_skill_casting_status():
+            continue
+        
+        if Routines.Sequential.Skills.CastSkillID(dwarven_stability,bot_variables.action_queue, log=bot_variables.config.log_to_console):
+            sleep(0.3)
+            
+        if Routines.Sequential.Skills.CastSkillID(dash,bot_variables.action_queue, log=bot_variables.config.log_to_console):
+            sleep(0.05)
+        
+        
+
+#endregion
+
 #region Sequential Code
 
-def SequentialCodeThread():
+def pre_run_checks(log_to_console):
+    """Verify skillbar, inventory, lockpick checks before starting."""
+    if not IsSkillBarLoaded():
+        ConsoleLog("Skillbar", "Skillbar not loaded, halting.", Console.MessageType.Error, log=True)
+        reset_environment()
+        return False
+
+    ConsoleLog("Skillbar", "Skillbar loaded", Console.MessageType.Info, log=log_to_console)
+
+    if Inventory.GetFreeSlotCount() < 1:
+        ConsoleLog("Inventory", "No free slots in inventory, halting.", Console.MessageType.Error, log=True)
+        reset_environment()
+        return False
+
+    if Inventory.GetModelCount(22751) < 1:
+        ConsoleLog("Inventory", "No lockpicks in inventory, halting.", Console.MessageType.Error, log=True)
+        reset_environment()
+        return False
+
+    return True
+
+
+
+
+
+def RunBotSequentialLogic():
     """Thread function that manages counting based on ImGui button presses."""
-    global MAIN_THREAD_NAME, is_script_running, action_queue
+    global MAIN_THREAD_NAME, bot_variables
     try:
         while True:
-            if thread_manager.should_stop(MAIN_THREAD_NAME):
-                print("Thread detected inactivity, shutting down.")
-                break  
-            
-            if not is_script_running:
+            if not bot_variables.config.is_script_running:
                 time.sleep(0.1)
                 continue
 
+            log_to_console = bot_variables.config.log_to_console
+            action_queue = bot_variables.action_queue
             boreal_station = 675
-            #correct map?
-            if Map.GetMapID() != boreal_station:
-                print ("Traveling to boreal station")
-                action_queue.add_action(Map.Travel, boreal_station) #Map.Travel(boreal_station)
-                sleep(1)
-                waititng_for_map_load = True
-                while waititng_for_map_load:
-                    if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == boreal_station:
-                        waititng_for_map_load = False
-                        break
-                    sleep(1)
-                    
-            print ("We are in boreal station, continue...")
-            print ("Loading skillbar")
-            LoadSkillBar()
-            sleep(0.5)
-            if not IsSkillBarLoaded():
-                is_script_running = False
-                continue
-            print ("Skillbar loaded")
-            if Inventory.GetFreeSlotCount() < 1 :
-                print ("Inventory full")
-                is_script_running = False
-                continue
+            ice_cliff_chasms = 499
             
-            if Inventory.GetModelCount(22751) < 1:
-                print ("No more Lockpicks")
-                is_script_running = False
+            outpost_path = Routines.Movement.PathHandler(path_points_to_exit_outpost)
+            explorable_path = Routines.Movement.PathHandler(path_points_to_look_for_chest)
+            movement_object = Routines.Movement.FollowXY()
+            #correct map?
+            Routines.Sequential.Map.TravelToOutpost(boreal_station, action_queue, log_to_console)
+            LoadSkillBar(action_queue)
+            
+            if not pre_run_checks(log_to_console):
+                reset_environment()
                 continue
                 
-            print ("all checks passed, starting routine")
+            ConsoleLog("Boreal Bot", "Exiting Outpost", Console.MessageType.Info, log=log_to_console)
             
-            outpost_path = Routines.Movement.PathHandler(outpost_coordinate_list)
-            explorable_path = Routines.Movement.PathHandler(explorable_coordinate_list)
-            movement_object = Routines.Movement.FollowXY()
-            
-            print ("moving to explorable")
-            
-            follow_path(path_handler=outpost_path, movement_object=movement_object, action_queue=action_queue)
-            
-            waititng_for_map_load = True
-            while waititng_for_map_load:
-                if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == 499: #499 = Ice cliff chasms
-                    waititng_for_map_load = False
-                    break
-                sleep(1)
-            
-            print ("We are in Ice cliff chasms, continue...")
-            
-            follow_path(path_handler=explorable_path, 
-                        movement_object= movement_object, 
-                        action_queue = action_queue,
-                        custom_exit_condition=lambda: IsChestFound(max_distance=2500))
+            Routines.Sequential.Movement.FollowPath(outpost_path, movement_object, action_queue, custom_exit_condition=lambda: Map.IsMapLoading())
+            Routines.Sequential.Map.WaitforMapLoad(ice_cliff_chasms, log_to_console)
+            ConsoleLog("Boreal Bot", "Map loaded", Console.MessageType.Info, log=log_to_console)
+            bot_variables.config.routine_finished = False
+            Routines.Sequential.Movement.FollowPath(explorable_path, movement_object, action_queue, custom_exit_condition=lambda: IsChestFound(max_distance=2500))
 
             if not IsChestFound(max_distance=2500):
-                print ("No chest found") 
-                #is_script_running = False
-                continue #we restart the loop
-            
-            print ("Chest found")
-            chest_id = Routines.Targeting.GetNearestChest(max_distance=2500)
-            chest_x, chest_y = Agent.GetXY(chest_id)
-            found_chest_coord_list = [(chest_x, chest_y)]
-            chest_path = Routines.Movement.PathHandler(found_chest_coord_list)
-            follow_path(path_handler=chest_path, movement_object= movement_object, action_queue= action_queue)
-            sleep(0.5)
-            action_queue.add_action(Player.Interact, chest_id, False)
-            
+                ConsoleLog("Boreal Bot", "No chest found", Console.MessageType.Error, log=log_to_console)
+                bot_variables.config.routine_finished = True
+                sleep(1)
+                continue
+
+            ConsoleLog("Boreal Bot", "Chest found", Console.MessageType.Info, log=log_to_console)
+            bot_variables.config.routine_finished = True
+            Routines.Sequential.Agents.InteractWithNearestChest(action_queue, movement_object)
+            ConsoleLog("Boreal Bot", "Finished, restarting", Console.MessageType.Info, log=log_to_console)
             sleep(1)
-            action_queue.add_action(Player.SendDialog,2) #open chest
-            sleep(1)
-            nearest_item = Routines.Targeting.GetNearestItem(max_distance=300)
-            action_queue.add_action(Player.Interact, nearest_item, False)
-            sleep(1)
+
             
-            #is_script_running = False #we stop the script
-            #print ("Script finished")
-            #break
-    
     except Exception as e:
         ConsoleLog("Main Synch Thread", f"Error in SequentialCodeThread: {str(e)}", Console.MessageType.Error, log=True)
-        is_script_running = False
-        action_queue.clear()
+        bot_variables.config.is_script_running = False
+        bot_variables.action_queue.clear()
 
             
 #endregion   
 
 
-#region Watchdog
-def watchdog_fn():
-    """Daemon thread that monitors all active threads and shuts down unresponsive ones."""
-    global MAIN_THREAD_NAME
-
-    while True:
-        active_threads = list(thread_manager.threads.keys())
-
-        #Check for timeouts and stop unresponsive threads
-        for name in active_threads:
-            if name != "watchdog" and thread_manager.should_stop(name):  # Don't stop itself
-                ConsoleLog(f"Watchdog",f"Thread: {name}' timed out. Stopping it.",Console.MessageType.Notice,log=True)
-                thread_manager.stop_thread(name)
-
-        #If the main thread itself has timed out, shut everything down
-        if MAIN_THREAD_NAME not in thread_manager.threads or thread_manager.should_stop(MAIN_THREAD_NAME):
-            
-            print("[Watchdog] Main thread has timed out. Stopping all threads.")
-            reset_environment()
-            break  # Watchdog exits naturally, no `join()` needed
-
-        time.sleep(1)  #Adjust checking interval as needed
-
-
-#endregion
 
 #region reset_environment
 
 def reset_environment():
-    global is_script_running, action_queue
-    is_script_running = False
-    action_queue.clear()
+    global bot_variables
+    bot_variables.config.is_script_running = False
+    bot_variables.config.routine_finished = True
+    bot_variables.action_queue.clear()
     thread_manager.stop_all_threads()
 
 
@@ -247,25 +243,26 @@ def reset_environment():
 
 
 #region globals_threading
-MAIN_THREAD_NAME = "SequentialCodeThread"
-thread_manager.add_thread(MAIN_THREAD_NAME, SequentialCodeThread)
-thread_manager.start_thread(MAIN_THREAD_NAME)
+MAIN_THREAD_NAME = "RunBotSequentialLogic"
 
-thread_manager.add_thread("watchdog", watchdog_fn)
-thread_manager.start_thread("watchdog")
+
 #endregion
 
 def main():
     global MAIN_THREAD_NAME, action_queue
-    thread_manager.update_keepalive(MAIN_THREAD_NAME)
+    if bot_variables.config.is_script_running:
+        thread_manager.update_all_keepalives()
     
     DrawWindow()
     
-    if is_script_running:
-        if action_queue.action_queue_timer.HasElapsed(action_queue.action_queue_time):
-            action_queue.execute_next()
+    if Map.IsMapLoading():
+        return
+    
+    if bot_variables.config.is_script_running and not Agent.IsCasting(Player.GetAgentID()):
+        if bot_variables.action_queue.IsExpired():
+            bot_variables.action_queue.execute_next()
     else:
-        action_queue.clear()
+        bot_variables.action_queue.clear()
 
 
 if __name__ == "__main__":
