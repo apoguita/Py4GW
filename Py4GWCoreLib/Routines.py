@@ -575,6 +575,50 @@ class Routines:
             player_pos = Player.GetXY()
             return Routines.Agents.GetNearestNPCXY(player_pos[0], player_pos[1], distance)
       
+        @staticmethod
+        def GetAgentIDByName(agent_name):
+            from .AgentArray import AgentArray
+            from .Agent import Agent
+
+            agent_ids = AgentArray.GetAgentArray()
+            agent_names = {}
+
+            # Request all names
+            for agent_id in agent_ids:
+                Agent.RequestName(agent_id)
+
+            # Wait until all names are ready (with timeout safeguard)
+            timeout = 2.0  # seconds
+            poll_interval = 0.1
+            elapsed = 0.0
+
+            while elapsed < timeout:
+                all_ready = True
+                for agent_id in agent_ids:
+                    if not Agent.IsNameReady(agent_id):
+                        all_ready = False
+                        break  # no need to check further
+
+                if all_ready:
+                    break  # exit early, all names ready
+
+                sleep(poll_interval)
+                elapsed += poll_interval
+
+            # Populate agent_names dictionary
+            for agent_id in agent_ids:
+                if Agent.IsNameReady(agent_id):
+                    agent_names[agent_id] = Agent.GetName(agent_id)
+
+            # Partial, case-insensitive match
+            search_lower = agent_name.lower()
+            for agent_id, name in agent_names.items():
+                if search_lower in name.lower():
+                    return agent_id
+
+            return 0  # Not found
+
+
          
         @staticmethod
         def GetFilteredEnemyArray(x,y,max_distance=4500.0):
@@ -1193,9 +1237,9 @@ class Routines:
             @staticmethod
             def WaitforMapLoad(map_id, log=False):
                 """
-                Purpose: Positions yourself safely on the outpost.
+                Purpose: Positions yourself safely on the map.
                 Args:
-                    outpost_id (int): The ID of the outpost to travel to.
+                    outpost_id (int): The ID of the map to travel to.
                     action_queue (ActionQueueNode): The action queue to add the travel action to.
                     log (bool) Optional: Whether to log the action. Default is True.
                 Returns: None
@@ -1223,6 +1267,11 @@ class Routines:
                 action_queue.add_action(Player.ChangeTarget, agent_id)
                 sleep(0.25)    
                 
+            @staticmethod
+            def TargetAgentByName(agent_name:str, action_queue:ActionQueueNode):
+                agent_id = Routines.Agents.GetAgentIDByName(agent_name)
+                if agent_id != 0:
+                    Routines.Sequential.Agents.ChangeTarget(agent_id, action_queue)
             @staticmethod
             def TargetNearestNPC(distance, action_queue:ActionQueueNode):
                 nearest_npc = Routines.Agents.GetNearestNPC(distance)

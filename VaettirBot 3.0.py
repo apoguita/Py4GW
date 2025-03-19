@@ -33,9 +33,17 @@ path_points_to_farming_route2 = [
 ]
 
 path_points_to_killing_spot = [
-    (13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220),
-    (12703, -17239), (12684, -17184), (12526, -17275),
+    (12890, -16450),
+    (12920, -17032),
+    (12847, -17136),
+    (12720, -17222),
+    (12617, -17273),
+    (12518, -17305),
+    (12445, -17327)
 ]
+
+"""(13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220),
+    (12703, -17239), (12684, -17184), (12526, -17275),"""
 
 path_points_to_exit_jaga_moraine = [(12289, -17700) ,(13970, -18920), (15400, -20400),(15850,-20550)]
 
@@ -54,6 +62,9 @@ class build:
     wastrels_demise:int = 0
     arcane_echo:int = 0
     channeling:int = 0
+    zealous_renewal:int = 0
+    heart_of_holy_flame:int = 0
+    pious_fury:int = 0
 
 class InventoryConfig:
     def __init__(self):
@@ -129,7 +140,7 @@ class BOTVARIABLES:
         self.action_queue = ActionQueueNode(50)
         self.merchant_queue = ActionQueueNode(750)
         self.salvage_queue = ActionQueueNode(350)
-        self.loot_queue = ActionQueueNode(1250)
+        self.loot_queue = ActionQueueNode(1500)
         self.inventory_config = InventoryConfig()
         self.sell_config = SellConfig()
         self.id_config = IDConfig()
@@ -154,7 +165,8 @@ def IsSkillBarLoaded():
     global skillbar
 
     primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
-    if primary_profession != "Assassin" and secondary_profession != "Mesmer":
+    if ((primary_profession == "Assassin" and secondary_profession != "Mesmer") or 
+        (primary_profession == "Dervish" and secondary_profession != "Assassin")):
         frame = inspect.currentframe()
         current_function = frame.f_code.co_name if frame else "Unknown"
         ConsoleLog(MODULE_NAME, f"{current_function} - This bot requires A/Me to work, halting.", Py4GW.Console.MessageType.Error, log=True)
@@ -168,6 +180,10 @@ def IsSkillBarLoaded():
     bot_variables.skillbar.wastrels_demise = Skill.GetID("Wastrel's_Demise")
     bot_variables.skillbar.arcane_echo = Skill.GetID("Arcane_Echo")
     bot_variables.skillbar.channeling = Skill.GetID("Channeling")
+    #added for allowing more classes
+    bot_variables.skillbar.zealous_renewal = Skill.GetID("Zealous_Renewal")
+    bot_variables.skillbar.heart_of_holy_flame = Skill.GetID("Heart_of_Holy_Flame")
+    bot_variables.skillbar.pious_fury = Skill.GetID("Pious_Fury")
     
     ConsoleLog(MODULE_NAME, f"SkillBar Loaded.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)       
     return True
@@ -652,9 +668,15 @@ def RunBotSequentialLogic():
         bjora_marches = 482 #Bjora Marches
         jaga_moraine = 546 #Jaga Moraine
         
+        primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
+        
         if not reset_from_jaga_moraine:
             Routines.Sequential.Map.TravelToOutpost(longeyes_ledge, action_queue, log_to_console)
-            Routines.Sequential.Skills.LoadSkillbar("OwVUI2h5lPP8Id2BkAiAvpLBTAA", action_queue,log_to_console)
+            
+            if primary_profession == "Assassin":
+                Routines.Sequential.Skills.LoadSkillbar("OwVUI2h5lPP8Id2BkAiAvpLBTAA", action_queue,log_to_console)
+            elif primary_profession == "Dervish":
+                Routines.Sequential.Skills.LoadSkillbar("Ogej8xpDLT8I6MHQEQIQjbjXihA", action_queue,log_to_console)
             
             if not IsSkillBarLoaded():
                 reset_environment()
@@ -751,15 +773,23 @@ def RunBotSequentialLogic():
         bot_variables.config.in_waiting_routine = False
         
         Routines.Sequential.Movement.FollowPath(path_to_killing_spot,follow_object,action_queue)
+        if primary_profession == "Dervish":
+            Keystroke.PressAndRelease(Key.F2.value)
+            sleep(0.1)
+            
         bot_variables.config.in_killing_routine = True
         player_pos = Player.GetXY()
         enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
-        while len(enemy_array) > 3: #sometimes not all enemies are killed
+        while len(enemy_array) > 0: #sometimes not all enemies are killed
             sleep(1)
             enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
         
         bot_variables.config.in_killing_routine = False
         bot_variables.config.finished_routine = True
+        
+        if primary_profession == "Dervish":
+                Keystroke.PressAndRelease(Key.F1.value)
+                sleep(0.1)
         
         filtered_agent_ids = get_filtered_loot_array()
         
@@ -844,9 +874,14 @@ def JagaMoraineSkillCasting():
     wastrels_demise = bot_variables.skillbar.wastrels_demise
     arcane_echo = bot_variables.skillbar.arcane_echo
     channeling = bot_variables.skillbar.channeling
+    zealous_renewal = bot_variables.skillbar.zealous_renewal
+    heart_of_holy_flame = bot_variables.skillbar.heart_of_holy_flame
+    pious_fury = bot_variables.skillbar.pious_fury
     
     action_queue = bot_variables.action_queue
     log_to_console = bot_variables.config.log_to_console
+    
+    primary_profession, _ = Agent.GetProfessionNames(player_agent_id)
     
     if Routines.Checks.Agents.InDanger(Range.Spellcast):
         #we need to cast deadly paradox and shadow form and mantain it
@@ -868,13 +903,14 @@ def JagaMoraineSkillCasting():
         # ** Cast Shroud of Distress **
         if Routines.Sequential.Skills.CastSkillID(shroud_of_distress,action_queue, log =log_to_console):
             sleep(1.25)
-            
-    #need to keep Channeling up
-    has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id,bot_variables.skillbar.channeling)
-    if not has_channeling:
-        # ** Cast Channeling **
-        if Routines.Sequential.Skills.CastSkillID(channeling,action_queue, log =log_to_console):
-            sleep(1.25)
+      
+    if primary_profession == "Assassin":      
+        #need to keep Channeling up
+        has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id,bot_variables.skillbar.channeling)
+        if not has_channeling:
+            # ** Cast Channeling **
+            if Routines.Sequential.Skills.CastSkillID(channeling,action_queue, log =log_to_console):
+                sleep(1.25)
             
     #Keep way of perfection up on recharge
     # ** Cast Way of Perfection **
@@ -893,23 +929,43 @@ def JagaMoraineSkillCasting():
                 sleep(0.350)
                 
     # ** Killing Routine **
-    if bot_variables.config.in_killing_routine:
-        arcane_echo_slot = 7
-        wastrels_demise_slot = 6
-        both_ready = Routines.Checks.Skills.IsSkillSlotReady(wastrels_demise_slot) and Routines.Checks.Skills.IsSkillSlotReady(arcane_echo_slot)
-        target = GetNotHexedEnemy()  
-        if target:
-            Routines.Sequential.Agents.ChangeTarget(target, action_queue)
-            if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot,action_queue, extra_condition=both_ready, log=log_to_console):
-                sleep(2)
-            else:
-                if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot,action_queue, log=log_to_console):
+    if primary_profession == "Assassin":
+        if bot_variables.config.in_killing_routine:
+            arcane_echo_slot = 7
+            wastrels_demise_slot = 6
+            both_ready = Routines.Checks.Skills.IsSkillSlotReady(wastrels_demise_slot) and Routines.Checks.Skills.IsSkillSlotReady(arcane_echo_slot)
+            target = GetNotHexedEnemy()  
+            if target:
+                Routines.Sequential.Agents.ChangeTarget(target, action_queue)
+                if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot,action_queue, extra_condition=both_ready, log=log_to_console):
+                    sleep(2)
+                else:
+                    if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot,action_queue, log=log_to_console):
+                        sleep(0.350)
+            target = GetNotHexedEnemy()  
+            if target:   
+                Routines.Sequential.Agents.ChangeTarget(target, action_queue)
+                if Routines.Sequential.Skills.CastSkillSlot(wastrels_demise_slot,action_queue, log=log_to_console):
                     sleep(0.350)
-        target = GetNotHexedEnemy()  
-        if target:   
-            Routines.Sequential.Agents.ChangeTarget(target, action_queue)
-            if Routines.Sequential.Skills.CastSkillSlot(wastrels_demise_slot,action_queue, log=log_to_console):
-                sleep(0.350)
+                    
+    elif primary_profession == "Dervish":
+        if bot_variables.config.in_killing_routine:
+            energy = Agent.GetEnergy(player_agent_id) * Agent.GetMaxEnergy(player_agent_id)
+            target = GetNotHexedEnemy()
+            if target:
+                if energy > 20:
+                
+                    Routines.Sequential.Player.InteractAgent(target, action_queue)
+                    sleep(0.5)
+                    if Routines.Sequential.Skills.CastSkillID(zealous_renewal,action_queue, log=log_to_console):
+                        sleep(0.100)
+                    if Routines.Sequential.Skills.CastSkillID(heart_of_holy_flame,action_queue, log=log_to_console):
+                        sleep(0.100)
+                    if Routines.Sequential.Skills.CastSkillID(pious_fury,action_queue, log=log_to_console):
+                        sleep(0.100)
+                else:
+                    Routines.Sequential.Player.InteractAgent(target, action_queue)
+                    sleep(1)    
 
 #endregion
 
