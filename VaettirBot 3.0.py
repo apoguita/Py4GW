@@ -580,6 +580,11 @@ def Handle_Stuck():
         bot_variables.config.stuck_count = 0
         return
     
+    if bot_variables.config.finished_routine:
+        bot_variables.config.auto_stuck_command_timer.Reset()
+        bot_variables.config.stuck_count = 0
+        return
+    
     # Check for periodic "stuck" chat command
     if bot_variables.config.auto_stuck_command_timer.HasElapsed(5000):
         Player.SendChatCommand("stuck")
