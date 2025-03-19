@@ -648,6 +648,7 @@ def RunBotSequentialLogic():
             sleep(1)
             continue
         
+        
         #movement and follow objects
         path_to_merchant = Routines.Movement.PathHandler(path_points_to_merchant)
         path_to_leave_outpost = Routines.Movement.PathHandler(path_points_to_leave_outpost)
@@ -741,6 +742,7 @@ def RunBotSequentialLogic():
             Routines.Sequential.Movement.FollowPath(path_to_traverse_bjora_marches, follow_object, action_queue, custom_exit_condition=lambda: player_is_dead_or_map_loading())
             
             if handle_death():
+                reset_from_jaga_moraine = False
                 continue
             
             
@@ -755,6 +757,7 @@ def RunBotSequentialLogic():
         
         Routines.Sequential.Movement.FollowPath(path_to_farming_route1,follow_object,action_queue,custom_exit_condition=lambda: player_is_dead())
         if handle_death():
+            reset_from_jaga_moraine = False
             continue
         
         #wait for aggro ball'
@@ -765,6 +768,8 @@ def RunBotSequentialLogic():
         
         Routines.Sequential.Movement.FollowPath(path_to_farming_route2,follow_object,action_queue,custom_exit_condition=lambda: player_is_dead())
         if handle_death():
+            reset_environment()
+            reset_from_jaga_moraine = False
             continue
         
         ConsoleLog(MODULE_NAME, "Waiting for right aggro ball", Py4GW.Console.MessageType.Info, log=log_to_console)
