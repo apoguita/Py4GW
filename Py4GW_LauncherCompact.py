@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import filedialog
 
 
-# --- patcher ---
+#region --- patcher ---
 import ctypes
 import ctypes.wintypes
 from ctypes import wintypes
@@ -12,7 +12,7 @@ user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 from typing import List, Optional
 
-# --- injector ---
+#region --- injector ---
 import threading
 import time
 import win32gui
@@ -880,7 +880,7 @@ class GWLauncher:
             try:
                 if self.wait_for_gw_window(pid):
                     log_history.append("Injection - GW window found, waiting for initialization...")
-                    time.sleep(3)  # delay after window is found
+                    time.sleep(5)  # delay after window is found
 
                     if account.inject_blackbox:
                         if self.attempt_dll_injection(pid, dll_type="BlackBox"):
@@ -930,7 +930,7 @@ class GWLauncher:
                 self.launch_gw(account)
 
                 # Dynamic idle message update
-                idle_time = 10  # Seconds
+                idle_time = 15  # Seconds
                 for remaining in range(idle_time, 0, -1):
                     log_history[-1] = f"Idling... {remaining}s remaining to prevent log-in throttle"
                     time.sleep(1)  # Sleep 1 second and update countdown dynamically
