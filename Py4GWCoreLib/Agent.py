@@ -300,18 +300,19 @@ class Agent:
         Returns: tuple
         """
         agent_instance = Agent.agent_instance(agent_id)
-        try:
-            model_id = agent_instance.living_agent.player_number
-            if model_id in ModelData:
-                professions = ModelData[model_id].get('profession', [])
-                primary_profession = PyAgent.Profession(professions[0])
-                if len(professions) > 1:
-                    secondary_profession = PyAgent.Profession(professions[1])
-                else:
-                    secondary_profession = PyAgent.Profession("None")
-                return primary_profession.GetName(), secondary_profession.GetName()
-        except:
-            return agent_instance.living_agent.profession.GetName(), agent_instance.living_agent.secondary_profession.GetName()
+        # Nikon - comment out wiki data use below returning bad data
+        # try:
+        #     model_id = agent_instance.living_agent.player_number
+        #     if model_id in ModelData:
+        #         professions = ModelData[model_id].get('profession', [])
+        #         primary_profession = PyAgent.Profession(professions[0])
+        #         if len(professions) > 1:
+        #             secondary_profession = PyAgent.Profession(professions[1])
+        #         else:
+        #             secondary_profession = PyAgent.Profession("None")
+        #         return primary_profession.GetName(), secondary_profession.GetName()
+        # except:
+        #     return agent_instance.living_agent.profession.GetName(), agent_instance.living_agent.secondary_profession.GetName()
         return agent_instance.living_agent.profession.GetName(), agent_instance.living_agent.secondary_profession.GetName()
 
     @staticmethod
