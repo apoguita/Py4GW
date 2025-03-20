@@ -171,6 +171,13 @@ def GetAllEffectsTimeRemaining(agent_id):
 
     return effects_time
 
+def CheckSurrounded(number_foes, area=GameAreas.Lesser_Earshot):
+    enemy_array = AgentArray.GetEnemyArray()
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), area)
+    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
+
+    return len(enemy_array) > number_foes
+
 ### --- CHECK SKILLS --- ###
 def IsSkillReadyById(skill_id):
     return IsSkillReadyBySlot(SkillBar.GetSlotBySkillID(skill_id))
@@ -200,6 +207,11 @@ def CanCast(player_id) -> bool:
         or aftercast.in_aftercast):
         return False
     return True
+
+def CastSkillByIdAndSlot(skill_id: int, slot: int) -> None:
+    global aftercast
+    SkillBar.UseSkill(slot)
+    aftercast.set_aftercast(skill_id)
 
 def CastSkillById(skill_id):
     global aftercast
@@ -352,9 +364,9 @@ class ReportsProgress():
                     # Check should collect gold coins and this is gold coins
                     onHand = Inventory.GetGoldOnCharacter()
                     return onHand <= 99500                        
-                elif model == Items.Dye.Dye_ModelId:
-                    # Check should collect dye and this is dye
-                    return self.collect_dye_white_black and (item.extra_type == Items.Dye.Black_Dye or item.extra_type == Items.Dye.White_Dye)           
+                elif model == Items.Dye and self.collect_dye_white_black:
+                    dye = GetDyeColorIdFromItem(item.item_id)
+                    return dye == Items.Black_Dye or dye == Items.White_Dye
                 elif self.collect_event_items and model in Items.EventItems_Array:
                     # Check should collect event items and this is event item
                     return True
@@ -411,6 +423,10 @@ class ReportsProgress():
             self.step_transition_threshold_timer.Reset()
         return elapsed
     
+    def ApplyConfigSettings(self, leave_party, collect_input) -> None:
+        self.leave_party = leave_party
+        self.main_item_collect = collect_input
+
     def ApplySelections(self, main_item_collect_count, id_items, collect_coins, collect_events, collect_items_white, collect_items_blue, \
                 collect_items_grape, collect_items_gold, collect_dye, sell_items, sell_items_white, \
                 sell_items_blue, sell_items_grape, sell_items_gold, sell_items_green, sell_materials, salvage_items, salvage_items_white, \
@@ -437,10 +453,6 @@ class ReportsProgress():
         self.collect_dye_white_black = collect_dye
         self.collect_event_items = collect_events
     
-    def ApplyConfigSettings(self, leave_party, collect_input) -> None:
-        self.leave_party = leave_party
-        self.main_item_collect = collect_input
-
     def ApplyInventorySettings(self, min_slots, min_gold, depo_items, depo_mats):
         self.default_min_slots = min_slots
 
@@ -1249,12 +1261,6 @@ class InventoryFsm(FSM):
         if self.movement_handler:
             self.movement_handler.reset()
 
-def CheckSurrounded(number_foes, area=GameAreas.Lesser_Earshot):
-    enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), area)
-    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
-    return len(enemy_array) > number_foes
-
 def GetDistance(agent_1, agent_2):
     agent_1_x, agent_1_y = Agent.GetXY(agent_1)
     agent_2_x, agent_2_y = Agent.GetXY(agent_2)
@@ -1286,7 +1292,6 @@ def TargetNearestNpc():
     if len(npc_array) > 0:
         Player.ChangeTarget(npc_array[0])
 
-        
 def CheckIfInventoryHasItem(itemModelId, count=1):
     bags = ItemArray.CreateBagList(1,2,3,4)
 
@@ -1374,13 +1379,13 @@ def GetInventoryNonKeepItemsByModelId(keepItems = [], input = None):
         model = Item.GetModelID(item.item_id)
 
         if model in keepItems:
-            if model != Items.Dye.Dye_ModelId:
+            if model != Items.Dye:
                 continue
             else:
                 itemAgent = Agent.GetItemAgent(item.agent_id)
 
                 if itemAgent:
-                    if itemAgent.extra_type == Items.Dye.Black_Dye or itemAgent.extra_type == Items.Dye.White_Dye:
+                    if itemAgent.extra_type == Items.Black_Dye or itemAgent.extra_type == Items.White_Dye:
                         continue
             
         sell_items.append(item)
@@ -1530,3 +1535,16 @@ def GetInventorySalvageKitCount(bags=None) -> int:
             Py4GW.Console.Log("Utilities", f"GetInventoryItemSlots: {str(e)}", Py4GW.Console.MessageType.Error)
 
     return quantity
+
+def GetDyeColorIdFromItem(item_id: int) -> int:
+    modifiers = Item.Customization.Modifiers.GetModifiers(item_id)
+
+    for mod in modifiers:
+        modColor = mod.GetArg1()
+        
+        if modColor != 0:
+            return modColor
+        
+    return 0
+
+    

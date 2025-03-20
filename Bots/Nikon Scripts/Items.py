@@ -14,10 +14,9 @@ class RareMaterials:
     Ecto = 930
     
 ### --- Dye --- ####
-class Dye:
-    Dye_ModelId = 146
-    Black_Dye = 10
-    White_Dye = 12
+Dye = 146
+Black_Dye = 10
+White_Dye = 12
 
 ### --- Salvage --- ###
 
