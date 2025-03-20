@@ -11,7 +11,6 @@ soup_selected = True
 soup_exchange = False
 soup_input = 250
 
-
 class Soup_Window(BasicWindow):
     global soup_selected, soup_input, soup_exchange
     
@@ -182,11 +181,17 @@ class Soup_Farm(ReportsProgress):
     class Soup_Skillbar:    
         def __init__(self):
             self.sand_shards = SkillBar.GetSkillIDBySlot(1)
+            self.sand_shards_slot = 1
             self.vos = SkillBar.GetSkillIDBySlot(2)
+            self.vos_slot = 2
             self.staggering = SkillBar.GetSkillIDBySlot(3)
+            self.staggering_slot = 3
             self.eremites = SkillBar.GetSkillIDBySlot(4)
+            self.eremites_slot = 4
             self.drunkMaster = SkillBar.GetSkillIDBySlot(7)
+            self.drunkMaster_slot = 7
             self.regen = SkillBar.GetSkillIDBySlot(8)
+            self.regen_slot = 8
 
     # soup_Routine is the FSM instance
     soup_Routine = FSM("soup_Main")
@@ -294,7 +299,6 @@ class Soup_Farm(ReportsProgress):
     soup_killing_eremites_casted = False
     soup_exchange = False
 
-    player_stuck = False
     player_stuck_hos_count = 0
     player_skillbar_load_count = 0
     player_previous_hp = 100
@@ -334,7 +338,6 @@ class Soup_Farm(ReportsProgress):
         self.current_inventory = GetInventoryItemSlots()
 
         super().__init__(window, Mapping.Jokanur_Diggings, self.soup_merchant_position, self.current_inventory, self.keep_list)
-        self.skillBar = self.Soup_Skillbar()
         
         # Skalefin Exchange Sub Routine
         self.soup_Exchange_Routine.AddState(self.soup_exchange_travel,
@@ -779,6 +782,7 @@ class Soup_Farm(ReportsProgress):
                     self.InternalStop()
                 return False
         
+        self.skillBar = self.Soup_Skillbar()
         return True
 
     # This function is executed for each run to skales
@@ -798,7 +802,7 @@ class Soup_Farm(ReportsProgress):
                 return
             
             if not HasBuff(player_id, self.skillBar.drunkMaster):
-                CastSkillById(self.skillBar.drunkMaster)
+                CastSkillByIdAndSlot(self.skillBar.drunkMaster, self.skillBar.drunkMaster_slot)
                 
             # Run the stay alive script.
             self.StayAliveLoop()
@@ -876,12 +880,11 @@ class Soup_Farm(ReportsProgress):
                         shards_time_remain = buff.time_remaining
 
                 if hp < dangerHp and regen_time_remain < 3000 and HasEnoughEnergy(self.skillBar.regen) and IsSkillReadyById(self.skillBar.regen):
-                    CastSkillById(self.skillBar.regen)
+                    CastSkillByIdAndSlot(self.skillBar.regen, self.skillBar.regen_slot)
                     return
                
                 if shards_time_remain < 4000 and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
-                    CastSkillById(self.skillBar.sand_shards)
-                    return True                         
+                    CastSkillByIdAndSlot(self.skillBar.sand_shards, self.skillBar.sand_shards_slot)
         except Exception as e:
             Py4GW.Console.Log("StayAlive", str(e), Py4GW.Console.MessageType.Error)
 
@@ -925,7 +928,7 @@ class Soup_Farm(ReportsProgress):
                         
                     if self.soup_killing_staggering_casted and IsSkillReadyById(self.skillBar.eremites) and HasEnoughEnergy(self.skillBar.eremites):  
                         self.soup_killing_staggering_casted = False
-                        CastSkillById(self.skillBar.eremites)
+                        CastSkillByIdAndSlot(self.skillBar.eremites, self.skillBar.eremites_slot)
                         return                    
                     
                     vos_time_remain = 0
@@ -941,20 +944,20 @@ class Soup_Farm(ReportsProgress):
                             shards_time_remain = buff.time_remaining
 
                     if not self.soup_killing_staggering_casted and shards_time_remain < 4000 and IsSkillReadyById(self.skillBar.sand_shards) and HasEnoughEnergy(self.skillBar.sand_shards) and len(enemies) > 1:
-                        CastSkillById(self.skillBar.sand_shards)
+                        CastSkillByIdAndSlot(self.skillBar.sand_shards, self.skillBar.sand_shards_slot)
                         return
                                             
                     # Get Ready for killing
                     # Need find a way to change weapon set since  sending the change keys is not working for F1-F4
                     # For now assume we're good to go.
                     if not self.soup_killing_staggering_casted and vos_time_remain < 3000 and IsSkillReadyById(self.skillBar.vos) and HasEnoughEnergy(self.skillBar.vos):                        
-                        CastSkillById(self.skillBar.vos)
+                        CastSkillByIdAndSlot(self.skillBar.vos, self.skillBar.vos_slot)
                         return
                         
                     if IsSkillReadyById(self.skillBar.eremites) and HasEnoughEnergy(self.skillBar.eremites) and GetDistance(player_id, target) <= GameAreas.Nearby:
                         if IsSkillReadyById(self.skillBar.staggering) and HasEnoughEnergy(self.skillBar.staggering):
                             self.soup_killing_staggering_casted = True
-                            CastSkillById(self.skillBar.staggering)
+                            CastSkillByIdAndSlot(self.skillBar.staggering, self.skillBar.staggering_slot)
                             return
                     Player.Interact(target)
         except Exception as e:
