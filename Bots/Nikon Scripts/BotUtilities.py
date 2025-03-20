@@ -49,6 +49,32 @@ class Heroes:
     def Exists(value):
         return any(value == getattr(Heroes, attr) for attr in vars(Heroes))
 
+class Professions:
+    class Name:
+        Assassin = "Assassin"
+        Dervish = "Dervish"
+        Elementalist = "Elementalist"
+        Mesmer = "Mesmer"
+        Monk = "Monk"
+        Necromancer = "Necromancer"
+        Paragon = "Paragon"
+        Ranger = "Ranger"
+        Ritualist = "Ritualist"
+        Warrior = "Warrior"
+
+    class Id:        
+        NoProfession: int = 0
+        Warrior: int = 1
+        Ranger: int = 2
+        Monk: int = 3
+        Necromancer: int = 4
+        Mesmer: int = 5
+        Elementalist: int = 6
+        Assassin: int = 7
+        Ritualist: int = 8
+        Paragon: int = 9
+        Dervish: int = 10
+
 class GameAreas:
     Touch = 144
     Adjacent = 166
@@ -138,6 +164,27 @@ def TargetNearestItem():
     if len(items) > 0:        
         Player.ChangeTarget(items[0])
 
+def TargetNearestEnemy(area:int=GameAreas.Lesser_Earshot)->None:
+    enemies = AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
+    enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), area)
+    enemies = AgentArray.Sort.ByDistance(enemies, Player.GetXY())
+
+    if len(enemies) > 0:
+        Player.ChangeTarget(enemies[0])
+
+def GetNearestEnemy(area: int = GameAreas.Area) -> int:
+    enemies = AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
+    enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), area)
+    enemies = AgentArray.Sort.ByDistance(enemies, Player.GetXY())
+
+    if len(enemies) > 0:
+        return enemies[0]
+    
+    # No enemies matching criteria
+    return 0
+
 ### --- CHECK BUFF EXISTS --- ###
 def HasBuff(agent_id, skill_id):
     if Effects.BuffExists(agent_id, skill_id) or Effects.EffectExists(agent_id, skill_id):
@@ -193,6 +240,12 @@ def HasEnoughEnergy(skill_id):
     energy_points = int(energy * max_energy)
 
     return Skill.Data.GetEnergyCost(skill_id) <= energy_points
+
+# def HasEnoughAdrenaline(skill_id):
+#     player_agent_id = Player.GetAgentID()
+#     adrenaline = Skill.Data.GetAdrenaline(skill_id)
+#     max_adrenaline = Player.GetAdrenaline(player_agent_id)
+#     return adrenaline <= max_adrenaline
 
 def CanCast(player_id) -> bool:
     if not player_id:
@@ -271,6 +324,92 @@ def IsEnemyBehind(agent_id) -> bool:
     if angle_diff > 90 and angle_diff < 270:
         return True
     return False
+
+def CheckSurrounded(number_foes, area=GameAreas.Lesser_Earshot):
+    enemy_array = AgentArray.GetEnemyArray()
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), area)
+    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
+
+    return len(enemy_array) > number_foes
+
+def IsEnemyModelInRange(model_id: int, range: int=GameAreas.Earshot) -> bool:
+    enemies = AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), range)
+    enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
+    enemies = AgentArray.Sort.ByDistance(enemies, Player.GetXY())
+
+    for enemy in enemies:
+        if Agent.GetModelID(enemy) == model_id:
+            return True
+    return False
+
+def IsEnemyModelListInRange(model_ids: list, range: int=GameAreas.Earshot) -> bool:
+    enemies = AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), range)
+    enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
+    enemies = AgentArray.Sort.ByDistance(enemies, Player.GetXY())
+
+    for enemy in enemies:
+        if Agent.GetModelID(enemy) in model_ids:
+            return True
+    return False
+
+def GetNearestEnemyByModelId(model_id: int, range: int=GameAreas.Earshot) -> int:
+    enemies = AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), range)
+    enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
+    enemies = AgentArray.Sort.ByDistance(enemies, Player.GetXY())
+
+    for enemy in enemies:
+        if Agent.GetModelID(enemy) == model_id:
+            return enemy
+    return 0
+
+def GetNearestEnemyByModelIdList(model_ids: list, range: int=GameAreas.Earshot) -> int:
+    enemies = AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), range)
+    enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
+    enemies = AgentArray.Sort.ByDistance(enemies, Player.GetXY())
+
+    for enemy in enemies:
+        if Agent.GetModelID(enemy) in model_ids:
+            return enemy
+    return 0
+
+def TargetNearestEnemyByModelId(model_id: int, range: int=GameAreas.Earshot):
+    enemies = AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), range)
+    enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
+    enemies = AgentArray.Sort.ByDistance(enemies, Player.GetXY())
+
+    for enemy in enemies:
+        if Agent.GetModelID(enemy) == model_id:
+            Player.ChangeTarget(enemy)
+            break
+
+def GetTargetNearestEnemyByModelId(model_id: int, range: int=GameAreas.Earshot) -> int:
+    enemies = AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), range)
+    enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
+    enemies = AgentArray.Sort.ByDistance(enemies, Player.GetXY())
+
+    for enemy in enemies:
+        if Agent.GetModelID(enemy) == model_id:
+            Player.ChangeTarget(enemy)
+            return enemy
+    return 0
+
+def GetTargetNearestEnemyByModelIdList(model_ids: list, range: int=GameAreas.Earshot) -> int:
+    enemies = AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByDistance(enemies, Player.GetXY(), range)
+    enemies = AgentArray.Filter.ByAttribute(enemies, 'IsAlive')
+    enemies = AgentArray.Sort.ByDistance(enemies, Player.GetXY())
+
+    for enemy in enemies:
+        if Agent.GetModelID(enemy) in model_ids:
+            Player.ChangeTarget(enemy)
+            return enemy
+    return 0
 
 ### --- HEROES --- ###
 # Check if hero in party
@@ -420,7 +559,7 @@ class ReportsProgress():
 
         if elapsed:
             self.Log("Forced Step Transition", Py4GW.Console.MessageType.Warning)
-            self.step_transition_threshold_timer.Reset()
+            self.step_transition_threshold_timer.Stop()
         return elapsed
     
     def ApplyConfigSettings(self, leave_party, collect_input) -> None:
