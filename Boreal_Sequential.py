@@ -3,8 +3,8 @@ from Py4GWCoreLib import *
 MODULE_NAME = "Boreal Bot 2.0"
 
 #region globals
-path_points_to_exit_outpost = [(8180, -27084), (4790, -27870)]
-path_points_to_look_for_chest = [(2928,-24873), (2724,-22040), (-371,-20086), (-3294,-18164), (-5267,-14941), (-5297,-11045), (-1969,-12627), (1165,-14245), (4565,-15956)]
+path_points_to_exit_outpost = [(8180.0, -27084.0), (4790.0, -27870.0)]
+path_points_to_look_for_chest: List[Tuple[float, float]] = [(2928,-24873), (2724,-22040), (-371,-20086), (-3294,-18164), (-5267,-14941), (-5297,-11045), (-1969,-12627), (1165,-14245), (4565,-15956)]
 
             
 class Botconfig:
@@ -27,7 +27,7 @@ MAIN_THREAD_NAME = "RunBotSequentialLogic"
 bot_variables = BOTVARIABLES()
 bot_variables.config.window_module = ImGui.WindowModule(MODULE_NAME, window_name=MODULE_NAME, window_size=(300, 300), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
-thread_manager = MultiThreading(1)
+thread_manager = MultiThreading(2.0)
 #endregion
 
 #region Window
@@ -99,24 +99,31 @@ def IsChestFound(max_distance=2500) -> bool:
 #endregion
 
 #region skillhandler
+def scan_for_aloes():
+    enemy_array = AgentArray.GetEnemyArray()
+    for enemy in enemy_array:
+        if Agent.GetPlayerNumber(enemy) == 6489: 
+            return True
+    return False
+
+    
 def evaluate_skill_casting_status():
     global bot_variables   
     """Returns True if the bot can cast skills, False otherwise."""
     if Map.IsMapLoading():
         sleep(3)
         return False
-
-    if not (Map.IsMapReady() and Party.IsPartyLoaded() and Map.IsExplorable()):
+    elif not (Map.IsMapReady() and Party.IsPartyLoaded() and Map.IsExplorable()):
         sleep(1)
         return False
-
-    if bot_variables.config.routine_finished:
+    elif bot_variables.config.routine_finished:
         sleep(1)
         return False
-
-    if not Routines.Checks.Skills.CanCast():
+    elif not Routines.Checks.Skills.CanCast():
         sleep(0.1)
         return False
+    else:
+        return True
     
 def SkillHandler():
     """Thread function to handle skill casting based on conditions."""
@@ -124,17 +131,23 @@ def SkillHandler():
 
     dwarven_stability = Skill.GetID("Dwarven_Stability")
     dash = Skill.GetID("Dash")
+    i_am_unstoppable = Skill.GetID("I_Am_Unstoppable")
 
     while True:
         if not evaluate_skill_casting_status():
-            continue
+             continue
         
         if Routines.Sequential.Skills.CastSkillID(dwarven_stability,bot_variables.action_queue, log=bot_variables.config.log_to_console):
-            sleep(0.3)
-            
+            sleep(0.5)
+                        
         if Routines.Sequential.Skills.CastSkillID(dash,bot_variables.action_queue, log=bot_variables.config.log_to_console):
             sleep(0.05)
+              
+        if scan_for_aloes():
+            if Routines.Sequential.Skills.CastSkillID(i_am_unstoppable,bot_variables.action_queue, log=bot_variables.config.log_to_console):
+                sleep(0.05)
     
+
 #endregion
 
 #region Sequential Code
@@ -177,6 +190,7 @@ def RunBotSequentialLogic():
             outpost_path = Routines.Movement.PathHandler(path_points_to_exit_outpost)
             explorable_path = Routines.Movement.PathHandler(path_points_to_look_for_chest)
             movement_object = Routines.Movement.FollowXY()
+            bot_variables.config.routine_finished = True
             #correct map?
             Routines.Sequential.Map.TravelToOutpost(boreal_station, action_queue, log_to_console)
             LoadSkillBar(action_queue)
@@ -187,11 +201,11 @@ def RunBotSequentialLogic():
                 
             ConsoleLog("Boreal Bot", "Exiting Outpost", Console.MessageType.Info, log=log_to_console)
             
-            Routines.Sequential.Movement.FollowPath(outpost_path, movement_object, action_queue, custom_exit_condition=lambda: Map.IsMapLoading())
+            Routines.Sequential.Movement.FollowPath(path_points_to_exit_outpost, action_queue, custom_exit_condition=lambda: Map.IsMapLoading())
             Routines.Sequential.Map.WaitforMapLoad(ice_cliff_chasms, log_to_console)
             ConsoleLog("Boreal Bot", "Map loaded", Console.MessageType.Info, log=log_to_console)
             bot_variables.config.routine_finished = False
-            Routines.Sequential.Movement.FollowPath(explorable_path, movement_object, action_queue, custom_exit_condition=lambda: IsChestFound(max_distance=2500))
+            Routines.Sequential.Movement.FollowPath(path_points_to_look_for_chest, action_queue, custom_exit_condition=lambda: IsChestFound(max_distance=2500))
 
             if not IsChestFound(max_distance=2500):
                 ConsoleLog("Boreal Bot", "No chest found", Console.MessageType.Error, log=log_to_console)
@@ -201,7 +215,7 @@ def RunBotSequentialLogic():
 
             ConsoleLog("Boreal Bot", "Chest found", Console.MessageType.Info, log=log_to_console)
             bot_variables.config.routine_finished = True
-            Routines.Sequential.Agents.InteractWithNearestChest(action_queue, movement_object)
+            Routines.Sequential.Agents.InteractWithNearestChest(action_queue)
             ConsoleLog("Boreal Bot", "Finished, restarting", Console.MessageType.Info, log=log_to_console)
             sleep(1)
 
@@ -232,6 +246,7 @@ def main():
     DrawWindow()
 
     if Map.IsMapLoading():
+        bot_variables.action_queue.clear()
         return
 
     if bot_variables.config.is_script_running:

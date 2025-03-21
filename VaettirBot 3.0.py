@@ -5,9 +5,9 @@ from time import sleep
 MODULE_NAME = "VaettirBot 3.0"
 #region paths
 
-path_points_to_merchant = [(-23041, 14939)]
-path_points_to_leave_outpost = [(-24380, 15074), (-26375, 16180)]
-path_points_to_traverse_bjora_marches = [
+path_points_to_merchant: List[Tuple[float, float]] = [(-23041, 14939)]
+path_points_to_leave_outpost: List[Tuple[float, float]] = [(-24380, 15074), (-26375, 16180)]
+path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
     (17810, -17649), (16582, -17136), (15257, -16568), (14084, -15748), (12940, -14873),
     (11790, -14004), (10640, -13136), (9404 , -12411), (8677 , -11176), (8581 , -9742 ),
     (7892 , -8494 ), (6989 , -7377 ), (6184 , -6180 ), (5384 , -4980 ), (4549 , -3809 ),
@@ -18,21 +18,19 @@ path_points_to_traverse_bjora_marches = [
     (-20300, 5600 )
 ]
 
-path_points_to_bounty_giver = [(13367, -20771)]
-
-path_points_to_farming_route1 = [
+path_points_to_farming_route1: List[Tuple[float, float]] = [
     (12496, -22600), (11375, -22761), (10925, -23466), (10917, -24311), (9910, -24599),
     (8995, -23177), (8307, -23187), (8213, -22829), (8307, -23187), (8213, -22829),
     (8740, -22475), (8880, -21384), (8684, -20833), (9665, -20415)
 ]
 
-path_points_to_farming_route2 = [
-    (10196, -20124), (9976, -18338, 150), (11316, -18056), (10392, -17512), (10114, -16948),
-    (10729, -16273), (10810, -15058), (11120, -15105, 150), (11670, -15457), (12604, -15320),
+path_points_to_farming_route2: List[Tuple[float, float]] = [
+    (10196, -20124), (9976, -18338), (11316, -18056), (10392, -17512), (10114, -16948),
+    (10729, -16273), (10810, -15058), (11120, -15105), (11670, -15457), (12604, -15320),
     (12476, -16157)
 ]
 
-path_points_to_killing_spot = [
+path_points_to_killing_spot: List[Tuple[float, float]] = [
     (12890, -16450),
     (12920, -17032),
     (12847, -17136),
@@ -45,9 +43,9 @@ path_points_to_killing_spot = [
 """(13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220),
     (12703, -17239), (12684, -17184), (12526, -17275),"""
 
-path_points_to_exit_jaga_moraine = [(12289, -17700) ,(13970, -18920), (15400, -20400),(15850,-20550)]
+path_points_to_exit_jaga_moraine: List[Tuple[float, float]] = [(12289, -17700) ,(13970, -18920), (15400, -20400),(15850,-20550)]
 
-path_points_to_return_to_jaga_moraine = [(-20300, 5600 )] ## A Dekoy Accadia: removed unnecessary coordinates to re-enter Jaga.
+path_points_to_return_to_jaga_moraine: List[Tuple[float, float]] = [(-20300, 5600 )] ## A Dekoy Accadia: removed unnecessary coordinates to re-enter Jaga.
 
 
 #endregion
@@ -545,6 +543,48 @@ def get_escape_location(scaling_factor=50):
     # Return the destination for reference
     return destination
         
+def InventoryHandler(merchant_queue, salvage_queue, follow_object,  log_to_console=False):
+    if NeedsToHandleInventory():
+        #going to merchant
+        if log_to_console:
+            ConsoleLog(MODULE_NAME, "Going to merchant.", Py4GW.Console.MessageType.Info, log=log_to_console)
+        Routines.Sequential.Agents.InteractWithAgentByName("[Merchant]", bot_variables.action_queue)
+        
+        if bot_variables.sell_config.sell_materials:
+            items_to_sell = get_filtered_materials_to_sell()
+            #sell materials to make space
+            if log_to_console:
+                ConsoleLog(MODULE_NAME, "Selling materials.", Py4GW.Console.MessageType.Info, log=log_to_console)
+            Routines.Sequential.Merchant.SellItems(items_to_sell, merchant_queue, log_to_console)
+        if log_to_console:
+            ConsoleLog(MODULE_NAME, "Buying ID and Salvage kits.", Py4GW.Console.MessageType.Info, log=log_to_console)
+        Routines.Sequential.Merchant.BuyIDKits(GetIDKitsToBuy(),merchant_queue, log_to_console)
+        Routines.Sequential.Merchant.BuySalvageKits(GetSalvageKitsToBuy(),merchant_queue, log_to_console)
+        
+        items_to_idenfity = filter_identify_array()
+        if log_to_console:
+            ConsoleLog(MODULE_NAME,f"IDing {len(items_to_idenfity)} items.", Py4GW.Console.MessageType.Info, log=log_to_console)
+        Routines.Sequential.Items.IdentifyItems(items_to_idenfity, salvage_queue, log_to_console)
+        
+        items_to_salvage = filter_salvage_array()
+        if log_to_console:
+            ConsoleLog(MODULE_NAME, f"Salvaging {items_to_salvage} items.", Py4GW.Console.MessageType.Info, log=log_to_console)
+        Routines.Sequential.Items.SalvageItems(items_to_salvage, salvage_queue, log_to_console)
+        
+        if log_to_console:
+            ConsoleLog(MODULE_NAME, "Selling items.", Py4GW.Console.MessageType.Info, log=log_to_console)
+        if bot_variables.sell_config.sell_materials:
+            items_to_sell = get_filtered_materials_to_sell()
+            Routines.Sequential.Merchant.SellItems(items_to_sell, merchant_queue,log_to_console)
+            
+        if log_to_console:
+            ConsoleLog(MODULE_NAME, "Depositing items.", Py4GW.Console.MessageType.Info, log=log_to_console)  
+        items_to_deposit = filter_items_to_deposit()
+        Routines.Sequential.Items.DepositItems(items_to_deposit,salvage_queue,log_to_console)
+        if log_to_console:
+            ConsoleLog(MODULE_NAME, "Depositing gold.", Py4GW.Console.MessageType.Info, log=log_to_console)
+        Routines.Sequential.Items.DepositGold(bot_variables.inventory_config.keep_gold_amount,salvage_queue, log_to_console)
+    
 #endregion
   
 
@@ -652,18 +692,8 @@ def RunBotSequentialLogic():
         if not bot_variables.config.is_script_running:
             sleep(1)
             continue
-        
-        
+
         #movement and follow objects
-        path_to_merchant = Routines.Movement.PathHandler(path_points_to_merchant)
-        path_to_leave_outpost = Routines.Movement.PathHandler(path_points_to_leave_outpost)
-        path_to_traverse_bjora_marches = Routines.Movement.PathHandler(path_points_to_traverse_bjora_marches)
-        path_to_quest_giver = Routines.Movement.PathHandler(path_points_to_bounty_giver)
-        path_to_farming_route1 = Routines.Movement.PathHandler(path_points_to_farming_route1)
-        path_to_farming_route2 = Routines.Movement.PathHandler(path_points_to_farming_route2)
-        path_to_killing_spot = Routines.Movement.PathHandler(path_points_to_killing_spot)
-        path_to_exit_jaga_moraine = Routines.Movement.PathHandler(path_points_to_exit_jaga_moraine)
-        path_to_return_to_jaga_moraine = Routines.Movement.PathHandler(path_points_to_return_to_jaga_moraine)
         follow_object = Routines.Movement.FollowXY()
         action_queue = bot_variables.action_queue
         merchant_queue = bot_variables.merchant_queue
@@ -674,7 +704,7 @@ def RunBotSequentialLogic():
         bjora_marches = 482 #Bjora Marches
         jaga_moraine = 546 #Jaga Moraine
         
-        primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
+        primary_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
         
         if not reset_from_jaga_moraine:
             Routines.Sequential.Map.TravelToOutpost(longeyes_ledge, action_queue, log_to_console)
@@ -690,77 +720,26 @@ def RunBotSequentialLogic():
                 break
             
             Routines.Sequential.Map.SetHardMode(action_queue, log_to_console)
-            Routines.Sequential.Player.SetTitle(TitleID.Norn.value, action_queue, log_to_console)
-                    
+            Routines.Sequential.Player.SetTitle(TitleID.Norn.value, action_queue, log_to_console)       
             #inventory management  
-            if NeedsToHandleInventory():
-                #going to merchant
-                if log_to_console:
-                    ConsoleLog(MODULE_NAME, "Going to merchant.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                Routines.Sequential.Movement.FollowPath(path_to_merchant, 
-                                                        follow_object, 
-                                                        bot_variables.action_queue)       
-                 
-                Routines.Sequential.Agents.TargetNearestNPC(Range.Earshot.value,bot_variables.action_queue)
-                Routines.Sequential.Player.InteractTarget(bot_variables.action_queue)
-                
-                if bot_variables.sell_config.sell_materials:
-                    items_to_sell = get_filtered_materials_to_sell()
-                    #sell materials to make space
-                    if log_to_console:
-                        ConsoleLog(MODULE_NAME, "Selling materials.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                    Routines.Sequential.Merchant.SellItems(items_to_sell, merchant_queue, log_to_console)
-                if log_to_console:
-                    ConsoleLog(MODULE_NAME, "Buying ID and Salvage kits.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                Routines.Sequential.Merchant.BuyIDKits(GetIDKitsToBuy(),merchant_queue, log_to_console)
-                Routines.Sequential.Merchant.BuySalvageKits(GetSalvageKitsToBuy(),merchant_queue, log_to_console)
-                
-                items_to_idenfity = filter_identify_array()
-                if log_to_console:
-                    ConsoleLog(MODULE_NAME,f"IDing {len(items_to_idenfity)} items.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                Routines.Sequential.Items.IdentifyItems(items_to_idenfity, salvage_queue, log_to_console)
-                
-                items_to_salvage = filter_salvage_array()
-                if log_to_console:
-                    ConsoleLog(MODULE_NAME, f"Salvaging {items_to_salvage} items.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                Routines.Sequential.Items.SalvageItems(items_to_salvage, salvage_queue, log_to_console)
-                
-                if log_to_console:
-                    ConsoleLog(MODULE_NAME, "Selling items.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                if bot_variables.sell_config.sell_materials:
-                    items_to_sell = get_filtered_materials_to_sell()
-                    Routines.Sequential.Merchant.SellItems(items_to_sell, merchant_queue,log_to_console)
-                  
-                if log_to_console:
-                    ConsoleLog(MODULE_NAME, "Depositing items.", Py4GW.Console.MessageType.Info, log=log_to_console)  
-                items_to_deposit = filter_items_to_deposit()
-                Routines.Sequential.Items.DepositItems(items_to_deposit,salvage_queue,log_to_console)
-                if log_to_console:
-                    ConsoleLog(MODULE_NAME, "Depositing gold.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                Routines.Sequential.Items.DepositGold(bot_variables.inventory_config.keep_gold_amount,salvage_queue, log_to_console)
-            
+            InventoryHandler(merchant_queue, salvage_queue, follow_object, log_to_console)
             #exit outpost
-            Routines.Sequential.Movement.FollowPath(path_handler= path_to_leave_outpost, movement_object = follow_object, action_queue = action_queue, custom_exit_condition=lambda: Map.IsMapLoading())
-            
+            Routines.Sequential.Movement.FollowPath(path_points= path_points_to_leave_outpost, action_queue = action_queue, custom_exit_condition=lambda: Map.IsMapLoading())
             Routines.Sequential.Map.WaitforMapLoad(bjora_marches,log_to_console)
             #traverse bjora marches
-            Routines.Sequential.Movement.FollowPath(path_to_traverse_bjora_marches, follow_object, action_queue, custom_exit_condition=lambda: player_is_dead_or_map_loading())
+            Routines.Sequential.Movement.FollowPath(path_points_to_traverse_bjora_marches, action_queue, custom_exit_condition=lambda: player_is_dead_or_map_loading())
             
             if handle_death():
                 reset_from_jaga_moraine = False
                 continue
             
-            
             Routines.Sequential.Map.WaitforMapLoad(jaga_moraine, log_to_console)
-            reset_from_jaga_moraine = True
-            
+            reset_from_jaga_moraine = True   
         #take bounty
-        Routines.Sequential.Movement.FollowPath(path_to_quest_giver, follow_object,action_queue)
-        Routines.Sequential.Agents.TargetNearestNPC(Range.Earshot.value, bot_variables.action_queue)
-        Routines.Sequential.Player.InteractTarget(bot_variables.action_queue)
+        Routines.Sequential.Agents.InteractWithAgentXY(13367, -20771, action_queue)
         Routines.Sequential.Player.SendDialog("0x84", bot_variables.action_queue)
         
-        Routines.Sequential.Movement.FollowPath(path_to_farming_route1,follow_object,action_queue,custom_exit_condition=lambda: player_is_dead())
+        Routines.Sequential.Movement.FollowPath(path_points_to_farming_route1,action_queue,custom_exit_condition=lambda: player_is_dead())
         if handle_death():
             reset_from_jaga_moraine = False
             continue
@@ -771,9 +750,8 @@ def RunBotSequentialLogic():
         sleep (15)
         bot_variables.config.in_waiting_routine = False
         
-        Routines.Sequential.Movement.FollowPath(path_to_farming_route2,follow_object,action_queue,custom_exit_condition=lambda: player_is_dead())
+        Routines.Sequential.Movement.FollowPath(path_points_to_farming_route2,action_queue,custom_exit_condition=lambda: player_is_dead())
         if handle_death():
-            reset_environment()
             reset_from_jaga_moraine = False
             continue
         
@@ -782,7 +760,7 @@ def RunBotSequentialLogic():
         sleep (15)
         bot_variables.config.in_waiting_routine = False
         
-        Routines.Sequential.Movement.FollowPath(path_to_killing_spot,follow_object,action_queue)
+        Routines.Sequential.Movement.FollowPath(path_points_to_killing_spot,action_queue)
         if primary_profession == "Dervish":
             Keystroke.PressAndRelease(Key.F2.value)
             sleep(0.1)
@@ -815,11 +793,11 @@ def RunBotSequentialLogic():
             reset_environment()
             continue
         
-        Routines.Sequential.Movement.FollowPath(path_to_exit_jaga_moraine, follow_object, action_queue, custom_exit_condition=lambda: player_is_dead_or_map_loading())
+        Routines.Sequential.Movement.FollowPath(path_points_to_exit_jaga_moraine, action_queue, custom_exit_condition=lambda: player_is_dead_or_map_loading())
         Routines.Sequential.Map.WaitforMapLoad(bjora_marches, log_to_console)
         bot_variables.config.finished_routine = False
         
-        Routines.Sequential.Movement.FollowPath(path_to_return_to_jaga_moraine, follow_object, action_queue, custom_exit_condition=lambda: player_is_dead_or_map_loading())
+        Routines.Sequential.Movement.FollowPath(path_points_to_return_to_jaga_moraine, action_queue, custom_exit_condition=lambda: player_is_dead_or_map_loading())
         Routines.Sequential.Map.WaitforMapLoad(jaga_moraine, log_to_console)
 
         reset_from_jaga_moraine = True
