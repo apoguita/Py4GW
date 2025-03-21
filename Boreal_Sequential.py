@@ -260,8 +260,7 @@ def main():
 
     if bot_variables.config.is_script_running:
         if not Agent.IsCasting(Player.GetAgentID()) and not Agent.IsKnockedDown(Player.GetAgentID()):
-            if bot_variables.action_queue.IsExpired():
-                bot_variables.action_queue.execute_next()
+            bot_variables.action_queue.ProcessQueue()
         else:
             bot_variables.action_queue.clear()
 
