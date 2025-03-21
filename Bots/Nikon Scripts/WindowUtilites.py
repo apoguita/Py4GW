@@ -157,7 +157,7 @@ class BasicWindow:
         # Show current state of bot (e.g. Started, Outpost, Dungeon, Stopped) if enabled after logs.
         if self.showState:
             PyImGui.separator()
-            PyImGui.text(f"Status: {self.script_status} \t|\t State: {self.current_state}")
+            PyImGui.text(f"Status: {self.script_status}  |  State: {self.current_state}")
 
         # End MAIN child.        
         PyImGui.end_child()
