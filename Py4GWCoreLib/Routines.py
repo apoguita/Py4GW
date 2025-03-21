@@ -6,6 +6,7 @@ from time import sleep
 from .enums import *
 import inspect
 import math
+from typing import List, Tuple, Callable
 
 arrived_timer = Timer()
 
@@ -574,51 +575,6 @@ class Routines:
             from .Player import Player
             player_pos = Player.GetXY()
             return Routines.Agents.GetNearestNPCXY(player_pos[0], player_pos[1], distance)
-      
-        @staticmethod
-        def GetAgentIDByName(agent_name):
-            from .AgentArray import AgentArray
-            from .Agent import Agent
-
-            agent_ids = AgentArray.GetAgentArray()
-            agent_names = {}
-
-            # Request all names
-            for agent_id in agent_ids:
-                Agent.RequestName(agent_id)
-
-            # Wait until all names are ready (with timeout safeguard)
-            timeout = 2.0  # seconds
-            poll_interval = 0.1
-            elapsed = 0.0
-
-            while elapsed < timeout:
-                all_ready = True
-                for agent_id in agent_ids:
-                    if not Agent.IsNameReady(agent_id):
-                        all_ready = False
-                        break  # no need to check further
-
-                if all_ready:
-                    break  # exit early, all names ready
-
-                sleep(poll_interval)
-                elapsed += poll_interval
-
-            # Populate agent_names dictionary
-            for agent_id in agent_ids:
-                if Agent.IsNameReady(agent_id):
-                    agent_names[agent_id] = Agent.GetName(agent_id)
-
-            # Partial, case-insensitive match
-            search_lower = agent_name.lower()
-            for agent_id, name in agent_names.items():
-                if search_lower in name.lower():
-                    return agent_id
-
-            return 0  # Not found
-
-
          
         @staticmethod
         def GetFilteredEnemyArray(x,y,max_distance=4500.0):
@@ -1082,6 +1038,7 @@ class Routines:
     
     #region Sequential
     class Sequential:
+
         class Player:
             @staticmethod
             def InteractTarget(action_queue:ActionQueueNode):
@@ -1127,23 +1084,37 @@ class Routines:
                      
         class Movement:
             @staticmethod
-            def FollowPath(path_handler, movement_object, action_queue, custom_exit_condition= lambda: False):  
-                movement_object.reset()
-
-                while not (path_handler.is_finished() and movement_object.has_arrived()):
-                    if custom_exit_condition():
-                        break
-
-                    #this routine performs the follow, it uses the same movement objects as the asynch method
-                    movement_object.update(action_queue=action_queue)
-                    if movement_object.is_following():
-                        sleep(0.1)
-                        continue
+            def FollowPath(path_points: List[Tuple[float, float]], action_queue:ActionQueueNode, custom_exit_condition:Callable[[], bool] =lambda: True, tolerance:float=100):
+                import random
+                from Player import Player
+                for idx, (target_x, target_y) in enumerate(path_points):
+                    
+                    action_queue.add_action(Player.Move, target_x, target_y)
                         
-                    point_to_follow = path_handler.advance()
-                    if point_to_follow is not None:
-                        movement_object.move_to_waypoint(point_to_follow[0], point_to_follow[1])
-                
+                    current_x, current_y = Player.GetXY()
+                    previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
+
+                    while True:
+                        if custom_exit_condition():
+                            return
+
+                        sleep(0.5)
+                        
+                        current_x, current_y = Player.GetXY()
+                        current_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
+
+                        # Check if arrived
+                        if current_distance <= tolerance:
+                            break  # Arrived at this waypoint, move to next
+
+                        # If not getting closer, enforce move
+                        if not (current_distance < previous_distance):
+                            # Inside reissue logic
+                            offset_x = random.uniform(-5, 5)
+                            offset_y = random.uniform(-5, 5)
+                            action_queue.add_action(Player.Move, target_x + offset_x, target_y + offset_y)
+                        previous_distance = current_distance
+
         class Skills:
             @staticmethod
             def LoadSkillbar(skill_template:str, action_queue:ActionQueueNode, log=False):
@@ -1165,6 +1136,9 @@ class Routines:
                 from .Skillbar import SkillBar
                 from .Skill import Skill
                 from .Player import Player
+                from .Map import Map
+                if not Map.IsMapReady():
+                    return False
                 player_agent_id = Player.GetAgentID()
                 enough_energy = Routines.Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
                 skill_ready = Routines.Checks.Skills.IsSkillIDReady(skill_id)
@@ -1262,6 +1236,49 @@ class Routines:
                 
         class Agents:
             @staticmethod
+            def GetAgentIDByName(agent_name):
+                from .AgentArray import AgentArray
+                from .Agent import Agent
+
+                agent_ids = AgentArray.GetAgentArray()
+                agent_names = {}
+
+                # Request all names
+                for agent_id in agent_ids:
+                    Agent.RequestName(agent_id)
+
+                # Wait until all names are ready (with timeout safeguard)
+                timeout = 2.0  # seconds
+                poll_interval = 0.1
+                elapsed = 0.0
+
+                while elapsed < timeout:
+                    all_ready = True
+                    for agent_id in agent_ids:
+                        if not Agent.IsNameReady(agent_id):
+                            all_ready = False
+                            break  # no need to check further
+
+                    if all_ready:
+                        break  # exit early, all names ready
+
+                    sleep(poll_interval)
+                    elapsed += poll_interval
+
+                # Populate agent_names dictionary
+                for agent_id in agent_ids:
+                    if Agent.IsNameReady(agent_id):
+                        agent_names[agent_id] = Agent.GetName(agent_id)
+
+                # Partial, case-insensitive match
+                search_lower = agent_name.lower()
+                for agent_id, name in agent_names.items():
+                    if search_lower in name.lower():
+                        return agent_id
+
+                return 0  # Not found
+
+            @staticmethod
             def ChangeTarget(agent_id, action_queue:ActionQueueNode):
                 from .Player import Player
                 action_queue.add_action(Player.ChangeTarget, agent_id)
@@ -1269,7 +1286,7 @@ class Routines:
                 
             @staticmethod
             def TargetAgentByName(agent_name:str, action_queue:ActionQueueNode):
-                agent_id = Routines.Agents.GetAgentIDByName(agent_name)
+                agent_id = Routines.Sequential.Agents.GetAgentIDByName(agent_name)
                 if agent_id != 0:
                     Routines.Sequential.Agents.ChangeTarget(agent_id, action_queue)
             @staticmethod
@@ -1303,15 +1320,14 @@ class Routines:
                     Routines.Sequential.Agents.ChangeTarget(nearest_chest, action_queue)
                     
             @staticmethod
-            def InteractWithNearestChest(action_queue, movement_object):
+            def InteractWithNearestChest(action_queue):
                 """Target and interact with chest and items."""
                 from .Player import Player
                 from .Agent import Agent
                 Routines.Sequential.Agents.TargetNearestChest(distance=2500, action_queue=action_queue)
                 chest_x, chest_y = Agent.GetXY(Player.GetTargetID())
-                chest_path = Routines.Movement.PathHandler([(chest_x, chest_y)])
 
-                Routines.Sequential.Movement.FollowPath(chest_path, movement_object, action_queue)
+                Routines.Sequential.Movement.FollowPath([(chest_x, chest_y)], action_queue)
                 sleep(0.5)
             
                 Routines.Sequential.Player.InteractTarget(action_queue)
@@ -1320,6 +1336,33 @@ class Routines:
                 sleep(1)
 
                 Routines.Sequential.Agents.TargetNearestItem(distance=300, action_queue=action_queue)
+                Routines.Sequential.Player.InteractTarget(action_queue)
+                sleep(1)
+                
+            @staticmethod
+            def InteractWithAgentByName(agent_name:str, action_queue:ActionQueueNode):
+                from .Player import Player
+                from .Agent import Agent
+                Routines.Sequential.Agents.TargetAgentByName(agent_name, action_queue)
+                agent_x, agent_y = Agent.GetXY(Player.GetTargetID())
+
+                Routines.Sequential.Movement.FollowPath([(agent_x, agent_y)], action_queue)
+                sleep(0.5)
+                
+                Routines.Sequential.Player.InteractTarget(action_queue)
+                sleep(1)
+                
+            @staticmethod
+            def InteractWithAgentXY(x:float, y:float, action_queue:ActionQueueNode):
+                from .Player import Player
+                from .Agent import Agent
+                Routines.Sequential.Agents.TargetNearestNPCXY(x, y, 100, action_queue)
+                agent_x, agent_y = Agent.GetXY(Player.GetTargetID())
+                agent_path = Routines.Movement.PathHandler([(agent_x, agent_y)])
+
+                Routines.Sequential.Movement.FollowPath([(agent_x, agent_y)], action_queue)
+                sleep(0.5)
+                
                 Routines.Sequential.Player.InteractTarget(action_queue)
                 sleep(1)
                 

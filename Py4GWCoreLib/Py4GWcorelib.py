@@ -1439,6 +1439,7 @@ class MultiThreading:
 
                 if Map.IsMapLoading():
                     time.sleep(3)
+                    continue
                 else:
                     with self.lock:
                         for name, info in self.threads.items():
