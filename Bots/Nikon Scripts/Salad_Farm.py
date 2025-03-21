@@ -10,6 +10,7 @@ bot_name = "Nikons Pahnai Salad Farm"
 
 salad_selected = True
 salad_exchange = False
+salad_short_route = True
 salad_input = 250
 
 class Salad_Window(BasicWindow):
@@ -25,6 +26,15 @@ class Salad_Window(BasicWindow):
 
     def __init__(self, window_name="Basic Window", window_size = [350.0, 470.0], show_logger = True, show_state = True):
         super().__init__(window_name, window_size, show_logger, show_state)
+        self.collect_coins = False
+        self.collect_items_white = False
+        self.collect_items_blue = False
+        self.collect_items_grape = False
+        self.sell_items_white = False
+        self.sell_items_blue = False
+        self.sell_items_grape = False
+        self.sell_items_gold = False
+        self.sell_materials = False
 
     def ShowMainControls(self):
         if PyImGui.collapsing_header("About - Farm Requirements"):
@@ -44,7 +54,7 @@ class Salad_Window(BasicWindow):
         PyImGui.separator()
 
     def ShowConfigSettingsTabItem(self):
-        global salad_selected, salad_input, salad_exchange
+        global salad_selected, salad_input, salad_exchange, salad_short_route
 
         if PyImGui.begin_table("Collect_Inputs", 2, PyImGui.TableFlags.SizingStretchProp):
             PyImGui.table_next_row()
@@ -57,6 +67,14 @@ class Salad_Window(BasicWindow):
             salad_exchange = PyImGui.checkbox("Exchange Iboga Petals", salad_exchange)
             PyImGui.table_next_row()
             PyImGui.table_next_column()
+            salad_short_route = PyImGui.checkbox("Short Route", salad_short_route)
+            PyImGui.table_next_column()
+            if salad_short_route:
+                PyImGui.text_colored("~ 2-2.5 minutes", (0, 1, 0, 1))
+            else:
+                PyImGui.text_colored("~ 5 minutes", (1, 0, 0, 1))
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
             self.leave_party = PyImGui.checkbox("Leave Party", self.leave_party)
             PyImGui.end_table()
 
@@ -67,7 +85,7 @@ class Salad_Window(BasicWindow):
         
         if PyImGui.collapsing_header("Results##Iboga Petals", int(PyImGui.TreeNodeFlags.DefaultOpen)):
             if PyImGui.begin_table("Runs_Results", 6):
-                salad_data = GetSoupData()
+                salad_data = GetSaladData()
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
                 PyImGui.text(f"Runs:")
@@ -91,7 +109,7 @@ class Salad_Window(BasicWindow):
                 PyImGui.table_next_column()
                 PyImGui.text("Salad:")
                 PyImGui.table_next_column()
-                salad_count = GetSoupCollected()
+                salad_count = GetSaladCollected()
                 if salad_selected and salad_input > 0 and salad_count == 0:            
                     PyImGui.text_colored(f"{salad_count}", (1, 0, 0, 1))
                 else:
@@ -163,14 +181,14 @@ class Salad_Window(BasicWindow):
         ApplyLootAndMerchantSelections()
 
     def ApplyConfigSettings(self) -> None:
-        global salad_input, salad_exchange
-        ApplySoupConfigSettings(self.leave_party, salad_input, salad_exchange)
+        global salad_input, salad_exchange, salad_short_route
+        ApplySaladConfigSettings(self.leave_party, salad_input, salad_exchange, salad_short_route)
         
     def ApplyInventorySettings(self) -> None:
-        ApplySoupInventorySettings(self.minimum_slots, self.minimum_gold, self.depo_items, self.depo_mats)
+        ApplySaladInventorySettings(self.minimum_slots, self.minimum_gold, self.depo_items, self.depo_mats)
 
 
-    def GetSoupSettings(self):
+    def GetSaladSettings(self):
         global salad_input
 
         return (salad_input, self.id_Items, self.collect_coins, self.collect_events, self.collect_items_white, self.collect_items_blue, \
@@ -280,6 +298,40 @@ class Salad_Farm(ReportsProgress):
     salad_running_group_19 = "Salad- Move Group 19"
     salad_killing_group_19 = "Salad- Kill Group 19"
     salad_looting_group_19 = "Salad- Loot Group 19"
+    salad_running_short_group_1 = "Salad- Move Short Group 1"
+    salad_looting_short_group_1 = "Salad- Loot Short Group 1"
+    salad_killing_short_group_1 = "Salad- Kill Short Group 1"
+    salad_running_short_group_2 = "Salad- Move Short Group 2"
+    salad_looting_short_group_2 = "Salad- Loot Short Group 2"
+    salad_killing_short_group_2 = "Salad- Kill Short Group 2"
+    salad_running_short_group_3 = "Salad- Move Short Group 3"
+    salad_looting_short_group_3 = "Salad- Loot Short Group 3"
+    salad_killing_short_group_3 = "Salad- Kill Short Group 3"
+    salad_running_short_group_4 = "Salad- Move Short Group 4"
+    salad_looting_short_group_4 = "Salad- Loot Short Group 4"
+    salad_killing_short_group_4 = "Salad- Kill Short Group 4"
+    salad_running_short_group_5 = "Salad- Move Short Group 5"
+    salad_looting_short_group_5 = "Salad- Loot Short Group 5"
+    salad_killing_short_group_5 = "Salad- Kill Short Group 5"
+    salad_running_short_group_6 = "Salad- Move Short Group 6"
+    salad_looting_short_group_6 = "Salad- Loot Short Group 6"
+    salad_killing_short_group_6 = "Salad- Kill Short Group 6"
+    salad_running_short_group_7 = "Salad- Move Short Group 7"
+    salad_looting_short_group_7 = "Salad- Loot Short Group 7"
+    salad_killing_short_group_7 = "Salad- Kill Short Group 7"
+    salad_running_short_group_8 = "Salad- Move Short Group 8"
+    salad_looting_short_group_8 = "Salad- Loot Short Group 8"
+    salad_killing_short_group_8 = "Salad- Kill Short Group 8"
+    salad_running_short_group_9 = "Salad- Move Short Group 9"
+    salad_looting_short_group_9 = "Salad- Loot Short Group 9"
+    salad_killing_short_group_9 = "Salad- Kill Short Group 9"
+    salad_running_short_group_10 = "Salad- Move Short Group 10"
+    salad_looting_short_group_10 = "Salad- Loot Short Group 10"
+    salad_killing_short_group_10 = "Salad- Kill Short Group 10"
+    salad_running_short_group_11 = "Salad- Move Short Group 11"
+    salad_looting_short_group_11 = "Salad- Loot Short Group 11"
+    salad_killing_short_group_11 = "Salad- Kill Short Group 11"
+    salad_end_check_sink = "Salad- Check Run"
     salad_run_success = "Salad- Success Run"
     salad_resign_state_name = "Salad- Resigning"
     salad_wait_return_state_name = "Salad- Wait Return"
@@ -287,11 +339,11 @@ class Salad_Farm(ReportsProgress):
     salad_inventory_state_name_end = "Salad-Handle Inventory 2"
     salad_end_state_name = "Salad- End Routine"
     salad_forced_stop = "Salad- End Forced"
-    salad_outpost_portal = [(-9053, 16088), (-9277, 17232)]#[(-92, -72), (-1599, -1007), (-2900, -1090)]
+    salad_outpost_portal = [(-9053, 16088), (-9218, 16985)]#[(-92, -72), (-1599, -1007), (-2900, -1090)]
     salad_outpost_resign_pathing = [(18378, -1450)]#[(20020, 10900), (20472, 8784)]
-    salad_outpost_post_resign_pathing = [(-9277, 17232)]#[(-2900, -1090)]
+    salad_outpost_post_resign_pathing = [(-9218, 16985)]#[(-2900, -1090)]
     salad_merchant_position = [(-10372, 15269)]#[(1045, 218),(2809, 2026), (3219, 2257)]
-    salad_running_group_1_path = [(15167, 555)]
+    salad_running_group_1_path = [(17613, -22), (15167, 555)]
     salad_running_group_2_path = [(10110, -3254)]
     salad_running_group_3_path = [(11715, -4855), (11576, -6633)]
     salad_running_group_4_path = [(8814, -9355), (5058, -11212)]
@@ -305,11 +357,12 @@ class Salad_Farm(ReportsProgress):
     salad_running_group_12_path = [(7953, 17083)]
     salad_running_group_13_path = [(9050, 15491)]
     salad_running_group_14_path = [(9877, 13433)]
-    salad_running_group_15_path = [(16073, 7853)]
-    salad_running_group_16_path = [(15744, 6776)]
-    salad_running_group_17_path = [(13331, 4817)]
+    salad_running_group_15_path = [(15744, 7853)]
+    salad_running_group_16_path = [(13103, 7050)]
+    salad_running_group_17_path = [(13631, 4017)]
     salad_running_group_18_path = [(13029, 1698)]
-    salad_running_group_19_path = [(10625, 1451)]
+    salad_running_group_19_path = [(10625, 1051)]
+    salad_running_cross_to_group_9 = [(5046, 14112)]
     salad_pathing_portal_only_handler_1 = Routines.Movement.PathHandler(salad_outpost_portal)
     salad_pathing_portal_only_handler_2 = Routines.Movement.PathHandler(salad_outpost_post_resign_pathing)
     salad_pathing_resign_portal_handler = Routines.Movement.PathHandler(salad_outpost_resign_pathing)
@@ -332,6 +385,7 @@ class Salad_Farm(ReportsProgress):
     salad_pathing_group_17 = Routines.Movement.PathHandler(salad_running_group_17_path)
     salad_pathing_group_18 = Routines.Movement.PathHandler(salad_running_group_18_path)
     salad_pathing_group_19 = Routines.Movement.PathHandler(salad_running_group_19_path)
+    salad_pathing_group_20 = Routines.Movement.PathHandler(salad_running_cross_to_group_9)
     
     salad_exchange_pathing = [(23896, 9244), (23507, 11446)]
     salad_exchange_pathing_handler = Routines.Movement.PathHandler(salad_exchange_pathing)
@@ -340,6 +394,7 @@ class Salad_Farm(ReportsProgress):
     resign_movement_Handler = Routines.Movement.FollowXY(50)
     post_resign_movement_Handler = Routines.Movement.FollowXY(50)
     running_movement_Handler = Routines.Movement.FollowXY(50)
+    cross_over_movement_Handler = Routines.Movement.FollowXY(50)
     
     keep_list = []
     keep_list.extend(Items.IdSalveItems_Array)
@@ -355,6 +410,7 @@ class Salad_Farm(ReportsProgress):
     salad_killing_staggering_casted = False
     salad_killing_eremites_casted = False
     salad_exchange = False
+    salad_short_route = True
 
     player_stuck_hos_count = 0
     player_skillbar_load_count = 0
@@ -423,7 +479,7 @@ class Salad_Farm(ReportsProgress):
         # Salad Farm Main Routine
         self.salad_Routine.AddSubroutine(self.salad_exchange_salad_routine_start,
                        sub_fsm=self.salad_Exchange_Routine,
-                       condition_fn=lambda: self.CheckExchangeSoups() and CheckIfInventoryHasItem(Items.Iboga_Petal))        
+                       condition_fn=lambda: self.CheckExchangeSalads() and CheckIfInventoryHasItem(Items.Iboga_Petal))        
         self.salad_Routine.AddState(self.salad_start_farm,
                                     execute_fn=lambda: self.ExecuteStep(self.salad_start_farm, self.CheckIfShouldRunFarm()))
         self.salad_Routine.AddState(self.salad_travel_state_name,
@@ -481,7 +537,7 @@ class Salad_Farm(ReportsProgress):
                        run_once=False)
         self.salad_Routine.AddState(self.salad_looting_group_1,
                        execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_group_1, self.LootLoopStart()),
-                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       exit_condition=lambda: self.CheckFirstGroupComplete(),
                        run_once=False)
         ### FIRST GROUP ###
         ### SECOND GROUP ###        
@@ -733,12 +789,170 @@ class Salad_Farm(ReportsProgress):
                        run_once=False)
         self.salad_Routine.AddState(self.salad_looting_group_19,
                        execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_group_19, self.LootLoopStart()),
-                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       exit_condition=lambda: self.CheckLastGroupComplete(),
                        run_once=False)
         ### 19 GROUP ###
         ### === ABOVE HERE IS RUN > FIGHT > LOOT LOOP === ###
 
+        ### === BELOW HERE IS SHORT LOOP RUN > FIGHT > LOOT LOOP === ###
+        ### 18 or 1 SHORT GROUP ###
+        self.salad_Routine.AddState(self.salad_running_short_group_1,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_1, self.TimeToRunToGroup(self.salad_pathing_group_18, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_18, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_1,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_1, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_1,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_1, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 18 or 1 SHORT GROUP ###
+        ### 19 or 2 SHORT GROUP ###        
+        self.salad_Routine.AddState(self.salad_running_short_group_2,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_2, self.TimeToRunToGroup(self.salad_pathing_group_19, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_19, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_2,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_2, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_2,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_2, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 19 or 2 SHORT GROUP ###
+        ### 17 or 3 SHORT GROUP ###
+        self.salad_Routine.AddState(self.salad_running_short_group_3,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_3, self.TimeToRunToGroup(self.salad_pathing_group_17, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_17, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_3,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_3, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_3,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_3, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 17 or 2 SHORT GROUP ###
+        ### 16 or 4 SHORT GROUP ###
+        self.salad_Routine.AddState(self.salad_running_short_group_4,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_4, self.TimeToRunToGroup(self.salad_pathing_group_16, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_16, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_4,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_4, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_4,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_4, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 16 or 4 SHORT GROUP ###
+        ### 15 or 5 SHORT GROUP ###
+        self.salad_Routine.AddState(self.salad_running_short_group_5,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_5, self.TimeToRunToGroup(self.salad_pathing_group_15, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_15, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_5,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_5, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_5,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_5, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 15 or 5 SHORT GROUP ###
+        ### 14 or 6 SHORT GROUP ###
+        self.salad_Routine.AddState(self.salad_running_short_group_6,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_6, self.TimeToRunToGroup(self.salad_pathing_group_14, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_14, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_6,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_6, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_6,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_6, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 14 or 6 SHORT GROUP ###
+        ### 13 or 7 SHORT GROUP ###
+        self.salad_Routine.AddState(self.salad_running_short_group_7,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_7, self.TimeToRunToGroup(self.salad_pathing_group_13, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_13, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_7,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_7, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_7,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_7, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 13 or 7 SHORT GROUP ###
+        ### 12 or 8 SHORT GROUP ###
+        self.salad_Routine.AddState(self.salad_running_short_group_8,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_8, self.TimeToRunToGroup(self.salad_pathing_group_12, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_12, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_8,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_8, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_8,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_8, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 12 or 8 SHORT GROUP ###
+        ### 10 or 10 SHORT GROUP ###
+        self.salad_Routine.AddState(self.salad_running_short_group_9,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_9, self.TimeToRunToGroup(self.salad_pathing_group_10, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_10, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_9,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_9, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_9,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_9, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 10 or 10 SHORT GROUP ###
+        ### 9 or 11 SHORT GROUP ###
+        self.salad_Routine.AddState(self.salad_running_short_group_10,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_10, self.TimeToRunToGroup(self.salad_pathing_group_20, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_20, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_10,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_10, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_10,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_10, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 9 or 11 SHORT GROUP ###
+        ### 11 or 9 SHORT GROUP ###
+        self.salad_Routine.AddState(self.salad_running_short_group_11,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_running_short_group_11, self.TimeToRunToGroup(self.salad_pathing_group_11, self.running_movement_Handler)),
+                       exit_condition=lambda: self.RunToGroupDone(self.salad_pathing_group_11, self.running_movement_Handler),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_killing_short_group_11,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_killing_short_group_11, self.KillLoopStart()),
+                       exit_condition=lambda: self.KillLoopComplete(),
+                       run_once=False)
+        self.salad_Routine.AddState(self.salad_looting_short_group_11,
+                       execute_fn=lambda: self.ExecuteTimedStep(self.salad_looting_short_group_11, self.LootLoopStart()),
+                       exit_condition=lambda: self.LootLoopComplete() or self.ShouldForceTransitionStep(),
+                       run_once=False)
+        ### 11 or 9 SHORT GROUP ###
+        ### === ABOVE HERE IS SHORT LOOP RUN > FIGHT > LOOT LOOP === ###
+
         # Resign after all are done
+        self.salad_Routine.AddState(self.salad_end_check_sink)
         self.salad_Routine.AddState(self.salad_run_success,
                        execute_fn=lambda: self.ExecuteStep(self.salad_run_success, self.SuccessResign()))
         self.salad_Routine.AddState(self.salad_resign_state_name,
@@ -750,25 +964,26 @@ class Salad_Farm(ReportsProgress):
                        exit_condition=lambda: Map.GetMapID() == Mapping.Kamadan and Party.IsPartyLoaded(),
                        transition_delay_ms=3000)
         self.salad_Routine.AddState(self.salad_end_state_name,
-                       execute_fn=lambda: self.ExecuteStep(self.salad_end_state_name, self.CheckSoupRoutineEnd()),
+                       execute_fn=lambda: self.ExecuteStep(self.salad_end_state_name, self.CheckSaladRoutineEnd()),
                        transition_delay_ms=1000)        
         self.salad_Routine.AddSubroutine(self.salad_inventory_state_name_end,
                        sub_fsm = self.inventoryRoutine)       
         self.salad_Routine.AddSubroutine(self.salad_exchange_salad_routine_end,
-                       condition_fn=lambda: self.CheckExchangeSoups() and CheckIfInventoryHasItem(Items.Iboga_Petal))
+                       condition_fn=lambda: self.CheckExchangeSalads() and CheckIfInventoryHasItem(Items.Iboga_Petal))
         self.salad_Routine.AddState(self.salad_forced_stop,                                    
                        execute_fn=lambda: self.ExecuteStep(self.salad_forced_stop, None))
         
         self.RunTimer = Timer()
         self.TotalTimer = Timer()
 
-    def CheckExchangeSoups(self):
+    def CheckExchangeSalads(self):
         self.Log(f"Exchange Iboga Petals: {self.salad_exchange}")
         return self.salad_exchange
     
-    def ApplyConfigSettingsOverride(self, leave_party, collect_input, do_salad_exchange) -> None:
+    def ApplyConfigSettingsOverride(self, leave_party, collect_input, do_salad_exchange, do_short_route) -> None:
         self.ApplyConfigSettings(leave_party, collect_input)
         self.salad_exchange = do_salad_exchange
+        self.salad_short_route = do_short_route
         
     # Start the Salad routine from the first state after soft reset in case player moved around.
     def Start(self):
@@ -843,7 +1058,6 @@ class Salad_Farm(ReportsProgress):
         self.resign_movement_Handler.reset()
         self.post_resign_movement_Handler.reset()
         self.exchange_movement_Handler.reset()
-
         self.salad_exchange_pathing_handler.reset()
         self.salad_loot_timer.Stop()
         self.salad_loot_done_timer.Stop()
@@ -873,6 +1087,7 @@ class Salad_Farm(ReportsProgress):
         self.salad_pathing_group_17.reset()
         self.salad_pathing_group_18.reset()
         self.salad_pathing_group_19.reset()
+        self.salad_pathing_group_20.reset()
 
     def IsBotRunning(self):
         return self.salad_Routine.is_started() and not self.salad_Routine.is_finished()
@@ -955,7 +1170,7 @@ class Salad_Farm(ReportsProgress):
                         self.pyMerchant.collector_buy_item(item, 0, turn_in, buy)
 
         except Exception as e:
-            self.Log(f"Error in Exchanging soup: {str(e)}", Py4GW.Console.MessageType.Error)
+            self.Log(f"Error in Exchanging Salad: {str(e)}", Py4GW.Console.MessageType.Error)
 
     def ExchangeSaladsDone(self):
         return not CheckIfInventoryHasItem(Items.Iboga_Petal, 2)
@@ -1054,7 +1269,7 @@ class Salad_Farm(ReportsProgress):
         if not self.salad_stay_alive_timer.IsRunning():
             self.salad_stay_alive_timer.Start()
 
-        if not self.salad_stay_alive_timer.HasElapsed(1000):
+        if not self.salad_stay_alive_timer.HasElapsed(200):
             return
         
         self.salad_stay_alive_timer.Reset()
@@ -1106,7 +1321,7 @@ class Salad_Farm(ReportsProgress):
         if not self.salad_second_timer.IsRunning():
             self.salad_second_timer.Start()
 
-        if not self.salad_second_timer.HasElapsed(1000):
+        if not self.salad_second_timer.HasElapsed(200):
             return
         
         self.salad_second_timer.Reset()
@@ -1124,7 +1339,7 @@ class Salad_Farm(ReportsProgress):
 
             if (Map.IsMapReady() and not Map.IsMapLoading()):
                 if (Map.IsExplorable() and Map.GetMapID() == Mapping.Plains_Of_Jarin and Party.IsPartyLoaded()):
-                    enemy = GetTargetNearestEnemyByModelIdList(self.enemy_list, GameAreas.Spellcast)
+                    enemy = GetTargetNearestEnemyByModelIdList(self.enemy_list, GameAreas.Great_Spellcast)
                                            
                     # Ensure have damage mitigation up before attacking
                     if enemy == 0:
@@ -1148,7 +1363,7 @@ class Salad_Farm(ReportsProgress):
                 self.FailResign()
                 return False
         
-            enemy = GetNearestEnemyByModelIdList(self.enemy_list, GameAreas.Spellcast)
+            enemy = GetNearestEnemyByModelIdList(self.enemy_list, GameAreas.Great_Spellcast)
                                            
             if enemy == 0:
                 self.current_lootable = 0
@@ -1236,14 +1451,30 @@ class Salad_Farm(ReportsProgress):
         except Exception as e:
             Py4GW.Console.Log("Loot Loop Complete", f"Error during looting {str(e)}", Py4GW.Console.MessageType.Error)
     
-    def GetSoupCollected(self):
+    def CheckFirstGroupComplete(self):
+        done = self.LootLoopComplete() or self.ShouldForceTransitionStep()
+
+        if done and self.salad_short_route:
+            self.salad_Routine.jump_to_state_by_name(self.salad_running_short_group_1)
+            return False
+        return done
+
+    def CheckLastGroupComplete(self):
+        done = self.LootLoopComplete() or self.ShouldForceTransitionStep()
+        
+        if done and not self.salad_short_route:
+            self.salad_Routine.jump_to_state_by_name(self.salad_end_check_sink)
+
+        return done
+
+    def GetSaladCollected(self):
         return self.salad_collected
 
-    def GetSoupStats(self):
+    def GetSaladStats(self):
         return (self.salad_runs, self.salad_success)
     
     # Jump back to output pathing if not done collecting
-    def CheckSoupRoutineEnd(self):
+    def CheckSaladRoutineEnd(self):
         global salad_selected, salad_exchange
 
         # Don't reset the Salad count
@@ -1279,11 +1510,11 @@ class Salad_Farm(ReportsProgress):
       
   ### --- ROUTINE FUNCTIONS --- ###
 
-def GetSoupCollected():
-    return salad_Routine.GetSoupCollected() / 2.0
+def GetSaladCollected():
+    return salad_Routine.GetSaladCollected() / 2.0
 
-def GetSoupData():
-    return salad_Routine.GetSoupStats()
+def GetSaladData():
+    return salad_Routine.GetSaladStats()
 
 salad_Window = Salad_Window(bot_name)
 salad_Routine = Salad_Farm(salad_Window)
@@ -1295,10 +1526,10 @@ def ApplyLootAndMerchantSelections():
                 salad_Window.sell_items_blue, salad_Window.sell_items_grape, salad_Window.sell_items_gold, salad_Window.sell_items_green, salad_Window.sell_materials, salad_Window.salvage_items, salad_Window.salvage_items_white, \
                 salad_Window.salvage_items_blue, salad_Window.salvage_items_grape, salad_Window.salvage_items_gold)
 
-def ApplySoupConfigSettings(leave_party, salad_input, salad_exchange):
-    salad_Routine.ApplyConfigSettingsOverride(leave_party, salad_input, salad_exchange)
+def ApplySaladConfigSettings(leave_party, salad_input, salad_exchange, salad_short_route):
+    salad_Routine.ApplyConfigSettingsOverride(leave_party, salad_input, salad_exchange, salad_short_route)
 
-def ApplySoupInventorySettings(min_slots, min_gold, depo_items, depo_mats):
+def ApplySaladInventorySettings(min_slots, min_gold, depo_items, depo_mats):
     salad_Routine.ApplyInventorySettings(min_slots, min_gold, depo_items, depo_mats)
 
 def StartBot():
