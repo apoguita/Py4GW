@@ -84,6 +84,7 @@ class GameAreas:
     Lesser_Earshot = 900
     Earshot = 1012 
     Spellcast = 1248
+    Great_Spellcast = 1450
     Spirit = 2500
     Compass = 5000
     
