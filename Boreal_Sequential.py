@@ -244,6 +244,19 @@ def main():
     if not (Map.IsMapReady() and Party.IsPartyLoaded()):
         bot_variables.action_queue.clear()
         return
+    
+    if Agent.IsDead(Player.GetAgentID()):
+        bot_variables.action_queue.clear()
+        thread_manager.stop_all_threads()
+
+        # Add threads cleanly
+        thread_manager.add_thread(MAIN_THREAD_NAME, RunBotSequentialLogic)
+        thread_manager.add_thread("SkillHandler", SkillHandler)
+        # Start watchdog
+        thread_manager.start_watchdog(MAIN_THREAD_NAME)
+        
+        return
+    
 
     if bot_variables.config.is_script_running:
         if not Agent.IsCasting(Player.GetAgentID()) and not Agent.IsKnockedDown(Player.GetAgentID()):
