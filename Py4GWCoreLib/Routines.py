@@ -1084,9 +1084,9 @@ class Routines:
                      
         class Movement:
             @staticmethod
-            def FollowPath(path_points: List[Tuple[float, float]], action_queue:ActionQueueNode, custom_exit_condition:Callable[[], bool] =lambda: True, tolerance:float=100):
+            def FollowPath(path_points: List[Tuple[float, float]], action_queue:ActionQueueNode, custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=100):
                 import random
-                from Player import Player
+                from .Player import Player
                 for idx, (target_x, target_y) in enumerate(path_points):
                     
                     action_queue.add_action(Player.Move, target_x, target_y)
@@ -1281,8 +1281,9 @@ class Routines:
             @staticmethod
             def ChangeTarget(agent_id, action_queue:ActionQueueNode):
                 from .Player import Player
-                action_queue.add_action(Player.ChangeTarget, agent_id)
-                sleep(0.25)    
+                if agent_id != 0:
+                    action_queue.add_action(Player.ChangeTarget, agent_id)
+                    sleep(0.25)    
                 
             @staticmethod
             def TargetAgentByName(agent_name:str, action_queue:ActionQueueNode):
@@ -1324,13 +1325,14 @@ class Routines:
                 """Target and interact with chest and items."""
                 from .Player import Player
                 from .Agent import Agent
-                Routines.Sequential.Agents.TargetNearestChest(distance=2500, action_queue=action_queue)
-                chest_x, chest_y = Agent.GetXY(Player.GetTargetID())
+                nearest_chest = Routines.Agents.GetNearestChest(2500)
+                chest_x, chest_y = Agent.GetXY(nearest_chest)
+    
 
                 Routines.Sequential.Movement.FollowPath([(chest_x, chest_y)], action_queue)
                 sleep(0.5)
             
-                Routines.Sequential.Player.InteractTarget(action_queue)
+                Routines.Sequential.Player.InteractAgent(nearest_chest, action_queue)
                 sleep(0.5)
                 action_queue.add_action(Player.SendDialog, 2)
                 sleep(1)
