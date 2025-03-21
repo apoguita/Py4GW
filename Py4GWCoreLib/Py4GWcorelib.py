@@ -804,6 +804,10 @@ class ActionQueueNode:
         
     def IsExpired(self):
         return self.action_queue_timer.HasElapsed(self.action_queue_time)
+    
+    def ProcessQueue(self):
+        if self.IsExpired():
+            self.execute_next()
             
             
 #endregion
