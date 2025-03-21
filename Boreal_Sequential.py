@@ -135,7 +135,8 @@ def SkillHandler():
 
     while True:
         if not evaluate_skill_casting_status():
-             continue
+            sleep(0.1)
+            continue
         
         if Routines.Sequential.Skills.CastSkillID(dwarven_stability,bot_variables.action_queue, log=bot_variables.config.log_to_console):
             sleep(0.5)
@@ -187,9 +188,6 @@ def RunBotSequentialLogic():
             boreal_station = 675
             ice_cliff_chasms = 499
             
-            outpost_path = Routines.Movement.PathHandler(path_points_to_exit_outpost)
-            explorable_path = Routines.Movement.PathHandler(path_points_to_look_for_chest)
-            movement_object = Routines.Movement.FollowXY()
             bot_variables.config.routine_finished = True
             #correct map?
             Routines.Sequential.Map.TravelToOutpost(boreal_station, action_queue, log_to_console)
@@ -206,15 +204,13 @@ def RunBotSequentialLogic():
             ConsoleLog("Boreal Bot", "Map loaded", Console.MessageType.Info, log=log_to_console)
             bot_variables.config.routine_finished = False
             Routines.Sequential.Movement.FollowPath(path_points_to_look_for_chest, action_queue, custom_exit_condition=lambda: IsChestFound(max_distance=2500))
-
+            bot_variables.config.routine_finished = True
             if not IsChestFound(max_distance=2500):
                 ConsoleLog("Boreal Bot", "No chest found", Console.MessageType.Error, log=log_to_console)
-                bot_variables.config.routine_finished = True
                 sleep(1)
                 continue
 
             ConsoleLog("Boreal Bot", "Chest found", Console.MessageType.Info, log=log_to_console)
-            bot_variables.config.routine_finished = True
             Routines.Sequential.Agents.InteractWithNearestChest(action_queue)
             ConsoleLog("Boreal Bot", "Finished, restarting", Console.MessageType.Info, log=log_to_console)
             sleep(1)
@@ -245,12 +241,12 @@ def main():
 
     DrawWindow()
 
-    if Map.IsMapLoading():
+    if not (Map.IsMapReady() and Party.IsPartyLoaded()):
         bot_variables.action_queue.clear()
         return
 
     if bot_variables.config.is_script_running:
-        if not Agent.IsCasting(Player.GetAgentID()):
+        if not Agent.IsCasting(Player.GetAgentID()) and not Agent.IsKnockedDown(Player.GetAgentID()):
             if bot_variables.action_queue.IsExpired():
                 bot_variables.action_queue.execute_next()
         else:
