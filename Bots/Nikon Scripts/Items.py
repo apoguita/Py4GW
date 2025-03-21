@@ -15,8 +15,18 @@ class RareMaterials:
     
 ### --- Dye --- ####
 Dye = 146
+Gray_Dye = 1
+Blue_Dye = 2
+Green_Dye = 3
+Purple_Dye = 4
+Red_Dye = 5
+Yellow_Dye = 6
+Brown_Dye = 7
+Orange_Dye = 8
+Silver_Dye = 9
 Black_Dye = 10
 White_Dye = 12
+Pink_Dye = 13
 
 ### --- Salvage --- ###
 
