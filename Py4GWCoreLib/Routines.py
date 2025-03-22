@@ -1474,13 +1474,14 @@ class Routines:
             @staticmethod
             def SalvageItems(item_array:list[int], log=False):
                 from Py4GWCoreLib import ActionQueueManager
+                from .Inventory import Inventory
                 if len(item_array) == 0:
                     ActionQueueManager().ResetQueue("SALVAGE")
                     return
                 
                 for item_id in item_array:
                     ActionQueueManager().AddAction("SALVAGE",Routines.Sequential.Items._salvage_item, item_id)
-                    
+                    ActionQueueManager().AddAction("SALVAGE",Inventory.AcceptSalvageMaterialsWindow)
                 while not ActionQueueManager().IsEmpty("SALVAGE"):
                     sleep(0.35)
                     
@@ -1571,15 +1572,18 @@ class Routines:
             @staticmethod
             def LootItems(item_array:list[int], log=False):
                 from Py4GWCoreLib import ActionQueueManager
+                from .Agent import Agent
                 if len(item_array) == 0:
-                    ActionQueueManager().ResetQueue("LOOT")
                     return
                 
-                for item_id in item_array:
+                while len (item_array) > 0:
+                    item_id = item_array.pop(0)
+                    if item_id == 0:
+                        continue
+                    item_x, item_y = Agent.GetXY(item_id)
+                    Routines.Sequential.Movement.FollowPath([(item_x, item_y)])
                     Routines.Sequential.Player.InteractAgent(item_id)
-                    
-                while not ActionQueueManager().IsEmpty("LOOT"):
-                    sleep(0.35)
+                    sleep(1.250)
                     
                 if log and len(item_array) > 0:
                     ConsoleLog("LootItems", f"Looted {len(item_array)} items.", Console.MessageType.Info)

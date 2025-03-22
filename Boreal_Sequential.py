@@ -215,7 +215,7 @@ def RunBotSequentialLogic():
         ConsoleLog("Boreal Bot", "Exiting Outpost", Console.MessageType.Info, log=log_to_console)
         
         Routines.Sequential.Movement.FollowPath(path_points_to_exit_outpost, custom_exit_condition=lambda: Map.IsMapLoading())
-        Routines.Sequential.Map.WaitforMapLoad(ice_cliff_chasms, log_to_console)
+        Routines.Sequential.Map.WaitforMapLoad(ice_cliff_chasms)
         ConsoleLog("Boreal Bot", "Map loaded", Console.MessageType.Info, log=log_to_console)
         bot_variables.config.routine_finished = False
         Routines.Sequential.Movement.FollowPath(path_points_to_look_for_chest, custom_exit_condition=lambda: IsChestFound(max_distance=2500))

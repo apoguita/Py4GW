@@ -136,7 +136,7 @@ class Inventory:
         return unidentified_items[0] if unidentified_items else 0
         
     @staticmethod
-    def GetFirstSalvageKit():
+    def GetFirstSalvageKit(lesser =True):
         """
         Purpose: Find the salvage kit with the lowest remaining uses in bags 1, 2, 3, and 4.
         Returns:
@@ -146,6 +146,9 @@ class Inventory:
         item_array = ItemArray.GetItemArray(bags_to_check)
 
         salvage_kits = ItemArray.Filter.ByCondition(item_array, Item.Usage.IsSalvageKit)
+        if lesser:
+            salvage_kits = ItemArray.Filter.ByCondition(salvage_kits, lambda item_id: Item.Usage.IsLesserKit)
+            
         if not salvage_kits:
             return 0  # Return 0 if no salvage kit is found
         salvage_kit_with_lowest_uses = min(salvage_kits, key=lambda item_id: Item.Usage.GetUses(item_id))
@@ -255,10 +258,21 @@ class Inventory:
     @staticmethod
     def AcceptSalvageMaterialsWindow():
         """
-        Purpose: accept "you can only salvage materials with a lesser salvage kit".
-        Returns: bool: True if the salvage window is accepted, False if not.
+        Checks if the Salvage Materials Dialog frame exists and clicks it if it hasn't already been clicked.
+        Returns:
+            bool: True if click was performed, False otherwise.
         """
-        return Inventory.inventory_instance().AcceptSalvageWindow()
+        from .Map import Map
+        from .Party import Party
+        from .UIManager import UIManager
+
+        parent_hash = 140452905
+        yes_button_offsets = [6,98,6]
+        
+        salvage_material_window = UIManager.GetChildFrameID(parent_hash, yes_button_offsets)
+        UIManager.FrameClick(salvage_material_window)
+     
+        #return Inventory.inventory_instance().AcceptSalvageWindow()
 
     @staticmethod
     def OpenXunlaiWindow():
