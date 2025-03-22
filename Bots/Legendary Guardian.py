@@ -38,7 +38,7 @@ area_distance = GameAreas()
 class BotVars:
     def __init__(self, map_id=0):
         self.bot_started = False
-        self.window_module = None
+        self.window_module:ImGui.WindowModule
         self.variables = {}
 
         #HEROES SECTION
@@ -212,8 +212,8 @@ bot_vars.window_module = ImGui.WindowModule(module_name, window_name="TH3KUM1KO'
 
 PyPlayer.PyPlayer()
 player_instance = PyPlayer.PyPlayer()
-timer_instance = Py4GW.Timer()
-elapsed_time = timer_instance.get_elapsed_time()
+timer_instance = Timer()
+elapsed_time = timer_instance.GetElapsedTime()
 follow_delay_timer = Timer()
 
 #FUNCTIONS

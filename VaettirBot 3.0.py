@@ -197,6 +197,11 @@ def reset_environment():
     bot_variables.config.stuck_count = 0
     ActionQueueManager().ResetAllQueues()
     
+    thread_manager.stop_all_threads()
+    thread_manager.add_thread(MAIN_THREAD_NAME, RunBotSequentialLogic)
+    thread_manager.add_thread("SkillHandler", SkillHandler)
+    thread_manager.start_watchdog(MAIN_THREAD_NAME)
+    
 
 def NeedsToHandleInventory():
     global bot_variables
@@ -437,6 +442,11 @@ def get_filtered_loot_array():
 
     item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), Range.Spellcast.value)
     item_array = AgentArray.Filter.ByCondition(item_array, lambda item_id: Routines.Checks.Agents.IsValidItem(item_id))
+    
+    #THERES SOMETHIGN WRONG HERE
+    # NEED TO FIX THIS
+    
+    return item_array
     
     # Map agent IDs to item data
     agent_to_item_map = {
@@ -1111,9 +1121,19 @@ def DrawWindow():
                 identify_array = filter_identify_array()
                 salvage_array = filter_salvage_array()
                 deposit_array = filter_items_to_deposit()
+                loot_array = get_filtered_loot_array()
+                #loot_array = get_filtered_loot_array()
                 PyImGui.text(f"Identify Array: {len(identify_array)}")
                 PyImGui.text(f"Salvage Array: {len(salvage_array)}")
                 PyImGui.text(f"Deposit Array: {len(deposit_array)}")
+                PyImGui.text(f"Loot Array: {len(loot_array)}")
+                
+                PyImGui.text(f"Agent ID: ")
+                PyImGui.same_line(0,-1)
+                for agent_id in loot_array:
+                    PyImGui.text(f",{agent_id}")
+                    PyImGui.same_line(0,-1)
+                
 
         PyImGui.end()
 
@@ -1144,7 +1164,8 @@ def main():
             
         if not Agent.IsCasting(Player.GetAgentID()):
             ActionQueueManager().ProcessQueue("ACTION")
-        ActionQueueManager().ProcessQueue("SALVAGE")               
+        ActionQueueManager().ProcessQueue("SALVAGE")   
+        ActionQueueManager().ProcessQueue("IDENTIFY")             
         ActionQueueManager().ProcessQueue("MERCHANT")       
         ActionQueueManager().ProcessQueue("LOOT")
         
