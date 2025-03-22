@@ -589,13 +589,10 @@ class Kabob_Farm(ReportsProgress):
 
     ### --- ROUTINE FUNCTIONS --- ###
     def LoadSkillBar(self):
-        primary_profession, secondary = Agent.GetProfessionNames(Player.GetAgentID())
+        primary_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
 
         if primary_profession != "Dervish":
             self.Log("Bot Requires Dervish Primary")
-            self.InternalStop()  
-        elif secondary != "Assassin":
-            self.Log("Bot Requires Assassin Secondary")
             self.InternalStop()
         else:
             SkillBar.LoadSkillTemplate(self.Kabob_Skillbar_Code)

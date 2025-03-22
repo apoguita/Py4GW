@@ -1187,11 +1187,11 @@ class Salad_Farm(ReportsProgress):
 
     ### --- ROUTINE FUNCTIONS --- ###
     def LoadSkillBar(self):
-        primary, secondary = Agent.GetProfessionNames(Player.GetAgentID())
+        primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
         
-        if primary == Professions.Name.Dervish and secondary == Professions.Name.Elementalist:
+        if primary == Professions.Name.Dervish:
             SkillBar.LoadSkillTemplate(self.salad_primary_dervish_skillbar_code)
-        elif primary == Professions.Name.Elementalist and secondary == Professions.Name.Dervish:
+        elif primary == Professions.Name.Elementalist:
             SkillBar.LoadSkillTemplate(self.salad_primary_elementalist_skillbar_code)
         else:
             self.Log("For Best Results use D/E or E/D")
