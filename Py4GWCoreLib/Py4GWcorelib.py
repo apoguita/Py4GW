@@ -809,6 +809,65 @@ class ActionQueueNode:
         if self.IsExpired():
             self.execute_next()
             
+class ActionQueueManager:
+    _instance = None  # Singleton instance
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ActionQueueManager, cls).__new__(cls)
+            cls._instance._initialize_queues()
+        return cls._instance
+
+    def _initialize_queues(self):
+        self.queues = {
+            "ACTION": ActionQueueNode(75),
+            "LOOT": ActionQueueNode(1250),
+            "MERCHANT": ActionQueueNode(750),
+            "SALVAGE": ActionQueueNode(350),
+            "IDENTIFY": ActionQueueNode(250)
+            # Add more queues here if needed
+        }
+        
+    def AddAction(self, queue_name, action, *args, **kwargs):
+        """Add an action to a specific queue by name."""
+        if queue_name in self.queues:
+            self.queues[queue_name].add_action(action, *args, **kwargs)
+        else:
+            raise ValueError(f"Queue '{queue_name}' does not exist.")
+
+    # Reset specific queue
+    def ResetQueue(self, queue_name):
+        if queue_name in self.queues:
+            self.queues[queue_name].clear()
+
+    # Reset all queues
+    def ResetAllQueues(self):
+        for queue in self.queues.values():
+            queue.clear()
+
+    # Process specific queue
+    def ProcessQueue(self, queue_name):
+        if queue_name in self.queues:
+            self.queues[queue_name].ProcessQueue()
+
+    # Process all queues
+    def ProcessAll(self):
+        for queue in self.queues.values():
+            queue.ProcessQueue()
+
+    # Getters (optional if you prefer direct dict access)
+    def GetQueue(self, queue_name) -> ActionQueueNode:
+        queue = self.queues.get(queue_name)
+        if queue is None:
+            raise ValueError(f"Queue '{queue_name}' does not exist.")
+        return queue
+    
+    def IsEmpty(self, queue_name) -> bool:
+        queue = self.GetQueue(queue_name)
+        return queue.is_empty()
+
+
+           
             
 #endregion
 
