@@ -1,7 +1,6 @@
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib import ConsoleLog
-from Py4GWCoreLib import ActionQueueNode
 from time import sleep
 from .enums import *
 import inspect
@@ -835,7 +834,7 @@ class Routines:
                 return Utils.Distance(pos1, pos2)
 
 
-            def move_to_waypoint(self, x=0, y=0, tolerance=None, action_queue = None):
+            def move_to_waypoint(self, x=0, y=0, tolerance=None, use_action_queue = False):
                 """
                 Move the player to the specified coordinates.
                 Args:
@@ -843,16 +842,17 @@ class Routines:
                     y (float): Y coordinate of the waypoint.
                     tolerance (int, optional): The distance threshold to consider arrival. Defaults to the initialized value.
                 """
+                from Py4GWCoreLib import ActionQueueManager
                 from .Player import Player
                 self.reset()
                 self.waypoint = (x, y)
                 self.tolerance = tolerance if tolerance is not None else self.tolerance
                 self.following = True
                 self.arrived = False
-                if action_queue is None:
+                if not use_action_queue is None:
                     Player.Move(x, y)
                 else:
-                    action_queue.append(Player.Move, x, y)
+                    ActionQueueManager().AddAction("ACTION",Player.Move, x, y)
                 self.timer.Start()
 
             def reset(self):
@@ -864,13 +864,14 @@ class Routines:
                 self.timer.Reset()
                 self.wait_timer.Reset()
 
-            def update(self, log_actions = False, action_queue = None):
+            def update(self, log_actions = False, use_action_queue = False):
                 """
                 Update the FollowXY object's state, check if the player has reached the waypoint,
                 and issue new move commands if necessary.
                 """
                 from .Agent import Agent
                 from .Player import Player
+                from Py4GWCoreLib import ActionQueueManager
                 if self.following:
                     current_position = Player.GetXY()
                     is_casting = Agent.IsCasting(Player.GetAgentID())
@@ -895,12 +896,12 @@ class Routines:
                     # Re-issue the move command if the player is not moving and not casting
                     if self.wait_timer_run_once:
                         # Use the move_to_waypoint function to reissue movement
-                        if action_queue is None:
+                        if not use_action_queue:
                             Player.Move(0,0) #reset movement pointer?
                             Player.Move(self.waypoint[0], self.waypoint[1])
                         else:
-                            action_queue.add_action(Player.Move, self.waypoint[0]+1, self.waypoint[1]+1)
-                            action_queue.add_action(Player.Move, self.waypoint[0], self.waypoint[1])
+                            ActionQueueManager().AddAction("ACTION",Player.Move, self.waypoint[0]+1, self.waypoint[1]+1)
+                            ActionQueueManager().AddAction("ACTION",Player.Move, self.waypoint[0], self.waypoint[1])
                             
                         self.wait_timer_run_once  = False  # Disable immediate re-issue
                         self.wait_timer.Start()  # Start the wait timer to prevent spamming movement
@@ -1038,58 +1039,66 @@ class Routines:
     
     #region Sequential
     class Sequential:
-
         class Player:
             @staticmethod
-            def InteractTarget(action_queue:ActionQueueNode):
+            def InteractAgent(agent_id:int):
                 from .Player import Player
-                action_queue.add_action(Player.Interact, Player.GetTargetID())
+                from Py4GWCoreLib import ActionQueueManager
+                ActionQueueManager().AddAction("ACTION",Player.Interact, agent_id)
                 sleep(0.1)
                 
             @staticmethod
-            def InteractAgent(agent_id:int, action_queue:ActionQueueNode):
+            def InteractTarget():
                 from .Player import Player
-                action_queue.add_action(Player.Interact, agent_id)
-                
+                target_id = Player.GetTargetID()
+                if target_id != 0:
+                    Routines.Sequential.Player.InteractAgent(target_id)
+                    
+                     
             @staticmethod
-            def SendDialog(dialog_id:str, action_queue:ActionQueueNode):
+            def SendDialog(dialog_id:str):
                 from .Player import Player
-                action_queue.add_action(Player.SendDialog, int(dialog_id, 16))
+                from Py4GWCoreLib import ActionQueueManager
+                ActionQueueManager().AddAction("ACTION",Player.SendDialog, int(dialog_id, 16))
                 sleep(0.3)
 
             @staticmethod
-            def SetTitle(title_id:int, action_queue:ActionQueueNode, log=False):
+            def SetTitle(title_id:int, log=False):
                 from .Player import Player
-                action_queue.add_action(Player.SetActiveTitle, title_id)
+                from Py4GWCoreLib import ActionQueueManager
+                ActionQueueManager().AddAction("ACTION",Player.SetActiveTitle, title_id)
                 sleep(0.3)   
                 if log:
                     ConsoleLog("SetTitle", f"Setting title to {title_id}", Console.MessageType.Info) 
 
             @staticmethod
-            def SendChatCommand(command:str, action_queue:ActionQueueNode, log=False):
+            def SendChatCommand(command:str, log=False):
                 from .Player import Player
-                action_queue.add_action(Player.SendChatCommand, command)
+                from Py4GWCoreLib import ActionQueueManager
+                ActionQueueManager().AddAction("ACTION",Player.SendChatCommand, command)
                 sleep(0.3)
                 if log:
                     ConsoleLog("SendChatCommand", f"Sending chat command {command}", Console.MessageType.Info)
                
             
             @staticmethod
-            def Move(x:float, y:float, action_queue:ActionQueueNode, log=False):
+            def Move(x:float, y:float, log=False):
                 from .Player import Player
-                action_queue.add_action(Player.Move, x, y)
+                from Py4GWCoreLib import ActionQueueManager
+                ActionQueueManager().AddAction("ACTION",Player.Move, x, y)
                 sleep(0.1)
                 if log:
                     ConsoleLog("MoveTo", f"Moving to {x}, {y}", Console.MessageType.Info)
                      
         class Movement:
             @staticmethod
-            def FollowPath(path_points: List[Tuple[float, float]], action_queue:ActionQueueNode, custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=100):
+            def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=100):
                 import random
                 from .Player import Player
+                from Py4GWCoreLib import ActionQueueManager
                 for idx, (target_x, target_y) in enumerate(path_points):
                     
-                    action_queue.add_action(Player.Move, target_x, target_y)
+                    ActionQueueManager().AddAction("ACTION",Player.Move, target_x, target_y)
                         
                     current_x, current_y = Player.GetXY()
                     previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
@@ -1112,31 +1121,32 @@ class Routines:
                             # Inside reissue logic
                             offset_x = random.uniform(-5, 5)
                             offset_y = random.uniform(-5, 5)
-                            action_queue.add_action(Player.Move, target_x + offset_x, target_y + offset_y)
+                            ActionQueueManager().AddAction("ACTION",Player.Move, target_x + offset_x, target_y + offset_y)
                         previous_distance = current_distance
 
         class Skills:
             @staticmethod
-            def LoadSkillbar(skill_template:str, action_queue:ActionQueueNode, log=False):
+            def LoadSkillbar(skill_template:str, log=False):
                 """
                 Purpose: Load the specified skillbar.
                 Args:
                     skill_template (str): The name of the skill template to load.
-                    action_queue (ActionQueueNode): The action queue to add the skill load action to.
                     log (bool) Optional: Whether to log the action. Default is True.
                 Returns: None
                 """
                 from .Skillbar import SkillBar
-                action_queue.add_action(SkillBar.LoadSkillTemplate, skill_template)
+                from Py4GWCoreLib import ActionQueueManager
+                ActionQueueManager().AddAction("ACTION",SkillBar.LoadSkillTemplate, skill_template)
                 ConsoleLog("LoadSkillbar", f"Loading skill Template {skill_template}", log=log)
                 sleep(0.5)
             
             @staticmethod    
-            def CastSkillID (skill_id:int, action_queue:ActionQueueNode,extra_condition=True, log=False):
+            def CastSkillID (skill_id:int,extra_condition=True, log=False):
                 from .Skillbar import SkillBar
                 from .Skill import Skill
                 from .Player import Player
                 from .Map import Map
+                from Py4GWCoreLib import ActionQueueManager
                 if not Map.IsMapReady():
                     return False
                 player_agent_id = Player.GetAgentID()
@@ -1145,17 +1155,18 @@ class Routines:
                 
                 if not(enough_energy and skill_ready and extra_condition):
                     return False
-                action_queue.add_action(SkillBar.UseSkill, SkillBar.GetSlotBySkillID(skill_id))
+                ActionQueueManager().AddAction("ACTION",SkillBar.UseSkill, SkillBar.GetSlotBySkillID(skill_id))
                 if log:
                     ConsoleLog("CastSkillID", f"Cast {Skill.GetName(skill_id)}, slot: {SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
                 return True
             
             
             @staticmethod
-            def CastSkillSlot(slot:int, action_queue:ActionQueueNode,extra_condition=True, log=False):
+            def CastSkillSlot(slot:int,extra_condition=True, log=False):
                 from .Skillbar import SkillBar
                 from .Skill import Skill
                 from .Player import Player
+                from Py4GWCoreLib import ActionQueueManager
                 player_agent_id = Player.GetAgentID()
                 skill_id = SkillBar.GetSkillIDBySlot(slot)
                 enough_energy = Routines.Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
@@ -1163,40 +1174,43 @@ class Routines:
                 
                 if not(enough_energy and skill_ready and extra_condition):
                     return False
-                action_queue.add_action(SkillBar.UseSkill, slot)
+                ActionQueueManager().AddAction("ACTION",SkillBar.UseSkill, slot)
                 if log:
                     ConsoleLog("CastSkillSlot", f"Cast {Skill.GetName(skill_id)}, slot: {SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
                 return True
                 
         class Map:  
             @staticmethod
-            def SetHardMode(action_queue:ActionQueueNode, log=False):
+            def SetHardMode(log=False):
                 from .Party import Party
+                from Py4GWCoreLib import ActionQueueManager
                 """
                 Purpose: Set the map to hard mode.
                 Args: None
                 Returns: None
                 """
-                action_queue.add_action(Party.SetHardMode)
+                
+                ActionQueueManager().AddAction("ACTION",Party.SetHardMode)
                 sleep(0.5)
                 ConsoleLog("SetHardMode", "Hard mode set.", Console.MessageType.Info, log=log)
                 
                                 
             @staticmethod
-            def TravelToOutpost(outpost_id,action_queue:ActionQueueNode, log=False):
+            def TravelToOutpost(outpost_id, log=False):
                 """
                 Purpose: Positions yourself safely on the outpost.
                 Args:
                     outpost_id (int): The ID of the outpost to travel to.
-                    action_queue (ActionQueueNode): The action queue to add the travel action to.
                     log (bool) Optional: Whether to log the action. Default is True.
                 Returns: None
                 """
                 from .Party import Party
                 from .Map import Map
+                from Py4GWCoreLib import ActionQueueManager
+                
                 if Map.GetMapID() != outpost_id:
                     ConsoleLog("TravelToOutpost", f"Travelling to {Map.GetMapName(outpost_id)}", log=log)
-                    action_queue.add_action(Map.Travel, outpost_id)
+                    ActionQueueManager().AddAction("ACTION",Map.Travel, outpost_id)
                     sleep(3)
                     waititng_for_map_load = True
                     while waititng_for_map_load:
@@ -1214,7 +1228,6 @@ class Routines:
                 Purpose: Positions yourself safely on the map.
                 Args:
                     outpost_id (int): The ID of the map to travel to.
-                    action_queue (ActionQueueNode): The action queue to add the travel action to.
                     log (bool) Optional: Whether to log the action. Default is True.
                 Returns: None
                 """
@@ -1279,165 +1292,170 @@ class Routines:
                 return 0  # Not found
 
             @staticmethod
-            def ChangeTarget(agent_id, action_queue:ActionQueueNode):
+            def ChangeTarget(agent_id):
                 from .Player import Player
+                from Py4GWCoreLib import ActionQueueManager
                 if agent_id != 0:
-                    action_queue.add_action(Player.ChangeTarget, agent_id)
+                    ActionQueueManager().AddAction("ACTION",Player.ChangeTarget, agent_id)
                     sleep(0.25)    
                 
             @staticmethod
-            def TargetAgentByName(agent_name:str, action_queue:ActionQueueNode):
+            def TargetAgentByName(agent_name:str):
                 agent_id = Routines.Sequential.Agents.GetAgentIDByName(agent_name)
                 if agent_id != 0:
-                    Routines.Sequential.Agents.ChangeTarget(agent_id, action_queue)
+                    Routines.Sequential.Agents.ChangeTarget(agent_id)
             @staticmethod
-            def TargetNearestNPC(distance, action_queue:ActionQueueNode):
+            def TargetNearestNPC(distance):
                 nearest_npc = Routines.Agents.GetNearestNPC(distance)
                 if nearest_npc != 0:
-                    Routines.Sequential.Agents.ChangeTarget(nearest_npc, action_queue)
+                    Routines.Sequential.Agents.ChangeTarget(nearest_npc)
 
             @staticmethod
-            def TargetNearestNPCXY(x,y,distance, action_queue:ActionQueueNode):
+            def TargetNearestNPCXY(x,y,distance):
                 nearest_npc = Routines.Agents.GetNearestNPCXY(x,y, distance)
                 if nearest_npc != 0:
-                    Routines.Sequential.Agents.ChangeTarget(nearest_npc, action_queue)
+                    Routines.Sequential.Agents.ChangeTarget(nearest_npc)
         
             @staticmethod
-            def TargetNearestEnemy(distance, action_queue:ActionQueueNode):
+            def TargetNearestEnemy(distance):
                 nearest_enemy = Routines.Agents.GetNearestEnemy(distance)
                 if nearest_enemy != 0: 
-                    Routines.Sequential.Agents.ChangeTarget(nearest_enemy, action_queue)
+                    Routines.Sequential.Agents.ChangeTarget(nearest_enemy)
             
             @staticmethod
-            def TargetNearestItem(distance, action_queue:ActionQueueNode):
+            def TargetNearestItem(distance):
                 nearest_item = Routines.Agents.GetNearestItem(distance)
                 if nearest_item != 0:
-                    Routines.Sequential.Agents.ChangeTarget(nearest_item, action_queue)
+                    Routines.Sequential.Agents.ChangeTarget(nearest_item)
                     
             @staticmethod
-            def TargetNearestChest(distance, action_queue:ActionQueueNode):
+            def TargetNearestChest(distance):
                 nearest_chest = Routines.Agents.GetNearestChest(distance)
                 if nearest_chest != 0:
-                    Routines.Sequential.Agents.ChangeTarget(nearest_chest, action_queue)
+                    Routines.Sequential.Agents.ChangeTarget(nearest_chest)
                     
             @staticmethod
-            def InteractWithNearestChest(action_queue):
+            def InteractWithNearestChest():
                 """Target and interact with chest and items."""
                 from .Player import Player
                 from .Agent import Agent
+                from Py4GWCoreLib import ActionQueueManager
                 nearest_chest = Routines.Agents.GetNearestChest(2500)
                 chest_x, chest_y = Agent.GetXY(nearest_chest)
     
 
-                Routines.Sequential.Movement.FollowPath([(chest_x, chest_y)], action_queue)
+                Routines.Sequential.Movement.FollowPath([(chest_x, chest_y)])
                 sleep(0.5)
             
-                Routines.Sequential.Player.InteractAgent(nearest_chest, action_queue)
+                Routines.Sequential.Player.InteractAgent(nearest_chest)
                 sleep(0.5)
-                action_queue.add_action(Player.SendDialog, 2)
+                ActionQueueManager().AddAction("ACTION",Player.SendDialog, 2)
                 sleep(1)
 
-                Routines.Sequential.Agents.TargetNearestItem(distance=300, action_queue=action_queue)
-                Routines.Sequential.Player.InteractTarget(action_queue)
+                Routines.Sequential.Agents.TargetNearestItem(distance=300)
+                Routines.Sequential.Player.InteractTarget()
                 sleep(1)
                 
             @staticmethod
-            def InteractWithAgentByName(agent_name:str, action_queue:ActionQueueNode):
+            def InteractWithAgentByName(agent_name:str):
                 from .Player import Player
                 from .Agent import Agent
-                Routines.Sequential.Agents.TargetAgentByName(agent_name, action_queue)
+                Routines.Sequential.Agents.TargetAgentByName(agent_name)
                 agent_x, agent_y = Agent.GetXY(Player.GetTargetID())
 
-                Routines.Sequential.Movement.FollowPath([(agent_x, agent_y)], action_queue)
+                Routines.Sequential.Movement.FollowPath([(agent_x, agent_y)])
                 sleep(0.5)
                 
-                Routines.Sequential.Player.InteractTarget(action_queue)
+                Routines.Sequential.Player.InteractTarget()
                 sleep(1)
                 
             @staticmethod
-            def InteractWithAgentXY(x:float, y:float, action_queue:ActionQueueNode):
+            def InteractWithAgentXY(x:float, y:float):
                 from .Player import Player
                 from .Agent import Agent
-                Routines.Sequential.Agents.TargetNearestNPCXY(x, y, 100, action_queue)
+                Routines.Sequential.Agents.TargetNearestNPCXY(x, y, 100)
                 agent_x, agent_y = Agent.GetXY(Player.GetTargetID())
                 agent_path = Routines.Movement.PathHandler([(agent_x, agent_y)])
 
-                Routines.Sequential.Movement.FollowPath([(agent_x, agent_y)], action_queue)
+                Routines.Sequential.Movement.FollowPath([(agent_x, agent_y)])
                 sleep(0.5)
                 
-                Routines.Sequential.Player.InteractTarget(action_queue)
+                Routines.Sequential.Player.InteractTarget()
                 sleep(1)
                 
         class Merchant:
             @staticmethod
-            def SellItems(item_array:list[int], action_queue:ActionQueueNode, log=False):
+            def SellItems(item_array:list[int], log=False):
                 from .Item import Item
                 from .Merchant import Trading
+                from Py4GWCoreLib import ActionQueueManager
                 if len(item_array) == 0:
-                    action_queue.clear()
+                    ActionQueueManager().ResetQueue("MERCHANT")
                     return
                 
                 for item_id in item_array:
                     quantity = Item.Properties.GetQuantity(item_id)
                     value = Item.Properties.GetValue(item_id)
                     cost = quantity * value
-                    action_queue.add_action(Trading.Merchant.SellItem, item_id, cost)
+                    ActionQueueManager().AddAction("MERCHANT",Trading.Merchant.SellItem, item_id, cost)
                        
-                while not action_queue.is_empty():
+                while not ActionQueueManager().IsEmpty("MERCHANT"):
                     sleep(0.35)
                 
                 if log:
                     ConsoleLog("SellItems", f"Sold {len(item_array)} items.", Console.MessageType.Info)
 
             @staticmethod
-            def BuyIDKits(kits_to_buy:int, action_queue:ActionQueueNode, log=False):
+            def BuyIDKits(kits_to_buy:int, log=False):
                 from .Item import Item
                 from .ItemArray import ItemArray
                 from .Merchant import Trading
+                from Py4GWCoreLib import ActionQueueManager
                 if kits_to_buy <= 0:
-                    action_queue.clear()
+                    ActionQueueManager().ResetQueue("MERCHANT")
                     return
 
                 merchant_item_list = Trading.Merchant.GetOfferedItems()
                 merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == 5899)
 
                 if len(merchant_item_list) == 0:
-                    action_queue.clear()
+                    ActionQueueManager().ResetQueue("MERCHANT")
                     return
                 
                 for i in range(kits_to_buy):
                     item_id = merchant_item_list[0]
                     value = Item.Properties.GetValue(item_id) * 2 # value reported is sell value not buy value
-                    action_queue.add_action(Trading.Merchant.BuyItem, item_id, value)
+                    ActionQueueManager().AddAction("MERCHANT",Trading.Merchant.BuyItem, item_id, value)
                     
-                while not action_queue.is_empty():
+                while not ActionQueueManager().IsEmpty("MERCHANT"):
                     sleep(0.35)
                     
                 if log:
                     ConsoleLog("BuyIDKits", f"Bought {kits_to_buy} ID Kits.", Console.MessageType.Info)
 
             @staticmethod
-            def BuySalvageKits(kits_to_buy:int, action_queue:ActionQueueNode, log=False):
+            def BuySalvageKits(kits_to_buy:int, log=False):
                 from .Item import Item
                 from .ItemArray import ItemArray
                 from .Merchant import Trading
+                from Py4GWCoreLib import ActionQueueManager
                 if kits_to_buy <= 0:
-                    action_queue.clear()
+                    ActionQueueManager().ResetQueue("MERCHANT")
                     return
 
                 merchant_item_list = Trading.Merchant.GetOfferedItems()
                 merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == 2992)
 
                 if len(merchant_item_list) == 0:
-                    action_queue.clear()
+                    ActionQueueManager().ResetQueue("MERCHANT")
                     return
                 
                 for i in range(kits_to_buy):
                     item_id = merchant_item_list[0]
                     value = Item.Properties.GetValue(item_id) * 2
-                    action_queue.add_action(Trading.Merchant.BuyItem, item_id, value)
+                    ActionQueueManager().AddAction("MERCHANT",Trading.Merchant.BuyItem, item_id, value)
                     
-                while not action_queue.is_empty():
+                while not ActionQueueManager().IsEmpty("MERCHANT"):
                     sleep(0.35)
                 
                 if log:
@@ -1454,16 +1472,16 @@ class Routines:
                 Inventory.SalvageItem(item_id, salvage_kit)
                 
             @staticmethod
-            def SalvageItems(item_array:list[int], action_queue:ActionQueueNode, log=False):
-                from .Item import Item
+            def SalvageItems(item_array:list[int], log=False):
+                from Py4GWCoreLib import ActionQueueManager
                 if len(item_array) == 0:
-                    action_queue.clear()
+                    ActionQueueManager().ResetQueue("SALVAGE")
                     return
                 
                 for item_id in item_array:
-                    action_queue.add_action(Routines.Sequential.Items._salvage_item, item_id)
+                    ActionQueueManager().AddAction("SALVAGE",Routines.Sequential.Items._salvage_item, item_id)
                     
-                while not action_queue.is_empty():
+                while not ActionQueueManager().IsEmpty("SALVAGE"):
                     sleep(0.35)
                     
                 if log and len(item_array) > 0:
@@ -1479,26 +1497,27 @@ class Routines:
                 Inventory.IdentifyItem(item_id, id_kit)
                 
             @staticmethod
-            def IdentifyItems(item_array:list[int], action_queue:ActionQueueNode, log=False):
-                from .Item import Item
+            def IdentifyItems(item_array:list[int], log=False):
+                from Py4GWCoreLib import ActionQueueManager
                 if len(item_array) == 0:
-                    action_queue.clear()
+                    ActionQueueManager().ResetQueue("IDENTIFY")
                     return
                 
                 for item_id in item_array:
-                    action_queue.add_action(Routines.Sequential.Items._identify_item, item_id)
+                    ActionQueueManager().AddAction("IDENTIFY",Routines.Sequential.Items._identify_item, item_id)
                     
-                while not action_queue.is_empty():
+                while not ActionQueueManager().IsEmpty("IDENTIFY"):
                     sleep(0.35)
                     
                 if log and len(item_array) > 0:
                     ConsoleLog("IdentifyItems", f"Identified {len(item_array)} items.", Console.MessageType.Info)
                     
             @staticmethod
-            def DepositItems(item_array:list[int], action_queue:ActionQueueNode, log=False):
+            def DepositItems(item_array:list[int], log=False):
                 from .Inventory import Inventory
+                from Py4GWCoreLib import ActionQueueManager
                 if len(item_array) == 0:
-                    action_queue.clear()
+                    ActionQueueManager().ResetQueue("ACTION")
                     return
                 
                 total_items, total_capacity = Inventory.GetStorageSpace()
@@ -1508,17 +1527,18 @@ class Routines:
                     return
 
                 for item_id in item_array:
-                    action_queue.add_action(Inventory.DepositItemToStorage, item_id)
+                    ActionQueueManager().AddAction("ACTION",Inventory.DepositItemToStorage, item_id)
                     
-                while not action_queue.is_empty():
+                while not ActionQueueManager().IsEmpty("ACTION"):
                     sleep(0.35)
                     
                 if log and len(item_array) > 0:
                     ConsoleLog("DepositItems", f"Deposited {len(item_array)} items.", Console.MessageType.Info)
                     
             @staticmethod
-            def DepositGold(gold_amount_to_leave_on_character: int, action_queue: ActionQueueNode, log=False):
+            def DepositGold(gold_amount_to_leave_on_character: int, log=False):
                 from .Inventory import Inventory
+                from Py4GWCoreLib import ActionQueueManager
                 
                 gold_amount_on_character = Inventory.GetGoldOnCharacter()
                 gold_amount_on_storage = Inventory.GetGoldInStorage()
@@ -1539,7 +1559,7 @@ class Routines:
                     return False
 
                 # Perform the deposit
-                action_queue.add_action(Inventory.DepositGold, gold_to_deposit)
+                ActionQueueManager().AddAction("ACTION",Inventory.DepositGold, gold_to_deposit)
                 
                 sleep(0.35)
                 
@@ -1549,16 +1569,16 @@ class Routines:
                 return True
 
             @staticmethod
-            def LootItems(item_array:list[int], action_queue:ActionQueueNode, log=False):
-                from .Agent import Agent
+            def LootItems(item_array:list[int], log=False):
+                from Py4GWCoreLib import ActionQueueManager
                 if len(item_array) == 0:
-                    action_queue.clear()
+                    ActionQueueManager().ResetQueue("LOOT")
                     return
                 
                 for item_id in item_array:
-                    Routines.Sequential.Player.InteractAgent(item_id,action_queue)
+                    Routines.Sequential.Player.InteractAgent(item_id)
                     
-                while not action_queue.is_empty():
+                while not ActionQueueManager().IsEmpty("LOOT"):
                     sleep(0.35)
                     
                 if log and len(item_array) > 0:
