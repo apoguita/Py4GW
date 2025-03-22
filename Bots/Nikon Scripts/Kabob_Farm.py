@@ -923,17 +923,20 @@ class Kabob_Farm(ReportsProgress):
             self.Log("Kill Loop Error", Py4GW.Console.MessageType.Error)
 
     # If issues comment internals and call super().CanPickUp()
-    def CanPickUp(self, agentId):
+    def CanPickUp(self, agentId, player_id):
         # Check if our item is a kabob first, otherwise let base hangle it.
         item = Agent.GetItemAgent(agentId)
 
-        if item:     
+        if item:        
+            if item.owner_id != 0 and player_id != 0 and item.owner_id != player_id:
+                return False
+            
             model = Item.GetModelID(item.item_id)
 
             if model == Items.Drake_Flesh:
                 return True
             else:
-                return super().CanPickUp(agentId)
+                return super().CanPickUp(agentId, player_id)
               
         return False
     
@@ -960,7 +963,7 @@ class Kabob_Farm(ReportsProgress):
                     else:
                         self.current_lootable = 0
                 
-                item = self.GetNearestPickupItem()
+                item = self.GetNearestPickupItem(Player.GetAgentID())
 
                 if item == 0 or item == None:
                     self.current_lootable = 0
