@@ -219,13 +219,6 @@ def GetAllEffectsTimeRemaining(agent_id):
 
     return effects_time
 
-def CheckSurrounded(number_foes, area=GameAreas.Lesser_Earshot):
-    enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), area)
-    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
-
-    return len(enemy_array) > number_foes
-
 ### --- CHECK SKILLS --- ###
 def IsSkillReadyById(skill_id):
     return IsSkillReadyBySlot(SkillBar.GetSlotBySkillID(skill_id))
@@ -490,14 +483,17 @@ class ReportsProgress():
         if issubclass(type(self.window), BasicWindow):
             self.window.Log(text, msgType)
 
-    def CanPickUp(self, agentId):
+    def CanPickUp(self, agentId, player_id):
         # Need to make sure that if inventory is full, check if the item is stackable and there is a stack in inventory with space.
         agent = Agent.GetAgentByID(agentId)
 
         if agent:
             item = Agent.GetItemAgent(agentId)
 
-            if item:     
+            if item:
+                if item.owner_id != 0 and player_id != 0 and item.owner_id != player_id:
+                    return False
+                
                 model = Item.GetModelID(item.item_id)
 
                 if model == Items.Gold_Coin and self.collect_gold_coins:
@@ -520,7 +516,7 @@ class ReportsProgress():
             
         return False
 
-    def GetNearestPickupItem(self):
+    def GetNearestPickupItem(self, player_id):
         try:            
             items = AgentArray.GetItemArray()
             items = AgentArray.Filter.ByDistance(items, Player.GetXY(), GameAreas.Lesser_Earshot)
@@ -528,7 +524,7 @@ class ReportsProgress():
 
             if items != None and len(items) > 0:
                 for item in items:
-                    if self.CanPickUp(item):
+                    if self.CanPickUp(item, player_id):
                         return item
             
             return 0
