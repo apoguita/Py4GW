@@ -74,7 +74,8 @@ class Routines:
             def IsValidItem(item_id):
                 from .Agent import Agent
                 from .Player import Player
-                return (Agent.agent_instance(item_id).item_agent.owner_id == Player.GetAgentID()) or (Agent.agent_instance(item_id).item_agent.owner_id == 0)
+                owner = Agent.GetItemAgentOwnerID(item_id)
+                return (owner == Player.GetAgentID()) or (owner == 0)
 
 
             

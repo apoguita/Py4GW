@@ -35,35 +35,15 @@ def HandleCombat(cached_data:CacheData):
 
     return cached_data.combat_handler.HandleCombat(ooc= False)
 
-   
-class ItemOwnerCache:
-    def __init__(self):
-        self.cache = {}  # { item_id: original_owner_id }
 
-    def check_and_cache(self, item_id, owner_id):
-        if item_id not in self.cache:
-            self.cache[item_id] = owner_id
-        return self.cache[item_id]
-
-    def clear_all(self):
-        self.cache.clear()
-
-
-item_owner_cache = ItemOwnerCache()
 thread_manager = MultiThreading()
 in_looting_routine = False
 looting_aftercast = Timer()
 looting_aftercast.Start()
 
 def get_looting_array():
-    global item_owner_cache
-    
     loot_array = AgentArray.GetItemArray()
-    
-    if not loot_array:
-        item_owner_cache.clear_all()
-        return []
-    
+        
     # Filter valid and in range items
     loot_array = AgentArray.Filter.ByCondition(loot_array, lambda agent_id: Agent.IsValid(agent_id))
     loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), Range.Spellcast.value)
@@ -74,14 +54,11 @@ def get_looting_array():
     filtered_loot = []
 
     for item in loot_array:
-        item_data = Agent.GetItemAgent(item)
-        current_owner_id = item_data.owner_id
-        
-        cached_owner_id = item_owner_cache.check_and_cache(item_data.item_id, current_owner_id)
-        
-        if cached_owner_id == player_id:
+        owner = Agent.GetItemAgentOwnerID(item)
+
+        if owner == player_id:
             filtered_loot.append(item)
-        elif cached_owner_id == 0 and own_party_number == 0:
+        elif owner == 0 and own_party_number == 0:
             filtered_loot.append(item)
             
     return filtered_loot
@@ -183,15 +160,6 @@ def Follow(cached_data:CacheData):
     return True
     
 
-def draw_looting_floating_buttons():
-    gold_coins = get_gold_coin_array()
-    if not gold_coins:
-        return
-    for agent_id in gold_coins:
-        x,y,z = Agent.GetXYZ(agent_id)
-        screen_x,screen_y = Overlay().WorldToScreen(x,y,z+25)
-        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_COINS}##fb_{agent_id}",screen_x,screen_y):
-            Player.Interact(agent_id,False)
 
 def draw_targetting_floating_buttons(cached_data:CacheData):
     if not Map.IsExplorable():
@@ -238,8 +206,6 @@ def UpdateStatus(cached_data:CacheData):
 
     DrawFlags(cached_data)
     
-    if cached_data.draw_floating_loot_buttons:
-        draw_looting_floating_buttons()
     draw_targetting_floating_buttons(cached_data)
     
     if (
