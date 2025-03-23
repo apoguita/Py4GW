@@ -103,10 +103,6 @@ class config:
     global parent_frame_id, inventory_frame_hash, MAX_BAGS
     
     def __init__(self):
-        self.map_valid = False
-        self.is_map_loading = False
-        self.is_map_ready = False
-        self.is_party_loaded = False
         self.inventory_window_exists = False
         
         self.game_throttle_time = 500
@@ -156,9 +152,7 @@ def floating_checkbox(caption, state,x,y, color):
     return result
 #endregion
 
-#region globals
-identification_queue = ActionQueueNode()
-salvage_queue = ActionQueueNode(350)       
+#region globals     
 colorize_config = color_config()
 identification_checkbox_states: Dict[int, bool] = {}
 salvage_checkbox_states: Dict[int, bool] = {}
@@ -549,7 +543,6 @@ def DrawWindow():
  
 #region inventory routines
 def IdentifyItems():
-    global identification_queue
     global identification_checkbox_states
     global total_id_uses
     for item_id in identification_checkbox_states:
@@ -557,7 +550,7 @@ def IdentifyItems():
             first_id_kit = Inventory.GetFirstIDKit()
             if first_id_kit == 0:
                 return
-            identification_queue.action_queue.add_action(Inventory.IdentifyItem, item_id, first_id_kit)
+            ActionQueueManager().AddAction("IDENTIFY", Inventory.IdentifyItem, item_id, first_id_kit)
             identification_checkbox_states[item_id] = False
             total_id_uses -= 1
             if total_id_uses <= 0:
@@ -570,7 +563,6 @@ def AutoSalvage(item_id):
     Inventory.SalvageItem(item_id, first_salv_kit)
 
 def SalvageItems():
-    global salvage_queue
     global salvage_checkbox_states
     global total_salvage_uses
     global inventory_object
@@ -583,7 +575,8 @@ def SalvageItems():
                 first_salv_kit = Inventory.GetFirstSalvageKit()
                 if first_salv_kit == 0:
                     return
-                salvage_queue.action_queue.add_action(AutoSalvage, item_id)
+                ActionQueueManager().AddAction("SALVAGE", AutoSalvage, item_id)
+                ActionQueueManager().AddAction("SALVAGE",Inventory.AcceptSalvageMaterialsWindow)
 
             salvage_checkbox_states[item_id] = False
             total_salvage_uses -= quantity
@@ -596,37 +589,28 @@ def configure():
 
 #region main
 def main():
-    global parent_frame_id, inventory_frame_hash, bags_offsets, MAX_BAGS
+    global parent_frame_id, inventory_frame_hash, MAX_BAGS
     global widget_config
-    global identification_queue, salvage_queue
     global inventory_object
     
+    if Map.IsMapLoading():
+        ActionQueueManager().ResetQueue("IDENTIFY")
+        ActionQueueManager().ResetQueue("SALVAGE")
+        return
+    
+    if not (Map.IsMapReady() and Party.IsPartyLoaded()):
+        return
+    
     if widget_config.game_throttle_timer.HasElapsed(widget_config.game_throttle_time):
-        widget_config.is_map_loading = Map.IsMapLoading()
-        if widget_config.is_map_loading:
-            return
-        
-        widget_config.is_map_ready = Map.IsMapReady()
-        widget_config.is_party_loaded = Party.IsPartyLoaded()
-        widget_config.map_valid = widget_config.is_map_ready and widget_config.is_party_loaded
-        
-        if widget_config.map_valid:
-            parent_frame_id = UIManager.GetFrameIDByHash(inventory_frame_hash)
-            if parent_frame_id != 0:
-                previous_inventory_window_exists = widget_config.inventory_window_exists
-                widget_config.inventory_window_exists = UIManager.FrameExists(parent_frame_id)
-                
-                #if not previous_inventory_window_exists and widget_config.inventory_window_exists:
-                #    frame_cache.clear_cache()
-                             
-            else:
-                widget_config.inventory_window_exists = False
+        parent_frame_id = UIManager.GetFrameIDByHash(inventory_frame_hash)
+        if parent_frame_id != 0:
+            widget_config.inventory_window_exists = UIManager.FrameExists(parent_frame_id)                         
         else:
             widget_config.inventory_window_exists = False
-            
+
         widget_config.game_throttle_timer.Reset()
         
-    if not (widget_config.map_valid and widget_config.inventory_window_exists):
+    if not (widget_config.inventory_window_exists):
         return
     
     if xunlai_vault_config.synch_vault_with_inventory and not Inventory.IsStorageOpen():
@@ -634,8 +618,8 @@ def main():
     DrawWindow()
 
     
-    identification_queue.execute_next()
-    salvage_queue.execute_next()
+    ActionQueueManager().ProcessQueue("IDENTIFY")
+    ActionQueueManager().ProcessQueue("SALVAGE")
         
 #endregion    
 
