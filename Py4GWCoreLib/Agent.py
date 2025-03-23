@@ -4,6 +4,27 @@ import PyAgent
 import PyPlayer
 from .model_data import ModelData
 
+class ItemOwnerCache:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ItemOwnerCache, cls).__new__(cls)
+            cls._instance._init()
+        return cls._instance
+
+    def _init(self):
+        self.cache = {}  # { item_id: original_owner_id }
+
+    def check_and_cache(self, item_id, owner_id):
+        if item_id not in self.cache:
+            self.cache[item_id] = owner_id
+        return self.cache[item_id]
+
+    def clear_all(self):
+        self.cache.clear()
+
+
 # Agent
 class Agent:
     @staticmethod
@@ -647,7 +668,15 @@ class Agent:
     def GetItemAgent(agent_id):
         """Retrieve the item agent of the agent."""
         return Agent.agent_instance(agent_id).item_agent
-
+    
+    @staticmethod
+    def GetItemAgentOwnerID(agent_id):
+        item_owner_cache = ItemOwnerCache()
+        """Retrieve the owner ID of the item agent."""
+        item_data =  Agent.GetItemAgent(agent_id)    
+        current_owner_id = item_data.owner_id   
+        return item_owner_cache.check_and_cache(item_data.item_id, current_owner_id)
+        
     @staticmethod
     def GetGadgetAgent(agent_id):
         """Retrieve the gadget agent of the agent."""

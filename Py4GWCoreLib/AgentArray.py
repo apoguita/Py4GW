@@ -46,11 +46,18 @@ class AgentArray:
     @staticmethod
     def GetItemArray():
         """Purpose: Retrieve the agent array pre-filtered by items."""
-        return Player.player_instance().GetItemArray()
-    @staticmethod
-    def GetOwnedItemArray(agent_id:int):
-        """Purpose: Retrieve the agent array pre filtered by owned items."""
-        return Player.player_instance().GetOwnedItemArray(agent_id)
+        item_owner_cache = ItemOwnerCache()
+        loot_array = Player.player_instance().GetItemArray()
+        if not loot_array:
+            item_owner_cache.clear_all()
+            return []
+        
+        for item in loot_array:
+            item_data = Agent.GetItemAgent(item)
+            current_owner_id = item_data.owner_id
+            cached_owner_id = item_owner_cache.check_and_cache(item_data.item_id, current_owner_id)
+        
+        return loot_array
     @staticmethod
     def IsAgentIDValid(agent_id):
         """Purpose: Check if the agent ID is valid."""

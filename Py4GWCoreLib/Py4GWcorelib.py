@@ -1574,3 +1574,102 @@ class MultiThreading:
 #endregion
 
 
+#region ConfigCalsses
+class LootConfig:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(LootConfig, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self):
+        if self._initialized:
+            return
+        self.reset()
+        self._initialized = True
+
+    def reset(self):
+        self.loot_whites = True
+        self.loot_blues = True
+        self.loot_purples = True
+        self.loot_golds = True
+        self.loot_greens = True
+        self.whitelist = set()  # Avoid duplicates
+        self.blacklist = set()
+
+    def SetProperties(self, loot_whites=True, loot_blues=True, loot_purples=True, loot_golds=True, loot_greens=True):
+        self.loot_whites = loot_whites
+        self.loot_blues = loot_blues
+        self.loot_purples = loot_purples
+        self.loot_golds = loot_golds
+        self.loot_greens = loot_greens
+
+    def AddToWhitelist(self, model_id: int):
+        self.whitelist.add(model_id)
+
+    def AddToBlacklist(self, model_id: int):
+        self.blacklist.add(model_id)
+
+    def RemoveFromWhitelist(self, model_id: int):
+        self.whitelist.discard(model_id)
+
+    def RemoveFromBlacklist(self, model_id: int):
+        self.blacklist.discard(model_id)
+
+    def IsWhitelisted(self, model_id: int):
+        return model_id in self.whitelist
+
+    def IsBlacklisted(self, model_id: int):
+        return model_id in self.blacklist
+
+    def GetWhitelist(self):
+        return list(self.whitelist)
+
+    def GetBlacklist(self):
+        return list(self.blacklist)
+
+    def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value):
+        from .AgentArray import AgentArray
+        from .Item import Item
+        
+        def IsValidItem(item_id):
+            owner = Agent.GetItemAgentOwnerID(item_id)
+            return (owner == Player.GetAgentID()) or (owner == 0)
+            
+        loot_array = AgentArray.GetItemArray()
+        loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), distance)
+        loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidItem(item_id))
+
+        for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
+            item_data = Agent.GetItemAgent(agent_id)
+            item_id = item_data.item_id
+            model_id = Item.GetModelID(item_id)
+
+            if self.IsWhitelisted(model_id):
+                continue
+
+            if self.IsBlacklisted(model_id):
+                loot_array.remove(agent_id)
+                continue
+
+            if not self.loot_whites and Item.Rarity.IsWhite(item_id):
+                loot_array.remove(agent_id)
+                continue
+            if not self.loot_blues and Item.Rarity.IsBlue(item_id):
+                loot_array.remove(agent_id)
+                continue
+            if not self.loot_purples and Item.Rarity.IsPurple(item_id):
+                loot_array.remove(agent_id)
+                continue
+            if not self.loot_golds and Item.Rarity.IsGold(item_id):
+                loot_array.remove(agent_id)
+                continue
+            if not self.loot_greens and Item.Rarity.IsGreen(item_id):
+                loot_array.remove(agent_id)
+                continue
+
+        loot_array = AgentArray.Sort.ByDistance(loot_array, Player.GetXY())
+        return loot_array
+#endregion

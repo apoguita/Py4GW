@@ -101,17 +101,17 @@ class SalvageConfig:
         self.salvage_purple_with_sup_kit = False
         self.salvage_gold_with_sup_kit = False
         
-class LootConfig:
+class LootConfigclass:
     def __init__(self):
         self.loot_blues = True
         self.loot_purples = True
         self.loot_golds = True
-        self.loot_tomes = True
+        self.loot_tomes = False
         self.loot_white_dyes = True
         self.loot_black_dyes = True
         self.loot_lockpicks = True
         self.loot_whites = True
-        self.loot_dyes = True
+        self.loot_dyes = False
         self.loot_glacial_stones = True
         self.loot_event_items = True
         self.loot_map_pieces = False
@@ -140,7 +140,7 @@ class BOTVARIABLES:
         self.id_config = IDConfig()
         self.salvage_config = SalvageConfig()
         self.config = Botconfig()
-        self.loot_config = LootConfig()
+        self.loot_config = LootConfigclass()
         
         self.skillbar = build()
         
@@ -436,28 +436,18 @@ def IsValidItem(item_id):
     return (Agent.agent_instance(item_id).item_agent.owner_id == Player.GetAgentID()) or (Agent.agent_instance(item_id).item_agent.owner_id == 0)
 
 def get_filtered_loot_array():
-    global bot_vars
-    # Get all items in the area
-    item_array = AgentArray.GetItemArray()
-
-    item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), Range.Spellcast.value)
-    item_array = AgentArray.Filter.ByCondition(item_array, lambda item_id: Routines.Checks.Agents.IsValidItem(item_id))
+    global bot_variables
     
-    #THERES SOMETHIGN WRONG HERE
-    # NEED TO FIX THIS
+    loot_config = LootConfig()
     
-    return item_array
+    loot_config.SetProperties(
+        loot_whites=bot_variables.loot_config.loot_whites,
+        loot_blues=bot_variables.loot_config.loot_blues,
+        loot_purples=bot_variables.loot_config.loot_purples,
+        loot_golds=bot_variables.loot_config.loot_golds,
+        loot_greens=True,
+    )
     
-    # Map agent IDs to item data
-    agent_to_item_map = {
-        agent_id: Agent.GetItemAgent(agent_id).item_id
-        for agent_id in item_array
-    }
-
-    # Extract all item IDs for filtering
-    filtered_items = list(agent_to_item_map.values())
-
-    # Apply filters based on loot preferences
     loot_preferences = {
         "loot_event_items": {28435, 28436},
         "loot_map_pieces": {24629, 24630, 24631, 24632},
@@ -468,33 +458,17 @@ def get_filtered_loot_array():
         "loot_tomes": {21797},
         "loot_dyes": {146}
     }
-
-    # Apply filters based on loot preferences
-    for loot_var, banned_models in loot_preferences.items():
-        if not getattr(bot_variables.loot_config, loot_var):
-            filtered_items = ItemArray.Filter.ByCondition(
-                filtered_items, lambda item_id: Item.GetModelID(item_id) not in banned_models
-            )
-
-        
-        
-    if not bot_variables.loot_config.loot_whites:
-        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsWhite(item_id))
-    if not bot_variables.loot_config.loot_blues:
-        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsBlue(item_id))
-    if not bot_variables.loot_config.loot_purples:
-        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsPurple(item_id))
-    if not bot_variables.loot_config.loot_golds:
-        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsGold(item_id))
-
-
-    # Get the agent IDs corresponding to the filtered item IDs
-    filtered_agent_ids = [
-        agent_id for agent_id, item_id in agent_to_item_map.items()
-        if item_id in filtered_items
-    ]
     
-    filtered_agent_ids = AgentArray.Sort.ByDistance(filtered_agent_ids, Player.GetXY())
+    for loot_var, model_ids in loot_preferences.items():
+        loot_enabled = getattr(bot_variables.loot_config, loot_var, True)  # Default to True if attribute missing
+        if loot_enabled:
+            for model_id in model_ids:
+                loot_config.AddToWhitelist(model_id)
+        else:
+            for model_id in model_ids:
+                loot_config.AddToBlacklist(model_id)
+    
+    filtered_agent_ids = loot_config.GetfilteredLootArray(distance=Range.Spellcast.value)
 
     return filtered_agent_ids
 
