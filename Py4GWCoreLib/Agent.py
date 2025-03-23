@@ -7,6 +7,15 @@ from .model_data import ModelData
 # Agent
 class Agent:
     @staticmethod
+    def IsValid(agent_id):
+        """
+        Purpose: Check if the agent is valid.
+        Args: agent_id (int): The ID of the agent.
+        Returns: bool
+        """
+        return PyAgent.PyAgent(agent_id).IsValid(agent_id)
+    
+    @staticmethod
     def agent_instance(agent_id):
         """
         Helper method to create and return a PyAgent instance.

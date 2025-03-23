@@ -34,10 +34,13 @@ def main():
         game_throttle_timer.Start()
         
     if is_map_ready and is_party_loaded and is_in_cinematic and is_explorable and widget_config.skipped == False:
-        Map.SkipCinematic()
+        ActionQueueManager().AddAction("ACTION", Map.SkipCinematic)
         widget_config.skipped = True
     else:
         widget_config.skipped = False
+        
+    if is_map_ready and is_party_loaded and is_in_cinematic and is_explorable:   
+        ActionQueueManager().ProcessQueue("ACTION")
         
 
 if __name__ == "__main__":

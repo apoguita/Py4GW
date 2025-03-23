@@ -98,17 +98,19 @@ def main():
          # Check which set the map name belongs to and return the corresponding TitleID
         map_name = Map.GetMapName()
         if map_name in asuran_map_names:
-            Player.SetActiveTitle(TitleID.Asuran.value)
+            ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Asuran.value)
         elif map_name in deldrimor_map_names:
-            Player.SetActiveTitle(TitleID.Deldrimor.value)
+            ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Deldrimor.value)
         elif map_name in norn_map_names:
-            Player.SetActiveTitle(TitleID.Norn.value)
+            ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Norn.value)
         elif map_name in vanguard_map_names:
-            Player.SetActiveTitle(TitleID.Vanguard.value)
+            ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Vanguard.value)
         elif map_name in lightbringer_map_names:
-            Player.SetActiveTitle(TitleID.Lightbringer.value)
+            ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Lightbringer.value)
         widget_config.title_applied = True
         
+    if (is_map_ready and is_party_loaded and is_explorable):
+        ActionQueueManager().ProcessQueue("ACTION")
 
 if __name__ == "__main__":
     main()

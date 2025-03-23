@@ -1366,9 +1366,10 @@ class FSM:
 #region MultiThreading
 
 class MultiThreading:
-    def __init__(self, timeout=1.0):
+    def __init__(self, timeout=1.0, log_actions=False):
         """Initialize thread manager."""
         self.threads = {}
+        self.log_actions = log_actions
         self.lock = threading.Lock()
         self.timeout = timeout
         self.watchdog_thread = None
@@ -1413,15 +1414,18 @@ class MultiThreading:
             kwargs = thread_info["kwargs"]
 
             def wrapped_target(*args, **kwargs):
-                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' running.", Py4GW.Console.MessageType.Info)
+                if self.log_actions:
+                    Py4GW.Console.Log("MultiThreading", f"Thread '{name}' running.", Py4GW.Console.MessageType.Info)
                 try:
                     execute_fn(*args, **kwargs)
                 except SystemExit:
-                    Py4GW.Console.Log("MultiThreading", f"Thread '{name}' forcefully exited.", Py4GW.Console.MessageType.Info)
+                    if self.log_actions:
+                        Py4GW.Console.Log("MultiThreading", f"Thread '{name}' forcefully exited.", Py4GW.Console.MessageType.Info)
                 except Exception as e:
                     Py4GW.Console.Log("MultiThreading", f"Thread '{name}' exception: {str(e)}", Py4GW.Console.MessageType.Error)
                 finally:
-                    Py4GW.Console.Log("MultiThreading", f"Thread '{name}' exited.", Py4GW.Console.MessageType.Info)
+                    if self.log_actions:
+                        Py4GW.Console.Log("MultiThreading", f"Thread '{name}' exited.", Py4GW.Console.MessageType.Info)
 
             new_thread = threading.Thread(target=wrapped_target, args=args, kwargs=kwargs, daemon=True)
             self.threads[name]["thread"] = new_thread
@@ -1449,19 +1453,21 @@ class MultiThreading:
     def stop_thread(self, name):
         with self.lock:
             if name not in self.threads:
-                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' does not exist.", Py4GW.Console.MessageType.Warning)
+                if self.log_actions:
+                    Py4GW.Console.Log("MultiThreading", f"Thread '{name}' does not exist.", Py4GW.Console.MessageType.Warning)
                 return
 
             thread_info = self.threads[name]
             thread = thread_info.get("thread")
             if thread and thread.is_alive():
-                Py4GW.Console.Log("MultiThreading", f"Force stopping thread '{name}'.", Py4GW.Console.MessageType.Warning)
+                if self.log_actions:
+                    Py4GW.Console.Log("MultiThreading", f"Force stopping thread '{name}'.", Py4GW.Console.MessageType.Warning)
                 ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
                 time.sleep(0.1)
 
             del self.threads[name]
-
-        Py4GW.Console.Log("MultiThreading", f"Thread '{name}' stopped and removed.", Py4GW.Console.MessageType.Info)
+        if self.log_actions:
+            Py4GW.Console.Log("MultiThreading", f"Thread '{name}' stopped and removed.", Py4GW.Console.MessageType.Info)
 
     def stop_all_threads(self):
         with self.lock:
@@ -1495,7 +1501,8 @@ class MultiThreading:
         self.watchdog_active = True
 
         def watchdog_fn():
-            Py4GW.Console.Log("Watchdog", "Watchdog started.", Py4GW.Console.MessageType.Info)
+            if self.log_actions:
+                Py4GW.Console.Log("Watchdog", "Watchdog started.", Py4GW.Console.MessageType.Info)
             while self.watchdog_active:
                 current_time = time.time()
                 expired_threads = []
@@ -1557,7 +1564,8 @@ class MultiThreading:
         self.watchdog_thread = watchdog_thread
         self.threads["watchdog"]["thread"] = watchdog_thread
         watchdog_thread.start()
-        Py4GW.Console.Log("MultiThreading", "Watchdog thread started.", Py4GW.Console.MessageType.Success)
+        if self.log_actions:
+            Py4GW.Console.Log("MultiThreading", "Watchdog thread started.", Py4GW.Console.MessageType.Success)
 
     def stop_watchdog(self):
         """Manually stop watchdog if needed."""

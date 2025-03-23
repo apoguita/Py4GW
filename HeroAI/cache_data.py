@@ -156,10 +156,6 @@ class CacheData:
             self.stay_alert_timer.Start()
             self.aftercast_timer = Timer()
             self.data = GameData()
-            self.action_queue = ActionQueue()
-            self.action_queue_timer = Timer()
-            self.action_queue_timer.Start()
-            self.action_queue_time = throttle_time
             self.auto_attack_timer = Timer()
             self.auto_attack_timer.Start()
             self.auto_attack_time = 750
@@ -192,16 +188,9 @@ class CacheData:
             self.data.is_skill_enabled[i] = self.HeroAI_vars.all_game_option_struct[self.data.own_party_number].Skills[i].Active
         
     def UdpateCombat(self):
-        self.combat_handler.Update(self.data,self.action_queue)
+        self.combat_handler.Update(self.data)
         self.combat_handler.PrioritizeSkills()
         
-    def UpdateActionQueue(self):
-        if not self.action_queue_timer.HasElapsed(self.action_queue_time):
-            return
-        if self.data.is_map_ready and self.data.is_party_loaded and not self.action_queue.is_empty():
-                self.action_queue.execute_next()
-
-    
     def Update(self):
         if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
             self.game_throttle_timer.Reset()

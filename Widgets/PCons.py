@@ -157,7 +157,7 @@ def handle_pcons():
                         if data['internal_timer'].IsStopped() or data['internal_timer'].HasElapsed(data['internal_cooldown']):
                             data['internal_timer'].Stop()
                             Py4GW.Console.Log(module_name, f"Using {pcon_name}.", Py4GW.Console.MessageType.Debug)
-                            Inventory.UseItem(matching_items[0])
+                            ActionQueueManager().AddAction("ACTION", "UseItem", matching_items[0])
                             widget_config.aftercast_timer.Start()
                             data['internal_timer'].Start()
                             return  # Exit after using one pcon
@@ -244,6 +244,10 @@ def main():
 
                 if widget_config.enable_module and Map.IsExplorable():
                     handle_pcons()
+                    
+            ActionQueueManager().ProcessQueue("ACTION")
+        else:
+            ActionQueueManager().ResetQueue("ACTION")
 
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in main: {str(e)}", Py4GW.Console.MessageType.Debug)

@@ -51,6 +51,7 @@ def SendPartyCommand(index, cached_data:CacheData, command="Invite"):
 
     if command == "Invite":
         invited_by = Agent.GetName(candidate.PlayerID)
+        #this is exempt of the action queue to allow instant invite
         Party.Players.InvitePlayer(invited_by)
 
     cached_data.HeroAI_vars.all_candidate_struct[index].InvitedBy=cached_data.data.player_agent_id
@@ -97,7 +98,7 @@ def ProcessCandidateCommands(cached_data:CacheData):
                 cached_data.HeroAI_vars.shared_memory_handler.set_candidate(self_index, updated_candidate)
 
                 invited_by = Agent.GetName(candidate.InvitedBy)
-                Party.Players.InvitePlayer(invited_by)
+                ActionQueueManager().AddAction("ACTION", Party.Players.InvitePlayer, invited_by)
                 return True
 
             if (candidate.PlayerID == cached_data.data.player_agent_id) and (candidate.SummonedBy != 0):
@@ -125,7 +126,7 @@ def ProcessCandidateCommands(cached_data:CacheData):
                 )
                 cached_data.HeroAI_vars.shared_memory_handler.set_candidate(self_index, updated_candidate)
 
-                cached_data.action_queue.add_action(Map.TravelToDistrict, leader.MapID, leader.MapRegion, leader.MapDistrict)
+                ActionQueueManager().AddAction("ACTION", Map.TravelToDistrict, leader.MapID, leader.MapRegion, leader.MapDistrict)
 
                 return True
 
