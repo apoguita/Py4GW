@@ -131,7 +131,7 @@ def DrawWindow():
                 if PyImGui.button("Travel"):
                     if filtered_outposts:
                         selected_id = filtered_ids[widget_config.selected_outpost_index]
-                        Map.Travel(selected_id)
+                        ActionQueueManager().AddAction("ACTION", Map.Travel, selected_id)
                         widget_config.travel_history.append(filtered_outposts[widget_config.selected_outpost_index])
                         is_traveling = True
                 PyImGui.end_table()
@@ -186,6 +186,7 @@ def main():
             
         if is_map_ready and is_party_loaded:
             DrawWindow()
+            ActionQueueManager().ProcessQueue("ACTION")
             
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in main: {str(e)}", Py4GW.Console.MessageType.Debug)

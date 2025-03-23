@@ -1580,10 +1580,13 @@ class Routines:
                     item_id = item_array.pop(0)
                     if item_id == 0:
                         continue
+                    if not Agent.IsValid(item_id):
+                        continue
                     item_x, item_y = Agent.GetXY(item_id)
                     Routines.Sequential.Movement.FollowPath([(item_x, item_y)])
-                    Routines.Sequential.Player.InteractAgent(item_id)
-                    sleep(1.250)
+                    if Agent.IsValid(item_id):
+                        Routines.Sequential.Player.InteractAgent(item_id)
+                        sleep(1.250)
                     
                 if log and len(item_array) > 0:
                     ConsoleLog("LootItems", f"Looted {len(item_array)} items.", Console.MessageType.Info)

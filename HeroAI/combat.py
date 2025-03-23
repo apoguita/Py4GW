@@ -86,7 +86,6 @@ class CombatClass:
         self.ping_handler = Py4GW.PingHandler()
         self.oldCalledTarget = 0
         self.shared_memory_handler = HeroAI_varsClass().shared_memory_handler
-        self.action_queue: Optional[ActionQueue] = None
         
         self.in_aggro = False
         self.is_targetting_enabled = False
@@ -145,10 +144,8 @@ class CombatClass:
         self.poison = Skill.GetID("Poison")
         self.weakness = Skill.GetID("Weakness")
         
-    def Update(self, cached_data, action_queue: ActionQueue):
+    def Update(self, cached_data):
         self.in_aggro = cached_data.in_aggro
-        #self.shared_memory_handler = shared_memory_handler
-        self.action_queue = action_queue
         self.is_targetting_enabled = cached_data.is_targetting_enabled
         self.is_combat_enabled = cached_data.is_combat_enabled
         self.is_skill_enabled = cached_data.is_skill_enabled
@@ -302,7 +299,6 @@ class CombatClass:
 
 
     def GetPartyTarget(self):
-        party_number = Party.GetOwnPartyNumber()
         party_target = self.GetPartyTargetID()
         if self.is_targetting_enabled and party_target != 0:
             current_target = Player.GetTargetID()
@@ -310,9 +306,7 @@ class CombatClass:
                 if Agent.IsLiving(party_target):
                     _, alliegeance = Agent.GetAllegiance(party_target)
                     if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
-                        if self.action_queue is not None:
-                            self.action_queue.add_action(Player.ChangeTarget, party_target)
-                        #Player.Interact(party_target)
+                        ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, party_target)
                         return party_target
         return 0
 
@@ -322,7 +316,6 @@ class CombatClass:
     def GetAppropiateTarget(self, slot):
         v_target = 0
 
-        party_number = Party.GetOwnPartyNumber()
         if not self.is_targetting_enabled:
             return Player.GetTargetID()
 
@@ -810,9 +803,7 @@ class CombatClass:
 
         return False
 
-    def ChooseTarget(self, interact=True):
-        own_party_number = Party.GetOwnPartyNumber()
-        
+    def ChooseTarget(self, interact=True):       
         if not self.is_targetting_enabled:
             return False
 
@@ -835,17 +826,8 @@ class CombatClass:
             else:
                 return False
 
-            if self.action_queue is not None:
-                self.action_queue.add_action(Player.ChangeTarget, attack_target)
-                return True
-            """
-            if self.is_combat_enabled:
-                weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
-                if weapon_type != 0 and interact:
-
-                    Player.Interact(attack_target)
-                    return True
-            """
+            ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, attack_target)
+            return True
         else:
             target_id = Player.GetTargetID()
             if not Agent.IsLiving(target_id):
@@ -856,10 +838,9 @@ class CombatClass:
                 target_id = Player.GetTargetID()
                 if target_id == 0:
                     return
-                if self.action_queue is not None:
-                    #self.action_queue.add_action(Player.Interact, target_id) #removed in hopes of fixing the crashes
-                    self.action_queue.add_action(Player.Interact, target_id)
-
+                
+                ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
+                return True
 
     def HandleCombat(self,ooc=False):
         """
@@ -901,8 +882,6 @@ class CombatClass:
         self.aftercast += self.ping_handler.GetCurrentPing()
 
         self.aftercast_timer.Reset()
-        #SkillBar.UseSkill(self.skill_order[self.skill_pointer]+1, target_agent_id)
-        if self.action_queue is not None:
-            self.action_queue.add_action(SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
+        ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
         self.AdvanceSkillPointer()
         return True

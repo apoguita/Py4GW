@@ -38,10 +38,13 @@ def main():
         return
         
     if is_map_ready and is_party_loaded and is_explorable and is_party_defeated and widget_config.returned == False:
-        Party.ReturnToOutpost()
+        ActionQueueManager().AddAction("ACTION",Party.ReturnToOutpost)
         widget_config.returned = True
     else:
         widget_config.returned = False
+     
+    if is_map_ready and is_party_loaded and is_explorable:   
+        ActionQueueManager().ProcessQueue("ACTION")
         
 
 if __name__ == "__main__":

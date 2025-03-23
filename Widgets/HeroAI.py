@@ -18,7 +18,6 @@ MODULE_NAME = "HeroAI"
 cached_data = CacheData()
 
 def HandleOutOfCombat(cached_data:CacheData):
-    party_number = cached_data.data.own_party_number
     if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
         return False
     if cached_data.data.in_aggro:
@@ -29,7 +28,6 @@ def HandleOutOfCombat(cached_data:CacheData):
 
 
 def HandleCombat(cached_data:CacheData):
-    party_number = cached_data.data.own_party_number
     if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
         return False
     if not cached_data.data.in_aggro:
@@ -38,44 +36,89 @@ def HandleCombat(cached_data:CacheData):
     return cached_data.combat_handler.HandleCombat(ooc= False)
 
    
+class ItemOwnerCache:
+    def __init__(self):
+        self.cache = {}  # { item_id: original_owner_id }
+
+    def check_and_cache(self, item_id, owner_id):
+        if item_id not in self.cache:
+            self.cache[item_id] = owner_id
+        return self.cache[item_id]
+
+    def clear_all(self):
+        self.cache.clear()
+
+
+item_owner_cache = ItemOwnerCache()
+thread_manager = MultiThreading()
+in_looting_routine = False
+looting_aftercast = Timer()
+looting_aftercast.Start()
+
+def get_looting_array():
+    global item_owner_cache
+    
+    loot_array = AgentArray.GetItemArray()
+    
+    if not loot_array:
+        item_owner_cache.clear_all()
+        return []
+    
+    # Filter valid and in range items
+    loot_array = AgentArray.Filter.ByCondition(loot_array, lambda agent_id: Agent.IsValid(agent_id))
+    loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), Range.Spellcast.value)
+
+    own_party_number = Party.GetOwnPartyNumber()
+    player_id = Player.GetAgentID()
+
+    filtered_loot = []
+
+    for item in loot_array:
+        item_data = Agent.GetItemAgent(item)
+        current_owner_id = item_data.owner_id
         
+        cached_owner_id = item_owner_cache.check_and_cache(item_data.item_id, current_owner_id)
+        
+        if cached_owner_id == player_id:
+            filtered_loot.append(item)
+        elif cached_owner_id == 0 and own_party_number == 0:
+            filtered_loot.append(item)
+            
+    return filtered_loot
 
 
-is_looting = False
-looting_timer = Timer()
-looting_timer.Reset()
-is_gold_coin = False
-looting_queue = ActionQueueNode(750)
+def SequentialLootingRoutine():
+    global in_looting_routine, looting_aftercast
+    
+    filtered_loot = get_looting_array()
+    # Loot filtered items
+    Routines.Sequential.Items.LootItems(filtered_loot)
+    looting_aftercast.Reset()
+    in_looting_routine = False
+
 
 
 def Loot(cached_data:CacheData):
-    global is_looting
-    global looting_timer, looting_item_id
-    global is_gold_coin
+    global in_looting_routine, looting_aftercast
     if not cached_data.data.is_looting_enabled:  # halt operation if looting is disabled
         return False
     
     if cached_data.data.in_aggro:
         return False
+    
+    if in_looting_routine:
+        return True
+    
+    if not looting_aftercast.HasElapsed(3000):
+        return False
+    
+    loot_array = get_looting_array()
+    if len(loot_array) == 0:
+        return False
 
-    is_gold_coin = False
-    if looting_timer.HasElapsed(750):
-        nearest_item = get_first_owned_item()
-        #if nearest_item == 0 and cached_data.data.party_leader_id == cached_data.data.player_agent_id:
-        #    nearest_item = get_gold_coins()
-            #nearest_item = get_first_unbound_item()
-
-        if not nearest_item:   
-            is_looting = False
-            looting_item_id = 0
-            return False
-        
-        if AgentArray.IsAgentIDValid(int(nearest_item)):
-            Player.Interact(nearest_item,False)
-            is_looting = True
-            looting_timer.Reset()
-            return True
-    return False
+    in_looting_routine = True
+    thread_manager.stop_thread("SequentialLootingRoutine")
+    thread_manager.add_thread("SequentialLootingRoutine", SequentialLootingRoutine)
 
 
 
@@ -136,8 +179,7 @@ def Follow(cached_data:CacheData):
     yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y
 
     cached_data.data.angle_changed = False
-    #Player.Move(xx, yy)
-    cached_data.action_queue.add_action(Player.Move, xx, yy)
+    ActionQueueManager().AddAction("ACTION", Player.Move, xx, yy)
     return True
     
 
@@ -163,15 +205,16 @@ def draw_targetting_floating_buttons(cached_data:CacheData):
         x,y,z = Agent.GetXYZ(agent_id)
         screen_x,screen_y = Overlay().WorldToScreen(x,y,z+25)
         if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):
-            cached_data.action_queue.add_action(Player.ChangeTarget, agent_id)
-            cached_data.action_queue.add_action(Player.Interact, agent_id, True)
-            cached_data.action_queue.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+            ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, agent_id)
+            ActionQueueManager().AddAction("ACTION", Player.Interact, agent_id, True)
+            ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+
             
             
 
 
 def UpdateStatus(cached_data:CacheData):
-    global is_looting
+    global in_looting_routine
     
     RegisterCandidate(cached_data) 
     UpdateCandidates(cached_data)           
@@ -208,12 +251,12 @@ def UpdateStatus(cached_data:CacheData):
     ):
         return
     
+    if in_looting_routine:
+        return
      
-    if not is_looting:
-        cached_data.UdpateCombat()
-    
-        if HandleOutOfCombat(cached_data):
-            return
+    cached_data.UdpateCombat()
+    if HandleOutOfCombat(cached_data):
+        return
     
     if cached_data.data.player_is_moving:
         return
@@ -221,9 +264,6 @@ def UpdateStatus(cached_data:CacheData):
     if Loot(cached_data):
        return
    
-    if is_looting:
-        return
-    
     if Follow(cached_data):
         return
 
@@ -256,14 +296,13 @@ def main():
     global cached_data
     try:
         if not MapValidityCheck():
-            cached_data.action_queue.clear()
+            ActionQueueManager().ResetQueue("ACTION")
             return
         
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
             UpdateStatus(cached_data)
-            
-        cached_data.UpdateActionQueue()
+            ActionQueueManager().ProcessQueue("ACTION")
             
     except ImportError as e:
         Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)

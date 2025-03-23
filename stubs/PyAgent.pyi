@@ -198,7 +198,7 @@ class PyLivingAgent:
 # Class PyItemAgent
 class PyItemAgent:
     agent_id: int
-    owner_id: int
+    owner_id: int = -1
     item_id: int
     h00CC: int
     extra_type: int
@@ -241,3 +241,4 @@ class PyAgent:
     def __init__(self, agent_id: int) -> None: ...
     def Set(self, agent_id: int) -> None: ...
     def GetContext(self) -> None: ...
+    def IsValid(self, agent_id: int) -> bool: ...

@@ -40,11 +40,11 @@ def main():
         widget_config.resigned = False
     
     if (is_map_ready and is_party_loaded and is_explorable and party_leader_id != player_agent_id and widget_config.resigned == False):
-        Player.SendChatCommand("resign")
+        ActionQueueManager().AddAction("ACTION", Player.SendChatCommand, "resign")
         widget_config.resigned = True
 
         
-    
+    ActionQueueManager().ProcessQueue("ACTION")
 
 if __name__ == "__main__":
     main()
