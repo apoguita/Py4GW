@@ -769,6 +769,9 @@ def RunBotSequentialLogic():
             continue
         
         Routines.Sequential.Items.LootItems(filtered_agent_ids, log_to_console)
+        if handle_death():
+            reset_from_jaga_moraine = False
+            continue
             
         items_to_idenfity = filter_identify_array()
         Routines.Sequential.Items.IdentifyItems(items_to_idenfity, log_to_console)
