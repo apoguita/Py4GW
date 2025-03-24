@@ -860,7 +860,7 @@ def JagaMoraineSkillCasting():
     heart_of_holy_flame = bot_variables.skillbar.heart_of_holy_flame
     pious_fury = bot_variables.skillbar.pious_fury
     
-    log_to_console = bot_variables.config.log_to_console
+    log_to_console = False #bot_variables.config.log_to_console
     
     primary_profession, _ = Agent.GetProfessionNames(player_agent_id)
     
