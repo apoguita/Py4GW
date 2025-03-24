@@ -36,7 +36,7 @@ def HandleCombat(cached_data:CacheData):
     return cached_data.combat_handler.HandleCombat(ooc= False)
 
 
-thread_manager = MultiThreading()
+thread_manager = MultiThreading(log_actions=True)
 in_looting_routine = False
 looting_aftercast = Timer()
 looting_aftercast.Start()
@@ -69,7 +69,7 @@ def SequentialLootingRoutine():
     
     filtered_loot = get_looting_array()
     # Loot filtered items
-    Routines.Sequential.Items.LootItems(filtered_loot)
+    Routines.Sequential.Items.LootItems(filtered_loot,True)
     looting_aftercast.Reset()
     in_looting_routine = False
 
