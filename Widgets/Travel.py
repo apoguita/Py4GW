@@ -106,9 +106,11 @@ def DrawWindow():
 
         if PyImGui.begin(window_module.window_name, window_module.window_flags):
             new_collapsed = PyImGui.is_window_collapsed()
-
-            search_outpost = PyImGui.input_text("Search Outpost", search_outpost.lower())
-            
+            PyImGui.push_item_width(150)
+            search_outpost = PyImGui.input_text("##search outpost", search_outpost.lower())
+            PyImGui.pop_item_width()
+            ImGui.show_tooltip("You can search for full or partial outpost names and initials, press <Enter> to travel")
+                            
             def generate_initials(name):
                 return ''.join(word[0] for word in name.split() if word).lower()
 
@@ -116,25 +118,27 @@ def DrawWindow():
             filtered_outposts = [name for name in widget_config.outposts.values() if search_outpost.lower() in name.lower() or search_outpost.lower() in generate_initials(name)]
             filtered_ids = [k for k, v in widget_config.outposts.items() if v in filtered_outposts]
 
-            if PyImGui.begin_table("outpostlist", 2):
-                PyImGui.table_next_row()
-                PyImGui.table_next_column()
+            PyImGui.same_line(0,-1)
+            if PyImGui.button(IconsFontAwesome5.ICON_PLANE + "##Travel"):
+                if filtered_outposts:
+                    selected_id = filtered_ids[widget_config.selected_outpost_index]
+                    ActionQueueManager().AddAction("ACTION", Map.Travel, selected_id)
+                    widget_config.travel_history.append(filtered_outposts[widget_config.selected_outpost_index])
+                    is_traveling = True
+            ImGui.show_tooltip("Travel")
+            
+            if PyImGui.collapsing_header("Outposts"):
+                if PyImGui.begin_child("OutpostList",(195, 75), True, PyImGui.WindowFlags.NoFlag):
+                    for index, outpost_name in enumerate(filtered_outposts):
+                        is_selected = (index == widget_config.selected_outpost_index)
+                        if PyImGui.selectable(outpost_name, is_selected, PyImGui.SelectableFlags.NoFlag, (0.0, 0.0)):
+                            widget_config.selected_outpost_index = index
+                            selected_id = filtered_ids[index]
+                            Map.Travel(selected_id)
+                            widget_config.travel_history.append(outpost_name)
+                            is_traveling = True
+                    PyImGui.end_child()
 
-                # Combo box for selectable outposts
-                widget_config.selected_outpost_index = PyImGui.combo(
-                    "Outposts", 
-                    widget_config.selected_outpost_index, 
-                    filtered_outposts
-                )
-                PyImGui.table_next_column()
-                # Travel button
-                if PyImGui.button("Travel"):
-                    if filtered_outposts:
-                        selected_id = filtered_ids[widget_config.selected_outpost_index]
-                        ActionQueueManager().AddAction("ACTION", Map.Travel, selected_id)
-                        widget_config.travel_history.append(filtered_outposts[widget_config.selected_outpost_index])
-                        is_traveling = True
-                PyImGui.end_table()
 
             # Travel when pressing Enter in the search box
             imgui_io = PyImGui.get_io()
@@ -145,15 +149,18 @@ def DrawWindow():
                     widget_config.travel_history.append(filtered_outposts[widget_config.selected_outpost_index])
                     is_traveling = True
                     
-            # Travel history
-            if PyImGui.collapsing_header("Travel History"):
-                for history in widget_config.travel_history[-5:]:  # Show last 5 entries
-                    if PyImGui.button(f"{history}"):
-                        for k, v in widget_config.outposts.items():
-                            if v == history:
-                                Map.Travel(k)
-                                is_traveling = True
-                                break
+            if PyImGui.collapsing_header("History"):
+                if PyImGui.begin_child("TravelHistoryList", (195, 75), True, PyImGui.WindowFlags.NoFlag):
+                    for index, history_name in enumerate(widget_config.travel_history[-5:]):  # Last 5 entries
+                        if PyImGui.selectable(history_name, False, PyImGui.SelectableFlags.NoFlag, (0.0, 0.0)):
+                            # Find outpost ID and travel
+                            for k, v in widget_config.outposts.items():
+                                if v == history_name:
+                                    Map.Travel(k)
+                                    is_traveling = True
+                                    break
+                    PyImGui.end_child()
+
             end_pos = PyImGui.get_window_pos()
         PyImGui.end()
 

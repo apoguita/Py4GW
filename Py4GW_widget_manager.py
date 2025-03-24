@@ -126,7 +126,7 @@ handler = WidgetHandler("Widgets")
 enable_all = ini_handler.read_bool(module_name, "enable_all", True)
 old_enable_all = enable_all
 
-window_module = ImGui.WindowModule(module_name, window_name="Widget Manager", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+window_module = ImGui.WindowModule(module_name, window_name="Widgets", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
 window_x = ini_handler.read_int(module_name, "x", 100)
 window_y = ini_handler.read_int(module_name, "y", 100)
@@ -184,9 +184,9 @@ def main():
             current_window_collapsed = False
             
             # Define button label dynamically based on enable_all state
-            toggle_label = "All Widgets toggled: ON" if enable_all else "All Widgets toggled: OFF"
+            toggle_label = IconsFontAwesome5.ICON_TOGGLE_ON if enable_all else IconsFontAwesome5.ICON_TOGGLE_OFF
             
-            if PyImGui.button("Reload Widgets"):
+            if PyImGui.button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets"):
                 Py4GW.Console.Log(module_name, "Reloading Widgets...", Py4GW.Console.MessageType.Info)
                 # This might not be needed, but just in case.
                 if "handler" in globals():
@@ -195,13 +195,25 @@ def main():
                 handler = WidgetHandler("Widgets")
                 handler.discover_widgets()
                 initialized = True
+            ImGui.show_tooltip("Reloads all widgets")
     
             PyImGui.same_line(0.0, 10)
             
             # Create a toggle button to enable/disable all widgets
-            if PyImGui.button(toggle_label):
+            button_color = enable_all
+            if button_color:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.153, 0.318, 0.929, 1.0))  # On color
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.6, 0.6, 0.9, 1.0))  # Hover color
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.6, 0.6, 0.6, 1.0))
+                
+            if PyImGui.button(toggle_label+"##widget_disable"):
                 enable_all = not enable_all  # Toggle state
                 ini_handler.write_key(module_name, "enable_all", str(enable_all))  # Save state
+            
+            if button_color:
+                PyImGui.pop_style_color(3)
+                
+            ImGui.show_tooltip("Toggle all widgets")
             
             PyImGui.separator()
 
