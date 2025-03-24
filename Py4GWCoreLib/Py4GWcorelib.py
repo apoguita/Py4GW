@@ -781,6 +781,16 @@ class ActionQueue:
         """Clear all actions from the queue."""
         self.queue.clear()
         
+    def get_next_action_name(self):
+        """
+        Get the name of the next action function in the queue, or None if empty.
+        :return: String with function name or None.
+        """
+        if self.queue:
+            action, _, _ = self.queue[0]
+            return action.__name__  # Retrieves the function's name
+        return None
+        
 class ActionQueueNode:
     def __init__(self,throttle_time=250):
         self.action_queue = ActionQueue()
@@ -808,6 +818,9 @@ class ActionQueueNode:
     def ProcessQueue(self):
         if self.IsExpired():
             self.execute_next()
+    
+    def GetNextActionName(self):
+        return self.action_queue.get_next_action_name()
             
 class ActionQueueManager:
     _instance = None  # Singleton instance
