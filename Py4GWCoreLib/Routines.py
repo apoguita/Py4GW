@@ -188,6 +188,16 @@ class Routines:
                 return True
             
             @staticmethod
+            def InCastingProcess():
+                from .Player import Player
+                from .Agent import Agent
+                from .Skillbar import SkillBar
+                player_agent_id = Player.GetAgentID()
+                if Agent.IsCasting(player_agent_id) or SkillBar.GetCasting() != 0 or Agent.GetCastingSkill(player_agent_id) != 0:
+                    return True
+                return False
+            
+            @staticmethod
             def GetEnergyCostWithEffects(skill_id, agent_id):
                 """Retrieve the actual energy cost of a skill by its ID and effects.
 
@@ -1093,7 +1103,7 @@ class Routines:
                      
         class Movement:
             @staticmethod
-            def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=100):
+            def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=150):
                 import random
                 from .Player import Player
                 from Py4GWCoreLib import ActionQueueManager
@@ -1107,23 +1117,24 @@ class Routines:
                     while True:
                         if custom_exit_condition():
                             return
-
-                        sleep(0.5)
                         
                         current_x, current_y = Player.GetXY()
                         current_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
-
-                        # Check if arrived
-                        if current_distance <= tolerance:
-                            break  # Arrived at this waypoint, move to next
-
+                        
                         # If not getting closer, enforce move
                         if not (current_distance < previous_distance):
                             # Inside reissue logic
                             offset_x = random.uniform(-5, 5)
                             offset_y = random.uniform(-5, 5)
                             ActionQueueManager().AddAction("ACTION",Player.Move, target_x + offset_x, target_y + offset_y)
-                        previous_distance = current_distance
+                        previous_distance = current_distance                    
+                        
+                        # Check if arrived
+                        if current_distance <= tolerance:
+                            break  # Arrived at this waypoint, move to next
+
+                        sleep(0.5)
+                        
 
         class Skills:
             @staticmethod
@@ -1237,16 +1248,14 @@ class Routines:
 
                 waititng_for_map_load = True
                 while waititng_for_map_load:
-                    if Map.IsMapLoading():
+                    if not (Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == map_id):
                         sleep(1)
-                        continue
                     else:
-                        if Map.IsMapReady() and Party.IsPartyLoaded() and Map.GetMapID() == map_id:
-                            waititng_for_map_load = False
-                            break
-                        sleep(1)
+                        waititng_for_map_load = False
+                        break
                 
                 ConsoleLog("WaitforMapLoad", f"Arrived at {Map.GetMapName(map_id)}", log=log)
+                sleep(1)
                 
         class Agents:
             @staticmethod
@@ -1376,10 +1385,9 @@ class Routines:
                 from .Agent import Agent
                 Routines.Sequential.Agents.TargetNearestNPCXY(x, y, 100)
                 agent_x, agent_y = Agent.GetXY(Player.GetTargetID())
-                agent_path = Routines.Movement.PathHandler([(agent_x, agent_y)])
 
                 Routines.Sequential.Movement.FollowPath([(agent_x, agent_y)])
-                sleep(0.5)
+                sleep(1)
                 
                 Routines.Sequential.Player.InteractTarget()
                 sleep(1)

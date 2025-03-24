@@ -119,8 +119,7 @@ class LootConfigclass:
 class Botconfig:
     def __init__(self):
         self.in_killing_routine = False
-        self.in_waiting_routine = False
-        self.in_looting_routine = False
+        self.pause_stuck_routine = False
         self.finished_routine = False
         self.reset_from_jaga_moraine = False
         self.is_script_running = False
@@ -192,8 +191,6 @@ def reset_environment():
     bot_variables.config.is_script_running = False
     bot_variables.config.reset_from_jaga_moraine = False
     bot_variables.config.in_killing_routine = False
-    bot_variables.config.in_waiting_routine = False
-    bot_variables.config.in_looting_routine = False
     bot_variables.config.stuck_count = 0
     ActionQueueManager().ResetAllQueues()
     
@@ -395,7 +392,10 @@ def filter_items_to_deposit():
     return items_to_deposit
 
 def player_is_dead_or_map_loading():
-    return Agent.IsDead(Player.GetAgentID()) or Map.IsMapLoading()
+    if Map.IsMapLoading():
+        return True
+    return Agent.IsDead(Player.GetAgentID())
+
     
 def player_is_dead():
     return Agent.IsDead(Player.GetAgentID())
@@ -586,23 +586,28 @@ def Handle_Stuck():
     
     if Map.GetMapID() == longeyes_ledge:
         bot_variables.config.auto_stuck_command_timer.Reset()
+        bot_variables.config.non_movement_timer.Reset()
+        bot_variables.config.stuck_count = 0
+        return
+    
+    if bot_variables.config.pause_stuck_routine:
+        bot_variables.config.auto_stuck_command_timer.Reset()
+        bot_variables.config.non_movement_timer.Reset()
         bot_variables.config.stuck_count = 0
         return
     
     if bot_variables.config.in_killing_routine:
         bot_variables.config.auto_stuck_command_timer.Reset()
-        bot_variables.config.stuck_count = 0
-        return
-        
-    if bot_variables.config.in_waiting_routine:
-        bot_variables.config.auto_stuck_command_timer.Reset()
+        bot_variables.config.non_movement_timer.Reset()
         bot_variables.config.stuck_count = 0
         return
     
     if bot_variables.config.finished_routine:
         bot_variables.config.auto_stuck_command_timer.Reset()
+        bot_variables.config.non_movement_timer.Reset()
         bot_variables.config.stuck_count = 0
         return
+    
     
     # Check for periodic "stuck" chat command
     if bot_variables.config.auto_stuck_command_timer.HasElapsed(5000):
@@ -667,13 +672,13 @@ def RunBotSequentialLogic():
     global MAIN_THREAD_NAME, bot_variables
 
     reset_from_jaga_moraine = False
+    sleep(1)
     while True:
         if not bot_variables.config.is_script_running:
             sleep(1)
             continue
 
         #movement and follow objects
-        follow_object = Routines.Movement.FollowXY()
         log_to_console = bot_variables.config.log_to_console
         
         longeyes_ledge = 650 #Longeyes Ledge
@@ -702,19 +707,21 @@ def RunBotSequentialLogic():
             #exit outpost
             Routines.Sequential.Movement.FollowPath(path_points= path_points_to_leave_outpost, custom_exit_condition=lambda: Map.IsMapLoading())
             Routines.Sequential.Map.WaitforMapLoad(bjora_marches,log_to_console)
+            bot_variables.config.pause_stuck_routine = False
             #traverse bjora marches
             Routines.Sequential.Movement.FollowPath(path_points_to_traverse_bjora_marches, custom_exit_condition=lambda: player_is_dead_or_map_loading())
+            bot_variables.config.pause_stuck_routine = True
             
-            if handle_death():
+            if not Map.IsMapLoading() and handle_death():
                 reset_from_jaga_moraine = False
                 continue
-            
+
             Routines.Sequential.Map.WaitforMapLoad(jaga_moraine, log_to_console)
             reset_from_jaga_moraine = True   
         #take bounty
         Routines.Sequential.Agents.InteractWithAgentXY(13367, -20771)
         Routines.Sequential.Player.SendDialog("0x84")
-        
+        bot_variables.config.pause_stuck_routine = False
         Routines.Sequential.Movement.FollowPath(path_points_to_farming_route1,custom_exit_condition=lambda: player_is_dead())
         if handle_death():
             reset_from_jaga_moraine = False
@@ -722,9 +729,9 @@ def RunBotSequentialLogic():
         
         #wait for aggro ball'
         ConsoleLog(MODULE_NAME, "Waiting for left aggro ball", Py4GW.Console.MessageType.Info, log=log_to_console)
-        bot_variables.config.in_waiting_routine = True
+        bot_variables.config.pause_stuck_routine = True
         sleep (15)
-        bot_variables.config.in_waiting_routine = False
+        bot_variables.config.pause_stuck_routine = False
         
         Routines.Sequential.Movement.FollowPath(path_points_to_farming_route2,custom_exit_condition=lambda: player_is_dead())
         if handle_death():
@@ -732,9 +739,9 @@ def RunBotSequentialLogic():
             continue
         
         ConsoleLog(MODULE_NAME, "Waiting for right aggro ball", Py4GW.Console.MessageType.Info, log=log_to_console)
-        bot_variables.config.in_waiting_routine = True
+        bot_variables.config.pause_stuck_routine = True
         sleep (15)
-        bot_variables.config.in_waiting_routine = False
+        bot_variables.config.pause_stuck_routine = False
         
         Routines.Sequential.Movement.FollowPath(path_points_to_killing_spot)
         if primary_profession == "Dervish":
@@ -757,6 +764,10 @@ def RunBotSequentialLogic():
         
         filtered_agent_ids = get_filtered_loot_array()
         
+        if handle_death():
+            reset_from_jaga_moraine = False
+            continue
+        
         Routines.Sequential.Items.LootItems(filtered_agent_ids, log_to_console)
             
         items_to_idenfity = filter_identify_array()
@@ -766,7 +777,11 @@ def RunBotSequentialLogic():
         Routines.Sequential.Items.SalvageItems(items_to_salvage, log_to_console)
         
         if handle_inventory_check():
-            reset_environment()
+            reset_from_jaga_moraine = False
+            continue
+        
+        if handle_death():
+            reset_from_jaga_moraine = False
             continue
         
         Routines.Sequential.Movement.FollowPath(path_points_to_exit_jaga_moraine, custom_exit_condition=lambda: player_is_dead_or_map_loading())
@@ -777,6 +792,7 @@ def RunBotSequentialLogic():
         Routines.Sequential.Map.WaitforMapLoad(jaga_moraine, log_to_console)
 
         reset_from_jaga_moraine = True
+        bot_variables.config.pause_stuck_routine = True
         #bot_variables.is_script_running = False
         ConsoleLog(MODULE_NAME, "Script finished.", Py4GW.Console.MessageType.Info, log=log_to_console)
         time.sleep(0.1)
@@ -796,7 +812,7 @@ def BjoraMarchesSkillCasting():
     shroud_of_distress = bot_variables.skillbar.shroud_of_distress
     heart_of_shadow = bot_variables.skillbar.heart_of_shadow
 
-    log_to_console = bot_variables.config.log_to_console
+    log_to_console = False #bot_variables.config.log_to_console
     
 
     #we need to cast deadly paradox and shadow form and mantain it
@@ -882,7 +898,7 @@ def JagaMoraineSkillCasting():
     # ** Heart of Shadow to Stay Alive or to get out of stuck**
     if not bot_variables.config.in_killing_routine:
         if Agent.GetHealth(player_agent_id) < 0.35 or bot_variables.config.stuck_count > 0:
-            if bot_variables.config.in_waiting_routine:
+            if bot_variables.config.pause_stuck_routine:
                 Routines.Sequential.Agents.ChangeTarget(player_agent_id)
             else:
                 Routines.Sequential.Agents.TargetNearestEnemy(Range.Earshot.value)
@@ -905,7 +921,7 @@ def JagaMoraineSkillCasting():
                     if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot, log=log_to_console):
                         sleep(0.350)
             target = GetNotHexedEnemy()  
-            if target:   
+            if target: 
                 Routines.Sequential.Agents.ChangeTarget(target)
                 if Routines.Sequential.Skills.CastSkillSlot(wastrels_demise_slot, log=log_to_console):
                     sleep(0.350)
@@ -1136,12 +1152,14 @@ def main():
             bot_variables.config.stuck_count = 0
             return
             
-        if not Agent.IsCasting(Player.GetAgentID()):
+        if not Routines.Checks.Skills.InCastingProcess() and not Agent.IsKnockedDown(Player.GetAgentID()):
             ActionQueueManager().ProcessQueue("ACTION")
         ActionQueueManager().ProcessQueue("SALVAGE")   
         ActionQueueManager().ProcessQueue("IDENTIFY")             
         ActionQueueManager().ProcessQueue("MERCHANT")       
         ActionQueueManager().ProcessQueue("LOOT")
+
+
         
     except Exception as e:
         ConsoleLog(MODULE_NAME,f"Error: {str(e)}",Py4GW.Console.MessageType.Error,log=True)

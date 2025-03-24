@@ -612,20 +612,6 @@ def DrawDebugWindow(cached_data:CacheData):
             DrawBuffWindow(cached_data)
         
 
-def DrawLootPickup(cached_data:CacheData):
-    cached_data.draw_floating_loot_buttons = PyImGui.checkbox("Draw Floating Loot Buttons", cached_data.draw_floating_loot_buttons)
-    PyImGui.separator()
-    gold_coins = get_gold_coin_array()
-    if not gold_coins:
-        return
-    for agent_id in gold_coins:
-        item_data = Agent.GetItemAgent(agent_id)
-        item_id = item_data.item_id
-        quantity = Item.Properties.GetQuantity(item_id)
-        if PyImGui.button(f"Loot {quantity} Gold coins##loot_{agent_id}"):
-            Player.Interact(agent_id,False)
-    
-
 
 
 def DrawMultiboxTools(cached_data:CacheData):
@@ -639,9 +625,7 @@ def DrawMultiboxTools(cached_data:CacheData):
         if cached_data.data.is_explorable and cached_data.data.player_agent_id == cached_data.data.party_leader_id:
             if PyImGui.collapsing_header("Flagging"):
                 DrawFlaggingWindow(cached_data)
-        if cached_data.data.is_explorable and cached_data.data.player_agent_id == cached_data.data.party_leader_id:
-            if PyImGui.collapsing_header("Loot Pickup"):
-                DrawLootPickup(cached_data)
+
         if PyImGui.collapsing_header("Debug Options"):
             DrawDebugWindow(cached_data)
    

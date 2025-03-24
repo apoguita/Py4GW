@@ -16,7 +16,7 @@ def DrawWindow():
         flags = PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse | PyImGui.WindowFlags.AlwaysAutoResize
         if PyImGui.begin("Py4GW", flags):
 
-            if PyImGui.button("Toggle Fog"):
+            if PyImGui.button(IconsFontAwesome5.ICON_PLANE + IconsFontAwesome5.ICON_PLANE_ARRIVAL +IconsFontAwesome5.ICON_PLANE_DEPARTURE + IconsFontAwesome5.ICON_PLANE_SLASH ):
                 Py4GW.Game.SetFog(fog)
         PyImGui.end()
 
