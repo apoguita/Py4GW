@@ -191,11 +191,7 @@ class item_config:
         self.is_identified = Item.Usage.IsIdentified(self.item_id)
         self.is_salvageable = Item.Usage.IsSalvageable(self.item_id)
         self.is_id_kit = Item.Usage.IsIDKit(self.item_id)
-        self.is_salv_kit = ( Item.Usage.IsSalvageKit(self.item_id) or 
-                             Item.Usage.IsExpertSalvageKit(self.item_id) or
-                             Item.Usage.IsPerfectSalvageKit(self.item_id) or
-                             Item.Usage.IsLesserKit(self.item_id)
-        )
+        self.is_salv_kit = Item.Usage.IsLesserKit(self.item_id)
         if self.is_id_kit:
             total_id_uses += Item.Usage.GetUses(self.item_id)
         if self.is_salv_kit:
@@ -466,6 +462,7 @@ def DrawSalvOptions():
     
 #endregion
 
+
 #region DrawWindow
 def DrawWindow():
     global parent_frame_id, MAX_BAGS
@@ -545,6 +542,7 @@ def DrawWindow():
 def IdentifyItems():
     global identification_checkbox_states
     global total_id_uses
+    ActionQueueManager().ResetQueue("IDENTIFY")
     for item_id in identification_checkbox_states:
         if identification_checkbox_states[item_id]:
             first_id_kit = Inventory.GetFirstIDKit()
@@ -555,6 +553,9 @@ def IdentifyItems():
             total_id_uses -= 1
             if total_id_uses <= 0:
                 return   
+
+    for item_id in identification_checkbox_states:
+        identification_checkbox_states[item_id] = False
             
 def AutoSalvage(item_id):
     first_salv_kit = Inventory.GetFirstSalvageKit()
@@ -566,6 +567,7 @@ def SalvageItems():
     global salvage_checkbox_states
     global total_salvage_uses
     global inventory_object
+    ActionQueueManager().ResetQueue("SALVAGE")
     for item_id in salvage_checkbox_states:
         if salvage_checkbox_states[item_id]:
             quantity = Item.Properties.GetQuantity(item_id)
@@ -582,20 +584,41 @@ def SalvageItems():
             total_salvage_uses -= quantity
             if total_salvage_uses <= 0:
                 return   
+    
+    for item_id in salvage_checkbox_states:
+        salvage_checkbox_states[item_id] = False
+        
 #endregion
+
 
 def configure():
     pass
+
+id_queue_reset_done = False
+salv_queue_reset_done = False
+
+def ResetInventoryEnvironment():
+    global identification_checkbox_states, salvage_checkbox_states
+    global total_id_uses, total_salvage_uses
+    global widget_config
+    global inventory_object
+    
+    identification_checkbox_states.clear()
+    salvage_checkbox_states.clear()
+    total_id_uses = 0
+    total_salvage_uses = 0
+    widget_config.bags = [bag_config() for _ in range(MAX_BAGS)]  # Reset bag configs
+    inventory_object = PyInventory.PyInventory()  # Re-initialize inventory object
+
 
 #region main
 def main():
     global parent_frame_id, inventory_frame_hash, MAX_BAGS
     global widget_config
     global inventory_object
+    global id_queue_reset_done, salv_queue_reset_done
     
     if Map.IsMapLoading():
-        ActionQueueManager().ResetQueue("IDENTIFY")
-        ActionQueueManager().ResetQueue("SALVAGE")
         return
     
     if not (Map.IsMapReady() and Party.IsPartyLoaded()):
@@ -620,6 +643,28 @@ def main():
     
     ActionQueueManager().ProcessQueue("IDENTIFY")
     ActionQueueManager().ProcessQueue("SALVAGE")
+    
+    id_queue = ActionQueueManager().GetQueue("IDENTIFY")
+    salv_queue = ActionQueueManager().GetQueue("SALVAGE")
+
+    
+
+    # IDENTIFY reset
+    if id_queue.is_empty():
+        if not id_queue_reset_done:
+            ResetInventoryEnvironment()
+            id_queue_reset_done = True
+    else:
+        id_queue_reset_done = False
+
+    # SALVAGE reset
+    if salv_queue.is_empty():
+        if not salv_queue_reset_done:
+            ResetInventoryEnvironment()
+            salv_queue_reset_done = True
+    else:
+        salv_queue_reset_done = False
+    
         
 #endregion    
 

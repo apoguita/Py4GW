@@ -69,7 +69,8 @@ def SequentialLootingRoutine():
     
     filtered_loot = get_looting_array()
     # Loot filtered items
-    Routines.Sequential.Items.LootItems(filtered_loot,True)
+    ActionQueueManager().ResetQueue("ACTION")
+    Routines.Sequential.Items.LootItems(filtered_loot,log = False)
     looting_aftercast.Reset()
     in_looting_routine = False
 
@@ -156,6 +157,7 @@ def Follow(cached_data:CacheData):
     yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y
 
     cached_data.data.angle_changed = False
+    ActionQueueManager().ResetQueue("ACTION")
     ActionQueueManager().AddAction("ACTION", Player.Move, xx, yy)
     return True
     
@@ -173,6 +175,7 @@ def draw_targetting_floating_buttons(cached_data:CacheData):
         x,y,z = Agent.GetXYZ(agent_id)
         screen_x,screen_y = Overlay().WorldToScreen(x,y,z+25)
         if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):
+            ActionQueueManager().ResetQueue("ACTION")
             ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, agent_id)
             ActionQueueManager().AddAction("ACTION", Player.Interact, agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
@@ -263,7 +266,7 @@ def main():
     try:
         if not MapValidityCheck():
             ActionQueueManager().ResetQueue("ACTION")
-            ConsoleLog("Main","Resetting action queue",Py4GW.Console.MessageType.Info)
+            #ConsoleLog("Main","Resetting action queue",Py4GW.Console.MessageType.Info)
             return
         
         cached_data.Update()
@@ -271,10 +274,9 @@ def main():
             UpdateStatus(cached_data)
             action_queue = ActionQueueManager().GetQueue("ACTION")
             next_action_name = action_queue.GetNextActionName()
-            if next_action_name:
-                ConsoleLog("Main",f"Executing: {next_action_name}",Py4GW.Console.MessageType.Info)
-
-            ActionQueueManager().ProcessQueue("ACTION")
+            if ActionQueueManager().ProcessQueue("ACTION"):
+                #ConsoleLog("Main",f"Executed: {next_action_name}",Py4GW.Console.MessageType.Info)
+                pass
 
             
     except ImportError as e:

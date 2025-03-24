@@ -772,6 +772,8 @@ class ActionQueue:
         if self.queue:
             action, args, kwargs = self.queue.popleft()
             action(*args, **kwargs)
+            return True
+        return False
             
     def is_empty(self):
         """Check if the action queue is empty."""
@@ -787,8 +789,11 @@ class ActionQueue:
         :return: String with function name or None.
         """
         if self.queue:
-            action, _, _ = self.queue[0]
-            return action.__name__  # Retrieves the function's name
+            action, args, kwargs = self.queue[0]
+            parts = [action.__name__]
+            parts.extend(str(arg) for arg in args)
+            parts.extend(f"{k}={v}" for k, v in kwargs.items())
+            return ','.join(parts)
         return None
         
 class ActionQueueNode:
@@ -800,8 +805,10 @@ class ActionQueueNode:
 
     def execute_next(self):
         if self.action_queue_timer.HasElapsed(self.action_queue_time):      
-            self.action_queue.execute_next()
+            result = self.action_queue.execute_next()
             self.action_queue_timer.Reset()
+            return result
+        return False
                 
     def add_action(self, action, *args, **kwargs):
         self.action_queue.add_action(action, *args, **kwargs)
@@ -817,7 +824,8 @@ class ActionQueueNode:
     
     def ProcessQueue(self):
         if self.IsExpired():
-            self.execute_next()
+            return self.execute_next()
+        return False
     
     def GetNextActionName(self):
         return self.action_queue.get_next_action_name()
@@ -861,7 +869,8 @@ class ActionQueueManager:
     # Process specific queue
     def ProcessQueue(self, queue_name):
         if queue_name in self.queues:
-            self.queues[queue_name].ProcessQueue()
+            return self.queues[queue_name].ProcessQueue()
+        return False
 
     # Process all queues
     def ProcessAll(self):
