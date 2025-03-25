@@ -118,7 +118,7 @@
     "3916130160,0": "District List.Dropdown",
     "1837701994,0": "Performance Monitor.Frame",
     "140452905,6,126": "Floating Button.Options",
-    "3332025202,1": "Party Formation.Frame",
+    "3332025202,1": "Party Formation.Frame.Outpost",
     "3332025202,1,4": "Party Formation.Button Search",
     "3332025202,1,8": "Party Formation.Party Members",
     "3332025202,1,8,0": "Party Formation.Party Members.Frame",
@@ -287,5 +287,6 @@
     "291586130,0,0,0,3,9": "Inventory Bags.Bag4.Slot8",
     "291586130,0,0,0,3,11": "Inventory Bags.Bag4.Slot10",
     "291586130,0,0,0,3,10": "Inventory Bags.Bag4.Slot9",
-    "3856160816,1": "Use Lockpick Button"
+    "3856160816,1": "Use Lockpick Button",
+    "3332025202,0": "Party Formation.Frame.Explorable"
 }

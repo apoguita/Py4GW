@@ -275,3 +275,23 @@ class ImGui:
             if new_collapsed != window_module.collapse:
                 ini_handler.write_key(module_name + " Config", "collapsed", str(new_collapsed))
             """
+       
+    @staticmethod     
+    def PushTransparentWindow():
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowPadding,0.0)
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowBorderSize,0.0)
+        
+        flags=( PyImGui.WindowFlags.NoCollapse | 
+                PyImGui.WindowFlags.NoTitleBar |
+                PyImGui.WindowFlags.NoScrollbar |
+                PyImGui.WindowFlags.NoScrollWithMouse |
+                PyImGui.WindowFlags.NoResize |
+                PyImGui.WindowFlags.NoBackground 
+            ) 
+        
+        return flags
+
+    @staticmethod
+    def PopTransparentWindow():
+        PyImGui.pop_style_var(3)

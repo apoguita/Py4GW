@@ -273,23 +273,6 @@ def bottom_window_flags():
             PyImGui.WindowFlags.NoScrollWithMouse
     )
   
-def push_transparent_window():
-    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
-    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowPadding,0.0)
-    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowBorderSize,0.0)
-    
-    flags=( PyImGui.WindowFlags.NoCollapse | 
-            PyImGui.WindowFlags.NoTitleBar |
-            PyImGui.WindowFlags.NoScrollbar |
-            PyImGui.WindowFlags.NoScrollWithMouse |
-            PyImGui.WindowFlags.NoResize |
-            PyImGui.WindowFlags.NoBackground 
-        ) 
-    
-    return flags
-
-def pop_transparent_window():
-    PyImGui.pop_style_var(3)
     
 #endregion
     
@@ -476,7 +459,7 @@ def DrawWindow():
     width = right - left - frame_offset
     
     
-    flags= push_transparent_window()
+    flags= ImGui.PushTransparentWindow()
     
     PyImGui.set_next_window_pos(left, top-35)
     PyImGui.set_next_window_size(width, 35)
@@ -505,7 +488,8 @@ def DrawWindow():
                 PyImGui.end_tab_item()
             PyImGui.end_tab_bar()
     PyImGui.end()
-    pop_transparent_window()
+    
+    ImGui.PopTransparentWindow()
     
     if widget_config.selected_tab == TabType.colorize:
         DrawColorizeOptions()
