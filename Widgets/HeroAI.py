@@ -180,9 +180,130 @@ def draw_targetting_floating_buttons(cached_data:CacheData):
             ActionQueueManager().AddAction("ACTION", Player.Interact, agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
 
-            
-            
+      
+#TabType 
+class TabType(Enum):
+    party = 1
+    control_panel = 2
+    candidates = 3
+    flagging = 4
+    config = 5
+    debug = 6 
+    
+selected_tab:TabType = TabType.party  
+show_classic_controls = False
 
+def DrawFramedContent(cached_data:CacheData,content_frame_id):
+    global selected_tab
+    global show_classic_controls
+    
+    if selected_tab == TabType.party:
+        return
+    
+    child_left, child_top, child_right, child_bottom = UIManager.GetFrameCoords(content_frame_id) 
+    width = child_right - child_left
+    height = child_bottom - child_top 
+
+    UIManager().DrawFrame(content_frame_id, Utils.RGBToColor(0, 0, 0, 255))
+    
+    flags = ( PyImGui.WindowFlags.NoCollapse | 
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoResize
+    )
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+    PyImGui.set_next_window_pos(child_left, child_top)
+    PyImGui.set_next_window_size(width, height)
+    
+    if PyImGui.begin("##heroai_framed_content",True, flags):
+        if selected_tab == TabType.control_panel:
+            own_party_number = cached_data.data.own_party_number
+            if own_party_number == 0:
+                #leader control panel
+                game_option = DrawPanelButtons(cached_data.HeroAI_vars.global_control_game_struct) 
+                CompareAndSubmitGameOptions(cached_data,game_option)
+                
+                if PyImGui.collapsing_header("Player Control"):
+                    for index in range(MAX_NUM_PLAYERS):
+                        if cached_data.HeroAI_vars.all_player_struct[index].IsActive and not cached_data.HeroAI_vars.all_player_struct[index].IsHero:
+                            original_game_option = cached_data.HeroAI_vars.all_game_option_struct[index]
+                            login_number = Party.Players.GetLoginNumberByAgentID(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
+                            player_name = Party.Players.GetPlayerNameByLoginNumber(login_number)
+                            if PyImGui.tree_node(f"{player_name}##ControlPlayer{index}"):
+                                game_option = DrawPanelButtons(original_game_option)
+                                SubmitGameOptions(cached_data, index, game_option, original_game_option)
+                                PyImGui.tree_pop()
+            else:
+                #follower control panel
+                original_game_option = cached_data.HeroAI_vars.all_game_option_struct[own_party_number]
+                game_option = DrawPanelButtons(original_game_option) 
+                SubmitGameOptions(cached_data,own_party_number,game_option,original_game_option)
+                
+        elif selected_tab == TabType.candidates:
+            DrawCandidateWindow(cached_data)
+        elif selected_tab == TabType.flagging:
+            DrawFlaggingWindow(cached_data)
+        elif selected_tab == TabType.config:
+            show_classic_controls = PyImGui.checkbox("Show Classic Controls",show_classic_controls)
+
+        
+    PyImGui.end()
+    PyImGui.pop_style_var(1)
+    
+       
+def DrawEmbeddedWindow(cached_data:CacheData):
+    global selected_tab, show_classic_controls
+    parent_frame_id = UIManager.GetFrameIDByHash(PARTY_WINDOW_HASH)   
+    outpost_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
+    explorable_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS)
+    
+    if Map.IsMapReady() and Map.IsExplorable():
+        content_frame_id = explorable_content_frame_id
+    else:
+        content_frame_id = outpost_content_frame_id
+        
+    left, top, right, bottom = UIManager.GetFrameCoords(parent_frame_id)  
+    title_offset = 20
+    frame_offset = 5
+    height = bottom - top - title_offset
+    width = right - left - frame_offset
+     
+    flags= ImGui.PushTransparentWindow()
+    
+    PyImGui.set_next_window_pos(left, top-35)
+    PyImGui.set_next_window_size(width, 35)
+    if PyImGui.begin("embedded contorl panel",True, flags):
+        if PyImGui.begin_tab_bar("HeroAITabs"):
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_USERS + "Party##PartyTab"):
+                selected_tab = TabType.party
+                PyImGui.end_tab_item()
+            ImGui.show_tooltip("Party")
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_RUNNING + "HeroAI##controlpanelTab"):
+                selected_tab = TabType.control_panel
+                PyImGui.end_tab_item()
+            ImGui.show_tooltip("HeroAI Control Panel")
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_USER_PLUS + "##candidatesTab"):
+                selected_tab = TabType.candidates
+                PyImGui.end_tab_item()
+            ImGui.show_tooltip("Candidates")
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_FLAG + "##flaggingTab"):
+                selected_tab = TabType.flagging
+                PyImGui.end_tab_item()
+            ImGui.show_tooltip("Flagging")
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_COGS + "##configTab"):
+                selected_tab = TabType.config
+                PyImGui.end_tab_item()
+            ImGui.show_tooltip("Config")
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_BUG + "##debugTab"):
+                selected_tab = TabType.debug
+                PyImGui.end_tab_item()
+            ImGui.show_tooltip("Debug Options")
+            PyImGui.end_tab_bar()
+    PyImGui.end()
+    
+    ImGui.PopTransparentWindow()    
+    DrawFramedContent(cached_data,content_frame_id)
+    
+    
 
 def UpdateStatus(cached_data:CacheData):
     global in_looting_routine
@@ -197,9 +318,11 @@ def UpdateStatus(cached_data:CacheData):
     
     cached_data.UpdateGameOptions()
 
-    DrawMainWindow(cached_data)   
-    DrawControlPanelWindow(cached_data)
-    DrawMultiboxTools(cached_data)
+    DrawEmbeddedWindow(cached_data)
+    if show_classic_controls:
+        DrawMainWindow(cached_data)   
+        DrawControlPanelWindow(cached_data)
+        DrawMultiboxTools(cached_data)
    
     if not cached_data.data.is_explorable:  # halt operation if not in explorable area
         return
