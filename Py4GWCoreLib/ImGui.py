@@ -281,11 +281,13 @@ class ImGui:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowPadding,0.0)
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowBorderSize,0.0)
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding,0.0,0.0)
         
         flags=( PyImGui.WindowFlags.NoCollapse | 
                 PyImGui.WindowFlags.NoTitleBar |
                 PyImGui.WindowFlags.NoScrollbar |
                 PyImGui.WindowFlags.NoScrollWithMouse |
+                PyImGui.WindowFlags.AlwaysAutoResize |
                 PyImGui.WindowFlags.NoResize |
                 PyImGui.WindowFlags.NoBackground 
             ) 
@@ -294,4 +296,4 @@ class ImGui:
 
     @staticmethod
     def PopTransparentWindow():
-        PyImGui.pop_style_var(3)
+        PyImGui.pop_style_var(4)
