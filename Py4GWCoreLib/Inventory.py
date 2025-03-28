@@ -136,7 +136,7 @@ class Inventory:
         return unidentified_items[0] if unidentified_items else 0
         
     @staticmethod
-    def GetFirstSalvageKit(lesser =True):
+    def GetFirstSalvageKit(use_lesser =True):
         """
         Purpose: Find the salvage kit with the lowest remaining uses in bags 1, 2, 3, and 4.
         Returns:
@@ -146,7 +146,7 @@ class Inventory:
         item_array = ItemArray.GetItemArray(bags_to_check)
 
         salvage_kits = ItemArray.Filter.ByCondition(item_array, Item.Usage.IsSalvageKit)
-        if lesser:
+        if use_lesser:
             salvage_kits = ItemArray.Filter.ByCondition(salvage_kits, lambda item_id: Item.Usage.IsLesserKit)
             
         if not salvage_kits:

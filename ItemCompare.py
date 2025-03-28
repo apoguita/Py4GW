@@ -1,5 +1,7 @@
-from typing import Optional
 from Py4GWCoreLib import *
+
+from typing import Optional
+
 
 module_name = "Mod Handler"
 json_file_path = "modifiers.json"
@@ -8,111 +10,6 @@ from enum import Enum
 
 window_module = ImGui.WindowModule("Item Compare", window_name="Item Compare", window_size=(300, 300))
 
-class DamageType(Enum):
-    Blunt = 0
-    Piercing = 1
-    Slashing = 2
-    Cold = 3
-    Lightning = 4
-    Fire = 5
-    Chaos = 6
-    Dark = 7
-    Holy = 8
-    unknown_9 = 9
-    unknown_10 = 10
-    Earth = 11
-    unknown_12 = 12
-    unknown_13 = 13
-    unknown_14 = 14
-    unknown_15 = 15
-
-class Attribute(Enum):
-    Fast_Casting = 0
-    Illusion_Magic = 1
-    Domination_Magic = 2
-    Inspiration_Magic = 3
-    Blood_Magic = 4
-    Death_Magic = 5
-    Soul_Reaping = 6
-    Curses = 7
-    Air_Magic = 8
-    Earth_Magic = 9
-    Fire_Magic = 10
-    Water_Magic = 11
-    Energy_Storage = 12
-    Healing_Prayers = 13
-    Smiting_Prayers = 14
-    Protection_Prayers = 15
-    Divine_Favor = 16
-    Strength = 17
-    Axe_Mastery = 18
-    Hammer_Mastery = 19
-    Swordsmanship = 20
-    Tactics = 21
-    Beast_Mastery = 22
-    Expertise = 23
-    Wilderness_Survival = 24
-    Marksmanship = 25
-    Unknown1 = 26
-    Unknown2 = 27
-    Unknown3 = 28
-    Dagger_Mastery = 29
-    Deadly_Arts = 30
-    Shadow_Arts = 31
-    Communing = 32
-    Restoration_Magic = 33
-    Channeling_Magic = 34
-    Critical_Strikes = 35
-    Spawning_Power = 36
-    Spear_Mastery = 37
-    Command = 38
-    Motivation = 39
-    Leadership = 40
-    Scythe_Mastery = 41
-    Wind_Prayers = 42
-    Earth_Prayers = 43
-    Mysticism = 44
-    None_ = 45
-
-class Ailment(Enum):
-    Bleeding = 222
-    Blind = 223
-    Crippled = 225
-    Deep_Wound = 226
-    Disease = 227
-    Poison = 228
-    Dazed = 229
-    Weakness = 230
-
-class Reduced_Ailment(Enum):
-    Bleeding = 0
-    Blind = 1
-    Crippled = 3
-    Deep_Wound = 4
-    Disease = 5
-    Poison = 6
-    Dazed = 7
-    Weakness = 8
-
-
-
-class Inscription(Enum):
-    Fear_Cuts_Deeper = 0
-    I_Can_See_Clearly_Now = 1
-    Swift_as_the_Wind = 3
-    Strenght_of_Body = 4
-    Cast_Out_the_Unclean = 5
-    Pure_of_Heart = 6
-    Soundness_of_Mind = 7
-    Only_the_Strong_Survive = 8
-
-    Not_the_Face = 134
-    Leaf_on_the_Wind = 136
-    Like_a_Rolling_Stone = 138
-    Riders_on_the_Storm = 140
-    Sleep_Now_in_the_Fire = 142
-    Trough_Thick_and_Thin = 144
-    The_Riddle_of_Steel = 146
 
 class ModifierInfo:
     def __init__(self, identifier: int, 
@@ -132,7 +29,7 @@ class ModifierInfo:
         self.arg1_eval_fn = arg1_eval_fn
         self.arg2 = arg2
         self.arg2_eval_fn = arg2_eval_fn
-        self.representation = representation or ""
+        self.representation = representation if callable(representation) else (lambda *args: "")
 
 modifiers = {}
 
@@ -979,6 +876,19 @@ add_modifier(ModifierInfo(
     representation=lambda arg, arg1, arg2: f"Energy +{arg1}"
 ))
 
+add_modifier(ModifierInfo(
+    identifier=32784,
+     
+    name="Requires", 
+    arg="INVALID", 
+    arg_eval_fn=None, 
+    arg1="Attribute", 
+    arg1_eval_fn=lambda attribute_id: GetAttributeName(attribute_id), 
+    arg2="Value",
+    arg2_eval_fn=lambda value: Value(value),
+    representation=lambda arg, arg1, arg2: f"(Requires {arg2} {arg1})"
+))
+
 
 add_modifier(ModifierInfo(
     identifier=32880,
@@ -1288,10 +1198,11 @@ def ShowItemdescription():
         Py4GW.Console.Log(module_name, f"Error in ShowItemComparisonWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+"""
 identifier = 0
 def ShowModifierDecoderWindow():
     try:
-        global window_module
+        global window_module, identifier
 
         if window_module.first_run:
             PyImGui.set_next_window_size(window_module.window_size[0], window_module.window_size[1])
@@ -1300,7 +1211,7 @@ def ShowModifierDecoderWindow():
 
         if PyImGui.begin("Modifier Decoder", window_module.window_flags):
             PyImGui.text("Enter Modifier Identifier:")
-            identifier = PyImGui.input_int("Identifier")
+            identifier = PyImGui.input_int("Identifier", identifier)
 
             if identifier is not None:
                 modifier_info = decode_modifier(identifier)
@@ -1316,8 +1227,9 @@ def ShowModifierDecoderWindow():
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in ShowModifierDecoderWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
-
-
+    
+    """
+    
 def ShowItemComparisonWindow():
     try:
         global item1_id, item2_id, hovered_item
@@ -1394,7 +1306,11 @@ def ShowItemComparisonWindow():
                     item2_arg2 = mod2.GetArg2() if mod2 else " "
 
                     # Lookup modifier data if available and process with eval functions
-                    mod_data = find_modifier(identifier1 if mod1 else identifier2)
+                    ident = identifier1 if mod1 else identifier2
+                    if isinstance(ident, int):
+                        mod_data = find_modifier(ident)
+                    else:
+                        mod_data = None
     
                     header_1, header_2 = "Item 1", "Item 2"
                     arg_name, arg1_name, arg2_name = "", "", ""
