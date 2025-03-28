@@ -131,6 +131,34 @@ class IdentifyAllType(IntEnum):
     Blue = 2
     Purple = 3
     Gold = 4
+    
+#bags 
+class Bags(IntEnum):
+    NoBag = 0
+    Backpack = 1
+    BeltPouch = 2
+    Bag1 = 3
+    Bag2 = 4
+    EquipmentPack = 5
+    MaterialStorage = 6
+    UnclaimedItems = 7
+    Storage1 = 8
+    Storage2 = 9
+    Storage3 = 10
+    Storage4 = 11
+    Storage5 = 12
+    Storage6 = 13
+    Storage7 = 14
+    Storage8 = 15
+    Storage9 = 16
+    Storage10 = 17
+    Storage11 = 18
+    Storage12 = 19
+    Storage13 = 20
+    Storage14 = 21
+    EquippedItems = 22
+
+
 
 # ItemType
 class ItemType(Enum):
@@ -215,6 +243,46 @@ class Allegiance(Enum):
 class FactionAllegiance(Enum):
     Kurzick = 0
     Luxon = 1
+    
+#Ailment
+class Ailment(Enum):
+    Bleeding = 222
+    Blind = 223
+    Crippled = 225
+    Deep_Wound = 226
+    Disease = 227
+    Poison = 228
+    Dazed = 229
+    Weakness = 230
+    
+class Reduced_Ailment(Enum):
+    Bleeding = 0
+    Blind = 1
+    Crippled = 3
+    Deep_Wound = 4
+    Disease = 5
+    Poison = 6
+    Dazed = 7
+    Weakness = 8
+    
+#DamageType
+class DamageType(Enum):
+    Blunt = 0
+    Piercing = 1
+    Slashing = 2
+    Cold = 3
+    Lightning = 4
+    Fire = 5
+    Chaos = 6
+    Dark = 7
+    Holy = 8
+    unknown_9 = 9
+    unknown_10 = 10
+    Earth = 11
+    unknown_12 = 12
+    unknown_13 = 13
+    unknown_14 = 14
+    unknown_15 = 15
 
 #WeaponType
 class Weapon(Enum):
@@ -292,6 +360,26 @@ class Attribute(Enum):
     EarthPrayers = 43
     Mysticism = 44
     None_ = 45  # Avoiding reserved keyword "None"
+    
+#Inscription
+class Inscription(Enum):
+    Fear_Cuts_Deeper = 0
+    I_Can_See_Clearly_Now = 1
+    Swift_as_the_Wind = 3
+    Strenght_of_Body = 4
+    Cast_Out_the_Unclean = 5
+    Pure_of_Heart = 6
+    Soundness_of_Mind = 7
+    Only_the_Strong_Survive = 8
+
+    Not_the_Face = 134
+    Leaf_on_the_Wind = 136
+    Like_a_Rolling_Stone = 138
+    Riders_on_the_Storm = 140
+    Sleep_Now_in_the_Fire = 142
+    Trough_Thick_and_Thin = 144
+    The_Riddle_of_Steel = 146
+
 
 # HeroType
 class HeroType(Enum):

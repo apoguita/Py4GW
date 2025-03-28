@@ -844,7 +844,7 @@ class ActionQueueManager:
             "ACTION": ActionQueueNode(50),
             "LOOT": ActionQueueNode(1300),
             "MERCHANT": ActionQueueNode(750),
-            "SALVAGE": ActionQueueNode(175),
+            "SALVAGE": ActionQueueNode(200),
             "IDENTIFY": ActionQueueNode(250)
             # Add more queues here if needed
         }
