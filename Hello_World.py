@@ -7,17 +7,34 @@ import os
 
 MODULE_NAME = "tester for everything"
 
-fog = False
+item_id = 0
+item_name = ""
+
 
 def DrawWindow():
     """ImGui draw function that runs every frame."""
-    global fog
+    global item_id
+    global item_name
     try:
         flags = PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse | PyImGui.WindowFlags.AlwaysAutoResize
         if PyImGui.begin("Py4GW", flags):
+            hovered_item = Inventory.GetHoveredItemID()
+            
+            if hovered_item != 0:
+                if item_id != hovered_item:
+                    item_id = hovered_item
+                    temp_item_name = Item.RequestName(item_id)
+                    
+            if item_id != 0:
+                temp_item_name = Item.GetName(item_id)
+                if temp_item_name != "":
+                    item_name = temp_item_name
 
-            if PyImGui.button(IconsFontAwesome5.ICON_PLANE + IconsFontAwesome5.ICON_PLANE_ARRIVAL +IconsFontAwesome5.ICON_PLANE_DEPARTURE + IconsFontAwesome5.ICON_PLANE_SLASH ):
-                Py4GW.Game.SetFog(fog)
+                item_model = Item.GetModelID(item_id)
+                
+                PyImGui.text(f"Item Name: {item_name}")
+                PyImGui.text(f"Item Model ID: {item_model}")
+
         PyImGui.end()
 
     except Exception as e:

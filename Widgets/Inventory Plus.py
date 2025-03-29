@@ -930,6 +930,7 @@ def DrawVaultStorageMasks():
                     Utils.ColorToTuple(rarity_colors[rarity]["frame"])
                 ):
                 Inventory.WithdrawItemFromStorage(item_id)
+
 #endregion
     
 #region Identify        
