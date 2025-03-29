@@ -916,6 +916,7 @@ def smart_hex_removal():
         Skill.GetID("Shatter_Hex"),
         Skill.GetID("Remove_Hex"),
         Skill.GetID("Smite_Hex"),
+        Skill.GetID("Blessed_Light"),
     }
 
     has_hex = False
@@ -962,6 +963,7 @@ def smart_cond_removal():
         Skill.GetID("Purge_Conditions"),
         Skill.GetID("Mend_Ailment"),
         Skill.GetID("Its_Just_a_Flesh_Wound"),
+        Skill.GetID("Blessed_Light"),
     }
 
     player_id = Player.GetAgentID()
