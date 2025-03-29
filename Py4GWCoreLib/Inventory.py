@@ -26,7 +26,8 @@ class Inventory:
         return total_items, total_capacity
 
     @staticmethod
-    def GetStorageSpace():
+    def GetStorageSpace(Anniversary_panel = True, ExtraStoragePanes = 0):
+        from .enums import Bags
         """
         Purpose: Calculate and return the total number of items and the combined capacity of bags 8, 9, 10, and 11 (storage bags).
         Args: None
@@ -36,7 +37,10 @@ class Inventory:
                 - total_capacity: The combined capacity (size) of the storage bags.
         """
         # Define the storage bags to check
-        bags_to_check = ItemArray.CreateBagList(8, 9, 10, 11)
+        if not Anniversary_panel:
+            bags_to_check = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4)
+        else:
+            bags_to_check = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4,Bags.Storage5)
     
         # Retrieve the item array for the storage bags
         item_array = ItemArray.GetItemArray(bags_to_check)
@@ -50,6 +54,36 @@ class Inventory:
         )
     
         return total_items, total_capacity
+    
+    @staticmethod
+    def GetZeroFilledStorageArray(Anniversary_panel = True, ExtraStoragePanes = 0):
+        """
+        Returns a flat list of item_ids ordered by bag and slot.
+        Empty slots are represented as 0.
+        """
+        from .enums import Bags
+        result = []
+        
+        if not Anniversary_panel:
+            bags_to_check = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4)
+        else:
+            bags_to_check = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4,Bags.Storage5)
+    
+
+        for bag_enum in bags_to_check:
+            bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
+            size = bag.GetSize()
+            item_slots = [0] * size  # Pre-fill all slots with 0s
+
+            for item in bag.GetItems():
+                if 0 <= item.slot < size:
+                    item_slots[item.slot] = item.item_id
+
+            result.extend(item_slots)
+
+        return result
+
+
 
 
 
@@ -439,58 +473,128 @@ class Inventory:
                     return bag_enum.value, slot  # Return bag ID and slot
         return None, None
 
+    @staticmethod
+    def DepositItemToStorage(item_id, Anniversary_panel = True):
+        """
+        Moves the specified item to storage, filling partial stacks first.
+        Args:
+            item_id (int): ID of the item to deposit.
+            quantity (int): Amount to move. 0 means 'move all available'.
+        Returns:
+            bool: True if moved at least some of the items, False if failed.
+        """
+        from .enums import Bags
+        MAX_STACK_SIZE = 250
+
+        is_stackable = Item.Customization.IsStackable(item_id)
+        quantity = Item.Properties.GetQuantity(item_id)
+
+        if quantity == 0:
+            return False  # Nothing to move
+
+        # Gather target bags
+        if not Anniversary_panel:
+            storage_bags = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4)
+        else:
+            storage_bags = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4,Bags.Storage5)
+    
+        remaining_quantity = quantity
+        moved_any = False
+
+        for bag_enum in storage_bags:
+            bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
+            size = bag.GetSize()
+            items = bag.GetItems()
+
+            # Fill existing partial stacks (only if stackable)
+            if is_stackable:
+                for item in items:
+                    if item.model_id == Item.GetModelID(item_id):
+                        item_qty = Item.Properties.GetQuantity(item.item_id)
+                        if item_qty < MAX_STACK_SIZE:
+                            space_left = MAX_STACK_SIZE - item_qty
+                            to_move = min(space_left, remaining_quantity)
+                            if to_move > 0:
+                                Inventory.MoveItem(item_id, bag_enum.value, item.slot, to_move)
+                                remaining_quantity -= to_move
+                                moved_any = True
+                                if remaining_quantity == 0:
+                                    return True
+
+            # Fill empty slots
+            occupied_slots = {item.slot for item in items}
+            for slot in range(size):
+                if slot in occupied_slots:
+                    continue
+
+                to_move = remaining_quantity if not is_stackable else min(remaining_quantity, MAX_STACK_SIZE)
+                Inventory.MoveItem(item_id, bag_enum.value, slot, to_move)
+                remaining_quantity -= to_move
+                moved_any = True
+                if remaining_quantity == 0:
+                    return True
+
+        return moved_any
 
     @staticmethod
-    def DepositItemToStorage(item_id, quantity=0):
+    def WithdrawItemFromStorage(item_id):
         """
-        Moves the specified item (item_id) from its current location to the first available slot
-        in storage bags (8, 9, 10, 11).
-
+        Moves the specified item from storage to player inventory, filling partial stacks first.
         Args:
-            item_id (int): The ID of the item to be moved.
-
+            item_id (int): ID of the item to withdraw.
         Returns:
-            bool: True if the item was successfully moved, False otherwise.
+            bool: True if moved at least some of the items, False otherwise.
         """
-        # Create a list of storage bags as Bag enums
-        storage_bags = ItemArray.CreateBagList(8, 9, 10, 11)
+        from .enums import Bags
+        MAX_STACK_SIZE = 250
 
-        for storage_bag in storage_bags:
-            try:
-                # Initialize the SafeBag instance for this storage bag
-                bag_instance = PyInventory.Bag(storage_bag.value, storage_bag.name)
-            
-                # Retrieve occupied slots using Item.GetSlot
-                items_in_bag = bag_instance.GetItems()
-                occupied_slots = {Item.GetSlot(item.item_id) for item in items_in_bag}
-            
-                # Determine the bag's capacity
-                total_slots = bag_instance.GetSize()
+        is_stackable = Item.Customization.IsStackable(item_id)
+        quantity = Item.Properties.GetQuantity(item_id)
 
-                # Find the first free slot by checking from 0 to total_slots - 1
-                for slot in range(total_slots):
-                    if slot not in occupied_slots:
-                        # Move the item to the first available slot in this storage bag
-                        if quantity == 0:
-                            quantity = Item.Properties.GetQuantity(item_id)
+        if quantity == 0:
+            return False  # Nothing to move
 
-                        Inventory.MoveItem(item_id, storage_bag.value, slot,quantity)
-                        #Py4GW.Console.Log("DepositItemToStorage", f"Moved item with ID {item_id} to storage bag {storage_bag.value}, slot {slot}." )
-                        return True  # Successfully moved
+        # Gather target bags (Backpack, Belt Pouch, Bag1, Bag2)
+        inventory_bags = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
 
-            except Exception as e:
-                Py4GW.Console.Log(
-                    "DepositSpecificItemToStorage",
-                    f"Error processing storage bag {storage_bag.name}: {str(e)}",
-                    Py4GW.Console.MessageType.Error
-                )
+        remaining_quantity = quantity
+        moved_any = False
 
-        # No available slots found
-        Py4GW.Console.Log(
-            "DepositSpecificItemToStorage",
-            f"No free slots available for item ID {item_id} in storage bags."
-        )
-        return False  # No slots available
+        for bag_enum in inventory_bags:
+            bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
+            size = bag.GetSize()
+            items = bag.GetItems()
+
+            # Fill existing partial stacks
+            if is_stackable:
+                for item in items:
+                    if item.model_id == Item.GetModelID(item_id):
+                        item_qty = Item.Properties.GetQuantity(item.item_id)
+                        if item_qty < MAX_STACK_SIZE:
+                            space_left = MAX_STACK_SIZE - item_qty
+                            to_move = min(space_left, remaining_quantity)
+                            if to_move > 0:
+                                Inventory.MoveItem(item_id, bag_enum.value, item.slot, to_move)
+                                remaining_quantity -= to_move
+                                moved_any = True
+                                if remaining_quantity == 0:
+                                    return True
+
+            # Fill empty slots
+            occupied_slots = {item.slot for item in items}
+            for slot in range(size):
+                if slot in occupied_slots:
+                    continue
+
+                to_move = remaining_quantity if not is_stackable else min(remaining_quantity, MAX_STACK_SIZE)
+                Inventory.MoveItem(item_id, bag_enum.value, slot, to_move)
+                remaining_quantity -= to_move
+                moved_any = True
+                if remaining_quantity == 0:
+                    return True
+
+        return moved_any
+
 
 
 
