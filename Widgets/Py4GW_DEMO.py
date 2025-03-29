@@ -1405,9 +1405,11 @@ def ShowPlayerWindow():
                 current_imperial, total_earned_imperial, max_imperial = Player.GetImperialData()
                 current_balthazar, total_earned_balthazar, max_balthazar = Player.GetBalthazarData()
                 account_name = Player.GetAccountName()
+                account_email = Player.GetAccountEmail()
                 
                 data = [
                     ("account_name:", account_name),
+                    ("account_email:", account_email),
                     ("Rank:", rank),
                     ("Rating:", rating),
                     ("Qualifier Points:", qualifier_points),

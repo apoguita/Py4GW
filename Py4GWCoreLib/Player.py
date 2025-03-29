@@ -266,6 +266,15 @@ class Player:
         return Player.player_instance().account_name
     
     @staticmethod
+    def GetAccountEmail():
+        """
+        Purpose: Retrieve the player's account email.
+        Args: None
+        Returns: str
+        """
+        return Player.player_instance().account_email
+    
+    @staticmethod
     def GetRankData():
         """
         Purpose: Retrieve the player's current rank data.

@@ -11,6 +11,7 @@ class PyPlayer:
     mouse_over_id: int
     observing_id: int
     account_name: str
+    account_email: str
     wins: int
     losses: int
     rating: int
