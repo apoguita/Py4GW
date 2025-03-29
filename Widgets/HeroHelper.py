@@ -916,6 +916,7 @@ def smart_hex_removal():
         Skill.GetID("Shatter_Hex"),
         Skill.GetID("Remove_Hex"),
         Skill.GetID("Smite_Hex"),
+        Skill.GetID("Blessed_Light"),
     }
 
     has_hex = False
@@ -960,6 +961,9 @@ def smart_cond_removal():
         Skill.GetID("Mend_Condition"),
         Skill.GetID("Smite_Condition"),
         Skill.GetID("Purge_Conditions"),
+        Skill.GetID("Mend_Ailment"),
+        Skill.GetID("Its_Just_a_Flesh_Wound"),
+        Skill.GetID("Blessed_Light"),
     }
 
     player_id = Player.GetAgentID()
@@ -1319,6 +1323,30 @@ def set_hero_behaviour(behaviour):
     Helper.log_event(message=f"Set all heroes to {behaviour_str}.")
 
 
+def colored_button(label: str, button_color=0, hovered_color=0, active_color=0, width=0, height=0):
+    clicked = False
+
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, Utils.ColorToTuple(button_color))  # On color
+    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, Utils.ColorToTuple(hovered_color))  # Hover color
+    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, Utils.ColorToTuple(active_color))
+
+    clicked = PyImGui.button(label, width, height)
+
+    PyImGui.pop_style_color(3)
+    
+    return clicked
+
+def color_toggle_button(label:str, state:bool, button_color=0, hovered_color=0, active_color=0, width=0, height=0):
+    clicked = False
+        
+    if state:
+        #clicked = PyImGui.button(IconsFontAwesome5.ICON_CHECK_CIRCLE + f"##{label}", width, height)
+        clicked = colored_button(IconsFontAwesome5.ICON_CHECK_CIRCLE + f"##{label}", active_color , active_color, active_color , width, height)
+    else:
+        #clicked = PyImGui.button(IconsFontAwesome5.ICON_CIRCLE + f"##{label}", width, height)
+        clicked = colored_button(IconsFontAwesome5.ICON_CIRCLE + f"##{label}",button_color, active_color , active_color, width, height)
+    return clicked
+
 # Function: draw_window
 # Handles UI rendering for the Hero Helper module.
 def draw_window():
@@ -1331,9 +1359,6 @@ def draw_window():
             for log in reversed(Helper.console_logs):
                 PyImGui.text(log)
             PyImGui.end_child()
-        PyImGui.separator()
-
-        PyImGui.text("Set Hero Behaviour")
         PyImGui.separator()
 
         total_width = PyImGui.get_content_region_avail()[0] - 10  
@@ -1352,12 +1377,77 @@ def draw_window():
         PyImGui.separator()
 
         available_width = PyImGui.get_content_region_avail()[0]
-        # button_width = int((available_width - 10) / 2)
         button_width = int(available_width)
 
         new_follow_state = ImGui.toggle_button("Follow", widget_config.smart_follow_toggled, button_width, 30)
+        if new_follow_state != widget_config.smart_follow_toggled:
+            label = "Hero Follow"
+            Helper.log_event(message=f"{label} Disabled" if widget_config.smart_follow_toggled else f"{label} Enabled")
         widget_config.smart_follow_toggled = new_follow_state
-        PyImGui.same_line(0.0, 10)
+        
+        if color_toggle_button("Smart BiP",widget_config.smart_bip_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
+            widget_config.smart_bip_enabled = not widget_config.smart_bip_enabled
+            label = "Smart Blood is Power"
+            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_bip_enabled else f"{label} Disabled")
+        ImGui.show_tooltip("Smart BiP") 
+        PyImGui.same_line(0,1)
+        
+        if color_toggle_button("Smart SoS",widget_config.smart_sos_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
+            widget_config.smart_sos_enabled = not widget_config.smart_sos_enabled
+            label = "Smart Signet of Spirits"
+            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_sos_enabled else f"{label} Disabled")
+        ImGui.show_tooltip("Smart SoS") 
+        PyImGui.same_line(0,1)
+        
+        if color_toggle_button("Smart ST",widget_config.smart_st_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
+            widget_config.smart_st_enabled = not widget_config.smart_st_enabled
+            label = "Smart Soul Twisting"
+            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_st_enabled else f"{label} Disabled")
+        ImGui.show_tooltip("Smart ST") 
+        PyImGui.same_line(0,1)
+        
+        if color_toggle_button("Smart SoH",widget_config.smart_honor_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
+            widget_config.smart_honor_enabled = not widget_config.smart_honor_enabled
+            label = "Smart Strength of Honor"
+            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_honor_enabled else f"{label} Disabled")
+        ImGui.show_tooltip("Smart SoH") 
+        PyImGui.same_line(0,1)
+        
+        if color_toggle_button("Smart SW",widget_config.smart_splinter_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
+            widget_config.smart_splinter_enabled = not widget_config.smart_splinter_enabled
+            label = "Smart Splinter Weapon"
+            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_splinter_enabled else f"{label} Disabled")
+        ImGui.show_tooltip("Smart SW") 
+        PyImGui.same_line(0,1)
+        
+        if color_toggle_button("Smart VS",widget_config.smart_vigorous_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
+            widget_config.smart_vigorous_enabled = not widget_config.smart_vigorous_enabled
+            label = "Smart Vigorous Spirit"
+            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_vigorous_enabled else f"{label} Disabled")
+        ImGui.show_tooltip("Smart VS") 
+        PyImGui.same_line(0,1)
+        
+        if color_toggle_button("Smart CC",widget_config.smart_con_cleanse_toggled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
+            widget_config.smart_con_cleanse_toggled = not widget_config.smart_con_cleanse_toggled
+            label = "Condition Cleanse"
+            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_con_cleanse_toggled else f"{label} Disabled")
+        ImGui.show_tooltip("Condition Cleanse") 
+        PyImGui.same_line(0,1)
+        
+        if color_toggle_button("Smart HR",widget_config.smart_hex_cleanse_toggled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
+            widget_config.smart_hex_cleanse_toggled = not widget_config.smart_hex_cleanse_toggled
+            label = "Hex Removal"
+            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_hex_cleanse_toggled else f"{label} Disabled")
+        ImGui.show_tooltip("Hex Removal") 
+        PyImGui.same_line(0,1)
+        
+        if color_toggle_button("Smart Int",widget_config.smart_interrupt_toggled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
+            widget_config.smart_interrupt_toggled = not widget_config.smart_interrupt_toggled
+            label = "Smart Interrupt"
+            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_interrupt_toggled else f"{label} Disabled")
+        ImGui.show_tooltip("Smart Interrupt") 
+        PyImGui.same_line(0,1)
+        
 
     PyImGui.end()
 
@@ -1449,7 +1539,7 @@ def configure():
                 
                 PyImGui.end_tab_item()
                 
-            if PyImGui.begin_tab_item("Smart Cleanse"):
+            if PyImGui.begin_tab_item("Condition Cleanse"):
                 if PyImGui.collapsing_header("Condition Removal", PyImGui.TreeNodeFlags.DefaultOpen):
                     PyImGui.text_wrapped("Assign Prio Cleanse Conditions to Melee, Caster, or Both\n(Leave blank to keep default priority):")
 
@@ -1530,7 +1620,9 @@ def configure():
 
                     cleanse_conditions = ImGui.toggle_button("Enable Condition Cleanse", widget_config.smart_con_cleanse_toggled, button_width, 25)
                     widget_config.smart_con_cleanse_toggled = cleanse_conditions
-                
+                PyImGui.end_tab_item()
+
+            if PyImGui.begin_tab_item("Hex Removal"):
                 if PyImGui.collapsing_header("Hex Removal", PyImGui.TreeNodeFlags.DefaultOpen):
 
                     PyImGui.text_wrapped("These hexes will be prioritized for removal.")
@@ -1625,18 +1717,8 @@ def configure():
                             formatted_hex = user_input.replace(" ", "_").lower()
                             formatted_title_hex = Helper.format_spell_title_case(user_input)
 
-                            existing_hexes_lower = [hex_name.lower() for hex_name in (
-                                widget_config.hexes_melee +
-                                widget_config.hexes_caster +
-                                widget_config.hexes_all +
-                                widget_config.hexes_paragon
-                            )]
-
                             if not formatted_hex:
                                 Helper.log_event(message="Input was empty. Skipping.")
-
-                            elif formatted_hex in existing_hexes_lower:
-                                Helper.log_event(message=f"{formatted_title_hex} already exists in a predefined hex list. Skipping addition.")
 
                             elif formatted_hex not in [hex_name.lower() for hex_name in widget_config.hexes_user]:
                                 Helper.log_event(message=f"{formatted_title_hex} is not in user list, adding now.")
@@ -1705,6 +1787,8 @@ def configure():
 
                 interrupt_enabled = ImGui.toggle_button("Enable Hero Interrupt", widget_config.smart_interrupt_toggled, button_width, 25)
                 widget_config.smart_interrupt_toggled = interrupt_enabled
+                
+                PyImGui.end_tab_item()
 
         end_pos = PyImGui.get_window_pos()
         if end_pos[0] != config_module.window_pos[0] or end_pos[1] != config_module.window_pos[1]:
