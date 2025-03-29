@@ -942,18 +942,30 @@ def ShowInventoryWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowInventoryWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+def format_binary_grouped(value: int, group_size: int = 4) -> str:
+    binary_str = bin(value)[2:]  # strip the "0b"
+    pad_len = (group_size - len(binary_str) % group_size) % group_size
+    binary_str = '0' * pad_len + binary_str
+    return ' '.join(binary_str[i:i + group_size] for i in range(0, len(binary_str), group_size))
+
+
+_item_name = "Not recieved"
 def ShowItemDataWindow(item_id):
+    global _item_name
     try: 
-        width, height = 400,700
+        width, height = 700,700
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Item: " + str(item_id)):
 
             item_type_id, item_type_name = Item.GetItemType(item_id)
             item_name = Item.GetName(item_id)
+            if item_name != _item_name and item_name != "":
+                _item_name = item_name
+
 
             headers = ["Value","Data"]
             data = [
-                ("Item Name:", item_name),
+                ("Item Name:", _item_name),
                 ("Item Type:", f"{item_type_id} - {item_type_name}"),
                 ("Model Id:", Item.GetModelID(item_id)),
                 ("Slot(pick up to see):", Item.GetSlot(item_id)),
@@ -980,7 +992,8 @@ def ShowItemDataWindow(item_id):
                 ImGui.table("Item rarity common info", headers, data)
 
             if PyImGui.collapsing_header("Properties"):
-
+                
+   
                 headers = ["Value", "Data"]
                 data = [
                     ("IsCustomized:",Item.Properties.IsCustomized(item_id)),
@@ -989,7 +1002,6 @@ def ShowItemDataWindow(item_id):
                     ("IsEquipped:",Item.Properties.IsEquipped(item_id)),
                     ("Profession:",Item.Properties.GetProfession(item_id)),
                     ("Interaction:",Item.Properties.GetInteraction(item_id)),
-                    ("Interaction(Hex):",hex(Item.Properties.GetInteraction(item_id))),
                     ("Interaction(Bin):",bin(Item.Properties.GetInteraction(item_id))),
                 ]
                 ImGui.table("Item properties common info", headers, data)
@@ -1029,6 +1041,9 @@ def ShowItemDataWindow(item_id):
 
             if PyImGui.collapsing_header("customization"):
 
+                interaction_value = Item.Properties.GetInteraction(item_id)
+                formatted_bin = format_binary_grouped(interaction_value)
+
                 headers = ["Value", "Data"]
                 data = [
                     ("IsInscription:",Item.Customization.IsInscription(item_id)),
@@ -1036,6 +1051,11 @@ def ShowItemDataWindow(item_id):
                     ("IsPrefixUpgradable:",Item.Customization.IsPrefixUpgradable(item_id)),
                     ("IsSuffixUpgradable:",Item.Customization.IsSuffixUpgradable(item_id)),
                     ("Item Formula:",Item.Customization.GetItemFormula(item_id)),
+                    ("Item Formula(Hex):",hex(Item.Customization.GetItemFormula(item_id))),
+                    ("Item Formula(Bin):",bin(Item.Customization.GetItemFormula(item_id))),
+                    ("Interaction:",Item.Properties.GetInteraction(item_id)),
+                    ("Interaction(Bin):",formatted_bin),
+                    
                     ("IsStackable:",Item.Customization.IsStackable(item_id)),
                     ("IsSparkly:",Item.Customization.IsSparkly(item_id)),
                 ]
@@ -1120,6 +1140,7 @@ def ShowItemWindow():
             PyItem_window_state.values[1]  = ImGui.toggle_button("Show Item Data",PyItem_window_state.values[1])
 
             if PyItem_window_state.values[1]:
+                Item.RequestName(PyItem_window_state.values[0])
                 ShowItemDataWindow(PyItem_window_state.values[0])
 
         PyImGui.end()

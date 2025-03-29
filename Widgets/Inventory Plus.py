@@ -12,7 +12,7 @@ class ColorizeType(Enum):
     colorize = 1
     identification = 2
     salvage = 3
-    text_filter = 4
+    vault = 4
     
 #TabType 
 class TabType(Enum):
@@ -198,6 +198,36 @@ def floating_checkbox(caption, state,x,y, color):
     PyImGui.pop_style_var(2)
     PyImGui.pop_style_color(1)
     return result
+
+@staticmethod
+def floating_button(caption, name, x,y, color):
+    width=18
+    height=18
+    # Set the position and size of the floating button
+    PyImGui.set_next_window_pos(x, y)
+    PyImGui.set_next_window_size(width, height)
+    
+
+    flags=( PyImGui.WindowFlags.NoCollapse | 
+        PyImGui.WindowFlags.NoTitleBar |
+        PyImGui.WindowFlags.NoScrollbar |
+        PyImGui.WindowFlags.NoScrollWithMouse |
+        PyImGui.WindowFlags.AlwaysAutoResize  ) 
+    
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding,-5,-3)
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+       
+    result = False
+    if PyImGui.begin(f"{caption}##invisible_buttonwindow{name}", flags):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0.2, 0.3, 0.4, 0.1))  # Normal state color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0.3, 0.4, 0.5, 0.1))  # Hovered state
+        PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0.4, 0.5, 0.6, 0.1))  # Checked state
+        PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark, (1.0, 1.0, 1.0, 1.0))  # White checkmark
+        result = PyImGui.button(caption)
+    PyImGui.end()
+    PyImGui.pop_style_var(2)
+    PyImGui.pop_style_color(1)
+    return result
 #endregion
 
 #region globals     
@@ -336,8 +366,26 @@ def SalvageItems():
                 ActionQueueManager().AddAction("SALVAGE", AutoSalvage, item_id)
                 ActionQueueManager().AddAction("SALVAGE",Inventory.AcceptSalvageMaterialsWindow)
 
+@staticmethod
+def DepositItems(item_array:list[int], log=False):
+    if len(item_array) == 0:
+        ActionQueueManager().ResetQueue("ACTION")
+        return
+    
+    total_items, total_capacity = Inventory.GetStorageSpace()
+    free_slots = total_capacity - total_items
+    
+    if free_slots <= 0:
+        return
+
+    for item_id in item_array:
+        ActionQueueManager().AddAction("ACTION",Inventory.DepositItemToStorage, item_id)
         
-            
+    while not ActionQueueManager().IsEmpty("ACTION"):
+        sleep(0.35)
+        
+    if log and len(item_array) > 0:
+        ConsoleLog("DepositItems", f"Deposited {len(item_array)} items.", Console.MessageType.Info)       
 
 #endregion
 
@@ -374,21 +422,24 @@ def DrawButtonStrip():
                 global_vars.config.selected_tab = TabType.salvage
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("Mass Salvage")
-            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_SEARCH + "##invsearchTab"):
-                global_vars.config.colorize_vars = ColorizeType.colorize
-                global_vars.config.selected_tab = TabType.search
-                PyImGui.end_tab_item()
-            ImGui.show_tooltip("Filter")
-            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_BOX_OPEN + "##XunlaiVaultTab"):
-                global_vars.config.colorize_vars = ColorizeType.colorize
-                global_vars.config.selected_tab = TabType.xunlai_vault
-                PyImGui.end_tab_item()
-            ImGui.show_tooltip("Xunlai Vault")
+            if Map.IsOutpost():
+                if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_BOX_OPEN + "##XunlaiVaultTab"):
+                    global_vars.config.colorize_vars = ColorizeType.vault
+                    global_vars.config.selected_tab = TabType.xunlai_vault
+                    PyImGui.end_tab_item()
+                ImGui.show_tooltip("Xunlai Vault")
+            """
             if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_BALANCE_SCALE + "##merchantTab"):
                 global_vars.config.colorize_vars = ColorizeType.colorize
                 global_vars.config.selected_tab = TabType.mods
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("Merchant")
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_SEARCH + "##invsearchTab"):
+                global_vars.config.colorize_vars = ColorizeType.colorize
+                global_vars.config.selected_tab = TabType.search
+                PyImGui.end_tab_item()
+            ImGui.show_tooltip("Filter")
+            """
             PyImGui.end_tab_bar()
     else:
         ImGui.PopTransparentWindow()    
@@ -632,17 +683,17 @@ def DrawSalvageBottomWindow():
                     global_vars.salvage_checkbox_states[item_id] = False
 
                 # Apply state based on selected filter
-                if global_vars.id_selected_item == 0:
+                if global_vars.salv_selected_item == 0:
                     global_vars.salvage_checkbox_states[item_id] = state
-                elif global_vars.id_selected_item == 1 and Item.Rarity.IsWhite(item_id):
+                elif global_vars.salv_selected_item == 1 and Item.Rarity.IsWhite(item_id):
                     global_vars.salvage_checkbox_states[item_id] = state
-                elif global_vars.id_selected_item == 2 and Item.Rarity.IsBlue(item_id):
+                elif global_vars.salv_selected_item == 2 and Item.Rarity.IsBlue(item_id):
                     global_vars.salvage_checkbox_states[item_id] = state
-                elif global_vars.id_selected_item == 3 and Item.Rarity.IsPurple(item_id):
+                elif global_vars.salv_selected_item == 3 and Item.Rarity.IsPurple(item_id):
                     global_vars.salvage_checkbox_states[item_id] = state
-                elif global_vars.id_selected_item == 4 and Item.Rarity.IsGold(item_id):
+                elif global_vars.salv_selected_item == 4 and Item.Rarity.IsGold(item_id):
                     global_vars.salvage_checkbox_states[item_id] = state
-                elif global_vars.id_selected_item == 5 and Item.Rarity.IsGreen(item_id):
+                elif global_vars.salv_selected_item == 5 and Item.Rarity.IsGreen(item_id):
                     global_vars.salvage_checkbox_states[item_id] = state
                     
         # Remove checkbox states that are set to False
@@ -810,6 +861,75 @@ def ColorizeVaultTabs():
                 continue
             UIManager().DrawFrame(frame_id, rarity_colors[rarity]["content"])
             UIManager().DrawFrameOutline(frame_id, rarity_colors[rarity]["frame"])
+            
+#region Storage Module
+def DrawInventoryBagsStorageMasks():    
+    def _get_parent_hash():
+        global global_vars
+        return global_vars.inventory_frame_hash
+    
+    def _get_offsets(bag_id:int, slot:int):
+        return [0,0,0,bag_id-1,slot+2]
+
+    for bag_id in range(Bags.Backpack, Bags.Bag2+1):
+        bag_to_check = ItemArray.CreateBagList(bag_id)
+        item_array = ItemArray.GetItemArray(bag_to_check)
+        
+        for item_id in item_array:
+            _,rarity = Item.Rarity.GetRarity(item_id)
+            slot = Item.GetSlot(item_id)
+
+            frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
+            is_visible = UIManager.FrameExists(frame_id)
+            if not is_visible:
+                continue
+            UIManager().DrawFrame(frame_id, rarity_colors[rarity]["content"])
+            UIManager().DrawFrameOutline(frame_id, rarity_colors[rarity]["frame"])
+            
+            left,top, right, bottom = UIManager.GetFrameCoords(frame_id)
+            if floating_button(
+                    IconsFontAwesome5.ICON_CARET_SQUARE_RIGHT,  
+                    item_id,
+                    right -20, 
+                    bottom-20,
+                    Utils.ColorToTuple(rarity_colors[rarity]["frame"])
+                ):
+                Inventory.DepositItemToStorage(item_id)
+            
+def DrawVaultStorageMasks():        
+    def _get_parent_hash():
+        global global_vars
+        return global_vars.xunlaivault_frame_hash
+    
+    def _get_offsets(bag_id:int, slot:int):        
+        return [0,bag_id-8,slot+2]
+    
+    if not Inventory.IsStorageOpen():
+        return
+
+    for bag_id in range(Bags.Storage1, Bags.Storage14+1):
+        bag_to_check = ItemArray.CreateBagList(bag_id)
+        item_array = ItemArray.GetItemArray(bag_to_check)
+        
+        for item_id in item_array:
+            _,rarity = Item.Rarity.GetRarity(item_id)
+            slot = Item.GetSlot(item_id)
+
+            frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
+            is_visible = UIManager.FrameExists(frame_id)
+            if not is_visible:
+                continue
+            UIManager().DrawFrame(frame_id, rarity_colors[rarity]["content"])
+            UIManager().DrawFrameOutline(frame_id, rarity_colors[rarity]["frame"])
+            left,top, right, bottom = UIManager.GetFrameCoords(frame_id)
+            if floating_button(
+                    IconsFontAwesome5.ICON_CARET_SQUARE_LEFT,  
+                    item_id,
+                    right -20, 
+                    bottom-20,
+                    Utils.ColorToTuple(rarity_colors[rarity]["frame"])
+                ):
+                Inventory.WithdrawItemFromStorage(item_id)
 #endregion
     
 #region Identify        
@@ -898,6 +1018,45 @@ def DrawIdentifyVaultMasks():
             
             UIManager().DrawFrame(frame_id, color_content)
             UIManager().DrawFrameOutline(frame_id, color_frame)
+            
+def DrawInventoryToStorageMasks():
+    def _can_draw_item(rarity:str):
+        global global_vars
+        if rarity == "White":
+            return global_vars.colorize_config.colorize_whites
+        elif rarity == "Blue":
+            return global_vars.colorize_config.colorize_blues
+        elif rarity == "Green":
+            return global_vars.colorize_config.colorize_greens
+        elif rarity == "Purple":
+            return global_vars.colorize_config.colorize_purples
+        elif rarity == "Gold":
+            return global_vars.colorize_config.colorize_golds
+        else:
+            return False
+    
+    def _get_parent_hash():
+        global global_vars
+        return global_vars.inventory_frame_hash
+    
+    def _get_offsets(bag_id:int, slot:int):
+        return [0,0,0,bag_id-1,slot+2]
+
+    for bag_id in range(Bags.Backpack, Bags.Bag2+1):
+        bag_to_check = ItemArray.CreateBagList(bag_id)
+        item_array = ItemArray.GetItemArray(bag_to_check)
+        
+        for item_id in item_array:
+            _,rarity = Item.Rarity.GetRarity(item_id)
+            slot = Item.GetSlot(item_id)
+            if not _can_draw_item(rarity):
+                continue
+            frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
+            is_visible = UIManager.FrameExists(frame_id)
+            if not is_visible:
+                continue
+            UIManager().DrawFrame(frame_id, rarity_colors[rarity]["content"])
+            UIManager().DrawFrameOutline(frame_id, rarity_colors[rarity]["frame"])
 #endregion
             
 #region Salgave
@@ -1035,15 +1194,21 @@ def main():
         DrawIdentifyBottomWindow()
     elif global_vars.config.selected_tab == TabType.salvage:
         DrawSalvageBottomWindow()
+    elif global_vars.config.selected_tab == TabType.xunlai_vault:
+        if Map.IsOutpost():
+            if not Inventory.IsStorageOpen():
+                Inventory.OpenXunlaiWindow()
+            else:
+                DrawInventoryBagsStorageMasks()
+                DrawVaultStorageMasks()
+        else:
+            global_vars.config.selected_tab = TabType.colorize
 
     if global_vars.config.colorize_vars == ColorizeType.identification:
         DrawIdentifyInventoryMasks()
-        DrawIdentifyVaultMasks()
-        
+            
     if global_vars.config.colorize_vars == ColorizeType.salvage:
-        DrawSalvageInventoryMasks()
-        DrawSalvageVaultMasks()
-        
+        DrawSalvageInventoryMasks()      
       
     ActionQueueManager().ProcessQueue("IDENTIFY")
     if ActionQueueManager().IsEmpty("IDENTIFY") and not global_vars.id_queue_reset_done:
