@@ -121,3 +121,16 @@ class Effects:
             if effect.skill_id == skill_id:
                 return effect.time_remaining
         return 0
+    
+    @staticmethod
+    def GetBuffID(skill_id: int) -> int:
+        """
+        Returns the buff ID for the given skill ID if the buff is currently active on the player.
+        Returns -1 if not found.
+        """
+        agent_id = Player.GetAgentID()
+        buff_list = Effects.GetBuffs(agent_id)
+        for buff in buff_list:
+            if buff.skill_id == skill_id:
+                    return buff.buff_id
+        return 0

@@ -1,33 +1,47 @@
 from Py4GWCoreLib import *
-import time
-import sys
-import os
+import json
+
+MODULE_NAME = "Character Inventory Logger"
+file_name = "inventory_data.json"
+
+class ItemDataHandler:
+    def write_item_data(self, item_data):
+        try:
+            with open("item_data.json", "w") as file:
+                json.dump(item_data, file)
+            ConsoleLog(MODULE_NAME, "Item data written successfully.",Py4GW.Console.MessageType.Info)
+        except Exception as e:
+            Py4GW.Console.Log(MODULE_NAME, f"Error writing item data: {e}", Py4GW.Console.MessageType.Error)
+            
+    def ConstructItemData(self, item_id):
+        item_data = {
+            "account_email": Player.GetAccountEmail(),
+            "character_name": Agent.GetName(Player.GetAgentID()),
+            "model_id": Item.GetModelID(item_id),
+            "item_name": Item.GetName(item_id),
+            "quantity": Item.Properties.GetQuantity(item_id)
+            
+        }
+        return item_data
 
 
-
-MODULE_NAME = "tester for everything"
-
-item_id = 0
-item_name = ""
-
+# ========== GUI ==========
 
 def DrawWindow():
-    """ImGui draw function that runs every frame."""
-    global item_id
-    global item_name
     try:
-        if PyImGui.begin("tester"):
-                account_name = Player.GetAccountName()
-
-                PyImGui.text(f"account_name: {account_name}")
+        if PyImGui.begin(MODULE_NAME):
+            if PyImGui.button("Set Character Data"):
+                pass
 
         PyImGui.end()
 
     except Exception as e:
-        Py4GW.Console.Log("tester", f"Unexpected Error: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Window error: {e}", Py4GW.Console.MessageType.Error)
+
+
+# ========== Main Loop ==========
 
 def main():
-    """Runs every frame."""
     DrawWindow()
 
 if __name__ == "__main__":
