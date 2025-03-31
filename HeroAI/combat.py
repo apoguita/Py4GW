@@ -367,6 +367,8 @@ class CombatClass:
                 v_target = TargetLowestAlly(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
         elif target_allegiance == Skilltarget.Self.value:
             v_target = Player.GetAgentID()
+        elif target_allegiance == Skilltarget.Pet.value:
+            v_target = Party.Pets.GetPetID(Player.GetAgentID())
         elif target_allegiance == Skilltarget.DeadAlly.value:
             v_target = TargetDeadAllyInAggro()
         elif target_allegiance == Skilltarget.Spirit.value:
@@ -683,6 +685,31 @@ class CombatClass:
             if Player.GetAgentID() == vTarget:
                 if Agent.GetOvercast(vTarget) < Conditions.Overcast:
                     number_of_features += 1
+                    
+        if self.skills[slot].custom_skill_data.SkillType == SkillType.PetAttack.value:
+            pet_id = Party.Pets.GetPetID(Player.GetAgentID())
+            
+            pet_attack_list = [Skill.GetID("Bestial_Mauling"),
+                               Skill.GetID("Bestial_Pounce"),
+                               Skill.GetID("Brutal_Strike"),
+                               Skill.GetID("Disrupting_Lunge"),
+                               Skill.GetID("Enraged_Lunge"),
+                               Skill.GetID("Feral_Lunge"),
+                               Skill.GetID("Ferocious_Strike"),
+                               Skill.GetID("Maiming_Strike"),
+                               Skill.GetID("Melandrus_Assault"),
+                               Skill.GetID("Poisonous_Bite"),
+                               Skill.GetID("Pounce"),
+                               Skill.GetID("Predators_Pounce"),
+                               Skill.GetID("Savage_Pounce"),
+                               Skill.GetID("Scavenger_Strike")
+                               ]
+            
+            for skill_id in pet_attack_list:
+                if self.skills[slot].skill_id == skill_id:
+                    if self.HasEffect(pet_id,self.skills[slot].skill_id ):
+                        return False
+            
 
         #Py4GW.Console.Log("AreCastConditionsMet", f"feature count: {feature_count}, No of features {number_of_features}", Py4GW.Console.MessageType.Info)
         

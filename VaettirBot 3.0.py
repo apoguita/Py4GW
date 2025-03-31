@@ -149,7 +149,7 @@ bot_variables.config.window_module = ImGui.WindowModule(MODULE_NAME, window_name
 #endregion
 
 # Instantiate MultiThreading manager
-thread_manager = MultiThreading()
+thread_manager = MultiThreading(3)
 
 #region helpers
 
@@ -1014,7 +1014,7 @@ def DrawWindow():
                     if bot_variables.config.is_script_running:
                         thread_manager.stop_all_threads()
                         thread_manager.add_thread(MAIN_THREAD_NAME, RunBotSequentialLogic)
-                        thread_manager.add_thread("SkillHandler", SkillHandler)
+                        #thread_manager.add_thread("SkillHandler", SkillHandler)
                         thread_manager.start_watchdog(MAIN_THREAD_NAME)
                     else:
                         reset_environment()
