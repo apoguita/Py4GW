@@ -829,7 +829,19 @@ class ActionQueueNode:
     
     def GetNextActionName(self):
         return self.action_queue.get_next_action_name()
-            
+
+
+class QueueTypes(Enum):
+    Action = "ACTION"
+    Loot = "LOOT"
+    Merchant = "MERCHANT"
+    Salvage = "SALVAGE"
+    Identify = "IDENTIFY"
+
+    def list(self):
+        return list(map(lambda c: c.value, self))
+
+
 class ActionQueueManager:
     _instance = None  # Singleton instance
 
