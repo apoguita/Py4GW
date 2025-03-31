@@ -25,7 +25,7 @@ def UpdateGameOptions(cache_data:CacheData):
                 cache_data.HeroAI_vars.all_game_option_struct[index].Following = game_option["Following"]
                 cache_data.HeroAI_vars.all_game_option_struct[index].Avoidance = game_option["Avoidance"]
                 cache_data.HeroAI_vars.all_game_option_struct[index].Looting = game_option["Looting"]
-                cache_data.HeroAI_vars.all_game_option_struct[index].Targetting = game_option["Targetting"]
+                cache_data.HeroAI_vars.all_game_option_struct[index].Targeting = game_option["Targeting"]
                 cache_data.HeroAI_vars.all_game_option_struct[index].Combat = game_option["Combat"]
                 cache_data.HeroAI_vars.all_game_option_struct[index].WindowVisible = game_option["WindowVisible"]
 
@@ -39,7 +39,7 @@ def UpdateGameOptions(cache_data:CacheData):
             cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Following = game_option["Following"]
             cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Avoidance = game_option["Avoidance"]
             cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Looting = game_option["Looting"]
-            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Targetting = game_option["Targetting"]
+            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Targeting = game_option["Targeting"]
             cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Combat = game_option["Combat"]
             cache_data.HeroAI_vars.all_game_option_struct[own_party_number].WindowVisible = game_option["WindowVisible"]
             for skill_index in range(NUMBER_OF_SKILLS):

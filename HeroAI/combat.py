@@ -1,7 +1,7 @@
 from Py4GWCoreLib import *
 from .custom_skill import *
 from .types import *
-from .targetting import *
+from .targeting import *
 from typing import Optional
 
 
@@ -72,7 +72,7 @@ class CombatClass:
             self.custom_skill_data = custom_skill_data_handler.get_skill(self.skill_id)  # Retrieve custom skill data
 
     def __init__(self):
-        from .globals import HeroAI_varsClass
+        import HeroAI.shared_memory_manager as shared_memory_manager
         """
         Initializes the CombatClass with an empty skill set and order.
         """
@@ -85,10 +85,10 @@ class CombatClass:
         self.aftercast_timer.Start()
         self.ping_handler = Py4GW.PingHandler()
         self.oldCalledTarget = 0
-        self.shared_memory_handler = HeroAI_varsClass().shared_memory_handler
+        self.shared_memory_handler = shared_memory_manager.SharedMemoryManager()
         
         self.in_aggro = False
-        self.is_targetting_enabled = False
+        self.is_targeting_enabled = False
         self.is_combat_enabled = False
         self.is_skill_enabled = []
         
@@ -146,7 +146,7 @@ class CombatClass:
         
     def Update(self, cached_data):
         self.in_aggro = cached_data.in_aggro
-        self.is_targetting_enabled = cached_data.is_targetting_enabled
+        self.is_targeting_enabled = cached_data.is_targeting_enabled
         self.is_combat_enabled = cached_data.is_combat_enabled
         self.is_skill_enabled = cached_data.is_skill_enabled
         
@@ -300,7 +300,7 @@ class CombatClass:
 
     def GetPartyTarget(self):
         party_target = self.GetPartyTargetID()
-        if self.is_targetting_enabled and party_target != 0:
+        if self.is_targeting_enabled and party_target != 0:
             current_target = Player.GetTargetID()
             if current_target != party_target:
                 if Agent.IsLiving(party_target):
@@ -316,7 +316,7 @@ class CombatClass:
     def GetAppropiateTarget(self, slot):
         v_target = 0
 
-        if not self.is_targetting_enabled:
+        if not self.is_targeting_enabled:
             return Player.GetTargetID()
 
         targeting_strict = self.skills[slot].custom_skill_data.Conditions.TargetingStrict
@@ -839,7 +839,7 @@ class CombatClass:
         return False
 
     def ChooseTarget(self, interact=True):       
-        if not self.is_targetting_enabled:
+        if not self.is_targeting_enabled:
             return False
 
         if not self.in_aggro:

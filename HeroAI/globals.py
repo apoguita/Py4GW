@@ -16,7 +16,6 @@ from .shared_memory_manager import SharedMemoryManager
 
 class HeroAI_varsClass:
     global MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
-    from .shared_memory_manager import SharedMemoryManager
     def __init__(self):
         self.shared_memory_handler = SharedMemoryManager()
         self.all_candidate_struct = [CandidateStruct() for _ in range(MAX_NUM_PLAYERS)]
@@ -29,7 +28,7 @@ class HeroAI_varsClass:
         self.global_control_game_struct.Following = True
         self.global_control_game_struct.Avoidance = True
         self.global_control_game_struct.Looting = True
-        self.global_control_game_struct.Targetting = True
+        self.global_control_game_struct.Targeting = True
         self.global_control_game_struct.Combat = True
         self.global_control_game_struct.WindowVisible = True
         

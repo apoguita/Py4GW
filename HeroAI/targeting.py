@@ -89,8 +89,8 @@ def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0):
     global BLOOD_IS_POWER, BLOOD_RITUAL
     from .utils import (CheckForEffect)
     def GetEnergyValues(agent_id):
-        from .globals import HeroAI_varsClass
-        shared_memory_handler = HeroAI_varsClass().shared_memory_handler
+        import HeroAI.shared_memory_manager as shared_memory_manager
+        shared_memory_handler = shared_memory_manager.SharedMemoryManager()
 
         for i in range(MAX_NUM_PLAYERS):
             player_data = shared_memory_handler.get_player(i)

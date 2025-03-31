@@ -5,7 +5,7 @@ from .types import *
 from .globals import *
 from .utils import *
 from .candidates import SendPartyCommand
-from .targetting import *
+from .targeting import *
 from HeroAI import game_option
 from .cache_data import CacheData
 
@@ -452,14 +452,14 @@ def DrawGameOptionsDebug(cached_data:CacheData):
     data = []
     PyImGui.text("Remote Control Variables")
     PyImGui.text(f"own_party_number: {cached_data.data.own_party_number}")
-    headers = ["Control", "Following", "Avoidance", "Looting", "Targetting", "Combat"]
+    headers = ["Control", "Following", "Avoidance", "Looting", "Targeting", "Combat"]
     headers += [f"Skill {j + 1}" for j in range(NUMBER_OF_SKILLS)]
     row = [
         "Remote",  
         cached_data.HeroAI_vars.global_control_game_struct.Following,
         cached_data.HeroAI_vars.global_control_game_struct.Avoidance,
         cached_data.HeroAI_vars.global_control_game_struct.Looting,
-        cached_data.HeroAI_vars.global_control_game_struct.Targetting,
+        cached_data.HeroAI_vars.global_control_game_struct.Targeting,
         cached_data.HeroAI_vars.global_control_game_struct.Combat,
         cached_data.HeroAI_vars.global_control_game_struct.WindowVisible
     ]
@@ -470,7 +470,7 @@ def DrawGameOptionsDebug(cached_data:CacheData):
     data.append(tuple(row))
     ImGui.table("Control Debug Table", headers, data)
 
-    headers = ["Slot", "Following", "Avoidance", "Looting", "Targetting", "Combat", "WindowVisible"]
+    headers = ["Slot", "Following", "Avoidance", "Looting", "Targeting", "Combat", "WindowVisible"]
     headers += [f"Skill {j + 1}" for j in range(NUMBER_OF_SKILLS)] 
 
     data = []
@@ -480,7 +480,7 @@ def DrawGameOptionsDebug(cached_data:CacheData):
             cached_data.HeroAI_vars.all_game_option_struct[i].Following,
             cached_data.HeroAI_vars.all_game_option_struct[i].Avoidance,
             cached_data.HeroAI_vars.all_game_option_struct[i].Looting,
-            cached_data.HeroAI_vars.all_game_option_struct[i].Targetting,
+            cached_data.HeroAI_vars.all_game_option_struct[i].Targeting,
             cached_data.HeroAI_vars.all_game_option_struct[i].Combat,
             cached_data.HeroAI_vars.all_game_option_struct[i].WindowVisible
         ]
@@ -585,7 +585,9 @@ def DrawFollowDebug(cached_data:CacheData):
     
     Overlay().EndDraw()
     
-
+def DrawOptions(cached_data:CacheData):
+    cached_data.ui_state_data.show_classic_controls = PyImGui.checkbox("Show Classic Controls", cached_data.ui_state_data.show_classic_controls)
+    #TODO Select combat engine options
 
 
 def DrawDebugWindow(cached_data:CacheData):
@@ -652,10 +654,10 @@ def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionSt
         for i in range(MAX_NUM_PLAYERS):
             cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Looting", game_option.Looting)
 
-    if game_option.Targetting != cached_data.HeroAI_vars.global_control_game_struct.Targetting:
-        cached_data.HeroAI_vars.global_control_game_struct.Targetting = game_option.Targetting
+    if game_option.Targeting != cached_data.HeroAI_vars.global_control_game_struct.Targeting:
+        cached_data.HeroAI_vars.global_control_game_struct.Targeting = game_option.Targeting
         for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Targetting", game_option.Targetting)
+            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Targeting", game_option.Targeting)
 
     if game_option.Combat != cached_data.HeroAI_vars.global_control_game_struct.Combat:
         cached_data.HeroAI_vars.global_control_game_struct.Combat = game_option.Combat
@@ -683,8 +685,8 @@ def SubmitGameOptions(cached_data:CacheData,index,game_option,original_game_opti
     if game_option.Looting != original_game_option.Looting:
         cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Looting", game_option.Looting)
 
-    if game_option.Targetting != original_game_option.Targetting:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targetting", game_option.Targetting)
+    if game_option.Targeting != original_game_option.Targeting:
+        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targeting", game_option.Targeting)
 
     if game_option.Combat != original_game_option.Combat:
         cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Combat", game_option.Combat)
@@ -708,8 +710,8 @@ def DrawPanelButtons(source_game_option):
         game_option.Looting = ImGui.toggle_button(IconsFontAwesome5.ICON_COINS + "##Looting", source_game_option.Looting,40,40)
         ImGui.show_tooltip("Looting")
         PyImGui.table_next_column()
-        game_option.Targetting = ImGui.toggle_button(IconsFontAwesome5.ICON_BULLSEYE + "##Targetting", source_game_option.Targetting,40,40)
-        ImGui.show_tooltip("Targetting")
+        game_option.Targeting = ImGui.toggle_button(IconsFontAwesome5.ICON_BULLSEYE + "##Targeting", source_game_option.Targeting,40,40)
+        ImGui.show_tooltip("Targeting")
         PyImGui.table_next_column()
         game_option.Combat = ImGui.toggle_button(IconsFontAwesome5.ICON_SKULL_CROSSBONES + "##Combat", source_game_option.Combat,40,40)
         ImGui.show_tooltip("Combat")
