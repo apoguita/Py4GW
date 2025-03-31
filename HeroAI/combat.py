@@ -344,6 +344,8 @@ class CombatClass:
                 v_target = TargetNearestEnemy(self.get_combat_distance())
         elif target_allegiance == Skilltarget.Ally.value:
             v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
+            if v_target == 0 and not targeting_strict:
+                v_target = Party.Pets.GetPetID(Player.GetAgentID())
         elif target_allegiance == Skilltarget.AllyCaster.value:
             v_target = TargetLowestAllyCaster(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
@@ -352,10 +354,14 @@ class CombatClass:
             v_target = TargetLowestAllyMartial(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
                 v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
+                if v_target == 0:
+                    v_target = Party.Pets.GetPetID(Player.GetAgentID())
         elif target_allegiance == Skilltarget.AllyMartialMelee.value:
             v_target = TargetLowestAllyMelee(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
                 v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
+                if v_target == 0:
+                    v_target = Party.Pets.GetPetID(Player.GetAgentID())
         elif target_allegiance == Skilltarget.AllyMartialRanged.value:
             v_target = TargetLowestAllyRanged(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
@@ -365,6 +371,8 @@ class CombatClass:
                 v_target = TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
             else:
                 v_target = TargetLowestAlly(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
+                if v_target == 0:
+                    v_target = Party.Pets.GetPetID(Player.GetAgentID())
         elif target_allegiance == Skilltarget.Self.value:
             v_target = Player.GetAgentID()
         elif target_allegiance == Skilltarget.Pet.value:
