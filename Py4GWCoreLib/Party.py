@@ -616,3 +616,14 @@ class Party:
             Returns: tuple
             """
             return Party.party_instance().GetPetInfo(owner_id)
+
+        @staticmethod
+        def GetPetID(owner_id):
+            """
+            Get the pet ID.
+            Args:
+                owner_id (int): The owner ID.
+            Returns: int
+            """
+            pet_info =  Party.party_instance().GetPetInfo(owner_id)
+            return pet_info.agent_id
