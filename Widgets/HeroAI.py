@@ -9,7 +9,7 @@ from HeroAI.candidates import *
 from HeroAI.players import *
 from HeroAI.game_option import *
 from HeroAI.windows import *
-from HeroAI.targetting import *
+from HeroAI.targeting import *
 from HeroAI.combat import *
 from HeroAI.cache_data import *
 
@@ -163,7 +163,7 @@ def Follow(cached_data:CacheData):
     
 
 
-def draw_targetting_floating_buttons(cached_data:CacheData):
+def draw_Targeting_floating_buttons(cached_data:CacheData):
     if not Map.IsExplorable():
         return
     enemies = AgentArray.GetEnemyArray()
@@ -190,12 +190,10 @@ class TabType(Enum):
     config = 5
     debug = 6 
     
-selected_tab:TabType = TabType.party  
-show_classic_controls = False
+selected_tab:TabType = TabType.party
 
 def DrawFramedContent(cached_data:CacheData,content_frame_id):
     global selected_tab
-    global show_classic_controls
     
     if selected_tab == TabType.party:
         return
@@ -215,35 +213,35 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
     PyImGui.set_next_window_size(width, height)
     
     if PyImGui.begin("##heroai_framed_content",True, flags):
-        if selected_tab == TabType.control_panel:
-            own_party_number = cached_data.data.own_party_number
-            if own_party_number == 0:
-                #leader control panel
-                game_option = DrawPanelButtons(cached_data.HeroAI_vars.global_control_game_struct) 
-                CompareAndSubmitGameOptions(cached_data,game_option)
-                
-                if PyImGui.collapsing_header("Player Control"):
-                    for index in range(MAX_NUM_PLAYERS):
-                        if cached_data.HeroAI_vars.all_player_struct[index].IsActive and not cached_data.HeroAI_vars.all_player_struct[index].IsHero:
-                            original_game_option = cached_data.HeroAI_vars.all_game_option_struct[index]
-                            login_number = Party.Players.GetLoginNumberByAgentID(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
-                            player_name = Party.Players.GetPlayerNameByLoginNumber(login_number)
-                            if PyImGui.tree_node(f"{player_name}##ControlPlayer{index}"):
-                                game_option = DrawPanelButtons(original_game_option)
-                                SubmitGameOptions(cached_data, index, game_option, original_game_option)
-                                PyImGui.tree_pop()
-            else:
-                #follower control panel
-                original_game_option = cached_data.HeroAI_vars.all_game_option_struct[own_party_number]
-                game_option = DrawPanelButtons(original_game_option) 
-                SubmitGameOptions(cached_data,own_party_number,game_option,original_game_option)
-                
-        elif selected_tab == TabType.candidates:
-            DrawCandidateWindow(cached_data)
-        elif selected_tab == TabType.flagging:
-            DrawFlaggingWindow(cached_data)
-        elif selected_tab == TabType.config:
-            show_classic_controls = PyImGui.checkbox("Show Classic Controls",show_classic_controls)
+        match selected_tab:
+            case TabType.control_panel:
+                own_party_number = cached_data.data.own_party_number
+                if own_party_number == 0:
+                    #leader control panel
+                    game_option = DrawPanelButtons(cached_data.HeroAI_vars.global_control_game_struct)
+                    CompareAndSubmitGameOptions(cached_data,game_option)
+
+                    if PyImGui.collapsing_header("Player Control"):
+                        for index in range(MAX_NUM_PLAYERS):
+                            if cached_data.HeroAI_vars.all_player_struct[index].IsActive and not cached_data.HeroAI_vars.all_player_struct[index].IsHero:
+                                original_game_option = cached_data.HeroAI_vars.all_game_option_struct[index]
+                                login_number = Party.Players.GetLoginNumberByAgentID(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
+                                player_name = Party.Players.GetPlayerNameByLoginNumber(login_number)
+                                if PyImGui.tree_node(f"{player_name}##ControlPlayer{index}"):
+                                    game_option = DrawPanelButtons(original_game_option)
+                                    SubmitGameOptions(cached_data, index, game_option, original_game_option)
+                                    PyImGui.tree_pop()
+                else:
+                    #follower control panel
+                    original_game_option = cached_data.HeroAI_vars.all_game_option_struct[own_party_number]
+                    game_option = DrawPanelButtons(original_game_option)
+                    SubmitGameOptions(cached_data,own_party_number,game_option,original_game_option)
+            case TabType.candidates:
+                DrawCandidateWindow(cached_data)
+            case TabType.flagging:
+                DrawFlaggingWindow(cached_data)
+            case TabType.config:
+                DrawOptions(cached_data)
 
         
     PyImGui.end()
@@ -251,7 +249,7 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
     
        
 def DrawEmbeddedWindow(cached_data:CacheData):
-    global selected_tab, show_classic_controls
+    global selected_tab
     parent_frame_id = UIManager.GetFrameIDByHash(PARTY_WINDOW_HASH)   
     outpost_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
     explorable_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS)
@@ -319,7 +317,7 @@ def UpdateStatus(cached_data:CacheData):
     cached_data.UpdateGameOptions()
 
     DrawEmbeddedWindow(cached_data)
-    if show_classic_controls:
+    if cached_data.ui_state_data.show_classic_controls:
         DrawMainWindow(cached_data)   
         DrawControlPanelWindow(cached_data)
         DrawMultiboxTools(cached_data)
@@ -332,7 +330,7 @@ def UpdateStatus(cached_data:CacheData):
 
     DrawFlags(cached_data)
     
-    draw_targetting_floating_buttons(cached_data)
+    draw_Targeting_floating_buttons(cached_data)
     
     if (
         not cached_data.data.player_is_alive or

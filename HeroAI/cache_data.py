@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 from .constants import *
 from .globals import *
-from .targetting import *
+from .targeting import *
 from .combat import *
 from .custom_skill import CustomSkillClass
 
@@ -74,7 +74,7 @@ class GameData:
         self.is_following_enabled = True
         self.is_avoidance_enabled = True
         self.is_looting_enabled = True
-        self.is_targetting_enabled = True
+        self.is_targeting_enabled = True
         self.is_combat_enabled = True
         self.is_skill_enabled = [True for _ in range(NUMBER_OF_SKILLS)]
         
@@ -133,6 +133,10 @@ class GameData:
         self.target_id = Player.GetTargetID()
         
     
+@dataclass
+class UIStateData:
+    def __init__(self):
+        self.show_classic_controls = False
 
 class CacheData:
     _instance = None  # Singleton instance
@@ -161,6 +165,7 @@ class CacheData:
             self.auto_attack_time = 750
             self.draw_floating_loot_buttons = False
             self.reset()
+            self.ui_state_data = UIStateData()
             
             self._initialized = True 
         
@@ -182,7 +187,7 @@ class CacheData:
         self.data.is_following_enabled = self.HeroAI_vars.all_game_option_struct[self.data.own_party_number].Following
         self.data.is_avoidance_enabled = self.HeroAI_vars.all_game_option_struct[self.data.own_party_number].Avoidance
         self.data.is_looting_enabled = self.HeroAI_vars.all_game_option_struct[self.data.own_party_number].Looting
-        self.data.is_targetting_enabled = self.HeroAI_vars.all_game_option_struct[self.data.own_party_number].Targetting
+        self.data.is_targeting_enabled = self.HeroAI_vars.all_game_option_struct[self.data.own_party_number].Targeting
         self.data.is_combat_enabled = self.HeroAI_vars.all_game_option_struct[self.data.own_party_number].Combat
         for i in range(NUMBER_OF_SKILLS):
             self.data.is_skill_enabled[i] = self.HeroAI_vars.all_game_option_struct[self.data.own_party_number].Skills[i].Active
