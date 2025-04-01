@@ -577,7 +577,7 @@ def FormatTime(time_ms, mask="hh:mm:ss:ms"):
 
         return formatted_time
 #endregion
-#region TimerTrottle
+#region ThrottledTimer
 
 class ThrottledTimer:
     def __init__(self, throttle_time=1000):
@@ -591,6 +591,8 @@ class ThrottledTimer:
     def Reset(self):
         self.timer.Reset()
     
+    def SetThrottleTime(self, throttle_time):
+        self.throttle_time = throttle_time
 
 #endregion
 #region KeyHandler

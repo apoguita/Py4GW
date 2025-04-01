@@ -39,6 +39,7 @@ class Routines:
                 if len(enemy_array) > 0:
                     return True
                 return False
+            
     
             @staticmethod
             def IsEnemyBehind (agent_id):
