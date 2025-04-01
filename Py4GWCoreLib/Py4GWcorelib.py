@@ -577,6 +577,22 @@ def FormatTime(time_ms, mask="hh:mm:ss:ms"):
 
         return formatted_time
 #endregion
+#region TimerTrottle
+
+class ThrottledTimer:
+    def __init__(self, throttle_time=1000):
+        self.throttle_time = throttle_time
+        self.timer = Timer()
+        self.timer.Start()
+        
+    def IsExpired(self):
+        return self.timer.HasElapsed(self.throttle_time)
+    
+    def Reset(self):
+        self.timer.Reset()
+    
+
+#endregion
 #region KeyHandler
 class Key(Enum):
     # Letters
@@ -1708,3 +1724,4 @@ class LootConfig:
         loot_array = AgentArray.Sort.ByDistance(loot_array, Player.GetXY())
         return loot_array
 #endregion
+
