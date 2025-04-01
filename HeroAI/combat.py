@@ -92,13 +92,13 @@ class CombatClass:
         self.is_combat_enabled = False
         self.is_skill_enabled = []
         
-        self.nearest_enemy = TargetNearestEnemy()
+        self.nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         self.lowest_ally = TargetLowestAlly()
         self.lowest_ally_energy = TargetLowestAllyEnergy()
-        self.nearest_npc = TargetNearestNpc()
-        self.nearest_spirit = TargetNearestSpirit()
-        self.lowest_minion = TargetLowestMinion()
-        self.nearest_corpse = TargetNearestCorpse()
+        self.nearest_npc = Routines.Agents.GetNearestNPC(Range.Spellcast.value)
+        self.nearest_spirit = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
+        self.lowest_minion = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
+        self.nearest_corpse = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
         
         self.energy_drain = Skill.GetID("Energy_Drain") 
         self.energy_tap = Skill.GetID("Energy_Tap")
@@ -321,74 +321,69 @@ class CombatClass:
 
         targeting_strict = self.skills[slot].custom_skill_data.Conditions.TargetingStrict
         target_allegiance = self.skills[slot].custom_skill_data.TargetAllegiance
+        
+        nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+        lowest_ally = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
 
-        if target_allegiance == Skilltarget.Enemy.value:
+        if target_allegiance == Skilltarget.Enemy:
             v_target = self.GetPartyTarget()
             if v_target == 0:
-                v_target = TargetNearestEnemy(self.get_combat_distance())
-        elif target_allegiance == Skilltarget.EnemyCaster.value:
-            v_target = TargetNearestEnemyCaster(self.get_combat_distance())
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyCaster:
+            v_target = Routines.Agents.GetNearestEnemyCaster(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = TargetNearestEnemy(self.get_combat_distance())
-        elif target_allegiance == Skilltarget.EnemyMartial.value:
-            v_target = TargetNearestEnemyMartial(self.get_combat_distance())
+                v_target =nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyMartial:
+            v_target = Routines.Agents.GetNearestEnemyMartial(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = TargetNearestEnemy(self.get_combat_distance())
-        elif target_allegiance == Skilltarget.EnemyMartialMelee.value:
-            v_target = TargetNearestEnemyMelee(self.get_combat_distance())
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyMartialMelee:
+            v_target = Routines.Agents.GetNearestEnemyMelee(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = TargetNearestEnemy(self.get_combat_distance())
-        elif target_allegiance == Skilltarget.AllyMartialRanged.value:
-            v_target = TargetNearestEnemyRanged(self.get_combat_distance())
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.AllyMartialRanged:
+            v_target = Routines.Agents.GetNearestEnemyRanged(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = TargetNearestEnemy(self.get_combat_distance())
-        elif target_allegiance == Skilltarget.Ally.value:
-            v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-            if v_target == 0 and not targeting_strict:
-                v_target = Party.Pets.GetPetID(Player.GetAgentID())
-        elif target_allegiance == Skilltarget.AllyCaster.value:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.Ally:
+            v_target = lowest_ally
+        elif target_allegiance == Skilltarget.AllyCaster:
             v_target = TargetLowestAllyCaster(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
-                v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-        elif target_allegiance == Skilltarget.AllyMartial.value:
+                v_target = lowest_ally
+        elif target_allegiance == Skilltarget.AllyMartial:
             v_target = TargetLowestAllyMartial(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
-                v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-                if v_target == 0:
-                    v_target = Party.Pets.GetPetID(Player.GetAgentID())
-        elif target_allegiance == Skilltarget.AllyMartialMelee.value:
+                v_target = lowest_ally
+        elif target_allegiance == Skilltarget.AllyMartialMelee:
             v_target = TargetLowestAllyMelee(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
-                v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-                if v_target == 0:
-                    v_target = Party.Pets.GetPetID(Player.GetAgentID())
-        elif target_allegiance == Skilltarget.AllyMartialRanged.value:
+                v_target = lowest_ally
+        elif target_allegiance == Skilltarget.AllyMartialRanged:
             v_target = TargetLowestAllyRanged(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
-                v_target = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-        elif target_allegiance == Skilltarget.OtherAlly.value:
-            if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff.value:
+                v_target = lowest_ally
+        elif target_allegiance == Skilltarget.OtherAlly:
+            if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff:
                 v_target = TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
             else:
                 v_target = TargetLowestAlly(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
-                if v_target == 0:
-                    v_target = Party.Pets.GetPetID(Player.GetAgentID())
-        elif target_allegiance == Skilltarget.Self.value:
+        elif target_allegiance == Skilltarget.Self:
             v_target = Player.GetAgentID()
-        elif target_allegiance == Skilltarget.Pet.value:
+        elif target_allegiance == Skilltarget.Pet:
             v_target = Party.Pets.GetPetID(Player.GetAgentID())
-        elif target_allegiance == Skilltarget.DeadAlly.value:
-            v_target = TargetDeadAllyInAggro()
-        elif target_allegiance == Skilltarget.Spirit.value:
-            v_target = TargetNearestSpirit()
-        elif target_allegiance == Skilltarget.Minion.value:
-            v_target = TargetLowestMinion()
-        elif target_allegiance == Skilltarget.Corpse.value:
-            v_target = TargetNearestCorpse()
+        elif target_allegiance == Skilltarget.DeadAlly:
+            v_target = Routines.Agents.GetDeadAlly(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.Spirit:
+            v_target = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.Minion:
+            v_target = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.Corpse:
+            v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
         else:
             v_target = self.GetPartyTarget()
             if v_target == 0:
-                v_target = TargetNearestEnemy()
+                v_target = nearest_enemy
         return v_target
 
     def IsPartyMember(self, agent_id):
@@ -404,20 +399,16 @@ class CombatClass:
         if self.IsPartyMember(agent_id):
             player_buffs = self.shared_memory_handler.get_agent_buffs(agent_id)
             for buff in player_buffs:
-                #Py4GW.Console.Log("HasEffect-player_buff", f"IsPartyMember: {self.IsPartyMember(agent_id)} agent ID: {agent_id}, effect {skill_id} buff {buff}", Py4GW.Console.MessageType.Info)
                 if buff == skill_id:
                     result = True
         else:
             result = Effects.BuffExists(agent_id, skill_id) or Effects.EffectExists(agent_id, skill_id)
 
-        #Py4GW.Console.Log("HasEffect", f"IsPartyMember: {self.IsPartyMember(agent_id)} agent ID: {agent_id}, effect {skill_id} result {result}", Py4GW.Console.MessageType.Info)
-       
         if not result and not exact_weapon_spell:
            skilltype, _ = Skill.GetType(skill_id)
            if skilltype == SkillType.WeaponSpell.value:
                result = Agent.IsWeaponSpelled(agent_id)
 
-         
         return result
 
 
@@ -442,7 +433,7 @@ class CombatClass:
         
             if (self.skills[slot].skill_id == self.essence_strike):
                 energy = self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
-                return energy and (TargetNearestSpirit() != 0)
+                return energy and (Routines.Agents.GetNearestSpirit(Range.Spellcast.value) != 0)
 
             if (self.skills[slot].skill_id == self.glowing_signet):
                 energy= self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
@@ -511,7 +502,7 @@ class CombatClass:
                 self.skills[slot].skill_id == self.spirit_burn or
                 self.skills[slot].skill_id == self.signet_of_ghostly_might
                 ):
-                return True if TargetNearestSpirit() != 0 else False
+                return True if Routines.Agents.GetNearestSpirit(Range.Spellcast.value) != 0 else False
 
             return True  # if no unique property is configured, return True for all UniqueProperty
 
@@ -850,7 +841,7 @@ class CombatClass:
         
         if Player.GetTargetID() == 0 or (target_aliegance != 'Enemy'):
                             
-            nearest = TargetNearestEnemy()
+            nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
             called_target = self.GetPartyTarget()
 
             attack_target = 0
