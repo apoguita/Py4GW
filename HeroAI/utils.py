@@ -1,6 +1,6 @@
 from Py4GWCoreLib import *
 from .constants import MAX_NUM_PLAYERS
-from .targetting import *
+from .targeting import *
 from .cache_data import CacheData
 
 import math
@@ -16,8 +16,8 @@ def DistanceFromWaypoint(posX,posY):
 
 def CheckForEffect(agent_id, skill_id):
     """this function needs to be expanded as more functionality is added"""
-    from .globals import HeroAI_varsClass  
-    shared_memory_handler = HeroAI_varsClass().shared_memory_handler
+    import HeroAI.shared_memory_manager as shared_memory_manager
+    shared_memory_handler = shared_memory_manager.SharedMemoryManager()
     def IsPartyMember(agent_id):
 
         for i in range(MAX_NUM_PLAYERS):

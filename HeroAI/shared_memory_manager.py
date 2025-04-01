@@ -262,7 +262,7 @@ class SharedMemoryManager:
         game_option.Following = True
         game_option.Avoidance = True
         game_option.Looting = True
-        game_option.Targetting = True
+        game_option.Targeting = True
         game_option.Combat = True
         game_option.WindowVisible = True
 
@@ -280,7 +280,7 @@ class SharedMemoryManager:
             game_option.Following = game_option_data.Following
             game_option.Avoidance = game_option_data.Avoidance
             game_option.Looting = game_option_data.Looting
-            game_option.Targetting = game_option_data.Targetting
+            game_option.Targeting = game_option_data.Targeting
             game_option.Combat = game_option_data.Combat
             game_option.WindowVisible = game_option_data.WindowVisible
 
@@ -304,7 +304,7 @@ class SharedMemoryManager:
                 "Following": game_option.Following,
                 "Avoidance": game_option.Avoidance,
                 "Looting": game_option.Looting,
-                "Targetting": game_option.Targetting,
+                "Targeting": game_option.Targeting,
                 "Combat": game_option.Combat,
                 "WindowVisible": game_option.WindowVisible,
                 "Skills": [skill.Active for skill in game_option.Skills],

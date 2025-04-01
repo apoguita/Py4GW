@@ -53,7 +53,7 @@ class GameOptionStruct(Structure):
         ("Following", c_bool),
         ("Avoidance", c_bool), 
         ("Looting", c_bool), 
-        ("Targetting", c_bool),
+        ("Targeting", c_bool),
         ("Combat", c_bool),
         ("Skills", MemSkill * NUMBER_OF_SKILLS),
         ("WindowVisible", c_bool),
@@ -98,7 +98,7 @@ class SkillNature (Enum):
     Buff = 5
     EnergyBuff = 6
     Neutral = 7
-    SelfTargetted = 8
+    SelfTargeted = 8
     Resurrection = 9
     Interrupt = 10
 
