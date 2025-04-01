@@ -1,5 +1,5 @@
 from ctypes import Structure, c_int, c_float, c_bool
-from enum import Enum
+from enum import Enum, IntEnum
 from .constants import (
     MAX_NUM_PLAYERS,
     NUMBER_OF_SKILLS,
@@ -68,7 +68,7 @@ class GameStruct(Structure):
     ]
 
 
-class Skilltarget (Enum):
+class Skilltarget (IntEnum):
     Enemy = 0
     EnemyCaster = 1
     EnemyMartial = 2

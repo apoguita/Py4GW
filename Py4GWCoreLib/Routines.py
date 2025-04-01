@@ -629,7 +629,108 @@ class Routines:
             return Utils.GetFirstFromArray(enemy_array)
             
         @staticmethod
-        def GetNearestItem(max_distance=5000.0):
+        def GetNearestEnemyMartial(max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+            from .Py4GWcorelib import Utils
+
+            player_pos = Player.GetXY()
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance)
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsMartial(agent_id))
+            enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+            return Utils.GetFirstFromArray(enemy_array)   
+        
+        @staticmethod
+        def GetNearestEnemyMelee(max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+            from .Py4GWcorelib import Utils
+
+            player_pos = Player.GetXY()
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance)
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsMelee(agent_id))
+            enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+            return Utils.GetFirstFromArray(enemy_array)
+        
+        @staticmethod
+        def GetNearestEnemyRanged(max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+            from .Py4GWcorelib import Utils
+
+            player_pos = Player.GetXY()
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance)
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsRanged(agent_id))
+            enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+            return Utils.GetFirstFromArray(enemy_array)
+         
+        @staticmethod   
+        def GetDeadAlly(max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+
+            distance = max_distance
+            ally_array = AgentArray.GetAllyArray()
+            ally_array = AgentArray.Filter.ByDistance(ally_array, Player.GetXY(), distance)
+            ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsDead(agent_id))
+            ally_array = AgentArray.Sort.ByDistance(ally_array, Player.GetXY())
+            return Utils.GetFirstFromArray(ally_array)
+        
+        @staticmethod
+        def GetNearestCorpse(max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+            
+            def _AllowedAlliegance(agent_id):
+                _, alliegance = Agent.GetAllegiance(agent_id)
+
+                if (alliegance == "Ally" or
+                    alliegance == "Neutral" or 
+                    alliegance == "Enemy" or 
+                    alliegance == "NPC/Minipet"
+                    ):
+                    return True
+                return False
+
+            distance = max_distance
+            corpse_array = AgentArray.GetAgentArray()
+            corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), distance)
+            corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: Agent.IsDead(agent_id))
+            corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: _AllowedAlliegance(agent_id))
+            corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
+            return Utils.GetFirstFromArray(corpse_array)
+            
+        @staticmethod
+        def GetNearestSpirit(max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+            distance = max_distance
+            spirit_array = AgentArray.GetSpiritPetArray()
+            spirit_array = AgentArray.Filter.ByDistance(spirit_array, Player.GetXY(), distance)
+            spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsAlive(agent_id))
+            spirit_array = AgentArray.Sort.ByDistance(spirit_array, Player.GetXY())
+            return Utils.GetFirstFromArray(spirit_array)
+            
+        @staticmethod
+        def GetLowestMinion(max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+            distance = max_distance
+            minion_array = AgentArray.GetMinionArray()
+            minion_array = AgentArray.Filter.ByDistance(minion_array, Player.GetXY(), distance)
+            minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: Agent.IsAlive(agent_id))
+            minion_array = AgentArray.Sort.ByHealth(minion_array)
+            return Utils.GetFirstFromArray(minion_array)            
+            
+        @staticmethod
+        def GetNearestItem(max_distance=4500.0):
             from .AgentArray import AgentArray
             from .Player import Player
 

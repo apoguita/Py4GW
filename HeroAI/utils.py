@@ -17,8 +17,30 @@ def DistanceFromWaypoint(posX,posY):
 def CheckForEffect(agent_id, skill_id):
     """this function needs to be expanded as more functionality is added"""
     import HeroAI.shared_memory_manager as shared_memory_manager
-    shared_memory_handler = shared_memory_manager.SharedMemoryManager()
-    def IsPartyMember(agent_id):
+    shared_memory_handler = shared_memory_manager.SharedMemoryManager()   
+    def _IsPet(agent_id):
+        # Check if the agent is a pet
+        pet_info = Party.Pets.GetPetInfo(agent_id)
+        if not pet_info:
+            return False
+        
+        if pet_info.owner_agent_id != 0:
+            return True
+        
+        return False
+    
+    def _IsPetOwnedByPlayer(pet_id):
+        # Check if the pet is owned by the player
+        pet_info = Party.Pets.GetPetInfo(pet_id)
+        if not pet_info:
+            return False
+        
+        if pet_info.owner_agent_id == Player.GetAgentID():
+            return True
+        
+        return False
+    
+    def _IsPartyMember(agent_id):
 
         for i in range(MAX_NUM_PLAYERS):
             player_data = shared_memory_handler.get_player(i)
@@ -27,11 +49,15 @@ def CheckForEffect(agent_id, skill_id):
         
         return False
 
+    """
+    if _IsPet(agent_id) and not _IsPetOwnedByPlayer(agent_id):
+        return True
+    """
+    
     result = False
-    if IsPartyMember(agent_id):
+    if _IsPartyMember(agent_id):
         player_buffs = shared_memory_handler.get_agent_buffs(agent_id)
         for buff in player_buffs:
-            #Py4GW.Console.Log("HasEffect-player_buff", f"IsPartyMember: {self.IsPartyMember(agent_id)} agent ID: {agent_id}, effect {skill_id} buff {buff}", Py4GW.Console.MessageType.Info)
             if buff == skill_id:
                 result = True
     else:
