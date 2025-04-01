@@ -838,8 +838,9 @@ class QueueTypes(Enum):
     Salvage = "SALVAGE"
     Identify = "IDENTIFY"
 
-    def list(self):
-        return list(map(lambda c: c.value, self))
+    @classmethod
+    def list(cls):
+        return [member.value for member in cls]
 
 
 class ActionQueueManager:
