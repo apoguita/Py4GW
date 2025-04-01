@@ -593,10 +593,10 @@ class Routines:
             from .Player import Player
             from .Agent import Agent
             """
-            Purpose: Get the nearest enemy within the specified range.
+            Purpose: filters enemies within the specified range.
             Args:
                 range (int): The maximum distance to search for enemies.
-            Returns: Agent ID or None
+            Returns: List of enemy agent IDs
             """
             enemy_array = AgentArray.GetEnemyArray()
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance((x,y), Agent.GetXY(agent_id)) <= max_distance)
@@ -608,31 +608,31 @@ class Routines:
         def GetNearestEnemy(max_distance=4500.0):
             from .AgentArray import AgentArray
             from .Player import Player
+            from .Py4GWcorelib import Utils
+
+            player_pos = Player.GetXY()
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance)
+            enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+            return Utils.GetFirstFromArray(enemy_array)
+        
+        @staticmethod
+        def GetNearestEnemyCaster(max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
             from .Agent import Agent
-            """
-            Purpose: Get the nearest enemy within the specified range.
-            Args:
-                range (int): The maximum distance to search for enemies.
-            Returns: Agent ID or None
-            """
-            enemy_array = AgentArray.GetEnemyArray()
-            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= max_distance)
-            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
-            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
-            if len(enemy_array) > 0:
-                return enemy_array[0]
-            return 0
+            from .Py4GWcorelib import Utils
+
+            player_pos = Player.GetXY()
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance)
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsCaster(agent_id))
+            enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+            return Utils.GetFirstFromArray(enemy_array)
             
         @staticmethod
         def GetNearestItem(max_distance=5000.0):
             from .AgentArray import AgentArray
             from .Player import Player
-            """
-            Purpose: Get the nearest item within the specified range.
-            Args:
-                range (int): The maximum distance to search for items.
-            Returns: Agent ID or None
-            """
+
             item_array = AgentArray.GetItemArray()
             item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), max_distance)
             item_array = AgentArray.Sort.ByDistance(item_array,Player.GetXY())

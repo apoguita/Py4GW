@@ -327,7 +327,7 @@ class CombatClass:
             if v_target == 0:
                 v_target = TargetNearestEnemy(self.get_combat_distance())
         elif target_allegiance == Skilltarget.EnemyCaster.value:
-            v_target = TargetNearestEnemyCaster()
+            v_target = TargetNearestEnemyCaster(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
                 v_target = TargetNearestEnemy(self.get_combat_distance())
         elif target_allegiance == Skilltarget.EnemyMartial.value:

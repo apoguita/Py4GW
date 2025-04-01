@@ -274,6 +274,15 @@ class Utils:
             return Utils.RGBToNormal(0, 255, 0, 255)
         else:
             return Utils.RGBToNormal(255, 0, 0, 255)
+        
+    @staticmethod
+    def GetFirstFromArray(array):
+        if array is None:
+            return 0
+        
+        if len(array) > 0:
+            return array[0]
+        return 0
 
     class VectorFields:
         """
