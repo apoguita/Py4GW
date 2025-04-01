@@ -768,7 +768,8 @@ class CombatClass:
         
         # Check if there is enough energy
         current_energy = self.GetEnergyValues(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
-        if current_energy < Skill.Data.GetEnergyCost(self.skills[slot].skill_id):
+        if current_energy < Routines.Checks.Skills.GetEnergyCostWithEffects(self.skills[slot].skill_id,Player.GetAgentID()):  
+        #if current_energy < Skill.Data.GetEnergyCost(self.skills[slot].skill_id):
             self.in_casting_routine = False
             return False, v_target
         # Check if there is enough health
