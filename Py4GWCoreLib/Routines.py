@@ -6,16 +6,45 @@ from .enums import *
 import inspect
 import math
 from typing import List, Tuple, Callable
+from .Map import Map
+from .Party import Party
+from .Inventory import Inventory
+from .Player import Player
+from .Agent import Agent
 
 arrived_timer = Timer()
 
 class Routines:
     #region Checks
     class Checks:
+        class Player:
+            @staticmethod
+            def CanAct():
+                if Agent.IsDead(Player.GetAgentID()):
+                    return False
+                if Agent.IsKnockedDown(Player.GetAgentID()):
+                    return False
+                if Agent.IsCasting(Player.GetAgentID()):
+                    return False
+                return True
+                
+                
+        class Map:
+            @staticmethod
+            def MapValid():
+                if Map.IsMapLoading():
+                    return False
+                if not Map.IsMapReady():
+                    return False
+                if not Party.IsPartyLoaded():
+                    return False
+                if Map.IsInCinematic():
+                    return False
+                return True
+            
         class Inventory:
             @staticmethod
             def InventoryAndLockpickCheck():
-                from .Inventory import Inventory
                 return Inventory.GetFreeSlotCount() > 0 and Inventory.GetModelCount(22751) > 0 
 
         class Effects:

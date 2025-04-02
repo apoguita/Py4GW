@@ -626,4 +626,6 @@ class Party:
             Returns: int
             """
             pet_info =  Party.party_instance().GetPetInfo(owner_id)
+            if not pet_info:
+                return 0
             return pet_info.agent_id

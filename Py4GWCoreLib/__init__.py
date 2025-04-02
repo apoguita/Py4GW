@@ -47,7 +47,7 @@ from .Py4GWcorelib import *
 from .Overlay import *
 from .UIManager import *
 from .Routines import *
-#from .SkillManager import *
+from .SkillManager import *
 traceback = traceback
 math = math
 Enum = Enum

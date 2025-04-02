@@ -1052,6 +1052,8 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
+        skill.Conditions.IsOutOfCombat = False
+        
 
         skill = self.CustomSkill()
         skill.SkillID = Skill.GetID("On_Your_Knees")

@@ -883,7 +883,7 @@ class GWLauncher:
                     time.sleep(5)  # delay after window is found
 
                     if account.inject_blackbox:
-                        if self.attempt_dll_injection(pid, dll_type="BlackBox"):
+                        if self.attempt_dll_injection(pid, delay=0, dll_type="BlackBox"):
                             log_history.append("GWBlackBOX.dll injection successful")
                         else:
                             log_history.append("GWBlackBOX.dll injection failed")
