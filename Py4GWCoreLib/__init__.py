@@ -24,6 +24,7 @@ import PyOverlay
 import PyQuest
 import PyPathing
 import PyUIManager
+import PyCamera
 
 from .enums import *
 from .IconsFontAwesome5 import *
@@ -42,6 +43,7 @@ from .Skillbar import *
 from .Effect import *
 from .Merchant import *
 from .Quest import *
+from .Camera import *
 
 from .Py4GWcorelib import *
 from .Overlay import *
@@ -69,6 +71,7 @@ PyOverlay = PyOverlay
 PyQuest = PyQuest
 PyPathing = PyPathing
 PyUIManager = PyUIManager
+PyCamera = PyCamera
 
 #redirect print output to Py4GW Console
 class Py4GWLogger:
