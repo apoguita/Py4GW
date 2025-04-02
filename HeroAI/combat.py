@@ -322,6 +322,7 @@ class CombatClass:
         targeting_strict = self.skills[slot].custom_skill_data.Conditions.TargetingStrict
         target_allegiance = self.skills[slot].custom_skill_data.TargetAllegiance
         
+        
         nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         lowest_ally = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
 
@@ -882,9 +883,10 @@ class CombatClass:
         if not is_skill_ready:
             self.AdvanceSkillPointer()
             return False
-            
+         
+         
         is_read_to_cast, target_agent_id = self.IsReadyToCast(slot)
-            
+ 
         if not is_read_to_cast:
             self.AdvanceSkillPointer()
             return False

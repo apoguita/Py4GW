@@ -1,8 +1,7 @@
 from Py4GWCoreLib import *
 
-MODULE_NAME = "tester for everything"
+MODULE_NAME = "Auto Combat example"
 combat_handler:SkillManager.Autocombat = SkillManager.Autocombat()
-hero_ai_combat_handler:SkillManager.HeroAICombat = SkillManager.HeroAICombat()
 def main():
     if not (Routines.Checks.Map.MapValid() and 
             Routines.Checks.Player.CanAct() and
@@ -11,9 +10,7 @@ def main():
             ActionQueueManager().ResetQueue("ACTION")
             return
         
-    
-    #combat_handler.HandleCombat()    
-    hero_ai_combat_handler.HandleCombat()
+    combat_handler.HandleCombat()    
     ActionQueueManager().ProcessQueue("ACTION")
 
 

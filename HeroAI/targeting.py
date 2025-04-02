@@ -11,15 +11,7 @@ def FilterAllyArray(array, distance, other_ally=False, filter_skill_id=0):
     from .utils import CheckForEffect
     array = AgentArray.Filter.ByDistance(array, Player.GetXY(), distance)
     array = AgentArray.Filter.ByCondition(array, lambda agent_id: Agent.IsAlive(agent_id))
-    
-    for agent_id in array:
-        pet = Party.Pets.GetPetID(agent_id)
-        if pet == 0:
-            continue
-        if not Agent.IsAlive(pet):
-            continue
-        array.append(pet)
-    
+        
     if other_ally:
         array = AgentArray.Filter.ByCondition(array, lambda agent_id: Player.GetAgentID() != agent_id)
     
@@ -32,7 +24,7 @@ def TargetLowestAlly(other_ally=False,filter_skill_id=0):
     distance = Range.Spellcast.value
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id) 
-    ally_array = AgentArray.Sort.ByHealth(ally_array)
+    ally_array = AgentArray.Sort.ByHealth(ally_array)     
     return Utils.GetFirstFromArray(ally_array)
     
 

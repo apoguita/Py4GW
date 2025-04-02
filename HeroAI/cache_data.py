@@ -127,7 +127,7 @@ class GameData:
         self.player_is_moving = Agent.IsMoving(self.player_agent_id)
         self.player_is_melee = Agent.IsMelee(self.player_agent_id)
         #AgentArray data
-        self.pet_id = TargetPet(self.player_agent_id)
+        self.pet_id = Party.Pets.GetPetID(self.player_agent_id)
         #combat field data
         self.free_slots_in_inventory = Inventory.GetFreeSlotCount()
         self.target_id = Player.GetTargetID()

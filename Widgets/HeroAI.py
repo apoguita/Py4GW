@@ -328,6 +328,7 @@ def UpdateStatus(cached_data:CacheData):
     if cached_data.data.is_in_cinematic:  # halt operation during cinematic
         return
 
+
     DrawFlags(cached_data)
     
     draw_Targeting_floating_buttons(cached_data)
@@ -372,20 +373,11 @@ def UpdateStatus(cached_data:CacheData):
 def configure():
     pass
 
-def MapValidityCheck():
-    if Map.IsMapLoading():
-        return False
-    if not Map.IsMapReady():
-        return False
-    if not Party.IsPartyLoaded():
-        return False
-    return True
-
 
 def main():
     global cached_data
     try:
-        if not MapValidityCheck():
+        if not Routines.Checks.Map.MapValid():
             ActionQueueManager().ResetQueue("ACTION")
             #ConsoleLog("Main","Resetting action queue",Py4GW.Console.MessageType.Info)
             return
