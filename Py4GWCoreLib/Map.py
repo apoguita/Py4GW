@@ -1,6 +1,6 @@
 import Py4GW
 import PyMap
-import PyPlayer
+import PyMissionMap
 from .enums import explorables, explorable_name_to_id
 
 class Map:
@@ -296,3 +296,59 @@ class Map:
     def GetAmountOfPlayersInInstance():
         """Retrieve the amount of players in the current instance."""
         return Map.map_instance().amount_of_players_in_instance
+
+    class MissionMap:
+        @staticmethod
+        def _mission_map_instance():
+            """Return the PyMapMissionMap instance. """
+            return PyMissionMap.PyMissionMap()
+        
+        @staticmethod
+        def GetContext():
+            """Get the context of the mission map."""
+            return Map.MissionMap._mission_map_instance().GetContext()
+        
+        @staticmethod
+        def IsWindowOpen():
+            """Check if the mission map window is open."""
+            return Map.MissionMap._mission_map_instance().window_open
+        
+        @staticmethod
+        def GetFrameID():
+            """Get the frame ID of the mission map."""
+            return Map.MissionMap._mission_map_instance().frame_id
+        
+        @staticmethod
+        def GetWindowCoords():
+            """Get the window coordinates of the mission map."""
+            return Map.MissionMap._mission_map_instance().left, Map.MissionMap._mission_map_instance().top, Map.MissionMap._mission_map_instance().right, Map.MissionMap._mission_map_instance().bottom
+        
+        @staticmethod
+        def GetScale():
+            """Get the scale of the mission map."""
+            return Map.MissionMap._mission_map_instance().scale_x, Map.MissionMap._mission_map_instance().scale_y
+        
+        @staticmethod
+        def GetZoom():
+            """Get the zoom level of the mission map."""
+            return Map.MissionMap._mission_map_instance().zoom
+        
+        @staticmethod
+        def GetCenter():
+            """Get the center coordinates of the mission map."""
+            return Map.MissionMap._mission_map_instance().center_x, Map.MissionMap._mission_map_instance().center_y
+        
+        @staticmethod
+        def GetLastClickCoords():
+            """Get the last click coordinates on the mission map."""
+            return Map.MissionMap._mission_map_instance().last_click_x, Map.MissionMap._mission_map_instance().last_click_y
+        
+        @staticmethod
+        def GetPanOffset():
+            """Get the pan offset of the mission map."""
+            return Map.MissionMap._mission_map_instance().pan_offset_x, Map.MissionMap._mission_map_instance().pan_offset_y
+        
+        @staticmethod
+        def GetMapScreenCenter():
+            """Get the map screen center coordinates."""
+            return Map.MissionMap._mission_map_instance().mission_map_screen_center_x, Map.MissionMap._mission_map_instance().mission_map_screen_center_x

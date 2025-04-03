@@ -25,6 +25,16 @@ class Overlay:
         return screen_pos.x, screen_pos.y
 
     @staticmethod
+    def GamePosToWorldMap(x, y):
+        world_map_pos = PyOverlay.Overlay().GamePosToWorldMap(x, y)
+        return world_map_pos.x, world_map_pos.y
+    
+    @staticmethod
+    def WorlMapToGamePos(x, y):
+        game_pos = PyOverlay.Overlay().WorlMapToGamePos(x, y)
+        return game_pos.x, game_pos.y
+
+    @staticmethod
     def FindZ (x, y, z=0):
         """Find The altitude of the ground at the given x,y coordinates based on Pathing Maps"""
         return PyOverlay.Overlay().FindZ(x, y, z)
@@ -34,6 +44,9 @@ class Overlay:
 
     def BeginDraw(self):
         self.overlay_instance.BeginDraw()
+        
+    def BeginDrawRect(self, name:str, x:int, y:int, width:int, height:int):
+        self.overlay_instance.BeginDraw(name, x, y, width, height)
 
     def EndDraw(self):
         self.overlay_instance.EndDraw()

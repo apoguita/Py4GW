@@ -1,4 +1,5 @@
 import PyCamera
+import math
 
 class Camera:
     @staticmethod
@@ -34,7 +35,18 @@ class Camera:
         """
         Returns the current yaw of the camera.
         """
-        return Camera.camera_instance().current_yaw
+        pos = Camera.GetPosition()
+        lat = Camera.GetLookAtTarget()
+        
+        x = pos[0] - lat[0]
+        y = pos[1] - lat[1]
+        
+        curtan = math.atan2(y,x)
+        
+        if curtan >= 0:
+            return curtan - math.pi
+        else:
+            return curtan + math.pi
     
     @staticmethod
     def GetPitch():
