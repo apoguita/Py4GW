@@ -488,12 +488,12 @@ class Routines:
     #region Transitions
     class Transition:
         @staticmethod
-        def TravelToOutpost(outpost_id, log= True):
+        def TravelToOutpost(outpost_id, log_actions=True):
             """
             Purpose: Travel to the specified outpost by ID.
             Args:
                 outpost_id (int): The ID of the outpost to travel to.
-                log (bool) Optional: Whether to log the action. Default is True.
+                log_actions (bool) Optional: Whether to log the action. Default is True.
             Returns: None
             """
             from .Map import Map
@@ -505,23 +505,23 @@ class Routines:
                 return
 
             if Map.GetMapID() == outpost_id:
-                if log and arrived_timer.IsStopped():
+                if log_actions and arrived_timer.IsStopped():
                     ConsoleLog(current_function, f"Already at outpost: {Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
                 return
 
             if arrived_timer.IsStopped():
                 Map.Travel(outpost_id)
                 arrived_timer.Start()
-                if log:
+                if log_actions:
                     ConsoleLog(current_function, f"Traveling to outpost: {Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
                     
         @staticmethod
-        def HasArrivedToOutpost(outpost_id, log= True):
+        def HasArrivedToOutpost(outpost_id, log_actions=True):
             """
             Purpose: Check if the player has arrived at the specified outpost after traveling.
             Args:
                 outpost_id (int): The ID of the outpost to check.
-                log (bool) Optional: Whether to log the action. Default is True.
+                log_actions (bool) Optional: Whether to log the action. Default is True.
             Returns: bool
             """
             from .Map import Map
@@ -533,26 +533,27 @@ class Routines:
 
             if has_arrived:
                 arrived_timer.Stop()
-                if log:
+                if log_actions:
                     ConsoleLog(current_function, f"Arrived at outpost: {Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
                 return True
 
             if arrived_timer.HasElapsed(5000):
                 arrived_timer.Stop()
-                if log:
+                if log_actions:
                     ConsoleLog(current_function, f"Timeout reaching outpost: {Map.GetMapName(outpost_id)}.", Console.MessageType.Warning)
                 return False
 
-            if log:
+            if log_actions:
                 ConsoleLog(current_function, f"Still traveling... Waiting to arrive at: {Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
 
             return False
         
         @staticmethod
-        def IsOutpostLoaded(log_actions: bool = True):
+        def IsOutpostLoaded(log_actions=True):
             """
             Purpose: Check if the outpost map is loaded.
-            Args: None
+            Args:
+                log_actions (bool) Optional: Whether to log the action. Default is True.
             Returns: bool
             """
             from .Party import Party
@@ -570,10 +571,11 @@ class Routines:
             return is_loaded
 
         @staticmethod
-        def IsExplorableLoaded(log_actions: bool = True):
+        def IsExplorableLoaded(log_actions=True):
             """
             Purpose: Check if the explorable map is loaded.
-            Args: None
+            Args:
+                log_actions (bool) Optional: Whether to log the action. Default is True.
             Returns: bool
             """
             from .Party import Party
