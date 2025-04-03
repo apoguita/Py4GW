@@ -8,6 +8,11 @@ Inject.au3
 Widgets/Config/Travel.ini
 Widgets/Config/
 
+# Ignore JaborsFork
+Addons/GWToolboxdll.dll
+# .tpf files, including in subfolders and ignored
+Addons/*.tpf
+Addons/**/*.tpf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
