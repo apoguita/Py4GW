@@ -8,9 +8,8 @@ Inject.au3
 Widgets/Config/Travel.ini
 Widgets/Config/
 
-# Ignore gMod/JaborsFork
+# Ignore JaborsFork
 Addons/GWToolboxdll.dll
-Addons/gMod.dll
 # .tpf files, including in subfolders and ignored
 Addons/*.tpf
 Addons/**/*.tpf
