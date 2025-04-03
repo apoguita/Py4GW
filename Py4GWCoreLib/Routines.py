@@ -498,19 +498,23 @@ class Routines:
             """
             from .Map import Map
             global arrived_timer
-            if Map.IsMapReady():
-                if Map.GetMapID() != outpost_id and arrived_timer.IsStopped():
-                    if log:
-                        current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                        ConsoleLog(f"{current_function}", f"Outpost Check Failed. ({Map.GetMapName(outpost_id)}), Travelling.", Console.MessageType.Info)
-                    Map.Travel(outpost_id)
-                    arrived_timer.Start()
-                    return
 
+            current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
+
+            if not Map.IsMapReady():
+                return
+
+            if Map.GetMapID() == outpost_id:
                 if log and arrived_timer.IsStopped():
-                    current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                    ConsoleLog(f"{current_function}", f"Outpost Check Passed. ({Map.GetMapName(outpost_id)}).", Console.MessageType.Info)
+                    ConsoleLog(current_function, f"Already at outpost: {Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
+                return
 
+            if arrived_timer.IsStopped():
+                Map.Travel(outpost_id)
+                arrived_timer.Start()
+                if log:
+                    ConsoleLog(current_function, f"Traveling to outpost: {Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
+                    
         @staticmethod
         def HasArrivedToOutpost(outpost_id, log= True):
             """
@@ -523,28 +527,29 @@ class Routines:
             from .Map import Map
             global arrived_timer
 
-            if Map.GetMapID() == outpost_id and Routines.Transition.IsOutpostLoaded():
-                if log:
-                    current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                    ConsoleLog(f"{current_function}", f"Outpost Arrive Passed. @{Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
-                    arrived_timer.Stop()
-                    return True
-                else:
-                    if arrived_timer.HasElapsed(5000):
-                        arrived_timer.Stop()
-                        if log:
-                            current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                            ConsoleLog(f"{current_function}", f"Outpost Arrive Timeout. @{Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
-                        return False
-            
-            if log:
-                current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                ConsoleLog(f"{current_function}", f"Outpost Arrive Failed. @{Map.GetMapName(outpost_id)}. Retrying.", Console.MessageType.Info)
-                
-            return False
+            current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
 
+            has_arrived = Map.GetMapID() == outpost_id and Routines.Transition.IsOutpostLoaded()
+
+            if has_arrived:
+                arrived_timer.Stop()
+                if log:
+                    ConsoleLog(current_function, f"Arrived at outpost: {Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
+                return True
+
+            if arrived_timer.HasElapsed(5000):
+                arrived_timer.Stop()
+                if log:
+                    ConsoleLog(current_function, f"Timeout reaching outpost: {Map.GetMapName(outpost_id)}.", Console.MessageType.Warning)
+                return False
+
+            if log:
+                ConsoleLog(current_function, f"Still traveling... Waiting to arrive at: {Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
+
+            return False
+        
         @staticmethod
-        def IsOutpostLoaded():
+        def IsOutpostLoaded(log_actions: bool = True):
             """
             Purpose: Check if the outpost map is loaded.
             Args: None
@@ -552,16 +557,20 @@ class Routines:
             """
             from .Party import Party
             from .Map import Map
-            map_loaded = Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded()
-            if map_loaded:
-                ConsoleLog("IsOutpostLoaded", f"Outpost Map Loaded.", Console.MessageType.Info)
-            else:
-                ConsoleLog("IsOutpostLoaded", f"Outpost Map Not Loaded. Retrying.", Console.MessageType.Info)
-            
-            return map_loaded
+
+            is_loaded = Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded()
+
+            if log_actions:
+                current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
+                if is_loaded:
+                    ConsoleLog(current_function, "Outpost Map Loaded.", Console.MessageType.Info)
+                else:
+                    ConsoleLog(current_function, "Outpost Map Not Loaded. Retrying.", Console.MessageType.Warning)
+
+            return is_loaded
 
         @staticmethod
-        def IsExplorableLoaded(log_actions=False):
+        def IsExplorableLoaded(log_actions: bool = True):
             """
             Purpose: Check if the explorable map is loaded.
             Args: None
