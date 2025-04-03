@@ -7,8 +7,13 @@ imgui.ini
 Inject.au3
 Widgets/Config/Travel.ini
 Widgets/Config/
-Addons/
 
+# Ignore gMod/JaborsFork
+Addons/GWToolboxdll.dll
+Addons/gMod.dll
+# .tpf files, including in subfolders and ignored
+Addons/*.tpf
+Addons/**/*.tpf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

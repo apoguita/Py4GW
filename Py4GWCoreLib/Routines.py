@@ -559,16 +559,16 @@ class Routines:
             from .Party import Party
             from .Map import Map
 
-            is_loaded = Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded()
+            map_loaded = Map.IsMapReady() and Map.IsOutpost() and Party.IsPartyLoaded()
 
             if log_actions:
                 current_function = (frame := inspect.currentframe()) and frame.f_code.co_name or "Unknown"
-                if is_loaded:
+                if map_loaded:
                     ConsoleLog(current_function, "Outpost Map Loaded.", Console.MessageType.Info)
                 else:
                     ConsoleLog(current_function, "Outpost Map Not Loaded. Retrying.", Console.MessageType.Warning)
 
-            return is_loaded
+            return map_loaded
 
         @staticmethod
         def IsExplorableLoaded(log_actions=True):
@@ -580,7 +580,9 @@ class Routines:
             """
             from .Party import Party
             from .Map import Map
+            
             map_loaded =  Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()
+            
             if log_actions:
                 if map_loaded:
                     ConsoleLog("IsExplorableLoaded", f"Explorable Map Loaded.", Console.MessageType.Info)
