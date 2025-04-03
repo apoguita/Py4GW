@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 import Py4GW
 import PyImGui
 import PyMap
+import PyMissionMap
 import PyAgent
 import PyPlayer
 import PyParty
@@ -57,6 +58,7 @@ Enum = Enum
 Py4Gw = Py4GW
 PyImGui = PyImGui
 PyMap = PyMap
+PyMissionMap = PyMissionMap
 PyAgent = PyAgent
 PyPlayer = PyPlayer
 PyParty = PyParty
