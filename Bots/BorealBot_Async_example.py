@@ -45,12 +45,12 @@ def DoesNeedInventoryHandling():
     return ( Inventory.GetFreeSlotCount() < 1 or Inventory.GetModelCount(22751) < 1)
 
 def IsChestFound(max_distance=2500):
-    return Routines.Targeting.GetNearestChest(max_distance) != 0
+    return Routines.Agents.GetNearestChest(max_distance) != 0
 
 def ResetFollowPath():
     global FSM_vars
     FSM_vars.movement_handler.reset()
-    chest_id = Routines.Targeting.GetNearestChest(max_distance=2500)
+    chest_id = Routines.Agents.GetNearestChest(max_distance=2500)
     chest_x, chest_y = Agent.GetXY(chest_id)
     found_chest_coord_list = [(chest_x, chest_y)]
     FSM_vars.chest_found_pathing = Routines.Movement.PathHandler(found_chest_coord_list)
@@ -103,13 +103,13 @@ FSM_vars.loot_chest.AddState(name="MoveToChest",
                     exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.chest_found_pathing, FSM_vars.movement_handler),
                     run_once=False)
 FSM_vars.loot_chest.AddState(name="Select Chest",
-                    execute_fn=lambda: Player.ChangeTarget(Routines.Targeting.GetNearestChest(max_distance=2500)),
+                    execute_fn=lambda: Player.ChangeTarget(Routines.Agents.GetNearestChest(max_distance=2500)),
                     transition_delay_ms=1000)
 FSM_vars.loot_chest.AddState(name="InteractAgent",
                     execute_fn=lambda: Routines.Targeting.InteractTarget(),
                     transition_delay_ms=1000)
 FSM_vars.loot_chest.AddState(name="Select Item",
-                    execute_fn=lambda: Player.ChangeTarget(Routines.Targeting.GetNearestItem(max_distance=300)),
+                    execute_fn=lambda: Player.ChangeTarget(Routines.Agents.GetNearestItem(max_distance=300)),
                     transition_delay_ms=1000)
 FSM_vars.loot_chest.AddState(name="PickUpItem",
                     execute_fn=lambda: Routines.Targeting.InteractTarget(),
@@ -117,7 +117,7 @@ FSM_vars.loot_chest.AddState(name="PickUpItem",
 
 #FSM Routine for Locating and following the merchant
 FSM_vars.sell_to_vendor.AddState(name="Target Merchant",
-                        execute_fn=lambda: Routines.Targeting.TargetMerchant(),
+                        execute_fn=lambda: Routines.Agents.GetNearestNPCXY(7319,-24874,500),
                         transition_delay_ms=1000)
 FSM_vars.sell_to_vendor.AddState(name="InteractMerchant",
                         execute_fn=lambda: Routines.Targeting.InteractTarget(),
