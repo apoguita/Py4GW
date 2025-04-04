@@ -163,14 +163,40 @@ class PyMap:
     campaign: Campaign
     continent: Continent
     region_type: Region
-    max_party_size: int
     has_enter_button: bool
     is_on_world_map: bool
     is_pvp: bool
     is_guild_hall: bool
     is_vanquishable_area: bool
     amount_of_players_in_instance: int
-
+    flags: int
+    thumbnail_id: int
+    min_party_size: int
+    max_party_size: int
+    min_player_size: int
+    max_player_size: int
+    controlled_outpost_id: int
+    fraction_mission: int
+    min_level: int
+    max_level: int
+    needed_pq: int
+    mission_maps_to: List[int]
+    icon_position_x: int
+    icon_position_y: int
+    icon_start_x: int
+    icon_start_y: int
+    icon_end_x: int
+    icon_end_y: int
+    icon_start_x_dupe: int
+    icon_start_y_dupe: int
+    icon_end_x_dupe: int
+    icon_end_y_dupe: int
+    file_id: int
+    mission_chronology: int
+    ha_map_chronology: int
+    name_id: int
+    description_id: int
+    
     def __init__(self) -> None: ...
     def GetContext(self) -> None: ...
     @overload
