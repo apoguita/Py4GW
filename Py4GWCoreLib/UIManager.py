@@ -11,7 +11,7 @@ import PyOverlay
 #endregion
 
 
-overlay = PyOverlay.Overlay()
+_overlay = PyOverlay.Overlay()
 
 class UIManager:  
     global overlay
@@ -326,9 +326,9 @@ class UIManager:
         p2 = PyOverlay.Point2D(right, top)
         p3 = PyOverlay.Point2D(right, bottom)
         p4 = PyOverlay.Point2D(left, bottom)
-        overlay.BeginDraw()
-        overlay.DrawQuadFilled(p1,p2,p3,p4, draw_color)
-        overlay.EndDraw()
+        _overlay.BeginDraw()
+        _overlay.DrawQuadFilled(p1,p2,p3,p4, draw_color)
+        _overlay.EndDraw()
     
         
     def DrawFrameOutline(self,frame_id, draw_color):
@@ -345,9 +345,9 @@ class UIManager:
         p2 = PyOverlay.Point2D(right, top)
         p3 = PyOverlay.Point2D(right, bottom)
         p4 = PyOverlay.Point2D(left, bottom)
-        overlay.BeginDraw()
-        overlay.DrawQuad(p1,p2,p3,p4, draw_color)
-        overlay.EndDraw()
+        _overlay.BeginDraw()
+        _overlay.DrawQuad(p1,p2,p3,p4, draw_color)
+        _overlay.EndDraw()
 
 
     
