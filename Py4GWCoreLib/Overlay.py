@@ -80,9 +80,30 @@ class Overlay:
         return screen_x, screen_y
     
     @staticmethod
-    def ScreenToNormalizedScreen(x, y):
-        normalized_screen_pos = PyOverlay.Overlay().ScreenToNormalizedScreen(x, y)
-        return normalized_screen_pos.x, normalized_screen_pos.y
+    def ScreenToNormalizedScreen(screen_x: float, screen_y: float):
+        #normalized_screen_pos = PyOverlay.Overlay().ScreenToNormalizedScreen(x, y)
+        #return normalized_screen_pos.x, normalized_screen_pos.y
+        #data is good from the dll but we can do it manually
+        from .Map import Map
+        if not Map.MissionMap.IsWindowOpen():
+            return 0.0, 0.0
+
+        # Compute width and height of the map frame
+        coords = Map.MissionMap.GetWindowCoords()
+        left, top, right, bottom = int(coords[0]-5), int(coords[1]-1), int(coords[2]+5), int(coords[3]+2)
+        width = right - left
+        height = bottom - top
+
+        # Relative position in [0, 1] range
+        rel_x = (screen_x - left) / width
+        rel_y = (screen_y - top) / height
+
+        # Convert to normalized [-1, 1], Y is inverted
+        norm_x = rel_x * 2.0 - 1.0
+        norm_y = (1.0 - rel_y) * 2.0 - 1.0
+
+        return norm_x, norm_y
+
     
     @staticmethod
     def NormalizedScreenToWorldMap(x, y):

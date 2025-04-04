@@ -161,6 +161,11 @@ class Map:
     def GetMaxPartySize():
         """ Retrieve the maximum party size of the current map."""
         return Map.map_instance().max_party_size
+    
+    @staticmethod
+    def GetMinPartySize():
+        """ Retrieve the minimum party size of the current map."""
+        return Map.map_instance().min_party_size
 
     @staticmethod
     def IsInCinematic():
@@ -296,6 +301,106 @@ class Map:
     def GetAmountOfPlayersInInstance():
         """Retrieve the amount of players in the current instance."""
         return Map.map_instance().amount_of_players_in_instance
+    
+    @staticmethod
+    def GetFlags():
+        """Retrieve the flags of the current map."""
+        return Map.map_instance().flags
+    
+    @staticmethod
+    def GetThumbnailID():
+        """Retrieve the thumbnail ID of the current map."""
+        return Map.map_instance().thumbnail_id
+    
+    @staticmethod
+    def GetMinPlayerSize():
+        """Retrieve the minimum player size of the current map."""
+        return Map.map_instance().min_player_size
+    
+    @staticmethod
+    def GetMaxPlayerSize():
+        """Retrieve the maximum player size of the current map."""
+        return Map.map_instance().max_player_size
+    
+    @staticmethod
+    def GetControlledOutpostID():
+        """Retrieve the controlled outpost ID of the current map."""
+        return Map.map_instance().controlled_outpost_id
+    
+    @staticmethod
+    def GetFractionMission():
+        """Retrieve the fraction mission of the current map."""
+        return Map.map_instance().fraction_mission
+    
+    @staticmethod
+    def GetMinLevel():
+        """Retrieve the minimum level of the current map."""
+        return Map.map_instance().min_level
+    
+    @staticmethod
+    def GetMaxLevel():
+        """Retrieve the maximum level of the current map."""
+        return Map.map_instance().max_level
+    
+    @staticmethod
+    def GetNeededPQ():
+        """Retrieve the needed PQ of the current map."""
+        return Map.map_instance().needed_pq
+    
+    @staticmethod
+    def GetMissionMapsTo():
+        """Retrieve the mission maps to of the current map."""
+        return Map.map_instance().mission_maps_to
+    
+    @staticmethod
+    def GetIconPosition():
+        """Retrieve the icon position of the current map."""
+        return Map.map_instance().icon_position_x, Map.map_instance().icon_position_y
+    
+    @staticmethod
+    def GetIconStartPosition():
+        """Retrieve the icon start position of the current map."""
+        return Map.map_instance().icon_start_x, Map.map_instance().icon_start_y
+    
+    @staticmethod
+    def GetIconEndPosition():
+        """Retrieve the icon end position of the current map."""
+        return Map.map_instance().icon_end_x, Map.map_instance().icon_end_y
+    
+    @staticmethod
+    def GetIconStartPositionDupe():
+        """Retrieve the icon start position dupe of the current map."""
+        return Map.map_instance().icon_start_x_dupe, Map.map_instance().icon_start_y_dupe
+    
+    @staticmethod
+    def GetIconEndPositionDupe():
+        """Retrieve the icon end position dupe of the current map."""
+        return Map.map_instance().icon_end_x_dupe, Map.map_instance().icon_end_y_dupe
+
+    @staticmethod
+    def GetFileID():
+        """Retrieve the file ID of the current map."""
+        return Map.map_instance().file_id
+    
+    @staticmethod
+    def GetMissionChronology():
+        """Retrieve the mission chronology of the current map."""
+        return Map.map_instance().mission_chronology
+    
+    @staticmethod
+    def GetHAChronology():
+        """Retrieve the HA chronology of the current map."""
+        return Map.map_instance().ha_map_chronology
+    
+    @staticmethod
+    def GetNameID(self):
+        """Retrieve the name ID of the current map."""
+        return Map.map_instance().name_id
+    
+    @staticmethod
+    def GetDescriptionID(self):
+        """Retrieve the description ID of the current map."""
+        return Map.map_instance().description_id
 
     class MissionMap:
         @staticmethod
