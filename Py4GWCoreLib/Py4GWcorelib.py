@@ -283,6 +283,31 @@ class Utils:
         if len(array) > 0:
             return array[0]
         return 0
+    
+    @staticmethod
+    def GwinchToPixels(gwinch_value: float) -> float:
+        from .Map import Map
+
+        gwinches = 96.0  # hardcoded GW unit scale
+        zoom = Map.MissionMap.GetZoom()
+        scale_x, _ = Map.MissionMap.GetScale()
+
+        pixels_per_gwinch = (scale_x * zoom) / gwinches
+        return gwinch_value * pixels_per_gwinch
+
+        
+    @staticmethod
+    def PixelsToGwinch(pixel_value: float) -> float:
+        from .Map import Map
+
+        gwinches = 96.0
+        zoom = Map.MissionMap.GetZoom()
+        scale_x, _ = Map.MissionMap.GetScale()
+
+        pixels_per_gwinch = (scale_x * zoom) / gwinches
+        return pixel_value / pixels_per_gwinch
+
+
 
     class VectorFields:
         """
@@ -492,6 +517,27 @@ class Utils:
 
             return escape_vector
 
+#endregion
+#region Color
+class Color:
+    def __init__(self, r: int = 255, g: int = 255, b: int = 255, a: int = 255):
+        self.name: str = "Color"
+        self.r: int = r
+        self.g: int = g
+        self.b: int = b
+        self.a: int = a
+
+    def value(self) -> int:
+        return Utils.RGBToColor(self.r, self.g, self.b, self.a)
+    
+    def to_tuple(self) -> tuple:
+        return (self.r, self.g, self.b, self.a)
+    
+    def to_tuple_normalized(self) -> tuple:
+        return (self.r / 255, self.g / 255, self.b / 255, self.a / 255)
+
+    def __repr__(self) -> str:
+        return f"{self.name} (RGBA: {self.r}, {self.g}, {self.b}, {self.a})"
 #endregion
 #region Timer
 class Timer:
