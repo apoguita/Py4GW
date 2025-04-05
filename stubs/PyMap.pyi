@@ -196,6 +196,7 @@ class PyMap:
     ha_map_chronology: int
     name_id: int
     description_id: int
+    map_boundaries: List[float]
     
     def __init__(self) -> None: ...
     def GetContext(self) -> None: ...

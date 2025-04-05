@@ -393,14 +393,48 @@ class Map:
         return Map.map_instance().ha_map_chronology
     
     @staticmethod
-    def GetNameID(self):
+    def GetNameID():
         """Retrieve the name ID of the current map."""
         return Map.map_instance().name_id
     
     @staticmethod
-    def GetDescriptionID(self):
+    def GetDescriptionID():
         """Retrieve the description ID of the current map."""
         return Map.map_instance().description_id
+    
+    @staticmethod
+    def GetMapWorldMapBounds():
+        map_info = Map.map_instance()
+
+        if map_info.icon_start_x == 0 and map_info.icon_start_y == 0 and map_info.icon_end_x == 0 and map_info.icon_end_y == 0:
+            left   = float(map_info.icon_start_x_dupe)
+            top    = float(map_info.icon_start_y_dupe)
+            right  = float(map_info.icon_end_x_dupe)
+            bottom = float(map_info.icon_end_y_dupe)
+        else:
+            left   = float(map_info.icon_start_x)
+            top    = float(map_info.icon_start_y)
+            right  = float(map_info.icon_end_x)
+            bottom = float(map_info.icon_end_y)
+
+        return left, top, right, bottom
+    
+    @staticmethod
+    def GetMapBoundaries():
+        """Retrieve the map boundaries of the current map."""
+        boundaries = Map.map_instance().map_boundaries
+        if len(boundaries) < 5:
+            return 0.0, 0.0, 0.0, 0.0  # Optional: fallback for safety
+
+        min_x = boundaries[1]
+        min_y = boundaries[2]
+        max_x = boundaries[3]
+        max_y = boundaries[4]
+
+        return min_x, min_y, max_x, max_y
+
+
+
 
     class MissionMap:
         @staticmethod
@@ -456,4 +490,4 @@ class Map:
         @staticmethod
         def GetMapScreenCenter():
             """Get the map screen center coordinates."""
-            return Map.MissionMap._mission_map_instance().mission_map_screen_center_x, Map.MissionMap._mission_map_instance().mission_map_screen_center_x
+            return Map.MissionMap._mission_map_instance().mission_map_screen_center_x, Map.MissionMap._mission_map_instance().mission_map_screen_center_y
