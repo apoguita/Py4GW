@@ -1,7 +1,33 @@
 from Py4GWCoreLib import *
+from typing import Optional
 import math
 
 MODULE_NAME = "Mission Map"
+
+    
+class Shape:
+    def __init__(self, name:str, color:Color, x:float, y:float, size:float = 5.0):
+        self.name = name
+        self.color = color
+        self.x = x
+        self.y = y
+        self.size = size
+
+    def draw(self):
+        print(f"Drawing {self.name} with color {self.color}")
+
+        
+class Marker:
+    def __init__(self, x, y, color):
+        self.name:str = "Marker"
+        self.x:float = x
+        self.y:float = y
+        self.color:Color = color
+        self.accent_color:Color = Color(255, 255, 255, 255)
+        self.size:float = 10
+        
+    def draw(self):
+        pass
 
 class MissionMap:
     def __init__(self):
@@ -60,77 +86,82 @@ draw_color = Utils.RGBToColor(255, 255, 255, 125)
 
 def DrawFrame():
     global mission_map,triangle_size
-    def _draw_circle(x, y, radius, color):
-        Overlay().DrawPoly(x, y, radius, color, 12, 3)
-    
-    def _draw_point(x, y,color):
-        Overlay().DrawPoly(x, y, 4, color, 8, 4)
-        
-    import math
+    def _draw_triangle(agent_id, color, radius=10.0):
+        agent_x, agent_y = Agent.GetXY(agent_id)  
+        center_x, center_y = Overlay.GamePosToScreen(agent_x, agent_y)
 
-    def _draw_triangle(agent_id, x, y, color, size=10.0):
-        global angle  # assumes this is defined globally
+        # Starting angle offset to have one tip facing upward (optional)
+        base_angle = -math.pi / 2  # 90° upward
 
-        # Add user-controlled offset to facing angle
-        facing_angle = Agent.GetRotationAngle(agent_id) + Utils.DegToRad(angle)
-
-        shape = [
-            (0, -size),     # tip
-            (size * -0.55, size * 0.55),  # bottom left
-            (size * 0.55, size * 0.55),   # bottom right
-        ]
-
-        def rotate_point(px, py, angle):
-            cos_a = math.cos(angle)
-            sin_a = math.sin(angle)
-            return (
-                px * cos_a - py * sin_a,
-                px * sin_a + py * cos_a
-            )
-
-        transformed = [
-            (x + dx, y + dy)
-            for dx, dy in (rotate_point(px, py, facing_angle) for px, py in shape)
-        ]
+        # Generate 3 points spaced 120° apart
+        points = []
+        for i in range(3):
+            angle = base_angle + i * (2 * math.pi / 3)  # 0°, 120°, 240°
+            x = center_x + math.cos(angle) * radius
+            y = center_y + math.sin(angle) * radius
+            points.append((x, y))
 
         Overlay().DrawTriangleFilled(
-            transformed[0][0], transformed[0][1],
-            transformed[1][0], transformed[1][1],
-            transformed[2][0], transformed[2][1],
+            points[0][0], points[0][1],
+            points[1][0], points[1][1],
+            points[2][0], points[2][1],
             color
         )
-
         
-    def _draw_circle_3d(x, y, radius, color):
-        Overlay().DrawPoly3D(x, y, Overlay.FindZ(x, y), radius, color, 12, 3)
- 
+        black = Utils.RGBToColor(0, 0, 0, 150)
+        
+        Overlay().DrawTriangle(
+            points[0][0], points[0][1],
+            points[1][0], points[1][1],
+            points[2][0], points[2][1],
+            black,
+            thickness=1.0
+        )
+     
 
     #mission map oeverlay
+    
     Overlay().BeginDraw("MissionMapOverlay", mission_map.left, mission_map.top, mission_map.width, mission_map.height)
-    #_draw_circle(mission_map.true_center_x, mission_map.true_center_y, 20, Utils.RGBToColor(217, 255, 0, 255))
-    #_draw_point(mission_map.center_screen_x, mission_map.center_screen_y, Utils.RGBToColor(255, 0, 217, 125))
+    #Aggro Bubble
+    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32,thickness=4.0)
+    Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32)
+    #Compass Range
+    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Compass.value), color=Utils.RGBToColor(0, 0, 0, 255),numsegments=360,thickness=1.0)
+    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Compass.value)-10, color=Utils.RGBToColor(255, 255, 255, 40),numsegments=360,thickness=20.0)
+    #Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Compass.value), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32)
+    
+    
     agent_array = AgentArray.GetNPCMinipetArray()
     for agent_id in agent_array:
-        agent_x, agent_y = Agent.GetXY(agent_id)
-        agent_screen_x, agent_screen_y = Overlay.GamePosToScreen(agent_x, agent_y)
-        _draw_triangle(agent_id,agent_screen_x, agent_screen_y, Utils.RGBToColor(0, 255, 255, 255),triangle_size)
-        
+        _draw_triangle(agent_id,Utils.RGBToColor(170, 255, 0, 255),triangle_size)
+       
+    """
     agent_array = AgentArray.GetEnemyArray()
     for agent_id in agent_array:
         agent_x, agent_y = Agent.GetXY(agent_id)
         agent_screen_x, agent_screen_y = Overlay.GamePosToScreen(agent_x, agent_y)
         _draw_triangle(agent_id,agent_screen_x, agent_screen_y, Utils.RGBToColor(255, 75, 0, 255),triangle_size)
-        
+        """
     Overlay().EndDraw()
     
-    """
+    
     #world overlay
-    Overlay().BeginDraw()    
-    _draw_circle_3d(mission_map.player_x, mission_map.player_y, 20, Utils.RGBToColor(255, 0, 0, 125))
+    """
+    Overlay().BeginDraw()   
+    player_x, player_y, player_z = Agent.GetXYZ(Player.GetAgentID()) 
+    segments = 32
+    #Overlay().DrawPoly3D(player_x, player_y, player_z, radius=72, color=0xFF1E90FF,numsegments=segments,thickness=5.0)
+    #Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Range.Touch.value, color=0xAB5A1EFF,numsegments=segments,thickness=5.0)
+    #Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Range.Adjacent.value, color=0x3BC154FF,numsegments=segments,thickness=5.0)
+    #Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Range.Nearby.value, color=0xE39626FF,numsegments=segments,thickness=5.0)
+    #Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Range.Area.value, color=0xE3357EFF,numsegments=segments,thickness=5.0)
+    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Range.Earshot.value, color=0xE3357EFF,numsegments=segments,thickness=5.0)
+                    
     Overlay().EndDraw()
     """
+
 angle = -180
-triangle_size = 10
+triangle_size = 5
 def DrawWindow():
     global draw_frame
     global mission_map, draw_color, angle, triangle_size
@@ -140,6 +171,10 @@ def DrawWindow():
         # Global
         angle = PyImGui.slider_float("angle", angle, -360.0,360.0)
         triangle_size = PyImGui.slider_int("triangle_size", triangle_size, 0,30)
+        
+        PyImGui.text(f"zoom: {mission_map.zoom}")
+        PyImGui.text(f"scale_x: {mission_map.scale_x}")
+        PyImGui.text(f"scale_y: {mission_map.scale_y}")
 
         
     PyImGui.end()
