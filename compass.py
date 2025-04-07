@@ -257,9 +257,9 @@ def DrawAgents():
                 DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
         elif agent_id == compass.player_id:
             if alive:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.player)
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player)
             else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.player_dead)
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player_dead)
         else:
             if alive:
                 DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players)
