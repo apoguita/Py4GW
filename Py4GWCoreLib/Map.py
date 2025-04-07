@@ -445,8 +445,8 @@ class Map:
         @staticmethod
         def GetFrameID():
             """Get the frame ID of the mini map."""
-            hash = UIManager.GetHashByLabel("Compass") #3268554015
-            UIManager.GetFrameIDByHash(hash)
+            hash = UIManager.GetHashByLabel("compass") #3268554015
+            return UIManager.GetFrameIDByHash(hash)
             
         @staticmethod
         def FrameExists():
