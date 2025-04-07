@@ -2,8 +2,10 @@ from Py4GWCoreLib import *
 
 class Compass():
     overlay = PyOverlay.Overlay()
-    window_module = ImGui.WindowModule('Compass+',window_name='Compass+',window_pos=(234,802),window_size=(300,10),
+    window_module = ImGui.WindowModule('Compass+',window_name='Compass+',window_pos=(1200,400),window_size=(300,10),
                                        window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+    player_id = 0
+    target_id = 0
 
     class Position:
         snap_to_game = True
@@ -54,7 +56,6 @@ class Compass():
 
             target      = Utils.RGBToColor(255, 255 ,  0, 255)
 
-            bosses      = True
             profession = [Utils.RGBToColor(102, 102, 102, 255),
                           Utils.RGBToColor(238, 170,  51, 255),
                           Utils.RGBToColor( 85, 170,   0, 255),
@@ -133,15 +134,6 @@ class Compass():
             'spirit'    : 1.5,
             'compass'   : 1.5
         }
-
-        custom_rings = []
-
-        def CreateCustomRing(self):
-            return [f'Custom Ring {len(self.custom_rings)}',
-                    True,
-                    2000,
-                    Utils.RGBToColor(255, 255 , 255, 0),
-                    Utils.RGBToColor(255, 255 , 255, 255), 1.5]
      
     position = Position()
     markers = Markers()
@@ -159,6 +151,10 @@ def Debug(message, title = 'DEBUG', msg_type = 'Debug'):
     elif msg_type == 'Success':     py4gw_msg_type = Py4GW.Console.MessageType.Success
     elif msg_type == 'Warning':     py4gw_msg_type = Py4GW.Console.MessageType.Warning
     Py4GW.Console.Log(title, str(message), py4gw_msg_type)
+
+def UpdateTarget():
+    global compass
+    compass.target_id = Player.GetTargetID()
 
 def UpdateOrientation():
     global compass
@@ -205,140 +201,119 @@ def DrawRangeRings():
         compass.overlay.DrawPolyFilled(compass.position.current_pos, compass.position.current_size*range/Range.Compass.value, numSegments=64, color = fill_col)
         compass.overlay.DrawPoly(compass.position.current_pos, compass.position.current_size*range/Range.Compass.value, numSegments=64, color = outline_col, thickness=outline_thickness)
 
-    for ring in compass.range_rings.custom_rings:
-        if not ring[1]: continue
+def DrawAgent(agent_id, shape, size, col, is_spirit = False):
+    agent_pos = Agent.GetXY(agent_id)
+    agent_x = compass.position.current_pos.x - (compass.position.player_pos[0] - agent_pos[0])*compass.position.current_size/Range.Compass.value
+    agent_y = compass.position.current_pos.y + (compass.position.player_pos[1] - agent_pos[1])*compass.position.current_size/Range.Compass.value
 
-        range = ring[2]
-        fill_col = ring[3]
-        outline_col = ring[4]
-        outline_thickness = ring[5]
+    camera_rotation = compass.position.rotation - math.pi/2
+    x = compass.position.current_pos.x + math.cos(camera_rotation) * (agent_x - compass.position.current_pos.x) - math.sin(camera_rotation) * (agent_y - compass.position.current_pos.y)
+    y = compass.position.current_pos.y + math.sin(camera_rotation) * (agent_x - compass.position.current_pos.x) + math.cos(camera_rotation) * (agent_y - compass.position.current_pos.y)
 
-        compass.overlay.DrawPolyFilled(compass.position.current_pos, compass.position.current_size*range/Range.Compass.value, numSegments=64, color = fill_col)
-        compass.overlay.DrawPoly(compass.position.current_pos, compass.position.current_size*range/Range.Compass.value, numSegments=64, color = outline_col, thickness=outline_thickness)
+    line_col = Utils.RGBToColor(255,255,0,255) if agent_id == compass.target_id else Utils.RGBToColor(0,0,0,255)
+    line_thickness = 3 if agent_id == compass.target_id else 1.5
+    if shape == 'Circle':
+        pos = PyOverlay.Point2D(round(x), round(y))
 
-def GetAgentParams(agent_id):
-    global compass
+        compass.overlay.DrawPolyFilled(pos, size, numSegments=64, color = col)
+        compass.overlay.DrawPoly(pos, size, numSegments=64, color = line_col, thickness=line_thickness)
 
-    # misc
-    is_alive = Agent.IsAlive(agent_id)
-    allegiance = Agent.GetAllegiance(agent_id)[0] 
-
-    # player
-    if agent_id == Player.GetAgentID():
-        if is_alive:
-            return (compass.markers.color.player, compass.markers.shape.player, compass.markers.size.player)
-        
-        return (compass.markers.color.player_dead, compass.markers.shape.player, compass.markers.size.player)
-    
-    # signpost
-    if Agent.IsGadget(agent_id):
-        return (compass.markers.color.signpost, compass.markers.shape.signpost, compass.markers.size.signpost)
-    
-    # item
-    if Agent.IsItem(agent_id) or not Agent.IsLiving(agent_id):
-        return (compass.markers.color.item, compass.markers.shape.item,compass.markers.size.item)
-    
-    # enemies
-    if allegiance == Allegiance.Enemy.value:
-        if not is_alive:
-            return (compass.markers.color.enemy_dead, compass.markers.shape.default, compass.markers.size.default)
-        
-        if compass.markers.color.bosses and Agent.HasBossGlow(agent_id):
-            return (compass.markers.color.profession[Agent.GetProfessionIDs(agent_id)[0]], compass.markers.shape.default, compass.markers.size.boss)
-        
-        return (compass.markers.color.enemy, compass.markers.shape.default, compass.markers.size.default)
-    
-    # neutral
-    if allegiance == Allegiance.Neutral.value:
-        return (compass.markers.color.neutral, compass.markers.shape.default, compass.markers.size.default)
-    
-    # npc
-    match allegiance:
-        case Allegiance.Ally.value:
-            if Agent.IsNPC(agent_id):
-                if is_alive:
-                    return (compass.markers.color.ally, compass.markers.shape.default, compass.markers.size.default)
-            else:
-                if is_alive:
-                    return (compass.markers.color.players, compass.markers.shape.default, compass.markers.size.default)
-                return (compass.markers.color.players_dead, compass.markers.shape.default, compass.markers.size.default)
-        case Allegiance.NpcMinipet.value:
-            if is_alive:
-                return (compass.markers.color.ally_npc, compass.markers.shape.default, compass.markers.size.default)
-        case Allegiance.SpiritPet.value:
-            if is_alive:
-                return (compass.markers.color.ally_spirit, 'Circle', compass.markers.size.default)
-        case Allegiance.Minion.value:
-            if is_alive:
-                return (compass.markers.color.ally_minion, compass.markers.shape.minion, compass.markers.size.minion)
-    
-    if not is_alive:
-        return (compass.markers.color.ally_dead, compass.markers.shape.default, compass.markers.size.default)
-    
-    # default
-    return (compass.markers.color.default, compass.markers.shape.default, compass.markers.size.default)
-
-def DrawAgents():
-    global compass
-
-    for agent_id in AgentArray.GetAgentArray():
-        if not Agent.IsValid(agent_id): continue
-        spirit = False
-        if Agent.GetAllegiance(agent_id)[0] == Allegiance.SpiritPet.value:
-            if Agent.GetPlayerNumber(agent_id) in [2875, 2876, 2886]:
-                if not Agent.IsAlive(agent_id):
-                    continue
-                spirit = True
-
-        col, shape, size = GetAgentParams(agent_id)
-
-        agent_pos = Agent.GetXY(agent_id)
-        agent_x = compass.position.current_pos.x - (compass.position.player_pos[0] - agent_pos[0])*compass.position.current_size/Range.Compass.value
-        agent_y = compass.position.current_pos.y + (compass.position.player_pos[1] - agent_pos[1])*compass.position.current_size/Range.Compass.value
-
-        camera_rotation = compass.position.rotation - math.pi/2
-        x = compass.position.current_pos.x + math.cos(camera_rotation) * (agent_x - compass.position.current_pos.x) - math.sin(camera_rotation) * (agent_y - compass.position.current_pos.y)
-        y = compass.position.current_pos.y + math.sin(camera_rotation) * (agent_x - compass.position.current_pos.x) + math.cos(camera_rotation) * (agent_y - compass.position.current_pos.y)
-
-        outline_col = compass.markers.color.target if agent_id == Player.GetTargetID() else Utils.RGBToColor(0,0,0,255)
-        outline_thickness = 3 if agent_id == Player.GetTargetID() else 1.5
-
-        if shape == 'Circle':
-            pos = PyOverlay.Point2D(round(x), round(y))
-
-            compass.overlay.DrawPolyFilled(pos, size, numSegments=64, color = col)
-            compass.overlay.DrawPoly(pos, size, numSegments=64, color = outline_col, thickness=outline_thickness)
-        else:
-            scale = [1,1,1,1]
-            if shape == 'Tear':
-                scale = [2,1,1,1]
-            elif shape == 'Square':
-                scale = [1,1,1,1]
-
-            rot = -Agent.GetRotationAngle(agent_id) - math.radians(90) + compass.position.rotation
-            p1 = PyOverlay.Point2D(round(math.cos(rot)*scale[0]*size + x), round(math.sin(rot)*scale[0]*size + y))
-            rot += math.radians(90)
-            p2 = PyOverlay.Point2D(round(math.cos(rot)*scale[1]*size + x), round(math.sin(rot)*scale[1]*size + y))
-            rot += math.radians(90)
-            p3 = PyOverlay.Point2D(round(math.cos(rot)*scale[2]*size + x), round(math.sin(rot)*scale[2]*size + y))
-            rot += math.radians(90)
-            p4 = PyOverlay.Point2D(round(math.cos(rot)*scale[3]*size + x), round(math.sin(rot)*scale[3]*size + y))
-
-            compass.overlay.DrawQuadFilled(p1, p2, p3, p4, color = col)
-            compass.overlay.DrawQuad(p1, p2, p3, p4, color = outline_col, thickness = outline_thickness)
-
-        if spirit:
-            pos = PyOverlay.Point2D(round(x), round(y))
-            model_id = Agent.GetPlayerNumber(agent_id)
-            match model_id:
+        if is_spirit:
+            match Agent.GetPlayerNumber(agent_id):
                 case 2875:
                     compass.overlay.DrawPolyFilled(pos, compass.position.current_size*Range.Spirit.value/Range.Compass.value, numSegments=64, color = compass.markers.color.winnowing)
                 case 2876:
                     compass.overlay.DrawPolyFilled(pos, compass.position.current_size*Range.Spirit.value/Range.Compass.value, numSegments=64, color = compass.markers.color.eoe)
                 case 2886:
                     compass.overlay.DrawPolyFilled(pos, compass.position.current_size*Range.Spirit.value/Range.Compass.value, numSegments=64, color = compass.markers.color.qz)
+    else:
+        scale = [1,1,1,1]
+        if shape == 'Tear':
+            scale = [2,1,1,1]
+        elif shape == 'Square':
+            scale = [1,1,1,1]
+
+        rot = -Agent.GetRotationAngle(agent_id) - math.radians(90) + compass.position.rotation
+        p1 = PyOverlay.Point2D(round(math.cos(rot)*scale[0]*size + x), round(math.sin(rot)*scale[0]*size + y))
+        rot += math.radians(90)
+        p2 = PyOverlay.Point2D(round(math.cos(rot)*scale[1]*size + x), round(math.sin(rot)*scale[1]*size + y))
+        rot += math.radians(90)
+        p3 = PyOverlay.Point2D(round(math.cos(rot)*scale[2]*size + x), round(math.sin(rot)*scale[2]*size + y))
+        rot += math.radians(90)
+        p4 = PyOverlay.Point2D(round(math.cos(rot)*scale[3]*size + x), round(math.sin(rot)*scale[3]*size + y))
+
+        compass.overlay.DrawQuadFilled(p1, p2, p3, p4, color = col)
+        compass.overlay.DrawQuad(p1, p2, p3, p4, color = line_col, thickness = line_thickness)
+
+def DrawAgents():
+    global compass
+
+    for agent_id in AgentArray.GetAllyArray():
+        alive = Agent.IsAlive(agent_id)
+        if Agent.IsNPC(agent_id):
+            if alive:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally)
+            else:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
+        elif agent_id == compass.player_id:
+            if alive:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.player)
+            else:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.player_dead)
+        else:
+            if alive:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players)
+            else:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players_dead)
+
+    for agent_id in AgentArray.GetNPCMinipetArray():
+        if Agent.IsAlive(agent_id):
+            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_npc)
+        else:
+            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
+
+    for agent_id in AgentArray.GetSpiritPetArray():
+        alive = Agent.IsAlive(agent_id)
+        if Agent.IsSpirit(agent_id):
+            if alive:
+                DrawAgent(agent_id, 'Circle', compass.markers.size.default, compass.markers.color.ally_spirit, is_spirit = True)
+        else:
+            if alive: 
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_spirit)
+            else:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
+
+    for agent_id in AgentArray.GetMinionArray():
+        if Agent.IsAlive(agent_id):
+            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_minion)
+        else:
+            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_dead)
+
+    for agent_id in AgentArray.GetNeutralArray():
+        DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.neutral)
+
+    for agent_id in AgentArray.GetEnemyArray():
+        alive = Agent.IsAlive(agent_id)
+        if Agent.HasBossGlow(agent_id):
+            if alive:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.boss, compass.markers.color.profession[Agent.GetProfessionIDs(agent_id)[0]])
+            else:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.boss, compass.markers.color.enemy_dead)
+        else:
+            if alive:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy)
+            else:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy_dead)
+
+    for agent_id in AgentArray.GetItemArray():
+        DrawAgent(agent_id, compass.markers.shape.item, compass.markers.size.item, compass.markers.color.item)
+
+    for agent_id in AgentArray.GetGadgetArray():
+        DrawAgent(agent_id, compass.markers.shape.signpost, compass.markers.size.signpost, compass.markers.color.signpost)
 
 def DrawCompass():
+    global compass
+
     UpdateOrientation()
     compass.overlay.BeginDraw()
     DrawRangeRings()
@@ -426,19 +401,6 @@ def DrawConfig():
                         compass.range_rings.outline_color[ring] = Utils.TupleToColor(PyImGui.color_edit4('Line Color', Utils.ColorToTuple(compass.range_rings.outline_color[ring])))
                         compass.range_rings.outline_thickness[ring] = PyImGui.slider_float('Line Thickness', compass.range_rings.outline_thickness[ring], 0, 5)
                         PyImGui.tree_pop()
-                for i, _ in enumerate(compass.range_rings.custom_rings):
-                    #name, visible, range, fill_col, line_col, line_thickness 
-                    if PyImGui.tree_node(compass.range_rings.custom_rings[i][0]):
-                        compass.range_rings.custom_rings[i][0] = PyImGui.input_text('Label',compass.range_rings.custom_rings[i][0])
-                        compass.range_rings.custom_rings[i][1] = PyImGui.checkbox('Visible', compass.range_rings.custom_rings[i][1])
-                        compass.range_rings.custom_rings[i][2] = PyImGui.slider_int('Range',  compass.range_rings.custom_rings[i][2],  1, 5000)
-                        compass.range_rings.custom_rings[i][3] = Utils.TupleToColor(PyImGui.color_edit4('Fill Color', Utils.ColorToTuple(compass.range_rings.custom_rings[i][3])))
-                        compass.range_rings.custom_rings[i][4] = Utils.TupleToColor(PyImGui.color_edit4('Line Color', Utils.ColorToTuple(compass.range_rings.custom_rings[i][4])))
-                        compass.range_rings.custom_rings[i][5] = PyImGui.slider_float('Line Thickness', compass.range_rings.custom_rings[i][5], 0, 5)
-                        PyImGui.tree_pop()
-
-                if PyImGui.button('Add Custom Range'):
-                    compass.range_rings.custom_rings.append(compass.range_rings.CreateCustomRing())
 
             PyImGui.pop_style_color(11)
         PyImGui.end()
@@ -448,11 +410,24 @@ def DrawConfig():
         Py4GW.Console.Log('BOT', f'Error in {current_function}: {str(e)}', Py4GW.Console.MessageType.Error)
         raise
 
+action_queue = ActionQueueManager()
 def main():
+    global compass, action_queue
     try:
+        if Map.IsMapLoading():
+            compass.player_id = 0
+
         if Map.IsMapReady() and Party.IsPartyLoaded() and not UIManager.IsWorldMapShowing():
             DrawConfig()
             DrawCompass()
+
+            if action_queue.IsEmpty('ACTION'):
+                action_queue.AddAction('ACTION',UpdateTarget)
+            else:
+                action_queue.ProcessQueue('ACTION')
+
+            if not compass.player_id:
+                compass.player_id = Player.GetAgentID()
 
     except ImportError as e:
         Py4GW.Console.Log('Compass', f'ImportError encountered: {str(e)}', Py4GW.Console.MessageType.Error)
