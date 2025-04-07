@@ -2195,20 +2195,20 @@ class InventoryTracker:
     def __init__(self):
         self.initial_quantities = {} 
         self.tracked_model_ids = {  
-            422: "SPIDER LEGS",
-            423: "CHARR CARVINGS",
-            424: "ICY LODESTONES",
-            425: "DULL CARAPACES",
-            426: "GARGOYLE SKULLS",
-            427: "WORN BELTS",
-            428: "UNNATURAL SEEDS",
-            429: "SKALE FINS",
-            430: "SKELETAL LIMBS",
-            431: "ENCHANTED LODESTONES",
-            432: "GRAWL NECKLACES",
-            433: "BAKED HUSKS",
-            2994: "RED IRIS FLOWERS",
-            31149: "GIFTS OF THE HUNTSMAN"
+            ModelID.Spider_Leg: "SPIDER LEGS",
+            ModelID.Charr_Carving: "CHARR CARVINGS",
+            ModelID.Icy_Lodestone: "ICY LODESTONES",
+            ModelID.Dull_carapace: "DULL CARAPACES",
+            ModelID.Gargoyle_Skull: "GARGOYLE SKULLS",
+            ModelID.Worn_Belt: "WORN BELTS",
+            ModelID.Unnatural_Seed: "UNNATURAL SEEDS",
+            ModelID.Skale_Fin: "SKALE FINS",
+            ModelID.Skeletal_Limb: "SKELETAL LIMBS",
+            ModelID.Enchanted_Lodestone: "ENCHANTED LODESTONES",
+            ModelID.Grawl_Necklace: "GRAWL NECKLACES",
+            ModelID.Baked_Husk: "BAKED HUSKS",
+            ModelID.Red_Iris_Flower: "RED IRIS FLOWERS",
+            ModelID.Gift_Of_The_Huntsman: "GIFTS OF THE HUNTSMAN"
         }
 
     def initialize(self):
