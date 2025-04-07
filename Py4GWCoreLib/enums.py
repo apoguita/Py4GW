@@ -1319,7 +1319,6 @@ class ModelID(IntEnum):
     Abomination_Mini = 32519
     Abyssal_Mini = 30610
     Abyssal_Tonic = 30624
-    Scroll_Of_Adventurers_Insight = 5853
     Aged_Dwarven_Ale = 24593
     Aged_Hunters_Ale = 31145
     Alpine_Seed = 497
@@ -1348,6 +1347,7 @@ class ModelID(IntEnum):
     Azure_Crest = 844
     Azure_Remains = 496
     Bag = 35
+    Baked_Husk = 433
     Battle_Commendation = 17081
     Battle_Isle_Iced_Tea = 36682
     Bds_Air = 1995
@@ -1515,6 +1515,7 @@ class ModelID(IntEnum):
     Dredge_Incisor = 818
     Droknars_Key = 26724
     Dryder_Web = 27070
+    Dull_Carapace = 425
     Dune_Burrower_Jaw = 447
     Dusty_Insect_Carapace = 1588
     Dwarven_Ale = 5585
@@ -1590,6 +1591,7 @@ class ModelID(IntEnum):
     Elixir_Of_Valor = 21227
     Elonian_Key = 5960
     Elonian_Leather_Square = 943
+    Enchanted_Lodestone = 431
     Encrusted_Lodestone = 451
     Encrypted_Charr_Battle_Plans = 27976
     Enslavement_Stone = 532
@@ -1656,6 +1658,7 @@ class ModelID(IntEnum):
     Fungal_Root = 27061
     Fungal_Wallow_Mini = 13782
     Fur_Square = 941
+    Gargoyle_Skull = 426
     Gelatinous_Summon = 30964
     Gelatinous_Tonic = 30640
     Geode = 1681
@@ -1681,6 +1684,7 @@ class ModelID(IntEnum):
     Grail_Of_Might = 24861
     Granite_Slab = 955
     Grawl_Mini = 22822
+    Grawl_Necklace = 432
     Gray_Giant_Mini = 17053
     Green_Rock_Candy = 31152
     Gruesome_Ribcage = 482
@@ -1964,6 +1968,7 @@ class ModelID(IntEnum):
     Scorched_Lodestone = 486
     Scorched_Seed = 485
     Scourge_Manta_Mini = 34394
+    Scroll_Of_Adventurers_Insight = 5853
     Scroll_Of_Resurrection = 26501
     Scroll_Of_The_Lightbringer = 21233
     Scythe_Grip = 15553
@@ -1999,7 +2004,9 @@ class ModelID(IntEnum):
     Skale_Claw = 1604
     Skale_Fang = 27055
     Skale_Fin = 19184
+    Pre_Skale_Fin = 429
     Skale_Tooth = 1603
+    Skeletal_Limb = 430
     Skeleton_Bone = 1605
     Skeletonic_Tonic = 30636
     Skelk_Claw = 27040
@@ -2015,6 +2022,7 @@ class ModelID(IntEnum):
     Sparkler = 21813
     Spear_Grip = 15555
     Spearhead = 15544
+    Spider_Leg = 422
     Spiked_Crest = 434
     Spiked_Eggnog = 6366
     Spiritwood_Plank = 956
@@ -2066,6 +2074,7 @@ class ModelID(IntEnum):
     Umbral_Skeletal_Limb = 525
     Unctuous_Remains = 511
     Undead_Bone = 27974
+    Unnatural_Seed = 428
     Unseen_Tonic = 31172
     Vabbian_Key = 15558
     Vaettir_Essence = 27071
@@ -2108,6 +2117,7 @@ class ModelID(IntEnum):
     Wood_Plank = 946
     Word_Of_Madness_Mini = 32516
     World_Famous_Racing_Beetle_Mini = 37792
+    Worn_Belt = 427
     Yakkington_Mini = 32515
     Yuletide_Tonic = 21490
     Zaishen_Key = 28571
@@ -2118,4 +2128,3 @@ class ModelID(IntEnum):
     Zhed_Shadowhoof_Mini = 22197
     Zhos_Journal = 25866
     Zhu_Hanuku_Mini = 34398
-
