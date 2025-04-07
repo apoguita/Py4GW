@@ -229,15 +229,14 @@ class UIManager:
         return PyUIManager.UIManager.is_world_map_showing()
     
     @staticmethod
-    def SetPreference(preference, value):
+    def IsShiftScreebshot():
         """
-        Set a preference value.
+        Check if the shift screenshot is enabled.
 
-        :param preference: The preference to set.
-        :param value: The value to set.
+        :return: bool: True if shift screenshot is enabled, False otherwise.
         """
-        PyUIManager.UIManager.set_preference(preference, value)
-        
+        return PyUIManager.UIManager.is_shift_screenshot()
+            
     @staticmethod
     def GetFPSLimit():
         """
@@ -349,5 +348,92 @@ class UIManager:
         _overlay.DrawQuad(p1,p2,p3,p4, draw_color)
         _overlay.EndDraw()
 
+    @staticmethod
+    def GetPreferenceOptions(pref:int) -> List[int]:
+        return PyUIManager.UIManager.get_preference_options(pref)
+    
+    @staticmethod
+    def GetEnumPreference(pref:int) -> int:
+        return PyUIManager.UIManager.get_enum_preference(pref)
+    
+    @staticmethod
+    def GetIntPreference(pref:int) -> int:
+        return PyUIManager.UIManager.get_int_preference(pref)
+    
+    @staticmethod
+    def GetStringPreference(pref:int) -> str:
+        return PyUIManager.UIManager.get_string_preference(pref)
+    
+    @staticmethod
+    def GetBoolPreference(pref:int) -> bool:
+        return PyUIManager.UIManager.get_bool_preference(pref)
+    
+    @staticmethod
+    def SetEnumPreference(pref:int, value:int) -> None:
+        PyUIManager.UIManager.set_enum_preference(pref, value)
+    
+    @staticmethod
+    def SetIntPreference(pref:int, value:int) -> None:
+        PyUIManager.UIManager.set_int_preference(pref, value)
+        
+    @staticmethod
+    def SetStringPreference(pref:int, value:str) -> None:
+        PyUIManager.UIManager.set_string_preference(pref, value)
+        
+    @staticmethod
+    def SetBoolPreference(pref:int, value:bool) -> None:
+        PyUIManager.UIManager.set_bool_preference(pref, value)
+        
+    @staticmethod
+    def Keydown(key:int, frame_id:int) -> None:
+        PyUIManager.UIManager.key_down(key,frame_id)
+        
+    @staticmethod
+    def Keyup(key:int, frame_id:int) -> None:
+        PyUIManager.UIManager.key_up(key,frame_id)
+        
+    @staticmethod
+    def Keypress(key:int, frame_id:int) -> None:
+        PyUIManager.UIManager.key_press(key,frame_id)
+        
+    @staticmethod
+    def GetWindoPosition(window_id: int) -> list[int]:
+        """
+        Get the window position.
+
+        :return: x,y,x1,y1 coordinates of the window.
+        """
+        return PyUIManager.UIManager.get_window_position(window_id)
+    
+    @staticmethod
+    def IsWindowVisible(window_id: int) -> bool:
+        """
+        Check if a window is visible.
+
+        :return: True if the window is visible, False otherwise.
+        """
+        return PyUIManager.UIManager.is_window_visible(window_id)
+    
+    @staticmethod
+    def SetWindowVisible(window_id: int, visible: bool) -> None:
+        """
+        Set the visibility of a window.
+
+        :param window_id: The ID of the window.
+        :param visible: True to show the window, False to hide it.
+        """
+        PyUIManager.UIManager.set_window_visible(window_id, visible)
+        
+    @staticmethod
+    def SetWindowPosition(window_id: int, position: list[int]) -> None:
+        """
+        Set the position of a window.
+
+        :param window_id: The ID of the window.
+        :param x: The x-coordinate.
+        :param y: The y-coordinate.
+        """
+        PyUIManager.UIManager.set_window_position(window_id, position)
+    
 
     

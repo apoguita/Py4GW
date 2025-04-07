@@ -1,101 +1,4 @@
 from typing import List, Tuple, Callable
-from enum import IntEnum
-
-class UIMessage(IntEnum):
-    kNone = 0x0
-    kInitFrame = 0x9
-    kDestroyFrame = 0xb
-    kKeyDown = 0x1e  # wparam = UIPacket::kKeyAction*
-    kKeyUp = 0x20  # wparam = UIPacket::kKeyAction*
-    kMouseClick = 0x22  # wparam = UIPacket::kMouseClick*
-    kMouseClick2 = 0x2e  # wparam = UIPacket::kMouseAction*
-    kMouseAction = 0x2f  # wparam = UIPacket::kMouseAction*
-    kUpdateAgentEffects = 0x10000009
-    kRerenderAgentModel = 0x10000007  # wparam = uint32_t agent_id
-    kShowAgentNameTag = 0x10000019  # wparam = AgentNameTagInfo*
-    kHideAgentNameTag = 0x1000001A
-    kSetAgentNameTagAttribs = 0x1000001B  # wparam = AgentNameTagInfo*
-    kChangeTarget = 0x10000020  # wparam = ChangeTargetUIMsg*
-    kAgentStartCasting = 0x10000027  # wparam = { uint32_t agent_id, uint32_t skill_id }
-    kShowMapEntryMessage = 0x10000029  # wparam = { wchar_t* title, wchar_t* subtitle }
-    kSetCurrentPlayerData = 0x1000002A
-    kPostProcessingEffect = 0x10000034  # wparam = UIPacket::kPostProcessingEffect
-    kHeroAgentAdded = 0x10000038
-    kHeroDataAdded = 0x10000039
-    kShowXunlaiChest = 0x10000040
-    kMinionCountUpdated = 0x10000046
-    kMoraleChange = 0x10000047  # wparam = {agent id, morale percent }
-    kLoginStateChanged = 0x10000050  # wparam = {bool is_logged_in, bool unk }
-    kEffectAdd = 0x10000055  # wparam = {agent_id, GW::Effect*}
-    kEffectRenew = 0x10000056  # wparam = GW::Effect*
-    kEffectRemove = 0x10000057  # wparam = effect id
-    kUpdateSkillbar = 0x1000005E  # wparam = { uint32_t agent_id , ... }
-    kSkillActivated = 0x1000005B  # wparam = { uint32_t agent_id , uint32_t skill_id }
-    kTitleProgressUpdated = 0x10000065  # wparam = title_id
-    kExperienceGained = 0x10000066  # wparam = experience amount
-    kWriteToChatLog = 0x1000007E  # wparam = UIPacket::kWriteToChatLog*
-    kWriteToChatLogWithSender = 0x1000007F  # wparam = UIPacket::kWriteToChatLogWithSender*
-    kPlayerChatMessage = 0x10000081  # wparam = UIPacket::kPlayerChatMessage*
-    kFriendUpdated = 0x10000089  # wparam = { GW::Friend*, ... }
-    kMapLoaded = 0x1000008A
-    kOpenWhisper = 0x10000090  # wparam = wchar* name
-    kLogout = 0x1000009B  # wparam = { bool unknown, bool character_select }
-    kCompassDraw = 0x1000009C  # wparam = UIPacket::kCompassDraw*
-    kOnScreenMessage = 0x100000A0  # wparam = wchar_** encoded_string
-    kDialogBody = 0x100000A4  # wparam = DialogBodyInfo*
-    kDialogButton = 0x100000A1  # wparam = DialogButtonInfo*
-    kTargetNPCPartyMember = 0x100000B1  # wparam = { uint32_t unk, uint32_t agent_id }
-    kTargetPlayerPartyMember = 0x100000B2  # wparam = { uint32_t unk, uint32_t player_number }
-    kInitMerchantList = 0x100000B3  # wparam = { uint32_t merchant_tab_type, uint32_t unk, uint32_t merchant_agent_id, uint32_t is_pending }
-    kQuotedItemPrice = 0x100000BB  # wparam = { uint32_t item_id, uint32_t price }
-    kStartMapLoad = 0x100000C0  # wparam = { uint32_t map_id, ... }
-    kWorldMapUpdated = 0x100000C5
-    kGuildMemberUpdated = 0x100000D8  # wparam = { GuildPlayer::name_ptr }
-    kShowHint = 0x100000DF  # wparam = { uint32_t icon_type, wchar_t* message_enc }
-    kUpdateGoldCharacter = 0x100000EA  # wparam = { uint32_t unk, uint32_t gold_character }
-    kUpdateGoldStorage = 0x100000EB  # wparam = { uint32_t unk, uint32_t gold_storage }
-    kInventorySlotUpdated = 0x100000EC  # Triggered when an item is moved into a slot
-    kEquipmentSlotUpdated = 0x100000ED  # Triggered when an item is moved into a slot
-    kInventorySlotCleared = 0x100000EF  # Triggered when an item is removed from a slot
-    kEquipmentSlotCleared = 0x100000F0  # Triggered when an item is removed from a slot
-    kPvPWindowContent = 0x100000F8
-    kPreStartSalvage = 0x10000100  # { uint32_t item_id, uint32_t kit_id }
-    kTradePlayerUpdated = 0x10000103  # wparam = GW::TraderPlayer*
-    kItemUpdated = 0x10000104  # wparam = UIPacket::kItemUpdated*
-    kMapChange = 0x1000010F  # wparam = map id
-    kCalledTargetChange = 0x10000113  # wparam = { player_number, target_id }
-    kErrorMessage = 0x10000117  # wparam = { int error_index, wchar_t* error_encoded_string }
-    kSendEnterMission = 0x30000002  # wparam = uint32_t arena_id
-    kSendLoadSkillbar = 0x30000003  # wparam = UIPacket::kSendLoadSkillbar*
-    kSendPingWeaponSet = 0x30000004  # wparam = UIPacket::kSendPingWeaponSet*
-    kSendMoveItem = 0x30000005  # wparam = UIPacket::kSendMoveItem*
-    kSendMerchantRequestQuote = 0x30000006  # wparam = UIPacket::kSendMerchantRequestQuote*
-    kSendMerchantTransactItem = 0x30000007  # wparam = UIPacket::kSendMerchantTransactItem*
-    kSendUseItem = 0x30000008  # wparam = UIPacket::kSendUseItem*
-    kSendSetActiveQuest = 0x30000009  # wparam = uint32_t quest_id
-    kSendAbandonQuest = 0x3000000A  # wparam = uint32_t quest_id
-    kSendChangeTarget = 0x3000000B  # wparam = UIPacket::kSendChangeTarget*
-    kSendMoveToWorldPoint = 0x3000000C  # wparam = GW::GamePos*  # Clicking on the ground in the 3D world to move there
-    kSendInteractNPC = 0x3000000D  # wparam = UIPacket::kInteractAgent*
-    kSendInteractGadget = 0x3000000E  # wparam = UIPacket::kInteractAgent*
-    kSendInteractItem = 0x3000000F  # wparam = UIPacket::kInteractAgent*
-    kSendInteractEnemy = 0x30000010  # wparam = UIPacket::kInteractAgent*
-    kSendInteractPlayer = 0x30000011  # wparam = uint32_t agent_id  # NB: calling target is a separate packet
-    kSendCallTarget = 0x30000013  # wparam = { uint32_t call_type, uint32_t agent_id }  # Also used to broadcast morale, death penalty, "I'm following X", etc
-    kSendAgentDialog = 0x30000014  # wparam = uint32_t agent_id  # e.g., switching tabs on a merchant window, choosing a response to an NPC dialog
-    kSendGadgetDialog = 0x30000015  # wparam = uint32_t agent_id  # e.g., opening locked chest with a key
-    kSendDialog = 0x30000016  # wparam = dialog_id  # Internal use
-
-    kStartWhisper = 0x30000017  # wparam = UIPacket::kStartWhisper*
-    kGetSenderColor = 0x30000018  # wparam = UIPacket::kGetColor*  # Get chat sender color depending on the channel, output object passed by reference
-    kGetMessageColor = 0x30000019  # wparam = UIPacket::kGetColor*  # Get chat message color depending on the channel, output object passed by reference
-    kSendChatMessage = 0x3000001B  # wparam = UIPacket::kSendChatMessage*
-    kLogChatMessage = 0x3000001D  # wparam = UIPacket::kLogChatMessage*  # Triggered when a message wants to be added to the persistent chat log
-    kRecvWhisper = 0x3000001E  # wparam = UIPacket::kRecvWhisper*
-    kPrintChatMessage = 0x3000001F  # wparam = UIPacket::kPrintChatMessage*  # Triggered when a message wants to be added to the in-game chat window
-    kSendWorldAction = 0x30000020  # wparam = UIPacket::kSendWorldAction*
-
-
 
 class UIInteractionCallback:
     def __init__(self) -> None:
@@ -255,8 +158,6 @@ class UIManager:
     @staticmethod
     def is_world_map_showing() -> bool: ...
     @staticmethod
-    def set_preference (preference: int, value: int) -> None: ...
-    @staticmethod
     def get_frame_limit() -> int: ...
     @staticmethod
     def set_frame_limit(limit: int) -> None: ...
@@ -264,3 +165,37 @@ class UIManager:
     def get_frame_array() -> List[int]: ...
     @staticmethod
     def get_child_frame_id(parent_hash: int, child_offsets: List[int]) -> int: ...
+    @staticmethod
+    def get_preference_options(pref: int) -> List[int]: ...
+    @staticmethod
+    def get_enum_preference(pref: int) -> int: ...
+    @staticmethod
+    def get_int_preference(pref: int) -> int: ...
+    @staticmethod
+    def get_string_preference(pref: int) -> str: ...
+    @staticmethod
+    def get_bool_preference(pref: int) -> bool: ...
+    @staticmethod
+    def set_enum_preference(pref: int, value: int) -> None: ...
+    @staticmethod
+    def set_int_preference(pref: int, value: int) -> None: ...
+    @staticmethod
+    def set_string_preference(pref: int, value: str) -> None: ...
+    @staticmethod
+    def set_bool_preference(pref: int, value: bool) -> None: ...
+    @staticmethod
+    def key_down(key: int, frame_id: int) -> None: ...
+    @staticmethod   
+    def key_up(key: int, frame_id: int) -> None: ...
+    @staticmethod   
+    def key_press(key: int, frame_id: int) -> None: ...
+    @staticmethod
+    def get_window_position(window_id: int) -> list[int]: ...
+    @staticmethod
+    def is_window_visible(window_id: int) -> bool: ...
+    @staticmethod
+    def set_window_visible(window_id: int, is_visible: bool) -> None: ...
+    @staticmethod
+    def set_window_position(window_id: int, position: list[int]) -> None: ...
+    @staticmethod
+    def is_shift_screenshot() -> bool: ...

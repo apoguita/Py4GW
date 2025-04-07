@@ -1,7 +1,8 @@
 import Py4GW
 import PyMap
 import PyMissionMap
-from .enums import explorables, explorable_name_to_id
+from .enums import explorables, explorable_name_to_id, FlagPreference
+from .UIManager import *
 
 class Map:
     @staticmethod
@@ -433,8 +434,34 @@ class Map:
 
         return min_x, min_y, max_x, max_y
 
+    class Pathing:
+        @staticmethod
+        def GetPathingMaps():
+            import PyPathing
+            """Return the PyPathing instance. """
+            return PyPathing.get_pathing_maps()
 
-
+    class MiniMap:
+        @staticmethod
+        def GetFrameID():
+            """Get the frame ID of the mini map."""
+            hash = UIManager.GetHashByLabel("Compass") #3268554015
+            UIManager.GetFrameIDByHash(hash)
+            
+        @staticmethod
+        def FrameExists():
+            """Check if the mini map frame is visible."""
+            return UIManager.FrameExists(Map.MiniMap.GetFrameID())
+        
+        @staticmethod
+        def GetCoords():
+            """Get the coordinates of the mini map."""
+            return UIManager.GetFrameCoords(Map.MiniMap.GetFrameID())
+        
+        @staticmethod
+        def IsLocked():
+            """Check if the mini map is locked."""
+            return UIManager.GetBoolPreference(FlagPreference.LockCompassRotation)
 
     class MissionMap:
         @staticmethod

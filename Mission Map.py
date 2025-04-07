@@ -3,7 +3,7 @@ from typing import Optional, Union
 import math
 
 MODULE_NAME = "Mission Map"
- 
+
 class Shape:
     def __init__(self, name: str, color: Color, x: float, y: float, size: float = 5.0):
         self.name: str = name
@@ -53,25 +53,12 @@ class Triangle(Shape):
 class Circle(Shape):
     def __init__(self, x: float, y: float, color: Color, size: float = 5.0, segments: int = 32):
         self.segments: int = segments
-        self.accent_color: Color = Color(1, 1, 1, 255)
         super().__init__("Circle", color, x, y, size)
+        self.accent_color: Color = Color(0, 0, 0, 255)
 
     def draw(self) -> None:
-        Overlay().DrawPolyFilled(
-            self.x,
-            self.y,
-            radius=self.size,
-            color=self.color.value(),
-            numsegments=32
-        )
-        Overlay().DrawPoly(
-            self.x,
-            self.y,
-            radius=self.size,
-            color=self.accent_color.value(),
-            numsegments=32,
-            thickness=1.0
-        )
+        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.value(), numsegments=self.segments)
+        Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.value(), numsegments=self.segments, thickness=1.0)
         
 class Square(Shape):
     def __init__(self, x: float, y: float, color: Color, size: float = 5.0):
@@ -143,8 +130,15 @@ class AgentMarker(Marker):
         x, y = Overlay.GamePosToScreen(x, y)
         super().__init__(shape_type=shape_type, color=color, x=x, y=y, size=size, **kwargs)
 
+class MapBoundaries:
+    def __init__(self, x_min, x_max, y_min, y_max, unk):
+        self.x_min = x_min
+        self.x_max = x_max
+        self.y_min = y_min
+        self.y_max = y_max
+        self.unk = unk
 
-        
+
 class MissionMap:
     def __init__(self):
         self.left = 0
@@ -155,8 +149,18 @@ class MissionMap:
         self.height = 0
 
         self.player_screen_x, self.player_screen_y = 0, 0
-        self.update()
+        self.precomputed_geometry = {}
+        self.pathing_map = []
+        self.map_boundaries: MapBoundaries
+        self.map_boundaries_vector : List[float] = []
+        self.thread_manager = MultiThreading(log_actions=True)
         
+        self.last_click_x = 0
+        self.last_click_y = 0
+
+        self.update()
+                    
+
     def update(self):
         coords = Map.MissionMap.GetWindowCoords()
         self.left, self.top, self.right, self.bottom = int(coords[0]-5), int(coords[1]-1), int(coords[2]+5), int(coords[3]+2)
@@ -166,28 +170,35 @@ class MissionMap:
         player_x, player_y = Player.GetXY()
         self.player_screen_x, self.player_screen_y = Overlay.GamePosToScreen(player_x, player_y)
         
-mission_map = MissionMap()
+        click_x, click_y = Map.MissionMap.GetLastClickCoords()
 
-draw_frame = False
-draw_color = Utils.RGBToColor(255, 255, 255, 125)
+        self.last_click_x, self.last_click_y = Overlay.ScreenToGamePos(click_x, click_y)
+
+
+mission_map = MissionMap()
 
 def DrawFrame():
     global mission_map
     Overlay().BeginDraw("MissionMapOverlay", mission_map.left, mission_map.top, mission_map.width, mission_map.height)
+    #terrain
     #Aggro Bubble
     Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value)-2, color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32,thickness=4.0)
     Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32)
     #Compass Range
     Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Compass.value), color=Utils.RGBToColor(0, 0, 0, 255),numsegments=360,thickness=1.0)
-    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Compass.value)-10, color=Utils.RGBToColor(255, 255, 255, 40),numsegments=360,thickness=20.0)
-    
+    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Compass.value)-(2.85*Map.MissionMap.GetZoom()), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=360,thickness=(5.7*Map.MissionMap.GetZoom()))
+        
     agent_array = AgentArray.GetNPCMinipetArray()
     for agent_id in agent_array:
         AgentMarker("Triangle", agent_id, Color(170,255,0,255), size=6.0).draw()
         
     enemy_array = AgentArray.GetEnemyArray()
     for agent_id in enemy_array:
-        AgentMarker("Square", agent_id, Color(255,0,0,255), size=6.0).draw()
+        #AgentMarker("Square", agent_id, Color(255,0,0,255), size=6.0).draw()
+        AgentMarker("Circle", agent_id, Color(255,0,0,255), size=4.0, segments=16).draw()
+
+    z_coords = Overlay.FindZ(mission_map.last_click_x, mission_map.last_click_y)
+    Overlay().DrawPolyFilled3D(mission_map.last_click_x, mission_map.last_click_y, z_coords, color=Color(255, 255, 0, 255).value(), radius=5.0)
 
     Overlay().EndDraw()
     
@@ -196,19 +207,28 @@ def DrawWindow():
     global MODULE_NAME
     
     if PyImGui.begin(MODULE_NAME):
-        # Global
-        pass   
+        player_x, player_y = Player.GetXY()   
+        player_screen_x, player_screen_y = Overlay.GamePosToScreen(player_x, player_y) 
+        player_converted_back_x, player_converted_back_y = Overlay.ScreenToGamePos(player_screen_x, player_screen_y)
+
+        PyImGui.text(f"Player Position: {player_x:.2f}, {player_y:.2f}") 
+        PyImGui.text(f"Player Screen Position: {player_screen_x:.2f}, {player_screen_y:.2f}")
+        PyImGui.text(f"Converted Back Position: {player_converted_back_x:.2f}, {player_converted_back_y:.2f}")
+        if PyImGui.button("Get Pathing Maps!"):
+            pathing_map = Map.Pathing.GetPathingMaps()
+            #precompute_layer_geometry(pathing_map, width=500, height=500)
     PyImGui.end()
         
 def main():   
     if not Routines.Checks.Map.MapValid(): 
         return
     
+    if not Map.MissionMap.IsWindowOpen():
+        return
+    
     mission_map.update()
-    if Map.MissionMap.IsWindowOpen():
-        DrawFrame()
-           
-    #DrawWindow()
+    DrawFrame()       
+    DrawWindow()
 
 if __name__ == "__main__":
     main()
