@@ -590,6 +590,8 @@ def handle_loot():
         if item_id in filtered_items
     ]
 
+    filtered_agent_ids = AgentArray.Sort.ByDistance(filtered_agent_ids, Agent.GetXY(my_id))
+
     if len(filtered_agent_ids) > 0:
         looting_item = filtered_agent_ids[0]
 
