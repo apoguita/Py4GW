@@ -17,6 +17,53 @@ ini_handler = IniHandler(INI_FILE_LOCATION)
 # Action queue for managing delayed executions.
 action_queue = ActionQueue()
 
+ALL_HEXES = [
+    "Amity", "Defender's_Zeal", "Pacifism", "Scourge_Enchantment",
+    "Scourge_Healing", "Scourge_Sacrifice",
+
+    "Atrophy", "Barbs", "Blood_Bond", "Cacophony", "Corrupt_Enchantment",
+    "Defile_Defenses", "Defile_Flesh", "Depravity", "Faintheartedness",
+    "Icy_Veins", "Insidious_Parasite", "Life_Siphon", "Life_Transfer",
+    "Lingering_Curse", "Malaise", "Malign_Intervention", "Mark_of_Fury",
+    "Mark_of_Pain", "Mark_of_Subversion", "Meekness", "Parasitic_Bond",
+    "Price_of_Failure", "Putrid_Bile", "Reaper's_Mark", "Reckless_Haste",
+    "Rigor_Mortis", "Rising_Bile", "Shadow_of_Fear", "Shivers_of_Dread",
+    "Soul_Barbs", "Soul_Bind", "Soul_Leech", "Spinal_Shivers",
+    "Spiteful_Spirit", "Spoil_Victor", "Suffering", "Ulcerous_Lungs",
+    "Vile_Miasma", "Vocal_Minority", "Wail_of_Doom", "Weaken_Knees",
+    "Wither",
+
+    "Air_of_Disenchantment", "Arcane_Conundrum", "Arcane_Languor", "Backfire",
+    "Calculated_Risk", "Clumsiness", "Confusing_Images", "Conjure_Nightmare",
+    "Conjure_Phantasm", "Crippling_Anguish", "Diversion", "Empathy",
+    "Enchanter's_Conundrum", "Ether_Lord", "Ether_Nightmare", "Ether_Phantom",
+    "Ethereal_Burden", "Fevered_Dreams", "Fragility", "Frustration", "Guilt",
+    "Ignorance", "Illusion_of_Pain", "Images_of_Remorse", "Imagined_Burden",
+    "Ineptitude", "Kitah's_Burden", "Migraine", "Mind_Wrack", "Mistrust",
+    "Overload", "Panic", "Phantom_Pain", "Power_Flux", "Power_Leech",
+    "Price_of_Pride", "Recurring_Insecurity", "Shame", "Shared_Burden",
+    "Shrinking_Armor", "Soothing_Images", "Spirit_Shackles",
+    "Spirit_of_Failure", "Stolen_Speed", "Sum_of_All_Fears",
+    "Visions_of_Regret", "Wandering_Eye", "Wastrel's_Demise",
+    "Wastrel's_Worry", "Web_of_Disruption",
+
+    "Ash_Blast", "Blurred_Vision", "Chilling_Winds", "Deep_Freeze",
+    "Earthen_Shackles", "Freezing_Gust", "Frozen_Burst", "Glimmering_Mark",
+    "Grasping_Earth", "Ice_Prison", "Ice_Spikes", "Icicles", "Icy_Shackles",
+    "Incendiary_Bonds", "Lightning_Strike", "Lightning_Surge",
+    "Mark_of_Rodgort", "Mind_Freeze", "Mirror_of_Ice", "Rust", "Shard_Storm",
+    "Shatterstone", "Smoldering_Embers", "Teinai's_Prison", "Winter's_Embrace",
+
+    "Assassin's_Promise", "Augury_of_Death", "Dark_Prison", "Enduring_Toxin",
+    "Expose_Defenses", "Hidden_Caltrops", "Mark_of_Death", "Mark_of_Insecurity",
+    "Mark_of_Instability", "Mirrored_Stance", "Scorpion_Wire", "Seeping_Wound",
+    "Shadow_Fang", "Shadow_Prison", "Shadow_Shroud", "Shadowy_Burden",
+    "Shameful_Fear", "Siphon_Speed", "Siphon_Strength",
+
+    "Binding_Chains", "Dulled_Weapon", "Lamentation", "Painful_Bond",
+    "Renewing_Surge"
+]
+
 class Config:
     # Initialize the configuration and load settings.
     def __init__(self):
@@ -39,7 +86,8 @@ class Config:
             "smart_hex_cleanse_toggled",
             "smart_interrupt_toggled",
             "user_hex_input",
-            "user_skill_input"
+            "user_skill_input",
+            "floating_window_enabled"
         ]
 
         # Load values from the INI file or use defaults.
@@ -57,7 +105,7 @@ class Config:
         self.smart_con_cleanse_toggled = ini_handler.read_bool(MODULE_NAME, "smart_con_cleanse_toggled", False)
         self.smart_hex_cleanse_toggled = ini_handler.read_bool(MODULE_NAME, "smart_hex_cleanse_toggled", False)
         self.smart_interrupt_toggled = ini_handler.read_bool(MODULE_NAME, "smart_interrupt_toggled", False)
-        
+        self.floating_window_enabled = ini_handler.read_bool(MODULE_NAME, "floating_window_enabled", False)
         
         self.user_hex_input = ini_handler.read_key(MODULE_NAME, "user_hex_input", "")
         self.user_skill_input = ini_handler.read_key(MODULE_NAME, "user_skill_input", "")
@@ -1347,18 +1395,291 @@ def color_toggle_button(label:str, state:bool, button_color=0, hovered_color=0, 
         clicked = colored_button(IconsFontAwesome5.ICON_CIRCLE + f"##{label}",button_color, active_color , active_color, width, height)
     return clicked
 
-# Function: draw_window
-# Handles UI rendering for the Hero Helper module.
-def draw_window():
-    PyImGui.set_next_window_size(300, 200)
+def draw_config_tabs(widget_config):
+    if PyImGui.begin_tab_bar("Hero Helper Config Tabs"):
+            
+        if PyImGui.begin_tab_item("Follow"):
+            
+            PyImGui.text("Follow Delay (ms)")
+            widget_config.follow_delay = PyImGui.slider_int("##follow_delay_slider", widget_config.follow_delay, 500, 2000)
+            PyImGui.same_line(0,5)
+            widget_config.follow_delay = PyImGui.input_int("##hidden_label", widget_config.follow_delay)
+            widget_config.follow_delay = max(500, min(2000, widget_config.follow_delay))
 
-    if PyImGui.begin(window_module.window_name, window_module.window_flags | PyImGui.WindowFlags.NoScrollbar):
-        PyImGui.begin_group()
+            PyImGui.end_tab_item()
+            
+        if PyImGui.begin_tab_item("Smart Skills"):
 
-        if PyImGui.begin_child("Console", size=(280.0, 50.0), border=False, flags=0):
-            for log in reversed(Helper.console_logs):
-                PyImGui.text(log)
-            PyImGui.end_child()
+            Helper.create_and_update_checkbox("Smart Blood is Power", "smart_bip_enabled", tooltip_text="Automatically cast Blood is Power on player when needed.")
+            PyImGui.same_line(0.0, 21)
+            Helper.create_and_update_checkbox("Smart Signet of Spirits", "smart_sos_enabled", tooltip_text="Automatically casts Signet of Spirits when necessary.")
+            
+            Helper.create_and_update_checkbox("Smart Soul Twisting", "smart_st_enabled", tooltip_text="Automatically casts Shelter and Union based on combat conditions.")
+            PyImGui.same_line(0.0, 31)
+            Helper.create_and_update_checkbox("Smart Strength of Honor", "smart_honor_enabled", tooltip_text="[DISABLE HERO CASTING] If a Melee class with a Melee weapon it maintains Honor on you")
+            
+            Helper.create_and_update_checkbox("Smart Splinter Weapon", "smart_splinter_enabled", tooltip_text="If a Melee class with a Melee weapon it cast Splinter weapon on you in combat")
+            PyImGui.same_line(0.0, 10)
+            Helper.create_and_update_checkbox("Smart Vigorous Spirit", "smart_vigorous_enabled", tooltip_text="If a Melee class with a Melee weapon it cast Vigorous Spirit on you in combat")
+            
+            PyImGui.end_tab_item()
+            
+        if PyImGui.begin_tab_item("Condition Cleanse"):
+            if PyImGui.collapsing_header("Condition Removal", PyImGui.TreeNodeFlags.DefaultOpen):
+                PyImGui.text_wrapped("Assign Prio Cleanse Conditions to Melee, Caster, or Both\n(Leave blank to keep default priority):")
+
+                if PyImGui.is_item_hovered():
+                    PyImGui.set_tooltip("Melee: Prioritizes cleansing melee characters.\n"
+                                        "Caster: Prioritizes cleansing caster characters.\n"
+                                        "Both: Prio cleanses no matter class.")
+
+                changes_made = False
+
+                if PyImGui.begin_table("ConditionTable", 4, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchSame):
+                    PyImGui.table_setup_column("Condition", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("Melee", PyImGui.TableColumnFlags.WidthFixed)
+                    PyImGui.table_setup_column("Caster", PyImGui.TableColumnFlags.WidthFixed)
+                    PyImGui.table_setup_column("Both", PyImGui.TableColumnFlags.WidthFixed)
+                    PyImGui.table_headers_row()
+
+                    for condition_name, data in widget_config.conditions.items():
+                        PyImGui.table_next_row()
+
+                        PyImGui.table_next_column()
+                        row_height = PyImGui.get_text_line_height_with_spacing()
+                        text_height = PyImGui.calc_text_size(condition_name.replace("_", " "))[1]
+                        padding = (row_height - text_height) / 2
+                        PyImGui.dummy(0, int(padding))
+                        PyImGui.text_wrapped(condition_name.replace("_", " "))
+                        PyImGui.same_line(0, 0)
+
+                        prev_melee, prev_caster, prev_both = data["melee"], data["caster"], data["both"]
+
+                        PyImGui.table_next_column()
+                        new_melee = PyImGui.checkbox(f"##melee_{condition_name}", prev_melee)
+
+                        PyImGui.table_next_column()
+                        new_caster = PyImGui.checkbox(f"##caster_{condition_name}", prev_caster)
+
+                        PyImGui.table_next_column()
+                        new_both = PyImGui.checkbox(f"##both_{condition_name}", prev_both)
+
+                        if new_melee and not prev_melee:
+                            data["melee"], data["caster"], data["both"] = True, False, False
+                        elif new_caster and not prev_caster:
+                            data["melee"], data["caster"], data["both"] = False, True, False
+                        elif new_both and not prev_both:
+                            data["melee"], data["caster"], data["both"] = False, False, True
+                        elif not new_melee and not new_caster and not new_both:
+                            data["melee"], data["caster"], data["both"] = False, False, False
+
+                        changes_made |= (prev_melee != data["melee"] or prev_caster != data["caster"] or prev_both != data["both"])
+
+                PyImGui.end_table()
+
+                if changes_made:
+                    widget_config.save()
+
+                if PyImGui.button("Set Recommended Defaults", height=25):
+                    recommended_defaults = {
+                        "Blind": {"melee": True, "caster": False, "both": False},
+                        "Weakness": {"melee": True, "caster": False, "both": False},
+                        "Dazed": {"melee": False, "caster": True, "both": False},
+                        "Crippled": {"melee": False, "caster": False, "both": True},
+                    }
+
+                    for condition in widget_config.conditions:
+                        widget_config.conditions[condition]["melee"] = False
+                        widget_config.conditions[condition]["caster"] = False
+                        widget_config.conditions[condition]["both"] = False
+
+                    for condition, values in recommended_defaults.items():
+                        if condition in widget_config.conditions:
+                            widget_config.conditions[condition].update(values)
+
+                    widget_config.save()
+
+                PyImGui.same_line(0.0, -1)
+                available_width = PyImGui.get_content_region_avail()[0]
+                button_width = int(available_width)
+
+                cleanse_conditions = ImGui.toggle_button("Enable Condition Cleanse", widget_config.smart_con_cleanse_toggled, button_width, 25)
+                widget_config.smart_con_cleanse_toggled = cleanse_conditions
+            PyImGui.end_tab_item()
+
+        if PyImGui.begin_tab_item("Hex Removal"):
+            if PyImGui.collapsing_header("Hex Removal", PyImGui.TreeNodeFlags.DefaultOpen):
+
+                PyImGui.text_wrapped("These hexes will be prioritized for removal.")
+
+                if PyImGui.is_item_hovered():
+                    PyImGui.set_tooltip("Hexes in each list will be removed automatically when detected.")
+
+                if not hasattr(widget_config, "hexes_melee") or not widget_config.hexes_melee:
+                    widget_config.hexes_melee = [
+                        "Ineptitude", "Empathy", "Crippling Anguish", "Clumsiness", "Faintheartedness",
+                        "Blurred Vision", "Amity"
+                    ]
+                if not hasattr(widget_config, "hexes_caster") or not widget_config.hexes_caster:
+                    widget_config.hexes_caster = [
+                        "Panic", "Backfire", "Mistrust", "Power Leech", "Soul Leech"
+                    ]
+                if not hasattr(widget_config, "hexes_all") or not widget_config.hexes_all:
+                    widget_config.hexes_all = [
+                        "Diversion", "Visions of Regret", "Deep Freeze", "Mind Freeze", "Icy Shackles", "Spiteful Spirit"
+                    ]
+                if not hasattr(widget_config, "hexes_paragon") or not widget_config.hexes_paragon:
+                    widget_config.hexes_paragon = ["Vocal Minority"]
+
+                if PyImGui.collapsing_header("Hexes to be priority removed from Melee", PyImGui.TreeNodeFlags.DefaultOpen):
+                    PyImGui.columns(2, "melee_hexes", False)
+                    for hex_name in widget_config.hexes_melee[:4]:
+                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
+                    PyImGui.next_column()
+                    for hex_name in widget_config.hexes_melee[4:]:
+                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
+                    PyImGui.columns(1, "", False)
+
+                if PyImGui.collapsing_header("Hexes to be priority removed from Casters", PyImGui.TreeNodeFlags.DefaultOpen):
+                    PyImGui.columns(2, "caster_hexes", False)
+                    for hex_name in widget_config.hexes_caster[:3]:
+                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
+                    PyImGui.next_column()
+                    for hex_name in widget_config.hexes_caster[3:]:
+                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
+                    PyImGui.columns(1, "", False)
+
+                if PyImGui.collapsing_header("Hexes to be priority removed from All", PyImGui.TreeNodeFlags.DefaultOpen):
+                    PyImGui.columns(2, "ALL_HEXES", False)
+                    for hex_name in widget_config.hexes_all[:3]:
+                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
+                    PyImGui.next_column()
+                    for hex_name in widget_config.hexes_all[3:]:
+                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
+                    PyImGui.columns(1, "", False)
+
+                if PyImGui.collapsing_header("Hexes to be priority removed from Paragons", PyImGui.TreeNodeFlags.DefaultOpen):
+                    for hex_name in widget_config.hexes_paragon:
+                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
+
+                if PyImGui.collapsing_header("Hexes added by user", PyImGui.TreeNodeFlags.DefaultOpen):
+                    if PyImGui.is_item_hovered():
+                        PyImGui.begin_tooltip()
+                        PyImGui.text("These are hexes you manually added. Red circle to remove")
+                        PyImGui.end_tooltip()
+                    
+                    if not hasattr(widget_config, "user_hex_input"):
+                        widget_config.user_hex_input = ""
+                                            
+                    for hex_name in widget_config.hexes_user:
+                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.8, 0.0, 0.0, 1.0))  # Red background
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (1.0, 0.2, 0.2, 1.0))  # Brighter red hover
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 1.0, 1.0, 1.0))  # White text
+                        
+
+                        PyImGui.push_style_var(10, 0.0)
+                        PyImGui.push_style_var(11, 0.0)
+                        PyImGui.same_line(0,5)
+                        if PyImGui.button(f"##{hex_name}",10,10):
+                            widget_config.hexes_user.remove(hex_name.replace(' ', '_'))
+                            widget_config.save_hexes()
+                            Helper.log_event(message=f"Removed {hex_name} from user hex list")
+
+                        PyImGui.pop_style_color(3)
+                        PyImGui.pop_style_var(2)
+
+                    PyImGui.text("Add a hex spell:")
+                    widget_config.user_hex_input = PyImGui.input_text("##user_hex_input", widget_config.user_hex_input)
+
+                    PyImGui.same_line(0,5)
+                    
+                    available_width = PyImGui.get_content_region_avail()[0]
+                    button_width = int(available_width)
+                    
+                    if PyImGui.button("Add Hex", button_width):
+                        user_input = widget_config.user_hex_input.strip()
+                        formatted_hex = user_input.replace(" ", "_").lower()
+                        formatted_title_hex = Helper.format_spell_title_case(user_input)
+
+                        if not formatted_hex:
+                            Helper.log_event(message="Input was empty. Skipping.")
+
+                        elif formatted_hex not in [hex_name.lower() for hex_name in widget_config.hexes_user]:
+                            Helper.log_event(message=f"{formatted_title_hex} is not in user list, adding now.")
+                            widget_config.hexes_user.append(formatted_title_hex)
+                            widget_config.save_hexes()
+
+                        else:
+                            Helper.log_event(message=f"{formatted_title_hex} is already added by user, skipping addition.")
+                        
+                        widget_config.user_hex_input = ""
+
+                available_width = PyImGui.get_content_region_avail()[0]
+                button_width = int(available_width)
+
+                hex_cleanse_enabled = ImGui.toggle_button("Enable Hex Cleanse", widget_config.smart_hex_cleanse_toggled, button_width, 25)
+                widget_config.smart_hex_cleanse_toggled = hex_cleanse_enabled
+
+            PyImGui.end_tab_item()
+
+        if PyImGui.begin_tab_item("Smart Interrupt"):
+                        PyImGui.text_wrapped("Manage skills that heroes will interrupt.")
+
+                        if PyImGui.collapsing_header("Skills To Interrupt", PyImGui.TreeNodeFlags.DefaultOpen):
+                            for skill_name in widget_config.skills_to_rupt:
+                                PyImGui.text(f"- {skill_name.replace('_', ' ')}")
+
+                                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.8, 0.0, 0.0, 1.0))  # Red background
+                                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (1.0, 0.2, 0.2, 1.0))  # Brighter red hover
+                                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 1.0, 1.0, 1.0))  # White text
+
+                                PyImGui.push_style_var(10, 0.0)  # Zero padding
+                                PyImGui.push_style_var(11, 0.0)
+                                PyImGui.same_line(0, 5)
+
+                                if PyImGui.button(f"##Remove_{skill_name}", 10, 10):  # Small red "X" button
+                                    widget_config.skills_to_rupt.remove(skill_name)
+                                    widget_config.save_skills_to_rupt()
+                                    Helper.log_event(message=f"Removed {skill_name} from interrupt list")
+
+                                PyImGui.pop_style_color(3)
+                                PyImGui.pop_style_var(2)
+
+                        PyImGui.text("Add a skill to interrupt:")
+                        widget_config.user_skill_input = PyImGui.input_text("##user_skill_input", widget_config.user_skill_input)
+
+                        PyImGui.same_line(0, 5)
+                        button_width = int(PyImGui.get_content_region_avail()[0])
+
+                        if PyImGui.button("Add Skill", button_width):
+                            user_input = widget_config.user_skill_input.strip()
+                            formatted_skill = Helper.format_spell_title_case(user_input)
+
+                            if not formatted_skill:
+                                Helper.log_event(message="Input was empty. Skipping.")
+                            elif formatted_skill in widget_config.skills_to_rupt:
+                                Helper.log_event(message=f"{formatted_skill} is already in the interrupt list.")
+                            else:
+                                widget_config.skills_to_rupt.append(formatted_skill)
+                                widget_config.save_skills_to_rupt()
+                                Helper.log_event(message=f"Added {formatted_skill} to the interrupt list.")
+
+                            widget_config.user_skill_input = ""
+
+                        available_width = PyImGui.get_content_region_avail()[0]
+                        button_width = int(available_width)
+
+                        interrupt_enabled = ImGui.toggle_button("Enable Hero Interrupt", widget_config.smart_interrupt_toggled, button_width, 25)
+                        widget_config.smart_interrupt_toggled = interrupt_enabled
+                        
+                        PyImGui.end_tab_item()
+
+def draw_options_window():
+    if PyImGui.begin_child("Console", size=(280.0, 50.0), border=False, flags=0):
+        for log in reversed(Helper.console_logs):
+            PyImGui.text(log)
+        PyImGui.end_child()
         PyImGui.separator()
 
         total_width = PyImGui.get_content_region_avail()[0] - 10  
@@ -1446,61 +1767,94 @@ def draw_window():
             label = "Smart Interrupt"
             Helper.log_event(message=f"{label} Enabled" if widget_config.smart_interrupt_toggled else f"{label} Disabled")
         ImGui.show_tooltip("Smart Interrupt") 
-        PyImGui.same_line(0,1)
+
+def draw_window():
+    PyImGui.set_next_window_size(300, 200)
+
+    if PyImGui.begin(window_module.window_name, window_module.window_flags | PyImGui.WindowFlags.NoScrollbar):
+        PyImGui.begin_group()
+        draw_options_window()
+        
         
 
     PyImGui.end()
 
+PARTY_WINDOW_HASH = 3332025202
+PARTY_WINDOW_FRAME_OUTPOST_OFFSETS = [1]
+PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS = [0]
 
-ALL_HEXES = [
-    "Amity", "Defender's_Zeal", "Pacifism", "Scourge_Enchantment",
-    "Scourge_Healing", "Scourge_Sacrifice",
+class Tabs(Enum):
+    party_default = 1
+    options_panel = 2
+    configs_panel = 3
 
-    "Atrophy", "Barbs", "Blood_Bond", "Cacophony", "Corrupt_Enchantment",
-    "Defile_Defenses", "Defile_Flesh", "Depravity", "Faintheartedness",
-    "Icy_Veins", "Insidious_Parasite", "Life_Siphon", "Life_Transfer",
-    "Lingering_Curse", "Malaise", "Malign_Intervention", "Mark_of_Fury",
-    "Mark_of_Pain", "Mark_of_Subversion", "Meekness", "Parasitic_Bond",
-    "Price_of_Failure", "Putrid_Bile", "Reaper's_Mark", "Reckless_Haste",
-    "Rigor_Mortis", "Rising_Bile", "Shadow_of_Fear", "Shivers_of_Dread",
-    "Soul_Barbs", "Soul_Bind", "Soul_Leech", "Spinal_Shivers",
-    "Spiteful_Spirit", "Spoil_Victor", "Suffering", "Ulcerous_Lungs",
-    "Vile_Miasma", "Vocal_Minority", "Wail_of_Doom", "Weaken_Knees",
-    "Wither",
+selected_tab:Tabs = Tabs.party_default
 
-    "Air_of_Disenchantment", "Arcane_Conundrum", "Arcane_Languor", "Backfire",
-    "Calculated_Risk", "Clumsiness", "Confusing_Images", "Conjure_Nightmare",
-    "Conjure_Phantasm", "Crippling_Anguish", "Diversion", "Empathy",
-    "Enchanter's_Conundrum", "Ether_Lord", "Ether_Nightmare", "Ether_Phantom",
-    "Ethereal_Burden", "Fevered_Dreams", "Fragility", "Frustration", "Guilt",
-    "Ignorance", "Illusion_of_Pain", "Images_of_Remorse", "Imagined_Burden",
-    "Ineptitude", "Kitah's_Burden", "Migraine", "Mind_Wrack", "Mistrust",
-    "Overload", "Panic", "Phantom_Pain", "Power_Flux", "Power_Leech",
-    "Price_of_Pride", "Recurring_Insecurity", "Shame", "Shared_Burden",
-    "Shrinking_Armor", "Soothing_Images", "Spirit_Shackles",
-    "Spirit_of_Failure", "Stolen_Speed", "Sum_of_All_Fears",
-    "Visions_of_Regret", "Wandering_Eye", "Wastrel's_Demise",
-    "Wastrel's_Worry", "Web_of_Disruption",
+def draw_frame_content(content_frame_id):
+    global selected_tab
+    
+    if selected_tab == Tabs.party_default:
+        return
+    
+    child_left, child_top, child_right, child_bottom = UIManager.GetFrameCoords(content_frame_id) 
+    width = child_right - child_left
+    height = child_bottom - child_top 
 
-    "Ash_Blast", "Blurred_Vision", "Chilling_Winds", "Deep_Freeze",
-    "Earthen_Shackles", "Freezing_Gust", "Frozen_Burst", "Glimmering_Mark",
-    "Grasping_Earth", "Ice_Prison", "Ice_Spikes", "Icicles", "Icy_Shackles",
-    "Incendiary_Bonds", "Lightning_Strike", "Lightning_Surge",
-    "Mark_of_Rodgort", "Mind_Freeze", "Mirror_of_Ice", "Rust", "Shard_Storm",
-    "Shatterstone", "Smoldering_Embers", "Teinai's_Prison", "Winter's_Embrace",
+    UIManager().DrawFrame(content_frame_id, Utils.RGBToColor(0, 0, 0, 255))
+    
+    flags = ( PyImGui.WindowFlags.NoCollapse | 
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoResize |
+            PyImGui.WindowFlags.AlwaysHorizontalScrollbar |
+            PyImGui.WindowFlags.AlwaysVerticalScrollbar
+    )
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+    PyImGui.set_next_window_pos(child_left, child_top)
+    PyImGui.set_next_window_size(width, height)
+    
+    if PyImGui.begin("##help_framed_content",True, flags):
+        match selected_tab:
+            case Tabs.options_panel:
+                draw_options_window()
+                Helper.create_and_update_checkbox("Old Window", "floating_window_enabled", tooltip_text="enable the floating")
+            case Tabs.configs_panel:
+                draw_config_tabs(widget_config)
+    PyImGui.end()
 
-    "Assassin's_Promise", "Augury_of_Death", "Dark_Prison", "Enduring_Toxin",
-    "Expose_Defenses", "Hidden_Caltrops", "Mark_of_Death", "Mark_of_Insecurity",
-    "Mark_of_Instability", "Mirrored_Stance", "Scorpion_Wire", "Seeping_Wound",
-    "Shadow_Fang", "Shadow_Prison", "Shadow_Shroud", "Shadowy_Burden",
-    "Shameful_Fear", "Siphon_Speed", "Siphon_Strength",
+def draw_embedded_window():
+    global selected_tab
+    parent_frame_id = UIManager.GetFrameIDByHash(PARTY_WINDOW_HASH)
+    if parent_frame_id == 0:
+        return
+    outpost_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
+    explorable_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS)
+    
+    
+    if Map.IsMapReady() and Map.IsExplorable():
+        content_frame_id = explorable_content_frame_id
+    else:
+        content_frame_id = outpost_content_frame_id
+    
+    left, top, right, bottom = UIManager.GetFrameCoords(parent_frame_id)
+    sidebar_width = 30
+    sidebar_height = bottom - top
 
-    "Binding_Chains", "Dulled_Weapon", "Lamentation", "Painful_Bond",
-    "Renewing_Surge"
-]
+    flags = ImGui.PushTransparentWindow()
+    PyImGui.set_next_window_pos(left - sidebar_width - 2, top)
+    PyImGui.set_next_window_size(sidebar_width, sidebar_height)
 
-# Function: configure
-# Loads and manages configuration settings via the UI.
+    if PyImGui.begin("HeroHelper Vertical Tabs", True, flags):
+        
+        if PyImGui.button(IconsFontAwesome5.ICON_BORDER_NONE + "##cleartab", -1, 0):  # -1 width, 0 height auto
+            selected_tab = Tabs.party_default
+        if PyImGui.button(IconsFontAwesome5.ICON_CHECK_SQUARE + "##optiontab", -1, 0):
+            selected_tab = Tabs.options_panel
+        if PyImGui.button(IconsFontAwesome5.ICON_LIST_OL + "##configtab", -1, 0):
+            selected_tab = Tabs.configs_panel
+        PyImGui.end()
+    ImGui.PopTransparentWindow()
+    draw_frame_content(content_frame_id)
+
 def configure():
     global widget_config, config_module, ini_handler
        
@@ -1510,285 +1864,8 @@ def configure():
         config_module.first_run = False
         
     if PyImGui.begin(config_module.window_name, config_module.window_flags):
-        
-        if PyImGui.begin_tab_bar("Hero Helper Config Tabs"):
-            
-            if PyImGui.begin_tab_item("Follow"):
+        draw_config_tabs(widget_config)
                 
-                PyImGui.text("Follow Delay (ms)")
-                widget_config.follow_delay = PyImGui.slider_int("##follow_delay_slider", widget_config.follow_delay, 500, 2000)
-                PyImGui.same_line(0,5)
-                widget_config.follow_delay = PyImGui.input_int("##hidden_label", widget_config.follow_delay)
-                widget_config.follow_delay = max(500, min(2000, widget_config.follow_delay))
-
-                PyImGui.end_tab_item()
-                
-            if PyImGui.begin_tab_item("Smart Skills"):
-
-                Helper.create_and_update_checkbox("Smart Blood is Power", "smart_bip_enabled", tooltip_text="Automatically cast Blood is Power on player when needed.")
-                PyImGui.same_line(0.0, 21)
-                Helper.create_and_update_checkbox("Smart Signet of Spirits", "smart_sos_enabled", tooltip_text="Automatically casts Signet of Spirits when necessary.")
-                
-                Helper.create_and_update_checkbox("Smart Soul Twisting", "smart_st_enabled", tooltip_text="Automatically casts Shelter and Union based on combat conditions.")
-                PyImGui.same_line(0.0, 31)
-                Helper.create_and_update_checkbox("Smart Strength of Honor", "smart_honor_enabled", tooltip_text="[DISABLE HERO CASTING] If a Melee class with a Melee weapon it maintains Honor on you")
-                
-                Helper.create_and_update_checkbox("Smart Splinter Weapon", "smart_splinter_enabled", tooltip_text="If a Melee class with a Melee weapon it cast Splinter weapon on you in combat")
-                PyImGui.same_line(0.0, 10)
-                Helper.create_and_update_checkbox("Smart Vigorous Spirit", "smart_vigorous_enabled", tooltip_text="If a Melee class with a Melee weapon it cast Vigorous Spirit on you in combat")
-                
-                PyImGui.end_tab_item()
-                
-            if PyImGui.begin_tab_item("Condition Cleanse"):
-                if PyImGui.collapsing_header("Condition Removal", PyImGui.TreeNodeFlags.DefaultOpen):
-                    PyImGui.text_wrapped("Assign Prio Cleanse Conditions to Melee, Caster, or Both\n(Leave blank to keep default priority):")
-
-                    if PyImGui.is_item_hovered():
-                        PyImGui.set_tooltip("Melee: Prioritizes cleansing melee characters.\n"
-                                            "Caster: Prioritizes cleansing caster characters.\n"
-                                            "Both: Prio cleanses no matter class.")
-
-                    changes_made = False
-
-                    if PyImGui.begin_table("ConditionTable", 4, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchSame):
-                        PyImGui.table_setup_column("Condition", PyImGui.TableColumnFlags.WidthStretch)
-                        PyImGui.table_setup_column("Melee", PyImGui.TableColumnFlags.WidthFixed)
-                        PyImGui.table_setup_column("Caster", PyImGui.TableColumnFlags.WidthFixed)
-                        PyImGui.table_setup_column("Both", PyImGui.TableColumnFlags.WidthFixed)
-                        PyImGui.table_headers_row()
-
-                        for condition_name, data in widget_config.conditions.items():
-                            PyImGui.table_next_row()
-
-                            PyImGui.table_next_column()
-                            row_height = PyImGui.get_text_line_height_with_spacing()
-                            text_height = PyImGui.calc_text_size(condition_name.replace("_", " "))[1]
-                            padding = (row_height - text_height) / 2
-                            PyImGui.dummy(0, int(padding))
-                            PyImGui.text_wrapped(condition_name.replace("_", " "))
-                            PyImGui.same_line(0, 0)
-
-                            prev_melee, prev_caster, prev_both = data["melee"], data["caster"], data["both"]
-
-                            PyImGui.table_next_column()
-                            new_melee = PyImGui.checkbox(f"##melee_{condition_name}", prev_melee)
-
-                            PyImGui.table_next_column()
-                            new_caster = PyImGui.checkbox(f"##caster_{condition_name}", prev_caster)
-
-                            PyImGui.table_next_column()
-                            new_both = PyImGui.checkbox(f"##both_{condition_name}", prev_both)
-
-                            if new_melee and not prev_melee:
-                                data["melee"], data["caster"], data["both"] = True, False, False
-                            elif new_caster and not prev_caster:
-                                data["melee"], data["caster"], data["both"] = False, True, False
-                            elif new_both and not prev_both:
-                                data["melee"], data["caster"], data["both"] = False, False, True
-                            elif not new_melee and not new_caster and not new_both:
-                                data["melee"], data["caster"], data["both"] = False, False, False
-
-                            changes_made |= (prev_melee != data["melee"] or prev_caster != data["caster"] or prev_both != data["both"])
-
-                    PyImGui.end_table()
-
-                    if changes_made:
-                        widget_config.save()
-
-                    if PyImGui.button("Set Recommended Defaults", height=25):
-                        recommended_defaults = {
-                            "Blind": {"melee": True, "caster": False, "both": False},
-                            "Weakness": {"melee": True, "caster": False, "both": False},
-                            "Dazed": {"melee": False, "caster": True, "both": False},
-                            "Crippled": {"melee": False, "caster": False, "both": True},
-                        }
-
-                        for condition in widget_config.conditions:
-                            widget_config.conditions[condition]["melee"] = False
-                            widget_config.conditions[condition]["caster"] = False
-                            widget_config.conditions[condition]["both"] = False
-
-                        for condition, values in recommended_defaults.items():
-                            if condition in widget_config.conditions:
-                                widget_config.conditions[condition].update(values)
-
-                        widget_config.save()
-
-                    PyImGui.same_line(0.0, -1)
-                    available_width = PyImGui.get_content_region_avail()[0]
-                    button_width = int(available_width)
-
-                    cleanse_conditions = ImGui.toggle_button("Enable Condition Cleanse", widget_config.smart_con_cleanse_toggled, button_width, 25)
-                    widget_config.smart_con_cleanse_toggled = cleanse_conditions
-                PyImGui.end_tab_item()
-
-            if PyImGui.begin_tab_item("Hex Removal"):
-                if PyImGui.collapsing_header("Hex Removal", PyImGui.TreeNodeFlags.DefaultOpen):
-
-                    PyImGui.text_wrapped("These hexes will be prioritized for removal.")
-
-                    if PyImGui.is_item_hovered():
-                        PyImGui.set_tooltip("Hexes in each list will be removed automatically when detected.")
-
-                    if not hasattr(widget_config, "hexes_melee") or not widget_config.hexes_melee:
-                        widget_config.hexes_melee = [
-                            "Ineptitude", "Empathy", "Crippling Anguish", "Clumsiness", "Faintheartedness",
-                            "Blurred Vision", "Amity"
-                        ]
-                    if not hasattr(widget_config, "hexes_caster") or not widget_config.hexes_caster:
-                        widget_config.hexes_caster = [
-                            "Panic", "Backfire", "Mistrust", "Power Leech", "Soul Leech"
-                        ]
-                    if not hasattr(widget_config, "hexes_all") or not widget_config.hexes_all:
-                        widget_config.hexes_all = [
-                            "Diversion", "Visions of Regret", "Deep Freeze", "Mind Freeze", "Icy Shackles", "Spiteful Spirit"
-                        ]
-                    if not hasattr(widget_config, "hexes_paragon") or not widget_config.hexes_paragon:
-                        widget_config.hexes_paragon = ["Vocal Minority"]
-
-                    if PyImGui.collapsing_header("Hexes to be priority removed from Melee", PyImGui.TreeNodeFlags.DefaultOpen):
-                        PyImGui.columns(2, "melee_hexes", False)
-                        for hex_name in widget_config.hexes_melee[:4]:
-                            PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                        PyImGui.next_column()
-                        for hex_name in widget_config.hexes_melee[4:]:
-                            PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                        PyImGui.columns(1, "", False)
-
-                    if PyImGui.collapsing_header("Hexes to be priority removed from Casters", PyImGui.TreeNodeFlags.DefaultOpen):
-                        PyImGui.columns(2, "caster_hexes", False)
-                        for hex_name in widget_config.hexes_caster[:3]:
-                            PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                        PyImGui.next_column()
-                        for hex_name in widget_config.hexes_caster[3:]:
-                            PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                        PyImGui.columns(1, "", False)
-
-                    if PyImGui.collapsing_header("Hexes to be priority removed from All", PyImGui.TreeNodeFlags.DefaultOpen):
-                        PyImGui.columns(2, "ALL_HEXES", False)
-                        for hex_name in widget_config.hexes_all[:3]:
-                            PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                        PyImGui.next_column()
-                        for hex_name in widget_config.hexes_all[3:]:
-                            PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                        PyImGui.columns(1, "", False)
-
-                    if PyImGui.collapsing_header("Hexes to be priority removed from Paragons", PyImGui.TreeNodeFlags.DefaultOpen):
-                        for hex_name in widget_config.hexes_paragon:
-                            PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-
-                    if PyImGui.collapsing_header("Hexes added by user", PyImGui.TreeNodeFlags.DefaultOpen):
-                        if PyImGui.is_item_hovered():
-                            PyImGui.begin_tooltip()
-                            PyImGui.text("These are hexes you manually added. Red circle to remove")
-                            PyImGui.end_tooltip()
-                        
-                        if not hasattr(widget_config, "user_hex_input"):
-                            widget_config.user_hex_input = ""
-                                                
-                        for hex_name in widget_config.hexes_user:
-                            PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.8, 0.0, 0.0, 1.0))  # Red background
-                            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (1.0, 0.2, 0.2, 1.0))  # Brighter red hover
-                            PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 1.0, 1.0, 1.0))  # White text
-                            
-
-                            PyImGui.push_style_var(10, 0.0)
-                            PyImGui.push_style_var(11, 0.0)
-                            PyImGui.same_line(0,5)
-                            if PyImGui.button(f"##{hex_name}",10,10):
-                                widget_config.hexes_user.remove(hex_name.replace(' ', '_'))
-                                widget_config.save_hexes()
-                                Helper.log_event(message=f"Removed {hex_name} from user hex list")
-
-                            PyImGui.pop_style_color(3)
-                            PyImGui.pop_style_var(2)
-
-                        PyImGui.text("Add a hex spell:")
-                        widget_config.user_hex_input = PyImGui.input_text("##user_hex_input", widget_config.user_hex_input)
-
-                        PyImGui.same_line(0,5)
-                        
-                        available_width = PyImGui.get_content_region_avail()[0]
-                        button_width = int(available_width)
-                        
-                        if PyImGui.button("Add Hex", button_width):
-                            user_input = widget_config.user_hex_input.strip()
-                            formatted_hex = user_input.replace(" ", "_").lower()
-                            formatted_title_hex = Helper.format_spell_title_case(user_input)
-
-                            if not formatted_hex:
-                                Helper.log_event(message="Input was empty. Skipping.")
-
-                            elif formatted_hex not in [hex_name.lower() for hex_name in widget_config.hexes_user]:
-                                Helper.log_event(message=f"{formatted_title_hex} is not in user list, adding now.")
-                                widget_config.hexes_user.append(formatted_title_hex)
-                                widget_config.save_hexes()
-
-                            else:
-                                Helper.log_event(message=f"{formatted_title_hex} is already added by user, skipping addition.")
-                            
-                            widget_config.user_hex_input = ""
-
-                    available_width = PyImGui.get_content_region_avail()[0]
-                    button_width = int(available_width)
-
-                    hex_cleanse_enabled = ImGui.toggle_button("Enable Hex Cleanse", widget_config.smart_hex_cleanse_toggled, button_width, 25)
-                    widget_config.smart_hex_cleanse_toggled = hex_cleanse_enabled
-
-                PyImGui.end_tab_item()
-
-            if PyImGui.begin_tab_item("Smart Interrupt"):
-                PyImGui.text_wrapped("Manage skills that heroes will interrupt.")
-
-                if PyImGui.collapsing_header("Skills To Interrupt", PyImGui.TreeNodeFlags.DefaultOpen):
-                    for skill_name in widget_config.skills_to_rupt:
-                        PyImGui.text(f"- {skill_name.replace('_', ' ')}")
-
-                        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.8, 0.0, 0.0, 1.0))  # Red background
-                        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (1.0, 0.2, 0.2, 1.0))  # Brighter red hover
-                        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 1.0, 1.0, 1.0))  # White text
-
-                        PyImGui.push_style_var(10, 0.0)  # Zero padding
-                        PyImGui.push_style_var(11, 0.0)
-                        PyImGui.same_line(0, 5)
-
-                        if PyImGui.button(f"##Remove_{skill_name}", 10, 10):  # Small red "X" button
-                            widget_config.skills_to_rupt.remove(skill_name)
-                            widget_config.save_skills_to_rupt()
-                            Helper.log_event(message=f"Removed {skill_name} from interrupt list")
-
-                        PyImGui.pop_style_color(3)
-                        PyImGui.pop_style_var(2)
-
-                PyImGui.text("Add a skill to interrupt:")
-                widget_config.user_skill_input = PyImGui.input_text("##user_skill_input", widget_config.user_skill_input)
-
-                PyImGui.same_line(0, 5)
-                button_width = int(PyImGui.get_content_region_avail()[0])
-
-                if PyImGui.button("Add Skill", button_width):
-                    user_input = widget_config.user_skill_input.strip()
-                    formatted_skill = Helper.format_spell_title_case(user_input)
-
-                    if not formatted_skill:
-                        Helper.log_event(message="Input was empty. Skipping.")
-                    elif formatted_skill in widget_config.skills_to_rupt:
-                        Helper.log_event(message=f"{formatted_skill} is already in the interrupt list.")
-                    else:
-                        widget_config.skills_to_rupt.append(formatted_skill)
-                        widget_config.save_skills_to_rupt()
-                        Helper.log_event(message=f"Added {formatted_skill} to the interrupt list.")
-
-                    widget_config.user_skill_input = ""
-
-                available_width = PyImGui.get_content_region_avail()[0]
-                button_width = int(available_width)
-
-                interrupt_enabled = ImGui.toggle_button("Enable Hero Interrupt", widget_config.smart_interrupt_toggled, button_width, 25)
-                widget_config.smart_interrupt_toggled = interrupt_enabled
-                
-                PyImGui.end_tab_item()
 
         end_pos = PyImGui.get_window_pos()
         if end_pos[0] != config_module.window_pos[0] or end_pos[1] != config_module.window_pos[1]:
@@ -1797,14 +1874,8 @@ def configure():
             ini_handler.write_key(MODULE_NAME + " Config", "config_y", str(int(end_pos[1])))   
 
     PyImGui.end()
-    
-
-# Function: main
-# Handles the logic for function execution.
-
 
 def main():
-
     if Helper.is_game_ready():
         
         if Helper.can_execute_with_delay("cache_agent_names", 2000):
@@ -1832,8 +1903,10 @@ def main():
             if widget_config.smart_sos_enabled:
                 smart_sos()
 
-        draw_window()
-        
+        if widget_config.floating_window_enabled:
+            draw_window()
+        draw_embedded_window()
+
         if not action_queue.is_empty():
             action_queue.execute_next()
         
