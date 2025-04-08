@@ -2004,7 +2004,7 @@ class ModelID(IntEnum):
     Skale_Claw = 1604
     Skale_Fang = 27055
     Skale_Fin = 19184
-    Pre_Skale_Fin = 429
+    Skale_Fin_PreSearing = 429
     Skale_Tooth = 1603
     Skeletal_Limb = 430
     Skeleton_Bone = 1605
