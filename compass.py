@@ -244,8 +244,8 @@ def DrawAgent(agent_id, shape, size, col, is_spirit = False):
     line_col = Utils.RGBToColor(255,255,0,255) if agent_id == compass.target_id else Utils.RGBToColor(0,0,0,255)
     line_thickness = 3 if agent_id == compass.target_id else 1.5
     if shape == 'Circle':
-        PyImGui.draw_list_add_circle(x, y, size, line_col, 12, line_thickness)
         PyImGui.draw_list_add_circle_filled(x, y, size, col, 12)
+        PyImGui.draw_list_add_circle(x, y, size, line_col, 12, line_thickness)
 
         if is_spirit:
             match Agent.GetPlayerNumber(agent_id):
