@@ -518,6 +518,7 @@ def handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -541,12 +542,15 @@ def handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -590,7 +594,7 @@ def handle_loot():
             loot_timer.Reset()
             return
 
-        if loot_timer.HasElapsed(1000) and Player.GetTargetID() == looting_item:
+        if loot_timer.HasElapsed(1200) and Player.GetTargetID() == looting_item:
             Keystroke.PressAndRelease(Key.Space.value)
             loot_timer.Reset()
             return
@@ -602,6 +606,7 @@ def handle_map_path_loot(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -626,12 +631,15 @@ def handle_map_path_loot(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -644,6 +652,7 @@ def warrior_handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -666,12 +675,15 @@ def warrior_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -687,6 +699,7 @@ def mesmer_handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -709,12 +722,15 @@ def mesmer_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -731,6 +747,7 @@ def early_handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -753,12 +770,15 @@ def early_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -775,6 +795,7 @@ def hamnet_handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -797,12 +818,15 @@ def hamnet_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -2198,11 +2222,11 @@ class InventoryTracker:
             ModelID.Spider_Leg: "SPIDER LEGS",
             ModelID.Charr_Carving: "CHARR CARVINGS",
             ModelID.Icy_Lodestone: "ICY LODESTONES",
-            ModelID.Dull_carapace: "DULL CARAPACES",
+            ModelID.Dull_Carapace: "DULL CARAPACES",
             ModelID.Gargoyle_Skull: "GARGOYLE SKULLS",
             ModelID.Worn_Belt: "WORN BELTS",
             ModelID.Unnatural_Seed: "UNNATURAL SEEDS",
-            ModelID.Skale_Fin: "SKALE FINS",
+            ModelID.Skale_Fin_PreSearing: "SKALE FINS",
             ModelID.Skeletal_Limb: "SKELETAL LIMBS",
             ModelID.Enchanted_Lodestone: "ENCHANTED LODESTONES",
             ModelID.Grawl_Necklace: "GRAWL NECKLACES",
