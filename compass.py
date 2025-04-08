@@ -141,6 +141,7 @@ class Compass():
     range_rings = RangeRings()
 
 compass = Compass()
+action_queue = ActionQueueManager()
 
 def Debug(message, title = 'DEBUG', msg_type = 'Debug'):
     py4gw_msg_type = Py4GW.Console.MessageType.Debug
@@ -212,6 +213,25 @@ def CompassToWorld(pos):
 
     return new_x, new_y
 
+def CheckClickToTarget():
+    if PyImGui.is_mouse_clicked(0) and PyImGui.get_io().key_ctrl:
+        pos = compass.overlay.GetMouseCoords()
+        mouse_pos = (pos.x, pos.y)
+        world_pos = CompassToWorld(mouse_pos)
+
+        agent_array = AgentArray.GetAgentArray()
+        agent_array = AgentArray.Sort.ByDistance(agent_array, world_pos)
+        if len(agent_array) > 0:
+            Player.ChangeTarget(agent_array[0])
+
+def CheckClickToMove():
+    if PyImGui.is_mouse_clicked(0) and PyImGui.get_io().key_alt:
+        pos = compass.overlay.GetMouseCoords()
+        mouse_pos = (pos.x, pos.y)
+
+        world_pos = CompassToWorld(mouse_pos)
+        Player.Move(world_pos[0], world_pos[1])
+
 def DrawRangeRings():
     global compass
 
@@ -238,6 +258,9 @@ def DrawRangeRings():
                                             64)
 
 def DrawAgent(agent_id, shape, size, col, is_spirit = False):
+    if not Agent.IsValid(agent_id):
+       return
+
     agent_pos = Agent.GetXY(agent_id)
     x, y = WorldToCompass(agent_pos)
 
@@ -263,19 +286,55 @@ def DrawAgent(agent_id, shape, size, col, is_spirit = False):
             scale = [1,1,1,1]
 
         rot = -Agent.GetRotationAngle(agent_id) - math.radians(90) + compass.position.rotation
-        p1 = PyOverlay.Point2D(round(math.cos(rot)*scale[0]*size + x), round(math.sin(rot)*scale[0]*size + y))
+        x1 = math.cos(rot)*scale[0]*size + x
+        y1 = math.sin(rot)*scale[0]*size + y
         rot += math.radians(90)
-        p2 = PyOverlay.Point2D(round(math.cos(rot)*scale[1]*size + x), round(math.sin(rot)*scale[1]*size + y))
+        x2 = math.cos(rot)*scale[1]*size + x
+        y2 = math.sin(rot)*scale[1]*size + y
         rot += math.radians(90)
-        p3 = PyOverlay.Point2D(round(math.cos(rot)*scale[2]*size + x), round(math.sin(rot)*scale[2]*size + y))
+        x3 = math.cos(rot)*scale[2]*size + x
+        y3 = math.sin(rot)*scale[2]*size + y
         rot += math.radians(90)
-        p4 = PyOverlay.Point2D(round(math.cos(rot)*scale[3]*size + x), round(math.sin(rot)*scale[3]*size + y))
+        x4 = math.cos(rot)*scale[3]*size + x
+        y4 = math.sin(rot)*scale[3]*size + y
 
-        PyImGui.draw_list_add_quad_filled(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y, col)
-        PyImGui.draw_list_add_quad(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y, line_col, line_thickness)
+        PyImGui.draw_list_add_quad_filled(x1, y1, x2, y2, x3, y3, x4, y4, col)
+        PyImGui.draw_list_add_quad(x1, y1, x2, y2, x3, y3, x4, y4, line_col, line_thickness)
 
 def DrawAgents():
     global compass
+
+    for agent_id in AgentArray.GetGadgetArray():
+        DrawAgent(agent_id, compass.markers.shape.signpost, compass.markers.size.signpost, compass.markers.color.signpost)
+
+    for agent_id in AgentArray.GetItemArray():
+        DrawAgent(agent_id, compass.markers.shape.item, compass.markers.size.item, compass.markers.color.item)
+
+    for agent_id in AgentArray.GetNeutralArray():
+        DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.neutral)
+
+    for agent_id in AgentArray.GetSpiritPetArray():
+        alive = Agent.IsAlive(agent_id)
+        if Agent.IsSpirit(agent_id):
+            if alive:
+                DrawAgent(agent_id, 'Circle', compass.markers.size.default, compass.markers.color.ally_spirit, is_spirit = True)
+        else:
+            if alive: 
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_spirit)
+            else:
+                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
+
+    for agent_id in AgentArray.GetMinionArray():
+        if Agent.IsAlive(agent_id):
+            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_minion)
+        else:
+            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_dead)
+
+    for agent_id in AgentArray.GetNPCMinipetArray():
+        if Agent.IsAlive(agent_id):
+            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_npc)
+        else:
+            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
 
     for agent_id in AgentArray.GetAllyArray():
         alive = Agent.IsAlive(agent_id)
@@ -295,32 +354,6 @@ def DrawAgents():
             else:
                 DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players_dead)
 
-    for agent_id in AgentArray.GetNPCMinipetArray():
-        if Agent.IsAlive(agent_id):
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_npc)
-        else:
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
-
-    for agent_id in AgentArray.GetSpiritPetArray():
-        alive = Agent.IsAlive(agent_id)
-        if Agent.IsSpirit(agent_id):
-            if alive:
-                DrawAgent(agent_id, 'Circle', compass.markers.size.default, compass.markers.color.ally_spirit, is_spirit = True)
-        else:
-            if alive: 
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_spirit)
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
-
-    for agent_id in AgentArray.GetMinionArray():
-        if Agent.IsAlive(agent_id):
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_minion)
-        else:
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_dead)
-
-    for agent_id in AgentArray.GetNeutralArray():
-        DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.neutral)
-
     for agent_id in AgentArray.GetEnemyArray():
         alive = Agent.IsAlive(agent_id)
         if Agent.HasBossGlow(agent_id):
@@ -334,43 +367,32 @@ def DrawAgents():
             else:
                 DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy_dead)
 
-    for agent_id in AgentArray.GetItemArray():
-        DrawAgent(agent_id, compass.markers.shape.item, compass.markers.size.item, compass.markers.color.item)
-
-    for agent_id in AgentArray.GetGadgetArray():
-        DrawAgent(agent_id, compass.markers.shape.signpost, compass.markers.size.signpost, compass.markers.color.signpost)
-
 def DrawCompass():
     global compass
 
     UpdateOrientation()
  
-    try:
-        buffer = compass.position.buffer
-        size = compass.position.current_size 
-        x = compass.position.current_pos.x - size - buffer
-        y = compass.position.current_pos.y - size - buffer
-        
-        PyImGui.set_next_window_pos(x, y)
-        PyImGui.set_next_window_size((size + buffer)*2, (size + buffer)*2)
+    buffer = compass.position.buffer
+    size = compass.position.current_size 
+    x = compass.position.current_pos.x - size - buffer
+    y = compass.position.current_pos.y - size - buffer
+    
+    PyImGui.set_next_window_pos(x, y)
+    PyImGui.set_next_window_size((size + buffer)*2, (size + buffer)*2)
 
-        if PyImGui.begin("Py4GW Minimap",  PyImGui.WindowFlags.NoTitleBar        |
-                                           PyImGui.WindowFlags.NoResize          |
-                                           PyImGui.WindowFlags.NoMove            |
-                                           PyImGui.WindowFlags.NoScrollbar       |
-                                           PyImGui.WindowFlags.NoScrollWithMouse |
-                                           PyImGui.WindowFlags.NoCollapse        |
-                                           PyImGui.WindowFlags.NoBackground      |
-                                           PyImGui.WindowFlags.NoSavedSettings):
+    if PyImGui.begin("Py4GW Minimap",  PyImGui.WindowFlags.NoTitleBar        |
+                                        PyImGui.WindowFlags.NoResize          |
+                                        PyImGui.WindowFlags.NoMove            |
+                                        PyImGui.WindowFlags.NoScrollbar       |
+                                        PyImGui.WindowFlags.NoScrollWithMouse |
+                                        PyImGui.WindowFlags.NoCollapse        |
+                                        PyImGui.WindowFlags.NoBackground      |
+                                        PyImGui.WindowFlags.NoSavedSettings):
 
-            DrawRangeRings()
-            DrawAgents()
+        DrawRangeRings()
+        DrawAgents()
 
-        PyImGui.end()
-       
-
-    except Exception as e:
-        Py4GW.Console.Log('Compass+', f"Minimap draw error: {str(e)}", Py4GW.Console.MessageType.Warning)
+    PyImGui.end()
 
 def DrawConfig():
     global compass
@@ -467,26 +489,6 @@ def DrawConfig():
         Py4GW.Console.Log('BOT', f'Error in {current_function}: {str(e)}', Py4GW.Console.MessageType.Error)
         raise
 
-def CheckClickToTarget():
-    if PyImGui.is_mouse_clicked(0) and PyImGui.get_io().key_ctrl:
-        pos = compass.overlay.GetMouseCoords()
-        mouse_pos = (pos.x, pos.y)
-        world_pos = CompassToWorld(mouse_pos)
-
-        agent_array = AgentArray.GetAgentArray()
-        agent_array = AgentArray.Sort.ByDistance(agent_array, world_pos)
-        if len(agent_array) > 0:
-            Player.ChangeTarget(agent_array[0])
-
-def CheckClickToMove():
-    if PyImGui.is_mouse_clicked(0) and PyImGui.get_io().key_alt:
-        pos = compass.overlay.GetMouseCoords()
-        mouse_pos = (pos.x, pos.y)
-
-        world_pos = CompassToWorld(mouse_pos)
-        Player.Move(world_pos[0], world_pos[1])
-
-action_queue = ActionQueueManager()
 def main():
     global compass, action_queue
     try:
