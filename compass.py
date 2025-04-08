@@ -10,6 +10,7 @@ class Compass():
     class Position:
         snap_to_game = True
         always_point_north = False
+        buffer = 10
 
         player_pos = (1.0,1.0)
 
@@ -18,10 +19,10 @@ class Compass():
 
         display_size = PyOverlay.Overlay().GetDisplaySize()
         detached_pos = PyOverlay.Point2D(round(display_size.x/2),round(display_size.y/2))
-        detached_size = 500
+        detached_size = 400
 
         current_pos = PyOverlay.Point2D(1,1)
-        current_size = 500
+        current_size = 400
 
         rotation = 0.0
 
@@ -187,6 +188,30 @@ def UpdateOrientation():
     else:
         compass.position.rotation = Camera.GetCurrentYaw()
 
+def WorldToCompass(pos):
+    global compass
+
+    agent_x = compass.position.current_pos.x - (compass.position.player_pos[0] - pos[0])*compass.position.current_size/Range.Compass.value
+    agent_y = compass.position.current_pos.y + (compass.position.player_pos[1] - pos[1])*compass.position.current_size/Range.Compass.value
+
+    camera_rotation = compass.position.rotation - math.pi/2
+    new_x = compass.position.current_pos.x + math.cos(camera_rotation) * (agent_x - compass.position.current_pos.x) - math.sin(camera_rotation) * (agent_y - compass.position.current_pos.y)
+    new_y = compass.position.current_pos.y + math.sin(camera_rotation) * (agent_x - compass.position.current_pos.x) + math.cos(camera_rotation) * (agent_y - compass.position.current_pos.y)
+
+    return new_x, new_y
+
+def CompassToWorld(pos):
+    global compass
+
+    camera_rotation = -(compass.position.rotation - math.pi/2)
+    x = compass.position.current_pos.x + math.cos(camera_rotation) * (pos[0] - compass.position.current_pos.x) - math.sin(camera_rotation) * (pos[1] - compass.position.current_pos.y)
+    y = compass.position.current_pos.y + math.sin(camera_rotation) * (pos[0] - compass.position.current_pos.x) + math.cos(camera_rotation) * (pos[1] - compass.position.current_pos.y)
+
+    new_x = compass.position.player_pos[0] - (compass.position.current_pos.x - x)*Range.Compass.value/compass.position.current_size
+    new_y = compass.position.player_pos[1] - (y - compass.position.current_pos.y)*Range.Compass.value/compass.position.current_size
+
+    return new_x, new_y
+
 def DrawRangeRings():
     global compass
 
@@ -198,34 +223,38 @@ def DrawRangeRings():
         outline_col = compass.range_rings.outline_color[ring]
         outline_thickness = compass.range_rings.outline_thickness[ring]
 
-        compass.overlay.DrawPolyFilled(compass.position.current_pos, compass.position.current_size*range/Range.Compass.value, numSegments=64, color = fill_col)
-        compass.overlay.DrawPoly(compass.position.current_pos, compass.position.current_size*range/Range.Compass.value, numSegments=64, color = outline_col, thickness=outline_thickness)
+
+        PyImGui.draw_list_add_circle(compass.position.current_pos.x,
+                                     compass.position.current_pos.y,
+                                     compass.position.current_size*range/Range.Compass.value,
+                                     outline_col,
+                                     64,
+                                     outline_thickness)
+        
+        PyImGui.draw_list_add_circle_filled(compass.position.current_pos.x,
+                                            compass.position.current_pos.y,
+                                            compass.position.current_size*range/Range.Compass.value,
+                                            fill_col,
+                                            64)
 
 def DrawAgent(agent_id, shape, size, col, is_spirit = False):
     agent_pos = Agent.GetXY(agent_id)
-    agent_x = compass.position.current_pos.x - (compass.position.player_pos[0] - agent_pos[0])*compass.position.current_size/Range.Compass.value
-    agent_y = compass.position.current_pos.y + (compass.position.player_pos[1] - agent_pos[1])*compass.position.current_size/Range.Compass.value
-
-    camera_rotation = compass.position.rotation - math.pi/2
-    x = compass.position.current_pos.x + math.cos(camera_rotation) * (agent_x - compass.position.current_pos.x) - math.sin(camera_rotation) * (agent_y - compass.position.current_pos.y)
-    y = compass.position.current_pos.y + math.sin(camera_rotation) * (agent_x - compass.position.current_pos.x) + math.cos(camera_rotation) * (agent_y - compass.position.current_pos.y)
+    x, y = WorldToCompass(agent_pos)
 
     line_col = Utils.RGBToColor(255,255,0,255) if agent_id == compass.target_id else Utils.RGBToColor(0,0,0,255)
     line_thickness = 3 if agent_id == compass.target_id else 1.5
     if shape == 'Circle':
-        pos = PyOverlay.Point2D(round(x), round(y))
-
-        compass.overlay.DrawPolyFilled(pos, size, numSegments=64, color = col)
-        compass.overlay.DrawPoly(pos, size, numSegments=64, color = line_col, thickness=line_thickness)
+        PyImGui.draw_list_add_circle(x, y, size, line_col, 12, line_thickness)
+        PyImGui.draw_list_add_circle_filled(x, y, size, col, 12)
 
         if is_spirit:
             match Agent.GetPlayerNumber(agent_id):
                 case 2875:
-                    compass.overlay.DrawPolyFilled(pos, compass.position.current_size*Range.Spirit.value/Range.Compass.value, numSegments=64, color = compass.markers.color.winnowing)
+                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.winnowing, 64)
                 case 2876:
-                    compass.overlay.DrawPolyFilled(pos, compass.position.current_size*Range.Spirit.value/Range.Compass.value, numSegments=64, color = compass.markers.color.eoe)
+                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.eoe, 64)
                 case 2886:
-                    compass.overlay.DrawPolyFilled(pos, compass.position.current_size*Range.Spirit.value/Range.Compass.value, numSegments=64, color = compass.markers.color.qz)
+                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.qz, 64)
     else:
         scale = [1,1,1,1]
         if shape == 'Tear':
@@ -242,8 +271,8 @@ def DrawAgent(agent_id, shape, size, col, is_spirit = False):
         rot += math.radians(90)
         p4 = PyOverlay.Point2D(round(math.cos(rot)*scale[3]*size + x), round(math.sin(rot)*scale[3]*size + y))
 
-        compass.overlay.DrawQuadFilled(p1, p2, p3, p4, color = col)
-        compass.overlay.DrawQuad(p1, p2, p3, p4, color = line_col, thickness = line_thickness)
+        PyImGui.draw_list_add_quad_filled(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y, col)
+        PyImGui.draw_list_add_quad(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y, line_col, line_thickness)
 
 def DrawAgents():
     global compass
@@ -315,10 +344,33 @@ def DrawCompass():
     global compass
 
     UpdateOrientation()
-    compass.overlay.BeginDraw()
-    DrawRangeRings()
-    DrawAgents()
-    compass.overlay.EndDraw()
+ 
+    try:
+        buffer = compass.position.buffer
+        size = compass.position.current_size 
+        x = compass.position.current_pos.x - size - buffer
+        y = compass.position.current_pos.y - size - buffer
+        
+        PyImGui.set_next_window_pos(x, y)
+        PyImGui.set_next_window_size((size + buffer)*2, (size + buffer)*2)
+
+        if PyImGui.begin("Py4GW Minimap",  PyImGui.WindowFlags.NoTitleBar        |
+                                           PyImGui.WindowFlags.NoResize          |
+                                           PyImGui.WindowFlags.NoMove            |
+                                           PyImGui.WindowFlags.NoScrollbar       |
+                                           PyImGui.WindowFlags.NoScrollWithMouse |
+                                           PyImGui.WindowFlags.NoCollapse        |
+                                           PyImGui.WindowFlags.NoBackground      |
+                                           PyImGui.WindowFlags.NoSavedSettings):
+
+            DrawRangeRings()
+            DrawAgents()
+
+        PyImGui.end()
+       
+
+    except Exception as e:
+        Py4GW.Console.Log('Compass+', f"Minimap draw error: {str(e)}", Py4GW.Console.MessageType.Warning)
 
 def DrawConfig():
     global compass
@@ -348,9 +400,14 @@ def DrawConfig():
                 compass.position.snap_to_game = PyImGui.checkbox('Snap To Game Compass', compass.position.snap_to_game)
                 if not compass.position.snap_to_game:
                     compass.position.always_point_north = PyImGui.checkbox('Always Point North', compass.position.always_point_north)
+
+                    if PyImGui.button('Snap to Screen Center'):
+                        display_size = PyOverlay.Overlay().GetDisplaySize()
+                        compass.position.detached_pos = PyOverlay.Point2D(round(display_size.x/2),round(display_size.y/2))
+
                     x = PyImGui.slider_int('X Position', compass.position.detached_pos.x, compass.position.current_size, round(compass.position.display_size.x - compass.position.current_size))
                     y = PyImGui.slider_int('Y Position', compass.position.detached_pos.y, compass.position.current_size, round(compass.position.display_size.y - compass.position.current_size))
-                    compass.position.detached_pos = PyOverlay.Point2D(x,y)
+                    compass.position.detached_pos  = PyOverlay.Point2D(x,y)
                     compass.position.detached_size = PyImGui.slider_int('Scale', compass.position.detached_size, 100, 1000)
 
             # agent settings
@@ -410,6 +467,25 @@ def DrawConfig():
         Py4GW.Console.Log('BOT', f'Error in {current_function}: {str(e)}', Py4GW.Console.MessageType.Error)
         raise
 
+def CheckClickToTarget():
+    if PyImGui.is_mouse_clicked(0) and PyImGui.get_io().key_ctrl:
+        pos = compass.overlay.GetMouseCoords()
+        mouse_pos = (pos.x, pos.y)
+        world_pos = CompassToWorld(mouse_pos)
+
+        agent_array = AgentArray.GetAgentArray()
+        agent_array = AgentArray.Sort.ByDistance(agent_array, world_pos)
+        if len(agent_array) > 0:
+            Player.ChangeTarget(agent_array[0])
+
+def CheckClickToMove():
+    if PyImGui.is_mouse_clicked(0) and PyImGui.get_io().key_alt:
+        pos = compass.overlay.GetMouseCoords()
+        mouse_pos = (pos.x, pos.y)
+
+        world_pos = CompassToWorld(mouse_pos)
+        Player.Move(world_pos[0], world_pos[1])
+
 action_queue = ActionQueueManager()
 def main():
     global compass, action_queue
@@ -421,6 +497,9 @@ def main():
             DrawConfig()
             DrawCompass()
 
+            CheckClickToTarget()
+            CheckClickToMove()
+
             if action_queue.IsEmpty('ACTION'):
                 action_queue.AddAction('ACTION',UpdateTarget)
             else:
@@ -430,17 +509,17 @@ def main():
                 compass.player_id = Player.GetAgentID()
 
     except ImportError as e:
-        Py4GW.Console.Log('Compass', f'ImportError encountered: {str(e)}', Py4GW.Console.MessageType.Error)
-        Py4GW.Console.Log('Compass', f'Stack trace: {traceback.format_exc()}', Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log('Compass+', f'ImportError encountered: {str(e)}', Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log('Compass+', f'Stack trace: {traceback.format_exc()}', Py4GW.Console.MessageType.Error)
     except ValueError as e:
-        Py4GW.Console.Log('Compass', f'ValueError encountered: {str(e)}', Py4GW.Console.MessageType.Error)
-        Py4GW.Console.Log('Compass', f'Stack trace: {traceback.format_exc()}', Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log('Compass+', f'ValueError encountered: {str(e)}', Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log('Compass+', f'Stack trace: {traceback.format_exc()}', Py4GW.Console.MessageType.Error)
     except TypeError as e:
-        Py4GW.Console.Log('Compass', f'TypeError encountered: {str(e)}', Py4GW.Console.MessageType.Error)
-        Py4GW.Console.Log('Compass', f'Stack trace: {traceback.format_exc()}', Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log('Compass+', f'TypeError encountered: {str(e)}', Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log('Compass+', f'Stack trace: {traceback.format_exc()}', Py4GW.Console.MessageType.Error)
     except Exception as e:
-        Py4GW.Console.Log('Compass', f'Unexpected error encountered: {str(e)}', Py4GW.Console.MessageType.Error)
-        Py4GW.Console.Log('Compass', f'Stack trace: {traceback.format_exc()}', Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log('Compass+', f'Unexpected error encountered: {str(e)}', Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log('Compass+', f'Stack trace: {traceback.format_exc()}', Py4GW.Console.MessageType.Error)
     finally:
         pass
 
