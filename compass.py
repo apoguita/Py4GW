@@ -185,9 +185,9 @@ def UpdateOrientation():
         compass.position.current_size = compass.position.detached_size
 
     if Map.MiniMap.IsLocked() or (not compass.position.snap_to_game and compass.position.always_point_north):
-        compass.position.rotation = math.radians(90)
+        compass.position.rotation = 0
     else:
-        compass.position.rotation = Camera.GetCurrentYaw()
+        compass.position.rotation = Camera.GetCurrentYaw() - math.pi/2
 
 def WorldToCompass(pos):
     global compass
@@ -195,7 +195,7 @@ def WorldToCompass(pos):
     agent_x = compass.position.current_pos.x - (compass.position.player_pos[0] - pos[0])*compass.position.current_size/Range.Compass.value
     agent_y = compass.position.current_pos.y + (compass.position.player_pos[1] - pos[1])*compass.position.current_size/Range.Compass.value
 
-    camera_rotation = compass.position.rotation - math.pi/2
+    camera_rotation = compass.position.rotation
     new_x = compass.position.current_pos.x + math.cos(camera_rotation) * (agent_x - compass.position.current_pos.x) - math.sin(camera_rotation) * (agent_y - compass.position.current_pos.y)
     new_y = compass.position.current_pos.y + math.sin(camera_rotation) * (agent_x - compass.position.current_pos.x) + math.cos(camera_rotation) * (agent_y - compass.position.current_pos.y)
 
@@ -204,7 +204,7 @@ def WorldToCompass(pos):
 def CompassToWorld(pos):
     global compass
 
-    camera_rotation = -(compass.position.rotation - math.pi/2)
+    camera_rotation = -compass.position.rotation
     x = compass.position.current_pos.x + math.cos(camera_rotation) * (pos[0] - compass.position.current_pos.x) - math.sin(camera_rotation) * (pos[1] - compass.position.current_pos.y)
     y = compass.position.current_pos.y + math.sin(camera_rotation) * (pos[0] - compass.position.current_pos.x) + math.cos(camera_rotation) * (pos[1] - compass.position.current_pos.y)
 
@@ -285,7 +285,8 @@ def DrawAgent(agent_id, shape, size, col, is_spirit = False):
         elif shape == 'Square':
             scale = [1,1,1,1]
 
-        rot = -Agent.GetRotationAngle(agent_id) - math.radians(90) + compass.position.rotation
+        rot = compass.position.rotation - Agent.GetRotationAngle(agent_id)
+        
         x1 = math.cos(rot)*scale[0]*size + x
         y1 = math.sin(rot)*scale[0]*size + y
         rot += math.radians(90)
@@ -369,7 +370,6 @@ def DrawAgents():
         DrawAgent(compass.player_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player)
     else:
         DrawAgent(compass.player_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player_dead)
-
 
 def DrawCompass():
     global compass
