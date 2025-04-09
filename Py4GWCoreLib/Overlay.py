@@ -1,4 +1,5 @@
 import PyOverlay
+import Py2DRenderer
 from typing import Tuple
 
 class Overlay:
@@ -64,8 +65,8 @@ class Overlay:
         left, top, right, bottom = Map.GetMapWorldMapBounds()
 
         # Step 2: Check if input point is within the map bounds
-        if not (left <= x <= right and top <= y <= bottom):
-            return 0.0, 0.0  # Equivalent to ImRect.Contains check
+        #if not (left <= x <= right and top <= y <= bottom):
+        #    return 0.0, 0.0  # Equivalent to ImRect.Contains check
 
         # Step 3: Get game-space boundaries (min_x, ..., max_y)
         bounds = Map.map_instance().map_boundaries
@@ -370,21 +371,46 @@ class Overlay:
         pos = PyOverlay.Point3D(x, y, z)
         self.overlay_instance.DrawText3D(pos, text, color, autoZ, centered,scale)
 
-
-
     def GetDisplaySize(self):
         return self.overlay_instance.GetDisplaySize()
-    
-   
-        
-    
-        
-    
-        
-
         
     def PushClipRect(self, x, y, x2, y2):
         self.overlay_instance.PushClipRect(x, y, x2, y2)
         
     def PopClipRect(self):
         self.overlay_instance.PopClipRect()
+
+    class Renderer2D:
+        def __init__(self):
+            self.renderer = Py2DRenderer.Py2DRenderer()
+        
+        def set_primitives(self, shapes, color):
+            self.renderer.set_primitives(shapes, color)
+        
+        def set_zoom_x(self, zoom):
+            self.renderer.set_zoom_x(zoom)
+            
+        def set_zoom_y(self, zoom):
+            self.renderer.set_zoom_y(zoom)
+            
+        def set_zoom(self, zoom):
+            self.renderer.set_zoom_x(zoom)
+            self.renderer.set_zoom_y(-1 * zoom)
+        
+        def set_pan(self, x,y):
+            self.renderer.set_pan(x,y)
+        
+        def set_rotation(self, rotation):
+            self.renderer.set_rotation(rotation)
+        
+        def set_world_space(self, enabled):
+            self.renderer.set_world_space(enabled)
+        
+        def set_circular_mask(self, enabled):
+            self.renderer.set_circular_mask(enabled)
+        
+        def set_mask_radius(self, radius):
+            self.renderer.set_mask_radius(radius)
+        
+        def render(self):
+            self.renderer.render()

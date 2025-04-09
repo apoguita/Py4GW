@@ -1,8 +1,13 @@
 import Py4GW
 import PyMap
 import PyMissionMap
+import PyPathing
+import PyOverlay
 from .enums import explorables, explorable_name_to_id, FlagPreference
 from .UIManager import *
+from .Overlay import *
+from collections import deque
+import time
 
 class Map:
     @staticmethod
@@ -436,10 +441,35 @@ class Map:
 
     class Pathing:
         @staticmethod
-        def GetPathingMaps():
-            import PyPathing
-            """Return the PyPathing instance. """
+        def GetPathingMaps() -> List[PyPathing.PathingMap]:
             return PyPathing.get_pathing_maps()
+
+        class Quad:
+            def __init__(self, trapezoid : PyPathing.PathingTrapezoid):
+                self.trapezoid = trapezoid
+                
+                self.top_left:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTL), int(trapezoid.YT))
+                self.top_right:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTR), int(trapezoid.YT))
+                self.bottom_left:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBL), int(trapezoid.YB))
+                self.bottom_right:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBR), int(trapezoid.YB))
+                
+            def GetPoints(self) -> List[PyOverlay.Point2D]:
+                return [self.top_left, self.top_right, self.bottom_left, self.bottom_right]
+            
+        @staticmethod
+        def GetComputedGeometry() -> List[List[PyOverlay.Point2D]]:
+            pathintg_maps = Map.Pathing.GetPathingMaps()
+            geometry = []
+            for layer in pathintg_maps:
+                for trapezoid in layer.trapezoids:
+                    geometry.append(Map.Pathing.Quad(trapezoid).GetPoints())
+            return geometry
+                    
+                
+            
+
+                     
+   
 
     class MiniMap:
         @staticmethod
