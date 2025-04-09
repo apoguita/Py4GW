@@ -139,6 +139,7 @@ class MapBoundaries:
         self.unk = unk
 
 
+
 class MissionMap:
     def __init__(self):
         self.left = 0
@@ -157,15 +158,20 @@ class MissionMap:
         
         self.last_click_x = 0
         self.last_click_y = 0
+        self.geometry = []
+        self.renderer = Overlay.Renderer2D()
 
         self.update()
-                    
+                   
 
     def update(self):
         coords = Map.MissionMap.GetWindowCoords()
         self.left, self.top, self.right, self.bottom = int(coords[0]-5), int(coords[1]-1), int(coords[2]+5), int(coords[3]+2)
         self.width = self.right - self.left
         self.height = self.bottom - self.top
+        
+        self.left_world, self.top_world = Overlay.ScreenToGamePos(self.left, self.top)
+        self.right_world, self.bottom_world = Overlay.ScreenToGamePos(self.right, self.bottom)
 
         player_x, player_y = Player.GetXY()
         self.player_screen_x, self.player_screen_y = Overlay.GamePosToScreen(player_x, player_y)
@@ -173,14 +179,26 @@ class MissionMap:
         click_x, click_y = Map.MissionMap.GetLastClickCoords()
 
         self.last_click_x, self.last_click_y = Overlay.ScreenToGamePos(click_x, click_y)
+        
+        if not self.geometry:
+            self.geometry = Map.Pathing.GetComputedGeometry()
+            self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 125).value())
+            zero_x, zero_y  = Overlay.WorldMapToScreen(0, 0)
+            self.renderer.set_zoom(0.03)
+            #self.renderer.set_pan(Map.MissionMap.GetPanOffset())
+            self.renderer.set_world_space(True)
+            self.renderer.set_circular_mask(False)
+            
 
 
 mission_map = MissionMap()
 
+
 def DrawFrame():
     global mission_map
     Overlay().BeginDraw("MissionMapOverlay", mission_map.left, mission_map.top, mission_map.width, mission_map.height)
-    #terrain
+    #terrain 
+    mission_map.renderer.render()
     #Aggro Bubble
     Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value)-2, color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32,thickness=4.0)
     Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32)
@@ -197,26 +215,56 @@ def DrawFrame():
         #AgentMarker("Square", agent_id, Color(255,0,0,255), size=6.0).draw()
         AgentMarker("Circle", agent_id, Color(255,0,0,255), size=4.0, segments=16).draw()
 
-    z_coords = Overlay.FindZ(mission_map.last_click_x, mission_map.last_click_y)
-    Overlay().DrawPolyFilled3D(mission_map.last_click_x, mission_map.last_click_y, z_coords, color=Color(255, 255, 0, 255).value(), radius=5.0)
-
     Overlay().EndDraw()
     
+    """
+    Overlay().BeginDraw()
+    player_x, player_y = Player.GetXY()
+    z_coords = Overlay.FindZ(player_x, player_y)
+    Overlay().DrawPolyFilled3D(player_x, player_y, z_coords, color=Color(0, 255, 0, 255).value(), radius=100)
+   
+    Overlay().EndDraw()
+    """
+
+
+
+
+
+zoom = 3
+pan_x = 0.0
+pan_y = 0.0
+
+screen_offset_x = 0.0
+screen_offset_y = 0.0
 
 def DrawWindow():
-    global MODULE_NAME
+    global MODULE_NAME, mission_map, pan_x, pan_y, zoom, screen_offset_x, screen_offset_y
     
     if PyImGui.begin(MODULE_NAME):
-        player_x, player_y = Player.GetXY()   
-        player_screen_x, player_screen_y = Overlay.GamePosToScreen(player_x, player_y) 
-        player_converted_back_x, player_converted_back_y = Overlay.ScreenToGamePos(player_screen_x, player_screen_y)
-
-        PyImGui.text(f"Player Position: {player_x:.2f}, {player_y:.2f}") 
-        PyImGui.text(f"Player Screen Position: {player_screen_x:.2f}, {player_screen_y:.2f}")
-        PyImGui.text(f"Converted Back Position: {player_converted_back_x:.2f}, {player_converted_back_y:.2f}")
-        if PyImGui.button("Get Pathing Maps!"):
-            pathing_map = Map.Pathing.GetPathingMaps()
-            #precompute_layer_geometry(pathing_map, width=500, height=500)
+        
+        mouse_x, mouse_y = Overlay().GetMouseCoords()
+        world_mouse_x, world_mouse_y = Overlay.ScreenToGamePos(mouse_x, mouse_y)
+        PyImGui.text(f"Mouse Coords: {mouse_x:.2f}, {mouse_y:.2f}")
+        PyImGui.text(f"World Mouse Coords: {world_mouse_x:.2f}, {world_mouse_y:.2f}")
+        PyImGui.text(f"Mission Map: {mission_map.left:.2f}, {mission_map.top:.2f}, {mission_map.right:.2f}, {mission_map.bottom:.2f}")
+        PyImGui.text(f"World Coords: {mission_map.left_world:.2f}, {mission_map.top_world:.2f}, {mission_map.right_world:.2f}, {mission_map.bottom_world:.2f}")
+        
+        PyImGui.separator()
+        player_x, player_y = Player.GetXY()
+        player_screen_x, player_screen_y = Overlay.GamePosToScreen(player_x, player_y)
+        PyImGui.text(f"Player Screen Coords: {player_screen_x:.2f}, {player_screen_y:.2f}")
+        PyImGui.text(f"Player Coords: {player_x:.2f}, {player_y:.2f}")
+        
+        zoom = PyImGui.slider_float("Zoom", zoom, 0.0, 5.0)
+        mission_map.renderer.set_zoom(zoom/100.0)
+        
+        
+        pan_x = PyImGui.slider_float("Pan X", pan_x, 0.0, 5000.0)
+        pan_y = PyImGui.slider_float("Pan Y", pan_y, 0.0, 5000.0)
+        
+        mission_map.renderer.set_pan(pan_x, pan_y)
+        
+        
     PyImGui.end()
         
 def main():   
