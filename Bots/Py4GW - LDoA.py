@@ -4,6 +4,7 @@ import time
 
 #VARIABLES
 module_name = "Py4GW - LDoA"
+window_name = module_name
 
 class AppState :
     def __init__(self) :
@@ -19,7 +20,7 @@ class BotVars:
         self.barradin_map = 163 #BARRADIN ESTATE
         self.ranik_map = 166 #FORT RANIK
         self.bot_started = False
-        self.window_module = ImGui.WindowModule(module_name="Py4GW - LDoA")
+        self.window_module = ImGui.WindowModule()
         self.variables = {}
         self.CharrAtTheGate = 46
 
@@ -44,7 +45,7 @@ player_instance = PyPlayer.PyPlayer()
 action_queue = ActionQueue()
 
 bot_vars = BotVars(map_id=148) #ASCALON
-bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Py4GW - LDoA", window_size=(300, 300), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+bot_vars.window_module = ImGui.WindowModule(module_name, window_name, (300, 300), (0, 0), PyImGui.WindowFlags.AlwaysAutoResize)
 agent_id = Player.GetAgentID()
 
 #COORDS
@@ -341,14 +342,6 @@ def ResetEnvironment():
 
 
 
-
-
-
-
-
-
-
-
     FSM_vars.rurikpause_pathing.reset()
     FSM_vars.rurik_pathing.reset()
     FSM_vars.foible_pathing.reset()
@@ -389,7 +382,6 @@ def quantityitem(model_id):
 def equipitem(model_id, agent_id):
     item = Item.GetItemIdFromModelID(model_id)
     agent_id = Player.GetAgentID() 
-
     Inventory.EquipItem(item, agent_id)
 
 inventory = PyInventory.PyInventory()  
@@ -439,7 +431,6 @@ def end_killing_routine():
     enemy_array = AgentArray.GetEnemyArray()
     enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Area_1)
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
-
 
     if len(enemy_array) < 1:
         FSM_vars.in_waiting_routine = False
@@ -500,7 +491,6 @@ def get_called_target():
     return 0
 
 def GetAbsoluteEnergy():
-
     my_id = Player.GetAgentID()
     max_energy = Agent.GetMaxEnergy(my_id) 
     current_energy = Agent.GetEnergy(my_id) * max_energy  
@@ -528,6 +518,7 @@ def handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -551,12 +542,15 @@ def handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -590,6 +584,8 @@ def handle_loot():
         if item_id in filtered_items
     ]
 
+    filtered_agent_ids = AgentArray.Sort.ByDistance(filtered_agent_ids, Agent.GetXY(my_id))
+
     if len(filtered_agent_ids) > 0:
         looting_item = filtered_agent_ids[0]
 
@@ -598,7 +594,7 @@ def handle_loot():
             loot_timer.Reset()
             return
 
-        if loot_timer.HasElapsed(1000) and Player.GetTargetID() == looting_item:
+        if loot_timer.HasElapsed(1200) and Player.GetTargetID() == looting_item:
             Keystroke.PressAndRelease(Key.Space.value)
             loot_timer.Reset()
             return
@@ -610,6 +606,7 @@ def handle_map_path_loot(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -634,12 +631,15 @@ def handle_map_path_loot(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -652,6 +652,7 @@ def warrior_handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -674,12 +675,15 @@ def warrior_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -695,6 +699,7 @@ def mesmer_handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -717,12 +722,15 @@ def mesmer_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -739,6 +747,7 @@ def early_handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -761,12 +770,15 @@ def early_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -783,6 +795,7 @@ def hamnet_handle_map_path(map_pathing):
     global FSM_vars
     my_id = Player.GetAgentID()
     my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
     current_time = time.time()
 
     enemy_array = AgentArray.GetEnemyArray()
@@ -805,12 +818,15 @@ def hamnet_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
+            if my_p_prof == 2 or my_s_prof == 2:
+                Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
             if current_time - FSM_vars.last_skill_time >= 2.0:
                 skill_slot = FSM_vars.current_skill_index
+                Player.ChangeTarget(target_id)
                 Player.Interact(target_id, call_target=False)                 
                 SkillBar.UseSkill(skill_slot)  
                 FSM_vars.last_skill_time = current_time  
@@ -2203,20 +2219,20 @@ class InventoryTracker:
     def __init__(self):
         self.initial_quantities = {} 
         self.tracked_model_ids = {  
-            433: "BAKED HUSKS",
-            423: "CHARR CARVINGS",
-            425: "DULL CARAPACES",
-            431: "ENCHANTED LODESTONES",
-            426: "GARGOYLE SKULLS",
-            432: "GRAWL NECKLACES",
-            424: "ICY LODESTONES",
-            2994: "RED IRIS FLOWERS",
-            429: "SKALE FINS",
-            430: "SKELETAL LIMBS",
-            422: "SPIDER LEGS",
-            428: "UNNATURAL SEEDS",
-            427: "WORN BELTS",
-            31149: "GIFTS OF THE HUNTSMAN"
+            ModelID.Spider_Leg: "SPIDER LEGS",
+            ModelID.Charr_Carving: "CHARR CARVINGS",
+            ModelID.Icy_Lodestone: "ICY LODESTONES",
+            ModelID.Dull_Carapace: "DULL CARAPACES",
+            ModelID.Gargoyle_Skull: "GARGOYLE SKULLS",
+            ModelID.Worn_Belt: "WORN BELTS",
+            ModelID.Unnatural_Seed: "UNNATURAL SEEDS",
+            ModelID.Skale_Fin_PreSearing: "SKALE FINS",
+            ModelID.Skeletal_Limb: "SKELETAL LIMBS",
+            ModelID.Enchanted_Lodestone: "ENCHANTED LODESTONES",
+            ModelID.Grawl_Necklace: "GRAWL NECKLACES",
+            ModelID.Baked_Husk: "BAKED HUSKS",
+            ModelID.Red_Iris_Flower: "RED IRIS FLOWERS",
+            ModelID.Gift_Of_The_Huntsman: "GIFTS OF THE HUNTSMAN"
         }
 
     def initialize(self):
@@ -2316,171 +2332,181 @@ def DrawWindow():
     global module_name
     global state
    
-    if PyImGui.begin("\uf647  TH3KUM1KO'S PRESEARING BIBLE"):
-        if PyImGui.begin_tab_bar("MainTabBar"): 
-            if PyImGui.begin_tab_item("LDoA"):
-                PyImGui.spacing()
-                PyImGui.text_wrapped("WITH THESE FUNCTIONS, THE BOT WILL LEVEL UP YOUR CHARACTER BASED ON ITS PROFESSION, REACHING LEVEL 2 THROUGH THE INITIAL QUESTS. ONCE LEVEL 2 IS ACHIEVED, THE BOT WILL AUTOMATICALLY TAKE THE 'CHARR AT THE GATE' QUEST.")
-                state.radio_button_selected = PyImGui.radio_button(" \uf132 WARRIOR", state.radio_button_selected, 20)
-                PyImGui.same_line(200, -1.0)
-                state.radio_button_selected = PyImGui.radio_button(" \uf54c NECROMANCER", state.radio_button_selected, 23)
-                state.radio_button_selected = PyImGui.radio_button(" \uf1bb RANGER", state.radio_button_selected, 21)
-                PyImGui.same_line(200, -1.0)
-                state.radio_button_selected = PyImGui.radio_button(" \ue2ca MESMER", state.radio_button_selected, 24)
-                state.radio_button_selected = PyImGui.radio_button(" \uf644 MONK", state.radio_button_selected, 22)
-                PyImGui.same_line(200, -1.0)
-                state.radio_button_selected = PyImGui.radio_button(" \uf6e8 ELEMENTALIST", state.radio_button_selected, 25)
-                PyImGui.spacing()
-                PyImGui.text_wrapped("WITH THIS FUNCTION, THE BOT WILL LEAVE ASCALON USING THE 'CHARR AT THE GATE' QUEST, FOLLOW RURIK, AND WAIT FOR THE PRINCE TO KILL THREE CHARR BEFORE RETURNING TO THE CITY AND RESTARTING THE LOOP. THIS FUNCTION ENSURES SURVIVOR TITLE PROGRESSION.")
-                state.radio_button_selected = PyImGui.radio_button(" \uf443 LEVEL 2-10 - CHARR AT THE GATE", state.radio_button_selected, 0)
-                PyImGui.spacing()
-                PyImGui.text_wrapped("ONCE YOU REACH LEVEL 10, WAIT FOR THE ROTATION OF THE VANGUARD QUESTS UNTIL THE 'FARMER HAMNET' QUEST BECOMES AVAILABLE. THE BOT WILL KILL THE FIRST TWO MOBS OUTSIDE FOIBLE'S FAIR AND REPEAT THE LOOP UNTIL LEVEL 20. THIS FUNCTION ENSURES SURVIVOR TITLE PROGRESSION.")
-                state.radio_button_selected = PyImGui.radio_button(" \uf43f LEVEL 11-20 - FARMER HAMNET", state.radio_button_selected, 1) 
-                PyImGui.spacing()
-                if IsBotStarted():        
-                    if PyImGui.button(" \uf04d   STOP"):
-                        ResetEnvironment()
-                        StopBot()
-                else:
-                    if PyImGui.button(" \uf04b   START"):
-                        ResetEnvironment()
-                        StartBot()
+    try:
+        if bot_vars.window_module.first_run:
+            PyImGui.set_next_window_size(bot_vars.window_module.window_size[0], bot_vars.window_module.window_size[1])     
+            PyImGui.set_next_window_pos(bot_vars.window_module.window_pos[0], bot_vars.window_module.window_pos[1])
+            bot_vars.window_module.first_run = False
 
-                PyImGui.end_tab_item()
+        if PyImGui.begin("\uf647  TH3KUM1KO'S PRESEARING BIBLE", bot_vars.window_module.window_flags):
 
-        if PyImGui.begin_tab_item("TRAVEL"):        
-                state.radio_button_selected = PyImGui.radio_button("\uf51d GO TO ASHFORD ABBEY", state.radio_button_selected, 2)
-                state.radio_button_selected = PyImGui.radio_button("\uf6e8 GO TO FOIBLE'S FAIR", state.radio_button_selected, 3)
-                state.radio_button_selected = PyImGui.radio_button("\uf447 GO TO FORT RANIK", state.radio_button_selected, 4)
-                state.radio_button_selected = PyImGui.radio_button(" \uf43a GO TO THE BARRADIN ESTATE", state.radio_button_selected, 5)
-                state.radio_button_selected = PyImGui.radio_button("\uf5a0 THE GRAND TOUR", state.radio_button_selected, 19)
-
-                if IsBotStarted():        
-                    if PyImGui.button(" \uf04d   STOP"):
-                        ResetEnvironment()
-                        StopBot()
-                else:
-                    if PyImGui.button(" \uf04b   START"):
-                        ResetEnvironment()
-                        StartBot()
-
-                PyImGui.end_tab_item()
-
-
-        if PyImGui.begin_tab_item("NIC ITEMS"): 
-               PyImGui.spacing()
-               # state.radio_button_selected = PyImGui.radio_button("\ue599 BAKED HUSKS", state.radio_button_selected, 6)
-               # state.radio_button_selected = PyImGui.radio_button("\uf1b0 CHARR CARVINGS", state.radio_button_selected, 7)
-               state.radio_button_selected = PyImGui.radio_button("\uf188 DULL CARAPACES", state.radio_button_selected, 8)
-               PyImGui.same_line(250, -1.0)
-               state.radio_button_selected = PyImGui.radio_button("\uf54c GARGOYLE SKULLS", state.radio_button_selected, 9)
-               state.radio_button_selected = PyImGui.radio_button("\uf4d6 GRAWL NECKLACES", state.radio_button_selected, 10)
-               PyImGui.same_line(250, -1.0)
-               state.radio_button_selected = PyImGui.radio_button("\uf7ad ICY LODESTONES", state.radio_button_selected, 11)
-               state.radio_button_selected = PyImGui.radio_button("\uf3a5 ENCHANTED LODESTONES", state.radio_button_selected, 12)
-               PyImGui.same_line(250, -1.0)
-               state.radio_button_selected = PyImGui.radio_button("\uf5bb RED IRIS FLOWERS", state.radio_button_selected, 13)
-               state.radio_button_selected = PyImGui.radio_button("\uf5d7 SKELETAL LIMBS", state.radio_button_selected, 14)
-               PyImGui.same_line(250, -1.0)
-               state.radio_button_selected = PyImGui.radio_button("\ue4f2 SKALE FINS", state.radio_button_selected, 15)
-               state.radio_button_selected = PyImGui.radio_button("\uf717 SPIDER LEGS", state.radio_button_selected, 16)
-               PyImGui.same_line(250, -1.0)
-               state.radio_button_selected = PyImGui.radio_button("\uf4d8 UNNATURAL SEEDS", state.radio_button_selected, 17)
-               state.radio_button_selected = PyImGui.radio_button("\ue19b WORN BELTS", state.radio_button_selected, 18)
-               PyImGui.same_line(250, -1.0)
-               state.radio_button_selected = PyImGui.radio_button("\uf06b NICHOLAS SANDFORD", state.radio_button_selected, 26)
-               PyImGui.spacing()
-               
-               if IsBotStarted():        
-                    if PyImGui.button(" \uf04d   STOP"):
-                        ResetEnvironment()
-                        StopBot()
-               else:
-                    if PyImGui.button(" \uf04b   START"):
-                        ResetEnvironment()
-                        StartBot()
-               PyImGui.end_tab_item()
-
-        if PyImGui.begin_tab_item("INVENTORY"):            
-                show_info_table_item()
-                PyImGui.spacing()
-                PyImGui.end_tab_item()
-        if PyImGui.begin_tab_item("MISC"):   
-                        
-               state.radio_button_selected = PyImGui.radio_button("\uf6be TAME PET", state.radio_button_selected, 27)
-
-               if IsBotStarted():        
-                   if PyImGui.button(" \uf04d   STOP"):
-                        ResetEnvironment()
-                        StopBot()
-               else:
-                   if PyImGui.button(" \uf04b   START"):
-                        ResetEnvironment()
-                        StartBot()
-
-               PyImGui.end_tab_item()
-
-        if PyImGui.begin_tab_item("SKILLS"):  
-                    PyImGui.spacing()                    
-                    PyImGui.text_colored("\uf132 UNLOCK WARRIOR SKILL", (1.0, 1.0, 0.2, 1.0))
-                    PyImGui.pop_style_color(1)
-                    PyImGui.same_line(300, -1.0)
-                    PyImGui.text_colored("\uf54c UNLOCK NECROMANCER SKILL", (0.0, 0.8, 0.3, 1.0))
-                    PyImGui.pop_style_color(1)
-
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##WARRIOR_REQ", state.radio_button_selected, 28)
-                    PyImGui.same_line(300, -1.0)
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##NECRO_REQ", state.radio_button_selected, 34)
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##WARRRIOR_NOREQ", state.radio_button_selected, 29)               
-                    PyImGui.same_line(300, -1.0)
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##NECRO_NOREQ", state.radio_button_selected, 35)
-
-                    PyImGui.text_colored("\uf1bb UNLOCK RANGER SKILL", (1.0, 0.5, 0.0, 1.0))
-                    PyImGui.pop_style_color(1)
-                    PyImGui.same_line(300, -1.0)
-                    PyImGui.text_colored("\ue2ca UNLOCK MESMER SKILL", (1.0, 0.1, 0.8, 1.0))
-                    PyImGui.pop_style_color(1)
-
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##RANGER_REQ", state.radio_button_selected, 30)
-                    PyImGui.same_line(300, -1.0)
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##MESMER_REQ", state.radio_button_selected, 36)
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##RANGER_NOREQ", state.radio_button_selected, 31)               
-                    PyImGui.same_line(300, -1.0)
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##MESMER_NOREQ", state.radio_button_selected, 37)
-
-                    PyImGui.text_colored("\uf644 UNLOCK MONK SKILL", (0.2, 1.0, 1.0, 1.0))
-                    PyImGui.pop_style_color(1)
-                    PyImGui.same_line(300, -1.0)
-                    PyImGui.text_colored("\uf6e8 UNLOCK ELEMENTALIST SKILL", (1.0, 0.0, 0.2, 1.0))  
-                    PyImGui.pop_style_color(1)
-
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##MONK_REQ", state.radio_button_selected, 32)
-                    PyImGui.same_line(300, -1.0)
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##ELEMENTALIST_REQ", state.radio_button_selected, 38)
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##MONK_NOREQ", state.radio_button_selected, 33)               
-                    PyImGui.same_line(300, -1.0)
-                    state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##ELEMENTALIST_NOREQ", state.radio_button_selected, 39)
+            if PyImGui.begin_tab_bar("MainTabBar"): 
+                if PyImGui.begin_tab_item("LDoA"):
                     PyImGui.spacing()
+                    PyImGui.text_wrapped("WITH THESE FUNCTIONS, THE BOT WILL LEVEL UP YOUR CHARACTER BASED ON ITS PROFESSION, REACHING LEVEL 2 THROUGH THE INITIAL QUESTS. ONCE LEVEL 2 IS ACHIEVED, THE BOT WILL AUTOMATICALLY TAKE THE 'CHARR AT THE GATE' QUEST.")
+                    state.radio_button_selected = PyImGui.radio_button(" \uf132 WARRIOR", state.radio_button_selected, 20)
+                    PyImGui.same_line(200, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf54c NECROMANCER", state.radio_button_selected, 23)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf1bb RANGER", state.radio_button_selected, 21)
+                    PyImGui.same_line(200, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button(" \ue2ca MESMER", state.radio_button_selected, 24)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf644 MONK", state.radio_button_selected, 22)
+                    PyImGui.same_line(200, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf6e8 ELEMENTALIST", state.radio_button_selected, 25)
+                    PyImGui.spacing()
+                    PyImGui.text_wrapped("WITH THIS FUNCTION, THE BOT WILL LEAVE ASCALON USING THE 'CHARR AT THE GATE' QUEST, FOLLOW RURIK, AND WAIT FOR THE PRINCE TO KILL THREE CHARR BEFORE RETURNING TO THE CITY AND RESTARTING THE LOOP. THIS FUNCTION ENSURES SURVIVOR TITLE PROGRESSION.")
+                    state.radio_button_selected = PyImGui.radio_button(" \uf443 LEVEL 2-10 - CHARR AT THE GATE", state.radio_button_selected, 0)
+                    PyImGui.spacing()
+                    PyImGui.text_wrapped("ONCE YOU REACH LEVEL 10, WAIT FOR THE ROTATION OF THE VANGUARD QUESTS UNTIL THE 'FARMER HAMNET' QUEST BECOMES AVAILABLE. THE BOT WILL KILL THE FIRST TWO MOBS OUTSIDE FOIBLE'S FAIR AND REPEAT THE LOOP UNTIL LEVEL 20. THIS FUNCTION ENSURES SURVIVOR TITLE PROGRESSION.")
+                    state.radio_button_selected = PyImGui.radio_button(" \uf43f LEVEL 11-20 - FARMER HAMNET", state.radio_button_selected, 1) 
+                    PyImGui.spacing()
+                    if IsBotStarted():        
+                        if PyImGui.button(" \uf04d   STOP"):
+                            ResetEnvironment()
+                            StopBot()
+                    else:
+                        if PyImGui.button(" \uf04b   START"):
+                            ResetEnvironment()
+                            StartBot()
+                    PyImGui.end_tab_item()
 
+            if PyImGui.begin_tab_item("TRAVEL"):        
+                    state.radio_button_selected = PyImGui.radio_button("\uf51d GO TO ASHFORD ABBEY", state.radio_button_selected, 2)
+                    state.radio_button_selected = PyImGui.radio_button("\uf6e8 GO TO FOIBLE'S FAIR", state.radio_button_selected, 3)
+                    state.radio_button_selected = PyImGui.radio_button("\uf447 GO TO FORT RANIK", state.radio_button_selected, 4)
+                    state.radio_button_selected = PyImGui.radio_button(" \uf43a GO TO THE BARRADIN ESTATE", state.radio_button_selected, 5)
+                    state.radio_button_selected = PyImGui.radio_button("\uf5a0 THE GRAND TOUR", state.radio_button_selected, 19)
 
                     if IsBotStarted():        
                         if PyImGui.button(" \uf04d   STOP"):
-                                ResetEnvironment()
-                                StopBot()
+                            ResetEnvironment()
+                            StopBot()
                     else:
                         if PyImGui.button(" \uf04b   START"):
-                                ResetEnvironment()
-                                StartBot()
+                            ResetEnvironment()
+                            StartBot()
+                    PyImGui.end_tab_item()
 
-                    PyImGui.end_tab_item()        
+            if PyImGui.begin_tab_item("NIC ITEMS"): 
+                    PyImGui.spacing()
+                    # state.radio_button_selected = PyImGui.radio_button("\ue599 BAKED HUSKS", state.radio_button_selected, 6)
+                    # state.radio_button_selected = PyImGui.radio_button("\uf1b0 CHARR CARVINGS", state.radio_button_selected, 7)
+                    state.radio_button_selected = PyImGui.radio_button("\uf188 DULL CARAPACES", state.radio_button_selected, 8)
+                    PyImGui.same_line(250, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button("\uf54c GARGOYLE SKULLS", state.radio_button_selected, 9)
+                    state.radio_button_selected = PyImGui.radio_button("\uf4d6 GRAWL NECKLACES", state.radio_button_selected, 10)
+                    PyImGui.same_line(250, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button("\uf7ad ICY LODESTONES", state.radio_button_selected, 11)
+                    state.radio_button_selected = PyImGui.radio_button("\uf3a5 ENCHANTED LODESTONES", state.radio_button_selected, 12)
+                    PyImGui.same_line(250, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button("\uf5bb RED IRIS FLOWERS", state.radio_button_selected, 13)
+                    state.radio_button_selected = PyImGui.radio_button("\uf5d7 SKELETAL LIMBS", state.radio_button_selected, 14)
+                    PyImGui.same_line(250, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button("\ue4f2 SKALE FINS", state.radio_button_selected, 15)
+                    state.radio_button_selected = PyImGui.radio_button("\uf717 SPIDER LEGS", state.radio_button_selected, 16)
+                    PyImGui.same_line(250, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button("\uf4d8 UNNATURAL SEEDS", state.radio_button_selected, 17)
+                    state.radio_button_selected = PyImGui.radio_button("\ue19b WORN BELTS", state.radio_button_selected, 18)
+                    PyImGui.same_line(250, -1.0)
+                    state.radio_button_selected = PyImGui.radio_button("\uf06b NICHOLAS SANDFORD", state.radio_button_selected, 26)
+                    PyImGui.spacing()
 
-        if PyImGui.begin_tab_item("STATS"):            
-                show_info_table_run()
-                PyImGui.spacing()
-                PyImGui.end_tab_item()
+                    if IsBotStarted():        
+                        if PyImGui.button(" \uf04d   STOP"):
+                            ResetEnvironment()
+                            StopBot()
+                    else:
+                        if PyImGui.button(" \uf04b   START"):
+                            ResetEnvironment()
+                            StartBot()
+                    PyImGui.end_tab_item()
+
+            if PyImGui.begin_tab_item("INVENTORY"):            
+                    show_info_table_item()
+                    PyImGui.spacing()
+                    PyImGui.end_tab_item()
+            if PyImGui.begin_tab_item("MISC"):   
+                        
+                    state.radio_button_selected = PyImGui.radio_button("\uf6be TAME PET", state.radio_button_selected, 27)
+
+                    if IsBotStarted():        
+                        if PyImGui.button(" \uf04d   STOP"):
+                            ResetEnvironment()
+                            StopBot()
+                    else:
+                        if PyImGui.button(" \uf04b   START"):
+                            ResetEnvironment()
+                            StartBot()
+
+                    PyImGui.end_tab_item()
+
+            if PyImGui.begin_tab_item("SKILLS"):  
+                        PyImGui.spacing()                    
+                        PyImGui.text_colored("\uf132 UNLOCK WARRIOR SKILL", (1.0, 1.0, 0.2, 1.0))
+                        PyImGui.pop_style_color(1)
+                        PyImGui.same_line(300, -1.0)
+                        PyImGui.text_colored("\uf54c UNLOCK NECROMANCER SKILL", (0.0, 0.8, 0.3, 1.0))
+                        PyImGui.pop_style_color(1)
+
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##WARRIOR_REQ", state.radio_button_selected, 28)
+                        PyImGui.same_line(300, -1.0)
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##NECRO_REQ", state.radio_button_selected, 34)
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##WARRRIOR_NOREQ", state.radio_button_selected, 29)               
+                        PyImGui.same_line(300, -1.0)
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##NECRO_NOREQ", state.radio_button_selected, 35)
+
+                        PyImGui.text_colored("\uf1bb UNLOCK RANGER SKILL", (1.0, 0.5, 0.0, 1.0))
+                        PyImGui.pop_style_color(1)
+                        PyImGui.same_line(300, -1.0)
+                        PyImGui.text_colored("\ue2ca UNLOCK MESMER SKILL", (1.0, 0.1, 0.8, 1.0))
+                        PyImGui.pop_style_color(1)
+
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##RANGER_REQ", state.radio_button_selected, 30)
+                        PyImGui.same_line(300, -1.0)
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##MESMER_REQ", state.radio_button_selected, 36)
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##RANGER_NOREQ", state.radio_button_selected, 31)               
+                        PyImGui.same_line(300, -1.0)
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##MESMER_NOREQ", state.radio_button_selected, 37)
+
+                        PyImGui.text_colored("\uf644 UNLOCK MONK SKILL", (0.2, 1.0, 1.0, 1.0))
+                        PyImGui.pop_style_color(1)
+                        PyImGui.same_line(300, -1.0)
+                        PyImGui.text_colored("\uf6e8 UNLOCK ELEMENTALIST SKILL", (1.0, 0.0, 0.2, 1.0))  
+                        PyImGui.pop_style_color(1)
+
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##MONK_REQ", state.radio_button_selected, 32)
+                        PyImGui.same_line(300, -1.0)
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00c PRIMARY/SECONDARY REQUIRED##ELEMENTALIST_REQ", state.radio_button_selected, 38)
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##MONK_NOREQ", state.radio_button_selected, 33)               
+                        PyImGui.same_line(300, -1.0)
+                        state.radio_button_selected = PyImGui.radio_button(" \uf00d PRIMARY/SECONDARY NO REQ##ELEMENTALIST_NOREQ", state.radio_button_selected, 39)
+                        PyImGui.spacing()
+
+
+                        if IsBotStarted():        
+                            if PyImGui.button(" \uf04d   STOP"):
+                                    ResetEnvironment()
+                                    StopBot()
+                        else:
+                            if PyImGui.button(" \uf04b   START"):
+                                    ResetEnvironment()
+                                    StartBot()
+
+                        PyImGui.end_tab_item()        
+
+            if PyImGui.begin_tab_item("STATS"):            
+                    show_info_table_run()
+                    PyImGui.spacing()
+                    PyImGui.end_tab_item()
 
         
-    PyImGui.end()
+        PyImGui.end()
+
+    except Exception as e:
+        frame = inspect.currentframe()
+        current_function = frame.f_code.co_name if frame else "Unknown"
+        Py4GW.Console.Log(bot_vars.window_module.module_name, f"Error in {current_function}: {str(e)}", Py4GW.Console.MessageType.Error)
+        raise
 
 def main():
     global bot_vars, FSM_vars, inventory_tracker
