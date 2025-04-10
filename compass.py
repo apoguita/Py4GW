@@ -13,6 +13,7 @@ class Compass():
         snap_to_game = True
         always_point_north = False
         buffer = 10
+        culling = 4365
 
         player_pos = (1.0,1.0)
 
@@ -137,10 +138,15 @@ class Compass():
             'spirit'    : 1.5,
             'compass'   : 1.5
         }
-     
-    position = Position()
-    markers = Markers()
+    
+    class Pathing:
+        show = True
+        color = Utils.RGBToColor(255, 255, 255, 75)
+
+    position    = Position()
+    markers     = Markers()
     range_rings = RangeRings()
+    pathing     = Pathing()
 
 compass = Compass()
 action_queue = ActionQueueManager()
@@ -260,10 +266,16 @@ def DrawRangeRings():
                                             64)
 
 def DrawAgent(agent_id, shape, size, col, is_spirit = False):
+    global compass
+
     if not Agent.IsValid(agent_id):
        return
-
+    
     agent_pos = Agent.GetXY(agent_id)
+    if Utils.Distance(agent_pos, compass.position.player_pos) > compass.position.culling:
+        return
+
+
     x, y = WorldToCompass(agent_pos)
 
     line_col = Utils.RGBToColor(255,255,0,255) if agent_id == compass.target_id else Utils.RGBToColor(0,0,0,255)
@@ -400,20 +412,25 @@ def DrawCompass():
 
     PyImGui.end()
 
-    min_x, min_y, max_x, max_y = Map.GetMapBoundaries()
-    x_pixels = (compass.position.player_pos[0] - min_x)/(max_x - min_x)*4.5/100
-    y_pixels = (max_y - min_y)*4.5/100
+    if compass.pathing.show:
+        min_x, min_y, max_x, max_y = Map.GetMapBoundaries()
+        mid_x = (max_x + min_x)/2
+        mid_y = (max_y + min_y)/2
 
-    Debug(f'p: {compass.position.player_pos[0]}, max: {max_x}, min: {min_x}')
-    #compass.position.player_pos[0]
+        zoom = compass.position.current_size*2/100
 
-    compass.renderer.set_primitives(compass.geometry, Color(255, 255, 255, 100).value())
-    compass.renderer.set_zoom(4.5/100)
-    compass.renderer.set_pan(compass.position.current_pos.x + x_pixels,compass.position.current_pos.y - y_pixels)
-    compass.renderer.render()
+        x_pixels = (mid_x - compass.position.player_pos[0])*zoom/100 - zoom*(max_x + min_x)/200
+        y_pixels = (mid_y - compass.position.player_pos[1])*zoom/100 - zoom*(max_y + min_y)/200
 
-    
+        compass.renderer.set_primitives(compass.geometry, compass.pathing.color)
 
+        compass.renderer.world_space.set_zoom(zoom/100)
+        compass.renderer.world_space.set_pan(compass.position.current_pos.x + x_pixels,compass.position.current_pos.y - y_pixels)
+
+        compass.renderer.mask.set_circular_mask(True)
+        compass.renderer.mask.set_mask_radius(compass.position.current_size*compass.position.culling/Range.Compass.value)
+        compass.renderer.mask.set_mask_center(compass.position.current_pos.x, compass.position.current_pos.y)
+        compass.renderer.render()
 
 def DrawConfig():
     global compass
@@ -441,6 +458,8 @@ def DrawConfig():
             # position settings
             if PyImGui.collapsing_header(f'Position'):
                 compass.position.snap_to_game = PyImGui.checkbox('Snap To Game Compass', compass.position.snap_to_game)
+                compass.position.culling = PyImGui.slider_int('Culling Range',  compass.position.culling,  4000, 5000)
+
                 if not compass.position.snap_to_game:
                     compass.position.always_point_north = PyImGui.checkbox('Always Point North', compass.position.always_point_north)
 
@@ -501,6 +520,10 @@ def DrawConfig():
                         compass.range_rings.outline_color[ring] = Utils.TupleToColor(PyImGui.color_edit4('Line Color', Utils.ColorToTuple(compass.range_rings.outline_color[ring])))
                         compass.range_rings.outline_thickness[ring] = PyImGui.slider_float('Line Thickness', compass.range_rings.outline_thickness[ring], 0, 5)
                         PyImGui.tree_pop()
+
+            if PyImGui.collapsing_header(f'Pathing'):
+                compass.pathing.show = PyImGui.checkbox('Visible', compass.pathing.show)
+                compass.pathing.color = Utils.TupleToColor(PyImGui.color_edit4('', Utils.ColorToTuple(compass.pathing.color)))
 
             PyImGui.pop_style_color(11)
         PyImGui.end()
