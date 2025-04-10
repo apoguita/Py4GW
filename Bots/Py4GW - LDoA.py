@@ -374,7 +374,8 @@ def LDoA_GetPetBehavior(player_id=Player.GetAgentID()):
     PetInfo = Party.Pets.GetPetInfo(player_id)
     return PetInfo.behavior
 
-def LDoA_IsOutpost(map_id=Map.GetMapID()):
+def LDoA_IsOutpost():
+    map_id = Map.GetMapID()
     """Check if the map instance is an outpost."""
     if map_id == bot_vars.ascalon_map: #ASCALON
         return True
@@ -612,7 +613,7 @@ def handle_loot():
 
     filtered_items = list(agent_to_item_map.values())
     filtered_items = ItemArray.Filter.ByCondition(
-        filtered_items, lambda item_id: Item.GetItemType(item_id)[0] in {30, 10, 20}
+        filtered_items, lambda item_id: Item.GetItemType(item_id)[0] in {30, 10, 20, 9}
     )
 
     filtered_agent_ids = [
@@ -654,7 +655,7 @@ def handle_lootFlower():
 
     filtered_items = list(agent_to_item_map.values())
     filtered_items = ItemArray.Filter.ByCondition(
-        filtered_items, lambda item_id: Item.GetItemType(item_id)[0] in {30, 10, 20}
+        filtered_items, lambda item_id: Item.GetItemType(item_id)[0] in {30, 10, 20, 9}
     )
 
     filtered_agent_ids = [
