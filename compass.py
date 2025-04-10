@@ -2,6 +2,8 @@ from Py4GWCoreLib import *
 
 class Compass():
     overlay = PyOverlay.Overlay()
+    renderer = Overlay.Renderer2D()
+    geometry = []
     window_module = ImGui.WindowModule('Compass+',window_name='Compass+',window_pos=(1200,400),window_size=(300,10),
                                        window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
     player_id = 0
@@ -30,44 +32,44 @@ class Compass():
         class Size:
             default  = 6
             player   = 6
-            boss     = 8
-            minion   = 4
+            boss     = 7
+            minion   = 3
             signpost = 5
             item     = 5
 
         class Color:
-            default     = Utils.RGBToColor(128, 128, 128, 255)
-            player      = Utils.RGBToColor(255, 128,   0, 255)
-            player_dead = Utils.RGBToColor(255, 128,   0, 100)
-            players     = Utils.RGBToColor(100, 100, 255, 255)
+            default      = Utils.RGBToColor(128, 128, 128, 255)
+            player       = Utils.RGBToColor(255, 128,   0, 255)
+            player_dead  = Utils.RGBToColor(255, 128,   0, 100)
+            players      = Utils.RGBToColor(100, 100, 255, 255)
             players_dead = Utils.RGBToColor(100, 100, 255, 100)
-            ally        = Utils.RGBToColor(  0, 179,   0, 255) 
-            ally_npc    = Utils.RGBToColor(153, 255, 153, 255)
-            ally_spirit = Utils.RGBToColor( 96, 128,   0, 255)
-            ally_minion = Utils.RGBToColor(  0, 128,  96, 255)
-            ally_dead   = Utils.RGBToColor(  0, 100,   0, 100)
-            neutral     = Utils.RGBToColor(  0,   0, 220, 255)
-            enemy       = Utils.RGBToColor(240,   0,   0, 255)
-            enemy_dead  = Utils.RGBToColor( 50,   0,   0, 255)
-            item        = Utils.RGBToColor(  0,   0, 240, 255)
-            signpost    = Utils.RGBToColor(  0,   0, 200, 255)
-            eoe         = Utils.RGBToColor(  0, 255,   0,  50)
-            qz          = Utils.RGBToColor(  0,   0, 255,  50)
-            winnowing   = Utils.RGBToColor(  0, 255 ,255,  50)
+            ally         = Utils.RGBToColor(  0, 179,   0, 255) 
+            ally_npc     = Utils.RGBToColor(153, 255, 153, 255)
+            ally_spirit  = Utils.RGBToColor( 96, 128,   0, 255)
+            ally_minion  = Utils.RGBToColor(  0, 128,  96, 255)
+            ally_dead    = Utils.RGBToColor(  0, 100,   0, 100)
+            neutral      = Utils.RGBToColor(  0,   0, 220, 255)
+            enemy        = Utils.RGBToColor(240,   0,   0, 255)
+            enemy_dead   = Utils.RGBToColor( 50,   0,   0, 255)
+            item         = Utils.RGBToColor(255, 255,   0, 255)
+            signpost     = Utils.RGBToColor(120, 120, 120, 255)
+            eoe          = Utils.RGBToColor(  0, 255,   0,  50)
+            qz           = Utils.RGBToColor(  0,   0, 255,  50)
+            winnowing    = Utils.RGBToColor(  0, 255 ,255,  50)
 
-            target      = Utils.RGBToColor(255, 255 ,  0, 255)
+            target       = Utils.RGBToColor(255, 255 ,  0, 255)
 
-            profession = [Utils.RGBToColor(102, 102, 102, 255),
-                          Utils.RGBToColor(238, 170,  51, 255),
-                          Utils.RGBToColor( 85, 170,   0, 255),
-                          Utils.RGBToColor( 68,  68, 187, 255),
-                          Utils.RGBToColor(  0, 170,  85, 255),
-                          Utils.RGBToColor(136,   0, 170, 255),
-                          Utils.RGBToColor(187,  51,  51, 255),
-                          Utils.RGBToColor(170,   0, 136, 255),
-                          Utils.RGBToColor(  0, 170, 170, 255),
-                          Utils.RGBToColor(153, 102,   0, 255),
-                          Utils.RGBToColor(119, 119, 204, 255)]
+            profession  = [Utils.RGBToColor(102, 102, 102, 255),
+                           Utils.RGBToColor(238, 170,  51, 255),
+                           Utils.RGBToColor( 85, 170,   0, 255),
+                           Utils.RGBToColor( 68,  68, 187, 255),
+                           Utils.RGBToColor(  0, 170,  85, 255),
+                           Utils.RGBToColor(136,   0, 170, 255),
+                           Utils.RGBToColor(187,  51,  51, 255),
+                           Utils.RGBToColor(170,   0, 136, 255),
+                           Utils.RGBToColor(  0, 170, 170, 255),
+                           Utils.RGBToColor(153, 102,   0, 255),
+                           Utils.RGBToColor(119, 119, 204, 255)]
 
         class Shape: # Circle, Tear, Square
             default  = 'Tear'
@@ -208,7 +210,7 @@ def CompassToWorld(pos):
     x = compass.position.current_pos.x + math.cos(camera_rotation) * (pos[0] - compass.position.current_pos.x) - math.sin(camera_rotation) * (pos[1] - compass.position.current_pos.y)
     y = compass.position.current_pos.y + math.sin(camera_rotation) * (pos[0] - compass.position.current_pos.x) + math.cos(camera_rotation) * (pos[1] - compass.position.current_pos.y)
 
-    new_x = compass.position.player_pos[0] - (compass.position.current_pos.x - x)*Range.Compass.value/compass.position.current_size
+    new_x = compass.position.player_pos[0] + (x - compass.position.current_pos.x)*Range.Compass.value/compass.position.current_size
     new_y = compass.position.player_pos[1] - (y - compass.position.current_pos.y)*Range.Compass.value/compass.position.current_size
 
     return new_x, new_y
@@ -308,9 +310,6 @@ def DrawAgents():
     for agent_id in AgentArray.GetGadgetArray():
         DrawAgent(agent_id, compass.markers.shape.signpost, compass.markers.size.signpost, compass.markers.color.signpost)
 
-    for agent_id in AgentArray.GetItemArray():
-        DrawAgent(agent_id, compass.markers.shape.item, compass.markers.size.item, compass.markers.color.item)
-
     for agent_id in AgentArray.GetNeutralArray():
         DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.neutral)
 
@@ -365,6 +364,9 @@ def DrawAgents():
             else:
                 DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy_dead)
 
+    for agent_id in AgentArray.GetItemArray():
+        DrawAgent(agent_id, compass.markers.shape.item, compass.markers.size.item, compass.markers.color.item)
+
     # draw player on top
     if Agent.IsAlive(compass.player_id):
         DrawAgent(compass.player_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player)
@@ -397,6 +399,21 @@ def DrawCompass():
         DrawAgents()
 
     PyImGui.end()
+
+    min_x, min_y, max_x, max_y = Map.GetMapBoundaries()
+    x_pixels = (compass.position.player_pos[0] - min_x)/(max_x - min_x)*4.5/100
+    y_pixels = (max_y - min_y)*4.5/100
+
+    Debug(f'p: {compass.position.player_pos[0]}, max: {max_x}, min: {min_x}')
+    #compass.position.player_pos[0]
+
+    compass.renderer.set_primitives(compass.geometry, Color(255, 255, 255, 100).value())
+    compass.renderer.set_zoom(4.5/100)
+    compass.renderer.set_pan(compass.position.current_pos.x + x_pixels,compass.position.current_pos.y - y_pixels)
+    compass.renderer.render()
+
+    
+
 
 def DrawConfig():
     global compass
@@ -498,6 +515,7 @@ def main():
     try:
         if Map.IsMapLoading():
             compass.player_id = 0
+            compass.geometry = []
 
         if Map.IsMapReady() and Party.IsPartyLoaded() and not UIManager.IsWorldMapShowing():
             DrawConfig()
@@ -513,6 +531,9 @@ def main():
 
             if not compass.player_id:
                 compass.player_id = Player.GetAgentID()
+
+            if not compass.geometry:
+                compass.geometry = Map.Pathing.GetComputedGeometry()
 
     except ImportError as e:
         Py4GW.Console.Log('Compass+', f'ImportError encountered: {str(e)}', Py4GW.Console.MessageType.Error)
