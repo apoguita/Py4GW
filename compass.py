@@ -4,6 +4,7 @@ class Compass():
     overlay = PyOverlay.Overlay()
     renderer = Overlay.Renderer2D()
     geometry = []
+    map_bounds = []
     window_module = ImGui.WindowModule('Compass+',window_name='Compass+',window_pos=(1200,400),window_size=(300,10),
                                        window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
     player_id = 0
@@ -141,7 +142,7 @@ class Compass():
     
     class Pathing:
         show = True
-        color = Utils.RGBToColor(255, 255, 255, 75)
+        color = Utils.RGBToColor(255, 255, 255, 80)
 
     position    = Position()
     markers     = Markers()
@@ -385,6 +386,30 @@ def DrawAgents():
     else:
         DrawAgent(compass.player_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player_dead)
 
+def DrawPathing():
+    min_x = compass.map_bounds[0]
+    min_y = compass.map_bounds[1]
+    max_x = compass.map_bounds[2]
+    max_y = compass.map_bounds[3]
+
+    mid_x = (max_x + min_x)/2
+    mid_y = (max_y + min_y)/2
+
+    zoom = compass.position.current_size*2/100
+
+    x_pixels = (mid_x - compass.position.player_pos[0])*zoom/100 - zoom*(max_x + min_x)/200
+    y_pixels = (mid_y - compass.position.player_pos[1])*zoom/100 - zoom*(max_y + min_y)/200
+
+    compass.renderer.set_primitives(compass.geometry, compass.pathing.color)
+
+    compass.renderer.world_space.set_zoom(zoom/100)
+    compass.renderer.world_space.set_pan(compass.position.current_pos.x + x_pixels,compass.position.current_pos.y - y_pixels)
+
+    compass.renderer.mask.set_circular_mask(True)
+    compass.renderer.mask.set_mask_radius(compass.position.current_size*compass.position.culling/Range.Compass.value)
+    compass.renderer.mask.set_mask_center(compass.position.current_pos.x, compass.position.current_pos.y)
+    compass.renderer.render()
+
 def DrawCompass():
     global compass
 
@@ -413,25 +438,8 @@ def DrawCompass():
     PyImGui.end()
 
     if compass.pathing.show:
-        min_x, min_y, max_x, max_y = Map.GetMapBoundaries()
-        mid_x = (max_x + min_x)/2
-        mid_y = (max_y + min_y)/2
-
-        zoom = compass.position.current_size*2/100
-
-        x_pixels = (mid_x - compass.position.player_pos[0])*zoom/100 - zoom*(max_x + min_x)/200
-        y_pixels = (mid_y - compass.position.player_pos[1])*zoom/100 - zoom*(max_y + min_y)/200
-
-        compass.renderer.set_primitives(compass.geometry, compass.pathing.color)
-
-        compass.renderer.world_space.set_zoom(zoom/100)
-        compass.renderer.world_space.set_pan(compass.position.current_pos.x + x_pixels,compass.position.current_pos.y - y_pixels)
-
-        compass.renderer.mask.set_circular_mask(True)
-        compass.renderer.mask.set_mask_radius(compass.position.current_size*compass.position.culling/Range.Compass.value)
-        compass.renderer.mask.set_mask_center(compass.position.current_pos.x, compass.position.current_pos.y)
-        compass.renderer.render()
-
+        DrawPathing()
+        
 def DrawConfig():
     global compass
 
@@ -541,12 +549,6 @@ def main():
             compass.geometry = []
 
         if Map.IsMapReady() and Party.IsPartyLoaded() and not UIManager.IsWorldMapShowing():
-            DrawConfig()
-            DrawCompass()
-
-            CheckClickToTarget()
-            CheckClickToMove()
-
             if action_queue.IsEmpty('ACTION'):
                 action_queue.AddAction('ACTION',UpdateTarget)
             else:
@@ -557,6 +559,13 @@ def main():
 
             if not compass.geometry:
                 compass.geometry = Map.Pathing.GetComputedGeometry()
+                compass.map_bounds = list(Map.GetMapBoundaries())
+
+            DrawConfig()
+            DrawCompass()
+
+            CheckClickToTarget()
+            CheckClickToMove()
 
     except ImportError as e:
         Py4GW.Console.Log('Compass+', f'ImportError encountered: {str(e)}', Py4GW.Console.MessageType.Error)
