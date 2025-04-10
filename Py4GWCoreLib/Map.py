@@ -453,9 +453,25 @@ class Map:
                 self.bottom_left:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBL), int(trapezoid.YB))
                 self.bottom_right:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBR), int(trapezoid.YB))
                 
+            
+                screen_TL = Overlay.GameMapToScreen(self.top_left.x, self.top_left.y)
+                screen_TR = Overlay.GameMapToScreen(self.top_right.x, self.top_right.y)
+                screen_BL = Overlay.GameMapToScreen(self.bottom_left.x, self.bottom_left.y)
+                screen_BR = Overlay.GameMapToScreen(self.bottom_right.x, self.bottom_right.y)
+                
+                self.screen_top_left:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_TL[0]), int(screen_TL[1]))
+                self.screen_top_right:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_TR[0]), int(screen_TR[1]))
+                self.screen_bottom_left:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_BL[0]), int(screen_BL[1]))
+                self.screen_bottom_right:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_BR[0]), int(screen_BR[1]))
+                
+                
+                
             def GetPoints(self) -> List[PyOverlay.Point2D]:
                 return [self.top_left, self.top_right, self.bottom_left, self.bottom_right]
             
+            def GetScreenPoints(self) -> List[PyOverlay.Point2D]:
+                return [self.screen_top_left, self.screen_top_right, self.screen_bottom_left, self.screen_bottom_right]
+                
         @staticmethod
         def GetComputedGeometry() -> List[List[PyOverlay.Point2D]]:
             pathintg_maps = Map.Pathing.GetPathingMaps()
@@ -466,6 +482,14 @@ class Map:
             return geometry
                     
                 
+        @staticmethod
+        def GetScreenComputedGeometry() -> List[List[PyOverlay.Point2D]]:
+            pathintg_maps = Map.Pathing.GetPathingMaps()
+            geometry = []
+            for layer in pathintg_maps:
+                for trapezoid in layer.trapezoids:
+                    geometry.append(Map.Pathing.Quad(trapezoid).GetScreenPoints())
+            return geometry
             
 
                      
