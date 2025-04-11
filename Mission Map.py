@@ -174,23 +174,23 @@ class MissionMap:
         self.left_world, self.top_world = Overlay.ScreenToGamePos(self.left, self.top)
         self.right_world, self.bottom_world = Overlay.ScreenToGamePos(self.right, self.bottom)
 
-        player_x, player_y = Player.GetXY()
-        self.player_screen_x, self.player_screen_y = Overlay.GamePosToScreen(player_x, player_y)
+        self.player_x, self.player_y = Player.GetXY()
+        self.player_screen_x, self.player_screen_y = Overlay.GamePosToScreen(self.player_x, self.player_y)
         
         click_x, click_y = Map.MissionMap.GetLastClickCoords()
 
         self.last_click_x, self.last_click_y = Overlay.ScreenToGamePos(click_x, click_y)
         
         if not self.geometry:
-            self.geometry = Map.Pathing.GetComputedGeometry()
+            self.geometry = Map.Pathing.GetShiftedComputedGeometry(self.player_x, self.player_y)
             
             #self.geometry = [[PyOverlay.Point2D(100,100),PyOverlay.Point2D(200,100),PyOverlay.Point2D(100,200),PyOverlay.Point2D(200,200)],]
             self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 125).value())
             self.renderer.world_space.set_zoom(0.03)
             self.map_origin = Overlay.GameMapToScreen(0.0,0.0)
-            self.renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
+            #self.renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
             self.renderer.world_space.set_world_space(True)
-            self.renderer.mask.set_circular_mask(True)
+            self.renderer.mask.set_circular_mask(False)
             self.renderer.mask.set_mask_radius(Utils.GwinchToPixels(Range.Compass.value))
             self.renderer.mask.set_mask_center(self.player_screen_x, self.player_screen_y)
             
@@ -289,7 +289,8 @@ def DrawWindow():
         mission_map.renderer.world_space.set_rotation(Utils.DegToRad(angle))
         
         mission_map.map_origin = Overlay.GameMapToScreen(0.0,0.0)
-        mission_map.renderer.world_space.set_pan(mission_map.map_origin[0], mission_map.map_origin[1])
+        #mission_map.renderer.world_space.set_pan(mission_map.map_origin[0], mission_map.map_origin[1])
+        mission_map.renderer.world_space.set_pan(player_screen_x, player_screen_y)
         
         
     PyImGui.end()
