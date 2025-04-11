@@ -397,14 +397,27 @@ def DrawPathing():
 
     zoom = compass.position.current_size*2/100
 
-    x_offset = (mid_x - compass.position.player_pos[0])*zoom/100 - zoom*(max_x + min_x)/200
-    y_offset = (mid_y - compass.position.player_pos[1])*zoom/100 - zoom*(max_y + min_y)/200
+    p_x = compass.position.player_pos[0]
+    p_y = compass.position.player_pos[1]
+
+    x_pan_offset = mid_x - p_x
+    y_pan_offset = mid_y - p_y
+
+    p_x_rotated = p_x*math.cos(-compass.position.rotation) - p_y*math.sin(-compass.position.rotation)
+    p_y_rotated = p_x*math.sin(-compass.position.rotation) + p_y*math.cos(-compass.position.rotation)
+
+    x_rot_offset = p_x - p_x_rotated
+    y_rot_offset = p_y - p_y_rotated
+
+    x_offset = (x_pan_offset + x_rot_offset)*zoom/100 - zoom*(max_x + min_x)/200
+    y_offset = (y_pan_offset + y_rot_offset)*zoom/100 - zoom*(max_y + min_y)/200
 
     compass.renderer.set_primitives(compass.geometry, compass.pathing.color)
 
     compass.renderer.world_space.set_zoom(zoom/100)
-    compass.renderer.world_space.set_rotation(compass.position.rotation)
-    compass.renderer.world_space.set_pan(compass.position.current_pos.x + x_offset,compass.position.current_pos.y - y_offset)
+    compass.renderer.world_space.set_rotation(-compass.position.rotation)
+    compass.renderer.world_space.set_pan(compass.position.current_pos.x + x_offset,
+                                         compass.position.current_pos.y - y_offset)
 
     compass.renderer.mask.set_circular_mask(True)
     compass.renderer.mask.set_mask_radius(compass.position.current_size*compass.position.culling/Range.Compass.value)
