@@ -464,13 +464,32 @@ class Map:
                 self.screen_bottom_left:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_BL[0]), int(screen_BL[1]))
                 self.screen_bottom_right:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_BR[0]), int(screen_BR[1]))
                 
-                
-                
             def GetPoints(self) -> List[PyOverlay.Point2D]:
                 return [self.top_left, self.top_right, self.bottom_left, self.bottom_right]
             
             def GetScreenPoints(self) -> List[PyOverlay.Point2D]:
                 return [self.screen_top_left, self.screen_top_right, self.screen_bottom_left, self.screen_bottom_right]
+            
+            def GetShiftedPoints(self, origin_x: float, origin_y: float) -> List[PyOverlay.Point2D]:
+                return [
+                    PyOverlay.Point2D(int(self.top_left.x - origin_x), int(self.top_left.y - origin_y)),
+                    PyOverlay.Point2D(int(self.top_right.x - origin_x), int(self.top_right.y - origin_y)),
+                    PyOverlay.Point2D(int(self.bottom_left.x - origin_x), int(self.bottom_left.y - origin_y)),
+                    PyOverlay.Point2D(int(self.bottom_right.x - origin_x), int(self.bottom_right.y - origin_y)),
+                ]
+
+            def GetShiftedScreenPoints(self, origin_x: float, origin_y: float) -> List[PyOverlay.Point2D]:
+                shifted = self.GetShiftedPoints(origin_x, origin_y)
+                shifted_tl = Overlay.GameMapToScreen(shifted[0].x, shifted[0].y)
+                shifted_tr = Overlay.GameMapToScreen(shifted[1].x, shifted[1].y)
+                shifted_bl = Overlay.GameMapToScreen(shifted[2].x, shifted[2].y)
+                shifted_br = Overlay.GameMapToScreen(shifted[3].x, shifted[3].y)
+                return [
+                    PyOverlay.Point2D(int(shifted_tl[0]), int(shifted_tl[1])),
+                    PyOverlay.Point2D(int(shifted_tr[0]), int(shifted_tr[1])),
+                    PyOverlay.Point2D(int(shifted_bl[0]), int(shifted_bl[1])),
+                    PyOverlay.Point2D(int(shifted_br[0]), int(shifted_br[1])),
+                ]
                 
         @staticmethod
         def GetComputedGeometry() -> List[List[PyOverlay.Point2D]]:
@@ -491,6 +510,25 @@ class Map:
                     geometry.append(Map.Pathing.Quad(trapezoid).GetScreenPoints())
             return geometry
             
+        @staticmethod
+        def GetShiftedComputedGeometry(origin_x: float, origin_y: float) -> List[List[PyOverlay.Point2D]]:
+            pathing_maps = Map.Pathing.GetPathingMaps()
+            geometry = []
+            for layer in pathing_maps:
+                for trapezoid in layer.trapezoids:
+                    quad = Map.Pathing.Quad(trapezoid)
+                    geometry.append(quad.GetShiftedPoints(origin_x, origin_y))
+            return geometry
+
+        @staticmethod
+        def GetshiftedScreenComputedGeometry(origin_x: float, origin_y: float) -> List[List[PyOverlay.Point2D]]:
+            pathing_maps = Map.Pathing.GetPathingMaps()
+            geometry = []
+            for layer in pathing_maps:
+                for trapezoid in layer.trapezoids:
+                    quad = Map.Pathing.Quad(trapezoid)
+                    geometry.append(quad.GetShiftedScreenPoints(origin_x, origin_y))
+            return geometry
 
                      
    
