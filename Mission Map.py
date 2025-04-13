@@ -35,14 +35,14 @@ class Triangle(Shape):
             y = self.y + math.sin(angle) * self.size
             points.append((x, y))
 
-        Overlay().DrawTriangleFilled(
+        DXOverlay().DrawTriangleFilled(
             points[0][0], points[0][1],
             points[1][0], points[1][1],
             points[2][0], points[2][1],
             self.color.to_color()
         )
         # Draw the triangle outline     
-        Overlay().DrawTriangle(
+        DXOverlay().DrawTriangle(
             points[0][0], points[0][1],
             points[1][0], points[1][1],
             points[2][0], points[2][1],
