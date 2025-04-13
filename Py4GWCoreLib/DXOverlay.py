@@ -43,10 +43,10 @@ class DXOverlay:
             
             self.renderer.DrawLine3D(_from, _to, color, use_occlusion)
             
-        def DrawTriangle(self, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, color, thickness = 1):
-            p1 = PyOverlay.Point2D(p1_x, p1_y)
-            p2 = PyOverlay.Point2D(p2_x, p2_y)
-            p3 = PyOverlay.Point2D(p3_x, p3_y)
+        def DrawTriangle(self, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, color, thickness = 1.0):
+            p1 = PyOverlay.Point2D(int(p1_x), int(p1_y))
+            p2 = PyOverlay.Point2D(int(p2_x), int(p2_y))
+            p3 = PyOverlay.Point2D(int(p3_x), int(p3_y))
             self.renderer.DrawTriangle(p1, p2, p3, color, thickness)
             
         def DrawTriangleFilled(self, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, color):
