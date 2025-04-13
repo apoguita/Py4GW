@@ -39,14 +39,14 @@ class Triangle(Shape):
             points[0][0], points[0][1],
             points[1][0], points[1][1],
             points[2][0], points[2][1],
-            self.color.value()
+            self.color.to_color()
         )
         # Draw the triangle outline     
         Overlay().DrawTriangle(
             points[0][0], points[0][1],
             points[1][0], points[1][1],
             points[2][0], points[2][1],
-            self.accent_color.value(),
+            self.accent_color.to_color(),
             thickness=1.0
         )
  
@@ -57,8 +57,8 @@ class Circle(Shape):
         self.accent_color: Color = Color(0, 0, 0, 255)
 
     def draw(self) -> None:
-        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.value(), numsegments=self.segments)
-        Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.value(), numsegments=self.segments, thickness=1.0)
+        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(), numsegments=self.segments)
+        Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.to_color(), numsegments=self.segments, thickness=1.0)
         
 class Square(Shape):
     def __init__(self, x: float, y: float, color: Color, size: float = 5.0):
@@ -76,8 +76,8 @@ class Square(Shape):
         x4, y4 = self.x - half_side, self.y + half_side  # bottom-left
 
         overlay = Overlay()
-        overlay.DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.value())
-        overlay.DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.value(), thickness=1.0)
+        overlay.DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
+        overlay.DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=1.0)
 
         
         
@@ -185,7 +185,7 @@ class MissionMap:
             self.geometry = Map.Pathing.GetComputedGeometry()
             
             #self.geometry = [[PyOverlay.Point2D(100,100),PyOverlay.Point2D(200,100),PyOverlay.Point2D(100,200),PyOverlay.Point2D(200,200)],]
-            self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 125).value())
+            self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 125).to_color())
             self.renderer.world_space.set_zoom(0.03)
             self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0)
             #self.renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
