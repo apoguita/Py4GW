@@ -527,7 +527,7 @@ class Color:
         self.b: int = b
         self.a: int = a
 
-    def value(self) -> int:
+    def to_color(self) -> int:
         return Utils.RGBToColor(self.r, self.g, self.b, self.a)
     
     def to_tuple(self) -> tuple:
