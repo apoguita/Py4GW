@@ -127,7 +127,7 @@ class AgentMarker(Marker):
     ):
         self.agent_id = agent_id
         x, y = Agent.GetXY(agent_id)
-        x, y = Overlay.GamePosToScreen(x, y)
+        x, y = Map.MissionMap.MapProjection.GamePosToScreen(x, y)
         super().__init__(shape_type=shape_type, color=color, x=x, y=y, size=size, **kwargs)
 
 class MapBoundaries:
@@ -159,40 +159,45 @@ class MissionMap:
         self.last_click_x = 0
         self.last_click_y = 0
         self.geometry = []
-        self.renderer = Overlay.Renderer2D()
-        self.map_origin = Overlay.GameMapToScreen(0.0,0.0)
+        self.renderer = DXOverlay()
+        self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0)
 
         self.update()
                    
 
     def update(self):
         coords = Map.MissionMap.GetWindowCoords()
-        self.left, self.top, self.right, self.bottom = int(coords[0]-5), int(coords[1]-1), int(coords[2]+5), int(coords[3]+2)
+        self.left, self.top, self.right, self.bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
         self.width = self.right - self.left
         self.height = self.bottom - self.top
         
-        self.left_world, self.top_world = Overlay.ScreenToGamePos(self.left, self.top)
-        self.right_world, self.bottom_world = Overlay.ScreenToGamePos(self.right, self.bottom)
+        self.left_world, self.top_world = Map.MissionMap.MapProjection.ScreenToGamePos(self.left, self.top)
+        self.right_world, self.bottom_world = Map.MissionMap.MapProjection.ScreenToGamePos(self.right, self.bottom)
 
         self.player_x, self.player_y = Player.GetXY()
-        self.player_screen_x, self.player_screen_y = Overlay.GamePosToScreen(self.player_x, self.player_y)
+        self.player_screen_x, self.player_screen_y = Map.MissionMap.MapProjection.GamePosToScreen(self.player_x, self.player_y)
         
         click_x, click_y = Map.MissionMap.GetLastClickCoords()
 
-        self.last_click_x, self.last_click_y = Overlay.ScreenToGamePos(click_x, click_y)
+        self.last_click_x, self.last_click_y = Map.MissionMap.MapProjection.ScreenToGamePos(click_x, click_y)
         
         if not self.geometry:
-            self.geometry = Map.Pathing.GetShiftedComputedGeometry(self.player_x, self.player_y)
+            self.geometry = Map.Pathing.GetComputedGeometry()
             
             #self.geometry = [[PyOverlay.Point2D(100,100),PyOverlay.Point2D(200,100),PyOverlay.Point2D(100,200),PyOverlay.Point2D(200,200)],]
             self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 125).value())
             self.renderer.world_space.set_zoom(0.03)
-            self.map_origin = Overlay.GameMapToScreen(0.0,0.0)
+            self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0)
             #self.renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
-            self.renderer.world_space.set_world_space(True)
-            self.renderer.mask.set_circular_mask(False)
-            self.renderer.mask.set_mask_radius(Utils.GwinchToPixels(Range.Compass.value))
-            self.renderer.mask.set_mask_center(self.player_screen_x, self.player_screen_y)
+        self.renderer.world_space.set_world_space(True)
+        self.renderer.mask.set_rectangle_mask(True)
+        self.renderer.mask.set_rectangle_mask_bounds(self.left, self.top, self.width, self.height)
+        self.renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
+        zoom = Map.MissionMap.GetAdjustedZoom()
+        self.renderer.world_space.set_zoom(zoom/100.0)
+        
+      
+
             
 
 
@@ -203,8 +208,9 @@ def DrawFrame():
     global mission_map
     Overlay().BeginDraw("MissionMapOverlay", mission_map.left, mission_map.top, mission_map.width, mission_map.height)
     #terrain 
+    mission_map.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0)
+    #Overlay().DrawPolyFilled(mission_map.map_origin[0], mission_map.map_origin[1], radius=100, color=Utils.RGBToColor(0, 255, 0, 255), numsegments=32)
     mission_map.renderer.render()
-    Overlay().DrawPolyFilled(mission_map.map_origin[0], mission_map.map_origin[1], radius=Utils.GwinchToPixels(Range.Earshot.value), color=Utils.RGBToColor(0, 255, 0, 255),numsegments=32)
     #Aggro Bubble
     Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value)-2, color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32,thickness=4.0)
     Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32)
@@ -222,6 +228,7 @@ def DrawFrame():
         AgentMarker("Circle", agent_id, Color(255,0,0,255), size=4.0, segments=16).draw()
 
     Overlay().EndDraw()
+
     
     """
     Overlay().BeginDraw()
@@ -245,20 +252,7 @@ screen_offset_x = 0.0
 screen_offset_y = 0.0
 angle = 0.0
 
-def compute_offset(zoom: float) -> float:
-    if zoom == 1.0:
-        return 0.0
-    
-    if 1.0 < zoom <= 1.5:
-        return 0.0449
-    
-    if zoom > 1.5:
-        step = 0.5
-        # Snap to step count safely
-        times = int((zoom - 1.5 + 1e-6) // step)  # avoids float precision issues
-        return 0.0449 + (0.02449 * times)
-    
-    return 0.0
+
 
 def DrawWindow():
     global MODULE_NAME, mission_map, pan_x, pan_y, zoom, screen_offset_x, screen_offset_y, angle, zoom_offset
@@ -266,7 +260,7 @@ def DrawWindow():
     if PyImGui.begin(MODULE_NAME):
         
         mouse_x, mouse_y = Overlay().GetMouseCoords()
-        world_mouse_x, world_mouse_y = Overlay.ScreenToGamePos(mouse_x, mouse_y)
+        world_mouse_x, world_mouse_y = Map.MissionMap.MapProjection.ScreenToGamePos(mouse_x, mouse_y)
         PyImGui.text(f"Mouse Coords: {mouse_x:.2f}, {mouse_y:.2f}")
         PyImGui.text(f"World Mouse Coords: {world_mouse_x:.2f}, {world_mouse_y:.2f}")
         PyImGui.text(f"Mission Map: {mission_map.left:.2f}, {mission_map.top:.2f}, {mission_map.right:.2f}, {mission_map.bottom:.2f}")
@@ -274,23 +268,12 @@ def DrawWindow():
         
         PyImGui.separator()
         player_x, player_y = Player.GetXY()
-        player_screen_x, player_screen_y = Overlay.GamePosToScreen(player_x, player_y)
+        player_screen_x, player_screen_y = Map.MissionMap.MapProjection.GamePosToScreen(player_x, player_y)
         PyImGui.text(f"Player Screen Coords: {player_screen_x:.2f}, {player_screen_y:.2f}")
         PyImGui.text(f"Player Coords: {player_x:.2f}, {player_y:.2f}")
         
         PyImGui.separator()
         PyImGui.text(f"Mission Map Zoom: {Map.MissionMap.GetZoom()}")
-        
-        zoom = Map.MissionMap.GetZoom()
-        zoom = zoom + compute_offset(zoom)
-        mission_map.renderer.world_space.set_zoom(zoom/100.0)
-        
-        angle = PyImGui.slider_float("Angle", angle, -180.0, 180.0)
-        mission_map.renderer.world_space.set_rotation(Utils.DegToRad(angle))
-        
-        mission_map.map_origin = Overlay.GameMapToScreen(0.0,0.0)
-        #mission_map.renderer.world_space.set_pan(mission_map.map_origin[0], mission_map.map_origin[1])
-        mission_map.renderer.world_space.set_pan(player_screen_x, player_screen_y)
         
         
     PyImGui.end()
