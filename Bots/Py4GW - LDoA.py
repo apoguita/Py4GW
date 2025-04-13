@@ -577,7 +577,7 @@ def handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
-            if my_p_prof == Profession.Ranger or my_s_prof == Profession.Ranger:
+            if my_p_prof == Profession.Ranger.value or my_s_prof == Profession.Ranger.value:
                 Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.last_target_id = target_id
@@ -712,10 +712,9 @@ def handle_map_path_loot(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
-            if my_p_prof == Profession.Ranger or my_s_prof == Profession.Ranger:
+            if my_p_prof == Profession.Ranger.value or my_s_prof == Profession.Ranger.value:
                 Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
-            FSM_vars.last_target_id = target_id
             FSM_vars.has_interacted = True  
         
         if Agent.IsAlive(target_id):
@@ -765,7 +764,7 @@ def handle_map_path_Red_Iris_Flower(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
-            if my_p_prof == Profession.Ranger or my_s_prof == Profession.Ranger:
+            if my_p_prof == Profession.Ranger.value or my_s_prof == Profession.Ranger.value:
                 Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.last_target_id = target_id
@@ -812,7 +811,7 @@ def warrior_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
-            if my_p_prof == Profession.Ranger or my_s_prof == Profession.Ranger:
+            if my_p_prof == Profession.Ranger.value or my_s_prof == Profession.Ranger.value:
                 Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.last_target_id = target_id
@@ -862,7 +861,7 @@ def mesmer_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
-            if my_p_prof == Profession.Ranger or my_s_prof == Profession.Ranger:
+            if my_p_prof == Profession.Ranger.value or my_s_prof == Profession.Ranger.value:
                 Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.last_target_id = target_id
@@ -906,6 +905,7 @@ def early_handle_map_path(map_pathing):
                 FSM_vars.PetBehavior = 1 #0=Fight, 1=Guard, 2=Avoid
             Party.Pets.SetPetBehavior(FSM_vars.PetBehavior, my_id)
         FSM_vars.has_interacted = False 
+        handle_loot() 
         Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)  
         return
 
@@ -929,7 +929,7 @@ def early_handle_map_path(map_pathing):
             Player.Interact(target_id, call_target=False)
             FSM_vars.last_target_id = target_id
             FSM_vars.has_interacted = True  
-            if my_p_prof == 2 or my_s_prof == 2:
+            if my_p_prof == Profession.Ranger.value or my_s_prof == Profession.Ranger.value:
                 if not FSM_vars.PetBehavior == 0:
                     FSM_vars.PetBehavior = 0 #0=Fight, 1=Guard, 2=Avoid
                 Party.Pets.SetPetBehavior(FSM_vars.PetBehavior, target_id)
@@ -947,6 +947,7 @@ def early_handle_map_path(map_pathing):
             return  
 
     else:
+        Party.Pets.SetPetBehavior(1, my_id)
         Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)
 
 #FOR FARMER HAMNET
@@ -979,7 +980,7 @@ def hamnet_handle_map_path(map_pathing):
         distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
 
         if not FSM_vars.has_interacted:
-            if my_p_prof == Profession.Ranger or my_s_prof == Profession.Ranger:
+            if my_p_prof == Profession.Ranger.value or my_s_prof == Profession.Ranger.value:
                 Party.Pets.SetPetBehavior(0, target_id)
             Player.Interact(target_id, call_target=False)
             FSM_vars.last_target_id = target_id
