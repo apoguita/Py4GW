@@ -444,6 +444,14 @@ class Map:
         def GetPathingMaps() -> List[PyPathing.PathingMap]:
             return PyPathing.get_pathing_maps()
 
+        @staticmethod
+        def WorldToScreen(x,y,z=0.0):
+            if z == 0.0:
+                z = Overlay.FindZ(x, y)
+
+            screen_pos = PyOverlay.Overlay().WorldToScreen(x, y, z)
+            return screen_pos.x, screen_pos.y
+        
         class Quad:
             def __init__(self, trapezoid : PyPathing.PathingTrapezoid):
                 self.trapezoid = trapezoid
@@ -453,11 +461,11 @@ class Map:
                 self.bottom_left:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBL), int(trapezoid.YB))
                 self.bottom_right:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBR), int(trapezoid.YB))
                 
-            
-                screen_TL = Overlay.GameMapToScreen(self.top_left.x, self.top_left.y)
-                screen_TR = Overlay.GameMapToScreen(self.top_right.x, self.top_right.y)
-                screen_BL = Overlay.GameMapToScreen(self.bottom_left.x, self.bottom_left.y)
-                screen_BR = Overlay.GameMapToScreen(self.bottom_right.x, self.bottom_right.y)
+                
+                screen_TL = Map.MissionMap.MapProjection.GameMapToScreen(self.top_left.x, self.top_left.y)
+                screen_TR = Map.MissionMap.MapProjection.GameMapToScreen(self.top_right.x, self.top_right.y)
+                screen_BL = Map.MissionMap.MapProjection.GameMapToScreen(self.bottom_left.x, self.bottom_left.y)
+                screen_BR = Map.MissionMap.MapProjection.GameMapToScreen(self.bottom_right.x, self.bottom_right.y)
                 
                 self.screen_top_left:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_TL[0]), int(screen_TL[1]))
                 self.screen_top_right:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_TR[0]), int(screen_TR[1]))
@@ -480,10 +488,10 @@ class Map:
 
             def GetShiftedScreenPoints(self, origin_x: float, origin_y: float) -> List[PyOverlay.Point2D]:
                 shifted = self.GetShiftedPoints(origin_x, origin_y)
-                shifted_tl = Overlay.GameMapToScreen(shifted[0].x, shifted[0].y)
-                shifted_tr = Overlay.GameMapToScreen(shifted[1].x, shifted[1].y)
-                shifted_bl = Overlay.GameMapToScreen(shifted[2].x, shifted[2].y)
-                shifted_br = Overlay.GameMapToScreen(shifted[3].x, shifted[3].y)
+                shifted_tl = Map.MissionMap.MapProjection.GameMapToScreen(shifted[0].x, shifted[0].y)
+                shifted_tr = Map.MissionMap.MapProjection.GameMapToScreen(shifted[1].x, shifted[1].y)
+                shifted_bl = Map.MissionMap.MapProjection.GameMapToScreen(shifted[2].x, shifted[2].y)
+                shifted_br = Map.MissionMap.MapProjection.GameMapToScreen(shifted[3].x, shifted[3].y)
                 return [
                     PyOverlay.Point2D(int(shifted_tl[0]), int(shifted_tl[1])),
                     PyOverlay.Point2D(int(shifted_tr[0]), int(shifted_tr[1])),
@@ -529,32 +537,7 @@ class Map:
                     quad = Map.Pathing.Quad(trapezoid)
                     geometry.append(quad.GetShiftedScreenPoints(origin_x, origin_y))
             return geometry
-
-                     
-   
-
-    class MiniMap:
-        @staticmethod
-        def GetFrameID():
-            """Get the frame ID of the mini map."""
-            hash = UIManager.GetHashByLabel("compass") #3268554015
-            return UIManager.GetFrameIDByHash(hash)
-            
-        @staticmethod
-        def FrameExists():
-            """Check if the mini map frame is visible."""
-            return UIManager.FrameExists(Map.MiniMap.GetFrameID())
-        
-        @staticmethod
-        def GetCoords():
-            """Get the coordinates of the mini map."""
-            return UIManager.GetFrameCoords(Map.MiniMap.GetFrameID())
-        
-        @staticmethod
-        def IsLocked():
-            """Check if the mini map is locked."""
-            return UIManager.GetBoolPreference(FlagPreference.LockCompassRotation)
-
+    
     class MissionMap:
         @staticmethod
         def _mission_map_instance():
@@ -592,6 +575,24 @@ class Map:
             return Map.MissionMap._mission_map_instance().zoom
         
         @staticmethod
+        def GetAdjustedZoom():
+            """Adjust the zoom level of the mission map."""
+            zoom = Map.MissionMap.GetZoom()
+            if zoom == 1.0:
+                return zoom + 0.0
+            
+            if 1.0 < zoom <= 1.5:
+                return zoom + 0.0449
+            
+            if zoom > 1.5:
+                step = 0.5
+                # Snap to step count safely
+                times = int((zoom - 1.5 + 1e-6) // step)  # avoids float precision issues
+                return zoom + (0.0449 + (0.02449 * times))
+            
+            return zoom + 0.0
+        
+        @staticmethod
         def GetCenter():
             """Get the center coordinates of the mission map."""
             return Map.MissionMap._mission_map_instance().center_x, Map.MissionMap._mission_map_instance().center_y
@@ -610,3 +611,461 @@ class Map:
         def GetMapScreenCenter():
             """Get the map screen center coordinates."""
             return Map.MissionMap._mission_map_instance().mission_map_screen_center_x, Map.MissionMap._mission_map_instance().mission_map_screen_center_y
+        
+        class MapProjection:
+            @staticmethod
+            def GamePosToWorldMap(x: float, y: float):
+                from .Map import Map
+                gwinches = 96.0
+
+                # Step 1: Get map bounds in UI space
+                left, top, right, bottom = Map.GetMapWorldMapBounds()
+
+                # Step 2: Get game-space boundaries from map context
+                boundaries = Map.map_instance().map_boundaries
+                if len(boundaries) < 5:
+                    return 0.0, 0.0  # fail-safe
+
+                min_x = boundaries[1]
+                max_y = boundaries[4]
+
+                # Step 3: Compute origin on the world map based on boundary distances
+                origin_x = left + abs(min_x) / gwinches
+                origin_y = top + abs(max_y) / gwinches
+
+                # Step 4: Convert game-space (gwinches) to world map space (screen)
+                screen_x = (x / gwinches) + origin_x
+                screen_y = (-y / gwinches) + origin_y  # Inverted Y
+
+                return screen_x, screen_y
+            
+            @staticmethod
+            def WorldMapToGamePos(x: float, y: float):
+                #game_pos = PyOverlay.Overlay().WorlMapToGamePos(x, y)
+                #return game_pos.x, game_pos.y
+                #data is good from the dll but we can do it manually
+
+                from .Map import Map
+                gwinches = 96.0
+
+                # Step 1: Get the world map bounds in screen-space
+                left, top, right, bottom = Map.GetMapWorldMapBounds()
+
+                # Step 2: Check if input point is within the map bounds
+                #if not (left <= x <= right and top <= y <= bottom):
+                #    return 0.0, 0.0  # Equivalent to ImRect.Contains check
+
+                # Step 3: Get game-space boundaries (min_x, ..., max_y)
+                bounds = Map.map_instance().map_boundaries
+                if len(bounds) < 5:
+                    return 0.0, 0.0
+
+                min_x = bounds[1]
+                max_y = bounds[4]
+
+                # Step 4: Compute the world map anchor point (same logic as forward)
+                origin_x = left + abs(min_x) / gwinches
+                origin_y = top + abs(max_y) / gwinches
+
+                # Step 5: Convert world map coords to game-space
+                game_x = (x - origin_x) * gwinches
+                game_y = (y - origin_y) * gwinches * -1.0  # Inverted Y
+
+                return game_x, game_y
+    
+            @staticmethod
+            def WorldMapToScreen(x: float, y: float):
+                #screen_pos = PyOverlay.Overlay().WorldMapToScreen(x, y)
+                #return screen_pos.x, screen_pos.y
+                #data is good from the dll but we can do it manually
+                from .Map import Map
+                mmap = Map.MissionMap
+                if not mmap.IsWindowOpen():
+                    return 0.0, 0.0
+
+                # World map coordinates (x, y) to screen space
+                pan_offset_x, pan_offset_y = Map.MissionMap.GetPanOffset()
+                offset_x = x - pan_offset_x
+                offset_y = y - pan_offset_y
+
+                scale_x, scale_y = Map.MissionMap.GetScale()
+                scaled_x = offset_x * scale_x
+                scaled_y = offset_y * scale_y
+
+                zoom = Map.MissionMap.GetZoom()
+                mission_map_screen_center_x, mission_map_screen_center_y = Map.MissionMap.GetMapScreenCenter()
+                screen_x = scaled_x * zoom + mission_map_screen_center_x
+                screen_y = scaled_y * zoom + mission_map_screen_center_y
+
+                return screen_x, screen_y
+
+            @staticmethod
+            def ScreenToWorldMap(screen_x: float, screen_y: float):
+                #world_map_pos = PyOverlay.Overlay().ScreenToWorldMap(x, y)
+                #return world_map_pos.x, world_map_pos.y
+                #data is good from the dll but we can do it manually
+                from .Map import Map
+                mmap = Map.MissionMap
+                if not mmap.IsWindowOpen():
+                    return 0.0, 0.0
+
+                zoom = Map.MissionMap.GetZoom()
+                scale_x, scale_y = Map.MissionMap.GetScale()
+                center_x, center_y = Map.MissionMap.GetMapScreenCenter()
+                pan_offset_x, pan_offset_y = Map.MissionMap.GetPanOffset()
+
+                # Invert transform from screen space back to world space
+                offset_x = (screen_x - center_x) / (zoom * scale_x)
+                offset_y = (screen_y - center_y) / (zoom * scale_y)
+
+                world_x = pan_offset_x + offset_x
+                world_y = pan_offset_y + offset_y
+
+                return world_x, world_y
+    
+            @staticmethod
+            def GameMapToScreen(x, y):
+                #screen_pos = PyOverlay.Overlay().GameMapToScreen(x, y)
+                #return screen_pos.x, screen_pos.y
+                world_x, world_y = Map.MissionMap.MapProjection.GamePosToWorldMap(x, y)
+                return Map.MissionMap.MapProjection.WorldMapToScreen(world_x, world_y)
+            
+            @staticmethod
+            def ScreenToGameMap(x, y):
+                #game_pos = PyOverlay.Overlay().ScreenToGameMapPos(x, y)
+                #return game_pos.x, game_pos.y
+                world_x, world_y = Map.MissionMap.MapProjection.ScreenToWorldMap(x, y)
+                return Map.MissionMap.MapProjection.WorldMapToGamePos(world_x, world_y)
+            
+            @staticmethod
+            def NormalizedScreenToScreen(x, y):
+                #screen_pos = PyOverlay.Overlay().NormalizedScreenToScreen(x, y)
+                #return screen_pos.x, screen_pos.y
+                #data is good from the dll but we can do it manually
+                from .Map import Map
+                if not Map.MissionMap.IsWindowOpen():
+                    return 0.0, 0.0
+
+                # Convert from [-1, 1] to [0, 1] with Y-inversion
+                norm_x, norm_y = Map.MissionMap.GetLastClickCoords()
+                adjusted_x = (norm_x + 1.0) / 2.0
+                adjusted_y = (1.0 - norm_y) / 2.0
+
+                # Compute width and height of the map frame
+                coords = Map.MissionMap.GetWindowCoords()
+                left, top, right, bottom = int(coords[0]-5), int(coords[1]-1), int(coords[2]+5), int(coords[3]+2)
+                width = right - left
+                height = bottom - top
+
+                screen_x = left + adjusted_x * width
+                screen_y = top + adjusted_y * height
+
+                return screen_x, screen_y
+            
+            @staticmethod
+            def ScreenToNormalizedScreen(screen_x: float, screen_y: float):
+                #normalized_screen_pos = PyOverlay.Overlay().ScreenToNormalizedScreen(x, y)
+                #return normalized_screen_pos.x, normalized_screen_pos.y
+                #data is good from the dll but we can do it manually
+                from .Map import Map
+                if not Map.MissionMap.IsWindowOpen():
+                    return 0.0, 0.0
+
+                # Compute width and height of the map frame
+                coords = Map.MissionMap.GetWindowCoords()
+                left, top, right, bottom = int(coords[0]-5), int(coords[1]-1), int(coords[2]+5), int(coords[3]+2)
+                width = right - left
+                height = bottom - top
+
+                # Relative position in [0, 1] range
+                rel_x = (screen_x - left) / width
+                rel_y = (screen_y - top) / height
+
+                # Convert to normalized [-1, 1], Y is inverted
+                norm_x = rel_x * 2.0 - 1.0
+                norm_y = (1.0 - rel_y) * 2.0 - 1.0
+
+                return norm_x, norm_y
+            
+            @staticmethod
+            def NormalizedScreenToWorldMap(x, y):
+                #world_map_pos = PyOverlay.Overlay().NormalizedScreenToWorldMap(x, y)
+                #return world_map_pos.x, world_map_pos.y
+                screen_x, screen_y = Map.MissionMap.MapProjection.NormalizedScreenToScreen(x, y)
+                return Map.MissionMap.MapProjection.ScreenToWorldMap(screen_x, screen_y)
+            
+            @staticmethod
+            def NormalizedScreenToGameMap(x, y):
+                #game_map_pos = PyOverlay.Overlay().NormalizedScreenToGameMap(x, y)
+                #return game_map_pos.x, game_map_pos.y
+                world_x, world_y = Map.MissionMap.MapProjection.NormalizedScreenToWorldMap(x, y)
+                return Map.MissionMap.MapProjection.WorldMapToGamePos(world_x, world_y)
+             
+            @staticmethod
+            def GamePosToNormalizedScreen(x, y):
+                #normalized_screen_pos = PyOverlay.Overlay().GamePosToNormalizedScreen(x, y)
+                #return normalized_screen_pos.x, normalized_screen_pos.y
+                screen_x, screen_y = Map.MissionMap.MapProjection.GameMapToScreen(x, y)
+                return Map.MissionMap.MapProjection.ScreenToNormalizedScreen(screen_x, screen_y)
+            
+            @staticmethod
+            def GamePosToScreen(x, y):
+                world_x, world_y = Map.MissionMap.MapProjection.GamePosToWorldMap(x, y)
+                return Map.MissionMap.MapProjection.WorldMapToScreen(world_x, world_y)
+            
+            @staticmethod
+            def ScreenToGamePos(x, y):
+                world_x, world_y = Map.MissionMap.MapProjection.ScreenToWorldMap(x, y)
+                return Map.MissionMap.MapProjection.WorldMapToGamePos(world_x, world_y)
+    
+            
+            @staticmethod
+            def WorldPosToMissionMapScreen(x: float, y: float):
+                # 1. Convert game position (gwinches) to world map coordinates
+                world_x, world_y = Map.MissionMap.MapProjection.GamePosToWorldMap(x, y)
+
+                # 2. Project onto the mission map screen space
+                screen_x, screen_y = Map.MissionMap.MapProjection.WorldMapToScreen(world_x, world_y)
+
+                return screen_x, screen_y
+            
+            @staticmethod
+            def ScreenToWorldPos(screen_x: float, screen_y: float):
+                # Step 1: Convert from screen-space to world map coordinates
+                world_x, world_y = Map.MissionMap.MapProjection.ScreenToWorldMap(screen_x, screen_y)
+
+                # Step 2: Convert from world map coordinates to in-game game coordinates (gwinches)
+                game_x, game_y = Map.MissionMap.MapProjection.WorldMapToGamePos(world_x, world_y)
+
+                return game_x, game_y
+
+    class MiniMap:
+        @staticmethod
+        def GetFrameID():
+            """Get the frame ID of the mini map."""
+            hash = UIManager.GetHashByLabel("compass") #3268554015
+            return UIManager.GetFrameIDByHash(hash)
+            
+        @staticmethod
+        def FrameExists():
+            """Check if the mini map frame is visible."""
+            return UIManager.FrameExists(Map.MiniMap.GetFrameID())
+        
+        @staticmethod
+        def IsWindowOpen():
+            """Check if the mini map window is open."""
+            return Map.MiniMap.FrameExists()
+        
+        @staticmethod
+        def GetWindowCoords():
+            """Get the coordinates of the mini map."""
+            return UIManager.GetFrameCoords(Map.MiniMap.GetFrameID())
+        
+        @staticmethod
+        def IsLocked():
+            """Check if the mini map is locked."""
+            return UIManager.GetBoolPreference(FlagPreference.LockCompassRotation)
+        
+        @staticmethod
+        def GetPanOffset():
+            """Get the pan offset of the mini map."""
+            return [0.0,0.0]
+        
+        @staticmethod
+        def GetScale():
+            """Get the scale of the mini map."""
+            return [1.0,1.0]
+        
+        @staticmethod
+        def GetZoom():
+            """Get the zoom level of the mini map."""
+            return 1.0
+        
+        @staticmethod
+        def GetLastClickCoords():
+            """Get the last click coordinates on the mini map."""
+            return [0.0,0.0]
+        
+        @staticmethod
+        def GetMapScreenCenter():
+            """Get the map screen center coordinates."""
+            top, left, bottom, right = Map.MiniMap.GetWindowCoords()
+            width = right - left
+            height = bottom - top
+            center_x = left + width / 2.0
+            center_y = top + height / 2.0
+            return center_x, center_y
+        
+        
+        class MapProjection:
+            @staticmethod
+            def GamePosToWorldMap(x: float, y: float):
+                gwinches = 96.0
+
+                # Step 1: Get map bounds in UI space
+                left, top, right, bottom = Map.GetMapWorldMapBounds()
+
+                # Step 2: Get game-space boundaries from map context
+                boundaries = Map.map_instance().map_boundaries
+                if len(boundaries) < 5:
+                    return 0.0, 0.0  # fail-safe
+
+                min_x = boundaries[1]
+                max_y = boundaries[4]
+
+                # Step 3: Compute origin on the world map based on boundary distances
+                origin_x = left + abs(min_x) / gwinches
+                origin_y = top + abs(max_y) / gwinches
+
+                # Step 4: Convert game-space (gwinches) to world map space (screen)
+                screen_x = (x / gwinches) + origin_x
+                screen_y = (-y / gwinches) + origin_y  # Inverted Y
+
+                return screen_x, screen_y
+            
+            @staticmethod
+            def WorldMapToGamePos(x: float, y: float):
+                gwinches = 96.0
+                left, top, right, bottom = Map.GetMapWorldMapBounds()
+                bounds = Map.map_instance().map_boundaries
+                if len(bounds) < 5:
+                    return 0.0, 0.0
+
+                min_x = bounds[1]
+                max_y = bounds[4]
+
+                # Step 4: Compute the world map anchor point (same logic as forward)
+                origin_x = left + abs(min_x) / gwinches
+                origin_y = top + abs(max_y) / gwinches
+
+                # Step 5: Convert world map coords to game-space
+                game_x = (x - origin_x) * gwinches
+                game_y = (y - origin_y) * gwinches * -1.0  # Inverted Y
+
+                return game_x, game_y
+    
+            @staticmethod
+            def WorldMapToScreen(x: float, y: float):
+                # World map coordinates (x, y) to screen space
+                pan_offset_x, pan_offset_y = Map.MiniMap.GetPanOffset()
+                offset_x = x - pan_offset_x
+                offset_y = y - pan_offset_y
+
+                scale_x, scale_y = Map.MiniMap.GetScale()
+                scaled_x = offset_x * scale_x
+                scaled_y = offset_y * scale_y
+
+                zoom = Map.MiniMap.GetZoom()
+                mission_map_screen_center_x, mission_map_screen_center_y = Map.MiniMap.GetMapScreenCenter()
+                screen_x = scaled_x * zoom + mission_map_screen_center_x
+                screen_y = scaled_y * zoom + mission_map_screen_center_y
+
+                return screen_x, screen_y
+
+            @staticmethod
+            def ScreenToWorldMap(screen_x: float, screen_y: float):
+
+                zoom = Map.MiniMap.GetZoom()
+                scale_x, scale_y = Map.MiniMap.GetScale()
+                center_x, center_y = Map.MiniMap.GetMapScreenCenter()
+                pan_offset_x, pan_offset_y = Map.MiniMap.GetPanOffset()
+
+                # Invert transform from screen space back to world space
+                offset_x = (screen_x - center_x) / (zoom * scale_x)
+                offset_y = (screen_y - center_y) / (zoom * scale_y)
+
+                world_x = pan_offset_x + offset_x
+                world_y = pan_offset_y + offset_y
+
+                return world_x, world_y
+    
+            @staticmethod
+            def GameMapToScreen(x, y):
+                world_x, world_y = Map.MiniMap.MapProjection.GamePosToWorldMap(x, y)
+                return Map.MiniMap.MapProjection.WorldMapToScreen(world_x, world_y)
+            
+            @staticmethod
+            def ScreenToGameMap(x, y):
+                world_x, world_y = Map.MiniMap.MapProjection.ScreenToWorldMap(x, y)
+                return Map.MiniMap.MapProjection.WorldMapToGamePos(world_x, world_y)
+            
+            @staticmethod
+            def NormalizedScreenToScreen(x, y):
+                # Convert from [-1, 1] to [0, 1] with Y-inversion
+                norm_x, norm_y = Map.MiniMap.GetLastClickCoords()
+                adjusted_x = (norm_x + 1.0) / 2.0
+                adjusted_y = (1.0 - norm_y) / 2.0
+
+                # Compute width and height of the map frame
+                coords = Map.MiniMap.GetWindowCoords()
+                left, top, right, bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
+                width = right - left
+                height = bottom - top
+
+                screen_x = left + adjusted_x * width
+                screen_y = top + adjusted_y * height
+
+                return screen_x, screen_y
+            
+            @staticmethod
+            def ScreenToNormalizedScreen(screen_x: float, screen_y: float):
+                # Compute width and height of the map frame
+                coords = Map.MiniMap.GetWindowCoords()
+                left, top, right, bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
+                width = right - left
+                height = bottom - top
+
+                # Relative position in [0, 1] range
+                rel_x = (screen_x - left) / width
+                rel_y = (screen_y - top) / height
+
+                # Convert to normalized [-1, 1], Y is inverted
+                norm_x = rel_x * 2.0 - 1.0
+                norm_y = (1.0 - rel_y) * 2.0 - 1.0
+
+                return norm_x, norm_y
+            
+            @staticmethod
+            def NormalizedScreenToWorldMap(x, y):
+                screen_x, screen_y = Map.MiniMap.MapProjection.NormalizedScreenToScreen(x, y)
+                return Map.MiniMap.MapProjection.ScreenToWorldMap(screen_x, screen_y)
+            
+            @staticmethod
+            def NormalizedScreenToGameMap(x, y):
+                world_x, world_y = Map.MiniMap.MapProjection.NormalizedScreenToWorldMap(x, y)
+                return Map.MiniMap.MapProjection.WorldMapToGamePos(world_x, world_y)
+             
+            @staticmethod
+            def GamePosToNormalizedScreen(x, y):
+                screen_x, screen_y = Map.MiniMap.MapProjection.GameMapToScreen(x, y)
+                return Map.MiniMap.MapProjection.ScreenToNormalizedScreen(screen_x, screen_y)
+            
+            @staticmethod
+            def GamePosToScreen(x, y):
+                world_x, world_y = Map.MiniMap.MapProjection.GamePosToWorldMap(x, y)
+                return Map.MiniMap.MapProjection.WorldMapToScreen(world_x, world_y)
+            
+            @staticmethod
+            def ScreenToGamePos(x, y):
+                world_x, world_y = Map.MiniMap.MapProjection.ScreenToWorldMap(x, y)
+                return Map.MiniMap.MapProjection.WorldMapToGamePos(world_x, world_y)
+            
+            @staticmethod
+            def WorldPosToMiniMapScreen(x: float, y: float):
+                # 1. Convert game position (gwinches) to world map coordinates
+                world_x, world_y = Map.MiniMap.MapProjection.GamePosToWorldMap(x, y)
+
+                # 2. Project onto the mission map screen space
+                screen_x, screen_y = Map.MiniMap.MapProjection.WorldMapToScreen(world_x, world_y)
+
+                return screen_x, screen_y
+            
+            @staticmethod
+            def ScreenToWorldPos(screen_x: float, screen_y: float):
+                # Step 1: Convert from screen-space to world map coordinates
+                world_x, world_y = Map.MiniMap.MapProjection.ScreenToWorldMap(screen_x, screen_y)
+
+                # Step 2: Convert from world map coordinates to in-game game coordinates (gwinches)
+                game_x, game_y = Map.MiniMap.MapProjection.WorldMapToGamePos(world_x, world_y)
+
+                return game_x, game_y
