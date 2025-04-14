@@ -1,14 +1,24 @@
 from Py4GWCoreLib import *
 
 class Compass():
-    overlay = PyOverlay.Overlay()
-    renderer = Overlay.Renderer2D()
-    geometry = []
-    map_bounds = []
     window_module = ImGui.WindowModule('Compass+',window_name='Compass+',window_pos=(1200,400),window_size=(300,10),
                                        window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
-    player_id = 0
-    target_id = 0
+    overlay = PyOverlay.Overlay()
+    renderer = DXOverlay()
+
+    reset      = True
+    frame_id   = 0
+    player_id  = 0
+    target_id  = 0
+    geometry   = []
+    map_bounds = []
+
+    def Reset(self):
+        self.reset      = False
+        self.frame_id   = Map.MiniMap.GetFrameID()
+        self.player_id  = Player.GetAgentID()
+        self.geometry   = Map.Pathing.GetComputedGeometry()
+        self.map_bounds = list(Map.GetMapBoundaries())
 
     class Position:
         snap_to_game = True
@@ -167,25 +177,47 @@ def UpdateTarget():
     global compass
     compass.target_id = Player.GetTargetID()
 
+def CheckCompassClick():
+    if PyImGui.is_mouse_clicked(0): 
+        if PyImGui.get_io().key_ctrl:
+            pos = compass.overlay.GetMouseCoords()
+            mouse_pos = (pos.x, pos.y)
+            world_pos = Map.MiniMap.MapProjection.ScreenToGamePos(*mouse_pos,
+                                                                  *compass.position.player_pos,
+                                                                  compass.position.current_pos.x, compass.position.current_pos.y,
+                                                                  compass.position.current_size, 
+                                                                  compass.position.rotation)
+
+            agent_array = AgentArray.GetAgentArray()
+            agent_array = AgentArray.Sort.ByDistance(agent_array, world_pos)
+            if len(agent_array) > 0:
+                Player.ChangeTarget(agent_array[0])
+
+        if PyImGui.get_io().key_alt:
+            pos = compass.overlay.GetMouseCoords()
+            mouse_pos = (pos.x, pos.y)
+
+            world_pos = Map.MiniMap.MapProjection.ScreenToGamePos(*mouse_pos,
+                                                                  *compass.position.player_pos,
+                                                                  compass.position.current_pos.x, compass.position.current_pos.y,
+                                                                  compass.position.current_size, 
+                                                                  compass.position.rotation)
+            Player.Move(*world_pos)
+
 def UpdateOrientation():
     global compass
 
     compass.position.player_pos = Player.GetXY()
-    if compass.position.snap_to_game and Map.MiniMap.FrameExists():
-        left,top,right,bottom = Map.MiniMap.GetCoords()
-        height = bottom - top
-        diff = height - (height/1.05)
 
-        top    += diff
-        left   += diff
-        bottom -= diff
-        right  -= diff
+    if compass.position.snap_to_game and UIManager.FrameExists(compass.frame_id):
+        coords = UIManager.GetFrameCoords(compass.frame_id)
 
-        compass_x = round((left + right)/2)
-        compass_y = round(top + (right - left)/2)
+        compass_x, compass_y = Map.MiniMap.GetMapScreenCenter(coords)
+        compass_x = round(compass_x)
+        compass_y = round(compass_y)
 
         compass.position.snapped_pos = PyOverlay.Point2D(compass_x,compass_y)
-        compass.position.snapped_size = round((right-left)/2)
+        compass.position.snapped_size = round(Map.MiniMap.GetScale(coords))
 
         compass.position.current_pos = compass.position.snapped_pos
         compass.position.current_size = compass.position.snapped_size
@@ -193,53 +225,13 @@ def UpdateOrientation():
         compass.position.current_pos = compass.position.detached_pos
         compass.position.current_size = compass.position.detached_size
 
-    if Map.MiniMap.IsLocked() or (not compass.position.snap_to_game and compass.position.always_point_north):
-        compass.position.rotation = 0
+    if compass.position.snap_to_game:
+        compass.position.rotation = Map.MiniMap.GetRotation()
     else:
-        compass.position.rotation = Camera.GetCurrentYaw() - math.pi/2
-
-def WorldToCompass(pos):
-    global compass
-
-    agent_x = compass.position.current_pos.x - (compass.position.player_pos[0] - pos[0])*compass.position.current_size/Range.Compass.value
-    agent_y = compass.position.current_pos.y + (compass.position.player_pos[1] - pos[1])*compass.position.current_size/Range.Compass.value
-
-    camera_rotation = compass.position.rotation
-    new_x = compass.position.current_pos.x + math.cos(camera_rotation) * (agent_x - compass.position.current_pos.x) - math.sin(camera_rotation) * (agent_y - compass.position.current_pos.y)
-    new_y = compass.position.current_pos.y + math.sin(camera_rotation) * (agent_x - compass.position.current_pos.x) + math.cos(camera_rotation) * (agent_y - compass.position.current_pos.y)
-
-    return new_x, new_y
-
-def CompassToWorld(pos):
-    global compass
-
-    camera_rotation = -compass.position.rotation
-    x = compass.position.current_pos.x + math.cos(camera_rotation) * (pos[0] - compass.position.current_pos.x) - math.sin(camera_rotation) * (pos[1] - compass.position.current_pos.y)
-    y = compass.position.current_pos.y + math.sin(camera_rotation) * (pos[0] - compass.position.current_pos.x) + math.cos(camera_rotation) * (pos[1] - compass.position.current_pos.y)
-
-    new_x = compass.position.player_pos[0] + (x - compass.position.current_pos.x)*Range.Compass.value/compass.position.current_size
-    new_y = compass.position.player_pos[1] - (y - compass.position.current_pos.y)*Range.Compass.value/compass.position.current_size
-
-    return new_x, new_y
-
-def CheckClickToTarget():
-    if PyImGui.is_mouse_clicked(0) and PyImGui.get_io().key_ctrl:
-        pos = compass.overlay.GetMouseCoords()
-        mouse_pos = (pos.x, pos.y)
-        world_pos = CompassToWorld(mouse_pos)
-
-        agent_array = AgentArray.GetAgentArray()
-        agent_array = AgentArray.Sort.ByDistance(agent_array, world_pos)
-        if len(agent_array) > 0:
-            Player.ChangeTarget(agent_array[0])
-
-def CheckClickToMove():
-    if PyImGui.is_mouse_clicked(0) and PyImGui.get_io().key_alt:
-        pos = compass.overlay.GetMouseCoords()
-        mouse_pos = (pos.x, pos.y)
-
-        world_pos = CompassToWorld(mouse_pos)
-        Player.Move(world_pos[0], world_pos[1])
+        if compass.position.always_point_north:
+            compass.position.rotation = 0
+        else:
+            compass.position.rotation = Camera.GetCurrentYaw() - math.pi/2
 
 def DrawRangeRings():
     global compass
@@ -276,8 +268,10 @@ def DrawAgent(agent_id, shape, size, col, is_spirit = False):
     if Utils.Distance(agent_pos, compass.position.player_pos) > compass.position.culling:
         return
 
-
-    x, y = WorldToCompass(agent_pos)
+    x, y = Map.MiniMap.MapProjection.GamePosToScreen(*agent_pos,
+                                                     *compass.position.player_pos,
+                                                     compass.position.current_pos.x, compass.position.current_pos.y,
+                                                     compass.position.current_size, compass.position.rotation)
 
     line_col = Utils.RGBToColor(255,255,0,255) if agent_id == compass.target_id else Utils.RGBToColor(0,0,0,255)
     line_thickness = 3 if agent_id == compass.target_id else 1.5
@@ -387,34 +381,13 @@ def DrawAgents():
         DrawAgent(compass.player_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player_dead)
 
 def DrawPathing():
-    min_x = compass.map_bounds[0]
-    min_y = compass.map_bounds[1]
-    max_x = compass.map_bounds[2]
-    max_y = compass.map_bounds[3]
-
-    mid_x = (max_x + min_x)/2
-    mid_y = (max_y + min_y)/2
-
-    zoom = compass.position.current_size*2/100
-
-    p_x = compass.position.player_pos[0]
-    p_y = compass.position.player_pos[1]
-
-    x_pan_offset = mid_x - p_x
-    y_pan_offset = mid_y - p_y
-
-    p_x_rotated = p_x*math.cos(-compass.position.rotation) - p_y*math.sin(-compass.position.rotation)
-    p_y_rotated = p_x*math.sin(-compass.position.rotation) + p_y*math.cos(-compass.position.rotation)
-
-    x_rot_offset = p_x - p_x_rotated
-    y_rot_offset = p_y - p_y_rotated
-
-    x_offset = (x_pan_offset + x_rot_offset)*zoom/100 - zoom*(max_x + min_x)/200
-    y_offset = (y_pan_offset + y_rot_offset)*zoom/100 - zoom*(max_y + min_y)/200
-
+    x_offset, y_offset, zoom = Map.MiniMap.MapProjection.ComputedPathingGeometryToScreen(compass.geometry, compass.map_bounds,
+                                                                                         *compass.position.player_pos,
+                                                                                         compass.position.current_pos.x, compass.position.current_pos.y,
+                                                                                         compass.position.current_size, compass.position.rotation)
+    
     compass.renderer.set_primitives(compass.geometry, compass.pathing.color)
-
-    compass.renderer.world_space.set_zoom(zoom/100)
+    compass.renderer.world_space.set_zoom(zoom)
     compass.renderer.world_space.set_rotation(-compass.position.rotation)
     compass.renderer.world_space.set_pan(compass.position.current_pos.x + x_offset,
                                          compass.position.current_pos.y - y_offset)
@@ -428,6 +401,9 @@ def DrawCompass():
     global compass
 
     UpdateOrientation()
+
+    if compass.pathing.show:
+        DrawPathing()
  
     buffer = compass.position.buffer
     size = compass.position.current_size 
@@ -450,9 +426,6 @@ def DrawCompass():
         DrawAgents()
 
     PyImGui.end()
-
-    if compass.pathing.show:
-        DrawPathing()
         
 def DrawConfig():
     global compass
@@ -559,8 +532,7 @@ def main():
     global compass, action_queue
     try:
         if Map.IsMapLoading():
-            compass.player_id = 0
-            compass.geometry = []
+            compass.reset = True
 
         if Map.IsMapReady() and Party.IsPartyLoaded() and not UIManager.IsWorldMapShowing():
             if action_queue.IsEmpty('ACTION'):
@@ -568,18 +540,13 @@ def main():
             else:
                 action_queue.ProcessQueue('ACTION')
 
-            if not compass.player_id:
-                compass.player_id = Player.GetAgentID()
-
-            if not compass.geometry:
-                compass.geometry = Map.Pathing.GetComputedGeometry()
-                compass.map_bounds = list(Map.GetMapBoundaries())
-
+            if compass.reset:
+                compass.Reset()
+            
             DrawConfig()
             DrawCompass()
 
-            CheckClickToTarget()
-            CheckClickToMove()
+            CheckCompassClick()
 
     except ImportError as e:
         Py4GW.Console.Log('Compass+', f'ImportError encountered: {str(e)}', Py4GW.Console.MessageType.Error)
