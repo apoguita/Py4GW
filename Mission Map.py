@@ -4,6 +4,36 @@ import math
 
 MODULE_NAME = "Mission Map"
 
+def FloatingSlider(caption, value,x,y,min_value, max_value, color:Color):
+    width=20
+    height=25
+    # Set the position and size of the floating button
+    PyImGui.set_next_window_pos(x, y)
+    PyImGui.set_next_window_size(0, height)
+    
+
+    flags=( PyImGui.WindowFlags.NoCollapse | 
+        PyImGui.WindowFlags.NoTitleBar |
+        PyImGui.WindowFlags.NoScrollbar |
+        PyImGui.WindowFlags.AlwaysAutoResize  ) 
+    
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding,0.0,0.0)
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, color.to_tuple())
+       
+    result = value
+    if PyImGui.begin(f"##invisible_window{caption}", flags):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, (0.7, 0.7, 0.7, 1.0))  # Slider grab color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, (0.9, 0.9, 0.9, 1.0))
+
+        result = PyImGui.slider_float(f"##floating_slider{caption}", value, min_value, max_value)
+        ImGui.show_tooltip(f"Enhance the zoom level of the map.")
+        PyImGui.pop_style_color(2)
+    PyImGui.end()
+    PyImGui.pop_style_var(2)
+    PyImGui.pop_style_color(1)
+    return result
+
 class Shape:
     def __init__(self, name: str, color: Color, x: float, y: float, size: float = 5.0):
         self.name: str = name
@@ -12,6 +42,8 @@ class Shape:
         self.x: float = x
         self.y: float = y
         self.size: float = size
+        self.scale: float = 1.0
+        self.angle: float = 0.0
 
     def draw(self) -> None:
         print(f"Drawing {self.name} at ({self.x}, {self.y}) with size {self.size} and color {self.color}")
@@ -35,14 +67,14 @@ class Triangle(Shape):
             y = self.y + math.sin(angle) * self.size
             points.append((x, y))
 
-        DXOverlay().DrawTriangleFilled(
+        Overlay().DrawTriangleFilled(
             points[0][0], points[0][1],
             points[1][0], points[1][1],
             points[2][0], points[2][1],
             self.color.to_color()
         )
         # Draw the triangle outline     
-        DXOverlay().DrawTriangle(
+        Overlay().DrawTriangle(
             points[0][0], points[0][1],
             points[1][0], points[1][1],
             points[2][0], points[2][1],
@@ -123,11 +155,12 @@ class AgentMarker(Marker):
         agent_id: int,
         color: Color = Color(255, 255, 255, 255),
         size: float = 5.0,
+        zoom_offset: float = 0.0,
         **kwargs 
     ):
         self.agent_id = agent_id
         x, y = Agent.GetXY(agent_id)
-        x, y = Map.MissionMap.MapProjection.GamePosToScreen(x, y)
+        x, y = Map.MissionMap.MapProjection.GamePosToScreen(x, y, zoom_offset)
         super().__init__(shape_type=shape_type, color=color, x=x, y=y, size=size, **kwargs)
 
 class MapBoundaries:
@@ -160,7 +193,11 @@ class MissionMap:
         self.last_click_y = 0
         self.geometry = []
         self.renderer = DXOverlay()
-        self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0)
+        self.mega_zoom_renderer = DXOverlay()
+        self.mega_zoom = 0.0
+        self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0,self.mega_zoom)
+        
+        
 
         self.update()
                    
@@ -171,86 +208,70 @@ class MissionMap:
         self.width = self.right - self.left
         self.height = self.bottom - self.top
         
-        self.left_world, self.top_world = Map.MissionMap.MapProjection.ScreenToGamePos(self.left, self.top)
-        self.right_world, self.bottom_world = Map.MissionMap.MapProjection.ScreenToGamePos(self.right, self.bottom)
+        self.left_world, self.top_world = Map.MissionMap.MapProjection.ScreenToGamePos(self.left, self.top, self.mega_zoom)
+        self.right_world, self.bottom_world = Map.MissionMap.MapProjection.ScreenToGamePos(self.right, self.bottom, self.mega_zoom)
 
         self.player_x, self.player_y = Player.GetXY()
-        self.player_screen_x, self.player_screen_y = Map.MissionMap.MapProjection.GamePosToScreen(self.player_x, self.player_y)
+        self.player_screen_x, self.player_screen_y = Map.MissionMap.MapProjection.GamePosToScreen(self.player_x, self.player_y, self.mega_zoom)
         
         click_x, click_y = Map.MissionMap.GetLastClickCoords()
 
-        self.last_click_x, self.last_click_y = Map.MissionMap.MapProjection.ScreenToGamePos(click_x, click_y)
+        self.last_click_x, self.last_click_y = Map.MissionMap.MapProjection.ScreenToGamePos(click_x, click_y, self.mega_zoom)
         
         if not self.geometry:
             self.geometry = Map.Pathing.GetComputedGeometry()
-            
-            #self.geometry = [[PyOverlay.Point2D(100,100),PyOverlay.Point2D(200,100),PyOverlay.Point2D(100,200),PyOverlay.Point2D(200,200)],]
-            self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 125).to_color())
-            self.renderer.world_space.set_zoom(0.03)
-            self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0)
-            #self.renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
+            self.renderer.set_primitives(self.geometry, Color(155, 155, 155, 125).to_dx_color())
+            self.mega_zoom_renderer.set_primitives(self.geometry, Color(155, 155, 155, 255).to_dx_color())
+
         self.renderer.world_space.set_world_space(True)
+        self.mega_zoom_renderer.world_space.set_world_space(True)
         self.renderer.mask.set_rectangle_mask(True)
+        self.mega_zoom_renderer.mask.set_rectangle_mask(True)
         self.renderer.mask.set_rectangle_mask_bounds(self.left, self.top, self.width, self.height)
+        self.mega_zoom_renderer.mask.set_rectangle_mask_bounds(self.left, self.top, self.width, self.height)
         self.renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
-        zoom = Map.MissionMap.GetAdjustedZoom()
+        self.mega_zoom_renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
+        zoom = Map.MissionMap.GetAdjustedZoom(zoom_offset=self.mega_zoom)
         self.renderer.world_space.set_zoom(zoom/100.0)
+        self.mega_zoom_renderer.world_space.set_zoom(zoom/100.0)
+        self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0,self.mega_zoom)
         
-      
-
-            
-
-
+        
 mission_map = MissionMap()
-
 
 def DrawFrame():
     global mission_map
     Overlay().BeginDraw("MissionMapOverlay", mission_map.left, mission_map.top, mission_map.width, mission_map.height)
     #terrain 
-    mission_map.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0)
-    #Overlay().DrawPolyFilled(mission_map.map_origin[0], mission_map.map_origin[1], radius=100, color=Utils.RGBToColor(0, 255, 0, 255), numsegments=32)
-    mission_map.renderer.render()
+    zoom = Map.MissionMap.GetZoom() + mission_map.mega_zoom
+    if zoom >3.5:
+        mission_map.mega_zoom_renderer.DrawQuadFilled(mission_map.left,mission_map.top, mission_map.right,mission_map.top, mission_map.right,mission_map.bottom, mission_map.left,mission_map.bottom, color=Utils.RGBToColor(75,75,75,200))
+        
+        mission_map.mega_zoom_renderer.render()
+    else:
+        mission_map.renderer.render()
     #Aggro Bubble
-    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value)-2, color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32,thickness=4.0)
-    Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32)
+    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value, zoom_offset=mission_map.mega_zoom)-2, color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32,thickness=4.0)
+    Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Earshot.value, zoom_offset=mission_map.mega_zoom), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32)
     #Compass Range
-    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Compass.value), color=Utils.RGBToColor(0, 0, 0, 255),numsegments=360,thickness=1.0)
-    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Compass.value)-(2.85*Map.MissionMap.GetZoom()), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=360,thickness=(5.7*Map.MissionMap.GetZoom()))
+    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Compass.value, zoom_offset=mission_map.mega_zoom), color=Utils.RGBToColor(0, 0, 0, 255),numsegments=360,thickness=1.0)
+    zoom = Map.MissionMap.GetZoom() + mission_map.mega_zoom
+    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=Utils.GwinchToPixels(Range.Compass.value, zoom_offset=mission_map.mega_zoom)-(2.85*zoom), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=360,thickness=(5.7*zoom))
         
     agent_array = AgentArray.GetNPCMinipetArray()
     for agent_id in agent_array:
-        AgentMarker("Triangle", agent_id, Color(170,255,0,255), size=6.0).draw()
+        AgentMarker("Triangle", agent_id, Color(170,255,0,255), size=6.0, zoom_offset=mission_map.mega_zoom).draw()
         
     enemy_array = AgentArray.GetEnemyArray()
     for agent_id in enemy_array:
         #AgentMarker("Square", agent_id, Color(255,0,0,255), size=6.0).draw()
-        AgentMarker("Circle", agent_id, Color(255,0,0,255), size=4.0, segments=16).draw()
+        AgentMarker("Circle", agent_id, Color(255,0,0,255), size=4.0, segments=16, zoom_offset=mission_map.mega_zoom).draw()
+        
+    ally_array = AgentArray.GetAllyArray()
+    for agent_id in ally_array:
+        AgentMarker("Circle", agent_id, Color(100,138,217,255), size=4.0, segments=16, zoom_offset=mission_map.mega_zoom).draw()
 
     Overlay().EndDraw()
-
-    
-    """
-    Overlay().BeginDraw()
-    player_x, player_y = Player.GetXY()
-    z_coords = Overlay.FindZ(player_x, player_y)
-    Overlay().DrawPolyFilled3D(player_x, player_y, z_coords, color=Color(0, 255, 0, 255).value(), radius=100)
-   
-    Overlay().EndDraw()
-    """
-
-
-
-
-
-zoom = 35
-zoom_offset = 0.0
-pan_x = 800.0
-pan_y = 800.0
-
-screen_offset_x = 0.0
-screen_offset_y = 0.0
-angle = 0.0
 
 
 
@@ -275,11 +296,20 @@ def DrawWindow():
         PyImGui.separator()
         PyImGui.text(f"Mission Map Zoom: {Map.MissionMap.GetZoom()}")
         
+        zoom = Map.MissionMap.GetZoom()
+        
+        if zoom >= 3.5:
+            mission_map.mega_zoom = PyImGui.slider_float("Mega Zoom", mission_map.mega_zoom, 0.0, 10.0)
+            mission_map.mega_zoom = FloatingSlider("Mega Zoom", mission_map.mega_zoom, mission_map.left, mission_map.bottom-27, 0.0, 10.0, Color(255, 255, 255, 255))
+        else:
+            mission_map.mega_zoom = 0.0       
         
     PyImGui.end()
-        
-def main():   
-    if not Routines.Checks.Map.MapValid(): 
+  
+   
+def main():  
+    if not Routines.Checks.Map.MapValid():
+        mission_map.geometry = [] 
         return
     
     if not Map.MissionMap.IsWindowOpen():
@@ -288,6 +318,7 @@ def main():
     mission_map.update()
     DrawFrame()       
     DrawWindow()
-
+    
+    
 if __name__ == "__main__":
     main()

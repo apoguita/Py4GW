@@ -239,6 +239,10 @@ class Utils:
         return r / 255.0, g / 255.0, b / 255.0, a / 255.0
     
     @staticmethod
+    def RGBToDXColor(r, g, b, a) -> int:
+        return (a << 24) | (r << 16) | (g << 8) | b
+    
+    @staticmethod
     def RGBToColor(r, g, b, a) -> int:
         return (a << 24) | (b << 16) | (g << 8) | r
     
@@ -285,11 +289,11 @@ class Utils:
         return 0
     
     @staticmethod
-    def GwinchToPixels(gwinch_value: float) -> float:
+    def GwinchToPixels(gwinch_value: float, zoom_offset=0.0) -> float:
         from .Map import Map
 
         gwinches = 96.0  # hardcoded GW unit scale
-        zoom = Map.MissionMap.GetZoom()
+        zoom = Map.MissionMap.GetZoom() + zoom_offset
         scale_x, _ = Map.MissionMap.GetScale()
 
         pixels_per_gwinch = (scale_x * zoom) / gwinches
@@ -297,11 +301,11 @@ class Utils:
 
         
     @staticmethod
-    def PixelsToGwinch(pixel_value: float) -> float:
+    def PixelsToGwinch(pixel_value: float, zoom_offset=0.0) -> float:
         from .Map import Map
 
         gwinches = 96.0
-        zoom = Map.MissionMap.GetZoom()
+        zoom = Map.MissionMap.GetZoom() + zoom_offset
         scale_x, _ = Map.MissionMap.GetScale()
 
         pixels_per_gwinch = (scale_x * zoom) / gwinches
@@ -529,6 +533,9 @@ class Color:
 
     def to_color(self) -> int:
         return Utils.RGBToColor(self.r, self.g, self.b, self.a)
+    
+    def to_dx_color(self) -> int:
+        return Utils.RGBToDXColor(self.r, self.g, self.b, self.a)
     
     def to_tuple(self) -> tuple:
         return (self.r, self.g, self.b, self.a)

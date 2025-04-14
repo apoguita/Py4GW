@@ -28,8 +28,8 @@ class DXOverlay:
             return PyOverlay.Overlay().FindZ(x, y, z)
     
         def DrawLine(self, _from_x, _from_y, _to_x, _to_y, color, thickness = 1):
-            _from = PyOverlay.Point2D(_from_x, _from_y)
-            _to = PyOverlay.Point2D(_to_x, _to_y)
+            _from = PyOverlay.Point2D(int(_from_x), int(_from_y))
+            _to = PyOverlay.Point2D(int(_to_x), int(_to_y))
             self.renderer.DrawLine(_from, _to, color, thickness)
             
         def DrawLine3D(self, _from_x, _from_y, _from_z, _to_x, _to_y, _to_z, color, use_occlusion = True):
@@ -50,9 +50,9 @@ class DXOverlay:
             self.renderer.DrawTriangle(p1, p2, p3, color, thickness)
             
         def DrawTriangleFilled(self, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, color):
-            p1 = PyOverlay.Point2D(p1_x, p1_y)
-            p2 = PyOverlay.Point2D(p2_x, p2_y)
-            p3 = PyOverlay.Point2D(p3_x, p3_y)
+            p1 = PyOverlay.Point2D(int(p1_x), int(p1_y))
+            p2 = PyOverlay.Point2D(int(p2_x), int(p2_y))
+            p3 = PyOverlay.Point2D(int(p3_x), int(p3_y))
             self.renderer.DrawTriangleFilled(p1, p2, p3, color)
             
         def DrawTriangle3D(self, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, color, use_occlusion = True):
@@ -84,17 +84,17 @@ class DXOverlay:
             self.renderer.DrawTriangleFilled3D(p1, p2, p3, color, use_occlusion)
             
         def DrawQuad(self, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, p4_x, p4_y, color, thickness = 1):
-            p1 = PyOverlay.Point2D(p1_x, p1_y)
-            p2 = PyOverlay.Point2D(p2_x, p2_y)
-            p3 = PyOverlay.Point2D(p3_x, p3_y)
-            p4 = PyOverlay.Point2D(p4_x, p4_y)
+            p1 = PyOverlay.Point2D(int(p1_x), int(p1_y))
+            p2 = PyOverlay.Point2D(int(p2_x), int(p2_y))
+            p3 = PyOverlay.Point2D(int(p3_x), int(p3_y))
+            p4 = PyOverlay.Point2D(int(p4_x), int(p4_y))
             self.renderer.DrawQuad(p1, p2, p3, p4, color, thickness)
             
         def DrawQuadFilled(self, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, p4_x, p4_y, color):
-            p1 = PyOverlay.Point2D(p1_x, p1_y)
-            p2 = PyOverlay.Point2D(p2_x, p2_y)
-            p3 = PyOverlay.Point2D(p3_x, p3_y)
-            p4 = PyOverlay.Point2D(p4_x, p4_y)
+            p1 = PyOverlay.Point2D(int(p1_x), int(p1_y))
+            p2 = PyOverlay.Point2D(int(p2_x), int(p2_y))
+            p3 = PyOverlay.Point2D(int(p3_x), int(p3_y))
+            p4 = PyOverlay.Point2D(int(p4_x), int(p4_y))
             self.renderer.DrawQuadFilled(p1, p2, p3, p4, color)
             
         def DrawQuad3D(self, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, p4_x, p4_y, p4_z, color, use_occlusion = True):
@@ -132,11 +132,11 @@ class DXOverlay:
             self.renderer.DrawQuadFilled3D(p1, p2, p3, p4, color, use_occlusion)
             
         def DrawPoly(self, center_x, center_y, radius, color, segments = 32, thickness = 1):
-            center = PyOverlay.Point2D(center_x, center_y)
+            center = PyOverlay.Point2D(int(center_x), int(center_y))
             self.renderer.DrawPoly(center, radius, color, segments, thickness)
             
         def DrawPolyFilled(self, center_x, center_y, radius, color, segments = 32):
-            center = PyOverlay.Point2D(center_x, center_y)
+            center = PyOverlay.Point2D(int(center_x), int(center_y))
             self.renderer.DrawPolyFilled(center, radius, color, segments)
             
         def DrawPoly3D(self, center_x, center_y, center_z, radius, color, segments = 32, use_occlusion = True):
