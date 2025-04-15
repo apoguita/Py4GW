@@ -149,7 +149,7 @@ bot_variables.config.window_module = ImGui.WindowModule(MODULE_NAME, window_name
 #endregion
 
 # Instantiate MultiThreading manager
-thread_manager = MultiThreading(3)
+thread_manager = MultiThreading(5, log_actions=True)
 
 #region helpers
 
@@ -856,15 +856,11 @@ def JagaMoraineSkillCasting():
     wastrels_demise = bot_variables.skillbar.wastrels_demise
     arcane_echo = bot_variables.skillbar.arcane_echo
     channeling = bot_variables.skillbar.channeling
-    zealous_renewal = bot_variables.skillbar.zealous_renewal
-    heart_of_holy_flame = bot_variables.skillbar.heart_of_holy_flame
-    pious_fury = bot_variables.skillbar.pious_fury
     
     log_to_console = False #bot_variables.config.log_to_console
     
-    primary_profession, _ = Agent.GetProfessionNames(player_agent_id)
-    
     if Routines.Checks.Agents.InDanger(Range.Spellcast):
+        ConsoleLog(MODULE_NAME, "In danger, casting skills.", Py4GW.Console.MessageType.Info, log=log_to_console)
         #we need to cast deadly paradox and shadow form and mantain it
         has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id,shadow_form)
         shadow_form_buff_time_remaining = Effects.GetEffectTimeRemaining(player_agent_id,shadow_form) if has_shadow_form else 0
@@ -873,29 +869,33 @@ def JagaMoraineSkillCasting():
         if shadow_form_buff_time_remaining <= 3500: #about to expire, recast
             #** Cast Deadly Paradox **
             if Routines.Sequential.Skills.CastSkillID(deadly_paradox,extra_condition=(not has_deadly_paradox), log=log_to_console):
+                ConsoleLog(MODULE_NAME, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=log_to_console)
                 sleep(0.1)
             
             # ** Cast Shadow Form **
             if Routines.Sequential.Skills.CastSkillID(shadow_form, log=log_to_console):
+                ConsoleLog(MODULE_NAME, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=log_to_console)
                 sleep(1.25)
                 
     #if were hurt, we need to cast shroud of distress 
     if Agent.GetHealth(player_agent_id) < 0.45:
+        ConsoleLog(MODULE_NAME, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=log_to_console)
         # ** Cast Shroud of Distress **
         if Routines.Sequential.Skills.CastSkillID(shroud_of_distress, log =log_to_console):
             sleep(1.25)
-      
-    if primary_profession == "Assassin":      
-        #need to keep Channeling up
-        has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id,bot_variables.skillbar.channeling)
-        if not has_channeling:
-            # ** Cast Channeling **
-            if Routines.Sequential.Skills.CastSkillID(channeling, log =log_to_console):
-                sleep(1.25)
+         
+    #need to keep Channeling up
+    has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id,bot_variables.skillbar.channeling)
+    if not has_channeling:
+        ConsoleLog(MODULE_NAME, "Casting Channeling.", Py4GW.Console.MessageType.Info, log=log_to_console)
+        # ** Cast Channeling **
+        if Routines.Sequential.Skills.CastSkillID(channeling, log =log_to_console):
+            sleep(1.25)
             
     #Keep way of perfection up on recharge
     # ** Cast Way of Perfection **
     if Routines.Sequential.Skills.CastSkillID(way_of_perfection, log=log_to_console):
+        ConsoleLog(MODULE_NAME, "Casting Way of Perfection.", Py4GW.Console.MessageType.Info, log=log_to_console)
         sleep(0.350)
         
     # ** Heart of Shadow to Stay Alive or to get out of stuck**
@@ -910,43 +910,25 @@ def JagaMoraineSkillCasting():
                 sleep(0.350)
                 
     # ** Killing Routine **
-    if primary_profession == "Assassin":
-        if bot_variables.config.in_killing_routine:
-            arcane_echo_slot = 7
-            wastrels_demise_slot = 6
-            both_ready = Routines.Checks.Skills.IsSkillSlotReady(wastrels_demise_slot) and Routines.Checks.Skills.IsSkillSlotReady(arcane_echo_slot)
-            target = GetNotHexedEnemy()  
-            if target:
-                Routines.Sequential.Agents.ChangeTarget(target)
-                if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot, extra_condition=both_ready, log=log_to_console):
-                    sleep(2)
-                else:
-                    if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot, log=log_to_console):
-                        sleep(0.350)
-            target = GetNotHexedEnemy()  
-            if target: 
-                Routines.Sequential.Agents.ChangeTarget(target)
-                if Routines.Sequential.Skills.CastSkillSlot(wastrels_demise_slot, log=log_to_console):
+    if bot_variables.config.in_killing_routine:
+        arcane_echo_slot = 7
+        wastrels_demise_slot = 6
+        both_ready = Routines.Checks.Skills.IsSkillSlotReady(wastrels_demise_slot) and Routines.Checks.Skills.IsSkillSlotReady(arcane_echo_slot)
+        target = GetNotHexedEnemy()  
+        if target:
+            Routines.Sequential.Agents.ChangeTarget(target)
+            if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot, extra_condition=both_ready, log=log_to_console):
+                ConsoleLog(MODULE_NAME, "Casting Arcane Echo.", Py4GW.Console.MessageType.Info, log=log_to_console)
+                sleep(2)
+            else:
+                if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot, log=log_to_console):
+                    ConsoleLog(MODULE_NAME, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=log_to_console)
                     sleep(0.350)
-                    
-    elif primary_profession == "Dervish":
-        if bot_variables.config.in_killing_routine:
-            energy = Agent.GetEnergy(player_agent_id) * Agent.GetMaxEnergy(player_agent_id)
-            target = GetNotHexedEnemy()
-            if target:
-                if energy > 20:
-                
-                    Routines.Sequential.Player.InteractAgent(target)
-                    sleep(0.5)
-                    if Routines.Sequential.Skills.CastSkillID(zealous_renewal, log=log_to_console):
-                        sleep(0.100)
-                    if Routines.Sequential.Skills.CastSkillID(heart_of_holy_flame, log=log_to_console):
-                        sleep(0.100)
-                    if Routines.Sequential.Skills.CastSkillID(pious_fury, log=log_to_console):
-                        sleep(0.100)
-                else:
-                    Routines.Sequential.Player.InteractAgent(target)
-                    sleep(1)    
+        target = GetNotHexedEnemy()  
+        if target: 
+            Routines.Sequential.Agents.ChangeTarget(target)
+            if Routines.Sequential.Skills.CastSkillSlot(wastrels_demise_slot, log=log_to_console):
+                sleep(0.350)
 
 #endregion
 
@@ -957,12 +939,7 @@ def SkillHandler():
         bjora_marches = 482 #Bjora Marches
         jaga_moraine = 546 #Jaga Moraine
         
-        if Map.IsMapLoading():
-            sleep(1)
-            continue
-        
-        if not (Map.IsMapReady() and Party.IsPartyLoaded() and Map.IsExplorable()):
-            #if not in explorable area, no need to cast skills, skip this iteration
+        if not Routines.Checks.Map.MapValid():
             sleep(1)
             continue
         
@@ -972,13 +949,14 @@ def SkillHandler():
             continue
         
         if bot_variables.config.finished_routine:
-            sleep(0.1)
+            sleep(1)  
             continue
         
         if Map.GetMapID() == bjora_marches:
             BjoraMarchesSkillCasting()
             sleep(0.1)
-        elif Map.GetMapID() == jaga_moraine:    
+        elif Map.GetMapID() == jaga_moraine:  
+              
             JagaMoraineSkillCasting()
 
         
@@ -1014,7 +992,7 @@ def DrawWindow():
                     if bot_variables.config.is_script_running:
                         thread_manager.stop_all_threads()
                         thread_manager.add_thread(MAIN_THREAD_NAME, RunBotSequentialLogic)
-                        #thread_manager.add_thread("SkillHandler", SkillHandler)
+                        thread_manager.add_thread("SkillHandler", SkillHandler)
                         thread_manager.start_watchdog(MAIN_THREAD_NAME)
                     else:
                         reset_environment()
