@@ -616,7 +616,6 @@ class Map:
         class MapProjection:
             @staticmethod
             def GamePosToWorldMap(x: float, y: float):
-                from .Map import Map
                 gwinches = 96.0
 
                 # Step 1: Get map bounds in UI space

@@ -26,7 +26,7 @@ class Range(Enum):
 
 #endregion
 #region ServerRegion
-class ServerRegion(Enum):
+class ServerRegion(IntEnum):
     International = 0
     America = 1
     Korea = 2
@@ -37,7 +37,7 @@ class ServerRegion(Enum):
 
 #endregion
 #region Language
-class Language(Enum):
+class Language(IntEnum):
     English = 0
     Korean = 1
     French = 2
@@ -53,7 +53,7 @@ class Language(Enum):
 
 #endregion
 #region District
-class District(Enum):
+class District(IntEnum):
     Current = 0
     International =1
     American = 2
@@ -72,7 +72,7 @@ class District(Enum):
 
 #endregion
 #region ampaign
-class Campaign(Enum):
+class Campaign(IntEnum):
     Core = 0
     Prophecies = 1
     Factions = 2
@@ -83,7 +83,7 @@ class Campaign(Enum):
 
 #endregion
 #region RegionType
-class RegionType(Enum):
+class RegionType(IntEnum):
     AllianceBattle = 0
     Arena = 1
     ExplorableZone = 2
@@ -109,7 +109,7 @@ class RegionType(Enum):
 
 #endregion
 #region Continent
-class Continent(Enum):
+class Continent(IntEnum):
     Kryta = 0
     DevContinent = 1
     Cantha = 2
@@ -174,7 +174,7 @@ class Bags(IntEnum):
 
 #endregion
 #region ItemType
-class ItemType(Enum):
+class ItemType(IntEnum):
     Salvage = 0
     Axe = 1
     Bag = 2
@@ -214,7 +214,7 @@ class ItemType(Enum):
 
 #endregion
 #region DyeColor
-class DyeColor(Enum):
+class DyeColor(IntEnum):
     NoColor = 0
     Blue = 1
     Green = 2
@@ -231,7 +231,7 @@ class DyeColor(Enum):
 
 #endregion
 #region Profession
-class Profession(Enum):
+class Profession(IntEnum):
     None_ = 0  # Avoiding reserved keyword "None"
     Warrior = 1
     Ranger = 2
@@ -246,7 +246,7 @@ class Profession(Enum):
 
 #endregion
 #region Allegiance
-class Allegiance(Enum):
+class Allegiance(IntEnum):
     Unknown = 0
     Ally = 1  # 0x1 = ally/non-attackable
     Neutral = 2  # 0x2 = neutral
@@ -256,13 +256,13 @@ class Allegiance(Enum):
     NpcMinipet = 6  # 0x6 = npc/minipet
     
 # AllieganceDonation
-class FactionAllegiance(Enum):
+class FactionAllegiance(IntEnum):
     Kurzick = 0
     Luxon = 1
     
 #endregion
 #region Mod structs
-class Ailment(Enum):
+class Ailment(IntEnum):
     Bleeding = 222
     Blind = 223
     Crippled = 225
@@ -272,7 +272,7 @@ class Ailment(Enum):
     Dazed = 229
     Weakness = 230
     
-class Reduced_Ailment(Enum):
+class Reduced_Ailment(IntEnum):
     Bleeding = 0
     Blind = 1
     Crippled = 3
@@ -283,7 +283,7 @@ class Reduced_Ailment(Enum):
     Weakness = 8
     
 #DamageType
-class DamageType(Enum):
+class DamageType(IntEnum):
     Blunt = 0
     Piercing = 1
     Slashing = 2
@@ -302,7 +302,7 @@ class DamageType(Enum):
     unknown_15 = 15
 
 #WeaponType
-class Weapon(Enum):
+class Weapon(IntEnum):
     Unknown = 0
     Bow = 1
     Axe = 2
@@ -330,7 +330,7 @@ class Weapon(Enum):
     Unknown10 = 24
 
 # Attribute
-class Attribute(Enum):
+class Attribute(IntEnum):
     FastCasting = 0
     IllusionMagic = 1
     DominationMagic = 2
@@ -379,7 +379,7 @@ class Attribute(Enum):
     None_ = 45  # Avoiding reserved keyword "None"
     
 #Inscription
-class Inscription(Enum):
+class Inscription(IntEnum):
     Fear_Cuts_Deeper = 0
     I_Can_See_Clearly_Now = 1
     Swift_as_the_Wind = 3
@@ -400,7 +400,7 @@ class Inscription(Enum):
 
 #endregion
 #region HeroType
-class HeroType(Enum):
+class HeroType(IntEnum):
     None_ = 0  # Avoiding reserved keyword "None"
     Norgu = 1
     Goren = 2
