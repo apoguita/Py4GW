@@ -422,6 +422,23 @@ def handle_inventory_check():
     
     return False
     
+def handle_return_inventory_check():
+    global bot_variables
+    if Inventory.GetFreeSlotCount() < bot_variables.inventory_config.leave_free_slots:
+        ConsoleLog(MODULE_NAME, f"Inventory is full, going to merchant.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)
+        return True
+    
+    count_of_id_kits = Inventory.GetModelCount(5899) #5899 model for ID kit
+    if count_of_id_kits <=0:
+        ConsoleLog(MODULE_NAME, f"Need to buy ID kits, going to merchant.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)
+        return True
+    
+    count_of_salvage_kits = Inventory.GetModelCount(2992) #2992 model for salvage kit
+    if count_of_salvage_kits <=0:
+        ConsoleLog(MODULE_NAME, f"Need to buy Salvage kits, going to merchant.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)
+        return True
+    
+    return False
 
 def GetNotHexedEnemy():
     player_pos = Player.GetXY()
@@ -743,25 +760,24 @@ def RunBotSequentialLogic():
         sleep (15)
         bot_variables.config.pause_stuck_routine = False
         
-        Routines.Sequential.Movement.FollowPath(path_points_to_killing_spot)
-        if primary_profession == "Dervish":
-            Keystroke.PressAndRelease(Key.F2.value)
-            sleep(0.1)
+        Routines.Sequential.Movement.FollowPath(path_points_to_killing_spot,custom_exit_condition=lambda: player_is_dead())
+        if handle_death():
+            reset_from_jaga_moraine = False
+            continue
             
         bot_variables.config.in_killing_routine = True
         player_pos = Player.GetXY()
         enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
         while len(enemy_array) > 0: #sometimes not all enemies are killed
+            if handle_death():
+                reset_from_jaga_moraine = False
+                continue
             sleep(1)
             enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
         
         bot_variables.config.in_killing_routine = False
         bot_variables.config.finished_routine = True
-        
-        if primary_profession == "Dervish":
-                Keystroke.PressAndRelease(Key.F1.value)
-                sleep(0.1)
-        
+                
         filtered_agent_ids = get_filtered_loot_array()
         
         if handle_death():
@@ -779,7 +795,7 @@ def RunBotSequentialLogic():
         items_to_salvage = filter_salvage_array()
         Routines.Sequential.Items.SalvageItems(items_to_salvage, log_to_console)
         
-        if handle_inventory_check():
+        if handle_return_inventory_check():
             reset_from_jaga_moraine = False
             continue
         
@@ -805,7 +821,7 @@ def RunBotSequentialLogic():
 def BjoraMarchesSkillCasting():
     global bot_variables
     #we only need to cast skills in bjora marches if we are in danger
-    if not Routines.Checks.Agents.InDanger(Range.Earshot):
+    if not Routines.Checks.Agents.InDanger(Range.Spellcast):
         sleep(0.1)
         return
     
@@ -830,12 +846,14 @@ def BjoraMarchesSkillCasting():
         # ** Cast Shadow Form **
         if Routines.Sequential.Skills.CastSkillID(shadow_form, log=log_to_console):
             sleep(1.25)
+        return 
         
     #if were hurt, we need to cast shroud of distress 
     if Agent.GetHealth(player_agent_id) < 0.45:
         # ** Cast Shroud of Distress **
         if Routines.Sequential.Skills.CastSkillID(shroud_of_distress, log=log_to_console):
             sleep(1.25)
+            return
 
     #if we have an enemy behind us, we can escape with Heart of Shadow
     nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Earshot.value)
@@ -844,6 +862,7 @@ def BjoraMarchesSkillCasting():
         is_enemy_behind = Routines.Checks.Agents.IsEnemyBehind(player_agent_id)
         if Routines.Sequential.Skills.CastSkillID(heart_of_shadow, extra_condition=is_enemy_behind, log=log_to_console):
             sleep(0.350)
+            return
             
 
 def JagaMoraineSkillCasting():
@@ -876,6 +895,7 @@ def JagaMoraineSkillCasting():
             if Routines.Sequential.Skills.CastSkillID(shadow_form, log=log_to_console):
                 ConsoleLog(MODULE_NAME, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=log_to_console)
                 sleep(1.25)
+            return
                 
     #if were hurt, we need to cast shroud of distress 
     if Agent.GetHealth(player_agent_id) < 0.45:
@@ -883,6 +903,7 @@ def JagaMoraineSkillCasting():
         # ** Cast Shroud of Distress **
         if Routines.Sequential.Skills.CastSkillID(shroud_of_distress, log =log_to_console):
             sleep(1.25)
+            return
          
     #need to keep Channeling up
     has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id,bot_variables.skillbar.channeling)
@@ -891,12 +912,14 @@ def JagaMoraineSkillCasting():
         # ** Cast Channeling **
         if Routines.Sequential.Skills.CastSkillID(channeling, log =log_to_console):
             sleep(1.25)
+            return
             
     #Keep way of perfection up on recharge
     # ** Cast Way of Perfection **
     if Routines.Sequential.Skills.CastSkillID(way_of_perfection, log=log_to_console):
         ConsoleLog(MODULE_NAME, "Casting Way of Perfection.", Py4GW.Console.MessageType.Info, log=log_to_console)
         sleep(0.350)
+        return
         
     # ** Heart of Shadow to Stay Alive or to get out of stuck**
     if not bot_variables.config.in_killing_routine:
@@ -908,6 +931,7 @@ def JagaMoraineSkillCasting():
 
             if Routines.Sequential.Skills.CastSkillID(heart_of_shadow, log=log_to_console):
                 sleep(0.350)
+                return
                 
     # ** Killing Routine **
     if bot_variables.config.in_killing_routine:
@@ -924,11 +948,13 @@ def JagaMoraineSkillCasting():
                 if Routines.Sequential.Skills.CastSkillSlot(arcane_echo_slot, log=log_to_console):
                     ConsoleLog(MODULE_NAME, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=log_to_console)
                     sleep(0.350)
+                    return
         target = GetNotHexedEnemy()  
         if target: 
             Routines.Sequential.Agents.ChangeTarget(target)
             if Routines.Sequential.Skills.CastSkillSlot(wastrels_demise_slot, log=log_to_console):
                 sleep(0.350)
+                return
 
 #endregion
 
@@ -954,9 +980,7 @@ def SkillHandler():
         
         if Map.GetMapID() == bjora_marches:
             BjoraMarchesSkillCasting()
-            sleep(0.1)
-        elif Map.GetMapID() == jaga_moraine:  
-              
+        elif Map.GetMapID() == jaga_moraine:    
             JagaMoraineSkillCasting()
 
         
