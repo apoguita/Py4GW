@@ -290,17 +290,12 @@ class MissionMap:
         self.scale_x, self.scale_y = 1.0, 1.0
         self.zoom =  0.0
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = 0.0, 0.0
-        self.interface_size = 0
-        self.interface_scale_offset = 0.0
-        
-        
+
 
         self.update()
                    
 
-    def update(self):
-        self.interface_size = UIManager.GetEnumPreference(EnumPreference.InterfaceSize)
-        
+    def update(self):       
         coords = Map.MissionMap.GetWindowCoords()
         self.left, self.top, self.right, self.bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
         self.width = self.right - self.left
@@ -308,8 +303,7 @@ class MissionMap:
         
         self.pan_offset_x, self.pan_offset_y = Map.MissionMap.GetPanOffset()
         self.scale_x, self.scale_y = Map.MissionMap.GetScale()
-        self.scale_x += self.interface_scale_offset
-        self.scale_y += self.interface_scale_offset
+
         self.zoom = Map.MissionMap.GetZoom()
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = Map.MissionMap.GetMapScreenCenter()
         
@@ -431,9 +425,7 @@ def DrawFrame():
 def DrawWindow():
     global mission_map
     if PyImGui.begin("Mission Map"):
-        PyImGui.text(f"Interface Size: {mission_map.interface_size}") 
-        PyImGui.text(f"Scale: {mission_map.scale_x}, {mission_map.scale_y}") 
-        mission_map.interface_scale_offset = PyImGui.slider_float("Interface Scale", mission_map.interface_scale_offset, 0.0, 5.0)
+        pass
     PyImGui.end()
     
 def configure():
@@ -448,7 +440,7 @@ def main():
         return
     
     mission_map.update()
-    DrawWindow()
+    #DrawWindow()
     DrawFrame()       
     
     if mission_map.zoom >= 3.5:
