@@ -13,6 +13,12 @@ class DXOverlay:
 
         def render(self):
             self.renderer.render()
+            
+        def ApplyStencilMask(self):
+            self.renderer.ApplyStencilMask()
+            
+        def ResetStencilMask(self):
+            self.renderer.ResetStencilMask()
         
         @staticmethod
         def WorldToScreen(x,y,z=0.0):
