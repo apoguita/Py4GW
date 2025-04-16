@@ -270,6 +270,7 @@ class MissionMap:
         self.height = 0
 
         self.player_screen_x, self.player_screen_y = 0, 0
+        self.player_agent_id = 0
         self.player_target_id = 0
         
         self.zoom = 0.0
@@ -286,9 +287,11 @@ class MissionMap:
         self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = 0.0, 0.0, 0.0, 0.0
         
         self.pan_offset_x, self.pan_offset_y = 0.0, 0.0
-        self.scale_x, self.scale_y = Map.MissionMap.GetScale()
+        self.scale_x, self.scale_y = 1.0, 1.0
         self.zoom =  0.0
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = 0.0, 0.0
+        self.interface_size = 0
+        self.interface_scale_offset = 0.0
         
         
 
@@ -296,6 +299,8 @@ class MissionMap:
                    
 
     def update(self):
+        self.interface_size = UIManager.GetEnumPreference(EnumPreference.InterfaceSize)
+        
         coords = Map.MissionMap.GetWindowCoords()
         self.left, self.top, self.right, self.bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
         self.width = self.right - self.left
@@ -303,6 +308,8 @@ class MissionMap:
         
         self.pan_offset_x, self.pan_offset_y = Map.MissionMap.GetPanOffset()
         self.scale_x, self.scale_y = Map.MissionMap.GetScale()
+        self.scale_x += self.interface_scale_offset
+        self.scale_y += self.interface_scale_offset
         self.zoom = Map.MissionMap.GetZoom()
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = Map.MissionMap.GetMapScreenCenter()
         
@@ -317,6 +324,7 @@ class MissionMap:
                                                     self.mission_map_screen_center_x, self.mission_map_screen_center_y)
         
         self.player_target_id = Player.GetTargetID()
+        self.player_agent_id = Player.GetAgentID()
         
         click_x, click_y = Map.MissionMap.GetLastClickCoords()
 
@@ -341,6 +349,8 @@ class MissionMap:
         zoom = Map.MissionMap.GetAdjustedZoom(zoom_offset=self.mega_zoom)
         self.renderer.world_space.set_zoom(zoom/100.0)
         self.mega_zoom_renderer.world_space.set_zoom(zoom/100.0)
+        #self.renderer.world_space.set_scale(self.interface_scale_offset)
+        self.renderer.world_space.set_scale(self.scale_x)
         self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0,self.mega_zoom)
         
         
@@ -355,13 +365,17 @@ def DrawFrame():
     global mission_map
     Overlay().BeginDraw("MissionMapOverlay", mission_map.left, mission_map.top, mission_map.width, mission_map.height)
     #terrain 
+    
     zoom = mission_map.zoom + mission_map.mega_zoom
+    
     if zoom >3.5:
         mission_map.mega_zoom_renderer.DrawQuadFilled(mission_map.left,mission_map.top, mission_map.right,mission_map.top, mission_map.right,mission_map.bottom, mission_map.left,mission_map.bottom, color=Utils.RGBToColor(75,75,75,200))
         
         mission_map.mega_zoom_renderer.render()
     else:
         mission_map.renderer.render()
+        
+    
     #Aggro Bubble
     Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Earshot.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)-2, color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32,thickness=4.0)
     Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Earshot.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32)
@@ -390,8 +404,10 @@ def DrawFrame():
         size_offset += mission_map.mega_zoom *( 1/5)
         
         if agent.is_living:
-            if alliegance == Allegiance.Ally:
-                Marker("Circle", Color(100,138,217,255),accent_color, x,y, size=4.0 + size_offset, segments=16).draw()
+            if agent.id == mission_map.player_agent_id:
+                Marker("Circle", Color(0,255,0,255),accent_color,x,y, size=4.0 + size_offset, segments=16).draw()
+            elif alliegance == Allegiance.Ally:
+                Marker("Circle", Color(156,217,255,255),accent_color, x,y, size=4.0 + size_offset, segments=16).draw()
             elif alliegance == Allegiance.Neutral:
                 pass
             elif alliegance == Allegiance.Enemy:
@@ -412,8 +428,14 @@ def DrawFrame():
     Overlay().EndDraw() 
     
 
- 
-   
+def DrawWindow():
+    global mission_map
+    if PyImGui.begin("Mission Map"):
+        PyImGui.text(f"Interface Size: {mission_map.interface_size}") 
+        PyImGui.text(f"Scale: {mission_map.scale_x}, {mission_map.scale_y}") 
+        mission_map.interface_scale_offset = PyImGui.slider_float("Interface Scale", mission_map.interface_scale_offset, 0.0, 5.0)
+    PyImGui.end()
+    
 def configure():
     pass
 
@@ -426,6 +448,7 @@ def main():
         return
     
     mission_map.update()
+    DrawWindow()
     DrawFrame()       
     
     if mission_map.zoom >= 3.5:
