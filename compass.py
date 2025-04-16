@@ -258,35 +258,27 @@ def DrawRangeRings():
                                             fill_col,
                                             64)
 
-def DrawAgent(agent_id, shape, size, col, is_spirit = False):
+def DrawAgent(agent, shape, size, col, spirit = False):
     global compass
 
-    if not Agent.IsValid(agent_id):
-       return
-    
-    agent_pos = Agent.GetXY(agent_id)
-    if Utils.Distance(agent_pos, compass.position.player_pos) > compass.position.culling:
-        return
+    x, y = Map.MiniMap.MapProjection.GamePosToScreen(agent.x, agent.y, *compass.position.player_pos,
+                                                        compass.position.current_pos.x, compass.position.current_pos.y,
+                                                        compass.position.current_size, compass.position.rotation)
 
-    x, y = Map.MiniMap.MapProjection.GamePosToScreen(*agent_pos,
-                                                     *compass.position.player_pos,
-                                                     compass.position.current_pos.x, compass.position.current_pos.y,
-                                                     compass.position.current_size, compass.position.rotation)
-
-    line_col = Utils.RGBToColor(255,255,0,255) if agent_id == compass.target_id else Utils.RGBToColor(0,0,0,255)
-    line_thickness = 3 if agent_id == compass.target_id else 1.5
+    line_col = Utils.RGBToColor(255,255,0,255) if agent.id == compass.target_id else Utils.RGBToColor(0,0,0,255)
+    line_thickness = 3 if agent.id == compass.target_id else 1.5
     if shape == 'Circle':
         PyImGui.draw_list_add_circle_filled(x, y, size, col, 12)
         PyImGui.draw_list_add_circle(x, y, size, line_col, 12, line_thickness)
 
-        if is_spirit:
-            match Agent.GetPlayerNumber(agent_id):
+        if spirit:
+            match agent.living_agent.player_number:
                 case 2875:
-                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.winnowing, 64)
+                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.winnowing, 16)
                 case 2876:
-                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.eoe, 64)
+                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.eoe, 16)
                 case 2886:
-                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.qz, 64)
+                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.qz, 16)
     else:
         scale = [1,1,1,1]
         if shape == 'Tear':
@@ -294,7 +286,7 @@ def DrawAgent(agent_id, shape, size, col, is_spirit = False):
         elif shape == 'Square':
             scale = [1,1,1,1]
 
-        rot = compass.position.rotation - Agent.GetRotationAngle(agent_id)
+        rot = compass.position.rotation - agent.rotation_angle
         
         x1 = math.cos(rot)*scale[0]*size + x
         y1 = math.sin(rot)*scale[0]*size + y
@@ -314,71 +306,61 @@ def DrawAgent(agent_id, shape, size, col, is_spirit = False):
 def DrawAgents():
     global compass
 
-    for agent_id in AgentArray.GetGadgetArray():
-        DrawAgent(agent_id, compass.markers.shape.signpost, compass.markers.size.signpost, compass.markers.color.signpost)
-
-    for agent_id in AgentArray.GetNeutralArray():
-        DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.neutral)
-
-    for agent_id in AgentArray.GetSpiritPetArray():
-        alive = Agent.IsAlive(agent_id)
-        if Agent.IsSpirit(agent_id):
-            if alive:
-                DrawAgent(agent_id, 'Circle', compass.markers.size.default, compass.markers.color.ally_spirit, is_spirit = True)
-        else:
-            if alive: 
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_spirit)
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
-
-    for agent_id in AgentArray.GetMinionArray():
-        if Agent.IsAlive(agent_id):
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_minion)
-        else:
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_dead)
-
-    for agent_id in AgentArray.GetNPCMinipetArray():
-        if Agent.IsAlive(agent_id):
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_npc)
-        else:
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
-
-    for agent_id in AgentArray.GetAllyArray():
-        alive = Agent.IsAlive(agent_id)
-        if Agent.IsNPC(agent_id):
-            if alive:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally)
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
-        elif agent_id == compass.player_id:
+    for agent in AgentArray.GetRawAgentArray():
+        if not agent.id:
             continue
-        else:
-            if alive:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players)
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players_dead)
+        
+        if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
+            continue
 
-    for agent_id in AgentArray.GetEnemyArray():
-        alive = Agent.IsAlive(agent_id)
-        if Agent.HasBossGlow(agent_id):
-            if alive:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.boss, compass.markers.color.profession[Agent.GetProfessionIDs(agent_id)[0]])
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.boss, compass.markers.color.enemy_dead)
-        else:
-            if alive:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy)
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy_dead)
-
-    for agent_id in AgentArray.GetItemArray():
-        DrawAgent(agent_id, compass.markers.shape.item, compass.markers.size.item, compass.markers.color.item)
-
-    # draw player on top
-    if Agent.IsAlive(compass.player_id):
-        DrawAgent(compass.player_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player)
-    else:
-        DrawAgent(compass.player_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player_dead)
+        match agent.living_agent.allegiance.ToInt():
+            case Allegiance.Neutral:
+                DrawAgent(agent, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.neutral)
+            case Allegiance.SpiritPet:
+                if agent.living_agent.is_alive:
+                    DrawAgent(agent, 'Circle', compass.markers.size.default, compass.markers.color.ally_spirit, True)
+            case Allegiance.Minion:
+                if agent.living_agent.is_alive:
+                    DrawAgent(agent, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_minion)
+                else:
+                    DrawAgent(agent, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_dead)
+            case Allegiance.NpcMinipet:
+                if agent.living_agent.is_alive:
+                    DrawAgent(agent, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_npc)
+                else:
+                    DrawAgent(agent, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
+            case Allegiance.Ally:
+                if agent.living_agent.is_npc:
+                    if agent.living_agent.is_alive:
+                        DrawAgent(agent, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally)
+                    else:
+                        DrawAgent(agent, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
+                elif agent.id == compass.player_id:
+                    if agent.living_agent.is_alive:
+                        DrawAgent(agent, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player)
+                    else:
+                        DrawAgent(agent, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player_dead)
+                else:
+                    if agent.living_agent.is_alive:
+                        DrawAgent(agent, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players)
+                    else:
+                        DrawAgent(agent, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players_dead)
+            case Allegiance.Enemy:
+                if agent.living_agent.has_boss_glow:
+                    if agent.living_agent.is_alive:
+                        DrawAgent(agent, compass.markers.shape.default, compass.markers.size.boss, compass.markers.color.profession[agent.living_agent.profession.ToInt()])
+                    else:
+                        DrawAgent(agent, compass.markers.shape.default, compass.markers.size.boss, compass.markers.color.enemy_dead)
+                else:
+                    if agent.living_agent.is_alive:
+                        DrawAgent(agent, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy)
+                    else:
+                        DrawAgent(agent, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy_dead)
+            case _:
+                if agent.is_gadget:
+                    DrawAgent(agent, compass.markers.shape.signpost, compass.markers.size.signpost, compass.markers.color.signpost)
+                if agent.is_item:
+                    DrawAgent(agent, compass.markers.shape.item, compass.markers.size.item, compass.markers.color.item)
 
 def DrawPathing():
     x_offset, y_offset, zoom = Map.MiniMap.MapProjection.ComputedPathingGeometryToScreen(compass.geometry, compass.map_bounds,
