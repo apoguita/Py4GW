@@ -7,26 +7,12 @@ from collections import namedtuple, deque
 import ctypes
 
 import Py4GW
-from Py4GWCoreLib.Skillbar import SkillBar
-import PyImGui
-import PyMap
 import PyAgent
-import PyPlayer
-import PyParty
-import PyItem
-import PyInventory
-import PySkill
-import PySkillbar
-import PyMerchant
-import PyEffects
 import PyKeystroke
 
 from .Agent import *
 from abc import ABC, abstractmethod
 from .Player import Player
-from .Map import Map
-from .Inventory import Inventory
-from .Skill import Skill
 from .enums import *
 
 
@@ -311,6 +297,23 @@ class Utils:
         pixels_per_gwinch = (scale_x * zoom) / gwinches
         return pixel_value / pixels_per_gwinch
 
+    @staticmethod
+    def SafeInt(value, fallback=0):
+        try:
+            if not math.isfinite(value):
+                return fallback
+            return int(value)
+        except (ValueError, TypeError, OverflowError):
+            return fallback
+        
+    @staticmethod
+    def SafeFloat(value, fallback=0.0):
+        try:
+            if not math.isfinite(value):
+                return fallback
+            return float(value)
+        except (ValueError, TypeError, OverflowError):
+            return fallback
 
 
     class VectorFields:
@@ -545,6 +548,18 @@ class Color:
 
     def __repr__(self) -> str:
         return f"{self.name} (RGBA: {self.r}, {self.g}, {self.b}, {self.a})"
+    
+    def desaturate(self, amount: float = 1.0):
+        """
+        Desaturates the color towards gray by a given amount [0..1].
+        0.0 = no change, 1.0 = full grayscale.
+        """
+        amount = max(0.0, min(amount, 1.0))  # Clamp between 0 and 1
+        gray = int(0.4 * self.r + 0.4 * self.g + 0.4 * self.b)
+        self.r = int(self.r * (1 - amount) + gray * amount)
+        self.g = int(self.g * (1 - amount) + gray * amount)
+        self.b = int(self.b * (1 - amount) + gray * amount)
+
 #endregion
 #region Timer
 class Timer:
@@ -1616,6 +1631,7 @@ class MultiThreading:
         self.watchdog_active = True
 
         def watchdog_fn():
+            from .Map import Map
             if self.log_actions:
                 Py4GW.Console.Log("Watchdog", "Watchdog started.", Py4GW.Console.MessageType.Info)
             while self.watchdog_active:
