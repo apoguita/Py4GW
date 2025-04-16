@@ -312,13 +312,12 @@ def DrawFrame():
     Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Earshot.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)-2, color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32,thickness=4.0)
     Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Earshot.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32)
     #Compass Range
-    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Earshot.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x), color=Utils.RGBToColor(0, 0, 0, 255),numsegments=360,thickness=1.0)
+    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Compass.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x), color=Utils.RGBToColor(0, 0, 0, 255),numsegments=360,thickness=1.0)
     zoom = mission_map.zoom + mission_map.mega_zoom
-    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Earshot.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)-(2.85*zoom), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=360,thickness=(5.7*zoom))
+    Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Compass.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)-(2.85*zoom), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=360,thickness=(5.7*zoom))
          
-    agent_array = AgentArray.GetAgentArray()
-    for agent_id in agent_array:
-        agent = Agent.agent_instance(agent_id)
+    agent_array = AgentArray.GetRawAgentArray()
+    for agent in agent_array:
         alliegance = agent.living_agent.allegiance.ToInt()
         x,y = RawGamePosToScreen(agent.x, agent.y, 
                                  mission_map.zoom, mission_map.mega_zoom,
