@@ -66,9 +66,9 @@ class build:
 
 class InventoryConfig:
     def __init__(self):
-        self.leave_free_slots = 4
+        self.leave_free_slots = 3
         self.keep_id_kit = 2
-        self.keep_salvage_kit = 2
+        self.keep_salvage_kit = 5
         self.keep_gold_amount = 5000
         
 class SellConfig:
