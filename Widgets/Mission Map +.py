@@ -4,6 +4,7 @@ import math
 
 MODULE_NAME = "Mission Map"
 BASE_ANGLE = (-math.pi / 2)
+SQRT_2 = math.sqrt(2)
 
 def FloatingSlider(caption, value,x,y,min_value, max_value, color:Color):
     width=20
@@ -97,17 +98,47 @@ class Circle(Shape):
         Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(),numsegments=self.segments)
         Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.to_color(), numsegments=self.segments, thickness=2)
         
-class CircleWithArrow(Shape):
+class Teardrop(Shape):
     def __init__(self, color: Color,accent_color:Color, x: float, y: float, size: float, offset_angle: float = 0.0, segments: int = 16):
         self.segments: int = segments
         super().__init__("Circle", color, accent_color, x, y, size)
         self.accent_color: Color = accent_color
-        self.base_angle: float = 0.0
+        self.base_angle: float = BASE_ANGLE
         self.offset_angle: float = offset_angle
 
     def draw(self) -> None:
-        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(),numsegments=self.segments)
+        # 1. Draw unrotated circle
+        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(), numsegments=self.segments)
         Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.to_color(), numsegments=self.segments, thickness=2)
+
+        # 2. Build arrow points (relative to center)
+        half_side = (self.size * SQRT_2) / 2
+        local_points = [
+            (0          , -half_side * 2),     # p1 - arrow tip
+            (-half_side , -half_side),# p2 - left base
+            (half_side  , -half_side), # p4 - right base
+        ]
+
+        # 3. Calculate rotation angle (negated for in-game rotation match)
+        angle = -(self.base_angle + self.offset_angle)
+        cos_a = math.cos(angle)
+        sin_a = math.sin(angle)
+
+        # 4. Rotate + translate points
+        def rotate(px, py):
+            rx = px * cos_a - py * sin_a + self.x
+            ry = px * sin_a + py * cos_a + self.y
+            return (rx, ry)
+
+        p1 = rotate(*local_points[0])
+        p2 = rotate(*local_points[1])
+        p4 = rotate(*local_points[2])
+        
+        # 5. Draw the arrow
+        Overlay().DrawTriangleFilled(p1[0], p1[1], p2[0], p2[1], p4[0], p4[1], color=self.color.to_color())
+        Overlay().DrawLine(p1[0], p1[1], p2[0], p2[1], color=self.accent_color.to_color(), thickness=2.0)
+        Overlay().DrawLine(p1[0], p1[1], p4[0], p4[1], color=self.accent_color.to_color(), thickness=2.0)
+
         
         
         
@@ -128,7 +159,7 @@ class Square(Shape):
 
     def draw(self) -> None:
         # Inscribed square inside a circle of radius = self.size
-        half_side = (self.size * math.sqrt(2)) / 2
+        half_side = (self.size * SQRT_2) / 2
 
         # Corner coordinates
         x1, y1 = self.x - half_side, self.y - half_side  # top-left
@@ -140,28 +171,49 @@ class Square(Shape):
         Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
 
 class Tear(Shape):
-    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0):
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 8.0, offset_angle: float = 0.0):
         super().__init__("Tear", color, accent_color, x, y, size)
-        self.accent_color: Color = accent_color
+        self.base_angle: float = BASE_ANGLE
+        self.offset_angle: float = offset_angle
 
     def draw(self) -> None:
-        # Inscribed square inside a circle of radius = self.size
-        half_side = (self.size * math.sqrt(2)) / 2
+        # Compute total rotation angle
+        angle = -(self.base_angle + self.offset_angle)
+        cos_a = math.cos(angle)
+        sin_a = math.sin(angle)
 
-        # Corner coordinates
-        x1, y1 = self.x, self.y - (half_side*2)          
-        x2, y2 = self.x + half_side, self.y
-        x3, y3 = self.x, self.y + half_side
-        x4, y4 = self.x - half_side, self.y
+        # Geometry setup
+        half_side = (self.size * SQRT_2) / 2
 
+        # Define original points relative to center (self.x, self.y)
+        points = [
+            (0          , -half_side * 2),  # top
+            (half_side  , 0),       # right
+            (0          , half_side),       # bottom
+            (-half_side , 0)       # left
+        ]
+
+        # Rotate and translate points
+        rotated = []
+        for px, py in points:
+            rx = px * cos_a - py * sin_a + self.x
+            ry = px * sin_a + py * cos_a + self.y
+            rotated.append((rx, ry))
+
+        # Unpack rotated points
+        (x1, y1), (x2, y2), (x3, y3), (x4, y4) = rotated
+
+        # Draw filled and outlined quad
         Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
         Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
+
 
         
         
 shapes: dict[str, type[Shape]] = {
     "Triangle": Triangle,
     "Circle": Circle,
+    "Teardrop": Teardrop,
     "Square": Square,
     "Penta": Penta,
     "Tear": Tear,
@@ -343,7 +395,6 @@ class MissionMap:
         zoom = Map.MissionMap.GetAdjustedZoom(zoom_offset=self.mega_zoom)
         self.renderer.world_space.set_zoom(zoom/100.0)
         self.mega_zoom_renderer.world_space.set_zoom(zoom/100.0)
-        #self.renderer.world_space.set_scale(self.interface_scale_offset)
         self.renderer.world_space.set_scale(self.scale_x)
         self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0,self.mega_zoom)
         
@@ -399,19 +450,19 @@ def DrawFrame():
         
         if agent.is_living:
             if agent.id == mission_map.player_agent_id:
-                Marker("Circle", Color(0,255,0,255),accent_color,x,y, size=4.0 + size_offset, segments=16).draw()
+                Marker("Teardrop", Color(0,255,0,255), accent_color, x,y, size=6.0 + size_offset, offset_angle=agent.rotation_angle, segments=16).draw()
             elif alliegance == Allegiance.Ally:
-                Marker("Circle", Color(156,217,255,255),accent_color, x,y, size=4.0 + size_offset, segments=16).draw()
+                Marker("Tear", Color(156,217,255,255),accent_color, x,y, size=8.0 + size_offset, offset_angle=agent.rotation_angle).draw()
             elif alliegance == Allegiance.Neutral:
                 pass
             elif alliegance == Allegiance.Enemy:
-                Marker("Circle", Color(255,0,0,255),accent_color,x,y, size=4.0 + size_offset, segments=16).draw()
+                Marker("Tear", Color(255,0,0,255),accent_color,x,y, size=8.0 + size_offset, offset_angle=agent.rotation_angle).draw()
             elif alliegance == Allegiance.SpiritPet:
                 pass
             elif alliegance == Allegiance.Minion:
                 pass
             elif alliegance == Allegiance.NpcMinipet:
-                Marker("Triangle", Color(170,255,0,255),accent_color,x,y, size=6.0 + size_offset).draw()   
+                Marker("Triangle", Color(170,255,0,255),accent_color,x,y, size=8.0 + size_offset).draw()   
             else:
                 Marker("Circle", Color(70,70,70,255),accent_color,x,y, size=4.0 + size_offset, segments=16).draw()
         elif agent.is_gadget:
