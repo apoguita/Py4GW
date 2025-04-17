@@ -1,8 +1,12 @@
 from Py4GWCoreLib import *
 
 class Compass():
-    window_module = ImGui.WindowModule('Compass+',window_name='Compass+',window_pos=(1200,400),window_size=(300,10),
-                                       window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+    window_module = ImGui.WindowModule('Compass+',window_name='Compass+', window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+    window_pos = (1200,400)
+    ini = IniHandler(os.path.join(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")), "Widgets/Config/Compass +.ini"))
+    initialized = False
+    ini_timer = Timer()
+
     overlay = PyOverlay.Overlay()
     renderer = DXOverlay()
 
@@ -12,13 +16,6 @@ class Compass():
     target_id  = 0
     geometry   = []
     map_bounds = []
-
-    def Reset(self):
-        self.reset      = False
-        self.frame_id   = Map.MiniMap.GetFrameID()
-        self.player_id  = Player.GetAgentID()
-        self.geometry   = Map.Pathing.GetComputedGeometry()
-        self.map_bounds = list(Map.GetMapBoundaries())
 
     class Position:
         snap_to_game = True
@@ -154,6 +151,183 @@ class Compass():
         show = True
         color = Utils.RGBToColor(255, 255, 255, 80)
 
+    def Reset(self):
+        self.reset      = False
+        self.frame_id   = Map.MiniMap.GetFrameID()
+        self.player_id  = Player.GetAgentID()
+        self.geometry   = Map.Pathing.GetComputedGeometry()
+        self.map_bounds = list(Map.GetMapBoundaries())
+
+    def LoadConfig(self):
+        self.initialized = True
+
+        self.window_pos = (self.ini.read_int('Compass+',  'config_x', self.window_pos[0]),
+                           self.ini.read_int('Compass+',  'config_y', self.window_pos[1]))
+
+        self.position.snap_to_game       = self.ini.read_bool('Compass+', 'snap_to_game',       self.position.snap_to_game)
+        self.position.always_point_north = self.ini.read_bool('Compass+', 'always_point_north', self.position.always_point_north)
+        self.position.culling            = self.ini.read_int('Compass+',  'culling',            self.position.culling)
+        self.position.detached_pos = PyOverlay.Point2D(
+                                           self.ini.read_int('Compass+',  'detached_x',         self.position.detached_pos.x),
+                                           self.ini.read_int('Compass+',  'detached_y',         self.position.detached_pos.y))
+        self.position.detached_size      = self.ini.read_int('Compass+',  'detached_size',      self.position.detached_size)
+
+        self.markers.size.default  = self.ini.read_int('Compass+', 'default_size',  self.markers.size.default)
+        self.markers.size.player   = self.ini.read_int('Compass+', 'player_size',   self.markers.size.player)
+        self.markers.size.boss     = self.ini.read_int('Compass+', 'boss_size',     self.markers.size.boss)
+        self.markers.size.minion   = self.ini.read_int('Compass+', 'minion_size',   self.markers.size.minion)
+        self.markers.size.signpost = self.ini.read_int('Compass+', 'signpost_size', self.markers.size.signpost)
+        self.markers.size.item     = self.ini.read_int('Compass+', 'item_size',     self.markers.size.item)
+
+        self.markers.color.default      = self.ini.read_int('Compass+',  'default_color',      self.markers.color.default)
+        self.markers.color.player       = self.ini.read_int('Compass+',  'player_color',       self.markers.color.player)
+        self.markers.color.player_dead  = self.ini.read_int('Compass+',  'player_dead_color',  self.markers.color.player_dead)
+        self.markers.color.players      = self.ini.read_int('Compass+',  'players_color',      self.markers.color.players)
+        self.markers.color.players_dead = self.ini.read_int('Compass+',  'players_dead_color', self.markers.color.players_dead)
+        self.markers.color.ally         = self.ini.read_int('Compass+',  'ally_color',         self.markers.color.ally)
+        self.markers.color.ally_npc     = self.ini.read_int('Compass+',  'ally_npc_color',     self.markers.color.ally_npc)
+        self.markers.color.ally_spirit  = self.ini.read_int('Compass+',  'ally_spirit_color',  self.markers.color.ally_spirit)
+        self.markers.color.ally_minion  = self.ini.read_int('Compass+',  'ally_minion_color',  self.markers.color.ally_minion)
+        self.markers.color.ally_dead    = self.ini.read_int('Compass+',  'ally_dead_color',    self.markers.color.ally_dead)
+        self.markers.color.neutral      = self.ini.read_int('Compass+',  'neutral_color',      self.markers.color.neutral)
+        self.markers.color.enemy        = self.ini.read_int('Compass+',  'enemy_color',        self.markers.color.enemy)
+        self.markers.color.enemy_dead   = self.ini.read_int('Compass+',  'enemy_dead_color',   self.markers.color.enemy_dead)
+        self.markers.color.item         = self.ini.read_int('Compass+',  'item_color',         self.markers.color.item)
+        self.markers.color.signpost     = self.ini.read_int('Compass+',  'signpost_color',     self.markers.color.signpost)
+        self.markers.color.eoe          = self.ini.read_int('Compass+',  'eoe_color',          self.markers.color.eoe)
+        self.markers.color.qz           = self.ini.read_int('Compass+',  'qz_color',           self.markers.color.qz)
+        self.markers.color.winnowing    = self.ini.read_int('Compass+',  'winnowing_color',    self.markers.color.winnowing)
+
+        self.markers.shape.default  = self.ini.read_key('Compass+', 'default_shape',  self.markers.shape.default)
+        self.markers.shape.player   = self.ini.read_key('Compass+', 'player_shape',   self.markers.shape.player)
+        self.markers.shape.minion   = self.ini.read_key('Compass+', 'minion_shape',   self.markers.shape.minion)
+        self.markers.shape.signpost = self.ini.read_key('Compass+', 'signpost_shape', self.markers.shape.signpost)
+        self.markers.shape.item     = self.ini.read_key('Compass+', 'item_shape',     self.markers.shape.item)
+
+        self.range_rings.show['touch']     = self.ini.read_bool('Compass+', 'touch_show',     self.range_rings.show['touch'])
+        self.range_rings.show['adjacent']  = self.ini.read_bool('Compass+', 'adjacent_show',  self.range_rings.show['adjacent'])
+        self.range_rings.show['nearby']    = self.ini.read_bool('Compass+', 'nearby_show',    self.range_rings.show['nearby'])
+        self.range_rings.show['area']      = self.ini.read_bool('Compass+', 'area_show',      self.range_rings.show['area'])
+        self.range_rings.show['earshot']   = self.ini.read_bool('Compass+', 'earshot_show',   self.range_rings.show['earshot'])
+        self.range_rings.show['spellcast'] = self.ini.read_bool('Compass+', 'spellcast_show', self.range_rings.show['spellcast'])
+        self.range_rings.show['spirit']    = self.ini.read_bool('Compass+', 'spirit_show',    self.range_rings.show['spirit'])
+        self.range_rings.show['compass']   = self.ini.read_bool('Compass+', 'compass_show',   self.range_rings.show['compass'])
+
+        self.range_rings.fill_color['touch']     = self.ini.read_int('Compass+', 'touch_fill',     self.range_rings.fill_color['touch'])
+        self.range_rings.fill_color['adjacent']  = self.ini.read_int('Compass+', 'adjacent_fill',  self.range_rings.fill_color['adjacent'])
+        self.range_rings.fill_color['nearby']    = self.ini.read_int('Compass+', 'nearby_fill',    self.range_rings.fill_color['nearby'])
+        self.range_rings.fill_color['area']      = self.ini.read_int('Compass+', 'area_fill',      self.range_rings.fill_color['area'])
+        self.range_rings.fill_color['earshot']   = self.ini.read_int('Compass+', 'earshot_fill',   self.range_rings.fill_color['earshot'])
+        self.range_rings.fill_color['spellcast'] = self.ini.read_int('Compass+', 'spellcast_fill', self.range_rings.fill_color['spellcast'])
+        self.range_rings.fill_color['spirit']    = self.ini.read_int('Compass+', 'spirit_fill',    self.range_rings.fill_color['spirit'])
+        self.range_rings.fill_color['compass']   = self.ini.read_int('Compass+', 'compass_fill',   self.range_rings.fill_color['compass'])
+
+        self.range_rings.outline_color['touch']     = self.ini.read_int('Compass+', 'touch_outline',     self.range_rings.outline_color['touch'])
+        self.range_rings.outline_color['adjacent']  = self.ini.read_int('Compass+', 'adjacent_outline',  self.range_rings.outline_color['adjacent'])
+        self.range_rings.outline_color['nearby']    = self.ini.read_int('Compass+', 'nearby_outline',    self.range_rings.outline_color['nearby'])
+        self.range_rings.outline_color['area']      = self.ini.read_int('Compass+', 'area_outline',      self.range_rings.outline_color['area'])
+        self.range_rings.outline_color['earshot']   = self.ini.read_int('Compass+', 'earshot_outline',   self.range_rings.outline_color['earshot'])
+        self.range_rings.outline_color['spellcast'] = self.ini.read_int('Compass+', 'spellcast_outline', self.range_rings.outline_color['spellcast'])
+        self.range_rings.outline_color['spirit']    = self.ini.read_int('Compass+', 'spirit_outline',    self.range_rings.outline_color['spirit'])
+        self.range_rings.outline_color['compass']   = self.ini.read_int('Compass+', 'compass_outline',   self.range_rings.outline_color['compass'])
+
+        self.range_rings.outline_thickness['touch']     = self.ini.read_float('Compass+', 'touch_thickness',     self.range_rings.outline_thickness['touch'])
+        self.range_rings.outline_thickness['adjacent']  = self.ini.read_float('Compass+', 'adjacent_thickness',  self.range_rings.outline_thickness['adjacent'])
+        self.range_rings.outline_thickness['nearby']    = self.ini.read_float('Compass+', 'nearby_thickness',    self.range_rings.outline_thickness['nearby'])
+        self.range_rings.outline_thickness['area']      = self.ini.read_float('Compass+', 'area_thickness',      self.range_rings.outline_thickness['area'])
+        self.range_rings.outline_thickness['earshot']   = self.ini.read_float('Compass+', 'earshot_thickness',   self.range_rings.outline_thickness['earshot'])
+        self.range_rings.outline_thickness['spellcast'] = self.ini.read_float('Compass+', 'spellcast_thickness', self.range_rings.outline_thickness['spellcast'])
+        self.range_rings.outline_thickness['spirit']    = self.ini.read_float('Compass+', 'spirit_thickness',    self.range_rings.outline_thickness['spirit'])
+        self.range_rings.outline_thickness['compass']   = self.ini.read_float('Compass+', 'compass_thickness',   self.range_rings.outline_thickness['compass'])
+
+        self.pathing.show  = self.ini.read_bool('Compass+', 'pathin_show',  self.pathing.show)
+        self.pathing.color = self.ini.read_int('Compass+',  'pathing_color', self.pathing.color)
+
+    def SaveConfig(self):
+        if not self.ini_timer.IsRunning():
+            self.ini_timer.Start()
+
+        if not self.ini_timer.HasElapsed(1000): return
+        self.ini_timer.Reset()
+
+        self.ini.write_key('Compass+', 'snap_to_game',        str(self.position.snap_to_game))
+        self.ini.write_key('Compass+', 'always_point_north',  str(self.position.always_point_north))
+        self.ini.write_key('Compass+', 'culling',             str(self.position.culling))
+        self.ini.write_key('Compass+', 'detached_x',          str(self.position.detached_pos.x))
+        self.ini.write_key('Compass+', 'detached_y',          str(self.position.detached_pos.y))
+        self.ini.write_key('Compass+', 'detached_size',       str(self.position.detached_size))
+
+        self.ini.write_key('Compass+', 'default_size',        str(self.markers.size.default))
+        self.ini.write_key('Compass+', 'player_size',         str(self.markers.size.player))
+        self.ini.write_key('Compass+', 'boss_size',           str(self.markers.size.boss))
+        self.ini.write_key('Compass+', 'minion_size',         str(self.markers.size.minion))
+        self.ini.write_key('Compass+', 'signpost_size',       str(self.markers.size.signpost))
+        self.ini.write_key('Compass+', 'item_size',           str(self.markers.size.item))
+
+        self.ini.write_key('Compass+',  'default_color',      str(self.markers.color.default))
+        self.ini.write_key('Compass+',  'player_color',       str(self.markers.color.player))
+        self.ini.write_key('Compass+',  'player_dead_color',  str(self.markers.color.player_dead))
+        self.ini.write_key('Compass+',  'players_color',      str(self.markers.color.players))
+        self.ini.write_key('Compass+',  'players_dead_color', str(self.markers.color.players_dead))
+        self.ini.write_key('Compass+',  'ally_color',         str(self.markers.color.ally))
+        self.ini.write_key('Compass+',  'ally_npc_color',     str(self.markers.color.ally_npc))
+        self.ini.write_key('Compass+',  'ally_spirit_color',  str(self.markers.color.ally_spirit))
+        self.ini.write_key('Compass+',  'ally_minion_color',  str(self.markers.color.ally_minion))
+        self.ini.write_key('Compass+',  'ally_dead_color',    str(self.markers.color.ally_dead))
+        self.ini.write_key('Compass+',  'neutral_color',      str(self.markers.color.neutral))
+        self.ini.write_key('Compass+',  'enemy_color',        str(self.markers.color.enemy))
+        self.ini.write_key('Compass+',  'enemy_dead_color',   str(self.markers.color.enemy_dead))
+        self.ini.write_key('Compass+',  'item_color',         str(self.markers.color.item))
+        self.ini.write_key('Compass+',  'signpost_color',     str(self.markers.color.signpost))
+        self.ini.write_key('Compass+',  'eoe_color',          str(self.markers.color.eoe))
+        self.ini.write_key('Compass+',  'qz_color',           str(self.markers.color.qz))
+        self.ini.write_key('Compass+',  'winnowing_color',    str(self.markers.color.winnowing))
+
+        self.ini.write_key('Compass+', 'default_shape',       str(self.markers.shape.default))
+        self.ini.write_key('Compass+', 'player_shape',        str(self.markers.shape.player))
+        self.ini.write_key('Compass+', 'minion_shape',        str(self.markers.shape.minion))
+        self.ini.write_key('Compass+', 'signpost_shape',      str(self.markers.shape.signpost))
+        self.ini.write_key('Compass+', 'item_shape',          str(self.markers.shape.item))
+
+        self.ini.write_key('Compass+', 'touch_show',          str(self.range_rings.show['touch']))
+        self.ini.write_key('Compass+', 'adjacent_show',       str(self.range_rings.show['adjacent']))
+        self.ini.write_key('Compass+', 'nearby_show',         str(self.range_rings.show['nearby']))
+        self.ini.write_key('Compass+', 'area_show',           str(self.range_rings.show['area']))
+        self.ini.write_key('Compass+', 'earshot_show',        str(self.range_rings.show['earshot']))
+        self.ini.write_key('Compass+', 'spellcast_show',      str(self.range_rings.show['spellcast']))
+        self.ini.write_key('Compass+', 'spirit_show',         str(self.range_rings.show['spirit']))
+        self.ini.write_key('Compass+', 'compass_show',        str(self.range_rings.show['compass']))
+
+        self.ini.write_key('Compass+', 'touch_fill',          str(self.range_rings.fill_color['touch']))
+        self.ini.write_key('Compass+', 'adjacent_fill',       str(self.range_rings.fill_color['adjacent']))
+        self.ini.write_key('Compass+', 'nearby_fill',         str(self.range_rings.fill_color['nearby']))
+        self.ini.write_key('Compass+', 'area_fill',           str(self.range_rings.fill_color['area']))
+        self.ini.write_key('Compass+', 'earshot_fill',        str(self.range_rings.fill_color['earshot']))
+        self.ini.write_key('Compass+', 'spellcast_fill',      str(self.range_rings.fill_color['spellcast']))
+        self.ini.write_key('Compass+', 'spirit_fill',         str(self.range_rings.fill_color['spirit']))
+        self.ini.write_key('Compass+', 'compass_fill',        str(self.range_rings.fill_color['compass']))
+
+        self.ini.write_key('Compass+', 'touch_outline',       str(self.range_rings.outline_color['touch']))
+        self.ini.write_key('Compass+', 'adjacent_outline',    str(self.range_rings.outline_color['adjacent']))
+        self.ini.write_key('Compass+', 'nearby_outline',      str(self.range_rings.outline_color['nearby']))
+        self.ini.write_key('Compass+', 'area_outline',        str(self.range_rings.outline_color['area']))
+        self.ini.write_key('Compass+', 'earshot_outline',     str(self.range_rings.outline_color['earshot']))
+        self.ini.write_key('Compass+', 'spellcast_outline',   str(self.range_rings.outline_color['spellcast']))
+        self.ini.write_key('Compass+', 'spirit_outline',      str(self.range_rings.outline_color['spirit']))
+        self.ini.write_key('Compass+', 'compass_outline',     str(self.range_rings.outline_color['compass']))
+
+        self.ini.write_key('Compass+', 'touch_thickness',     str(self.range_rings.outline_thickness['touch']))
+        self.ini.write_key('Compass+', 'adjacent_thickness',  str(self.range_rings.outline_thickness['adjacent']))
+        self.ini.write_key('Compass+', 'nearby_thickness',    str(self.range_rings.outline_thickness['nearby']))
+        self.ini.write_key('Compass+', 'area_thickness',      str(self.range_rings.outline_thickness['area']))
+        self.ini.write_key('Compass+', 'earshot_thickness',   str(self.range_rings.outline_thickness['earshot']))
+        self.ini.write_key('Compass+', 'spellcast_thickness', str(self.range_rings.outline_thickness['spellcast']))
+        self.ini.write_key('Compass+', 'spirit_thickness',    str(self.range_rings.outline_thickness['spirit']))
+        self.ini.write_key('Compass+', 'compass_thickness',   str(self.range_rings.outline_thickness['compass']))
+
+        self.ini.write_key('Compass+', 'pathin_show',         str(self.pathing.show))
+        self.ini.write_key('Compass+', 'pathing_color',       str(self.pathing.color))
+
     position    = Position()
     markers     = Markers()
     range_rings = RangeRings()
@@ -258,43 +432,24 @@ def DrawRangeRings():
                                             fill_col,
                                             64)
 
-def DrawAgent(agent_id, shape, size, col, is_spirit = False):
+def DrawAgent(x, y, rot, shape, size, col, target, spirit_col = None):
     global compass
 
-    if not Agent.IsValid(agent_id):
-       return
-    
-    agent_pos = Agent.GetXY(agent_id)
-    if Utils.Distance(agent_pos, compass.position.player_pos) > compass.position.culling:
-        return
+    line_col = Utils.RGBToColor(255,255,0,255) if target else Utils.RGBToColor(0,0,0,255)
+    line_thickness = 3 if target else 1.5
 
-    x, y = Map.MiniMap.MapProjection.GamePosToScreen(*agent_pos,
-                                                     *compass.position.player_pos,
-                                                     compass.position.current_pos.x, compass.position.current_pos.y,
-                                                     compass.position.current_size, compass.position.rotation)
+    if spirit_col:
+        PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, spirit_col, 32)
 
-    line_col = Utils.RGBToColor(255,255,0,255) if agent_id == compass.target_id else Utils.RGBToColor(0,0,0,255)
-    line_thickness = 3 if agent_id == compass.target_id else 1.5
     if shape == 'Circle':
         PyImGui.draw_list_add_circle_filled(x, y, size, col, 12)
         PyImGui.draw_list_add_circle(x, y, size, line_col, 12, line_thickness)
-
-        if is_spirit:
-            match Agent.GetPlayerNumber(agent_id):
-                case 2875:
-                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.winnowing, 64)
-                case 2876:
-                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.eoe, 64)
-                case 2886:
-                    PyImGui.draw_list_add_circle_filled(x, y, compass.position.current_size*Range.Spirit.value/Range.Compass.value, compass.markers.color.qz, 64)
     else:
         scale = [1,1,1,1]
         if shape == 'Tear':
             scale = [2,1,1,1]
         elif shape == 'Square':
             scale = [1,1,1,1]
-
-        rot = compass.position.rotation - Agent.GetRotationAngle(agent_id)
         
         x1 = math.cos(rot)*scale[0]*size + x
         y1 = math.sin(rot)*scale[0]*size + y
@@ -314,71 +469,76 @@ def DrawAgent(agent_id, shape, size, col, is_spirit = False):
 def DrawAgents():
     global compass
 
-    for agent_id in AgentArray.GetGadgetArray():
-        DrawAgent(agent_id, compass.markers.shape.signpost, compass.markers.size.signpost, compass.markers.color.signpost)
-
-    for agent_id in AgentArray.GetNeutralArray():
-        DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.neutral)
-
-    for agent_id in AgentArray.GetSpiritPetArray():
-        alive = Agent.IsAlive(agent_id)
-        if Agent.IsSpirit(agent_id):
-            if alive:
-                DrawAgent(agent_id, 'Circle', compass.markers.size.default, compass.markers.color.ally_spirit, is_spirit = True)
-        else:
-            if alive: 
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_spirit)
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
-
-    for agent_id in AgentArray.GetMinionArray():
-        if Agent.IsAlive(agent_id):
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_minion)
-        else:
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_dead)
-
-    for agent_id in AgentArray.GetNPCMinipetArray():
-        if Agent.IsAlive(agent_id):
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_npc)
-        else:
-            DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
-
-    for agent_id in AgentArray.GetAllyArray():
-        alive = Agent.IsAlive(agent_id)
-        if Agent.IsNPC(agent_id):
-            if alive:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally)
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead)
-        elif agent_id == compass.player_id:
+    for agent in AgentArray.GetRawAgentArray():
+        if not agent.id:
             continue
-        else:
-            if alive:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players)
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players_dead)
+        
+        if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
+            continue
 
-    for agent_id in AgentArray.GetEnemyArray():
-        alive = Agent.IsAlive(agent_id)
-        if Agent.HasBossGlow(agent_id):
-            if alive:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.boss, compass.markers.color.profession[Agent.GetProfessionIDs(agent_id)[0]])
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.boss, compass.markers.color.enemy_dead)
-        else:
-            if alive:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy)
-            else:
-                DrawAgent(agent_id, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy_dead)
+        x, y = Map.MiniMap.MapProjection.GamePosToScreen(agent.x, agent.y, *compass.position.player_pos,
+                                                         compass.position.current_pos.x, compass.position.current_pos.y,
+                                                         compass.position.current_size, compass.position.rotation)
+        rot = compass.position.rotation - agent.rotation_angle
+        is_target = agent.id == compass.target_id
+        alive = agent.living_agent.is_alive
 
-    for agent_id in AgentArray.GetItemArray():
-        DrawAgent(agent_id, compass.markers.shape.item, compass.markers.size.item, compass.markers.color.item)
-
-    # draw player on top
-    if Agent.IsAlive(compass.player_id):
-        DrawAgent(compass.player_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player)
-    else:
-        DrawAgent(compass.player_id, compass.markers.shape.default, compass.markers.size.player, compass.markers.color.player_dead)
+        match agent.living_agent.allegiance.ToInt():
+            case Allegiance.Neutral:
+                DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.neutral, is_target)
+            case Allegiance.SpiritPet:
+                if alive:
+                    match agent.living_agent.player_number:
+                        case 2875:
+                            DrawAgent(x, y, rot, 'Circle', compass.markers.size.default, compass.markers.color.ally_spirit, is_target, spirit_col = compass.markers.color.winnowing)
+                        case 2876:
+                            DrawAgent(x, y, rot, 'Circle', compass.markers.size.default, compass.markers.color.ally_spirit, is_target, spirit_col = compass.markers.color.eoe)
+                        case 2886:
+                            DrawAgent(x, y, rot, 'Circle', compass.markers.size.default, compass.markers.color.ally_spirit, is_target, spirit_col = compass.markers.color.qz)
+                        case _:
+                            DrawAgent(x, y, rot, 'Circle', compass.markers.size.default, compass.markers.color.ally_spirit, is_target)
+            case Allegiance.Minion:
+                if alive:
+                    DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_minion, is_target)
+                else:
+                    DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.minion, compass.markers.color.ally_dead, is_target)
+            case Allegiance.NpcMinipet:
+                if alive:
+                    DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_npc, is_target)
+                else:
+                    DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead, is_target)
+            case Allegiance.Ally:
+                if agent.living_agent.is_npc:
+                    if alive:
+                        DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally, is_target)
+                    else:
+                        DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.ally_dead, is_target)
+                elif agent.id == compass.player_id:
+                    if alive:
+                        DrawAgent(x, y, rot, compass.markers.shape.player, compass.markers.size.player, compass.markers.color.player, is_target)
+                    else:
+                        DrawAgent(x, y, rot, compass.markers.shape.player, compass.markers.size.player, compass.markers.color.player_dead, is_target)
+                else:
+                    if alive:
+                        DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players, is_target)
+                    else:
+                        DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.players_dead, is_target)
+            case Allegiance.Enemy:
+                if agent.living_agent.has_boss_glow:
+                    if alive:
+                        DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.boss, compass.markers.color.profession[agent.living_agent.profession.ToInt()], is_target)
+                    else:
+                        DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.boss, compass.markers.color.enemy_dead, is_target)
+                else:
+                    if alive:
+                        DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy, is_target)
+                    else:
+                        DrawAgent(x, y, rot, compass.markers.shape.default, compass.markers.size.default, compass.markers.color.enemy_dead, is_target)
+            case _:
+                if agent.is_gadget:
+                    DrawAgent(x, y, rot, compass.markers.shape.signpost, compass.markers.size.signpost, compass.markers.color.signpost, is_target)
+                if agent.is_item:
+                    DrawAgent(x, y, rot, compass.markers.shape.item, compass.markers.size.item, compass.markers.color.item, is_target)
 
 def DrawPathing():
     x_offset, y_offset, zoom = Map.MiniMap.MapProjection.ComputedPathingGeometryToScreen(compass.geometry, compass.map_bounds,
@@ -427,16 +587,18 @@ def DrawCompass():
 
     PyImGui.end()
         
-def DrawConfig():
+def configure():
     global compass
 
     if compass.window_module.first_run:
-        PyImGui.set_next_window_size(compass.window_module.window_size[0], compass.window_module.window_size[1])     
-        PyImGui.set_next_window_pos(compass.window_module.window_pos[0], compass.window_module.window_pos[1])
+        PyImGui.set_next_window_pos(compass.window_pos[0], compass.window_pos[1])
         compass.window_module.first_run = False
 
+    end_pos = compass.window_pos
     try:
         if PyImGui.begin(compass.window_module.window_name, compass.window_module.window_flags):
+            end_pos = PyImGui.get_window_pos()
+
             # style/color
             PyImGui.push_style_color(PyImGui.ImGuiCol.Header,           (.2,.2,.2,1))
             PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderHovered,    (.3,.3,.3,1))
@@ -521,7 +683,12 @@ def DrawConfig():
                 compass.pathing.color = Utils.TupleToColor(PyImGui.color_edit4('', Utils.ColorToTuple(compass.pathing.color)))
 
             PyImGui.pop_style_color(11)
+
+            compass.SaveConfig()
         PyImGui.end()
+
+        compass.ini.write_key('Compass+', 'config_x', str(int(end_pos[0])))
+        compass.ini.write_key('Compass+', 'config_y', str(int(end_pos[1])))
 
     except Exception as e:
         current_function = inspect.currentframe().f_code.co_name # type: ignore
@@ -531,6 +698,9 @@ def DrawConfig():
 def main():
     global compass, action_queue
     try:
+        if not compass.initialized:
+            compass.LoadConfig()
+
         if Map.IsMapLoading():
             compass.reset = True
 
@@ -542,10 +712,8 @@ def main():
 
             if compass.reset:
                 compass.Reset()
-            
-            DrawConfig()
-            DrawCompass()
 
+            DrawCompass()
             CheckCompassClick()
 
     except ImportError as e:
