@@ -3,6 +3,7 @@ from typing import Optional, Union
 import math
 
 MODULE_NAME = "Mission Map"
+BASE_ANGLE = (-math.pi / 2)
 
 def FloatingSlider(caption, value,x,y,min_value, max_value, color:Color):
     width=20
@@ -35,15 +36,17 @@ def FloatingSlider(caption, value,x,y,min_value, max_value, color:Color):
     return result
 
 class Shape:
-    def __init__(self, name: str, color: Color, x: float, y: float, size: float = 5.0):
+    def __init__(self, name: str, color: Color,accent_color: Color, x: float, y: float, size: float = 5.0):
         self.name: str = name
         self.color: Color = color
-        self.accent_color:Color = self.color
+        self.accent_color:Color = accent_color
         self.x: float = x
         self.y: float = y
         self.size: float = size
         self.scale: float = 1.0
-        self.angle: float = 0.0
+        self.base_angle: float = 0.0
+        self.offset_angle: float = 0.0
+        
 
     def draw(self) -> None:
         print(f"Drawing {self.name} at ({self.x}, {self.y}) with size {self.size} and color {self.color}")
@@ -52,17 +55,19 @@ class Shape:
         return f"Shape(name={self.name}, color={self.color}, x={self.x}, y={self.y}, size={self.size})"
 
 class Triangle(Shape):
-    def __init__(self, x: float, y: float, color: Color, size: float = 5.0, offset_angle: float = 0.0):
-        super().__init__("Triangle", color, x, y, size)
-        self.accent_color: Color = Color(0, 0, 0, 150)
+    global BASE_ANGLE
+    def __init__(self, color: Color, accent_color:Color,x: float, y:float, size: float = 5.0, offset_angle: float = 0.0):
+        super().__init__("Triangle", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
         self.offset_angle: float = offset_angle
+        self.base_angle:float = BASE_ANGLE # + Utils.DegToRad(self.offset_angle)
 
     def draw(self) -> None:
-        base_angle = (-math.pi / 2) # + Utils.DegToRad(self.offset_angle)
+        
         # Generate 3 points spaced 120° apart
         points = []
         for i in range(3):
-            angle = base_angle + i * (2 * math.pi / 3)  # 0°, 120°, 240°
+            angle = self.base_angle + i * (2 * math.pi / 3)  # 0°, 120°, 240°
             x = self.x + math.cos(angle) * self.size
             y = self.y + math.sin(angle) * self.size
             points.append((x, y))
@@ -79,23 +84,47 @@ class Triangle(Shape):
             points[1][0], points[1][1],
             points[2][0], points[2][1],
             self.accent_color.to_color(),
-            thickness=1.0
+            thickness=2.0
         )
  
 class Circle(Shape):
-    def __init__(self, x: float, y: float, color: Color, size: float = 5.0, segments: int = 32):
+    def __init__(self, color: Color,accent_color:Color, x: float, y: float, size: float, segments: int = 16):
         self.segments: int = segments
-        super().__init__("Circle", color, x, y, size)
-        self.accent_color: Color = Color(0, 0, 0, 255)
+        super().__init__("Circle", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
 
     def draw(self) -> None:
-        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(), numsegments=self.segments)
-        Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.to_color(), numsegments=self.segments, thickness=1.0)
+        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(),numsegments=self.segments)
+        Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.to_color(), numsegments=self.segments, thickness=2)
+        
+class CircleWithArrow(Shape):
+    def __init__(self, color: Color,accent_color:Color, x: float, y: float, size: float, offset_angle: float = 0.0, segments: int = 16):
+        self.segments: int = segments
+        super().__init__("Circle", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+        self.base_angle: float = 0.0
+        self.offset_angle: float = offset_angle
+
+    def draw(self) -> None:
+        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(),numsegments=self.segments)
+        Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.to_color(), numsegments=self.segments, thickness=2)
+        
+        
+        
+class Penta(Shape):
+    def __init__(self, color: Color,accent_color:Color, x: float, y: float, size: float):
+        self.segments: int = 5
+        super().__init__("Circle", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+
+    def draw(self) -> None:
+        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(),numsegments=self.segments)
+        Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.to_color(), numsegments=self.segments, thickness=2)
         
 class Square(Shape):
-    def __init__(self, x: float, y: float, color: Color, size: float = 5.0):
-        super().__init__("Square", color, x, y, size)
-        self.accent_color: Color = Color(0, 0, 0, 255)
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0):
+        super().__init__("Square", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
 
     def draw(self) -> None:
         # Inscribed square inside a circle of radius = self.size
@@ -107,9 +136,26 @@ class Square(Shape):
         x3, y3 = self.x + half_side, self.y + half_side  # bottom-right
         x4, y4 = self.x - half_side, self.y + half_side  # bottom-left
 
-        overlay = Overlay()
-        overlay.DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
-        overlay.DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=1.0)
+        Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
+        Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
+
+class Tear(Shape):
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0):
+        super().__init__("Tear", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+
+    def draw(self) -> None:
+        # Inscribed square inside a circle of radius = self.size
+        half_side = (self.size * math.sqrt(2)) / 2
+
+        # Corner coordinates
+        x1, y1 = self.x, self.y - (half_side*2)          
+        x2, y2 = self.x + half_side, self.y
+        x3, y3 = self.x, self.y + half_side
+        x4, y4 = self.x - half_side, self.y
+
+        Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
+        Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
 
         
         
@@ -117,19 +163,23 @@ shapes: dict[str, type[Shape]] = {
     "Triangle": Triangle,
     "Circle": Circle,
     "Square": Square,
+    "Penta": Penta,
+    "Tear": Tear,
 }
        
 class Marker:
     def __init__(
         self,
         shape_type: Union[str, Shape],
-        color: Color = Color(255, 255, 255, 255),
+        color: Color,
+        accent_color: Color,
         x:float = 0.0,
         y:float = 0.0,
         size: float = 5.0,
         **kwargs
     ):
         self.color: Color = color
+        self.accent_color: Color = accent_color
         self.x = x
         self.y = y
         self.size = size
@@ -143,7 +193,8 @@ class Marker:
             shape_cls = shapes.get(shape_type)
             if shape_cls is None:
                 raise ValueError(f"Unknown shape type: {shape_type}")
-            self.shape = shape_cls(x=x, y=y, color=color, size=size, **kwargs)
+            self.shape = shape_cls(x=x, y=y, color=color, accent_color=accent_color, size=size, **kwargs)
+
 
     def draw(self) -> None:
         self.shape.draw()
@@ -153,7 +204,7 @@ class AgentMarker(Marker):
         self,
         shape_type: Union[str, Shape],
         agent_id: int,
-        color: Color = Color(255, 255, 255, 255),
+        color: Color,
         size: float = 5.0,
         zoom_offset: float = 0.0,
         **kwargs 
@@ -219,6 +270,8 @@ class MissionMap:
         self.height = 0
 
         self.player_screen_x, self.player_screen_y = 0, 0
+        self.player_agent_id = 0
+        self.player_target_id = 0
         
         self.zoom = 0.0
         
@@ -234,16 +287,15 @@ class MissionMap:
         self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = 0.0, 0.0, 0.0, 0.0
         
         self.pan_offset_x, self.pan_offset_y = 0.0, 0.0
-        self.scale_x, self.scale_y = Map.MissionMap.GetScale()
+        self.scale_x, self.scale_y = 1.0, 1.0
         self.zoom =  0.0
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = 0.0, 0.0
-        
-        
+
 
         self.update()
                    
 
-    def update(self):
+    def update(self):       
         coords = Map.MissionMap.GetWindowCoords()
         self.left, self.top, self.right, self.bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
         self.width = self.right - self.left
@@ -251,6 +303,7 @@ class MissionMap:
         
         self.pan_offset_x, self.pan_offset_y = Map.MissionMap.GetPanOffset()
         self.scale_x, self.scale_y = Map.MissionMap.GetScale()
+
         self.zoom = Map.MissionMap.GetZoom()
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = Map.MissionMap.GetMapScreenCenter()
         
@@ -264,6 +317,9 @@ class MissionMap:
                                                     self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
                                                     self.mission_map_screen_center_x, self.mission_map_screen_center_y)
         
+        self.player_target_id = Player.GetTargetID()
+        self.player_agent_id = Player.GetAgentID()
+        
         click_x, click_y = Map.MissionMap.GetLastClickCoords()
 
         self.last_click_x, self.last_click_y = Map.MissionMap.MapProjection.ScreenToGamePos(click_x, click_y, self.mega_zoom)
@@ -273,8 +329,8 @@ class MissionMap:
             self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = Map.GetMapWorldMapBounds()
             
             self.geometry = Map.Pathing.GetComputedGeometry()
-            self.renderer.set_primitives(self.geometry, Color(155, 155, 155, 125).to_dx_color())
-            self.mega_zoom_renderer.set_primitives(self.geometry, Color(155, 155, 155, 255).to_dx_color())
+            self.renderer.set_primitives(self.geometry, Color(125, 125, 125, 125).to_dx_color())
+            self.mega_zoom_renderer.set_primitives(self.geometry, Color(125, 125, 125, 255).to_dx_color())
 
         self.renderer.world_space.set_world_space(True)
         self.mega_zoom_renderer.world_space.set_world_space(True)
@@ -287,6 +343,8 @@ class MissionMap:
         zoom = Map.MissionMap.GetAdjustedZoom(zoom_offset=self.mega_zoom)
         self.renderer.world_space.set_zoom(zoom/100.0)
         self.mega_zoom_renderer.world_space.set_zoom(zoom/100.0)
+        #self.renderer.world_space.set_scale(self.interface_scale_offset)
+        self.renderer.world_space.set_scale(self.scale_x)
         self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0,self.mega_zoom)
         
         
@@ -301,13 +359,17 @@ def DrawFrame():
     global mission_map
     Overlay().BeginDraw("MissionMapOverlay", mission_map.left, mission_map.top, mission_map.width, mission_map.height)
     #terrain 
+    
     zoom = mission_map.zoom + mission_map.mega_zoom
+    
     if zoom >3.5:
         mission_map.mega_zoom_renderer.DrawQuadFilled(mission_map.left,mission_map.top, mission_map.right,mission_map.top, mission_map.right,mission_map.bottom, mission_map.left,mission_map.bottom, color=Utils.RGBToColor(75,75,75,200))
         
         mission_map.mega_zoom_renderer.render()
     else:
         mission_map.renderer.render()
+        
+    
     #Aggro Bubble
     Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Earshot.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)-2, color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32,thickness=4.0)
     Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Earshot.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=32)
@@ -315,7 +377,7 @@ def DrawFrame():
     Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Compass.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x), color=Utils.RGBToColor(0, 0, 0, 255),numsegments=360,thickness=1.0)
     zoom = mission_map.zoom + mission_map.mega_zoom
     Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Compass.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)-(2.85*zoom), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=360,thickness=(5.7*zoom))
-         
+    
     agent_array = AgentArray.GetRawAgentArray()
     for agent in agent_array:
         alliegance = agent.living_agent.allegiance.ToInt()
@@ -327,19 +389,48 @@ def DrawFrame():
                                  mission_map.scale_x, mission_map.scale_y,
                                  mission_map.mission_map_screen_center_x, mission_map.mission_map_screen_center_y)
     
-        if alliegance == Allegiance.NpcMinipet:
-            Marker("Triangle", Color(170,255,0,255),x,y, size=6.0).draw()
-        elif alliegance == Allegiance.Enemy:
-            Marker("Circle", Color(255,0,0,255),x,y, size=4.0, segments=16).draw()
-        elif alliegance == Allegiance.Ally:
-            Marker("Circle", Color(100,138,217,255),x,y, size=4.0, segments=16).draw()
-        else:
-            Marker("Circle", Color(70,70,70,255),x,y, size=4.0, segments=16).draw()
-    
-    Overlay().EndDraw()
+        accent_color = Color(0, 0, 0, 150)
+        size_offset = 0.0
+        if agent.id == mission_map.player_target_id:
+            accent_color = Color(235, 235, 50, 255)
+            size_offset =2.0
+            
+        size_offset += mission_map.mega_zoom *( 1/5)
+        
+        if agent.is_living:
+            if agent.id == mission_map.player_agent_id:
+                Marker("Circle", Color(0,255,0,255),accent_color,x,y, size=4.0 + size_offset, segments=16).draw()
+            elif alliegance == Allegiance.Ally:
+                Marker("Circle", Color(156,217,255,255),accent_color, x,y, size=4.0 + size_offset, segments=16).draw()
+            elif alliegance == Allegiance.Neutral:
+                pass
+            elif alliegance == Allegiance.Enemy:
+                Marker("Circle", Color(255,0,0,255),accent_color,x,y, size=4.0 + size_offset, segments=16).draw()
+            elif alliegance == Allegiance.SpiritPet:
+                pass
+            elif alliegance == Allegiance.Minion:
+                pass
+            elif alliegance == Allegiance.NpcMinipet:
+                Marker("Triangle", Color(170,255,0,255),accent_color,x,y, size=6.0 + size_offset).draw()   
+            else:
+                Marker("Circle", Color(70,70,70,255),accent_color,x,y, size=4.0 + size_offset, segments=16).draw()
+        elif agent.is_gadget:
+            Marker("Tear", Color(125,125,125,255),accent_color,x,y, size=6.0 + size_offset).draw()
+        elif agent.is_item:
+            pass
 
- 
-   
+    Overlay().EndDraw() 
+    
+
+def DrawWindow():
+    global mission_map
+    if PyImGui.begin("Mission Map"):
+        pass
+    PyImGui.end()
+    
+def configure():
+    pass
+
 def main():  
     if not Routines.Checks.Map.MapValid():
         mission_map.geometry = [] 
@@ -349,6 +440,7 @@ def main():
         return
     
     mission_map.update()
+    #DrawWindow()
     DrawFrame()       
     
     if mission_map.zoom >= 3.5:
