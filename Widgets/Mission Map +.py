@@ -450,9 +450,9 @@ def DrawFrame():
         
         if agent.is_living:
             if agent.id == mission_map.player_agent_id:
-                Marker("Teardrop", Color(0,255,0,255), accent_color, x,y, size=6.0 + size_offset, offset_angle=agent.rotation_angle, segments=16).draw()
+                Marker("Teardrop", Color(255,128,0,255), accent_color, x,y, size=6.0 + size_offset, offset_angle=agent.rotation_angle, segments=16).draw()
             elif alliegance == Allegiance.Ally:
-                Marker("Tear", Color(156,217,255,255),accent_color, x,y, size=8.0 + size_offset, offset_angle=agent.rotation_angle).draw()
+                Marker("Tear", Color(100,100,255,255),accent_color, x,y, size=8.0 + size_offset, offset_angle=agent.rotation_angle).draw()
             elif alliegance == Allegiance.Neutral:
                 pass
             elif alliegance == Allegiance.Enemy:
@@ -462,11 +462,11 @@ def DrawFrame():
             elif alliegance == Allegiance.Minion:
                 pass
             elif alliegance == Allegiance.NpcMinipet:
-                Marker("Triangle", Color(170,255,0,255),accent_color,x,y, size=8.0 + size_offset).draw()   
+                Marker("Triangle", Color(153,255,153,255),accent_color,x,y, size=8.0 + size_offset).draw()   
             else:
                 Marker("Circle", Color(70,70,70,255),accent_color,x,y, size=4.0 + size_offset, segments=16).draw()
         elif agent.is_gadget:
-            Marker("Tear", Color(125,125,125,255),accent_color,x,y, size=6.0 + size_offset).draw()
+            Marker("Tear", Color(120,120,120,255),accent_color,x,y, size=6.0 + size_offset).draw()
         elif agent.is_item:
             pass
 
