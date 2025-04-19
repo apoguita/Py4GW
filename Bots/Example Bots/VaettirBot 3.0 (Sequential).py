@@ -1025,7 +1025,7 @@ def DrawWindow():
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
                 PyImGui.end_table()
-
+                
             # --- Config Section ---
             if PyImGui.collapsing_header("Config"):
                 bot_variables.config.log_to_console = PyImGui.checkbox("Log to Console", bot_variables.config.log_to_console)
@@ -1150,6 +1150,9 @@ def main():
             Handle_Stuck()
 
         DrawWindow()
+        
+        if Agent.GetStuck(Player.GetAgentID()) !=0:
+            print("Player is stuck, sending stuck command.")
         
         if Map.IsMapLoading():
             ActionQueueManager().ResetAllQueues()

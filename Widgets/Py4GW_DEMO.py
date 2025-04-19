@@ -1828,6 +1828,54 @@ def ShowLivingAgentData(agent_id):
 
                 # Call the table function to display the data
                 ImGui.table("agent living pve Info", headers, formatted_data)
+                
+                AGENT_INSTANCE = Agent.agent_instance(agent_id).living_agent
+                
+                PyImGui.text("Extra data:")
+                combined_data = [
+                    f"h00C8: {AGENT_INSTANCE.h00C8}",
+                    f"h00CC: {AGENT_INSTANCE.h00CC}",
+                    f"h00D0: {AGENT_INSTANCE.h00D0}",
+                    f"h00D4: {AGENT_INSTANCE.h00D4}",
+                    f"animation_type: {AGENT_INSTANCE.animation_type}",
+                    f"h00E4: {AGENT_INSTANCE.h00E4}",
+                    f"weapon_attack_speed: {AGENT_INSTANCE.weapon_attack_speed}",
+                    f"attack_speed_modifier: {AGENT_INSTANCE.attack_speed_modifier}",
+                    f"agent_model_type: {AGENT_INSTANCE.agent_model_type}",
+                    f"transmog_npc_id: {AGENT_INSTANCE.transmog_npc_id}",
+                    f"h0100: {AGENT_INSTANCE.h0100}",
+                    f"guild_id: {AGENT_INSTANCE.guild_id}",
+                    f"team_id: {AGENT_INSTANCE.team_id}",
+                    f"h0108: {AGENT_INSTANCE.h0108}",
+                    f"h0110: {AGENT_INSTANCE.h0110}",
+                    f"h0124: {AGENT_INSTANCE.h0124}",
+                    f"h012C: {AGENT_INSTANCE.h012C}",
+                    f"effects: {AGENT_INSTANCE.effects}",
+                    f"h013C: {AGENT_INSTANCE.h013C}",
+                    f"model_state: {AGENT_INSTANCE.model_state}",
+                    f"type_map: {AGENT_INSTANCE.type_map}",
+                    f"h017C: {AGENT_INSTANCE.h017C}",
+                    f"animation_speed: {AGENT_INSTANCE.animation_speed}",
+                    f"animation_code: {AGENT_INSTANCE.animation_code}",
+                    f"animation_id: {AGENT_INSTANCE.animation_id}",
+                    f"h01B6: {AGENT_INSTANCE.h01B6}",
+                ]
+
+                # Format data into rows of 3 columns
+                columns = 5
+                formatted_data = []
+                for i in range(0, len(combined_data), columns):
+                    row = combined_data[i:i + columns]
+                    # Pad the row with empty strings if it has less than 3 items
+                    while len(row) < columns:
+                        row.append("")
+                    formatted_data.append(tuple(row))  # Convert the row to a tuple
+
+                # Define headers for the 3-column table
+                headers = ["Data 1", "Data 2", "Data 3", "Data 4", "Data 5"]
+
+                # Call the table function to display the data
+                ImGui.table("agent living extra pve Info", headers, formatted_data)
 
         PyImGui.end()
     except Exception as e:

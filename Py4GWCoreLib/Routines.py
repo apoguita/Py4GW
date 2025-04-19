@@ -624,7 +624,7 @@ class Routines:
             return 0    
                    
         @staticmethod
-        def GetNearestNPC(distance):
+        def GetNearestNPC(distance:float = 4500.0):
             from .Player import Player
             player_pos = Player.GetXY()
             return Routines.Agents.GetNearestNPCXY(player_pos[0], player_pos[1], distance)
@@ -709,6 +709,23 @@ class Routines:
             enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
             return Utils.GetFirstFromArray(enemy_array)
          
+        @staticmethod
+        def GetNearestAlly(max_distance=4500.0, exclude_self=True):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+            from .Py4GWcorelib import Utils
+
+            self_id = Player.GetAgentID()
+            player_pos = Player.GetXY()
+            ally_array = AgentArray.GetAllyArray()
+            ally_array = AgentArray.Filter.ByDistance(ally_array, player_pos, max_distance)
+            ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsAlive(agent_id))
+            if exclude_self:
+                ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: agent_id != self_id)
+            ally_array = AgentArray.Sort.ByDistance(ally_array, player_pos)
+            return Utils.GetFirstFromArray(ally_array)
+        
         @staticmethod   
         def GetDeadAlly(max_distance=4500.0):
             from .AgentArray import AgentArray
@@ -779,9 +796,18 @@ class Routines:
             item_array = AgentArray.GetItemArray()
             item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), max_distance)
             item_array = AgentArray.Sort.ByDistance(item_array,Player.GetXY())
-            if len(item_array) > 0:
-                return item_array[0]    
+            return Utils.GetFirstFromArray(item_array)   
 
+        @staticmethod
+        def GetNearestGadget(max_distance=4500.0):
+            from .AgentArray import AgentArray
+            from .Player import Player
+
+            gadget_array = AgentArray.GetGadgetArray()
+            gadget_array = AgentArray.Filter.ByDistance(gadget_array, Player.GetXY(), max_distance)
+            gadget_array = AgentArray.Sort.ByDistance(gadget_array,Player.GetXY())
+            return Utils.GetFirstFromArray(gadget_array)
+            
         @staticmethod
         def GetNearestChest(max_distance=5000):
             from .AgentArray import AgentArray
@@ -1461,7 +1487,7 @@ class Routines:
                 if agent_id != 0:
                     Routines.Sequential.Agents.ChangeTarget(agent_id)
             @staticmethod
-            def TargetNearestNPC(distance):
+            def TargetNearestNPC(distance:float = 4500.0):
                 nearest_npc = Routines.Agents.GetNearestNPC(distance)
                 if nearest_npc != 0:
                     Routines.Sequential.Agents.ChangeTarget(nearest_npc)
