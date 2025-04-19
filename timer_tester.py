@@ -4,17 +4,11 @@ MODULE_NAME = "tester for everything"
 timer = Timer()
 timer.Start()
 
-def useitem(model_id):
-    item = Item.GetItemIdFromModelID(model_id)
-    Inventory.UseItem(item)
-
 def main():
     global timer
     if PyImGui.begin("timer test"):
-        if PyImGui.button("use Item"):
-            useitem(30847)
-            
-        
+        PyImGui.text(f"Time Passed: {timer.GetElapsedTime()} milliseconds")
+        PyImGui.text(f"Ahs 5000 ms passed? {timer.HasElapsed(5000)}")
     PyImGui.end()
     
 if __name__ == "__main__":

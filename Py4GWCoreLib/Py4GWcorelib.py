@@ -7,26 +7,12 @@ from collections import namedtuple, deque
 import ctypes
 
 import Py4GW
-from Py4GWCoreLib.Skillbar import SkillBar
-import PyImGui
-import PyMap
 import PyAgent
-import PyPlayer
-import PyParty
-import PyItem
-import PyInventory
-import PySkill
-import PySkillbar
-import PyMerchant
-import PyEffects
 import PyKeystroke
 
 from .Agent import *
 from abc import ABC, abstractmethod
 from .Player import Player
-from .Map import Map
-from .Inventory import Inventory
-from .Skill import Skill
 from .enums import *
 
 
@@ -239,6 +225,10 @@ class Utils:
         return r / 255.0, g / 255.0, b / 255.0, a / 255.0
     
     @staticmethod
+    def RGBToDXColor(r, g, b, a) -> int:
+        return (a << 24) | (r << 16) | (g << 8) | b
+    
+    @staticmethod
     def RGBToColor(r, g, b, a) -> int:
         return (a << 24) | (b << 16) | (g << 8) | r
     
@@ -285,11 +275,11 @@ class Utils:
         return 0
     
     @staticmethod
-    def GwinchToPixels(gwinch_value: float) -> float:
+    def GwinchToPixels(gwinch_value: float, zoom_offset=0.0) -> float:
         from .Map import Map
 
         gwinches = 96.0  # hardcoded GW unit scale
-        zoom = Map.MissionMap.GetZoom()
+        zoom = Map.MissionMap.GetZoom() + zoom_offset
         scale_x, _ = Map.MissionMap.GetScale()
 
         pixels_per_gwinch = (scale_x * zoom) / gwinches
@@ -297,16 +287,33 @@ class Utils:
 
         
     @staticmethod
-    def PixelsToGwinch(pixel_value: float) -> float:
+    def PixelsToGwinch(pixel_value: float, zoom_offset=0.0) -> float:
         from .Map import Map
 
         gwinches = 96.0
-        zoom = Map.MissionMap.GetZoom()
+        zoom = Map.MissionMap.GetZoom() + zoom_offset
         scale_x, _ = Map.MissionMap.GetScale()
 
         pixels_per_gwinch = (scale_x * zoom) / gwinches
         return pixel_value / pixels_per_gwinch
 
+    @staticmethod
+    def SafeInt(value, fallback=0):
+        try:
+            if not math.isfinite(value):
+                return fallback
+            return int(value)
+        except (ValueError, TypeError, OverflowError):
+            return fallback
+        
+    @staticmethod
+    def SafeFloat(value, fallback=0.0):
+        try:
+            if not math.isfinite(value):
+                return fallback
+            return float(value)
+        except (ValueError, TypeError, OverflowError):
+            return fallback
 
 
     class VectorFields:
@@ -526,9 +533,46 @@ class Color:
         self.g: int = g
         self.b: int = b
         self.a: int = a
+        
+    def set_r(self, r: int) -> None:
+        self.r = r
+    
+    def set_g(self, g: int) -> None:
+        self.g = g
+        
+    def set_b(self, b: int) -> None:
+        self.b = b
+        
+    def set_a(self, a: int) -> None:
+        self.a = a
+        
+    def set_rgba(self, r: int, g: int, b: int, a: int) -> None:
+        self.r = r
+        self.g = g
+        self.b = b
+        self.a = a
 
-    def value(self) -> int:
+    def get_r (self) -> int:
+        return self.r
+    
+    def get_g (self) -> int:
+        return self.g
+    
+    def get_b (self) -> int:
+        return self.b
+    
+    def get_a (self) -> int: 
+        return self.a
+    
+    def get_rgba (self) -> tuple:
+        return (self.r, self.g, self.b, self.a)
+
+
+    def to_color(self) -> int:
         return Utils.RGBToColor(self.r, self.g, self.b, self.a)
+    
+    def to_dx_color(self) -> int:
+        return Utils.RGBToDXColor(self.r, self.g, self.b, self.a)
     
     def to_tuple(self) -> tuple:
         return (self.r, self.g, self.b, self.a)
@@ -538,6 +582,37 @@ class Color:
 
     def __repr__(self) -> str:
         return f"{self.name} (RGBA: {self.r}, {self.g}, {self.b}, {self.a})"
+    
+    def desaturate(self, amount: float = 1.0) -> "Color":
+        """
+        Returns a new Color instance, desaturated toward gray by the given amount [0..1].
+        0.0 = no change, 1.0 = fully grayscale.
+        """
+        amount = max(0.0, min(amount, 1.0))  # Clamp between 0 and 1
+        gray = int(0.4 * self.r + 0.4 * self.g + 0.4 * self.b)
+
+        new_r = int(self.r * (1 - amount) + gray * amount)
+        new_g = int(self.g * (1 - amount) + gray * amount)
+        new_b = int(self.b * (1 - amount) + gray * amount)
+
+        return Color(r=new_r, g=new_g, b=new_b, a=self.a)
+    
+    def shift(self, target: "Color", amount: float) -> "Color":
+        """
+        Returns a new Color instance shifted toward the target Color by the given amount [0..1].
+        0.0 = no change, 1.0 = fully target color.
+        """
+        amount = max(0.0, min(amount, 1.0))  # Clamp between 0 and 1
+
+        new_r = int(self.r + (target.r - self.r) * amount)
+        new_g = int(self.g + (target.g - self.g) * amount)
+        new_b = int(self.b + (target.b - self.b) * amount)
+        new_a = int(self.a + (target.a - self.a) * amount)
+
+        return Color(new_r, new_g, new_b, new_a)
+
+
+
 #endregion
 #region Timer
 class Timer:
@@ -1609,6 +1684,7 @@ class MultiThreading:
         self.watchdog_active = True
 
         def watchdog_fn():
+            from .Map import Map
             if self.log_actions:
                 Py4GW.Console.Log("Watchdog", "Watchdog started.", Py4GW.Console.MessageType.Info)
             while self.watchdog_active:

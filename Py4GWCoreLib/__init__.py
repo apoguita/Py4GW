@@ -26,6 +26,7 @@ import PyQuest
 import PyPathing
 import PyUIManager
 import PyCamera
+import Py2DRenderer
 
 from .enums import *
 from .IconsFontAwesome5 import *
@@ -48,6 +49,7 @@ from .Camera import *
 
 from .Py4GWcorelib import *
 from .Overlay import *
+from .DXOverlay import *
 from .UIManager import *
 from .Routines import *
 from .SkillManager import *
@@ -74,6 +76,7 @@ PyQuest = PyQuest
 PyPathing = PyPathing
 PyUIManager = PyUIManager
 PyCamera = PyCamera
+Py2DRenderer = Py2DRenderer
 
 #redirect print output to Py4GW Console
 class Py4GWLogger:

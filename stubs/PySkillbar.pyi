@@ -11,6 +11,7 @@ class SkillbarSkill:
     adrenaline_b: int
     recharge: int
     event: int
+    get_recharge: int
 
     def __init__(self, id: SkillID, adrenaline_a: int = 0, adrenaline_b: int = 0, recharge: int = 0, event: int = 0) -> None: ...
 

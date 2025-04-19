@@ -352,7 +352,9 @@ class Agent:
         Args: agent_id (int): The ID of the agent.
         Returns: tuple
         """
+        
         agent_instance = Agent.agent_instance(agent_id)
+        """
         try:
             model_id = agent_instance.living_agent.player_number
             if model_id in ModelData:
@@ -365,7 +367,7 @@ class Agent:
                 return primary_profession.GetShortName(), secondary_profession.GetShortName()
         except:
             return agent_instance.living_agent.profession.GetShortName(), agent_instance.living_agent.secondary_profession.GetShortName()
-
+        """
         return agent_instance.living_agent.profession.GetShortName(), agent_instance.living_agent.secondary_profession.GetShortName()
 
 
@@ -377,6 +379,7 @@ class Agent:
         Returns: tuple
         """
         agent_instance = Agent.agent_instance(agent_id)
+        """
         try:
             model_id = agent_instance.living_agent.player_number
             if model_id in ModelData:
@@ -389,6 +392,7 @@ class Agent:
                 return primary_profession.ToInt(), secondary_profession.ToInt()
         except:
             return agent_instance.living_agent.profession.ToInt(), agent_instance.living_agent.secondary_profession.ToInt()
+        """
         return agent_instance.living_agent.profession.ToInt(), agent_instance.living_agent.secondary_profession.ToInt()
 
 
@@ -524,6 +528,14 @@ class Agent:
     def IsInCombatStance(agent_id):
         """Check if the agent is in combat stance."""
         return Agent.agent_instance(agent_id).living_agent.in_combat_stance
+
+    @staticmethod
+    def IsAgressive(agent_id):
+        """Check if the agent is attacking or casting."""
+        if Agent.agent_instance(agent_id).living_agent.is_attacking or Agent.agent_instance(agent_id).living_agent.is_casting:
+            return True
+        else:
+            return False
 
     @staticmethod
     def IsAttacking(agent_id):
