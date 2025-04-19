@@ -608,6 +608,19 @@ class Party:
             Party.party_instance().SetPetBehavior(behavior, lock_target_id)
 
         @staticmethod
+        def GetPetBehavior(owner_id):
+            """
+            Get the pet behavior.
+            Args:
+                owner_id (int): The owner ID.
+            Returns: int
+            """
+            pet_info =  Party.party_instance().GetPetInfo(owner_id)
+            if not pet_info:
+                return False
+            return pet_info.behavior
+
+        @staticmethod
         def GetPetInfo(owner_id):
             """
             Get the pet information.

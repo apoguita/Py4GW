@@ -9,6 +9,12 @@ from .Py4GWcorelib import Utils
 
 class AgentArray:
     @staticmethod
+    def GetRawAgentArray():
+        """Purpose: Get the unfiltered full agent array."""
+        import PyAgent
+        return PyAgent.PyAgent.GetRawAgentArray()
+    
+    @staticmethod
     def GetAgentArray():
         """Purpose: Get the unfiltered full agent array."""
         return [item for item in Player.player_instance().GetAgentArray()  if item != 0]    
