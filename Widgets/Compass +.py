@@ -390,6 +390,9 @@ def UpdateOrientation():
         compass_x = round(compass_x)
         compass_y = round(compass_y)
 
+        if not isinstance(compass_x, int) or not isinstance(compass_y, int):
+            return
+
         compass.position.snapped_pos = PyOverlay.Point2D(compass_x,compass_y)
         compass.position.snapped_size = round(Map.MiniMap.GetScale(coords))
 
