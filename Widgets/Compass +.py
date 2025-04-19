@@ -383,15 +383,12 @@ def UpdateOrientation():
 
     compass.position.player_pos = Player.GetXY()
 
-    if compass.position.snap_to_game and UIManager.FrameExists(compass.frame_id):
+    if compass.position.snap_to_game and UIManager.FrameExists(compass.frame_id) and UIManager.IsWindowVisible(WindowID.WindowID_Compass):
         coords = UIManager.GetFrameCoords(compass.frame_id)
 
         compass_x, compass_y = Map.MiniMap.GetMapScreenCenter(coords)
         compass_x = round(compass_x)
         compass_y = round(compass_y)
-
-        if not isinstance(compass_x, int) or not isinstance(compass_y, int):
-            return
 
         compass.position.snapped_pos = PyOverlay.Point2D(compass_x,compass_y)
         compass.position.snapped_size = round(Map.MiniMap.GetScale(coords))
