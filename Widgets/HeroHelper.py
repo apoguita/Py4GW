@@ -231,1014 +231,730 @@ config_module.window_pos = (
 
 class Helper:
     @staticmethod
-    # Function: get_safe_to_load
-    # Checks whether the game map is loaded and the party data is available.
     def is_game_ready():
         return Map.IsMapReady() and Party.IsPartyLoaded()
         
     @staticmethod
-    # Function: get_energy_data
-    # Retrieves the energy status (percentage, max, current, and regen) of an agent.
     def get_energy_data(agent_id=None):
-        energy_data = namedtuple("energy_data", ["percentage", "max", "current", "regen"])
+        Energy = namedtuple("energy_data", ["percentage", "max", "current", "regen"])
+        agent_id = agent_id or Player.GetAgentID()
+        if not agent_id or Agent.IsDead(agent_id):
+            return Energy(0, 0, 0, 0)
 
-        if agent_id is None:
-            agent_id = Player.GetAgentID()
-
-        if agent_id is None:
-            return energy_data(0, 0, 0, 0)
-
-        if Agent.IsDead(agent_id):
-            return energy_data(0, 0, 0, 0)
-
-        energy_perc = Agent.GetEnergy(agent_id)
-        energy_max = Agent.GetMaxEnergy(agent_id)
-        energy_cur = int(energy_perc * energy_max)
-        energy_regen = Agent.GetEnergyRegen(agent_id)
-
-        return energy_data(energy_perc, energy_max, energy_cur, energy_regen)
+        perc = Agent.GetEnergy(agent_id)
+        max_val = Agent.GetMaxEnergy(agent_id)
+        return Energy(perc, max_val, int(perc * max_val), Agent.GetEnergyRegen(agent_id))
     
     @staticmethod
-    # Function: get_hp_data
-    # Retrieves the HP status (percentage, max, current, and regen) of an agent.
     def get_hp_data(agent_id=None):
-        hp_data = namedtuple("hp_data", ["percentage", "max", "current", "regen"])
+        Health = namedtuple("hp_data", ["percentage", "max", "current", "regen"])
+        agent_id = agent_id or Player.GetAgentID()
+        if not agent_id or Agent.IsDead(agent_id):
+            return Health(0, 0, 0, 0)
 
-        if agent_id is None:
-            agent_id = Player.GetAgentID()
-            
-        if agent_id is None:
-            return hp_data(0, 0, 0, 0)
-
-        if Agent.IsDead(agent_id):
-            return hp_data(0, 0, 0, 0)
-
-        hp_perc = Agent.GetHealth(agent_id)
-        hp_max = Agent.GetMaxHealth(agent_id)
-        hp_cur = int(hp_perc * hp_max)
-        hp_regen = Agent.GetHealthRegen(agent_id)
-
-        return hp_data(hp_perc, hp_max, hp_cur, hp_regen)
+        perc = Agent.GetHealth(agent_id)
+        max_val = Agent.GetMaxHealth(agent_id)
+        return Health(perc, max_val, int(perc * max_val), Agent.GetHealthRegen(agent_id))
     
     @staticmethod
-    # Function: is_agent_alive
-    # Checks whether an agent is alive based on their ID.
     def is_agent_alive(agent_id):
-        if agent_id is None:
-            return False
+        return agent_id is not None and Agent.IsLiving(agent_id)
         
-        return Agent.IsLiving(agent_id)
-    
     HERO_BEHAVIOUR_FIGHT = 0
     HERO_BEHAVIOUR_GUARD = 1
     HERO_BEHAVIOUR_AVOID_COMBAT = 2
     @staticmethod
-    # Function: set_heroes_behaviour
-    # Sets the combat behavior of all heroes in the party (Fight, Guard, or Avoid Combat).
     def set_heroes_behaviour(behaviour):
         heroes = Party.GetHeroes()
         if not heroes:
             return
-
         for hero in heroes:
-            agent_id = hero.agent_id
-            if agent_id:
-                Party.Heroes.SetHeroBehavior(agent_id, behaviour)
+            if hero.agent_id:
+                Party.Heroes.SetHeroBehavior(hero.agent_id, behaviour)
                 
     @staticmethod
-    # Function: flag_heroes
-    # Flags all heroes to a specified position, defaulting to the player's position.
     def flag_heroes(*position):
-        if not position:  # If no position is provided, use the player's position
-            position = Player.GetXY()
-        
-        if position:
-            Party.Heroes.FlagAllHeroes(*position)  # Unpacking the tuple into x, y
+        x, y = position if position else Player.GetXY()
+        if x is not None and y is not None:
+            Party.Heroes.FlagAllHeroes(x, y)
     
     @staticmethod
-    # Function: unflag_heroes
-    # Removes hero flags, allowing them to move freely.
     def unflag_heroes():
         Party.Heroes.UnflagAllHeroes()
 
     @staticmethod
-    # Function: can_execute_with_delay
-    # Ensures that a function can only be executed after a certain delay, adding optional random jitter.
     def can_execute_with_delay(identifier, delay_ms, jitter_ms=0):
         if not hasattr(Helper, "execution_timers"):
-            Helper.execution_timers = {}  # Initialize storage for last execution times
+            Helper.execution_timers = {}
 
-        current_time = time.time() * 1000  # Convert to milliseconds
-        last_execution_time = Helper.execution_timers.get(identifier, 0)
-        elapsed_time = current_time - last_execution_time
-
-        jitter = random.randint(-jitter_ms, jitter_ms) if jitter_ms > 0 else 0
-        adjusted_delay = delay_ms + jitter  # Apply jitter to the delay
-
-        if elapsed_time >= adjusted_delay:
-            Helper.execution_timers[identifier] = current_time  # Update last execution time
-            return True  # Execution allowed
-
-        return False  # Execution denied due to cooldown
-
+        now = time.time() * 1000
+        last = Helper.execution_timers.get(identifier, 0)
+        jitter = random.randint(-jitter_ms, jitter_ms) if jitter_ms else 0
+        if now - last >= delay_ms + jitter:
+            Helper.execution_timers[identifier] = now
+            return True
+        return False
+    
     @staticmethod
-    # Function: create_and_update_checkbox
-    # Handles the logic for function execution.
     def create_and_update_checkbox(label, config_attr, tooltip_text=None):
-        previous_state = getattr(widget_config, config_attr)
+        prev = getattr(widget_config, config_attr)
+        curr = PyImGui.checkbox(label, prev)
+        setattr(widget_config, config_attr, curr)
 
-        new_state = PyImGui.checkbox(label, previous_state)
-        setattr(widget_config, config_attr, new_state)
-
-        if new_state != previous_state:
-            Helper.log_event(message=f"{label} Enabled" if new_state else f"{label} Disabled")
+        if curr != prev:
+            Helper.log_event(message=f"{label} {'Enabled' if curr else 'Disabled'}")
 
         if tooltip_text and PyImGui.is_item_hovered():
             PyImGui.set_tooltip(tooltip_text)
 
     last_cast_logs = {}
     console_logs = []
-
     @staticmethod
-    # Function: log_event
-    # Logs hero actions, skill casts, and general events to the console with spam prevention.
     def log_event(hero_id=None, skill_name=None, target_name=None, skill_id=None, target_id=None, message=None, cooldown=10):
-
         if skill_id and target_id:
-            last_cast_key = (hero_id, skill_id, target_id)
-            current_time = time.time()
-
-            if last_cast_key in Helper.last_cast_logs and (current_time - Helper.last_cast_logs[last_cast_key]) < cooldown:
+            key = (hero_id, skill_id, target_id)
+            now = time.time()
+            if key in Helper.last_cast_logs and now - Helper.last_cast_logs[key] < cooldown:
                 return
+            Helper.last_cast_logs[key] = now
+            message = f"Casting skill [{skill_name}] on target [{target_name}]"
 
-            Helper.last_cast_logs[last_cast_key] = current_time
-            log_message = f"Casting skill [{skill_name}] on target [{target_name}]"
-
-        else:
-            log_message = message
-
-        if log_message:
-            Helper.console_logs.append(log_message)
+        if message:
+            Helper.console_logs.append(message)
             Helper.console_logs = Helper.console_logs[-5:]
-
-            Py4GW.Console.Log(MODULE_NAME, log_message, Py4GW.Console.MessageType.Notice)
+            Py4GW.Console.Log(MODULE_NAME, message, Py4GW.Console.MessageType.Notice)
 
     hero_skill_cache = []
-
     @staticmethod
-    # Function: cache_hero_skills
-    # Caches all hero skillbars to avoid repeated API calls, updating on map change.
     def cache_hero_skills():
-
         if not Helper.should_update_cache():
             return Helper.hero_skill_cache
 
-        
-        Helper.hero_skill_cache = []
+        Helper.hero_skill_cache.clear()
         Helper.last_map_id = Map.GetMapID()
 
-        heroes = Party.GetHeroes() or []
-        for hero_index, hero_id in enumerate(heroes, start=1):
-            Helper._cache_skills_for_hero(hero_index)
+        for idx, hero in enumerate(Party.GetHeroes() or [], start=1):
+            Helper._cache_skills_for_hero(idx)
 
         return Helper.hero_skill_cache
 
     @staticmethod
-    # Function: reset_hero_skill_cache
-    # Clears the hero skill cache to force a refresh.
     def reset_hero_skill_cache():
         Helper.hero_skill_cache.clear()
 
     last_map_id = None
-    
     @staticmethod
-    # Function: should_update_cache
-    # Determines if a cache refresh is needed based on map changes.
     def should_update_cache():
-        
-        current_map_id = Map.GetMapID()
-        
-        if current_map_id != Helper.last_map_id:
-            return True
-        
-        return False
+        return Map.GetMapID() != Helper.last_map_id
 
     @staticmethod
-    # Function: _cache_skills_for_hero
-    # Handles the logic for function execution.
     def _cache_skills_for_hero(hero_index):
-        hero_skills = SkillBar.GetHeroSkillbar(hero_index)
-        if not hero_skills:
+        skillbar = SkillBar.GetHeroSkillbar(hero_index)
+        if not skillbar:
             return
 
-        for skill_slot, skill in enumerate(hero_skills, start=1):
-            skill_id = skill.id.id
-            skill_name = Skill.GetName(skill_id)
+        for slot, skill in enumerate(skillbar, start=1):
             Helper.hero_skill_cache.append({
                 "hero_index": hero_index,
-                "skill_slot": skill_slot,
-                "skill_id": skill_id,
-                "skill_name": skill_name
+                "skill_slot": slot,
+                "skill_id": skill.id.id,
+                "skill_name": Skill.GetName(skill.id.id)
             })
 
     effect_cache = {}
-
     @staticmethod
-    # Function: get_active_effects
-    # Retrieves the list of active effects on an agent, including remaining durations.
     def get_active_effects(agent_id):
         return {
-            effect.skill_id: effect.time_remaining if effect.time_remaining else 5
+            effect.skill_id: effect.time_remaining or 5
             for effect in Effects.GetEffects(agent_id) or []
         }
 
     @staticmethod
-    # Function: should_check_effect
-    # Handles the logic for function execution.
     def should_check_effect(agent_id, effect_id):
-        current_time = time.time()
-        cache_key = (agent_id, effect_id)
+        key = (agent_id, effect_id)
+        now = time.time()
 
-        if cache_key in Helper.effect_cache:
-            if current_time < Helper.effect_cache[cache_key]["expires"]:
-                return False  # Effect is still valid in cache
-
-        return True  # Effect should be checked
+        return key not in Helper.effect_cache or now >= Helper.effect_cache[key]["expires"]
 
     @staticmethod
-    # Function: update_effect_cache
-    # Handles the logic for function execution.
-    def update_effect_cache(agent_id, effect_id, effect_time_left):
-        current_time = time.time()
+    def update_effect_cache(agent_id, effect_id, time_left):
         Helper.effect_cache[(agent_id, effect_id)] = {
             "result": True,
-            "expires": current_time + effect_time_left
+            "expires": time.time() + time_left
         }
 
     @staticmethod
-    # Function: check_for_effects
-    # Checks if an agent has a specific effect, using caching for efficiency.
     def check_for_effects(agent_id, effect_ids):
         if not Helper.is_agent_alive(agent_id):
             return False
 
-        current_effects = Helper.get_active_effects(agent_id)
-
+        active = Helper.get_active_effects(agent_id)
         for effect_id in effect_ids:
-            if effect_id not in current_effects:
-                continue  # Effect not found, move to the next one
-
-            effect_time_left = current_effects[effect_id]
-
+            if effect_id not in active:
+                continue
             if not Helper.should_check_effect(agent_id, effect_id):
-                return True  # Cached effect is still valid, no need to check further
-
-            Helper.update_effect_cache(agent_id, effect_id, effect_time_left)
-            return True  # Effect is active
-
-        return False  # No requested effects were found
-
-    @staticmethod
-    # Function: has_effect_on_player_or_heroes
-    # Returns whether a specific effect is present on the player or any hero.
-    def has_effect_on_player_or_heroes(effect_id):
-        return any(
-            Helper.check_for_effects(agent, [effect_id])
-            for agent in [Player.GetAgentID()] + [hero.agent_id for hero in Party.GetHeroes()]
-        )
-
-    @staticmethod
-    # Function: get_heroes_with_skill
-    # Finds heroes who have a given skill and are ready to cast it.
-    def get_heroes_with_skill(skill_id):
-        hero_skills = Helper.cache_hero_skills()
-        ready_heroes = [
-            hero for hero in hero_skills
-            if hero["skill_id"] == skill_id and Helper.can_hero_cast_skill(hero["hero_index"], skill_id)
-        ]
-        
-        return ready_heroes  # Only return heroes with skill ready
-
-    @staticmethod
-    # Function: can_hero_cast_skill
-    # Checks whether a hero is able to cast a specific skill, considering cooldowns.
-    def can_hero_cast_skill(hero_index, skill_id):
-        hero_skills = SkillBar.GetHeroSkillbar(hero_index)
-
-        if hero_skills:
-            for skill in hero_skills:
-                if skill.id.id == skill_id:
-                    return skill.recharge == 0
+                return True
+            Helper.update_effect_cache(agent_id, effect_id, active[effect_id])
+            return True
         return False
 
     @staticmethod
-    # Function: cast_hero_skill
-    # Commands a hero to cast a specific skill on a target.
+    def has_effect_on_player_or_heroes(effect_id):
+        agents = [Player.GetAgentID()] + [h.agent_id for h in Party.GetHeroes()]
+        return any(Helper.check_for_effects(aid, [effect_id]) for aid in agents)
+
+    @staticmethod
+    def get_heroes_with_skill(skill_id):
+        return [
+            h for h in Helper.cache_hero_skills()
+            if h["skill_id"] == skill_id and Helper.can_hero_cast_skill(h["hero_index"], skill_id)
+        ]
+
+    @staticmethod
+    def can_hero_cast_skill(hero_index, skill_id):
+        skills = SkillBar.GetHeroSkillbar(hero_index)
+        return any(s.id.id == skill_id and s.recharge == 0 for s in skills or [])
+
+    @staticmethod
     def cast_hero_skill(hero_index, skill_slot, target_id):
         SkillBar.HeroUseSkill(target_id, skill_slot, hero_index)
-    
+
     @staticmethod
-    # Function: get_nearby_range
-    # Handles the logic for function execution.
     def get_nearby_range():
         return enums.Range.Nearby.value
-    
+
     @staticmethod
-    # Function: get_spell_cast_range
-    # Handles the logic for function execution.
     def get_spell_cast_range():
         return enums.Range.Spellcast.value
 
     @staticmethod
-    # Function: get_spirit_range
-    # Handles the logic for function execution.
     def get_spirit_range():
         return enums.Range.Spirit.value
     
     @staticmethod
-    # Function: is_specific_spirit_in_range
-    # Handles the logic for function execution.
     def is_specific_spirit_in_range(spirit_id, custom_range):
         spirits = AgentArray.GetSpiritPetArray()
         if not spirits or spirit_id not in spirits:
             return False
 
-        player_x, player_y = Player.GetXY()
-        spirit_x, spirit_y = Agent.GetXY(spirit_id)
-
-        check_range = custom_range
-
-        return Utils.Distance((player_x, player_y), (spirit_x, spirit_y)) <= check_range
+        px, py = Player.GetXY()
+        sx, sy = Agent.GetXY(spirit_id)
+        return Utils.Distance((px, py), (sx, sy)) <= custom_range
     
     @staticmethod
-    # Function: count_spirits_in_range
-    # Handles the logic for function execution.
     def count_spirits_in_range(spirit_ids, custom_range):
-        return sum(1 for spirit_id in spirit_ids if Helper.is_specific_spirit_in_range(spirit_id, custom_range))
+        return sum(1 for sid in spirit_ids if Helper.is_specific_spirit_in_range(sid, custom_range))
 
     @staticmethod
-    # Function: count_enemies_in_range
-    # Handles the logic for function execution.
     def count_enemies_in_range(custom_range, position=None):
-        enemies = AgentArray.GetEnemyArray()
-        if not enemies:
-            return 0
-
         if position is None:
             position = Player.GetXY()
-
-        count = sum(
-            1 for enemy_id in enemies
-            if not Agent.IsDead(enemy_id) and Utils.Distance(position, Agent.GetXY(enemy_id)) <= custom_range
+        return sum(
+            1 for eid in AgentArray.GetEnemyArray() or []
+            if not Agent.IsDead(eid) and Utils.Distance(position, Agent.GetXY(eid)) <= custom_range
         )
 
-        return count
-      
     @staticmethod
-    # Function: is_fighting
-    # Handles the logic for function execution.
     def is_fighting(agent_id=None):
-        if agent_id is None:
-            agent_id = Player.GetAgentID()  # Default to player
-
+        agent_id = agent_id or Player.GetAgentID()
         return Agent.IsAttacking(agent_id) or Agent.IsCasting(agent_id)
-    
-    @staticmethod
-    # Function: is_auto_attacking
-    # Handles the logic for function execution.
-    def is_auto_attacking(agent_id=None):
-        if agent_id is None:
-            agent_id = Player.GetAgentID()  # Default to player
 
+    @staticmethod
+    def is_auto_attacking(agent_id=None):
+        agent_id = agent_id or Player.GetAgentID()
         return Agent.IsAttacking(agent_id)
     
     @staticmethod
-    # Function: is_hero_attacking
-    # Handles the logic for function execution.
     def is_hero_attacking():
-        heroes = Party.GetHeroes()
-        if not heroes:
-            return False  # No heroes in party
-        
-        return any(Agent.IsAttacking(hero.agent_id) for hero in heroes if hero.agent_id)
+        return any(
+            Agent.IsAttacking(hero.agent_id)
+            for hero in Party.GetHeroes() or []
+            if hero.agent_id
+        )
 
     @staticmethod
-    # Function: can_cast
-    # Handles the logic for function execution.
     def can_cast(agent_id=None):
-        if agent_id is None:
-            agent_id = Player.GetAgentID()  # Default to player
-
-        if (Agent.IsDead(agent_id) or
-            Agent.IsKnockedDown(agent_id) or
-            Agent.IsCasting(agent_id) or
-            Agent.IsMoving(agent_id)):
-            return False
-
-        return True
+        agent_id = agent_id or Player.GetAgentID()
+        return agent_id and not any([
+            Agent.IsDead(agent_id),
+            Agent.IsKnockedDown(agent_id),
+            Agent.IsCasting(agent_id),
+            Agent.IsMoving(agent_id)
+        ])
 
     @staticmethod
-    # Function: can_attack
-    # Handles the logic for function execution.
     def can_attack(agent_id=None):
-        if agent_id is None:
-            agent_id = Player.GetAgentID()  # Default to player
-
-        if (Agent.IsDead(agent_id) or
-            Agent.IsKnockedDown(agent_id) or
-            Agent.IsCasting(agent_id) or
-            Agent.IsMoving(agent_id) or
-            Agent.IsAttacking(agent_id)):
-            return False
-
-        return True
+        agent_id = agent_id or Player.GetAgentID()
+        return agent_id and not any([
+            Agent.IsDead(agent_id),
+            Agent.IsKnockedDown(agent_id),
+            Agent.IsCasting(agent_id),
+            Agent.IsMoving(agent_id),
+            Agent.IsAttacking(agent_id)
+        ])
     
     @staticmethod
-    # Function: can_fight
-    # Handles the logic for function execution.
     def can_fight(agent_id=None):
-        if agent_id is None:
-            agent_id = Player.GetAgentID()  # Default to player
-
         return Helper.can_attack(agent_id) or Helper.can_cast(agent_id)
-    
+
     @staticmethod
-    # Function: get_aftercast
-    # Handles the logic for function execution.
     def get_aftercast(skill_id):
         activation = Skill.Data.GetActivation(skill_id)
-        aftercast = Skill.Data.GetAftercast(skill_id)    
-        return max(activation * 1000 + aftercast * 1000 + Py4GW.PingHandler().GetCurrentPing() + 50, 500)
+        aftercast = Skill.Data.GetAftercast(skill_id)
+        ping = Py4GW.PingHandler().GetCurrentPing()
+        return max(activation * 1000 + aftercast * 1000 + ping + 50, 500)
     
     @staticmethod
-    # Function: smartcast_hero_skill
-    # Intelligently selects the best hero to cast a skill based on predefined conditions.
-    def smartcast_hero_skill(skill_id, min_enemies=0, enemy_range_check=None, 
-                            effect_check=False, cast_target_id=None, hero_target=False, 
-                            distance_check_range=None, allow_out_of_combat=False,
-                            min_health_perc=None, min_energy_perc=None):
+    def smartcast_hero_skill(skill_id, min_enemies=0, enemy_range_check=None,
+                              effect_check=False, cast_target_id=None, hero_target=False,
+                              distance_check_range=None, allow_out_of_combat=False,
+                              min_health_perc=None, min_energy_perc=None):
 
         heroes_ready = Helper.get_heroes_with_skill(skill_id)
-
         if not heroes_ready:
-            return None  
+            return None
 
         player_id = Player.GetAgentID()
-
         if not player_id or not Helper.is_agent_alive(player_id):
             return None
 
-        if cast_target_id is None:
-            cast_target_id = player_id  # Default target is player
+        cast_target_id = cast_target_id or player_id
 
         if min_enemies > 0:
-            if enemy_range_check is None:
-                enemy_range_check = Helper.get_spell_cast_range()  
-            
-            num_enemies_in_range = Helper.count_enemies_in_range(enemy_range_check, Player.GetXY())
+            enemy_range_check = enemy_range_check or Helper.get_spell_cast_range()
+            enemies_near = Helper.count_enemies_in_range(enemy_range_check, Player.GetXY())
 
-            if not allow_out_of_combat and (num_enemies_in_range < min_enemies and not Helper.is_fighting()):
-                return None  
+            if not allow_out_of_combat and enemies_near < min_enemies and not Helper.is_fighting():
+                return None
 
         if effect_check and Helper.check_for_effects(cast_target_id, [skill_id]):
-            return None  
+            return None
 
-        if distance_check_range is None:
-            distance_check_range = Helper.get_spell_cast_range() + 200  
+        distance_check_range = distance_check_range or Helper.get_spell_cast_range() + 200
 
         for hero in heroes_ready:
             hero_index = hero["hero_index"]
             hero_id = Party.Heroes.GetHeroAgentIDByPartyPosition(hero_index)
-            hero_pos = Agent.GetXY(hero_id)
+            if not hero_id:
+                continue
 
-            if not hero_pos:
-                continue  
-
-            distance = Utils.Distance(Player.GetXY(), hero_pos)
-
+            distance = Utils.Distance(Player.GetXY(), Agent.GetXY(hero_id))
             if distance > distance_check_range:
-                continue  
+                continue
 
             if hero_target:
                 cast_target_id = hero_id
 
-            hero_energy = Helper.get_energy_data(hero_id)
-            hero_health = Helper.get_hp_data(hero_id)
+            energy = Helper.get_energy_data(hero_id)
+            health = Helper.get_hp_data(hero_id)
 
-            if min_health_perc and hero_health.percentage < min_health_perc:
-                continue  
+            if min_health_perc and health.percentage < min_health_perc:
+                continue
+            if min_energy_perc and energy.percentage < min_energy_perc:
+                continue
+            if energy.current <= Skill.Data.GetEnergyCost(skill_id):
+                continue
+            if not Helper.can_hero_cast_skill(hero_index, skill_id):
+                continue
 
-            if min_energy_perc and hero_energy.percentage < min_energy_perc:
-                continue  
+            skill_name = Skill.GetName(skill_id).replace("_", " ")
+            target_name = Helper.agent_name_cache.get(cast_target_id, str(cast_target_id))
+            Helper.log_event(hero_id, skill_name, target_name, skill_id, cast_target_id)
 
-            if hero_energy.current <= Skill.Data.GetEnergyCost(skill_id):
-                continue  
-
-            if Helper.can_hero_cast_skill(hero_index, skill_id):
-                skill_name = Skill.GetName(skill_id).replace("_", " ")
-                target_name = Helper.agent_name_cache.get(cast_target_id, str(cast_target_id))
-
-                Helper.log_event(hero_id, skill_name, target_name, skill_id, cast_target_id)
-
-                return hero_index, hero["skill_slot"], skill_id, cast_target_id
+            return hero_index, hero["skill_slot"], skill_id, cast_target_id
 
         return None
 
     agent_name_cache = {}
     cached_agent_ids = set()
-
     @staticmethod
-    # Function: cache_agent_names
-    # Caches agent names to avoid redundant requests, updating on map change.
     def cache_agent_names():
         if Helper.should_update_cache():
             Helper.reset_agent_name_cache()
             Helper.cached_agent_ids.clear()
 
-        agent_ids = set(AgentArray.GetNPCMinipetArray()) | set(AgentArray.GetAllyArray()) | set(AgentArray.GetNeutralArray())
+        agents = (
+            set(AgentArray.GetNPCMinipetArray()) |
+            set(AgentArray.GetAllyArray()) |
+            set(AgentArray.GetNeutralArray())
+        )
 
-        if not agent_ids:
-            return
+        new_ids = agents - Helper.cached_agent_ids
+        for aid in new_ids:
+            Agent.RequestName(aid)
 
-        new_agent_ids = agent_ids - Helper.cached_agent_ids
+        for aid in agents:
+            if aid not in Helper.agent_name_cache and Agent.IsNameReady(aid):
+                Helper.agent_name_cache[aid] = Agent.GetName(aid)
 
-        for agent_id in new_agent_ids:
-            Agent.RequestName(agent_id)
-
-        for agent_id in agent_ids:
-            if agent_id not in Helper.agent_name_cache and Agent.IsNameReady(agent_id):
-                Helper.agent_name_cache[agent_id] = Agent.GetName(agent_id)
-
-        Helper.cached_agent_ids.update(new_agent_ids)
+        Helper.cached_agent_ids.update(new_ids)
 
     @staticmethod
-    # Function: get_agent_name_by_id
-    # Retrieves an agent's name, requesting it if not already cached.
     def get_agent_name_by_id(agent_id):
         if agent_id in Helper.agent_name_cache:
             return Helper.agent_name_cache[agent_id]
 
         Agent.RequestName(agent_id)
         if Agent.IsNameReady(agent_id):
-            Helper.agent_name_cache[agent_id] = Agent.GetName(agent_id)
-            return Helper.agent_name_cache[agent_id]
+            name = Agent.GetName(agent_id)
+            Helper.agent_name_cache[agent_id] = name
+            return name
 
-        return None  # Name not available yet
+        return None
     
     @staticmethod
-    # Function: reset_agent_name_cache
-    # Handles the logic for function execution.
     def reset_agent_name_cache():
-        Helper.agent_name_cache.clear()  # Clear the cache
+        Helper.agent_name_cache.clear()
 
     @staticmethod
-    # Function: is_melee_class
-    # Determines if the player’s primary profession is a melee class.
     def is_melee_class():
         player_id = Player.GetAgentID()
         if not player_id:
             return False
 
-        player_profession, _ = Agent.GetProfessionNames(player_id)
-
-        melee_classes = {"Assassin", "Dervish", "Warrior", "Paragon", "Ranger"}
-
-        return player_profession in melee_classes
+        profession, _ = Agent.GetProfessionNames(player_id)
+        return profession in {"Assassin", "Dervish", "Warrior", "Paragon", "Ranger"}
     
     @staticmethod
-    # Function: holds_melee_weapon
-    # Checks if the player is holding a melee weapon in the main hand.
     def holds_melee_weapon():
-
-        equipped_bag = ItemArray.CreateBagList(Bag.Equipped_Items)
-        equipped_items = ItemArray.GetItemArray(equipped_bag)
-
-        if not equipped_items:
+        items = ItemArray.GetItemArray(ItemArray.CreateBagList(Bag.Equipped_Items))
+        if not items:
             return False
 
-        main_hand_weapon = equipped_items[0] if len(equipped_items) > 0 else None
-        if not main_hand_weapon:
+        main_hand = items[0] if items else None
+        if not main_hand:
             return False
 
-        item_type, _ = Item.GetItemType(main_hand_weapon)
+        item_type, _ = Item.GetItemType(main_hand)
+        return item_type in {2, 15, 27, 32, 35, 36}  # axe, hammer, sword, daggers, scythe, spear
 
-        melee_weapon_types = {
-            2, #axe
-            15, #hammer
-            27, #sword
-            32, #daggers
-            35, #scythe
-            36 #spear
-        }
-
-        return item_type in melee_weapon_types
-    
     @staticmethod
-    # Function: format_spell_title_case
-    # Handles the logic for function execution.
     def format_spell_title_case(spell_name):
-        small_words = {"of"}
-        words = spell_name.split()  # Split into words
-        formatted_words = [
-            word.capitalize() if word.lower() not in small_words else word.lower()
+        skip = {"of"}
+        words = spell_name.split()
+        return "_".join(
+            word.capitalize() if word.lower() not in skip else word.lower()
             for word in words
-        ]
-        formatted_spell_name = "_".join(formatted_words)  # Rejoin with underscores
-        return formatted_spell_name
+        )
 
 
 hero_aftercast_timers = {}
-
-# Function: execute_hero_skill
-# Handles the logic for function execution.
 def execute_hero_skill(hero_index, skill_slot, skill_id, target_id):
-    global hero_aftercast_timers
-    current_time = time.time()
+    now = time.time()
 
     if None in (hero_index, skill_slot, skill_id, target_id):
-        Helper.log_event(message=f"Error: Invalid parameters in execute_hero_skill(). "
-                                 f"hero_index={hero_index}, skill_slot={skill_slot}, "
-                                 f"skill_id={skill_id}, target_id={target_id}")
+        Helper.log_event(message=(
+            f"Error: Invalid parameters in execute_hero_skill(). "
+            f"hero_index={hero_index}, skill_slot={skill_slot}, "
+            f"skill_id={skill_id}, target_id={target_id}"
+        ))
         return
 
-    # Check if hero can actually cast the skill
     if not Helper.can_hero_cast_skill(hero_index, skill_id):
         return
 
-    # Ensure hero is not still in cooldown
-    if hero_index in hero_aftercast_timers and current_time < hero_aftercast_timers[hero_index]:
-        return 
+    if hero_index in hero_aftercast_timers and now < hero_aftercast_timers[hero_index]:
+        return
 
     Helper.cast_hero_skill(hero_index, skill_slot, target_id)
+    delay = Helper.get_aftercast(skill_id) / 1000
+    hero_aftercast_timers[hero_index] = now + delay
 
-    aftercast_delay = Helper.get_aftercast(skill_id) / 1000  # Convert to seconds
-    hero_aftercast_timers[hero_index] = current_time + aftercast_delay
-
-
-# Function: smart_interrupt
-# Automatically attempts to interrupt enemy skill casts using heroes.
 def smart_interrupt():
-    if Party.GetHeroCount() == 0:  
-        return  # Exit if there are no heroes in the party
+    if Party.GetHeroCount() == 0:
+        return
 
-    if not Helper.can_execute_with_delay("smart_interrupt", 250):  
-        return  # Prevents executing too often (4 times per second)
-    
-    skills_to_rupt_ids = {Skill.GetID(skill_name) for skill_name in widget_config.skills_to_rupt}
+    if not Helper.can_execute_with_delay("smart_interrupt", 250):
+        return
 
-    SKILL_CLASS_PAIRS = [
+    skills_to_rupt_ids = {Skill.GetID(name) for name in widget_config.skills_to_rupt}
+    skill_class_pairs = [
         (Skill.GetID("Cry_of_Frustration"), "Mesmer"),
         (Skill.GetID("Power_Drain"), "Mesmer")
     ]
 
-    enemies = AgentArray.GetEnemyArray()
-    if not enemies:
-        return
-    
-    enemy_casting = None
-    player_position = Player.GetXY()  # Get player's position
-    spellcast_range = Helper.get_spell_cast_range()  # Define max range for interrupts
+    spell_range = Helper.get_spell_cast_range()
+    player_pos = Player.GetXY()
+    enemies = AgentArray.GetEnemyArray() or []
 
-    casting_enemies = []
-    for enemy_id in enemies:
-        if not Helper.is_agent_alive(enemy_id):
-            continue
-        
-        enemy_position = Agent.GetXY(enemy_id)
-        distance_to_enemy = Utils.Distance(player_position, enemy_position)
+    casting_enemies = [
+        eid for eid in enemies
+        if Helper.is_agent_alive(eid)
+        and Agent.IsCasting(eid)
+        and Utils.Distance(player_pos, Agent.GetXY(eid)) <= spell_range
+        and Agent.GetCastingSkill(eid) in skills_to_rupt_ids
+    ]
 
-        if distance_to_enemy > spellcast_range:
-            continue
-        
-        if not Agent.IsCasting(enemy_id):
-            continue
-
-        casting_skill = Agent.GetCastingSkill(enemy_id)
-
-        if casting_skill in skills_to_rupt_ids:
-            casting_enemies.append(enemy_id)
-        
     if not casting_enemies:
         return
-    
-    casting_enemies.sort(key=lambda eid: Utils.Distance(player_position, Agent.GetXY(eid)))
-    
-    for enemy_casting in casting_enemies:
-        for skill_id, profession in SKILL_CLASS_PAIRS:
-            hero_cast_result = Helper.smartcast_hero_skill(
+
+    casting_enemies.sort(key=lambda eid: Utils.Distance(player_pos, Agent.GetXY(eid)))
+
+    for enemy_id in casting_enemies:
+        for skill_id, _ in skill_class_pairs:
+            result = Helper.smartcast_hero_skill(
                 skill_id=skill_id,
-                enemy_range_check=Helper.get_spell_cast_range(),
-                cast_target_id=enemy_casting,
-                distance_check_range=Helper.get_spell_cast_range() + 200
+                enemy_range_check=spell_range,
+                cast_target_id=enemy_id,
+                distance_check_range=spell_range + 200
             )
+            if result:
+                execute_hero_skill(*result)
+                return  # Interrupt once per cycle
 
-            if hero_cast_result:
-                execute_hero_skill(*hero_cast_result)
-                break  # Stop after successfully casting an interrupt
-
-
-# Function: smart_hex_removal
-# Identifies and removes harmful hexes from the player using hero skills.
 def smart_hex_removal():
     if not Helper.can_execute_with_delay("smart_hex_removal", 1000):
         return
-
-    if Party.GetHeroCount() == 0:  
-        return 
-    
-    player_id = Player.GetAgentID()
-
-    if not player_id or not Helper.is_agent_alive(player_id):
-        return  
-
-    player_professions = Agent.GetProfessionShortNames(player_id)
-    is_paragon = "P" in player_professions  # Check if primary or secondary is Paragon
-
-    hexes_melee_set = {Skill.GetID(hex_name) for hex_name in widget_config.hexes_melee}
-    hexes_caster_set = {Skill.GetID(hex_name) for hex_name in widget_config.hexes_caster}
-    hexes_user_set = {Skill.GetID(hex_name) for hex_name in widget_config.hexes_user}
-    hexes_all_set = {Skill.GetID(hex_name) for hex_name in widget_config.hexes_all}
-    hexes_paragon_set = {Skill.GetID(hex_name) for hex_name in widget_config.hexes_paragon} if is_paragon else set()
-
-    hex_removal_skills = {
-        Skill.GetID("Shatter_Hex"),
-        Skill.GetID("Remove_Hex"),
-        Skill.GetID("Smite_Hex"),
-        Skill.GetID("Blessed_Light"),
-    }
-
-    has_hex = False
-    if Helper.holds_melee_weapon() and Helper.check_for_effects(player_id, hexes_melee_set):
-        has_hex = True
-    elif not Helper.holds_melee_weapon() and Helper.check_for_effects(player_id, hexes_caster_set):
-        has_hex = True
-    elif Helper.check_for_effects(player_id, hexes_all_set):
-        has_hex = True
-    elif hexes_paragon_set and Helper.check_for_effects(player_id, hexes_paragon_set):
-        has_hex = True
-    elif Helper.check_for_effects(player_id, hexes_user_set):
-        has_hex = True
-
-    if not has_hex:
-        return  
-
-    for skill_id in hex_removal_skills:
-        result = Helper.smartcast_hero_skill(skill_id=skill_id)
-
-        if result:
-            execute_hero_skill(*result)  # Executes the skill using the best hero found
-            break  # Stop after first successful hex removal
-
-
-# Function: smart_cond_removal
-# Detects and removes conditions from the player using hero skills.
-def smart_cond_removal():
-    if Party.GetHeroCount() == 0:  
-        return  # Exit if there are no heroes in the party
-
-    if not Helper.can_execute_with_delay("smart_cond_removal", 250):  
-        return  # Prevents executing too often (4 times per second)
-
-    conditions_melee = {data["id"] for name, data in widget_config.conditions.items() if data["melee"]}
-    conditions_caster = {data["id"] for name, data in widget_config.conditions.items() if data["caster"]}
-    conditions_both = {data["id"] for name, data in widget_config.conditions.items() if data["both"]}
-
-    condition_removal_skills = {
-        Skill.GetID("Mend_Body_and_Soul"),
-        Skill.GetID("Dismiss_Condition"),
-        Skill.GetID("Mend_Condition"),
-        Skill.GetID("Smite_Condition"),
-        Skill.GetID("Purge_Conditions"),
-        Skill.GetID("Mend_Ailment"),
-        Skill.GetID("Its_Just_a_Flesh_Wound"),
-        Skill.GetID("Blessed_Light"),
-    }
+    if Party.GetHeroCount() == 0:
+        return
 
     player_id = Player.GetAgentID()
     if not player_id or not Helper.is_agent_alive(player_id):
-        return  # No need to return False, just exit
+        return
 
-    if Helper.holds_melee_weapon() and Helper.check_for_effects(player_id, conditions_melee):
-        pass
-    elif not Helper.holds_melee_weapon() and Helper.check_for_effects(player_id, conditions_caster):
-        pass
-    elif Helper.check_for_effects(player_id, conditions_both):
-        pass
-    else:
-        return  # No conditions found, just exit
+    profs = Agent.GetProfessionShortNames(player_id)
+    is_paragon = "P" in profs
 
-    for skill_id in condition_removal_skills:
+    hex_sets = [
+        (Helper.holds_melee_weapon(), widget_config.hexes_melee),
+        (not Helper.holds_melee_weapon(), widget_config.hexes_caster),
+        (True, widget_config.hexes_all),
+        (is_paragon, widget_config.hexes_paragon),
+        (True, widget_config.hexes_user),
+    ]
+
+    if not any(
+        cond and Helper.check_for_effects(player_id, {Skill.GetID(name) for name in hex_list})
+        for cond, hex_list in hex_sets
+    ):
+        return
+
+    hex_removal_skills = [
+        "Shatter_Hex", "Remove_Hex", "Smite_Hex", "Blessed_Light"
+    ]
+
+    for skill_id in map(Skill.GetID, hex_removal_skills):
         result = Helper.smartcast_hero_skill(skill_id=skill_id)
-
         if result:
-            execute_hero_skill(*result)  # Executes the skill using the best hero found
+            execute_hero_skill(*result)
             break
 
+def smart_cond_removal():
+    if Party.GetHeroCount() == 0:
+        return
+    if not Helper.can_execute_with_delay("smart_cond_removal", 250):
+        return
 
-# Function: smart_vigorous
-# Maintains Vigorous Spirit on the player when melee combat conditions are met.
+    player_id = Player.GetAgentID()
+    if not player_id or not Helper.is_agent_alive(player_id):
+        return
+
+    cond_sets = {
+        "melee": {data["id"] for data in widget_config.conditions.values() if data["melee"]},
+        "caster": {data["id"] for data in widget_config.conditions.values() if data["caster"]},
+        "both": {data["id"] for data in widget_config.conditions.values() if data["both"]}
+    }
+
+    holds_melee = Helper.holds_melee_weapon()
+    condition_found = (
+        (holds_melee and Helper.check_for_effects(player_id, cond_sets["melee"])) or
+        (not holds_melee and Helper.check_for_effects(player_id, cond_sets["caster"])) or
+        Helper.check_for_effects(player_id, cond_sets["both"])
+    )
+
+    if not condition_found:
+        return
+
+    cond_removal_skills = [
+        "Mend_Body_and_Soul", "Dismiss_Condition", "Mend_Condition",
+        "Smite_Condition", "Purge_Conditions", "Mend_Ailment",
+        "Its_Just_a_Flesh_Wound", "Blessed_Light"
+    ]
+
+    for skill_id in map(Skill.GetID, cond_removal_skills):
+        result = Helper.smartcast_hero_skill(skill_id=skill_id)
+        if result:
+            execute_hero_skill(*result)
+            break
+
 def smart_vigorous():
     if Party.GetHeroCount() == 0:
         return
-    
-    vigorous_id = Skill.GetID("Vigorous_Spirit")
-
     if not Helper.can_execute_with_delay("smart_vigorous", 1000):
         return
 
     player_id = Player.GetAgentID()
     if not Helper.is_agent_alive(player_id):
         return
-
-    if not Helper.is_melee_class():
+    if not Helper.is_melee_class() or not Helper.holds_melee_weapon():
         return
 
-    if not Helper.holds_melee_weapon():
-        return
-
-    result = Helper.smartcast_hero_skill(skill_id=vigorous_id, min_enemies=2,
-        enemy_range_check=Helper.get_nearby_range(), effect_check=True,
-        distance_check_range=Helper.get_spell_cast_range(), allow_out_of_combat=False, 
-        min_energy_perc=0.25)
+    result = Helper.smartcast_hero_skill(
+        skill_id=Skill.GetID("Vigorous_Spirit"),
+        min_enemies=2,
+        enemy_range_check=Helper.get_nearby_range(),
+        effect_check=True,
+        distance_check_range=Helper.get_spell_cast_range(),
+        allow_out_of_combat=False,
+        min_energy_perc=0.25
+    )
 
     if result:
         execute_hero_skill(*result)
 
-
-# Function: smart_splinter
-# Ensures Splinter Weapon is cast on the player for melee damage boosts.
 def smart_splinter():
     if Party.GetHeroCount() == 0:
         return
-    splinter_id = Skill.GetID("Splinter_Weapon")
-
     if not Helper.can_execute_with_delay("smart_splinter", 1000):
         return
 
     player_id = Player.GetAgentID()
     if not Helper.is_agent_alive(player_id):
         return
-
-    if not Helper.is_melee_class():
+    if not Helper.is_melee_class() or not Helper.holds_melee_weapon():
         return
 
-    if not Helper.holds_melee_weapon():
-        return
-
-    result = Helper.smartcast_hero_skill(skill_id=splinter_id, min_enemies=2,
-        enemy_range_check=Helper.get_nearby_range(), effect_check=True,
-        distance_check_range=Helper.get_spell_cast_range(), allow_out_of_combat=False, 
-        min_energy_perc=0.25)
+    result = Helper.smartcast_hero_skill(
+        skill_id=Skill.GetID("Splinter_Weapon"),
+        min_enemies=2,
+        enemy_range_check=Helper.get_nearby_range(),
+        effect_check=True,
+        distance_check_range=Helper.get_spell_cast_range(),
+        allow_out_of_combat=False,
+        min_energy_perc=0.25
+    )
 
     if result:
         execute_hero_skill(*result)
 
-
-# Function: smart_honor
-# Ensures Strength of Honor is maintained on the player when appropriate.
 def smart_honor():
     if Party.GetHeroCount() == 0:
         return
-    honor_id = Skill.GetID("Strength_of_Honor")
-
     if not Helper.can_execute_with_delay("smart_honor", 1000):
         return
 
     player_id = Player.GetAgentID()
     if not Helper.is_agent_alive(player_id):
         return
-
-    if not Helper.is_melee_class():
+    if not Helper.is_melee_class() or not Helper.holds_melee_weapon():
         return
 
-    if not Helper.holds_melee_weapon():
-        return
-
-    result = Helper.smartcast_hero_skill(skill_id=honor_id, min_enemies=0,
-        enemy_range_check=Helper.get_spell_cast_range(), effect_check=True,
-        distance_check_range=Helper.get_spell_cast_range(), allow_out_of_combat=True, 
-        min_energy_perc=0.25)
+    result = Helper.smartcast_hero_skill(
+        skill_id=Skill.GetID("Strength_of_Honor"),
+        min_enemies=0,
+        enemy_range_check=Helper.get_spell_cast_range(),
+        effect_check=True,
+        distance_check_range=Helper.get_spell_cast_range(),
+        allow_out_of_combat=True,
+        min_energy_perc=0.25
+    )
 
     if result:
         execute_hero_skill(*result)
 
-
-# Function: smart_st
-# Casts Shelter and Union spirits to mitigate incoming damage when fighting.
 def smart_st():
     if Party.GetHeroCount() == 0:
         return
-    
-    if not Helper.can_execute_with_delay("smart_st", 1000):  
+    if not Helper.can_execute_with_delay("smart_st", 1000):
         return
-
     if not Helper.is_fighting():
         return
-    shelter_id = Skill.GetID("Shelter")
-    result_shelter = Helper.smartcast_hero_skill(skill_id=shelter_id, min_enemies=3, 
-                                               enemy_range_check=Helper.get_spell_cast_range(), hero_target=True, effect_check=True, 
-                                               distance_check_range=Helper.get_spirit_range() + 200)
-    if result_shelter:
-        execute_hero_skill(*result_shelter)  
 
-    union_id = Skill.GetID("Union")
-    result_union = Helper.smartcast_hero_skill(skill_id=union_id, min_enemies=3, 
-                                             enemy_range_check=Helper.get_spell_cast_range(), hero_target=True, effect_check=True, 
-                                             distance_check_range=Helper.get_spirit_range() + 200)
-    if result_union:
-        execute_hero_skill(*result_union)
+    spirit_range = Helper.get_spirit_range() + 200
+    spell_range = Helper.get_spell_cast_range()
 
-
-# Function: smart_sos
-# Ensures Signet of Spirits is cast when beneficial for spirit-based damage.
-def smart_sos():
-    if Party.GetHeroCount() == 0:
-        return
-    
-    SoS_skill_id = Skill.GetID("Signet_of_Spirits")
-    SoS_spirit_ids = [4229, 4230, 4231]  
-    custom_range = Helper.get_spell_cast_range()  
-    spirit_check_range = Helper.get_spell_cast_range() + 200  
-
-    if not Helper.can_execute_with_delay("smart_sos", 1000):  
-        return
-
-    player_position = Player.GetXY()
-    num_enemies_in_range = Helper.count_enemies_in_range(custom_range, player_position)
-    num_sos_spirits = Helper.count_spirits_in_range(SoS_spirit_ids, spirit_check_range)
-
-    if num_enemies_in_range == 0:
-        return
-
-    needs_sos = (
-            (num_enemies_in_range > 6 and num_sos_spirits < 3) or
-            (num_enemies_in_range > 4 and num_sos_spirits < 2) or
-            (num_enemies_in_range > 2 and num_sos_spirits < 1)
+    for skill_name in ["Shelter", "Union"]:
+        result = Helper.smartcast_hero_skill(
+            skill_id=Skill.GetID(skill_name),
+            min_enemies=3,
+            enemy_range_check=spell_range,
+            hero_target=True,
+            effect_check=True,
+            distance_check_range=spirit_range
         )
-    
-    if needs_sos and (Helper.is_fighting() or Helper.can_fight()):
-        result = Helper.smartcast_hero_skill(skill_id=SoS_skill_id, min_enemies=0, 
-                                        enemy_range_check=Helper.get_spell_cast_range(), 
-                                        hero_target=True, distance_check_range=Helper.get_spell_cast_range() + 200)
         if result:
             execute_hero_skill(*result)
 
+def smart_sos():
+    if Party.GetHeroCount() == 0:
+        return
+    if not Helper.can_execute_with_delay("smart_sos", 1000):
+        return
 
-# Function: smart_bip
-# Manages the casting of Blood is Power to support the player’s energy regeneration.
+    player_pos = Player.GetXY()
+    enemies_in_range = Helper.count_enemies_in_range(Helper.get_spell_cast_range(), player_pos)
+    sos_spirits = [4229, 4230, 4231]
+    spirits_in_range = Helper.count_spirits_in_range(sos_spirits, Helper.get_spell_cast_range() + 200)
+
+    needs_sos = (
+        (enemies_in_range > 6 and spirits_in_range < 3) or
+        (enemies_in_range > 4 and spirits_in_range < 2) or
+        (enemies_in_range > 2 and spirits_in_range < 1)
+    )
+
+    if not needs_sos or not (Helper.is_fighting() or Helper.can_fight()):
+        return
+
+    result = Helper.smartcast_hero_skill(
+        skill_id=Skill.GetID("Signet_of_Spirits"),
+        min_enemies=0,
+        enemy_range_check=Helper.get_spell_cast_range(),
+        hero_target=True,
+        distance_check_range=Helper.get_spell_cast_range() + 200
+    )
+
+    if result:
+        execute_hero_skill(*result)
+
 def smart_bip():
     if Party.GetHeroCount() == 0:
         return
-    BiP_id = Skill.GetID("Blood_is_Power")
     if not Helper.can_execute_with_delay("smart_bip", 500):
         return
 
     player_id = Player.GetAgentID()
-    energy_data = Helper.get_energy_data()
-    player_profession, _ = Agent.GetProfessionNames(player_id)
-
-    player_has_bip = bool(Helper.check_for_effects(player_id, [BiP_id]))
     if not Helper.is_agent_alive(player_id):
         return
-    if player_has_bip:
-        return
-    if energy_data.regen > 0.03:
+
+    bip_id = Skill.GetID("Blood_is_Power")
+    if Helper.check_for_effects(player_id, [bip_id]):
         return
 
-    energy_thresholds = {
-        "Warrior": (25, 0.70), 
-        "Ranger": (25, 0.60), 
-        "Monk": (30, 0.50),
-        "Necromancer": (30, 0.50), 
-        "Mesmer": (30, 0.50), 
-        "Elementalist": (40, 0.40),
-        "Assassin": (25, 0.60), 
-        "Ritualist": (30, 0.50), 
-        "Paragon": (25, 0.60),
+    energy = Helper.get_energy_data()
+    if energy.regen > 0.03:
+        return
+
+    prof, _ = Agent.GetProfessionNames(player_id)
+    thresholds = {
+        "Warrior": (25, 0.70), "Ranger": (25, 0.60), "Monk": (30, 0.50),
+        "Necromancer": (30, 0.50), "Mesmer": (30, 0.50), "Elementalist": (40, 0.40),
+        "Assassin": (25, 0.60), "Ritualist": (30, 0.50), "Paragon": (25, 0.60),
         "Dervish": (25, 0.50),
     }
 
-    if player_profession not in energy_thresholds:
+    if prof not in thresholds:
         return
 
-    min_energy, min_percent = energy_thresholds[player_profession]
-
-    if energy_data.current >= min_energy and energy_data.percentage > min_percent:
+    min_energy, min_percent = thresholds[prof]
+    if energy.current >= min_energy and energy.percentage > min_percent:
         return
 
-    result = Helper.smartcast_hero_skill(skill_id=BiP_id, min_enemies=0, 
-                                       enemy_range_check=Helper.get_spell_cast_range(), 
-                                       effect_check=True,cast_target_id=player_id,
-                                       distance_check_range=Helper.get_spell_cast_range() + 200, 
-                                       allow_out_of_combat=True, min_health_perc=0.5)
+    result = Helper.smartcast_hero_skill(
+        skill_id=bip_id,
+        min_enemies=0,
+        enemy_range_check=Helper.get_spell_cast_range(),
+        effect_check=True,
+        cast_target_id=player_id,
+        distance_check_range=Helper.get_spell_cast_range() + 200,
+        allow_out_of_combat=True,
+        min_health_perc=0.5
+    )
+
     if result:
         execute_hero_skill(*result)
 
-
 last_follow_state = None
-last_logged_follow_delay = None
 last_player_position = None
-last_follow_time = 0
 follow_toggled_time = 0
 last_movement_time = 0
 last_autoattack_unfollow_time = 0
@@ -1246,52 +962,35 @@ is_waiting_to_unfollow = False
 is_following_disabled_due_to_idle = False
 is_following_disabled_due_to_attack = False
 is_following_active = False
-
-# Function: should_unfollow_due_to_idle
-# Handles the logic for function execution.
 def should_unfollow_due_to_idle(current_position, min_moving_time):
     global last_player_position, last_movement_time
-    
     if not last_player_position:
-        return False  
-    is_idle = current_position == last_player_position
-    time_since_last_movement = time.time() - last_movement_time
-    return is_idle and time_since_last_movement >= min_moving_time
+        return False
+    return current_position == last_player_position and (time.time() - last_movement_time) >= min_moving_time
 
 
-# Function: smart_hero_follow
-# Flags heroes to follow the player at predefined intervals.
 def smart_hero_follow():
-    global last_follow_state, last_logged_follow_delay, is_following_active
-    if last_follow_state is None:
-        last_follow_state = widget_config.smart_follow_toggled
-        last_logged_follow_delay = widget_config.follow_delay
-        return
-    
-    if not Helper.can_execute_with_delay("FollowFlag", widget_config.follow_delay, 50):
-        return
+    global is_following_active, last_logged_follow_delay, last_follow_state
+
+    if not is_following_active:
+        Helper.log_event(message=f"Heroes on follow every ({widget_config.follow_delay}ms)")
 
     action_queue.add_action(Helper.flag_heroes)
-
-    if last_follow_state != widget_config.smart_follow_toggled or last_logged_follow_delay != widget_config.follow_delay:
-        Helper.log_event(message=f"Heroes on follow every ({widget_config.follow_delay}ms)")
-        last_logged_follow_delay = widget_config.follow_delay
+    is_following_active = True
+    last_logged_follow_delay = widget_config.follow_delay
+    last_follow_state = widget_config.smart_follow_toggled
 
     if widget_config.hero_behaviour != Helper.HERO_BEHAVIOUR_AVOID_COMBAT:
         widget_config.last_known_hero_behaviour = widget_config.hero_behaviour
         set_hero_behaviour(Helper.HERO_BEHAVIOUR_AVOID_COMBAT)
         widget_config.hero_behaviour = Helper.HERO_BEHAVIOUR_AVOID_COMBAT
 
-    last_follow_state = widget_config.smart_follow_toggled
-    is_following_active = True  # Follow is now active
 
-
-# Function: smart_hero_unfollow
-# Stops hero following to allow free movement.
 def smart_hero_unfollow():
-    global last_follow_state, is_following_active
+    global is_following_active, last_follow_state
+
     if not is_following_active:
-        return  # Prevent redundant unfollow calls
+        return
 
     action_queue.add_action(Helper.unflag_heroes)
     Helper.log_event(message="Heroes have stopped following")
@@ -1300,56 +999,51 @@ def smart_hero_unfollow():
         set_hero_behaviour(widget_config.last_known_hero_behaviour)
         widget_config.hero_behaviour = widget_config.last_known_hero_behaviour
 
+    is_following_active = False
     last_follow_state = widget_config.smart_follow_toggled
-    is_following_active = False  # Follow is now disabled
 
 
-# Function: update_hero_follow_state
-# Manages hero follow behavior dynamically based on combat and movement.
 def update_hero_follow_state():
-    global last_follow_state, last_player_position, last_movement_time, is_waiting_to_unfollow
-    global is_following_disabled_due_to_idle, follow_toggled_time, is_following_disabled_due_to_attack
-    global last_autoattack_unfollow_time, is_following_active
+    global last_follow_state, last_player_position, last_movement_time
+    global follow_toggled_time, last_autoattack_unfollow_time
+    global is_waiting_to_unfollow, is_following_disabled_due_to_idle
+    global is_following_disabled_due_to_attack, is_following_active
 
-    if not Helper.can_execute_with_delay("update_follow_state", 500):  
+    if not Helper.can_execute_with_delay("update_follow_state", 500):
         return
-    
-    current_time = time.time()
-    current_player_position = Player.GetXY()
-    num_enemies_near_player = Helper.count_enemies_in_range(Helper.get_spell_cast_range(), current_player_position)
-    min_moving_time = 2 if num_enemies_near_player > 0 else 5
+
+    now = time.time()
+    current_pos = Player.GetXY()
+    enemies_nearby = Helper.count_enemies_in_range(Helper.get_spell_cast_range(), current_pos)
+    idle_threshold = 2 if enemies_nearby > 0 else 5
 
     if widget_config.smart_follow_toggled and last_follow_state != widget_config.smart_follow_toggled:
-        follow_toggled_time = time.time()
+        follow_toggled_time = now
 
-    if Helper.is_auto_attacking(): # or Helper.is_hero_attacking():
-        if is_following_active:
-            smart_hero_unfollow()
-            is_following_disabled_due_to_attack = True
-            last_autoattack_unfollow_time = current_time
+    if Helper.is_auto_attacking():
+        smart_hero_unfollow()
+        is_following_disabled_due_to_attack = True
+        last_autoattack_unfollow_time = now
+        return
+
+    if now - last_autoattack_unfollow_time < 8:
         return
 
     is_following_disabled_due_to_attack = False
 
-    if current_time - last_autoattack_unfollow_time < 8:
-        return
-
     if not widget_config.smart_follow_toggled:
-        if is_following_active:
-            smart_hero_unfollow()
-        last_follow_state = widget_config.smart_follow_toggled
+        smart_hero_unfollow()
         return
 
-    if should_unfollow_due_to_idle(current_player_position, min_moving_time):
-        if time.time() - follow_toggled_time >= min_moving_time and not is_waiting_to_unfollow:
+    if should_unfollow_due_to_idle(current_pos, idle_threshold):
+        if now - follow_toggled_time >= idle_threshold and not is_waiting_to_unfollow:
             smart_hero_unfollow()
             is_waiting_to_unfollow = True
             is_following_disabled_due_to_idle = True
-            last_follow_state = widget_config.smart_follow_toggled
             return
 
-    if current_player_position != last_player_position:
-        last_movement_time = time.time()
+    if current_pos != last_player_position:
+        last_movement_time = now
         is_waiting_to_unfollow = False
         if is_following_disabled_due_to_idle:
             smart_hero_follow()
@@ -1358,425 +1052,335 @@ def update_hero_follow_state():
     if not is_following_disabled_due_to_idle and not is_following_disabled_due_to_attack:
         smart_hero_follow()
 
-    last_player_position = current_player_position
+    last_player_position = current_pos
     last_follow_state = widget_config.smart_follow_toggled
-
-
-# Function: set_hero_behaviour
-# Updates hero behavior settings and logs the change.
+    
 def set_hero_behaviour(behaviour):
     action_queue.add_action(lambda: Helper.set_heroes_behaviour(behaviour))
-    behaviour_names = {0: "Fight", 1: "Guard", 2: "Avoid"}
-    behaviour_str = behaviour_names.get(behaviour, f"Unknown ({behaviour})")
+
+    behaviour_str = {
+        Helper.HERO_BEHAVIOUR_FIGHT: "Fight",
+        Helper.HERO_BEHAVIOUR_GUARD: "Guard",
+        Helper.HERO_BEHAVIOUR_AVOID_COMBAT: "Avoid"
+    }.get(behaviour, f"Unknown ({behaviour})")
+
     Helper.log_event(message=f"Set all heroes to {behaviour_str}.")
 
 
 def colored_button(label: str, button_color=0, hovered_color=0, active_color=0, width=0, height=0):
-    clicked = False
-
-    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, Utils.ColorToTuple(button_color))  # On color
-    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, Utils.ColorToTuple(hovered_color))  # Hover color
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, Utils.ColorToTuple(button_color))
+    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, Utils.ColorToTuple(hovered_color))
     PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, Utils.ColorToTuple(active_color))
 
     clicked = PyImGui.button(label, width, height)
 
     PyImGui.pop_style_color(3)
-    
     return clicked
 
-def color_toggle_button(label:str, state:bool, button_color=0, hovered_color=0, active_color=0, width=0, height=0):
-    clicked = False
-        
-    if state:
-        #clicked = PyImGui.button(IconsFontAwesome5.ICON_CHECK_CIRCLE + f"##{label}", width, height)
-        clicked = colored_button(IconsFontAwesome5.ICON_CHECK_CIRCLE + f"##{label}", active_color , active_color, active_color , width, height)
-    else:
-        #clicked = PyImGui.button(IconsFontAwesome5.ICON_CIRCLE + f"##{label}", width, height)
-        clicked = colored_button(IconsFontAwesome5.ICON_CIRCLE + f"##{label}",button_color, active_color , active_color, width, height)
-    return clicked
+def color_toggle_button(label: str, state: bool, button_color=0, hovered_color=0, active_color=0, width=0, height=0):
+    icon = IconsFontAwesome5.ICON_CHECK_CIRCLE if state else IconsFontAwesome5.ICON_CIRCLE
+    return colored_button(f"{icon}##{label}", active_color if state else button_color, active_color, active_color, width, height)
+
+def toggle_config_value(label: str, attr: str, width: int = 0, height: int = 25, tooltip: str = ""):
+    curr = getattr(widget_config, attr)
+    toggled = ImGui.toggle_button(label, curr, width, height)
+
+    if toggled != curr:
+        setattr(widget_config, attr, toggled)
+        Helper.log_event(message=f"{label} {'Enabled' if toggled else 'Disabled'}")
+
+    if tooltip and PyImGui.is_item_hovered():
+        PyImGui.set_tooltip(tooltip)
+
+def draw_tab_follow(config):
+    PyImGui.text("Follow Delay (ms)")
+    config.follow_delay = PyImGui.slider_int("##follow_delay_slider", config.follow_delay, 500, 2000)
+    PyImGui.same_line(0, 5)
+    config.follow_delay = PyImGui.input_int("##hidden_label", config.follow_delay)
+    config.follow_delay = max(500, min(2000, config.follow_delay))
+    
+def draw_tab_smart_skills(config):
+    Helper.create_and_update_checkbox("Smart Blood is Power", "smart_bip_enabled", tooltip_text="Automatically cast Blood is Power on player when needed.")
+    PyImGui.same_line(0.0, 21)
+    Helper.create_and_update_checkbox("Smart Signet of Spirits", "smart_sos_enabled", tooltip_text="Automatically casts Signet of Spirits when necessary.")
+
+    Helper.create_and_update_checkbox("Smart Soul Twisting", "smart_st_enabled", tooltip_text="Automatically casts Shelter and Union based on combat conditions.")
+    PyImGui.same_line(0.0, 31)
+    Helper.create_and_update_checkbox("Smart Strength of Honor", "smart_honor_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Honor on melee player.")
+
+    Helper.create_and_update_checkbox("Smart Splinter Weapon", "smart_splinter_enabled", tooltip_text="Casts Splinter on melee player in combat.")
+    PyImGui.same_line(0.0, 10)
+    Helper.create_and_update_checkbox("Smart Vigorous Spirit", "smart_vigorous_enabled", tooltip_text="Casts Vigorous Spirit on melee player in combat.")
+
+def draw_tab_condition_cleanse(config):
+    if not PyImGui.collapsing_header("Condition Removal", PyImGui.TreeNodeFlags.DefaultOpen):
+        return
+
+    PyImGui.text_wrapped("Assign Prio Cleanse Conditions to Melee, Caster, or Both\n(Leave blank to keep default priority):")
+
+    if PyImGui.begin_table("ConditionTable", 4, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchSame):
+        for header in ["Condition", "Melee", "Caster", "Both"]:
+            PyImGui.table_setup_column(header)
+        PyImGui.table_headers_row()
+
+        changed = False
+        for condition, data in config.conditions.items():
+            PyImGui.table_next_row()
+
+            PyImGui.table_next_column()
+            PyImGui.text(condition.replace("_", " "))
+
+            PyImGui.table_next_column()
+            new_melee = PyImGui.checkbox(f"##melee_{condition}", data["melee"])
+
+            PyImGui.table_next_column()
+            new_caster = PyImGui.checkbox(f"##caster_{condition}", data["caster"])
+
+            PyImGui.table_next_column()
+            new_both = PyImGui.checkbox(f"##both_{condition}", data["both"])
+
+            prev = (data["melee"], data["caster"], data["both"])
+
+            if new_melee and not data["melee"]:
+                data.update(melee=True, caster=False, both=False)
+            elif new_caster and not data["caster"]:
+                data.update(melee=False, caster=True, both=False)
+            elif new_both and not data["both"]:
+                data.update(melee=False, caster=False, both=True)
+            elif not new_melee and not new_caster and not new_both:
+                data.update(melee=False, caster=False, both=False)
+
+            changed |= (prev != (data["melee"], data["caster"], data["both"]))
+
+        PyImGui.end_table()
+        if changed:
+            config.save()
+
+    if PyImGui.button("Set Recommended Defaults", height=25):
+        defaults = {
+            "Blind": {"melee": True},
+            "Weakness": {"melee": True},
+            "Dazed": {"caster": True},
+            "Crippled": {"both": True},
+        }
+        for cond, values in defaults.items():
+            if cond in config.conditions:
+                config.conditions[cond].update(melee=False, caster=False, both=False)
+                config.conditions[cond].update(values)
+        config.save()
+
+    PyImGui.same_line(0.0, -1)
+    button_width = int(PyImGui.get_content_region_avail()[0])
+    toggle_config_value("Enable Condition Cleanse", "smart_con_cleanse_toggled", button_width, 25, "Toggle automatic condition cleansing")
+
+
+
+def render_hex_group(title, hex_list):
+    if not hex_list:
+        return
+
+    if PyImGui.collapsing_header(f"Hexes to be priority removed from {title}", PyImGui.TreeNodeFlags.DefaultOpen):
+        PyImGui.columns(2, f"{title}_hexes", False)
+        midpoint = (len(hex_list) + 1) // 2
+        for i, hex_name in enumerate(hex_list):
+            PyImGui.text(f"- {hex_name.replace('_', ' ')}")
+            if i == midpoint - 1:
+                PyImGui.next_column()
+        PyImGui.columns(1, "hex_columns", False)
+
+def render_user_hex_editor(config):
+    if not PyImGui.collapsing_header("Hexes added by user", PyImGui.TreeNodeFlags.DefaultOpen):
+        return
+
+    PyImGui.set_tooltip("These are hexes you manually added. Red circle to remove")
+
+    for hex_name in config.hexes_user:
+        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.8, 0.0, 0.0, 1.0))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (1.0, 0.2, 0.2, 1.0))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 1.0, 1.0, 1.0))
+        PyImGui.same_line(0, 5)
+        if PyImGui.button(f"##{hex_name}", 10, 10):
+            config.hexes_user.remove(hex_name.replace(" ", "_"))
+            config.save_hexes()
+            Helper.log_event(message=f"Removed {hex_name} from user hex list")
+        PyImGui.pop_style_color(3)
+
+    PyImGui.text("Add a hex spell:")
+    config.user_hex_input = PyImGui.input_text("##user_hex_input", config.user_hex_input)
+    PyImGui.same_line(0, 5)
+
+    if PyImGui.button("Add Hex", int(PyImGui.get_content_region_avail()[0])):
+        user_input = config.user_hex_input.strip()
+        formatted = Helper.format_spell_title_case(user_input)
+
+        if not formatted:
+            Helper.log_event(message="Input was empty. Skipping.")
+        elif formatted not in [h.lower() for h in config.hexes_user]:
+            config.hexes_user.append(formatted)
+            config.save_hexes()
+            Helper.log_event(message=f"Added {formatted} to the user hex list.")
+        else:
+            Helper.log_event(message=f"{formatted} is already in the list. Skipping.")
+
+        config.user_hex_input = ""
+
+def draw_tab_hex_removal(config):
+    if not PyImGui.collapsing_header("Hex Removal", PyImGui.TreeNodeFlags.DefaultOpen):
+        return
+
+    PyImGui.text_wrapped("These hexes will be prioritized for removal.")
+    PyImGui.set_tooltip("Hexes in each list will be removed automatically when detected.")
+
+    render_hex_group("Melee", config.hexes_melee)
+    render_hex_group("Casters", config.hexes_caster)
+    render_hex_group("All", config.hexes_all)
+    render_hex_group("Paragons", config.hexes_paragon)
+    render_user_hex_editor(config)
+
+    available_width = PyImGui.get_content_region_avail()[0]
+    button_width = int(available_width)
+
+    toggle_config_value("Enable Hex Cleanse", "smart_hex_cleanse_toggled", button_width, 25, "Toggle automatic hex removal")
+
+
+def draw_tab_interrupt(config):
+    PyImGui.text_wrapped("Manage skills that heroes will interrupt.")
+
+    if PyImGui.collapsing_header("Skills To Interrupt", PyImGui.TreeNodeFlags.DefaultOpen):
+        for skill in config.skills_to_rupt:
+            PyImGui.text(f"- {skill.replace('_', ' ')}")
+            PyImGui.same_line(0, 5)
+            if PyImGui.button(f"##Remove_{skill}", 10, 10):
+                config.skills_to_rupt.remove(skill)
+                config.save_skills_to_rupt()
+                Helper.log_event(message=f"Removed {skill} from interrupt list")
+
+    config.user_skill_input = PyImGui.input_text("##user_skill_input", config.user_skill_input)
+    PyImGui.same_line(0, 5)
+
+    button_width = int(PyImGui.get_content_region_avail()[0])
+    if PyImGui.button("Add Skill", button_width):
+        input_str = config.user_skill_input.strip()
+        formatted = Helper.format_spell_title_case(input_str)
+
+        if not formatted:
+            Helper.log_event(message="Input was empty. Skipping.")
+        elif formatted in config.skills_to_rupt:
+            Helper.log_event(message=f"{formatted} is already in the interrupt list.")
+        else:
+            config.skills_to_rupt.append(formatted)
+            config.save_skills_to_rupt()
+            Helper.log_event(message=f"Added {formatted} to the interrupt list.")
+
+        config.user_skill_input = ""
+
+    button_width = int(PyImGui.get_content_region_avail()[0])
+    toggle_config_value("Enable Hero Interrupt", "smart_interrupt_toggled", button_width, 25, "Toggle automatic hero interrupts")
 
 def draw_config_tabs(widget_config):
-    if PyImGui.begin_tab_bar("Hero Helper Config Tabs"):
-            
-        if PyImGui.begin_tab_item("Follow"):
-            
-            PyImGui.text("Follow Delay (ms)")
-            widget_config.follow_delay = PyImGui.slider_int("##follow_delay_slider", widget_config.follow_delay, 500, 2000)
-            PyImGui.same_line(0,5)
-            widget_config.follow_delay = PyImGui.input_int("##hidden_label", widget_config.follow_delay)
-            widget_config.follow_delay = max(500, min(2000, widget_config.follow_delay))
+    if not PyImGui.begin_tab_bar("Hero Helper Config Tabs"):
+        return
 
-            PyImGui.end_tab_item()
-            
-        if PyImGui.begin_tab_item("Smart Skills"):
+    if PyImGui.begin_tab_item("Follow"):
+        draw_tab_follow(widget_config)
+        PyImGui.end_tab_item()
 
-            Helper.create_and_update_checkbox("Smart Blood is Power", "smart_bip_enabled", tooltip_text="Automatically cast Blood is Power on player when needed.")
-            PyImGui.same_line(0.0, 21)
-            Helper.create_and_update_checkbox("Smart Signet of Spirits", "smart_sos_enabled", tooltip_text="Automatically casts Signet of Spirits when necessary.")
-            
-            Helper.create_and_update_checkbox("Smart Soul Twisting", "smart_st_enabled", tooltip_text="Automatically casts Shelter and Union based on combat conditions.")
-            PyImGui.same_line(0.0, 31)
-            Helper.create_and_update_checkbox("Smart Strength of Honor", "smart_honor_enabled", tooltip_text="[DISABLE HERO CASTING] If a Melee class with a Melee weapon it maintains Honor on you")
-            
-            Helper.create_and_update_checkbox("Smart Splinter Weapon", "smart_splinter_enabled", tooltip_text="If a Melee class with a Melee weapon it cast Splinter weapon on you in combat")
-            PyImGui.same_line(0.0, 10)
-            Helper.create_and_update_checkbox("Smart Vigorous Spirit", "smart_vigorous_enabled", tooltip_text="If a Melee class with a Melee weapon it cast Vigorous Spirit on you in combat")
-            
-            PyImGui.end_tab_item()
-            
-        if PyImGui.begin_tab_item("Condition Cleanse"):
-            if PyImGui.collapsing_header("Condition Removal", PyImGui.TreeNodeFlags.DefaultOpen):
-                PyImGui.text_wrapped("Assign Prio Cleanse Conditions to Melee, Caster, or Both\n(Leave blank to keep default priority):")
+    if PyImGui.begin_tab_item("Smart Skills"):
+        draw_tab_smart_skills(widget_config)
+        PyImGui.end_tab_item()
 
-                if PyImGui.is_item_hovered():
-                    PyImGui.set_tooltip("Melee: Prioritizes cleansing melee characters.\n"
-                                        "Caster: Prioritizes cleansing caster characters.\n"
-                                        "Both: Prio cleanses no matter class.")
+    if PyImGui.begin_tab_item("Condition Cleanse"):
+        draw_tab_condition_cleanse(widget_config)
+        PyImGui.end_tab_item()
 
-                changes_made = False
+    if PyImGui.begin_tab_item("Hex Removal"):
+        draw_tab_hex_removal(widget_config)
+        PyImGui.end_tab_item()
 
-                if PyImGui.begin_table("ConditionTable", 4, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchSame):
-                    PyImGui.table_setup_column("Condition", PyImGui.TableColumnFlags.WidthStretch)
-                    PyImGui.table_setup_column("Melee", PyImGui.TableColumnFlags.WidthFixed)
-                    PyImGui.table_setup_column("Caster", PyImGui.TableColumnFlags.WidthFixed)
-                    PyImGui.table_setup_column("Both", PyImGui.TableColumnFlags.WidthFixed)
-                    PyImGui.table_headers_row()
+    if PyImGui.begin_tab_item("Smart Interrupt"):
+        draw_tab_interrupt(widget_config)
+        PyImGui.end_tab_item()
 
-                    for condition_name, data in widget_config.conditions.items():
-                        PyImGui.table_next_row()
+    PyImGui.end_tab_bar()
 
-                        PyImGui.table_next_column()
-                        row_height = PyImGui.get_text_line_height_with_spacing()
-                        text_height = PyImGui.calc_text_size(condition_name.replace("_", " "))[1]
-                        padding = (row_height - text_height) / 2
-                        PyImGui.dummy(0, int(padding))
-                        PyImGui.text_wrapped(condition_name.replace("_", " "))
-                        PyImGui.same_line(0, 0)
+def _render_behavior_buttons():
+    total_width = PyImGui.get_content_region_avail()[0] - 10
+    button_width = total_width / 3
 
-                        prev_melee, prev_caster, prev_both = data["melee"], data["caster"], data["both"]
+    if PyImGui.button("Fight", width=button_width):
+        widget_config.hero_behaviour = 0
+        set_hero_behaviour(0)
 
-                        PyImGui.table_next_column()
-                        new_melee = PyImGui.checkbox(f"##melee_{condition_name}", prev_melee)
+    PyImGui.same_line(0.0, 5.0)
 
-                        PyImGui.table_next_column()
-                        new_caster = PyImGui.checkbox(f"##caster_{condition_name}", prev_caster)
+    if PyImGui.button("Guard", width=button_width):
+        widget_config.hero_behaviour = 1
+        set_hero_behaviour(1)
 
-                        PyImGui.table_next_column()
-                        new_both = PyImGui.checkbox(f"##both_{condition_name}", prev_both)
+    PyImGui.same_line(0.0, 5.0)
 
-                        if new_melee and not prev_melee:
-                            data["melee"], data["caster"], data["both"] = True, False, False
-                        elif new_caster and not prev_caster:
-                            data["melee"], data["caster"], data["both"] = False, True, False
-                        elif new_both and not prev_both:
-                            data["melee"], data["caster"], data["both"] = False, False, True
-                        elif not new_melee and not new_caster and not new_both:
-                            data["melee"], data["caster"], data["both"] = False, False, False
+    if PyImGui.button("Avoid", width=button_width):
+        widget_config.hero_behaviour = 2
+        set_hero_behaviour(2)
 
-                        changes_made |= (prev_melee != data["melee"] or prev_caster != data["caster"] or prev_both != data["both"])
 
-                PyImGui.end_table()
+def _render_toggle_row(toggles):
+    for i, (label, config_key, tooltip) in enumerate(toggles):
+        state = getattr(widget_config, config_key)
+        if color_toggle_button(label, state,
+                               Utils.RGBToColor(26, 26, 26, 225),
+                               Utils.RGBToColor(255, 255, 255, 25),
+                               Utils.RGBToColor(0, 170, 255, 125)):
+            new_state = not state
+            setattr(widget_config, config_key, new_state)
+            Helper.log_event(message=f"{label} {'Enabled' if new_state else 'Disabled'}")
 
-                if changes_made:
-                    widget_config.save()
+        ImGui.show_tooltip(tooltip)
+        if i != len(toggles) - 1:
+            PyImGui.same_line(0, 1)
 
-                if PyImGui.button("Set Recommended Defaults", height=25):
-                    recommended_defaults = {
-                        "Blind": {"melee": True, "caster": False, "both": False},
-                        "Weakness": {"melee": True, "caster": False, "both": False},
-                        "Dazed": {"melee": False, "caster": True, "both": False},
-                        "Crippled": {"melee": False, "caster": False, "both": True},
-                    }
-
-                    for condition in widget_config.conditions:
-                        widget_config.conditions[condition]["melee"] = False
-                        widget_config.conditions[condition]["caster"] = False
-                        widget_config.conditions[condition]["both"] = False
-
-                    for condition, values in recommended_defaults.items():
-                        if condition in widget_config.conditions:
-                            widget_config.conditions[condition].update(values)
-
-                    widget_config.save()
-
-                PyImGui.same_line(0.0, -1)
-                available_width = PyImGui.get_content_region_avail()[0]
-                button_width = int(available_width)
-
-                cleanse_conditions = ImGui.toggle_button("Enable Condition Cleanse", widget_config.smart_con_cleanse_toggled, button_width, 25)
-                widget_config.smart_con_cleanse_toggled = cleanse_conditions
-            PyImGui.end_tab_item()
-
-        if PyImGui.begin_tab_item("Hex Removal"):
-            if PyImGui.collapsing_header("Hex Removal", PyImGui.TreeNodeFlags.DefaultOpen):
-
-                PyImGui.text_wrapped("These hexes will be prioritized for removal.")
-
-                if PyImGui.is_item_hovered():
-                    PyImGui.set_tooltip("Hexes in each list will be removed automatically when detected.")
-
-                if not hasattr(widget_config, "hexes_melee") or not widget_config.hexes_melee:
-                    widget_config.hexes_melee = [
-                        "Ineptitude", "Empathy", "Crippling Anguish", "Clumsiness", "Faintheartedness",
-                        "Blurred Vision", "Amity"
-                    ]
-                if not hasattr(widget_config, "hexes_caster") or not widget_config.hexes_caster:
-                    widget_config.hexes_caster = [
-                        "Panic", "Backfire", "Mistrust", "Power Leech", "Soul Leech"
-                    ]
-                if not hasattr(widget_config, "hexes_all") or not widget_config.hexes_all:
-                    widget_config.hexes_all = [
-                        "Diversion", "Visions of Regret", "Deep Freeze", "Mind Freeze", "Icy Shackles", "Spiteful Spirit"
-                    ]
-                if not hasattr(widget_config, "hexes_paragon") or not widget_config.hexes_paragon:
-                    widget_config.hexes_paragon = ["Vocal Minority"]
-
-                if PyImGui.collapsing_header("Hexes to be priority removed from Melee", PyImGui.TreeNodeFlags.DefaultOpen):
-                    PyImGui.columns(2, "melee_hexes", False)
-                    for hex_name in widget_config.hexes_melee[:4]:
-                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                    PyImGui.next_column()
-                    for hex_name in widget_config.hexes_melee[4:]:
-                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                    PyImGui.columns(1, "", False)
-
-                if PyImGui.collapsing_header("Hexes to be priority removed from Casters", PyImGui.TreeNodeFlags.DefaultOpen):
-                    PyImGui.columns(2, "caster_hexes", False)
-                    for hex_name in widget_config.hexes_caster[:3]:
-                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                    PyImGui.next_column()
-                    for hex_name in widget_config.hexes_caster[3:]:
-                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                    PyImGui.columns(1, "", False)
-
-                if PyImGui.collapsing_header("Hexes to be priority removed from All", PyImGui.TreeNodeFlags.DefaultOpen):
-                    PyImGui.columns(2, "ALL_HEXES", False)
-                    for hex_name in widget_config.hexes_all[:3]:
-                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                    PyImGui.next_column()
-                    for hex_name in widget_config.hexes_all[3:]:
-                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                    PyImGui.columns(1, "", False)
-
-                if PyImGui.collapsing_header("Hexes to be priority removed from Paragons", PyImGui.TreeNodeFlags.DefaultOpen):
-                    for hex_name in widget_config.hexes_paragon:
-                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-
-                if PyImGui.collapsing_header("Hexes added by user", PyImGui.TreeNodeFlags.DefaultOpen):
-                    if PyImGui.is_item_hovered():
-                        PyImGui.begin_tooltip()
-                        PyImGui.text("These are hexes you manually added. Red circle to remove")
-                        PyImGui.end_tooltip()
-                    
-                    if not hasattr(widget_config, "user_hex_input"):
-                        widget_config.user_hex_input = ""
-                                            
-                    for hex_name in widget_config.hexes_user:
-                        PyImGui.text(f"- {hex_name.replace('_', ' ')}")
-                        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.8, 0.0, 0.0, 1.0))  # Red background
-                        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (1.0, 0.2, 0.2, 1.0))  # Brighter red hover
-                        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 1.0, 1.0, 1.0))  # White text
-                        
-
-                        PyImGui.push_style_var(10, 0.0)
-                        PyImGui.push_style_var(11, 0.0)
-                        PyImGui.same_line(0,5)
-                        if PyImGui.button(f"##{hex_name}",10,10):
-                            widget_config.hexes_user.remove(hex_name.replace(' ', '_'))
-                            widget_config.save_hexes()
-                            Helper.log_event(message=f"Removed {hex_name} from user hex list")
-
-                        PyImGui.pop_style_color(3)
-                        PyImGui.pop_style_var(2)
-
-                    PyImGui.text("Add a hex spell:")
-                    widget_config.user_hex_input = PyImGui.input_text("##user_hex_input", widget_config.user_hex_input)
-
-                    PyImGui.same_line(0,5)
-                    
-                    available_width = PyImGui.get_content_region_avail()[0]
-                    button_width = int(available_width)
-                    
-                    if PyImGui.button("Add Hex", button_width):
-                        user_input = widget_config.user_hex_input.strip()
-                        formatted_hex = user_input.replace(" ", "_").lower()
-                        formatted_title_hex = Helper.format_spell_title_case(user_input)
-
-                        if not formatted_hex:
-                            Helper.log_event(message="Input was empty. Skipping.")
-
-                        elif formatted_hex not in [hex_name.lower() for hex_name in widget_config.hexes_user]:
-                            Helper.log_event(message=f"{formatted_title_hex} is not in user list, adding now.")
-                            widget_config.hexes_user.append(formatted_title_hex)
-                            widget_config.save_hexes()
-
-                        else:
-                            Helper.log_event(message=f"{formatted_title_hex} is already added by user, skipping addition.")
-                        
-                        widget_config.user_hex_input = ""
-
-                available_width = PyImGui.get_content_region_avail()[0]
-                button_width = int(available_width)
-
-                hex_cleanse_enabled = ImGui.toggle_button("Enable Hex Cleanse", widget_config.smart_hex_cleanse_toggled, button_width, 25)
-                widget_config.smart_hex_cleanse_toggled = hex_cleanse_enabled
-
-            PyImGui.end_tab_item()
-
-        if PyImGui.begin_tab_item("Smart Interrupt"):
-                        PyImGui.text_wrapped("Manage skills that heroes will interrupt.")
-
-                        if PyImGui.collapsing_header("Skills To Interrupt", PyImGui.TreeNodeFlags.DefaultOpen):
-                            for skill_name in widget_config.skills_to_rupt:
-                                PyImGui.text(f"- {skill_name.replace('_', ' ')}")
-
-                                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.8, 0.0, 0.0, 1.0))  # Red background
-                                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (1.0, 0.2, 0.2, 1.0))  # Brighter red hover
-                                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 1.0, 1.0, 1.0))  # White text
-
-                                PyImGui.push_style_var(10, 0.0)  # Zero padding
-                                PyImGui.push_style_var(11, 0.0)
-                                PyImGui.same_line(0, 5)
-
-                                if PyImGui.button(f"##Remove_{skill_name}", 10, 10):  # Small red "X" button
-                                    widget_config.skills_to_rupt.remove(skill_name)
-                                    widget_config.save_skills_to_rupt()
-                                    Helper.log_event(message=f"Removed {skill_name} from interrupt list")
-
-                                PyImGui.pop_style_color(3)
-                                PyImGui.pop_style_var(2)
-
-                        PyImGui.text("Add a skill to interrupt:")
-                        widget_config.user_skill_input = PyImGui.input_text("##user_skill_input", widget_config.user_skill_input)
-
-                        PyImGui.same_line(0, 5)
-                        button_width = int(PyImGui.get_content_region_avail()[0])
-
-                        if PyImGui.button("Add Skill", button_width):
-                            user_input = widget_config.user_skill_input.strip()
-                            formatted_skill = Helper.format_spell_title_case(user_input)
-
-                            if not formatted_skill:
-                                Helper.log_event(message="Input was empty. Skipping.")
-                            elif formatted_skill in widget_config.skills_to_rupt:
-                                Helper.log_event(message=f"{formatted_skill} is already in the interrupt list.")
-                            else:
-                                widget_config.skills_to_rupt.append(formatted_skill)
-                                widget_config.save_skills_to_rupt()
-                                Helper.log_event(message=f"Added {formatted_skill} to the interrupt list.")
-
-                            widget_config.user_skill_input = ""
-
-                        available_width = PyImGui.get_content_region_avail()[0]
-                        button_width = int(available_width)
-
-                        interrupt_enabled = ImGui.toggle_button("Enable Hero Interrupt", widget_config.smart_interrupt_toggled, button_width, 25)
-                        widget_config.smart_interrupt_toggled = interrupt_enabled
-                        
-                        PyImGui.end_tab_item()
 
 def draw_options_window():
-    if PyImGui.begin_child("Console", size=(280.0, 50.0), border=False, flags=0):
-        for log in reversed(Helper.console_logs):
-            PyImGui.text(log)
-        PyImGui.end_child()
-        PyImGui.separator()
+    if not PyImGui.begin_child("Console", size=(280.0, 50.0), border=False, flags=0):
+        return
 
-        total_width = PyImGui.get_content_region_avail()[0] - 10  
-        button_width = total_width / 3  
-        if PyImGui.button("Fight", width=button_width):
-            widget_config.hero_behaviour = 0
-            set_hero_behaviour(0)
-        PyImGui.same_line(0.0, 5.0)
-        if PyImGui.button("Guard", width=button_width):
-            widget_config.hero_behaviour = 1
-            set_hero_behaviour(1)
-        PyImGui.same_line(0.0, 5.0)
-        if PyImGui.button("Avoid", width=button_width):
-            widget_config.hero_behaviour = 2
-            set_hero_behaviour(2)
-        PyImGui.separator()
+    for log in reversed(Helper.console_logs):
+        PyImGui.text(log)
+    PyImGui.end_child()
+    PyImGui.separator()
 
-        available_width = PyImGui.get_content_region_avail()[0]
-        button_width = int(available_width)
+    _render_behavior_buttons()
+    PyImGui.separator()
 
-        new_follow_state = ImGui.toggle_button("Follow", widget_config.smart_follow_toggled, button_width, 30)
-        if new_follow_state != widget_config.smart_follow_toggled:
-            label = "Hero Follow"
-            Helper.log_event(message=f"{label} Disabled" if widget_config.smart_follow_toggled else f"{label} Enabled")
-        widget_config.smart_follow_toggled = new_follow_state
-        
-        if color_toggle_button("Smart BiP",widget_config.smart_bip_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
-            widget_config.smart_bip_enabled = not widget_config.smart_bip_enabled
-            label = "Smart Blood is Power"
-            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_bip_enabled else f"{label} Disabled")
-        ImGui.show_tooltip("Smart BiP") 
-        PyImGui.same_line(0,1)
-        
-        if color_toggle_button("Smart SoS",widget_config.smart_sos_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
-            widget_config.smart_sos_enabled = not widget_config.smart_sos_enabled
-            label = "Smart Signet of Spirits"
-            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_sos_enabled else f"{label} Disabled")
-        ImGui.show_tooltip("Smart SoS") 
-        PyImGui.same_line(0,1)
-        
-        if color_toggle_button("Smart ST",widget_config.smart_st_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
-            widget_config.smart_st_enabled = not widget_config.smart_st_enabled
-            label = "Smart Soul Twisting"
-            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_st_enabled else f"{label} Disabled")
-        ImGui.show_tooltip("Smart ST") 
-        PyImGui.same_line(0,1)
-        
-        if color_toggle_button("Smart SoH",widget_config.smart_honor_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
-            widget_config.smart_honor_enabled = not widget_config.smart_honor_enabled
-            label = "Smart Strength of Honor"
-            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_honor_enabled else f"{label} Disabled")
-        ImGui.show_tooltip("Smart SoH") 
-        PyImGui.same_line(0,1)
-        
-        if color_toggle_button("Smart SW",widget_config.smart_splinter_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
-            widget_config.smart_splinter_enabled = not widget_config.smart_splinter_enabled
-            label = "Smart Splinter Weapon"
-            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_splinter_enabled else f"{label} Disabled")
-        ImGui.show_tooltip("Smart SW") 
-        PyImGui.same_line(0,1)
-        
-        if color_toggle_button("Smart VS",widget_config.smart_vigorous_enabled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
-            widget_config.smart_vigorous_enabled = not widget_config.smart_vigorous_enabled
-            label = "Smart Vigorous Spirit"
-            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_vigorous_enabled else f"{label} Disabled")
-        ImGui.show_tooltip("Smart VS") 
-        PyImGui.same_line(0,1)
-        
-        if color_toggle_button("Smart CC",widget_config.smart_con_cleanse_toggled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
-            widget_config.smart_con_cleanse_toggled = not widget_config.smart_con_cleanse_toggled
-            label = "Condition Cleanse"
-            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_con_cleanse_toggled else f"{label} Disabled")
-        ImGui.show_tooltip("Condition Cleanse") 
-        PyImGui.same_line(0,1)
-        
-        if color_toggle_button("Smart HR",widget_config.smart_hex_cleanse_toggled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
-            widget_config.smart_hex_cleanse_toggled = not widget_config.smart_hex_cleanse_toggled
-            label = "Hex Removal"
-            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_hex_cleanse_toggled else f"{label} Disabled")
-        ImGui.show_tooltip("Hex Removal") 
-        PyImGui.same_line(0,1)
-        
-        if color_toggle_button("Smart Int",widget_config.smart_interrupt_toggled, Utils.RGBToColor(26, 26, 26, 225), Utils.RGBToColor(255, 255, 255, 25), Utils.RGBToColor(0, 170, 255, 125), 0, 0):
-            widget_config.smart_interrupt_toggled = not widget_config.smart_interrupt_toggled
-            label = "Smart Interrupt"
-            Helper.log_event(message=f"{label} Enabled" if widget_config.smart_interrupt_toggled else f"{label} Disabled")
-        ImGui.show_tooltip("Smart Interrupt") 
+    available_width = PyImGui.get_content_region_avail()[0]
+    button_width = int(available_width)
+
+    new_state = ImGui.toggle_button("Follow", widget_config.smart_follow_toggled, button_width, 30)
+    if new_state != widget_config.smart_follow_toggled:
+        Helper.log_event(message=f"Hero Follow {'Enabled' if new_state else 'Disabled'}")
+    widget_config.smart_follow_toggled = new_state
+
+    _render_toggle_row([
+        ("Smart BiP", "smart_bip_enabled", "Smart BiP"),
+        ("Smart SoS", "smart_sos_enabled", "Smart SoS"),
+        ("Smart ST", "smart_st_enabled", "Smart ST"),
+        ("Smart SoH", "smart_honor_enabled", "Smart SoH"),
+        ("Smart SW", "smart_splinter_enabled", "Smart SW"),
+        ("Smart VS", "smart_vigorous_enabled", "Smart VS"),
+        ("Smart CC", "smart_con_cleanse_toggled", "Condition Cleanse"),
+        ("Smart HR", "smart_hex_cleanse_toggled", "Hex Removal"),
+        ("Smart Int", "smart_interrupt_toggled", "Smart Interrupt"),
+    ])
 
 def draw_window():
     PyImGui.set_next_window_size(300, 200)
 
-    if PyImGui.begin(window_module.window_name, window_module.window_flags | PyImGui.WindowFlags.NoScrollbar):
-        PyImGui.begin_group()
-        draw_options_window()
-        
-        
+    if not PyImGui.begin(window_module.window_name, window_module.window_flags | PyImGui.WindowFlags.NoScrollbar):
+        return
 
+    PyImGui.begin_group()
+    draw_options_window()
     PyImGui.end()
 
 PARTY_WINDOW_HASH = 3332025202
@@ -1792,33 +1396,36 @@ selected_tab:Tabs = Tabs.party_default
 
 def draw_frame_content(content_frame_id):
     global selected_tab
-    
+
     if selected_tab == Tabs.party_default:
         return
-    
-    child_left, child_top, child_right, child_bottom = UIManager.GetFrameCoords(content_frame_id) 
-    width = child_right - child_left
-    height = child_bottom - child_top 
+
+    left, top, right, bottom = UIManager.GetFrameCoords(content_frame_id)
+    width, height = right - left, bottom - top
 
     UIManager().DrawFrame(content_frame_id, Utils.RGBToColor(0, 0, 0, 255))
-    
-    flags = ( PyImGui.WindowFlags.NoCollapse | 
-            PyImGui.WindowFlags.NoTitleBar |
-            PyImGui.WindowFlags.NoResize |
-            PyImGui.WindowFlags.AlwaysHorizontalScrollbar |
-            PyImGui.WindowFlags.AlwaysVerticalScrollbar
+
+    flags = (
+        PyImGui.WindowFlags.NoCollapse |
+        PyImGui.WindowFlags.NoTitleBar |
+        PyImGui.WindowFlags.NoResize |
+        PyImGui.WindowFlags.AlwaysHorizontalScrollbar |
+        PyImGui.WindowFlags.AlwaysVerticalScrollbar
     )
-    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
-    PyImGui.set_next_window_pos(child_left, child_top)
+
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
+    PyImGui.set_next_window_pos(left, top)
     PyImGui.set_next_window_size(width, height)
-    
-    if PyImGui.begin("##help_framed_content",True, flags):
-        match selected_tab:
-            case Tabs.options_panel:
-                draw_options_window()
-                Helper.create_and_update_checkbox("Old Window", "floating_window_enabled", tooltip_text="enable the floating")
-            case Tabs.configs_panel:
-                draw_config_tabs(widget_config)
+
+    if not PyImGui.begin("##help_framed_content", True, flags):
+        return
+
+    if selected_tab == Tabs.options_panel:
+        draw_options_window()
+        Helper.create_and_update_checkbox("Old Window", "floating_window_enabled", tooltip_text="enable the floating")
+    elif selected_tab == Tabs.configs_panel:
+        draw_config_tabs(widget_config)
+
     PyImGui.end()
 
 def draw_embedded_window():
@@ -1827,8 +1434,7 @@ def draw_embedded_window():
     if parent_frame_id == 0:
         return
     outpost_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
-    explorable_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS)
-    
+    explorable_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS) 
     
     if Map.IsMapReady() and Map.IsExplorable():
         content_frame_id = explorable_content_frame_id
