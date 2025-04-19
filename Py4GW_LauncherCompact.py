@@ -174,6 +174,13 @@ class IniHandler:
 current_directory = os.getcwd()
 ini_file = "Py4GW.ini"
 ini_handler = IniHandler(ini_file)
+
+'''See more in this discord thread : https://discord.com/channels/1289955074298347625/1362926814820831232'''
+try:
+    injection_delay = ini_handler.read_float("INJECTION", "delay_seconds", 0.5)
+except Exception:
+    injection_delay = 0.5
+
 '''For Future Use'''
 mods_directory = os.path.join(current_directory, "Addons", "mods")
 os.makedirs(mods_directory, exist_ok=True)  # Create Addons/Mods if it doesn't exist
@@ -701,7 +708,7 @@ class GWLauncher:
                 log_history.append(f"Wait for GW Window - Error while waiting for GW window: {str(e)}")
                 return False
                 
-            time.sleep(0.5)
+            time.sleep(injection_delay)
             
             # Add progress indicator every 5 seconds
             elapsed = time.time() - start_time
