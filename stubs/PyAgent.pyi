@@ -188,13 +188,14 @@ class PyLivingAgent:
     is_npc: bool
     casting_skill_id: int
     overcast: float
+    
     h00C8 : int
     h00CC: int
     h00D0: int
-    h00D4: list[int]
+    #h00D4: list[int]
     animation_type: float
     h00E4: int
-    weapon_attack_aspeed: float
+    weapon_attack_speed: float
     attack_speed_modifier: float
     agent_model_type: int
     transmog_npc_id: int
@@ -202,21 +203,21 @@ class PyLivingAgent:
     guild_id: int
     team_id: int
     h0108: int
-    h010E: list[int]
+    #h010E: list[int]
     h0110: int
     h0124: int
     h012C: int
     effects: int
     h013C: int
-    h0141: list[int]
+    #h0141: list[int]
     model_state: int
     type_map: int
-    h015C: list[int]
+    #h015C: list[int]
     h017C: int
     animation_speed: float
     animation_code: int
     animation_id: int
-    h0190: list[int]
+    #h0190: list[int]
     h01B6: int
 
     def __init__(self, agent_id: int) -> None: ...
@@ -270,7 +271,7 @@ class PyAgent:
     
     h0004: int
     h0008: int
-    h000C: list[int]
+    #h000C: list[int]
     instance_timer_in_frames: int
     instance_timer: int
     timer2: int
@@ -284,15 +285,15 @@ class PyAgent:
     ground: int
     h0060: int
     terrain_normal: list[int]
-    h0070: list[int]
+    #h0070: list[int]
     name_tag_x: float
     name_tag_y: float
     name_tag_z: float
     visual_effects: int
     h0092: int
-    h0094: list[int]
+    #h0094: list[int]
     _type: int
-    h00B4: list[int]
+    #h00B4: list[int]
     movement_stuck: int
     rand1: int
     rand2: int

@@ -1615,7 +1615,8 @@ class MultiThreading:
             self.threads[name]["last_keepalive"] = time.time()
             new_thread.start()
 
-            Py4GW.Console.Log("MultiThreading", f"Thread '{name}' started.", Py4GW.Console.MessageType.Success)
+            if self.log_actions:
+                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' started.", Py4GW.Console.MessageType.Success)
 
     def update_keepalive(self, name):
         """Update keepalive timestamp."""

@@ -700,6 +700,10 @@ class Agent:
         gadget_agent = Agent.GetGadgetAgent(agent_id)
         return gadget_agent.gadget_id
 
+    @staticmethod
+    def GetStuck(agent_id):
+        """Retrieve the stuck status of the agent."""
+        return Agent.agent_instance(agent_id).movement_stuck
 
 
 
