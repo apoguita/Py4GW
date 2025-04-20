@@ -192,9 +192,9 @@ class PyLivingAgent:
     h00C8 : int
     h00CC: int
     h00D0: int
-    #h00D4: list[int]
+    h00D4: list[int]
     animation_type: float
-    h00E4: int
+    h00E4: list[int]
     weapon_attack_speed: float
     attack_speed_modifier: float
     agent_model_type: int
@@ -203,21 +203,21 @@ class PyLivingAgent:
     guild_id: int
     team_id: int
     h0108: int
-    #h010E: list[int]
+    h010E: list[int]
     h0110: int
     h0124: int
     h012C: int
     effects: int
     h013C: int
-    #h0141: list[int]
+    h0141: list[int]
     model_state: int
     type_map: int
-    #h015C: list[int]
+    h015C: list[int]
     h017C: int
     animation_speed: float
     animation_code: int
     animation_id: int
-    #h0190: list[int]
+    h0190: list[int]
     h01B6: int
 
     def __init__(self, agent_id: int) -> None: ...
