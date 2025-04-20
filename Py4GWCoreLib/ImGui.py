@@ -164,6 +164,7 @@ class ImGui:
             data (list of values or tuples): The data to display in the table. 
                 - If it's a list of single values, display them in one column.
                 - If it's a list of tuples, display them across multiple columns.
+            row_callback (function): Optional callback function for each row.
         Returns: None
         """
         if len(data) == 0:
