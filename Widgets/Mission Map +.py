@@ -470,7 +470,7 @@ GLOBAL_CONFIGS.add(object_minion)
 npc_color = Color(153,255,153,255)
 object_npc = ConfigItem("NPC", marker_name="Triangle", color=npc_color, alternate_color=npc_color.desaturate(0.5), marker_size=8.0)
 GLOBAL_CONFIGS.add(object_npc)
-minipet_color =  Color(100,100,255,255)
+minipet_color =  Color(153,255,153,255)
 object_minipet = ConfigItem("Minipet", marker_name="Circle", color=minipet_color, alternate_color=minipet_color.desaturate(0.5), marker_size=2.0)
 GLOBAL_CONFIGS.add(object_minipet)
 default_color = Color(70,70,70,255)
@@ -686,7 +686,7 @@ def DrawFrame():
             marker = GLOBAL_CONFIGS.get("Item")
          
         color = marker.Color if alive else marker.AlternateColor   
-        Marker(marker.Marker, color, accent_color, x,y, marker.size + size_offset, offset_angle=rotation_angle).draw()
+        Marker(marker.Marker, color, Color(0,0,0,200), x,y, marker.size + size_offset, offset_angle=rotation_angle).draw()
 
     Overlay().EndDraw() 
     

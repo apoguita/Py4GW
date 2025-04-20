@@ -73,6 +73,12 @@ class AgentArray:
     def GetGadgetArray():
         """Purpose: Retrieve the agent array pre filtered by gadgets."""
         return [item for item in Player.player_instance().GetGadgetArray() if item != 0]
+    
+    @staticmethod
+    def GetMovementStuckArray():
+        """Purpose: Get the unfiltered full agent array."""
+        import PyAgent
+        return PyAgent.PyAgent.GetMovementStuckArray()
 
     class Manipulation:
         @staticmethod

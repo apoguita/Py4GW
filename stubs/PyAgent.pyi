@@ -1,6 +1,6 @@
 # PyAgent.pyi - Auto-generated .pyi file for PyAgent module
 
-from typing import List
+from typing import List, Tuple
 
 # Enum ProfessionType
 class ProfessionType:
@@ -271,7 +271,7 @@ class PyAgent:
     
     h0004: int
     h0008: int
-    #h000C: list[int]
+    h000C: list[int]
     instance_timer_in_frames: int
     instance_timer: int
     timer2: int
@@ -285,16 +285,15 @@ class PyAgent:
     ground: int
     h0060: int
     terrain_normal: list[int]
-    #h0070: list[int]
+    h0070: list[int]
     name_tag_x: float
     name_tag_y: float
     name_tag_z: float
     visual_effects: int
     h0092: int
-    #h0094: list[int]
+    h0094: list[int]
     _type: int
-    #h00B4: list[int]
-    movement_stuck: int
+    h00B4: list[int]
     rand1: int
     rand2: int
 
@@ -305,3 +304,5 @@ class PyAgent:
     
     @staticmethod
     def GetRawAgentArray() -> List[PyAgent]: ...
+    @staticmethod
+    def GetMovementStuckArray() -> List[Tuple[int, int]]: ...
