@@ -11,10 +11,8 @@ script_directory = os.path.dirname(os.path.abspath(__file__))
 root_directory = os.path.normpath(os.path.join(script_directory, ".."))
 INI_FILE_LOCATION = os.path.join(root_directory, "Widgets/Config/HeroHelper.ini")
 
-# Load configuration settings from the INI file.
 ini_handler = IniHandler(INI_FILE_LOCATION)
 
-# Action queue for managing delayed executions.
 action_queue = ActionQueue()
 
 ALL_HEXES = [
@@ -65,7 +63,6 @@ ALL_HEXES = [
 ]
 
 class Config:
-    # Initialize the configuration and load settings.
     def __init__(self):
         self.tracked_keys = [
             "smart_follow_toggled",
@@ -90,7 +87,6 @@ class Config:
             "floating_window_enabled"
         ]
 
-        # Load values from the INI file or use defaults.
         self.smart_follow_toggled = ini_handler.read_bool(MODULE_NAME, "smart_follow_toggled", False)
         self.attack_toggled = ini_handler.read_bool(MODULE_NAME, "attack_toggled", False)
         self.follow_delay = ini_handler.read_int(MODULE_NAME, "follow_delay", 800)
@@ -122,8 +118,6 @@ class Config:
 
         self._cache = {key: getattr(self, key) for key in self.tracked_keys}
 
-    # Function: load_conditions
-    # Loads condition cleanse settings from the INI file and structures them as dictionaries.
     def load_conditions(self):
         conditions = {}
         for condition in [
@@ -131,7 +125,7 @@ class Config:
             "Dazed", "Deep_Wound", "Disease", "Poison", "Weakness"
         ]:
             key = f"smart_cleanse_cond_{condition.lower()}"
-            value = ini_handler.read_key(MODULE_NAME, key, "false,false,false")  # Default all false
+            value = ini_handler.read_key(MODULE_NAME, key, "false,false,false")
             values = value.split(",")
 
             if len(values) != 3:
@@ -146,16 +140,12 @@ class Config:
 
         return conditions
 
-    # Function: save_conditions
-    # Saves the current condition cleanse settings back into the INI file.
     def save_conditions(self):
         for condition, data in self.conditions.items():
             key = f"smart_cleanse_cond_{condition.lower()}"
             value = f"{data['melee']},{data['caster']},{data['both']}"
             ini_handler.write_key(MODULE_NAME, key, value)
 
-    # Function: load_hexes
-    # Reads hexes from the INI file, ensuring proper formatting and removing empty entries.
     def load_hexes(self):
         self.hexes_melee = ini_handler.read_key(MODULE_NAME, "hexes_melee", "").replace(" ", "_").split(",") if ini_handler.read_key(MODULE_NAME, "hexes_melee", "") else []
         self.hexes_caster = ini_handler.read_key(MODULE_NAME, "hexes_caster", "").replace(" ", "_").split(",") if ini_handler.read_key(MODULE_NAME, "hexes_caster", "") else []
@@ -170,18 +160,14 @@ class Config:
         self.hexes_user = [h for h in self.hexes_user if h]
 
         return {}
-    
-    # Function: save_hexes
-    # Writes the current hex lists to the INI file, preserving formatting.
+
     def save_hexes(self):
         ini_handler.write_key(MODULE_NAME, "hexes_melee", ",".join(self.hexes_melee))
         ini_handler.write_key(MODULE_NAME, "hexes_caster", ",".join(self.hexes_caster))
         ini_handler.write_key(MODULE_NAME, "hexes_all", ",".join(self.hexes_all))
         ini_handler.write_key(MODULE_NAME, "hexes_paragon", ",".join(self.hexes_paragon))
-        ini_handler.write_key(MODULE_NAME, "hexes_user", ",".join(self.hexes_user))  # Save user-added hexes
-    
-    # Function: load_skills_to_rupt
-    # Loads a predefined list of skills that should be rupted (interrupted) if cast by an enemy.
+        ini_handler.write_key(MODULE_NAME, "hexes_user", ",".join(self.hexes_user))
+
     def load_skills_to_rupt(self):
         saved_skills = ini_handler.read_key(MODULE_NAME, "skills_to_rupt", "")
         return saved_skills.split(",") if saved_skills else [
@@ -193,14 +179,10 @@ class Config:
             "Searing_Flames",
             "Resurrection_Signet",
         ]
-        
-    # Function: save_skills_to_rupt
-    # Saves the current list of skills that should be rupted to the INI file.
+
     def save_skills_to_rupt(self):
             ini_handler.write_key(MODULE_NAME, "skills_to_rupt", ",".join(self.skills_to_rupt))
 
-    # Function: save
-    # Saves all tracked configuration variables to the INI file if changes are detected.
     def save(self):
             for key in self.tracked_keys:
                 value = getattr(self, key)
@@ -208,15 +190,15 @@ class Config:
                 if isinstance(value, bool):
                     ini_handler.write_key(MODULE_NAME, key, "true" if value else "false")
                 elif key == "conditions":
-                    self.save_conditions()  # Save conditions separately
+                    self.save_conditions()
                 elif key == "hexes":
-                    self.save_hexes()  # Save hexes separately
+                    self.save_hexes()
                 elif key == "skills_to_rupt":
-                    self.save_skills_to_rupt()  # Save hexes separately    
+                    self.save_skills_to_rupt()
                 else:
                     ini_handler.write_key(MODULE_NAME, key, str(value))
 
-                self._cache[key] = value  # Update cache to prevent unnecessary writes
+                self._cache[key] = value
 
 
 widget_config = Config()
