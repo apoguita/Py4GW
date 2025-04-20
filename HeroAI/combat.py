@@ -9,58 +9,59 @@ MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
 
 SPIRIT_BUFF_MAP = {
-    2882: Skill.GetID("Frozen_Soil"),
-    4218: Skill.GetID("Life"),
-    4227: Skill.GetID("Bloodsong"),
-    4229: Skill.GetID("Signet_of_Spirits"),  # anger
-    4230: Skill.GetID("Signet_of_Spirits"),  # hate
-    4231: Skill.GetID("Signet_of_Spirits"),  # suffering
-    5720: Skill.GetID("Anguish"),
-    4225: Skill.GetID("Disenchantment"),
-    4221: Skill.GetID("Dissonance"),
-    4214: Skill.GetID("Pain"),
-    4213: Skill.GetID("Shadowsong"),
-    4228: Skill.GetID("Wanderlust"),
-    5723: Skill.GetID("Vampirism"),
-    5854: Skill.GetID("Agony"),
-    4217: Skill.GetID("Displacement"),
-    4222: Skill.GetID("Earthbind"),
-    5721: Skill.GetID("Empowerment"),
-    4219: Skill.GetID("Preservation"),
-    5719: Skill.GetID("Recovery"),
-    4220: Skill.GetID("Recuperation"),
-    5853: Skill.GetID("Rejuvenation"),
-    4223: Skill.GetID("Shelter"),
-    4216: Skill.GetID("Soothing"),
-    4224: Skill.GetID("Union"),
-    4215: Skill.GetID("Destruction"),
-    4226: Skill.GetID("Restoration"),
-    2884: Skill.GetID("Winds"),
-    4239: Skill.GetID("Brambles"),
-    4237: Skill.GetID("Conflagration"),
-    2885: Skill.GetID("Energizing_Wind"),
-    4236: Skill.GetID("Equinox"),
-    2876: Skill.GetID("Edge_of_Extinction"),
-    4238: Skill.GetID("Famine"),
-    2883: Skill.GetID("Favorable_Winds"),
-    2878: Skill.GetID("Fertile_Season"),
-    2877: Skill.GetID("Greater_Conflagration"),
-    5715: Skill.GetID("Infuriating_Heat"),
-    4232: Skill.GetID("Lacerate"),
-    2888: Skill.GetID("Muddy_Terrain"),
-    2887: Skill.GetID("Natures_Renewal"),
-    4234: Skill.GetID("Pestilence"),
-    2881: Skill.GetID("Predatory_Season"),
-    2880: Skill.GetID("Primal_Echoes"),
-    2886: Skill.GetID("Quickening_Zephyr"),
-    5718: Skill.GetID("Quicksand"),
-    5717: Skill.GetID("Roaring_Winds"),
-    2879: Skill.GetID("Symbiosis"),
-    5716: Skill.GetID("Toxicity"),
-    4235: Skill.GetID("Tranquility"),
-    2874: Skill.GetID("Winter"),
-    2875: Skill.GetID("Winnowing"),
+    AgentModelID.FROZEN_SOIL: Skill.GetID("Frozen_Soil"),
+    AgentModelID.LIFE: Skill.GetID("Life"),
+    AgentModelID.BLOODSONG: Skill.GetID("Bloodsong"),
+    AgentModelID.ANGER: Skill.GetID("Signet_of_Spirits"),
+    AgentModelID.HATE: Skill.GetID("Signet_of_Spirits"),
+    AgentModelID.SUFFERING: Skill.GetID("Signet_of_Spirits"),
+    AgentModelID.ANGUISH: Skill.GetID("Anguish"),
+    AgentModelID.DISENCHANTMENT: Skill.GetID("Disenchantment"),
+    AgentModelID.DISSONANCE: Skill.GetID("Dissonance"),
+    AgentModelID.PAIN: Skill.GetID("Pain"),
+    AgentModelID.SHADOWSONG: Skill.GetID("Shadowsong"),
+    AgentModelID.WANDERLUST: Skill.GetID("Wanderlust"),
+    AgentModelID.VAMPIRISM: Skill.GetID("Vampirism"),
+    AgentModelID.AGONY: Skill.GetID("Agony"),
+    AgentModelID.DISPLACEMENT: Skill.GetID("Displacement"),
+    AgentModelID.EARTHBIND: Skill.GetID("Earthbind"),
+    AgentModelID.EMPOWERMENT: Skill.GetID("Empowerment"),
+    AgentModelID.PRESERVATION: Skill.GetID("Preservation"),
+    AgentModelID.RECOVERY: Skill.GetID("Recovery"),
+    AgentModelID.RECUPERATION: Skill.GetID("Recuperation"),
+    AgentModelID.REJUVENATION: Skill.GetID("Rejuvenation"),
+    AgentModelID.SHELTER: Skill.GetID("Shelter"),
+    AgentModelID.SOOTHING: Skill.GetID("Soothing"),
+    AgentModelID.UNION: Skill.GetID("Union"),
+    AgentModelID.DESTRUCTION: Skill.GetID("Destruction"),
+    AgentModelID.RESTORATION: Skill.GetID("Restoration"),
+    AgentModelID.WINDS: Skill.GetID("Winds"),
+    AgentModelID.BRAMBLES: Skill.GetID("Brambles"),
+    AgentModelID.CONFLAGRATION: Skill.GetID("Conflagration"),
+    AgentModelID.ENERGIZING_WIND: Skill.GetID("Energizing_Wind"),
+    AgentModelID.EQUINOX: Skill.GetID("Equinox"),
+    AgentModelID.EDGE_OF_EXTINCTION: Skill.GetID("Edge_of_Extinction"),
+    AgentModelID.FAMINE: Skill.GetID("Famine"),
+    AgentModelID.FAVORABLE_WINDS: Skill.GetID("Favorable_Winds"),
+    AgentModelID.FERTILE_SEASON: Skill.GetID("Fertile_Season"),
+    AgentModelID.GREATER_CONFLAGRATION: Skill.GetID("Greater_Conflagration"),
+    AgentModelID.INFURIATING_HEAT: Skill.GetID("Infuriating_Heat"),
+    AgentModelID.LACERATE: Skill.GetID("Lacerate"),
+    AgentModelID.MUDDY_TERRAIN: Skill.GetID("Muddy_Terrain"),
+    AgentModelID.NATURES_RENEWAL: Skill.GetID("Natures_Renewal"),
+    AgentModelID.PESTILENCE: Skill.GetID("Pestilence"),
+    AgentModelID.PREDATORY_SEASON: Skill.GetID("Predatory_Season"),
+    AgentModelID.PRIMAL_ECHOES: Skill.GetID("Primal_Echoes"),
+    AgentModelID.QUICKENING_ZEPHYR: Skill.GetID("Quickening_Zephyr"),
+    AgentModelID.QUICKSAND: Skill.GetID("Quicksand"),
+    AgentModelID.ROARING_WINDS: Skill.GetID("Roaring_Winds"),
+    AgentModelID.SYMBIOSIS: Skill.GetID("Symbiosis"),
+    AgentModelID.TOXICITY: Skill.GetID("Toxicity"),
+    AgentModelID.TRANQUILITY: Skill.GetID("Tranquility"),
+    AgentModelID.WINTER: Skill.GetID("Winter"),
+    AgentModelID.WINNOWING: Skill.GetID("Winnowing"),
 }
+
 
 class CombatClass:
     global MAX_SKILLS, custom_skill_data_handler
@@ -726,9 +727,10 @@ class CombatClass:
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsAlive(agent_id))
 
         for spirit_id in spirit_array:
-            spirit_model_id = Agent.GetPlayerNumber(spirit_id)
+            spirit_model_id = AgentModelID(Agent.GetPlayerNumber(spirit_id))
             if SPIRIT_BUFF_MAP.get(spirit_model_id) == skill_id:
                 return True
+
         return False
 
 
