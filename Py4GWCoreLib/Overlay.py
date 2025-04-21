@@ -39,7 +39,7 @@ class Overlay:
     @staticmethod
     def FindZ (x, y, z=0):
         """Find The altitude of the ground at the given x,y coordinates based on Pathing Maps"""
-        return Overlay().FindZ(x, y, z)
+        return Overlay().overlay_instance.FindZ(x, y, z)
 
     def RefreshDrawList(self):
         self.overlay_instance.RefreshDrawList()
