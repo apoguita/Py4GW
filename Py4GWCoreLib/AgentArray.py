@@ -7,6 +7,7 @@ from .Player import *
 
 from .Py4GWcorelib import Utils
 
+
 class AgentArray:
     @staticmethod
     def GetRawAgentArray():
@@ -312,3 +313,48 @@ class AgentArray:
 
             return center_of_mass, closest_agent_id
 
+class RawAgentArray:
+    _instance = None
+
+    def __new__(cls, throttle: int = 34):
+        if cls._instance is None:
+            cls._instance = super(RawAgentArray, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self, throttle: int = 34):
+        from .Py4GWcorelib import ThrottledTimer
+
+        if self._initialized:
+            return
+        self.agent_array = []  # new: array of agents
+        self.agent_dict = {}  # new: id → agent
+        self.current_map_id = 0
+        self.update_throttle = ThrottledTimer(throttle)
+        self.agent_name_map = {}
+        self._initialized = True
+        self.update()
+
+    def update(self):
+        from .Routines import Routines
+        if not self.update_throttle.IsExpired():
+            return
+        self.update_throttle.Reset()
+        if not Routines.Checks.Map.MapValid():
+            return
+
+        self.agent_array = AgentArray.GetRawAgentArray()
+        self.agent_dict = {agent.id: agent for agent in self.agent_array}
+
+        map_id = Map.GetMapID()
+        if self.current_map_id != map_id:
+            self.current_map_id = map_id
+            #agent name handling goes here
+
+    def get_array(self):
+        self.update()
+        return self.agent_array
+
+    def get_agent(self, agent_id: int):
+        self.update()
+        return self.agent_dict.get(agent_id)

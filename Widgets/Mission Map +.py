@@ -17,27 +17,6 @@ EARSHOT_SPIRIT_MODELS = [SpiritModelID.AGONY, SpiritModelID.REJUVENATION]
 
 #end region
 
-class RawAgentArray:
-    def __init__(self, throttle: int = 34):
-        self.agent_array = AgentArray.GetRawAgentArray()
-        self.current_map_id = 0
-        self.update_throttle = ThrottledTimer(throttle)  # 1 second throttle
-
-    def update(self):
-        if not self.update_throttle.IsExpired():
-            return
-        self.update_throttle.Reset()
-        if not Routines.Checks.Map.MapValid():
-            return 
-        
-        map_id = Map.GetMapID()
-        if self.current_map_id != map_id:
-            self.current_map_id = map_id
-            #handle agent names here
-            
-        self.agent_array = AgentArray.GetRawAgentArray()
-
-
 #region ENUMS
 class SpiritBuff:
     def __init__ (self, spirit_name:str, model_id: int, skill_id: int, color: Color = Color(96, 128, 0, 255)):
@@ -545,7 +524,7 @@ class MissionMap:
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = 0.0, 0.0
         
         self.throttle_timer = ThrottledTimer(34) # every 4 frames 1000/60 = 16.67ms * 4 = 66.67ms
-        self.agent_array = []
+        self.agent_array = RawAgentArray().get_array()
 
         self.update()
                    
