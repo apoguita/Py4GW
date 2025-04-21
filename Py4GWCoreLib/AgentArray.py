@@ -324,19 +324,29 @@ class RawAgentArray:
 
     def __init__(self, throttle: int = 34):
         from .Py4GWcorelib import ThrottledTimer
-
         if self._initialized:
             return
         self.agent_array = []  # new: array of agents
         self.agent_dict = {}  # new: id → agent
         self.current_map_id = 0
         self.update_throttle = ThrottledTimer(throttle)
-        self.agent_name_map = {}
+        self.name_update_throttle = ThrottledTimer(500) 
+        self.agent_name_map = {}  # agent.id → (name, timestamp)
+        self.name_requested = set()
         self._initialized = True
         self.update()
 
     def update(self):
         from .Routines import Routines
+        from .Map import Map
+        for agent_id in list(self.name_requested):
+            if Agent.IsNameReady(agent_id):
+                name = Agent.GetName(agent_id)
+                if name in ("Timeout", "Unknown"):
+                    name = ""
+                self.agent_name_map[agent_id] = name
+                self.name_requested.discard(agent_id)
+            
         if not self.update_throttle.IsExpired():
             return
         self.update_throttle.Reset()
@@ -349,7 +359,19 @@ class RawAgentArray:
         map_id = Map.GetMapID()
         if self.current_map_id != map_id:
             self.current_map_id = map_id
-            #agent name handling goes here
+            self.agent_name_map.clear()
+            self.name_requested.clear()
+            
+        if not self.name_update_throttle.IsExpired():
+            return
+        self.name_update_throttle.Reset()
+        self.name_requested.clear()
+
+        for agent in self.agent_array:
+            Agent.RequestName(agent.id)
+            self.name_requested.add(agent.id)
+            # Preserve existing name if available, else initialize
+            self.agent_name_map[agent.id] = self.agent_name_map.get(agent.id, "")
 
     def get_array(self):
         self.update()
@@ -358,3 +380,10 @@ class RawAgentArray:
     def get_agent(self, agent_id: int):
         self.update()
         return self.agent_dict.get(agent_id)
+    
+    def get_name(self, agent_id: int):
+        self.update()
+        name = self.agent_name_map.get(agent_id)
+        if name is None:
+            return ""
+        return name

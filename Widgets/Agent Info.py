@@ -2,6 +2,7 @@ from Py4GWCoreLib import *
 
 MODULE_NAME = "Agent Info Viewer"
 LOG_ACTIONS = True
+RAW_AGENT_ARRAY = RawAgentArray()
 
 #region WinwowStup
 window_module = ImGui.WindowModule(
@@ -13,67 +14,6 @@ window_module = ImGui.WindowModule(
 
 #endregion
 
-#region AgentNames
-class AgentArrayNames:
-    global RAW_AGENT_ARRAY
-    def __init__(self):
-        self.agents = AgentArray.GetRawAgentArray()
-        self.agent_names = {}
-        self.update_queue:ThrottledTimer = ThrottledTimer(1000)
-        self.thread_manager = MultiThreading(log_actions=False)
-        self.requesting_names = False
-
-    def request_agent_names(self):
-        if self.requesting_names:
-            self.update_queue.Reset()
-            return
-        self.requesting_names = True
-        requested_ids = set()
-        
-        for agent in self.agents:
-            if agent:
-                Agent.RequestName(agent.id)
-                requested_ids.add(agent.id)
-
-        sleep(0.1)
-        
-        new_name_map = {}
-        
-        for agent_id in requested_ids:
-            retries = 0
-            while not Agent.IsNameReady(agent_id) and retries < 20:
-                retries += 1
-                sleep(0.1)
-            name = Agent.GetName(agent_id)
-            new_name_map[agent_id] = name
-            
-        self.requesting_names = False
-        self.agent_names = new_name_map  # Replace the whole cache
-        self.requesting_names = False
-            
-    def get_name(self, agent_id):
-        if agent_id in self.agent_names:
-            return self.agent_names[agent_id]
-        else:
-            return "Unknown"
-        
-    def reset(self):
-        self.agents = []
-        self.agent_names = {}
-        self.update_queue.Reset()
-        self.requesting_names = False
-        self.thread_manager.stop_thread("self.request_agent_names")
-        
-    def update(self):           
-        if self.update_queue.IsExpired() and self.agents:
-            self.agents = AgentArray.GetRawAgentArray()
-            AGENT_NAMES.thread_manager.stop_thread("self.request_agent_names")
-            AGENT_NAMES.thread_manager.add_thread("self.request_agent_names", self.request_agent_names)
-            AGENT_NAMES.update_queue.Reset()
-    
-AGENT_NAMES = AgentArrayNames()
-
-#endregion
 #region ImGui
 SELECTED_ALLIEGANCE = 0
 SELECTED_AGENT_INDEX = 0 
@@ -96,7 +36,7 @@ def DrawMainWindow():
         return (
             label,
             agent.id,
-            AGENT_NAMES.get_name(agent.id),
+            RAW_AGENT_ARRAY.get_name(agent.id),
             f"({agent.x:.2f}, {agent.y:.2f}, {agent.z:.2f})",
             _get_type(agent)
         )
@@ -106,7 +46,7 @@ def DrawMainWindow():
     
     def _draw_agent_tab_item(agent):        
         PyImGui.text(f"ID: {agent.id}")
-        PyImGui.text(f"Name: {AGENT_NAMES.get_name(agent.id)}")
+        PyImGui.text(f"Name: {RAW_AGENT_ARRAY.get_name(agent.id)}")
         PyImGui.separator()
         if PyImGui.collapsing_header(f"Positional Data:"):
             flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.SizingStretchSame | PyImGui.TableFlags.Resizable
@@ -777,7 +717,7 @@ def DrawMainWindow():
             for agent_id in agent_ids:
                 agent = Agent.agent_instance(agent_id)
                 if agent and agent.id != 0:
-                    combo_items.append(f"{agent.id} - {AGENT_NAMES.get_name(agent.id)}")
+                    combo_items.append(f"{agent.id} - {RAW_AGENT_ARRAY.get_name(agent.id)}")
                     id_map.append(agent.id)  # maintain index mapping
 
             # Show combo
@@ -841,15 +781,14 @@ def configure():
     pass
 
 def main():
-    global AGENT_NAMES
+    global RAW_AGENT_ARRAY
     
     if not Routines.Checks.Map.MapValid():
-        AGENT_NAMES.reset()
         return
     
     DrawMainWindow()
     
-    AGENT_NAMES.update()    
+    RAW_AGENT_ARRAY.update()    
         
 if __name__ == "__main__":
     main()
