@@ -667,6 +667,7 @@ def DrawFrame():
                         if agent.living_agent.player_number in EARSHOT_SPIRIT_MODELS:
                             area = Range.Earshot.value
                         
+                        marker.Color = shifted_color
                         spirit_area = RawGwinchToPixels(area,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
                         
                         Overlay().DrawPoly      (x, y, radius=spirit_area-2, color=marker.AlternateColor.to_color(),numsegments=64,thickness=1.0)
@@ -722,12 +723,11 @@ def DrawFrame():
                 marker.Color = Color(25, 200, 0, 255)
             else:
                 marker.Color = Color(255, 255, 255, 255)
-         
-        color = marker.Color if alive else marker.Color.desaturate(0.5)   
-                
-        size_offset += mission_map.mega_zoom *( 1/5)
         
-        Marker(marker.Marker, color, accent_color, x,y, marker.size + size_offset, offset_angle=rotation_angle).draw()
+        if not(is_spawned and not alive):          
+            color = marker.Color if alive else marker.Color.desaturate(0.5)       
+            size_offset += mission_map.mega_zoom *( 1/5)
+            Marker(marker.Marker, color, accent_color, x,y, marker.size + size_offset, offset_angle=rotation_angle).draw()
 
     Overlay().EndDraw() 
     
