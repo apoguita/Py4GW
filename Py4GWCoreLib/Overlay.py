@@ -3,8 +3,19 @@ from typing import Tuple
 from .Py4GWcorelib import Utils
 
 class Overlay:
+    _instance = None  # Static class-level variable
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Overlay, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self):
+        if self._initialized:
+            return  # Skip re-init if already initialized
         self.overlay_instance = PyOverlay.Overlay()
+        self._initialized = True
 
     def IsMouseClicked(self):
         return self.overlay_instance.IsMouseClicked(0)
@@ -22,13 +33,13 @@ class Overlay:
         if z == 0.0:
             z = Overlay.FindZ(x, y)
 
-        screen_pos = PyOverlay.Overlay().WorldToScreen(x, y, z)
+        screen_pos = Overlay().WorldToScreen(x, y, z)
         return screen_pos.x, screen_pos.y
 
     @staticmethod
     def FindZ (x, y, z=0):
         """Find The altitude of the ground at the given x,y coordinates based on Pathing Maps"""
-        return PyOverlay.Overlay().FindZ(x, y, z)
+        return Overlay().FindZ(x, y, z)
 
     def RefreshDrawList(self):
         self.overlay_instance.RefreshDrawList()
