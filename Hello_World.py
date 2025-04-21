@@ -1,18 +1,24 @@
 from Py4GWCoreLib import *
 
 MODULE_NAME = "tester for everything"
-timer = Timer()
-timer.Start()
 
-def useitem(model_id):
-    item = Item.GetItemIdFromModelID(model_id)
-    Inventory.UseItem(item)
-
+capture_mouse = False
+mouse_x, mouse_y, pos_z = 0.0, 0.0, 0.0
 def main():
-    global timer
+    global capture_mouse, mouse_x, mouse_y, pos_z
+    
     if PyImGui.begin("timer test"):
         if PyImGui.button("use Item"):
-            useitem(30847)
+            capture_mouse = not capture_mouse
+            
+        if capture_mouse:
+            mouse_x,mouse_y,_ = Overlay().GetMouseWorldPos()
+            pos_z = Overlay().FindZ(mouse_x, mouse_y)
+            
+        PyImGui.text(f"Mouse X: {mouse_x}")
+        PyImGui.text(f"Mouse Y: {mouse_y}")
+        PyImGui.text(f"Mouse Z: {pos_z}")
+
             
         
     PyImGui.end()
