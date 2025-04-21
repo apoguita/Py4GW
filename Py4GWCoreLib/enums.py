@@ -33,7 +33,7 @@ class ServerRegion(IntEnum):
     Europe = 2
     China = 3
     Japan = 4
-    Unknown = 6 # left  untouched if anyone is using this
+    Unknown = 255
 
 #endregion
 #region ServerRegionName
@@ -50,46 +50,41 @@ ServerRegionName = {
 #region ServerLanguage
 class ServerLanguage(IntEnum):
     English = 0
-    French = 2
-    German = 3
-    Italian = 4
-    Spanish = 5
-    Polish = 9
-    Russian = 10
-
-#endregion
-#region ServerLanguageName
-ServerLanguageName = {
-    ServerLanguage.English.value: 'English',
-    ServerLanguage.French.value: 'French',
-    ServerLanguage.German.value: 'German',
-    ServerLanguage.Italian.value: 'Italian',
-    ServerLanguage.Spanish.value: 'Spanish',
-    ServerLanguage.Polish.value: 'Polish',
-    ServerLanguage.Russian.value: 'Russian',
-}
-
-#endregion
-#region Language
-class Language(IntEnum):
-    English = 0
     Korean = 1
     French = 2
     German = 3
     Italian = 4
     Spanish = 5
     TraditionalChinese = 6
-    Japanese = 7
-    Polish = 8
-    Russian = 9
-    BorkBorkBork = 10
-    Unknown = 0xff
+    Japanese = 8
+    Polish = 9
+    Russian = 10
+    BorkBorkBork = 17
+    Unknown = 255
 
 #endregion
+#region ServerLanguageName
+ServerLanguageName = {
+    ServerLanguage.English.value: 'English',
+    ServerLanguage.Korean.value: 'Korean',
+    ServerLanguage.French.value: 'French',
+    ServerLanguage.German.value: 'German',
+    ServerLanguage.Italian.value: 'Italian',
+    ServerLanguage.Spanish.value: 'Spanish',
+    ServerLanguage.TraditionalChinese.value: 'Traditional Chinese',
+    ServerLanguage.Japanese.value: 'Japanese',
+    ServerLanguage.Polish.value: 'Polish',
+    ServerLanguage.Russian.value: 'Russian',
+    ServerLanguage.BorkBorkBork.value: 'Bork Bork Bork',
+    ServerLanguage.Unknown.value: 'Unknown',
+}
+
+#endregion
+
 #region District
 class District(IntEnum):
     Current = 0
-    International =1
+    International = 1
     American = 2
     EuropeEnglish = 3
     EuropeFrench = 4
@@ -101,10 +96,27 @@ class District(IntEnum):
     AsiaKorean = 10
     AsiaChinese = 11
     AsiaJapanese = 12
-    Unknown = 0xff
-
+    Unknown = 255
 
 #endregion
+#region Language
+class Language(IntEnum):
+    English = 0
+    Korean = 1
+    French = 2
+    German = 3
+    Italian = 4
+    Spanish = 5
+    TraditionalChinese = 6
+    Japanese = 8
+    Polish = 9
+    Russian = 10
+    BorkBorkBork = 17
+    Unknown = 255
+
+#endregion
+#region District
+
 #region ampaign
 class Campaign(IntEnum):
     Core = 0
