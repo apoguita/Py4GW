@@ -77,6 +77,7 @@ class GameData:
         self.is_targeting_enabled = True
         self.is_combat_enabled = True
         self.is_skill_enabled = [True for _ in range(NUMBER_OF_SKILLS)]
+        self.RAW_AGENT_ARRAY = RawAgentArray()
         
         
     def reset(self):
@@ -131,6 +132,7 @@ class GameData:
         #combat field data
         self.free_slots_in_inventory = Inventory.GetFreeSlotCount()
         self.target_id = Player.GetTargetID()
+        self.RAW_AGENT_ARRAY.update() 
         
     
 @dataclass
