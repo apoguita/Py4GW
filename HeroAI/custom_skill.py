@@ -2096,7 +2096,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Healing.value
-        skill.Conditions.LessLife = 0.75
+        skill.Conditions.LessLife = 0.9
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()

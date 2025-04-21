@@ -27,13 +27,47 @@ class Range(Enum):
 #endregion
 #region ServerRegion
 class ServerRegion(IntEnum):
-    International = 0
-    America = 1
-    Korea = 2
-    Europe = 3
-    China = 4
-    Japan = 5
-    Unknown = 6
+    International = -2
+    America = 0
+    Korea = 1
+    Europe = 2
+    China = 3
+    Japan = 4
+    Unknown = 6 # left  untouched if anyone is using this
+
+#endregion
+#region ServerRegionName
+ServerRegionName = {
+    ServerRegion.International.value: 'International',
+    ServerRegion.America.value: 'America',
+    ServerRegion.Korea.value: 'Korea',
+    ServerRegion.Europe.value: 'Europe',
+    ServerRegion.China.value: 'Traditional Chinese',
+    ServerRegion.Japan.value: 'Japanese',
+}
+       
+#endregion
+#region ServerLanguage
+class ServerLanguage(IntEnum):
+    English = 0
+    French = 2
+    German = 3
+    Italian = 4
+    Spanish = 5
+    Polish = 9
+    Russian = 10
+
+#endregion
+#region ServerLanguageName
+ServerLanguageName = {
+    ServerLanguage.English.value: 'English',
+    ServerLanguage.French.value: 'French',
+    ServerLanguage.German.value: 'German',
+    ServerLanguage.Italian.value: 'Italian',
+    ServerLanguage.Spanish.value: 'Spanish',
+    ServerLanguage.Polish.value: 'Polish',
+    ServerLanguage.Russian.value: 'Russian',
+}
 
 #endregion
 #region Language
@@ -1083,6 +1117,7 @@ explorables = {
     145: "The Catacombs",
     146: "Lakeside County",
     147: "The Northlands",
+    148: "Ascalon City (pre-Searing)",
     149: "Ascalon Academy",
     151: "Ascalon Academy",
     160: "Green Hills County",
@@ -2190,8 +2225,7 @@ class SpiritModelID(IntEnum):
     WINDS = 2884
 
 #region Menagerie
-#PET_MODEL    
-    
+#PET_MODEL
 class PetModelID(IntEnum):
     #charmable animals
     MELANDRUS_STALKER_WILD = 1345
