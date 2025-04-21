@@ -530,7 +530,7 @@ class Agent:
         return Agent.agent_instance(agent_id).living_agent.in_combat_stance
 
     @staticmethod
-    def IsAgressive(agent_id):
+    def IsAggressive(agent_id):
         """Check if the agent is attacking or casting."""
         if Agent.agent_instance(agent_id).living_agent.is_attacking or Agent.agent_instance(agent_id).living_agent.is_casting:
             return True

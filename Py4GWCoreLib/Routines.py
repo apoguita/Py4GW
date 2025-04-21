@@ -27,8 +27,7 @@ class Routines:
                 if Agent.IsCasting(Player.GetAgentID()):
                     return False
                 return True
-                
-                
+
         class Map:
             @staticmethod
             def MapValid():
@@ -41,7 +40,7 @@ class Routines:
                 if Map.IsInCinematic():
                     return False
                 return True
-            
+
         class Inventory:
             @staticmethod
             def InventoryAndLockpickCheck():
@@ -54,10 +53,10 @@ class Routines:
                 if Effects.BuffExists(agent_id, skill_id) or Effects.EffectExists(agent_id, skill_id):
                     return True
                 return False
-            
+
         class Agents:
             @staticmethod
-            def InDanger(aggro_area=Range.Earshot):
+            def InDanger(aggro_area=Range.Earshot, aggressive_only = False):
                 from .Agent import Agent
                 from .Player import Player
                 from .AgentArray import AgentArray
@@ -65,6 +64,8 @@ class Routines:
                 enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= aggro_area.value)
                 enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
                 enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
+                if aggressive_only:
+                    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAggressive(agent_id))
                 if len(enemy_array) > 0:
                     return True
                 return False
@@ -107,8 +108,6 @@ class Routines:
                 owner = Agent.GetItemAgentOwnerID(item_id)
                 return (owner == Player.GetAgentID()) or (owner == 0)
 
-
-            
         class Skills:
             @staticmethod
             def HasEnoughEnergy(agent_id, skill_id):
@@ -547,7 +546,7 @@ class Routines:
                 ConsoleLog(current_function, f"Still traveling... Waiting to arrive at: {Map.GetMapName(outpost_id)}.", Console.MessageType.Info)
 
             return False
-        
+
         @staticmethod
         def IsOutpostLoaded(log_actions=True):
             """
@@ -581,7 +580,7 @@ class Routines:
             from .Party import Party
             from .Map import Map
             
-            map_loaded =  Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()
+            map_loaded = Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()
             
             if log_actions:
                 if map_loaded:
@@ -630,7 +629,7 @@ class Routines:
             return Routines.Agents.GetNearestNPCXY(player_pos[0], player_pos[1], distance)
          
         @staticmethod
-        def GetFilteredEnemyArray(x,y,max_distance=4500.0):
+        def GetFilteredEnemyArray(x, y, max_distance=4500.0, aggressive_only = False):
             from .AgentArray import AgentArray
             from .Player import Player
             from .Agent import Agent
@@ -644,67 +643,69 @@ class Routines:
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance((x,y), Agent.GetXY(agent_id)) <= max_distance)
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
+            if aggressive_only:
+                enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAggressive(agent_id))
             return enemy_array
                      
         @staticmethod
-        def GetNearestEnemy(max_distance=4500.0):
+        def GetNearestEnemy(max_distance=4500.0, aggressive_only = False):
             from .AgentArray import AgentArray
             from .Player import Player
             from .Py4GWcorelib import Utils
 
             player_pos = Player.GetXY()
-            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance)
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
             enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
             return Utils.GetFirstFromArray(enemy_array)
         
         @staticmethod
-        def GetNearestEnemyCaster(max_distance=4500.0):
+        def GetNearestEnemyCaster(max_distance=4500.0, aggressive_only = False):
             from .AgentArray import AgentArray
             from .Player import Player
             from .Agent import Agent
             from .Py4GWcorelib import Utils
 
             player_pos = Player.GetXY()
-            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance)
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsCaster(agent_id))
             enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
             return Utils.GetFirstFromArray(enemy_array)
             
         @staticmethod
-        def GetNearestEnemyMartial(max_distance=4500.0):
+        def GetNearestEnemyMartial(max_distance=4500.0, aggressive_only = False):
             from .AgentArray import AgentArray
             from .Player import Player
             from .Agent import Agent
             from .Py4GWcorelib import Utils
 
             player_pos = Player.GetXY()
-            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance)
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsMartial(agent_id))
             enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
             return Utils.GetFirstFromArray(enemy_array)   
         
         @staticmethod
-        def GetNearestEnemyMelee(max_distance=4500.0):
+        def GetNearestEnemyMelee(max_distance=4500.0, aggressive_only = False):
             from .AgentArray import AgentArray
             from .Player import Player
             from .Agent import Agent
             from .Py4GWcorelib import Utils
 
             player_pos = Player.GetXY()
-            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance)
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsMelee(agent_id))
             enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
             return Utils.GetFirstFromArray(enemy_array)
         
         @staticmethod
-        def GetNearestEnemyRanged(max_distance=4500.0):
+        def GetNearestEnemyRanged(max_distance=4500.0, aggressive_only = False):
             from .AgentArray import AgentArray
             from .Player import Player
             from .Agent import Agent
             from .Py4GWcorelib import Utils
 
             player_pos = Player.GetXY()
-            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance)
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsRanged(agent_id))
             enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
             return Utils.GetFirstFromArray(enemy_array)
@@ -824,6 +825,10 @@ class Routines:
             gadget_array = AgentArray.Sort.ByDistance(gadget_array,Player.GetXY())
             for agent_id in gadget_array:
                 if Agent.GetGadgetID(agent_id) == 9: #9 is the ID for a Hidden Stash (Pre-Searing)
+                    return agent_id
+                if Agent.GetGadgetID(agent_id) == 69: #69 is the ID for a chest
+                    return agent_id
+                if Agent.GetGadgetID(agent_id) == 4579: #4579 is the ID for a chest
                     return agent_id
                 if Agent.GetGadgetID(agent_id) == 8141: #8141 is the ID for a chest
                     return agent_id
@@ -965,11 +970,10 @@ class Routines:
 
             return best_target
 
-
     #region Movement
     class Movement:
         @staticmethod
-        def FollowPath(path_handler,follow_handler, log_actions=False):
+        def FollowPath(path_handler, follow_handler, log_actions=False):
             """
             Purpose: Follow a path using the path handler and follow handler objects.
             Args:
@@ -977,12 +981,11 @@ class Routines:
                 follow_handler (FollowXY): The FollowXY object for moving to waypoints.
             Returns: None
             """
-            
+
             follow_handler.update()
 
             if follow_handler.is_following():
                 return
-
 
             point = path_handler.advance()
             if point is not None:
@@ -993,7 +996,6 @@ class Routines:
         @staticmethod
         def IsFollowPathFinished(path_handler,follow_handler):
             return path_handler.is_finished() and follow_handler.has_arrived()
-
 
         class FollowXY:
             def __init__(self, tolerance=100):
@@ -1009,13 +1011,11 @@ class Routines:
                 self.wait_timer = Timer()  # Timer to track waiting after issuing move command
                 self.wait_timer_run_once = True
 
-
             def calculate_distance(self, pos1, pos2):
                 """
                 Calculate the Euclidean distance between two points.
                 """
                 return Utils.Distance(pos1, pos2)
-
 
             def move_to_waypoint(self, x=0, y=0, tolerance=None, use_action_queue = False):
                 """
@@ -1116,7 +1116,6 @@ class Routines:
                 Check if the player has arrived at the current waypoint.
                 """
                 return self.arrived
-
 
         class PathHandler:
             def __init__(self, coordinates):
@@ -1236,8 +1235,7 @@ class Routines:
                 target_id = Player.GetTargetID()
                 if target_id != 0:
                     Routines.Sequential.Player.InteractAgent(target_id)
-                    
-                     
+
             @staticmethod
             def SendDialog(dialog_id:str):
                 from .Player import Player
@@ -1262,8 +1260,7 @@ class Routines:
                 sleep(0.3)
                 if log:
                     ConsoleLog("SendChatCommand", f"Sending chat command {command}", Console.MessageType.Info)
-               
-            
+
             @staticmethod
             def Move(x:float, y:float, log=False):
                 from .Player import Player
@@ -1272,7 +1269,7 @@ class Routines:
                 sleep(0.1)
                 if log:
                     ConsoleLog("MoveTo", f"Moving to {x}, {y}", Console.MessageType.Info)
-                     
+
         class Movement:
             @staticmethod
             def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=150):
@@ -1306,7 +1303,6 @@ class Routines:
                             break  # Arrived at this waypoint, move to next
 
                         sleep(0.5)
-                        
 
         class Skills:
             @staticmethod
@@ -1343,8 +1339,7 @@ class Routines:
                 if log:
                     ConsoleLog("CastSkillID", f"Cast {Skill.GetName(skill_id)}, slot: {SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
                 return True
-            
-            
+
             @staticmethod
             def CastSkillSlot(slot:int,extra_condition=True, log=False):
                 from .Skillbar import SkillBar
@@ -1377,8 +1372,7 @@ class Routines:
                 ActionQueueManager().AddAction("ACTION",Party.SetHardMode)
                 sleep(0.5)
                 ConsoleLog("SetHardMode", "Hard mode set.", Console.MessageType.Info, log=log)
-                
-                                
+
             @staticmethod
             def TravelToOutpost(outpost_id, log=False):
                 """
@@ -1486,6 +1480,7 @@ class Routines:
                 agent_id = Routines.Sequential.Agents.GetAgentIDByName(agent_name)
                 if agent_id != 0:
                     Routines.Sequential.Agents.ChangeTarget(agent_id)
+
             @staticmethod
             def TargetNearestNPC(distance:float = 4500.0):
                 nearest_npc = Routines.Agents.GetNearestNPC(distance)

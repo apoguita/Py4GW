@@ -62,7 +62,6 @@ SPIRIT_BUFF_MAP = {
     SpiritModelID.WINNOWING: Skill.GetID("Winnowing"),
 }
 
-
 class CombatClass:
     global MAX_SKILLS, custom_skill_data_handler
 
