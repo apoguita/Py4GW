@@ -17,6 +17,27 @@ EARSHOT_SPIRIT_MODELS = [SpiritModelID.AGONY, SpiritModelID.REJUVENATION]
 
 #end region
 
+class RawAgentArray:
+    def __init__(self, throttle: int = 34):
+        self.agent_array = AgentArray.GetRawAgentArray()
+        self.current_map_id = 0
+        self.update_throttle = ThrottledTimer(throttle)  # 1 second throttle
+
+    def update(self):
+        if not self.update_throttle.IsExpired():
+            return
+        self.update_throttle.Reset()
+        if not Routines.Checks.Map.MapValid():
+            return 
+        
+        map_id = Map.GetMapID()
+        if self.current_map_id != map_id:
+            self.current_map_id = map_id
+            #handle agent names here
+            
+        self.agent_array = AgentArray.GetRawAgentArray()
+
+
 #region ENUMS
 class SpiritBuff:
     def __init__ (self, spirit_name:str, model_id: int, skill_id: int, color: Color = Color(96, 128, 0, 255)):
@@ -522,12 +543,17 @@ class MissionMap:
         self.scale_x, self.scale_y = 1.0, 1.0
         self.zoom =  0.0
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = 0.0, 0.0
-
+        
+        self.throttle_timer = ThrottledTimer(34) # every 4 frames 1000/60 = 16.67ms * 4 = 66.67ms
+        self.agent_array = []
 
         self.update()
                    
 
-    def update(self):       
+    def update(self):   
+        if not self.throttle_timer.IsExpired():
+            return
+        self.throttle_timer.Reset()    
         coords = Map.MissionMap.GetWindowCoords()
         self.left, self.top, self.right, self.bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
         self.width = self.right - self.left
@@ -577,6 +603,7 @@ class MissionMap:
         self.mega_zoom_renderer.world_space.set_zoom(zoom/100.0)
         self.renderer.world_space.set_scale(self.scale_x)
         self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0,self.mega_zoom)
+        self.agent_array = AgentArray.GetRawAgentArray()
         
         
 mission_map = MissionMap()
@@ -608,8 +635,7 @@ def DrawFrame():
     zoom = mission_map.zoom + mission_map.mega_zoom
     Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=RawGwinchToPixels(Range.Compass.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)-(2.85*zoom), color=Utils.RGBToColor(255, 255, 255, 40),numsegments=360,thickness=(5.7*zoom))
     
-    agent_array = AgentArray.GetRawAgentArray()
-    for agent in agent_array:
+    for agent in mission_map.agent_array:
         alliegance = agent.living_agent.allegiance.ToInt()
         x,y = RawGamePosToScreen(agent.x, agent.y, 
                                  mission_map.zoom, mission_map.mega_zoom,
