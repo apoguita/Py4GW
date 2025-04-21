@@ -61,7 +61,8 @@ class DebugWindowListClass:
 
 oldAngle = 0.0  # used for angle change
 
-hero_formation = [ 0.0, 45.0, -45.0, 90.0, -90.0, 135.0, -135.0, 180.0 ] # position on the grid of heroes
+#hero_formation = [ 0.0, 45.0, -45.0, 90.0, -90.0, 135.0, -135.0, 180.0 ] # position on the grid of heroes
+hero_formation = [ 0.0, 45.0, -45.0, 90.0, -90.0, 135.0, -135.0, 180.0 , -180.0, 225.0, -225.0, 270.0] # position on the grid of heroes
 
 overlay_explorable_initialized = False
 show_area_rings = True
