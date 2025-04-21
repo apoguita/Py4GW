@@ -192,7 +192,7 @@ class Player:
         return Player.player_instance().FormatChatMessage(message, r, g, b)
 
     @staticmethod
-    def ChangeTarget (agent_id):
+    def ChangeTarget(agent_id):
         """
         Purpose: Change the player's target.
         Args:

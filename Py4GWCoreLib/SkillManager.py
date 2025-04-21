@@ -126,8 +126,7 @@ class SkillManager:
         def __init__(self):
             self.cache_data = CacheData()
             self.game_throttle_timer = ThrottledTimer(75)
-            
-            
+
         def _HandleOutOfCombat(self):
             if not self.cache_data.data.is_combat_enabled:  # halt operation if combat is disabled
                 return False
@@ -162,10 +161,7 @@ class SkillManager:
                     if not self.cache_data.data.player_is_attacking:
                         self.cache_data.combat_handler.ChooseTarget()
                     self.cache_data.auto_attack_timer.Reset()
-            
-            
-            
-            
+
     class Autocombat: 
         custom_skill_data_handler = CustomSkillClass()
         class _SkillData:
@@ -186,6 +182,15 @@ class SkillManager:
             self.auto_attack_timer = ThrottledTimer(750)
             self.ping_handler = Py4GW.PingHandler()
             self.in_casting_routine = True
+            self.aggressive_enemies_only = False
+
+        def SetAggressiveEnemiesOnly(self, state, log_action=False):
+            self.aggressive_enemies_only = state
+            if log_action:
+                if state:
+                    ConsoleLog("Autocombat", f"Fighting aggressive enemies only.", Console.MessageType.Info)
+                else:
+                    ConsoleLog("Autocombat", f"Fighting all enemies", Console.MessageType.Info)
 
         def PrioritizeSkills(self):
             """
@@ -339,9 +344,9 @@ class SkillManager:
         
         def InAggro(self):
             if self.stay_alert_timer.IsExpired():
-                in_danger = Routines.Checks.Agents.InDanger(Range.Earshot)
+                in_danger = Routines.Checks.Agents.InDanger(Range.Earshot, self.aggressive_enemies_only)
             else:
-                in_danger = Routines.Checks.Agents.InDanger(Range.Spellcast)
+                in_danger = Routines.Checks.Agents.InDanger(Range.Spellcast, self.aggressive_enemies_only)
                 
             if in_danger:
                 self.stay_alert_timer.Reset()
@@ -374,19 +379,19 @@ class SkillManager:
                 if v_target == 0:
                     v_target = nearest_enemy
             elif target_allegiance == Skilltarget.EnemyCaster:
-                v_target = Routines.Agents.GetNearestEnemyCaster(self.get_combat_distance())
+                v_target = Routines.Agents.GetNearestEnemyCaster(self.get_combat_distance(), self.aggressive_enemies_only)
                 if v_target == 0 and not targeting_strict:
                     v_target =nearest_enemy
             elif target_allegiance == Skilltarget.EnemyMartial:
-                v_target = Routines.Agents.GetNearestEnemyMartial(self.get_combat_distance())
+                v_target = Routines.Agents.GetNearestEnemyMartial(self.get_combat_distance(), self.aggressive_enemies_only)
                 if v_target == 0 and not targeting_strict:
                     v_target = nearest_enemy
             elif target_allegiance == Skilltarget.EnemyMartialMelee:
-                v_target = Routines.Agents.GetNearestEnemyMelee(self.get_combat_distance())
+                v_target = Routines.Agents.GetNearestEnemyMelee(self.get_combat_distance(), self.aggressive_enemies_only)
                 if v_target == 0 and not targeting_strict:
                     v_target = nearest_enemy
             elif target_allegiance == Skilltarget.AllyMartialRanged:
-                v_target = Routines.Agents.GetNearestEnemyRanged(self.get_combat_distance())
+                v_target = Routines.Agents.GetNearestEnemyRanged(self.get_combat_distance(), self.aggressive_enemies_only)
                 if v_target == 0 and not targeting_strict:
                     v_target = nearest_enemy
             elif target_allegiance == Skilltarget.Ally:
@@ -876,7 +881,7 @@ class SkillManager:
             
             if Player.GetTargetID() == 0 or (target_aliegance != 'Enemy'):
                                 
-                nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+                nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance(), self.aggressive_enemies_only)
                 called_target = self.GetPartyTarget()
 
                 attack_target = 0
