@@ -2130,13 +2130,7 @@ class ModelID(IntEnum):
     
     
 #region AgentModels
-class AgentModelID(IntEnum):
-    #PET_MODEL
-    MELANDRUS_STALKER = 1345
-    RAINBOW_PHOENIX = 2990
-    RAVEN = 5820
-    WOLF = 1388
-    
+class SpiritModelID(IntEnum):
     #SPIRIT_MODEL
     #RANGER
     BRAMBLES = 4239
@@ -2196,7 +2190,17 @@ class AgentModelID(IntEnum):
     WINDS = 2884
 
 #region Menagerie
+#PET_MODEL    
+    
 class PetModelID(IntEnum):
+    #charmable animals
+    MELANDRUS_STALKER_WILD = 1345
+    RAINBOW_PHOENIX_WILD = 2990
+    RAVEN_WILD = 5820
+    WOLF_WILD = 1387
+    WOLF_ELDER_WILD = 1388
+    
+    
     ALBINO_RAT = 561
     ALBINO_RAT_12_ELDER = 562
     ALBINO_RAT_12_PLAYFUL = 563
