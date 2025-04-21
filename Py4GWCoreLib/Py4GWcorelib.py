@@ -1279,10 +1279,12 @@ class FSM:
         self.state_counter = 0  # Internal counter for state IDs
         self.log_actions = log_actions  # Whether to log state transitions and actions
         self.finished = False  # Track whether the FSM has completed all states
-
+        self.paused = False
+        self.on_transition = None
+        self.on_complete = None
 
     class State:
-        def __init__(self, id, name=None, execute_fn=None, exit_condition=None, transition_delay_ms=0, run_once=True):
+        def __init__(self, id, name=None, execute_fn=None, exit_condition=None, transition_delay_ms=0, run_once=True, on_enter=None, on_exit=None):
             """
             :param id: Internal ID of the state.
             :param name: Optional name of the state (for debugging purposes).
@@ -1299,13 +1301,25 @@ class FSM:
             self.executed = False  # Track whether the state's execute function has been run
             self.transition_delay_ms = transition_delay_ms  # Delay before transitioning to the next state
             self.transition_timer = Timer()  # Timer to manage the delay
+            self.on_enter = on_enter or (lambda: None)
+            self.on_exit = on_exit or (lambda: None)
+            self.next_state = None
+
+        def enter(self):
+            self.on_enter()
+
+        def exit(self):
+            self.on_exit()
+
+        def reset_transition_timer(self):
+            self.transition_timer.Reset()
 
         def execute(self):
             """Run the state's block of code. If `run_once` is True, run it only once."""
             if not self.run_once or not self.executed:
                 self.execute_fn()
                 self.executed = True  # Mark execution as complete if run_once is True
-                self.transition_timer.Reset()  # Reset the timer
+                self.reset_transition_timer()  # Reset the timer
 
         def can_exit(self):
             """
@@ -1330,7 +1344,8 @@ class FSM:
             self.next_state = next_state
             
     class ConditionState(State):
-        def __init__(self, id, name=None, condition_fn=None, sub_fsm=None):
+        def __init__(self, id, name=None, condition_fn=None, sub_fsm=None,
+                 on_enter=None, on_exit=None):
             """
             A state that evaluates a condition and decides whether to continue or run a sub-FSM.
 
@@ -1338,7 +1353,7 @@ class FSM:
                                  it runs the sub_fsm and waits for it to finish before transitioning.
             :param sub_fsm: An optional sub-FSM that will be run if condition_fn returns False.
             """
-            super().__init__(id, name)
+            super().__init__(id, name, on_enter=on_enter, on_exit=on_exit)
             self.condition_fn = condition_fn or (lambda: True)  # Default to True if no condition provided
             self.sub_fsm = sub_fsm
             self.sub_fsm_active = False
@@ -1350,29 +1365,42 @@ class FSM:
             """
             if self.sub_fsm_active:
                 # If the sub-FSM is running, update it and check if it is finished
-                if self.sub_fsm is not None and not self.sub_fsm.is_finished():
+                if self.sub_fsm and not self.sub_fsm.is_finished():
                     self.sub_fsm.update()
-                else:
-                    self.sub_fsm_active = False  # Sub-FSM finished, can continue execution
-                    self.executed = True
-            else:
+                    return
+                self.sub_fsm_active = False  # Sub-FSM finished, can continue execution
+                self.executed = True
+                self.reset_transition_timer()  # Fix missing timer reset
+                return
+
                 # Evaluate the condition
-                if not self.condition_fn():
-                    self.executed = True  # Condition not met, continue to the next state
-                elif self.sub_fsm:
-                    # Condition met, start the sub-FSM
-                    Py4GW.Console.Log("FSM", f"Starting FSM Subroutine", Py4GW.Console.MessageType.Success)
-
-                    self.sub_fsm.reset()
-                    self.sub_fsm.start()
-                    self.sub_fsm_active = True
-
+            if not self.condition_fn():
+                self.executed = True  # Condition not met, continue to the next state
+                self.reset_transition_timer()  # Fix missing timer reset
+                return
+            
+            if self.sub_fsm and not self.sub_fsm_active:
+                # Condition met, start the sub-FSM
+                Py4GW.Console.Log("FSM", f"Starting FSM Subroutine", Py4GW.Console.MessageType.Success)
+                self.sub_fsm.reset()
+                self.sub_fsm.start()
+                self.sub_fsm_active = True
+            else:
+                self.executed = True  # Ensure exit is possible if no sub_fsm
+                self.reset_transition_timer()  # Fix missing timer reset
+            
         def can_exit(self):
             """
             The node can exit only if the condition is met or the sub-FSM has finished running.
             """
             return self.executed and not self.sub_fsm_active
-
+        
+        def reset(self):
+            super().reset()
+            self.sub_fsm_active = False
+            if self.sub_fsm:
+                self.sub_fsm.reset()
+        
     def SetLogBehavior(self, log_actions=False):
         """
         Set whether to log state transitions and actions.
@@ -1384,7 +1412,7 @@ class FSM:
         """Get the current logging behavior setting."""
         return self.log_actions
 
-    def AddState(self, name=None, execute_fn=None, exit_condition=None, transition_delay_ms=0, run_once=True):
+    def AddState(self, name=None, execute_fn=None, exit_condition=None, transition_delay_ms=0, run_once=True, on_enter=None, on_exit=None):
         """Add a state with an optional name, execution function, and exit condition."""
         state = FSM.State(
             id=self.state_counter,
@@ -1392,7 +1420,9 @@ class FSM:
             execute_fn=execute_fn,
             exit_condition=exit_condition,
             run_once=run_once,
-            transition_delay_ms=transition_delay_ms
+            transition_delay_ms=transition_delay_ms,
+            on_enter=on_enter,
+            on_exit=on_exit
         )
         
         if self.states:
@@ -1401,14 +1431,16 @@ class FSM:
         self.states.append(state)
         self.state_counter += 1
 
-
-    def AddSubroutine(self, name=None, condition_fn=None, sub_fsm=None):
+    def AddSubroutine(self, name=None, condition_fn=None, sub_fsm=None,
+                  on_enter=None, on_exit=None):
         """Add a condition node that evaluates a condition and can run a subroutine FSM."""
         condition_node = FSM.ConditionState(
             id=self.state_counter,
             name=name,
             condition_fn=condition_fn,
-            sub_fsm=sub_fsm
+            sub_fsm=sub_fsm,
+            on_enter=on_enter,
+            on_exit=on_exit
         )
         if self.states:
             self.states[-1].set_next_state(condition_node)
@@ -1442,37 +1474,200 @@ class FSM:
 
         if self.log_actions:
             Py4GW.Console.Log("FSM", f"{self.name}: FSM has been reset.", Py4GW.Console.MessageType.Info)
+    
+    def skip_to_state(self, name):
+        target = next((s for s in self.states if s.name == name), None)
+        if not target:
+            raise ValueError(f"{self.name}: No state named '{name}'")
+        self.current_state = target
 
+    def get_state_names(self):
+        return [s.name for s in self.states]
 
-    def update(self):
-        """Update the FSM: execute the current state and transition if the exit condition is met."""
-        if self.current_state is None:
-            # FSM has either not started or already finished
-            Py4GW.Console.Log("FSM", f"{self.name}: FSM has not been started or has finished.", Py4GW.Console.MessageType.Warning)
-            return
-
-        # Execute the current state's logic (runs once or repeatedly based on the run_once flag)
+    def terminate(self):
         if self.log_actions:
-            Py4GW.Console.Log("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
-        
+            Py4GW.Console.Log("FSM", f"{self.name}: Terminated forcefully.", Py4GW.Console.MessageType.Warning)
+        self.current_state = None
+        self.finished = True
+
+    def run_until(self, condition_fn):
+        while not self.finished and not condition_fn():
+            self.update()
+    
+    def set_completion_callback(self, callback_fn):
+        self.on_complete = callback_fn
+    
+    def get_current_state_index(self):
+        if not self.current_state or self.current_state not in self.states:
+            return -1
+        return self.states.index(self.current_state)
+
+    def get_next_state_index(self):
+        if not self.current_state:
+            return -1
+        next_state = getattr(self.current_state, 'next_state', None)
+        if not next_state or next_state not in self.states:
+            return -1
+        return self.states.index(next_state)
+
+    def insert_state_after(self, target_name, name=None, execute_fn=None, exit_condition=None, transition_delay_ms=0, run_once=True, on_enter=None, on_exit=None):
+        index = next((i for i, s in enumerate(self.states) if s.name == target_name), -1)
+        if index == -1:
+            raise ValueError(f"State '{target_name}' not found.")
+
+        new_state = FSM.State(
+            id=self.state_counter,
+            name=name,
+            execute_fn=execute_fn,
+            exit_condition=exit_condition,
+            run_once=run_once,
+            transition_delay_ms=transition_delay_ms,
+            on_enter=on_enter,
+            on_exit=on_exit
+        )
+
+        new_state.id = self.state_counter
+        self.state_counter += 1
+        self.states.insert(index + 1, new_state)
+        self.states[index].set_next_state(new_state)
+
+        if index + 2 < len(self.states):
+            new_state.set_next_state(self.states[index + 2])
+
+        self.state_counter += 1
+
+    def remove_state(self, name):
+        index = next((i for i, s in enumerate(self.states) if s.name == name), None)
+        if index is None:
+            raise ValueError(f"State '{name}' not found.")
+
+        if self.current_state == self.states[index]:
+            raise RuntimeError(f"Cannot remove the currently active state '{name}'")
+
+        prev_state = self.states[index - 1] if index > 0 else None
+        next_state = self.states[index + 1] if index + 1 < len(self.states) else None
+
+        if prev_state and next_state:
+            prev_state.set_next_state(next_state)
+
+        self.states.pop(index)
+
+    def peek(self):
+        return self.current_state.next_state if self.current_state and hasattr(self.current_state, 'next_state') else None
+
+    def interrupt(self, fn):
+        if not self.current_state:
+            return
+        original_exit = self.current_state.exit
+
+        def wrapped_exit():
+            original_exit()
+            fn()
+
+        self.current_state.exit = wrapped_exit
+    
+    def pause(self):
+        self.paused = True
+
+    def resume(self):
+        self.paused = False
+
+    def is_paused(self):
+        return self.paused
+
+    def set_transition_callback(self, callback_fn):
+        self.on_transition = callback_fn
+
+    def has_state(self, name):
+        return any(s.name == name for s in self.states)
+
+    def restart(self):
+        self.reset()
+        self.start()
+
+    def restart_from(self, name):
+        self.reset()
+        self.skip_to_state(name)
+        self.start()
+
+    def step(self):
+        if self.current_state is None or self.paused or self.finished:
+            return
         self.current_state.execute()
 
-        # Check if the current state's exit condition is met
-        if self.current_state.can_exit():
-            if hasattr(self.current_state, 'next_state') and self.current_state.next_state is not None:
-                # Transition to the next state
-                if self.log_actions:
-                    Py4GW.Console.Log("FSM", f"{self.name}: Transitioning from state: {self.current_state.name} to state: {self.current_state.next_state.name}", Py4GW.Console.MessageType.Info)
-                self.current_state = self.current_state.next_state
-                self.current_state.reset()  # Reset the next state for execution
-            else:
-                if self.log_actions:
-                    Py4GW.Console.Log("FSM", f"{self.name}: Reached the final state: {self.current_state.name}. FSM has completed.", Py4GW.Console.MessageType.Success)
-                self.current_state = None  # End of the state machine
-                self.finished = True  # Set the FSM to finished
-        else:
+    def AddWaitState(self, name, condition_fn, timeout_ms=10000, on_timeout=None):
+        timer = Timer()
+        def exit_fn():
+            if condition_fn():
+                return True
+            if timer.HasElapsed(timeout_ms):
+                if on_timeout:
+                    on_timeout()
+                return True
+            return False
+
+        wait_state = FSM.State(
+            id=self.state_counter,
+            name=name,
+            execute_fn=lambda: None,
+            exit_condition=exit_fn,
+            run_once=True
+        )
+        wait_state.transition_timer = timer
+        if self.states:
+            self.states[-1].set_next_state(wait_state)
+
+        self.states.append(wait_state)
+        self.state_counter += 1
+
+    def update(self):
+        if self.paused:
             if self.log_actions:
-                Py4GW.Console.Log("FSM", f"{self.name}: Remaining in state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
+                Py4GW.Console.Log("FSM", f"{self.name}: FSM is paused.", Py4GW.Console.MessageType.Warning)
+            return
+        
+        if self.finished:
+            if self.log_actions:
+                Py4GW.Console.Log("FSM", f"{self.name}: FSM has finished.", Py4GW.Console.MessageType.Warning)
+            return
+        
+        if not self.current_state:
+            if self.log_actions:
+                Py4GW.Console.Log("FSM", f"{self.name}: FSM has not been started.", Py4GW.Console.MessageType.Warning)
+            return
+
+        if self.log_actions:
+            Py4GW.Console.Log("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
+
+        self.current_state.execute()
+
+        if not self.current_state.can_exit():
+            return
+
+        self.current_state.exit()
+        next_state = getattr(self.current_state, 'next_state', None)
+        
+        if next_state:
+            if self.on_transition:
+                self.on_transition(self.current_state.name, next_state.name)
+            
+            self.current_state = next_state
+            next_state.reset()
+            next_state.enter()
+
+            if self.log_actions:
+                Py4GW.Console.Log("FSM", f"{self.name}: Transitioning to state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
+            return
+
+        final_state_name = self.current_state.name
+        self.current_state = None
+        self.finished = True
+
+        if self.log_actions:
+            Py4GW.Console.Log("FSM", f"{self.name}: Reached the final state: {final_state_name}. FSM has completed.", Py4GW.Console.MessageType.Success)
+        
+        if self.on_complete:
+            self.on_complete()
 
     def is_started(self):
         """Check whether the FSM has been started."""
@@ -1481,8 +1676,7 @@ class FSM:
     def is_finished(self):
         """Check whether the FSM has finished executing all states."""
         return self.finished
-
-
+    
     def jump_to_state(self, state_id):
         """Jump to a specific state by its ID."""
         if state_id < 0 or state_id >= len(self.states):
@@ -1497,9 +1691,10 @@ class FSM:
         for state in self.states:
             if state.name == state_name:
                 self.current_state = state
+                self.current_state.reset() # Reset the state upon jumping to it
+                self.current_state.enter()
                 if self.log_actions:
                     Py4GW.Console.Log("FSM", f"{self.name}: Jumped to state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
-                self.current_state.reset()  # Reset the state upon jumping to it
                 return
         raise ValueError(f"State with name '{state_name}' not found.")
 
@@ -1526,7 +1721,6 @@ class FSM:
             return f"{self.name}: FSM not started or finished"
         return self.current_state.name
 
-
     def get_next_step_name(self):
         """Get the name of the next step (state) in the FSM."""
         if self.current_state is None:
@@ -1543,7 +1737,7 @@ class FSM:
         if current_index > 0:
             return self.states[current_index - 1].name
         return f"{self.name}: No previous state (first state)"
-
+    
 #endregion
 
 #region MultiThreading
