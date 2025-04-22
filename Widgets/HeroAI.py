@@ -173,7 +173,7 @@ def draw_Targeting_floating_buttons(cached_data:CacheData):
         return
     for agent_id in enemies:
         x,y,z = Agent.GetXYZ(agent_id)
-        screen_x,screen_y = Overlay().WorldToScreen(x,y,z+25)
+        screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
         if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):
             ActionQueueManager().ResetQueue("ACTION")
             ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, agent_id)
