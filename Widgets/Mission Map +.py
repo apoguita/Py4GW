@@ -796,6 +796,8 @@ def main_mission_map_thread():
     while True:
         if Map.MissionMap.IsWindowOpen():
             mission_map.update()
+        else:
+            sleep(0.5)
         sleep(0.03)
 
     
