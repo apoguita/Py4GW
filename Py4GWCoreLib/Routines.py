@@ -981,7 +981,11 @@ class Routines:
                 follow_handler (FollowXY): The FollowXY object for moving to waypoints.
             Returns: None
             """
-
+            if follow_handler.is_paused():
+                return
+            if hasattr(path_handler, "is_paused") and path_handler.is_paused():
+                return
+            
             follow_handler.update()
 
             if follow_handler.is_following():
@@ -1010,6 +1014,7 @@ class Routines:
                 self.timer = Timer()  # Timer to track movement start time
                 self.wait_timer = Timer()  # Timer to track waiting after issuing move command
                 self.wait_timer_run_once = True
+                self._paused = False
 
             def calculate_distance(self, pos1, pos2):
                 """
@@ -1055,6 +1060,10 @@ class Routines:
                 from .Agent import Agent
                 from .Player import Player
                 from Py4GWCoreLib import ActionQueueManager
+                
+                if self._paused:
+                    return
+                
                 if self.following:
                     current_position = Player.GetXY()
                     is_casting = Agent.IsCasting(Player.GetAgentID())
@@ -1116,6 +1125,15 @@ class Routines:
                 Check if the player has arrived at the current waypoint.
                 """
                 return self.arrived
+            
+            def pause(self):
+                self._paused = True
+
+            def resume(self):
+                self._paused = False
+
+            def is_paused(self):
+                return self._paused
 
         class PathHandler:
             def __init__(self, coordinates):
@@ -1129,6 +1147,7 @@ class Routines:
                 self.index = 0
                 self.reverse = False  # By default, move forward
                 self.finished = False
+                self._paused = False
 
             def get_current_point(self):
                 """
@@ -1146,7 +1165,7 @@ class Routines:
                 Args: None
                 Returns: tuple or None (next point or None if finished)
                 """
-                if self.finished:
+                if self._paused or self.finished:
                     return None
 
                 current_point = self.get_current_point()
@@ -1218,6 +1237,15 @@ class Routines:
                 Returns: int
                 """
                 return len(self.coordinates)
+            
+            def pause(self):
+                self._paused = True
+
+            def resume(self):
+                self._paused = False
+
+            def is_paused(self):
+                return self._paused
     
     #region Sequential
     class Sequential:
