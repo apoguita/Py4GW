@@ -1151,9 +1151,6 @@ def main():
 
         DrawWindow()
         
-        if Agent.GetStuck(Player.GetAgentID()) !=0:
-            print("Player is stuck, sending stuck command.")
-        
         if Map.IsMapLoading():
             ActionQueueManager().ResetAllQueues()
             bot_variables.config.auto_stuck_command_timer.Reset()
