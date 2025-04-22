@@ -164,6 +164,44 @@ def RawGamePosToScreen(x:float, y:float, zoom:float, zoom_offset:float, left_bou
 
     return screen_x, screen_y
 
+def RawScreenToRawGamePos(screen_x: float, screen_y: float, zoom: float, zoom_offset: float,
+                       left_bound: float, top_bound: float, boundaries: list[float],
+                       pan_offset_x: float, pan_offset_y: float,
+                       scale_x: float, scale_y: float,
+                       mission_map_screen_center_x: float, mission_map_screen_center_y: float) -> tuple[float, float]:
+    global GWINCHES
+
+    if len(boundaries) < 5:
+        return 0.0, 0.0  # fail-safe
+
+    min_x = boundaries[1]
+    max_y = boundaries[4]
+
+    # Compute origin same as before
+    origin_x = left_bound + abs(min_x) / GWINCHES
+    origin_y = top_bound + abs(max_y) / GWINCHES
+
+    zoom_total = zoom + zoom_offset
+
+    # Reverse zoom and center offset
+    scaled_x = (screen_x - mission_map_screen_center_x) / zoom_total
+    scaled_y = (screen_y - mission_map_screen_center_y) / zoom_total
+
+    # Reverse scaling
+    offset_x = scaled_x / scale_x
+    offset_y = scaled_y / scale_y
+
+    # Apply pan offset
+    world_x = offset_x + pan_offset_x
+    world_y = offset_y + pan_offset_y
+
+    # Convert from world map space to game-space (gwinches)
+    game_x = (world_x - origin_x) * GWINCHES
+    game_y = -(world_y - origin_y) * GWINCHES  # Invert Y back
+
+    return game_x, game_y
+
+
 def RawGwinchToPixels(gwinch_value: float, zoom:float, zoom_offset:float, scale_x) -> float:
     global GWINCHES
     pixels_per_gwinch = (scale_x * (zoom + zoom_offset)) / GWINCHES
@@ -494,6 +532,8 @@ GLOBAL_CONFIGS.add(object_item)
 #region MISSION MAP
 class MissionMap:
     def __init__(self):
+        self.initialized = False
+        self.thread_manager = MultiThreading(2.0, log_actions=True)
         self.left = 0
         self.top = 0
         self.right = 0
@@ -530,9 +570,18 @@ class MissionMap:
                    
 
     def update(self):   
+        self.agent_array = RawAgentArray().get_array()
         if not self.throttle_timer.IsExpired():
             return
         self.throttle_timer.Reset()    
+        if not self.geometry:
+            self.boundaries = Map.map_instance().map_boundaries
+            self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = Map.GetMapWorldMapBounds()
+            
+            self.geometry = Map.Pathing.GetComputedGeometry()
+            self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 80).to_dx_color())
+            self.mega_zoom_renderer.set_primitives(self.geometry, Color(255, 255, 255, 100).to_dx_color())
+            
         coords = Map.MissionMap.GetWindowCoords()
         self.left, self.top, self.right, self.bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
         self.width = self.right - self.left
@@ -544,8 +593,15 @@ class MissionMap:
         self.zoom = Map.MissionMap.GetZoom()
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = Map.MissionMap.GetMapScreenCenter()
         
-        self.left_world, self.top_world = Map.MissionMap.MapProjection.ScreenToGamePos(self.left, self.top, self.mega_zoom)
-        self.right_world, self.bottom_world = Map.MissionMap.MapProjection.ScreenToGamePos(self.right, self.bottom, self.mega_zoom)
+        self.left_world, self.top_world = RawScreenToRawGamePos(self.left, self.top, 
+                                                                self.zoom, self.mega_zoom,
+                                                                self.left_bound, self.top_bound, self.boundaries,
+                                                                self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                                                self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+        self.right_world, self.bottom_world = RawScreenToRawGamePos(self.right, self.bottom, self.zoom, self.mega_zoom,
+                                                                self.left_bound, self.top_bound, self.boundaries,
+                                                                self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                                                self.mission_map_screen_center_x, self.mission_map_screen_center_y)
 
         self.player_x, self.player_y = Player.GetXY()
         self.player_screen_x, self.player_screen_y = RawGamePosToScreen(self.player_x, self.player_y, 
@@ -559,15 +615,10 @@ class MissionMap:
         
         click_x, click_y = Map.MissionMap.GetLastClickCoords()
 
-        self.last_click_x, self.last_click_y = Map.MissionMap.MapProjection.ScreenToGamePos(click_x, click_y, self.mega_zoom)
-        
-        if not self.geometry:
-            self.boundaries = Map.map_instance().map_boundaries
-            self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = Map.GetMapWorldMapBounds()
-            
-            self.geometry = Map.Pathing.GetComputedGeometry()
-            self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 80).to_dx_color())
-            self.mega_zoom_renderer.set_primitives(self.geometry, Color(255, 255, 255, 100).to_dx_color())
+        self.last_click_x, self.last_click_y = RawScreenToRawGamePos(click_x, click_y, self.zoom, self.mega_zoom,
+                                                                self.left_bound, self.top_bound, self.boundaries,
+                                                                self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                                                self.mission_map_screen_center_x, self.mission_map_screen_center_y)
 
         self.renderer.world_space.set_world_space(True)
         self.mega_zoom_renderer.world_space.set_world_space(True)
@@ -581,8 +632,12 @@ class MissionMap:
         self.renderer.world_space.set_zoom(zoom/100.0)
         self.mega_zoom_renderer.world_space.set_zoom(zoom/100.0)
         self.renderer.world_space.set_scale(self.scale_x)
-        self.map_origin = Map.MissionMap.MapProjection.GameMapToScreen(0.0,0.0,self.mega_zoom)
-        self.agent_array = AgentArray.GetRawAgentArray()
+        self.map_origin = RawGamePosToScreen(0.0, 0.0, 
+                                            self.zoom, self.mega_zoom,
+                                            self.left_bound, self.top_bound, self.boundaries,
+                                            self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                            self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+        
         
         
 mission_map = MissionMap()
@@ -737,26 +792,37 @@ def DrawFrame():
     Overlay().EndDraw() 
     
 
-def DrawWindow():
-    global mission_map
-    if PyImGui.begin("Mission Map"):
-        pass
-    PyImGui.end()
+def main_mission_map_thread():
+    while True:
+        if Map.MissionMap.IsWindowOpen():
+            mission_map.update()
+        sleep(0.03)
+
     
 def configure():
-    pass
+    global mission_map
+    if PyImGui.begin("Mission Map Config"):
+        pass
+    PyImGui.end()
 
-def main():  
+def main():    
+    if mission_map.initialized:
+        mission_map.thread_manager.update_all_keepalives()
+        
     if not Routines.Checks.Map.MapValid():
         mission_map.geometry = [] 
         return
     
+    if not mission_map.initialized:
+        mission_map.initialized = True
+        mission_map.thread_manager.stop_all_threads()
+        mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
+        mission_map.thread_manager.start_watchdog("main_mission_map_thread")
+        
     if not Map.MissionMap.IsWindowOpen():
         return
     
-    mission_map.update()
-    #DrawWindow()
-    DrawFrame()       
+    DrawFrame()
     
     if mission_map.zoom >= 3.5:
             mission_map.mega_zoom = FloatingSlider("Mega Zoom", mission_map.mega_zoom, mission_map.left, mission_map.bottom-27, 0.0, 15.0, Color(255, 255, 255, 255))

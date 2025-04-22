@@ -33,7 +33,7 @@ class Overlay:
         if z == 0.0:
             z = Overlay.FindZ(x, y)
 
-        screen_pos = Overlay().WorldToScreen(x, y, z)
+        screen_pos = PyOverlay.Overlay().WorldToScreen(x, y, z)
         return screen_pos.x, screen_pos.y
 
     @staticmethod
