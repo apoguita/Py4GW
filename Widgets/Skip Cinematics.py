@@ -12,6 +12,10 @@ game_throttle_time = 50
 game_throttle_timer = Timer()
 game_throttle_timer.Start()
 
+auto_reset_time = 1000
+auto_reset_timer = Timer()
+auto_reset_timer.Start()
+
 is_map_ready = False
 is_party_loaded = False
 is_in_cinematic = False
@@ -32,10 +36,16 @@ def main():
         if is_map_ready and is_party_loaded and is_explorable:
             is_in_cinematic = Map.IsInCinematic()
         game_throttle_timer.Start()
+       
+    if widget_config.skipped == True:
+        if auto_reset_timer.HasElapsed(auto_reset_time):
+            widget_config.skipped = False
+            auto_reset_timer.Start()
         
     if is_map_ready and is_party_loaded and is_in_cinematic and is_explorable and widget_config.skipped == False:
         ActionQueueManager().AddAction("ACTION", Map.SkipCinematic)
         widget_config.skipped = True
+        auto_reset_timer.Reset()
     else:
         widget_config.skipped = False
         

@@ -16,6 +16,7 @@ class PCons:
         self.enable_module = ini_handler.read_bool(self.ini_entry_name, "Enable Module", False)
         self.aftercast = 500
         self.aftercast_timer = Timer()
+        self.aftercast_timer.Start()
         self.pcons = {
             'Essence of Celerity': {
                 'active': ini_handler.read_bool(self.ini_entry_name, "Essence of Celerity", False),
@@ -158,7 +159,7 @@ def handle_pcons():
                             data['internal_timer'].Stop()
                             Py4GW.Console.Log(module_name, f"Using {pcon_name}.", Py4GW.Console.MessageType.Debug)
                             ActionQueueManager().AddAction("ACTION", "UseItem", matching_items[0])
-                            widget_config.aftercast_timer.Start()
+                            widget_config.aftercast_timer.Reset()
                             data['internal_timer'].Start()
                             return  # Exit after using one pcon
 
@@ -235,24 +236,21 @@ def DrawWindow():
 def main():
     """Required main function for the widget"""
     global widget_config
-    try:
-        if Map.IsMapReady() and Party.IsPartyLoaded():
-            DrawWindow()
 
-            if widget_config.aftercast_timer.IsStopped() or widget_config.aftercast_timer.HasElapsed(widget_config.aftercast):
-                widget_config.aftercast_timer.Stop()
+    if Routines.Checks.Map.MapValid():
+        DrawWindow()
 
-                if widget_config.enable_module and Map.IsExplorable():
-                    handle_pcons()
-                    
-            ActionQueueManager().ProcessQueue("ACTION")
-        else:
-            ActionQueueManager().ResetQueue("ACTION")
+        if widget_config.aftercast_timer.IsStopped() or widget_config.aftercast_timer.HasElapsed(widget_config.aftercast):
+            widget_config.aftercast_timer.Stop()
 
-    except Exception as e:
-        Py4GW.Console.Log(module_name, f"Error in main: {str(e)}", Py4GW.Console.MessageType.Debug)
-        return False
-    return True
+            if widget_config.enable_module and Map.IsExplorable():
+                handle_pcons()
+                
+        ActionQueueManager().ProcessQueue("ACTION")
+    else:
+        ActionQueueManager().ResetQueue("ACTION")
+
+
 
 def configure():
     """Required configuration function for the widget"""

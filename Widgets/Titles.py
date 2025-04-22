@@ -65,38 +65,27 @@ lightbringer_map_names = {
     "The Sulfurous Wastes", "Throne of Secrets", "Vehtendi Valley", "Yatendi Canyons"
 }
 
-game_throttle_time = 50
-game_throttle_timer = Timer()
-game_throttle_timer.Start()
 
-is_map_ready = False
-is_party_loaded = False
-is_explorable = False
-map_name = ""
+game_throttle_timer = ThrottledTimer(100)
 
 
 def main():
-    global widget_config
-    global game_throttle_timer, game_throttle_time
-    global asuran_map_names, deldrimor_map_names, norn_map_names, vanguard_map_names, lightbringer_map_names
-    global is_map_ready, is_party_loaded, is_explorable, map_name
     
-    if game_throttle_timer.HasElapsed(game_throttle_time):
-        is_map_ready = Map.IsMapReady()
-        is_party_loaded = Party.IsPartyLoaded()
-        is_explorable = Map.IsExplorable()
-        
-        if is_map_ready and is_party_loaded and is_explorable:
-             map_name = Map.GetMapName()
-             
-        game_throttle_timer.Reset()
+    if not game_throttle_timer.IsExpired():
+        return
     
-    if not is_explorable:
+    game_throttle_timer.Reset()
+    
+    is_map_valid = Routines.Checks.Map.MapValid()
+    is_explorable = Map.IsExplorable()
+    
+    if not is_map_valid:
         widget_config.title_applied = False
+        return
     
-    if (is_map_ready and is_party_loaded and is_explorable and widget_config.title_applied == False):
-         # Check which set the map name belongs to and return the corresponding TitleID
-        map_name = Map.GetMapName()
+    map_name = Map.GetMapName()
+
+    if not widget_config.title_applied:
         if map_name in asuran_map_names:
             ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Asuran.value)
         elif map_name in deldrimor_map_names:
@@ -109,7 +98,7 @@ def main():
             ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Lightbringer.value)
         widget_config.title_applied = True
         
-    if (is_map_ready and is_party_loaded and is_explorable):
+    if is_explorable:
         ActionQueueManager().ProcessQueue("ACTION")
 
 if __name__ == "__main__":
