@@ -576,9 +576,9 @@ class Map:
             return Map.MissionMap._mission_map_instance().zoom
         
         @staticmethod
-        def GetAdjustedZoom(zoom_offset=0.0):
+        def GetAdjustedZoom(_zoom, zoom_offset=0.0):
             """Adjust the zoom level of the mission map."""
-            zoom = Map.MissionMap.GetZoom() + zoom_offset
+            zoom = _zoom + zoom_offset
             if zoom == 1.0:
                 return zoom + 0.0
             
