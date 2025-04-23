@@ -278,7 +278,7 @@ class DyeColor(IntEnum):
 #endregion
 #region Profession
 class Profession(IntEnum):
-    None_ = 0  # Avoiding reserved keyword "None"
+    _None = 0  
     Warrior = 1
     Ranger = 2
     Monk = 3

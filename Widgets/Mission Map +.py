@@ -820,6 +820,10 @@ def DrawFrame():
 def main_mission_map_thread():
     global mission_map
     while True:
+        if Party.GetPartyLeaderID() != mission_map.player_agent_id:
+            sleep(0.5)
+            continue
+        
         if Map.MissionMap.IsWindowOpen():
             mission_map.update()
         else:
@@ -841,13 +845,16 @@ def main():
         mission_map.geometry = [] 
         return
     
+    if Party.GetPartyLeaderID() != mission_map.player_agent_id:
+        return
+    
     if not mission_map.initialized:
         mission_map.initialized = True
         mission_map.update()
         mission_map.thread_manager.stop_all_threads()
         mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
         mission_map.thread_manager.start_watchdog("main_mission_map_thread")
-        
+         
     if not Map.MissionMap.IsWindowOpen():
         return
     
