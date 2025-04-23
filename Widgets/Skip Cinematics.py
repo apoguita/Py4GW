@@ -1,8 +1,6 @@
 from Py4GWCoreLib import *
 module_name = "Skip Cinematic"
 
-
-
 class config:
     def __init__(self):
         self.skipped = False

@@ -403,3 +403,39 @@ class Player:
         Returns: None
         """
         Player.player_instance().DepositFaction(faction_id)
+        
+    @staticmethod
+    def LogoutToCharacterSelect():
+        """
+        Purpose: Logout to the character select screen.
+        Args: None
+        Returns: None
+        """
+        Player.player_instance().LogouttoCharacterSelect()
+        
+    @staticmethod
+    def InCharacterSelectScreen():
+        """
+        Purpose: Check if the character select screen is ready.
+        Args: None
+        Returns: bool
+        """
+        return Player.player_instance().GetIsCharacterSelectReady()
+    
+    @staticmethod
+    def GetLoginCharacters():
+        """
+        Purpose: Retrieve the available characters.
+        Args: None
+        Returns: list
+        """
+        return Player.player_instance().GetAvailableCharacters()
+    
+    @staticmethod
+    def GetPreGameContext():
+        """
+        Purpose: Retrieve the pre-game context.
+        Args: None
+        Returns: PreGameContext
+        """
+        return Player.player_instance().GetPreGameContext()
