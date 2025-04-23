@@ -4,47 +4,48 @@ module_name = "Resign on enter Map"
 class config:
     def __init__(self):
         self.resigned = False
+        self.game_throttle_timer = ThrottledTimer(50)
+        self.action_queue = ActionQueueNode(1000)
+        self.map_valid = False
+        self.is_explorable = False
+        self.party_leader_id = 0
+        self.player_agent_id = 0
 
 widget_config = config()
-
-game_throttle_time = 50
-game_throttle_timer = Timer()
-game_throttle_timer.Start()
-
-is_map_ready = False
-is_party_loaded = False
-party_leader_id = 0
-player_agent_id = 0
-is_explorable = False
 
 def configure():
     pass
 
 def main():
     global widget_config
-    global is_map_ready, is_party_loaded, is_in_cinematic, is_explorable
-    global game_throttle_time, game_throttle_timer
+
+    if widget_config.game_throttle_timer.IsExpired():
+        widget_config.map_valid = Routines.Checks.Map.MapValid()
+        if widget_config.map_valid:
+            widget_config.party_leader_id = Party.GetPartyLeaderID()
+            widget_config.player_agent_id = Player.GetAgentID()
+            widget_config.is_explorable = Map.IsExplorable()
+        widget_config.game_throttle_timer.Reset()
     
-    party_leader_id = 0
-    player_agent_id = 0
-    if game_throttle_timer.HasElapsed(game_throttle_time):
-        is_map_ready = Map.IsMapReady()
-        is_party_loaded = Party.IsPartyLoaded()
-        is_explorable = Map.IsExplorable()
-        if is_map_ready and is_party_loaded and is_explorable:
-            party_leader_id = Party.GetPartyLeaderID()
-            player_agent_id = Player.GetAgentID()
-        game_throttle_timer.Start()
-    
-    if not is_explorable:
-        widget_config.resigned = False
-    
-    if (is_map_ready and is_party_loaded and is_explorable and party_leader_id != player_agent_id and widget_config.resigned == False):
-        ActionQueueManager().AddAction("ACTION", Player.SendChatCommand, "resign")
+        if not widget_config.map_valid:
+            widget_config.resigned = False
+            return
+        
+        if not widget_config.is_explorable:
+            widget_config.resigned = False
+            return
+        
+        if widget_config.party_leader_id == widget_config.player_agent_id:
+            return
+        
+        for i in range(0,3):
+            widget_config.action_queue.add_action(Player.SendChatCommand, "resign")
         widget_config.resigned = True
 
-        
-    ActionQueueManager().ProcessQueue("ACTION")
+    if widget_config.map_valid and widget_config.is_explorable:
+        if widget_config.action_queue.IsExpired():
+            widget_config.action_queue.execute_next()        
+
 
 if __name__ == "__main__":
     main()

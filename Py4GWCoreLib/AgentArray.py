@@ -379,7 +379,7 @@ class RawAgentArray:
 
     def get_agent(self, agent_id: int):
         self.update()
-        return self.agent_dict.get(agent_id)
+        return self.agent_dict.get(agent_id, Agent.agent_instance(agent_id))
     
     def get_name(self, agent_id: int):
         self.update()

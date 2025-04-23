@@ -719,18 +719,24 @@ class CombatClass:
         return False
 
 
-    def SpiritBuffExists(self,skill_id):
+    def SpiritBuffExists(self, skill_id):
         spirit_array = AgentArray.GetSpiritPetArray()
         distance = Range.Earshot.value
         spirit_array = AgentArray.Filter.ByDistance(spirit_array, Player.GetXY(), distance)
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsAlive(agent_id))
 
         for spirit_id in spirit_array:
-            spirit_model_id = SpiritModelID(Agent.GetPlayerNumber(spirit_id))
-            if SPIRIT_BUFF_MAP.get(spirit_model_id) == skill_id:
-                return True
+            model_value = Agent.GetPlayerNumber(spirit_id)
+
+            # Check if model_value is valid for SpiritModelID Enum
+            if model_value in SpiritModelID._value2member_map_:
+                spirit_model_id = SpiritModelID(model_value)
+                if SPIRIT_BUFF_MAP.get(spirit_model_id) == skill_id:
+                    return True
+
 
         return False
+
 
 
     def IsReadyToCast(self, slot):
