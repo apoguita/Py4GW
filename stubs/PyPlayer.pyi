@@ -3,6 +3,28 @@
 from typing import Any, List, overload
 from PyAgent import PyAgent
 
+class LoginCharacterInfo:
+    h0000: list[int]
+    uuid: list[int]
+    player_name: str
+    props: list[int]
+    map_id: int
+    primary: int
+    secondary: int
+    campaign: int
+    level : int
+    is_pvp: bool
+    
+class PyPreGameContext:
+    frame_id: int
+    chosen_character_index: int
+    index_1: int
+    index_2: int
+    chars : list[str]
+    h0004 : list[int]
+    h0128 : list[int]
+    
+    
 # Class PyPlayer
 class PyPlayer:
     id: int
@@ -69,6 +91,14 @@ class PyPlayer:
     def RemoveActiveTitle(self) -> bool: ...
     def DepositFaction(self, allegiance: int) -> bool: ...
     def GetActiveTitleId(self) -> int: ...
+    @staticmethod
+    def LogouttoCharacterSelect() -> None: ...
+    @staticmethod
+    def GetIsCharacterSelectReady() -> None: ...
+    @staticmethod
+    def GetAvailableCharacters() -> list[LoginCharacterInfo]: ...
+    @staticmethod
+    def GetPreGameContext() -> PyPreGameContext: ...
 
 class PyTitle:
     title_id: int
