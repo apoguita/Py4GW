@@ -820,7 +820,7 @@ def DrawFrame():
 def main_mission_map_thread():
     global mission_map
     while True:
-        if Party.GetPartyLeaderID() != mission_map.player_agent_id:
+        if Party.GetPartyLeaderID() != Player.GetAgentID():
             sleep(0.5)
             continue
         
@@ -845,7 +845,7 @@ def main():
         mission_map.geometry = [] 
         return
     
-    if Party.GetPartyLeaderID() != mission_map.player_agent_id:
+    if Party.GetPartyLeaderID() != Player.GetAgentID():
         return
     
     if not mission_map.initialized:
