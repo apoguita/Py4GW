@@ -327,6 +327,14 @@ class RawAgentArray:
         if self._initialized:
             return
         self.agent_array = []  # new: array of agents
+        self.ally_array = []
+        self.neutral_array = []
+        self.enemy_array = []  
+        self.spirit_pet_array = []
+        self.minion_array = []
+        self.npc_minipet_array = []
+        self.item_array = []  
+        self.gadget_array = []
         self.agent_dict = {}  # new: id → agent
         self.current_map_id = 0
         self.update_throttle = ThrottledTimer(throttle)
@@ -355,6 +363,38 @@ class RawAgentArray:
 
         self.agent_array = AgentArray.GetRawAgentArray()
         self.agent_dict = {agent.id: agent for agent in self.agent_array}
+        
+        self.ally_array = []
+        self.neutral_array = []
+        self.enemy_array = []  
+        self.spirit_pet_array = []
+        self.minion_array = []
+        self.npc_minipet_array = []
+        self.item_array = []  
+        self.gadget_array = []
+        
+        for agent in self.agent_array:
+            if agent.is_gadget:
+                self.gadget_array.append(agent)
+            elif agent.is_item:
+                self.item_array.append(agent)
+            elif agent.is_living:
+                alliegance = agent.living_agent.allegiance.ToInt()
+                if alliegance == Allegiance.Ally:
+                    self.ally_array.append(agent)
+                elif alliegance == Allegiance.Neutral:
+                    self.neutral_array.append(agent)
+                elif alliegance == Allegiance.Enemy:
+                    self.enemy_array.append(agent)
+                elif alliegance == Allegiance.SpiritPet:    
+                    self.spirit_pet_array.append(agent)
+                elif alliegance == Allegiance.Minion:
+                    self.minion_array.append(agent)
+                elif alliegance == Allegiance.NpcMinipet:
+                    self.npc_minipet_array.append(agent)
+                else:
+                    self.neutral_array.append(agent)
+            
 
         map_id = Map.GetMapID()
         if self.current_map_id != map_id:
@@ -376,6 +416,38 @@ class RawAgentArray:
     def get_array(self):
         self.update()
         return self.agent_array
+    
+    def get_ally_array(self):
+        self.update()
+        return self.ally_array
+    
+    def get_neutral_array(self):
+        self.update()
+        return self.neutral_array
+    
+    def get_enemy_array(self):
+        self.update()
+        return self.enemy_array
+    
+    def get_spirit_pet_array(self):
+        self.update()
+        return self.spirit_pet_array
+    
+    def get_minion_array(self):
+        self.update()
+        return self.minion_array
+    
+    def get_npc_minipet_array(self):
+        self.update()
+        return self.npc_minipet_array
+    
+    def get_item_array(self):
+        self.update()
+        return self.item_array
+    
+    def get_gadget_array(self):
+        self.update()
+        return self.gadget_array
 
     def get_agent(self, agent_id: int):
         self.update()
