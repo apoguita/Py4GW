@@ -60,7 +60,7 @@ Cupcake = 22269
 BottlesGrog = 30855
 ShamrockAle = 22190
 FourLeafClover = 22191
-BlueSugarDrink = 21814
+BlueSugarDrink = 21812
 WintergreenCandyCane = 21488
 VictoryToken = 18345
 SnowmanSummons = 6376
@@ -71,6 +71,11 @@ Honeycomb = 26784
 WintersdayGift = 21491
 Yuletide = 21490
 CandyCaneShards = 556
+BottleRocket = 21809
+HardAppleCider = 28435
+KrytanBrandy = 35124
+HuntersAle = 35125
+ChampagnePopper = 21810
 
 ### --- Halloween --- ###
 GhostInBox = 6368
@@ -94,7 +99,7 @@ LunarFortune_Snake = 29430
 LunarFortune_Monkey = 29433
 LunarFortune_Rooster = 29434
 
-EventItems_Array = [(Lock_Pick), (Cupcake), (ShamrockAle), (FourLeafClover),  (BottlesGrog),  (LunarFortune_Monkey), (BlueSugarDrink), (WintergreenCandyCane), (VictoryToken), (SnowmanSummons), (GhostInBox), (VialAbsinthe), (SquashSerum), (Eggnog), (CandyCorn), (PumpkinCookies), (TrickOrTreatBags), (Fruitcake), (PeppermintCandyCane), (RainbowCandyCane), (Honeycomb), (WintersdayGift), (SpikedEggnog), (Yuletide), (LunarTokens), (CandyCaneShards), (CandyApple), (GoldenEgg), (PumpkinPie)]
+EventItems_Array = [(ChampagnePopper), (KrytanBrandy), (HuntersAle), (BottleRocket), (HardAppleCider), (Lock_Pick), (Cupcake), (ShamrockAle), (FourLeafClover),  (BottlesGrog),  (LunarFortune_Monkey), (BlueSugarDrink), (WintergreenCandyCane), (VictoryToken), (SnowmanSummons), (GhostInBox), (VialAbsinthe), (SquashSerum), (Eggnog), (CandyCorn), (PumpkinCookies), (TrickOrTreatBags), (Fruitcake), (PeppermintCandyCane), (RainbowCandyCane), (Honeycomb), (WintersdayGift), (SpikedEggnog), (Yuletide), (LunarTokens), (CandyCaneShards), (CandyApple), (GoldenEgg), (PumpkinPie)]
 IdKits = [Id_Kit_Basic, Id_Kit_Superior]
 SalveKits = [Salve_Kit_Basic, Salve_Kit_Advanced, Salve_Kit_Superior]
 
