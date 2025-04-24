@@ -14,7 +14,7 @@ POLY_SEGMENTS = 16
 PET_MODEL_IDS = set(e.value for e in PetModelID)
 AREA_SPIRIT_MODELS = [SpiritModelID.DESTRUCTION, SpiritModelID.PRESERVATION]
 EARSHOT_SPIRIT_MODELS = [SpiritModelID.AGONY, SpiritModelID.REJUVENATION]
-CHEST_GADGET_IDS = [9,69,4579,8141, 9523]
+CHEST_GADGET_IDS = [9,69,4579,8141, 9523, 4582]
 
 #end region
 
@@ -860,7 +860,7 @@ def DrawFrame():
                 model_id = agent.living_agent.player_number
                 spirit_name = get_spirit_name(model_id)
                 if spirit_name == "Unknown":
-                    marker = mission_map.neutral_marker
+                    marker = mission_map.enemy_marker
                 else:
                     marker = GLOBAL_CONFIGS.get(spirit_name)
                     area = Range.Spirit.value
@@ -965,23 +965,27 @@ def DrawFrame():
 def main_mission_map_thread():
     global mission_map
     while True:
-        if not Routines.Checks.Map.MapValid():
-            sleep(0.5)
-            mission_map.thread_keepalive = time.time()
-            continue
-        if Party.GetPartyLeaderID() != Player.GetAgentID():
-            sleep(0.5)
-            continue
-        
-        if Map.MissionMap.IsWindowOpen():
-            mission_map.update()
-        else:
-            sleep(0.5)
-        sleep(0.03)
-        
-        if mission_map.thread_keepalive + 3 < time.time():
-            mission_map.thread_manager.stop_all_threads()
-            break
+        try:
+            if not Routines.Checks.Map.MapValid():
+                sleep(1)
+                mission_map.thread_keepalive = time.time()
+                continue
+            if Party.GetPartyLeaderID() != Player.GetAgentID():
+                sleep(1)
+                continue
+            
+            if Map.MissionMap.IsWindowOpen():
+                mission_map.update()
+                sleep(0.03)
+            else:
+                sleep(0.5)
+            
+        except Exception as e:
+            print(f"Error in main_mission_map_thread: {e}")
+        finally:
+            if mission_map.thread_keepalive + 3 < time.time():
+                mission_map.thread_manager.stop_all_threads()
+                break
 
     
 def configure():
@@ -990,29 +994,34 @@ def configure():
         pass
     PyImGui.end()
 
-def main():    
-    mission_map.thread_keepalive = time.time()
+def main():  
+    try:  
+        mission_map.thread_keepalive = time.time()
+            
+        if not Routines.Checks.Map.MapValid():
+            mission_map.geometry = [] 
+            return
         
-    if not Routines.Checks.Map.MapValid():
-        mission_map.geometry = [] 
-        return
+        if Party.GetPartyLeaderID() != Player.GetAgentID():
+            return
+        
+        if not mission_map.initialized:
+            mission_map.initialized = True
+            mission_map.update()
+            mission_map.thread_manager.stop_all_threads()
+            mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
+            
+        if Map.MissionMap.IsWindowOpen() and mission_map.initialized:
+            DrawFrame()
+            if mission_map.zoom >= 3.5:
+                    mission_map.mega_zoom = FloatingSlider("Mega Zoom", mission_map.mega_zoom, mission_map.left, mission_map.bottom-27, 0.0, 15.0, Color(255, 255, 255, 255))
+            else:
+                mission_map.mega_zoom = 0.0 
     
-    if Party.GetPartyLeaderID() != Player.GetAgentID():
-        return
-    
-    if not mission_map.initialized:
-        mission_map.initialized = True
-        mission_map.update()
+    except Exception as e:
+        print(f"Error in main: {e}")
         mission_map.thread_manager.stop_all_threads()
-        mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
-         
-    if Map.MissionMap.IsWindowOpen() and mission_map.initialized:
-        DrawFrame()
-        if mission_map.zoom >= 3.5:
-                mission_map.mega_zoom = FloatingSlider("Mega Zoom", mission_map.mega_zoom, mission_map.left, mission_map.bottom-27, 0.0, 15.0, Color(255, 255, 255, 255))
-        else:
-            mission_map.mega_zoom = 0.0 
-    
+        
     
 if __name__ == "__main__":
     main()
