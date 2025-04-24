@@ -135,6 +135,7 @@ class Item:
                 
             # Zero is default dye color, i.e. no dye applied
             return 0
+        
         class Rarity:
             @staticmethod
             def GetRarity(item_id):
