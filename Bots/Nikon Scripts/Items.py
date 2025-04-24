@@ -74,7 +74,7 @@ CandyCaneShards = 556
 BottleRocket = 21809
 HardAppleCider = 28435
 KrytanBrandy = 35124
-HuntersAle = 35125
+HuntersAle = 910
 ChampagnePopper = 21810
 
 ### --- Halloween --- ###
