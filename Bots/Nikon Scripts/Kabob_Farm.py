@@ -2,7 +2,6 @@ from Py4GWCoreLib import *
 from BotUtilities import *
 from WindowUtilites import *
 
-import Items
 import Mapping
 
 bot_name = "Nikons Kabob Farm"
@@ -254,10 +253,10 @@ class Kabob_Farm(ReportsProgress):
     movement_Handler = Routines.Movement.FollowXY(50)
     
     keep_list = []
-    keep_list.extend(Items.IdSalveItems_Array)
-    keep_list.extend(Items.EventItems_Array)
-    keep_list.append(Items.Drake_Flesh)
-    keep_list.append(Items.Dye)
+    keep_list.extend(IdSalveItems_Array)
+    keep_list.extend(EventItems_Array)
+    keep_list.append(ModelID.Chunk_Of_Drake_Flesh)
+    keep_list.append(ModelID.Vial_Of_Dye)
     
     kabob_first_after_reset = False
     kabob_wait_to_kill = False
@@ -331,11 +330,11 @@ class Kabob_Farm(ReportsProgress):
                                              run_once=False)    
         self.Kabob_Routine.AddSubroutine(self.kabob_exchange_Kabobs_routine_start,
                        sub_fsm=self.Kabob_Exchange_Routine,
-                       condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(Items.Drake_Flesh))        
+                       condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(ModelID.Chunk_Of_Drake_Flesh))        
         self.Kabob_Routine.AddState(self.kabob_start_farm,
                                     execute_fn=lambda: self.ExecuteStep(self.kabob_start_farm, self.CheckIfShouldRunFarm()))
         self.Kabob_Routine.AddState(self.kabob_travel_state_name,
-                       execute_fn=lambda: self.ExecuteStep(self.kabob_travel_state_name, Routines.Transition.TravelToOutpost(Mapping.Rilohn_Refuge)),
+                       execute_fn=lambda: self.ExecuteStep(self.kabob_travel_state_name, Routines.Transition.TravelToOutpost(  Mapping.Rilohn_Refuge)),
                        exit_condition=lambda: Routines.Transition.HasArrivedToOutpost(Mapping.Rilohn_Refuge),
                        transition_delay_ms=1000)
         self.Kabob_Routine.AddState(self.kabob_initial_check_inventory, execute_fn=lambda: self.CheckInventory())
@@ -404,7 +403,7 @@ class Kabob_Farm(ReportsProgress):
         self.Kabob_Routine.AddSubroutine(self.kabob_inventory_state_name_end,
                        sub_fsm = self.inventoryRoutine)       
         self.Kabob_Routine.AddSubroutine(self.kabob_exchange_Kabobs_routine_end,
-                       condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(Items.Drake_Flesh))
+                       condition_fn=lambda: self.CheckExchangeKabobs() and CheckIfInventoryHasItem(ModelID.Chunk_Of_Drake_Flesh))
         self.Kabob_Routine.AddState(self.kabob_forced_stop,                                    
                        execute_fn=lambda: self.ExecuteStep(self.kabob_forced_stop, None))
         
@@ -560,7 +559,7 @@ class Kabob_Farm(ReportsProgress):
         self.kabob_exchange_timer.Reset()
 
         try:
-            turn_in = GetItemIdFromModelId(Items.Drake_Flesh)
+            turn_in = GetItemIdFromModelId(ModelID.Chunk_Of_Drake_Flesh)
 
             if turn_in == 0:
                 return
@@ -568,14 +567,14 @@ class Kabob_Farm(ReportsProgress):
             items3 = self.pyMerchant.get_merchant_item_list()
             if items3:
                 for item in items3:
-                    if Item.GetModelID(item) == Items.Drake_Kabob:
+                    if Item.GetModelID(item) == ModelID.Drake_Kabob:
                         self.pyMerchant.collector_buy_item(item, 0, turn_in, [1])
 
         except Exception as e:
             self.Log(f"Error in Exchanging Kabobs: {str(e)}", Py4GW.Console.MessageType.Error)
 
     def ExchangeKabobsDone(self):
-        return not CheckIfInventoryHasItem(Items.Drake_Flesh)
+        return not CheckIfInventoryHasItem(ModelID.Chunk_Of_Drake_Flesh)
     
     def CheckInventory(self):
         if Inventory.GetFreeSlotCount() <= self.default_min_slots:
@@ -930,7 +929,7 @@ class Kabob_Farm(ReportsProgress):
             
             model = Item.GetModelID(item.item_id)
 
-            if model == Items.Drake_Flesh:
+            if model == ModelID.Chunk_Of_Drake_Flesh:
                 return True
             else:
                 return super().CanPickUp(agentId, player_id)
@@ -971,7 +970,7 @@ class Kabob_Farm(ReportsProgress):
 
                 model = Item.GetModelID(Agent.GetItemAgent(self.current_lootable).item_id)
 
-                if model == Items.Drake_Flesh:
+                if model == ModelID.Chunk_Of_Drake_Flesh:
                     self.kabob_collected += 1
 
                 Player.Interact(item)
