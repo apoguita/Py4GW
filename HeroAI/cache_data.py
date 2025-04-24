@@ -199,22 +199,25 @@ class CacheData:
         self.combat_handler.PrioritizeSkills()
         
     def Update(self):
-        if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
-            self.game_throttle_timer.Reset()
-            self.data.reset()
-            self.data.update()
-            
-            if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
-                self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
-            else:
-                self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Spellcast.value)
+        try:
+            if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
+                self.game_throttle_timer.Reset()
+                self.data.reset()
+                self.data.update()
                 
-            if self.data.in_aggro:
-                self.stay_alert_timer.Reset()
+                if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
+                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
+                else:
+                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Spellcast.value)
+                    
+                if self.data.in_aggro:
+                    self.stay_alert_timer.Reset()
+                    
+                if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
+                    self.data.in_aggro = True
                 
-            if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
-                self.data.in_aggro = True
-                
+        except Exception as e:
+            ConsoleLog(f"Update Cahe Data Error:", e)
                        
             
                      

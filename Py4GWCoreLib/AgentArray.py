@@ -374,26 +374,27 @@ class RawAgentArray:
         self.gadget_array = []
         
         for agent in self.agent_array:
-            if agent.is_gadget:
-                self.gadget_array.append(agent)
-            elif agent.is_item:
-                self.item_array.append(agent)
-            elif agent.is_living:
-                alliegance = agent.living_agent.allegiance.ToInt()
-                if alliegance == Allegiance.Ally:
-                    self.ally_array.append(agent)
-                elif alliegance == Allegiance.Neutral:
-                    self.neutral_array.append(agent)
-                elif alliegance == Allegiance.Enemy:
-                    self.enemy_array.append(agent)
-                elif alliegance == Allegiance.SpiritPet:    
-                    self.spirit_pet_array.append(agent)
-                elif alliegance == Allegiance.Minion:
-                    self.minion_array.append(agent)
-                elif alliegance == Allegiance.NpcMinipet:
-                    self.npc_minipet_array.append(agent)
-                else:
-                    self.neutral_array.append(agent)
+            if agent.id:
+                if agent.is_gadget:
+                    self.gadget_array.append(agent)
+                elif agent.is_item:
+                    self.item_array.append(agent)
+                elif agent.is_living:
+                    alliegance = agent.living_agent.allegiance.ToInt()
+                    if alliegance == Allegiance.Ally:
+                        self.ally_array.append(agent)
+                    elif alliegance == Allegiance.Neutral:
+                        self.neutral_array.append(agent)
+                    elif alliegance == Allegiance.Enemy:
+                        self.enemy_array.append(agent)
+                    elif alliegance == Allegiance.SpiritPet:    
+                        self.spirit_pet_array.append(agent)
+                    elif alliegance == Allegiance.Minion:
+                        self.minion_array.append(agent)
+                    elif alliegance == Allegiance.NpcMinipet:
+                        self.npc_minipet_array.append(agent)
+                    else:
+                        self.neutral_array.append(agent)
             
 
         map_id = Map.GetMapID()
