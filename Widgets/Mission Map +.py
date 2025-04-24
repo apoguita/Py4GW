@@ -14,6 +14,7 @@ POLY_SEGMENTS = 16
 PET_MODEL_IDS = set(e.value for e in PetModelID)
 AREA_SPIRIT_MODELS = [SpiritModelID.DESTRUCTION, SpiritModelID.PRESERVATION]
 EARSHOT_SPIRIT_MODELS = [SpiritModelID.AGONY, SpiritModelID.REJUVENATION]
+CHEST_GADGET_IDS = [9,69,4579,8141, 9523]
 
 #end region
 
@@ -335,6 +336,61 @@ class Square(Shape):
 
         Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
         Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
+        
+class Lock(Shape):
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0, offset_angle: float = 0.0):
+        super().__init__("Lock", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+
+    def draw(self) -> None:
+        # Inscribed square inside a circle of radius = self.size
+        half_side = (self.size * SQRT_2) / 2
+        eighth_side = half_side / 4
+
+        # Corner coordinates
+        x1, y1 = self.x - half_side, self.y - half_side  # top-left
+        x2, y2 = self.x + half_side, self.y - half_side  # top-right
+        x3, y3 = self.x + half_side, self.y + half_side  # bottom-right
+        x4, y4 = self.x - half_side, self.y + half_side  # bottom-left
+
+        Overlay().DrawPoly(self.x, self.y -half_side - eighth_side, radius=self.size / 2, color=self.accent_color.to_color(), numsegments=12, thickness=3)
+        Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
+        Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
+        Overlay().DrawQuadFilled(self.x- eighth_side, self.y- eighth_side, self.x+eighth_side, self.y-eighth_side, self.x+eighth_side, self.y+eighth_side, self.x-eighth_side, self.y+eighth_side, color=self.accent_color.to_color())
+        
+class SignPost(Shape):
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0, offset_angle: float = 0.0):
+        super().__init__("SignPost", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+
+    def draw(self) -> None:
+        def _draw_text_line (x1, y1, x2, y2, color: Color):
+            Overlay().DrawLine(x1, y1, x2, y2, color=color.to_color(), thickness=1.0)
+            Overlay().DrawLine(x1, y1, x2, y2, color=color.to_color(), thickness=1.0)
+            
+        half_side = (self.size * SQRT_2) / 2
+        quarter_side = half_side / 2
+        eighth_side = half_side / 4
+        three_quarter_side = half_side + quarter_side
+
+        # Corner coordinates
+        x1, y1 = self.x - three_quarter_side, self.y - half_side  # top-left
+        x2, y2 = self.x + three_quarter_side, self.y - half_side  # top-right
+        x3, y3 = self.x + three_quarter_side, self.y + half_side  # bottom-right
+        x4, y4 = self.x - three_quarter_side, self.y + half_side  # bottom-left
+
+        Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
+        Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
+        
+        l1_x1, l1_y1 = self.x - half_side, self.y - quarter_side  # top-left
+        l1_x2, l1_y2 = self.x + half_side, self.y - quarter_side  # top-right
+        
+        _draw_text_line(l1_x1, l1_y1, l1_x2, l1_y2, self.accent_color)
+        y = self.y
+        _draw_text_line(l1_x1, y, l1_x2, y, self.accent_color)
+
+        
+    
 
 class Tear(Shape):
     def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 8.0, offset_angle: float = 0.0):
@@ -372,6 +428,29 @@ class Tear(Shape):
         # Draw filled and outlined quad
         Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
         Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
+        
+class Scale(Shape):
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 8.0, offset_angle: float = 0.0):
+        super().__init__("Scale", color, accent_color, x, y, size)
+        self.base_angle: float = BASE_ANGLE
+        self.offset_angle: float = offset_angle
+
+    def draw(self) -> None:
+        half_side = (self.size * SQRT_2) / 2
+        
+        x1, y1 = self.x, self.y + half_side 
+        x2, y2 = self.x, self.y - half_side 
+        
+        Overlay().DrawLine(x1, y1, x2, y2, color=self.color.to_color(), thickness=2.0)
+        
+        x1, y1 = self.x - half_side, self.y - half_side
+        x2, y2 = self.x + half_side, self.y - half_side
+
+        Overlay().DrawLine(x1, y1, x2, y2, color=self.color.to_color(), thickness=2.0)
+        
+        
+
+        
                
 shapes: dict[str, type[Shape]] = {
     "Triangle": Triangle,
@@ -380,6 +459,9 @@ shapes: dict[str, type[Shape]] = {
     "Square": Square,
     "Penta": Penta,
     "Tear": Tear,
+    "SignPost": SignPost,
+    "Lock": Lock,
+    "Scale": Scale,
 }
        
 class Marker:
@@ -462,7 +544,7 @@ class Config:
 
 GLOBAL_CONFIGS: Config = Config("Global")
 accent_color = Color(0, 0, 0, 200)
-player_color = Color(255, 128, 0, 255)
+player_color = Color(5, 190, 5, 255)
 object_player = ConfigItem("Player", marker_name="Tear", color=player_color, alternate_color=accent_color, marker_size=10.0)
 GLOBAL_CONFIGS.add(object_player)
 ally_color = Color(0,179,0,255)
@@ -471,7 +553,7 @@ GLOBAL_CONFIGS.add(object_ally)
 players_color = Color(100,100,255,255)
 object_players = ConfigItem("Players", marker_name="Tear", color=players_color, alternate_color=accent_color, marker_size=8.0)
 GLOBAL_CONFIGS.add(object_players)
-neutral_color = Color(0,0,220,255)
+neutral_color = Color(0,220,220,255)
 object_neutral = ConfigItem("Neutral", marker_name="Circle", color=neutral_color, alternate_color=accent_color, marker_size=4.0)
 GLOBAL_CONFIGS.add(object_neutral)
 enemy_color = Color(255,0,0,255)
@@ -497,15 +579,21 @@ GLOBAL_CONFIGS.add(object_minion)
 npc_color = Color(153,255,153,255)
 object_npc = ConfigItem("NPC", marker_name="Triangle", color=npc_color, alternate_color=accent_color, marker_size=8.0)
 GLOBAL_CONFIGS.add(object_npc)
+merchant_color = Color(153,255,153,255)
+object_merchant = ConfigItem("Merchant", marker_name="Scale", color=merchant_color, alternate_color=accent_color, marker_size=8.0)
+GLOBAL_CONFIGS.add(object_merchant)
 minipet_color =  Color(153,255,153,255)
 object_minipet = ConfigItem("Minipet", marker_name="Circle", color=minipet_color, alternate_color=accent_color, marker_size=2.0)
 GLOBAL_CONFIGS.add(object_minipet)
 default_color = Color(70,70,70,255)
 object_default = ConfigItem("Default", marker_name="Circle", color=default_color, alternate_color=accent_color, marker_size=4.0)
 GLOBAL_CONFIGS.add(object_default)
-gadget_color = Color(120,120,120,255)
-object_gadget = ConfigItem("Gadget", marker_name="Square", color=gadget_color, alternate_color=accent_color, marker_size=6.0)
+gadget_color = Color(165,135,75,255)
+object_gadget = ConfigItem("Gadget", marker_name="SignPost", color=gadget_color, alternate_color=accent_color, marker_size=6.0)
 GLOBAL_CONFIGS.add(object_gadget)
+chest_color = Color(165,135,75,255)
+object_chest = ConfigItem("Chest", marker_name="Lock", color=chest_color, alternate_color=accent_color, marker_size=6.0)
+GLOBAL_CONFIGS.add(object_chest)
 item_color = Color(200,200,0,255)
 object_item = ConfigItem("Item", marker_name="Square", color=item_color, alternate_color=accent_color, marker_size=6.0)
 GLOBAL_CONFIGS.add(object_item)
@@ -515,7 +603,8 @@ GLOBAL_CONFIGS.add(object_item)
 class MissionMap:
     def __init__(self):
         self.initialized = False
-        self.thread_manager = MultiThreading(4.0, log_actions=True)
+        self.thread_manager = MultiThreading(log_actions=True)
+        self.thread_keepalive = time.time()
         self.mission_map_instance = PyMissionMap.PyMissionMap()
         self.left = 0
         self.top = 0
@@ -573,6 +662,8 @@ class MissionMap:
         self.item_marker = GLOBAL_CONFIGS.get("Item")
         self.pet_marker = GLOBAL_CONFIGS.get("Pet")
         self.default_marker = GLOBAL_CONFIGS.get("Default")
+        self.chest_marker = GLOBAL_CONFIGS.get("Chest")
+        self.merchant_marker = GLOBAL_CONFIGS.get("Merchant")
 
 
         self.update()
@@ -664,6 +755,23 @@ mission_map = MissionMap()
 #region DRAWING
 def DrawFrame():
     global mission_map
+    def _get_agent_xy(agent):
+        x,y = RawGamePosToScreen(agent.x, agent.y, 
+                                 mission_map.zoom, mission_map.mega_zoom,
+                                 mission_map.left_bound, mission_map.top_bound,
+                                 mission_map.boundaries, 
+                                 mission_map.pan_offset_x, mission_map.pan_offset_y,
+                                 mission_map.scale_x, mission_map.scale_y,
+                                 mission_map.mission_map_screen_center_x, mission_map.mission_map_screen_center_y)
+        return x,y
+    
+    def _get_alternate_color(agent_id):
+        if mission_map.player_target_id == agent_id:
+            accent_color = mission_map.target_accent_color
+            size_offset =2.0
+            return accent_color, size_offset
+        return mission_map.default_marker.AlternateColor, 0.0
+    
     def _draw_aggro_bubble():
         radius = RawGwinchToPixels(Range.Earshot.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
         color = mission_map.aggro_bubble_color
@@ -690,110 +798,150 @@ def DrawFrame():
     _draw_aggro_bubble()
     _draw_compass_range(zoom)
     
-    for agent in mission_map.agent_array:
-        x,y = RawGamePosToScreen(agent.x, agent.y, 
-                                 mission_map.zoom, mission_map.mega_zoom,
-                                 mission_map.left_bound, mission_map.top_bound,
-                                 mission_map.boundaries, 
-                                 mission_map.pan_offset_x, mission_map.pan_offset_y,
-                                 mission_map.scale_x, mission_map.scale_y,
-                                 mission_map.mission_map_screen_center_x, mission_map.mission_map_screen_center_y)
-    
-        marker = mission_map.default_marker
-        color = marker.Color
-        accent_color = marker.AlternateColor
-        alive = True
-        rotation_angle = 0.0
-        is_spawned = False
-        alliegance = agent.living_agent.allegiance.ToInt()
-        
-        size_offset = 0.0
-        if agent.id == mission_map.player_target_id:
-            accent_color = mission_map.target_accent_color
-            size_offset =2.0
-        
-        if agent.is_living:
-            alive = agent.living_agent.is_alive
+      
+    neutral_array = mission_map.raw_agent_array_handler.get_neutral_array()
+    minion_array = mission_map.raw_agent_array_handler.get_minion_array()
+    spirit_pet_array = mission_map.raw_agent_array_handler.get_spirit_pet_array()
+    enemy_array = mission_map.raw_agent_array_handler.get_enemy_array()
+    ally_array = mission_map.raw_agent_array_handler.get_ally_array()
+    npc_minipet_array = mission_map.raw_agent_array_handler.get_npc_minipet_array()
+    for agent in neutral_array:
+        x,y = _get_agent_xy(agent)
+        if agent.is_living and agent.living_agent.is_alive:
             rotation_angle = agent.rotation_angle
-            has_boss_glow = agent.living_agent.has_boss_glow
-            is_spawned = agent.living_agent.is_spawned
-            
-            if has_boss_glow:
-                accent_color = mission_map.boss_glow_accent_color
-              
-            if alliegance == Allegiance.Ally:
-                if agent.living_agent.is_npc:
-                    marker = mission_map.ally_marker
-                else:
-                    if agent.id == mission_map.player_agent_id:
-                        marker = mission_map.player_marker 
-                    else:
-                        marker = mission_map.players_marker
-            elif alliegance == Allegiance.Neutral:
-                marker = mission_map.neutral_marker
-            elif alliegance == Allegiance.Enemy:
-                if is_spawned:
-                    model_id = agent.living_agent.player_number
-                    spirit_name = get_spirit_name(model_id)
-                    if spirit_name != "Unknown" and alive:
-                        marker = GLOBAL_CONFIGS.get(spirit_name)
-                        enemy_marker = mission_map.enemy_marker
-                        shifted_color = marker.Color.shift(enemy_marker.Color, 0.5)
-                        shifted_color.set_a(int(shifted_color.get_a() * 0.333))
-                        #spirit range area
-                        area = Range.Spirit.value
-                        if agent.living_agent.player_number in AREA_SPIRIT_MODELS:
-                            area = Range.Area.value
-                        if agent.living_agent.player_number in EARSHOT_SPIRIT_MODELS:
-                            area = Range.Earshot.value
-                        
-                        marker.Color = shifted_color
-                        spirit_area = RawGwinchToPixels(area,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
-                        
-                        Overlay().DrawPoly      (x, y, radius=spirit_area-2, color=marker.Color.to_color(),numsegments=64,thickness=1.0)
-                        Overlay().DrawPolyFilled(x, y, radius=spirit_area, color=marker.Color.to_color(),numsegments=64)
-                    else:
-                        marker = mission_map.enemy_marker
-                else: 
-                    if agent.living_agent.player_number in PET_MODEL_IDS:
-                        marker = mission_map.enemy_pet_marker
-                    else:
-                        marker = mission_map.enemy_marker
+            marker = mission_map.neutral_marker
+            alternate_color, size = _get_alternate_color(agent.id)
+            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
 
-            elif alliegance == Allegiance.SpiritPet:     
+    for agent in minion_array:
+        x,y = _get_agent_xy(agent)
+        if agent.is_living and agent.living_agent.is_alive:
+            rotation_angle = agent.rotation_angle
+            marker = mission_map.minion_marker
+            alternate_color, size = _get_alternate_color(agent.id)
+            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()  
+            
+    for agent in spirit_pet_array:
+        x,y = _get_agent_xy(agent)
+        if agent.is_living and agent.living_agent.is_alive:
+            rotation_angle = agent.rotation_angle
+            if not agent.living_agent.is_spawned:
+                marker = mission_map.enemy_pet_marker
+            else:
                 model_id = agent.living_agent.player_number
                 spirit_name = get_spirit_name(model_id)
-                if spirit_name != "Unknown" and alive:
+                if spirit_name == "Unknown":
+                    marker = mission_map.neutral_marker
+                else:
                     marker = GLOBAL_CONFIGS.get(spirit_name)
-                    #spirit range area
                     area = Range.Spirit.value
                     if agent.living_agent.player_number in AREA_SPIRIT_MODELS:
                         area = Range.Area.value
                     if agent.living_agent.player_number in EARSHOT_SPIRIT_MODELS:
                         area = Range.Earshot.value
-                    
                     spirit_area = RawGwinchToPixels(area,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
+                
+                    Overlay().DrawPoly      (x, y, radius=spirit_area-2, color=marker.AlternateColor.to_color(),numsegments=32,thickness=1.0)
+                    Overlay().DrawPolyFilled(x, y, radius=spirit_area, color=marker.AlternateColor.to_color(),numsegments=32)
                     
-                    Overlay().DrawPoly      (x, y, radius=spirit_area-2, color=marker.AlternateColor.to_color(),numsegments=64,thickness=1.0)
-                    Overlay().DrawPolyFilled(x, y, radius=spirit_area, color=marker.AlternateColor.to_color(),numsegments=64)
-                else:
-                    if not is_spawned:
+            alternate_color, size = _get_alternate_color(agent.id)
+            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        
+    for agent in enemy_array:
+        x,y = _get_agent_xy(agent)
+        if agent.is_living and agent.living_agent.is_alive:
+            rotation_angle = agent.rotation_angle
+            if not agent.living_agent.is_spawned:
+                if agent.living_agent.player_number in PET_MODEL_IDS:
                         marker = mission_map.enemy_pet_marker
-                    else:
-                        marker = mission_map.neutral_marker
-            elif alliegance == Allegiance.Minion:
-                marker = mission_map.minion_marker
-            elif alliegance == Allegiance.NpcMinipet:
-                level = agent.living_agent.level
-                if level > 1:
-                    marker = mission_map.npc_marker   
-                else: 
-                    marker = mission_map.minipet_marker     
+                else:
+                    marker = mission_map.enemy_marker
             else:
-                marker = mission_map.default_marker
-        elif agent.is_gadget:
-            marker = mission_map.gadget_marker
-        elif agent.is_item:
+                model_id = agent.living_agent.player_number
+                spirit_name = get_spirit_name(model_id)
+                if spirit_name == "Unknown":
+                    marker = mission_map.neutral_marker
+                else:
+                    marker = GLOBAL_CONFIGS.get(spirit_name)
+                    area = Range.Spirit.value
+                    if agent.living_agent.player_number in AREA_SPIRIT_MODELS:
+                        area = Range.Area.value
+                    if agent.living_agent.player_number in EARSHOT_SPIRIT_MODELS:
+                        area = Range.Earshot.value
+                        
+                    enemy_marker = mission_map.enemy_marker
+                    shifted_color = marker.Color.shift(enemy_marker.Color, 0.55)
+                    shifted_color.set_a(int(shifted_color.get_a() * 0.25))
+                        
+                    spirit_area = RawGwinchToPixels(area,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
+                
+                    Overlay().DrawPoly      (x, y, radius=spirit_area-2, color=shifted_color.to_color(),numsegments=32,thickness=1.0)
+                    Overlay().DrawPolyFilled(x, y, radius=spirit_area, color=shifted_color.to_color(),numsegments=32)
+                    
+            alternate_color, size = _get_alternate_color(agent.id)
+            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        
+      
+    player_agent = None  
+    for agent in ally_array:
+        if player_agent is None:
+            if agent.id == mission_map.player_agent_id:
+                player_agent = agent
+                continue
+            
+        x,y = _get_agent_xy(agent)
+
+        if agent.is_living and agent.living_agent.is_alive:
+            rotation_angle = agent.rotation_angle
+            if agent.living_agent.is_npc:
+                    marker = mission_map.npc_marker
+            else:
+                    marker = mission_map.players_marker  
+            alternate_color, size = _get_alternate_color(agent.id)
+            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw() 
+     
+    if player_agent is not None:
+        x,y = _get_agent_xy(player_agent)
+        if player_agent.is_living and player_agent.living_agent.is_alive:
+            rotation_angle = player_agent.rotation_angle
+            marker = mission_map.player_marker
+            alternate_color, size = _get_alternate_color(player_agent.id)
+            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+     
+     
+        
+    for agent in npc_minipet_array:
+        x,y = _get_agent_xy(agent)
+        if agent.is_living and agent.living_agent.is_alive:
+            rotation_angle = agent.rotation_angle
+            level = agent.living_agent.level
+            if level > 1:
+                agent_name = mission_map.raw_agent_array_handler.get_name(agent.id)
+                if "MERCHANT" in agent_name.upper():
+                    marker = mission_map.merchant_marker
+                else:
+                    marker = mission_map.npc_marker   
+            else: 
+                marker = mission_map.minipet_marker     
+            alternate_color, size = _get_alternate_color(agent.id)
+            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        
+    for agent in mission_map.raw_agent_array_handler.get_gadget_array():
+        x,y = _get_agent_xy(agent)
+        if agent.is_gadget:
+            rotation_angle = agent.rotation_angle
+            gadget_id = Agent.GetGadgetID(agent.id)
+            if gadget_id in CHEST_GADGET_IDS:
+                marker = mission_map.chest_marker
+            else:
+                marker = mission_map.gadget_marker
+                
+            alternate_color, size = _get_alternate_color(agent.id)
+            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+    for agent in mission_map.raw_agent_array_handler.get_item_array():
+        x,y = _get_agent_xy(agent)
+        if agent.is_item:
+            rotation_angle = agent.rotation_angle
             marker = mission_map.item_marker
             item_id = agent.item_agent.item_id
             item_rarity = Item.item_instance(item_id).rarity.value
@@ -807,19 +955,20 @@ def DrawFrame():
                 marker.Color = mission_map.item_rarity_green_color
             else:
                 marker.Color = mission_map.item_rarity_white_color
+            
+            alternate_color, size = _get_alternate_color(agent.id)
+            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
         
-        
-        if not(is_spawned and not alive):          
-            color = marker.Color if alive else marker.Color.desaturate(0.5)       
-            size_offset += mission_map.mega_zoom *( 1/5)
-            Marker(marker.Marker, color, accent_color, x,y, marker.size + size_offset, offset_angle=rotation_angle).draw()
-
-    Overlay().EndDraw() 
+    Overlay().EndDraw()  
     
 
 def main_mission_map_thread():
     global mission_map
     while True:
+        if not Routines.Checks.Map.MapValid():
+            sleep(0.5)
+            mission_map.thread_keepalive = time.time()
+            continue
         if Party.GetPartyLeaderID() != Player.GetAgentID():
             sleep(0.5)
             continue
@@ -829,6 +978,10 @@ def main_mission_map_thread():
         else:
             sleep(0.5)
         sleep(0.03)
+        
+        if mission_map.thread_keepalive + 3 < time.time():
+            mission_map.thread_manager.stop_all_threads()
+            break
 
     
 def configure():
@@ -838,8 +991,7 @@ def configure():
     PyImGui.end()
 
 def main():    
-    if mission_map.initialized:
-        mission_map.thread_manager.update_all_keepalives()
+    mission_map.thread_keepalive = time.time()
         
     if not Routines.Checks.Map.MapValid():
         mission_map.geometry = [] 
@@ -853,20 +1005,13 @@ def main():
         mission_map.update()
         mission_map.thread_manager.stop_all_threads()
         mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
-        mission_map.thread_manager.start_watchdog("main_mission_map_thread")
          
-    if not Map.MissionMap.IsWindowOpen():
-        return
-    
-    if not mission_map.initialized:
-        return
-    
-    DrawFrame()
-    
-    if mission_map.zoom >= 3.5:
-            mission_map.mega_zoom = FloatingSlider("Mega Zoom", mission_map.mega_zoom, mission_map.left, mission_map.bottom-27, 0.0, 15.0, Color(255, 255, 255, 255))
-    else:
-        mission_map.mega_zoom = 0.0 
+    if Map.MissionMap.IsWindowOpen() and mission_map.initialized:
+        DrawFrame()
+        if mission_map.zoom >= 3.5:
+                mission_map.mega_zoom = FloatingSlider("Mega Zoom", mission_map.mega_zoom, mission_map.left, mission_map.bottom-27, 0.0, 15.0, Color(255, 255, 255, 255))
+        else:
+            mission_map.mega_zoom = 0.0 
     
     
 if __name__ == "__main__":
