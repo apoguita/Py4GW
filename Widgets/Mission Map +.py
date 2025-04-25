@@ -604,7 +604,9 @@ class MissionMap:
     def __init__(self):
         self.initialized = False
         self.thread_manager = MultiThreading(log_actions=True)
+        self.thread_timeout = 2.0
         self.thread_keepalive = time.time()
+        self.thread_internal_keepalive = time.time()
         self.mission_map_instance = PyMissionMap.PyMissionMap()
         self.left = 0
         self.top = 0
@@ -966,6 +968,7 @@ def main_mission_map_thread():
     global mission_map
     while True:
         try:
+            mission_map.thread_internal_keepalive = time.time()
             if not Routines.Checks.Map.MapValid():
                 sleep(1)
                 mission_map.thread_keepalive = time.time()
@@ -983,7 +986,7 @@ def main_mission_map_thread():
         except Exception as e:
             print(f"Error in main_mission_map_thread: {e}")
         finally:
-            if mission_map.thread_keepalive + 3 < time.time():
+            if mission_map.thread_keepalive + mission_map.thread_timeout < time.time():
                 mission_map.thread_manager.stop_all_threads()
                 break
 
@@ -1004,6 +1007,12 @@ def main():
         
         if Party.GetPartyLeaderID() != Player.GetAgentID():
             return
+        
+        if mission_map.thread_internal_keepalive + mission_map.thread_timeout < time.time():
+            mission_map.thread_manager.stop_all_threads()
+            mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
+            ConsoleLog("Mission Map", "Mission Map thread died, thread restarted")
+            mission_map.thread_keepalive = time.time()
         
         if not mission_map.initialized:
             mission_map.initialized = True
