@@ -544,6 +544,7 @@ class CombatClass:
         feature_count += (1 if Conditions.MoreLife > 0 else 0)
         feature_count += (1 if Conditions.LessEnergy > 0 else 0)
         feature_count += (1 if Conditions.Overcast > 0 else 0)
+        feature_count += (1 if Conditions.IsPartyWide else 0)
 
         if Conditions.IsAlive:
             if Agent.IsAlive(vTarget):
@@ -696,6 +697,20 @@ class CombatClass:
             if Player.GetAgentID() == vTarget:
                 if Agent.GetOvercast(vTarget) < Conditions.Overcast:
                     number_of_features += 1
+                    
+        if Conditions.IsPartyWide:
+            area = Range.SafeCompass.value if Conditions.PartyWideArea == 0 else Conditions.PartyWideArea
+            less_life = Conditions.LessLife
+            
+            allies_array = GetAllAlliesArray(area)
+            total_group_life = 0.0
+            for agent in allies_array:
+                total_group_life += Agent.GetHealth(agent)
+                
+            total_group_life /= len(allies_array)
+            
+            if total_group_life < less_life:
+                number_of_features += 1
                     
         if self.skills[slot].custom_skill_data.SkillType == SkillType.PetAttack.value:
             pet_id = Party.Pets.GetPetID(Player.GetAgentID())
