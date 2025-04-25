@@ -1,9 +1,6 @@
 from Py4GWCoreLib import *
 from WindowUtilites import *
 
-import Mapping
-import Items
-
 pyParty = PyParty.PyParty()
 
 class Heroes:
@@ -157,6 +154,27 @@ class SynchronizedActionQueue:
             self.logFunc(text)
 
 aftercast = aftercast_class()
+
+### --- ITEMS --- ###
+EventItems_Array = [(ModelID.Champagne_Popper), (ModelID.Krytan_Brandy), (ModelID.Hunters_Ale), 
+                    (ModelID.Bottle_Rocket), (ModelID.Hard_Apple_Cider), (ModelID.Birthday_Cupcake), (ModelID.Shamrock_Ale), 
+                    (ModelID.Four_Leaf_Clover), (ModelID.Bottle_Of_Grog),  (ModelID.Sugary_Blue_Drink), (ModelID.Wintergreen_Cc),
+                    (ModelID.Victory_Token), (ModelID.Snowman_Summoner), (ModelID.Ghost_In_The_Box), 
+                    (ModelID.Vial_Of_Absinthe), (ModelID.Squash_Serum), (ModelID.Eggnog), (ModelID.Spiked_Eggnog), 
+                    (ModelID.Candy_Corn), (ModelID.Candy_Apple),  (ModelID.Pumpkin_Cookie), (ModelID.Trick_Or_Treat_Bag), 
+                    (ModelID.Fruitcake), (ModelID.Peppermint_Cc), (ModelID.Rainbow_Cc), (ModelID.Honeycomb), 
+                    (ModelID.Wintersday_Gift), (ModelID.Yuletide_Tonic), (ModelID.Lunar_Token), (ModelID.Cc_Shard), 
+                    (ModelID.Golden_Egg), (ModelID.Slice_Of_Pumpkin_Pie), (ModelID.Lunar_Fortune_2007_Pig), 
+                    (ModelID.Lunar_Fortune_2008_Rat), (ModelID.Lunar_Fortune_2009_Ox), (ModelID.Lunar_Fortune_2010_Tiger), 
+                    (ModelID.Lunar_Fortune_2011_Rabbit), (ModelID.Lunar_Fortune_2012_Dragon), (ModelID.Lunar_Fortune_2013_Snake), 
+                    (ModelID.Lunar_Fortune_2014_Horse), (ModelID.Lunar_Fortune_2015_Sheep), (ModelID.Lunar_Fortune_2016_Monkey), 
+                    (ModelID.Lunar_Fortune_2017_Rooster), (ModelID.Lunar_Fortune_2018_Dog)]
+
+IdKits = [ModelID.Identification_Kit, ModelID.Superior_Identification_Kit]
+SalveKits = [ModelID.Salvage_Kit, ModelID.Expert_Salvage_Kit, ModelID.Superior_Salvage_Kit]
+IdSalveItems_Array = []
+IdSalveItems_Array.extend(IdKits)
+IdSalveItems_Array.extend(SalveKits)
 
 def TargetNearestItem():
     items = AgentArray.GetItemArray()
@@ -496,14 +514,16 @@ class ReportsProgress():
                 
                 model = Item.GetModelID(item.item_id)
 
-                if model == Items.Gold_Coin and self.collect_gold_coins:
+                if model == ModelID.Gold_Coins and self.collect_gold_coins:
                     # Check should collect gold coins and this is gold coins
                     onHand = Inventory.GetGoldOnCharacter()
-                    return onHand <= 99500                        
-                elif model == Items.Dye and self.collect_dye_white_black:
-                    dye = GetDyeColorIdFromItem(item.item_id)
-                    return dye == Items.Black_Dye or dye == Items.White_Dye
-                elif self.collect_event_items and model in Items.EventItems_Array:
+                    return onHand <= 99500
+                elif model == ModelID.Lockpick: # Just always pick these up for now
+                    return True
+                elif model == ModelID.Vial_Of_Dye and self.collect_dye_white_black:
+                    dye = Item.GetDyeColor(item.item_id)
+                    return dye == DyeColor.Black or dye == DyeColor.White
+                elif self.collect_event_items and model in EventItems_Array:
                     # Check should collect event items and this is event item
                     return True
                 else:
@@ -1198,12 +1218,12 @@ class InventoryFsm(FSM):
 
         if kits_in_inv == 0:
             merchant_item_list = Trading.Merchant.GetOfferedItems()
-            merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == Items.Id_Kit_Superior)
+            merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == ModelID.Superior_Identification_Kit)
 
             # if no superior, just go with basic since merchant will have that.
             if len(merchant_item_list) == 0:
                 merchant_item_list = Trading.Merchant.GetOfferedItems()
-                merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == Items.Id_Kit_Basic)
+                merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == ModelID.Identification_Kit)
 
             if len(merchant_item_list) > 0:
                 item_id = merchant_item_list[0]
@@ -1236,11 +1256,11 @@ class InventoryFsm(FSM):
         
         self.action_timer.Reset()
         
-        kits_in_inv = Inventory.GetModelCount(Items.Salve_Kit_Basic)
+        kits_in_inv = Inventory.GetModelCount(ModelID.Salvage_Kit)
 
         if kits_in_inv <= 1:
             merchant_item_list = Trading.Merchant.GetOfferedItems()
-            merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == Items.Salve_Kit_Basic)
+            merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == ModelID.Salvage_Kit)
 
             item_id = merchant_item_list[0]
             quantity = Item.Properties.GetQuantity(item_id)
@@ -1251,7 +1271,7 @@ class InventoryFsm(FSM):
         if not self.salvageItems:
             return True
         
-        kits_in_inv = Inventory.GetModelCount(Items.Salve_Kit_Basic)
+        kits_in_inv = Inventory.GetModelCount(ModelID.Salvage_Kit)
 
         if kits_in_inv >= 1:
             self.action_timer.Stop()
@@ -1290,8 +1310,7 @@ class InventoryFsm(FSM):
         bags_to_check = ItemArray.CreateBagList(1,2,3,4)
         items_to_deposit = ItemArray.GetItemArray(bags_to_check)
 
-        banned_models = {Items.Id_Kit_Basic,Items.Salve_Kit_Basic}
-        items_to_deposit = ItemArray.Filter.ByCondition(items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_models)
+        items_to_deposit = ItemArray.Filter.ByCondition(items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in IdSalveItems_Array)
 
         if len(items_to_deposit) > 0:
             Inventory.DepositItemToStorage(items_to_deposit[0])
@@ -1317,8 +1336,7 @@ class InventoryFsm(FSM):
         bags_to_check = ItemArray.CreateBagList(1,2,3,4)
         items_to_deposit = ItemArray.GetItemArray(bags_to_check)
 
-        banned_models = {Items.Id_Kit_Basic,Items.Salve_Kit_Basic}
-        items_to_deposit = ItemArray.Filter.ByCondition(items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_models)
+        items_to_deposit = ItemArray.Filter.ByCondition(items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in IdSalveItems_Array)
 
         if len(items_to_deposit) == 0:
             self.stop_action_timer.Stop()
@@ -1515,13 +1533,13 @@ def GetInventoryNonKeepItemsByModelId(keepItems = [], input = None):
         model = Item.GetModelID(item.item_id)
 
         if model in keepItems:
-            if model != Items.Dye:
+            if model != ModelID.Vial_Of_Dye:
                 continue
             else:
                 itemAgent = Agent.GetItemAgent(item.agent_id)
 
                 if itemAgent:
-                    if itemAgent.extra_type == Items.Black_Dye or itemAgent.extra_type == Items.White_Dye:
+                    if itemAgent.extra_type == DyeColor.Black or itemAgent.extra_type == DyeColor.White:
                         continue
             
         sell_items.append(item)
@@ -1664,7 +1682,7 @@ def GetInventorySalvageKitCount(bags=None) -> int:
             items_in_bag = bag_instance.GetItems()
 
             for item in items_in_bag:
-                if item.model_id in Items.SalveKits:
+                if item.model_id in SalveKits:
                     quantity += item.quantity
         
         except Exception as e:
@@ -1672,15 +1690,15 @@ def GetInventorySalvageKitCount(bags=None) -> int:
 
     return quantity
 
-def GetDyeColorIdFromItem(item_id: int) -> int:
-    modifiers = Item.Customization.Modifiers.GetModifiers(item_id)
-
-    for mod in modifiers:
-        modColor = mod.GetArg1()
+# def GetDyeColorIdFromItem(item_id: int) -> int:
+#     modifiers = Item.Customization.Modifiers.GetModifiers(item_id)
+#     Item.GetItemType(item_id)
+#     for mod in modifiers:
+#         modColor = mod.GetArg1()
         
-        if modColor != 0:
-            return modColor
+#         if modColor != 0:
+#             return modColor
         
-    return 0
+#     return 0
 
     

@@ -2,7 +2,6 @@ from Py4GWCoreLib import *
 from BotUtilities import *
 from WindowUtilites import *
 
-import Items
 import Mapping
 import Enemies
 
@@ -397,10 +396,10 @@ class Salad_Farm(ReportsProgress):
     cross_over_movement_Handler = Routines.Movement.FollowXY(50)
     
     keep_list = []
-    keep_list.extend(Items.IdSalveItems_Array)
-    keep_list.extend(Items.EventItems_Array)
-    keep_list.append(Items.Iboga_Petal)
-    keep_list.append(Items.Dye)
+    keep_list.extend(IdSalveItems_Array)
+    keep_list.extend(EventItems_Array)
+    keep_list.append(ModelID.Iboga_Petal)
+    keep_list.append(ModelID.Vial_Of_Dye)
 
     enemy_list = [Enemies.Fanged_Iboga_Smallest, Enemies.Fanged_Iboga_Small]
     
@@ -479,7 +478,7 @@ class Salad_Farm(ReportsProgress):
         # Salad Farm Main Routine
         self.salad_Routine.AddSubroutine(self.salad_exchange_salad_routine_start,
                        sub_fsm=self.salad_Exchange_Routine,
-                       condition_fn=lambda: self.CheckExchangeSalads() and CheckIfInventoryHasItem(Items.Iboga_Petal))        
+                       condition_fn=lambda: self.CheckExchangeSalads() and CheckIfInventoryHasItem(ModelID.Iboga_Petal))        
         self.salad_Routine.AddState(self.salad_start_farm,
                                     execute_fn=lambda: self.ExecuteStep(self.salad_start_farm, self.CheckIfShouldRunFarm()))
         self.salad_Routine.AddState(self.salad_travel_state_name,
@@ -969,7 +968,7 @@ class Salad_Farm(ReportsProgress):
         self.salad_Routine.AddSubroutine(self.salad_inventory_state_name_end,
                        sub_fsm = self.inventoryRoutine)       
         self.salad_Routine.AddSubroutine(self.salad_exchange_salad_routine_end,
-                       condition_fn=lambda: self.CheckExchangeSalads() and CheckIfInventoryHasItem(Items.Iboga_Petal))
+                       condition_fn=lambda: self.CheckExchangeSalads() and CheckIfInventoryHasItem(ModelID.Iboga_Petal))
         self.salad_Routine.AddState(self.salad_forced_stop,                                    
                        execute_fn=lambda: self.ExecuteStep(self.salad_forced_stop, None))
         
@@ -1153,8 +1152,8 @@ class Salad_Farm(ReportsProgress):
         self.salad_exchange_timer.Reset()
 
         try:
-            turn_in = GetItemIdFromModelId(Items.Iboga_Petal, 2)
-            count = GetModelIdCount(Items.Iboga_Petal)
+            turn_in = GetItemIdFromModelId(ModelID.Iboga_Petal, 2)
+            count = GetModelIdCount(ModelID.Iboga_Petal)
 
             if turn_in == 0 or count < 2:
                 self.Log(f"Not enough items to trade. Ending")
@@ -1163,7 +1162,7 @@ class Salad_Farm(ReportsProgress):
             items3 = self.pyMerchant.get_merchant_item_list()
             if items3:
                 for item in items3:
-                    if Item.GetModelID(item) == Items.Pahni_Salad:
+                    if Item.GetModelID(item) == ModelID.Pahnai_Salad:
                         buy = [2]
                         if len(turn_in) > 1:
                             buy = [1, 1]
@@ -1173,7 +1172,7 @@ class Salad_Farm(ReportsProgress):
             self.Log(f"Error in Exchanging Salad: {str(e)}", Py4GW.Console.MessageType.Error)
 
     def ExchangeSaladsDone(self):
-        return not CheckIfInventoryHasItem(Items.Iboga_Petal, 2)
+        return not CheckIfInventoryHasItem(ModelID.Iboga_Petal, 2)
         
     def CheckInventory(self):
         if Inventory.GetFreeSlotCount() <= self.default_min_slots:
@@ -1388,7 +1387,7 @@ class Salad_Farm(ReportsProgress):
             
             model = Item.GetModelID(item.item_id)
 
-            if model == Items.Iboga_Petal:
+            if model == ModelID.Iboga_Petal:
                 return True
             else:
                 return super().CanPickUp(agentId, player_id)
@@ -1429,7 +1428,7 @@ class Salad_Farm(ReportsProgress):
 
                 model = Item.GetModelID(Agent.GetItemAgent(self.current_lootable).item_id)
 
-                if model == Items.Iboga_Petal:
+                if model == ModelID.Iboga_Petal:
                     self.salad_collected += 1
 
                 Player.Interact(item)

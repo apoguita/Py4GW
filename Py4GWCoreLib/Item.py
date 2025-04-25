@@ -116,6 +116,26 @@ class Item:
             """Purpose: Retrieve the slot of an item is in a bag by its ID."""
             return Item.item_instance(item_id).slot
 
+        @staticmethod
+        def GetDyeColor(item_id: int) -> int:
+            """
+            Purpose: Retrieve the Vial of Dye color by its ID.
+            Args:
+                item_id (int): The vial of dye item id.
+            Returns: int: The Py4GWCoreLib.DyeColor equivalent value or zero (None).
+            """            
+            mods = Item.item_instance(item_id).modifiers
+
+            # Check if the item has any modifiers
+            for mod in mods:
+                modColor = mod.GetArg1()
+                
+                if modColor != 0:
+                    return modColor
+                
+            # Zero is default dye color, i.e. no dye applied
+            return 0
+        
         class Rarity:
             @staticmethod
             def GetRarity(item_id):
