@@ -774,6 +774,7 @@ class Routines:
             spirit_array = AgentArray.GetSpiritPetArray()
             spirit_array = AgentArray.Filter.ByDistance(spirit_array, Player.GetXY(), distance)
             spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsAlive(agent_id))
+            spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsSpawned(agent_id))
             spirit_array = AgentArray.Sort.ByDistance(spirit_array, Player.GetXY())
             return Utils.GetFirstFromArray(spirit_array)
             

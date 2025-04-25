@@ -1,0 +1,172 @@
+# -*- coding: utf-8 -*-
+from Py4GWCoreLib import *
+import os
+module_name = "Loot Pickit Manager"
+
+#script_directory = os.path.dirname(os.path.abspath(__file__))
+#root_directory = os.path.normpath(os.path.join(script_directory, ".."))
+#ini_file_location = os.path.join(root_directory, "Widgets/Config/LootPickitManager.ini")
+#matching_items = []
+
+#ini_handler = IniHandler(ini_file_location)
+
+
+
+# LootConfigclass to hold loot configurations
+class LootConfigclass:
+    def __init__(self):
+    
+        self.include_model_id_in_tooltip = False
+        
+        # Alcohol Loot Configuration
+        self.loot_bottle_of_rice_wine = False       # 1 Point
+        self.loot_bottle_of_vabbian_wine = False    # 1 Point
+        self.loot_dwarven_ale = False               # 1 Point
+        self.loot_eggnog = False                    # 1 Point
+        self.loot_hard_apple_cider = False          # 1 Point
+        self.loot_hunters_ale = False               # 1 Point
+        self.loot_shamrock_ale = False              # 1 Point
+        self.loot_vial_of_absinthe = False          # 1 Point
+        self.loot_witchs_brew = False               # 1 Point
+        self.loot_zehtukas_jug = False              # 1 Point
+        self.loot_aged_dwarven_ale = False          # 3 Points
+        self.loot_bottle_of_grog = False            # 3 Points
+        self.loot_krytan_brandy = False             # 3 Points
+        self.loot_spiked_eggnog = False             # 3 Points
+        self.loot_battle_isle_iced_tea = False      # 50 Points
+        
+        # Sweets Loot Configuration
+
+
+# Ensure the Loot_Variables is initialized before using it
+#no need to declare explicit types on python Loot_Variables = type('LootVariables', (object,), {})()  # Create a simple object to hold bot variables
+#it is a good practice to define types as it helps with readability and maintainability
+#but in python it is not strictly necessary
+Loot_Variables = LootConfigclass()  # Initialize the LootConfigclass
+
+window_module = ImGui.WindowModule(module_name, window_name="Loot Pickit Manager", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+
+#window_x = ini_handler.read_int(module_name + str(" Config"), "x", 100)
+#window_y = ini_handler.read_int(module_name + str(" Config"), "y", 100)
+#window_collapsed = ini_handler.read_bool(module_name + str(" Config"), "collapsed", False)
+
+#window_module.window_pos = (window_x, window_y)
+#window_module.collapse = window_collapsed
+
+def DrawWindow():
+    global Loot_Variables
+
+    try:
+        if window_module.first_run:
+            PyImGui.set_next_window_size(window_module.window_size[0], window_module.window_size[1])     
+            PyImGui.set_next_window_pos(window_module.window_pos[0], window_module.window_pos[1])
+            PyImGui.set_next_window_collapsed(window_module.collapse, 0)
+            window_module.first_run = False
+
+        new_collapsed = True
+        end_pos = window_module.window_pos
+
+        if PyImGui.begin(window_module.window_name, window_module.window_flags):
+            new_collapsed = PyImGui.is_window_collapsed()
+            PyImGui.text("Loot Settings")
+            
+                        # Add the checkbox for "Include ModelID In Hovered Text"
+            Loot_Variables.include_model_id_in_tooltip = PyImGui.checkbox("ModelID In Hovered Text", Loot_Variables.include_model_id_in_tooltip)
+
+            
+            PyImGui.separator()
+
+            # Alcohol Loot Group
+            if PyImGui.tree_node("Alcohol"):
+                
+                # Subgroup 1 Point
+                if PyImGui.tree_node("1 Point"):
+                    alcohol_1_points = [
+                        ("Bottle of Rice Wine", "loot_bottle_of_rice_wine", ModelID.Bottle_Of_Rice_Wine, "Jarimiya the Unmerciful"),
+                        ("Bottle of Vabbian Wine", "loot_bottle_of_vabbian_wine", ModelID.Bottle_Of_Vabbian_Wine, "Jarimiya the Unmerciful"),
+                        ("Dwarven Ale", "loot_dwarven_ale", ModelID.Dwarven_Ale, "Irontoe's Chest"),
+                        ("Eggnog", "loot_eggnog", ModelID.Eggnog, "Winterday & Chest of Wintersday Past"),
+                        ("Hard Apple Cider", "loot_hard_apple_cider", ModelID.Hard_Apple_Cider, "Special Treats Week & Anniversary Celebration"),
+                        ("Hunters Ale", "loot_hunters_ale", ModelID.Hunters_Ale, "Anniversary Celebration"),
+                        ("Shamrock Ale", "loot_shamrock_ale", ModelID.Shamrock_Ale, "Lucky Treats Week"),
+                        ("Vial of Absinthe", "loot_vial_of_absinthe", ModelID.Vial_Of_Absinthe, "Halloween"),
+                        ("Witch's Brew", "loot_witchs_brew", ModelID.Witchs_Brew, "Halloween"),
+                        ("Zehtuka's Jug", "loot_zehtukas_jug", ModelID.Zehtukas_Jug, "The Desolation")
+                    ]
+                    for label, attr, id_num, tooltip in alcohol_1_points:
+                        current_value = getattr(Loot_Variables, attr)  # Get the current state of the attribute
+                        changed = PyImGui.checkbox(label, current_value)  # Set the checkbox to current state
+                        
+                        if changed:  # If the checkbox state changes
+                            setattr(Loot_Variables, attr, not current_value)  # Update the loot_config attribute based on the new state
+
+                        # Include ModelID in tooltip text if enabled
+                        if Loot_Variables.include_model_id_in_tooltip:
+                            tooltip_text = f"DropInfo: Model ID: {id_num} - {tooltip}"
+                        else:
+                            tooltip_text = f"DropInfo: {tooltip}"
+                        
+                        if PyImGui.is_item_hovered():
+                            PyImGui.set_tooltip(tooltip_text)
+                    PyImGui.tree_pop()
+
+                # Subgroup 3 Points
+                if PyImGui.tree_node("3 Points"):
+                    alcohol_3_points = [
+                        ("Aged Dwarven Ale", "loot_aged_dwarven_ale", ModelID.Aged_Dwarven_Ale, "Irontoe's Chest"),
+                        ("Bottle of Grog", "loot_bottle_of_grog", ModelID.Bottle_Of_Grog, "Pirate Week"),
+                        ("Krytan Brandy", "loot_krytan_brandy", ModelID.Krytan_Brandy, "Anniversary Celebration"),
+                        ("Spiked Eggnog", "loot_spiked_eggnog", ModelID.Spiked_Eggnog, "Winterday & Chest of Wintersday Past")
+                    ]
+                    for label, attr, id_num, tooltip in alcohol_3_points:
+                        current_value = getattr(Loot_Variables, attr)  # Get current state
+                        changed = PyImGui.checkbox(label, current_value)  # Set checkbox to current state
+                        
+                        if changed:  # If checkbox state changes
+                            setattr(Loot_Variables, attr, not current_value)  # Update the config attribute
+
+                        # Include ModelID in tooltip text if enabled
+                        if Loot_Variables.include_model_id_in_tooltip:
+                            tooltip_text = f"DropInfo: Model ID: {id_num} - {tooltip}"
+                        else:
+                            tooltip_text = f"DropInfo: {tooltip}"
+
+                        if PyImGui.is_item_hovered():
+                            PyImGui.set_tooltip(tooltip_text)
+                    PyImGui.tree_pop()
+
+                # Subgroup 50 Points
+                if PyImGui.tree_node("50 Points"):
+                    alcohol_50_points = [
+                        ("Battle Isle Iced Tea", "loot_battle_isle_iced_tea", ModelID.Battle_Isle_Iced_Tea, "Anniversary Celebration")
+                    ]
+                    for label, attr, id_num, tooltip in alcohol_50_points:
+                        current_value = getattr(Loot_Variables, attr)  # Get current state
+                        changed = PyImGui.checkbox(label, current_value)  # Set checkbox to current state
+                        
+                        if changed:  # If checkbox state changes
+                            setattr(Loot_Variables, attr, not current_value)  # Update the config attribute
+
+                        # Include ModelID in tooltip text if enabled
+                        if Loot_Variables.include_model_id_in_tooltip:
+                            tooltip_text = f"DropInfo: Model ID: {id_num} - {tooltip}"
+                        else:
+                            tooltip_text = f"DropInfo: {tooltip}"
+
+                        if PyImGui.is_item_hovered():
+                            PyImGui.set_tooltip(tooltip_text)
+                    PyImGui.tree_pop()
+
+                PyImGui.tree_pop()
+            PyImGui.end()
+    except Exception as e:
+        frame = inspect.currentframe()
+        current_function = frame.f_code.co_name if frame else "Unknown"
+        Py4GW.Console.Log("LootConfigGUI", f"Error in {current_function}: {str(e)}", Py4GW.Console.MessageType.Error)
+        raise
+
+def main():
+    DrawWindow()
+
+if __name__ == "__main__":
+    main()

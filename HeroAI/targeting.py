@@ -24,7 +24,18 @@ def TargetLowestAlly(other_ally=False,filter_skill_id=0):
     distance = Range.Spellcast.value
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id) 
-    ally_array = AgentArray.Sort.ByHealth(ally_array)     
+    ally_array = AgentArray.Sort.ByHealth(ally_array)  
+    
+    spirit_pet_array = AgentArray.GetSpiritPetArray()
+    spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
+    spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
+    ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
+    
+    npc_array = AgentArray.GetNPCMinipetArray()
+    npc_array = FilterAllyArray(npc_array, distance, other_ally, filter_skill_id)
+    npc_array = AgentArray.Filter.ByCondition(npc_array, lambda agent_id: Agent.GetLevel(agent_id) > 1) #filter minipets
+    ally_array = AgentArray.Manipulation.Merge(ally_array, npc_array) #added NPCs
+       
     return Utils.GetFirstFromArray(ally_array)
     
 
@@ -55,6 +66,12 @@ def TargetLowestAllyCaster(other_ally=False, filter_skill_id=0):
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsCaster(agent_id))
+    
+    npc_array = AgentArray.GetNPCMinipetArray()
+    npc_array = FilterAllyArray(npc_array, distance, other_ally, filter_skill_id)
+    npc_array = AgentArray.Filter.ByCondition(npc_array, lambda agent_id: Agent.GetLevel(agent_id) > 1) #filter minipets
+    ally_array = AgentArray.Manipulation.Merge(ally_array, npc_array) #added NPCs
+    
     ally_array = AgentArray.Sort.ByHealth(ally_array)
     return Utils.GetFirstFromArray(ally_array)
 
@@ -64,6 +81,12 @@ def TargetLowestAllyMartial(other_ally=False, filter_skill_id=0):
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsMartial(agent_id))
+    
+    spirit_pet_array = AgentArray.GetSpiritPetArray()
+    spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
+    spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
+    ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
+    
     ally_array = AgentArray.Sort.ByHealth(ally_array)
     return Utils.GetFirstFromArray(ally_array)
 
@@ -73,6 +96,12 @@ def TargetLowestAllyMelee(other_ally=False, filter_skill_id=0):
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsMelee(agent_id))
+    
+    spirit_pet_array = AgentArray.GetSpiritPetArray()
+    spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
+    spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
+    ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
+    
     ally_array = AgentArray.Sort.ByHealth(ally_array)
     return Utils.GetFirstFromArray(ally_array)
 
