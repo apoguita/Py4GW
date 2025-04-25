@@ -209,7 +209,7 @@ class UIManager:
         return PyUIManager.UIManager.get_root_frame_id()
     
     @staticmethod
-    def GetChildFrameID (parent_hash: int, child_offsets: List[int]) -> int:
+    def GetChildFrameID (parent_hash: int, child_offsets: List[int]):
         """
         Get the child frame ID.
 
@@ -220,7 +220,7 @@ class UIManager:
         return PyUIManager.UIManager.get_child_frame_id(parent_hash, child_offsets)
     
     @staticmethod
-    def GetAllChildFrameIDs(parent_hash: int, child_offsets: List[int]) -> List[int]:
+    def GetAllChildFrameIDs(parent_hash: int, child_offsets: List[int]):
         """
         Finds all frame IDs that match the given offset path from the parent hash.
         Unlike GetChildFrameID, this returns *all* frames that match the offset chain.
@@ -251,7 +251,7 @@ class UIManager:
         return matching_ids
     
     @staticmethod
-    def sort_frames_by_vertical_position(frame_ids: List[int]):
+    def SortFramesByVerticalPosition(frame_ids: List[int]):
         positions = []
         for fid in frame_ids:
             frame = PyUIManager.UIFrame(fid)
@@ -260,16 +260,17 @@ class UIManager:
         return sorted(positions, key=lambda x: x[1])  # Lower Y = higher on screen
     
     @staticmethod
-    def colour_frames():
+    def ColorFrames(parent_hash: int, child_offsets: List[int], debug: bool = False):
         from .Py4GWcorelib import Utils
-        option_offsets = [2, 0, 0, 1]
-        all_ids = UIManager.GetAllChildFrameIDs(3856160816, option_offsets)
-        print(f"All matching frame IDs: {all_ids}")
+        option_offsets = child_offsets
+        all_ids = UIManager.GetAllChildFrameIDs(parent_hash, option_offsets)
         
-        sorted_frames = UIManager.sort_frames_by_vertical_position(all_ids)
+        sorted_frames = UIManager.SortFramesByVerticalPosition(all_ids)
 
-        for fid, top_y in sorted_frames:
-            print(f"Frame ID: {fid}, Top Y: {top_y}")
+        if debug:
+            print(f"All matching frame IDs: {all_ids}")
+            for fid, top_y in sorted_frames:
+                print(f"Frame ID: {fid}, Top Y: {top_y}")
             
         colors = [
         Utils.RGBToColor(0, 255, 0, 200),     # green
@@ -284,8 +285,7 @@ class UIManager:
             if i >= len(colors):
                 break
             UIManager().DrawFrame(frame_id, colors[i])
-
-
+            
     @staticmethod
     def IsWorldMapShowing():
         """
