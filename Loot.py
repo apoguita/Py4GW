@@ -18,6 +18,12 @@ class LootConfigclass:
     
         self.include_model_id_in_tooltip = False
         
+        self.loot_whites = False
+        self.loot_blues = False
+        self.loot_purples = False
+        self.loot_golds = False
+        self.loot_greens = False
+        
         # Alcohol Loot Configuration
         self.loot_bottle_of_rice_wine = False       # 1 Point
         self.loot_bottle_of_vabbian_wine = False    # 1 Point
@@ -43,6 +49,9 @@ class LootConfigclass:
 #it is a good practice to define types as it helps with readability and maintainability
 #but in python it is not strictly necessary
 Loot_Variables = LootConfigclass()  # Initialize the LootConfigclass
+#careful not mistaking both names, they are very similar
+loot_filter_singleton = LootConfig()
+temp_model_id = 0
 
 window_module = ImGui.WindowModule(module_name, window_name="Loot Pickit Manager", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
@@ -54,7 +63,7 @@ window_module = ImGui.WindowModule(module_name, window_name="Loot Pickit Manager
 #window_module.collapse = window_collapsed
 
 def DrawWindow():
-    global Loot_Variables
+    global Loot_Variables, loot_filter_singleton, temp_model_id
 
     try:
         if window_module.first_run:
@@ -68,6 +77,63 @@ def DrawWindow():
 
         if PyImGui.begin(window_module.window_name, window_module.window_flags):
             new_collapsed = PyImGui.is_window_collapsed()
+            
+            PyImGui.text("basic loot settings")
+            
+            Loot_Variables.loot_whites = PyImGui.checkbox("Loot Whites", Loot_Variables.loot_whites)
+            Loot_Variables.loot_blues = PyImGui.checkbox("Loot Blues", Loot_Variables.loot_blues)
+            Loot_Variables.loot_purples = PyImGui.checkbox("Loot Purples", Loot_Variables.loot_purples)
+            Loot_Variables.loot_golds = PyImGui.checkbox("Loot Golds", Loot_Variables.loot_golds)
+            Loot_Variables.loot_greens = PyImGui.checkbox("Loot Greens", Loot_Variables.loot_greens)
+            PyImGui.separator()
+            temp_model_id = PyImGui.input_int("ModelID", temp_model_id)
+            
+            loot_filter_singleton.SetProperties(
+                loot_whites = Loot_Variables.loot_whites,
+                loot_blues = Loot_Variables.loot_blues,
+                loot_purples = Loot_Variables.loot_purples,
+                loot_golds = Loot_Variables.loot_golds,
+                loot_greens = Loot_Variables.loot_greens
+            )
+            
+            if PyImGui.button("Add ModelID to whitelist"):
+                loot_filter_singleton.AddToWhitelist(temp_model_id)
+                Py4GW.Console.Log("LootConfigGUI", f"Added ModelID {temp_model_id} to whitelist.", Py4GW.Console.MessageType.Info)
+                temp_model_id = 0
+                
+            if PyImGui.button("Remove ModelID from whitelist"):
+                loot_filter_singleton.RemoveFromWhitelist(temp_model_id)
+                Py4GW.Console.Log("LootConfigGUI", f"Removed ModelID {temp_model_id} from whitelist.", Py4GW.Console.MessageType.Info)
+                temp_model_id = 0
+                
+            if PyImGui.button("Add ModelID to blacklist"):
+                loot_filter_singleton.AddToBlacklist(temp_model_id)
+                Py4GW.Console.Log("LootConfigGUI", f"Added ModelID {temp_model_id} to blacklist.", Py4GW.Console.MessageType.Info)
+                temp_model_id = 0
+            if PyImGui.button("Remove ModelID from blacklist"):
+                loot_filter_singleton.RemoveFromBlacklist(temp_model_id)
+                Py4GW.Console.Log("LootConfigGUI", f"Removed ModelID {temp_model_id} from blacklist.", Py4GW.Console.MessageType.Info)
+                temp_model_id = 0
+                
+            if PyImGui.button("Clear Whitelist"):
+                loot_filter_singleton.ClearWhitelist()
+                Py4GW.Console.Log("LootConfigGUI", "Cleared whitelist.", Py4GW.Console.MessageType.Info)
+            
+            if PyImGui.button("Clear Blacklist"):
+                loot_filter_singleton.ClearBlacklist()
+                Py4GW.Console.Log("LootConfigGUI", "Cleared blacklist.", Py4GW.Console.MessageType.Info)
+                
+            PyImGui.separator()
+            PyImGui.text("Filtered Loot Array")
+            loot_array = loot_filter_singleton.GetfilteredLootArray()
+            if loot_array:
+                for item in loot_array:
+                    PyImGui.text(f"ModelID: {item}")
+            else:
+                PyImGui.text("No items in the filtered loot array.")
+            
+            
+            PyImGui.separator()
             PyImGui.text("Loot Settings")
             
                         # Add the checkbox for "Include ModelID In Hovered Text"
