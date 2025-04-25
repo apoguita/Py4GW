@@ -1220,8 +1220,9 @@ class FSM:
             """Run the state's block of code. If `run_once` is True, run it only once."""
             if not self.run_once or not self.executed:
                 self.execute_fn()
-                self.executed = True  # Mark execution as complete if run_once is True
-                self.reset_transition_timer()  # Reset the timer
+                if not self.executed:  # Only reset timer on first execution
+                    self.reset_transition_timer()
+                self.executed = True
 
         def can_exit(self):
             """
