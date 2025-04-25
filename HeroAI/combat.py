@@ -846,9 +846,10 @@ class CombatClass:
         if not self.in_aggro:
             return False
 
-        _, target_aliegance = Agent.GetAllegiance(Player.GetTargetID())
+        target_id = Player.GetTargetID()
+        _, target_aliegance = Agent.GetAllegiance(target_id)
         
-        if Player.GetTargetID() == 0 or (target_aliegance != 'Enemy'):
+        if target_id == 0 or (target_aliegance != 'Enemy'):
                             
             nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
             called_target = self.GetPartyTarget()
@@ -863,20 +864,19 @@ class CombatClass:
                 return False
 
             ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, attack_target)
+            ActionQueueManager().AddAction("ACTION", Player.Interact, attack_target)
             return True
         else:
-            target_id = Player.GetTargetID()
+            
             if not Agent.IsLiving(target_id):
                 return
 
             _, alliegeance = Agent.GetAllegiance(target_id)
             if alliegeance == 'Enemy' and self.is_combat_enabled:
-                target_id = Player.GetTargetID()
-                if target_id == 0:
-                    return
-                
-                ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
+                if target_id != 0:
+                    ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
                 return True
+            return False
 
     def HandleCombat(self,ooc=False):
         """
@@ -916,7 +916,8 @@ class CombatClass:
 
         self.aftercast = Skill.Data.GetActivation(skill_id) * 1000
         self.aftercast += Skill.Data.GetAftercast(skill_id) * 1000
-        self.aftercast += self.ping_handler.GetCurrentPing()
+        self.aftercast += 150 #manually setting a 50ms delay to test issues with pinghandler
+        #self.aftercast += self.ping_handler.GetCurrentPing()
 
         self.aftercast_timer.Reset()
         ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
