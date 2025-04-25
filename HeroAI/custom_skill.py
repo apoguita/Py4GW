@@ -1336,6 +1336,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Pet.value
         skill.Nature = SkillNature.Healing.value
+        skill.Conditions.UniqueProperty = True
         skill.Conditions.LessLife = 0.75
         self.skill_data[skill.SkillID] = skill
 
@@ -1410,6 +1411,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Pet.value
         skill.Nature = SkillNature.Healing.value
+        skill.unique_property = True
         skill.Conditions.LessLife = 0.9
         self.skill_data[skill.SkillID] = skill
 
@@ -7933,7 +7935,8 @@ class CustomSkillClass:
         skill.SkillID = Skill.GetID("Life")
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Healing.value
+        skill.Nature = SkillNature.Buff.value
+        skill.OutOfCombat = False
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -7989,8 +7992,8 @@ class CustomSkillClass:
         skill.SkillID = Skill.GetID("Recovery")
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Healing.value
-        skill.Conditions.IsOutOfCombat = True
+        skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsOutOfCombat = False
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()

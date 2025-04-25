@@ -143,6 +143,8 @@ class CombatClass:
         self.disease = Skill.GetID("Disease")
         self.poison = Skill.GetID("Poison")
         self.weakness = Skill.GetID("Weakness")
+        self.comfort_animal = Skill.GetID("Comfort_Animal")
+        self.heal_as_one = Skill.GetID("Heal_as_One")
         
     def Update(self, cached_data):
         self.in_aggro = cached_data.in_aggro
@@ -505,6 +507,14 @@ class CombatClass:
                 self.skills[slot].skill_id == self.signet_of_ghostly_might
                 ):
                 return True if Routines.Agents.GetNearestSpirit(Range.Spellcast.value) != 0 else False
+            
+            if (self.skills[slot].skill_id == self.comfort_animal or
+                self.skills[slot].skill_id == self.heal_as_one
+                ):
+                LessLife = Agent.GetHealth(vTarget) < Conditions.LessLife
+                dead = Agent.IsDead(vTarget)
+                return LessLife or dead
+                
 
             return True  # if no unique property is configured, return True for all UniqueProperty
 
@@ -689,6 +699,8 @@ class CombatClass:
                     
         if self.skills[slot].custom_skill_data.SkillType == SkillType.PetAttack.value:
             pet_id = Party.Pets.GetPetID(Player.GetAgentID())
+            if Agent.IsDead(pet_id):
+                return False
             
             pet_attack_list = [Skill.GetID("Bestial_Mauling"),
                                Skill.GetID("Bestial_Pounce"),

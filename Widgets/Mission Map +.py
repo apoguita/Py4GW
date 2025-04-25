@@ -828,7 +828,7 @@ def DrawFrame():
         if agent.is_living and agent.living_agent.is_alive:
             rotation_angle = agent.rotation_angle
             if not agent.living_agent.is_spawned:
-                marker = mission_map.enemy_pet_marker
+                marker = mission_map.pet_marker
             else:
                 model_id = agent.living_agent.player_number
                 spirit_name = get_spirit_name(model_id)
