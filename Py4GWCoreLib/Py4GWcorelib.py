@@ -1899,6 +1899,12 @@ class LootConfig:
 
     def RemoveFromBlacklist(self, model_id: int):
         self.blacklist.discard(model_id)
+        
+    def ClearWhitelist(self):
+        self.whitelist.clear()
+        
+    def ClearBlacklist(self):
+        self.blacklist.clear()
 
     def IsWhitelisted(self, model_id: int):
         return model_id in self.whitelist
