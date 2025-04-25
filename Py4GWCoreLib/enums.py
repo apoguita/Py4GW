@@ -369,18 +369,18 @@ class ItemType(IntEnum):
 #region DyeColor
 class DyeColor(IntEnum):
     NoColor = 0
-    Blue = 1
-    Green = 2
-    Purple = 3
-    Red = 4
-    Yellow = 5
-    Brown = 6
-    Orange = 7
-    Silver = 8
-    Black = 9
-    Gray = 10
-    White = 11
-    Pink = 12
+    Blue = 2
+    Green = 3
+    Purple = 4
+    Red = 5
+    Yellow = 6
+    Brown = 7
+    Orange = 8
+    Silver = 9
+    Black = 10
+    Gray = 11
+    White = 12
+    Pink = 13
 
 #endregion
 #region Profession
@@ -1827,6 +1827,7 @@ class ModelID(IntEnum):
     Glob_Of_Frozen_Ectoplasm = 21509
     Gloom_Seed = 523
     Glowing_Heart = 439
+    Gold_Coins = 2511
     Gold_Doubloon = 1578
     Gold_Zaishen_Coin = 31203
     Golden_Egg = 22752
@@ -1946,6 +1947,7 @@ class ModelID(IntEnum):
     Lockpick = 22751
     Losaru_Mane = 448
     Lump_Of_Charcoal = 922
+    Lunar_Fortune_2007_Pig = 29424
     Lunar_Fortune_2008_Rat = 29425
     Lunar_Fortune_2009_Ox = 29426
     Lunar_Fortune_2010_Tiger = 29427
@@ -1953,6 +1955,10 @@ class ModelID(IntEnum):
     Lunar_Fortune_2012_Dragon = 29429
     Lunar_Fortune_2013_Snake = 29430
     Lunar_Fortune_2014_Horse = 29431
+    Lunar_Fortune_2015_Sheep = 29432
+    Lunar_Fortune_2016_Monkey = 29433
+    Lunar_Fortune_2017_Rooster = 29434
+    Lunar_Fortune_2018_Dog = 29435
     Lunar_Token = 21833
     Luxon_Key = 6538
     Luxon_Pendant = 810
