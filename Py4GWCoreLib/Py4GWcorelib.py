@@ -1230,14 +1230,10 @@ class FSM:
             """
             Check if the exit condition is met and if the transition delay has passed.
             """
-            if self.transition_timer.HasElapsed(self.transition_delay_ms):
+            if not self.transition_timer.HasElapsed(self.transition_delay_ms):
                 return False
             
-            if self.exit_condition():
-                # If the exit condition is true and the delay has passed, return True
-                return True
-            else:
-                return False
+            return self.exit_condition()
             
         def reset(self):
             """Reset the state so it can be re-entered, if needed."""
