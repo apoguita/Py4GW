@@ -395,6 +395,10 @@ class CombatClass:
             player_data = self.shared_memory_handler.get_player(i)
             if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
                 return True
+            
+        allegiance , _ = Agent.GetAllegiance(agent_id)
+        if allegiance == Allegiance.SpiritPet.value and not Agent.IsSpawned(agent_id):
+            return True
         
         return False
         
