@@ -399,6 +399,11 @@ class CombatClass:
         return False
         
     def HasEffect(self, agent_id, skill_id, exact_weapon_spell=False):
+        alliegeance, _ = Agent.GetAllegiance(agent_id)
+        
+        if alliegeance == Allegiance.NpcMinipet:
+            return True
+
         result = False
         if self.IsPartyMember(agent_id):
             player_buffs = self.shared_memory_handler.get_agent_buffs(agent_id)
@@ -943,8 +948,8 @@ class CombatClass:
 
         self.aftercast = Skill.Data.GetActivation(skill_id) * 1000
         self.aftercast += Skill.Data.GetAftercast(skill_id) * 1000
-        self.aftercast += 150 #manually setting a 50ms delay to test issues with pinghandler
-        #self.aftercast += self.ping_handler.GetCurrentPing()
+        #self.aftercast += 150 #manually setting a 50ms delay to test issues with pinghandler
+        self.aftercast += self.ping_handler.GetCurrentPing()
 
         self.aftercast_timer.Reset()
         ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
