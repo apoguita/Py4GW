@@ -1235,10 +1235,8 @@ class FSM:
                     # If the exit condition is true and the delay has passed, return True
                     return True
                 else:
-                    # Reset the timer if the exit condition is not yet met
-                    self.transition_timer.Reset()
-            return False
-
+                    return False
+            
         def reset(self):
             """Reset the state so it can be re-entered, if needed."""
             self.executed = False
