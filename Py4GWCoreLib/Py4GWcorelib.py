@@ -1261,7 +1261,7 @@ class FSM:
             
     class ConditionState(State):
         def __init__(self, id, name=None, condition_fn=None, sub_fsm=None,
-                 on_enter=None, on_exit=None):
+                 on_enter=None, on_exit=None, log_actions=False):
             """
             A state that evaluates a condition and decides whether to continue or run a sub-FSM.
 
@@ -1273,6 +1273,7 @@ class FSM:
             self.condition_fn = condition_fn or (lambda: True)  # Default to True if no condition provided
             self.sub_fsm = sub_fsm
             self.sub_fsm_active = False
+            self.log_actions = log_actions
 
         def execute(self):
             """
@@ -1297,7 +1298,8 @@ class FSM:
             
             if self.sub_fsm and not self.sub_fsm_active:
                 # Condition met, start the sub-FSM
-                Py4GW.Console.Log("FSM", f"Starting FSM Subroutine", Py4GW.Console.MessageType.Success)
+                if self.log_actions:
+                    ConsoleLog("FSM", f"Starting FSM Subroutine", Py4GW.Console.MessageType.Success)
                 self.sub_fsm.reset()
                 self.sub_fsm.start()
                 self.sub_fsm_active = True
@@ -1356,7 +1358,8 @@ class FSM:
             condition_fn=condition_fn,
             sub_fsm=sub_fsm,
             on_enter=on_enter,
-            on_exit=on_exit
+            on_exit=on_exit,
+            log_actions=self.log_actions
         )
         if self.states:
             self.states[-1].set_next_state(condition_node)
@@ -1498,7 +1501,7 @@ class FSM:
             target_state = self._get_state_by_name(target_state_name)
             if target_state:
                 if self.log_actions:
-                    Py4GW.Console.Log("FSM", f"{self.name}: Event '{event_name}' triggered transition from '{self.current_state.name}' to '{target_state.name}'", Py4GW.Console.MessageType.Info)
+                    ConsoleLog("FSM", f"{self.name}: Event '{event_name}' triggered transition from '{self.current_state.name}' to '{target_state.name}'", Py4GW.Console.MessageType.Info)
 
                 # --- Perform Transition ---
                 original_state_name = self.current_state.name
