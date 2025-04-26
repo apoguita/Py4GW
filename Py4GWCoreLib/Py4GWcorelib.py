@@ -4,6 +4,7 @@ from enum import Enum
 import time
 from time import sleep
 from collections import namedtuple, deque
+from typing import Optional
 import ctypes
 
 import Py4GW
@@ -1206,6 +1207,7 @@ class FSM:
             self.on_enter = on_enter or (lambda: None)
             self.on_exit = on_exit or (lambda: None)
             self.next_state = None
+            self.event_transitions = {}
 
         def enter(self):
             self.on_enter()
@@ -1245,6 +1247,17 @@ class FSM:
         def set_next_state(self, next_state):
             """Set the next state for transitions."""
             self.next_state = next_state
+        
+        def add_event_transition(self, event_name: str, target_state_name: str):
+            """
+            Define a transition triggered by a specific event.
+
+            :param event_name: The name of the event that triggers this transition.
+            :param target_state_name: The name of the state to transition to.
+            """
+            if not isinstance(event_name, str) or not isinstance(target_state_name, str):
+                raise TypeError("Event name and target state name must be strings.")
+            self.event_transitions[event_name] = target_state_name
             
     class ConditionState(State):
         def __init__(self, id, name=None, condition_fn=None, sub_fsm=None,
@@ -1377,12 +1390,6 @@ class FSM:
 
         if self.log_actions:
             Py4GW.Console.Log("FSM", f"{self.name}: FSM has been reset.", Py4GW.Console.MessageType.Info)
-    
-    def skip_to_state(self, name):
-        target = next((s for s in self.states if s.name == name), None)
-        if not target:
-            raise ValueError(f"{self.name}: No state named '{name}'")
-        self.current_state = target
 
     def get_state_names(self):
         return [s.name for s in self.states]
@@ -1412,51 +1419,6 @@ class FSM:
         if not next_state or next_state not in self.states:
             return -1
         return self.states.index(next_state)
-
-    def insert_state_after(self, target_name, name=None, execute_fn=None, exit_condition=None, transition_delay_ms=0, run_once=True, on_enter=None, on_exit=None):
-        index = next((i for i, s in enumerate(self.states) if s.name == target_name), -1)
-        if index == -1:
-            raise ValueError(f"State '{target_name}' not found.")
-
-        new_state = FSM.State(
-            id=self.state_counter,
-            name=name,
-            execute_fn=execute_fn,
-            exit_condition=exit_condition,
-            run_once=run_once,
-            transition_delay_ms=transition_delay_ms,
-            on_enter=on_enter,
-            on_exit=on_exit
-        )
-
-        new_state.id = self.state_counter
-        self.state_counter += 1
-        self.states.insert(index + 1, new_state)
-        self.states[index].set_next_state(new_state)
-
-        if index + 2 < len(self.states):
-            new_state.set_next_state(self.states[index + 2])
-
-        self.state_counter += 1
-
-    def remove_state(self, name):
-        index = next((i for i, s in enumerate(self.states) if s.name == name), None)
-        if index is None:
-            raise ValueError(f"State '{name}' not found.")
-
-        if self.current_state == self.states[index]:
-            raise RuntimeError(f"Cannot remove the currently active state '{name}'")
-
-        prev_state = self.states[index - 1] if index > 0 else None
-        next_state = self.states[index + 1] if index + 1 < len(self.states) else None
-
-        if prev_state and next_state:
-            prev_state.set_next_state(next_state)
-
-        self.states.pop(index)
-
-    def peek(self):
-        return self.current_state.next_state if self.current_state and hasattr(self.current_state, 'next_state') else None
 
     def interrupt(self, fn):
         if not self.current_state:
@@ -1488,24 +1450,18 @@ class FSM:
         self.reset()
         self.start()
 
-    def restart_from(self, name):
-        self.reset()
-        self.skip_to_state(name)
-        self.start()
-
-    def step(self):
-        if self.current_state is None or self.paused or self.finished:
-            return
-        self.current_state.execute()
-
-    def AddWaitState(self, name, condition_fn, timeout_ms=10000, on_timeout=None):
+    def AddWaitState(self, name, condition_fn, timeout_ms=10000, on_timeout=None, on_enter=None, on_exit=None):
         timer = Timer()
         def exit_fn():
             if condition_fn():
                 return True
             if timer.HasElapsed(timeout_ms):
                 if on_timeout:
-                    on_timeout()
+                    try:
+                        on_timeout()
+                    except Exception as e:
+                        if self.log_actions:
+                            ConsoleLog("FSM", f"Error in on_timeout for state '{name}': {e}", Py4GW.Console.MessageType.Error)
                 return True
             return False
 
@@ -1514,7 +1470,9 @@ class FSM:
             name=name,
             execute_fn=lambda: None,
             exit_condition=exit_fn,
-            run_once=True
+            run_once=True,
+            on_enter=on_enter,      # <-- PASS on_enter
+            on_exit=on_exit 
         )
         wait_state.transition_timer = timer
         if self.states:
@@ -1523,43 +1481,92 @@ class FSM:
         self.states.append(wait_state)
         self.state_counter += 1
 
+    def trigger_event(self, event_name: str) -> bool:
+        """
+        Triggers an event, potentially causing an immediate state transition
+        if the current state is configured to handle it.
+
+        :param event_name: The name of the event to trigger.
+        :return: True if the event caused a transition, False otherwise.
+        """
+        if self.paused or self.finished or not self.current_state:
+            return False # Cannot transition if paused, finished, or not started
+
+        target_state_name = self.current_state.event_transitions.get(event_name)
+
+        if target_state_name:
+            target_state = self._get_state_by_name(target_state_name)
+            if target_state:
+                if self.log_actions:
+                    Py4GW.Console.Log("FSM", f"{self.name}: Event '{event_name}' triggered transition from '{self.current_state.name}' to '{target_state.name}'", Py4GW.Console.MessageType.Info)
+
+                # --- Perform Transition ---
+                original_state_name = self.current_state.name
+                self.current_state.exit()
+
+                if self.on_transition:
+                    try:
+                        self.on_transition(original_state_name, target_state.name)
+                    except Exception as e:
+                         ConsoleLog("FSM", f"Error in on_transition callback during event '{event_name}': {e}", Py4GW.Console.MessageType.Error)
+
+
+                self.current_state = target_state
+                self.current_state.reset() # Reset the new state
+                self.current_state.enter()
+                # --- End Transition ---
+
+                return True
+            else:
+                # Log error: target state name defined but not found
+                ConsoleLog("FSM", f"{self.name}: Event '{event_name}' defined transition to unknown state '{target_state_name}' from state '{self.current_state.name}'", Py4GW.Console.MessageType.Error)
+                return False
+        else:
+            # Event not handled by the current state
+            if self.log_actions:
+                 ConsoleLog("FSM", f"{self.name}: Event '{event_name}' triggered but not handled by current state '{self.current_state.name}'", Py4GW.Console.MessageType.Debug)
+            return False
+
     def update(self):
         if self.paused:
             if self.log_actions:
-                Py4GW.Console.Log("FSM", f"{self.name}: FSM is paused.", Py4GW.Console.MessageType.Warning)
+                ConsoleLog("FSM", f"{self.name}: FSM is paused.", Py4GW.Console.MessageType.Warning)
             return
         
         if self.finished:
             if self.log_actions:
-                Py4GW.Console.Log("FSM", f"{self.name}: FSM has finished.", Py4GW.Console.MessageType.Warning)
+                ConsoleLog("FSM", f"{self.name}: FSM has finished.", Py4GW.Console.MessageType.Warning)
             return
         
         if not self.current_state:
             if self.log_actions:
-                Py4GW.Console.Log("FSM", f"{self.name}: FSM has not been started.", Py4GW.Console.MessageType.Warning)
+                ConsoleLog("FSM", f"{self.name}: FSM has not been started.", Py4GW.Console.MessageType.Warning)
             return
 
         if self.log_actions:
-            Py4GW.Console.Log("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
-
+            ConsoleLog("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
         self.current_state.execute()
 
         if not self.current_state.can_exit():
             return
 
         self.current_state.exit()
-        next_state = getattr(self.current_state, 'next_state', None)
+        next_state_polling = getattr(self.current_state, 'next_state', None) # Get the *original* next_state
         
-        if next_state:
+        if next_state_polling:
+            original_state_name = self.current_state.name # Store name before changing
             if self.on_transition:
-                self.on_transition(self.current_state.name, next_state.name)
+                 try:
+                     self.on_transition(original_state_name, next_state_polling.name)
+                 except Exception as e:
+                     ConsoleLog("FSM", f"Error in on_transition callback during polling transition: {e}", Py4GW.Console.MessageType.Error)
             
-            self.current_state = next_state
-            next_state.reset()
-            next_state.enter()
+            self.current_state = next_state_polling
+            self.current_state.reset()
+            self.current_state.enter()
 
             if self.log_actions:
-                Py4GW.Console.Log("FSM", f"{self.name}: Transitioning to state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
+                ConsoleLog("FSM", f"{self.name}: Transitioning to state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
             return
 
         final_state_name = self.current_state.name
@@ -1567,10 +1574,13 @@ class FSM:
         self.finished = True
 
         if self.log_actions:
-            Py4GW.Console.Log("FSM", f"{self.name}: Reached the final state: {final_state_name}. FSM has completed.", Py4GW.Console.MessageType.Success)
+            ConsoleLog("FSM", f"{self.name}: Reached the final state: {final_state_name}. FSM has completed.", Py4GW.Console.MessageType.Success)
         
         if self.on_complete:
-            self.on_complete()
+            try:
+                self.on_complete()
+            except Exception as e:
+                ConsoleLog("FSM", f"Error in on_complete callback: {e}", Py4GW.Console.MessageType.Error)
 
     def is_started(self):
         """Check whether the FSM has been started."""
@@ -1579,15 +1589,6 @@ class FSM:
     def is_finished(self):
         """Check whether the FSM has finished executing all states."""
         return self.finished
-    
-    def jump_to_state(self, state_id):
-        """Jump to a specific state by its ID."""
-        if state_id < 0 or state_id >= len(self.states):
-            raise ValueError(f"Invalid state ID: {state_id}")
-        self.current_state = self.states[state_id]
-        if self.log_actions:
-            Py4GW.Console.Log("FSM", f"{self.name}: Jumped to state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
-        self.current_state.reset()  # Reset the state upon jumping to it
 
     def jump_to_state_by_name(self, state_name):
         """Jump to a specific state by its name."""
@@ -1640,6 +1641,13 @@ class FSM:
         if current_index > 0:
             return self.states[current_index - 1].name
         return f"{self.name}: No previous state (first state)"
+    
+    def _get_state_by_name(self, state_name: str) -> Optional[State]:
+        """Finds a state object by its name."""
+        for state in self.states:
+            if state.name == state_name:
+                return state
+        return None
     
 #endregion
 
