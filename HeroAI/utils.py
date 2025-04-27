@@ -31,10 +31,11 @@ def CheckForEffect(agent_id, skill_id):
         
         return False
 
+    """
     allegiance , _ = Agent.GetAllegiance(agent_id)
     if allegiance == Allegiance.NpcMinipet.value:
         return True
-    
+    """
     result = False
     if _IsPartyMember(agent_id):
         player_buffs = shared_memory_handler.get_agent_buffs(agent_id)
