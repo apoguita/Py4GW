@@ -1,4 +1,4 @@
-import ctypes
+
 import PyUIManager
 from typing import Dict, List, Tuple, Optional
 import json
@@ -198,6 +198,19 @@ class UIManager:
         if not UIManager.FrameExists(frame_id):
             return
         PyUIManager.UIManager.button_click(frame_id)
+    
+    @staticmethod
+    def TestMouseAction(frame_id, current_state, wparam_value, lparam_value=0):
+        """
+        Test mouse action on a frame.
+
+        :param frame_id: The ID of the frame.
+        :param current_state: The current state of the mouse.
+        :param wparam_value: The wparam value.
+        """
+        if not UIManager.FrameExists(frame_id):
+            return
+        PyUIManager.UIManager.test_mouse_action(frame_id, current_state, wparam_value, lparam_value)
     
     @staticmethod
     def GetRootFrameID():

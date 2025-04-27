@@ -403,11 +403,12 @@ class CombatClass:
         return False
         
     def HasEffect(self, agent_id, skill_id, exact_weapon_spell=False):
+        """
         alliegeance, _ = Agent.GetAllegiance(agent_id)
         
         if alliegeance == Allegiance.NpcMinipet:
             return True
-
+        """
         result = False
         if self.IsPartyMember(agent_id):
             player_buffs = self.shared_memory_handler.get_agent_buffs(agent_id)

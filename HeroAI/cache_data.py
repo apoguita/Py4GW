@@ -77,7 +77,7 @@ class GameData:
         self.is_targeting_enabled = True
         self.is_combat_enabled = True
         self.is_skill_enabled = [True for _ in range(NUMBER_OF_SKILLS)]
-        self.RAW_AGENT_ARRAY = RawAgentArray()
+        self.RAW_AGENT_ARRAY = RawAgentArray(100)
         
         
     def reset(self):
