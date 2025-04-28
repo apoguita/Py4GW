@@ -12,7 +12,7 @@ class config:
 
         self.pet_exists = False             # If there is a Player Pet
         self.enemies_in_range = False       # If there is enemies in range (1248.0)
-        self.behavior_fight_issued = False  # If Player have issues a Fight order
+        self.behavior_fight_issued = False  # If Player have issued a Fight order
         self.behavior_fight_acted = False   # If Pet have responded to the Fight order
         self.behavior_guard_issued = False  # If Player have issued a Guard order
         self.behavior_guard_acted = True    # If Pet have responded to the Guard order
@@ -24,7 +24,7 @@ class config:
 
         # Debug options:
         self.log_all_actions = False        # Log all actions
-        self.log_fight_issued = False       # Log Player have issues a Fight order
+        self.log_fight_issued = False       # Log Player have issued a Fight order
         self.log_fight_acted = False        # Log Pet have responded to the Fight order
         self.log_guard_issued = False       # Log Player have issued a Guard order
         self.log_guard_acted = False        # Log Pet have responded to the Guard order
@@ -56,7 +56,7 @@ def PetSetBehavior(behavior):
     global widget_config, player, pet
 
     if behavior == BehaviorType.Fight:
-        if pet.data.locked_target_id != player.target_id or pet.data.behavior != BehaviorType.Fight:
+        if pet.data.locked_target_id != player.target_id or pet.data.behavior == BehaviorType.Guard:
             if not widget_config.behavior_fight_issued:
                 widget_config.behavior_fight_issued = True
                 widget_config.behavior_fight_acted = False
