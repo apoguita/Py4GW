@@ -132,7 +132,8 @@ class GameData:
         #combat field data
         self.free_slots_in_inventory = Inventory.GetFreeSlotCount()
         self.target_id = Player.GetTargetID()
-        self.RAW_AGENT_ARRAY.update() 
+        if self.is_outpost:
+            self.RAW_AGENT_ARRAY.update() 
         
     
 @dataclass
