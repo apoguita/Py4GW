@@ -64,7 +64,7 @@ def PetSetBehavior(behavior):
                 if widget_config.behavior_timer.IsStopped():
                     widget_config.behavior_timer.Start()
                 if widget_config.log_all_actions or widget_config.log_fight_issued:
-                    Py4GW.Console.Log(module_name, f"Pet Ordered to Attack ({player.target_id})", Py4GW.Console.MessageType.Info)
+                    Py4GW.Console.Log(module_name, f"Pet ordered to fight ({player.target_id})", Py4GW.Console.MessageType.Info)
 
     if behavior == BehaviorType.Guard:
         if pet.data.behavior == BehaviorType.Fight:
@@ -88,7 +88,7 @@ def LogPetReactionTime(behavior):
                 if not widget_config.behavior_timer.IsStopped():
                     widget_config.behavior_timer.Stop()
                 if widget_config.log_all_actions or widget_config.log_fight_acted:
-                    Py4GW.Console.Log(module_name, f"Pet is Attact ({player.target_id}) after ({round(widget_config.behavior_timer.GetElapsedTime(),2)})", Py4GW.Console.MessageType.Info)
+                    Py4GW.Console.Log(module_name, f"Pet fight ({player.target_id}) after ({round(widget_config.behavior_timer.GetElapsedTime(),2)})", Py4GW.Console.MessageType.Info)
 
     if behavior == BehaviorType.Guard:
         if pet.data.behavior == BehaviorType.Guard:
