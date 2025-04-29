@@ -152,8 +152,7 @@ class RerollCharacter:
                 characters = Player.GetLoginCharacters()
                 if characters:
                     new_names = [char.player_name for char in characters]
-                    for char in characters:
-                        self.characters.append(char)
+                    self.characters = characters
                     if new_names != self.available_character_names:
                         self.available_character_names = new_names
                         if self.selected_char_index >= len(self.available_character_names):
@@ -220,6 +219,7 @@ def DrawWindow():
 
             PyImGui.end_child()
             
+        """
         if PyImGui.begin_child("expandedView", (395, 150), True, PyImGui.WindowFlags.NoFlag):
             if PyImGui.begin_table("ExpandedTable", 5, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable):
                 PyImGui.table_setup_column("Reroll")
@@ -250,7 +250,7 @@ def DrawWindow():
                 PyImGui.end_table()
             PyImGui.end_child()
 
-        
+        """
         end_pos = PyImGui.get_window_pos()
     PyImGui.end()
 
