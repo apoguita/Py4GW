@@ -571,19 +571,19 @@ def start_new_run():
     bot_vars.lap_timer.Start()
     bot_vars.runs_attempted += 1
 
+
 def complete_run(success: bool):
+    duration = bot_vars.lap_timer.GetElapsedTime()
     bot_vars.lap_timer.Stop()
     if not success:
         return
-    duration = bot_vars.lap_timer.GetElapsedTime()
     bot_vars.lap_history.append(duration)
     bot_vars.proofs_deposited += 1
     bot_vars.min_time = min(bot_vars.lap_history)
     bot_vars.max_time = max(bot_vars.lap_history)
-    bot_vars.avg_time = sum(bot_vars.lap_history) / len(bot_vars.lap_history)
+    bot_vars.avg_time = int(sum(bot_vars.lap_history) / len(bot_vars.lap_history))
     bot_vars.success_rate = bot_vars.proofs_deposited / bot_vars.runs_attempted
     ConsoleLog("Stats", f"Run Completed! Time: {FormatTime(duration, 'mm:ss:ms')}", Console.MessageType.Success)
-
 def is_bot_started(): 
     return bot_vars.bot_started
 
@@ -2126,8 +2126,8 @@ fsm_vars.delete_character.AddState(
     execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.V.value]),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=300,
-    on_exit=restore_copy_text(bot_vars.oldclipboard))
+    transition_delay_ms=300)
+    # on_exit=restore_copy_text(bot_vars.oldclipboard))
 fsm_vars.delete_character.AddWaitState(
     name="Wait: Paste Complete",
     condition_fn=lambda: bot_vars.press_key_aq.is_empty(),
@@ -2282,8 +2282,8 @@ fsm_vars.create_character.AddState(
     execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.V.value]),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=300,
-    on_exit=restore_copy_text(bot_vars.oldclipboard))
+    transition_delay_ms=300)
+    # on_exit=restore_copy_text(bot_vars.oldclipboard))
 fsm_vars.create_character.AddWaitState(
     name="Wait: Paste Complete",
     condition_fn=lambda: bot_vars.press_key_aq.is_empty(),
@@ -2510,13 +2510,13 @@ def draw_window():
                 ("Current Main Step", fsm_vars.state_machine.get_current_step_name()),
                 ("Current Sub Step", sub_fsm.get_current_step_name() if sub_fsm else "-"),
                 ("Total Bot Runtime", bot_vars.global_timer.FormatElapsedTime("hh:mm:ss")),
-                ("Current Run Time", bot_vars.lap_timer.FormatElapsedTime("mm:ss")),
-                ("Minimum Run Time", FormatTime(bot_vars.min_time, "mm:ss") if bot_vars.min_time > 0 else "N/A"),
-                ("Maximum Run Time", FormatTime(bot_vars.max_time, "mm:ss") if bot_vars.max_time > 0 else "N/A"),
-                ("Average Run Time", FormatTime(bot_vars.avg_time, "mm:ss") if bot_vars.avg_time > 0 else "N/A"),
+                ("Current Run Time", bot_vars.lap_timer.FormatElapsedTime("mm:ss:ms")),
+                ("Minimum Run Time", FormatTime(bot_vars.min_time, "mm:ss:ms") if bot_vars.min_time > 0 else "0"),
+                ("Maximum Run Time", FormatTime(bot_vars.max_time, "mm:ss:ms") if bot_vars.max_time > 0 else "0"),
+                ("Average Run Time", FormatTime(bot_vars.avg_time, "mm:ss:ms") if bot_vars.avg_time > 0 else "0"),
                 ("Current Run", bot_vars.runs_attempted),
                 ("Proofs Deposited", bot_vars.proofs_deposited),
-                ("Sucess Rate", bot_vars.success_rate),
+                ("Success Rate", f"{bot_vars.success_rate * 100:.1f}%" if bot_vars.runs_attempted > 0 else "N/A"),
             ]
             ImGui.table("Run Statistics", headers, data)
             PyImGui.end_tab_item()
