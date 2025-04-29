@@ -379,17 +379,13 @@ def main():
     try:
         if not Routines.Checks.Map.MapValid():
             ActionQueueManager().ResetQueue("ACTION")
-            #ConsoleLog("Main","Resetting action queue",Py4GW.Console.MessageType.Info)
             return
         
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
             UpdateStatus(cached_data)
-            action_queue = ActionQueueManager().GetQueue("ACTION")
-            next_action_name = action_queue.GetNextActionName()
-            if ActionQueueManager().ProcessQueue("ACTION"):
-                #ConsoleLog("Main",f"Executed: {next_action_name}",Py4GW.Console.MessageType.Info)
-                pass
+            ActionQueueManager().ProcessQueue("ACTION")
+
 
             
     except ImportError as e:

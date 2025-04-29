@@ -143,6 +143,8 @@ class CombatClass:
         self.disease = Skill.GetID("Disease")
         self.poison = Skill.GetID("Poison")
         self.weakness = Skill.GetID("Weakness")
+        self.comfort_animal = Skill.GetID("Comfort_Animal")
+        self.heal_as_one = Skill.GetID("Heal_as_One")
         
     def Update(self, cached_data):
         self.in_aggro = cached_data.in_aggro
@@ -367,6 +369,7 @@ class CombatClass:
         elif target_allegiance == Skilltarget.OtherAlly:
             if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff:
                 v_target = TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
+                print("Energy Buff Target: ", RawAgentArray().get_name(v_target))
             else:
                 v_target = TargetLowestAlly(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
         elif target_allegiance == Skilltarget.Self:
@@ -392,10 +395,20 @@ class CombatClass:
             player_data = self.shared_memory_handler.get_player(i)
             if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
                 return True
+            
+        allegiance , _ = Agent.GetAllegiance(agent_id)
+        if allegiance == Allegiance.SpiritPet.value and not Agent.IsSpawned(agent_id):
+            return True
         
         return False
         
     def HasEffect(self, agent_id, skill_id, exact_weapon_spell=False):
+        """
+        alliegeance, _ = Agent.GetAllegiance(agent_id)
+        
+        if alliegeance == Allegiance.NpcMinipet:
+            return True
+        """
         result = False
         if self.IsPartyMember(agent_id):
             player_buffs = self.shared_memory_handler.get_agent_buffs(agent_id)
@@ -504,6 +517,14 @@ class CombatClass:
                 self.skills[slot].skill_id == self.signet_of_ghostly_might
                 ):
                 return True if Routines.Agents.GetNearestSpirit(Range.Spellcast.value) != 0 else False
+            
+            if (self.skills[slot].skill_id == self.comfort_animal or
+                self.skills[slot].skill_id == self.heal_as_one
+                ):
+                LessLife = Agent.GetHealth(vTarget) < Conditions.LessLife
+                dead = Agent.IsDead(vTarget)
+                return LessLife or dead
+                
 
             return True  # if no unique property is configured, return True for all UniqueProperty
 
@@ -533,6 +554,7 @@ class CombatClass:
         feature_count += (1 if Conditions.MoreLife > 0 else 0)
         feature_count += (1 if Conditions.LessEnergy > 0 else 0)
         feature_count += (1 if Conditions.Overcast > 0 else 0)
+        feature_count += (1 if Conditions.IsPartyWide else 0)
 
         if Conditions.IsAlive:
             if Agent.IsAlive(vTarget):
@@ -686,8 +708,24 @@ class CombatClass:
                 if Agent.GetOvercast(vTarget) < Conditions.Overcast:
                     number_of_features += 1
                     
+        if Conditions.IsPartyWide:
+            area = Range.SafeCompass.value if Conditions.PartyWideArea == 0 else Conditions.PartyWideArea
+            less_life = Conditions.LessLife
+            
+            allies_array = GetAllAlliesArray(area)
+            total_group_life = 0.0
+            for agent in allies_array:
+                total_group_life += Agent.GetHealth(agent)
+                
+            total_group_life /= len(allies_array)
+            
+            if total_group_life < less_life:
+                number_of_features += 1
+                    
         if self.skills[slot].custom_skill_data.SkillType == SkillType.PetAttack.value:
             pet_id = Party.Pets.GetPetID(Player.GetAgentID())
+            if Agent.IsDead(pet_id):
+                return False
             
             pet_attack_list = [Skill.GetID("Bestial_Mauling"),
                                Skill.GetID("Bestial_Pounce"),
@@ -845,9 +883,10 @@ class CombatClass:
         if not self.in_aggro:
             return False
 
-        _, target_aliegance = Agent.GetAllegiance(Player.GetTargetID())
+        target_id = Player.GetTargetID()
+        _, target_aliegance = Agent.GetAllegiance(target_id)
         
-        if Player.GetTargetID() == 0 or (target_aliegance != 'Enemy'):
+        if target_id == 0 or (target_aliegance != 'Enemy'):
                             
             nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
             called_target = self.GetPartyTarget()
@@ -862,20 +901,19 @@ class CombatClass:
                 return False
 
             ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, attack_target)
+            ActionQueueManager().AddAction("ACTION", Player.Interact, attack_target)
             return True
         else:
-            target_id = Player.GetTargetID()
+            
             if not Agent.IsLiving(target_id):
                 return
 
             _, alliegeance = Agent.GetAllegiance(target_id)
             if alliegeance == 'Enemy' and self.is_combat_enabled:
-                target_id = Player.GetTargetID()
-                if target_id == 0:
-                    return
-                
-                ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
+                if target_id != 0:
+                    ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
                 return True
+            return False
 
     def HandleCombat(self,ooc=False):
         """
@@ -915,6 +953,7 @@ class CombatClass:
 
         self.aftercast = Skill.Data.GetActivation(skill_id) * 1000
         self.aftercast += Skill.Data.GetAftercast(skill_id) * 1000
+        #self.aftercast += 150 #manually setting a 50ms delay to test issues with pinghandler
         self.aftercast += self.ping_handler.GetCurrentPing()
 
         self.aftercast_timer.Reset()

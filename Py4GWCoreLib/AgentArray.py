@@ -316,15 +316,16 @@ class AgentArray:
 class RawAgentArray:
     _instance = None
 
-    def __new__(cls, throttle: int = 34):
+    def __new__(cls, throttle: int = 50):
         if cls._instance is None:
             cls._instance = super(RawAgentArray, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, throttle: int = 34):
+    def __init__(self, throttle: int = 50):
         from .Py4GWcorelib import ThrottledTimer
         if self._initialized:
+            self.throttle = throttle
             return
         self.agent_array = []  # new: array of agents
         self.ally_array = []
@@ -337,7 +338,8 @@ class RawAgentArray:
         self.gadget_array = []
         self.agent_dict = {}  # new: id → agent
         self.current_map_id = 0
-        self.update_throttle = ThrottledTimer(throttle)
+        self.throttle = throttle
+        self.update_throttle = ThrottledTimer(self.throttle)
         self.name_update_throttle = ThrottledTimer(500) 
         self.agent_name_map = {}  # agent.id → (name, timestamp)
         self.name_requested = set()
@@ -347,6 +349,7 @@ class RawAgentArray:
     def update(self):
         from .Routines import Routines
         from .Map import Map
+        #self.update_throttle.SetThrottleTime(self.throttle)
         for agent_id in list(self.name_requested):
             if Agent.IsNameReady(agent_id):
                 name = Agent.GetName(agent_id)
@@ -362,6 +365,7 @@ class RawAgentArray:
             return
 
         self.agent_array = AgentArray.GetRawAgentArray()
+
         self.agent_dict = {agent.id: agent for agent in self.agent_array}
         
         self.ally_array = []
@@ -374,26 +378,27 @@ class RawAgentArray:
         self.gadget_array = []
         
         for agent in self.agent_array:
-            if agent.is_gadget:
-                self.gadget_array.append(agent)
-            elif agent.is_item:
-                self.item_array.append(agent)
-            elif agent.is_living:
-                alliegance = agent.living_agent.allegiance.ToInt()
-                if alliegance == Allegiance.Ally:
-                    self.ally_array.append(agent)
-                elif alliegance == Allegiance.Neutral:
-                    self.neutral_array.append(agent)
-                elif alliegance == Allegiance.Enemy:
-                    self.enemy_array.append(agent)
-                elif alliegance == Allegiance.SpiritPet:    
-                    self.spirit_pet_array.append(agent)
-                elif alliegance == Allegiance.Minion:
-                    self.minion_array.append(agent)
-                elif alliegance == Allegiance.NpcMinipet:
-                    self.npc_minipet_array.append(agent)
-                else:
-                    self.neutral_array.append(agent)
+            if agent.id:
+                if agent.is_gadget:
+                    self.gadget_array.append(agent)
+                elif agent.is_item:
+                    self.item_array.append(agent)
+                elif agent.is_living:
+                    alliegance = agent.living_agent.allegiance.ToInt()
+                    if alliegance == Allegiance.Ally:
+                        self.ally_array.append(agent)
+                    elif alliegance == Allegiance.Neutral:
+                        self.neutral_array.append(agent)
+                    elif alliegance == Allegiance.Enemy:
+                        self.enemy_array.append(agent)
+                    elif alliegance == Allegiance.SpiritPet:    
+                        self.spirit_pet_array.append(agent)
+                    elif alliegance == Allegiance.Minion:
+                        self.minion_array.append(agent)
+                    elif alliegance == Allegiance.NpcMinipet:
+                        self.npc_minipet_array.append(agent)
+                    else:
+                        self.neutral_array.append(agent)
             
 
         map_id = Map.GetMapID()
