@@ -184,6 +184,17 @@ race_coords_list = [
 ROLLERBEETLE_RACING_OUTPOST_ID = 467
 RACING_MEDAL_MODEL_ID = 37793
 
+SKILL_DISHONORABLE = 2546
+
+SKILL_RAM = 1918
+SKILL_HARDEN_SHELL = 1919
+SKILL_ROLLERBEETLE_DASH = 1920
+SKILL_SUPER_ROLLERBEETLE = 1921
+SKILL_ROLLERBEETLE_ECHO = 1922
+SKILL_DISTRACTING_LUNGE = 1923
+SKILL_ROLLERBEETLE_BLAST = 1924
+SKILL_SPIT_ROCKS = 1925
+
 class BotVars:
     def __init__(self, map_id=0):
         self.starting_map = map_id
@@ -202,6 +213,7 @@ bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Rollerbeet
 class StateMachineVars:
     def __init__(self):
         self.state_machine = FSM("Rollerbeetle Racing Bot")
+        self.wait_for_dishonorable_removal = FSM("Waiting for Dishonorable Removal")
         self.race_pathing = Routines.Movement.PathHandler(race_coords_list)
         self.movement_handler = Routines.Movement.FollowXY(300)
         self.in_waiting_routine = False
@@ -229,6 +241,7 @@ def ResetEnvironment():
     FSM_vars.race_pathing.reset()
     FSM_vars.movement_handler.reset()
     FSM_vars.state_machine.reset()
+    FSM_vars.wait_for_dishonorable_removal.reset()
     FSM_vars.is_running_race = False
     FSM_vars.in_waiting_routine = False
 
@@ -254,11 +267,9 @@ def end_running_routine():
 def DoesPlayerHaveEffect(effect_id):
     """
     Returns True if the player's effects include the specified effect ID.
-    Uses Effects.GetEffects with the Player's Agent ID.
     """
     player_id = Player.GetAgentID()
-    effects = Effects.GetEffects(player_id)
-    return any(effect.effect_id == effect_id for effect in effects)
+    return Effects.EffectExists(player_id, effect_id)
 
 # FSM States
 FSM_vars.state_machine.AddState(
@@ -268,11 +279,17 @@ FSM_vars.state_machine.AddState(
     transition_delay_ms=1000
 )
 
-FSM_vars.state_machine.AddState(
+FSM_vars.wait_for_dishonorable_removal.AddState(
     name="Waiting for Dishonorable Removal",
     execute_fn=lambda: None,  # No specific action, just waiting
-    exit_condition=lambda: not DoesPlayerHaveEffect(58),  # Wait until the player no longer has Dishonorable effect
+    exit_condition=lambda: not DoesPlayerHaveEffect(SKILL_DISHONORABLE),  # Wait until the player no longer has Dishonorable effect
     transition_delay_ms=1000
+)
+
+FSM_vars.state_machine.AddSubroutine(
+    name="Waiting for Dishonorable Removal",
+    sub_fsm=FSM_vars.wait_for_dishonorable_removal,
+    condition_fn=lambda: DoesPlayerHaveEffect(SKILL_DISHONORABLE)
 )
 
 FSM_vars.state_machine.AddState(
@@ -415,25 +432,41 @@ def UseSkills():
     player_id = Player.GetAgentID()
     player_x, player_y = Agent.GetXY(player_id)
 
-    # Always use skill slot 8 if available and the player does not have effect ID 78
-    if not DoesPlayerHaveEffect(78):
-        skill_8_data = SkillBar.GetSkillData(8)
-        if skill_8_data and skill_8_data.recharge == 0:
+    skill_1_data = SkillBar.GetSkillData(1)
+    skill_2_data = SkillBar.GetSkillData(2)
+    skill_3_data = SkillBar.GetSkillData(3)
+    skill_4_data = SkillBar.GetSkillData(4)
+    skill_5_data = SkillBar.GetSkillData(5)
+    skill_6_data = SkillBar.GetSkillData(6)
+    skill_7_data = SkillBar.GetSkillData(7)
+    skill_8_data = SkillBar.GetSkillData(8)
+
+    # Always use Super Rollerbeetle
+    if not DoesPlayerHaveEffect(SKILL_SUPER_ROLLERBEETLE):
+        if skill_8_data.recharge == 0:
             SkillBar.UseSkill(8)
             return
 
+    # Always use ram
+    if not DoesPlayerHaveEffect(SKILL_RAM):
+        if skill_3_data.recharge == 0:
+            SkillBar.UseSkill(3)
+            return
+
+    # Always use harden shell
+    if not DoesPlayerHaveEffect(SKILL_HARDEN_SHELL):
+        if skill_3_data.recharge == 0:
+            SkillBar.UseSkill(3)
+            return
+
     # Check if skill slot 6 and skill slot 8 are available
-    skill_6_data = SkillBar.GetSkillData(6)
-    skill_8_data = SkillBar.GetSkillData(8)
-    if skill_6_data and skill_6_data.recharge == 0:
+    if skill_6_data.recharge == 0 and skill_8_data.recharge == 0:
         SkillBar.UseSkill(6)
-        if skill_8_data and skill_8_data.recharge == 0:
-            SkillBar.UseSkill(8)
+        SkillBar.UseSkill(8)
         return
 
     # Check if skill slot 1 is available
-    skill_1_data = SkillBar.GetSkillData(1)
-    if skill_1_data and skill_1_data.recharge == 0:
+    if not DoesPlayerHaveEffect(SKILL_ROLLERBEETLE_DASH) and skill_1_data.recharge == 0:
         SkillBar.UseSkill(1)
         return
 
@@ -451,34 +484,31 @@ def UseSkills():
             Player.ChangeTarget(target_id)
 
             # Use skill slot 4 if available
-            skill_4_data = SkillBar.GetSkillData(4)
-            if skill_4_data and skill_4_data.recharge == 0:
+            if skill_4_data.recharge == 0:
                 SkillBar.UseSkill(4, target_id)
                 return
 
             # Use skill slot 5 if available
-            skill_5_data = SkillBar.GetSkillData(5)
-            if skill_5_data and skill_5_data.recharge == 0:
+            if skill_5_data.recharge == 0:
                 SkillBar.UseSkill(5, target_id)
                 return
 
             # Use skill slot 7 if available
-            skill_7_data = SkillBar.GetSkillData(7)
-            if skill_7_data and skill_7_data.recharge == 0:
+            if skill_7_data.recharge == 0:
                 SkillBar.UseSkill(7, target_id)
                 return
 
     # Get all agents within range
     agents_within_1000 = AgentArray.Filter.ByDistance(agent_array, (player_x, player_y), 1000)
-    agents_within_200 = AgentArray.Filter.ByDistance(agent_array, (player_x, player_y), 200)
+    agents_within_500 = AgentArray.Filter.ByDistance(agent_array, (player_x, player_y), 500)
 
-    # Use skill slot 2 if there are more than 1 agent within 800 distance
+    # Use skill slot 2 if there are more than 1 agent within 1000 distance
     if len(agents_within_1000) >= 1:
         SkillBar.UseSkill(2)
         return
 
     # Knockdown adjacent foes
-    if len(agents_within_200) >= 1:
+    if len(agents_within_500) >= 1:
         SkillBar.UseSkill(3)
         return
 
