@@ -837,7 +837,8 @@ def click_dialog_button(button: int, size: Optional[str] = None, backup: Optiona
     if scroll_id and backup:
         ActionQueueManager().AddAction("ACTION", Player.SendDialog, int(backup, 16))
         return True
-
+    if debug:
+        print(f"Add Action Click: {target_id}")
     ActionQueueManager().AddAction("ACTION", UIManager.FrameClick, target_id)
     return True
 
@@ -1253,27 +1254,27 @@ fsm_vars.nightfall_intro.SetLogBehavior(False)
 fsm_vars.nightfall_intro.AddState(
     name="Target: Kormir",
     execute_fn=lambda: target_and_interact(10331,6387)(),
-    exit_condition=lambda: check_dialog_buttons(buttons=2),
-    transition_delay_ms=500,
+    exit_condition=lambda: check_dialog_buttons(buttons=2, state_key="kormir1"),
+    transition_delay_ms=200,
     run_once=False,
     on_exit=lambda: start_new_run())
 fsm_vars.nightfall_intro.AddState(
     name="Click: Skip",
     execute_fn=lambda: click_dialog_button_retry(button=2),
-    exit_condition=lambda: check_dialog_buttons(buttons=2, state_key="Kormir2"),
-    transition_delay_ms=500,
+    exit_condition=lambda: check_dialog_buttons(buttons=2, state_key="kormir2"),
+    transition_delay_ms=200,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Click: Confident",
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: is_npc_dialog_hidden(),
         #check_active_quest(677)),
-    transition_delay_ms=500,
+    transition_delay_ms=200,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Equip: Weapon",
     execute_fn=lambda: equip_starter(),
-    transition_delay_ms=500,
+    transition_delay_ms=1000,
     run_once=True)
 fsm_vars.nightfall_intro.AddState(
     name="Move: to Enemies",
@@ -1292,25 +1293,24 @@ fsm_vars.nightfall_intro.AddState(
     exit_condition=lambda: (
         check_dialog_buttons(buttons=1) and
         has_arrived()),
-    transition_delay_ms=500,
+    transition_delay_ms=200,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Click: Shortcut",
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: (check_dialog_buttons(buttons=1, state_key="click_shortcut")),
-    transition_delay_ms=500,
+    transition_delay_ms=200,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Click: Let me know",
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: (check_dialog_buttons(buttons=1, state_key="click_me_know")),
-    transition_delay_ms=500,
+    transition_delay_ms=200,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Click: Ready",
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: (is_npc_dialog_hidden()),
-    transition_delay_ms=500,
     run_once=False,
     on_exit=mark_flag("has_intro_run", True))
 fsm_vars.nightfall_intro.AddState(
@@ -1342,9 +1342,9 @@ def setup_first_chahbek_village(fsm, random_insert_chance=0.5):
     ]
 
     party_steps = [
-        ("Party: Koss.", lambda: Party.Heroes.AddHero(Party.Heroes.GetHeroIdByName("Koss")), None, 500, True, None, None),
-        ("Party: Sogolon.", lambda: Party.Henchmen.AddHenchman(nearest_henchman_xy(3198, -5685, 25)), None, 500, True, None, None),
-        ("Party: Kihm.", lambda: Party.Henchmen.AddHenchman(nearest_henchman_xy(3172, -5788, 25)), None, 500, True, None, None),
+        ("Party: Koss.", lambda: Party.Heroes.AddHero(6), None, 500, True, None, None),
+        ("Party: Sogolon.", lambda: Party.Henchmen.AddHenchman(1), None, 500, True, None, None),
+        ("Party: Kihm.", lambda: Party.Henchmen.AddHenchman(2), None, 500, True, None, None),
     ]
 
     post_recruit_steps = [
@@ -2192,7 +2192,7 @@ fsm_vars.create_character.AddState(
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_type_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_bottom_frame"]),
     run_once=False,
-    transition_delay_ms=600)
+    transition_delay_ms=5000)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Campaign Selection Screen",
     condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_bottom_frame"]),
@@ -2203,7 +2203,7 @@ fsm_vars.create_character.AddState(
     execute_fn=lambda: press_key_repeat(Key.RightArrow.value, 3),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=500)
+    transition_delay_ms=5000)
 fsm_vars.create_character.AddState(
     name="Click: Next (Campaign)",
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
@@ -2335,7 +2335,8 @@ fsm_vars.state_machine.AddSubroutine(
     condition_fn=lambda: 
         (Map.GetMapID() == bot_vars.chahbek_village and 
          Map.IsOutpost() and 
-         not bot_vars.first_time_chahbek_village))
+         not bot_vars.first_time_chahbek_village and
+         not is_level(5)))
 fsm_vars.state_machine.AddSubroutine(
     name="MS: Mission Run 1",
     sub_fsm=fsm_vars.chahbek_mission,
@@ -2796,7 +2797,7 @@ def main():
             return
         
         no_valid_names = not bot_vars.character_names or not any(bot_vars.character_names)
-        if no_valid_names:
+        if no_valid_names and not bot_vars.character_name_logged:
             print(f"no valid names {no_valid_names}")
             check_character_name_added()
             
