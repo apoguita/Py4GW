@@ -28,19 +28,14 @@
 #  │ itll be slow. Also need a slot in storage   │
 #  │ English only client for adding "koss" to pt │
 #  │               ########                      │
-#  │ Setup: Make a dervish, login load proof_farm│
-#  │ put your current character name into the    │
-#  │ list in Set Characters tab and add any      │
-#  │ any other character names (make sure they   │
-#  │ arn't taken its not set to deal with that)  │
+#  │ Setup: Make a dervish, let the starter zone │
+#  │ load then load proof_farm                   │
 #  │ Press start FSM and let it go.              │
 #  │               ########                      │
 #  │ Recommended Widgets: turn them all off -    │
 #  │ except Skip Cutscenes                       │
 #  └─────────────────────────────────────────────┘
 from Py4GWCoreLib import *
-import Py4GW
-import ctypes
 import math
 import random
 
@@ -156,7 +151,7 @@ STATE_ENTRANCE_FLAG_MAP = {
 
 #region replace .movement.followXY with a unstuck version
 class CustomFollowXYWithNudge(Routines.Movement.FollowXY):
-    def __init__(self, tolerance=100, stuck_threshold_ms=30000, unstuck_distance=400, log_actions=False):
+    def __init__(self, tolerance=100, stuck_threshold_ms=10000, unstuck_distance=400, log_actions=False):
         super().__init__(tolerance)
         ConsoleLog("CustomFollowXY", "[INIT] Initialized custom FollowXY handler with nudge!", Console.MessageType.Info)
 
@@ -208,22 +203,7 @@ class CustomFollowXYWithNudge(Routines.Movement.FollowXY):
                 self.timer.HasElapsed(self.stuck_threshold_ms))
         return stuck
 
-    # def _is_npc_blocking(self, player_pos: Tuple[float, float]) -> bool:
-    #     block_radius = Range.Touch.value
-        
-    #     #Nehdukah Model ID: 4818
-    #     #Pelei SunspearScout ID: 4778
-    #     #Random sunspears ID: 4811
-    #     #Castellan Puuba ID: 4827 #doesnt block
-    #     potential_blockers = AgentArray.GetNPCMinipetArray()
-    #     potential_blockers = AgentArray.Filter.ByCondition(potential_blockers, lambda agent_id: Utils.Distance(player_pos, Agent.GetXY(agent_id)) <= block_radius)
-    #     potential_blockers = AgentArray.Filter.ByCondition(potential_blockers, lambda agent_id: Agent.IsAlive(agent_id))
-    #     potential_blockers = AgentArray.Filter.ByCondition(potential_blockers, lambda agent_id: Agent.GetModelID(agent_id) in (4818, 4778, 4811))
-    #     if len(potential_blockers) > 0:
-    #         return True
-    #     return False
-
-    def _attempt_unstuck_move(self, player_pos: Tuple[float, float], log_actions: bool = False):
+    def _attempt_unstuck_move(self, player_pos: Tuple[float, float], log_actions: bool = True):
         px, py = player_pos
         wx, wy = self.waypoint
         dx, dy = wx - px, wy - py
@@ -366,6 +346,7 @@ class CustomFollowXYWithNudge(Routines.Movement.FollowXY):
             if self._stuck_check_timer.HasElapsed(self._stuck_check_interval_ms):
                 self._stuck_check_timer.Reset()
                 if self.calculate_distance(current_position, self._last_player_pos) < self._min_pos_delta_for_not_stuck:
+                    ConsoleLog("CustomFollowXY", "[UNSTUCK] AM I STUCK?.", Console.MessageType.Warning)
                     self._attempt_unstuck_move(current_position)
                     self._last_player_pos = current_position
                     return
@@ -396,7 +377,6 @@ class BotVars:
         self.max_time = 0
         self.avg_time = 0.0
         self.runs_attempted = 0
-        self.runs_completed = 0
         self.success_rate = 0.0
         self.proofs_deposited = 0
         #Map_IDs
@@ -428,6 +408,7 @@ class BotVars:
         self.igneous_summoning_stone = 30847
         self.proof_of_legend = 37841
         #logout stuff
+        self.oldclipboard = ""
         self.character_index: int = -1
         self.char_select_current_index: int = -99
         self.character_names: List[str] = []
@@ -460,8 +441,8 @@ class BotVars:
             "char_create_final_button": 3856299307,
             "drop_bundle_button":(5040781, [0,0]),
         }
-        self.raw_agent_array_handler = RawAgentArray()
-        self.agent_array = self.raw_agent_array_handler.get_array()
+        self.character_name_logged = False
+        self.request_name = False
         self.window_module = ImGui.WindowModule()
 
 bot_vars = BotVars()
@@ -572,10 +553,6 @@ def start_bot():
     if not bot_vars.character_to_delete_name and not bot_vars.character_names:
         if Agent.GetProfessionNames(Player.GetAgentID())[0] == "Dervish":
             ConsoleLog("Character", f"Setting Name to Current Character {get_player_name()}", Console.MessageType.Warning)
-            add_player_name_if_new()
-            delete_index = (bot_vars.next_create_index - 1 + len(bot_vars.character_names)) % len(bot_vars.character_names)
-            bot_vars.character_to_delete_name = bot_vars.character_names[delete_index]
-            ConsoleLog("Character", f"Initial delete target set to: {bot_vars.character_to_delete_name}", Console.MessageType.Info)     
         else:
             ConsoleLog("Character", "Player is not a Dervish!", Console.MessageType.Error)
             stop_bot()
@@ -588,6 +565,24 @@ def stop_bot():
     bot_vars.combat_started = False
     bot_vars.global_timer.Stop()
     bot_vars.lap_timer.Stop()
+
+def start_new_run():
+    bot_vars.lap_timer.Reset()
+    bot_vars.lap_timer.Start()
+    bot_vars.runs_attempted += 1
+
+def complete_run(success: bool):
+    bot_vars.lap_timer.Stop()
+    if not success:
+        return
+    duration = bot_vars.lap_timer.GetElapsedTime()
+    bot_vars.lap_history.append(duration)
+    bot_vars.proofs_deposited += 1
+    bot_vars.min_time = min(bot_vars.lap_history)
+    bot_vars.max_time = max(bot_vars.lap_history)
+    bot_vars.avg_time = sum(bot_vars.lap_history) / len(bot_vars.lap_history)
+    bot_vars.success_rate = bot_vars.proofs_deposited / bot_vars.runs_attempted
+    ConsoleLog("Stats", f"Run Completed! Time: {FormatTime(duration, 'mm:ss:ms')}", Console.MessageType.Success)
 
 def is_bot_started(): 
     return bot_vars.bot_started
@@ -628,18 +623,39 @@ def mark_flag(flag_name: str, value, debug: bool = False):
     return lambda: (setattr(bot_vars, flag_name, value), print(f"[FSM] Marked {flag_name} = {value}") if debug else None)
 
 def get_player_name():
-    name = bot_vars.raw_agent_array_handler.get_name(Player.GetAgentID())
-    return name if name else None
+    target = Player.GetAgentID()
+    if not bot_vars.request_name:
+        Agent.RequestName(target)
+        bot_vars.request_name = True
+        return ""
 
-def add_player_name_if_new():
-    player_name = bot_vars.raw_agent_array_handler.get_name(Player.GetAgentID())
-    if player_name and player_name not in bot_vars.character_names:
-        bot_vars.character_names.append(player_name)
+    if Agent.IsNameReady(target):
+        return Agent.GetName(target)
+    return ""
+
+def add_player_name_if_new(log_actions=False):
+    name = get_player_name()
+    if name and name not in bot_vars.character_names:
+        bot_vars.character_names.append(name)
+        delete_index = (bot_vars.next_create_index - 1 + len(bot_vars.character_names)) % len(bot_vars.character_names)
+        bot_vars.character_to_delete_name = bot_vars.character_names[delete_index]
+        if log_actions:
+            ConsoleLog("Character", f"Initial delete target set to: {bot_vars.character_to_delete_name}", Console.MessageType.Info)
+        return True
+    return False
+
+def check_character_name_added():
+    if add_player_name_if_new(log_actions=True) and not bot_vars.character_name_logged:
+        ConsoleLog("Character", "CHARACTER NAME ADDED", Console.MessageType.Info)
+        bot_vars.character_name_logged = True
+        
+def reset_character_name_logged():
+    bot_vars.character_name_logged = False
 
 def equip_item(model_id):
     item = Item.GetItemIdFromModelID(model_id)
     agent_id = Player.GetAgentID() 
-    ActionQueueManager().AddAction("ACTION", Inventory.EquipItem, item, agent_id)
+    Inventory.EquipItem(item, agent_id)
 
 def equip_starter():
     if Agent.GetProfessionNames(Player.GetAgentID())[0] == "Dervish":
@@ -917,8 +933,9 @@ def find_target_character(debug: bool = False):
                 ConsoleLog("find_target_character", "Character list (pregame.chars) is None or empty.", Console.MessageType.Warning)
             return
         
+        target_lower = target_name.lower()
         for i, char_name in enumerate(pregame.chars):
-            if target_name == char_name:
+            if target_lower == char_name.lower():
                 bot_vars.character_index = i
                 bot_vars.char_select_current_index = pregame.index_1
                 if debug:
@@ -1124,7 +1141,12 @@ def check_button_enabled_and_click(frame_id_or_path, enabled_field_value=18692, 
     return False
 
 def copy_text_with_imgui(text_to_copy: str):
+    bot_vars.oldclipboard = PyImGui.get_clipboard_text()
     PyImGui.set_clipboard_text(text_to_copy)
+    
+def restore_copy_text(text_to_restore: str):
+    PyImGui.set_clipboard_text(text_to_restore)
+    
     
 def _set_flags_for_reroll_jump(target_state_name: str):
     ConsoleLog("Debug Jump", f"Setting flags for jump to: {target_state_name}", Console.MessageType.Debug)
@@ -1234,7 +1256,7 @@ fsm_vars.nightfall_intro.AddState(
     exit_condition=lambda: check_dialog_buttons(buttons=2),
     transition_delay_ms=500,
     run_once=False,
-    on_exit=lambda: add_player_name_if_new())
+    on_exit=lambda: start_new_run())
 fsm_vars.nightfall_intro.AddState(
     name="Click: Skip",
     execute_fn=lambda: click_dialog_button_retry(button=2),
@@ -1251,7 +1273,7 @@ fsm_vars.nightfall_intro.AddState(
 fsm_vars.nightfall_intro.AddState(
     name="Equip: Weapon",
     execute_fn=lambda: equip_starter(),
-    transition_delay_ms=1000,
+    transition_delay_ms=500,
     run_once=True)
 fsm_vars.nightfall_intro.AddState(
     name="Move: to Enemies",
@@ -1283,8 +1305,7 @@ fsm_vars.nightfall_intro.AddState(
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: (check_dialog_buttons(buttons=1, state_key="click_me_know")),
     transition_delay_ms=500,
-    run_once=False,
-    on_exit=lambda: add_player_name_if_new())
+    run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Click: Ready",
     execute_fn=lambda: click_dialog_button_retry(button=1),
@@ -1445,7 +1466,7 @@ fsm_vars.churrhir_fields.AddState(
     exit_condition=lambda: (check_dialog_buttons(buttons=2)),
     transition_delay_ms=500,
     run_once=False,
-    on_exit=mark_flag("second_mission_run", False))
+    on_exit=mark_flag("second_mission_run", False, True))
 fsm_vars.churrhir_fields.AddState(
     name="Click: Learn skills.",
     execute_fn=lambda: click_dialog_button_retry(button=1, backup="0x825801"),
@@ -1865,8 +1886,9 @@ fsm_vars.plains_of_jarin_second.AddState(
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: (
         is_npc_dialog_hidden() or
-        check_dialog_buttons(buttons=1, state_key="nehdukchat"),
-        check_dialog_buttons(buttons=2, state_key="nehduk2")),
+        not check_quest_completed(653)),
+        # check_dialog_buttons(buttons=1, state_key="nehdukchat"),
+        # check_dialog_buttons(buttons=2, state_key="nehduk2")),
     transition_delay_ms=500,
     run_once=False,
     on_exit=mark_flag("second_time_plains", True))
@@ -1993,33 +2015,12 @@ fsm_vars.finish_up_deposit.AddState(
     exit_condition=lambda: Routines.Transition.IsOutpostLoaded(log_actions=False) and Party.IsPartyLoaded(),
     transition_delay_ms=500)
 
-def on_exit_deposit_proof():
-    mark_flag("proofs_deposited", bot_vars.proofs_deposited + 1)()
-    mark_flag("runs_completed", bot_vars.runs_completed + 1)()
-
-    lap_duration = bot_vars.lap_timer.GetElapsedTime()
-    bot_vars.lap_timer.Stop()
-    bot_vars.lap_history.append(lap_duration)
-
-    mark_flag("min_time", min(bot_vars.lap_history) if bot_vars.lap_history else 0)()
-    mark_flag("max_time", max(bot_vars.lap_history) if bot_vars.lap_history else 0)()
-    mark_flag("avg_time", sum(bot_vars.lap_history) / len(bot_vars.lap_history) if bot_vars.lap_history else 0.0)()
-
-    success_rate = bot_vars.runs_completed / bot_vars.runs_attempted if bot_vars.runs_attempted > 0 else 0.0
-    mark_flag("success_rate", success_rate)()
-
-    ConsoleLog("Stats", f"Run Completed! Time: {FormatTime(lap_duration, 'mm:ss:ms')}", Console.MessageType.Success)
-    mark_flag("farmed_the_proof", True)()
-    reset_state_variables()
-    ConsoleLog("Proof Farm", f"Total Run Time: {bot_vars.global_timer.FormatElapsedTime('hh:mm:ss')}", Console.MessageType.Success)
-    ConsoleLog("Proof Farm", "Proof deposited. Preparing for character remake.", Console.MessageType.Info)
-
 fsm_vars.finish_up_deposit.AddState(
     name="Item: Deposit Proof",
     execute_fn=lambda: deposit_proof(),
-    exit_condition=lambda: Item.GetItemIdFromModelID(bot_vars.proof_of_legend) == 0 and ActionQueueManager().IsEmpty("ACTION") ,
+    exit_condition=lambda: Item.GetItemIdFromModelID(bot_vars.proof_of_legend) == 0 and ActionQueueManager().IsEmpty("ACTION"),
     transition_delay_ms=5000,
-    on_exit=lambda: on_exit_deposit_proof())
+    on_exit=lambda: complete_run(True))
 #endregion
 
 #region --- FSM Character Logout ---
@@ -2125,7 +2126,8 @@ fsm_vars.delete_character.AddState(
     execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.V.value]),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=300)
+    transition_delay_ms=300,
+    on_exit=restore_copy_text(bot_vars.oldclipboard))
 fsm_vars.delete_character.AddWaitState(
     name="Wait: Paste Complete",
     condition_fn=lambda: bot_vars.press_key_aq.is_empty(),
@@ -2280,7 +2282,8 @@ fsm_vars.create_character.AddState(
     execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.V.value]),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=300)
+    transition_delay_ms=300,
+    on_exit=restore_copy_text(bot_vars.oldclipboard))
 fsm_vars.create_character.AddWaitState(
     name="Wait: Paste Complete",
     condition_fn=lambda: bot_vars.press_key_aq.is_empty(),
@@ -2456,7 +2459,6 @@ fsm_vars.state_machine.AddSubroutine(
         ConsoleLog("Main FSM", "Character creation subroutine finished. Resetting environment.", Console.MessageType.Info),
         reset_variables(),
         ConsoleLog("Stats", "Starting new run timer.", Console.MessageType.Notice),
-        mark_flag("runs_attempted", bot_vars.runs_attempted + 1)(),
         bot_vars.lap_timer.Reset()
     ])
 #endregion
@@ -2504,8 +2506,6 @@ def draw_window():
     if PyImGui.begin_tab_bar("TopTabBar"):
         if PyImGui.begin_tab_item("Statistics"):
             headers = ["Statistic", "Value"]
-            runs_failed = bot_vars.runs_attempted - bot_vars.runs_completed
-            success_rate_str = f"{bot_vars.success_rate * 100:.1f}%" if bot_vars.runs_attempted > 0 else "N/A"
             data = [
                 ("Current Main Step", fsm_vars.state_machine.get_current_step_name()),
                 ("Current Sub Step", sub_fsm.get_current_step_name() if sub_fsm else "-"),
@@ -2514,11 +2514,9 @@ def draw_window():
                 ("Minimum Run Time", FormatTime(bot_vars.min_time, "mm:ss") if bot_vars.min_time > 0 else "N/A"),
                 ("Maximum Run Time", FormatTime(bot_vars.max_time, "mm:ss") if bot_vars.max_time > 0 else "N/A"),
                 ("Average Run Time", FormatTime(bot_vars.avg_time, "mm:ss") if bot_vars.avg_time > 0 else "N/A"),
+                ("Current Run", bot_vars.runs_attempted),
                 ("Proofs Deposited", bot_vars.proofs_deposited),
-                ("Runs Attempted", bot_vars.runs_attempted),
-                ("Runs Completed", bot_vars.runs_completed),
-                # ("Runs Failed", runs_failed),
-                # ("Success Rate", success_rate_str),
+                ("Sucess Rate", bot_vars.success_rate),
             ]
             ImGui.table("Run Statistics", headers, data)
             PyImGui.end_tab_item()
@@ -2598,136 +2596,138 @@ def draw_window():
             draw_fsm_info("Sub FSM", sub_fsm)
             
     if PyImGui.collapsing_header("Debug Items"):
-        if PyImGui.collapsing_header("Manual FSM Jumps"):
-            if len(bot_vars.character_names) > 0:
-                PyImGui.text("Character Name Rotation:")
-                PyImGui.text(f"  List: {', '.join(bot_vars.character_names)}")
-                PyImGui.text(f"  Next Create Index: {bot_vars.next_create_index} -> '{bot_vars.character_names[bot_vars.next_create_index]}'")
-                PyImGui.text_colored(f"  Target Delete Name: {bot_vars.character_to_delete_name}",
-                                    Utils.TrueFalseColor(bot_vars.character_to_delete_name != ""))
-                PyImGui.separator()
-                
-                if PyImGui.button(f"Pause Combat:{bot_vars.pause_combat_fsm}"):
-                    bot_vars.pause_combat_fsm = not bot_vars.pause_combat_fsm
-                PyImGui.separator()
-                PyImGui.text("Reroll Testing Jumps:")
+        if bot_vars.test:
+            if PyImGui.collapsing_header("Manual FSM Jumps"):
+                if len(bot_vars.character_names) > 0:
+                    PyImGui.text("Character Name Rotation:")
+                    PyImGui.text(f"  List: {', '.join(bot_vars.character_names)}")
+                    PyImGui.text(f"  Next Create Index: {bot_vars.next_create_index} -> '{bot_vars.character_names[bot_vars.next_create_index]}'")
+                    PyImGui.text_colored(f"  Target Delete Name: {bot_vars.character_to_delete_name}",
+                                        Utils.TrueFalseColor(bot_vars.character_to_delete_name != ""))
+                    PyImGui.separator()
+                    
+                    if PyImGui.button(f"Pause Combat:{bot_vars.pause_combat_fsm}"):
+                        bot_vars.pause_combat_fsm = not bot_vars.pause_combat_fsm
+                    PyImGui.separator()
+                    PyImGui.text("Reroll Testing Jumps:")
 
-                # Check if delete name is set - crucial for reroll testing
-                delete_name_set = bot_vars.character_to_delete_name != ""
-                if not delete_name_set:
-                    PyImGui.text_wrapped("Set 'Target Delete Name' via normal run or start_bot() before using reroll jumps.")
+                    # Check if delete name is set - crucial for reroll testing
+                    delete_name_set = bot_vars.character_to_delete_name != ""
+                    if not delete_name_set:
+                        PyImGui.text_wrapped("Set 'Target Delete Name' via normal run or start_bot() before using reroll jumps.")
 
-                # Define the reroll jump targets
-                reroll_jumps = {
-                    "Jump to Logout": "SYS: Logout for Reroll",
-                    "Jump to Delete": "SYS: Delete Character",
-                    "Jump to Create": "SYS: Create New Character",
-                }
+                    # Define the reroll jump targets
+                    reroll_jumps = {
+                        "Jump to Logout": "SYS: Logout for Reroll",
+                        "Jump to Delete": "SYS: Delete Character",
+                        "Jump to Create": "SYS: Create New Character",
+                    }
 
-                # Create buttons for each reroll jump
-                for label, target_state_name in reroll_jumps.items():
-                    if PyImGui.button(label):
-                        try:
-                            if not fsm_vars.state_machine.is_started():
-                                ConsoleLog("Debug Jump", "Main FSM not started, starting it first.", Console.MessageType.Warning)
-                                start_bot() # Ensure FSM is running
+                    # Create buttons for each reroll jump
+                    for label, target_state_name in reroll_jumps.items():
+                        if PyImGui.button(label):
+                            try:
+                                if not fsm_vars.state_machine.is_started():
+                                    ConsoleLog("Debug Jump", "Main FSM not started, starting it first.", Console.MessageType.Warning)
+                                    start_bot() # Ensure FSM is running
 
-                            if fsm_vars.state_machine.has_state(target_state_name):
-                                ConsoleLog("Debug Jump", f"Attempting jump to: {target_state_name}", Console.MessageType.Notice)
-                                # Set prerequisite flags using the helper function
-                                _set_flags_for_reroll_jump(target_state_name)
-                                # Perform the jump
-                                fsm_vars.state_machine.jump_to_state_by_name(target_state_name)
-                                if not bot_vars.bot_started: bot_vars.bot_started = True # Ensure bot is marked as started
-                                ConsoleLog("Debug Jump", f"Jump successful. Current state: {fsm_vars.state_machine.get_current_step_name()}", Console.MessageType.Success)
-                            else:
-                                ConsoleLog("Debug Jump", f"Error: State '{target_state_name}' not found!", Console.MessageType.Error)
-                        except Exception as e:
-                            ConsoleLog("Debug Jump", f"Error during jump to {target_state_name}: {e}\n{traceback.format_exc()}", Console.MessageType.Error)
+                                if fsm_vars.state_machine.has_state(target_state_name):
+                                    ConsoleLog("Debug Jump", f"Attempting jump to: {target_state_name}", Console.MessageType.Notice)
+                                    # Set prerequisite flags using the helper function
+                                    _set_flags_for_reroll_jump(target_state_name)
+                                    # Perform the jump
+                                    fsm_vars.state_machine.jump_to_state_by_name(target_state_name)
+                                    if not bot_vars.bot_started: bot_vars.bot_started = True # Ensure bot is marked as started
+                                    ConsoleLog("Debug Jump", f"Jump successful. Current state: {fsm_vars.state_machine.get_current_step_name()}", Console.MessageType.Success)
+                                else:
+                                    ConsoleLog("Debug Jump", f"Error: State '{target_state_name}' not found!", Console.MessageType.Error)
+                            except Exception as e:
+                                ConsoleLog("Debug Jump", f"Error during jump to {target_state_name}: {e}\n{traceback.format_exc()}", Console.MessageType.Error)
 
-                PyImGui.separator()
-                
-                PyImGui.text("General Progression Jumps:")
-                all_state_names = fsm_vars.state_machine.get_state_names()
-                for state_name in all_state_names:
-                    if state_name in PREGAME_FSM_STATES: # Skip reroll states here
-                        continue
+                    PyImGui.separator()
+                    
+                    PyImGui.text("General Progression Jumps:")
+                    all_state_names = fsm_vars.state_machine.get_state_names()
+                    for state_name in all_state_names:
+                        if state_name in PREGAME_FSM_STATES: # Skip reroll states here
+                            continue
 
-                    if PyImGui.button(f"Jump to: {state_name}##jump_{state_name}"):
-                        target_state_name = state_name
-                        try:
-                            if not fsm_vars.state_machine.is_started():
-                                ConsoleLog("Debug Jump", "Main FSM not started, starting it first.", Console.MessageType.Warning)
-                                start_bot()
+                        if PyImGui.button(f"Jump to: {state_name}##jump_{state_name}"):
+                            target_state_name = state_name
+                            try:
+                                if not fsm_vars.state_machine.is_started():
+                                    ConsoleLog("Debug Jump", "Main FSM not started, starting it first.", Console.MessageType.Warning)
+                                    start_bot()
 
-                            if fsm_vars.state_machine.has_state(target_state_name):
-                                ConsoleLog("Debug Jump", f"Attempting to jump main FSM to: {target_state_name}", Console.MessageType.Notice)
+                                if fsm_vars.state_machine.has_state(target_state_name):
+                                    ConsoleLog("Debug Jump", f"Attempting to jump main FSM to: {target_state_name}", Console.MessageType.Notice)
 
-                                last_required_flag = STATE_ENTRANCE_FLAG_MAP.get(target_state_name)
-                                target_flag_index = -1
-                                if last_required_flag:
-                                    try:
-                                        target_flag_index = PROGRESS_FLAGS_ORDER.index(last_required_flag)
-                                    except ValueError:
-                                        ConsoleLog("Debug Jump", f"Warning: Flag '{last_required_flag}' for state '{target_state_name}' not found in PROGRESS_FLAGS_ORDER.", Console.MessageType.Warning)
+                                    last_required_flag = STATE_ENTRANCE_FLAG_MAP.get(target_state_name)
+                                    target_flag_index = -1
+                                    if last_required_flag:
+                                        try:
+                                            target_flag_index = PROGRESS_FLAGS_ORDER.index(last_required_flag)
+                                        except ValueError:
+                                            ConsoleLog("Debug Jump", f"Warning: Flag '{last_required_flag}' for state '{target_state_name}' not found in PROGRESS_FLAGS_ORDER.", Console.MessageType.Warning)
 
-                                ConsoleLog("Debug Jump", f"Setting flags up to index {target_flag_index} ({last_required_flag or 'None'}) to True, others to False.", Console.MessageType.Debug)
-                                for i, flag in enumerate(PROGRESS_FLAGS_ORDER):
-                                    if flag in ["logged_out", "character_delete_confirmed", "character_created_successfully"]:
-                                        continue
+                                    ConsoleLog("Debug Jump", f"Setting flags up to index {target_flag_index} ({last_required_flag or 'None'}) to True, others to False.", Console.MessageType.Debug)
+                                    for i, flag in enumerate(PROGRESS_FLAGS_ORDER):
+                                        if flag in ["logged_out", "character_delete_confirmed", "character_created_successfully"]:
+                                            continue
 
-                                    should_be_true = (i <= target_flag_index)
-                                    setattr(bot_vars, flag, should_be_true)
+                                        should_be_true = (i <= target_flag_index)
+                                        setattr(bot_vars, flag, should_be_true)
 
-                                if target_state_name == "OP: Depositing Proof of Triumph":
-                                    bot_vars.farmed_the_proof = True
-                                    ConsoleLog("Debug Jump", "  Set bot_vars.farmed_the_proof = True (special case for deposit jump)", Console.MessageType.Debug)
+                                    if target_state_name == "OP: Depositing Proof of Triumph":
+                                        bot_vars.farmed_the_proof = True
+                                        ConsoleLog("Debug Jump", "  Set bot_vars.farmed_the_proof = True (special case for deposit jump)", Console.MessageType.Debug)
 
-                                fsm_vars.state_machine.jump_to_state_by_name(target_state_name)
-                                if not bot_vars.bot_started:
-                                    bot_vars.bot_started = True
-                                ConsoleLog("Debug Jump", f"Jump successful. Current state: {fsm_vars.state_machine.get_current_step_name()}", Console.MessageType.Success)
-                            else:
-                                ConsoleLog("Debug Jump", f"Error: State '{target_state_name}' not found in main FSM!", Console.MessageType.Error)
+                                    fsm_vars.state_machine.jump_to_state_by_name(target_state_name)
+                                    if not bot_vars.bot_started:
+                                        bot_vars.bot_started = True
+                                    ConsoleLog("Debug Jump", f"Jump successful. Current state: {fsm_vars.state_machine.get_current_step_name()}", Console.MessageType.Success)
+                                else:
+                                    ConsoleLog("Debug Jump", f"Error: State '{target_state_name}' not found in main FSM!", Console.MessageType.Error)
 
-                        except Exception as e:
-                            ConsoleLog("Debug Jump", f"Error during jump to {target_state_name}: {e}", Console.MessageType.Error)
-                            ConsoleLog("Debug Jump", f"Stack trace: {traceback.format_exc()}", Console.MessageType.Error)       
+                            except Exception as e:
+                                ConsoleLog("Debug Jump", f"Error during jump to {target_state_name}: {e}", Console.MessageType.Error)
+                                ConsoleLog("Debug Jump", f"Stack trace: {traceback.format_exc()}", Console.MessageType.Error)       
 
         if PyImGui.collapsing_header("Other FSM and Variable Debug"):
             if PyImGui.begin_tab_bar("MyTabBar"):
-                if PyImGui.begin_tab_item("Debug: Test buttons"):
-                    if PyImGui.button("test key"):
-                        print(f"Player XY: {Player.GetXY()}")
-                        print(f"Target Model ID: {Agent.GetModelID(Player.GetTargetID())}")
-                        print(f"Touch Value: {Range.Touch.value}")
-                        dist = Utils.Distance(Player.GetXY(), Agent.GetXY(Player.GetTargetID()))
-                        print(f"Distance to Target: {dist}")
-                        print(f"In Touch range: {dist <= Range.Touch.value}")
-                        Inventory.OpenXunlaiWindow()
-                        # npc_array = AgentArray.GetNPCMinipetArray()
-                        # for i in npc_array:
-                        #     print(Agent.GetModelID(i))
+                if bot_vars.test:
+                    if PyImGui.begin_tab_item("Debug: Test buttons"):
+                        if PyImGui.button("test key"):
+                            print(f"Player XY: {Player.GetXY()}")
+                            print(f"Target Model ID: {Agent.GetModelID(Player.GetTargetID())}")
+                            print(f"Touch Value: {Range.Touch.value}")
+                            dist = Utils.Distance(Player.GetXY(), Agent.GetXY(Player.GetTargetID()))
+                            print(f"Distance to Target: {dist}")
+                            print(f"In Touch range: {dist <= Range.Touch.value}")
+                            Inventory.OpenXunlaiWindow()
+                            # npc_array = AgentArray.GetNPCMinipetArray()
+                            # for i in npc_array:
+                            #     print(Agent.GetModelID(i))
 
-                        # npc_dialog_hash = 3856160816
-                        # npc_dialog_offset = [2, 0, 0, 1]
-                        # npc_dialog_scroll_offset = [2, 3]
-                        # scroll_id = UIManager.IsVisible(UIManager.GetChildFrameID(npc_dialog_hash, npc_dialog_scroll_offset))
-                        # frame_id = UIManager.GetFrameIDByHash(npc_dialog_hash)
-                        # scroll_id = UIManager.GetChildFrameID(npc_dialog_hash, npc_dialog_scroll_offset)
-                        # print(UIManager.IsVisible(scroll_id))
-                    if PyImGui.button("Get Target Name"):
-                        target = Player.GetTargetID()
-                        Agent.RequestName(target)
-                        agent_name_recieved = False
-                        agent_name =""
-                        
-                        if not agent_name_recieved and Agent.IsNameReady(target):
-                            agent_name_recieved = True
-                            agent_name = Agent.GetName(target)
-                        
-                        print(f"Target Name: {agent_name}")
-                    PyImGui.end_tab_item()
+                            # npc_dialog_hash = 3856160816
+                            # npc_dialog_offset = [2, 0, 0, 1]
+                            # npc_dialog_scroll_offset = [2, 3]
+                            # scroll_id = UIManager.IsVisible(UIManager.GetChildFrameID(npc_dialog_hash, npc_dialog_scroll_offset))
+                            # frame_id = UIManager.GetFrameIDByHash(npc_dialog_hash)
+                            # scroll_id = UIManager.GetChildFrameID(npc_dialog_hash, npc_dialog_scroll_offset)
+                            # print(UIManager.IsVisible(scroll_id))
+                        if PyImGui.button("Get Target Name"):
+                            target = Player.GetTargetID()
+                            Agent.RequestName(target)
+                            agent_name_recieved = False
+                            agent_name =""
+                            
+                            if not agent_name_recieved and Agent.IsNameReady(target):
+                                agent_name_recieved = True
+                                agent_name = Agent.GetName(target)
+                            
+                            print(f"Target Name: {agent_name}")
+                        PyImGui.end_tab_item()
                 if PyImGui.begin_tab_item("Debug: Variables"):
                     ImGui.table("Variable Info", ["Value", "Data"], [
                             ("pause_combat_fsm:", bot_vars.pause_combat_fsm),
@@ -2777,7 +2777,7 @@ def draw_window():
                     draw_fsm_info(f"Sub-FSM: {name.replace('_', ' ').title()}", fsm)
     PyImGui.end()
 #endregion
-     
+
 #region --- Main Loop ---
 def main():
     try:
@@ -2795,8 +2795,11 @@ def main():
         if not is_bot_started():
             return
         
-        bot_vars.raw_agent_array_handler.update()
-        bot_vars.agent_array = bot_vars.raw_agent_array_handler.get_array()        
+        no_valid_names = not bot_vars.character_names or not any(bot_vars.character_names)
+        if no_valid_names:
+            print(f"no valid names {no_valid_names}")
+            check_character_name_added()
+            
         if fsm_vars.global_combat_fsm.is_finished():
             fsm_vars.global_combat_fsm.reset()
             return
@@ -2809,7 +2812,7 @@ def main():
         if Map.IsExplorable():
             if bot_vars.combat_started:
                 combat_handler.HandleCombat()
-        
+                
         bot_vars.press_key_aq.ProcessQueue()
         ActionQueueManager().ProcessAll()
         
