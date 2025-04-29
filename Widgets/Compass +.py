@@ -452,258 +452,107 @@ def DrawAgent(visible, size, shape, color, fill_range, fill_color, x, y, rotatio
 def DrawAgents():
     global compass
 
-    # if compass.frames_skipped >= compass.frames_to_skip:
-    #     compass.frames_skipped = 0
+    def GetAgentValid(agent):
+        if agent.id and Utils.Distance((agent.x, agent.y), compass.position.player_pos) <= compass.position.culling:
+            return True
+        return False
+    
+    def GetAgentParams(agent):
+        return compass.position.rotation - agent.rotation_angle, agent.id == compass.target_id, agent.living_agent.is_alive
+
     if compass.agent_array.update_throttle.IsExpired():
         compass.agent_cache.clear()
-        #compass.agent_array.update()
+        compass.agent_array.update()
         player_agent = None
 
-        for agent in compass.agent_array.get_neutral_array():
-            if not agent.id:
-                continue
-            
-            if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
-                continue
-
-            x = agent.x
-            y = agent.y
-            rot = compass.position.rotation - agent.rotation_angle
-
-            is_target = agent.id == compass.target_id
-            is_alive = agent.living_agent.is_alive
-
-            compass.agent_cache.append((*compass.config.markers['Neutral'].values(), x, y, rot, is_alive, is_target))
-
-        for agent in compass.agent_array.get_minion_array():
-            if not agent.id:
-                continue
-            
-            if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
-                continue
-
-            x = agent.x
-            y = agent.y
-            rot = compass.position.rotation - agent.rotation_angle
-
-            is_target = agent.id == compass.target_id
-            is_alive = agent.living_agent.is_alive
-
-            compass.agent_cache.append((*compass.config.markers['Ally (Minion)'].values(), x, y, rot, is_alive, is_target))
-
-        for agent in compass.agent_array.get_spirit_pet_array():
-            if not agent.id:
-                continue
-            
-            if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
-                continue
-
-            x = agent.x
-            y = agent.y
-            rot = compass.position.rotation - agent.rotation_angle
-
-            is_target = agent.id == compass.target_id
-            is_alive = agent.living_agent.is_alive
+        for agent in compass.agent_array.spirit_pet_array:
+            if not GetAgentValid(agent): continue
+            rot, is_target, is_alive = GetAgentParams(agent)
 
             if agent.living_agent.is_spawned:
                 if not is_alive:
                     continue
                 model_id = agent.living_agent.player_number
                 #if model_id in compass.config.spirit_ids['Ranger']:
-                compass.agent_cache.append((*compass.config.markers[model_id].values(), x, y, rot, is_alive, is_target))
+                compass.agent_cache.append((*compass.config.markers[model_id].values(), agent.x, agent.y, rot, is_alive, is_target))
                 #elif model_id in compass.config.spirit_ids['Ritualist']:
                 #    compass.agent_cache.append((*compass.config.markers['Spirit (Ritualist)'].values(), x, y, rot, is_alive, is_target))
                 #elif model_id in compass.config.spirit_ids['Vanguard']:
                 #    compass.agent_cache.append((*compass.config.markers['Spirit (Vanguard)'].values(), x, y, rot, is_alive, is_target))
             else:
-                compass.agent_cache.append((*compass.config.markers['Ally (Pet)'].values(), x, y, rot, is_alive, is_target))
+                compass.agent_cache.append((*compass.config.markers['Ally (Pet)'].values(), agent.x, agent.y, rot, is_alive, is_target))
 
-        for agent in compass.agent_array.get_enemy_array():
-            if not agent.id:
-                continue
-            
-            if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
-                continue
+        for agent in compass.agent_array.neutral_array:
+            if not GetAgentValid(agent): continue
+            rot, is_target, is_alive = GetAgentParams(agent)
 
-            x = agent.x
-            y = agent.y
-            rot = compass.position.rotation - agent.rotation_angle
+            compass.agent_cache.append((*compass.config.markers['Neutral'].values(), agent.x, agent.y, rot, is_alive, is_target))
 
-            is_target = agent.id == compass.target_id
-            is_alive = agent.living_agent.is_alive
+        for agent in compass.agent_array.minion_array:
+            if not GetAgentValid(agent): continue
+            rot, is_target, is_alive = GetAgentParams(agent)
+
+            compass.agent_cache.append((*compass.config.markers['Ally (Minion)'].values(), agent.x, agent.y, rot, is_alive, is_target))
+
+        for agent in compass.agent_array.enemy_array:
+            if not GetAgentValid(agent): continue
+            rot, is_target, is_alive = GetAgentParams(agent)
 
             if agent.living_agent.has_boss_glow:
                 compass.agent_cache.append((compass.config.markers['Enemy'].visible, compass.config.markers['Enemy'].size*1.2, compass.config.markers['Enemy'].shape, compass.config.profession[agent.living_agent.profession.ToInt()],
-                                            compass.config.markers['Enemy'].fill_range, compass.config.markers['Enemy'].fill_color, x, y, rot, is_alive, is_target))
+                                            compass.config.markers['Enemy'].fill_range, compass.config.markers['Enemy'].fill_color, agent.x, agent.y, rot, is_alive, is_target))
             else:
-                compass.agent_cache.append((*compass.config.markers['Enemy'].values(), x, y, rot, is_alive, is_target))
+                compass.agent_cache.append((*compass.config.markers['Enemy'].values(), agent.x, agent.y, rot, is_alive, is_target))
 
-        for agent in compass.agent_array.get_ally_array():
-            if not agent.id:
-                continue
-            
-            if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
-                continue
-
-            x = agent.x
-            y = agent.y
-            rot = compass.position.rotation - agent.rotation_angle
-
-            is_target = agent.id == compass.target_id
-            is_alive = agent.living_agent.is_alive
+        for agent in compass.agent_array.ally_array:
+            if not GetAgentValid(agent): continue
+            rot, is_target, is_alive = GetAgentParams(agent)
 
             if agent.living_agent.is_npc:
-                compass.agent_cache.append((*compass.config.markers['Ally'].values(), x, y, rot, is_alive, is_target))
+                compass.agent_cache.append((*compass.config.markers['Ally'].values(), agent.x, agent.y, rot, is_alive, is_target))
             elif agent.id == compass.player_id:
                 player_agent = agent
             else:
-                compass.agent_cache.append((*compass.config.markers['Players'].values(), x, y, rot, is_alive, is_target))
+                compass.agent_cache.append((*compass.config.markers['Players'].values(), agent.x, agent.y, rot, is_alive, is_target))
 
-        for agent in compass.agent_array.get_npc_minipet_array():
-            if not agent.id:
-                continue
-            
-            if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
-                continue
-
-            x = agent.x
-            y = agent.y
-            rot = compass.position.rotation - agent.rotation_angle
-
-            is_target = agent.id == compass.target_id
-            is_alive = agent.living_agent.is_alive
+        for agent in compass.agent_array.npc_minipet_array:
+            if not GetAgentValid(agent): continue
+            rot, is_target, is_alive = GetAgentParams(agent)
 
             if agent.living_agent.has_quest:
                 compass.agent_cache.append((compass.config.markers['Ally (NPC)'].visible, compass.config.markers['Ally (NPC)'].size, 'Star', compass.config.markers['Ally (NPC)'].color,
-                                            compass.config.markers['Ally (NPC)'].fill_range, compass.config.markers['Ally (NPC)'].fill_color, x, y, rot, is_alive, is_target))
+                                            compass.config.markers['Ally (NPC)'].fill_range, compass.config.markers['Ally (NPC)'].fill_color, agent.x, agent.y, rot, is_alive, is_target))
             elif agent.living_agent.level > 1:
-                compass.agent_cache.append((*compass.config.markers['Ally (NPC)'].values(), x, y, rot, is_alive, is_target))
+                compass.agent_cache.append((*compass.config.markers['Ally (NPC)'].values(), agent.x, agent.y, rot, is_alive, is_target))
             else:
-                compass.agent_cache.append((*compass.config.markers['Minipet'].values(), x, y, rot, is_alive, is_target))
+                compass.agent_cache.append((*compass.config.markers['Minipet'].values(), agent.x, agent.y, rot, is_alive, is_target))
 
-        for agent in compass.agent_array.get_gadget_array():
-            if not agent.id:
-                continue
-            
-            if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
-                continue
+        if player_agent and player_agent.id and Utils.Distance((player_agent.x, player_agent.y), compass.position.player_pos) <= compass.position.culling:
+            rot, is_target, is_alive = GetAgentParams(player_agent)
 
-            x = agent.x
-            y = agent.y
-            rot = compass.position.rotation - agent.rotation_angle
+            compass.agent_cache.append((*compass.config.markers['Player'].values(), player_agent.x, player_agent.y, rot, is_alive, is_target))
 
-            is_target = agent.id == compass.target_id
-            is_alive = agent.living_agent.is_alive
+        for agent in compass.agent_array.gadget_array:
+            if not GetAgentValid(agent): continue
+            rot, is_target, is_alive = GetAgentParams(agent)
 
-            compass.agent_cache.append((*compass.config.markers['Signpost'].values(), x, y, rot, is_alive, is_target))
+            compass.agent_cache.append((*compass.config.markers['Signpost'].values(), agent.x, agent.y, rot, is_alive, is_target))
 
-        for agent in compass.agent_array.get_item_array():
-            if not agent.id:
-                continue
-            
-            if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
-                continue
-
-            x = agent.x
-            y = agent.y
-            rot = compass.position.rotation - agent.rotation_angle
-
-            is_target = agent.id == compass.target_id
-            is_alive = agent.living_agent.is_alive
+        for agent in compass.agent_array.item_array:
+            if not GetAgentValid(agent): continue
+            rot, is_target, is_alive = GetAgentParams(agent)
 
             match Item.item_instance(agent.item_agent.item_id).rarity.value:
                 case 1:
-                    compass.agent_cache.append((*compass.config.markers['Item (Blue)'].values(), x, y, rot, is_alive, is_target))
+                    compass.agent_cache.append((*compass.config.markers['Item (Blue)'].values(), agent.x, agent.y, rot, True, is_target))
                 case 2:
-                    compass.agent_cache.append((*compass.config.markers['Item (Purple)'].values(), x, y, rot, is_alive, is_target))
+                    compass.agent_cache.append((*compass.config.markers['Item (Purple)'].values(), agent.x, agent.y, rot, True, is_target))
                 case 3:
-                    compass.agent_cache.append((*compass.config.markers['Item (Gold)'].values(), x, y, rot, is_alive, is_target))
+                    compass.agent_cache.append((*compass.config.markers['Item (Gold)'].values(), agent.x, agent.y, rot, True, is_target))
                 case 4:
-                    compass.agent_cache.append((*compass.config.markers['Item (Green)'].values(), x, y, rot, is_alive, is_target))
+                    compass.agent_cache.append((*compass.config.markers['Item (Green)'].values(), agent.x, agent.y, rot, True, is_target))
                 case _:
-                    compass.agent_cache.append((*compass.config.markers['Item (White)'].values(), x, y, rot, is_alive, is_target))
-
-        if player_agent and player_agent.id and Utils.Distance((player_agent.x, player_agent.y), compass.position.player_pos) <= compass.position.culling:
-            x = player_agent.x
-            y = player_agent.y
-            rot = compass.position.rotation - player_agent.rotation_angle
-
-            is_target = player_agent.id == compass.target_id
-            is_alive = player_agent.living_agent.is_alive
-
-            compass.agent_cache.append((*compass.config.markers['Player'].values(), x, y, rot, is_alive, is_target))
-
-
-    #     for agent in AgentArray.GetRawAgentArray():
-    #         if not agent.id:
-    #             continue
-            
-    #         if Utils.Distance((agent.x, agent.y), compass.position.player_pos) > compass.position.culling:
-    #             continue
-
-    #         x = agent.x
-    #         y = agent.y
-    #         rot = compass.position.rotation - agent.rotation_angle
-
-    #         is_target = agent.id == compass.target_id
-    #         is_alive = agent.living_agent.is_alive
-
-    #         match agent.living_agent.allegiance.ToInt():
-    #             case Allegiance.Neutral:
-    #                 compass.agent_cache.append((*compass.config.markers['Neutral'].values(), x, y, rot, is_alive, is_target))
-    #             case Allegiance.SpiritPet:
-    #                 if agent.living_agent.is_spawned:
-    #                     if not is_alive:
-    #                         continue
-    #                     model_id = agent.living_agent.player_number
-    #                     #if model_id in compass.config.spirit_ids['Ranger']:
-    #                     compass.agent_cache.append((*compass.config.markers[model_id].values(), x, y, rot, is_alive, is_target))
-    #                     #elif model_id in compass.config.spirit_ids['Ritualist']:
-    #                     #    compass.agent_cache.append((*compass.config.markers['Spirit (Ritualist)'].values(), x, y, rot, is_alive, is_target))
-    #                     #elif model_id in compass.config.spirit_ids['Vanguard']:
-    #                     #    compass.agent_cache.append((*compass.config.markers['Spirit (Vanguard)'].values(), x, y, rot, is_alive, is_target))
-    #                 else:
-    #                     compass.agent_cache.append((*compass.config.markers['Ally (Pet)'].values(), x, y, rot, is_alive, is_target))
-    #             case Allegiance.Minion:
-    #                 compass.agent_cache.append((*compass.config.markers['Ally (Minion)'].values(), x, y, rot, is_alive, is_target))
-    #             case Allegiance.NpcMinipet:
-    #                 if agent.living_agent.has_quest:
-    #                     compass.agent_cache.append((compass.config.markers['Ally (NPC)'].visible, compass.config.markers['Ally (NPC)'].size, 'Star', compass.config.markers['Ally (NPC)'].color,
-    #                                                 compass.config.markers['Ally (NPC)'].fill_range, compass.config.markers['Ally (NPC)'].fill_color, x, y, rot, is_alive, is_target))
-    #                 elif agent.living_agent.level > 1:
-    #                     compass.agent_cache.append((*compass.config.markers['Ally (NPC)'].values(), x, y, rot, is_alive, is_target))
-    #                 else:
-    #                     compass.agent_cache.append((*compass.config.markers['Minipet'].values(), x, y, rot, is_alive, is_target))
-    #             case Allegiance.Ally:
-    #                 if agent.living_agent.is_npc:
-    #                     compass.agent_cache.append((*compass.config.markers['Ally'].values(), x, y, rot, is_alive, is_target))
-    #                 elif agent.id == compass.player_id:
-    #                     compass.agent_cache.append((*compass.config.markers['Player'].values(), x, y, rot, is_alive, is_target))
-    #                 else:
-    #                     compass.agent_cache.append((*compass.config.markers['Players'].values(), x, y, rot, is_alive, is_target))
-    #             case Allegiance.Enemy:
-    #                 if agent.living_agent.has_boss_glow:
-    #                     compass.agent_cache.append((compass.config.markers['Enemy'].visible, compass.config.markers['Enemy'].size*1.2, compass.config.markers['Enemy'].shape, compass.config.profession[agent.living_agent.profession.ToInt()],
-    #                                                 compass.config.markers['Enemy'].fill_range, compass.config.markers['Enemy'].fill_color, x, y, rot, is_alive, is_target))
-    #                 else:
-    #                     compass.agent_cache.append((*compass.config.markers['Enemy'].values(), x, y, rot, is_alive, is_target))
-    #             case _:
-    #                 if agent.is_gadget:
-    #                     compass.agent_cache.append((*compass.config.markers['Signpost'].values(), x, y, rot, is_alive, is_target))
-    #                 if agent.is_item:
-    #                     match Item.item_instance(agent.item_agent.item_id).rarity.value:
-    #                         case 1:
-    #                             compass.agent_cache.append((*compass.config.markers['Item (Blue)'].values(), x, y, rot, is_alive, is_target))
-    #                         case 2:
-    #                             compass.agent_cache.append((*compass.config.markers['Item (Purple)'].values(), x, y, rot, is_alive, is_target))
-    #                         case 3:
-    #                             compass.agent_cache.append((*compass.config.markers['Item (Gold)'].values(), x, y, rot, is_alive, is_target))
-    #                         case 4:
-    #                             compass.agent_cache.append((*compass.config.markers['Item (Green)'].values(), x, y, rot, is_alive, is_target))
-    #                         case _:
-    #                             compass.agent_cache.append((*compass.config.markers['Item (White)'].values(), x, y, rot, is_alive, is_target))
-    # else:
-    #     compass.frames_skipped += 1
+                    compass.agent_cache.append((*compass.config.markers['Item (White)'].values(), agent.x, agent.y, rot, True, is_target))
 
     [DrawAgent(*cached_agent) for cached_agent in compass.agent_cache]
 
@@ -825,9 +674,7 @@ def configure():
                     marker.shape = items[PyImGui.combo(f'##Shape{marker.name}',  items.index(marker.shape),  items)]
                     PyImGui.pop_item_width()
                     PyImGui.same_line(0.0, -1)
-                    marker.color = Utils.TupleToColor(PyImGui.color_edit4(f'##Color{marker.name}', Utils.ColorToTuple(marker.color)))
-                    PyImGui.same_line(0.0, -1)
-                    PyImGui.text(marker.name)
+                    marker.color = Utils.TupleToColor(PyImGui.color_edit4(f'{marker.name}##Color', Utils.ColorToTuple(marker.color)))
 
             # range ring settings
             if PyImGui.collapsing_header(f'Range Rings'):
@@ -839,10 +686,8 @@ def configure():
                     ring.outline_color = Utils.TupleToColor(PyImGui.color_edit4(f'##Line Color{ring.name}', Utils.ColorToTuple(ring.outline_color)))
                     PyImGui.same_line(0.0, -1)
                     PyImGui.push_item_width(50)
-                    ring.outline_thickness = PyImGui.input_float(f'##Line Thickness{ring.name}', ring.outline_thickness)
+                    ring.outline_thickness = PyImGui.input_float(f'{ring.name}##Line Thickness', ring.outline_thickness)
                     PyImGui.pop_item_width()
-                    PyImGui.same_line(0.0, -1)
-                    PyImGui.text(ring.name)
 
             if PyImGui.collapsing_header(f'Pathing'):
                 compass.pathing.visible = PyImGui.checkbox('Visible', compass.pathing.visible)
