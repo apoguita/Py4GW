@@ -978,7 +978,8 @@ def main_mission_map_thread():
                 continue
             
             if Map.MissionMap.IsWindowOpen():
-                mission_map.update()
+                if Routines.Checks.Map.MapValid():
+                    mission_map.update()
                 sleep(0.03)
             else:
                 sleep(0.5)
@@ -997,18 +998,23 @@ def configure():
         pass
     PyImGui.end()
 
+load_timer = Timer()
+
 def main():  
+    global load_timer
     try:  
         mission_map.thread_keepalive = time.time()
             
         if not Routines.Checks.Map.MapValid():
+            load_timer.Reset()
             mission_map.geometry = [] 
             return
         
         if Party.GetPartyLeaderID() != Player.GetAgentID():
+            load_timer.Reset()
             return
         
-        if mission_map.thread_internal_keepalive + mission_map.thread_timeout < time.time():
+        if mission_map.thread_internal_keepalive + mission_map.thread_timeout < time.time() and load_timer.HasElapsed(1000):
             mission_map.thread_manager.stop_all_threads()
             mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
             ConsoleLog("Mission Map", "Mission Map thread died, thread restarted")
