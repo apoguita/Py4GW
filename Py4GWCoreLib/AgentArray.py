@@ -365,6 +365,7 @@ class RawAgentArray:
             return
 
         self.agent_array = AgentArray.GetRawAgentArray()
+
         self.agent_dict = {agent.id: agent for agent in self.agent_array}
         
         self.ally_array = []

@@ -17,6 +17,7 @@ class RerollCharacter:
         self.available_character_names: List[str] = []
         self.selected_char_index: int = 0
         self.target_character_name: str = ""
+        self.characters = list[PyPlayer.LoginCharacterInfo]
         self.target_index: int = -99 # Target index in the character list
         self.last_known_index: int = -99 # Last observed selected index
         self.step_timer = Timer() # For delays between actions (e.g., key presses)
@@ -151,6 +152,8 @@ class RerollCharacter:
                 characters = Player.GetLoginCharacters()
                 if characters:
                     new_names = [char.player_name for char in characters]
+                    for char in characters:
+                        self.characters.append(char)
                     if new_names != self.available_character_names:
                         self.available_character_names = new_names
                         if self.selected_char_index >= len(self.available_character_names):
@@ -232,8 +235,16 @@ def DrawWindow():
                     is_selected = (index == reroll_widget.selected_char_index)
                     if is_selected:
                         PyImGui.table_set_column_index(0)
-                        PyImGui.text(character_name)
+                        if PyImGui.button(f"Reroll##reroll{index}"):
+                            reroll_widget.selected_char_index = index
+                            selected_name = reroll_widget.available_character_names[index]
+                            reroll_widget.target_character_name     = selected_name
+                            ConsoleLog("Reroll", f"UI Selected target: {reroll_widget.target_character_name}", Console.MessageType.Debug)
+                            reroll_widget.start_reroll()
+                            
                         PyImGui.table_set_column_index(1)
+                        PyImGui.text(character_name)
+                        
                         PyImGui.text(reroll_widget.state)
                 
                 PyImGui.end_table()
