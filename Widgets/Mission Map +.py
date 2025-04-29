@@ -999,6 +999,7 @@ def configure():
     PyImGui.end()
 
 load_timer = Timer()
+load_timer.Start()
 
 def main():  
     global load_timer
