@@ -2,7 +2,6 @@ from Py4GWCoreLib import *
 from BotUtilities import *
 from WindowUtilites import *
 
-import Items
 import Mapping
 
 bot_name = "Nikons Skalefin Soup Farm"
@@ -287,10 +286,10 @@ class Soup_Farm(ReportsProgress):
     running_movement_Handler = Routines.Movement.FollowXY(50)
     
     keep_list = []
-    keep_list.extend(Items.IdSalveItems_Array)
-    keep_list.extend(Items.EventItems_Array)
-    keep_list.append(Items.Skalefin)
-    keep_list.append(Items.Dye)
+    keep_list.extend(IdSalveItems_Array)
+    keep_list.extend(EventItems_Array)
+    keep_list.append(ModelID.Skale_Fin)
+    keep_list.append(ModelID.Vial_Of_Dye)
     
     soup_first_after_reset = False
     soup_wait_to_kill = False
@@ -366,7 +365,7 @@ class Soup_Farm(ReportsProgress):
         # Soup Farm Main Routine
         self.soup_Routine.AddSubroutine(self.soup_exchange_soup_routine_start,
                        sub_fsm=self.soup_Exchange_Routine,
-                       condition_fn=lambda: self.CheckExchangeSoups() and CheckIfInventoryHasItem(Items.Skalefin))        
+                       condition_fn=lambda: self.CheckExchangeSoups() and CheckIfInventoryHasItem(ModelID.Skale_Fin))        
         self.soup_Routine.AddState(self.soup_start_farm,
                                     execute_fn=lambda: self.ExecuteStep(self.soup_start_farm, self.CheckIfShouldRunFarm()))
         self.soup_Routine.AddState(self.soup_travel_state_name,
@@ -544,7 +543,7 @@ class Soup_Farm(ReportsProgress):
         self.soup_Routine.AddSubroutine(self.soup_inventory_state_name_end,
                        sub_fsm = self.inventoryRoutine)       
         self.soup_Routine.AddSubroutine(self.soup_exchange_soup_routine_end,
-                       condition_fn=lambda: self.CheckExchangeSoups() and CheckIfInventoryHasItem(Items.Skalefin))
+                       condition_fn=lambda: self.CheckExchangeSoups() and CheckIfInventoryHasItem(ModelID.Skale_Fin))
         self.soup_Routine.AddState(self.soup_forced_stop,                                    
                        execute_fn=lambda: self.ExecuteStep(self.soup_forced_stop, None))
         
@@ -716,8 +715,8 @@ class Soup_Farm(ReportsProgress):
         self.soup_exchange_timer.Reset()
 
         try:
-            turn_in = GetItemIdFromModelId(Items.Skalefin, 2)
-            count = GetModelIdCount(Items.Skalefin)
+            turn_in = GetItemIdFromModelId(ModelID.Skale_Fin, 2)
+            count = GetModelIdCount(ModelID.Skale_Fin)
 
             if turn_in == 0 or count < 2:
                 return
@@ -725,7 +724,7 @@ class Soup_Farm(ReportsProgress):
             items3 = self.pyMerchant.get_merchant_item_list()                
             if items3:
                 for item in items3:
-                    if Item.GetModelID(item) == Items.Skalefin_Soup:
+                    if Item.GetModelID(item) == ModelID.Bowl_Of_Skalefin_Soup:
                         buy = [2]
                         if len(turn_in) > 1:
                             buy = [1, 1]
@@ -735,7 +734,7 @@ class Soup_Farm(ReportsProgress):
             self.Log(f"Error in Exchanging soup: {str(e)}", Py4GW.Console.MessageType.Error)
 
     def ExchangeSoupsDone(self):
-        return not CheckIfInventoryHasItem(Items.Skalefin, 2)
+        return not CheckIfInventoryHasItem(ModelID.Skale_Fin, 2)
         
     def CheckInventory(self):
         if Inventory.GetFreeSlotCount() <= self.default_min_slots:
@@ -996,7 +995,7 @@ class Soup_Farm(ReportsProgress):
             
             model = Item.GetModelID(item.item_id)
 
-            if model == Items.Skalefin:
+            if model == ModelID.Skale_Fin:
                 return True
             else:
                 return super().CanPickUp(agentId, player_id)
@@ -1037,7 +1036,7 @@ class Soup_Farm(ReportsProgress):
 
                 model = Item.GetModelID(Agent.GetItemAgent(self.current_lootable).item_id)
 
-                if model == Items.Skalefin:
+                if model == ModelID.Skale_Fin:
                     self.soup_collected += 1
 
                 Player.Interact(item)

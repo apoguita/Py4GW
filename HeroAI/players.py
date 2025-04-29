@@ -1,4 +1,5 @@
 from Py4GWCoreLib import *
+from Py4GWCoreLib import Agent, Party
 
 from .constants import (
     MAX_NUM_PLAYERS,
@@ -33,6 +34,10 @@ def RegisterHeroes(cached_data:CacheData):
             cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "IsHero", True)
 
             cached_data.HeroAI_vars.shared_memory_handler.register_buffs(agent_id)
+        
+    pet_id = Party.Pets.GetPetID(cached_data.data.player_agent_id)
+    if pet_id != 0:
+        cached_data.HeroAI_vars.shared_memory_handler.register_buffs(pet_id)
 
 def UpdatePlayers(cached_data:CacheData):
     """Update the player list from shared memory."""

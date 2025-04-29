@@ -774,6 +774,7 @@ class Routines:
             spirit_array = AgentArray.GetSpiritPetArray()
             spirit_array = AgentArray.Filter.ByDistance(spirit_array, Player.GetXY(), distance)
             spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsAlive(agent_id))
+            spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsSpawned(agent_id))
             spirit_array = AgentArray.Sort.ByDistance(spirit_array, Player.GetXY())
             return Utils.GetFirstFromArray(spirit_array)
             
@@ -824,11 +825,11 @@ class Routines:
             gadget_array = AgentArray.Filter.ByDistance(gadget_array, Player.GetXY(), max_distance)
             gadget_array = AgentArray.Sort.ByDistance(gadget_array,Player.GetXY())
             for agent_id in gadget_array:
-                if Agent.GetGadgetID(agent_id) == 9: #9 is the ID for a Hidden Stash (Pre-Searing)
+                if Agent.GetGadgetID(agent_id) == 9: #9 is the ID for Hidden Stash (Pre-Searing)
                     return agent_id
-                if Agent.GetGadgetID(agent_id) == 69: #69 is the ID for a chest
+                if Agent.GetGadgetID(agent_id) == 69: #69 is the ID for Ascalonian Chest
                     return agent_id
-                if Agent.GetGadgetID(agent_id) == 4579: #4579 is the ID for a chest
+                if Agent.GetGadgetID(agent_id) == 4579: #4579 is the ID for Shing Jea Chest
                     return agent_id
                 if Agent.GetGadgetID(agent_id) == 8141: #8141 is the ID for a chest
                     return agent_id

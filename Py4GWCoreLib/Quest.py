@@ -53,3 +53,34 @@ class Quest:
         Returns: bool
         """
         return Quest.quest_instance().is_quest_primary(quest_id)
+
+    @staticmethod
+    def GetQuestData(quest_id):
+        """
+        Purpose: Retrieve quest data.
+        Args:
+            quest_id (int): The quest ID to retrieve data for.
+        Returns: QuestData
+        """
+        return Quest.quest_instance().get_quest_data(quest_id)
+    
+    @staticmethod
+    def GetQuestLog():
+        """
+        Purpose: Retrieve the quest log.
+        Args: None
+        Returns: list[int]
+        """
+        return Quest.quest_instance().get_quest_log()
+    
+    @staticmethod
+    def RequestQuestInfo(quest_id, update_marker=False):
+        """
+        Purpose: Request information about a quest.
+        Args:
+            quest_id (int): The quest ID to request information for.
+            update_marker (bool): Whether to update the marker or not.
+        Returns: None
+        """
+        Quest.quest_instance().request_quest_info(quest_id, update_marker)
+        

@@ -171,6 +171,9 @@ class InfoWindow:
         self.submit_value = self.frame_alias or "" 
         self.window_name = ""
         self.setWindowName()
+        self.current_state = 0
+        self.wparam = 0
+        self.lparam = 0
         
     def setWindowName(self):
         if self.frame_alias:
@@ -235,6 +238,24 @@ class InfoWindow:
                         if PyImGui.button(f"Click on frame{self.frame.frame_id}##click{self.frame.frame_id}"):
                             UIManager.FrameClick(self.frame.frame_id)
                             print (f"Clicked on frame {self.frame.frame_id}")
+                            
+                        PyImGui.separator()
+                        self.current_state = PyImGui.input_int(f"Current State##{self.frame.frame_id}", self.current_state)
+                        self.wparam = PyImGui.input_int(f"wParam##{self.frame.frame_id}", self.wparam)
+                        self.lparam = PyImGui.input_int(f"lParam##{self.frame.frame_id}", self.lparam)
+                        if PyImGui.button((f"test mouse action##{self.frame.frame_id}")):
+                            UIManager.TestMouseAction(self.frame.frame_id, self.current_state, self.wparam, self.lparam)
+                            self.current_state += 1
+                            if self.current_state == 7:
+                                self.current_state += 1
+                            if self.current_state > 10:
+                                self.current_state = 0
+                                self.wparam += 1
+                                if self.wparam > 10:
+                                    self.wparam = 0
+                                    self.lparam += 1
+                                    
+                            print (f"Tested on frame {self.frame.frame_id}")
                 
                 
                         PyImGui.text(f"Parent ID: {self.frame.parent_id}")

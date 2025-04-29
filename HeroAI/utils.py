@@ -18,42 +18,24 @@ def CheckForEffect(agent_id, skill_id):
     """this function needs to be expanded as more functionality is added"""
     import HeroAI.shared_memory_manager as shared_memory_manager
     shared_memory_handler = shared_memory_manager.SharedMemoryManager()   
-    def _IsPet(agent_id):
-        # Check if the agent is a pet
-        pet_info = Party.Pets.GetPetInfo(agent_id)
-        if not pet_info:
-            return False
-        
-        if pet_info.owner_agent_id != 0:
-            return True
-        
-        return False
-    
-    def _IsPetOwnedByPlayer(pet_id):
-        # Check if the pet is owned by the player
-        pet_info = Party.Pets.GetPetInfo(pet_id)
-        if not pet_info:
-            return False
-        
-        if pet_info.owner_agent_id == Player.GetAgentID():
-            return True
-        
-        return False
     
     def _IsPartyMember(agent_id):
-
         for i in range(MAX_NUM_PLAYERS):
             player_data = shared_memory_handler.get_player(i)
-            if player_data and  player_data["IsActive"] and player_data["PlayerID"] == agent_id:
+            if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
                 return True
+            
+        allegiance , _ = Agent.GetAllegiance(agent_id)
+        if allegiance == Allegiance.SpiritPet.value and not Agent.IsSpawned(agent_id):
+            return True
         
         return False
 
     """
-    if _IsPet(agent_id) and not _IsPetOwnedByPlayer(agent_id):
+    allegiance , _ = Agent.GetAllegiance(agent_id)
+    if allegiance == Allegiance.NpcMinipet.value:
         return True
     """
-    
     result = False
     if _IsPartyMember(agent_id):
         player_buffs = shared_memory_handler.get_agent_buffs(agent_id)

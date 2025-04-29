@@ -77,7 +77,7 @@ class GameData:
         self.is_targeting_enabled = True
         self.is_combat_enabled = True
         self.is_skill_enabled = [True for _ in range(NUMBER_OF_SKILLS)]
-        self.RAW_AGENT_ARRAY = RawAgentArray()
+        self.RAW_AGENT_ARRAY = RawAgentArray(100)
         
         
     def reset(self):
@@ -132,7 +132,8 @@ class GameData:
         #combat field data
         self.free_slots_in_inventory = Inventory.GetFreeSlotCount()
         self.target_id = Player.GetTargetID()
-        self.RAW_AGENT_ARRAY.update() 
+        if self.is_outpost:
+            self.RAW_AGENT_ARRAY.update() 
         
     
 @dataclass
@@ -199,22 +200,25 @@ class CacheData:
         self.combat_handler.PrioritizeSkills()
         
     def Update(self):
-        if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
-            self.game_throttle_timer.Reset()
-            self.data.reset()
-            self.data.update()
-            
-            if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
-                self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
-            else:
-                self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Spellcast.value)
+        try:
+            if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
+                self.game_throttle_timer.Reset()
+                self.data.reset()
+                self.data.update()
                 
-            if self.data.in_aggro:
-                self.stay_alert_timer.Reset()
+                if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
+                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
+                else:
+                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Spellcast.value)
+                    
+                if self.data.in_aggro:
+                    self.stay_alert_timer.Reset()
+                    
+                if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
+                    self.data.in_aggro = True
                 
-            if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
-                self.data.in_aggro = True
-                
+        except Exception as e:
+            ConsoleLog(f"Update Cahe Data Error:", e)
                        
             
                      
