@@ -269,48 +269,55 @@ def DrawWhitelistViewer():
             PyImGui.end()
 
 def DrawBlacklistViewer():
-    if show_black_list:  # 🔥 Add a new toggle for this in your Debug Settings!
-        if PyImGui.begin("Blacklist Viewer", None, PyImGui.WindowFlags.AlwaysAutoResize):
-            PyImGui.separator()
-            PyImGui.text("Blacklisted ModelIDs")
-            PyImGui.separator()
+    if not show_black_list:
+        return
+    if not PyImGui.begin("Blacklist Viewer", None, PyImGui.WindowFlags.AlwaysAutoResize):
+        PyImGui.end()
+        return
 
-            try:
-                raw_blacklist = loot_filter_singleton.GetBlacklist()
+    PyImGui.separator()
+    PyImGui.text("Blacklisted ModelIDs")
+    PyImGui.separator()
 
-                # Normalize model_id to integer for sorting
-                blacklist = []
-                for model_id in raw_blacklist:
-                    # If model_id is a string (like "ModelID.Gold_Coins"), convert it to an integer or enum value
-                    if isinstance(model_id, str) and model_id.startswith("ModelID."):
-                        model_id_name = model_id.split("ModelID.")[1]
-                        if hasattr(ModelID, model_id_name):
-                            blacklist.append(getattr(ModelID, model_id_name))  # Add the enum
-                        else:
-                            blacklist.append(model_id)  # If not found, keep it as string
-                    else:
-                        blacklist.append(model_id)
+    try:
+        raw_blacklist = loot_filter_singleton.GetBlacklist()
+        # 1) Normalize everything into ModelID enums (or leave as int if not in enum):
+        blacklist: list[ModelID | int | str] = []
+        for mid in raw_blacklist:
+            if isinstance(mid, str) and mid.startswith("ModelID."):
+                name = mid.split(".", 1)[1]
+                if hasattr(ModelID, name):
+                    blacklist.append(getattr(ModelID, name))
+                else:
+                    blacklist.append(mid)
+            elif isinstance(mid, int):
+                try:
+                    blacklist.append(ModelID(mid))
+                except ValueError:
+                    blacklist.append(mid)
+            else:
+                blacklist.append(mid)
 
-                blacklist = sorted(blacklist, key=lambda x: int(x))  # Sort safely by integer value
+        # 2) Sort by numeric value when possible
+        blacklist.sort(key=lambda x: int(x) if isinstance(x, (ModelID, int)) else float("inf"))
 
-                for model_id in blacklist:
-                    # Try to find the name using ModelID enum if possible
-                    model_name = None
-                    if isinstance(model_id, ModelID):
-                        model_name = model_id.name  # Get the name from the ModelID enum
-                    else:
-                        # Fallback to loot_items if not found
-                        model_name = next((item["name"] for item in loot_items if item.get("model_id") == model_id), None)
-                        if model_name is None:
-                            model_name = f"Unknown Item"
+        # 3) Draw them, using .name for enums
+        for mid in blacklist:
+            if isinstance(mid, ModelID):
+                model_name = mid.name
+                model_val  = int(mid)
+            elif isinstance(mid, int):
+                model_name = "Unknown Item"
+                model_val  = mid
+            else:
+                model_name = f"{mid}"
+                model_val = "?"
+            
+            PyImGui.text(f"{model_name} (ModelID: {model_val})")
 
-                    # Display the item with ModelID and its name
-                    PyImGui.text(f"{model_name} (ModelID: {int(model_id)})")
-
-            except Exception as e:
-                PyImGui.text(f"Error reading blacklist: {str(e)}")
-
-            PyImGui.end()
+    except Exception as e:
+        PyImGui.text(f"Error reading blacklist: {e!s}")
+    PyImGui.end()
 
 def DrawFilteredLootList():
     if show_filtered_loot_list:
