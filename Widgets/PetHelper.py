@@ -148,7 +148,7 @@ def main():
 
         if widget_config.map_valid:
             player.own_id = Player.GetAgentID()
-            if Party.Pets.GetPetID(player.own_id) != 0:
+            if Agent.IsValid(Party.Pets.GetPetID(player.own_id)):
                 if widget_config.pet_exists == False: widget_config.pet_exists = True
 
             else:
