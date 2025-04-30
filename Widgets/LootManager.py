@@ -320,35 +320,40 @@ def DrawBlacklistViewer():
     PyImGui.end()
 
 def DrawFilteredLootList():
-    if show_filtered_loot_list:
-        if PyImGui.begin("Filtered Loot Window", None, PyImGui.WindowFlags.AlwaysAutoResize):
-            PyImGui.text("Filtered Loot Items Nearby")
-            PyImGui.separator()
+    if not show_filtered_loot_list:
+        return
+    if not PyImGui.begin("Filtered Loot Window", None, PyImGui.WindowFlags.AlwaysAutoResize):
+        PyImGui.end()
+        return
 
-            loot_array = loot_filter_singleton.GetfilteredLootArray()
-            if loot_array:
-                loot_items_display = []
-                for agent_id in loot_array:
-                    try:
-                        item_data = Agent.GetItemAgent(agent_id)
-                        item_id = item_data.item_id
-                        model_id = Item.GetModelID(item_id)
-                        name = Item.GetName(item_id)
-                        if not name:
-                            name = "Unknown Item"
-                        distance = Agent.GetDistance(agent_id)
-                        loot_items_display.append((name, model_id, distance))
-                    except Exception as e:
-                        loot_items_display.append((f"Error loading item ({agent_id})", 0, 0))
+    PyImGui.text("Filtered Loot Items Nearby")
+    PyImGui.separator()
+    loot_array = loot_filter_singleton.GetfilteredLootArray()
+    loot_items_display = []
 
-                loot_items_display.sort(key=lambda x: x[2])
+    for agent_id in loot_array:
+        try:
+            item_data = Agent.GetItemAgent(agent_id)
+            item_id   = item_data.item_id
+            raw_mid   = Item.GetModelID(item_id)
+            try:
+                mid_enum = ModelID(raw_mid)
+                name = mid_enum.name.replace("_", " ")
+            except ValueError:
+                name = Item.GetName(item_id) or "Unknown Item"
 
-                for name, model_id, distance in loot_items_display:
-                    PyImGui.text(f"{name} (ModelID: {model_id}) - {distance:.1f} units")
-            else:
-                PyImGui.text("No filtered loot items nearby.")
+            # distance  = Agent.GetDistance(agent_id)  # Does not exist at the moment
+            loot_items_display.append((name, raw_mid, 0.0)) # replace 0.0 with Agent.GetDistance(agent_id) when fixed
 
-            PyImGui.end()
+        except Exception as e:
+            loot_items_display.append((f"Error loading item ({agent_id}): {e}", 0, 0))
+
+    # sort & render
+    loot_items_display.sort(key=lambda x: x[2])
+    for nm, mid, dist in loot_items_display:
+        PyImGui.text(f"{nm} (ModelID: {mid}) — {dist:.1f} units")
+
+    PyImGui.end()
 
 def DrawManualLootConfig():
     global temp_model_id
