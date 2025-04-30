@@ -128,7 +128,17 @@ def setup():
             last_config_timestamp = os.path.getmtime(CONFIG_FILE)
         initialized = True
 
+
 # --- GUI Functions ---
+def _format_model_id(mid: int) -> str:
+    try:
+        m = ModelID(mid)
+        pretty = m.name.replace("_", " ")
+    except ValueError:
+        pretty = "Unknown Item"
+    return f"{pretty} (ModelID: {mid})"
+
+# --- Gui Drawing ---
 def DrawWindow():
     global include_model_id_in_tooltip, show_white_list, show_filtered_loot_list, show_manual_editor, show_black_list
 
@@ -236,37 +246,11 @@ def DrawWhitelistViewer():
             PyImGui.text("Filtered By ModelID")
             PyImGui.separator()
 
-            # Pull whitelist directly from singleton
-            raw_whitelist = loot_filter_singleton.GetWhitelist()
+            # raw_whitelist is a list of ints
+            for raw_mid in sorted(loot_filter_singleton.GetWhitelist()):
+                PyImGui.text(_format_model_id(raw_mid))
 
-            # Normalize entries: turn everything into integers
-            whitelist = []
-            for model_id in raw_whitelist:
-                if isinstance(model_id, str) and model_id.startswith("ModelID."):
-                    model_id_name = model_id.split("ModelID.")[1]
-                    if hasattr(ModelID, model_id_name):
-                        whitelist.append(getattr(ModelID, model_id_name))
-                    else:
-                        whitelist.append(model_id)  # Keep unknown ones as is
-                else:
-                    whitelist.append(model_id)
-
-            whitelist = sorted(whitelist, key=lambda x: int(x))  # sort by int value safely
-
-            for model_id in whitelist:
-                # Try to find name from ModelID enum
-                model_name = None
-                if isinstance(model_id, ModelID):
-                    model_name = model_id.name
-                else:
-                    # fallback if just int
-                    model_name = next((item["name"] for item in loot_items if item.get("model_id") == model_id), None)
-                    if model_name is None:
-                        model_name = f"Unknown Item"
-
-                PyImGui.text(f"{model_name} (ModelID: {int(model_id)})")
-
-            PyImGui.end()
+    PyImGui.end()
 
 def DrawBlacklistViewer():
     if not show_black_list:
@@ -275,48 +259,12 @@ def DrawBlacklistViewer():
         PyImGui.end()
         return
 
+    PyImGui.text("Black listed Items")
     PyImGui.separator()
-    PyImGui.text("Blacklisted ModelIDs")
-    PyImGui.separator()
 
-    try:
-        raw_blacklist = loot_filter_singleton.GetBlacklist()
-        # 1) Normalize everything into ModelID enums (or leave as int if not in enum):
-        blacklist: list[ModelID | int | str] = []
-        for mid in raw_blacklist:
-            if isinstance(mid, str) and mid.startswith("ModelID."):
-                name = mid.split(".", 1)[1]
-                if hasattr(ModelID, name):
-                    blacklist.append(getattr(ModelID, name))
-                else:
-                    blacklist.append(mid)
-            elif isinstance(mid, int):
-                try:
-                    blacklist.append(ModelID(mid))
-                except ValueError:
-                    blacklist.append(mid)
-            else:
-                blacklist.append(mid)
+    for raw_mid in sorted(loot_filter_singleton.GetBlacklist()):
+        PyImGui.text(_format_model_id(raw_mid))
 
-        # 2) Sort by numeric value when possible
-        blacklist.sort(key=lambda x: int(x) if isinstance(x, (ModelID, int)) else float("inf"))
-
-        # 3) Draw them, using .name for enums
-        for mid in blacklist:
-            if isinstance(mid, ModelID):
-                model_name = mid.name
-                model_val  = int(mid)
-            elif isinstance(mid, int):
-                model_name = "Unknown Item"
-                model_val  = mid
-            else:
-                model_name = f"{mid}"
-                model_val = "?"
-            
-            PyImGui.text(f"{model_name} (ModelID: {model_val})")
-
-    except Exception as e:
-        PyImGui.text(f"Error reading blacklist: {e!s}")
     PyImGui.end()
 
 def DrawFilteredLootList():
@@ -328,30 +276,27 @@ def DrawFilteredLootList():
 
     PyImGui.text("Filtered Loot Items Nearby")
     PyImGui.separator()
+
     loot_array = loot_filter_singleton.GetfilteredLootArray()
-    loot_items_display = []
+    display_list: list[tuple[int, float]] = []
 
     for agent_id in loot_array:
         try:
+            # get raw model-ID and distance
             item_data = Agent.GetItemAgent(agent_id)
-            item_id   = item_data.item_id
-            raw_mid   = Item.GetModelID(item_id)
-            try:
-                mid_enum = ModelID(raw_mid)
-                name = mid_enum.name.replace("_", " ")
-            except ValueError:
-                name = Item.GetName(item_id) or "Unknown Item"
+            raw_mid   = Item.GetModelID(item_data.item_id)
+            dist      = Agent.GetDistance(agent_id)
 
-            # distance  = Agent.GetDistance(agent_id)  # Does not exist at the moment
-            loot_items_display.append((name, raw_mid, 0.0)) # replace 0.0 with Agent.GetDistance(agent_id) when fixed
+            display_list.append((raw_mid, dist))
 
         except Exception as e:
-            loot_items_display.append((f"Error loading item ({agent_id}): {e}", 0, 0))
+            # print errors immediately
+            PyImGui.text(f"Error loading item ({agent_id}): {e}")
 
-    # sort & render
-    loot_items_display.sort(key=lambda x: x[2])
-    for nm, mid, dist in loot_items_display:
-        PyImGui.text(f"{nm} (ModelID: {mid}) — {dist:.1f} units")
+    # sort by distance, then render with our unified formatter
+    display_list.sort(key=lambda x: x[1])
+    for mid, dist in display_list:
+        PyImGui.text(f"{_format_model_id(mid)} — {dist:.1f} units")
 
     PyImGui.end()
 
