@@ -1471,7 +1471,7 @@ class ModelID(IntEnum):
     Ashen_Wurm_Husk = 123654789692    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Bleached_Shell = 123654789693    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Blood_Drinker_Pelt = 123654789694    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Blessing_Of_War = 12345561515151    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Blessing_Of_War = 37843
     Bonesnap_Shell = 123654789696    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Branch_Of_Juni_Berries = 123654789695    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Bull_Trainer_Giant_Jawbone = 123654789697    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
