@@ -67,7 +67,7 @@ def get_looting_array():
 def SequentialLootingRoutine():
     global in_looting_routine, looting_aftercast
     
-    filtered_loot = get_looting_array()
+    filtered_loot = LootConfig().GetfilteredLootArray() # Changed for LootManager - aC
     # Loot filtered items
     ActionQueueManager().ResetQueue("ACTION")
     Routines.Sequential.Items.LootItems(filtered_loot,log = False)
