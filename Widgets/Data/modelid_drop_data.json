@@ -1099,6 +1099,13 @@
         "drop_info": "Dropped by data to be added"
     },
     {
+        "name": "Diessa Chalice",
+        "model_id": "ModelID.Diessa_Chalice",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Foes in the Cathedral of Flames during the Temple of the Damned quest"
+    },
+    {
         "name": "Dragon Root",
         "model_id": "ModelID.Dragon_Root",
         "group": "Trophies",
