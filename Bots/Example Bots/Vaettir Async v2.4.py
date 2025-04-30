@@ -1,5 +1,7 @@
 from Py4GWCoreLib import *
-
+import math
+from Py4GWCoreLib.enums import ModelID
+ 
 module_name = "Vaettir Bot"
 
 #region coords
@@ -7,33 +9,32 @@ module_name = "Vaettir Bot"
 outpost_coord_list = [(-24380, 15074), (-26375, 16180)]
 
 bjora_coord_list = [
-    (17810, -17649), (16582, -17136), (15257, -16568), (14084, -15748), (12940, -14873),
-    (11790, -14004), (10640, -13136), (9404 , -12411), (8677 , -11176), (8581 , -9742 ),
-    (7892 , -8494 ), (6989 , -7377 ), (6184 , -6180 ), (5384 , -4980 ), (4549 , -3809 ),
-    (3622 , -2710 ), (2601 , -1694 ), (1185 , -1535 ), (-251 , -1514 ), (-1690, -1626 ),
-    (-3122, -1771 ), (-4556, -1752 ), (-5809, -1109 ), (-6966,  -291 ), (-8390,  -142 ),
-    (-9831,  -138 ), (-11272, -156 ), (-12685, -198 ), (-13933,  267 ), (-14914, 1325 ),
-    (-15822, 2441 ), (-16917, 3375 ), (-18048, 4223 ), (-19196, 4986 ), (-20000, 5595 ),
-    (-20300, 5600 )
+    (15003, -16598), (12699, -14589), (11628, -13867), (10891, -12989), (10517, -11229),
+    (10209, -9973), (9296, -8811), (7815, -7967), (6266, -6328), (4940, -4655),
+    (3867, -2397), (2279, -1331), (7, -1072), (-1752, -1209), (-3596, -1671),
+    (-5386, -1526), (-6904, -283), (-7711, 364), (-9537, 1265), (-11141, 857),
+    (-12730, 371), (-13379, 40), (-14925, 1099), (-16183, 2753), (-17803, 4439),
+    (-18852, 5290), (-19250, 5431), (-19968, 5564), (-20076, 5580)
 ]
+
 
 take_bounty_coord_list = [(13367, -20771)]
 
 farming_route = [
-    (12496, -22600), (11375, -22761), (10925, -23466), (10917, -24311), (9910, -24599),
-    (8995, -23177), (8307, -23187), (8213, -22829), (8307, -23187), (8213, -22829),
-    (8740, -22475), (8880, -21384), (8684, -20833), (9665, -20415)
+    (11375, -22761), (10925, -23466), (10917, -24311), (10280, -24620),
+    (9640, -23175), (7815, -23200), (7765, -22940), (8213, -22829), (8740, -22475),
+    (8880, -21384), (8684, -20833), (8982, -20576)
 ]
 
 farming_route2 = [
-    (10196, -20124), (9976, -18338, 150), (11316, -18056), (10392, -17512), (10114, -16948),
-    (10729, -16273), (10810, -15058), (11120, -15105, 150), (11670, -15457), (12604, -15320),
-    (12476, -16157)
+    (10196, -20124), (9976, -18338), (11316, -18056), (10392, -17512),
+    (10114, -16948), (10729, -16273), (10505, -14750), (10815, -14790), (11090, -15345),
+    (11670, -15457), (12604, -15320), (12450, -14800), (12725, -14850), (12476, -16157)
 ]
 
 path_to_killing_spot = [
     (13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220),
-    (12703, -17239), (12684, -17184), (12526, -17275),
+    (12703, -17239), (12684, -17184)
 ]
 
 
@@ -41,7 +42,7 @@ path_to_merchant = [
     (-23041, 14939)
 ]
 
-exit_jaga_moraine = [(12289, -17700) ,(13970, -18920), (15400, -20400),(15850,-20550)]
+exit_jaga_moraine = [(12289, -17700) ,(13970, -18920), (15400, -20400), (15800,-20600)]
 
 return_jaga_moraine = [(-20300, 5600 )] ## A Dekoy Accadia: removed unnecessary coordinates to re-enter Jaga.
 
@@ -88,32 +89,32 @@ class WindowStatistics:
 
 class ConfigVarsClass:
     def __init__(self):
-        self.loot_blues = True
-        self.loot_purples = True
+        self.loot_blues = False
+        self.loot_purples = False
         self.loot_golds = True
         self.loot_tomes = True
         self.loot_white_dyes = True
         self.loot_black_dyes = True
         self.loot_lockpicks = True
         self.loot_whites = True
-        self.loot_dyes = True
+        self.loot_dyes = False
         self.loot_glacial_stones = True
         self.loot_event_items = True
         self.loot_map_pieces = False
-        self.id_blues = True
+        self.id_blues = False
         self.id_purples = True
-        self.id_golds = False
+        self.id_golds = True
         self.salvage_whites = True
         self.salvage_blues = True
-        self.salvage_purples = True
+        self.salvage_purples = False
         self.salvage_golds = False
         self.salvage_glacial_stones = False
-        self.salvage_purple_with_sup_kit = False
+        self.salvage_purple_with_sup_kit = True
         self.salvage_gold_with_sup_kit = False
         self.sell_whites = True
         self.sell_blues = True
         self.sell_purples = True
-        self.sell_golds = False
+        self.sell_golds = True
         self.sell_materials = True
         self.sell_wood = True
         self.sell_iron = True
@@ -122,10 +123,10 @@ class ConfigVarsClass:
         self.sell_cloth = True
         self.sell_granite = True
         self.keep_id_kit = 2
-        self.keep_salvage_kit = 5
+        self.keep_salvage_kit = 0
         self.keep_sup_salvage_kit = 0
         self.keep_gold_amount = 5000
-        self.leave_empty_inventory_slots = 4
+        self.leave_empty_inventory_slots = 2
 
 class BotVars:
     def __init__(self, map_id=0):
@@ -183,7 +184,8 @@ FSM_vars = StateMachineVars()
 
 follow_delay_timer = Timer()
 bot_vars = BotVars(map_id=650) #Longeye's Ledge
-bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Vaettir Bot v2.3", window_size=(300, 300), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Vaettir Bot v2.3.3 Enums WIP D", window_size=(300, 300), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+looting_state_entered = False
 
 
 #endregion
@@ -227,11 +229,25 @@ def IsBotStarted():
     global bot_vars
     return bot_vars.bot_started
 	
+def GetDyeColorIdFromItem(item_id: int) -> int:
+    """
+    Retrieves the specific color ID from a generic dye item.
+    Assumes color ID is stored in the first argument of a modifier.
+    Returns 0 if no color ID modifier is found.
+    """
+    modifiers = Item.Customization.Modifiers.GetModifiers(item_id)
 
+    for mod in modifiers:
+        modColor = mod.GetArg1() # Assuming GetArg1() returns the color ID
+
+        if modColor != 0:
+            return modColor # Return the found color ID
+
+    return 0 # Return 0 if no non-zero color modifier argument found
 
 def InventoryCheck():
     global bot_vars
-    if bot_vars.config_vars.leave_empty_inventory_slots <= Inventory.GetFreeSlotCount():
+    if bot_vars.config_vars.leave_empty_inventory_slots < Inventory.GetFreeSlotCount(): #tnt
         return True
     return False
 
@@ -296,107 +312,131 @@ def IsValidItem(item_id):
 
 def get_filtered_loot_array():
     global bot_vars
-    # Get all items in the area
-    item_array = AgentArray.GetItemArray()
 
+    # Get all item agents nearby
+    item_array = AgentArray.GetItemArray()
+    item_array = AgentArray.Filter.ByCondition(item_array, Agent.IsValid)
     item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), Range.Spellcast.value)
-    item_array = AgentArray.Filter.ByCondition(item_array, lambda item_id: IsValidItem(item_id))
-    
-    # Map agent IDs to item data
+    initial_nearby_count = len(item_array) # Count after basic range/validity
+    item_array = AgentArray.Filter.ByCondition(item_array, lambda agent_id: IsValidItem(agent_id))
+    valid_owner_count = len(item_array) # Count after ownership check
+
     agent_to_item_map = {
         agent_id: Agent.GetItemAgent(agent_id).item_id
         for agent_id in item_array
     }
 
-    # Extract all item IDs for filtering
-    filtered_items = list(agent_to_item_map.values())
+    item_ids = list(agent_to_item_map.values())
+    pre_filter_count = len(item_ids) # <-- Calculation moved earlier
 
-    # Apply filters based on loot preferences
-    loot_preferences = {
-        "loot_event_items": {28435, 28436},
-        "loot_map_pieces": {24629, 24630, 24631, 24632},
-        "loot_glacial_stones": {27047},
-        "loot_lockpicks": {22751},
-        "loot_black_dyes": {10},
-        "loot_white_dyes": {12},
-        "loot_tomes": {21797},
-        "loot_dyes": {146}
-    }
-
-    # Apply filters based on loot preferences
-    for loot_var, banned_models in loot_preferences.items():
-        if not getattr(bot_vars.config_vars, loot_var):
-            filtered_items = ItemArray.Filter.ByCondition(
-                filtered_items, lambda item_id: Item.GetModelID(item_id) not in banned_models
-            )
-
-        
-        
+    # === Rarity filtering ===
+    rarity_filters = []
     if not bot_vars.config_vars.loot_whites:
-        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsWhite(item_id))
+        rarity_filters.append(lambda item_id: not Item.Rarity.IsWhite(item_id))
     if not bot_vars.config_vars.loot_blues:
-        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsBlue(item_id))
+        rarity_filters.append(lambda item_id: not Item.Rarity.IsBlue(item_id))
     if not bot_vars.config_vars.loot_purples:
-        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsPurple(item_id))
+        rarity_filters.append(lambda item_id: not Item.Rarity.IsPurple(item_id))
     if not bot_vars.config_vars.loot_golds:
-        filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsGold(item_id))
+        rarity_filters.append(lambda item_id: not Item.Rarity.IsGold(item_id))
+    for rf in rarity_filters:
+        item_ids = ItemArray.Filter.ByCondition(item_ids, rf)
 
+    # === Map piece filtering ===
+    if not bot_vars.config_vars.loot_map_pieces:
+        map_piece_model_ids = {
+            ModelID.Map_Piece_Tl, # 24629
+            ModelID.Map_Piece_Tr, # 24630
+            ModelID.Map_Piece_Bl, # 24631
+            ModelID.Map_Piece_Br, # 24632
+        }
+        item_ids = ItemArray.Filter.ByCondition(item_ids, lambda item_id: Item.GetModelID(item_id) not in map_piece_model_ids)
 
-    # Get the agent IDs corresponding to the filtered item IDs
+    # === Tome filtering ===
+    if not bot_vars.config_vars.loot_tomes:
+        item_ids = ItemArray.Filter.ByCondition(item_ids, lambda item_id: not Item.Type.IsTome(item_id))
+
+    # Convert back to agent IDs
     filtered_agent_ids = [
         agent_id for agent_id, item_id in agent_to_item_map.items()
-        if item_id in filtered_items
+        if item_id in item_ids # item_ids now holds the fully filtered list
     ]
-    
-    filtered_agent_ids = AgentArray.Sort.ByDistance(filtered_agent_ids, Player.GetXY())
+    final_filtered_count = len(filtered_agent_ids) # <-- Calculation moved earlier
 
-    return filtered_agent_ids
+    # --- Logging block is now after calculations ---
+    if final_filtered_count == 0 and initial_nearby_count > 0:
+         Py4GW.Console.Log(bot_vars.window_module.module_name, f"[Debug] get_filtered_loot_array: Initial Nearby={initial_nearby_count}, Valid Owner={valid_owner_count}, Pre-Filter={pre_filter_count}, Final Filtered={final_filtered_count}", Py4GW.Console.MessageType.Info)
+         # Optional: Log model IDs here if needed
+
+    return AgentArray.Sort.ByDistance(filtered_agent_ids, Player.GetXY())
 
 
-looting_item =0
+looting_item = 0
+
 def loot_items():
     global area_distance, bot_vars
     global pick_up_item_timer
     global looting_item
+
     
-    if Inventory.GetFreeSlotCount() <= bot_vars.config_vars.leave_empty_inventory_slots:
+    if Inventory.GetFreeSlotCount() == 0:#<= bot_vars.config_vars.leave_empty_inventory_slots:
         return
 
     FSM_vars.in_waiting_routine = True
     filtered_agent_ids = get_filtered_loot_array()
-    if len(filtered_agent_ids) == 0:
+    if not filtered_agent_ids:
         return
     
     item = filtered_agent_ids[0]
 
     if looting_item != item:
         looting_item = item
+
+
     
     current_target = Player.GetTargetID()
     
     if current_target != looting_item:
         Player.ChangeTarget(looting_item)
         return
-    
-    if pick_up_item_timer.HasElapsed(500):
-        if looting_item != 0:
-            Keystroke.PressAndRelease(Key.Space.value)
+
+    if pick_up_item_timer.HasElapsed(1600):
+        Keystroke.PressAndRelease(Key.Space.value)
         pick_up_item_timer.Reset()
+        return
         
     
 
 def finished_looting():
     global area_distance, bot_vars
     global pick_up_item_timer
+    global looting_state_entered # Reference the global flag
+
+    inventory_slots_available = Inventory.GetFreeSlotCount()
+    inventory_full_condition = inventory_slots_available <= bot_vars.config_vars.leave_empty_inventory_slots
 
     filtered_agent_ids = get_filtered_loot_array()
+    no_items_condition = len(filtered_agent_ids) == 0
 
-    if (
-        Inventory.GetFreeSlotCount() <= bot_vars.config_vars.leave_empty_inventory_slots 
-        or len(filtered_agent_ids) == 0
-    ):
-        return True
+    # This is the correct check determining if looting should stop
+    if inventory_full_condition or no_items_condition:
+        # --- Logging block MOVED inside the correct 'if' ---
+        reason = ""
+        if inventory_full_condition:
+            # Use the actual value checked
+            reason += f"Inventory full ({inventory_slots_available} <= {bot_vars.config_vars.leave_empty_inventory_slots}). "
+        if no_items_condition:
+            reason += "No valid/filtered items found nearby."
 
+        # Log only if we were actually attempting to loot (flag is True)
+        if looting_state_entered:
+             Py4GW.Console.Log(bot_vars.window_module.module_name, f"[Debug] Exiting 'Loot routine'. Reason: {reason.strip()}", Py4GW.Console.MessageType.Warning) # Use Warning to make it stand out
+             looting_state_entered = False # Reset flag for next time ONLY when exiting
+
+        # --- End logging block ---
+        return True # Exit the looting state
+
+    # If neither condition is met, continue looting
     return False
 
 item_array_snapshot = []
@@ -430,19 +470,27 @@ def check_looted_items():
     if len(item_array_difference) > 0:
     # Create a dictionary of conditions to count different item types
         item_counters = {
-            "whites": lambda item_id: Item.Rarity.IsWhite(item_id),
-            "blues": lambda item_id: Item.Rarity.IsBlue(item_id),
-            "purples": lambda item_id: Item.Rarity.IsPurple(item_id),
-            "golds": lambda item_id: Item.Rarity.IsGold(item_id),
-            "tomes": lambda item_id: Item.Type.IsTome(item_id),
-            "black_dyes": lambda item_id: Item.GetModelID(item_id) == 10,
-            "white_dyes": lambda item_id: Item.GetModelID(item_id) == 12,
-            "lockpicks": lambda item_id: Item.GetModelID(item_id) == 22751,
-            "dyes": lambda item_id: Item.GetModelID(item_id) == 146,
-            "glacial_stones": lambda item_id: Item.GetModelID(item_id) == 27047,
-            "event_items": lambda item_id: Item.GetModelID(item_id) in {28435, 28436},
-            "map_pieces": lambda item_id: Item.GetModelID(item_id) in {24630, 24631, 24632},
+            # ... (rarity checks) ...
+            # --- CORRECTED Enum Names ---
+            # Dye Color IDs likely remain numbers
+            "black_dyes": lambda item_id: GetDyeColorIdFromItem(item_id) == 10,
+            "white_dyes": lambda item_id: GetDyeColorIdFromItem(item_id) == 12,
+            "lockpicks": lambda item_id: Item.GetModelID(item_id) == ModelID.Lockpick, # 22751
+            "dyes": lambda item_id: Item.GetModelID(item_id) == ModelID.Vial_Of_Dye, # 146
+            "glacial_stones": lambda item_id: Item.GetModelID(item_id) == ModelID.Glacial_Stone, # 27047
+            "event_items": lambda item_id: Item.GetModelID(item_id) in {
+                ModelID.Hard_Apple_Cider,     # 28435
+                ModelID.Slice_Of_Pumpkin_Pie  # 28436
+            },
+            "map_pieces": lambda item_id: Item.GetModelID(item_id) in {
+                ModelID.Map_Piece_Tl, # 24629
+                ModelID.Map_Piece_Tr, # 24630
+                ModelID.Map_Piece_Bl, # 24631
+                ModelID.Map_Piece_Br, # 24632
+            },
+            # --- END CORRECTION ---
         }
+        
 
         # Initialize counters
         item_counts = {key: 0 for key in item_counters}
@@ -472,11 +520,12 @@ def check_salvaged_items():
     global bot_vars
     bag_array_difference = compare_bag_array_snapshot()
     if len(bag_array_difference) > 0:
-        wood = ItemArray.Filter.ByCondition(bag_array_difference, lambda item_id: Item.GetModelID(item_id) == 946)
-        iron = ItemArray.Filter.ByCondition(bag_array_difference, lambda item_id: Item.GetModelID(item_id) == 948)
-        dust = ItemArray.Filter.ByCondition(bag_array_difference, lambda item_id: Item.GetModelID(item_id) == 929)
-        bones = ItemArray.Filter.ByCondition(bag_array_difference, lambda item_id: Item.GetModelID(item_id) == 921)
-        cloth = ItemArray.Filter.ByCondition(bag_array_difference, lambda item_id: Item.GetModelID(item_id) == 925)
+        # --- CORRECTED Enum Names ---
+        wood = ItemArray.Filter.ByCondition(bag_array_difference, lambda item_id: Item.GetModelID(item_id) == ModelID.Wood_Plank)         # 946
+        iron = ItemArray.Filter.ByCondition(bag_array_difference, lambda item_id: Item.GetModelID(item_id) == ModelID.Iron_Ingot)         # 948
+        dust = ItemArray.Filter.ByCondition(bag_array_difference, lambda item_id: Item.GetModelID(item_id) == ModelID.Pile_Of_Glittering_Dust) # 929
+        bones = ItemArray.Filter.ByCondition(bag_array_difference, lambda item_id: Item.GetModelID(item_id) == ModelID.Bone)              # 921
+        cloth = ItemArray.Filter.ByCondition(bag_array_difference, lambda item_id: Item.GetModelID(item_id) == ModelID.Bolt_Of_Cloth)      # 925
 
         bot_vars.window_statistics.wood_planks += len(wood)
         bot_vars.window_statistics.iron_ingots += len(iron)
@@ -514,17 +563,37 @@ def filter_salvage_array():
         salvageable_items = ItemArray.Filter.ByCondition(salvageable_items, lambda item_id: not Item.Rarity.IsPurple(item_id))
     if not bot_vars.config_vars.salvage_golds:
         salvageable_items = ItemArray.Filter.ByCondition(salvageable_items, lambda item_id: not Item.Rarity.IsGold(item_id))
+    if not bot_vars.config_vars.salvage_glacial_stones:
+    # Remove items if they are Glacial Stones (Model ID 27047)
+        glacial_stone_model_id = ModelID.Glacial_Stone # 27047
+        salvageable_items = ItemArray.Filter.ByCondition(salvageable_items, lambda item_id: Item.GetModelID(item_id) != glacial_stone_model_id)
     return salvageable_items
 
 
 def DepositGold():
-    gold_amount = Inventory.GetGoldOnCharacter()
-    gold_amount = gold_amount - bot_vars.config_vars.keep_gold_amount
+    global bot_vars # Ensure global bot_vars is accessible
+    
+    gold_on_char = Inventory.GetGoldOnCharacter()
+    gold_to_keep = bot_vars.config_vars.keep_gold_amount
+    gold_to_deposit = gold_on_char - gold_to_keep # Calculate amount over threshold
 
-    if gold_amount > 0:
-        Inventory.DepositGold(gold_amount)
-        return True
-    return False
+    if gold_to_deposit > 0:
+        # Ensure we don't try to deposit negative gold if keep_gold_amount is very high
+        # Also ensures we don't try to deposit more than we have (though API might handle this)
+        if gold_to_deposit > gold_on_char: 
+             gold_to_deposit = gold_on_char 
+
+        Inventory.DepositGold(gold_to_deposit) # Perform the deposit action
+
+        # --- ADDED Confirmation Log ---
+        # Format the number with commas for readability
+        log_message = f"[Deposit] Deposited {gold_to_deposit:,} gold to Xunlai Chest." 
+        Py4GW.Console.Log(bot_vars.window_module.module_name, log_message, Py4GW.Console.MessageType.Info)
+        # --- END Added Log ---
+
+        return True # Indicate deposit was performed
+        
+    return False # Indicate no deposit was needed/performed
 
 #endregion
 
@@ -548,7 +617,7 @@ def TargetNearestNPCXY(x,y):
     npc_array = AgentArray.GetNPCMinipetArray()
     npc_array = AgentArray.Filter.ByDistance(npc_array,scan_pos, 200)
     npc_array = AgentArray.Sort.ByDistance(npc_array, scan_pos)
-    if len(npc_array) > 0:
+    if len(npc_array) > 0 and Agent.IsValid(npc_array[0]):
         Player.ChangeTarget(npc_array[0])
         
 #endregion
@@ -675,9 +744,9 @@ def DoesNeedInventoryHandling():
     global bot_vars 
     if Inventory.GetFreeSlotCount() < bot_vars.config_vars.leave_empty_inventory_slots:
         return True
-    if Inventory.GetModelCount(5899) < bot_vars.config_vars.keep_id_kit:
+    if Inventory.GetModelCount(ModelID.Superior_Identification_Kit) < bot_vars.config_vars.keep_id_kit: # Check 5899 vs keep_id_kit
         return True
-    if Inventory.GetModelCount(2992) < bot_vars.config_vars.keep_salvage_kit:
+    if Inventory.GetModelCount(ModelID.Salvage_Kit) < bot_vars.config_vars.keep_salvage_kit: # Check 2992 vs keep_salvage_kit
         return True
     return HasThingsToSell()
 
@@ -726,42 +795,51 @@ def finished_salvaging():
 
 #region material
 def IsMaterial(item_id):
-    material_model_ids = {946, 948, 929, 921, 925, 955}  # Add all known material IDs
+    material_model_ids = {
+        ModelID.Wood_Plank,             # 946
+        ModelID.Iron_Ingot,             # 948
+        ModelID.Pile_Of_Glittering_Dust,# 929
+        ModelID.Bone,                   # 921
+        ModelID.Bolt_Of_Cloth,          # 925
+        ModelID.Granite_Slab            # 955
+    }
     return Item.GetModelID(item_id) in material_model_ids
 	
 def IsGranite(item_id):
     """Check if the item is granite."""
-    granite_model_ids = {955}  # Granite ID
+    granite_model_ids = {ModelID.Granite_Slab} # 955
     return Item.GetModelID(item_id) in granite_model_ids
 	
 def IsWood(item_id):
     """Check if the item is wood."""
-    wood_model_ids = {946}  # Replace with the correct IDs for wood
+    wood_model_ids = {ModelID.Wood_Plank} # 946
     return Item.GetModelID(item_id) in wood_model_ids
 
 def IsIron(item_id):
     """Check if the item is iron."""
-    iron_model_ids = {948}  # Replace with the correct IDs for iron
+    iron_model_ids = {ModelID.Iron_Ingot} # 948
     return Item.GetModelID(item_id) in iron_model_ids
 
 def IsDust(item_id):
     """Check if the item is glittering dust."""
-    dust_model_ids = {929}  # Replace with the correct IDs for dust
+    dust_model_ids = {ModelID.Pile_Of_Glittering_Dust} # 929
     return Item.GetModelID(item_id) in dust_model_ids
 
 def IsBones(item_id):
     """Check if the item is bones."""
-    bone_model_ids = {921}  # Replace with the correct IDs for bones
+    bone_model_ids = {ModelID.Bone} # 921
     return Item.GetModelID(item_id) in bone_model_ids
 
 def IsCloth(item_id):
     """Check if the item is cloth."""
-    cloth_model_ids = {925}  # Replace with the correct IDs for cloth
+    cloth_model_ids = {ModelID.Bolt_Of_Cloth} # 925
     return Item.GetModelID(item_id) in cloth_model_ids
 
 
 
 #endregion
+
+
 
 #region Merchant
 
@@ -787,53 +865,215 @@ def get_filtered_materials_to_sell():
         filtered_items.extend(ItemArray.Filter.ByCondition(items_to_sell, IsCloth))
     if bot_vars.config_vars.sell_granite:
         filtered_items.extend(ItemArray.Filter.ByCondition(items_to_sell, IsGranite))
-        
-    return filtered_items
 
+    return filtered_items
+    
 def SellMaterials(log=False):
     global bot_vars
 
+    # --- NEW: Define Dye constants ---
+    DYE_MODEL_ID = ModelID.Vial_Of_Dye # 146
+    BLACK_DYE_COLOR_ID = 10
+    WHITE_DYE_COLOR_ID = 12
+    # --- END NEW ---
+
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+    items = ItemArray.GetItemArray(bags_to_check)
+
+    # STEP 1: Filter out excluded items by model ID
+    # --- CORRECTED Enum Names (Except Kits - see note) ---
+    EXCLUDED_MODEL_IDS = {
+        ModelID.Salvage_Kit,                 # Was 2992
+        ModelID.Superior_Identification_Kit, # Was 5899
+        ModelID.Lockpick,              # 22751
+        ModelID.Glacial_Stone,         # 27047
+        ModelID.Hard_Apple_Cider,      # 28435
+        ModelID.Slice_Of_Pumpkin_Pie,  # 28436
+        ModelID.Hunters_Ale,           # 910
+    }
+    # Keep items whose ModelID is NOT in the exclusion set
+    items = ItemArray.Filter.ByCondition(items, lambda item_id: Item.GetModelID(item_id) not in EXCLUDED_MODEL_IDS)
+
+    # --- NEW: STEP 1.5: Filter out specific Black/White Dyes by Color ID ---
+    # Keep items that are NOT (a Dye AND (Black or White))
+    # Requires GetDyeColorIdFromItem function to be defined in the script
+    items = ItemArray.Filter.ByCondition(items, lambda item_id: not (
+            Item.GetModelID(item_id) == DYE_MODEL_ID and
+            GetDyeColorIdFromItem(item_id) in {BLACK_DYE_COLOR_ID, WHITE_DYE_COLOR_ID}
+    ))
+    # --- END NEW ---
+
+    # STEP 2: Remove materials unless user wants to sell them
     if not bot_vars.config_vars.sell_materials:
-        return
+        items = ItemArray.Filter.ByCondition(items, lambda item_id: not Item.Type.IsMaterial(item_id))
+    else:
+        # Optionally filter specific material types NOT to sell
+        # This logic keeps items that are NOT the specified material type if the corresponding sell flag is False
+        material_filters = []
+        if not bot_vars.config_vars.sell_wood:
+            material_filters.append(IsWood)
+        if not bot_vars.config_vars.sell_iron:
+            material_filters.append(IsIron)
+        if not bot_vars.config_vars.sell_dust:
+            material_filters.append(IsDust)
+        if not bot_vars.config_vars.sell_bones:
+            material_filters.append(IsBones)
+        if not bot_vars.config_vars.sell_cloth:
+            material_filters.append(IsCloth)
+        if not bot_vars.config_vars.sell_granite:
+            material_filters.append(IsGranite)
 
-    items_to_sell = get_filtered_materials_to_sell()
+        # Apply the filters: remove items if they match a material type the user wants to keep
+        if material_filters: # Only filter if there are materials to keep
+            items = ItemArray.Filter.ByCondition(items, lambda item_id: not (
+                IsMaterial(item_id) and # Check if it's a material first
+                any(filter_fn(item_id) for filter_fn in material_filters) # Check if it matches any 'keep' filter
+            ))
 
-    if len(items_to_sell) == 0:
-        bot_vars.sell_to_vendor_action_queue.clear()
-        return
-    
-    for item_id in items_to_sell:
+    # STEP 3: Filter by rarity settings (remove items of rarities the user doesn't want to sell)
+    if not bot_vars.config_vars.sell_whites:
+        items = ItemArray.Filter.ByCondition(items, lambda item_id: not Item.Rarity.IsWhite(item_id))
+    if not bot_vars.config_vars.sell_blues:
+        items = ItemArray.Filter.ByCondition(items, lambda item_id: not Item.Rarity.IsBlue(item_id))
+    if not bot_vars.config_vars.sell_purples:
+        items = ItemArray.Filter.ByCondition(items, lambda item_id: not Item.Rarity.IsPurple(item_id))
+
+    gold_items_to_store = []
+    if not bot_vars.config_vars.sell_golds:
+        gold_items_to_store = ItemArray.Filter.ByCondition(items, lambda item_id: Item.Rarity.IsGold(item_id)) # Find golds
+        items = ItemArray.Filter.ByCondition(items, lambda item_id: not Item.Rarity.IsGold(item_id)) # Remove golds from sell list
+
+    # STEP 4: Queue remaining items to sell
+    # --- MODIFIED: Clear queue before adding new items to prevent duplicates if called multiple times ---
+    bot_vars.sell_to_vendor_action_queue.clear()
+    # --- END MODIFIED ---
+    for item_id in items:
         quantity = Item.Properties.GetQuantity(item_id)
         value = Item.Properties.GetValue(item_id)
-        cost = quantity * value
-        bot_vars.sell_to_vendor_action_queue.add_action(Trading.Merchant.SellItem, item_id, cost)
+
+        if value == 0:
+            if log:
+                Py4GW.Console.Log(
+                    bot_vars.window_module.module_name,
+                    f"[Sell] Skipped item {item_id} (qty: {quantity}) because value is 0",
+                    Py4GW.Console.MessageType.Warning
+                )
+            continue
+
+        # --- NOTE: Verify the correct arguments for SellItem. Using item_id and quantity is typical. ---
+        # Original used 'cost = quantity * value'. Adjust if 'quantity' is correct.
+        # bot_vars.sell_to_vendor_action_queue.add_action(Trading.Merchant.SellItem, item_id, quantity) # Example using quantity
+        bot_vars.sell_to_vendor_action_queue.add_action(Trading.Merchant.SellItem, item_id, quantity * value) # Keeping original 'cost' logic for now
+
+        if log:
+            Py4GW.Console.Log(
+                bot_vars.window_module.module_name,
+                f"[Sell] Queued item {item_id} for sale (qty: {quantity}, value: {value})",
+                Py4GW.Console.MessageType.Info
+            )
+
+    if log and len(items) == 0: # --- MODIFIED: Check length of 'items' (filtered list), not queue ---
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            "[Sell] No items matched filters for sale.",
+            Py4GW.Console.MessageType.Info
+        )
+
+      
+def process_sell_queue():
+    global bot_vars
+
+    if bot_vars.sell_to_vendor_action_queue.is_empty():
+        # Queue is empty, check if anything needs selling now based on current inventory/settings
+        # This populates the queue if needed. Log only if queue was initially empty.
+        SellMaterials(log=True)
+
+    # If the queue is not empty (either had items before, or SellMaterials just added some), run the next action.
+    # This prevents SellMaterials being called repeatedly if the queue isn't clearing in one go.
+    if not bot_vars.sell_to_vendor_action_queue.is_empty():
+        bot_vars.sell_to_vendor_action_queue.RunNextAction()
 
 def SellingMaterialsComplete():
     global bot_vars
+    # Selling is considered complete only if the queue is empty.
+    # The check to populate the queue now happens reliably inside process_sell_queue.
     return bot_vars.sell_to_vendor_action_queue.is_empty()
+    
+def DepositItems():
+    global bot_vars
 
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+    items_to_deposit = ItemArray.GetItemArray(bags_to_check) # Use items_to_deposit from the start
+
+    # 1. Filter out essential kits
+    # Using Enums based on last confirmation - verify these match your intent
+    banned_kits = {
+        ModelID.Superior_Identification_Kit, # 5899 
+        ModelID.Salvage_Kit                  # 2992 
+    }
+    items_to_deposit = ItemArray.Filter.ByCondition(
+        items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_kits
+    )
+
+    # 2. Filter out specific Event Items / Other items to KEEP in inventory
+    banned_event_items = {
+         ModelID.Hard_Apple_Cider, ModelID.Slice_Of_Pumpkin_Pie, ModelID.Glacial_Stone,
+         ModelID.Bottle_Rocket, ModelID.Honeycomb, ModelID.Sparkler, ModelID.Champagne_Popper,
+         ModelID.Victory_Token, ModelID.Birthday_Cupcake, ModelID.Hunters_Ale,
+         ModelID.Mesmer_Tome, ModelID.Krytan_Brandy, ModelID.Sugary_Blue_Drink,
+         # Add/remove other ModelID constants if needed
+    }
+    items_to_deposit = ItemArray.Filter.ByCondition(
+        items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_event_items
+    )
+
+    # --- NEW (From previous recommendation): Filter out Gold items ---
+    # Add this filter if you decided you DON'T want to attempt depositing golds
+    # because the API call fails. Remove/comment it out if your solution fixed gold deposits.
+    # items_to_deposit = ItemArray.Filter.ByCondition(
+    #     items_to_deposit, lambda item_id: not Item.Rarity.IsGold(item_id)
+    # )
+    # --- END NEW ---
+
+    # 3. Clear queue before adding
+    bot_vars.deposit_action_queue.clear()
+
+    # 4. Queue remaining items for deposit
+    queued_count = 0
+    for item_id in items_to_deposit:
+        # Using the direct API call as per your last script version
+        bot_vars.deposit_action_queue.add_action(Inventory.DepositItemToStorage, item_id) 
+        queued_count += 1
+
+    # Keep this final summary log if you find it useful
+    Py4GW.Console.Log(bot_vars.window_module.module_name, f"[Deposit] Finished queuing {queued_count} items for deposit.", Py4GW.Console.MessageType.Info)
+
+
+def DepositItemsComplete():
+    return bot_vars.deposit_action_queue.is_empty()
+    
 
 def buy_id_kits():
     global bot_vars
     id_kits = bot_vars.config_vars.keep_id_kit
-    kits_in_inv = Inventory.GetModelCount(5899)
+    kits_in_inv = Inventory.GetModelCount(ModelID.Superior_Identification_Kit) # Check 5899 vs keep_id_kit
     kits_to_buy = id_kits - kits_in_inv
     if kits_to_buy <= 0:
         bot_vars.buy_from_vendor_action_queue.clear()
         return
-
     merchant_item_list = Trading.Merchant.GetOfferedItems()
-    merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == 5899)
+    merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == ModelID.Superior_Identification_Kit) # Buy 5899
+    
+    
 
     if len(merchant_item_list) == 0:
         bot_vars.buy_from_vendor_action_queue.clear()
         return
-    
+
     for i in range(kits_to_buy):
         item_id = merchant_item_list[0]
         value = Item.Properties.GetValue(item_id) * 2 # value reported is sell value not buy value
         bot_vars.buy_from_vendor_action_queue.add_action(Trading.Merchant.BuyItem, item_id, value)
-
 
 def buy_from_merchant_complete():
     global bot_vars
@@ -842,14 +1082,14 @@ def buy_from_merchant_complete():
 def buy_salvage_kits():
     global bot_vars
     salv_kits = bot_vars.config_vars.keep_salvage_kit
-    kits_in_inv = Inventory.GetModelCount(2992)
+    kits_in_inv = Inventory.GetModelCount(ModelID.Salvage_Kit) # Check 2992 vs keep_salvage_kit
     kits_to_buy = salv_kits - kits_in_inv
     if kits_to_buy <= 0:
         bot_vars.buy_from_vendor_action_queue.clear()
         return
 
     merchant_item_list = Trading.Merchant.GetOfferedItems()
-    merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == 2992)
+    merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == ModelID.Salvage_Kit) # Buy 2992
 
     if len(merchant_item_list) == 0:
         bot_vars.buy_from_vendor_action_queue.clear()
@@ -859,29 +1099,6 @@ def buy_salvage_kits():
         item_id = merchant_item_list[0]
         value = Item.Properties.GetValue(item_id) * 2 # value reported is sell value not buy value
         bot_vars.buy_from_vendor_action_queue.add_action(Trading.Merchant.BuyItem, item_id, value)
-
-
-
-def DepositItems():
-    global bot_vars
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
-    items_to_deposit = ItemArray.GetItemArray(bags_to_check)
-
-    banned_models = {2992,5899}
-    items_to_deposit = ItemArray.Filter.ByCondition(items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_models)
-
-    total_items, total_capacity = Inventory.GetStorageSpace()
-    free_slots = total_capacity - total_items
-    
-    if free_slots <= 0:
-        return
-
-    for item_id in items_to_deposit:
-        bot_vars.deposit_action_queue.add_action(Inventory.DepositItemToStorage, item_id)
-
-
-def DepositItemsComplete():
-    return bot_vars.deposit_action_queue.is_empty()
 
 #endregion
 
@@ -917,13 +1134,19 @@ def reset_farming_loop():
     FSM_vars.movement_handler.reset()
     FSM_vars.sell_to_vendor.reset()
     FSM_vars.state_machine.jump_to_state_by_name("Waiting for Jaga Explorable Map Load")
+    bot_vars.forced_restart = False
+    FSM_vars.in_waiting_routine = False
+
 
 def handle_end_state_machine():
     global bot_vars
-    bot_vars.window_statistics.lap_timer.Reset()
-    if not InventoryCheck():
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"Loop restarted.", Py4GW.Console.MessageType.Info)
+    #bot_vars.window_statistics.lap_timer.Reset()
+    inventory_check_result = InventoryCheck() # Store result
+    if not inventory_check_result: # If InventoryCheck is FALSE (means inventory IS full / needs handling)
+        Py4GW.Console.Log(bot_vars.window_module.module_name, f"[Debug] Inventory full or needs handling. Jumping to 'End State Machine Loop' (triggers Outpost return).", Py4GW.Console.MessageType.Info)
         FSM_vars.state_machine.jump_to_state_by_name("End State Machine Loop")
+    else: # InventoryCheck is TRUE (means inventory is NOT full / okay to continue)
+         Py4GW.Console.Log(bot_vars.window_module.module_name, f"[Debug] Inventory OK. Proceeding to 'Exit Jaga Moraine' state.", Py4GW.Console.MessageType.Info)
 
 
 def FollowPathwithDelayTimer(path_handler,follow_handler, log_actions=False, delay=50):
@@ -1000,13 +1223,23 @@ FSM_vars.sell_to_vendor.AddState(name="Salvage routine",
                         run_once=True,
                         exit_condition=lambda: finished_salvaging())
 FSM_vars.sell_to_vendor.AddState(name="Sell Materials",
-                        execute_fn=lambda: SellMaterials(),
-                        run_once=True,
+                        execute_fn=lambda: process_sell_queue(),
+                        run_once=False,
                         exit_condition=lambda: SellingMaterialsComplete())
+
+FSM_vars.sell_to_vendor.AddState(name="Deposit Gold",
+                                 execute_fn=lambda: DepositGold(),
+                                 run_once=True, # Only needs to run once per visit
+                                 exit_condition=lambda: True, # Assume DepositGold is quick
+                                 transition_delay_ms=500) # Small delay after depositing
+
 FSM_vars.sell_to_vendor.AddState(name="Deposit Items",
                         execute_fn=lambda: DepositItems(),
                         run_once=True,
                         exit_condition=lambda: DepositItemsComplete())
+
+
+
 
                         
 
@@ -1024,9 +1257,9 @@ FSM_vars.state_machine.AddState(name="Load SkillBar",
 FSM_vars.state_machine.AddState(name="Set Hard Mode",
                        execute_fn=lambda: Party.SetHardMode(),
                        transition_delay_ms=1000)
-FSM_vars.state_machine.AddSubroutine(name="Inventory Handling",
-                       sub_fsm = FSM_vars.sell_to_vendor,
-                       condition_fn=lambda: DoesNeedInventoryHandling())
+FSM_vars.state_machine.AddSubroutine(name="Sell at Outpost",
+                        sub_fsm=FSM_vars.sell_to_vendor,
+                        condition_fn=lambda: Map.GetMapID() == bot_vars.starting_map)
 FSM_vars.state_machine.AddState(name="Leaving Outpost",
                        execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.outpost_pathing, FSM_vars.movement_handler),
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.outpost_pathing, FSM_vars.movement_handler) or transition_to_map(482),
@@ -1044,6 +1277,12 @@ FSM_vars.state_machine.AddState(name="Waiting for Jaga Explorable Map Load",
                        run_once=True,
                        exit_condition=lambda: transition_to_map(546),
                        transition_delay_ms=1000)
+FSM_vars.state_machine.AddState(name="Log run start",
+                       execute_fn=lambda: log_run_start(),
+                       run_once=True)
+FSM_vars.state_machine.AddState(name="Check Norn Title",
+                       execute_fn=lambda: check_norn_title(),
+                       run_once=True)
 FSM_vars.state_machine.AddState(name="Go to NPC",
                        execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.bounty_npc, FSM_vars.movement_handler),
                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.bounty_npc, FSM_vars.movement_handler),
@@ -1116,10 +1355,12 @@ FSM_vars.state_machine.AddState(name="reset Farming Loop",
                        execute_fn=lambda: reset_farming_loop(),
                        transition_delay_ms=2000)
 FSM_vars.state_machine.AddState(name="End State Machine Loop",
-                       execute_fn=lambda: reset_farming_loop(),
+                       execute_fn=lambda: ResetEnvironment(),
                        transition_delay_ms=1000)
-
-#enregion 
+FSM_vars.state_machine.AddState(name="Extra Bonus Step",
+                       execute_fn=lambda: StopBot(),
+                       transition_delay_ms=1000)
+#enregion
 
 #region SkillCasting
 
@@ -1438,7 +1679,7 @@ def IsEnemyBehind (agent_id):
     player_x, player_y = Agent.GetXY(player_agent_id)
     player_angle = Agent.GetRotationAngle(player_agent_id)  # Player's facing direction
     nearest_enemy = agent_id
-    if target is None:
+    if target is None and Agent.IsValid(nearest_enemy):
         Player.ChangeTarget(nearest_enemy)
         target = nearest_enemy
     nearest_enemy_x, nearest_enemy_y = Agent.GetXY(nearest_enemy)
@@ -1478,6 +1719,11 @@ def assign_skill_ids():
     skillbar.wastrels_worry = SkillBar.GetSkillIDBySlot(6)
     skillbar.arcane_echo = SkillBar.GetSkillIDBySlot(7)
     skillbar.channeling = SkillBar.GetSkillIDBySlot(8)
+
+def check_norn_title():
+    norntitle = Player.GetTitle(41)
+    if norntitle.current_points > 160000:
+        FSM_vars.state_machine.jump_to_state_by_name("Route Aggro Left")
 
 def BjoraRunningSkillbar():
     global area_distance, skillbar, aftercast, target
@@ -1520,9 +1766,7 @@ def BjoraRunningSkillbar():
 
         #check if nearest is behind us for escaping with Heart of Shadow
                 
-        if ((HasEnoughEnergy(skillbar.heart_of_shadow) and IsEnemyBehind(enemy_array[0]) and IsSkillReady(skillbar.heart_of_shadow))
-            or (HasEnoughEnergy(skillbar.heart_of_shadow)
-                and FSM_vars.non_movement_timer.HasElapsed(3000))):
+        if ((HasEnoughEnergy(skillbar.heart_of_shadow) and IsEnemyBehind(enemy_array[0]) and IsSkillReady(skillbar.heart_of_shadow)) and FSM_vars.non_movement_timer.HasElapsed(4500)):
             CastSkill(skillbar.heart_of_shadow)
             return   
                            
@@ -1535,7 +1779,33 @@ def BjoraRunningSkillbar():
     ):
         CastSkill(skillbar.shroud_of_distress)
         return
+def cast_hos():
+        player_agent_id = Player.GetAgentID()
+        player_x, player_y = Agent.GetXY(player_agent_id)
+        enemy_array = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Earshot)
+        enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
+        has_energy = HasEnoughEnergy(skillbar.heart_of_shadow)
+        low_health = Agent.GetHealth(player_agent_id) < 0.25
+        skill_ready = IsSkillReady(skillbar.heart_of_shadow)
+        stuck_too_long = FSM_vars.stuck_count > 3
+        not_moving = FSM_vars.non_movement_timer.HasElapsed(10000)
+
+        if not FSM_vars.in_killing_routine and has_energy and skill_ready:
+            if low_health:
+                Player.ChangeTarget(player_agent_id)
+                CastSkill(skillbar.heart_of_shadow)
+                return
+            if stuck_too_long:
+                Player.ChangeTarget(enemy_array[0])
+                CastSkill(skillbar.heart_of_shadow)
+                return
+            if not_moving and not FSM_vars.in_waiting_routine:
+                Player.ChangeTarget(enemy_array[0])
+                CastSkill(skillbar.heart_of_shadow) 
+                return
+            return
             
 
 def FarmingSkillbar():
@@ -1543,6 +1813,7 @@ def FarmingSkillbar():
     global FSM_vars
 
     assign_skill_ids()
+
 
     player_agent_id = Player.GetAgentID()
     player_x, player_y = Agent.GetXY(player_agent_id)
@@ -1555,72 +1826,12 @@ def FarmingSkillbar():
         if buff.skill_id == skillbar.shadow_form:
             sf_buff_remaining_time = buff.time_remaining
 
-    #combat routine
-    if FSM_vars.in_killing_routine:
-        not_hexed_array = AgentArray.GetEnemyArray()
-        not_hexed_array = AgentArray.Filter.ByDistance(not_hexed_array, (player_x, player_y), area_distance.Area)
-        not_hexed_array = AgentArray.Filter.ByAttribute(not_hexed_array, 'IsAlive')
-        not_hexed_array = AgentArray.Filter.ByAttribute(not_hexed_array, 'IsHexed',negate=True)
+    cast_hos()
 
-        if (len(not_hexed_array) > 0 and sf_buff_remaining_time > 4000):
-            if (
-                    SkillBar.GetSkillIDBySlot(7) == skillbar.arcane_echo
-                    and IsSkillReady2(7)
-                    and IsSkillReady2(6)
-                    and HasEnoughEnergy(skillbar.arcane_echo)
-                ):
-                    CastSkill2(7)
-                    return
-                                              
-            if (
-                    IsSkillReady2(6)
-                    and HasEnoughEnergy(skillbar.wastrels_worry)
-                ):
-                Player.ChangeTarget(not_hexed_array[0])
-                CastSkill2(6)
-                return
+    if HasBuff(player_agent_id, skillbar.arcane_echo):
+        CastSkill(skillbar.wastrels_worry)
+        return
 
-    # Are we in or about to be in danger?
-            
-    enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Spellcast)
-    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
-            
-
-
-    if len(enemy_array) == 0:
-        target = None
-                
-    if len(enemy_array) > 0:
-        # If we are in danger, use Deadly Paradox / Shadow Form
-                
-
-        if sf_buff_remaining_time < 3500:
-            if HasEnoughEnergy(skillbar.deadly_paradox) and not HasBuff(player_agent_id,skillbar.deadly_paradox) and IsSkillReady(skillbar.deadly_paradox):
-                CastSkill(skillbar.deadly_paradox)
-                return
-
-            if IsSkillReady(skillbar.shadow_form) and HasEnoughEnergy(skillbar.shadow_form):
-                CastSkill(skillbar.shadow_form)
-                return
-
-        if (not FSM_vars.in_killing_routine and (
-            (HasEnoughEnergy(skillbar.heart_of_shadow) 
-                and Agent.GetHealth(player_agent_id) < 0.35
-                and IsSkillReady(skillbar.heart_of_shadow))
-            or (HasEnoughEnergy(skillbar.heart_of_shadow)
-                and FSM_vars.non_movement_timer.HasElapsed(3000))
-        )):
-                    
-            if FSM_vars.in_waiting_routine:
-                Player.ChangeTarget(Player.GetAgentID()) #hos self
-            else:
-                Player.ChangeTarget(enemy_array[0]) #hos enemy
-
-            CastSkill(skillbar.heart_of_shadow)
-            return       
-            
-    # Keep Shroud of Distress up if Injured
     if (
         IsSkillReady(skillbar.shroud_of_distress)
         and HasEnoughEnergy(skillbar.shroud_of_distress)
@@ -1645,6 +1856,122 @@ def FarmingSkillbar():
         CastSkill(skillbar.way_of_perfection)
         return
 
+    #combat routine
+    if FSM_vars.in_killing_routine:
+        not_hexed_array = AgentArray.GetEnemyArray()
+        not_hexed_array = AgentArray.Filter.ByDistance(not_hexed_array, (player_x, player_y), area_distance.Area)
+        not_hexed_array = AgentArray.Filter.ByAttribute(not_hexed_array, 'IsAlive')
+        not_hexed_array = AgentArray.Filter.ByAttribute(not_hexed_array, 'IsHexed',negate=True)
+
+        if len(not_hexed_array) > 0 and sf_buff_remaining_time > 5000:
+            if SkillBar.GetSkillIDBySlot(7) == skillbar.arcane_echo and IsSkillReady2(7) and IsSkillReady2(6) and HasEnoughEnergy(skillbar.arcane_echo):
+                CastSkill2(7)
+                return
+                                              
+            if IsSkillReady2(6) and HasEnoughEnergy(skillbar.wastrels_worry):
+                Player.ChangeTarget(not_hexed_array[0])
+                CastSkill2(6)
+                return
+            
+            if SkillBar.GetSkillIDBySlot(7) == skillbar.wastrels_worry and IsSkillReady2(7) and HasEnoughEnergy(skillbar.wastrels_worry):
+                Player.ChangeTarget(not_hexed_array[0])
+                CastSkill2(7)
+                return
+    
+    #making sure Wastrels gets echoed properly
+
+
+
+    # Are we in or about to be in danger?
+            
+    enemy_array = AgentArray.GetEnemyArray()
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Spellcast)
+    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
+
+
+            
+
+
+    if len(enemy_array) == 0:
+        target = None
+                
+    if len(enemy_array) > 0:
+        # If we are in danger, use Deadly Paradox / Shadow Form
+                
+
+        if sf_buff_remaining_time < 3500:
+            if HasEnoughEnergy(skillbar.deadly_paradox) and not HasBuff(player_agent_id,skillbar.deadly_paradox) and IsSkillReady(skillbar.deadly_paradox):
+                CastSkill(skillbar.deadly_paradox)
+                return
+
+            if IsSkillReady(skillbar.shadow_form) and HasEnoughEnergy(skillbar.shadow_form):
+                CastSkill(skillbar.shadow_form)
+                return
+
+        # has_energy = HasEnoughEnergy(skillbar.heart_of_shadow)
+        # low_health = Agent.GetHealth(player_agent_id) < 0.25
+        # skill_ready = IsSkillReady(skillbar.heart_of_shadow)
+        # stuck_too_long = FSM_vars.stuck_count > 3
+        # not_moving = FSM_vars.non_movement_timer.HasElapsed(10000)
+
+
+        # if not FSM_vars.in_killing_routine and has_energy and skill_ready:
+        #     if low_health:
+        #         print("Low health, using Hos")
+        #         Player.ChangeTarget(player_agent_id)
+        #         CastSkill(skillbar.heart_of_shadow)
+        #         return
+        #     elif stuck_too_long:
+        #         print("Stuck counter, using hos")
+        #         Player.ChangeTarget(enemy_array[0])
+        #         CastSkill(skillbar.heart_of_shadow)
+        #         return
+        #     elif not_moving and not FSM_vars.in_waiting_routine:
+        #         print("Not moving, using hos")
+        #         Player.ChangeTarget(enemy_array[0])
+        #         CastSkill(skillbar.heart_of_shadow) 
+        #         return
+        # if (
+        #     not FSM_vars.in_killing_routine and has_energy and (
+        #         (low_health and skill_ready) or
+        #         stuck_too_long or
+        #         (not_moving and not FSM_vars.in_waiting_routine)
+        #     )
+        # ):
+        #     print("In hos block")
+        #     if FSM_vars.in_waiting_routine and low_health:
+        #         Player.ChangeTarget(Player.GetAgentID())  # hos self
+        #         CastSkill(skillbar.heart_of_shadow)
+        #         return
+        #     else:
+        #         Player.ChangeTarget(enemy_array[0])  # hos enemy
+        #         CastSkill(skillbar.heart_of_shadow)
+        #         return
+
+
+    
+def stay_alive():
+    sf_time_remaining = 0
+    player = Player.GetAgentID()
+    player_buffs = Effects.GetEffects(player)
+    for buff in player_buffs:
+        if buff.skill_id == skillbar.shadow_form:
+            sf_time_remaining = buff.time_remaining
+    x,y = Player.GetXY()
+    enemyarray = AgentArray.GetEnemyArray()
+    enemyarray = AgentArray.Filter.ByDistance(enemyarray, (x, y), area_distance.Spellcast)
+    enemyarray = AgentArray.Filter.ByAttribute(enemyarray, 'IsAlive')
+
+    if enemyarray:
+        if sf_time_remaining < 3500:
+                if HasEnoughEnergy(skillbar.deadly_paradox) and not HasBuff(player,skillbar.deadly_paradox) and IsSkillReady(skillbar.deadly_paradox):
+                    CastSkill(skillbar.deadly_paradox)
+                    return
+
+                if IsSkillReady(skillbar.shadow_form) and HasEnoughEnergy(skillbar.shadow_form):
+                    CastSkill(skillbar.shadow_form)
+                    return
+
             
 def HandleSkillbar():
     if (Map.IsMapReady() and not Map.IsMapLoading()):
@@ -1653,9 +1980,11 @@ def HandleSkillbar():
             and Party.IsPartyLoaded()
             and CanCast()
         ):
+            if FSM_vars.state_machine.get_current_step_name() == "Loot routine":
+                stay_alive()
             if Map.GetMapID() == 482: #Bjora Marches
                 BjoraRunningSkillbar()
-            if Map.GetMapID() == 546: #Jaga Moraine 
+            if Map.GetMapID() == 546 and FSM_vars.state_machine.get_current_step_name() != "Loot routine": #Jaga Moraine 
                 FarmingSkillbar()
 
 
@@ -2050,9 +2379,13 @@ def Handle_Stuck():
     # Check for periodic "stuck" chat command
     if FSM_vars.auto_stuck_command_timer.HasElapsed(5000):
         trigger_stuck_command()
+        return
+
+    if FSM_vars.stuck_count > 3:
+        cast_hos()
 
     # Handle severe stuck situations
-    if FSM_vars.stuck_count > 10:
+    if FSM_vars.stuck_count > 12:
         restart_due_to_stuck()
 
     # Detect and handle non-movement
@@ -2095,25 +2428,53 @@ def handle_non_movement():
         FSM_vars.stuck_count += 1
         log_stuck_attempt(escape_location)
 
+# def handle_player_movement():
+#     """Tracks player movement and resets relevant timers if moving."""
+#     global FSM_vars
+#     new_player_x, new_player_y = Player.GetXY()
+#     if FSM_vars.old_player_x != new_player_x or FSM_vars.old_player_y != new_player_y:
+#         FSM_vars.non_movement_timer.Reset()
+#         FSM_vars.old_player_x = new_player_x
+#         FSM_vars.old_player_y = new_player_y
+#         FSM_vars.stuck_count = 0
+
 def handle_player_movement():
-    """Tracks player movement and resets relevant timers if moving."""
+    """Tracks player movement and resets relevant timers if moving beyond a certain tolerance."""
     global FSM_vars
     new_player_x, new_player_y = Player.GetXY()
-    if FSM_vars.old_player_x != new_player_x or FSM_vars.old_player_y != new_player_y:
+
+    dx = new_player_x - FSM_vars.old_player_x
+    dy = new_player_y - FSM_vars.old_player_y
+    distance_squared = dx * dx + dy * dy
+
+    tolerance = 100  # movement tolerance in game units
+    if distance_squared > tolerance * tolerance:
         FSM_vars.non_movement_timer.Reset()
         FSM_vars.old_player_x = new_player_x
         FSM_vars.old_player_y = new_player_y
         FSM_vars.stuck_count = 0
 
+
 def log_stuck_attempt(escape_location):
-    """Logs details of a recovery attempt."""
     global bot_vars
-    player_x, player_y = Player.GetXY()
-    distance = Utils.Distance((player_x, player_y), escape_location)
-    Py4GW.Console.Log(bot_vars.window_module.module_name, 
-                      f"Player is stuck, attempting to recover to {escape_location} (distance: {distance:.2f})", 
-                      Py4GW.Console.MessageType.Warning)
-            
+
+    if not hasattr(bot_vars, "stuck_log_timer"):
+        bot_vars.stuck_log_timer = Timer()
+        bot_vars.stuck_log_timer.Start()
+
+    if bot_vars.stuck_log_timer.HasElapsed(10000):  # Once every 10s
+        px, py = Player.GetXY()
+        ex, ey = escape_location
+        distance = math.hypot(ex - px, ey - py)
+
+        Py4GW.Console.Log(bot_vars.window_module.module_name, 
+            f"[Stuck] Attempting to recover to {escape_location} (distance: {distance:.2f})", 
+            Py4GW.Console.MessageType.Warning)
+        bot_vars.stuck_log_timer.Reset()
+
+
+
+          
 #endregion
 
 #region Reset        
@@ -2134,6 +2495,8 @@ def ResetEnvironment():
     FSM_vars.stuck_count = 0
     FSM_vars.state_machine.reset()
     FSM_vars.state_machine.jump_to_state_by_name("Longeyes Ledge Map Check")
+    FSM_vars.in_killing_routine = False
+    FSM_vars.in_waiting_routine = False
     bot_vars.forced_restart = False
     bot_vars.desired_map_id = bot_vars.starting_map
     bot_vars.salvage_action_queue.clear()
@@ -2143,6 +2506,7 @@ def ResetEnvironment():
     bot_vars.deposit_action_queue.clear()
 
     
+
 resigned = False
 #endregion
 #region IsMapValid
@@ -2195,8 +2559,8 @@ def main():
             bot_vars.buy_from_vendor_action_queue.execute_next()
             bot_vars.identify_action_queue.execute_next()
             bot_vars.salvage_action_queue.execute_next()
-            bot_vars.deposit_action_queue.execute_next()
-
+            bot_vars.deposit_action_queue.execute_next() 
+            
     except ImportError as e:
         Py4GW.Console.Log(bot_vars.window_module.module_name, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
         Py4GW.Console.Log(bot_vars.window_module.module_name, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
