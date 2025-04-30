@@ -219,7 +219,7 @@ def DrawWindow():
 
             PyImGui.end_child()
             
-        """
+        
         if PyImGui.begin_child("expandedView", (395, 150), True, PyImGui.WindowFlags.NoFlag):
             if PyImGui.begin_table("ExpandedTable", 5, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable):
                 PyImGui.table_setup_column("Reroll")
@@ -250,7 +250,7 @@ def DrawWindow():
                 PyImGui.end_table()
             PyImGui.end_child()
 
-        """
+        
         end_pos = PyImGui.get_window_pos()
     PyImGui.end()
 
