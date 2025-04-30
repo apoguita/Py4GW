@@ -838,8 +838,7 @@ def click_dialog_button(button: int, size: Optional[str] = None, backup: Optiona
     if scroll_id and backup:
         ActionQueueManager().AddAction("ACTION", Player.SendDialog, int(backup, 16))
         return True
-    if debug:
-        print(f"Add Action Click: {target_id}")
+
     ActionQueueManager().AddAction("ACTION", UIManager.FrameClick, target_id)
     return True
 
@@ -1002,7 +1001,8 @@ def click_frame_retry(frame_id_or_path, retry_delay: float = 1.5, debug: bool = 
     if frame_id != 0 and UIManager.FrameExists(frame_id):
         if debug:
             ConsoleLog("click_frame_retry", f"Clicking Frame ID: {frame_id} (Key: {frame_key})", Console.MessageType.Debug)
-        UIManager.FrameClick(frame_id)
+        ActionQueueManager().AddAction("ACTION", UIManager.FrameClick, frame_id)
+        # UIManager.FrameClick(frame_id)
         return True
 
     if debug:
@@ -1067,7 +1067,7 @@ def _stop_fsm_on_timeout(fsm_name: str, state_name: str):
     if not (fsm_to_stop and isinstance(fsm_to_stop, FSM)):
         ConsoleLog(fsm_name, f"Could not find FSM attribute '{fsm_attr}' to stop on timeout.", Console.MessageType.Error)
         return
-    
+
     if not fsm_to_stop.is_finished():
         ConsoleLog(fsm_name, "Stopping FSM due to timeout.", Console.MessageType.Warning)
         fsm_to_stop.stop()
@@ -1256,26 +1256,26 @@ fsm_vars.nightfall_intro.AddState(
     name="Target: Kormir",
     execute_fn=lambda: target_and_interact(10331,6387)(),
     exit_condition=lambda: check_dialog_buttons(buttons=2, state_key="kormir1"),
-    transition_delay_ms=200,
+    transition_delay_ms=400,
     run_once=False,
     on_exit=lambda: start_new_run())
 fsm_vars.nightfall_intro.AddState(
     name="Click: Skip",
     execute_fn=lambda: click_dialog_button_retry(button=2),
-    exit_condition=lambda: check_dialog_buttons(buttons=2, state_key="kormir2"),
-    transition_delay_ms=200,
+    exit_condition=lambda: check_dialog_buttons(buttons=2, state_key="Kormir2"),
+    transition_delay_ms=400,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Click: Confident",
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: is_npc_dialog_hidden(),
         #check_active_quest(677)),
-    transition_delay_ms=200,
+    transition_delay_ms=400,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Equip: Weapon",
     execute_fn=lambda: equip_starter(),
-    transition_delay_ms=1000,
+    transition_delay_ms=500,
     run_once=True)
 fsm_vars.nightfall_intro.AddState(
     name="Move: to Enemies",
@@ -1294,24 +1294,25 @@ fsm_vars.nightfall_intro.AddState(
     exit_condition=lambda: (
         check_dialog_buttons(buttons=1) and
         has_arrived()),
-    transition_delay_ms=200,
+    transition_delay_ms=500,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Click: Shortcut",
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: (check_dialog_buttons(buttons=1, state_key="click_shortcut")),
-    transition_delay_ms=200,
+    transition_delay_ms=500,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Click: Let me know",
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: (check_dialog_buttons(buttons=1, state_key="click_me_know")),
-    transition_delay_ms=200,
+    transition_delay_ms=500,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Click: Ready",
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: (is_npc_dialog_hidden()),
+    transition_delay_ms=500,
     run_once=False,
     on_exit=mark_flag("has_intro_run", True))
 fsm_vars.nightfall_intro.AddState(
@@ -2095,7 +2096,11 @@ fsm_vars.delete_character.AddWaitState(
     on_exit=lambda: ConsoleLog("delete_character", "Correct character verified.", Console.MessageType.Debug))
 fsm_vars.delete_character.AddState(
     name="Click: Delete Button",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_select_delete_button"]),
+    execute_fn=lambda: check_button_enabled_and_click(
+                    frame_id_or_path=bot_vars.frame_paths["char_select_delete_button"],
+                    enabled_field_value=18692,
+                    field_name="field91_0x184",
+                    retry_delay=1.0),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_frame"]),
     run_once=False,
     transition_delay_ms=600)
@@ -2105,11 +2110,17 @@ fsm_vars.delete_character.AddWaitState(
     timeout_ms=5000,
     on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Confirm Dialog Visible"))
 fsm_vars.delete_character.AddState(
+    name="Click: Name Input Field",
+    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_select_delete_name_input"]),
+    exit_condition=lambda: _frame_click_retry_tracker.get(f"click_retry_{bot_vars.frame_paths['char_select_delete_name_input'][0]}_{'_'.join(map(str, bot_vars.frame_paths['char_select_delete_name_input'][1]))}", 0) > 0,
+    run_once=True,
+    transition_delay_ms=600)
+fsm_vars.delete_character.AddState(
     name="Copy Name to Clipboard",
     execute_fn=lambda: copy_text_with_imgui(bot_vars.character_to_delete_name),
     exit_condition=lambda: True,
     run_once=True,
-    transition_delay_ms=200)
+    transition_delay_ms=600)
 fsm_vars.delete_character.AddState(
     name="Paste Name (Ctrl+V)",
     execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.V.value]),
@@ -2172,7 +2183,7 @@ fsm_vars.create_character.AddState(
         check_frame_visible(bot_vars.frame_paths["char_create_type_next_button"]) and 
         not check_frame_visible(bot_vars.frame_paths["char_select_sort_dropdown"])),
     run_once=False,
-    transition_delay_ms=1500)
+    transition_delay_ms=800)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Type Selection Screen",
     condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_type_next_button"]),
@@ -2683,13 +2694,19 @@ def draw_window():
                 if bot_vars.test:
                     if PyImGui.begin_tab_item("Debug: Test buttons"):
                         if PyImGui.button("test key"):
-                            print(f"Player XY: {Player.GetXY()}")
-                            print(f"Target Model ID: {Agent.GetModelID(Player.GetTargetID())}")
-                            print(f"Touch Value: {Range.Touch.value}")
-                            dist = Utils.Distance(Player.GetXY(), Agent.GetXY(Player.GetTargetID()))
-                            print(f"Distance to Target: {dist}")
-                            print(f"In Touch range: {dist <= Range.Touch.value}")
-                            Inventory.OpenXunlaiWindow()
+                            check_button_enabled_and_click(
+                            frame_id_or_path=bot_vars.frame_paths["char_select_delete_button"],
+                            enabled_field_value=18692,
+                            field_name="field91_0x184",
+                            retry_delay=1.0)
+                            # click_frame_retry(bot_vars.frame_paths["char_select_delete_button"])
+                            # print(f"Player XY: {Player.GetXY()}")
+                            # print(f"Target Model ID: {Agent.GetModelID(Player.GetTargetID())}")
+                            # print(f"Touch Value: {Range.Touch.value}")
+                            # dist = Utils.Distance(Player.GetXY(), Agent.GetXY(Player.GetTargetID()))
+                            # print(f"Distance to Target: {dist}")
+                            # print(f"In Touch range: {dist <= Range.Touch.value}")
+                            # Inventory.OpenXunlaiWindow()
                             # npc_array = AgentArray.GetNPCMinipetArray()
                             # for i in npc_array:
                             #     print(Agent.GetModelID(i))
