@@ -287,7 +287,7 @@ class Combat:
 
         activation = Skill.Data.GetActivation(skill_id)
         aftercast = Skill.Data.GetAftercast(skill_id)    
-        return max(activation*1000 + aftercast*1000 + Py4GW.PingHandler().GetCurrentPing() + 50,500)
+        return max(activation*1000 + aftercast*750 + Py4GW.PingHandler().GetCurrentPing() + 50,500)
 
 class ProcessInventory:
     def CheckSlots(self):
