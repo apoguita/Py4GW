@@ -947,7 +947,7 @@ class SkillManager:
             self.in_casting_routine = True
 
             aftercast = Skill.Data.GetActivation(skill_id) * 1000
-            aftercast += Skill.Data.GetAftercast(skill_id) * 1000
+            aftercast += Skill.Data.GetAftercast(skill_id) * 750
             aftercast += self.ping_handler.GetCurrentPing()
             self.aftercast_timer.SetThrottleTime(aftercast)
             self.aftercast_timer.Reset()
