@@ -206,7 +206,9 @@ def DrawWindow():
                             if PyImGui.is_item_hovered() and "drop_info" in item:
                                 tip = f"Dropped from: {item['drop_info']}"
                                 if include_model_id_in_tooltip:
-                                    tip += f" | ModelID: {item['model_id']}"
+                                    member_name = item['model_id'].split('.', 1)[1]
+                                    enum_member = ModelID[member_name]
+                                    tip += f" | ModelID: {enum_member.value}"
                                 PyImGui.set_tooltip(tip)
 
                         PyImGui.tree_pop()
