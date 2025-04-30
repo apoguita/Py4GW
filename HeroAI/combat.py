@@ -145,6 +145,7 @@ class CombatClass:
         self.weakness = Skill.GetID("Weakness")
         self.comfort_animal = Skill.GetID("Comfort_Animal")
         self.heal_as_one = Skill.GetID("Heal_as_One")
+        self.heroic_refrain = Skill.GetID("Heroic_Refrain")
         
     def Update(self, cached_data):
         self.in_aggro = cached_data.in_aggro
@@ -327,6 +328,10 @@ class CombatClass:
         
         nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         lowest_ally = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
+
+        if self.skills[slot].skill_id == self.heroic_refrain:
+            if not self.HasEffect(Player.GetAgentID(), self.heroic_refrain):
+                return Player.GetAgentID()
 
         if target_allegiance == Skilltarget.Enemy:
             v_target = self.GetPartyTarget()
@@ -952,7 +957,7 @@ class CombatClass:
         self.in_casting_routine = True
 
         self.aftercast = Skill.Data.GetActivation(skill_id) * 1000
-        self.aftercast += Skill.Data.GetAftercast(skill_id) * 1000
+        self.aftercast += Skill.Data.GetAftercast(skill_id) * 750
         #self.aftercast += 150 #manually setting a 50ms delay to test issues with pinghandler
         self.aftercast += self.ping_handler.GetCurrentPing()
 
