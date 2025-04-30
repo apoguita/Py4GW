@@ -3,23 +3,18 @@ from Py4GWCoreLib import *
 from ctypes import Structure, c_int, c_float, c_bool, c_char
 from multiprocessing import shared_memory
 
-MODULE_NAME = "GW NEXUS"
+MODULE_NAME = "GLOBAL LOOT CONFIGURATION"
 
-class SharedPlayerData(Structure):
+class LootConfigData(Structure):
     _pack_ = 1
     _fields_ = [
-        ("agent_id", c_int),
-        ("pos_x", c_float),
-        ("pos_y", c_float),
-        ("pos_z", c_float),
-        ("rotation_angle", c_float),
-        ("primary_profession", c_int),
-        ("secondary_profession", c_int),
-        ("level", c_int),
-        ("health", c_float),
-        ("energy", c_float),
-        ("max_health", c_float),
-        ("max_energy", c_float),   
+        ("loot_whites", c_bool),
+        ("loot_blues", c_bool),
+        ("loot_purples", c_bool),
+        ("loot_golds", c_bool),
+        ("loot_greens", c_bool),
+        ("whitelist", c_int * 512),
+        ("blacklist", c_int * 512),
     ]
     
     
