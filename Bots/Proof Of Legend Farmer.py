@@ -1001,7 +1001,8 @@ def click_frame_retry(frame_id_or_path, retry_delay: float = 1.5, debug: bool = 
     if frame_id != 0 and UIManager.FrameExists(frame_id):
         if debug:
             ConsoleLog("click_frame_retry", f"Clicking Frame ID: {frame_id} (Key: {frame_key})", Console.MessageType.Debug)
-        UIManager.FrameClick(frame_id)
+        ActionQueueManager().AddAction("ACTION", UIManager.FrameClick, frame_id)
+        # UIManager.FrameClick(frame_id)
         return True
 
     if debug:
