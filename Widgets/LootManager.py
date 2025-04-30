@@ -405,7 +405,6 @@ def DrawManualLootConfig():
 
             if PyImGui.button("Clear Blacklist"):
                 loot_filter_singleton.ClearBlacklist()
-                loot_filter_singleton.AddToBlacklist()  # Always re-add Gold Coins if cleared
                 save_loot_config()
 
             PyImGui.end()
