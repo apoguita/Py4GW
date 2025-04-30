@@ -1786,6 +1786,11 @@ def cast_hos():
         enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Earshot)
         enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
+        if enemy_array:
+            target = enemy_array[0]
+        else:
+            target = player_agent_id
+
         has_energy = HasEnoughEnergy(skillbar.heart_of_shadow)
         low_health = Agent.GetHealth(player_agent_id) < 0.25
         skill_ready = IsSkillReady(skillbar.heart_of_shadow)
