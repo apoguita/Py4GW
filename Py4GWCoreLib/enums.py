@@ -1500,7 +1500,7 @@ class ModelID(IntEnum):
     Mandragor_Carapace = 123654789181        # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Naga_Hide = 123654789182    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Oni_Claw = 123654789183    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Oni_Taloon = 123654789184    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Oni_Taloon = 817
     Plauge_Idol = 123654789185    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Rinkhal_Talon = 123654789186    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Searing_Ribcage = 123654789187    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
