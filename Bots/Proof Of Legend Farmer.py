@@ -429,6 +429,7 @@ class BotVars:
             "char_select_delete_final_button": (140452905, [5, 1, 15, 2]),
             "char_select_create_button": 3372446797,
             "char_select_create_button2": 3973689736,
+            "char_select_sort_dropdown": 2232987037,
             "char_create_type_next_button": 3110341991,
             "char_create_bottom_frame": 921917835,
             "char_create_generic_next_button": 1102119410,
@@ -1066,7 +1067,7 @@ def _stop_fsm_on_timeout(fsm_name: str, state_name: str):
     if not (fsm_to_stop and isinstance(fsm_to_stop, FSM)):
         ConsoleLog(fsm_name, f"Could not find FSM attribute '{fsm_attr}' to stop on timeout.", Console.MessageType.Error)
         return
-
+    
     if not fsm_to_stop.is_finished():
         ConsoleLog(fsm_name, "Stopping FSM due to timeout.", Console.MessageType.Warning)
         fsm_to_stop.stop()
@@ -1085,8 +1086,8 @@ def _is_target_character_selected(target_name: str, debug: bool = False):
             ConsoleLog("_is_target_character_selected", f"Current index {current_index} out of bounds or chars list empty/None.", Console.MessageType.Warning)
         return False
 
-    selected_name = pregame.chars[current_index]
-    is_correct = selected_name == target_name
+    selected_name = pregame.chars[current_index].lower()
+    is_correct = selected_name == target_name.lower()
 
     if debug:
         if is_correct:
@@ -2035,7 +2036,7 @@ fsm_vars.logout_character.AddWaitState(
     name="Wait: Char Select Ready",
     condition_fn=is_char_select_ready,
     timeout_ms=15000, # Increased timeout for logout
-    on_timeout=lambda:  _stop_fsm_on_timeout("Logout Character", "Wait: Char Select Ready"),
+    on_timeout=lambda:  _stop_fsm_on_timeout("logout_character", "Wait: Char Select Ready"),
     on_enter=lambda: print("Wait: Char Select Ready STARTING"))
 fsm_vars.logout_character.AddState(
     name="Action: Find Target Character",
@@ -2046,7 +2047,7 @@ fsm_vars.logout_character.AddWaitState(
     name="Wait: Target Character Found",
     condition_fn=lambda: bot_vars.character_index != -99,
     timeout_ms=10000,
-    on_timeout=lambda:  _stop_fsm_on_timeout("Logout Character", f"Wait: Target Character '{bot_vars.character_to_delete_name}' Found"))
+    on_timeout=lambda:  _stop_fsm_on_timeout("logout_character", f"Wait: Target Character '{bot_vars.character_to_delete_name}' Found"))
 fsm_vars.logout_character.AddState(
     name="Action: Navigate Character Select",
     execute_fn=navigate_char_select,
@@ -2056,7 +2057,7 @@ fsm_vars.logout_character.AddWaitState(
     name="Wait: Target Character Selected",
     condition_fn=is_target_selected,
     timeout_ms=15000,
-    on_timeout=lambda:  _stop_fsm_on_timeout("Logout Character", "Wait: Target Character Selected"),
+    on_timeout=lambda:  _stop_fsm_on_timeout("logout_character", "Wait: Target Character Selected"),
     on_exit=lambda: [
         mark_flag("logged_out", True)(),
         ConsoleLog("logout_character", "Logout and character selection complete.", Console.MessageType.Success)
@@ -2074,7 +2075,7 @@ fsm_vars.delete_character.AddWaitState(
     name="Wait: Char Select Active",
     condition_fn=lambda: Player.InCharacterSelectScreen(),
     timeout_ms=10000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Delete Character", "Wait: Char Select Active"))
+    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Char Select Active"))
 fsm_vars.delete_character.AddState(
     name="Check: Target Name Set",
     execute_fn=lambda: None,
@@ -2084,14 +2085,14 @@ fsm_vars.delete_character.AddWaitState(
     name="Wait: Target Name Available",
     condition_fn=lambda: bot_vars.character_to_delete_name != "",
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Delete Character", "Wait: Target Name Available"))
+    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Target Name Available"))
 fsm_vars.delete_character.AddWaitState(
     name="Verify: Correct Character Selected",
     condition_fn=lambda: _is_target_character_selected(target_name=bot_vars.character_to_delete_name),
     timeout_ms=10000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Delete Character", "Verify: Correct Character Selected"),
-    on_enter=lambda: ConsoleLog("Delete Character", f"Verifying '{bot_vars.character_to_delete_name}' is selected...", Console.MessageType.Info),
-    on_exit=lambda: ConsoleLog("Delete Character", "Correct character verified.", Console.MessageType.Debug))
+    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Verify: Correct Character Selected"),
+    on_enter=lambda: ConsoleLog("delete_character", f"Verifying '{bot_vars.character_to_delete_name}' is selected...", Console.MessageType.Info),
+    on_exit=lambda: ConsoleLog("delete_character", "Correct character verified.", Console.MessageType.Debug))
 fsm_vars.delete_character.AddState(
     name="Click: Delete Button",
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_select_delete_button"]),
@@ -2102,13 +2103,7 @@ fsm_vars.delete_character.AddWaitState(
     name="Wait: Confirm Dialog Visible",
     condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_frame"]),
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Delete Character", "Wait: Confirm Dialog Visible"))
-fsm_vars.delete_character.AddState(
-    name="Click: Name Input Field",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_select_delete_name_input"]),
-    exit_condition=lambda: _frame_click_retry_tracker.get(f"click_retry_{bot_vars.frame_paths['char_select_delete_name_input'][0]}_{'_'.join(map(str, bot_vars.frame_paths['char_select_delete_name_input'][1]))}", 0) > 0,
-    run_once=True,
-    transition_delay_ms=600)
+    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Confirm Dialog Visible"))
 fsm_vars.delete_character.AddState(
     name="Copy Name to Clipboard",
     execute_fn=lambda: copy_text_with_imgui(bot_vars.character_to_delete_name),
@@ -2116,23 +2111,16 @@ fsm_vars.delete_character.AddState(
     run_once=True,
     transition_delay_ms=200)
 fsm_vars.delete_character.AddState(
-    name="Click: Name Input Field",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_select_delete_name_input"]),
-    exit_condition=lambda: _frame_click_retry_tracker.get(f"click_retry_{bot_vars.frame_paths['char_select_delete_name_input'][0]}_{'_'.join(map(str, bot_vars.frame_paths['char_select_delete_name_input'][1]))}", 0) > 0,
-    run_once=True,
-    transition_delay_ms=300)
-fsm_vars.delete_character.AddState(
     name="Paste Name (Ctrl+V)",
     execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.V.value]),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
     transition_delay_ms=300)
-    # on_exit=restore_copy_text(bot_vars.oldclipboard))
 fsm_vars.delete_character.AddWaitState(
     name="Wait: Paste Complete",
     condition_fn=lambda: bot_vars.press_key_aq.is_empty(),
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Delete Character", "Wait: Paste Complete"))
+    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Paste Complete"))
 fsm_vars.delete_character.AddState(
     name="Click: Final Delete Button",
     execute_fn=lambda: check_button_enabled_and_click(
@@ -2152,10 +2140,10 @@ fsm_vars.delete_character.AddWaitState(
         is_char_name_gone(bot_vars.character_to_delete_name)
     ],
     timeout_ms=15000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Delete Character", "Wait: Deletion Confirmation"),
-    on_enter=lambda: ConsoleLog("Delete Character", "Waiting for character list update...", Console.MessageType.Info),
+    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Deletion Confirmation"),
+    on_enter=lambda: ConsoleLog("delete_character", "Waiting for character list update...", Console.MessageType.Info),
     on_exit=lambda: [
-        ConsoleLog("Delete Character", f"Character '{bot_vars.character_to_delete_name}' deleted successfully.", Console.MessageType.Success),
+        ConsoleLog("delete_character", f"Character '{bot_vars.character_to_delete_name}' deleted successfully.", Console.MessageType.Success),
         mark_flag("character_delete_confirmed", True)(),
         clear_frame_click_retry_cache()
     ])
@@ -2167,110 +2155,107 @@ fsm_vars.create_character.AddState(
     name="Check: In Char Select",
     execute_fn=lambda: None,
     exit_condition=lambda: Player.InCharacterSelectScreen(),
+    transition_delay_ms=1000,
     run_once=False)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Char Select Active",
     condition_fn=lambda: Player.InCharacterSelectScreen(),
     timeout_ms=10000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Char Select Active"))
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Char Select Active"))
 fsm_vars.create_character.AddState(
     name="Click: Create Button",
     execute_fn=lambda: (
         click_frame_retry(bot_vars.frame_paths["char_select_create_button2"]) 
         or click_frame_retry(bot_vars.frame_paths["char_select_create_button"])
     ),
-    exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_type_next_button"]),
+    exit_condition=lambda: (
+        check_frame_visible(bot_vars.frame_paths["char_create_type_next_button"]) and 
+        not check_frame_visible(bot_vars.frame_paths["char_select_sort_dropdown"])),
     run_once=False,
-    transition_delay_ms=600)
+    transition_delay_ms=1500)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Type Selection Screen",
     condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_type_next_button"]),
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Type Selection Screen"))
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Type Selection Screen"))
 fsm_vars.create_character.AddState(
     name="Click: Next (Type)",
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_type_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_bottom_frame"]),
     run_once=False,
-    transition_delay_ms=5000)
+    transition_delay_ms=800)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Campaign Selection Screen",
     condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_bottom_frame"]),
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Campaign Selection Screen"))
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Campaign Selection Screen"))
 fsm_vars.create_character.AddState(
     name="Select: Campaign (Nightfall)",
     execute_fn=lambda: press_key_repeat(Key.RightArrow.value, 3),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=5000)
+    transition_delay_ms=800)
 fsm_vars.create_character.AddState(
     name="Click: Next (Campaign)",
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_profession_tab_text"]),
     run_once=False,
-    transition_delay_ms=600)
+    transition_delay_ms=800)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Profession Selection Screen",
     condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_profession_tab_text"]),
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Profession Selection Screen"))
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Profession Selection Screen"))
 fsm_vars.create_character.AddState(
     name="Select: Profession (Dervish)",
     execute_fn=lambda: press_key_repeat(Key.RightArrow.value, 7),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=500)
+    transition_delay_ms=2000)
 fsm_vars.create_character.AddState(
     name="Click: Next (Profession)",
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_sex_tab_text"]),
     run_once=False,
-    transition_delay_ms=600)
+    transition_delay_ms=800)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Sex Selection Screen",
     condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_sex_tab_text"]),
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Sex Selection Screen"))
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Sex Selection Screen"))
 fsm_vars.create_character.AddState(
     name="Click: Next (Sex)",
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_appearance_tab_text"]),
     run_once=False,
-    transition_delay_ms=600)
+    transition_delay_ms=800)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Appearance Screen",
     condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_appearance_tab_text"]),
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Appearance Screen"))
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Appearance Screen"))
 fsm_vars.create_character.AddState(
     name="Click: Next (Appearance)",
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_body_tab_text"]),
     run_once=False,
-    transition_delay_ms=600)
+    transition_delay_ms=800)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Body Screen",
     condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_body_tab_text"]),
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Body Screen"))
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Body Screen"))
 fsm_vars.create_character.AddState(
     name="Click: Next (Body)",
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: (check_frame_visible(bot_vars.frame_paths["char_create_name_tab_text"])),
     run_once=False,
-    transition_delay_ms=600)
+    transition_delay_ms=800)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Name Screen",
     condition_fn=lambda: (check_frame_visible(bot_vars.frame_paths["char_create_name_tab_text"])),
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Name Screen"))
-fsm_vars.create_character.AddState(
-    name="Click: Name Input Field",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_name_input"]),
-    exit_condition=lambda: _frame_click_retry_tracker.get(f"click_retry_{bot_vars.frame_paths['char_create_name_input'][0]}_{'_'.join(map(str, bot_vars.frame_paths['char_create_name_input'][1]))}", 0) > 0,
-    run_once=True,
-    transition_delay_ms=600)
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Name Screen"))
 fsm_vars.create_character.AddState(
     name="Copy Name to Clipboard",
     execute_fn=lambda: copy_text_with_imgui(bot_vars.character_names[bot_vars.next_create_index]),
@@ -2282,13 +2267,12 @@ fsm_vars.create_character.AddState(
     execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.V.value]),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=300)
-    # on_exit=restore_copy_text(bot_vars.oldclipboard))
+    transition_delay_ms=200)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Paste Complete",
     condition_fn=lambda: bot_vars.press_key_aq.is_empty(),
     timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Paste Complete"))
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Paste Complete"))
 fsm_vars.create_character.AddState(
     name="Click: Final Create Button",
     execute_fn=lambda: check_button_enabled_and_click(
@@ -2298,25 +2282,25 @@ fsm_vars.create_character.AddState(
         retry_delay=1.0),
     exit_condition=lambda: Map.IsMapLoading() or Map.GetMapID() == bot_vars.island_of_shehkah,
     run_once=False,
-    transition_delay_ms=5000)
+    transition_delay_ms=4000)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Map Loading",
     condition_fn=lambda: Map.IsMapLoading() or Map.GetMapID() == bot_vars.island_of_shehkah,
     timeout_ms=20000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Map Loading"))
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Map Loading"))
 fsm_vars.create_character.AddWaitState(
     name="Wait: Map Loaded (Istan)",
     condition_fn=lambda: not Map.IsMapLoading() and Map.GetMapID() == bot_vars.island_of_shehkah and Map.IsMapReady(),
     timeout_ms=60000,
-    on_timeout=lambda: _stop_fsm_on_timeout("Create Character", "Wait: Map Loaded (Istan)"),
+    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Map Loaded (Istan)"),
     on_exit=lambda: [
         (name_created := bot_vars.character_names[bot_vars.next_create_index]),
-        ConsoleLog("Create Character", f"Character '{name_created}' created successfully.", Console.MessageType.Success),
+        ConsoleLog("create_character", f"Character '{name_created}' created successfully.", Console.MessageType.Success),
         mark_flag("character_created_successfully", True)(),
         mark_flag("character_to_delete_name", name_created)(),
         mark_flag("next_create_index", (bot_vars.next_create_index + 1) % len(bot_vars.character_names))(),
-        ConsoleLog("Create Character", f"Next character to create: {bot_vars.character_names[bot_vars.next_create_index]} (Index: {bot_vars.next_create_index})", Console.MessageType.Info),
-        ConsoleLog("Create Character", f"Next character to delete: {bot_vars.character_to_delete_name}", Console.MessageType.Info),
+        ConsoleLog("create_character", f"Next character to create: {bot_vars.character_names[bot_vars.next_create_index]} (Index: {bot_vars.next_create_index})", Console.MessageType.Info),
+        ConsoleLog("create_character", f"Next character to delete: {bot_vars.character_to_delete_name}", Console.MessageType.Info),
         clear_frame_click_retry_cache()
     ])
 #endregion --- FSM Create Character ---
