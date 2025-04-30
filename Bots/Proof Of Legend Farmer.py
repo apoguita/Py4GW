@@ -2110,12 +2110,6 @@ fsm_vars.delete_character.AddWaitState(
     timeout_ms=5000,
     on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Confirm Dialog Visible"))
 fsm_vars.delete_character.AddState(
-    name="Click: Name Input Field",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_select_delete_name_input"]),
-    exit_condition=lambda: _frame_click_retry_tracker.get(f"click_retry_{bot_vars.frame_paths['char_select_delete_name_input'][0]}_{'_'.join(map(str, bot_vars.frame_paths['char_select_delete_name_input'][1]))}", 0) > 0,
-    run_once=True,
-    transition_delay_ms=600)
-fsm_vars.delete_character.AddState(
     name="Copy Name to Clipboard",
     execute_fn=lambda: copy_text_with_imgui(bot_vars.character_to_delete_name),
     exit_condition=lambda: True,
