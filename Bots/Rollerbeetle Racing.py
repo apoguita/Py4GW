@@ -9,7 +9,6 @@ It requires the player to have the outpost unlocked (traveled to at least once) 
 
 Improvements to make:
 - Wait until the "Waiting to start" frame box disappears, instead of waiting for 28 seconds.
-- Better handling of the "Waiting for Dishonorable Removal" state.
 - Better skill usage logic.
 - Randomize some of the pathing to make it less obvious this is a bot.
 - Don't target the nearest enemy if the ID doesn't change.
@@ -128,7 +127,7 @@ race_coords_list = [
     (6819, -2284),
     (6744, -2370),
     (6325, -2507),
-    (5828, -2558),
+    (5708, -2658),
     (5639, -2934),
     (5670, -3420),
     (5753, -3993),
@@ -184,6 +183,17 @@ race_coords_list = [
 ROLLERBEETLE_RACING_OUTPOST_ID = 467
 RACING_MEDAL_MODEL_ID = 37793
 
+SKILL_DISHONORABLE = 2546
+
+SKILL_RAM = 1918
+SKILL_HARDEN_SHELL = 1919
+SKILL_ROLLERBEETLE_DASH = 1920
+SKILL_SUPER_ROLLERBEETLE = 1921
+SKILL_ROLLERBEETLE_ECHO = 1922
+SKILL_DISTRACTING_LUNGE = 1923
+SKILL_ROLLERBEETLE_BLAST = 1924
+SKILL_SPIT_ROCKS = 1925
+
 class BotVars:
     def __init__(self, map_id=0):
         self.starting_map = map_id
@@ -195,13 +205,22 @@ class BotVars:
         self.current_medals = 0
         self.start_time = 0.0
         self.aftercast_timer = Timer()
+        self.current_target = 0
+        self.result_first_place = 0
+        self.result_second_place = 0
+        self.result_third_place = 0
+        self.result_fourth_place = 0
+        self.result_fifth_sixth_place = 0
+        self.result_did_not_finish = 0
 
 bot_vars = BotVars(map_id=ROLLERBEETLE_RACING_OUTPOST_ID)
-bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Rollerbeetle Racing Bot", window_size=(275, 215))
+bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Rollerbeetle Racing Bot", window_size=(250, 325))
 
 class StateMachineVars:
     def __init__(self):
         self.state_machine = FSM("Rollerbeetle Racing Bot")
+        self.wait_for_dishonorable_removal = FSM("Waiting for Dishonorable Removal")
+        self.travel_and_enter_challenge = FSM("Travel and Enter Challenge")
         self.race_pathing = Routines.Movement.PathHandler(race_coords_list)
         self.movement_handler = Routines.Movement.FollowXY(300)
         self.in_waiting_routine = False
@@ -229,6 +248,8 @@ def ResetEnvironment():
     FSM_vars.race_pathing.reset()
     FSM_vars.movement_handler.reset()
     FSM_vars.state_machine.reset()
+    FSM_vars.wait_for_dishonorable_removal.reset()
+    FSM_vars.travel_and_enter_challenge.reset()
     FSM_vars.is_running_race = False
     FSM_vars.in_waiting_routine = False
 
@@ -254,32 +275,48 @@ def end_running_routine():
 def DoesPlayerHaveEffect(effect_id):
     """
     Returns True if the player's effects include the specified effect ID.
-    Uses Effects.GetEffects with the Player's Agent ID.
     """
     player_id = Player.GetAgentID()
-    effects = Effects.GetEffects(player_id)
-    return any(effect.effect_id == effect_id for effect in effects)
+    return Effects.EffectExists(player_id, effect_id)
 
 # FSM States
 FSM_vars.state_machine.AddState(
+    name="Waiting for Map Ready",
+    exit_condition=lambda: Map.IsMapReady(),
+    transition_delay_ms=1000
+)
+
+FSM_vars.travel_and_enter_challenge.AddState(
     name="Traveling to Outpost",
     execute_fn=lambda: Routines.Transition.TravelToOutpost(bot_vars.starting_map),
     exit_condition=lambda: Routines.Transition.HasArrivedToOutpost(bot_vars.starting_map),
     transition_delay_ms=1000
 )
 
-FSM_vars.state_machine.AddState(
+FSM_vars.wait_for_dishonorable_removal.AddState(
     name="Waiting for Dishonorable Removal",
     execute_fn=lambda: None,  # No specific action, just waiting
-    exit_condition=lambda: not DoesPlayerHaveEffect(58),  # Wait until the player no longer has Dishonorable effect
+    exit_condition=lambda: not DoesPlayerHaveEffect(SKILL_DISHONORABLE),  # Wait until the player no longer has Dishonorable effect
     transition_delay_ms=1000
 )
 
-FSM_vars.state_machine.AddState(
+FSM_vars.travel_and_enter_challenge.AddSubroutine(
+    name="Waiting for Dishonorable Removal",
+    sub_fsm=FSM_vars.wait_for_dishonorable_removal,
+    condition_fn=lambda: DoesPlayerHaveEffect(SKILL_DISHONORABLE)
+)
+
+FSM_vars.travel_and_enter_challenge.AddState(
     name="Waiting to Enter Race",
     execute_fn=lambda: Map.EnterChallenge(),
     exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable(),
     transition_delay_ms=1000
+)
+
+FSM_vars.state_machine.AddSubroutine(
+    name="Travel and Enter Challenge",
+    sub_fsm=FSM_vars.travel_and_enter_challenge,
+    condition_fn=lambda: not Map.GetMapID() == ROLLERBEETLE_RACING_OUTPOST_ID or (Map.GetMapID() == ROLLERBEETLE_RACING_OUTPOST_ID and Map.IsOutpost() and Map.IsMapReady())
 )
 
 FSM_vars.state_machine.AddState(
@@ -315,21 +352,36 @@ FSM_vars.state_machine.AddState(name="Finishing Race",
 )
 
 FSM_vars.state_machine.AddState(
-    name="Waiting for Outpost",
-    exit_condition=lambda: Map.IsOutpost(),
+    name="Updating Stats",
+    execute_fn=lambda: UpdateBotStats(),
     transition_delay_ms=1000
 )
 
 FSM_vars.state_machine.AddState(
-    name="Updating Stats",
-    execute_fn=lambda: IncrementRunCount(),
+    name="Waiting for Map Load",
+    exit_condition=lambda: Map.IsMapLoading(),
     transition_delay_ms=1000
 )
 
-def IncrementRunCount():
+def UpdateBotStats():
     global bot_vars
     bot_vars.run_count += 1
-    bot_vars.current_medals = Inventory.GetModelCount(RACING_MEDAL_MODEL_ID)
+    new_meals_count = Inventory.GetModelCount(RACING_MEDAL_MODEL_ID)
+    medals_gained = new_meals_count - bot_vars.current_medals
+    bot_vars.current_medals = new_meals_count
+    
+    if medals_gained == 10:
+        bot_vars.result_first_place += 1
+    elif medals_gained == 7:
+        bot_vars.result_second_place += 1
+    elif medals_gained == 5:
+        bot_vars.result_third_place += 1
+    elif medals_gained == 3:
+        bot_vars.result_fourth_place += 1
+    elif medals_gained == 1:
+        bot_vars.result_fifth_sixth_place += 1
+    elif medals_gained == 0:
+        bot_vars.result_did_not_finish += 1
 
 def IsPlayerWithinRadius(target_coords, radius):
     player_x, player_y = Agent.GetXY(Player.GetAgentID())
@@ -378,13 +430,20 @@ def DrawWindow():
                 ("Number of Runs", f"{bot_vars.run_count}"),
                 ("Runs per Hour", f"{average_runs:.2f}"),
                 ("Medals Gained", f"{(bot_vars.current_medals - bot_vars.initial_medals)}"),
-                ("Medals per Run", f"{average_medals:.2f}")
+                ("Medals per Run", f"{average_medals:.2f}"),
+                ("First Place", f"{bot_vars.result_first_place}"),
+                ("Second Place", f"{bot_vars.result_second_place}"),
+                ("Third Place", f"{bot_vars.result_third_place}"),
+                ("Fourth Place", f"{bot_vars.result_fourth_place}"),
+                ("Fifth/Sixth Place", f"{bot_vars.result_fifth_sixth_place}"),
+                ("Did Not Finish", f"{bot_vars.result_did_not_finish}"),
             ]
 
             ImGui.table("Bot Stats", headers, data)
 
             current_state = FSM_vars.state_machine.get_current_step_name() if FSM_vars.state_machine else "None"
-            PyImGui.text(f"Current State: {current_state}")
+            if IsBotStarted():
+                PyImGui.text(f"Current State: {current_state}")
 
         PyImGui.end()
 
@@ -415,25 +474,50 @@ def UseSkills():
     player_id = Player.GetAgentID()
     player_x, player_y = Agent.GetXY(player_id)
 
-    # Always use skill slot 8 if available and the player does not have effect ID 78
-    if not DoesPlayerHaveEffect(78):
-        skill_8_data = SkillBar.GetSkillData(8)
-        if skill_8_data and skill_8_data.recharge == 0:
-            SkillBar.UseSkill(8)
-            return
-
-    # Check if skill slot 6 and skill slot 8 are available
+    skill_1_data = SkillBar.GetSkillData(1)
+    skill_2_data = SkillBar.GetSkillData(2)
+    skill_3_data = SkillBar.GetSkillData(3)
+    skill_4_data = SkillBar.GetSkillData(4)
+    skill_5_data = SkillBar.GetSkillData(5)
     skill_6_data = SkillBar.GetSkillData(6)
+    skill_7_data = SkillBar.GetSkillData(7)
     skill_8_data = SkillBar.GetSkillData(8)
-    if skill_6_data and skill_6_data.recharge == 0:
+
+    # Try to double up Super Rollerbeetle if possible
+    if (skill_6_data.recharge == 0 or DoesPlayerHaveEffect(SKILL_ROLLERBEETLE_ECHO)) and skill_8_data.recharge == 0:
         SkillBar.UseSkill(6)
-        if skill_8_data and skill_8_data.recharge == 0:
-            SkillBar.UseSkill(8)
+        SkillBar.UseSkill(8)
+        return
+    
+    # Try to double up Rollerbeetle Dash if possible
+    if (skill_6_data.recharge == 0 or DoesPlayerHaveEffect(SKILL_ROLLERBEETLE_ECHO)) and skill_1_data.recharge == 0:
+        SkillBar.UseSkill(6)
+        SkillBar.UseSkill(1)
         return
 
-    # Check if skill slot 1 is available
-    skill_1_data = SkillBar.GetSkillData(1)
-    if skill_1_data and skill_1_data.recharge == 0:
+    # Always use Super Rollerbeetle
+    if not DoesPlayerHaveEffect(SKILL_SUPER_ROLLERBEETLE):
+        if skill_8_data.recharge == 0 or (skill_6_data.id == SKILL_SUPER_ROLLERBEETLE and skill_6_data.recharge == 0):
+            if skill_8_data.recharge == 0:
+                SkillBar.UseSkill(8)
+            elif skill_6_data.recharge == 0:
+                SkillBar.UseSkill(6)
+            return
+
+    # Always use ram
+    if not DoesPlayerHaveEffect(SKILL_SUPER_ROLLERBEETLE) and not DoesPlayerHaveEffect(SKILL_RAM):
+        if skill_3_data.recharge == 0:
+            SkillBar.UseSkill(3)
+            return
+
+    # Always use harden shell
+    if not DoesPlayerHaveEffect(SKILL_HARDEN_SHELL):
+        if skill_2_data.recharge == 0:
+            SkillBar.UseSkill(2)
+            return
+
+    # Always use rollerbeetle dash
+    if not DoesPlayerHaveEffect(SKILL_SUPER_ROLLERBEETLE) and not DoesPlayerHaveEffect(SKILL_ROLLERBEETLE_DASH) and not DoesPlayerHaveEffect(SKILL_RAM) and skill_1_data.recharge == 0:
         SkillBar.UseSkill(1)
         return
 
@@ -448,37 +532,37 @@ def UseSkills():
 
         # Check if the nearest target is moving
         if Agent.IsMoving(target_id):
-            Player.ChangeTarget(target_id)
+            # Only update target if changed
+            if not target_id == bot_vars.current_target:
+                Player.ChangeTarget(target_id)
+                bot_vars.current_target = target_id
 
             # Use skill slot 4 if available
-            skill_4_data = SkillBar.GetSkillData(4)
-            if skill_4_data and skill_4_data.recharge == 0:
+            if skill_4_data.recharge == 0:
                 SkillBar.UseSkill(4, target_id)
                 return
 
             # Use skill slot 5 if available
-            skill_5_data = SkillBar.GetSkillData(5)
-            if skill_5_data and skill_5_data.recharge == 0:
+            if skill_5_data.recharge == 0:
                 SkillBar.UseSkill(5, target_id)
                 return
 
             # Use skill slot 7 if available
-            skill_7_data = SkillBar.GetSkillData(7)
-            if skill_7_data and skill_7_data.recharge == 0:
+            if skill_7_data.recharge == 0:
                 SkillBar.UseSkill(7, target_id)
                 return
 
     # Get all agents within range
     agents_within_1000 = AgentArray.Filter.ByDistance(agent_array, (player_x, player_y), 1000)
-    agents_within_200 = AgentArray.Filter.ByDistance(agent_array, (player_x, player_y), 200)
+    agents_within_500 = AgentArray.Filter.ByDistance(agent_array, (player_x, player_y), 500)
 
-    # Use skill slot 2 if there are more than 1 agent within 800 distance
+    # Use skill slot 2 if there are more than 1 agent within 1000 distance
     if len(agents_within_1000) >= 1:
         SkillBar.UseSkill(2)
         return
 
     # Knockdown adjacent foes
-    if len(agents_within_200) >= 1:
+    if len(agents_within_500) >= 1:
         SkillBar.UseSkill(3)
         return
 
