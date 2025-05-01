@@ -187,8 +187,9 @@ class TabType(Enum):
     control_panel = 2
     candidates = 3
     flagging = 4
-    config = 5
-    debug = 6 
+    priority_targets = 5
+    config = 6
+    debug = 7 
     
 selected_tab:TabType = TabType.party
 
@@ -240,16 +241,18 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
                 DrawCandidateWindow(cached_data)
             case TabType.flagging:
                 DrawFlaggingWindow(cached_data)
+            case TabType.priority_targets:
+                DrawPriorityTargetsWindow(cached_data)
             case TabType.config:
                 DrawOptions(cached_data)
 
         
     PyImGui.end()
     PyImGui.pop_style_var(1)
-    
-       
+              
 def DrawEmbeddedWindow(cached_data:CacheData):
     global selected_tab
+    
     parent_frame_id = UIManager.GetFrameIDByHash(PARTY_WINDOW_HASH)   
     outpost_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
     explorable_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS)
@@ -287,6 +290,10 @@ def DrawEmbeddedWindow(cached_data:CacheData):
                 selected_tab = TabType.flagging
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("Flagging")
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_CROSSHAIRS + "##priorityTargetsTab"):
+                selected_tab = TabType.priority_targets
+                PyImGui.end_tab_item()
+            ImGui.show_tooltip("Priority Targets")
             if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_COGS + "##configTab"):
                 selected_tab = TabType.config
                 PyImGui.end_tab_item()
@@ -300,8 +307,6 @@ def DrawEmbeddedWindow(cached_data:CacheData):
     
     ImGui.PopTransparentWindow()    
     DrawFramedContent(cached_data,content_frame_id)
-    
-    
 
 def UpdateStatus(cached_data:CacheData):
     global in_looting_routine
@@ -335,10 +340,10 @@ def UpdateStatus(cached_data:CacheData):
     
     if (
         not cached_data.data.player_is_alive or
-        DistanceFromLeader(cached_data) >= Range.SafeCompass.value or
-        cached_data.data.player_is_knocked_down or 
-        cached_data.combat_handler.InCastingRoutine() or 
-        cached_data.data.player_is_casting
+        DistanceFromLeader(cached_data) >= Range.SafeCompass.value #or
+        #cached_data.data.player_is_knocked_down or 
+        #cached_data.combat_handler.InCastingRoutine() or 
+        #cached_data.data.player_is_casting
     ):
         return
     
