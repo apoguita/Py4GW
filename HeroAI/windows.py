@@ -6,6 +6,7 @@ from .globals import *
 from .utils import *
 from .candidates import SendPartyCommand
 from .targeting import *
+from .priority_targets import PriorityTargets
 from HeroAI import game_option
 from .cache_data import CacheData
 
@@ -30,7 +31,6 @@ def DrawBuffWindow(cached_data:CacheData):
                 data = [(skill_id, Skill.GetName(skill_id)) for skill_id in player_buffs]
                 ImGui.table(f"{player_name} Buffs", headers, data)
                 PyImGui.tree_pop()
-
 
 def TrueFalseColor(condition):
     if condition:
@@ -160,6 +160,111 @@ def DrawPrioritizedSkills(cached_data:CacheData):
                 PyImGui.end_tab_item()
         PyImGui.end_tab_bar()
 
+new_model_id = 0
+def DrawPriorityTargetsWindow(cached_data:CacheData):
+    global new_model_id
+    
+    # Obtenir l'instance du singleton
+    priority_targets = PriorityTargets()
+    
+    # Interface pour activer/désactiver le système
+    enabled = priority_targets.is_enabled
+    changed = PyImGui.checkbox("Enable Priority Targeting", enabled)
+    if changed != enabled:
+        priority_targets.set_enabled(changed)
+    
+    PyImGui.separator()
+    
+    # Interface pour ajouter/supprimer des ID de modèles
+    PyImGui.text("Add Priority Target Model ID:")
+    
+    # Entrée pour un nouvel ID
+    new_model_id = PyImGui.input_int("##new_model_id", new_model_id)
+    
+    # Correction ici: same_line avec les paramètres par défaut
+    PyImGui.same_line(0.0, 5.0)
+    
+    # Bouton pour ajouter l'ID
+    if PyImGui.button("Add##add_model_id"):
+        if priority_targets.add_model_id(new_model_id):
+            new_model_id = 0  # Réinitialiser l'entrée après ajout
+    
+    PyImGui.separator()
+    
+    # Afficher la liste des ID de modèles prioritaires
+    PyImGui.text("Priority Target Model IDs:")
+    
+    model_ids = priority_targets.get_model_ids()
+    
+    if not model_ids:
+        PyImGui.text_colored("No priority targets defined.", (1.0, 0.7, 0.0, 1.0))
+    else:
+        # Créer une table pour afficher les ID avec des boutons de suppression
+        if PyImGui.begin_table("PriorityTargetsTable", 2, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg):
+            PyImGui.table_setup_column("Model ID", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed)
+            PyImGui.table_headers_row()
+            
+            for model_id in model_ids:
+                PyImGui.table_next_row()
+                
+                # Colonne de l'ID du modèle
+                PyImGui.table_set_column_index(0)
+                PyImGui.text(f"{model_id}")
+                
+                # Colonne du bouton de suppression
+                PyImGui.table_set_column_index(1)
+                if PyImGui.button(f"Remove##remove_{model_id}"):
+                    priority_targets.remove_model_id(model_id)
+                
+            PyImGui.end_table()
+    
+    PyImGui.separator()
+    
+    # Bouton pour effacer toutes les cibles
+    if PyImGui.button("Clear All"):
+        priority_targets.clear_model_ids()
+    
+    # Instructions pour l'utilisateur
+    PyImGui.separator()
+    PyImGui.text_wrapped("Instructions:")
+    PyImGui.text_colored("1. Enter a model ID and click 'Add' to add a priority target.", (0.7, 1.0, 0.7, 1.0))
+    PyImGui.text_colored("2. Agents with these model IDs will be targeted first in combat.", (0.7, 1.0, 0.7, 1.0))
+    PyImGui.text_colored("3. You can find model IDs using the Agent Info tool.", (0.7, 1.0, 0.7, 1.0))
+    
+    # Informations sur le ciblage actuel
+    if priority_targets.is_enabled and cached_data.data.in_aggro:
+        PyImGui.separator()
+        PyImGui.text("Current Target Information:")
+        
+        target_id = Player.GetTargetID()
+        if target_id != 0 and Agent.IsLiving(target_id):
+            agent_instance = Agent.agent_instance(target_id)
+            model_id = agent_instance.living_agent.player_number
+            name = Agent.GetName(target_id)
+            is_priority = priority_targets.is_priority_target(target_id)
+            
+            PyImGui.text(f"Target Name: {name}")
+            PyImGui.text(f"Target Model ID: {model_id}")
+            
+            if is_priority:
+                PyImGui.text_colored("This is a priority target!", (0.0, 1.0, 0.0, 1.0))
+            else:
+                # Bouton pour ajouter rapidement la cible actuelle
+                if PyImGui.button("Add Current Target to Priority List"):
+                    priority_targets.add_model_id(model_id)
+        else:
+            PyImGui.text_colored("No valid target selected", (1.0, 0.5, 0.5, 1.0))
+        
+        # Recherche de cibles prioritaires à proximité
+        nearest = priority_targets.find_nearest_priority_target(Range.Earshot.value)
+        if nearest != 0:
+            name = Agent.GetName(nearest)
+            agent_instance = Agent.agent_instance(nearest)
+            model_id = agent_instance.living_agent.player_number
+            distance = Utils.Distance(Player.GetXY(), Agent.GetXY(nearest))
+            
+            PyImGui.text_colored(f"Nearest priority target: {name} (ID: {model_id}, Distance: {distance:.1f})", (0.0, 1.0, 0.5, 1.0))
 
 HeroFlags: list[bool] = [False, False, False, False, False, False, False, False, False]
 AllFlag = False

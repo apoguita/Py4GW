@@ -10,6 +10,7 @@ CANDIDATES_MODULE_NAME = "HeroAI - Candidates"
 GAME_OPTION_MODULE_NAME = "HeroAI - Game Option"
 PLAYERS_MODULE_NAME = "HeroAI - Players"
 WINDOWS_MODULE_NAME = "HeroAI - Window - "
+PRIORITY_TARGET_MODULE_NAME = "HeroAI - Priority Targets"
 
 """shared memory constants"""
 MAX_NUM_PLAYERS = 12

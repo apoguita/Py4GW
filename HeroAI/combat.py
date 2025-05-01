@@ -904,15 +904,23 @@ class CombatClass:
         target_id = Player.GetTargetID()
         _, target_aliegance = Agent.GetAllegiance(target_id)
         
+        # Import en local pour éviter les dépendances circulaires
+        from .priority_targets import PriorityTargets
+        priority_targets = PriorityTargets()
+        
         if target_id == 0 or (target_aliegance != 'Enemy'):
-                            
+            # Check for priority targets first
+            priority_target = priority_targets.find_nearest_priority_target(self.get_combat_distance())
             nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
             called_target = self.GetPartyTarget()
 
             attack_target = 0
 
+            # Priority order: priority target > called target > nearest enemy
             if called_target != 0:
                 attack_target = called_target
+            elif priority_target != 0:
+                attack_target = priority_target
             elif nearest != 0:
                 attack_target = nearest
             else:
@@ -922,9 +930,24 @@ class CombatClass:
             ActionQueueManager().AddAction("ACTION", Player.Interact, attack_target)
             return True
         else:
+            # Check if current target is a priority target
+            if priority_targets.is_priority_target(target_id):
+                # Already targeting a priority target, continue attacking
+                if target_id != 0:
+                    ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
+                return True
             
+            # Check if there's a priority target available
+            priority_target = priority_targets.find_nearest_priority_target(self.get_combat_distance())
+            if priority_target != 0:
+                # Switch to priority target
+                ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, priority_target)
+                ActionQueueManager().AddAction("ACTION", Player.Interact, priority_target)
+                return True
+                
+            # Continue with current target if it's an enemy
             if not Agent.IsLiving(target_id):
-                return
+                return False
 
             _, alliegeance = Agent.GetAllegiance(target_id)
             if alliegeance == 'Enemy' and self.is_combat_enabled:
@@ -932,7 +955,7 @@ class CombatClass:
                     ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
                 return True
             return False
-
+           
     def HandleCombat(self,ooc=False):
         """
         tries to Execute the next skill in the skill order.
