@@ -435,6 +435,7 @@ class BotVars:
             "char_create_generic_next_button": 1102119410,
             "char_create_profession_tab_text": (921917835, [1, 1]),
             "char_create_sex_tab_text": (921917835, [2, 1]),
+            "char_create_campaign_tab_text": (921917835, [0, 1]),
             "char_create_appearance_tab_text": (921917835, [3, 1]),
             "char_create_body_tab_text": (921917835, [4, 1]),
             "char_create_name_tab_text": 2029278512,
@@ -2307,10 +2308,10 @@ fsm_vars.create_character.AddState(
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_type_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_bottom_frame"]),
     run_once=False,
-    transition_delay_ms=800)
+    transition_delay_ms=1000)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Campaign Selection Screen",
-    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_bottom_frame"]),
+    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_campaign_tab_text"]),
     timeout_ms=5000,
     on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Campaign Selection Screen"))
 fsm_vars.create_character.AddState(
@@ -2318,7 +2319,7 @@ fsm_vars.create_character.AddState(
     execute_fn=lambda: press_key_repeat(Key.RightArrow.value, 3),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=800)
+    transition_delay_ms=1500)
 fsm_vars.create_character.AddState(
     name="Click: Next (Campaign)",
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
