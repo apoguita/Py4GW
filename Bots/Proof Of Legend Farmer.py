@@ -255,7 +255,7 @@ class CustomFollowXYWithNudge(Routines.Movement.FollowXY):
         self._execute_unstuck_move(temp_x, temp_y)
         
     def _get_blocking_npcs(self, player_pos: Tuple[float, float]) -> List[int]:
-        block_radius = Range.Touch.value
+        block_radius = Range.Touch.value + Range.Touch.value
         npcs = AgentArray.GetNPCMinipetArray()
         return [
             aid for aid in npcs
@@ -435,6 +435,7 @@ class BotVars:
             "char_create_generic_next_button": 1102119410,
             "char_create_profession_tab_text": (921917835, [1, 1]),
             "char_create_sex_tab_text": (921917835, [2, 1]),
+            "char_create_campaign_tab_text": (921917835, [0, 1]),
             "char_create_appearance_tab_text": (921917835, [3, 1]),
             "char_create_body_tab_text": (921917835, [4, 1]),
             "char_create_name_tab_text": 2029278512,
@@ -522,8 +523,13 @@ class StateMachineVars:
         # self.kamadan_move_near_merchants    = Routines.Movement.PathHandler(kamadan_move_near_merchants)
         self.kamadan_move_near_merchants    = create_kamadan_move_near_merchants_path()  
         
+        
+        
         #ending
         self.second_chahbek_village         = FSM("Second Chahbek Village")
+        
+        self.finish_level_5                 = FSM("I need level 5 before Mission")
+        
         self.finish_up                      = FSM("Post Mission go to kamadan")
         self.finish_up_deposit              = FSM("Deposit Proof and Logout")
         
@@ -583,7 +589,7 @@ def complete_run(success: bool):
     bot_vars.min_time = min(bot_vars.lap_history)
     bot_vars.max_time = max(bot_vars.lap_history)
     bot_vars.avg_time = int(sum(bot_vars.lap_history) / len(bot_vars.lap_history))
-    bot_vars.success_rate = bot_vars.proofs_deposited / bot_vars.runs_attempted
+    bot_vars.success_rate = (bot_vars.proofs_deposited / bot_vars.runs_attempted)
     ConsoleLog("Stats", f"Run Completed! Time: {FormatTime(duration, 'mm:ss:ms')}", Console.MessageType.Success)
 def is_bot_started(): 
     return bot_vars.bot_started
@@ -1961,6 +1967,113 @@ def build_kamadan_second_fsm(fsm):
 build_kamadan_second_fsm(fsm_vars.kamadan_second)
 #endregion
 
+#region FSM finish level 5
+fsm_vars.finish_level_5.SetLogBehavior(False)
+fsm_vars.finish_level_5.AddState(
+    name="Move: SSGH",
+    execute_fn=lambda: Routines.Transition.TravelToOutpost(outpost_id=bot_vars.sunspear_great_hall, log_actions=False),
+    exit_condition=lambda: Routines.Transition.HasArrivedToOutpost(outpost_id=bot_vars.sunspear_great_hall, log_actions=False),
+    transition_delay_ms=2000,
+    on_exit=mark_flag("pause_combat_fsm", True))
+fsm_vars.finish_level_5.AddState(
+    name="Wait: SSGH",
+    exit_condition=lambda: Routines.Transition.IsOutpostLoaded(log_actions=False) and Party.IsPartyLoaded(),
+    transition_delay_ms=2000)
+fsm_vars.finish_level_5.AddState(
+    name="Move: Leave SSGH",
+    execute_fn=lambda: Routines.Movement.FollowPath(fsm_vars.ssgh_exit, fsm_vars.movement_handler),
+    exit_condition=lambda: (
+        Routines.Movement.IsFollowPathFinished(fsm_vars.ssgh_exit, fsm_vars.movement_handler) or 
+        Map.IsMapLoading()),
+    run_once=False)
+fsm_vars.finish_level_5.AddState(
+    name="Wait: Poj",
+    execute_fn=reset_paths_and_handler(fsm_vars.ssgh_exit),
+    exit_condition=lambda: (
+        Routines.Transition.IsExplorableLoaded(log_actions=False) and 
+        Party.IsPartyLoaded()),
+    transition_delay_ms=2000)
+fsm_vars.finish_level_5.AddState(
+    name="Item: summon Imp", 
+    execute_fn=lambda: summon_imp_if_needed(),
+    on_enter=mark_flag("pause_combat_fsm", False), 
+    run_once=True)
+fsm_vars.finish_level_5.AddState(
+    name="Move: Scout #1",
+    execute_fn=lambda: Routines.Movement.FollowPath(fsm_vars.plains2_move_near_buff, fsm_vars.movement_handler),
+    exit_condition=lambda: Routines.Movement.IsFollowPathFinished(fsm_vars.plains2_move_near_buff, fsm_vars.movement_handler),
+    run_once=False)
+fsm_vars.finish_level_5.AddState(
+    name="Target: Scout #1",
+    execute_fn=lambda: target_and_interact(-1297,3229)(),
+    exit_condition=lambda: check_dialog_buttons(buttons=2),
+    transition_delay_ms=500,
+    run_once=False)
+fsm_vars.finish_level_5.AddState(
+    name="Click: bugs.",
+    execute_fn=lambda: click_dialog_button_retry(button=1),
+    exit_condition=lambda: (is_npc_dialog_hidden()),
+    transition_delay_ms=500,
+    run_once=False)
+fsm_vars.finish_level_5.AddState(
+    name="Move: Near Nehdukah",
+    execute_fn=lambda: Routines.Movement.FollowPath(fsm_vars.plains2_move_near_nehdukah, fsm_vars.movement_handler),
+    exit_condition=lambda: (
+        Routines.Movement.IsFollowPathFinished(fsm_vars.plains2_move_near_nehdukah, fsm_vars.movement_handler) or 
+        is_level(5)),
+    run_once=False)
+fsm_vars.finish_level_5.AddState(
+    name="Move: Clear to Scout",
+    execute_fn=lambda: Routines.Movement.FollowPath(fsm_vars.plains2_movement_one, fsm_vars.movement_handler),
+    exit_condition=lambda: (
+        Routines.Movement.IsFollowPathFinished(fsm_vars.plains2_movement_one, fsm_vars.movement_handler) or 
+        is_level(5)),
+    run_once=False)
+fsm_vars.finish_level_5.AddState(
+    name="Target: Scout #2",
+    execute_fn=lambda: (None if is_level(5) else target_and_interact(9902,-9163)()),
+    exit_condition=lambda: (
+        check_dialog_buttons(buttons=2) or 
+        is_level(5)),
+    transition_delay_ms=500,
+    run_once=False)
+fsm_vars.finish_level_5.AddState(
+    name="Click: On the job.",
+    execute_fn=lambda: (None if is_level(5) else click_dialog_button_retry(button=1)),
+    exit_condition=lambda: (
+        is_npc_dialog_hidden() or
+        check_dialog_buttons(buttons=0) or 
+        is_level(5)),
+    transition_delay_ms=500,
+    run_once=False)
+fsm_vars.finish_level_5.AddState(
+    name="Move: Clear to Pelei",
+    execute_fn=lambda: (None if is_level(5) else Routines.Movement.FollowPath(fsm_vars.plains2_movement_two, fsm_vars.movement_handler)),
+    exit_condition=lambda: (
+        Routines.Movement.IsFollowPathFinished(fsm_vars.plains2_movement_two, fsm_vars.movement_handler) or 
+        is_level(5)),
+    run_once=False)
+fsm_vars.finish_level_5.AddState(
+    name="Move: Clear Hog - SSGH",
+    execute_fn=lambda: (None if is_level(5) else Routines.Movement.FollowPath(fsm_vars.plains2_movement_three, fsm_vars.movement_handler)),
+    exit_condition=lambda: (
+        Routines.Movement.IsFollowPathFinished(fsm_vars.plains2_movement_three, fsm_vars.movement_handler) or 
+        is_level(5)),
+    run_once=False)
+fsm_vars.finish_level_5.AddState(
+    name="Move: Chahbek Village",
+    execute_fn=lambda: Routines.Transition.TravelToOutpost(outpost_id=bot_vars.chahbek_mission, log_actions=False),
+    exit_condition=lambda: Routines.Transition.HasArrivedToOutpost(outpost_id=bot_vars.chahbek_mission, log_actions=False),
+    transition_delay_ms=500,
+    on_exit=mark_flag("pause_combat_fsm", False))
+fsm_vars.finish_level_5.AddState(
+    name="Wait: Chahbek Village",
+    execute_fn=mark_flag("summoned_imp", False),
+    exit_condition=lambda: Routines.Transition.IsOutpostLoaded(log_actions=False) and Party.IsPartyLoaded() and bot_vars.second_time_plains,
+    transition_delay_ms=2000,
+    on_exit=lambda: reset_state_variables())
+#endregion
+
 #region FSM Chahbek number two
 fsm_vars.second_chahbek_village.SetLogBehavior(False)
 fsm_vars.second_chahbek_village.AddState(
@@ -2053,7 +2166,8 @@ fsm_vars.logout_character.AddState(
     name="Action: Navigate Character Select",
     execute_fn=navigate_char_select,
     exit_condition=is_target_selected,
-    run_once=False)
+    run_once=False,
+    on_exit=lambda: clear_frame_click_retry_cache())
 fsm_vars.logout_character.AddWaitState(
     name="Wait: Target Character Selected",
     condition_fn=is_target_selected,
@@ -2061,8 +2175,12 @@ fsm_vars.logout_character.AddWaitState(
     on_timeout=lambda:  _stop_fsm_on_timeout("logout_character", "Wait: Target Character Selected"),
     on_exit=lambda: [
         mark_flag("logged_out", True)(),
+        clear_frame_click_retry_cache(),
         ConsoleLog("logout_character", "Logout and character selection complete.", Console.MessageType.Success)
     ])
+#endregion
+
+#region --- FSM Character Logout ---
 #endregion
 
 #region --- FSM Delete Character ---
@@ -2103,7 +2221,8 @@ fsm_vars.delete_character.AddState(
                     retry_delay=1.0),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_frame"]),
     run_once=False,
-    transition_delay_ms=600)
+    transition_delay_ms=600,
+    on_exit=lambda: clear_frame_click_retry_cache())
 fsm_vars.delete_character.AddWaitState(
     name="Wait: Confirm Dialog Visible",
     condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_frame"]),
@@ -2137,7 +2256,8 @@ fsm_vars.delete_character.AddState(
         not check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_frame"]) or
         is_char_name_gone(bot_vars.character_to_delete_name)),
     run_once=False,
-    transition_delay_ms=1000)
+    transition_delay_ms=1000,
+    on_exit=lambda: clear_frame_click_retry_cache())
 fsm_vars.delete_character.AddWaitState(
     name="Wait: Deletion Confirmation",
     condition_fn=lambda: [
@@ -2188,10 +2308,10 @@ fsm_vars.create_character.AddState(
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_type_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_bottom_frame"]),
     run_once=False,
-    transition_delay_ms=800)
+    transition_delay_ms=1000)
 fsm_vars.create_character.AddWaitState(
     name="Wait: Campaign Selection Screen",
-    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_bottom_frame"]),
+    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_campaign_tab_text"]),
     timeout_ms=5000,
     on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Campaign Selection Screen"))
 fsm_vars.create_character.AddState(
@@ -2199,7 +2319,7 @@ fsm_vars.create_character.AddState(
     execute_fn=lambda: press_key_repeat(Key.RightArrow.value, 3),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=800)
+    transition_delay_ms=1500)
 fsm_vars.create_character.AddState(
     name="Click: Next (Campaign)",
     execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
@@ -2285,17 +2405,18 @@ fsm_vars.create_character.AddState(
         enabled_field_value=18692,
         field_name="field91_0x184",
         retry_delay=1.0),
-    exit_condition=lambda: Map.IsMapLoading() or Map.GetMapID() == bot_vars.island_of_shehkah,
+    exit_condition=lambda: Map.IsInCinematic() or Map.IsMapLoading() or Map.GetMapID() == bot_vars.island_of_shehkah,
     run_once=False,
-    transition_delay_ms=4000)
+    transition_delay_ms=4000,
+    on_exit=lambda: clear_frame_click_retry_cache())
 fsm_vars.create_character.AddWaitState(
     name="Wait: Map Loading",
-    condition_fn=lambda: Map.IsMapLoading() or Map.GetMapID() == bot_vars.island_of_shehkah,
+    condition_fn=lambda: Map.IsInCinematic() or Map.IsMapLoading() or (Map.IsMapReady() and Party.IsPartyLoaded()),
     timeout_ms=20000,
     on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Map Loading"))
 fsm_vars.create_character.AddWaitState(
     name="Wait: Map Loaded (Istan)",
-    condition_fn=lambda: not Map.IsMapLoading() and Map.GetMapID() == bot_vars.island_of_shehkah and Map.IsMapReady(),
+    condition_fn=lambda: not Map.IsMapLoading() and not Map.IsInCinematic() and Map.GetMapID() == bot_vars.island_of_shehkah and Map.IsMapReady() and Party.IsPartyLoaded(),
     timeout_ms=60000,
     on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Map Loaded (Istan)"),
     on_exit=lambda: [
@@ -2379,12 +2500,24 @@ fsm_vars.state_machine.AddSubroutine(
          Map.IsOutpost() and 
          bot_vars.second_time_plains and 
          not bot_vars.second_time_kamadan))
+
+fsm_vars.state_machine.AddSubroutine(
+    name="Ex: Farm a bit",
+    sub_fsm=fsm_vars.finish_level_5,
+    condition_fn=lambda: 
+        (Map.GetMapID() == bot_vars.chahbek_village and  
+         Map.IsOutpost() and 
+         bot_vars.second_time_plains and 
+         bot_vars.second_time_kamadan and 
+         not is_level(5)))
+
 fsm_vars.state_machine.AddSubroutine(
     name="OP: Chahbek Village Part 2",
     sub_fsm=fsm_vars.second_chahbek_village,
     condition_fn=lambda: 
         (Map.GetMapID() == bot_vars.chahbek_village and 
-         Map.IsOutpost() and bot_vars.second_time_kamadan and 
+         Map.IsOutpost() and 
+         bot_vars.second_time_kamadan and 
          not bot_vars.second_time_chahbek_village and 
          is_level(5)))
 fsm_vars.state_machine.AddSubroutine(
@@ -2414,6 +2547,7 @@ fsm_vars.state_machine.AddSubroutine(
          bot_vars.second_mission_run and
          is_level(5) and
          not bot_vars.farmed_the_proof))
+
 fsm_vars.state_machine.AddSubroutine(
     name="SYS: Logout for Reroll",
     sub_fsm=fsm_vars.logout_character,
@@ -2438,11 +2572,23 @@ fsm_vars.state_machine.AddSubroutine(
      on_exit=lambda: [
         clear_frame_click_retry_cache()
      ])
+
+# fsm_vars.state_machine.AddSubroutine(
+#     name="SYS: No but really check char select",
+#     sub_fsm=fsm_vars.legit_just_check,
+#     condition_fn=lambda: [
+#         bot_vars.character_delete_confirmed and
+#         not bot_vars.really_check_for_char_select  and
+#         not bot_vars.character_created_successfully
+#     ],)
+
+
 fsm_vars.state_machine.AddSubroutine(
     name="SYS: Create New Character",
     sub_fsm=fsm_vars.create_character,
     condition_fn=lambda: [
         bot_vars.character_delete_confirmed and
+        # bot_vars.really_check_for_char_select  and
         not bot_vars.character_created_successfully
     ],
     on_exit=lambda: [

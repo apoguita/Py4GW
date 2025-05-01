@@ -1880,15 +1880,15 @@ class LootConfig:
         self._initialized = True
 
     def reset(self):
-        self.loot_whites = True
-        self.loot_blues = True
-        self.loot_purples = True
-        self.loot_golds = True
-        self.loot_greens = True
+        self.loot_whites = False
+        self.loot_blues = False
+        self.loot_purples = False
+        self.loot_golds = False
+        self.loot_greens = False
         self.whitelist = set()  # Avoid duplicates
         self.blacklist = set()
 
-    def SetProperties(self, loot_whites=True, loot_blues=True, loot_purples=True, loot_golds=True, loot_greens=True):
+    def SetProperties(self, loot_whites=False, loot_blues=False, loot_purples=False, loot_golds=False, loot_greens=False):
         self.loot_whites = loot_whites
         self.loot_blues = loot_blues
         self.loot_purples = loot_purples

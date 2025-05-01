@@ -396,6 +396,19 @@ class Profession(IntEnum):
     Ritualist = 8
     Paragon = 9
     Dervish = 10
+    
+class ProfessionShort(IntEnum):
+    _ = 0  
+    W = 1
+    R = 2
+    Mo = 3
+    N = 4
+    Me = 5
+    E = 6
+    A = 7
+    Rt = 8
+    P = 9
+    D = 10
 
 #endregion
 #region Allegiance
@@ -1466,6 +1479,45 @@ explorable_name_to_id = {name: id for id, name in explorables.items()}
 #endregion
 #region ItemModels
 class ModelID(IntEnum):
+    Ancient_Kappa_Shell = 123654789691    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value 
+    Animal_Hide = 1236547896911    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Ashen_Wurm_Husk = 123654789692    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Bleached_Shell = 123654789693    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Blood_Drinker_Pelt = 123654789694    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Blessing_Of_War = 37843
+    Bonesnap_Shell = 123654789696    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Branch_Of_Juni_Berries = 123654789695    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Bull_Trainer_Giant_Jawbone = 123654789697    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Copper_Chrimson_Skull_Coin = 123654789698    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Dark_Claw = 1236547891    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Dark_Flame_Fang = 12365478911    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Diamond_Djinn_Essence = 12365478912    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Diessa_Chalice = 24353
+    Dregde_Charm = 12365478912    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Dregde_Manifesto = 12365478914    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Elder_Kappa_Shell = 12365478915    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Enchanted_Vine = 12365478916    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Fibrous_Mandragor_Root = 12365478917    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Fledglin_Skree_Wing = 12365478918    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Frozen_Remnant = 12365478919    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Frozen_Shell = 123654789191    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Gargantuan_Jawbone = 123654789192    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Ghostly_Remains = 123654789193    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Gold_Crimson_Skull_Coin = 123654789194    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Igneous_Spider_leg = 123654789195    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Ivory_Troll_Tusk = 123654789196    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Kappa_Shell = 123654789197    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Kuskale_Claw = 123654789198    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Lavastrider_Appendage = 123654789199    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Leather_Belt = 123456677        # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Mandragor_Carapace = 123654789181        # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Naga_Hide = 123654789182    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Oni_Claw = 123654789183    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Oni_Taloon = 817
+    Plauge_Idol = 123654789185    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Rinkhal_Talon = 123654789186    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Searing_Ribcage = 123654789187    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Searing_Burrower_Jaw = 123654789189    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Aatxe_Mini = 22765
     Abnormal_Seed = 442
     Abominable_Tonic = 30646
@@ -1827,7 +1879,7 @@ class ModelID(IntEnum):
     Glob_Of_Frozen_Ectoplasm = 21509
     Gloom_Seed = 523
     Glowing_Heart = 439
-    Gold_Coins = 2511
+    Gold_Coins = 25112222222 # Dirty fix - Dummy ModelID - Will be corrected back to 2511
     Gold_Doubloon = 1578
     Gold_Zaishen_Coin = 31203
     Golden_Egg = 22752

@@ -1,4 +1,6 @@
+
 from Py4GWCoreLib import *
+
 
 MODULE_NAME = "Reroll Character"
 
@@ -17,7 +19,7 @@ class RerollCharacter:
         self.available_character_names: List[str] = []
         self.selected_char_index: int = 0
         self.target_character_name: str = ""
-        self.characters = []
+        self.characters = list[PyPlayer.LoginCharacterInfo]
         self.target_index: int = -99 # Target index in the character list
         self.last_known_index: int = -99 # Last observed selected index
         self.step_timer = Timer() # For delays between actions (e.g., key presses)
@@ -194,9 +196,8 @@ class RerollCharacter:
 reroll_widget = RerollCharacter()
 window_module = ImGui.WindowModule(module_name="RerollCharacter", window_name=MODULE_NAME, window_size=(300, 150), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
-tmp_is_selected = False
 def DrawWindow():
-    global window_module, tmp_is_selected
+    global window_module
     if window_module.first_run:
         PyImGui.set_next_window_size(window_module.window_size[0], window_module.window_size[1])     
         PyImGui.set_next_window_collapsed(window_module.collapse, 0)
@@ -206,72 +207,52 @@ def DrawWindow():
     end_pos = window_module.window_pos
     
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
-        new_collapsed = PyImGui.is_window_collapsed()      
-        characters = Player.GetLoginCharacters()
+        new_collapsed = PyImGui.is_window_collapsed()
         
-        
-        # Define per-profession row colors using RGBA integers (0–255)
-        profession_row_colors = {
-            1: Color(222, 185, 104, 100),     # Warrior
-            2: Color(147, 194, 74 , 100),     # Ranger
-            3: Color(171, 215, 229, 100),  # Monk
-            4: Color(87 , 174, 112, 100),     # Necromancer
-            5: Color(161, 84 , 146, 100),    # Mesmer
-            6: Color(197, 75 , 75 , 100),    # Elementalist
-            7: Color(234, 18 , 125, 100),     # Assassin
-            8: Color(39 , 234, 204, 100),    # Ritualist
-            9: Color(208, 122, 14 , 100),   # Paragon
-            10:Color(97 , 115, 163, 100),  # Dervish
-        }
+        if PyImGui.begin_child("OutpostList",(195, 150), True, PyImGui.WindowFlags.NoFlag):
+            for index, character_name in enumerate(reroll_widget.available_character_names):
+                is_selected = (index == reroll_widget.selected_char_index)
+                if PyImGui.selectable(character_name, is_selected, PyImGui.SelectableFlags.NoFlag, (0.0, 0.0)):
+                    reroll_widget.selected_char_index = index
+                    selected_name = reroll_widget.available_character_names[index]
+                    reroll_widget.target_character_name     = selected_name
+                    ConsoleLog("Reroll", f"UI Selected target: {reroll_widget.target_character_name}", Console.MessageType.Debug)
+                    reroll_widget.start_reroll()
 
-        if PyImGui.begin_child("characterList2", (300, 180), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table("CharTable", 3, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV):
+            PyImGui.end_child()
+            
+        """
+        if PyImGui.begin_child("expandedView", (395, 150), True, PyImGui.WindowFlags.NoFlag):
+            if PyImGui.begin_table("ExpandedTable", 5, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable):
+                PyImGui.table_setup_column("Reroll")
+                PyImGui.table_setup_column("Name")
+                PyImGui.table_setup_column("Profession")
+                PyImGui.table_setup_column("Level")
+                PyImGui.table_setup_column("Map")
+                PyImGui.table_setup_column("PvP")
                 
-                PyImGui.table_setup_column("Prof", PyImGui.TableColumnFlags.WidthFixed, 40)
-                PyImGui.table_setup_column("Name", PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Lvl",  PyImGui.TableColumnFlags.WidthFixed, 30)
                 PyImGui.table_headers_row()
-
-                for index, character in enumerate(characters):
-                    PyImGui.table_next_row()
-
-                    primary_prof = character.primary
-                    
-                    if primary_prof != 0:
-                        # Set the row color based on the primary profession
-                        row_color = profession_row_colors.get(primary_prof, Color(255, 255, 255, 50))
-                        PyImGui.table_set_bg_color(2, row_color.to_color(), 1)
-  
-
-                    # Prof
-                    PyImGui.table_set_column_index(0)
-                    prof_text = f"{ProfessionShort(character.primary).name.ljust(2)}/{ProfessionShort(character.secondary).name.ljust(2)}"
-                    PyImGui.text(prof_text)
-
-                    # Name
-                    PyImGui.table_set_column_index(1)
-                    name_text = character.player_name + (" (PvP)" if character.is_pvp else "")
-                    PyImGui.text(name_text)
-
-                    if PyImGui.is_item_hovered():
-                        hover_color = Color(255, 255, 255, 100).to_color()
-                        PyImGui.table_set_bg_color(2, hover_color, 1)  # 2 = CellBg, column 1
-                        PyImGui.set_tooltip(f"Name: {name_text}\nLevel: {character.level}\nProfessions: {ProfessionShort(character.primary).name}/{ProfessionShort(character.secondary).name}")
-
-                    if PyImGui.is_item_clicked(0):
-                        reroll_widget.selected_char_index = index
-                        reroll_widget.target_character_name = character.player_name
-                        ConsoleLog("Reroll", f"UI Selected target: {character.player_name}", Console.MessageType.Debug)
-                        reroll_widget.start_reroll()
-
-                    # Level
-                    PyImGui.table_set_column_index(2)
-                    level = 20 if character.is_pvp else character.level
-                    PyImGui.text(f"{level:02}")
-
+                
+                for index, character_name in enumerate(reroll_widget.available_character_names):
+                    is_selected = (index == reroll_widget.selected_char_index)
+                    if is_selected:
+                        PyImGui.table_set_column_index(0)
+                        if PyImGui.button(f"Reroll##reroll{index}"):
+                            reroll_widget.selected_char_index = index
+                            selected_name = reroll_widget.available_character_names[index]
+                            reroll_widget.target_character_name     = selected_name
+                            ConsoleLog("Reroll", f"UI Selected target: {reroll_widget.target_character_name}", Console.MessageType.Debug)
+                            reroll_widget.start_reroll()
+                            
+                        PyImGui.table_set_column_index(1)
+                        PyImGui.text(character_name)
+                        
+                        PyImGui.text(reroll_widget.state)
+                
                 PyImGui.end_table()
-        PyImGui.end_child()
+            PyImGui.end_child()
 
+        """
         end_pos = PyImGui.get_window_pos()
     PyImGui.end()
 
