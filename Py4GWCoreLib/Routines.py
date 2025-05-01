@@ -425,7 +425,7 @@ class Routines:
                                         cost -= 21
 
                         case 1394:  # Healer's Covenant
-                            if Skill.Flags.IsSpell(skill_id) and Skill.Attribute.GetAttribute(skill_id) == 15:
+                            if Skill.Flags.IsSpell(skill_id) and Skill.Attribute.GetAttribute(skill_id).attribute_id == 15:
                                 match attr:
                                     case a if 0 < a <= 3:
                                         cost -= 1
