@@ -349,7 +349,6 @@ class RawAgentArray:
     def update(self):
         from .Routines import Routines
         from .Map import Map
-        return
         if not Routines.Checks.Map.MapValid():
             return
         
