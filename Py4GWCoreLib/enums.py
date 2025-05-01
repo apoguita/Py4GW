@@ -396,6 +396,19 @@ class Profession(IntEnum):
     Ritualist = 8
     Paragon = 9
     Dervish = 10
+    
+class ProfessionShort(IntEnum):
+    _ = 0  
+    W = 1
+    R = 2
+    Mo = 3
+    N = 4
+    Me = 5
+    E = 6
+    A = 7
+    Rt = 8
+    P = 9
+    D = 10
 
 #endregion
 #region Allegiance
