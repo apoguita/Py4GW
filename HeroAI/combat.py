@@ -974,11 +974,10 @@ class CombatClass:
         slot = self.skill_pointer
         skill_id = self.skills[slot].skill_id
         
-        #Everything is already check in IsReadyToCast
-        #is_skill_ready = self.IsSkillReady(slot) 
-        #if not is_skill_ready:
-        #    self.AdvanceSkillPointer()
-        #    return False
+        is_skill_ready = self.IsSkillReady(slot) 
+        if not is_skill_ready:
+            self.AdvanceSkillPointer()
+            return False
          
         is_read_to_cast, target_agent_id = self.IsReadyToCast(slot)
         if not is_read_to_cast:
