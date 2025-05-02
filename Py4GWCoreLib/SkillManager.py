@@ -10,6 +10,7 @@ from typing import Optional
 from .Py4GWcorelib import ThrottledTimer
 from .Py4GWcorelib import ActionQueueManager
 from .Py4GWcorelib import Utils
+from .Py4GWcorelib import ConsoleLog
 from .enums import Range
 from .Routines import Routines
 from .Effect import Effects
