@@ -2,8 +2,9 @@ from Py4GWCoreLib import *
 from .custom_skill import *
 from .types import *
 from .targeting import *
+from .avoidance_system import AvoidanceSystem
+from .priority_targets import PriorityTargets
 from typing import Optional
-
 
 MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
@@ -784,7 +785,12 @@ class CombatClass:
         # Check if the skill is a shout and stance (they can be used while casting or knocked down)
         is_shout = self.skills[slot].custom_skill_data.SkillType == SkillType.Shout.value
         is_stance = self.skills[slot].custom_skill_data.SkillType == SkillType.Stance.value
+        is_chant = self.skills[slot].custom_skill_data.SkillType == SkillType.Chant.value
         is_knocked_down = Agent.IsKnockedDown(Player.GetAgentID())
+
+        if is_shout or is_chant:
+            if self.HasEffect(Player.GetAgentID(), Skill.GetID("Vocal_Minority")):
+                return False, v_target
 
         # If it's not a shout and stance, check if player is already casting
         if not is_shout and not is_stance and Agent.IsCasting(Player.GetAgentID()):
@@ -894,68 +900,72 @@ class CombatClass:
 
         return False
 
-    def ChooseTarget(self, interact=True):       
-        if not self.is_targeting_enabled:
+    def ChooseTarget(self, interact=True):
+        """Choose and interact with the best target based on priority order - Optimized version"""
+        if not self.is_targeting_enabled or not self.in_aggro:
             return False
-
-        if not self.in_aggro:
-            return False
-
-        target_id = Player.GetTargetID()
-        _, target_aliegance = Agent.GetAllegiance(target_id)
-        
-        # Import en local pour éviter les dépendances circulaires
-        from .priority_targets import PriorityTargets
-        priority_targets = PriorityTargets()
-        
-        if target_id == 0 or (target_aliegance != 'Enemy'):
-            # Check for priority targets first
-            priority_target = priority_targets.find_nearest_priority_target(self.get_combat_distance())
-            nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
-            called_target = self.GetPartyTarget()
-
-            attack_target = 0
-
-            # Priority order: priority target > called target > nearest enemy
-            if called_target != 0:
-                attack_target = called_target
-            elif priority_target != 0:
-                attack_target = priority_target
-            elif nearest != 0:
-                attack_target = nearest
-            else:
-                return False
-
-            ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, attack_target)
-            ActionQueueManager().AddAction("ACTION", Player.Interact, attack_target)
-            return True
-        else:
-            # Check if current target is a priority target
-            if priority_targets.is_priority_target(target_id):
-                # Already targeting a priority target, continue attacking
-                if target_id != 0:
-                    ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
-                return True
             
-            # Check if there's a priority target available
+        # Initier avoidance_system si nécessaire
+        if not hasattr(self, 'avoidance_system'):
+            self.avoidance_system = AvoidanceSystem()
+        
+        # Si le système d'évitement est déjà actif, le laisser gérer
+        if self.avoidance_system.is_active:
+            self.avoidance_system.update(self.avoidance_system.target_id)
+            return True
+        
+        # Trouver la meilleure cible en une seule passe pour économiser du temps
+        priority_targets = PriorityTargets()
+        called_target = self.GetPartyTarget()
+        nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+        
+        # Trouver la cible prioritaire la plus proche (si disponible)
+        priority_target = 0
+        if priority_targets.is_enabled and priority_targets.priority_model_ids:
             priority_target = priority_targets.find_nearest_priority_target(self.get_combat_distance())
-            if priority_target != 0:
-                # Switch to priority target
-                ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, priority_target)
-                ActionQueueManager().AddAction("ACTION", Player.Interact, priority_target)
-                return True
-                
-            # Continue with current target if it's an enemy
-            if not Agent.IsLiving(target_id):
-                return False
-
-            _, alliegeance = Agent.GetAllegiance(target_id)
-            if alliegeance == 'Enemy' and self.is_combat_enabled:
-                if target_id != 0:
-                    ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
-                return True
+        
+        # Déterminer la meilleure cible selon la priorité
+        target_id = 0
+        if called_target != 0 and Agent.IsAlive(called_target):
+            target_id = called_target
+        elif priority_target != 0:
+            target_id = priority_target
+        elif nearest_enemy != 0 and Agent.IsAlive(nearest_enemy):
+            target_id = nearest_enemy
+        
+        if target_id == 0:
             return False
-           
+        
+        # Vérifier si on est à portée
+        current_pos = Player.GetXY()
+        target_pos = Agent.GetXY(target_id)
+        distance = Utils.Distance(current_pos, target_pos)
+        is_melee = Agent.IsMelee(Player.GetAgentID())
+        in_range = (is_melee and distance <= Range.Adjacent.value) or (not is_melee and distance <= Range.Spellcast.value)
+        
+        # Changer de cible seulement si nécessaire
+        current_target = Player.GetTargetID()
+        if current_target != target_id:
+            ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, target_id)
+        
+        # Optimisation majeure: regrouper les décisions
+        is_priority = (target_id == called_target or target_id == priority_target)
+        
+        # Si à portée, attaquer directement
+        if in_range:
+            ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
+            return True
+        
+        # Si c'est une cible prioritaire et hors de portée, utiliser le système d'évitement
+        if is_priority:
+            # Lancer le système d'évitement immédiatement
+            self.avoidance_system.find_path_around_obstacles(current_pos, target_id)
+            return True
+        
+        # Pour les cibles non prioritaires, simplement essayer d'interagir
+        ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
+        return True
+                                        
     def HandleCombat(self,ooc=False):
         """
         tries to Execute the next skill in the skill order.

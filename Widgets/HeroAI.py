@@ -12,10 +12,12 @@ from HeroAI.windows import *
 from HeroAI.targeting import *
 from HeroAI.combat import *
 from HeroAI.cache_data import *
+from HeroAI.enhanced_priority_targets import EnhancedPriorityTargets
 
 MODULE_NAME = "HeroAI"
 
 cached_data = CacheData()
+enhanced_priority_targets = EnhancedPriorityTargets()
 
 def HandleOutOfCombat(cached_data:CacheData):
     if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
@@ -317,7 +319,9 @@ def UpdateStatus(cached_data:CacheData):
     RegisterPlayer(cached_data)   
     RegisterHeroes(cached_data)
     UpdatePlayers(cached_data)      
-    UpdateGameOptions(cached_data)   
+    UpdateGameOptions(cached_data)
+    enhanced_priority_targets.update()
+   
     
     cached_data.UpdateGameOptions()
 
@@ -388,11 +392,13 @@ def main():
         
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
-            UpdateStatus(cached_data)
-            ActionQueueManager().ProcessQueue("ACTION")
-
-
+            # Optimization: Priority to important operations
+            ActionQueueManager().ProcessQueue("ACTION")  # Process pending actions first
             
+            # Update only if necessary
+            if not cached_data.data.player_is_moving and not cached_data.combat_handler.InCastingRoutine():
+                UpdateStatus(cached_data)
+    
     except ImportError as e:
         Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
         Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)

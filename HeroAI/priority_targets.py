@@ -9,8 +9,6 @@ from .constants import (
     Range,
 )
 
-from .cache_data import CacheData
-
 class PriorityTargets:
     _instance = None  # Singleton instance
     
@@ -25,18 +23,18 @@ class PriorityTargets:
             self.priority_model_ids = []
             self.is_enabled = True
             self.config_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Config", "priority_targets.ini")
-            self._load_from_file()  # Charger les données depuis le fichier
+            self._load_from_file()  # Load data from file
             self._initialized = True
     
     def _load_from_file(self):
         """Charge les ID de modèles prioritaires à partir du fichier INI."""
         try:
             if not os.path.exists(self.config_file):
-                # Créer le répertoire Config s'il n'existe pas
+                # Create the Config directory if it does not exist
                 config_dir = os.path.dirname(self.config_file)
                 if not os.path.exists(config_dir):
                     os.makedirs(config_dir)
-                # Créer un fichier INI vide avec la structure de base
+                # Create an empty INI file with the basic structure
                 self._save_to_file()
                 return
 
@@ -65,22 +63,22 @@ class PriorityTargets:
         try:
             config = configparser.ConfigParser()
             
-            # Section des paramètres
+            # Settings section
             config['Settings'] = {
                 'Enabled': str(self.is_enabled)
             }
             
-            # Section des ID de modèles
+            # Model IDs Section
             config['ModelIDs'] = {}
             for i, model_id in enumerate(self.priority_model_ids):
                 config['ModelIDs'][f'id_{i}'] = str(model_id)
             
-            # Créer le répertoire si nécessaire
+            # Create the directory if necessary
             config_dir = os.path.dirname(self.config_file)
             if not os.path.exists(config_dir):
                 os.makedirs(config_dir)
             
-            # Écrire dans le fichier
+            # Write to file
             with open(self.config_file, 'w') as f:
                 config.write(f)
             
@@ -97,7 +95,7 @@ class PriorityTargets:
             model_id = int(model_id)
             if model_id not in self.priority_model_ids:
                 self.priority_model_ids.append(model_id)
-                self._save_to_file()  # Sauvegarder après modification
+                self._save_to_file()  # Save after modification
                 return True
             return False
         except ValueError:
@@ -110,7 +108,7 @@ class PriorityTargets:
             model_id = int(model_id)
             if model_id in self.priority_model_ids:
                 self.priority_model_ids.remove(model_id)
-                self._save_to_file()  # Sauvegarder après modification
+                self._save_to_file()  # Save after modification
                 return True
             return False
         except ValueError:
@@ -120,7 +118,7 @@ class PriorityTargets:
     def clear_model_ids(self):
         """Clear the priority targets list."""
         self.priority_model_ids = []
-        self._save_to_file()  # Sauvegarder après modification
+        self._save_to_file()  # Save after modification
     
     def get_model_ids(self):
         """Get the priority targets list."""
@@ -129,7 +127,7 @@ class PriorityTargets:
     def set_enabled(self, enabled):
         """Enable or disable priority targeting."""
         self.is_enabled = bool(enabled)
-        self._save_to_file()  # Sauvegarder après modification
+        self._save_to_file()  # Save after modification
     
     def is_priority_target(self, agent_id):
         """Check if an agent is a priority target."""
