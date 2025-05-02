@@ -178,7 +178,9 @@ def draw_Targeting_floating_buttons(cached_data:CacheData):
         screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
         if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):
             ActionQueueManager().ResetQueue("ACTION")
-            ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, agent_id)
+            current_target = Player.GetTargetID()
+            if current_target != agent_id:
+                ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, agent_id)
             ActionQueueManager().AddAction("ACTION", Player.Interact, agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
 
