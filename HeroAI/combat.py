@@ -369,7 +369,7 @@ class CombatClass:
             if v_target == 0 and not targeting_strict:
                 v_target = lowest_ally
         elif target_allegiance == Skilltarget.OtherAlly:
-            if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff:
+            if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff.value:
                 v_target = TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
                 print("Energy Buff Target: ", RawAgentArray().get_name(v_target))
             else:
