@@ -165,7 +165,7 @@ class CacheData:
             self.data = GameData()
             self.auto_attack_timer = Timer()
             self.auto_attack_timer.Start()
-            self.auto_attack_time = 250
+            self.auto_attack_time = 100
             self.draw_floating_loot_buttons = False
             self.reset()
             self.ui_state_data = UIStateData()

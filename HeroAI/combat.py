@@ -905,26 +905,26 @@ class CombatClass:
         if not self.is_targeting_enabled or not self.in_aggro:
             return False
             
-        # Initier avoidance_system si nécessaire
+        # Initiate avoidance_system if necessary
         if not hasattr(self, 'avoidance_system'):
             self.avoidance_system = AvoidanceSystem()
         
-        # Si le système d'évitement est déjà actif, le laisser gérer
+        # If the avoidance system is already active, let it manage
         if self.avoidance_system.is_active:
             self.avoidance_system.update(self.avoidance_system.target_id)
             return True
         
-        # Trouver la meilleure cible en une seule passe pour économiser du temps
+        # Find the best target in one pass to save time
         priority_targets = PriorityTargets()
         called_target = self.GetPartyTarget()
         nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         
-        # Trouver la cible prioritaire la plus proche (si disponible)
+        # Find the nearest priority target (if available)
         priority_target = 0
         if priority_targets.is_enabled and priority_targets.priority_model_ids:
             priority_target = priority_targets.find_nearest_priority_target(self.get_combat_distance())
         
-        # Déterminer la meilleure cible selon la priorité
+        # Determine the best target based on priority
         target_id = 0
         if called_target != 0 and Agent.IsAlive(called_target):
             target_id = called_target
@@ -936,33 +936,33 @@ class CombatClass:
         if target_id == 0:
             return False
         
-        # Vérifier si on est à portée
+        # Check if we are in range
         current_pos = Player.GetXY()
         target_pos = Agent.GetXY(target_id)
         distance = Utils.Distance(current_pos, target_pos)
         is_melee = Agent.IsMelee(Player.GetAgentID())
         in_range = (is_melee and distance <= Range.Adjacent.value) or (not is_melee and distance <= Range.Spellcast.value)
         
-        # Changer de cible seulement si nécessaire
+        # Change target only if necessary
         current_target = Player.GetTargetID()
         if current_target != target_id:
             ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, target_id)
         
-        # Optimisation majeure: regrouper les décisions
+        # Major optimization: grouping decisions
         is_priority = (target_id == called_target or target_id == priority_target)
         
-        # Si à portée, attaquer directement
+        # If in range, attack directly
         if in_range:
             ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
             return True
         
-        # Si c'est une cible prioritaire et hors de portée, utiliser le système d'évitement
+        # If it is a priority target and out of range, use the avoidance system
         if is_priority:
-            # Lancer le système d'évitement immédiatement
+            # Initiate the avoidance system immediately
             self.avoidance_system.find_path_around_obstacles(current_pos, target_id)
             return True
         
-        # Pour les cibles non prioritaires, simplement essayer d'interagir
+        # For non-priority targets, simply try to interact
         ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
         return True
                                         
