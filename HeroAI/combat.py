@@ -92,6 +92,8 @@ class CombatClass:
         self.is_targeting_enabled = False
         self.is_combat_enabled = False
         self.is_skill_enabled = []
+
+        self.priority_target_id = 0
         
         self.nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         self.lowest_ally = TargetLowestAlly()
@@ -306,7 +308,9 @@ class CombatClass:
                 if Agent.IsLiving(party_target):
                     _, alliegeance = Agent.GetAllegiance(party_target)
                     if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
-                        ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, party_target)
+                        current_target = Player.GetTargetID()
+                        if current_target != party_target:
+                            ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, party_target)
                         return party_target
         return 0
 
@@ -331,9 +335,12 @@ class CombatClass:
                 return Player.GetAgentID()
 
         if target_allegiance == Skilltarget.Enemy:
-            v_target = self.GetPartyTarget()
-            if v_target == 0:
-                v_target = nearest_enemy
+            if self.priority_target_id != 0 and Agent.IsAlive(self.priority_target_id):
+                v_target = self.priority_target_id
+            else:
+                v_target = self.GetPartyTarget()
+                if v_target == 0:
+                    v_target = nearest_enemy
         elif target_allegiance == Skilltarget.EnemyCaster:
             v_target = Routines.Agents.GetNearestEnemyCaster(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
@@ -902,14 +909,15 @@ class CombatClass:
 
     def ChooseTarget(self, interact=True):
         """Choose and interact with the best target based on priority order - Optimized version"""
+        # Return early if targeting is disabled or not in combat
         if not self.is_targeting_enabled or not self.in_aggro:
             return False
-            
-        # Initiate avoidance_system if necessary
+                
+        # Initialize avoidance_system if necessary
         if not hasattr(self, 'avoidance_system'):
             self.avoidance_system = AvoidanceSystem()
         
-        # If the avoidance system is already active, let it manage
+        # If the avoidance system is already active, let it manage movement
         if self.avoidance_system.is_active:
             self.avoidance_system.update(self.avoidance_system.target_id)
             return True
@@ -919,24 +927,38 @@ class CombatClass:
         called_target = self.GetPartyTarget()
         nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         
-        # Find the nearest priority target (if available)
-        priority_target = 0
-        if priority_targets.is_enabled and priority_targets.priority_model_ids:
-            priority_target = priority_targets.find_nearest_priority_target(self.get_combat_distance())
+        # Check if the current priority target is still valid
+        if self.priority_target_id != 0:
+            if not Agent.IsValid(self.priority_target_id) or not Agent.IsAlive(self.priority_target_id):
+                self.priority_target_id = 0
+        
+        # Look for a new priority target if needed
+        if self.priority_target_id == 0 and priority_targets.is_enabled and priority_targets.priority_model_ids:
+            self.priority_target_id = priority_targets.find_nearest_priority_target(self.get_combat_distance())
         
         # Determine the best target based on priority
         target_id = 0
-        if called_target != 0 and Agent.IsAlive(called_target):
+        if self.priority_target_id != 0 and Agent.IsAlive(self.priority_target_id):
+            # Priority target takes precedence if it exists and is alive
+            target_id = self.priority_target_id
+        elif called_target != 0 and Agent.IsAlive(called_target):
+            # Party called target is second priority
             target_id = called_target
-        elif priority_target != 0:
-            target_id = priority_target
+            # If the called target is a priority target, save it
+            if priority_targets.is_priority_target(called_target):
+                self.priority_target_id = called_target
         elif nearest_enemy != 0 and Agent.IsAlive(nearest_enemy):
+            # Nearest enemy is lowest priority
             target_id = nearest_enemy
+            # If the nearest enemy is a priority target, save it
+            if priority_targets.is_priority_target(nearest_enemy):
+                self.priority_target_id = nearest_enemy
         
+        # No valid target found
         if target_id == 0:
             return False
         
-        # Check if we are in range
+        # Check if target is in range for attack
         current_pos = Player.GetXY()
         target_pos = Agent.GetXY(target_id)
         distance = Utils.Distance(current_pos, target_pos)
@@ -948,21 +970,22 @@ class CombatClass:
         if current_target != target_id:
             ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, target_id)
         
-        # Major optimization: grouping decisions
-        is_priority = (target_id == called_target or target_id == priority_target)
-        
-        # If in range, attack directly
+        # If in range, attack directly and update priority target
         if in_range:
+            # Save the current target as priority if it's a priority target
+            if priority_targets.is_priority_target(target_id):
+                self.priority_target_id = target_id
             ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
             return True
         
-        # If it is a priority target and out of range, use the avoidance system
-        if is_priority:
-            # Initiate the avoidance system immediately
+        # If it's a priority target or party called target and out of range, use the avoidance system
+        # to navigate around obstacles
+        if target_id == self.priority_target_id or target_id == called_target:
+            # Initiate the avoidance system immediately to navigate to target
             self.avoidance_system.find_path_around_obstacles(current_pos, target_id)
             return True
         
-        # For non-priority targets, simply try to interact
+        # For non-priority targets, simply interact
         ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
         return True
                                         
