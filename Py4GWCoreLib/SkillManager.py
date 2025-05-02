@@ -180,7 +180,7 @@ class SkillManager:
             self.aftercast_timer = ThrottledTimer()
             self.stay_alert_timer = ThrottledTimer(2500)
             self.game_throttle_timer = ThrottledTimer(75)
-            self.auto_attack_timer = ThrottledTimer(750)
+            self.auto_attack_timer = ThrottledTimer(100)
             self.ping_handler = Py4GW.PingHandler()
             self.in_casting_routine = True
             self.aggressive_enemies_only = False
