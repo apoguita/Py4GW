@@ -164,10 +164,10 @@ new_model_id = 0
 def DrawPriorityTargetsWindow(cached_data:CacheData):
     global new_model_id
     
-    # Obtenir l'instance du singleton
+    # Get the singleton instance
     priority_targets = PriorityTargets()
     
-    # Interface pour activer/désactiver le système
+    # Interface to activate/deactivate the system
     enabled = priority_targets.is_enabled
     changed = PyImGui.checkbox("Enable Priority Targeting", enabled)
     if changed != enabled:
@@ -175,23 +175,22 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     
     PyImGui.separator()
     
-    # Interface pour ajouter/supprimer des ID de modèles
+    # Interface for adding/removing model IDs
     PyImGui.text("Add Priority Target Model ID:")
     
-    # Entrée pour un nouvel ID
+    # Login for a new ID
     new_model_id = PyImGui.input_int("##new_model_id", new_model_id)
     
-    # Correction ici: same_line avec les paramètres par défaut
     PyImGui.same_line(0.0, 5.0)
     
-    # Bouton pour ajouter l'ID
+    # Button to add ID
     if PyImGui.button("Add##add_model_id"):
         if priority_targets.add_model_id(new_model_id):
-            new_model_id = 0  # Réinitialiser l'entrée après ajout
+            new_model_id = 0  # Reset entry after adding
     
     PyImGui.separator()
     
-    # Afficher la liste des ID de modèles prioritaires
+    # Show list of priority model IDs
     PyImGui.text("Priority Target Model IDs:")
     
     model_ids = priority_targets.get_model_ids()
@@ -199,7 +198,7 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     if not model_ids:
         PyImGui.text_colored("No priority targets defined.", (1.0, 0.7, 0.0, 1.0))
     else:
-        # Créer une table pour afficher les ID avec des boutons de suppression
+        # Create a table to display IDs with delete buttons
         if PyImGui.begin_table("PriorityTargetsTable", 2, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg):
             PyImGui.table_setup_column("Model ID", PyImGui.TableColumnFlags.WidthStretch)
             PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed)
@@ -208,11 +207,11 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
             for model_id in model_ids:
                 PyImGui.table_next_row()
                 
-                # Colonne de l'ID du modèle
+                # Model ID column
                 PyImGui.table_set_column_index(0)
                 PyImGui.text(f"{model_id}")
                 
-                # Colonne du bouton de suppression
+                # Delete button column
                 PyImGui.table_set_column_index(1)
                 if PyImGui.button(f"Remove##remove_{model_id}"):
                     priority_targets.remove_model_id(model_id)
@@ -221,18 +220,18 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     
     PyImGui.separator()
     
-    # Bouton pour effacer toutes les cibles
+    # Button to clear all targets
     if PyImGui.button("Clear All"):
         priority_targets.clear_model_ids()
     
-    # Instructions pour l'utilisateur
+    # User Instructions
     PyImGui.separator()
     PyImGui.text_wrapped("Instructions:")
     PyImGui.text_colored("1. Enter a model ID and click 'Add' to add a priority target.", (0.7, 1.0, 0.7, 1.0))
     PyImGui.text_colored("2. Agents with these model IDs will be targeted first in combat.", (0.7, 1.0, 0.7, 1.0))
     PyImGui.text_colored("3. You can find model IDs using the Agent Info tool.", (0.7, 1.0, 0.7, 1.0))
     
-    # Informations sur le ciblage actuel
+    # Current Targeting Information
     if priority_targets.is_enabled and cached_data.data.in_aggro:
         PyImGui.separator()
         PyImGui.text("Current Target Information:")
@@ -250,13 +249,13 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
             if is_priority:
                 PyImGui.text_colored("This is a priority target!", (0.0, 1.0, 0.0, 1.0))
             else:
-                # Bouton pour ajouter rapidement la cible actuelle
+                # Button to quickly add the current target
                 if PyImGui.button("Add Current Target to Priority List"):
                     priority_targets.add_model_id(model_id)
         else:
             PyImGui.text_colored("No valid target selected", (1.0, 0.5, 0.5, 1.0))
         
-        # Recherche de cibles prioritaires à proximité
+        # Search for nearby priority targets
         nearest = priority_targets.find_nearest_priority_target(Range.Earshot.value)
         if nearest != 0:
             name = Agent.GetName(nearest)
