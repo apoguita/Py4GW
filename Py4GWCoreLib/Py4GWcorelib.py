@@ -905,8 +905,8 @@ class ActionQueueManager:
 
     def _initialize_queues(self):
         self.queues = {
-            "ACTION": ActionQueueNode(50),
-            "LOOT": ActionQueueNode(1300),
+            "ACTION": ActionQueueNode(25),
+            "LOOT": ActionQueueNode(1000),
             "MERCHANT": ActionQueueNode(750),
             "SALVAGE": ActionQueueNode(325),
             "IDENTIFY": ActionQueueNode(250)

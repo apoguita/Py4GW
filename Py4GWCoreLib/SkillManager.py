@@ -948,7 +948,7 @@ class SkillManager:
 
             aftercast = Skill.Data.GetActivation(skill_id) * 1000
             aftercast += Skill.Data.GetAftercast(skill_id) * 750
-            aftercast += self.ping_handler.GetCurrentPing()
+            #aftercast += self.ping_handler.GetCurrentPing()
             self.aftercast_timer.SetThrottleTime(aftercast)
             self.aftercast_timer.Reset()
             ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
