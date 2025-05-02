@@ -7,10 +7,10 @@ STUCK_DETECTION_RADIUS = 8      # Distance threshold to determine if character i
 STUCK_COUNTER_THRESHOLD = 3     # Number of consecutive checks to consider a character stuck
 OBSTACLE_RADIUS = 100           # Radius around enemies considered as obstacles
 AGENT_REPULSION_RADIUS = 150    # Radius of repulsion for enemies in vector field
-PATH_STEP_SIZE = 100            # Distance between path points
-PATH_POINT_REACHED_DISTANCE = 20  # Distance to consider a path point reached
+PATH_STEP_SIZE = 150            # Distance between path points
+PATH_POINT_REACHED_DISTANCE = 75  # Distance to consider a path point reached
 TARGET_MOVED_THRESHOLD = 200    # Distance threshold to recalculate path if target moves
-UPDATE_FREQUENCY = 25           # Milliseconds between updates (reduced from 250ms)
+UPDATE_FREQUENCY = 25           # Milliseconds between updates (reduced from 25ms)
 MAX_PATH_STEPS = 5              # Maximum number of intermediate points in path
 BLEND_FACTOR = 0.3              # Mixing factor between avoidance and target direction
 
