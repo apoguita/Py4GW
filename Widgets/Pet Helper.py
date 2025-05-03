@@ -12,7 +12,8 @@ class frame_coords:
 class Global_Vars:
     def __init__(self):
         self.title_frame = None
-        self.title_frame_hash = 3282622945
+        self.title_frame_parent_hash = 3332025202
+        self.title_frame_offsets = [0,0,0,8,1]
         self.title_frame_id = 0
         self.title_frame_coords = frame_coords(0,0,0,0)
         self.title_frame_visible = False
@@ -41,7 +42,7 @@ class Global_Vars:
         if not Agent.IsValid(self.pet_id):
             return
 
-        self.title_frame_id = UIManager.GetFrameIDByHash(self.title_frame_hash)
+        self.title_frame_id =  UIManager.GetChildFrameID(self.title_frame_parent_hash, self.title_frame_offsets)
         if self.title_frame_id == 0:
             self.title_frame_visible = False
             return
