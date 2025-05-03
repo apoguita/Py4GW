@@ -43,28 +43,6 @@ in_looting_routine = False
 looting_aftercast = Timer()
 looting_aftercast.Start()
 
-def get_looting_array():
-    loot_array = AgentArray.GetItemArray()
-        
-    # Filter valid and in range items
-    loot_array = AgentArray.Filter.ByCondition(loot_array, lambda agent_id: Agent.IsValid(agent_id))
-    loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), Range.Spellcast.value)
-
-    own_party_number = Party.GetOwnPartyNumber()
-    player_id = Player.GetAgentID()
-
-    filtered_loot = []
-
-    for item in loot_array:
-        owner = Agent.GetItemAgentOwnerID(item)
-
-        if owner == player_id:
-            filtered_loot.append(item)
-        elif owner == 0 and own_party_number == 0:
-            filtered_loot.append(item)
-            
-    return filtered_loot
-
 
 def SequentialLootingRoutine():
     global in_looting_routine, looting_aftercast
@@ -92,7 +70,7 @@ def Loot(cached_data:CacheData):
     if not looting_aftercast.HasElapsed(3000):
         return False
     
-    loot_array = get_looting_array()
+    loot_array = LootConfig().GetfilteredLootArray()
     if len(loot_array) == 0:
         return False
 

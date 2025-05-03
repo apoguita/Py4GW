@@ -1116,5 +1116,9 @@
     "408279500,1,6": "Character_Create_Character_Name_Frame.Characer_Name_Frame.Character_Name_Check2",
     "408279500,1,9": "Character_Create_Character_Name_Frame.Characer_Name_Frame.Character_Name_Check3",
     "408279500,1,7": "Character_Create_Character_Name_Frame.Characer_Name_Frame.Character_Name_Check4",
-    "4059601659,3,3": "Quest Log Window.ScrollBar"
+    "4059601659,3,3": "Quest Log Window.ScrollBar",
+    "245051549": "Pet Control",
+    "3332025202,0,0,0,8": "Party Formation.Frame.Explorable.Pets Header",
+    "368733584": "Party Formation.Frame.Explorable.Pets Header.Expand",
+    "3282622945": "Party Formation.Frame.Explorable.Pets Header.Title"
 }
