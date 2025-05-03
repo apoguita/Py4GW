@@ -565,6 +565,13 @@ class Inscription(IntEnum):
 
 
 #endregion
+#region PetBehavior
+class PetBehavior(IntEnum):
+    Fight = 0
+    Guard = 1
+    Heel = 2
+
+#endregion
 #region HeroType
 class HeroType(IntEnum):
     None_ = 0  # Avoiding reserved keyword "None"

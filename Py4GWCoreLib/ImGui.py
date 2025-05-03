@@ -88,7 +88,7 @@ class ImGui:
         return v
 
     @staticmethod
-    def floating_button(caption,x, y, width=45, height=40):
+    def floating_button(caption,x, y, width=45, height=40, font_color=None):
         # Set the position and size of the floating button
         PyImGui.set_next_window_pos(x-width/2, y-height/2)
         PyImGui.set_next_window_size(width, height)  # Button window size
@@ -113,7 +113,14 @@ class ImGui:
             PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 5.0, 5.0)  # Padding inside the button
 
             # Create the button and check if it is clicked
-            clicked = PyImGui.button(caption, width, height)
+            if font_color is None:
+                clicked = PyImGui.button(caption, width, height)
+            else:
+                # Set the font color if provided
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, font_color)
+                clicked = PyImGui.button(caption, width, height)
+                # Restore the default font color
+                PyImGui.pop_style_color(1)
 
             # Restore styles
             PyImGui.pop_style_var(2)
