@@ -970,6 +970,19 @@ class Routines:
                     best_target = agent_id
 
             return best_target
+        
+        @staticmethod
+        def GetPartyTargetID():
+            if not Party.IsPartyLoaded():
+                return 0
+
+            players = Party.GetPlayers()
+            target = players[0].called_target_id
+
+            if target is None or target == 0:
+                return 0
+            else:
+                return target 
 
     #region Movement
     class Movement:
