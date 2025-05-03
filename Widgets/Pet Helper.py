@@ -22,9 +22,25 @@ class Global_Vars:
         self.update_target_throttle_timer = ThrottledTimer(1000)
         
         self.pet_id = 0
+        self.pet_target_id = 0
+        self.pet_bahavior = 2
         self.party_target_id = 0
+        self.owner_target_id = 0
+
+        self.agent_array = RawAgentArray()
+        self.pet_name = ""
+        self.player_name = ""
+        self.party_target_name = ""
+        self.owner_target_name = ""
+
         
     def update(self):
+        self.player_agent_id = Player.GetAgentID()
+        self.pet_id = Party.Pets.GetPetID(self.player_agent_id)
+
+        if not Agent.IsValid(self.pet_id):
+            return
+
         self.title_frame_id = UIManager.GetFrameIDByHash(self.title_frame_hash)
         if self.title_frame_id == 0:
             self.title_frame_visible = False
@@ -33,10 +49,9 @@ class Global_Vars:
         self.title_frame_coords.left, self.title_frame_coords.top, self.title_frame_coords.right, self.title_frame_coords.bottom = UIManager.GetFrameCoords(self.title_frame_id)
         self.title_frame_visible = UIManager.FrameExists(self.title_frame_id)
         
-        self.player_agent_id = Player.GetAgentID()
-        self.pet_id = Party.Pets.GetPetID(self.player_agent_id)
         if self.pet_id != 0:
             self.pet_target_id = Party.Pets.GetPetInfo(self.player_agent_id).locked_target_id
+            self.pet_bahavior = Party.Pets.GetPetInfo(self.player_agent_id).behavior
             
         if Agent.IsDead(global_vars.pet_target_id):
             self.pet_target_id = 0
@@ -46,6 +61,10 @@ class Global_Vars:
         if not (alliegance == "Enemy"):
             self.party_target_id = 0
             
+        if Agent.GetHealth(self.party_target_id) < 1.0:
+            if Agent.GetHealth(self.party_target_id) == 0.0: # The client doesn't always reconise if a agent is dead, hence this check
+                self.party_target_id = 0
+
         if Agent.IsDead(self.party_target_id):
             self.party_target_id = 0
         
@@ -53,11 +72,22 @@ class Global_Vars:
         _, alliegance = Agent.GetAllegiance(self.owner_target_id)
         if not (alliegance == "Enemy"):
             self.owner_target_id = 0
-        
+
+        if Agent.GetHealth(self.owner_target_id) < 1.0:
+            if Agent.GetHealth(self.owner_target_id) == 0.0: # The client doesn't always reconise if a agent is dead, hence this check
+                self.owner_target_id = 0
+
         if Agent.IsDead(self.owner_target_id):
             self.owner_target_id = 0
 
-        
+        self.agent_array.update()
+        if self.pet_name == "":
+            self.pet_name = self.agent_array.get_name(self.pet_id).replace("Pet - ", "")
+        if self.player_name == "":
+            self.player_name = self.agent_array.get_name(self.player_agent_id)
+        self.party_target_name = self.agent_array.get_name(self.party_target_id)
+        self.owner_target_name = self.agent_array.get_name(self.party_target_id)
+
 global_vars = Global_Vars()
 
 def DrawWindow():
@@ -73,7 +103,9 @@ def configure():
 def main():
     global global_vars
 
-    if not Routines.Checks.Map.MapValid() and not Map.IsExplorable():
+    if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
+        global_vars.pet_name = ""
+        global_vars.player_name = ""
         return
     
     if not global_vars.throttle_timer.IsExpired():
@@ -97,11 +129,17 @@ def main():
         return
     
     # Set Party Target to Pet
-    if global_vars.party_target_id != 0 and global_vars.party_target_id != global_vars.pet_target_id:
+    if global_vars.party_target_id != 0 and global_vars.party_target_id != global_vars.pet_target_id and (global_vars.pet_bahavior == 1 or global_vars.pet_bahavior == 0):
         ActionQueueManager().AddAction("ACTION", Party.Pets.SetPetBehavior,PetBehavior.Fight, global_vars.party_target_id)
+        Py4GW.Console.Log(module_name, f"{global_vars.pet_name} Fight {global_vars.party_target_name}({global_vars.party_target_id})", Py4GW.Console.MessageType.Info)
         global_vars.update_target_throttle_timer.Reset()
-    elif global_vars.owner_target_id != 0 and global_vars.owner_target_id != global_vars.pet_target_id:
+    elif global_vars.owner_target_id != 0 and global_vars.owner_target_id != global_vars.pet_target_id and (global_vars.pet_bahavior == 1 or global_vars.pet_bahavior == 0):
         ActionQueueManager().AddAction("ACTION", Party.Pets.SetPetBehavior,PetBehavior.Fight, global_vars.owner_target_id)
+        Py4GW.Console.Log(module_name, f"{global_vars.pet_name} Fight {global_vars.owner_target_name}({global_vars.owner_target_id})", Py4GW.Console.MessageType.Info)
+        global_vars.update_target_throttle_timer.Reset()
+    elif global_vars.party_target_id == 0 and global_vars.owner_target_id == 0 and global_vars.pet_bahavior == 0:
+        ActionQueueManager().AddAction("ACTION", Party.Pets.SetPetBehavior,PetBehavior.Guard, global_vars.player_agent_id)
+        Py4GW.Console.Log(module_name, f"{global_vars.pet_name} Guard {global_vars.player_name}", Py4GW.Console.MessageType.Info)
         global_vars.update_target_throttle_timer.Reset()
     
     
