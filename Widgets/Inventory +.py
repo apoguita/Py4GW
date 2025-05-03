@@ -153,10 +153,14 @@ class GlobalVarsClass:
         
     def process_game_throttle(self):
         if self.game_throttle.HasElapsed(self.game_throttle_time):
-            self.parent_frame_id = UIManager.GetFrameIDByHash(self.inventory_frame_hash)
-            if self.parent_frame_id != 0:
-                self.inventory_frame_exists = UIManager.FrameExists(self.parent_frame_id)
+            if UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags):
+                self.parent_frame_id = UIManager.GetFrameIDByHash(self.inventory_frame_hash)
+                if self.parent_frame_id != 0:
+                    self.inventory_frame_exists = UIManager.FrameExists(self.parent_frame_id)
+                else:
+                    self.inventory_frame_exists = False
             else:
+                self.parent_frame_id = 0
                 self.inventory_frame_exists = False
 
             self.game_throttle.Reset()
@@ -1157,11 +1161,12 @@ def DrawSalvageVaultMasks():
 
 def GetMainInventoryWindowCoords():
     global global_vars
-    global_vars.inventory_frame_coords = FrameCoords(global_vars.parent_frame_id)
-    title_offset = 20
-    frame_offset = 5
-    global_vars.inventory_frame_coords.height = global_vars.inventory_frame_coords.bottom - global_vars.inventory_frame_coords.top - title_offset
-    global_vars.inventory_frame_coords.width = global_vars.inventory_frame_coords.right - global_vars.inventory_frame_coords.left - frame_offset
+    if global_vars.parent_frame_id != 0:
+        global_vars.inventory_frame_coords = FrameCoords(global_vars.parent_frame_id)
+        title_offset = 20
+        frame_offset = 5
+        global_vars.inventory_frame_coords.height = global_vars.inventory_frame_coords.bottom - global_vars.inventory_frame_coords.top - title_offset
+        global_vars.inventory_frame_coords.width = global_vars.inventory_frame_coords.right - global_vars.inventory_frame_coords.left - frame_offset
     
 
 def configure():
