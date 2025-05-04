@@ -1189,64 +1189,40 @@ def check_button_enabled_and_click(frame_id_or_path, enabled_field_value=18692, 
 
     return False
 
-def check_button_enabled_and_click_once(frame_id_or_path, enabled_field_value=18692, field_name="field91_0x184", debug=False):
+def check_button_field_and_click(frame_id_or_path, field_value=18692, field_name="field91_0x184", debug=False):
     if frame_id_or_path is None:
         if debug:
-            ConsoleLog("check_click_once", "Frame path is None.", Console.MessageType.Warning)
+            ConsoleLog("check_field_click", "Frame path is None.", Console.MessageType.Warning)
         return False
-
     try:
         if isinstance(frame_id_or_path, int):
             frame_id = UIManager.GetFrameIDByHash(frame_id_or_path)
-            frame_key = str(frame_id_or_path)
         elif isinstance(frame_id_or_path, tuple) and len(frame_id_or_path) == 2:
             parent_hash, offsets = frame_id_or_path
             all_ids = UIManager.GetAllChildFrameIDs(parent_hash, offsets)
             frame_id = all_ids[0] if all_ids else 0
-            frame_key = f"{parent_hash}_{'_'.join(map(str, offsets))}"
         else:
-            if debug:
-                ConsoleLog("check_click_once", f"Invalid frame identifier: {frame_id_or_path}", Console.MessageType.Error)
             return False
 
         if frame_id == 0 or not UIManager.FrameExists(frame_id):
-            if debug:
-                ConsoleLog("check_click_once", f"Frame not found for check: {frame_id_or_path} -> ID {frame_id}", Console.MessageType.Warning)
             return False
     except Exception as e:
-        if debug:
-            ConsoleLog("check_click_once", f"Exception checking frame: {e}", Console.MessageType.Error)
         return False
-
     try:
         frame_obj = PyUIManager.UIFrame(frame_id)
         frame_obj.get_context()
         current_value = getattr(frame_obj, field_name, None)
 
-        if debug:
-            status = "ENABLED" if current_value == enabled_field_value else "DISABLED"
-            ConsoleLog("check_click_once", f"Button {frame_id} is {status} ({field_name}={current_value}).", Console.MessageType.Debug)
-
-        if current_value == enabled_field_value:
+        if current_value == field_value:
             return ActionQueueManager().AddAction("ACTION", UIManager.FrameClick, frame_id)
 
-    except AttributeError:
-        if debug:
-            ConsoleLog("check_click_once", f"Field '{field_name}' not found on frame {frame_id}.", Console.MessageType.Warning)
     except Exception as e:
-        ConsoleLog("check_click_once", f"Error reading field '{field_name}' for frame {frame_id}: {e}", Console.MessageType.Error)
-
+        ConsoleLog("check_field_click", f"Error reading field '{field_name}' for frame {frame_id}: {e}", Console.MessageType.Error)
     return False
 
-
 def copy_text_with_imgui(text_to_copy: str):
-    bot_vars.oldclipboard = PyImGui.get_clipboard_text()
     PyImGui.set_clipboard_text(text_to_copy)
-    
-def restore_copy_text(text_to_restore: str):
-    PyImGui.set_clipboard_text(text_to_restore)
-    
-    
+
 def _set_flags_for_reroll_jump(target_state_name: str):
     ConsoleLog("Debug Jump", f"Setting flags for jump to: {target_state_name}", Console.MessageType.Debug)
 
@@ -1476,6 +1452,11 @@ def setup_first_chahbek_village(fsm, random_insert_chance=0.5):
 
     recruit_steps = [
         ("Type: /bonus", lambda: ActionQueueManager().AddAction("ACTION", Player.SendChatCommand, "bonus"), None, 500, True, None, None),
+        ("Type: delete bow", lambda: ActionQueueManager().AddAction("ACTION", Inventory.DestroyItem, Item.GetItemIdFromModelID(5831)), None, 100, True, None, None),
+        ("Type: delete roar", lambda: ActionQueueManager().AddAction("ACTION", Inventory.DestroyItem, Item.GetItemIdFromModelID(6036)), None, 100, True, None, None),
+        ("Type: delete favor", lambda: ActionQueueManager().AddAction("ACTION", Inventory.DestroyItem, Item.GetItemIdFromModelID(6058)), None, 100, True, None, None),
+        ("Type: delete charge", lambda: ActionQueueManager().AddAction("ACTION", Inventory.DestroyItem, Item.GetItemIdFromModelID(6060)), None, 100, True, None, None),
+        ("Type: delete shriek", lambda: ActionQueueManager().AddAction("ACTION", Inventory.DestroyItem, Item.GetItemIdFromModelID(6515)), None, 100, True, None, None),
         ("Move: Near Recruit", lambda: Routines.Movement.FollowPath(fsm_vars.first_chahbek_village_pathing, fsm_vars.movement_handler), lambda: Routines.Movement.IsFollowPathFinished(fsm_vars.first_chahbek_village_pathing, fsm_vars.movement_handler), 500, False, None, None),
         ("Target: Recruit #1", lambda: target_and_interact(4776, -6023)(), lambda: check_dialog_buttons(buttons=1), 500, False, None, None),
         ("Click: Quiz #1", lambda: click_dialog_button_retry(button=1), lambda: check_dialog_buttons(buttons=0), 500, False, None, None),
