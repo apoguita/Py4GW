@@ -419,7 +419,7 @@ class BotVars:
         self.character_created_successfully: bool = False
         self.press_key_aq = ActionQueueNode(120)
         #Debug
-        self.test = False
+        self.test = True
         #dialog frame
         self._last_dialog_frame_ids: Dict[str, Optional[int]] = {}
         self.frame_paths = {
@@ -1312,6 +1312,51 @@ def safe_add_state(fsm, state_tuple):
         on_enter=on_enter or (lambda: None),
         on_exit=on_exit or (lambda: None)
     )
+    
+def copy_text_with_ctypes(text: str, debug: bool = False):
+    CF_TEXT = 1
+    kernel32, user32 = ctypes.windll.kernel32, ctypes.windll.user32
+    buffer_ptr = None
+
+    try:
+        encoded = text.encode('utf-8') + b'\0'
+        mem = ctypes.c_buffer(encoded)
+        buffer_ptr = kernel32.GlobalAlloc(0x0002, len(mem))
+        if not buffer_ptr:
+            return ConsoleLog(module_name, "GlobalAlloc failed.", Console.MessageType.Error)
+
+        lock = kernel32.GlobalLock(buffer_ptr)
+        if not lock:
+            kernel32.GlobalFree(buffer_ptr)
+            return ConsoleLog(module_name, "GlobalLock failed.", Console.MessageType.Error)
+
+        ctypes.memmove(lock, mem, len(mem))
+        kernel32.GlobalUnlock(buffer_ptr)
+
+        if not user32.OpenClipboard(0):
+            kernel32.GlobalFree(buffer_ptr)
+            return ConsoleLog(module_name, f"OpenClipboard failed. Error: {kernel32.GetLastError()}", Console.MessageType.Error)
+
+        user32.EmptyClipboard()
+        if user32.SetClipboardData(CF_TEXT, buffer_ptr):
+            user32.CloseClipboard()
+            if debug:
+                ConsoleLog(module_name, f"Copied '{text}' to clipboard.", Console.MessageType.Success)
+            return
+
+        user32.CloseClipboard()
+        kernel32.GlobalFree(buffer_ptr)
+        ConsoleLog(module_name, f"SetClipboardData failed. Error: {kernel32.GetLastError()}", Console.MessageType.Error)
+
+    except Exception as e:
+        ConsoleLog(module_name, f"Exception: {e}", Console.MessageType.Error)
+        if buffer_ptr:
+            try:
+                kernel32.GlobalFree(buffer_ptr)
+            except Exception as e2:
+                if debug:
+                    ConsoleLog(module_name, f"Cleanup GlobalFree failed: {e2}", Console.MessageType.Warning)
+
 #endregion (End of functions/variables)
 
 #region FSM for Combat
@@ -2285,7 +2330,7 @@ fsm_vars.delete_character.AddState(
     transition_delay_ms=1500)
 fsm_vars.delete_character.AddState(
     name="Copy Name to Clipboard",
-    execute_fn=lambda: copy_text_with_imgui(bot_vars.character_to_delete_name),
+    execute_fn=lambda: copy_text_with_ctypes(bot_vars.character_to_delete_name),
     exit_condition=lambda: True,
     run_once=True,
     transition_delay_ms=200)
@@ -2382,7 +2427,7 @@ fsm_vars.create_character.AddState(
     on_exit=clear_frame_click_retry_cache(True))
 fsm_vars.create_character.AddState(
     name="Copy Name to Clipboard",
-    execute_fn=lambda: copy_text_with_imgui(bot_vars.character_names[bot_vars.next_create_index]),
+    execute_fn=lambda: copy_text_with_ctypes(bot_vars.character_names[bot_vars.next_create_index]),
     exit_condition=lambda: True,
     run_once=True,
     transition_delay_ms=800)
