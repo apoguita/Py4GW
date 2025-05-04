@@ -602,11 +602,6 @@ GLOBAL_CONFIGS.add(object_item)
 #region MISSION MAP
 class MissionMap:
     def __init__(self):
-        self.initialized = False
-        self.thread_manager = MultiThreading(log_actions=True)
-        self.thread_timeout = 2.0
-        self.thread_keepalive = time.time()
-        self.thread_internal_keepalive = time.time()
         self.mission_map_instance = PyMissionMap.PyMissionMap()
         self.left = 0
         self.top = 0
@@ -962,72 +957,24 @@ def DrawFrame():
             Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
         
     Overlay().EndDraw()  
-    
-
-def main_mission_map_thread():
-    global mission_map
-    while True:
-        try:
-            mission_map.thread_internal_keepalive = time.time()
-            if not Routines.Checks.Map.MapValid():
-                sleep(1)
-                mission_map.thread_keepalive = time.time()
-                continue
-            if Party.GetPartyLeaderID() != Player.GetAgentID():
-                sleep(1)
-                continue
-            
-            if Map.MissionMap.IsWindowOpen():
-                if Routines.Checks.Map.MapValid():
-                    mission_map.update()
-                sleep(0.03)
-            else:
-                sleep(0.5)
-            
-        except Exception as e:
-            print(f"Error in main_mission_map_thread: {e}")
-        finally:
-            if mission_map.thread_keepalive + mission_map.thread_timeout < time.time():
-                mission_map.thread_manager.stop_all_threads()
-                break
-
-    
+               
 def configure():
     global mission_map
     if PyImGui.begin("Mission Map Config"):
         pass
     PyImGui.end()
 
-load_timer = Timer()
-load_timer.Start()
-
 def main():  
-    global load_timer
     try:  
-        mission_map.thread_keepalive = time.time()
-            
         if not Routines.Checks.Map.MapValid():
-            load_timer.Reset()
             mission_map.geometry = [] 
             return
         
         if Party.GetPartyLeaderID() != Player.GetAgentID():
-            load_timer.Reset()
             return
-        
-        if mission_map.thread_internal_keepalive + mission_map.thread_timeout < time.time() and load_timer.HasElapsed(1000):
-            mission_map.thread_manager.stop_all_threads()
-            mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
-            ConsoleLog("Mission Map", "Mission Map thread died, thread restarted")
-            mission_map.thread_keepalive = time.time()
-        
-        if not mission_map.initialized:
-            mission_map.initialized = True
-            mission_map.update()
-            mission_map.thread_manager.stop_all_threads()
-            mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
             
-        if Map.MissionMap.IsWindowOpen() and mission_map.initialized:
+        if Map.MissionMap.IsWindowOpen():
+            mission_map.update()
             DrawFrame()
             if mission_map.zoom >= 3.5:
                     mission_map.mega_zoom = FloatingSlider("Mega Zoom", mission_map.mega_zoom, mission_map.left, mission_map.bottom-27, 0.0, 15.0, Color(255, 255, 255, 255))
@@ -1036,7 +983,7 @@ def main():
     
     except Exception as e:
         print(f"Error in main: {e}")
-        mission_map.thread_manager.stop_all_threads()
+
         
     
 if __name__ == "__main__":
