@@ -145,6 +145,7 @@ class CombatClass:
         self.weakness = Skill.GetID("Weakness")
         self.comfort_animal = Skill.GetID("Comfort_Animal")
         self.heal_as_one = Skill.GetID("Heal_as_One")
+        self.heroic_refrain = Skill.GetID("Heroic_Refrain")
         
     def Update(self, cached_data):
         self.in_aggro = cached_data.in_aggro
@@ -328,6 +329,10 @@ class CombatClass:
         nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         lowest_ally = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
 
+        if self.skills[slot].skill_id == self.heroic_refrain:
+            if not self.HasEffect(Player.GetAgentID(), self.heroic_refrain):
+                return Player.GetAgentID()
+
         if target_allegiance == Skilltarget.Enemy:
             v_target = self.GetPartyTarget()
             if v_target == 0:
@@ -367,9 +372,9 @@ class CombatClass:
             if v_target == 0 and not targeting_strict:
                 v_target = lowest_ally
         elif target_allegiance == Skilltarget.OtherAlly:
-            if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff:
+            if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff.value:
                 v_target = TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
-                print("Energy Buff Target: ", RawAgentArray().get_name(v_target))
+                #print("Energy Buff Target: ", RawAgentArray().get_name(v_target))
             else:
                 v_target = TargetLowestAlly(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
         elif target_allegiance == Skilltarget.Self:
@@ -952,7 +957,7 @@ class CombatClass:
         self.in_casting_routine = True
 
         self.aftercast = Skill.Data.GetActivation(skill_id) * 1000
-        self.aftercast += Skill.Data.GetAftercast(skill_id) * 1000
+        self.aftercast += Skill.Data.GetAftercast(skill_id) * 750
         #self.aftercast += 150 #manually setting a 50ms delay to test issues with pinghandler
         self.aftercast += self.ping_handler.GetCurrentPing()
 

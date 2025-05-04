@@ -484,7 +484,7 @@ class Helper:
         activation = Skill.Data.GetActivation(skill_id)
         aftercast = Skill.Data.GetAftercast(skill_id)
         ping = Py4GW.PingHandler().GetCurrentPing()
-        return max(activation * 1000 + aftercast * 1000 + ping + 50, 500)
+        return max(activation * 1000 + aftercast * 750 + ping + 50, 500)
     
     @staticmethod
     def smartcast_hero_skill(skill_id, min_enemies=0, enemy_range_check=None,

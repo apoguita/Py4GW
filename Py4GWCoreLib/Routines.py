@@ -425,7 +425,7 @@ class Routines:
                                         cost -= 21
 
                         case 1394:  # Healer's Covenant
-                            if Skill.Flags.IsSpell(skill_id) and Skill.Attribute.GetAttribute(skill_id) == 15:
+                            if Skill.Flags.IsSpell(skill_id) and Skill.Attribute.GetAttribute(skill_id).attribute_id == 15:
                                 match attr:
                                     case a if 0 < a <= 3:
                                         cost -= 1
@@ -970,6 +970,19 @@ class Routines:
                     best_target = agent_id
 
             return best_target
+        
+        @staticmethod
+        def GetPartyTargetID():
+            if not Party.IsPartyLoaded():
+                return 0
+
+            players = Party.GetPlayers()
+            target = players[0].called_target_id
+
+            if target is None or target == 0:
+                return 0
+            else:
+                return target 
 
     #region Movement
     class Movement:

@@ -18,7 +18,7 @@
 ## 🚀 Getting Started
 
 ### **Prerequisites**
-- Python 3.12 32Bits
+- Python 3.13.0 32Bits
 - Guild Wars client
 
 ### **Installation**
