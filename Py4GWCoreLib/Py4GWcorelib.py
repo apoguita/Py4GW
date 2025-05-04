@@ -21,6 +21,7 @@ import threading
 import socket
 import configparser
 import os
+from datetime import datetime
 
 #region IniHandler
 class IniHandler:
@@ -807,6 +808,8 @@ class ActionQueue:
     def __init__(self):
         """Initialize the action queue."""
         self.queue = deque() # Use deque for efficient FIFO operations
+        self.history = deque(maxlen=100)  # Store recent action history with a cap
+
 
     def add_action(self, action, *args, **kwargs):
         """
@@ -819,12 +822,14 @@ class ActionQueue:
         self.queue.append((action, args, kwargs))
         
     def execute_next(self):
-        """Execute the next action in the queue."""
         if self.queue:
             action, args, kwargs = self.queue.popleft()
             action(*args, **kwargs)
+            
+            self.history.append((datetime.now(), action, args, kwargs))
             return True
         return False
+
             
     def is_empty(self):
         """Check if the action queue is empty."""
@@ -833,6 +838,10 @@ class ActionQueue:
     def clear(self):
         """Clear all actions from the queue."""
         self.queue.clear()
+        
+    def clear_history(self):
+        """Clear the action history."""
+        self.history.clear()
         
     def get_next_action_name(self):
         """
@@ -846,6 +855,43 @@ class ActionQueue:
             parts.extend(f"{k}={v}" for k, v in kwargs.items())
             return ','.join(parts)
         return None
+    
+    def get_all_action_names(self):
+        """
+        Get a list of all action names with arguments concatenated.
+        :return: List of concatenated action strings.
+        """
+        action_strings = []
+        for action, args, kwargs in self.queue:
+            parts = [action.__name__]
+            parts.extend(str(arg) for arg in args)
+            parts.extend(f"{k}={v}" for k, v in kwargs.items())
+            action_strings.append(','.join(parts))
+        return action_strings
+    
+    def get_history(self):
+        """
+        Return the raw history queue: list of (datetime, function, args, kwargs).
+        """
+        return list(self.history)
+
+    def get_history_names(self):
+        formatted = []
+        for i, entry in enumerate(self.history):
+            if not isinstance(entry, tuple) or len(entry) != 4:
+                formatted.append(f"[INVALID ENTRY #{i}]: {repr(entry)}")
+                continue
+            ts, func, args, kwargs = entry
+            try:
+                parts = [f"{ts.strftime('%H:%M:%S')} - {func.__name__}"]
+                parts.extend(str(arg) for arg in args)
+                parts.extend(f"{k}={v}" for k, v in kwargs.items())
+                formatted.append(', '.join(parts))
+            except Exception as e:
+                formatted.append(f"[ERROR formatting entry #{i}]: {e}")
+        return formatted
+
+
         
 class ActionQueueNode:
     def __init__(self,throttle_time=250):
@@ -870,6 +916,9 @@ class ActionQueueNode:
     def clear(self):
         self.action_queue.clear()
         
+    def clear_history(self):
+        self.action_queue.clear_history()
+        
     def IsExpired(self):
         return self.action_queue_timer.HasElapsed(self.action_queue_time)
     
@@ -880,6 +929,15 @@ class ActionQueueNode:
     
     def GetNextActionName(self):
         return self.action_queue.get_next_action_name()
+    
+    def GetAllActionNames(self):
+        return self.action_queue.get_all_action_names()
+    
+    def GetHistory(self):
+        return self.action_queue.get_history()
+    
+    def GetHistoryNames(self):
+        return self.action_queue.get_history_names()
 
 
 class QueueTypes(Enum):
@@ -951,7 +1009,26 @@ class ActionQueueManager:
     def IsEmpty(self, queue_name) -> bool:
         queue = self.GetQueue(queue_name)
         return queue.is_empty()
+    
+    def GetNextActionName(self, queue_name) -> str:
+        queue = self.GetQueue(queue_name)
+        return queue.GetNextActionName() or ""
+    
+    def GetAllActionNames(self, queue_name) -> list:
+        queue = self.GetQueue(queue_name)
+        return queue.GetAllActionNames()
+    
+    def GetHistory(self, queue_name) -> list:
+        queue = self.GetQueue(queue_name)
+        return queue.GetHistory()
+    
+    def GetHistoryNames(self, queue_name) -> list:
+        queue = self.GetQueue(queue_name)
+        return queue.GetHistoryNames()
 
+    def ClearHistory(self, queue_name) -> None:
+        queue = self.GetQueue(queue_name)
+        queue.clear_history()
 
            
             

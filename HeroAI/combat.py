@@ -957,7 +957,7 @@ class CombatClass:
         self.in_casting_routine = True
 
         self.aftercast = Skill.Data.GetActivation(skill_id) * 1000
-        self.aftercast += Skill.Data.GetAftercast(skill_id) * 750
+        self.aftercast += Skill.Data.GetAftercast(skill_id) * 1000 #750
         #self.aftercast += 150 #manually setting a 50ms delay to test issues with pinghandler
         self.aftercast += self.ping_handler.GetCurrentPing()
 
