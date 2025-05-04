@@ -45,7 +45,7 @@ looting_aftercast.Start()
 def SequentialLootingRoutine():
     global in_looting_routine, looting_aftercast
     
-    filtered_loot = LootConfig().GetfilteredLootArray() # Changed for LootManager - aC
+    filtered_loot = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
     # Loot filtered items
     ActionQueueManager().ResetQueue("ACTION")
     Routines.Sequential.Items.LootItems(filtered_loot,log = False)
@@ -68,7 +68,7 @@ def Loot(cached_data:CacheData):
     if not looting_aftercast.HasElapsed(3000):
         return False
     
-    loot_array = LootConfig().GetfilteredLootArray()
+    loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
     if len(loot_array) == 0:
         return False
 

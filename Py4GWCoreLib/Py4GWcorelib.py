@@ -1925,17 +1925,30 @@ class LootConfig:
     def GetBlacklist(self):
         return list(self.blacklist)
 
-    def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value):
+    def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value, multibox_loot: bool = False):
         from .AgentArray import AgentArray
+        from .Agent import Agent
+        from .Party import Party
+        from .Player import Player
         from .Item import Item
         
         def IsValidItem(item_id):
             owner = Agent.GetItemAgentOwnerID(item_id)
             return (owner == Player.GetAgentID()) or (owner == 0)
+        
+        def IsValidFollowerItem(item_id):
+            owner = Agent.GetItemAgentOwnerID(item_id)
+            return (owner == Player.GetAgentID())
             
         loot_array = AgentArray.GetItemArray()
         loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), distance)
         loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidItem(item_id))
+        
+        if multibox_loot:
+            party_leader_id = Party.GetPartyLeaderID()
+            if party_leader_id != Player.GetAgentID():
+                loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidFollowerItem(item_id))
+
 
         for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
             item_data = Agent.GetItemAgent(agent_id)
