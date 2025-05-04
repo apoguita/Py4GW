@@ -1,7 +1,7 @@
 from Py4GWCoreLib import *
-from HeroAI.custom_skill import *
-from HeroAI.types import *
-from HeroAI.targeting import *
+from .custom_skill import *
+from .types import *
+from .targeting import *
 from typing import Optional
 
 
@@ -163,9 +163,11 @@ class CombatClass:
         for i in range(MAX_SKILLS):
             original_skills.append(self.SkillData(i+1))
 
-        # the order in which you insert key-value pairs into the dictionary will be preserved
-        ordered_skills_by_skill_id: dict[int, CombatClass.SkillData] = {}
-
+        # Initialize the pointer and tracking list
+        ptr = 0
+        ptr_chk = [False] * MAX_SKILLS
+        ordered_skills = []
+        
         priorities = [
             SkillNature.Interrupt,
             SkillNature.Enchantment_Removal,
@@ -177,16 +179,15 @@ class CombatClass:
             SkillNature.Buff
         ]
 
-        # Initialize the list
-
         for priority in priorities:
-            for i in range(MAX_SKILLS):
+            for i in range(ptr,MAX_SKILLS):
                 skill = original_skills[i]
-                if skill.custom_skill_data.Nature != priority.value:
-                    continue
-
-                ordered_skills_by_skill_id[skill.skill_id] = skill
-
+                if not ptr_chk[i] and skill.custom_skill_data.Nature == priority.value:
+                    self.skill_order[ptr] = i
+                    ptr_chk[i] = True
+                    ptr += 1
+                    ordered_skills.append(skill)
+        
         skill_types = [
             SkillType.Form,
             SkillType.Enchantment,
@@ -209,40 +210,37 @@ class CombatClass:
             SkillType.Attack,
         ]
 
+        
         for skill_type in skill_types:
-            for i in range(MAX_SKILLS):
+            for i in range(ptr,MAX_SKILLS):
                 skill = original_skills[i]
-
-                if skill.skill_id in ordered_skills_by_skill_id:
-                    continue
-
-                if skill.custom_skill_data.SkillType != skill_type.value:
-                    continue
-
-                ordered_skills_by_skill_id[skill.skill_id] = skill
+                if not ptr_chk[i] and skill.custom_skill_data.SkillType == skill_type.value:
+                    self.skill_order[ptr] = i
+                    ptr_chk[i] = True
+                    ptr += 1
+                    ordered_skills.append(skill)
 
         combos = [3, 2, 1]  # Dual attack, off-hand attack, lead attack
         for combo in combos:
-            for i in range(MAX_SKILLS):
+            for i in range(ptr,MAX_SKILLS):
                 skill = original_skills[i]
-
-                if skill.skill_id in ordered_skills_by_skill_id:
-                    continue
-
-                if Skill.Data.GetCombo(skill.skill_id) == combo:
-                    ordered_skills_by_skill_id[skill.skill_id] = skill
-
+                if not ptr_chk[i] and Skill.Data.GetCombo(skill.skill_id) == combo:
+                    self.skill_order[ptr] = i
+                    ptr_chk[i] = True
+                    ptr += 1
+                    ordered_skills.append(skill)
+        
         # Fill in remaining unprioritized skills
         for i in range(MAX_SKILLS):
-            skill = original_skills[i]
-
-            if skill.skill_id in ordered_skills_by_skill_id:
-                continue
-
-            ordered_skills_by_skill_id[skill.skill_id] = skill
-
-        self.skills = list(ordered_skills_by_skill_id.values()) # list() to create a copy and not giving object.ref
-
+            if not ptr_chk[i]:
+                self.skill_order[ptr] = i
+                ptr_chk[i] = True
+                ptr += 1
+                ordered_skills.append(original_skills[i])
+        
+        self.skills = ordered_skills
+        
+        
     def GetSkills(self):
         """
         Retrieve the prioritized skill set.
