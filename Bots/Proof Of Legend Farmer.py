@@ -419,7 +419,7 @@ class BotVars:
         self.character_created_successfully: bool = False
         self.press_key_aq = ActionQueueNode(120)
         #Debug
-        self.test = True
+        self.test = False
         #dialog frame
         self._last_dialog_frame_ids: Dict[str, Optional[int]] = {}
         self.frame_paths = {
