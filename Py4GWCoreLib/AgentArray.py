@@ -349,7 +349,9 @@ class RawAgentArray:
     def update(self):
         from .Routines import Routines
         from .Map import Map
-        #self.update_throttle.SetThrottleTime(self.throttle)
+        if not Routines.Checks.Map.MapValid():
+            return
+        
         for agent_id in list(self.name_requested):
             if Agent.IsNameReady(agent_id):
                 name = Agent.GetName(agent_id)
@@ -361,8 +363,6 @@ class RawAgentArray:
         if not self.update_throttle.IsExpired():
             return
         self.update_throttle.Reset()
-        if not Routines.Checks.Map.MapValid():
-            return
 
         self.agent_array = AgentArray.GetRawAgentArray()
 

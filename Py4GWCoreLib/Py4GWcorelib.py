@@ -1880,15 +1880,15 @@ class LootConfig:
         self._initialized = True
 
     def reset(self):
-        self.loot_whites = True
-        self.loot_blues = True
-        self.loot_purples = True
-        self.loot_golds = True
-        self.loot_greens = True
+        self.loot_whites = False
+        self.loot_blues = False
+        self.loot_purples = False
+        self.loot_golds = False
+        self.loot_greens = False
         self.whitelist = set()  # Avoid duplicates
         self.blacklist = set()
 
-    def SetProperties(self, loot_whites=True, loot_blues=True, loot_purples=True, loot_golds=True, loot_greens=True):
+    def SetProperties(self, loot_whites=False, loot_blues=False, loot_purples=False, loot_golds=False, loot_greens=False):
         self.loot_whites = loot_whites
         self.loot_blues = loot_blues
         self.loot_purples = loot_purples
@@ -1925,17 +1925,30 @@ class LootConfig:
     def GetBlacklist(self):
         return list(self.blacklist)
 
-    def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value):
+    def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value, multibox_loot: bool = False):
         from .AgentArray import AgentArray
+        from .Agent import Agent
+        from .Party import Party
+        from .Player import Player
         from .Item import Item
         
         def IsValidItem(item_id):
             owner = Agent.GetItemAgentOwnerID(item_id)
             return (owner == Player.GetAgentID()) or (owner == 0)
+        
+        def IsValidFollowerItem(item_id):
+            owner = Agent.GetItemAgentOwnerID(item_id)
+            return (owner == Player.GetAgentID())
             
         loot_array = AgentArray.GetItemArray()
         loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), distance)
         loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidItem(item_id))
+        
+        if multibox_loot:
+            party_leader_id = Party.GetPartyLeaderID()
+            if party_leader_id != Player.GetAgentID():
+                loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidFollowerItem(item_id))
+
 
         for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
             item_data = Agent.GetItemAgent(agent_id)
