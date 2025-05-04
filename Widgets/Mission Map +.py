@@ -599,7 +599,7 @@ object_item = ConfigItem("Item", marker_name="Square", color=item_color, alterna
 GLOBAL_CONFIGS.add(object_item)
 
 
-#region MISSION MAP
+#region MISSIONMAP
 class MissionMap:
     def __init__(self):
         self.mission_map_instance = PyMissionMap.PyMissionMap()
@@ -635,6 +635,8 @@ class MissionMap:
         self.throttle_timer = ThrottledTimer(34) # every 4 frames 1000/60 = 16.67ms * 4 = 66.67ms
         self.raw_agent_array_handler = RawAgentArray()
         self.agent_array =self.raw_agent_array_handler.get_array()
+        self.Map_load_timer = Timer()
+        self.Map_load_timer.Start()
         
         self.aggro_bubble_color = Utils.RGBToColor(255, 255, 255, 40)
         self.item_rarity_white_color = Color(225, 225, 225, 255)
@@ -968,11 +970,15 @@ def main():
     try:  
         if not Routines.Checks.Map.MapValid():
             mission_map.geometry = [] 
+            mission_map.Map_load_timer.Reset()
             return
         
         if Party.GetPartyLeaderID() != Player.GetAgentID():
             return
             
+        if not mission_map.Map_load_timer.HasElapsed(1000):
+            return
+        
         if Map.MissionMap.IsWindowOpen():
             mission_map.update()
             DrawFrame()
