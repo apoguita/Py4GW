@@ -484,6 +484,28 @@ class Inventory:
             bool: True if moved at least some of the items, False if failed.
         """
         from .enums import Bags
+        
+        def GetBags():
+            possible_bags = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4,
+                                                    *([Bags.Storage5] if Anniversary_panel else []),
+                                                    Bags.Storage6,Bags.Storage7,Bags.Storage8,Bags.Storage9,Bags.Storage10,
+                                                    Bags.Storage11,Bags.Storage12,Bags.Storage13,Bags.Storage14)
+        
+            # Dynamically calculate the total capacity using PyInventory.Bag
+            total_capacity = sum(
+                PyInventory.Bag(bag_enum.value, bag_enum.name).GetSize() for bag_enum in possible_bags
+            )
+
+            bags = total_capacity // 25
+
+            storage_bags = []
+
+            for i in range(1, bags + 1):
+                    bag = getattr(Bags, f"Storage{i}")
+                    storage_bags.append(bag)
+
+            return storage_bags
+    
         MAX_STACK_SIZE = 250
 
         is_stackable = Item.Customization.IsStackable(item_id)
@@ -493,10 +515,7 @@ class Inventory:
             return False  # Nothing to move
 
         # Gather target bags
-        if not Anniversary_panel:
-            storage_bags = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4)
-        else:
-            storage_bags = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4,Bags.Storage5)
+        storage_bags = GetBags()
     
         remaining_quantity = quantity
         moved_any = False
