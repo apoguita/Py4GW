@@ -128,6 +128,7 @@ def main():
     if not global_vars.widget_active:
         return
         
+
     if not Routines.Checks.Agents.InDanger():
         return
     

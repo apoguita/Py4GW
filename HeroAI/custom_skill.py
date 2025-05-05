@@ -1337,7 +1337,7 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Pet.value
         skill.Nature = SkillNature.Healing.value
         skill.Conditions.UniqueProperty = True
-        skill.Conditions.LessLife = 0.75
+        skill.Conditions.LessLife = 0.50
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -2936,7 +2936,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.LessLife = 0.75
+        skill.Conditions.LessLife = 0.8
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -2958,7 +2958,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.LessLife = 0.6
+        skill.Conditions.LessLife = 0.8
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -2966,7 +2966,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.LessLife = 0.5
+        skill.Conditions.LessLife = 0.6
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -3186,7 +3186,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = Skill.GetID("Strength_of_Honor")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.AllyMartialMelee.value
+        skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.TargetingStrict = True
         skill.Conditions.IsOutOfCombat = True
@@ -7967,7 +7967,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Healing.value
-        skill.Conditions.LessLife = 0.9
+        skill.Conditions.LessLife = 0.70
         skill.Conditions.UniqueProperty = True
         self.skill_data[skill.SkillID] = skill
 
@@ -8056,7 +8056,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Healing.value
-        skill.Conditions.LessLife = 0.9
+        skill.Conditions.LessLife = 0.75
         skill.Conditions.SacrificeHealth = 0.3
         self.skill_data[skill.SkillID] = skill
 
@@ -8072,7 +8072,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Healing.value
-        skill.Conditions.LessLife = 0.9
+        skill.Conditions.LessLife = 0.8
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -9433,6 +9433,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Shout.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()

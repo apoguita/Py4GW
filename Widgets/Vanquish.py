@@ -113,7 +113,7 @@ def DrawWindow():
   
 def main():
     global is_map_ready, is_party_loaded, is_explorable, is_vanquishable, is_hard_mode, game_throttle_timer
-    global game_throttle_time, widget_config
+    global game_throttle_time, widget_config, killed, total
     
     if game_throttle_timer.HasElapsed(game_throttle_time):
         is_map_ready = Map.IsMapReady()
