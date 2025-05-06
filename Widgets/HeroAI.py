@@ -12,10 +12,12 @@ from HeroAI.windows import *
 from HeroAI.targeting import *
 from HeroAI.combat import *
 from HeroAI.cache_data import *
+from HeroAI.enhanced_priority_targets import EnhancedPriorityTargets
 
 MODULE_NAME = "HeroAI"
 
 cached_data = CacheData()
+enhanced_priority_targets = EnhancedPriorityTargets()
 
 def HandleOutOfCombat(cached_data:CacheData):
     if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
@@ -154,7 +156,9 @@ def draw_Targeting_floating_buttons(cached_data:CacheData):
         screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
         if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):
             ActionQueueManager().ResetQueue("ACTION")
-            ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, agent_id)
+            current_target = Player.GetTargetID()
+            if current_target != agent_id:
+                ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, agent_id)
             ActionQueueManager().AddAction("ACTION", Player.Interact, agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
 
@@ -165,8 +169,9 @@ class TabType(Enum):
     control_panel = 2
     candidates = 3
     flagging = 4
-    config = 5
-    debug = 6 
+    priority_targets = 5
+    config = 6
+    debug = 7 
     
 selected_tab:TabType = TabType.party
 
@@ -218,16 +223,18 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
                 DrawCandidateWindow(cached_data)
             case TabType.flagging:
                 DrawFlaggingWindow(cached_data)
+            case TabType.priority_targets:
+                DrawPriorityTargetsWindow(cached_data)
             case TabType.config:
                 DrawOptions(cached_data)
 
         
     PyImGui.end()
     PyImGui.pop_style_var(1)
-    
-       
+              
 def DrawEmbeddedWindow(cached_data:CacheData):
     global selected_tab
+    
     parent_frame_id = UIManager.GetFrameIDByHash(PARTY_WINDOW_HASH)   
     outpost_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
     explorable_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS)
@@ -265,6 +272,10 @@ def DrawEmbeddedWindow(cached_data:CacheData):
                 selected_tab = TabType.flagging
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("Flagging")
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_CROSSHAIRS + "##priorityTargetsTab"):
+                selected_tab = TabType.priority_targets
+                PyImGui.end_tab_item()
+            ImGui.show_tooltip("Priority Targets")
             if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_COGS + "##configTab"):
                 selected_tab = TabType.config
                 PyImGui.end_tab_item()
@@ -278,8 +289,6 @@ def DrawEmbeddedWindow(cached_data:CacheData):
     
     ImGui.PopTransparentWindow()    
     DrawFramedContent(cached_data,content_frame_id)
-    
-    
 
 def UpdateStatus(cached_data:CacheData):
     global in_looting_routine
@@ -290,7 +299,9 @@ def UpdateStatus(cached_data:CacheData):
     RegisterPlayer(cached_data)   
     RegisterHeroes(cached_data)
     UpdatePlayers(cached_data)      
-    UpdateGameOptions(cached_data)   
+    UpdateGameOptions(cached_data)
+    enhanced_priority_targets.update()
+   
     
     cached_data.UpdateGameOptions()
 
@@ -313,10 +324,10 @@ def UpdateStatus(cached_data:CacheData):
     
     if (
         not cached_data.data.player_is_alive or
-        DistanceFromLeader(cached_data) >= Range.SafeCompass.value or
-        cached_data.data.player_is_knocked_down or 
-        cached_data.combat_handler.InCastingRoutine() or 
-        cached_data.data.player_is_casting
+        DistanceFromLeader(cached_data) >= Range.SafeCompass.value #or
+        #cached_data.data.player_is_knocked_down or 
+        #cached_data.combat_handler.InCastingRoutine() or 
+        #cached_data.data.player_is_casting
     ):
         return
     
@@ -361,11 +372,13 @@ def main():
         
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
-            UpdateStatus(cached_data)
-            ActionQueueManager().ProcessQueue("ACTION")
-
-
+            # Optimization: Priority to important operations
+            ActionQueueManager().ProcessQueue("ACTION")  # Process pending actions first
             
+            # Update only if necessary
+            if not cached_data.data.player_is_moving and not cached_data.combat_handler.InCastingRoutine():
+                UpdateStatus(cached_data)
+    
     except ImportError as e:
         Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
         Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
