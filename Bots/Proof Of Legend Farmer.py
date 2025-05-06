@@ -424,7 +424,7 @@ class BotVars:
         self._last_dialog_frame_ids: Dict[str, Optional[int]] = {}
         self.frame_paths = {
             "char_select_delete_button": 3379687503,
-            "char_select_delete_confirm_frame": (140452905, [5, 1, 15]),
+            "char_select_delete_confirm_text": (140452905, [5, 1, 15,0]),
             "char_select_delete_name_input": (140452905, [5, 1, 15, 1]),
             "char_select_delete_final_button": (140452905, [5, 1, 15, 2]),
             "char_select_create_button": 3372446797,
@@ -523,8 +523,6 @@ class StateMachineVars:
         # self.kamadan_move_near_merchants    = Routines.Movement.PathHandler(kamadan_move_near_merchants)
         self.kamadan_move_near_merchants    = create_kamadan_move_near_merchants_path()  
         
-        
-        
         #ending
         self.second_chahbek_village         = FSM("Second Chahbek Village")
         
@@ -578,7 +576,6 @@ def start_new_run():
     bot_vars.lap_timer.Start()
     bot_vars.runs_attempted += 1
 
-
 def complete_run(success: bool):
     duration = bot_vars.lap_timer.GetElapsedTime()
     bot_vars.lap_timer.Stop()
@@ -591,6 +588,7 @@ def complete_run(success: bool):
     bot_vars.avg_time = int(sum(bot_vars.lap_history) / len(bot_vars.lap_history))
     bot_vars.success_rate = (bot_vars.proofs_deposited / bot_vars.runs_attempted)
     ConsoleLog("Stats", f"Run Completed! Time: {FormatTime(duration, 'mm:ss:ms')}", Console.MessageType.Success)
+
 def is_bot_started(): 
     return bot_vars.bot_started
 
@@ -1008,11 +1006,33 @@ def click_frame_retry(frame_id_or_path, retry_delay: float = 1.5, debug: bool = 
         if debug:
             ConsoleLog("click_frame_retry", f"Clicking Frame ID: {frame_id} (Key: {frame_key})", Console.MessageType.Debug)
         ActionQueueManager().AddAction("ACTION", UIManager.FrameClick, frame_id)
-        # UIManager.FrameClick(frame_id)
         return True
 
     if debug:
         ConsoleLog("click_frame_retry", f"Frame not found or not visible: {frame_id} (Key: {frame_key})", Console.MessageType.Warning)
+    return False
+
+def click_frame_once(frame_id_or_path, debug: bool = False):
+    if isinstance(frame_id_or_path, int):
+        frame_id = UIManager.GetFrameIDByHash(frame_id_or_path)
+        frame_key = str(frame_id_or_path)
+    elif isinstance(frame_id_or_path, tuple) and len(frame_id_or_path) == 2:
+        parent_hash, offsets = frame_id_or_path
+        all_ids = UIManager.GetAllChildFrameIDs(parent_hash, offsets)
+        frame_id = all_ids[0] if all_ids else 0
+        frame_key = f"{parent_hash}_{'_'.join(map(str, offsets))}"
+    else:
+        if debug:
+            ConsoleLog("click_frame_once", f"Invalid frame identifier: {frame_id_or_path}", Console.MessageType.Error)
+        return False
+
+    if frame_id != 0 and UIManager.FrameExists(frame_id):
+        if debug:
+            ConsoleLog("click_frame_once", f"Clicking Frame ID: {frame_id} (Key: {frame_key})", Console.MessageType.Debug)
+        return UIManager.FrameClick(frame_id)
+
+    if debug:
+        ConsoleLog("click_frame_once", f"Frame not found or not visible: {frame_id} (Key: {frame_key})", Console.MessageType.Warning)
     return False
 
 def clear_frame_click_retry_cache(debug: bool = False):
@@ -1021,21 +1041,32 @@ def clear_frame_click_retry_cache(debug: bool = False):
         ConsoleLog("Helpers", "Cleared frame click retry cache.", Console.MessageType.Info)
 
 def check_frame_visible(frame_id_or_path, debug: bool = False):
-    if isinstance(frame_id_or_path, int):
-        frame_id = UIManager.GetFrameIDByHash(frame_id_or_path)
-    elif isinstance(frame_id_or_path, tuple) and len(frame_id_or_path) == 2:
-        parent_hash, offsets = frame_id_or_path
-        all_ids = UIManager.GetAllChildFrameIDs(parent_hash, offsets)
-        frame_id = next((fid for fid in all_ids if UIManager.FrameExists(fid)), 0)
-    else:
+    if frame_id_or_path is None:
         if debug:
-            ConsoleLog("check_frame_visible", f"Invalid frame identifier: {frame_id_or_path}", Console.MessageType.Error)
+            ConsoleLog("check_frame_visible", "Frame path is None.", Console.MessageType.Warning)
         return False
 
-    exists = frame_id != 0 and UIManager.FrameExists(frame_id)
-    if debug:
-        ConsoleLog("check_frame_visible", f"Checking visibility for {frame_id_or_path} -> ID: {frame_id}, Exists: {exists}", Console.MessageType.Debug)
-    return exists
+    try:
+        if isinstance(frame_id_or_path, int):
+            frame_id = UIManager.GetFrameIDByHash(frame_id_or_path)
+        elif isinstance(frame_id_or_path, tuple) and len(frame_id_or_path) == 2:
+            parent_hash, offsets = frame_id_or_path
+            all_ids = UIManager.GetAllChildFrameIDs(parent_hash, offsets) or []
+            frame_id = next((fid for fid in all_ids if UIManager.FrameExists(fid)), 0)
+        else:
+            if debug:
+                ConsoleLog("check_frame_visible", f"Invalid frame identifier: {frame_id_or_path}", Console.MessageType.Error)
+            return False
+
+        exists = frame_id != 0 and UIManager.FrameExists(frame_id)
+        if debug:
+            ConsoleLog("check_frame_visible", f"Checking visibility for {frame_id_or_path} -> ID: {frame_id}, Exists: {exists}", Console.MessageType.Debug)
+        return exists
+
+    except Exception as e:
+        if debug:
+            ConsoleLog("check_frame_visible", f"Exception checking frame visibility: {e}", Console.MessageType.Error)
+        return False
 
 def press_key_repeat(key_value: int, times: int, debug: bool = False):
     if debug:
@@ -1104,23 +1135,33 @@ def _is_target_character_selected(target_name: str, debug: bool = False):
     return is_correct
 
 def check_button_enabled_and_click(frame_id_or_path, enabled_field_value=18692, field_name="field91_0x184", retry_delay=1.5, debug=False):
-    if isinstance(frame_id_or_path, int):
-        frame_id = UIManager.GetFrameIDByHash(frame_id_or_path)
-        frame_key = str(frame_id_or_path)
-    elif isinstance(frame_id_or_path, tuple) and len(frame_id_or_path) == 2:
-        parent_hash, offsets = frame_id_or_path
-        all_ids = UIManager.GetAllChildFrameIDs(parent_hash, offsets)
-        frame_id = all_ids[0] if all_ids else 0
-        frame_key = f"{parent_hash}_{'_'.join(map(str, offsets))}"
-    else:
+    if frame_id_or_path is None:
         if debug:
-            ConsoleLog("check_button_enabled", f"Invalid frame identifier: {frame_id_or_path}", Console.MessageType.Error)
+            ConsoleLog("check_frame_visible", "Frame path is None.", Console.MessageType.Warning)
         return False
+    
+    try:
+        if isinstance(frame_id_or_path, int):
+            frame_id = UIManager.GetFrameIDByHash(frame_id_or_path)
+            frame_key = str(frame_id_or_path)
+        elif isinstance(frame_id_or_path, tuple) and len(frame_id_or_path) == 2:
+            parent_hash, offsets = frame_id_or_path
+            all_ids = UIManager.GetAllChildFrameIDs(parent_hash, offsets)
+            frame_id = all_ids[0] if all_ids else 0
+            frame_key = f"{parent_hash}_{'_'.join(map(str, offsets))}"
+        else:
+            if debug:
+                ConsoleLog("check_button_enabled", f"Invalid frame identifier: {frame_id_or_path}", Console.MessageType.Error)
+            return False
 
-    if frame_id == 0 or not UIManager.FrameExists(frame_id):
+        if frame_id == 0 or not UIManager.FrameExists(frame_id):
+            if debug:
+                ConsoleLog("check_button_enabled", f"Frame not found for check: {frame_id_or_path} -> ID {frame_id}", Console.MessageType.Warning)
+            _frame_click_retry_tracker[f"click_retry_{frame_key}"] = time.time()
+            return False
+    except Exception as e:
         if debug:
-            ConsoleLog("check_button_enabled", f"Frame not found for check: {frame_id_or_path} -> ID {frame_id}", Console.MessageType.Warning)
-        _frame_click_retry_tracker[f"click_retry_{frame_key}"] = time.time()
+            ConsoleLog("check_frame_visible", f"Exception checking frame visibility: {e}", Console.MessageType.Error)
         return False
 
     try:
@@ -1148,14 +1189,40 @@ def check_button_enabled_and_click(frame_id_or_path, enabled_field_value=18692, 
 
     return False
 
+def check_button_field_and_click(frame_id_or_path, field_value=18692, field_name="field91_0x184", debug=False):
+    if frame_id_or_path is None:
+        if debug:
+            ConsoleLog("check_field_click", "Frame path is None.", Console.MessageType.Warning)
+        return False
+    try:
+        if isinstance(frame_id_or_path, int):
+            frame_id = UIManager.GetFrameIDByHash(frame_id_or_path)
+        elif isinstance(frame_id_or_path, tuple) and len(frame_id_or_path) == 2:
+            parent_hash, offsets = frame_id_or_path
+            all_ids = UIManager.GetAllChildFrameIDs(parent_hash, offsets)
+            frame_id = all_ids[0] if all_ids else 0
+        else:
+            return False
+
+        if frame_id == 0 or not UIManager.FrameExists(frame_id):
+            return False
+    except Exception as e:
+        return False
+    try:
+        frame_obj = PyUIManager.UIFrame(frame_id)
+        frame_obj.get_context()
+        current_value = getattr(frame_obj, field_name, None)
+
+        if current_value == field_value:
+            return ActionQueueManager().AddAction("ACTION", UIManager.FrameClick, frame_id)
+
+    except Exception as e:
+        ConsoleLog("check_field_click", f"Error reading field '{field_name}' for frame {frame_id}: {e}", Console.MessageType.Error)
+    return False
+
 def copy_text_with_imgui(text_to_copy: str):
-    bot_vars.oldclipboard = PyImGui.get_clipboard_text()
     PyImGui.set_clipboard_text(text_to_copy)
-    
-def restore_copy_text(text_to_restore: str):
-    PyImGui.set_clipboard_text(text_to_restore)
-    
-    
+
 def _set_flags_for_reroll_jump(target_state_name: str):
     ConsoleLog("Debug Jump", f"Setting flags for jump to: {target_state_name}", Console.MessageType.Debug)
 
@@ -1221,6 +1288,51 @@ def safe_add_state(fsm, state_tuple):
         on_enter=on_enter or (lambda: None),
         on_exit=on_exit or (lambda: None)
     )
+    
+def copy_text_with_ctypes(text: str, debug: bool = False):
+    CF_TEXT = 1
+    kernel32, user32 = ctypes.windll.kernel32, ctypes.windll.user32
+    buffer_ptr = None
+
+    try:
+        encoded = text.encode('utf-8') + b'\0'
+        mem = ctypes.c_buffer(encoded)
+        buffer_ptr = kernel32.GlobalAlloc(0x0002, len(mem))
+        if not buffer_ptr:
+            return ConsoleLog(module_name, "GlobalAlloc failed.", Console.MessageType.Error)
+
+        lock = kernel32.GlobalLock(buffer_ptr)
+        if not lock:
+            kernel32.GlobalFree(buffer_ptr)
+            return ConsoleLog(module_name, "GlobalLock failed.", Console.MessageType.Error)
+
+        ctypes.memmove(lock, mem, len(mem))
+        kernel32.GlobalUnlock(buffer_ptr)
+
+        if not user32.OpenClipboard(0):
+            kernel32.GlobalFree(buffer_ptr)
+            return ConsoleLog(module_name, f"OpenClipboard failed. Error: {kernel32.GetLastError()}", Console.MessageType.Error)
+
+        user32.EmptyClipboard()
+        if user32.SetClipboardData(CF_TEXT, buffer_ptr):
+            user32.CloseClipboard()
+            if debug:
+                ConsoleLog(module_name, f"Copied '{text}' to clipboard.", Console.MessageType.Success)
+            return
+
+        user32.CloseClipboard()
+        kernel32.GlobalFree(buffer_ptr)
+        ConsoleLog(module_name, f"SetClipboardData failed. Error: {kernel32.GetLastError()}", Console.MessageType.Error)
+
+    except Exception as e:
+        ConsoleLog(module_name, f"Exception: {e}", Console.MessageType.Error)
+        if buffer_ptr:
+            try:
+                kernel32.GlobalFree(buffer_ptr)
+            except Exception as e2:
+                if debug:
+                    ConsoleLog(module_name, f"Cleanup GlobalFree failed: {e2}", Console.MessageType.Warning)
+
 #endregion (End of functions/variables)
 
 #region FSM for Combat
@@ -1262,26 +1374,26 @@ fsm_vars.nightfall_intro.AddState(
     name="Target: Kormir",
     execute_fn=lambda: target_and_interact(10331,6387)(),
     exit_condition=lambda: check_dialog_buttons(buttons=2, state_key="kormir1"),
-    transition_delay_ms=400,
+    transition_delay_ms=500,
     run_once=False,
     on_exit=lambda: start_new_run())
 fsm_vars.nightfall_intro.AddState(
     name="Click: Skip",
     execute_fn=lambda: click_dialog_button_retry(button=2),
     exit_condition=lambda: check_dialog_buttons(buttons=2, state_key="Kormir2"),
-    transition_delay_ms=400,
+    transition_delay_ms=200,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Click: Confident",
     execute_fn=lambda: click_dialog_button_retry(button=1),
     exit_condition=lambda: is_npc_dialog_hidden(),
         #check_active_quest(677)),
-    transition_delay_ms=400,
+    transition_delay_ms=200,
     run_once=False)
 fsm_vars.nightfall_intro.AddState(
     name="Equip: Weapon",
     execute_fn=lambda: equip_starter(),
-    transition_delay_ms=500,
+    transition_delay_ms=1000,
     run_once=True)
 fsm_vars.nightfall_intro.AddState(
     name="Move: to Enemies",
@@ -1340,6 +1452,11 @@ def setup_first_chahbek_village(fsm, random_insert_chance=0.5):
 
     recruit_steps = [
         ("Type: /bonus", lambda: ActionQueueManager().AddAction("ACTION", Player.SendChatCommand, "bonus"), None, 500, True, None, None),
+        ("Type: delete bow", lambda: ActionQueueManager().AddAction("ACTION", Inventory.DestroyItem, Item.GetItemIdFromModelID(5831)), None, 100, True, None, None),
+        ("Type: delete roar", lambda: ActionQueueManager().AddAction("ACTION", Inventory.DestroyItem, Item.GetItemIdFromModelID(6036)), None, 100, True, None, None),
+        ("Type: delete favor", lambda: ActionQueueManager().AddAction("ACTION", Inventory.DestroyItem, Item.GetItemIdFromModelID(6058)), None, 100, True, None, None),
+        ("Type: delete charge", lambda: ActionQueueManager().AddAction("ACTION", Inventory.DestroyItem, Item.GetItemIdFromModelID(6060)), None, 100, True, None, None),
+        ("Type: delete shriek", lambda: ActionQueueManager().AddAction("ACTION", Inventory.DestroyItem, Item.GetItemIdFromModelID(6515)), None, 100, True, None, None),
         ("Move: Near Recruit", lambda: Routines.Movement.FollowPath(fsm_vars.first_chahbek_village_pathing, fsm_vars.movement_handler), lambda: Routines.Movement.IsFollowPathFinished(fsm_vars.first_chahbek_village_pathing, fsm_vars.movement_handler), 500, False, None, None),
         ("Target: Recruit #1", lambda: target_and_interact(4776, -6023)(), lambda: check_dialog_buttons(buttons=1), 500, False, None, None),
         ("Click: Quiz #1", lambda: click_dialog_button_retry(button=1), lambda: check_dialog_buttons(buttons=0), 500, False, None, None),
@@ -2144,30 +2261,19 @@ fsm_vars.logout_character.AddState(
     name="Action: Initiate Logout",
     execute_fn=initiate_logout,
     exit_condition=is_char_select_ready,
-    transition_delay_ms=1000,
+    transition_delay_ms=2000,
     run_once=True)
-fsm_vars.logout_character.AddWaitState(
-    name="Wait: Char Select Ready",
-    condition_fn=is_char_select_ready,
-    timeout_ms=15000, # Increased timeout for logout
-    on_timeout=lambda:  _stop_fsm_on_timeout("logout_character", "Wait: Char Select Ready"),
-    on_enter=lambda: print("Wait: Char Select Ready STARTING"))
 fsm_vars.logout_character.AddState(
     name="Action: Find Target Character",
     execute_fn=find_target_character,
     exit_condition=lambda: bot_vars.character_index != -99,
     run_once=False)
-fsm_vars.logout_character.AddWaitState(
-    name="Wait: Target Character Found",
-    condition_fn=lambda: bot_vars.character_index != -99,
-    timeout_ms=10000,
-    on_timeout=lambda:  _stop_fsm_on_timeout("logout_character", f"Wait: Target Character '{bot_vars.character_to_delete_name}' Found"))
 fsm_vars.logout_character.AddState(
     name="Action: Navigate Character Select",
     execute_fn=navigate_char_select,
     exit_condition=is_target_selected,
     run_once=False,
-    on_exit=lambda: clear_frame_click_retry_cache())
+    on_exit=lambda: clear_frame_click_retry_cache(True))
 fsm_vars.logout_character.AddWaitState(
     name="Wait: Target Character Selected",
     condition_fn=is_target_selected,
@@ -2175,12 +2281,8 @@ fsm_vars.logout_character.AddWaitState(
     on_timeout=lambda:  _stop_fsm_on_timeout("logout_character", "Wait: Target Character Selected"),
     on_exit=lambda: [
         mark_flag("logged_out", True)(),
-        clear_frame_click_retry_cache(),
         ConsoleLog("logout_character", "Logout and character selection complete.", Console.MessageType.Success)
     ])
-#endregion
-
-#region --- FSM Character Logout ---
 #endregion
 
 #region --- FSM Delete Character ---
@@ -2189,88 +2291,47 @@ fsm_vars.delete_character.AddState(
     name="Check: In Char Select",
     execute_fn=lambda: None,
     exit_condition=lambda: Player.InCharacterSelectScreen(),
-    run_once=False)
-fsm_vars.delete_character.AddWaitState(
-    name="Wait: Char Select Active",
-    condition_fn=lambda: Player.InCharacterSelectScreen(),
-    timeout_ms=10000,
-    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Char Select Active"))
+    run_once=True,
+    transition_delay_ms=1000)
 fsm_vars.delete_character.AddState(
     name="Check: Target Name Set",
     execute_fn=lambda: None,
-    exit_condition=lambda: bot_vars.character_to_delete_name != "",
-    run_once=False)
-fsm_vars.delete_character.AddWaitState(
-    name="Wait: Target Name Available",
-    condition_fn=lambda: bot_vars.character_to_delete_name != "",
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Target Name Available"))
-fsm_vars.delete_character.AddWaitState(
-    name="Verify: Correct Character Selected",
-    condition_fn=lambda: _is_target_character_selected(target_name=bot_vars.character_to_delete_name),
-    timeout_ms=10000,
-    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Verify: Correct Character Selected"),
-    on_enter=lambda: ConsoleLog("delete_character", f"Verifying '{bot_vars.character_to_delete_name}' is selected...", Console.MessageType.Info),
-    on_exit=lambda: ConsoleLog("delete_character", "Correct character verified.", Console.MessageType.Debug))
+    exit_condition=lambda: bot_vars.character_to_delete_name != "" and check_frame_visible(bot_vars.frame_paths["char_select_delete_button"]),
+    run_once=True,
+    transition_delay_ms=1500)
+fsm_vars.delete_character.AddState(
+    name="Wait: Delete Button Loaded",
+    exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_select_delete_button"]),
+    transition_delay_ms=1000)
 fsm_vars.delete_character.AddState(
     name="Click: Delete Button",
-    execute_fn=lambda: check_button_enabled_and_click(
-                    frame_id_or_path=bot_vars.frame_paths["char_select_delete_button"],
-                    enabled_field_value=18692,
-                    field_name="field91_0x184",
-                    retry_delay=1.0),
-    exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_frame"]),
-    run_once=False,
-    transition_delay_ms=600,
-    on_exit=lambda: clear_frame_click_retry_cache())
-fsm_vars.delete_character.AddWaitState(
-    name="Wait: Confirm Dialog Visible",
-    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_frame"]),
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Confirm Dialog Visible"))
+    execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndRelease, Key.D.value),
+    exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_text"]),
+    run_once=True,
+    transition_delay_ms=1500)
 fsm_vars.delete_character.AddState(
     name="Copy Name to Clipboard",
-    execute_fn=lambda: copy_text_with_imgui(bot_vars.character_to_delete_name),
+    execute_fn=lambda: copy_text_with_ctypes(bot_vars.character_to_delete_name),
     exit_condition=lambda: True,
     run_once=True,
-    transition_delay_ms=600)
+    transition_delay_ms=200)
 fsm_vars.delete_character.AddState(
     name="Paste Name (Ctrl+V)",
     execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.V.value]),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=300)
-fsm_vars.delete_character.AddWaitState(
-    name="Wait: Paste Complete",
-    condition_fn=lambda: bot_vars.press_key_aq.is_empty(),
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Paste Complete"))
+    transition_delay_ms=200)
 fsm_vars.delete_character.AddState(
     name="Click: Final Delete Button",
-    execute_fn=lambda: check_button_enabled_and_click(
-        frame_id_or_path=bot_vars.frame_paths["char_select_delete_final_button"],
-        enabled_field_value=18692,
-        field_name="field91_0x184",
-        retry_delay=1.0),
+    execute_fn=lambda:  bot_vars.press_key_aq.add_action(Keystroke.PressAndRelease, Key.Enter.value),
     exit_condition=lambda: (
-        not check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_frame"]) or
+        not check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_text"]) or
         is_char_name_gone(bot_vars.character_to_delete_name)),
-    run_once=False,
+    run_once=True,
     transition_delay_ms=1000,
-    on_exit=lambda: clear_frame_click_retry_cache())
-fsm_vars.delete_character.AddWaitState(
-    name="Wait: Deletion Confirmation",
-    condition_fn=lambda: [
-        not check_frame_visible(bot_vars.frame_paths["char_select_delete_confirm_frame"]) and
-        is_char_name_gone(bot_vars.character_to_delete_name)
-    ],
-    timeout_ms=15000,
-    on_timeout=lambda: _stop_fsm_on_timeout("delete_character", "Wait: Deletion Confirmation"),
-    on_enter=lambda: ConsoleLog("delete_character", "Waiting for character list update...", Console.MessageType.Info),
     on_exit=lambda: [
         ConsoleLog("delete_character", f"Character '{bot_vars.character_to_delete_name}' deleted successfully.", Console.MessageType.Success),
-        mark_flag("character_delete_confirmed", True)(),
-        clear_frame_click_retry_cache()
+        mark_flag("character_delete_confirmed", True)()
     ])
 #endregion --- FSM Delete Character ---
 
@@ -2282,38 +2343,23 @@ fsm_vars.create_character.AddState(
     exit_condition=lambda: Player.InCharacterSelectScreen(),
     transition_delay_ms=1000,
     run_once=False)
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Char Select Active",
-    condition_fn=lambda: Player.InCharacterSelectScreen(),
-    timeout_ms=10000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Char Select Active"))
 fsm_vars.create_character.AddState(
     name="Click: Create Button",
     execute_fn=lambda: (
-        click_frame_retry(bot_vars.frame_paths["char_select_create_button2"]) 
-        or click_frame_retry(bot_vars.frame_paths["char_select_create_button"])
+        click_frame_once(bot_vars.frame_paths["char_select_create_button2"]) 
+        or click_frame_once(bot_vars.frame_paths["char_select_create_button"])
     ),
     exit_condition=lambda: (
-        check_frame_visible(bot_vars.frame_paths["char_create_type_next_button"]) and 
+        check_frame_visible(bot_vars.frame_paths["char_create_type_next_button"]) or 
         not check_frame_visible(bot_vars.frame_paths["char_select_sort_dropdown"])),
-    run_once=False,
-    transition_delay_ms=800)
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Type Selection Screen",
-    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_type_next_button"]),
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Type Selection Screen"))
+    run_once=True,
+    transition_delay_ms=1000)
 fsm_vars.create_character.AddState(
     name="Click: Next (Type)",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_type_next_button"]),
+    execute_fn=lambda: click_frame_once(bot_vars.frame_paths["char_create_type_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_bottom_frame"]),
-    run_once=False,
-    transition_delay_ms=1000)
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Campaign Selection Screen",
-    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_campaign_tab_text"]),
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Campaign Selection Screen"))
+    run_once=True,
+    transition_delay_ms=1500)
 fsm_vars.create_character.AddState(
     name="Select: Campaign (Nightfall)",
     execute_fn=lambda: press_key_repeat(Key.RightArrow.value, 3),
@@ -2322,15 +2368,10 @@ fsm_vars.create_character.AddState(
     transition_delay_ms=1500)
 fsm_vars.create_character.AddState(
     name="Click: Next (Campaign)",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
+    execute_fn=lambda: click_frame_once(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_profession_tab_text"]),
-    run_once=False,
-    transition_delay_ms=800)
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Profession Selection Screen",
-    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_profession_tab_text"]),
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Profession Selection Screen"))
+    run_once=True,
+    transition_delay_ms=1500)
 fsm_vars.create_character.AddState(
     name="Select: Profession (Dervish)",
     execute_fn=lambda: press_key_repeat(Key.RightArrow.value, 7),
@@ -2339,86 +2380,50 @@ fsm_vars.create_character.AddState(
     transition_delay_ms=2000)
 fsm_vars.create_character.AddState(
     name="Click: Next (Profession)",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
+    execute_fn=lambda: click_frame_once(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_sex_tab_text"]),
-    run_once=False,
-    transition_delay_ms=800)
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Sex Selection Screen",
-    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_sex_tab_text"]),
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Sex Selection Screen"))
+    run_once=True,
+    transition_delay_ms=1500,
+    on_exit=clear_frame_click_retry_cache(True))
 fsm_vars.create_character.AddState(
     name="Click: Next (Sex)",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
+    execute_fn=lambda: click_frame_once(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_appearance_tab_text"]),
-    run_once=False,
-    transition_delay_ms=800)
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Appearance Screen",
-    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_appearance_tab_text"]),
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Appearance Screen"))
+    run_once=True,
+    transition_delay_ms=1500,
+    on_exit=clear_frame_click_retry_cache(True))
 fsm_vars.create_character.AddState(
     name="Click: Next (Appearance)",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
+    execute_fn=lambda: click_frame_once(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_body_tab_text"]),
-    run_once=False,
-    transition_delay_ms=800)
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Body Screen",
-    condition_fn=lambda: check_frame_visible(bot_vars.frame_paths["char_create_body_tab_text"]),
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Body Screen"))
+    run_once=True,
+    transition_delay_ms=1500,
+    on_exit=clear_frame_click_retry_cache(True))
 fsm_vars.create_character.AddState(
     name="Click: Next (Body)",
-    execute_fn=lambda: click_frame_retry(bot_vars.frame_paths["char_create_generic_next_button"]),
+    execute_fn=lambda: click_frame_once(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: (check_frame_visible(bot_vars.frame_paths["char_create_name_tab_text"])),
-    run_once=False,
-    transition_delay_ms=800)
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Name Screen",
-    condition_fn=lambda: (check_frame_visible(bot_vars.frame_paths["char_create_name_tab_text"])),
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Name Screen"))
+    run_once=True,
+    transition_delay_ms=1500,
+    on_exit=clear_frame_click_retry_cache(True))
 fsm_vars.create_character.AddState(
     name="Copy Name to Clipboard",
-    execute_fn=lambda: copy_text_with_imgui(bot_vars.character_names[bot_vars.next_create_index]),
+    execute_fn=lambda: copy_text_with_ctypes(bot_vars.character_names[bot_vars.next_create_index]),
     exit_condition=lambda: True,
     run_once=True,
-    transition_delay_ms=200)
+    transition_delay_ms=800)
 fsm_vars.create_character.AddState(
     name="Paste Name (Ctrl+V)",
     execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.V.value]),
     exit_condition=lambda: bot_vars.press_key_aq.is_empty(),
     run_once=True,
-    transition_delay_ms=200)
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Paste Complete",
-    condition_fn=lambda: bot_vars.press_key_aq.is_empty(),
-    timeout_ms=5000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Paste Complete"))
+    transition_delay_ms=500)
 fsm_vars.create_character.AddState(
     name="Click: Final Create Button",
-    execute_fn=lambda: check_button_enabled_and_click(
-        frame_id_or_path=bot_vars.frame_paths["char_create_final_button"],
-        enabled_field_value=18692,
-        field_name="field91_0x184",
-        retry_delay=1.0),
-    exit_condition=lambda: Map.IsInCinematic() or Map.IsMapLoading() or Map.GetMapID() == bot_vars.island_of_shehkah,
-    run_once=False,
-    transition_delay_ms=4000,
-    on_exit=lambda: clear_frame_click_retry_cache())
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Map Loading",
-    condition_fn=lambda: Map.IsInCinematic() or Map.IsMapLoading() or (Map.IsMapReady() and Party.IsPartyLoaded()),
-    timeout_ms=20000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Map Loading"))
-fsm_vars.create_character.AddWaitState(
-    name="Wait: Map Loaded (Istan)",
-    condition_fn=lambda: not Map.IsMapLoading() and not Map.IsInCinematic() and Map.GetMapID() == bot_vars.island_of_shehkah and Map.IsMapReady() and Party.IsPartyLoaded(),
-    timeout_ms=60000,
-    on_timeout=lambda: _stop_fsm_on_timeout("create_character", "Wait: Map Loaded (Istan)"),
+    execute_fn=lambda: bot_vars.press_key_aq.add_action(Keystroke.PressAndRelease, Key.Enter.value),
+    exit_condition=lambda: (Map.GetMapID() == bot_vars.island_of_shehkah and Party.IsPartyLoaded() and Map.IsMapReady()), #Map.IsInCinematic() or Map.IsMapLoading() or
+    run_once=True,
+    transition_delay_ms=10000,
     on_exit=lambda: [
         (name_created := bot_vars.character_names[bot_vars.next_create_index]),
         ConsoleLog("create_character", f"Character '{name_created}' created successfully.", Console.MessageType.Success),
@@ -2427,7 +2432,7 @@ fsm_vars.create_character.AddWaitState(
         mark_flag("next_create_index", (bot_vars.next_create_index + 1) % len(bot_vars.character_names))(),
         ConsoleLog("create_character", f"Next character to create: {bot_vars.character_names[bot_vars.next_create_index]} (Index: {bot_vars.next_create_index})", Console.MessageType.Info),
         ConsoleLog("create_character", f"Next character to delete: {bot_vars.character_to_delete_name}", Console.MessageType.Info),
-        clear_frame_click_retry_cache()
+        clear_frame_click_retry_cache(True)
     ])
 #endregion --- FSM Create Character ---
 
@@ -2500,7 +2505,6 @@ fsm_vars.state_machine.AddSubroutine(
          Map.IsOutpost() and 
          bot_vars.second_time_plains and 
          not bot_vars.second_time_kamadan))
-
 fsm_vars.state_machine.AddSubroutine(
     name="Ex: Farm a bit",
     sub_fsm=fsm_vars.finish_level_5,
@@ -2510,14 +2514,12 @@ fsm_vars.state_machine.AddSubroutine(
          bot_vars.second_time_plains and 
          bot_vars.second_time_kamadan and 
          not is_level(5)))
-
 fsm_vars.state_machine.AddSubroutine(
     name="OP: Chahbek Village Part 2",
     sub_fsm=fsm_vars.second_chahbek_village,
     condition_fn=lambda: 
         (Map.GetMapID() == bot_vars.chahbek_village and 
-         Map.IsOutpost() and 
-         bot_vars.second_time_kamadan and 
+         Map.IsOutpost() and bot_vars.second_time_kamadan and 
          not bot_vars.second_time_chahbek_village and 
          is_level(5)))
 fsm_vars.state_machine.AddSubroutine(
@@ -2547,7 +2549,6 @@ fsm_vars.state_machine.AddSubroutine(
          bot_vars.second_mission_run and
          is_level(5) and
          not bot_vars.farmed_the_proof))
-
 fsm_vars.state_machine.AddSubroutine(
     name="SYS: Logout for Reroll",
     sub_fsm=fsm_vars.logout_character,
@@ -2572,23 +2573,11 @@ fsm_vars.state_machine.AddSubroutine(
      on_exit=lambda: [
         clear_frame_click_retry_cache()
      ])
-
-# fsm_vars.state_machine.AddSubroutine(
-#     name="SYS: No but really check char select",
-#     sub_fsm=fsm_vars.legit_just_check,
-#     condition_fn=lambda: [
-#         bot_vars.character_delete_confirmed and
-#         not bot_vars.really_check_for_char_select  and
-#         not bot_vars.character_created_successfully
-#     ],)
-
-
 fsm_vars.state_machine.AddSubroutine(
     name="SYS: Create New Character",
     sub_fsm=fsm_vars.create_character,
     condition_fn=lambda: [
         bot_vars.character_delete_confirmed and
-        # bot_vars.really_check_for_char_select  and
         not bot_vars.character_created_successfully
     ],
     on_exit=lambda: [
@@ -2646,10 +2635,10 @@ def draw_window():
                 ("Current Main Step", fsm_vars.state_machine.get_current_step_name()),
                 ("Current Sub Step", sub_fsm.get_current_step_name() if sub_fsm else "-"),
                 ("Total Bot Runtime", bot_vars.global_timer.FormatElapsedTime("hh:mm:ss")),
-                ("Current Run Time", bot_vars.lap_timer.FormatElapsedTime("mm:ss:ms")),
-                ("Minimum Run Time", FormatTime(bot_vars.min_time, "mm:ss:ms") if bot_vars.min_time > 0 else "0"),
-                ("Maximum Run Time", FormatTime(bot_vars.max_time, "mm:ss:ms") if bot_vars.max_time > 0 else "0"),
-                ("Average Run Time", FormatTime(bot_vars.avg_time, "mm:ss:ms") if bot_vars.avg_time > 0 else "0"),
+                ("Current Run Time", bot_vars.lap_timer.FormatElapsedTime("mm:ss")),
+                ("Minimum Run Time", FormatTime(bot_vars.min_time, "mm:ss") if bot_vars.min_time > 0 else "N/A"),
+                ("Maximum Run Time", FormatTime(bot_vars.max_time, "mm:ss") if bot_vars.max_time > 0 else "N/A"),
+                ("Average Run Time", FormatTime(bot_vars.avg_time, "mm:ss") if bot_vars.avg_time > 0 else "N/A"),
                 ("Current Run", bot_vars.runs_attempted),
                 ("Proofs Deposited", bot_vars.proofs_deposited),
                 ("Success Rate", f"{bot_vars.success_rate * 100:.1f}%" if bot_vars.runs_attempted > 0 else "N/A"),

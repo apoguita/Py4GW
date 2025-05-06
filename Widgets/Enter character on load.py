@@ -15,7 +15,8 @@ def main():
         frame_id = UIManager.GetFrameIDByHash(play_button_hash)
         if UIManager.FrameExists(frame_id):
             Py4GW.Console.Log(module_name, f"Entering Game.", Py4GW.Console.MessageType.Info)
-            UIManager.FrameClick(frame_id)
+            #UIManager.FrameClick(frame_id)
+            Keystroke.PressAndRelease(Key.Enter.value)
 
         loading_in_character_screen = False
         start_timer.Stop()
