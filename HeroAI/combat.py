@@ -933,7 +933,8 @@ class CombatClass:
                 self.priority_target_id = 0
         
         # Look for a new priority target if needed
-        if self.priority_target_id == 0 and priority_targets.is_enabled and priority_targets.priority_model_ids:
+        character_name = priority_targets.get_character_name()
+        if priority_targets.is_enabled(character_name) and priority_targets.get_model_ids(character_name):
             self.priority_target_id = priority_targets.find_nearest_priority_target(self.get_combat_distance())
         
         # Determine the best target based on priority
