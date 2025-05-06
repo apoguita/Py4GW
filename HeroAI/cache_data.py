@@ -167,7 +167,7 @@ class CacheData:
             self.data = GameData()
             self.auto_attack_timer = Timer()
             self.auto_attack_timer.Start()
-            self.auto_attack_time = 750
+            self.auto_attack_time = 100
             self.draw_floating_loot_buttons = False
             self.reset()
             self.ui_state_data = UIStateData()
@@ -205,22 +205,30 @@ class CacheData:
         try:
             if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
                 self.game_throttle_timer.Reset()
-                self.data.reset()
-                self.data.update()
                 
-                if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
-                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
-                else:
-                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Spellcast.value)
-                    
-                if self.data.in_aggro:
-                    self.stay_alert_timer.Reset()
-                    
-                if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
-                    self.data.in_aggro = True
+                # Updating critical data
+                self.data.player_agent_id = Player.GetAgentID()
+                self.data.player_xy = Agent.GetXY(self.data.player_agent_id)
+                self.data.player_is_casting = Agent.IsCasting(self.data.player_agent_id)
+                self.data.player_is_moving = Agent.IsMoving(self.data.player_agent_id)
                 
+                # If moving or casting a spell, limit updates
+                if not self.data.player_is_moving and not self.data.player_is_casting:
+                    self.data.reset()
+                    self.data.update()
+                    
+                    # Variable combat state update
+                    alert_range = Range.Earshot.value
+                    if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
+                        alert_range = Range.Spellcast.value
+                        
+                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), alert_range)
+                        
+                    if self.data.in_aggro:
+                        self.stay_alert_timer.Reset()
+                        
+                    if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
+                        self.data.in_aggro = True
+                    
         except Exception as e:
-            ConsoleLog(f"Update Cahe Data Error:", e)
-                       
-            
-                     
+            ConsoleLog(f"Update Cache Data Error:", e)       
