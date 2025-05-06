@@ -344,15 +344,22 @@ class RawAgentArray:
         self.agent_name_map = {}  # agent.id → (name, timestamp)
         self.name_requested = set()
         self._initialized = True
-        self.update()
 
     def update(self):
         from .Routines import Routines
         from .Map import Map
         if not Routines.Checks.Map.MapValid():
+            self.name_update_throttle.Reset()
+            self.update_throttle.Reset()
             return
         
+        if not self.update_throttle.IsExpired():
+            return
+        self.update_throttle.Reset()
+        
         for agent_id in list(self.name_requested):
+            if agent_id == 0:
+                continue
             if Agent.IsNameReady(agent_id):
                 name = Agent.GetName(agent_id)
                 if name in ("Timeout", "Unknown"):
@@ -360,10 +367,6 @@ class RawAgentArray:
                 self.agent_name_map[agent_id] = name
                 self.name_requested.discard(agent_id)
             
-        if not self.update_throttle.IsExpired():
-            return
-        self.update_throttle.Reset()
-
         self.agent_array = AgentArray.GetRawAgentArray()
 
         self.agent_dict = {agent.id: agent for agent in self.agent_array}

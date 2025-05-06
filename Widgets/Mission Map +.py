@@ -599,14 +599,9 @@ object_item = ConfigItem("Item", marker_name="Square", color=item_color, alterna
 GLOBAL_CONFIGS.add(object_item)
 
 
-#region MISSION MAP
+#region MISSIONMAP
 class MissionMap:
     def __init__(self):
-        self.initialized = False
-        self.thread_manager = MultiThreading(log_actions=True)
-        self.thread_timeout = 2.0
-        self.thread_keepalive = time.time()
-        self.thread_internal_keepalive = time.time()
         self.mission_map_instance = PyMissionMap.PyMissionMap()
         self.left = 0
         self.top = 0
@@ -638,8 +633,10 @@ class MissionMap:
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = 0.0, 0.0
         
         self.throttle_timer = ThrottledTimer(34) # every 4 frames 1000/60 = 16.67ms * 4 = 66.67ms
-        self.raw_agent_array_handler = RawAgentArray()
-        self.agent_array =self.raw_agent_array_handler.get_array()
+        self.raw_agent_array_handler = None
+        self.agent_array = []
+        self.Map_load_timer = Timer()
+        self.Map_load_timer.Start()
         
         self.aggro_bubble_color = Utils.RGBToColor(255, 255, 255, 40)
         self.item_rarity_white_color = Color(225, 225, 225, 255)
@@ -666,12 +663,11 @@ class MissionMap:
         self.default_marker = GLOBAL_CONFIGS.get("Default")
         self.chest_marker = GLOBAL_CONFIGS.get("Chest")
         self.merchant_marker = GLOBAL_CONFIGS.get("Merchant")
-
-
-        self.update()
                    
 
-    def update(self):   
+    def update(self):  
+        if self.raw_agent_array_handler is None:
+            self.raw_agent_array_handler = RawAgentArray() 
         self.raw_agent_array_handler.update()
         self.agent_array = self.raw_agent_array_handler.get_array()
         if not self.throttle_timer.IsExpired():
@@ -801,12 +797,12 @@ def DrawFrame():
     _draw_compass_range(zoom)
     
       
-    neutral_array = mission_map.raw_agent_array_handler.get_neutral_array()
-    minion_array = mission_map.raw_agent_array_handler.get_minion_array()
-    spirit_pet_array = mission_map.raw_agent_array_handler.get_spirit_pet_array()
-    enemy_array = mission_map.raw_agent_array_handler.get_enemy_array()
-    ally_array = mission_map.raw_agent_array_handler.get_ally_array()
-    npc_minipet_array = mission_map.raw_agent_array_handler.get_npc_minipet_array()
+    neutral_array = mission_map.raw_agent_array_handler.get_neutral_array() if mission_map.raw_agent_array_handler is not None else []
+    minion_array = mission_map.raw_agent_array_handler.get_minion_array() if mission_map.raw_agent_array_handler is not None else []
+    spirit_pet_array = mission_map.raw_agent_array_handler.get_spirit_pet_array() if mission_map.raw_agent_array_handler is not None else []
+    enemy_array = mission_map.raw_agent_array_handler.get_enemy_array() if mission_map.raw_agent_array_handler is not None else []
+    ally_array = mission_map.raw_agent_array_handler.get_ally_array() if mission_map.raw_agent_array_handler is not None else []
+    npc_minipet_array = mission_map.raw_agent_array_handler.get_npc_minipet_array() if mission_map.raw_agent_array_handler is not None else []
     for agent in neutral_array:
         x,y = _get_agent_xy(agent)
         if agent.is_living and agent.living_agent.is_alive:
@@ -918,7 +914,7 @@ def DrawFrame():
             rotation_angle = agent.rotation_angle
             level = agent.living_agent.level
             if level > 1:
-                agent_name = mission_map.raw_agent_array_handler.get_name(agent.id)
+                agent_name = mission_map.raw_agent_array_handler.get_name(agent.id)  if mission_map.raw_agent_array_handler is not None else ""
                 if "MERCHANT" in agent_name.upper():
                     marker = mission_map.merchant_marker
                 else:
@@ -928,7 +924,7 @@ def DrawFrame():
             alternate_color, size = _get_alternate_color(agent.id)
             Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
         
-    for agent in mission_map.raw_agent_array_handler.get_gadget_array():
+    for agent in mission_map.raw_agent_array_handler.get_gadget_array() if mission_map.raw_agent_array_handler is not None else []:
         x,y = _get_agent_xy(agent)
         if agent.is_gadget:
             rotation_angle = agent.rotation_angle
@@ -940,7 +936,7 @@ def DrawFrame():
                 
             alternate_color, size = _get_alternate_color(agent.id)
             Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
-    for agent in mission_map.raw_agent_array_handler.get_item_array():
+    for agent in mission_map.raw_agent_array_handler.get_item_array() if mission_map.raw_agent_array_handler is not None else []:
         x,y = _get_agent_xy(agent)
         if agent.is_item:
             rotation_angle = agent.rotation_angle
@@ -962,72 +958,28 @@ def DrawFrame():
             Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
         
     Overlay().EndDraw()  
-    
-
-def main_mission_map_thread():
-    global mission_map
-    while True:
-        try:
-            mission_map.thread_internal_keepalive = time.time()
-            if not Routines.Checks.Map.MapValid():
-                sleep(1)
-                mission_map.thread_keepalive = time.time()
-                continue
-            if Party.GetPartyLeaderID() != Player.GetAgentID():
-                sleep(1)
-                continue
-            
-            if Map.MissionMap.IsWindowOpen():
-                if Routines.Checks.Map.MapValid():
-                    mission_map.update()
-                sleep(0.03)
-            else:
-                sleep(0.5)
-            
-        except Exception as e:
-            print(f"Error in main_mission_map_thread: {e}")
-        finally:
-            if mission_map.thread_keepalive + mission_map.thread_timeout < time.time():
-                mission_map.thread_manager.stop_all_threads()
-                break
-
-    
+               
 def configure():
     global mission_map
     if PyImGui.begin("Mission Map Config"):
         pass
     PyImGui.end()
 
-load_timer = Timer()
-load_timer.Start()
-
 def main():  
-    global load_timer
     try:  
-        mission_map.thread_keepalive = time.time()
-            
         if not Routines.Checks.Map.MapValid():
-            load_timer.Reset()
             mission_map.geometry = [] 
+            mission_map.Map_load_timer.Reset()
             return
         
         if Party.GetPartyLeaderID() != Player.GetAgentID():
-            load_timer.Reset()
+            return
+            
+        if not mission_map.Map_load_timer.HasElapsed(3000):
             return
         
-        if mission_map.thread_internal_keepalive + mission_map.thread_timeout < time.time() and load_timer.HasElapsed(1000):
-            mission_map.thread_manager.stop_all_threads()
-            mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
-            ConsoleLog("Mission Map", "Mission Map thread died, thread restarted")
-            mission_map.thread_keepalive = time.time()
-        
-        if not mission_map.initialized:
-            mission_map.initialized = True
+        if Map.MissionMap.IsWindowOpen():
             mission_map.update()
-            mission_map.thread_manager.stop_all_threads()
-            mission_map.thread_manager.add_thread("main_mission_map_thread", main_mission_map_thread)
-            
-        if Map.MissionMap.IsWindowOpen() and mission_map.initialized:
             DrawFrame()
             if mission_map.zoom >= 3.5:
                     mission_map.mega_zoom = FloatingSlider("Mega Zoom", mission_map.mega_zoom, mission_map.left, mission_map.bottom-27, 0.0, 15.0, Color(255, 255, 255, 255))
@@ -1036,7 +988,7 @@ def main():
     
     except Exception as e:
         print(f"Error in main: {e}")
-        mission_map.thread_manager.stop_all_threads()
+
         
     
 if __name__ == "__main__":

@@ -153,6 +153,7 @@ class CombatClass:
         self.is_combat_enabled = cached_data.is_combat_enabled
         self.is_skill_enabled = cached_data.is_skill_enabled
         
+
     def PrioritizeSkills(self):
         """
         Create a priority-based skill execution order.
@@ -239,12 +240,14 @@ class CombatClass:
         
         self.skills = ordered_skills
         
+        
     def GetSkills(self):
         """
         Retrieve the prioritized skill set.
         """
         return self.skills
         
+
     def GetOrderedSkill(self, index:int)-> Optional[SkillData]:
         """
         Retrieve the skill at the given index in the prioritized order.
@@ -296,6 +299,7 @@ class CombatClass:
             return 0
         else:
             return target   
+
 
     def GetPartyTarget(self):
         party_target = self.GetPartyTargetID()
@@ -425,6 +429,7 @@ class CombatClass:
                result = Agent.IsWeaponSpelled(agent_id)
 
         return result
+
 
     def AreCastConditionsMet(self, slot, vTarget):
         number_of_features = 0
@@ -756,6 +761,7 @@ class CombatClass:
 
         return False
 
+
     def SpiritBuffExists(self, skill_id):
         spirit_array = AgentArray.GetSpiritPetArray()
         distance = Range.Earshot.value
@@ -774,40 +780,29 @@ class CombatClass:
 
         return False
 
+
+
     def IsReadyToCast(self, slot):
-        # Validate target
+        # Check if the player is already casting
+         # Validate target
         v_target = self.GetAppropiateTarget(slot)
         if v_target is None or v_target == 0:
             self.in_casting_routine = False
             return False, 0
 
-        # Check if the skill is a shout and stance (they can be used while casting or knocked down)
-        is_shout = self.skills[slot].custom_skill_data.SkillType == SkillType.Shout.value
-        is_stance = self.skills[slot].custom_skill_data.SkillType == SkillType.Stance.value
-        is_knocked_down = Agent.IsKnockedDown(Player.GetAgentID())
-
-        # If it's not a shout and stance, check if player is already casting
-        if not is_shout and not is_stance and Agent.IsCasting(Player.GetAgentID()):
+        if Agent.IsCasting(Player.GetAgentID()):
             self.in_casting_routine = False
             return False, v_target
-            
-        if not is_shout and not is_stance and Agent.GetCastingSkill(Player.GetAgentID()) != 0:
+        if Agent.GetCastingSkill(Player.GetAgentID()) != 0:
             self.in_casting_routine = False
             return False, v_target
-            
-        if not is_shout and not is_stance and SkillBar.GetCasting() != 0:
+        if SkillBar.GetCasting() != 0:
             self.in_casting_routine = False
             return False, v_target
-        
-        if not is_shout and not is_stance and is_knocked_down != 0:
-            self.in_casting_routine = False
-            return False, v_target
-            
         # Check if no skill is assigned to the slot
         if self.skills[slot].skill_id == 0:
             self.in_casting_routine = False
             return False, v_target
-            
         # Check if the skill is recharging
         if self.skills[slot].skillbar_data.recharge != 0:
             self.in_casting_routine = False
@@ -815,10 +810,10 @@ class CombatClass:
         
         # Check if there is enough energy
         current_energy = self.GetEnergyValues(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
-        if current_energy < Routines.Checks.Skills.GetEnergyCostWithEffects(self.skills[slot].skill_id, Player.GetAgentID()):  
+        if current_energy < Routines.Checks.Skills.GetEnergyCostWithEffects(self.skills[slot].skill_id,Player.GetAgentID()):  
+        #if current_energy < Skill.Data.GetEnergyCost(self.skills[slot].skill_id):
             self.in_casting_routine = False
             return False, v_target
-            
         # Check if there is enough health
         current_hp = Agent.GetHealth(Player.GetAgentID())
         target_hp = self.skills[slot].custom_skill_data.Conditions.SacrificeHealth
@@ -826,13 +821,13 @@ class CombatClass:
         if (current_hp < target_hp) and health_cost > 0:
             self.in_casting_routine = False
             return False, v_target
-    
+     
         # Check if there is enough adrenaline
         adrenaline_required = Skill.Data.GetAdrenaline(self.skills[slot].skill_id)
         if adrenaline_required > 0 and self.skills[slot].skillbar_data.adrenaline_a < adrenaline_required:
             self.in_casting_routine = False
             return False, v_target
-        
+
         """
         # Check overcast conditions
         current_overcast = Agent.GetOvercast(Player.GetAgentID())
@@ -842,7 +837,7 @@ class CombatClass:
             self.in_casting_routine = False
             return False, 0
         """
-
+                
         # Check combo conditions
         combo_type = Skill.Data.GetCombo(self.skills[slot].skill_id)
         dagger_status = Agent.GetDaggerStatus(v_target)
@@ -860,10 +855,8 @@ class CombatClass:
         if self.SpiritBuffExists(self.skills[slot].skill_id):
             self.in_casting_routine = False
             return False, v_target
-        
-        # Check if need to use when effect is already active
-        ignore_effect = getattr(self.skills[slot].custom_skill_data.Conditions, "IgnoreEffectCheck", False)
-        if self.HasEffect(v_target, self.skills[slot].skill_id) and not ignore_effect:
+
+        if self.HasEffect(v_target,self.skills[slot].skill_id):
             self.in_casting_routine = False
             return False, v_target
         
@@ -875,12 +868,6 @@ class CombatClass:
 
         skill_type = self.skills[slot].custom_skill_data.SkillType
         skill_nature = self.skills[slot].custom_skill_data.Nature
-
-        #Don't use Chant or Stance when Out Of Combat
-        if(skill_type == SkillType.Chant.value or 
-           skill_type == SkillType.Stance.value
-        ):
-            return False
 
         if(skill_type == SkillType.Form.value or
            skill_type == SkillType.Preparation.value or
@@ -941,18 +928,21 @@ class CombatClass:
         slot = self.skill_pointer
         skill_id = self.skills[slot].skill_id
         
-        #Everything is already check in IsReadyToCast
-        #is_skill_ready = self.IsSkillReady(slot) 
-        #if not is_skill_ready:
-        #    self.AdvanceSkillPointer()
-        #    return False
+        is_skill_ready = self.IsSkillReady(slot)
+            
+        if not is_skill_ready:
+            self.AdvanceSkillPointer()
+            return False
+         
          
         is_read_to_cast, target_agent_id = self.IsReadyToCast(slot)
+ 
         if not is_read_to_cast:
             self.AdvanceSkillPointer()
             return False
         
         is_ooc_skill = self.IsOOCSkill(slot)
+
         if ooc and not is_ooc_skill:
             self.AdvanceSkillPointer()
             return False
@@ -965,10 +955,11 @@ class CombatClass:
             return False
             
         self.in_casting_routine = True
+
         self.aftercast = Skill.Data.GetActivation(skill_id) * 1000
-        self.aftercast += Skill.Data.GetAftercast(skill_id) * 750
+        self.aftercast += Skill.Data.GetAftercast(skill_id) * 1000 #750
         #self.aftercast += 150 #manually setting a 50ms delay to test issues with pinghandler
-        #self.aftercast += self.ping_handler.GetCurrentPing()
+        self.aftercast += self.ping_handler.GetCurrentPing()
 
         self.aftercast_timer.Reset()
         ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
