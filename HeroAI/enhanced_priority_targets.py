@@ -19,7 +19,18 @@ class EnhancedPriorityTargets(PriorityTargets):
         
     def attack_priority_target(self, distance=Range.Earshot.value):
         """Attack a priority target with avoidance if needed"""
-        if not self.is_enabled or not self.priority_model_ids:
+        character_name = self.get_character_name()
+        
+        # Check if priority targeting is enabled for this character
+        if not self.is_enabled(character_name):
+            return False
+            
+        # Ensure the character exists in our dictionary
+        if character_name not in self.character_targets:
+            self.character_targets[character_name] = []
+            
+        # If no priority targets for this character, return False
+        if not self.character_targets.get(character_name, []):
             return False
             
         # Find nearest priority target
@@ -62,8 +73,10 @@ class EnhancedPriorityTargets(PriorityTargets):
             
         self.combat_timer.Reset()
         
-        # If in combat and priority targeting is enabled
-        if self.is_enabled and Player.GetTargetID() != 0:
+        character_name = self.get_character_name()
+        
+        # If in combat and priority targeting is enabled for this character
+        if self.is_enabled(character_name) and Player.GetTargetID() != 0:
             # Check if current target is a priority target
             if self.is_priority_target(Player.GetTargetID()):
                 # Already targeting priority target
