@@ -3,7 +3,7 @@ import PyMap
 import PyMissionMap
 import PyPathing
 import PyOverlay
-from .enums import explorables, explorable_name_to_id, FlagPreference
+from .enums import outposts, outpost_name_to_id, explorables, explorable_name_to_id, FlagPreference
 from .UIManager import *
 from .Overlay import *
 from collections import deque
@@ -44,12 +44,14 @@ class Map:
             mapid (int, optional): The ID of the map to retrieve. Defaults to the current map.
         Returns: str
         """
-        global explorables
+        global outposts, explorables
         if mapid is None:
             map_id = Map.GetMapID()
         else:
             map_id = mapid
 
+        if map_id in outposts:
+            return outposts[map_id]
         if map_id in explorables:
             return explorables[map_id]
 
@@ -64,14 +66,14 @@ class Map:
     @staticmethod
     def GetOutpostIDs():
         """Retrieve the outpost IDs."""
-        map_id_instance = PyMap.MapID(Map.GetMapID())
-        return map_id_instance.GetOutpostIDs()
+        global outposts
+        return list(outposts.keys())
 
     @staticmethod
     def GetOutpostNames():
         """Retrieve the outpost names."""
-        map_id_instance = PyMap.MapID(Map.GetMapID())
-        return map_id_instance.GetOutpostNames()
+        global outposts
+        return list(outposts.values())
     
     @staticmethod
     def GetMapIDByName(name):
