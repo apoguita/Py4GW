@@ -26,7 +26,7 @@ RANGED_RANGE_VALUE = Range.Spellcast.value
 FOLLOW_DISTANCE_ON_COMBAT = Range.Spellcast.value
 FOLLOW_DISTANCE_OUT_OF_COMBAT = Range.Area.value
 
-STAY_ALERT_TIME = 2500  # milliseconds
+STAY_ALERT_TIME = 1500  # milliseconds
 
 BLOOD_IS_POWER = Skill.GetID("Blood_is_Power")
 BLOOD_RITUAL = Skill.GetID("Blood_Ritual")  # skill id
