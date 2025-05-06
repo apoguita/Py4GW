@@ -167,9 +167,18 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     # Get the singleton instance
     priority_targets = PriorityTargets()
     
-    # Interface to activate/deactivate the system
-    enabled = priority_targets.is_enabled
-    changed = PyImGui.checkbox("Enable Priority Targeting", enabled)
+    # Get the current character name
+    character_name = priority_targets.get_character_name()
+    if character_name:
+        PyImGui.text(f"Priority Targets for: {character_name}")
+    else:
+        PyImGui.text_colored("Character name not available", (1.0, 0.5, 0.5, 1.0))
+    
+    PyImGui.separator()
+    
+    # Interface to activate/deactivate the system for this character
+    enabled = priority_targets.is_enabled()
+    changed = PyImGui.checkbox(f"Enable Priority Targeting for {character_name}", enabled)
     if changed != enabled:
         priority_targets.set_enabled(changed)
     
@@ -178,7 +187,7 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     # Interface for adding/removing model IDs
     PyImGui.text("Add Priority Target Model ID:")
     
-    # Login for a new ID
+    # Input for a new ID
     new_model_id = PyImGui.input_int("##new_model_id", new_model_id)
     
     PyImGui.same_line(0.0, 5.0)
@@ -190,13 +199,13 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     
     PyImGui.separator()
     
-    # Show list of priority model IDs
-    PyImGui.text("Priority Target Model IDs:")
+    # Show list of priority model IDs for this character
+    PyImGui.text(f"Priority Target Model IDs for {character_name}:")
     
     model_ids = priority_targets.get_model_ids()
     
     if not model_ids:
-        PyImGui.text_colored("No priority targets defined.", (1.0, 0.7, 0.0, 1.0))
+        PyImGui.text_colored("No priority targets defined for this character.", (1.0, 0.7, 0.0, 1.0))
     else:
         # Create a table to display IDs with delete buttons
         if PyImGui.begin_table("PriorityTargetsTable", 2, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg):
@@ -220,8 +229,8 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     
     PyImGui.separator()
     
-    # Button to clear all targets
-    if PyImGui.button("Clear All"):
+    # Button to clear all targets for this character
+    if PyImGui.button("Clear All Targets for This Character"):
         priority_targets.clear_model_ids()
     
     # User Instructions
@@ -230,9 +239,11 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     PyImGui.text_colored("1. Enter a model ID and click 'Add' to add a priority target.", (0.7, 1.0, 0.7, 1.0))
     PyImGui.text_colored("2. Agents with these model IDs will be targeted first in combat.", (0.7, 1.0, 0.7, 1.0))
     PyImGui.text_colored("3. You can find model IDs using the Agent Info tool.", (0.7, 1.0, 0.7, 1.0))
+    PyImGui.text_colored("4. Each character has their own separate priority target list.", (0.7, 1.0, 0.7, 1.0))
+    PyImGui.text_colored("5. Priority targeting can be enabled/disabled per character.", (0.7, 1.0, 0.7, 1.0))
     
     # Current Targeting Information
-    if priority_targets.is_enabled and cached_data.data.in_aggro:
+    if priority_targets.is_enabled() and cached_data.data.in_aggro:
         PyImGui.separator()
         PyImGui.text("Current Target Information:")
         
@@ -264,7 +275,7 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
             distance = Utils.Distance(Player.GetXY(), Agent.GetXY(nearest))
             
             PyImGui.text_colored(f"Nearest priority target: {name} (ID: {model_id}, Distance: {distance:.1f})", (0.0, 1.0, 0.5, 1.0))
-
+                                    
 HeroFlags: list[bool] = [False, False, False, False, False, False, False, False, False]
 AllFlag = False
 CLearFlags = False
