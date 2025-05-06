@@ -56,6 +56,7 @@ class CustomSkillClass:
                 self.PartyWideArea = 0
                 self.UniqueProperty = False
                 self.IsOutOfCombat = False
+                self.IgnoreEffectCheck = False
 
     class CustomSkill:
         def __init__(self):
@@ -858,6 +859,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Shout.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IgnoreEffectCheck = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
