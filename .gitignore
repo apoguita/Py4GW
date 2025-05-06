@@ -7,7 +7,6 @@ imgui.ini
 Inject.au3
 Widgets/Config/Travel.ini
 Widgets/Config/
-*.ini
 
 # Ignore JaborsFork
 Addons/GWToolboxdll.dll
