@@ -372,12 +372,9 @@ def main():
         
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
-            # Optimization: Priority to important operations
-            ActionQueueManager().ProcessQueue("ACTION")  # Process pending actions first
+            UpdateStatus(cached_data)
+            ActionQueueManager().ProcessQueue("ACTION")
             
-            # Update only if necessary
-            if not cached_data.data.player_is_moving and not cached_data.combat_handler.InCastingRoutine():
-                UpdateStatus(cached_data)
     
     except ImportError as e:
         Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
