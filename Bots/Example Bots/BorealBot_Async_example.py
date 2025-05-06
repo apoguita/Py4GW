@@ -108,6 +108,9 @@ FSM_vars.loot_chest.AddState(name="Select Chest",
 FSM_vars.loot_chest.AddState(name="InteractAgent",
                     execute_fn=lambda: Routines.Targeting.InteractTarget(),
                     transition_delay_ms=1000)
+FSM_vars.loot_chest.AddState(name="Accept Dialog",
+                             execute_fn=Player.SendDialog(2),
+                             transition_delay_ms=1000)
 FSM_vars.loot_chest.AddState(name="Select Item",
                     execute_fn=lambda: Player.ChangeTarget(Routines.Agents.GetNearestItem(max_distance=300)),
                     transition_delay_ms=1000)
