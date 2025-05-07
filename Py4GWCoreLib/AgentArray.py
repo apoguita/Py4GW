@@ -340,7 +340,7 @@ class RawAgentArray:
         self.current_map_id = 0
         self.throttle = throttle
         self.update_throttle = ThrottledTimer(self.throttle)
-        self.name_update_throttle = ThrottledTimer(500) 
+        self.name_update_throttle = ThrottledTimer(1000) 
         self.agent_name_map = {}  # agent.id → (name, timestamp)
         self.name_requested = set()
         self._initialized = True
