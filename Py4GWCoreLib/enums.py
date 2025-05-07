@@ -2255,7 +2255,7 @@ class ModelID(IntEnum):
     Glob_Of_Frozen_Ectoplasm = 21509
     Gloom_Seed = 523
     Glowing_Heart = 439
-    Gold_Coins = 25112222222 # Dirty fix - Dummy ModelID - Will be corrected back to 2511
+    Gold_Coins = 2511
     Gold_Doubloon = 1578
     Gold_Zaishen_Coin = 31203
     Golden_Egg = 22752
