@@ -172,13 +172,6 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     
     # Get the current character name
     current_character_name = priority_targets.get_character_name()
-    if current_character_name:
-        PyImGui.text(f"Priority Targets for: {current_character_name}")
-    else:
-        PyImGui.text_colored("Character name not available", (1.0, 0.5, 0.5, 1.0))
-    
-    PyImGui.separator()
-    
     # Interface to activate/deactivate the system for this character
     enabled = priority_targets.is_enabled()
     changed = PyImGui.checkbox(f"Enable Priority Targeting for {current_character_name}", enabled)
