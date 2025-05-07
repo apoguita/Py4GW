@@ -161,16 +161,19 @@ def DrawPrioritizedSkills(cached_data:CacheData):
         PyImGui.end_tab_bar()
 
 new_model_id = 0
+selected_character_index = 0  # 0 represents the current character
+last_add_time = 0  # Track when we last added a target to show a notification
+
 def DrawPriorityTargetsWindow(cached_data:CacheData):
-    global new_model_id
+    global new_model_id, selected_character_index, last_add_time
     
     # Get the singleton instance
     priority_targets = PriorityTargets()
     
     # Get the current character name
-    character_name = priority_targets.get_character_name()
-    if character_name:
-        PyImGui.text(f"Priority Targets for: {character_name}")
+    current_character_name = priority_targets.get_character_name()
+    if current_character_name:
+        PyImGui.text(f"Priority Targets for: {current_character_name}")
     else:
         PyImGui.text_colored("Character name not available", (1.0, 0.5, 0.5, 1.0))
     
@@ -178,7 +181,7 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     
     # Interface to activate/deactivate the system for this character
     enabled = priority_targets.is_enabled()
-    changed = PyImGui.checkbox(f"Enable Priority Targeting for {character_name}", enabled)
+    changed = PyImGui.checkbox(f"Enable Priority Targeting for {current_character_name}", enabled)
     if changed != enabled:
         priority_targets.set_enabled(changed)
     
@@ -200,8 +203,10 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     PyImGui.separator()
     
     # Show list of priority model IDs for this character
-    PyImGui.text(f"Priority Target Model IDs for {character_name}:")
+    PyImGui.text(f"Priority Target Model IDs for {current_character_name}:")
     
+    # Force reload from ini file to ensure we have the latest data
+    priority_targets._load_from_file()
     model_ids = priority_targets.get_model_ids()
     
     if not model_ids:
@@ -238,44 +243,149 @@ def DrawPriorityTargetsWindow(cached_data:CacheData):
     PyImGui.text_wrapped("Instructions:")
     PyImGui.text_colored("1. Enter a model ID and click 'Add' to add a priority target.", (0.7, 1.0, 0.7, 1.0))
     PyImGui.text_colored("2. Agents with these model IDs will be targeted first in combat.", (0.7, 1.0, 0.7, 1.0))
-    PyImGui.text_colored("3. You can find model IDs using the Agent Info tool.", (0.7, 1.0, 0.7, 1.0))
-    PyImGui.text_colored("4. Each character has their own separate priority target list.", (0.7, 1.0, 0.7, 1.0))
-    PyImGui.text_colored("5. Priority targeting can be enabled/disabled per character.", (0.7, 1.0, 0.7, 1.0))
+    PyImGui.text_colored("3. Each character has their own separate priority target list.", (0.7, 1.0, 0.7, 1.0))
+    PyImGui.text_colored("4. Priority targeting can be enabled/disabled per character.", (0.7, 1.0, 0.7, 1.0))
+    PyImGui.text_colored("5. Use the dropdown to add targets to other characters' lists.", (0.7, 1.0, 0.7, 1.0))
+    PyImGui.text_colored("6. You can see which characters already have a target in their list.", (0.7, 1.0, 0.7, 1.0))
+    
+    # Show notification about cross-character updates
+    current_time = int(time.time())
+    if current_time - last_add_time < 5:  # Show notification for 5 seconds
+        PyImGui.separator()
+        PyImGui.text_colored("Note: When adding targets to other characters' lists,", (1.0, 1.0, 0.0, 1.0))
+        PyImGui.text_colored("those characters need to restart their game to load the changes.", (1.0, 1.0, 0.0, 1.0))
     
     # Current Targeting Information
-    if priority_targets.is_enabled() and cached_data.data.in_aggro:
+    PyImGui.separator()
+    PyImGui.text("Current Target Information:")
+    
+    target_id = Player.GetTargetID()
+    if target_id != 0 and Agent.IsLiving(target_id):
+        agent_instance = Agent.agent_instance(target_id)
+        current_model_id = agent_instance.living_agent.player_number
+        name = Agent.GetName(target_id)
+        is_priority = priority_targets.is_priority_target(target_id)
+        
+        PyImGui.text(f"Target Name: {name}")
+        PyImGui.text(f"Target Model ID: {current_model_id}")
+        
+        if is_priority:
+            PyImGui.text_colored("This is a priority target!", (0.0, 1.0, 0.0, 1.0))
+        
+        # Always show the character selection and add buttons, regardless of priority status
         PyImGui.separator()
-        PyImGui.text("Current Target Information:")
         
-        target_id = Player.GetTargetID()
-        if target_id != 0 and Agent.IsLiving(target_id):
-            agent_instance = Agent.agent_instance(target_id)
-            model_id = agent_instance.living_agent.player_number
-            name = Agent.GetName(target_id)
-            is_priority = priority_targets.is_priority_target(target_id)
-            
-            PyImGui.text(f"Target Name: {name}")
-            PyImGui.text(f"Target Model ID: {model_id}")
-            
-            if is_priority:
-                PyImGui.text_colored("This is a priority target!", (0.0, 1.0, 0.0, 1.0))
+        # Get all character names directly from the configuration file
+        all_character_names = []
+        
+        # First add the current character
+        all_character_names.append(current_character_name)
+        
+        # Then add all other characters from the party
+        for i in range(MAX_NUM_PLAYERS):
+            player_data = cached_data.HeroAI_vars.shared_memory_handler.get_player(i)
+            if player_data and player_data["IsActive"] and not player_data["IsHero"]:
+                if player_data["PlayerID"] != cached_data.data.player_agent_id:  # Exclude current character
+                    login_number = Party.Players.GetLoginNumberByAgentID(player_data["PlayerID"])
+                    player_name = Party.Players.GetPlayerNameByLoginNumber(login_number)
+                    if player_name and player_name not in all_character_names:
+                        all_character_names.append(player_name)
+        
+        # Check which characters already have this target in their priority list
+        characters_with_target = []
+        available_characters = []
+        
+        for char_name in all_character_names:
+            char_targets = priority_targets.get_model_ids(char_name)
+            if current_model_id in char_targets:
+                characters_with_target.append(char_name)
             else:
-                # Button to quickly add the current target
-                if PyImGui.button("Add Current Target to Priority List"):
-                    priority_targets.add_model_id(model_id)
-        else:
-            PyImGui.text_colored("No valid target selected", (1.0, 0.5, 0.5, 1.0))
+                available_characters.append(char_name)
         
-        # Search for nearby priority targets
-        nearest = priority_targets.find_nearest_priority_target(Range.Earshot.value)
-        if nearest != 0:
-            name = Agent.GetName(nearest)
-            agent_instance = Agent.agent_instance(nearest)
-            model_id = agent_instance.living_agent.player_number
-            distance = Utils.Distance(Player.GetXY(), Agent.GetXY(nearest))
+        # Display which characters already have this target
+        if characters_with_target:
+            targets_text = ", ".join(characters_with_target)
+            PyImGui.text_colored(f"Characters that already have this target: {targets_text}", (0.0, 1.0, 0.7, 1.0))
+        
+        # Make sure we have at least one character that doesn't have this target yet
+        if not available_characters:
+            PyImGui.text_colored("All characters already have this target in their priority list.", (0.0, 1.0, 0.7, 1.0))
+        else:
+            # Create display names for the dropdown (with "Current Character" label for the first one)
+            display_names = []
             
-            PyImGui.text_colored(f"Nearest priority target: {name} (ID: {model_id}, Distance: {distance:.1f})", (0.0, 1.0, 0.5, 1.0))
-                                    
+            for char_name in available_characters:
+                if char_name == current_character_name:
+                    display_names.append(f"Current Character ({char_name})")
+                else:
+                    display_names.append(char_name)
+            
+            # Make sure selected_character_index is within bounds
+            if selected_character_index >= len(display_names):
+                selected_character_index = 0
+            
+            # Dropdown to select character
+            PyImGui.text("Add target to:")
+            
+            # Set a reasonable width for the combo box
+            combo_width = 250  # Adjust based on UI needs
+            PyImGui.push_item_width(combo_width)
+            
+            # Display the dropdown (only if we have available characters)
+            if display_names:
+                selected_character_index = PyImGui.combo("##character_selector", selected_character_index, display_names)
+                PyImGui.pop_item_width()
+                
+                # Button to add target to selected character
+                if PyImGui.button("Add Current Target to Selected Character"):
+                    # Get the actual character name from available characters
+                    target_char_name = available_characters[selected_character_index]
+                    
+                    # Add the model ID to the selected character's list
+                    if priority_targets.add_model_id(current_model_id, target_char_name):
+                        last_add_time = int(time.time())  # Update the timestamp
+                        if target_char_name != current_character_name:
+                            PyImGui.text_colored(f"Added target to {target_char_name}'s priority list!", (0.0, 1.0, 0.0, 1.0))
+                            PyImGui.text_colored("Note: They'll need to restart their game to see the change.", (1.0, 0.8, 0.0, 1.0))
+                        else:
+                            PyImGui.text_colored("Added target to your priority list!", (0.0, 1.0, 0.0, 1.0))
+                    else:
+                        PyImGui.text_colored(f"Failed to add target to {target_char_name}'s list", (1.0, 0.0, 0.0, 1.0))
+            
+            # Button to add target to all characters (who don't already have it)
+            if available_characters:
+                if PyImGui.button("Add Current Target to All Characters"):
+                    success_count = 0
+                    other_char_count = 0
+                    
+                    # Add to all characters who don't have this target yet
+                    for char_name in available_characters:
+                        if priority_targets.add_model_id(current_model_id, char_name):
+                            success_count += 1
+                            if char_name != current_character_name:
+                                other_char_count += 1
+                    
+                    # Report results
+                    last_add_time = int(time.time())  # Update the timestamp
+                    if success_count == len(available_characters):
+                        PyImGui.text_colored(f"Added target to all {success_count} remaining characters!", (0.0, 1.0, 0.0, 1.0))
+                        if other_char_count > 0:
+                            PyImGui.text_colored(f"Note: Other characters need to restart to see changes.", (1.0, 0.8, 0.0, 1.0))
+                    else:
+                        PyImGui.text_colored(f"Added target to {success_count} out of {len(available_characters)} characters", (1.0, 0.5, 0.0, 1.0))
+    else:
+        PyImGui.text_colored("No valid target selected", (1.0, 0.5, 0.5, 1.0))
+    
+    # Search for nearby priority targets
+    nearest = priority_targets.find_nearest_priority_target(Range.Earshot.value)
+    if nearest != 0:
+        name = Agent.GetName(nearest)
+        agent_instance = Agent.agent_instance(nearest)
+        model_id = agent_instance.living_agent.player_number
+        distance = Utils.Distance(Player.GetXY(), Agent.GetXY(nearest))
+        
+        PyImGui.text_colored(f"Nearest priority target: {name} (ID: {model_id}, Distance: {distance:.1f})", (0.0, 1.0, 0.5, 1.0))
+
 HeroFlags: list[bool] = [False, False, False, False, False, False, False, False, False]
 AllFlag = False
 CLearFlags = False
