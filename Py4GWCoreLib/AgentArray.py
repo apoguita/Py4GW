@@ -344,18 +344,27 @@ class RawAgentArray:
         self.agent_name_map = {}  # agent.id → (name, timestamp)
         self.name_requested = set()
         self._initialized = True
+        
+        self.updated_this_frame = False
+        self.map_valid = False
 
     def update(self):
         from .Routines import Routines
         from .Map import Map
-        if not Routines.Checks.Map.MapValid():
-            self.name_update_throttle.Reset()
-            self.update_throttle.Reset()
-            return
         
         if not self.update_throttle.IsExpired():
             return
+        
         self.update_throttle.Reset()
+        
+        self.map_valid = Routines.Checks.Map.MapValid()
+        if not self.map_valid:
+            self.name_update_throttle.Reset()
+            #self.update_throttle.Reset()
+            
+            self.agent_name_map.clear()
+            self.name_requested.clear()
+            return
         
         for agent_id in list(self.name_requested):
             if agent_id == 0:
