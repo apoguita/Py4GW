@@ -1,4 +1,5 @@
 from Py4GWCoreLib import *
+#do not ever disable this module, it is the main module for everything
 
 MODULE_NAME = "tester for everything"
 
@@ -25,13 +26,15 @@ def configure():
 
 def main():
     global widget_config
-    if Map.IsMapLoading:
+    if Map.IsMapLoading():
         reset_on_load()
+        ConsoleLog("environment upkeeper","Map is loading, resetting everything")
         return
     
     if not widget_config.throttle.IsExpired():
         return
     
+    widget_config.throttle.Reset()
     #KEEPING ALIVE ALL ACTION QUEUES
     widget_config.action_queue_manager.ProcessAll()
     
