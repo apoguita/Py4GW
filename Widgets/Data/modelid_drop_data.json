@@ -2266,5 +2266,33 @@
         "group": "Reward Trophies",
         "subgroup": "Special Events",
         "drop_info": "Dropped during In Grenth's Defense and You're a Mean One, Mr. Grenth"
+    },
+    {
+        "name": "Map Piece (Bottom-Left)",
+        "model_id": "ModelID.Map_Piece_Bl",
+        "group": "Quest Items",
+        "subgroup": "Map Pieces",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Map Piece (Bottom-Right)",
+        "model_id": "ModelID.Map_Piece_Br",
+        "group": "Quest Items",
+        "subgroup": "Map Pieces",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Map Piece (Top-Left)",
+        "model_id": "ModelID.Map_Piece_Tl",
+        "group": "Quest Items",
+        "subgroup": "Map Pieces",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Map Piece (Top-Right)",
+        "model_id": "ModelID.Map_Piece_Tr",
+        "group": "Quest Items",
+        "subgroup": "Map Pieces",
+        "drop_info": "Dropped by data to be added"
     }
 ]
