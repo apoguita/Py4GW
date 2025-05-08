@@ -366,6 +366,7 @@ class RawAgentArray:
             self.name_requested.clear()
             return
         
+        """
         for agent_id in list(self.name_requested):
             if agent_id == 0:
                 continue
@@ -375,6 +376,7 @@ class RawAgentArray:
                     name = ""
                 self.agent_name_map[agent_id] = name
                 self.name_requested.discard(agent_id)
+        """
             
         self.agent_array = AgentArray.GetRawAgentArray()
 
@@ -413,6 +415,7 @@ class RawAgentArray:
                         self.neutral_array.append(agent)
             
 
+        """
         map_id = Map.GetMapID()
         if self.current_map_id != map_id:
             self.current_map_id = map_id
@@ -429,6 +432,8 @@ class RawAgentArray:
             self.name_requested.add(agent.id)
             # Preserve existing name if available, else initialize
             self.agent_name_map[agent.id] = self.agent_name_map.get(agent.id, "")
+            
+        """
 
     def get_array(self):
         self.update()
