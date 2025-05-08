@@ -316,13 +316,13 @@ class AgentArray:
 class RawAgentArray:
     _instance = None
 
-    def __new__(cls, throttle: int = 50):
+    def __new__(cls, throttle: int = 100):
         if cls._instance is None:
             cls._instance = super(RawAgentArray, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, throttle: int = 50):
+    def __init__(self, throttle: int = 100):
         from .Py4GWcorelib import ThrottledTimer
         if self._initialized:
             self.throttle = throttle
@@ -345,27 +345,37 @@ class RawAgentArray:
         self.name_requested = set()
         self._initialized = True
         
-        self.updated_this_frame = False
         self.map_valid = False
 
     def update(self):
         from .Routines import Routines
-        from .Map import Map
+        
+        self.map_valid = Routines.Checks.Map.MapValid()
+        
+        if not self.map_valid:
+            self.name_update_throttle.Reset()
+            self.update_throttle.Reset()
+            self.agent_name_map.clear()
+            self.name_requested.clear()
+            self.agent_array = []
+            self.ally_array = []
+            self.neutral_array = []
+            self.enemy_array = []
+            self.spirit_pet_array = []
+            self.minion_array = []
+            self.npc_minipet_array = []
+            self.item_array = []
+            self.gadget_array = []
+            self.agent_dict = {}
+            self.current_map_id = 0
+            return
         
         if not self.update_throttle.IsExpired():
             return
+            
         
         self.update_throttle.Reset()
-        
-        self.map_valid = Routines.Checks.Map.MapValid()
-        if not self.map_valid:
-            self.name_update_throttle.Reset()
-            #self.update_throttle.Reset()
-            
-            self.agent_name_map.clear()
-            self.name_requested.clear()
-            return
-        
+    
         """
         for agent_id in list(self.name_requested):
             if agent_id == 0:
