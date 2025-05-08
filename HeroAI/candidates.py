@@ -50,6 +50,8 @@ def SendPartyCommand(index, cached_data:CacheData, command="Invite"):
     candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
 
     if command == "Invite":
+        if cached_data.data.RAW_AGENT_ARRAY is None:
+            return False
         invited_by = cached_data.data.RAW_AGENT_ARRAY.get_name(candidate.PlayerID)
         #invited_by = Agent.GetName(candidate.PlayerID)
         #this is exempt of the action queue to allow instant invite
@@ -98,6 +100,8 @@ def ProcessCandidateCommands(cached_data:CacheData):
                 )
                 cached_data.HeroAI_vars.shared_memory_handler.set_candidate(self_index, updated_candidate)
 
+                if cached_data.data.RAW_AGENT_ARRAY is None:
+                    return False
                 invited_by = cached_data.data.RAW_AGENT_ARRAY.get_name(candidate.InvitedBy)
                 #invited_by = Agent.GetName(candidate.InvitedBy)
                 ActionQueueManager().AddAction("ACTION", Party.Players.InvitePlayer, invited_by)
