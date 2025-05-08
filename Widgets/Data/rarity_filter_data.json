@@ -3,5 +3,6 @@
     "blue": false,
     "purple": false,
     "gold": true,
-    "green": true
+    "green": true,
+    "gold_coins": false
 }
