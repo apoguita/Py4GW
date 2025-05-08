@@ -134,7 +134,7 @@ class GameData:
         self.target_id = Player.GetTargetID()
         if self.is_outpost:
             if self.RAW_AGENT_ARRAY is None:
-                self.RAW_AGENT_ARRAY = RawAgentArray(100)
+                self.RAW_AGENT_ARRAY = RawAgentArray()
             self.RAW_AGENT_ARRAY.update() 
         
     
