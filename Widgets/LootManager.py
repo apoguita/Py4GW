@@ -18,8 +18,19 @@ last_config_check_time = 0
 last_config_timestamp = 0
 last_rarity_timestamp = 0
 
-# --- File paths setup ---
 script_directory = os.path.dirname(os.path.abspath(__file__))
+# ——— Window Persistence Setup ———
+ini_window = IniHandler(os.path.join(script_directory, "Config", "loot_window.ini"))
+save_window_timer = Timer()
+save_window_timer.Start()
+
+# load last‐saved window state (fallback to 100,100 / un-collapsed)
+win_x         = ini_window.read_int("Loot Manager", "x", 100)
+win_y         = ini_window.read_int("Loot Manager", "y", 100)
+win_collapsed = ini_window.read_bool("Loot Manager", "collapsed", False)
+first_run     = True
+
+# --- File paths setup ---
 CONFIG_FILE = os.path.join(script_directory, "Config", "loot_config.json")
 MODELID_DROP_DATA_FILE = os.path.join(script_directory, "Data", "modelid_drop_data.json")
 RARITY_FILTER_DATA_FILE = os.path.join(script_directory, "Data", "rarity_filter_data.json")
@@ -69,7 +80,8 @@ def save_rarity_filter_data():
                 "blue": loot_filter_singleton.loot_blues,
                 "purple": loot_filter_singleton.loot_purples,
                 "gold": loot_filter_singleton.loot_golds,
-                "green": loot_filter_singleton.loot_greens
+                "green": loot_filter_singleton.loot_greens,
+                "gold_coins": loot_filter_singleton.loot_gold_coins,   # ← NEW
             }, f, indent=4)
         print("[INFO] Saved rarity_filter_data.json")
     except Exception as e:
@@ -81,7 +93,7 @@ def load_loot_config(filename=CONFIG_FILE):
         with open(filename, "r") as f:
             loot_items = json.load(f)
 
-    # 🔥 Fix: Rebuild singleton whitelist
+    # 🔥 Rebuild singleton whitelist
     loot_filter_singleton.ClearWhitelist()
     for item in loot_items:
         if item.get("enabled", False):
@@ -92,6 +104,11 @@ def load_loot_config(filename=CONFIG_FILE):
                     model_id = getattr(ModelID, model_id_name)
             loot_filter_singleton.AddToWhitelist(model_id)
 
+    # ——— KEEP GOLD COINS WHITELISTED ———
+    if loot_filter_singleton.loot_gold_coins:
+        # ensure you have ModelID.Gold_Coin in your enum
+        loot_filter_singleton.AddToWhitelist(ModelID.Gold_Coins.value)
+
 def load_rarity_filter_settings():
     rarity_data = load_rarity_filter_data()
     loot_filter_singleton.SetProperties(
@@ -99,8 +116,13 @@ def load_rarity_filter_settings():
         loot_blues=rarity_data.get("blue", False),
         loot_purples=rarity_data.get("purple", False),
         loot_golds=rarity_data.get("gold", False),
-        loot_greens=rarity_data.get("green", False)
+        loot_greens=rarity_data.get("green", False),
+        loot_gold_coins=rarity_data.get("gold_coins", False)
     )
+
+    # if the user wants gold coins, ensure they remain whitelisted
+    if loot_filter_singleton.loot_gold_coins:
+        loot_filter_singleton.AddToWhitelist(ModelID.Gold_Coins.value)
 
 # --- Setup ---
 def setup():
@@ -138,24 +160,44 @@ def _format_model_id(mid: int) -> str:
         pretty = "Unknown Item"
     return f"{pretty} (ModelID: {mid})"
 
-# --- Gui Drawing ---
 def DrawWindow():
-    global include_model_id_in_tooltip, show_white_list, show_filtered_loot_list, show_manual_editor, show_black_list
+    global include_model_id_in_tooltip, show_white_list, show_filtered_loot_list
+    global show_manual_editor, show_black_list
+    global win_x, win_y, win_collapsed, first_run
 
-    if PyImGui.begin("Loot Manager"):
-        # Debug
+    # 1) On first draw, restore last position & collapsed state
+    if first_run:
+        PyImGui.set_next_window_pos(win_x, win_y)
+        PyImGui.set_next_window_collapsed(win_collapsed, 0)
+        first_run = False
+
+    # 2) Begin the window (returns False if collapsed)
+    opened = PyImGui.begin("Loot Manager", PyImGui.WindowFlags.AlwaysAutoResize)
+
+    # 3) Immediately grab the live collapse & position, even if collapsed
+    new_collapsed = PyImGui.is_window_collapsed()
+    end_pos       = PyImGui.get_window_pos()
+
+    if opened:
+        # —— Debug Settings ——
         if PyImGui.tree_node("Debug Settings"):
-            include_model_id_in_tooltip = PyImGui.checkbox("Display ModelID In Hovered Text", include_model_id_in_tooltip)
-            show_white_list = PyImGui.checkbox("Display White List", show_white_list)
-            show_black_list = PyImGui.checkbox("Display Black List", show_black_list)
-            show_filtered_loot_list = PyImGui.checkbox("Display Filtered Loot List", show_filtered_loot_list)
-            show_manual_editor = PyImGui.checkbox("Manual Loot Configuration", show_manual_editor)
+            include_model_id_in_tooltip = PyImGui.checkbox(
+                "Display ModelID In Hovered Text", include_model_id_in_tooltip
+            )
+            show_white_list         = PyImGui.checkbox("Display White List", show_white_list)
+            show_black_list         = PyImGui.checkbox("Display Black List", show_black_list)
+            show_filtered_loot_list = PyImGui.checkbox(
+                "Display Filtered Loot List", show_filtered_loot_list
+            )
+            show_manual_editor      = PyImGui.checkbox(
+                "Manual Loot Configuration", show_manual_editor
+            )
             PyImGui.tree_pop()
 
+        # —— Rarity Filters ——
         PyImGui.separator()
         PyImGui.text("Groups - By Rarity/Type")
         PyImGui.separator()
-
         if PyImGui.tree_node("Rarity"):
             rw = loot_filter_singleton.loot_whites
             rb = loot_filter_singleton.loot_blues
@@ -175,18 +217,43 @@ def DrawWindow():
                     loot_blues=new_rb,
                     loot_purples=new_rp,
                     loot_golds=new_rg,
-                    loot_greens=new_re
+                    loot_greens=new_re,
+                    loot_gold_coins=loot_filter_singleton.loot_gold_coins
                 )
-                save_rarity_filter_data()  # Save updated rarity filter settings
+                save_rarity_filter_data()
             PyImGui.tree_pop()
 
+            # —— Loot Gold Coins (standalone) ——
+        new_gc = PyImGui.checkbox("Gold Coins", loot_filter_singleton.loot_gold_coins)
+        if new_gc != loot_filter_singleton.loot_gold_coins:
+            # 1a) flip the flag and persist rarity settings
+            loot_filter_singleton.SetProperties(
+                loot_whites=   loot_filter_singleton.loot_whites,
+                loot_blues=    loot_filter_singleton.loot_blues,
+                loot_purples=  loot_filter_singleton.loot_purples,
+                loot_golds=    loot_filter_singleton.loot_golds,
+                loot_greens=   loot_filter_singleton.loot_greens,
+                loot_gold_coins=new_gc
+            )
+            save_rarity_filter_data()
+
+            # 1b) immediately add or remove coins from the whitelist
+            coin_mid = ModelID.Gold_Coins.value
+            if new_gc:
+                loot_filter_singleton.AddToWhitelist(coin_mid)
+            else:
+                loot_filter_singleton.RemoveFromWhitelist(coin_mid)
+            # persist the loot_config so reload doesn’t drop them
+            save_loot_config()
+
+        # —— Single-item Whitelist/Blacklist ——
         PyImGui.separator()
         PyImGui.text("Single items - By ModelID")
         PyImGui.separator()
 
         grouped = {}
         for item in loot_items:
-            group = item.get("group", "Unknown")
+            group    = item.get("group", "Unknown")
             subgroup = item.get("subgroup") or "Default"
             grouped.setdefault(group, {}).setdefault(subgroup, []).append(item)
 
@@ -198,16 +265,14 @@ def DrawWindow():
                             new_val = PyImGui.checkbox(item["name"], item["enabled"])
                             if new_val != item["enabled"]:
                                 item["enabled"] = new_val
-                                save_loot_config()  # Save the changes to loot config
+                                save_loot_config()
 
-                                # Handle ModelID safely
                                 model_id = item.get("model_id")
                                 if isinstance(model_id, str) and model_id.startswith("ModelID."):
                                     model_id_name = model_id.split("ModelID.")[1]
                                     if hasattr(ModelID, model_id_name):
                                         model_id = getattr(ModelID, model_id_name)
 
-                                # Update whitelist/blacklist based on checkbox state
                                 if new_val:
                                     loot_filter_singleton.AddToWhitelist(model_id)
                                 else:
@@ -224,7 +289,21 @@ def DrawWindow():
                         PyImGui.tree_pop()
                 PyImGui.tree_pop()
 
+    # 5) End the window (must be called even if collapsed)
     PyImGui.end()
+
+    # 6) Once per second, persist any position or collapse changes
+    if save_window_timer.HasElapsed(1000):
+        # Position changed?
+        if (end_pos[0], end_pos[1]) != (win_x, win_y):
+            win_x, win_y = int(end_pos[0]), int(end_pos[1])
+            ini_window.write_key("Loot Manager", "x", str(win_x))
+            ini_window.write_key("Loot Manager", "y", str(win_y))
+        # Collapsed state changed?
+        if new_collapsed != win_collapsed:
+            win_collapsed = new_collapsed
+            ini_window.write_key("Loot Manager", "collapsed", str(win_collapsed))
+        save_window_timer.Reset()
 
 def DrawWhitelistViewer():
     if show_white_list:
@@ -239,6 +318,7 @@ def DrawWhitelistViewer():
                 PyImGui.text(f"Purple: {loot_filter_singleton.loot_purples}")
                 PyImGui.text(f"Gold: {loot_filter_singleton.loot_golds}")
                 PyImGui.text(f"Green: {loot_filter_singleton.loot_greens}")
+                PyImGui.text(f"Gold Coins: {loot_filter_singleton.loot_gold_coins}")
             except Exception as e:
                 PyImGui.text(f"Error reading rarity settings: {str(e)}")
 
