@@ -444,7 +444,22 @@ class RawAgentArray:
             # Preserve existing name if available, else initialize
             self.agent_name_map[agent.id] = self.agent_name_map.get(agent.id, "")
             
-        
+       
+    def reset(self):
+        self.update_throttle.Reset()
+        self.agent_name_map.clear()
+        self.name_requested.clear()
+        self.agent_array = []
+        self.ally_array = []
+        self.neutral_array = []
+        self.enemy_array = []
+        self.spirit_pet_array = []
+        self.minion_array = []
+        self.npc_minipet_array = []
+        self.item_array = []
+        self.gadget_array = []
+        self.agent_dict = {}
+        self.current_map_id = 0 
 
     def get_array(self):
         self.update()
