@@ -1029,6 +1029,69 @@
         "drop_info": "MODELID NOT AQUIRED!!! Dropped by Blood Drinker, Rhythm Drinker in Echovald Forest - Factions"
     },
     {
+        "name": "Celestial Essence",
+        "model_id": "ModelID.Celestial_Essence",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Charr Carving",
+        "model_id": "ModelID.Charr_Carving",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Chromatic Scale",
+        "model_id": "ModelID.Chromatic_Scale",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Chunk Of Drake Flesh",
+        "model_id": "ModelID.Chunk_Of_Drake_Flesh",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Cobalt Talon",
+        "model_id": "ModelID.Cobalt_Talon",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Copper Chrimson Skull Coin",
+        "model_id": "ModelID.Copper_Chrimson_Skull_Coin",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Copper Shilling",
+        "model_id": "ModelID.Copper_Shilling",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Corrosive Spider Leg",
+        "model_id": "ModelID.Corrosive_Spider_Leg",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Curved Mintaur Horn",
+        "model_id": "ModelID.Curved_Mintaur_Horn",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added"
+    },  
+    {
         "name": "Dark Claw",
         "model_id": "ModelID.Dark_Claw",
         "group": "Trophies",
