@@ -4,7 +4,7 @@ module_name = "Resign on enter Map"
 class config:
     def __init__(self):
         self.resigned = False
-        self.game_throttle_timer = ThrottledTimer(50)
+        self.game_throttle_timer = ThrottledTimer(3000)
         self.action_queue = ActionQueueNode(1000)
         self.map_valid = False
         self.is_explorable = False
@@ -44,7 +44,11 @@ def main():
 
     if widget_config.map_valid and widget_config.is_explorable:
         if widget_config.action_queue.IsExpired():
-            widget_config.action_queue.execute_next()        
+            widget_config.action_queue.execute_next()  
+    else:
+        widget_config.resigned = False
+        widget_config.game_throttle_timer.Reset()
+        widget_config.action_queue.clear() 
 
 
 if __name__ == "__main__":
