@@ -1,6 +1,6 @@
 from Py4GWCoreLib import *
 
-MODULE_NAME = "Reroll Character"
+MODULE_NAME = "Switch Character"
 
 class RerollCharacter:
     def __init__(self):
