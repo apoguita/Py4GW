@@ -70,7 +70,6 @@ def save_rarity_filter_data():
                 "purple": loot_filter_singleton.loot_purples,
                 "gold": loot_filter_singleton.loot_golds,
                 "green": loot_filter_singleton.loot_greens
-                "gold_coins": loot_filter_singleton.loot_gold_coins,
             }, f, indent=4)
         print("[INFO] Saved rarity_filter_data.json")
     except Exception as e:
@@ -101,7 +100,6 @@ def load_rarity_filter_settings():
         loot_purples=rarity_data.get("purple", False),
         loot_golds=rarity_data.get("gold", False),
         loot_greens=rarity_data.get("green", False)
-        loot_gold_coins=rarity_data.get("gold_coins", False)
     )
 
 # --- Setup ---
@@ -145,13 +143,19 @@ def DrawWindow():
     global include_model_id_in_tooltip, show_white_list, show_filtered_loot_list, show_manual_editor, show_black_list
 
     if PyImGui.begin("Loot Manager"):
-        # … your Debug Settings …
+        # Debug
+        if PyImGui.tree_node("Debug Settings"):
+            include_model_id_in_tooltip = PyImGui.checkbox("Display ModelID In Hovered Text", include_model_id_in_tooltip)
+            show_white_list = PyImGui.checkbox("Display White List", show_white_list)
+            show_black_list = PyImGui.checkbox("Display Black List", show_black_list)
+            show_filtered_loot_list = PyImGui.checkbox("Display Filtered Loot List", show_filtered_loot_list)
+            show_manual_editor = PyImGui.checkbox("Manual Loot Configuration", show_manual_editor)
+            PyImGui.tree_pop()
 
         PyImGui.separator()
         PyImGui.text("Groups - By Rarity/Type")
         PyImGui.separator()
 
-        # ——— Rarity tree ———
         if PyImGui.tree_node("Rarity"):
             rw = loot_filter_singleton.loot_whites
             rb = loot_filter_singleton.loot_blues
@@ -173,22 +177,8 @@ def DrawWindow():
                     loot_golds=new_rg,
                     loot_greens=new_re
                 )
-                save_rarity_filter_data()
+                save_rarity_filter_data()  # Save updated rarity filter settings
             PyImGui.tree_pop()
-        # — end Rarity tree —
-
-        # ——— Loot Gold Coins toggle ———
-        new_gc = PyImGui.checkbox("Loot Gold Coins", loot_filter_singleton.loot_gold_coins)
-        if new_gc != loot_filter_singleton.loot_gold_coins:
-            loot_filter_singleton.SetProperties(
-                loot_whites=loot_filter_singleton.loot_whites,
-                loot_blues=loot_filter_singleton.loot_blues,
-                loot_purples=loot_filter_singleton.loot_purples,
-                loot_golds=loot_filter_singleton.loot_golds,
-                loot_greens=loot_filter_singleton.loot_greens,
-                loot_gold_coins=new_gc
-            )
-            save_rarity_filter_data()
 
         PyImGui.separator()
         PyImGui.text("Single items - By ModelID")
