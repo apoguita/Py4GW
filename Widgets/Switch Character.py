@@ -224,7 +224,7 @@ def DrawWindow():
             10:Color(97 , 115, 163, 100),  # Dervish
         }
 
-        if PyImGui.begin_child("characterList2", (300, 180), True, PyImGui.WindowFlags.NoFlag):
+        if PyImGui.begin_child("characterList2", (300, 210), True, PyImGui.WindowFlags.NoFlag):
             if PyImGui.begin_table("CharTable", 3, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV):
                 
                 PyImGui.table_setup_column("Prof", PyImGui.TableColumnFlags.WidthFixed, 40)
