@@ -2170,6 +2170,153 @@
         "drop_info": "Dropped by data to be added"
     },
     {
+        "name": "Tangled Seed",
+        "model_id": "ModelID.Tangled_Seed",
+        "group": "Trophies",
+        "subgroup": "T",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Thorny Carapace",
+        "model_id": "ModelID.Thorny_Carapace",
+        "group": "Trophies",
+        "subgroup": "T",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Topaz Crest",
+        "model_id": "ModelID.Topaz_Crest",
+        "group": "Trophies",
+        "subgroup": "T",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Truffle",
+        "model_id": "ModelID.Truffle",
+        "group": "Trophies",
+        "subgroup": "T",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Umbral Eye",
+        "model_id": "ModelID.Umbral_Eye",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Umbral Shell",
+        "model_id": "ModelID.Umbral_Shell",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Umbral Skeletal Limb",
+        "model_id": "ModelID.Umbral_Skeletal_Limb",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Unctuous Remains",
+        "model_id": "ModelID.Unctuous_Remains",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Undead Bone",
+        "model_id": "ModelID.Undead_Bone",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Unnatural Seed",
+        "model_id": "ModelID.Unnatural_Seed",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Vaettir Essence",
+        "model_id": "ModelID.Vaettir_Essence",
+        "group": "Trophies",
+        "subgroup": "V",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Vampiric Fang",
+        "model_id": "ModelID.Vampiric_Fang",
+        "group": "Trophies",
+        "subgroup": "V",
+        "drop_info": "Dropped in Urgoz's Warren by Hopping Vampire & Thought Stealer"
+    },
+    {
+        "name": "Venerable Mantid Pincer",
+        "model_id": "ModelID.Venerable_Mantid_Pincer",
+        "group": "Trophies",
+        "subgroup": "V",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Vermin Hide",
+        "model_id": "ModelID.Vermin_Hide",
+        "group": "Trophies",
+        "subgroup": "V",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "War Supplies",
+        "model_id": "ModelID.War_Supplies",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Warden Horn",
+        "model_id": "ModelID.Warden_Horn",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Water Djinn Essence",
+        "model_id": "ModelID.Water_Djinn_Essence",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Weaver Leg",
+        "model_id": "ModelID.Weaver_Leg",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "White Mantle Badge",
+        "model_id": "ModelID.White_Mantle_Badge",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "White Mantle Emblem",
+        "model_id": "ModelID.White_Mantle_Emblem",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
+        "name": "Worn Belt",
+        "model_id": "ModelID.Worn_Belt",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added"
+    },
+    {
         "name": "Confessors Orders",
         "model_id": "ModelID.Confessors_Orders",
         "group": "Reward Trophies",
