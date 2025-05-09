@@ -3479,7 +3479,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.SacrificeHealth = 0.4
+        skill.Conditions.SacrificeHealth = 0.20
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -3564,7 +3564,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.SacrificeHealth = 0.4
+        skill.Conditions.SacrificeHealth = 0.20
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
