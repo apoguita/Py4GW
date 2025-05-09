@@ -28,7 +28,6 @@ def main():
     global widget_config
     if Map.IsMapLoading():
         reset_on_load()
-        ConsoleLog("environment upkeeper","Map is loading, resetting everything")
         return
     
     if not widget_config.throttle.IsExpired():
