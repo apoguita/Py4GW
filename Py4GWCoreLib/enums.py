@@ -1855,6 +1855,9 @@ explorable_name_to_id = {name: id for id, name in explorables.items()}
 #endregion
 #region ItemModels
 class ModelID(IntEnum):
+    Umbral_Shell = 98765432111
+    Vampiric_Fang = 987654789
+    Water_Djinn_Essence = 78965412365 
     Ancient_Kappa_Shell = 123654789691    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value 
     Animal_Hide = 1236547896911    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Ashen_Wurm_Husk = 123654789692    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
@@ -1867,7 +1870,7 @@ class ModelID(IntEnum):
     Copper_Chrimson_Skull_Coin = 123654789698    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Dark_Claw = 1236547891    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Dark_Flame_Fang = 12365478911    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Diamond_Djinn_Essence = 12365478912    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Diamond_Djinn_Essence = 19186
     Diessa_Chalice = 24353
     Dregde_Charm = 12365478912    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Dregde_Manifesto = 12365478914    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
