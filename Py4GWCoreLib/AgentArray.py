@@ -316,13 +316,13 @@ class AgentArray:
 class RawAgentArray:
     _instance = None
 
-    def __new__(cls, throttle: int = 50):
+    def __new__(cls, throttle: int = 60):
         if cls._instance is None:
             cls._instance = super(RawAgentArray, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, throttle: int = 50):
+    def __init__(self, throttle: int = 60):
         from .Py4GWcorelib import ThrottledTimer
         if self._initialized:
             self.throttle = throttle
@@ -439,10 +439,10 @@ class RawAgentArray:
         self.name_requested.clear()
 
         for agent in self.agent_array:
-            Agent.RequestName(agent.id)
-            self.name_requested.add(agent.id)
-            # Preserve existing name if available, else initialize
-            self.agent_name_map[agent.id] = self.agent_name_map.get(agent.id, "")
+            if agent.id not in self.agent_name_map:
+                Agent.RequestName(agent.id)
+                self.name_requested.add(agent.id)
+
             
        
     def reset(self):
