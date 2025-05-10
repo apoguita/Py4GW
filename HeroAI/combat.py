@@ -261,6 +261,9 @@ class CombatClass:
         if self.skill_pointer >= MAX_SKILLS:
             self.skill_pointer = 0
             
+    def ResetSkillPointer(self):
+        self.skill_pointer = 0
+            
     def GetEnergyValues(self,agent_id):
         for i in range(MAX_NUM_PLAYERS):
             player_data = self.shared_memory_handler.get_player(i)
@@ -911,7 +914,7 @@ class CombatClass:
         else:
             
             if not Agent.IsLiving(target_id):
-                return
+                return False
 
             _, alliegeance = Agent.GetAllegiance(target_id)
             if alliegeance == 'Enemy' and self.is_combat_enabled:
@@ -963,5 +966,5 @@ class CombatClass:
 
         self.aftercast_timer.Reset()
         ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
-        self.AdvanceSkillPointer()
+        self.ResetSkillPointer()
         return True

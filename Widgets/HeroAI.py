@@ -342,10 +342,10 @@ def UpdateStatus(cached_data:CacheData):
     #if were here we are not doing anything
     #auto attack
     if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time):
-        if cached_data.data.is_combat_enabled and not cached_data.data.player_is_attacking:
+        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking)):
             cached_data.combat_handler.ChooseTarget()
         cached_data.auto_attack_timer.Reset()
-    
+        return
 
    
 def configure():
