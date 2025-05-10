@@ -1120,5 +1120,20 @@
     "245051549": "Pet Control",
     "3332025202,0,0,0,8": "Party Formation.Frame.Explorable.Pets Header",
     "3332025202,0,0,0,8,0": "Party Formation.Frame.Explorable.Pets Header.Expand",
-    "3332025202,0,0,0,8,1": "Party Formation.Frame.Explorable.Pets Header.Title"
+    "3332025202,0,0,0,8,1": "Party Formation.Frame.Explorable.Pets Header.Title",
+    "1144678641,0": "menu button_menu",
+    "1144678641,0,1": "menu button hero menu",
+    "1144678641,0,1608675812": "seperator",
+    "1431953425,1": "Options Window Inner Frame",
+    "1431953425,1,4294967291": "Interface Options Tab",
+    "1431953425,1,0": "General Options Tab Internal",
+    "1431953425,1,1": "Graphics Options Tab Internal",
+    "1431953425,1,4294967295": "General Options Tab",
+    "1431953425,1,4294967294": "Graphics Options Tab",
+    "1431953425,1,4": "Interface Options Tab Internal",
+    "1431953425,1,4294967293": "Sound Options Tab",
+    "1431953425,1,4294967292": "Control Options Tab",
+    "1431953425,1,3": "Control Options Tab Internal",
+    "1431953425,1,2": "Sound Options Tab Internal",
+    "1431953425,0": "Options Window GW Version"
 }
