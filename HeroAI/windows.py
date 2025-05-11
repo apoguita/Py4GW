@@ -548,6 +548,7 @@ def DrawFollowDebug(cached_data:CacheData):
     PyImGui.text(f"Nearest Enemy: {cached_data.data.nearest_enemy}")
     PyImGui.text(f"stay_alert_timer: {cached_data.stay_alert_timer.GetElapsedTime()}")
     PyImGui.text(f"Leader Rotation Angle: {cached_data.data.party_leader_rotation_angle}")
+    PyImGui.text(f"old_leader_rotation_angle: {cached_data.data.old_angle}")
     PyImGui.text(f"Angle_changed: {cached_data.data.angle_changed}")
 
     segments = 32

@@ -80,10 +80,11 @@ def Loot(cached_data:CacheData):
 
 def Follow(cached_data:CacheData):
     global MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_ON_COMBAT
-
-    leader_id = cached_data.data.party_leader_id
-    if leader_id == cached_data.data.player_agent_id:  # halt operation if player is leader
+    
+    if Player.GetAgentID() == Party.GetPartyLeaderID():
+        cached_data.follow_throttle_timer.Reset()
         return False
+    
     party_number = cached_data.data.own_party_number
     if not cached_data.data.is_following_enabled:  # halt operation if following is disabled
         return False
@@ -114,17 +115,16 @@ def Follow(cached_data:CacheData):
     else:
         follow_distance = FOLLOW_DISTANCE_OUT_OF_COMBAT
 
-    if (cached_data.data.old_angle != follow_angle) and not cached_data.data.angle_changed:
-        cached_data.data.old_angle = follow_angle
-        cached_data.data.angle_changed = True
-
     angle_changed_pass = False
-    if cached_data.data.angle_changed and not cached_data.data.in_aggro:
+    if cached_data.data.angle_changed and (not cached_data.data.in_aggro):
         angle_changed_pass = True
 
-    if DistanceFromWaypoint(follow_x, follow_y) <= follow_distance and not angle_changed_pass:
+    close_distance_check =  (DistanceFromWaypoint(follow_x, follow_y) <= follow_distance)
+    
+    if not angle_changed_pass and close_distance_check:
         return False
     
+
     hero_grid_pos = party_number + cached_data.data.party_hero_count + cached_data.data.party_henchman_count
     angle_on_hero_grid = follow_angle + Utils.DegToRad(hero_formation[hero_grid_pos])
 
@@ -135,8 +135,10 @@ def Follow(cached_data:CacheData):
     yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y
 
     cached_data.data.angle_changed = False
-    ActionQueueManager().ResetQueue("ACTION")
+    #ActionQueueManager().ResetQueue("ACTION")
+    #ConsoleLog("HeroAI follow","distance: " + str(DistanceFromWaypoint(follow_x, follow_y)) + "target: " + str(follow_distance))
     ActionQueueManager().AddAction("ACTION", Player.Move, xx, yy)
+    cached_data.follow_throttle_timer.Reset()
     return True
     
 
@@ -328,7 +330,12 @@ def UpdateStatus(cached_data:CacheData):
         return
     
     if cached_data.data.player_is_moving:
+        #keep following updated if we are already going
+        if cached_data.follow_throttle_timer.IsExpired():
+            Follow(cached_data)
         return
+    else:
+        cached_data.follow_throttle_timer.Reset()
     
     if Loot(cached_data):
        return
