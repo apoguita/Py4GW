@@ -46,9 +46,10 @@ def quick_dock_menu():
     PyImGui.set_next_window_size(quick_dock_w, quick_dock_h)
 
     PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (state.quick_dock_color[0], state.quick_dock_color[1], state.quick_dock_color[2], state.quick_dock_color[3]))
-    PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameRounding, 0.0)
 
     if PyImGui.begin("##quick_dock_toggle", PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoBackground):
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameRounding, 0)
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0)
         if PyImGui.button("##toggle_ribbon", quick_dock_w, quick_dock_h):
             state.show_quick_dock_popup = not state.show_quick_dock_popup
         # PyImGui.show_tooltip("Middle Click to Lock" if state.quick_dock_unlocked else "Middle Click to Unlock")
@@ -63,8 +64,8 @@ def quick_dock_menu():
                 state.quick_dock_offset_y = max(left, min(right - state.quick_dock_width, mouse_x - state.quick_dock_width // 2))
         PyImGui.end()
 
-    PyImGui.pop_style_color(1)
-    PyImGui.pop_style_var(1)
+        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_var(2)
 
     if state.show_quick_dock_popup:
         popup_w, popup_h = state.last_popup_size
@@ -131,7 +132,7 @@ def quick_dock_menu():
                     PyImGui.end_tooltip()
 
                     if PyImGui.is_mouse_clicked(2):  # Middle click
-                        widget["configuring"] = True
+                        widget["configuring"] = not widget.get("configuring", False)
 
                 PyImGui.pop_style_color(1)
 

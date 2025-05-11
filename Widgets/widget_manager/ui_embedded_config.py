@@ -37,9 +37,8 @@ def draw_embedded_widget_config():
     button_flags = (PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.AlwaysAutoResize | 
                     PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoMove | 
                     PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoBackground)
-    embedded_window_flags = (PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.AlwaysAutoResize | 
-                    PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoMove | 
-                    PyImGui.WindowFlags.NoScrollbar)
+    embedded_window_flags = (PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoMove |
+                             PyImGui.WindowFlags.NoResize)
 
     label = "Widgets"
 
@@ -62,13 +61,22 @@ def draw_embedded_widget_config():
 
     if state.show_config_window:
         if not UIManager.IsWindowVisible(interface_frame_id):
+            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967291]), Utils.RGBToColor(0, 0, 0, 255))
+            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967292]), Utils.RGBToColor(0, 0, 0, 255))
+            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967293]), Utils.RGBToColor(0, 0, 0, 255))
+            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967294]), Utils.RGBToColor(0, 0, 0, 255))
+            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967295]), Utils.RGBToColor(0, 0, 0, 255))
             PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,4.0)
             # PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg , (0.0, 0.0, 0.0, 1.0))
             PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0.05, 0.05, 0.05, 1.0))
             top_offset, height_offset = ui_offsets.get(ui_size, (25, 23))
             PyImGui.set_next_window_pos(options_inner_left, options_inner_top + top_offset)
             PyImGui.set_next_window_size(width, height - height_offset)
-            if PyImGui.begin("##widget_config_content",state.show_config_window, embedded_window_flags):
+            if PyImGui.begin("##widget_config_content", state.show_config_window, embedded_window_flags):
+                # avail_w, avail_h = PyImGui.get_content_region_avail()
+                # scroll_height = min(avail_h, 800)
+                # PyImGui.begin_child("##scrollable_config_area", (avail_w, 420), False, PyImGui.WindowFlags.NoFlag)
+                
                 #config options go here
                 PyImGui.spacing()
                 PyImGui.text_colored("Widget Configuration", (1.0, 0.94, 0.75, 1.0))
@@ -95,7 +103,7 @@ def draw_embedded_widget_config():
                 state.show_hidden_widgets = PyImGui.checkbox("Show Hidden Widgets", state.show_hidden_widgets)
                 ImGui.show_tooltip("Toggle visibility of hidden/internal widgets in menus")
                 PyImGui.separator()
-                
+                # PyImGui.end_child()
             PyImGui.end()
             PyImGui.pop_style_var(1)
             PyImGui.pop_style_color(1)

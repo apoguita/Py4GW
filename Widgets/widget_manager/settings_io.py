@@ -5,7 +5,7 @@ from . import state
 def write_ini():
     if not state.write_timer.HasElapsed(1000):
         return
-
+    save_account_settings()
     if state.current_window_pos != state.window_module.window_pos:
         x, y = map(int, state.current_window_pos)
         state.window_module.window_pos = (x, y)
@@ -75,8 +75,7 @@ def save_account_settings():
         handler._write_account_setting(name, "subcategory", data.get("subcategory", "Others"))
         handler._write_account_setting(name, "quickdock", str(data.get("quickdock", False)))
 
-    ConsoleLog(state.module_name, "Saved current settings to account INI", Py4GW.Console.MessageType.Info)
-
+    # ConsoleLog(state.module_name, "Saved current settings to account INI", Py4GW.Console.MessageType.Info)
 
 def save_global_settings():
     wm_keys = {
@@ -108,6 +107,4 @@ def save_global_settings():
         handler._write_global_setting(name, "category", data.get("category", "Miscellaneous"))
         handler._write_global_setting(name, "subcategory", data.get("subcategory", "Others"))
 
-    ConsoleLog(state.module_name, "Saved current settings to global INI", Py4GW.Console.MessageType.Info)
-
-
+    # ConsoleLog(state.module_name, "Saved current settings to global INI", Py4GW.Console.MessageType.Info)

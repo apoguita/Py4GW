@@ -27,12 +27,12 @@ class WidgetHandler:
         self.widget_data_cache = {}
         self.last_write_time = Timer()
         self.last_write_time.Start()
-        self.base_path = os.path.join(os.getcwd(), "widgets", "config")
+        self.base_path = os.path.join(os.getcwd(), "widgets", "config", "account_config")
         self.global_ini_path = os.path.join(self.base_path, "global_widget_config.ini")
         
         os.makedirs(self.base_path, exist_ok=True) 
         self.account_email = Player.GetAccountEmail() or "unknown"
-        self.account_path = os.path.join(self.base_path, "account_config", self.account_email)
+        self.account_path = os.path.join(self.base_path, self.account_email)
         self.account_ini_path = os.path.join(self.account_path, "widgets_meta.ini")
         self.account_initialized = False
         
@@ -51,7 +51,7 @@ class WidgetHandler:
             return
 
         self.account_email = email
-        self.account_path = os.path.join(self.base_path, "account_config", email)
+        self.account_path = os.path.join(self.base_path, email)
         self.account_ini_path = os.path.join(self.account_path, "widgets_meta.ini")
 
         os.makedirs(self.account_path, exist_ok=True)
@@ -297,6 +297,8 @@ class WidgetHandler:
                 continue
             try:
                 info["module"].configure()
+                if hasattr(info["module"], "render_ui"):
+                    info["module"].render_ui()
             except Exception as e:
                 ConsoleLog("WidgetHandler", f"Configure failed: {name} - {e}", Py4GW.Console.MessageType.Error)
                 ConsoleLog("WidgetHandler", traceback.format_exc(), Py4GW.Console.MessageType.Error)
