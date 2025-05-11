@@ -23,6 +23,7 @@ class Global_Vars:
         self.pet_window = False
         self.pet_window_timer = Timer()
         self.pet_window_delay = 3000
+        self.wipe_log = True
         self.throttle_timer = ThrottledTimer(100)
         self.update_target_throttle_timer = ThrottledTimer(1000)
         
@@ -37,6 +38,33 @@ class Global_Vars:
         self.player_name = ""
         self.party_target_name = ""
         self.owner_target_name = ""
+
+    def wipe(self):
+        players = Party.GetPlayers()
+        players_dead = {player: False for player in players}
+        wipe = False
+        all_dead = True
+        if Agent.GetHealth(Player.GetAgentID()) == 1.0 or Agent.IsAlive(Player.GetAgentID()):
+            if not self.wipe_log:
+                self.wipe_log = True
+
+        if len(players) >= 1:
+            for player in players:
+                player_agent_id = Party.Players.GetAgentIDByLoginNumber(player.login_number)
+                if Agent.GetHealth(player_agent_id) < 0.001 or Agent.IsDead(player_agent_id):
+                    players_dead[player] = True
+
+            for player in players_dead:
+                if players_dead[player] == False:
+                    all_dead = False
+
+            if all_dead and self.wipe_log and self.log_action:
+                self.wipe_log = False
+                Py4GW.Console.Log(module_name, f"Wipe: Set Pet to Guard", Py4GW.Console.MessageType.Info)
+
+            if all_dead:
+                wipe = True
+        return wipe
 
     def update(self):
         self.player_agent_id = Player.GetAgentID()
@@ -82,6 +110,10 @@ class Global_Vars:
                 self.owner_target_id = 0
 
         if Agent.IsDead(self.owner_target_id):
+            self.owner_target_id = 0
+
+        if self.wipe():
+            self.party_target_id = 0
             self.owner_target_id = 0
 
         self.agent_array.update()
