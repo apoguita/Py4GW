@@ -87,11 +87,45 @@ def save_rarity_filter_data():
     except Exception as e:
         print(f"[ERROR] Failed to save rarity_filter_data.json: {str(e)}")
 
-def load_loot_config(filename=CONFIG_FILE):
-    global loot_items
-    if os.path.exists(filename):
-        with open(filename, "r") as f:
-            loot_items = json.load(f)
+def load_loot_config():
+    """
+    Merge saved user settings back onto the fresh catalog.
+    """
+    # 1) Read saved flags into a dict
+    saved = {}
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                for entry in json.load(f):
+                    saved[entry["model_id"]] = entry
+        except Exception as e:
+            print(f"[ERROR] Failed to parse {CONFIG_FILE}: {e}")
+
+    # 2) Clear the whitelist
+    loot_filter_singleton.ClearWhitelist()
+
+    # 3) Merge saved flags onto each catalog item
+    for item in loot_items:
+        key = item["model_id"]
+        if key in saved:
+            item["enabled"]       = saved[key].get("enabled", False)
+            item["rarity_filter"] = saved[key].get("rarity_filter", False)
+        else:
+            item["enabled"]       = False
+            item["rarity_filter"] = False
+
+        # 4) Whitelist enabled items
+        if item["enabled"]:
+            mid = item["model_id"]
+            if isinstance(mid, str) and mid.startswith("ModelID."):
+                name = mid.split(".", 1)[1]
+                if hasattr(ModelID, name):
+                    mid = getattr(ModelID, name)
+            loot_filter_singleton.AddToWhitelist(mid)
+
+    # 5) Always keep gold coins if that toggle’s on
+    if loot_filter_singleton.loot_gold_coins:
+        loot_filter_singleton.AddToWhitelist(ModelID.Gold_Coins.value)
 
     # 🔥 Rebuild singleton whitelist
     loot_filter_singleton.ClearWhitelist()
