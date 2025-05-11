@@ -129,7 +129,7 @@ global_widget_defaults = {
     "PCons": {
         "enabled": "False",
         "category": "Gameplay",
-        "subcategory": "Triggers",
+        "subcategory": "Utilities",
         "icon": "ICON_CHEVRON_UP",
         "quickdock": "True"
     },
@@ -164,7 +164,7 @@ global_widget_defaults = {
     "Titles": {
         "enabled": "False",
         "category": "Gameplay",
-        "subcategory": "Trigers",
+        "subcategory": "Triggers",
         "icon": "ICON_ID_BADGE",
         "quickdock": "True"
     },
