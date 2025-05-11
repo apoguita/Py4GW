@@ -169,14 +169,23 @@ class CombatClass:
         ordered_skills = []
         
         priorities = [
+            SkillNature.CustomA,
             SkillNature.Interrupt,
+            SkillNature.CustomB,
             SkillNature.Enchantment_Removal,
+            SkillNature.CustomC,
             SkillNature.Healing,
+            SkillNature.CustomD,
             SkillNature.Hex_Removal,
+            SkillNature.CustomE,
             SkillNature.Condi_Cleanse,
+            SkillNature.CustomF,
             SkillNature.EnergyBuff,
+            SkillNature.CustomG,
             SkillNature.Resurrection,
-            SkillNature.Buff
+            SkillNature.CustomH,
+            SkillNature.Buff,
+            SkillNature.CustomI,
         ]
 
         for priority in priorities:

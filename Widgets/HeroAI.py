@@ -135,7 +135,7 @@ def Follow(cached_data:CacheData):
     yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y
 
     cached_data.data.angle_changed = False
-    #ActionQueueManager().ResetQueue("ACTION")
+    ActionQueueManager().ResetQueue("ACTION")
     #ConsoleLog("HeroAI follow","distance: " + str(DistanceFromWaypoint(follow_x, follow_y)) + "target: " + str(follow_distance))
     ActionQueueManager().AddAction("ACTION", Player.Move, xx, yy)
     cached_data.follow_throttle_timer.Reset()

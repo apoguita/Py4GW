@@ -2539,7 +2539,7 @@ class CustomSkillClass:
         skill.SkillID = Skill.GetID("Infuse_Health")
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.OtherAlly.value
-        skill.Nature = SkillNature.Healing.value
+        skill.Nature = SkillNature.CustomA.value
         skill.Conditions.LessLife = 0.35
         skill.Conditions.TargetingStrict = True
         self.skill_data[skill.SkillID] = skill
@@ -9886,10 +9886,9 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = Skill.GetID("Breath_of_the_Great_Dwarf")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Healing.value
-        skill.Conditions.HasBurning = True
-        skill.Conditions.LessLife = 0.75
+        skill.Conditions.LessLife = 0.85
         skill.Conditions.IsPartyWide = True
         skill.Conditions.PartyWideArea = Range.SafeCompass.value
         self.skill_data[skill.SkillID] = skill
