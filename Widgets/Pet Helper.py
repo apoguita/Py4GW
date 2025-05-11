@@ -20,6 +20,9 @@ class Global_Vars:
         
         self.widget_active = True
         self.log_action = False
+        self.pet_window = False
+        self.pet_window_timer = Timer()
+        self.pet_window_delay = 3000
         self.throttle_timer = ThrottledTimer(100)
         self.update_target_throttle_timer = ThrottledTimer(1000)
         
@@ -113,6 +116,10 @@ def main():
             global_vars.pet_name = ""
         if global_vars.player_name != "":
             global_vars.player_name = ""
+        if global_vars.pet_window_timer.IsRunning():
+            global_vars.pet_window_timer.Stop()
+        if global_vars.pet_window:
+            global_vars.pet_window = False
         return
 
     if not global_vars.throttle_timer.IsExpired():
@@ -129,6 +136,14 @@ def main():
     if not global_vars.widget_active:
         return
 
+    if not global_vars.pet_window:
+        if global_vars.pet_window_timer.IsStopped():
+            global_vars.pet_window_timer.Start()
+        if global_vars.pet_window_timer.HasElapsed(global_vars.pet_window_delay):
+            global_vars.pet_window = True
+            Keystroke.PressAndRelease(Key.Apostrophe.value)
+            if global_vars.log_action:
+                Py4GW.Console.Log(module_name, f"Opening Pet Window", Py4GW.Console.MessageType.Info)
 
     if not Routines.Checks.Agents.InDanger():
         return
