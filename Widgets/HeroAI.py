@@ -329,6 +329,7 @@ def UpdateStatus(cached_data:CacheData):
     if HandleOutOfCombat(cached_data):
         return
     
+    """
     if cached_data.data.player_is_moving:
         #keep following updated if we are already going
         if cached_data.follow_throttle_timer.IsExpired():
@@ -336,6 +337,10 @@ def UpdateStatus(cached_data:CacheData):
         return
     else:
         cached_data.follow_throttle_timer.Reset()
+    """
+    
+    if cached_data.data.player_is_moving:
+        return
     
     if Loot(cached_data):
        return
@@ -348,7 +353,7 @@ def UpdateStatus(cached_data:CacheData):
     
     #if were here we are not doing anything
     #auto attack
-    if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time):
+    if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
         if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking)):
             cached_data.combat_handler.ChooseTarget()
         cached_data.auto_attack_timer.Reset()
