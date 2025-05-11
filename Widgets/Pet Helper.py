@@ -35,7 +35,6 @@ class Global_Vars:
         self.party_target_name = ""
         self.owner_target_name = ""
 
-        
     def update(self):
         self.player_agent_id = Player.GetAgentID()
         self.pet_id = Party.Pets.GetPetID(self.player_agent_id)
@@ -110,31 +109,33 @@ def main():
     global global_vars
 
     if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
-        global_vars.pet_name = ""
-        global_vars.player_name = ""
+        if global_vars.pet_name != "":
+            global_vars.pet_name = ""
+        if global_vars.player_name != "":
+            global_vars.player_name = ""
         return
-    
+
     if not global_vars.throttle_timer.IsExpired():
         return
-    
+
     global_vars.update()
-    
+
     if global_vars.pet_id == 0:
         return 
-    
+
     if global_vars.title_frame_visible:
         DrawWindow()
-        
+
     if not global_vars.widget_active:
         return
-        
+
 
     if not Routines.Checks.Agents.InDanger():
         return
-    
+
     if not global_vars.update_target_throttle_timer.IsExpired():
         return
-    
+
     # Set Party Target to Pet
     if global_vars.party_target_id != 0 and global_vars.party_target_id != global_vars.pet_target_id and (global_vars.pet_bahavior == PetBehavior.Guard or global_vars.pet_bahavior == PetBehavior.Fight):
         ActionQueueManager().AddAction("ACTION", Party.Pets.SetPetBehavior, PetBehavior.Fight, global_vars.party_target_id)
@@ -151,10 +152,9 @@ def main():
         if global_vars.log_action:
             Py4GW.Console.Log(module_name, f"{global_vars.pet_name} Guard {global_vars.player_name}", Py4GW.Console.MessageType.Info)
         global_vars.update_target_throttle_timer.Reset()
-    
-    
+
     ActionQueueManager().ProcessQueue("ACTION")
-    
+
 
 if __name__ == "__main__":
     main()
