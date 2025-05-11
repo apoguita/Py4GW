@@ -5124,7 +5124,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Signet.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.EnergyBuff.value
-        skill.Conditions.LessEnergy = 0.15
+        skill.Conditions.LessEnergy = 0.10
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
