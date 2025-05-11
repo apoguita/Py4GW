@@ -16,8 +16,6 @@ def safe_resign():
         return 
     Player.SendChatCommand("resign")
     
-
-
 def resigned():
     global widget_config
     if not Routines.Checks.Map.MapValid():
@@ -34,6 +32,9 @@ def resigned():
         return False
     
     if widget_config.resigned:
+        return False
+    
+    if Player.GetAgentID() == Party.GetPartyLeaderID():
         return False
      
     for i in range(0, 3):
