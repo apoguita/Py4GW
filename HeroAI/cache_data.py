@@ -74,6 +74,7 @@ class GameData:
         self.in_aggro = False
         self.free_slots_in_inventory = 0
         self.target_id = 0
+        self.weapon_type = 0
         
         #control status vars
         self.is_following_enabled = True
@@ -137,6 +138,10 @@ class GameData:
         self.player_is_attacking = Agent.IsAttacking(self.player_agent_id)
         self.player_is_moving = Agent.IsMoving(self.player_agent_id)
         self.player_is_melee = Agent.IsMelee(self.player_agent_id)
+        self.weapon_type, _ = Agent.GetWeaponType(self.player_agent_id)
+        
+        
+        
         #AgentArray data
         self.pet_id = Party.Pets.GetPetID(self.player_agent_id)
         #combat field data
