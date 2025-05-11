@@ -4460,7 +4460,7 @@ class CustomSkillClass:
         skill.SkillID = Skill.GetID("Symbolic_Celerity")
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.CustomA.value
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill  
         
@@ -4995,7 +4995,7 @@ class CustomSkillClass:
         skill.SkillID = Skill.GetID("Signet_of_Illusions")
         skill.SkillType = SkillType.Signet.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.CustomB.value
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
@@ -9887,7 +9887,7 @@ class CustomSkillClass:
         skill.SkillID = Skill.GetID("Breath_of_the_Great_Dwarf")
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Ally.value
-        skill.Nature = SkillNature.Healing.value
+        skill.Nature = SkillNature.CustomC.value
         skill.Conditions.LessLife = 0.85
         skill.Conditions.IsPartyWide = True
         skill.Conditions.PartyWideArea = Range.SafeCompass.value
