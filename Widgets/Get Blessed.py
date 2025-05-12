@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import configparser
+from Py4GWCoreLib import *
 from typing import Set
 
 # ─── Import the game’s API ────────────────────────────────────────────────
@@ -100,7 +101,7 @@ def on_imgui_render(me: int):
                 pass
 
     # (E) draw
-    PyImGui.begin("Blessing Controller")
+    PyImGui.begin("Get Blessed", PyImGui.WindowFlags.AlwaysAutoResize)
     PyImGui.text("Party Blessing Status:")
     PyImGui.separator()
 
@@ -108,12 +109,11 @@ def on_imgui_render(me: int):
         ln = slot.login_number
         ag = Party.Players.GetAgentIDByLoginNumber(ln)
         nm = Party.Players.GetPlayerNameByLoginNumber(ln)
-        role = "Leader" if ag == Party.GetPartyLeaderID() else "Ai Hero"
-        mark = "Blessed" if ag in blessed_ids else "Unholy"
-        PyImGui.text(f"[{ln}] {nm} ({role}) [{mark}]")
+        mark = IconsFontAwesome5.ICON_PRAYING_HANDS if ag in blessed_ids else IconsFontAwesome5.ICON_HANDS
+        PyImGui.text(f"{mark} {nm}")
 
     PyImGui.separator()
-    if not _running and PyImGui.button("Run Blessing Sequence"):
+    if not _running and PyImGui.button("Get Party Blessed"):
         if AUTO_RUN_ALL and is_leader:
             write_run_flag(True)
             _runner.start()
@@ -123,7 +123,7 @@ def on_imgui_render(me: int):
             _running = True
 
     if _running:
-        PyImGui.text("Running blessing sequence…")
+        PyImGui.text("Running blessing sequence")
 
     PyImGui.end()
 
