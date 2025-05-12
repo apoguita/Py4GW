@@ -476,7 +476,27 @@ class RawAgentArray:
                 Agent.RequestName(agent.id)
                 self.name_requested.add(agent.id)
 
+    def reset(self):
+        """Purpose: Reset the agent array and all caches."""
+        self.name_update_throttle.Reset()
+        self.update_throttle.Reset()
 
+        # Clear all agent and name data
+        self.agent_array = []
+        self.ally_array = []
+        self.neutral_array = []
+        self.enemy_array = []
+        self.spirit_pet_array = []
+        self.minion_array = []
+        self.npc_minipet_array = []
+        self.item_array = []
+        self.gadget_array = []
+        self.agent_dict = {}
+        self.agent_cache.clear()
+
+        self.agent_name_map.clear()
+        self.name_requested.clear()
+        self.current_map_id = 0      
 
     def get_array(self):
         self.update()

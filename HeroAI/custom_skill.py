@@ -2541,6 +2541,7 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.OtherAlly.value
         skill.Nature = SkillNature.CustomA.value
         skill.Conditions.LessLife = 0.35
+        skill.Conditions.SacrificeHealth = 0.50
         skill.Conditions.TargetingStrict = True
         self.skill_data[skill.SkillID] = skill
 
