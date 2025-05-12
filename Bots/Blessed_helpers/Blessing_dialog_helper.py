@@ -159,3 +159,5 @@ def get_dialog_button_count(debug: bool = False) -> int:
         )
 
     return count
+
+__all__ = ["is_npc_dialog_visible", "click_dialog_button", "get_dialog_button_count"]
