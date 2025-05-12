@@ -2,10 +2,9 @@ from Py4GWCoreLib import *
 from . import state
 from .handler import handler
 from .ui_widget_menu import draw_widget_popup_menus
-from .ui_embedded_config import draw_embedded_widget_config
 
 def draw_floating_menu():
-    draw_embedded_widget_config()
+    
     chara_select = Player.InCharacterSelectScreen()
     ingame_frame_id = UIManager.GetFrameIDByHash(1144678641)
     login_frame_id = UIManager.GetChildFrameID(2232987037,[0])
@@ -44,7 +43,8 @@ def draw_floating_menu():
         active   = (0.28, 0.26, 0.23, 1.0)
         border   = (0.85, 0.82, 0.78, 1.0)
     
-    window_flags = (PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.AlwaysAutoResize | 
+    window_flags = (PyImGui.WindowFlags.NoCollapse | PyImGui.WindowFlags.NoTitleBar | 
+                    PyImGui.WindowFlags.AlwaysAutoResize | PyImGui.WindowFlags.NoScrollWithMouse |
                     PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoMove | 
                     PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoBackground)
     
@@ -101,9 +101,9 @@ def draw_floating_menu():
             state.popup_height_known = True
             if PyImGui.button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets"):
                 ConsoleLog(state.module_name, "Reloading Widgets...", Py4GW.Console.MessageType.Info)
-                initialized = False
+                state.initialized = False
                 handler.discover_widgets()
-                initialized = True
+                state.initialized = True
             ImGui.show_tooltip("Reloads all widgets")
             PyImGui.same_line(0.0, 10)
             is_enabled = state.enable_all

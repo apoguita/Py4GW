@@ -1,5 +1,6 @@
 from Py4GWCoreLib import *
 from .default_settings import global_widget_defaults, account_widget_defaults, default_schema_version
+from . import state
 import importlib.util
 import os
 import types
@@ -117,43 +118,38 @@ class WidgetHandler:
                 config.write(f)
             ConsoleLog("WidgetHandler", "Updated account config with missing defaults", Py4GW.Console.MessageType.Info)
     
-    def _write_to_ini(self, path, section, key, value):
+    def _read_setting(self, section, key, default=None, *, force_account=False, force_global=False):
         parser = configparser.ConfigParser()
-        parser.read(path)
+        from . import state
 
-        if not parser.has_section(section):
-            parser.add_section(section)
+        paths = []
+        if force_account:
+            paths = [self.account_ini_path]
+        elif force_global:
+            paths = [self.global_ini_path]
+        else:
+            paths = [self.global_ini_path, self.account_ini_path]
 
-        parser.set(section, key, f"{value}")
-        with open(path, "w") as f:
-            parser.write(f)
-    
-    def _read_from_ini(self, path, section, key, default=None):
-        parser = configparser.ConfigParser()
-        parser.read(path)
-
-        if parser.has_section(section) and parser.has_option(section, key):
-            return parser.get(section, key)
-
-        return default
-    
-    def _read_setting(self, section, key, default=None):
-        parser = configparser.ConfigParser()
-
-        for path in (self.account_ini_path, self.global_ini_path):
-            if path and os.path.exists(path):
+        for path in paths:
+            if not path or not os.path.exists(path):
+                continue
+            try:
                 parser.read(path)
-                if parser.has_section(section) and parser.has_option(section, key):
-                    return parser.get(section, key)
+            except configparser.Error as e:
+                ConsoleLog("WidgetHandler", f"[Warning] Corrupt INI file: {path} ({e})", Py4GW.Console.MessageType.Warning)
+                continue  # Try next file
 
+            if parser.has_section(section) and parser.has_option(section, key):
+                return parser.get(section, key)
+            
         return default
 
-    def _read_setting_bool(self, section, key, default=False):
-        val = self._read_setting(section, key, f"{default}")
+    def _read_setting_bool(self, section, key, default=False, *, force_account=False, force_global=False):
+        val = self._read_setting(section, key, str(default), force_account=force_account, force_global=force_global)
         return val and val.lower() == "true"
 
-    def _read_setting_int(self, section, key, default=0):
-        val = self._read_setting(section, key, default)
+    def _read_setting_int(self, section, key, default=0, *, force_account=False, force_global=False):
+        val = self._read_setting(section, key, str(default), force_account=force_account, force_global=force_global)
         if val is None:
             return default
         try:
@@ -161,35 +157,58 @@ class WidgetHandler:
         except Exception:
             return default
 
-    def _read_setting_float(self, section, key, default=0.0):
-        val = self._read_setting(section, key, default)
+    def _read_setting_float(self, section, key, default=0.0, *, force_account=False, force_global=False):
+        val = self._read_setting(section, key, str(default), force_account=force_account, force_global=force_global)
         if val is None:
             return default
         try:
             return float(val)
         except Exception:
             return default
-    
-    def read_global_setting(self, section, key, default=None):
-        return self._read_from_ini(self.global_ini_path, section, key, default)
+
+    def _write_setting(self, section, key, value, *, to_account=None, force=False):
+        if to_account is None:
+            to_account = state.use_account_settings
+
+        cache = self._last_account_values if to_account else self._last_global_values
+        path = self.account_ini_path if to_account else self.global_ini_path
+
+        if not force and cache.get((section, key)) == value:
+            return
+
+        parser = configparser.ConfigParser()
+        parser.read(path)
+
+        if not parser.has_section(section):
+            parser.add_section(section)
+
+        parser.set(section, key, str(value))
+
+        with open(path, "w") as f:
+            parser.write(f)
+
+        cache[(section, key)] = value
 
     def _write_global_setting(self, section, key, value):
-        if self._last_global_values.get((section, key)) == value:
-            return
-        self._write_to_ini(self.global_ini_path, section, key, value)
-        self._last_global_values[(section, key)] = value
-
-    def read_account_setting(self, section, key, default=None):
-        return self._read_from_ini(self.account_ini_path, section, key, default)
+        self._write_setting(section, key, value, to_account=False)
 
     def _write_account_setting(self, section, key, value):
-        if self._last_account_values.get((section, key)) == value:
-            return
-        self._write_to_ini(self.account_ini_path, section, key, value)
-        self._last_account_values[(section, key)] = value
+        self._write_setting(section, key, value, to_account=True)
     
     def _load_widget_cache(self):
-        path = self.account_ini_path if self.account_email != "unknown" else self.global_ini_path
+        if self.account_email == "unknown":
+            path = self.global_ini_path
+        elif state.use_account_settings is None:
+            path = self.global_ini_path
+        elif state.use_account_settings:
+            path = self.account_ini_path
+        else:
+            path = self.global_ini_path
+            
+
+        if not os.path.exists(path):
+            return
+
         parser = configparser.ConfigParser()
         parser.read(path)
 
@@ -204,25 +223,42 @@ class WidgetHandler:
                 "icon": get("icon", "ICON_CIRCLE"),
                 "quickdock": get("quickdock", "False").lower() == "true",
             }
+    
+    # def _load_widget_cache(self):
+    #     path = self.account_ini_path if self.account_email != "unknown" else self.global_ini_path
+    #     parser = configparser.ConfigParser()
+    #     parser.read(path)
 
-    def _save_widget_state(self, widget_name):
-        widget = self.widgets.get(widget_name)
-        if not widget:
-            return
+    #     for section in parser.sections():
+    #         if section in self.widget_data_cache:
+    #             continue
+    #         get = lambda k, d: parser.get(section, k, fallback=d)
+    #         self.widget_data_cache[section] = {
+    #             "category": get("category", "Miscellaneous"),
+    #             "subcategory": get("subcategory", "General"),
+    #             "enabled": get("enabled", "True").lower() == "true",
+    #             "icon": get("icon", "ICON_CIRCLE"),
+    #             "quickdock": get("quickdock", "False").lower() == "true",
+    #         }
 
-        data = self.widget_data_cache.get(widget_name, {})
-        enabled = widget.get("enabled", False)
-        category = data.get("category", "")
-        subcategory = data.get("subcategory", "")
-        icon = data.get("icon", "ICON_CIRCLE")
-        quickdock = data.get("quickdock", False)
+    # def _save_widget_state(self, widget_name):
+    #     widget = self.widgets.get(widget_name)
+    #     if not widget:
+    #         return
 
-        for writer in (self._write_account_setting, self._write_global_setting):
-            writer(widget_name, "enabled", str(enabled))
-            writer(widget_name, "category", category)
-            writer(widget_name, "subcategory", subcategory)
-            writer(widget_name, "icon", icon)
-            writer(widget_name, "quickdock", str(quickdock))
+    #     data = self.widget_data_cache.get(widget_name, {})
+    #     enabled = widget.get("enabled", False)
+    #     category = data.get("category", "")
+    #     subcategory = data.get("subcategory", "")
+    #     icon = data.get("icon", "ICON_CIRCLE")
+    #     quickdock = data.get("quickdock", False)
+
+    #     for writer in (self._write_account_setting, self._write_global_setting):
+    #         writer(widget_name, "enabled", str(enabled))
+    #         writer(widget_name, "category", category)
+    #         writer(widget_name, "subcategory", subcategory)
+    #         writer(widget_name, "icon", icon)
+    #         writer(widget_name, "quickdock", str(quickdock))
             
     def _load_all_from_dir(self):
         if not os.path.isdir(self.widgets_path):
@@ -270,14 +306,27 @@ class WidgetHandler:
             raise ValueError("Widget missing required functions: main() and configure()")
         
         meta = getattr(module, "__widget__", None)
-        if isinstance(meta, dict):
-            self.widget_data_cache[name] = {
-                "category": meta.get("category"),
-                "subcategory": meta.get("subcategory"),
-                "icon": meta.get("icon"),
-                "quickdock": meta.get("quickdock"),
-                "hidden": meta.get("hidden"),
-            }
+        cache = self.widget_data_cache.setdefault(name, {})
+
+        defaults = (
+            account_widget_defaults.get(name)
+            or global_widget_defaults.get(name)
+            or {}
+        )
+        
+        if "enabled" not in cache:
+            cache["enabled"] = (meta or {}).get("enabled") or defaults.get("enabled") or "False"
+        if "category" not in cache:
+            cache["category"] = (meta or {}).get("category") or defaults.get("category") or "Miscellaneous"
+        if "subcategory" not in cache:
+            cache["subcategory"] = (meta or {}).get("subcategory") or defaults.get("subcategory") or "General"
+        if "icon" not in cache:
+            cache["icon"] = (meta or {}).get("icon") or defaults.get("icon") or "ICON_CIRCLE"
+        if "quickdock" not in cache:
+            cache["quickdock"] = (meta or {}).get("quickdock") or defaults.get("quickdock") or "False"
+
+        if isinstance(meta, dict) and "hidden" in meta:
+            cache["hidden"] = meta["hidden"]
 
         return module
         
@@ -309,14 +358,14 @@ class WidgetHandler:
     def disable_widget(self, name: str):
         self._set_widget_state(name, False)
 
-    def _set_widget_state(self, name: str, state: bool):
+    def _set_widget_state(self, name: str, enabled_state: bool):
         widget = self.widgets.get(name)
         if not widget:
             ConsoleLog("WidgetHandler", f"Unknown widget: {name}", Py4GW.Console.MessageType.Warning)
             return
 
-        widget["enabled"] = state
-        self._save_widget_state(name)
+        widget["enabled"] = enabled_state
+        self._write_setting(name, "enabled", str(enabled_state), to_account=state.use_account_settings)
 
     def is_widget_enabled(self, name: str) -> bool:
         return bool(self.widgets.get(name, {}).get("enabled"))

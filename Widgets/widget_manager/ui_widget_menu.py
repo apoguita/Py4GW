@@ -29,7 +29,7 @@ def draw_widget_popup_menus():
                         new_enabled = PyImGui.checkbox(name, info["enabled"])
                         if new_enabled != info["enabled"]:
                             info["enabled"] = new_enabled
-                            handler._save_widget_state(name)
+                            handler._write_setting(name, "enabled", str(new_enabled), to_account=state.use_account_settings)
 
                         PyImGui.table_set_column_index(1)
                         if info["enabled"]:
