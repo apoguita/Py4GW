@@ -196,12 +196,17 @@ def main():
     # —— UI Rendering —— 
     PyImGui.begin("Dialog Sync", PyImGui.WindowFlags.AlwaysAutoResize)
 
-    # Runner icon: broadcast position
+    # Runner icon: broadcast position (only in Explorable)
     if PyImGui.button(IconsFontAwesome5.ICON_RUNNING):
-        x, y = Player.GetXY()
-        set_leader_position(x, y)
+        if Map.IsExplorable():
+            x, y = Player.GetXY()
+            set_leader_position(x, y)
+        else:
+            ConsoleLog("NPCSync",
+                       "This feature is NOT allowed in Outposts",
+                       Console.MessageType.Debug)
     if PyImGui.is_item_hovered():
-        PyImGui.set_tooltip("Broadcast my position - Clients moves to me")
+        PyImGui.set_tooltip("Broadcast my position – only in Explorable maps")
 
     # Phone icon: set NPC target
     PyImGui.same_line(0.0, -1.0)
