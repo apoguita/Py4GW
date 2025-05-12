@@ -6,8 +6,12 @@ module_name = "WidgetManager"
 # Global widget configuration
 enable_all = handler._read_setting_bool("WidgetManager", "enable_all", False)
 old_enable_all = enable_all
-show_config_window = handler._read_setting_bool("WidgetManager", "show_config_window", False)
 old_menu = handler._read_setting_bool("WidgetManager", "old_menu", False)
+initialized = False
+use_account_settings = handler._read_setting_bool("WidgetManager", "use_account_settings", False)
+selected_settings_scope = int(use_account_settings)
+settings_scope_options = ["Global.ini", "Account.ini"]
+show_config_window = False
 
 # QuickDock persistent config
 enable_quick_dock = handler._read_setting_bool("QuickDock", "enable_quick_dock", True)
@@ -27,6 +31,7 @@ quick_dock_color = [
 # Ui Elements
 selected_widget = ""
 show_hidden_widgets = False
+scroll_pos = 0.0
 
 # Floating menu popup state
 popup_open = False
@@ -36,18 +41,22 @@ opening_downward = True
 left_side = False
 show_quick_dock_popup = False
 last_popup_size = [200.0, 100.0]
+floating_attachment_index = 0
+floating_attachment_options = ["Menu Button", "Party Window", "Minimap", "Free Drag"]
 
-# ImGui window and layout state
-initialized = False
+# Menu window and layout state
 window_module = ImGui.WindowModule(module_name, window_name="Widgets", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
-window_x = handler._read_setting_int(module_name, "x", 100)
-window_y = handler._read_setting_int(module_name, "y", 100)
+window_x = handler._read_setting_int(module_name, "omx", 100)
+window_y = handler._read_setting_int(module_name, "omy", 100)
 window_module.window_pos = (window_x, window_y)
 window_module.collapse = handler._read_setting_bool(module_name, "collapsed", True)
-current_window_collapsed = window_module.collapse
+old_menu_window_collapsed = window_module.collapse
+old_menu_window_pos = window_module.window_pos
 
 # Write throttle
 write_timer = Timer()
 write_timer.Start()
-current_window_pos = window_module.window_pos
+
+menu_write_timer = Timer()
+write_timer.Start()
 

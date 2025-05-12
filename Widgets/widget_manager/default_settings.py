@@ -2,7 +2,6 @@ default_schema_version = "1.0"
 
 global_widget_defaults = {
     "WidgetManager": {
-        "show_config_window": "False",
         "old_menu": "False",
         "enable_all": "True"
     },
@@ -22,21 +21,21 @@ global_widget_defaults = {
         "a": "1.0"
     },
     "HeroAI": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Bots",
         "subcategory": "Multiboxing",
         "icon": "ICON_BRAIN",
         "quickdock": "True"
     },
     "HeroHelper": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True"
     },
     "Pet Helper": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_DOG",
@@ -78,7 +77,7 @@ global_widget_defaults = {
         "quickdock": "False"
     },   
     "Compass +": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_COMPASS",
@@ -105,22 +104,29 @@ global_widget_defaults = {
         "icon": "ICON_CLOCK",
         "quickdock": "True"
     },
-    "Inventory +": {
+    "Blessing_UI": {
         "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_BIBLE",
+        "quickdock": "True"
+    },
+    "Inventory +": {
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_SHOPPING_BAG",
         "quickdock": "True"
     },
     "LootManager": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_SHOPPING_CART",
         "quickdock": "True"
     },
     "Mission Map +": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_MAP",
@@ -134,14 +140,14 @@ global_widget_defaults = {
         "quickdock": "True"
     },
     "Switch Character": {
-        "enabled": "True",
+        "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_PEOPLE_ARROWS",
         "quickdock": "True"
     },
     "Resign on enter Map": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_FLAG",
@@ -162,21 +168,21 @@ global_widget_defaults = {
         "quickdock": "True"
     },
     "Titles": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_ID_BADGE",
         "quickdock": "True"
     },
     "Travel": {
-        "enabled": "True",
+        "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_MAP_MARKED_ALT",
         "quickdock": "True"
     },
     "Vanquish": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_FLAG_CHECKERED",
@@ -186,7 +192,6 @@ global_widget_defaults = {
 
 account_widget_defaults = {
     "WidgetManager": {
-        "show_config_window": "False",
         "old_menu": "False",
         "enable_all": "True"
     },
@@ -206,21 +211,21 @@ account_widget_defaults = {
         "a": "1.0"
     },
     "HeroAI": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Bots",
         "subcategory": "Multiboxing",
         "icon": "ICON_BRAIN",
         "quickdock": "True"
     },
     "HeroHelper": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True"
     },
     "Pet Helper": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_DOG",
@@ -283,21 +288,28 @@ account_widget_defaults = {
         "quickdock": "True"
     },
     "Instance Timer": {
-        "enabled": "True",
+        "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_CLOCK",
         "quickdock": "True"
     },
-    "Inventory +": {
+    "Blessing_UI": {
         "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_BIBLE",
+        "quickdock": "True"
+    },
+    "Inventory +": {
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_SHOPPING_BAG",
         "quickdock": "True"
     },
     "LootManager": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_SHOPPING_CART",
@@ -318,14 +330,14 @@ account_widget_defaults = {
         "quickdock": "True"
     },
     "Switch Character": {
-        "enabled": "True",
+        "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_PEOPLE_ARROWS",
         "quickdock": "True"
     },
     "Resign on enter Map": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_FLAG",
@@ -346,14 +358,14 @@ account_widget_defaults = {
         "quickdock": "True"
     },
     "Titles": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Trigers",
         "icon": "ICON_ID_BADGE",
         "quickdock": "True"
     },
     "Travel": {
-        "enabled": "True",
+        "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_MAP_MARKED_ALT",

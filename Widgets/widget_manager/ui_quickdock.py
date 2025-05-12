@@ -12,12 +12,16 @@ def quick_dock_menu():
     if state.quick_dock_unlocked and PyImGui.is_mouse_dragging(0, -1.0):
         if mouse_y < top + edge_threshold:
             state.quick_dock_edge[0] = "top"
+            handler._write_setting("QuickDock", "edge", "top", to_account=state.use_account_settings)
         elif mouse_y > bottom - edge_threshold:
             state.quick_dock_edge[0] = "bottom"
+            handler._write_setting("QuickDock", "edge", "bottom", to_account=state.use_account_settings)
         elif mouse_x < left + edge_threshold:
             state.quick_dock_edge[0] = "left"
+            handler._write_setting("QuickDock", "edge", "left", to_account=state.use_account_settings)
         elif mouse_x > right - edge_threshold:
             state.quick_dock_edge[0] = "right"
+            handler._write_setting("QuickDock", "edge", "right", to_account=state.use_account_settings)
 
     if state.quick_dock_edge[0] == "left":
         quick_dock_x = left - 10
@@ -124,7 +128,7 @@ def quick_dock_menu():
 
                 if PyImGui.button(label, *button_size):
                     widget["enabled"] = not enabled
-                    handler._save_widget_state(name)
+                    handler._write_setting(name, "enabled", str(widget["enabled"]), to_account=state.use_account_settings)
 
                 if PyImGui.is_item_hovered():
                     PyImGui.begin_tooltip()

@@ -1,6 +1,7 @@
 from Py4GWCoreLib import *
 from . import state
-from .ui_config_sections import draw_account_widget_config, draw_quick_dock_config
+from .handler import handler
+from .ui_config_sections import draw_account_widget_config, draw_quick_dock_config, draw_debug_config
 
 def draw_embedded_widget_config():
     interface_frame_id = UIManager.GetChildFrameID(1431953425, [1,4294967291])
@@ -73,37 +74,46 @@ def draw_embedded_widget_config():
             PyImGui.set_next_window_pos(options_inner_left, options_inner_top + top_offset)
             PyImGui.set_next_window_size(width, height - height_offset)
             if PyImGui.begin("##widget_config_content", state.show_config_window, embedded_window_flags):
-                # avail_w, avail_h = PyImGui.get_content_region_avail()
-                # scroll_height = min(avail_h, 800)
-                # PyImGui.begin_child("##scrollable_config_area", (avail_w, 420), False, PyImGui.WindowFlags.NoFlag)
-                
+                avail_w, avail_h = PyImGui.get_content_region_avail()
+                desired_scrollable_height = 1000  # Or any fixed height greater than min frame height
+                scroll_h = max(avail_h, desired_scrollable_height)
+
+                PyImGui.begin_child("##scrollable_config_area", (avail_w, scroll_h), False, PyImGui.WindowFlags.NoScrollbar)
                 #config options go here
                 PyImGui.spacing()
                 PyImGui.text_colored("Widget Configuration", (1.0, 0.94, 0.75, 1.0))
-                PyImGui.spacing()
-
-                draw_quick_dock_config()
                 
                 PyImGui.spacing()
-                PyImGui.separator()
-                PyImGui.spacing()
-                
                 draw_account_widget_config()
-                
+
                 PyImGui.spacing()
                 PyImGui.separator()
-                PyImGui.spacing()
                 
+                PyImGui.spacing()
+                draw_quick_dock_config()
+
+                PyImGui.spacing()
+                PyImGui.separator()
+                
+                PyImGui.spacing()
                 PyImGui.text("Previous Widget UI Settings")
-                PyImGui.spacing()    
-                state.old_menu = PyImGui.checkbox("Disable Old Floating Menu" if state.old_menu else "Enable Old Floating Menu", state.old_menu)
-                ImGui.show_tooltip("Disable Old Floating Menu" if state.old_menu else "Enable Old Floating Menu")
                 
                 PyImGui.spacing()
-                state.show_hidden_widgets = PyImGui.checkbox("Show Hidden Widgets", state.show_hidden_widgets)
-                ImGui.show_tooltip("Toggle visibility of hidden/internal widgets in menus")
+                new_old_menu = PyImGui.checkbox("Disable Old Floating Menu" if state.old_menu else "Enable Old Floating Menu", state.old_menu)
+                if new_old_menu != state.old_menu:
+                    state.old_menu = new_old_menu
+                    handler._write_setting("WidgetManager", "old_menu", str(state.old_menu), to_account=state.use_account_settings)
+                PyImGui.show_tooltip("Disable Old Floating Menu" if state.old_menu else "Enable Old Floating Menu")
+                
+                PyImGui.spacing()              
                 PyImGui.separator()
-                # PyImGui.end_child()
+                
+                PyImGui.spacing()
+                
+                draw_debug_config()
+                
+                PyImGui.dummy(0, 10)
+                PyImGui.end_child()
             PyImGui.end()
             PyImGui.pop_style_var(1)
             PyImGui.pop_style_color(1)
