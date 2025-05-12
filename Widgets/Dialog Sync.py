@@ -51,8 +51,13 @@ def _save_config(cfg):
         cfg.write(f)
 
 def clear_leader_data():
-    if os.path.exists(INI_PATH):
+    """Try to delete the sync file; if Windows says it’s in use, just ignore it."""
+    try:
         os.remove(INI_PATH)
+    except FileNotFoundError:
+        pass
+    except PermissionError:
+        pass
 
 def find_agent_by_model(model_id: int):
     for ag in AgentArray.GetAgentArray():
