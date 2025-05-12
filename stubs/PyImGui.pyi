@@ -185,7 +185,8 @@ class HoveredFlags(IntEnum):
 
 class ImGuiIO:
     def __init__(self):
-        self.display_size = (0.0, 0.0)
+        self.display_size_x = 0.0
+        self.display_size_y = 0.0
         self.delta_time = 0.0
         self.ini_saving_rate = 0.0
         self.ini_filename = None
@@ -193,7 +194,8 @@ class ImGuiIO:
         self.mouse_double_click_time = 0.0
         self.mouse_double_click_max_dist = 0.0
         self.mouse_drag_threshold = 0.0
-        self.mouse_pos = (0.0, 0.0)
+        self.mouse_pos_x = 0.0
+        self.mouse_pos_y = 0.0
         self.mouse_wheel = 0.0
         self.mouse_wheel_h = 0.0
         self.key_ctrl = False
@@ -209,12 +211,12 @@ class ImGuiIO:
         self.want_text_input = False
         self.want_set_mouse_pos = False
         self.want_save_ini_settings = False
-        self.mouse_pos_prev = (0.0, 0.0)
+        self.mouse_pos_prev_x = 0.0
+        self.mouse_pos_prev_y = 0.0
         self.app_focus_lost = False
 
 @staticmethod
-def get_io() -> ImGuiIO:
-    return ImGuiIO()
+def get_io() -> ImGuiIO: ...
 
 class ImGuiCol(IntEnum):
     Text = 0
