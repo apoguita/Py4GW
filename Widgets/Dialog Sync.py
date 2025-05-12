@@ -137,6 +137,9 @@ def configure():
 # —— Main Loop ——
 def main():
     global last_model, last_choice, last_choice_time, state, last_leader_pos
+    
+    if Routines.Checks.Map.MapValid() and Map.IsOutpost():
+        return
 
     # —— 0) Move-to-leader FSM —— 
     lx, ly, lts = get_leader_position()
