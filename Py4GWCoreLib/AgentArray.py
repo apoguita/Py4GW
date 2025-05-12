@@ -376,6 +376,7 @@ class RawAgentArray:
         current_agent_ids = set(AgentArray.GetAgentArray())
 
         # === Step 2: Resolve names for requested agents ===
+        """
         for agent_id in list(self.name_requested):
             if Agent.IsNameReady(agent_id):
                 name = Agent.GetName(agent_id)
@@ -383,6 +384,7 @@ class RawAgentArray:
                     name = ""
                 self.agent_name_map[agent_id] = name
                 self.name_requested.discard(agent_id)
+        """
 
         # === Step 3: Refresh or create agents ===
         self.agent_array = []
@@ -390,15 +392,18 @@ class RawAgentArray:
             if agent_id not in self.agent_cache:
                 self.agent_cache[agent_id] = Agent.agent_instance(agent_id)
                 # Immediately request name
+                """
                 if agent_id not in self.agent_name_map and agent_id not in self.name_requested:
                     Agent.RequestName(agent_id)
                     self.name_requested.add(agent_id)
+                """
             else:
                 self.agent_cache[agent_id].GetContext()
             agent = self.agent_cache[agent_id]
             self.agent_array.append(agent)
 
         # === Step 4: Remove stale agents and name data ===
+        
         for agent_id in list(self.agent_cache.keys()):
             if agent_id not in current_agent_ids:
                 del self.agent_cache[agent_id]
