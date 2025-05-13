@@ -245,7 +245,7 @@ def draw_quick_dock_config():
         PyImGui.text(f"{icon_char} {name}")
         PyImGui.same_line(200, -1)
 
-        new_dock_enabled = PyImGui.checkbox(f"##dock_{idx}", dock_enabled)
+        new_dock_enabled = PyImGui.checkbox(f"##dock_{idx}", bool(dock_enabled))
         if new_dock_enabled != dock_enabled:
             data["quickdock"] = new_dock_enabled
             handler._write_setting(name, "quickdock", str(new_dock_enabled), to_account=state.use_account_settings)

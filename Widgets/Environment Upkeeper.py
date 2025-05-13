@@ -5,6 +5,7 @@ MODULE_NAME = "Environment Upkeeper"
 
 __widget__ = {
     "name": "Environment Upkeeper",
+    "enabled": True,
     "category": "Coding",
     "subcategory": "Environment",
     "icon": "ICON_TREE",
