@@ -2876,8 +2876,8 @@ class CustomSkillClass:
         skill.SkillID = Skill.GetID("Protective_Spirit")
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Ally.value
-        skill.Nature = SkillNature.Buff.value
-        skill.Conditions.LessLife = 0.55
+        skill.Nature = SkillNature.CustomA.value
+        skill.Conditions.LessLife = 0.65
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -2972,7 +2972,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = Skill.GetID("Vital_Blessing")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.Ally.value
+        skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
