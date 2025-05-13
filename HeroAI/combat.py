@@ -145,6 +145,7 @@ class CombatClass:
         self.weakness = Skill.GetID("Weakness")
         self.comfort_animal = Skill.GetID("Comfort_Animal")
         self.heal_as_one = Skill.GetID("Heal_as_One")
+        self.heroic_refrain = Skill.GetID("Heroic_Refrain")
         
     def Update(self, cached_data):
         self.in_aggro = cached_data.in_aggro
@@ -168,14 +169,23 @@ class CombatClass:
         ordered_skills = []
         
         priorities = [
+            SkillNature.CustomA,
             SkillNature.Interrupt,
+            SkillNature.CustomB,
             SkillNature.Enchantment_Removal,
+            SkillNature.CustomC,
             SkillNature.Healing,
+            SkillNature.CustomD,
             SkillNature.Hex_Removal,
+            SkillNature.CustomE,
             SkillNature.Condi_Cleanse,
+            SkillNature.CustomF,
             SkillNature.EnergyBuff,
+            SkillNature.CustomG,
             SkillNature.Resurrection,
-            SkillNature.Buff
+            SkillNature.CustomH,
+            SkillNature.Buff,
+            SkillNature.CustomI,
         ]
 
         for priority in priorities:
@@ -260,6 +270,9 @@ class CombatClass:
         if self.skill_pointer >= MAX_SKILLS:
             self.skill_pointer = 0
             
+    def ResetSkillPointer(self):
+        self.skill_pointer = 0
+            
     def GetEnergyValues(self,agent_id):
         for i in range(MAX_NUM_PLAYERS):
             player_data = self.shared_memory_handler.get_player(i)
@@ -294,10 +307,18 @@ class CombatClass:
         players = Party.GetPlayers()
         target = players[0].called_target_id
 
-        if target is None or target == 0:
-            return 0
-        else:
-            return target   
+        if Agent.IsValid(target):
+            return target  
+        
+        return 0 
+
+    def SafeChangeTarget(self, target_id):
+        if Agent.IsValid(target_id):
+            Player.ChangeTarget(target_id)
+            
+    def SafeInteract(self, target_id):
+        if Agent.IsValid(target_id):
+            Player.Interact(target_id)
 
 
     def GetPartyTarget(self):
@@ -308,7 +329,7 @@ class CombatClass:
                 if Agent.IsLiving(party_target):
                     _, alliegeance = Agent.GetAllegiance(party_target)
                     if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
-                        ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, party_target)
+                        ActionQueueManager().AddAction("ACTION", self.SafeChangeTarget, party_target)
                         return party_target
         return 0
 
@@ -327,6 +348,10 @@ class CombatClass:
         
         nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         lowest_ally = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
+
+        if self.skills[slot].skill_id == self.heroic_refrain:
+            if not self.HasEffect(Player.GetAgentID(), self.heroic_refrain):
+                return Player.GetAgentID()
 
         if target_allegiance == Skilltarget.Enemy:
             v_target = self.GetPartyTarget()
@@ -367,9 +392,9 @@ class CombatClass:
             if v_target == 0 and not targeting_strict:
                 v_target = lowest_ally
         elif target_allegiance == Skilltarget.OtherAlly:
-            if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff:
+            if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff.value:
                 v_target = TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
-                print("Energy Buff Target: ", RawAgentArray().get_name(v_target))
+                #print("Energy Buff Target: ", RawAgentArray().get_name(v_target))
             else:
                 v_target = TargetLowestAlly(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
         elif target_allegiance == Skilltarget.Self:
@@ -884,36 +909,29 @@ class CombatClass:
             return False
 
         target_id = Player.GetTargetID()
-        _, target_aliegance = Agent.GetAllegiance(target_id)
+        if Agent.IsValid(target_id) or target_id == 0:
+            _, target_aliegance = Agent.GetAllegiance(target_id)
         
-        if target_id == 0 or (target_aliegance != 'Enemy'):
-                            
-            nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
-            called_target = self.GetPartyTarget()
+            if target_aliegance != 'Enemy' or target_id == 0:      
+                nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+                called_target = self.GetPartyTarget()
 
-            attack_target = 0
+                attack_target = 0
 
-            if called_target != 0:
-                attack_target = called_target
-            elif nearest != 0:
-                attack_target = nearest
-            else:
-                return False
+                if Agent.IsValid(called_target):
+                    attack_target = called_target
+                elif Agent.IsValid(nearest):
+                    attack_target = nearest
+                else:
+                    return False
 
-            ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, attack_target)
-            ActionQueueManager().AddAction("ACTION", Player.Interact, attack_target)
-            return True
-        else:
-            
-            if not Agent.IsLiving(target_id):
-                return
-
-            _, alliegeance = Agent.GetAllegiance(target_id)
-            if alliegeance == 'Enemy' and self.is_combat_enabled:
-                if target_id != 0:
-                    ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
+                ActionQueueManager().AddAction("ACTION", self.SafeChangeTarget, attack_target)
+                ActionQueueManager().AddAction("ACTION", self.SafeInteract, attack_target)
                 return True
-            return False
+            else:
+                ActionQueueManager().AddAction("ACTION", self.SafeInteract, target_id)
+                return True
+        return False
 
     def HandleCombat(self,ooc=False):
         """
@@ -952,11 +970,11 @@ class CombatClass:
         self.in_casting_routine = True
 
         self.aftercast = Skill.Data.GetActivation(skill_id) * 1000
-        self.aftercast += Skill.Data.GetAftercast(skill_id) * 1000
+        self.aftercast += Skill.Data.GetAftercast(skill_id) * 1000 #750
         #self.aftercast += 150 #manually setting a 50ms delay to test issues with pinghandler
         self.aftercast += self.ping_handler.GetCurrentPing()
 
         self.aftercast_timer.Reset()
         ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
-        self.AdvanceSkillPointer()
+        self.ResetSkillPointer()
         return True

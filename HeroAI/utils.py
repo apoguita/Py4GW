@@ -9,7 +9,8 @@ def DistanceFromLeader(cached_data:CacheData):
     return Utils.Distance(cached_data.data.party_leader_xy,cached_data.data.player_xy)
 
 def DistanceFromWaypoint(posX,posY):
-    return Utils.Distance((posX,posY), Player.GetXY())
+    distance = Utils.Distance((posX,posY), Player.GetXY())
+    return distance if distance > 200 else 0
 
 
 """ main configuration helpers """

@@ -41,33 +41,11 @@ in_looting_routine = False
 looting_aftercast = Timer()
 looting_aftercast.Start()
 
-def get_looting_array():
-    loot_array = AgentArray.GetItemArray()
-        
-    # Filter valid and in range items
-    loot_array = AgentArray.Filter.ByCondition(loot_array, lambda agent_id: Agent.IsValid(agent_id))
-    loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), Range.Spellcast.value)
-
-    own_party_number = Party.GetOwnPartyNumber()
-    player_id = Player.GetAgentID()
-
-    filtered_loot = []
-
-    for item in loot_array:
-        owner = Agent.GetItemAgentOwnerID(item)
-
-        if owner == player_id:
-            filtered_loot.append(item)
-        elif owner == 0 and own_party_number == 0:
-            filtered_loot.append(item)
-            
-    return filtered_loot
-
 
 def SequentialLootingRoutine():
     global in_looting_routine, looting_aftercast
     
-    filtered_loot = get_looting_array()
+    filtered_loot = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
     # Loot filtered items
     ActionQueueManager().ResetQueue("ACTION")
     Routines.Sequential.Items.LootItems(filtered_loot,log = False)
@@ -90,7 +68,7 @@ def Loot(cached_data:CacheData):
     if not looting_aftercast.HasElapsed(3000):
         return False
     
-    loot_array = get_looting_array()
+    loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
     if len(loot_array) == 0:
         return False
 
@@ -102,10 +80,11 @@ def Loot(cached_data:CacheData):
 
 def Follow(cached_data:CacheData):
     global MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_ON_COMBAT
-
-    leader_id = cached_data.data.party_leader_id
-    if leader_id == cached_data.data.player_agent_id:  # halt operation if player is leader
+    
+    if Player.GetAgentID() == Party.GetPartyLeaderID():
+        cached_data.follow_throttle_timer.Reset()
         return False
+    
     party_number = cached_data.data.own_party_number
     if not cached_data.data.is_following_enabled:  # halt operation if following is disabled
         return False
@@ -136,17 +115,16 @@ def Follow(cached_data:CacheData):
     else:
         follow_distance = FOLLOW_DISTANCE_OUT_OF_COMBAT
 
-    if (cached_data.data.old_angle != follow_angle) and not cached_data.data.angle_changed:
-        cached_data.data.old_angle = follow_angle
-        cached_data.data.angle_changed = True
-
     angle_changed_pass = False
-    if cached_data.data.angle_changed and not cached_data.data.in_aggro:
+    if cached_data.data.angle_changed and (not cached_data.data.in_aggro):
         angle_changed_pass = True
 
-    if DistanceFromWaypoint(follow_x, follow_y) <= follow_distance and not angle_changed_pass:
+    close_distance_check =  (DistanceFromWaypoint(follow_x, follow_y) <= follow_distance)
+    
+    if not angle_changed_pass and close_distance_check:
         return False
     
+
     hero_grid_pos = party_number + cached_data.data.party_hero_count + cached_data.data.party_henchman_count
     angle_on_hero_grid = follow_angle + Utils.DegToRad(hero_formation[hero_grid_pos])
 
@@ -158,7 +136,9 @@ def Follow(cached_data:CacheData):
 
     cached_data.data.angle_changed = False
     ActionQueueManager().ResetQueue("ACTION")
+    #ConsoleLog("HeroAI follow","distance: " + str(DistanceFromWaypoint(follow_x, follow_y)) + "target: " + str(follow_distance))
     ActionQueueManager().AddAction("ACTION", Player.Move, xx, yy)
+    cached_data.follow_throttle_timer.Reset()
     return True
     
 
@@ -349,6 +329,16 @@ def UpdateStatus(cached_data:CacheData):
     if HandleOutOfCombat(cached_data):
         return
     
+    """
+    if cached_data.data.player_is_moving:
+        #keep following updated if we are already going
+        if cached_data.follow_throttle_timer.IsExpired():
+            Follow(cached_data)
+        return
+    else:
+        cached_data.follow_throttle_timer.Reset()
+    """
+    
     if cached_data.data.player_is_moving:
         return
     
@@ -363,11 +353,12 @@ def UpdateStatus(cached_data:CacheData):
     
     #if were here we are not doing anything
     #auto attack
-    if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time):
-        if cached_data.data.is_combat_enabled and not cached_data.data.player_is_attacking:
+    if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
+        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking)):
             cached_data.combat_handler.ChooseTarget()
         cached_data.auto_attack_timer.Reset()
-    
+        cached_data.combat_handler.ResetSkillPointer()
+        return
 
    
 def configure():
@@ -385,6 +376,7 @@ def main():
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
             UpdateStatus(cached_data)
             ActionQueueManager().ProcessQueue("ACTION")
+
 
 
             

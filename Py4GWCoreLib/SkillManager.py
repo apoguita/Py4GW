@@ -10,6 +10,7 @@ from typing import Optional
 from .Py4GWcorelib import ThrottledTimer
 from .Py4GWcorelib import ActionQueueManager
 from .Py4GWcorelib import Utils
+from .Py4GWcorelib import ConsoleLog
 from .enums import Range
 from .Routines import Routines
 from .Effect import Effects
@@ -947,7 +948,7 @@ class SkillManager:
             self.in_casting_routine = True
 
             aftercast = Skill.Data.GetActivation(skill_id) * 1000
-            aftercast += Skill.Data.GetAftercast(skill_id) * 1000
+            aftercast += Skill.Data.GetAftercast(skill_id) * 750
             aftercast += self.ping_handler.GetCurrentPing()
             self.aftercast_timer.SetThrottleTime(aftercast)
             self.aftercast_timer.Reset()

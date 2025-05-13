@@ -8,7 +8,7 @@ class config:
         self.is_party_loaded = False
         self.is_in_cinematic = False
         self.action_queue = ActionQueueNode(1000)
-        self.game_throttle_timer = ThrottledTimer(50)
+        self.game_throttle_timer = ThrottledTimer(1000)
 
 widget_config = config()
 

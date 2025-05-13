@@ -327,29 +327,56 @@ class RawAgentArray:
         if self._initialized:
             self.throttle = throttle
             return
-        self.agent_array = []  # new: array of agents
+
+        # === Agent arrays ===
+        self.agent_array = []
         self.ally_array = []
         self.neutral_array = []
-        self.enemy_array = []  
+        self.enemy_array = []
         self.spirit_pet_array = []
         self.minion_array = []
         self.npc_minipet_array = []
-        self.item_array = []  
+        self.item_array = []
         self.gadget_array = []
-        self.agent_dict = {}  # new: id → agent
+
+        # === Cache and indexing ===
+        self.agent_dict = {}            # id -> agent
+        self.agent_cache = {}           # id -> agent instance
         self.current_map_id = 0
+
+        # === Name handling ===
+        self.agent_name_map = {}        # id -> name
+        self.name_requested = set()     # id of agents currently waiting for name
+
+        # === Throttling ===
         self.throttle = throttle
         self.update_throttle = ThrottledTimer(self.throttle)
-        self.name_update_throttle = ThrottledTimer(500) 
-        self.agent_name_map = {}  # agent.id → (name, timestamp)
-        self.name_requested = set()
+        self.name_update_throttle = ThrottledTimer(750)
+
         self._initialized = True
-        self.update()
+        self.map_valid = False
 
     def update(self):
         from .Routines import Routines
         from .Map import Map
-        #self.update_throttle.SetThrottleTime(self.throttle)
+
+        # === Check map validity ===
+        self.map_valid = Routines.Checks.Map.MapValid()
+
+        if not self.map_valid:
+            self.reset()
+            return
+
+        if not self.update_throttle.IsExpired():
+            return
+
+        self.update_throttle.Reset()
+
+        # === Step 1: Get current agent ids ===
+        current_agent_ids = set(AgentArray.GetAgentArray())
+
+        # === Step 2: Resolve names for requested agents ===
+        """
         for agent_id in list(self.name_requested):
             if Agent.IsNameReady(agent_id):
                 name = Agent.GetName(agent_id)
@@ -357,26 +384,45 @@ class RawAgentArray:
                     name = ""
                 self.agent_name_map[agent_id] = name
                 self.name_requested.discard(agent_id)
-            
-        if not self.update_throttle.IsExpired():
-            return
-        self.update_throttle.Reset()
-        if not Routines.Checks.Map.MapValid():
-            return
+        """
 
-        self.agent_array = AgentArray.GetRawAgentArray()
+        # === Step 3: Refresh or create agents ===
+        self.agent_array = []
+        for agent_id in current_agent_ids:
+            if agent_id not in self.agent_cache:
+                self.agent_cache[agent_id] = Agent.agent_instance(agent_id)
+                # Immediately request name
+                """
+                if agent_id not in self.agent_name_map and agent_id not in self.name_requested:
+                    Agent.RequestName(agent_id)
+                    self.name_requested.add(agent_id)
+                """
+            else:
+                self.agent_cache[agent_id].GetContext()
+            agent = self.agent_cache[agent_id]
+            self.agent_array.append(agent)
 
+        # === Step 4: Remove stale agents and name data ===
+        
+        for agent_id in list(self.agent_cache.keys()):
+            if agent_id not in current_agent_ids:
+                del self.agent_cache[agent_id]
+                self.agent_name_map.pop(agent_id, None)
+                self.name_requested.discard(agent_id)
+
+        # === Step 5: Build id → agent map ===
         self.agent_dict = {agent.id: agent for agent in self.agent_array}
-        
-        self.ally_array = []
-        self.neutral_array = []
-        self.enemy_array = []  
-        self.spirit_pet_array = []
-        self.minion_array = []
-        self.npc_minipet_array = []
-        self.item_array = []  
-        self.gadget_array = []
-        
+
+        # === Step 6: Rebuild filtered arrays ===
+        self.ally_array.clear()
+        self.neutral_array.clear()
+        self.enemy_array.clear()
+        self.spirit_pet_array.clear()
+        self.minion_array.clear()
+        self.npc_minipet_array.clear()
+        self.item_array.clear()
+        self.gadget_array.clear()
+
         for agent in self.agent_array:
             if agent.id:
                 if agent.is_gadget:
@@ -384,39 +430,56 @@ class RawAgentArray:
                 elif agent.is_item:
                     self.item_array.append(agent)
                 elif agent.is_living:
-                    alliegance = agent.living_agent.allegiance.ToInt()
-                    if alliegance == Allegiance.Ally:
+                    allegiance = agent.living_agent.allegiance.ToInt()
+                    if allegiance == Allegiance.Ally:
                         self.ally_array.append(agent)
-                    elif alliegance == Allegiance.Neutral:
+                    elif allegiance == Allegiance.Neutral:
                         self.neutral_array.append(agent)
-                    elif alliegance == Allegiance.Enemy:
+                    elif allegiance == Allegiance.Enemy:
                         self.enemy_array.append(agent)
-                    elif alliegance == Allegiance.SpiritPet:    
+                    elif allegiance == Allegiance.SpiritPet:
                         self.spirit_pet_array.append(agent)
-                    elif alliegance == Allegiance.Minion:
+                    elif allegiance == Allegiance.Minion:
                         self.minion_array.append(agent)
-                    elif alliegance == Allegiance.NpcMinipet:
+                    elif allegiance == Allegiance.NpcMinipet:
                         self.npc_minipet_array.append(agent)
                     else:
                         self.neutral_array.append(agent)
-            
 
+        # === Step 7: Clear names if map changes ===
         map_id = Map.GetMapID()
         if self.current_map_id != map_id:
             self.current_map_id = map_id
             self.agent_name_map.clear()
             self.name_requested.clear()
-            
-        if not self.name_update_throttle.IsExpired():
-            return
-        self.name_update_throttle.Reset()
+
+
+    def reset(self):
+        """Reset the agent array and all caches."""
+
+        # === Reset throttles ===
+        self.update_throttle.Reset()
+
+        # === Clear agent and name data ===
+        self.agent_array.clear()
+        self.ally_array.clear()
+        self.neutral_array.clear()
+        self.enemy_array.clear()
+        self.spirit_pet_array.clear()
+        self.minion_array.clear()
+        self.npc_minipet_array.clear()
+        self.item_array.clear()
+        self.gadget_array.clear()
+
+        # === Clear caches and mappings ===
+        self.agent_dict.clear()
+        self.agent_cache.clear()
+        self.agent_name_map.clear()
         self.name_requested.clear()
 
-        for agent in self.agent_array:
-            Agent.RequestName(agent.id)
-            self.name_requested.add(agent.id)
-            # Preserve existing name if available, else initialize
-            self.agent_name_map[agent.id] = self.agent_name_map.get(agent.id, "")
+        # === Reset map state ===
+        self.current_map_id = 0
+  
 
     def get_array(self):
         self.update()
@@ -454,9 +517,10 @@ class RawAgentArray:
         self.update()
         return self.gadget_array
 
-    def get_agent(self, agent_id: int):
+    def get_agent(self, agent_id: int) -> PyAgent.PyAgent:
         self.update()
-        return self.agent_dict.get(agent_id, Agent.agent_instance(agent_id))
+        return self.agent_dict.get(agent_id) or PyAgent.PyAgent(agent_id)
+
     
     def get_name(self, agent_id: int):
         self.update()

@@ -318,8 +318,8 @@ def DrawCandidateWindow(cached_data:CacheData):
         for index in range(MAX_NUM_PLAYERS):
             candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
             
-            if async_name_gettet_timer.HasElapsed(1000):
-                Agent.RequestName(candidate.PlayerID)
+            #if async_name_gettet_timer.HasElapsed(1000):
+            #    Agent.RequestName(candidate.PlayerID)
                
             
             if (candidate.PlayerID and
@@ -337,10 +337,14 @@ def DrawCandidateWindow(cached_data:CacheData):
                     SendPartyCommand(index, cached_data, "Invite")
 
                 PyImGui.table_set_column_index(1)
-                name = Agent.GetName(candidate.PlayerID)
-                
-                if name:
-                    cached_names[candidate.PlayerID] = name
+                #name = Agent.GetName(candidate.PlayerID)
+                if cached_data.data.RAW_AGENT_ARRAY is not None:
+                    name = cached_data.data.RAW_AGENT_ARRAY.get_name(candidate.PlayerID)
+                    if name:
+                        cached_names[candidate.PlayerID] = name
+                    else:
+                        cached_names[candidate.PlayerID] = "Unknown"
+                        
 
                 PyImGui.text(cached_names.get(candidate.PlayerID, ""))    
 
@@ -544,6 +548,7 @@ def DrawFollowDebug(cached_data:CacheData):
     PyImGui.text(f"Nearest Enemy: {cached_data.data.nearest_enemy}")
     PyImGui.text(f"stay_alert_timer: {cached_data.stay_alert_timer.GetElapsedTime()}")
     PyImGui.text(f"Leader Rotation Angle: {cached_data.data.party_leader_rotation_angle}")
+    PyImGui.text(f"old_leader_rotation_angle: {cached_data.data.old_angle}")
     PyImGui.text(f"Angle_changed: {cached_data.data.angle_changed}")
 
     segments = 32
