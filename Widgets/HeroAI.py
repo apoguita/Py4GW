@@ -357,6 +357,7 @@ def UpdateStatus(cached_data:CacheData):
         if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking)):
             cached_data.combat_handler.ChooseTarget()
         cached_data.auto_attack_timer.Reset()
+        cached_data.combat_handler.ResetSkillPointer()
         return
 
    

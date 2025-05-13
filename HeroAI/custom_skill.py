@@ -187,8 +187,8 @@ class CustomSkillClass:
         skill.SkillID = Skill.GetID("Defy_Pain")
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Buff.value
-        skill.Conditions.LessLife = 0.5
+        skill.Nature = SkillNature.CustomA.value
+        skill.Conditions.LessLife = 0.3
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -217,8 +217,8 @@ class CustomSkillClass:
         skill.SkillID = Skill.GetID("Endure_Pain")
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Buff.value
-        skill.Conditions.LessLife = 0.5
+        skill.Nature = SkillNature.CustomA.value
+        skill.Conditions.LessLife = 0.3
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()

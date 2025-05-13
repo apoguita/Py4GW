@@ -40,6 +40,9 @@ def main():
                         PyImGui.text(f"Number of actions in {queue_name} history: {len(action_history)}")
                     else:
                         PyImGui.text(f"No actions in {queue_name} history.")
+                      
+                    if PyImGui.button("Clear Action Queue"):
+                        action_queue_manager.ResetQueue(queue_name)
                         
                     if PyImGui.button("Clear History"):
                         action_queue_manager.ClearHistory(queue_name)
