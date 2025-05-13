@@ -27,6 +27,7 @@ quick_dock_color = [
     handler._read_setting_float("QuickDockColor", "b", 1.0),
     handler._read_setting_float("QuickDockColor", "a", 1.0),
 ]
+quick_dock_hovering_button = False
 
 # Ui Elements
 selected_widget = ""
