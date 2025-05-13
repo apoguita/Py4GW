@@ -1,27 +1,27 @@
 from Py4GWCoreLib import *
 from . import state
 from .handler import handler
+from .config_scope import use_account_settings
 
 def quick_dock_menu():
     fullscreen_frame_id = UIManager.GetFrameIDByHash(140452905)
     left, top, right, bottom = UIManager.GetFrameCoords(fullscreen_frame_id)
 
     mouse_x, mouse_y = Overlay().GetMouseCoords()
-    edge_threshold = 30
-
-    if state.quick_dock_unlocked and PyImGui.is_mouse_dragging(0, -1.0):
+    if state.quick_dock_unlocked and PyImGui.is_mouse_dragging(0, -1.0) and state.quick_dock_hovering_button:
+        edge_threshold = 30
         if mouse_y < top + edge_threshold:
             state.quick_dock_edge[0] = "top"
-            handler._write_setting("QuickDock", "edge", "top", to_account=state.use_account_settings)
+            handler._write_setting("QuickDock", "edge", "top", to_account=use_account_settings())
         elif mouse_y > bottom - edge_threshold:
             state.quick_dock_edge[0] = "bottom"
-            handler._write_setting("QuickDock", "edge", "bottom", to_account=state.use_account_settings)
+            handler._write_setting("QuickDock", "edge", "bottom", to_account=use_account_settings())
         elif mouse_x < left + edge_threshold:
             state.quick_dock_edge[0] = "left"
-            handler._write_setting("QuickDock", "edge", "left", to_account=state.use_account_settings)
+            handler._write_setting("QuickDock", "edge", "left", to_account=use_account_settings())
         elif mouse_x > right - edge_threshold:
             state.quick_dock_edge[0] = "right"
-            handler._write_setting("QuickDock", "edge", "right", to_account=state.use_account_settings)
+            handler._write_setting("QuickDock", "edge", "right", to_account=use_account_settings())
 
     if state.quick_dock_edge[0] == "left":
         quick_dock_x = left - 10
@@ -54,12 +54,15 @@ def quick_dock_menu():
     if PyImGui.begin("##quick_dock_toggle", PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoBackground):
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameRounding, 0)
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0)
+        state.quick_dock_hovering_button = False
         if PyImGui.button("##toggle_ribbon", quick_dock_w, quick_dock_h):
             state.show_quick_dock_popup = not state.show_quick_dock_popup
         # PyImGui.show_tooltip("Middle Click to Lock" if state.quick_dock_unlocked else "Middle Click to Unlock")
-        if PyImGui.is_item_hovered() and PyImGui.is_mouse_clicked(2):
-            state.quick_dock_unlocked = not state.quick_dock_unlocked
-        
+        if PyImGui.is_item_hovered():
+            ImGui.show_tooltip("Middle-click to Lock/Unlock")
+            if PyImGui.is_mouse_clicked(2):
+                state.quick_dock_unlocked = not state.quick_dock_unlocked
+        state.quick_dock_hovering_button = PyImGui.is_item_active()
         
         if state.quick_dock_unlocked and PyImGui.is_item_active():
             if state.quick_dock_edge[0] in ("left", "right"):
@@ -128,7 +131,7 @@ def quick_dock_menu():
 
                 if PyImGui.button(label, *button_size):
                     widget["enabled"] = not enabled
-                    handler._write_setting(name, "enabled", str(widget["enabled"]), to_account=state.use_account_settings)
+                    handler._write_setting(name, "enabled", str(widget["enabled"]), to_account=use_account_settings())
 
                 if PyImGui.is_item_hovered():
                     PyImGui.begin_tooltip()

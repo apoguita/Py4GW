@@ -1,6 +1,7 @@
 from Py4GWCoreLib import *
 from . import state
 from .handler import handler
+from .config_scope import use_account_settings
 from .ui_config_sections import draw_account_widget_config, draw_quick_dock_config, draw_debug_config, draw_floating_menu_config
 
 def draw_embedded_widget_config():
@@ -105,7 +106,7 @@ def draw_embedded_widget_config():
                 new_old_menu = PyImGui.checkbox("Disable Old Floating Menu" if state.old_menu else "Enable Old Floating Menu", state.old_menu)
                 if new_old_menu != state.old_menu:
                     state.old_menu = new_old_menu
-                    handler._write_setting("WidgetManager", "old_menu", str(state.old_menu), to_account=state.use_account_settings)
+                    handler._write_setting("WidgetManager", "old_menu", str(state.old_menu), to_account=use_account_settings())
                 PyImGui.show_tooltip("Disable Old Floating Menu" if state.old_menu else "Enable Old Floating Menu")
                 
                 PyImGui.spacing()              

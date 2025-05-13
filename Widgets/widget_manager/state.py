@@ -8,9 +8,8 @@ enable_all = handler._read_setting_bool("WidgetManager", "enable_all", False)
 old_enable_all = enable_all
 old_menu = handler._read_setting_bool("WidgetManager", "old_menu", False)
 initialized = False
-use_account_settings = handler._read_setting_bool("WidgetManager", "use_account_settings", False)
-selected_settings_scope = int(use_account_settings)
 settings_scope_options = ["Global.ini", "Account.ini"]
+
 show_config_window = False
 
 # QuickDock persistent config
@@ -27,6 +26,7 @@ quick_dock_color = [
     handler._read_setting_float("QuickDockColor", "b", 1.0),
     handler._read_setting_float("QuickDockColor", "a", 1.0),
 ]
+quick_dock_hovering_button = False
 
 # Ui Elements
 selected_widget = ""
@@ -47,6 +47,7 @@ floating_drag_locked = handler._read_setting_bool("FloatingMenu", "floating_drag
 is_dragging_floating_button = False
 floating_button_offset = (0, 0)
 hovering_floating_button = False
+focused_floating_button = False
 floating_menu_pos = (20.0, 100.0)
 floating_district_pos = (20.0, 100.0)
 floating_skill_pos = (20.0, 100.0)
@@ -96,4 +97,4 @@ write_timer.Start()
 
 menu_write_timer = Timer()
 write_timer.Start()
-
+    

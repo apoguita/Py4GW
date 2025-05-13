@@ -1,5 +1,6 @@
 from Py4GWCoreLib import *
 from .handler import handler
+from .config_scope import use_account_settings
 from . import state
 
 def draw_widget_popup_menus():
@@ -29,7 +30,7 @@ def draw_widget_popup_menus():
                         new_enabled = PyImGui.checkbox(name, info["enabled"])
                         if new_enabled != info["enabled"]:
                             info["enabled"] = new_enabled
-                            handler._write_setting(name, "enabled", str(new_enabled), to_account=state.use_account_settings)
+                            handler._write_setting(name, "enabled", str(new_enabled), to_account=use_account_settings())
 
                         PyImGui.table_set_column_index(1)
                         if info["enabled"]:
