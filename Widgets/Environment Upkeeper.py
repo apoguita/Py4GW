@@ -1,7 +1,16 @@
 from Py4GWCoreLib import *
-#do not ever disable this module, it is the main module for everything
 
-MODULE_NAME = "tester for everything"
+#do not ever disable this module, it is the main module for everything
+MODULE_NAME = "Environment Upkeeper"
+
+__widget__ = {
+    "name": "Environment Upkeeper",
+    "category": "Coding",
+    "subcategory": "Environment",
+    "icon": "ICON_TREE",
+    "quickdock": False,
+    "hidden": True ##special category for Environment Upkeeper (do not use)
+}
 
 class WidgetConfig:
     def __init__(self):
@@ -11,7 +20,6 @@ class WidgetConfig:
         self.loot_config = LootConfig()
         self.raw_agent_array = RawAgentArray()
 
-    
 widget_config = WidgetConfig()
 
 def reset_on_load():
@@ -19,7 +27,6 @@ def reset_on_load():
     widget_config.throttle.Reset()
     widget_config.action_queue_manager.ResetAllQueues()
     widget_config.raw_agent_array.reset()
-
 
 def configure():
     pass
@@ -36,16 +43,8 @@ def main():
     widget_config.throttle.Reset()
     #KEEPING ALIVE ALL ACTION QUEUES
     widget_config.action_queue_manager.ProcessAll()
-    
     #Keeping alive teh RawAgentArray
     widget_config.raw_agent_array.update()
-    
-    
-    
-    
-    
-        
-    
     
 if __name__ == "__main__":
     main()
