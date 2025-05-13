@@ -1,6 +1,5 @@
 from Py4GWCoreLib import *
 from .handler import handler
-from .config_scope import use_account_settings
 from . import state
 
 def write_settings_to_ini():
@@ -32,7 +31,7 @@ def restore_global_defaults():
 
 def save_all_settings(to_account: bool = False):
     # Always save this to account scope, regardless of flag
-    handler._write_account_setting("WidgetManager", "use_account_settings", str(use_account_settings()))
+    handler._write_account_setting("WidgetManager", "use_account_settings", str(state.use_account_settings))
 
     wm_keys = {
         "enable_all": state.enable_all,
@@ -70,21 +69,79 @@ def save_all_settings(to_account: bool = False):
         for k, v in entries.items():
             handler._write_setting(name, k, str(v), to_account=to_account, force=True)
 
-def initialize_settings():
-    use_account = handler._read_setting_bool("WidgetManager", "use_account_settings", True, force_account=True)
-    from . import config_scope
-    config_scope.selected_settings_scope = 1 if use_account else 0
+# def save_account_settings():
+#     wm_keys = {
+#         "enable_all": state.enable_all,
+#         "old_menu": state.old_menu,
+#         "use_account_settings": str(state.use_account_settings),
+#     }
+#     for k, v in wm_keys.items():
+#         handler._write_account_setting("WidgetManager", k, f"{v}")
 
-    if use_account:
+#     dock_keys = {
+#         "enable_quick_dock": state.enable_quick_dock,
+#         "width": state.quick_dock_width,
+#         "height": state.quick_dock_height,
+#         "offset_y": state.quick_dock_offset_y,
+#         "edge": state.quick_dock_edge[0],
+#         "unlocked": state.quick_dock_unlocked,
+#         "buttons_per_row": state.buttons_per_row
+#     }
+#     for k, v in dock_keys.items():
+#         handler._write_account_setting("QuickDock", k, f"{v}")
+
+#     for i, key in enumerate(("r", "g", "b", "a")):
+#         handler._write_account_setting("QuickDockColor", key, f"{state.quick_dock_color[i]}")
+
+#     for name, widget in handler.widgets.items():
+#         data = handler.widget_data_cache.get(name, {})
+#         for k, v in {
+#             "enabled": widget.get("enabled", False),
+#             "category": data.get("category", "Miscellaneous"),
+#             "subcategory": data.get("subcategory", "Others"),
+#             "icon": data.get("icon", "ICON_CIRCLE"),
+#             "quickdock": data.get("quickdock", False)
+#         }.items():
+#             handler._write_setting(name, k, str(v), to_account=True, force=True)
+
+# def save_global_settings():
+#     wm_keys = {
+#         "enable_all": state.enable_all,
+#         "old_menu": state.old_menu,
+#     }
+#     for k, v in wm_keys.items():
+#         handler._write_global_setting("WidgetManager", k, f"{v}")
+
+#     dock_keys = {
+#         "enable_quick_dock": state.enable_quick_dock,
+#         "width": state.quick_dock_width,
+#         "height": state.quick_dock_height,
+#         "offset_y": state.quick_dock_offset_y,
+#         "edge": state.quick_dock_edge[0],
+#         "unlocked": state.quick_dock_unlocked,
+#         "buttons_per_row": state.buttons_per_row
+#     }
+#     for k, v in dock_keys.items():
+#         handler._write_global_setting("QuickDock", k, f"{v}")
+
+#     for i, key in enumerate(("r", "g", "b", "a")):
+#         handler._write_global_setting("QuickDockColor", key, f"{state.quick_dock_color[i]}")
+
+#     for name, widget in handler.widgets.items():
+#         data = handler.widget_data_cache.get(name, {})
+#         handler._write_global_setting(name, "enabled", f"{widget.get('enabled', False)}")
+#         handler._write_global_setting(name, "quickdock", str(data.get("quickdock", False)))
+
+def initialize_settings():
+    if state.selected_settings_scope == 1:
         load_account_settings()
     else:
         load_global_settings()
 
 def load_account_settings():
-    from . import config_scope
     state.enable_all = handler._read_setting_bool("WidgetManager", "enable_all", False, force_account=True)
     state.old_menu = handler._read_setting_bool("WidgetManager", "old_menu", True, force_account=True)
-    config_scope.selected_settings_scope = 1 if handler._read_setting_bool("WidgetManager", "use_account_settings", True, force_account=True) else 0
+    state.use_account_settings = handler._read_setting_bool("WidgetManager", "use_account_settings", True, force_account=True)
 
     state.old_menu_window_pos = (
         handler._read_setting_int("WidgetManager", "omx", 100, force_account=True),
@@ -108,10 +165,9 @@ def load_account_settings():
     ]
     
 def load_global_settings():
-    from . import config_scope
     state.enable_all = handler._read_setting_bool("WidgetManager", "enable_all", False, force_global=True)
     state.old_menu = handler._read_setting_bool("WidgetManager", "old_menu", True, force_global=True)
-    config_scope.selected_settings_scope = 1 if handler._read_setting_bool("WidgetManager", "use_account_settings", True, force_account=True) else 0
+    state.use_account_settings = handler._read_setting_bool("WidgetManager", "use_account_settings", True, force_global=True)
 
     state.old_menu_window_pos = (
         handler._read_setting_int("WidgetManager", "omx", 100, force_global=True),

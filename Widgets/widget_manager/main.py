@@ -8,35 +8,36 @@ from .ui_floating_menu import draw_floating_menu
 from .ui_embedded_config import draw_embedded_widget_config
 from .ui_quickdock import quick_dock_menu
 from .ui_old_menu import draw_old_widget_ui
-from .settings_io import initialize_settings
 
 def main():
     try:
-        # sort_frame = UIManager.IsWindowVisible(UIManager.GetChildFrameID(2232987037,[0]))
-        # menu_frame = UIManager.IsWindowVisible(UIManager.GetFrameIDByHash(1144678641))
-        
-        # if ((sort_frame and menu_frame) or ((Map.GetDescriptionID() == 39684 and Map.GetMapID() == 514) or Map.IsInCinematic())):
-        #     return
-        
         if not state.initialized:
             handler.discover_widgets()
             state.initialized = True
 
-        if (not handler.account_initialized and
-            not Player.InCharacterSelectScreen() and
+        if (not handler.account_initialized and 
+            not Map.IsMapLoading() and 
+            not Map.IsInCinematic() and 
+            not Player.InCharacterSelectScreen() and 
             Party.IsPartyLoaded()):
             handler._initialize_account_settings()
             handler._initialize_account_config()
-            initialize_settings()
 
+
+        # if (Map.IsMapLoading() and Party.IsPartyLoaded()) or Map.IsInCinematic():
+        #     return
+        
         if state.old_menu:
             draw_old_widget_ui()
 
-        if state.enable_quick_dock:
+        if (state.enable_quick_dock and
+            not Map.IsMapLoading() and 
+            not Map.IsInCinematic() and 
+            not Player.InCharacterSelectScreen() and 
+            Party.IsPartyLoaded()):
             quick_dock_menu()
-
-        draw_floating_menu() 
-                   
+        
+        draw_floating_menu()
         draw_embedded_widget_config()
         
         if state.enable_all:
