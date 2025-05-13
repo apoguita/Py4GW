@@ -47,7 +47,7 @@ AUTO_RUN_ALL   = cfg.getboolean("BlessingRun","AutoRunAll",  fallback=True)
 
 # ─── Window Persistence Setup ───────────────────────────────────────────
 WINDOW_SECTION = "Get Blessed"
-ini_window = IniHandler(os.path.join(script_directory, "Config", "Blessing_UI_window.ini"))
+ini_window = IniHandler(os.path.join(script_directory, "Config", "GetBlessed_window.ini"))
 save_window_timer = Timer()
 save_window_timer.Start()
 
