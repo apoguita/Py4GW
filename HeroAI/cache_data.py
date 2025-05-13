@@ -16,7 +16,14 @@ class GameData:
         return cls._instance
     
     def __init__(self):
-        #Map data
+        self.reset()
+        
+        self.angle_changed = False
+        self.old_angle = 0.0
+      
+        
+    def reset(self):
+         #Map data
         self.is_map_ready = False
         self.is_outpost = False
         self.is_explorable = False
@@ -65,10 +72,9 @@ class GameData:
         
         #combat field data
         self.in_aggro = False
-        self.angle_changed = False
-        self.old_angle = 0.0
         self.free_slots_in_inventory = 0
         self.target_id = 0
+        self.weapon_type = 0
         
         #control status vars
         self.is_following_enabled = True
@@ -77,11 +83,8 @@ class GameData:
         self.is_targeting_enabled = True
         self.is_combat_enabled = True
         self.is_skill_enabled = [True for _ in range(NUMBER_OF_SKILLS)]
-        self.RAW_AGENT_ARRAY = RawAgentArray(100)
-        
-        
-    def reset(self):
-        self.__init__()
+        self.RAW_AGENT_ARRAY = None
+      
         
     def update(self):
         #Map data
@@ -100,7 +103,15 @@ class GameData:
         if not self.is_party_loaded:
             return
         self.party_leader_id = Party.GetPartyLeaderID()
+        
         self.party_leader_rotation_angle = Agent.GetRotationAngle(self.party_leader_id)
+
+        if self.old_angle != self.party_leader_rotation_angle:
+            self.angle_changed = True
+            self.old_angle = self.party_leader_rotation_angle
+        #never reset, so if it changed once, it will be true until the move is issued
+
+        
         self.party_leader_xy = Agent.GetXY(self.party_leader_id)
         self.party_leader_xyz = Agent.GetXYZ(self.party_leader_id)
         self.own_party_number = Party.GetOwnPartyNumber()
@@ -127,12 +138,18 @@ class GameData:
         self.player_is_attacking = Agent.IsAttacking(self.player_agent_id)
         self.player_is_moving = Agent.IsMoving(self.player_agent_id)
         self.player_is_melee = Agent.IsMelee(self.player_agent_id)
+        self.weapon_type, _ = Agent.GetWeaponType(self.player_agent_id)
+        
+        
+        
         #AgentArray data
         self.pet_id = Party.Pets.GetPetID(self.player_agent_id)
         #combat field data
         self.free_slots_in_inventory = Inventory.GetFreeSlotCount()
         self.target_id = Player.GetTargetID()
         if self.is_outpost:
+            if self.RAW_AGENT_ARRAY is None:
+                self.RAW_AGENT_ARRAY = RawAgentArray()
             self.RAW_AGENT_ARRAY.update() 
         
     
@@ -165,10 +182,11 @@ class CacheData:
             self.data = GameData()
             self.auto_attack_timer = Timer()
             self.auto_attack_timer.Start()
-            self.auto_attack_time = 750
+            self.auto_attack_time = 1000 #750
             self.draw_floating_loot_buttons = False
             self.reset()
             self.ui_state_data = UIStateData()
+            self.follow_throttle_timer = ThrottledTimer(500)
             
             self._initialized = True 
         

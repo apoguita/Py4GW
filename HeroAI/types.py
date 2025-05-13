@@ -101,6 +101,16 @@ class SkillNature (Enum):
     SelfTargeted = 8
     Resurrection = 9
     Interrupt = 10
+    CustomA = 11
+    CustomB = 12
+    CustomC = 13
+    CustomD = 14
+    CustomE = 15
+    CustomF = 16
+    CustomG = 17
+    CustomH = 18
+    CustomI = 19
+
 
 
 class SkillType (Enum):
