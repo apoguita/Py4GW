@@ -178,14 +178,16 @@ def draw_floating_menu():
         else:
             button_label = f"{icon} Widgets##WigetUIButton"
         
+        state.hovering_floating_button = False
         if PyImGui.button(button_label, 0, 0):
-                state.hovering_floating_button = PyImGui.is_item_hovered()
-                PyImGui.open_popup("FloatingMenu")
-                state.popup_open = True
+            PyImGui.open_popup("FloatingMenu")
+            state.popup_open = True
+            
+        state.hovering_floating_button = PyImGui.is_item_hovered()
+            
         PyImGui.set_next_window_pos(menu_x, menu_y)
         PyImGui.pop_style_color(5)
         PyImGui.pop_style_var(2)
-        
         if PyImGui.begin_popup("FloatingMenu"):
             state.popup_height = PyImGui.get_window_height()
             state.popup_height_known = True

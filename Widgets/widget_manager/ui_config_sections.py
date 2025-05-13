@@ -1,6 +1,7 @@
 from Py4GWCoreLib import *
 from . import state
 from .handler import handler
+from .config_scope import use_account_settings
 from .settings_io import load_account_settings, load_global_settings, save_all_settings, restore_global_defaults
 
 def draw_centered_checkbox(label: str, value: bool) -> bool:
@@ -40,7 +41,7 @@ def draw_floating_menu_config():
         index = PyImGui.combo("##menuloc", index, state.floating_attachment_options)
         if index != state.floating_attachment_index:
             state.floating_attachment_index = index
-            handler._write_setting("FloatingMenu", "floating_attachment_index", str(index), to_account=state.use_account_settings)
+            handler._write_setting("FloatingMenu", "floating_attachment_index", str(index), to_account=use_account_settings())
             
         if state.floating_attachment_index == 3:
             PyImGui.spacing()
@@ -58,7 +59,7 @@ def draw_floating_menu_config():
         ImGui.show_tooltip("Overrides default floating button colors with custom values")
         if prev_enabled != state.floating_custom_colors_enabled:
             state.floating_custom_colors_enabled = prev_enabled
-            handler._write_setting("FloatingMenu", "use_custom_colors", str(state.floating_custom_colors_enabled), to_account=state.use_account_settings)
+            handler._write_setting("FloatingMenu", "use_custom_colors", str(state.floating_custom_colors_enabled), to_account=use_account_settings())
         
         if state.floating_custom_colors_enabled:
             for label, key in [("Base", "base"), ("Hover", "hover"), ("Active", "active"), ("Border", "border")]:
@@ -69,9 +70,10 @@ def draw_floating_menu_config():
                 if list(new_col) != state.floating_custom_colors[key]:
                     state.floating_custom_colors[key] = new_col
                     for i, ch in zip("rgba", new_col):
-                        handler._write_setting("FloatingMenu", f"{key}_{i}", ch, to_account=state.use_account_settings)
+                        handler._write_setting("FloatingMenu", f"{key}_{i}", ch, to_account=use_account_settings())
 
 def draw_account_widget_config():
+    from . import config_scope
     PyImGui.spacing()
     PyImGui.text("Widget Settings")
     PyImGui.separator()
@@ -84,21 +86,21 @@ def draw_account_widget_config():
     PyImGui.same_line(0, -1)
     PyImGui.set_cursor_pos(x + 160, y)
     PyImGui.set_next_item_width(PyImGui.get_content_region_avail()[0])
-    prev_scope = state.selected_settings_scope
-    state.selected_settings_scope = PyImGui.combo(
+    prev_scope = config_scope.selected_settings_scope
+    config_scope.selected_settings_scope = PyImGui.combo(
         "##settings_scope",
-        state.selected_settings_scope,
+        config_scope.selected_settings_scope,
         state.settings_scope_options
     )
-    state.use_account_settings = bool(state.selected_settings_scope)
 
-    if state.selected_settings_scope != prev_scope:
-        handler._write_account_setting("WidgetManager", "use_account_settings", str(state.use_account_settings))
-        if state.use_account_settings:
+    if config_scope.selected_settings_scope != prev_scope:
+        handler._write_account_setting("WidgetManager", "use_account_settings", str(use_account_settings()))
+        if use_account_settings:
             load_account_settings()
         else:
             load_global_settings()
         handler.discover_widgets()
+    
     ImGui.show_tooltip("Determines whether to load and save settings globally or per account")
 
     PyImGui.spacing()
@@ -179,7 +181,7 @@ def draw_quick_dock_config():
     enable_qd = draw_centered_checkbox(label, state.enable_quick_dock)
     if enable_qd != state.enable_quick_dock:
         state.enable_quick_dock = enable_qd
-        handler._write_setting("QuickDock", "enable_quick_dock", str(enable_qd), to_account=state.use_account_settings)
+        handler._write_setting("QuickDock", "enable_quick_dock", str(enable_qd), to_account=use_account_settings())
     ImGui.show_tooltip("Enable or Disbale the Widget Dock on the edge of the screen")
     
     PyImGui.spacing()
@@ -195,7 +197,7 @@ def draw_quick_dock_config():
     if list(new_color[:3]) != state.quick_dock_color[:3]:
         state.quick_dock_color[0:3] = new_color[0:3]
         for i, key in enumerate(("r", "g", "b")):
-            handler._write_setting("QuickDockColor", key, f"{state.quick_dock_color[i]}", to_account=state.use_account_settings)
+            handler._write_setting("QuickDockColor", key, f"{state.quick_dock_color[i]}", to_account=use_account_settings())
      
     PyImGui.spacing() 
     label = "Quick Dock Transparency:"
@@ -208,33 +210,33 @@ def draw_quick_dock_config():
     alpha = PyImGui.slider_float("Quick Dock Transparency", state.quick_dock_color[3], 0.0, 1.0)
     if alpha != state.quick_dock_color[3]:
         state.quick_dock_color[3] = alpha
-        handler._write_setting("QuickDockColor", "a", f"{alpha}", to_account=state.use_account_settings)
+        handler._write_setting("QuickDockColor", "a", f"{alpha}", to_account=use_account_settings())
     
     PyImGui.spacing()
     new_width = draw_labeled_slider("Quick Dock Width:", "##rwidth", state.quick_dock_width, 4, 50)
     if new_width != state.quick_dock_width:
         state.quick_dock_width = new_width
-        handler._write_setting("QuickDock", "width", str(state.quick_dock_width), to_account=state.use_account_settings)
+        handler._write_setting("QuickDock", "width", str(state.quick_dock_width), to_account=use_account_settings())
 
     PyImGui.spacing()
     new_height = draw_labeled_slider("Quick Dock Height:", "##rheight", state.quick_dock_height, 20, 150)
     if new_height != state.quick_dock_height:
         state.quick_dock_height = new_height
-        handler._write_setting("QuickDock", "height", str(state.quick_dock_height), to_account=state.use_account_settings)
+        handler._write_setting("QuickDock", "height", str(state.quick_dock_height), to_account=use_account_settings())
 
     PyImGui.spacing()
     new_bpr = draw_labeled_slider("Buttons Per Row:", "##bpr", state.buttons_per_row, 1, 16)
     if new_bpr != state.buttons_per_row:
         state.buttons_per_row = new_bpr
-        handler._write_setting("QuickDock", "buttons_per_row", str(state.buttons_per_row), to_account=state.use_account_settings)
+        handler._write_setting("QuickDock", "buttons_per_row", str(state.buttons_per_row), to_account=use_account_settings())
     
     PyImGui.spacing()
-    label = "Lock Quick Dock location" if state.quick_dock_unlocked else "Unlock Quick Dock location"
+    label = "Quick Dock is Unlocked" if state.quick_dock_unlocked else "Quick Dock is Locked"
     qd_unlocked = PyImGui.checkbox(label, state.quick_dock_unlocked)
     if qd_unlocked != state.quick_dock_unlocked:
         state.quick_dock_unlocked = qd_unlocked
-        handler._write_setting("QuickDock", "unlocked", str(qd_unlocked), to_account=state.use_account_settings)
-    ImGui.show_tooltip("You can also Unlock and Lock it by Middle-Clicking the Quick Dock")
+        handler._write_setting("QuickDock", "unlocked", str(qd_unlocked), to_account=use_account_settings())
+    ImGui.show_tooltip("Click to lock" if state.quick_dock_unlocked else "Click to unlock")
     
     PyImGui.spacing()
     label = "Reset Quick Dock Settings"
@@ -267,7 +269,7 @@ def draw_quick_dock_config():
         new_dock_enabled = PyImGui.checkbox(f"##dock_{idx}", bool(dock_enabled))
         if new_dock_enabled != dock_enabled:
             data["quickdock"] = new_dock_enabled
-            handler._write_setting(name, "quickdock", str(new_dock_enabled), to_account=state.use_account_settings)
+            handler._write_setting(name, "quickdock", str(new_dock_enabled), to_account=use_account_settings())
     PyImGui.end_child()
 
 def draw_debug_config():
@@ -300,7 +302,7 @@ def draw_debug_config():
         updated_enabled = PyImGui.checkbox("Enabled", enabled)
         if updated_enabled != enabled:
             info["enabled"] = updated_enabled
-            handler._write_setting(state.selected_widget, "enabled", str(updated_enabled), to_account=state.use_account_settings)
+            handler._write_setting(state.selected_widget, "enabled", str(updated_enabled), to_account=use_account_settings())
 
         PyImGui.spacing()
         label = "Widget Category:"
@@ -343,12 +345,12 @@ def draw_debug_config():
         
         if new_index != current_index:
             data["icon"] = icon_names[new_index]
-            handler._write_setting(state.selected_widget, "icon", icon_names[new_index], to_account=state.use_account_settings)
+            handler._write_setting(state.selected_widget, "icon", icon_names[new_index], to_account=use_account_settings())
 
         if new_category != category:
             data["category"] = new_category
-            handler._write_setting(state.selected_widget, "category", new_category, to_account=state.use_account_settings)
+            handler._write_setting(state.selected_widget, "category", new_category, to_account=use_account_settings())
 
         if new_sub != subcategory:
             data["subcategory"] = new_sub
-            handler._write_setting(state.selected_widget, "subcategory", new_sub, to_account=state.use_account_settings)
+            handler._write_setting(state.selected_widget, "subcategory", new_sub, to_account=use_account_settings())
