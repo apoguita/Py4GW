@@ -1,6 +1,5 @@
 from Py4GWCoreLib import *
 from .handler import handler
-from .config_scope import selected_settings_scope, use_account_settings
 
 module_name = "WidgetManager"
 
