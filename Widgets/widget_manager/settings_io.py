@@ -13,6 +13,22 @@ def write_settings_to_ini():
     
     state.write_timer.Reset()
 
+def restore_global_defaults():
+    from .default_settings import global_widget_defaults
+    import configparser
+
+    parser = configparser.ConfigParser()
+
+    for section, settings in global_widget_defaults.items():
+        parser.add_section(section)
+        for key, value in settings.items():
+            parser.set(section, key, str(value))
+
+    with open(handler.global_ini_path, "w") as f:
+        parser.write(f)
+
+    handler._last_global_values.clear()
+
 def save_all_settings(to_account: bool = False):
     # Always save this to account scope, regardless of flag
     handler._write_account_setting("WidgetManager", "use_account_settings", str(state.use_account_settings))
