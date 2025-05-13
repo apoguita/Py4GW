@@ -232,6 +232,9 @@ class WidgetHandler:
             path = os.path.join(self.widgets_path, file)
             try:
                 module = self.load_widget(path)
+                if not module:
+                    ConsoleLog("WidgetHandler", f"Skipped widget: {name} (module load failed)", Py4GW.Console.MessageType.Warning)
+                    continue
                 enabled = self.widget_data_cache.get(name, {}).get("enabled", True)
                 self.widgets[name] = {"module": module, "enabled": enabled, "configuring": False}
                 ConsoleLog("WidgetHandler", f"Loaded widget: {name}", Py4GW.Console.MessageType.Info)
