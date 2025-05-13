@@ -1,4 +1,3 @@
-# Blessing_UI.py
 import os
 import sys
 import tempfile
@@ -7,7 +6,7 @@ from Py4GWCoreLib import *
 from typing import Set
 
 # ─── Import the game’s API ────────────────────────────────────────────────
-from Py4GWCoreLib import Player, Party, PyImGui
+from Py4GWCoreLib import Player, Party, PyImGui, IniHandler, Timer
 
 # ─── Make sure “Blessed_helpers” is on the import path ──────────────────
 script_directory = os.path.dirname(os.path.abspath(__file__))
@@ -46,6 +45,18 @@ LEADER_UI      = cfg.getboolean("Settings",   "LeaderUI",    fallback=True)
 PER_CLIENT_UI  = cfg.getboolean("Settings",   "PerClientUI", fallback=False)
 AUTO_RUN_ALL   = cfg.getboolean("BlessingRun","AutoRunAll",  fallback=True)
 
+# ─── Window Persistence Setup ───────────────────────────────────────────
+WINDOW_SECTION = "Get Blessed"
+ini_window = IniHandler(os.path.join(script_directory, "Config", "GetBlessed_window.ini"))
+save_window_timer = Timer()
+save_window_timer.Start()
+
+# load last-saved window state (fallbacks)
+win_x = ini_window.read_int(WINDOW_SECTION, "x", 100)
+win_y = ini_window.read_int(WINDOW_SECTION, "y", 100)
+win_collapsed = ini_window.read_bool(WINDOW_SECTION, "collapsed", False)
+first_run_window = True
+
 # ─── FSM runner + shared-flag state ────────────────────────────────────
 _runner    = BlessingRunner()
 _running   = False
@@ -55,6 +66,7 @@ _consumed  = False
 # ─── Frame‐by‐frame UI logic ────────────────────────────────────────────
 def on_imgui_render(me: int):
     global _running, _last_flag, _consumed
+    global first_run_window, win_x, win_y, win_collapsed
 
     # (A) sync per‐client flag files
     my_id   = Player.GetAgentID()
@@ -91,6 +103,12 @@ def on_imgui_render(me: int):
     if not (LEADER_UI and is_leader) and not PER_CLIENT_UI:
         return
 
+    # Restore window position & collapsed state on first run
+    if first_run_window:
+        PyImGui.set_next_window_pos(win_x, win_y)
+        PyImGui.set_next_window_collapsed(win_collapsed, 0)
+        first_run_window = False
+
     # (D) collect who’s blessed
     blessed_ids: Set[int] = set()
     for fn in os.listdir(FLAG_DIR):
@@ -102,6 +120,10 @@ def on_imgui_render(me: int):
 
     # (E) draw
     PyImGui.begin("Get Blessed", PyImGui.WindowFlags.AlwaysAutoResize)
+    # capture current state
+    new_collapsed = PyImGui.is_window_collapsed()
+    end_pos = PyImGui.get_window_pos()
+
     PyImGui.text("Party Blessing Status:")
     PyImGui.separator()
 
@@ -127,9 +149,19 @@ def on_imgui_render(me: int):
 
     PyImGui.end()
 
+    # ─── Persist window state once per second ────────────────────────────
+    if save_window_timer.HasElapsed(1000):
+        if (end_pos[0], end_pos[1]) != (win_x, win_y):
+            win_x, win_y = int(end_pos[0]), int(end_pos[1])
+            ini_window.write_key(WINDOW_SECTION, "x", str(win_x))
+            ini_window.write_key(WINDOW_SECTION, "y", str(win_y))
+        if new_collapsed != win_collapsed:
+            win_collapsed = new_collapsed
+            ini_window.write_key(WINDOW_SECTION, "collapsed", str(win_collapsed))
+        save_window_timer.Reset()
+
 # ─── Widget Manager Hooks ───────────────────────────────────────────────
 def setup():
-    # any one-time initialization you need can go here
     pass
 
 def configure():
@@ -143,8 +175,6 @@ def Get_Blessed():
     External API: Called from outside scripts (e.g., bots, automation tools)
     to start the blessing sequence exactly as if the UI button had been clicked.
     """
-    from Py4GWCoreLib import Player, Party
-
     me = Player.GetAgentID()
     is_leader = (Party.GetPartyLeaderID() == me)
 
