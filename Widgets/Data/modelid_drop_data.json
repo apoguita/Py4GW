@@ -330,6 +330,7 @@
   { "name": "Stone Summit Badge", "model_id": "ModelID.Stone_Summit_Badge", "group": "Trophies", "subgroup": "S", "drop_info": "Dropped by data to be added" },
   { "name": "Stone Summit Emblem", "model_id": "ModelID.Stone_Summit_Emblem", "group": "Trophies", "subgroup": "S", "drop_info": "Dropped by data to be added" },
   { "name": "Stormy Eye", "model_id": "ModelID.Stormy_Eye", "group": "Trophies", "subgroup": "S", "drop_info": "Dropped by data to be added" },
+  { "name": "Superb Charr Carving", "model_id": "ModelID.Superior_Charr_Carving", "group": "Trophies", "subgroup": "S", "drop_info": "Dropped by data to be added" },
   {"name": "Tangled Seed", "model_id": "ModelID.Tangled_Seed", "group": "Trophies", "subgroup": "T", "drop_info": "Dropped by data to be added"},
   {"name": "Thorny Carapace", "model_id": "ModelID.Thorny_Carapace", "group": "Trophies", "subgroup": "T", "drop_info": "Dropped by data to be added"},
   {"name": "Topaz Crest", "model_id": "ModelID.Topaz_Crest", "group": "Trophies", "subgroup": "T", "drop_info": "Dropped by data to be added"},
