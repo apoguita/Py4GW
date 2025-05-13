@@ -1,6 +1,5 @@
 from Py4GWCoreLib import *
 from .default_settings import global_widget_defaults, account_widget_defaults, default_schema_version
-from . import state
 import importlib.util
 import os
 import types
@@ -120,7 +119,6 @@ class WidgetHandler:
     
     def _read_setting(self, section, key, default=None, *, force_account=False, force_global=False):
         parser = configparser.ConfigParser()
-        from . import state
 
         paths = []
         if force_account:
@@ -167,8 +165,10 @@ class WidgetHandler:
             return default
 
     def _write_setting(self, section, key, value, *, to_account=None, force=False):
+        from .config_scope import use_account_settings
+        
         if to_account is None:
-            to_account = state.use_account_settings
+            to_account = use_account_settings()
 
         cache = self._last_account_values if to_account else self._last_global_values
         path = self.account_ini_path if to_account else self.global_ini_path
@@ -196,16 +196,13 @@ class WidgetHandler:
         self._write_setting(section, key, value, to_account=True)
     
     def _load_widget_cache(self):
-        if self.account_email == "unknown":
+        from .config_scope import use_account_settings
+        
+        if self.account_email == "unknown" or not use_account_settings():
             path = self.global_ini_path
-        elif state.use_account_settings is None:
-            path = self.global_ini_path
-        elif state.use_account_settings:
-            path = self.account_ini_path
         else:
-            path = self.global_ini_path
+            path = self.account_ini_path
             
-
         if not os.path.exists(path):
             return
 
@@ -325,13 +322,14 @@ class WidgetHandler:
         self._set_widget_state(name, False)
 
     def _set_widget_state(self, name: str, enabled_state: bool):
+        from .config_scope import use_account_settings
         widget = self.widgets.get(name)
         if not widget:
             ConsoleLog("WidgetHandler", f"Unknown widget: {name}", Py4GW.Console.MessageType.Warning)
             return
 
         widget["enabled"] = enabled_state
-        self._write_setting(name, "enabled", str(enabled_state), to_account=state.use_account_settings)
+        self._write_setting(name, "enabled", str(enabled_state), to_account=use_account_settings())
 
     def is_widget_enabled(self, name: str) -> bool:
         return bool(self.widgets.get(name, {}).get("enabled"))
