@@ -517,9 +517,9 @@ class RawAgentArray:
         self.update()
         return self.gadget_array
 
-    def get_agent(self, agent_id: int):
+    def get_agent(self, agent_id: int) -> PyAgent.PyAgent:
         self.update()
-        return self.agent_dict.get(agent_id)
+        return self.agent_dict.get(agent_id) or PyAgent.PyAgent(agent_id)
 
     
     def get_name(self, agent_id: int):

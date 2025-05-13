@@ -102,7 +102,7 @@ def DrawWindow():
     global widget_config, window_module
     global killed, total
     
-    widget_config.string = f"{killed:03}/{total:03}"
+    widget_config.string = f"{total:03}/{killed:03}"
 
     PyImGui.set_next_window_pos(widget_config.x, widget_config.y)
 

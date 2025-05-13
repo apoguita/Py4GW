@@ -972,10 +972,10 @@ def main():
             mission_map.Map_load_timer.Reset()
             return
         
-        if Party.GetPartyLeaderID() != Player.GetAgentID():
-            return
+        #if Party.GetPartyLeaderID() != Player.GetAgentID():
+        #    return
             
-        if not mission_map.Map_load_timer.HasElapsed(3000):
+        if not mission_map.Map_load_timer.HasElapsed(1000):
             return
         
         if Map.MissionMap.IsWindowOpen():
