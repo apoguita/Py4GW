@@ -1,7 +1,7 @@
 from Py4GWCoreLib import *
 from . import state
 from .handler import handler
-from .settings_io import load_account_settings, load_global_settings, save_all_settings
+from .settings_io import load_account_settings, load_global_settings, save_all_settings, restore_global_defaults
 
 def draw_centered_checkbox(label: str, value: bool) -> bool:
     width = PyImGui.calc_text_size(label)[0] + 20
@@ -143,6 +143,25 @@ def draw_account_widget_config():
     if PyImGui.button(save_label, save_width, 0):
         save_all_settings(to_account=True)
     PyImGui.pop_style_color(3)
+    
+    PyImGui.spacing()
+    label = "Restore Settings:"
+    x, y = PyImGui.get_cursor_pos()
+    PyImGui.set_cursor_pos(x, y + 5)
+    PyImGui.text(label)
+    PyImGui.same_line(0, -1)
+    PyImGui.set_cursor_pos(x + 160, y)
+    the_label = "Restore Default Global Settings "
+    the_width = PyImGui.calc_text_size(the_label)[0] + 20
+    # center = (PyImGui.get_content_region_avail()[0] - save_width) * 0.5
+    PyImGui.set_cursor_pos_x(PyImGui.get_cursor_pos_x())
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.0, 0.2, 0.4, 1.0))
+    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.2, 0.4, 0.6, 1.0))
+    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.1, 0.3, 0.5, 1.0))
+    if PyImGui.button(the_label, the_width, 0):
+        restore_global_defaults()
+        handler.discover_widgets()
+    PyImGui.pop_style_color(3)
 
         
 def reset_quick_dock():
@@ -245,7 +264,7 @@ def draw_quick_dock_config():
         PyImGui.text(f"{icon_char} {name}")
         PyImGui.same_line(200, -1)
 
-        new_dock_enabled = PyImGui.checkbox(f"##dock_{idx}", dock_enabled)
+        new_dock_enabled = PyImGui.checkbox(f"##dock_{idx}", bool(dock_enabled))
         if new_dock_enabled != dock_enabled:
             data["quickdock"] = new_dock_enabled
             handler._write_setting(name, "quickdock", str(new_dock_enabled), to_account=state.use_account_settings)
