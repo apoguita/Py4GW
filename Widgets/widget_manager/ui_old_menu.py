@@ -78,7 +78,7 @@ def draw_widget_contents_old():
                 info = handler.widgets[name]
                 PyImGui.table_next_row()
                 PyImGui.table_set_column_index(0)
-                new_enabled = PyImGui.checkbox(name, info["enabled"])
+                new_enabled = PyImGui.checkbox(name, bool(info["enabled"]))
                 if new_enabled != info["enabled"]:
                     info["enabled"] = new_enabled
                     handler._write_setting(name, "enabled", str(new_enabled), to_account=state.use_account_settings)

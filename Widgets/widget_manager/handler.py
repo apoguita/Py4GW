@@ -270,6 +270,8 @@ class WidgetHandler:
             raise ValueError("Widget missing required functions: main() and configure()")
         
         meta = getattr(module, "__widget__", None)
+        if not isinstance(meta, dict):
+            meta = {}
         cache = self.widget_data_cache.setdefault(name, {})
 
         defaults = (
@@ -278,16 +280,16 @@ class WidgetHandler:
             or {}
         )
         
-        if "enabled" not in cache:
-            cache["enabled"] = (meta or {}).get("enabled") or defaults.get("enabled") or False
-        if "category" not in cache:
-            cache["category"] = (meta or {}).get("category") or defaults.get("category") or "Miscellaneous"
-        if "subcategory" not in cache:
-            cache["subcategory"] = (meta or {}).get("subcategory") or defaults.get("subcategory") or "General"
-        if "icon" not in cache:
-            cache["icon"] = (meta or {}).get("icon") or defaults.get("icon") or "ICON_CIRCLE"
-        if "quickdock" not in cache:
-            cache["quickdock"] = (meta or {}).get("quickdock") or defaults.get("quickdock") or False
+        if "enabled" not in cache or "enabled" in meta:
+            cache["enabled"] = meta["enabled"] if "enabled" in meta else defaults.get("enabled", False)
+        if "category" not in cache or "category" in meta:
+            cache["category"] = meta["category"] if "category" in meta else defaults.get("category", "Miscellaneous")
+        if "subcategory" not in cache or "subcategory" in meta:
+            cache["subcategory"] = meta["subcategory"] if "subcategory" in meta else defaults.get("subcategory", "General")
+        if "icon" not in cache or "icon" in meta:
+            cache["icon"] = meta["icon"] if "icon" in meta else defaults.get("icon", "ICON_CIRCLE")
+        if "quickdock" not in cache or "quickdock" in meta:
+            cache["quickdock"] = meta["quickdock"] if "quickdock" in meta else defaults.get("quickdock", False)
 
         if isinstance(meta, dict) and "hidden" in meta:
             cache["hidden"] = meta["hidden"]
