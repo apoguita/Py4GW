@@ -1899,6 +1899,11 @@ class ModelID(IntEnum):
     Rinkhal_Talon = 123654789186    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Searing_Ribcage = 123654789187    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Searing_Burrower_Jaw = 123654789189    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Shadowy_Remnants = 751851851    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Silver_Crimson_Skull_Coin = 211111356    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Smoking_Remains = 8787899465    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Spiny_Seed = 74966338    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Stolen_Supplies = 66665481    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Blessing_Of_War = 37843
     Diamond_Djinn_Essence = 19186
     Elder_Kappa_Shell = 837
