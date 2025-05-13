@@ -3,7 +3,7 @@ import tempfile
 import configparser
 import time
 import math
-
+from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import *
 from Bots.Blessed_helpers import (
     _Mover,
@@ -14,12 +14,25 @@ from Bots.Blessed_helpers import (
 )
 
 _Mover = _Mover()
+_widget_handler = get_widget_handler()
 
 # —— INI & Flag Setup ——
 FLAG_DIR = os.path.join(tempfile.gettempdir(), "GuildWarsNPCSync")
 os.makedirs(FLAG_DIR, exist_ok=True)
 INI_PATH = os.path.join(FLAG_DIR, "npc_sync.ini")
 SECTION = "NPC_SYNC"
+
+# —— Window Persistence Setup ——
+WINDOW_INI_PATH = os.path.join(FLAG_DIR, "npc_sync_window.ini")
+ini_window = IniHandler(WINDOW_INI_PATH)
+save_window_timer = Timer()
+save_window_timer.Start()
+
+# load last-saved window state (fallback to 100,100 / un-collapsed)
+win_x = ini_window.read_int(SECTION, "window_x", 100)
+win_y = ini_window.read_int(SECTION, "window_y", 100)
+win_collapsed = ini_window.read_bool(SECTION, "window_collapsed", False)
+first_run_window = True
 
 # —— FSM Constants ——
 IDLE             = 0
@@ -31,11 +44,11 @@ MOVING_LEADER    = 4  # walking to leader’s broadcast
 DIALOG_RESET_TIMEOUT = 2.0
 
 # —— Persistent State ——
-last_model      = None
-last_choice     = None
+last_model       = None
+last_choice      = None
 last_choice_time = None
-state           = IDLE
-last_leader_pos = None  # (x, y, timestamp)
+state            = IDLE
+last_leader_pos  = None  # (x, y, timestamp)
 
 # —— Config Helpers ——
 def _load_config():
@@ -46,9 +59,11 @@ def _load_config():
         cfg[SECTION] = {}
     return cfg
 
+
 def _save_config(cfg):
     with open(INI_PATH, 'w') as f:
         cfg.write(f)
+
 
 def clear_leader_data():
     """Try to delete the sync file; if Windows says it’s in use, just ignore it."""
@@ -58,6 +73,7 @@ def clear_leader_data():
         pass
     except PermissionError:
         pass
+
 
 def find_agent_by_model(model_id: int):
     for ag in AgentArray.GetAgentArray():
@@ -74,6 +90,7 @@ def set_leader_target(model_id: int):
     _save_config(cfg)
     ConsoleLog("NPCSync", f"Leader set model_id={model_id}", Console.MessageType.Info)
 
+
 def get_leader_data():
     sec = _load_config()[SECTION]
     mid        = int(sec.get("model_id", "0"))
@@ -84,6 +101,7 @@ def get_leader_data():
     except ValueError:
         choice = None
     return mid, choice, ts
+
 
 def set_leader_choice(choice: int):
     cfg = _load_config()
@@ -101,13 +119,14 @@ def set_leader_position(x: float, y: float):
     _save_config(cfg)
     ConsoleLog("NPCSync", f"Leader broadcast position=({x:.1f},{y:.1f})", Console.MessageType.Info)
 
+
 def get_leader_position():
     sec = _load_config()[SECTION]
     try:
         return (
-            float(sec.get("pos_x","")),
-            float(sec.get("pos_y","")),
-            float(sec.get("timestamp","0"))
+            float(sec.get("pos_x", "")),
+            float(sec.get("pos_y", "")),
+            float(sec.get("timestamp", "0"))
         )
     except ValueError:
         return None, None, 0.0
@@ -131,17 +150,19 @@ def reset_sync():
 def setup():
     clear_leader_data()
 
+
 def configure():
     setup()
 
 # —— Main Loop ——
 def main():
     global last_model, last_choice, last_choice_time, state, last_leader_pos
-    
+    global win_x, win_y, win_collapsed, first_run_window
+
     if Routines.Checks.Map.MapValid() and Map.IsOutpost():
         return
 
-    # —— 0) Move-to-leader FSM —— 
+    # —— 0) Move-to-leader FSM ——
     lx, ly, lts = get_leader_position()
     if state == IDLE and lx is not None and (last_leader_pos is None or lts > last_leader_pos[2]):
         last_leader_pos = (lx, ly, lts)
@@ -154,12 +175,11 @@ def main():
         tx, ty, _ = last_leader_pos
         if math.dist((cx, cy), (tx, ty)) < 50.0:
             ConsoleLog("NPCSync", "Arrived at leader’s spot", Console.MessageType.Info)
-            # clear only position flag & return to idle
-            clear_leader_data()
+            clear_leader_data()  # clear only position flag & return to idle
             last_leader_pos = None
             state = IDLE
 
-    # —— 1) Existing NPC-sync FSM —— 
+    # —— 1) Existing NPC-sync FSM ——
     model_id, choice, ts = get_leader_data()
     if not model_id and state != IDLE:
         reset_sync()
@@ -169,6 +189,7 @@ def main():
             ag = find_agent_by_model(model_id)
             if ag:
                 Player.ChangeTarget(ag)
+                #_widget_handler.disable_widget("HeroAI")
                 last_model = model_id
                 state = MOVING_NPC
 
@@ -194,10 +215,18 @@ def main():
             last_choice = None
             state       = IN_DIALOG
         elif last_choice_time and (time.time() - last_choice_time) > DIALOG_RESET_TIMEOUT:
+           # _widget_handler.enable_widget("HeroAI")
             reset_sync()
 
-    # —— UI Rendering —— 
+    # —— UI Rendering ——
+    if first_run_window:
+        PyImGui.set_next_window_pos(win_x, win_y)
+        PyImGui.set_next_window_collapsed(win_collapsed, 0)
+        first_run_window = False
+
     PyImGui.begin("Dialog Sync", PyImGui.WindowFlags.AlwaysAutoResize)
+    new_collapsed = PyImGui.is_window_collapsed()
+    end_pos = PyImGui.get_window_pos()
 
     # Runner icon: broadcast position (only in Explorable)
     if PyImGui.button(IconsFontAwesome5.ICON_RUNNING):
@@ -227,6 +256,7 @@ def main():
     PyImGui.same_line(0.0, -1.0)
     if PyImGui.button(IconsFontAwesome5.ICON_SYNC):
         reset_sync()
+        #_widget_handler.enable_widget("HeroAI")
     if PyImGui.is_item_hovered():
         PyImGui.set_tooltip("Reset all broadcasts")
 
@@ -237,5 +267,16 @@ def main():
                 set_leader_choice(i)
 
     PyImGui.end()
+
+    # —— Persist window state once per second ——
+    if save_window_timer.HasElapsed(1000):
+        if (end_pos[0], end_pos[1]) != (win_x, win_y):
+            win_x, win_y = int(end_pos[0]), int(end_pos[1])
+            ini_window.write_key(SECTION, "window_x", str(win_x))
+            ini_window.write_key(SECTION, "window_y", str(win_y))
+        if new_collapsed != win_collapsed:
+            win_collapsed = new_collapsed
+            ini_window.write_key(SECTION, "window_collapsed", str(win_collapsed))
+        save_window_timer.Reset()
 
 __all__ = ["main", "configure"]
