@@ -18,6 +18,59 @@ def draw_labeled_slider(label: str, id: str, value: int, min_val: int, max_val: 
     PyImGui.set_next_item_width(PyImGui.get_content_region_avail()[0])
     return PyImGui.slider_int(id, value, min_val, max_val)
 
+def draw_floating_menu_config():
+    if Player.InCharacterSelectScreen():
+        PyImGui.spacing()
+        PyImGui.text("Floating Widget Menu Settings available in game")
+        PyImGui.spacing()
+        PyImGui.separator()
+    else:
+        PyImGui.spacing()
+        PyImGui.text("Floating Widget Menu Settings")
+        PyImGui.spacing()
+        PyImGui.separator()
+        label = "Attach Floating Menu To:"
+        x, y = PyImGui.get_cursor_pos()
+        PyImGui.set_cursor_pos(x, y + 5)
+        PyImGui.text(label)
+        PyImGui.same_line(0, -1)
+        PyImGui.set_cursor_pos(x + 160, y)
+        PyImGui.set_next_item_width(PyImGui.get_content_region_avail()[0])
+        index = state.floating_attachment_index
+        index = PyImGui.combo("##menuloc", index, state.floating_attachment_options)
+        if index != state.floating_attachment_index:
+            state.floating_attachment_index = index
+            handler._write_setting("FloatingMenu", "floating_attachment_index", str(index), to_account=state.use_account_settings)
+            
+        if state.floating_attachment_index == 3:
+            PyImGui.spacing()
+            lock_text = "Lock Floating Button"
+            new_locked = draw_centered_checkbox(lock_text, state.floating_drag_locked)
+            if new_locked != state.floating_drag_locked:
+                state.floating_drag_locked = new_locked
+                handler._write_setting("FloatingMenu", "floating_drag_locked", str(new_locked))
+            ImGui.show_tooltip("Prevents the floating button from being dragged")        
+        PyImGui.spacing()
+        PyImGui.separator()
+        PyImGui.spacing()
+        label = "Use Custom Floating Button Colors"
+        prev_enabled = draw_centered_checkbox(label, state.floating_custom_colors_enabled)
+        ImGui.show_tooltip("Overrides default floating button colors with custom values")
+        if prev_enabled != state.floating_custom_colors_enabled:
+            state.floating_custom_colors_enabled = prev_enabled
+            handler._write_setting("FloatingMenu", "use_custom_colors", str(state.floating_custom_colors_enabled), to_account=state.use_account_settings)
+        
+        if state.floating_custom_colors_enabled:
+            for label, key in [("Base", "base"), ("Hover", "hover"), ("Active", "active"), ("Border", "border")]:
+                PyImGui.spacing()
+                PyImGui.text(f"{label} Color")
+                PyImGui.same_line(150, -1)
+                new_col = PyImGui.color_edit4(f"##floatcol_{key}", state.floating_custom_colors[key])
+                if list(new_col) != state.floating_custom_colors[key]:
+                    state.floating_custom_colors[key] = new_col
+                    for i, ch in zip("rgba", new_col):
+                        handler._write_setting("FloatingMenu", f"{key}_{i}", ch, to_account=state.use_account_settings)
+
 def draw_account_widget_config():
     PyImGui.spacing()
     PyImGui.text("Widget Settings")
