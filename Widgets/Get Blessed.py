@@ -190,6 +190,8 @@ def Get_Blessed():
     _running = True
 
 def main():
+    if not Routines.Checks.Map.MapValid():
+        return
     me = Player.GetAgentID()
     on_imgui_render(me)
 
