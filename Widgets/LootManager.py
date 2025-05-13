@@ -3,6 +3,14 @@ import json
 import time
 from Py4GWCoreLib import *
 
+import tkinter as tk
+from tkinter import filedialog
+
+# Use hidden root for file dialogs
+tk_root = tk.Tk()
+tk_root.withdraw()
+
+
 # --- Globals ---
 loot_filter_singleton = LootConfig()
 loot_items = []
@@ -158,6 +166,75 @@ def load_rarity_filter_settings():
     if loot_filter_singleton.loot_gold_coins:
         loot_filter_singleton.AddToWhitelist(ModelID.Gold_Coins.value)
 
+def save_loot_config_to(path: str):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        output = {
+            "items": loot_items,
+            "rarity": {
+                "loot_whites": loot_filter_singleton.loot_whites,
+                "loot_blues": loot_filter_singleton.loot_blues,
+                "loot_purples": loot_filter_singleton.loot_purples,
+                "loot_golds": loot_filter_singleton.loot_golds,
+                "loot_greens": loot_filter_singleton.loot_greens,
+                "loot_gold_coins": loot_filter_singleton.loot_gold_coins,
+            }
+        }
+        with open(path, "w") as f:
+            json.dump(output, f, indent=4)
+        print(f"[INFO] Saved loot config to: {path}")
+    except Exception as e:
+        print(f"[ERROR] Failed to save custom loot config: {e}")
+
+def load_loot_config_from(path: str):
+    if not os.path.exists(path):
+        print(f"[ERROR] File not found: {path}")
+        return
+
+    try:
+        with open(path, "r") as f:
+            raw = json.load(f)
+            saved_items = {entry["model_id"]: entry for entry in raw.get("items", [])}
+            rarity = raw.get("rarity", {})
+    except Exception as e:
+        print(f"[ERROR] Failed to load from {path}: {e}")
+        return
+
+    loot_filter_singleton.ClearWhitelist()
+
+    for item in loot_items:
+        key = item["model_id"]
+        if key in saved_items:
+            saved_entry = saved_items[key]
+            item["enabled"] = saved_entry.get("enabled", False)
+            item["rarity_filter"] = saved_entry.get("rarity_filter", False)
+        else:
+            # Leave new items disabled by default
+            item["enabled"] = False
+            item["rarity_filter"] = False
+
+        if item["enabled"]:
+            model_id = item["model_id"]
+            if isinstance(model_id, str) and model_id.startswith("ModelID."):
+                model_id_name = model_id.split("ModelID.")[1]
+                if hasattr(ModelID, model_id_name):
+                    model_id = getattr(ModelID, model_id_name)
+            loot_filter_singleton.AddToWhitelist(model_id)
+
+    # Apply saved rarity filters
+    loot_filter_singleton.SetProperties(
+        loot_whites=rarity.get("white", False),
+        loot_blues=rarity.get("blue", False),
+        loot_purples=rarity.get("purple", False),
+        loot_golds=rarity.get("gold", False),
+        loot_greens=rarity.get("green", False),
+        loot_gold_coins=rarity.get("gold_coins", False),
+    )
+
+    # Persist changes to avoid core loop overwrite
+    save_rarity_filter_data()
+    save_loot_config()
+
 # --- Setup ---
 def setup():
     global initialized, loot_items, last_config_timestamp
@@ -228,57 +305,68 @@ def DrawWindow():
             )
             PyImGui.tree_pop()
 
-        # —— Rarity Filters ——
+        # ——— Save/Load Configs ———
         PyImGui.separator()
-        PyImGui.text("Groups - By Rarity/Type")
+        PyImGui.text("Save/Load Configs")
         PyImGui.separator()
-        if PyImGui.tree_node("Rarity"):
+
+        # Save Button
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_SAVE} Save to File"):
+            path = filedialog.asksaveasfilename(
+                title="Save Loot Config",
+                defaultextension=".json",
+                filetypes=[("JSON Files", "*.json")]
+            )
+            if path:
+                save_loot_config_to(path)
+
+        PyImGui.same_line(0, 10)
+
+        # Load Button
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_FILE_UPLOAD} Load from File"):
+            path = filedialog.askopenfilename(
+                title="Load Loot Config",
+                filetypes=[("JSON Files", "*.json")]
+            )
+            if path:
+                load_loot_config_from(path)
+
+        if PyImGui.tree_node("Common"):
             rw = loot_filter_singleton.loot_whites
             rb = loot_filter_singleton.loot_blues
             rp = loot_filter_singleton.loot_purples
             rg = loot_filter_singleton.loot_golds
             re = loot_filter_singleton.loot_greens
+            gc = loot_filter_singleton.loot_gold_coins
 
             new_rw = PyImGui.checkbox("White Items", rw)
             new_rb = PyImGui.checkbox("Blue Items", rb)
             new_rp = PyImGui.checkbox("Purple Items", rp)
             new_rg = PyImGui.checkbox("Gold Items", rg)
             new_re = PyImGui.checkbox("Green Items", re)
+            new_gc = PyImGui.checkbox("Gold Coins", gc)
 
-            if (new_rw, new_rb, new_rp, new_rg, new_re) != (rw, rb, rp, rg, re):
+            if (new_rw, new_rb, new_rp, new_rg, new_re, new_gc) != (rw, rb, rp, rg, re, gc):
+                # Update all properties at once
                 loot_filter_singleton.SetProperties(
                     loot_whites=new_rw,
                     loot_blues=new_rb,
                     loot_purples=new_rp,
                     loot_golds=new_rg,
                     loot_greens=new_re,
-                    loot_gold_coins=loot_filter_singleton.loot_gold_coins
+                    loot_gold_coins=new_gc
                 )
                 save_rarity_filter_data()
+
+                # Sync gold coins with whitelist
+                coin_mid = ModelID.Gold_Coins.value
+                if new_gc:
+                    loot_filter_singleton.AddToWhitelist(coin_mid)
+                else:
+                    loot_filter_singleton.RemoveFromWhitelist(coin_mid)
+                save_loot_config()
+
             PyImGui.tree_pop()
-
-            # —— Loot Gold Coins (standalone) ——
-        new_gc = PyImGui.checkbox("Gold Coins", loot_filter_singleton.loot_gold_coins)
-        if new_gc != loot_filter_singleton.loot_gold_coins:
-            # 1a) flip the flag and persist rarity settings
-            loot_filter_singleton.SetProperties(
-                loot_whites=   loot_filter_singleton.loot_whites,
-                loot_blues=    loot_filter_singleton.loot_blues,
-                loot_purples=  loot_filter_singleton.loot_purples,
-                loot_golds=    loot_filter_singleton.loot_golds,
-                loot_greens=   loot_filter_singleton.loot_greens,
-                loot_gold_coins=new_gc
-            )
-            save_rarity_filter_data()
-
-            # 1b) immediately add or remove coins from the whitelist
-            coin_mid = ModelID.Gold_Coins.value
-            if new_gc:
-                loot_filter_singleton.AddToWhitelist(coin_mid)
-            else:
-                loot_filter_singleton.RemoveFromWhitelist(coin_mid)
-            # persist the loot_config so reload doesn’t drop them
-            save_loot_config()
 
         # —— Single-item Whitelist/Blacklist ——
         PyImGui.separator()
