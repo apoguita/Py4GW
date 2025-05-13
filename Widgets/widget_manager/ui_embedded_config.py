@@ -1,7 +1,7 @@
 from Py4GWCoreLib import *
 from . import state
 from .handler import handler
-from .ui_config_sections import draw_account_widget_config, draw_quick_dock_config, draw_debug_config
+from .ui_config_sections import draw_account_widget_config, draw_quick_dock_config, draw_debug_config, draw_floating_menu_config
 
 def draw_embedded_widget_config():
     interface_frame_id = UIManager.GetChildFrameID(1431953425, [1,4294967291])
@@ -82,6 +82,9 @@ def draw_embedded_widget_config():
                 #config options go here
                 PyImGui.spacing()
                 PyImGui.text_colored("Widget Configuration", (1.0, 0.94, 0.75, 1.0))
+                
+                PyImGui.spacing()
+                draw_floating_menu_config()
                 
                 PyImGui.spacing()
                 draw_account_widget_config()

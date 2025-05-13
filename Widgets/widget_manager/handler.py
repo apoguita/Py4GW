@@ -223,42 +223,6 @@ class WidgetHandler:
                 "icon": get("icon", "ICON_CIRCLE"),
                 "quickdock": get("quickdock", "False").lower() == "true",
             }
-    
-    # def _load_widget_cache(self):
-    #     path = self.account_ini_path if self.account_email != "unknown" else self.global_ini_path
-    #     parser = configparser.ConfigParser()
-    #     parser.read(path)
-
-    #     for section in parser.sections():
-    #         if section in self.widget_data_cache:
-    #             continue
-    #         get = lambda k, d: parser.get(section, k, fallback=d)
-    #         self.widget_data_cache[section] = {
-    #             "category": get("category", "Miscellaneous"),
-    #             "subcategory": get("subcategory", "General"),
-    #             "enabled": get("enabled", "True").lower() == "true",
-    #             "icon": get("icon", "ICON_CIRCLE"),
-    #             "quickdock": get("quickdock", "False").lower() == "true",
-    #         }
-
-    # def _save_widget_state(self, widget_name):
-    #     widget = self.widgets.get(widget_name)
-    #     if not widget:
-    #         return
-
-    #     data = self.widget_data_cache.get(widget_name, {})
-    #     enabled = widget.get("enabled", False)
-    #     category = data.get("category", "")
-    #     subcategory = data.get("subcategory", "")
-    #     icon = data.get("icon", "ICON_CIRCLE")
-    #     quickdock = data.get("quickdock", False)
-
-    #     for writer in (self._write_account_setting, self._write_global_setting):
-    #         writer(widget_name, "enabled", str(enabled))
-    #         writer(widget_name, "category", category)
-    #         writer(widget_name, "subcategory", subcategory)
-    #         writer(widget_name, "icon", icon)
-    #         writer(widget_name, "quickdock", str(quickdock))
             
     def _load_all_from_dir(self):
         if not os.path.isdir(self.widgets_path):
@@ -315,7 +279,7 @@ class WidgetHandler:
         )
         
         if "enabled" not in cache:
-            cache["enabled"] = (meta or {}).get("enabled") or defaults.get("enabled") or "False"
+            cache["enabled"] = (meta or {}).get("enabled") or defaults.get("enabled") or False
         if "category" not in cache:
             cache["category"] = (meta or {}).get("category") or defaults.get("category") or "Miscellaneous"
         if "subcategory" not in cache:
@@ -323,7 +287,7 @@ class WidgetHandler:
         if "icon" not in cache:
             cache["icon"] = (meta or {}).get("icon") or defaults.get("icon") or "ICON_CIRCLE"
         if "quickdock" not in cache:
-            cache["quickdock"] = (meta or {}).get("quickdock") or defaults.get("quickdock") or "False"
+            cache["quickdock"] = (meta or {}).get("quickdock") or defaults.get("quickdock") or False
 
         if isinstance(meta, dict) and "hidden" in meta:
             cache["hidden"] = meta["hidden"]

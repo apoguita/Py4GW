@@ -23,10 +23,18 @@ def main():
             handler._initialize_account_settings()
             handler._initialize_account_config()
 
+
+        # if (Map.IsMapLoading() and Party.IsPartyLoaded()) or Map.IsInCinematic():
+        #     return
+        
         if state.old_menu:
             draw_old_widget_ui()
 
-        if state.enable_quick_dock:
+        if (state.enable_quick_dock and
+            not Map.IsMapLoading() and 
+            not Map.IsInCinematic() and 
+            not Player.InCharacterSelectScreen() and 
+            Party.IsPartyLoaded()):
             quick_dock_menu()
         
         draw_floating_menu()

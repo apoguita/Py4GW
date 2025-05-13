@@ -20,6 +20,29 @@ global_widget_defaults = {
         "b": "1.0",
         "a": "1.0"
     },
+    "FloatingMenu": {
+        "floating_attachment_index": "1",
+        "fmx": "100",
+        "fmy": "100",
+        "floating_drag_locked": "True",
+        "use_custom_colors": "False",
+        "base_r": "0.1",
+        "base_g": "0.1",
+        "base_b": "0.1",
+        "base_a": "1.0",
+        "hover_r": "0.15",
+        "hover_g": "0.15",
+        "hover_b": "0.15",
+        "hover_a": "1.0",
+        "active_r": "0.05",
+        "active_g": "0.05",
+        "active_b": "0.05",
+        "active_a": "1.0",
+        "border_r": "0.3",
+        "border_g": "0.3",
+        "border_b": "0.3",
+        "border_a": "1.0"
+    },
     "HeroAI": {
         "enabled": "True",
         "category": "Bots",
@@ -104,11 +127,18 @@ global_widget_defaults = {
         "icon": "ICON_CLOCK",
         "quickdock": "True"
     },
-    "Blessing_UI": {
+    "Get Blessed": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_BIBLE",
+        "quickdock": "True"
+    },
+    "Dialog Sync": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_CIRCLE",
         "quickdock": "True"
     },
     "Inventory +": {
@@ -210,6 +240,29 @@ account_widget_defaults = {
         "b": "1.0",
         "a": "1.0"
     },
+    "FloatingMenu": {
+        "floating_attachment_index": "1",
+        "fmx": "100",
+        "fmy": "100",
+        "floating_drag_locked": "True",
+        "use_custom_colors": "False",
+        "base_r": "0.1",
+        "base_g": "0.1",
+        "base_b": "0.1",
+        "base_a": "1.0",
+        "hover_r": "0.15",
+        "hover_g": "0.15",
+        "hover_b": "0.15",
+        "hover_a": "1.0",
+        "active_r": "0.05",
+        "active_g": "0.05",
+        "active_b": "0.05",
+        "active_a": "1.0",
+        "border_r": "0.3",
+        "border_g": "0.3",
+        "border_b": "0.3",
+        "border_a": "1.0"
+    },
     "HeroAI": {
         "enabled": "True",
         "category": "Bots",
@@ -294,11 +347,18 @@ account_widget_defaults = {
         "icon": "ICON_CLOCK",
         "quickdock": "True"
     },
-    "Blessing_UI": {
+    "Get Blessed": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_BIBLE",
+        "quickdock": "True"
+    },
+    "Dialog Sync": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_CIRCLE",
         "quickdock": "True"
     },
     "Inventory +": {

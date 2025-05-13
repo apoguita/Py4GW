@@ -4,49 +4,132 @@ from .handler import handler
 from .ui_widget_menu import draw_widget_popup_menus
 
 def draw_floating_menu():
-    
     chara_select = Player.InCharacterSelectScreen()
-    ingame_frame_id = UIManager.GetFrameIDByHash(1144678641)
-    login_frame_id = UIManager.GetChildFrameID(2232987037,[0])
+    index = state.floating_attachment_index
+    io = PyImGui.get_io()
+    screen_w = io.display_size_x
+    screen_h = io.display_size_y
 
-    fullscreen_frame_id = UIManager.GetFrameIDByHash(140452905)
-    left, top, right, bottom = UIManager.GetFrameCoords(fullscreen_frame_id)
-    screen_w = right - left
-    screen_h = bottom - top
-
-    content_frame_id = ingame_frame_id
-    
     if chara_select:
-        content_frame_id = login_frame_id
+        content_frame_id = UIManager.GetChildFrameID(2232987037,[0])
+    elif index == 0:  # Menu button 
+        content_frame_id = UIManager.GetFrameIDByHash(1144678641)
+    elif index == 1:  # District selection
+        content_frame_id = UIManager.GetFrameIDByHash(3916130160)
+    elif index == 2:  # Skill Bar
+        content_frame_id = UIManager.GetFrameIDByHash(641635682)
+    elif index == 3:  # Free Drag
+        content_frame_id = None  # Do not assign an invalid frame ID
+    else:
+        content_frame_id = UIManager.GetFrameIDByHash(1144678641) #fallback to actual menu button
     
-    frame_left, frame_top, frame_right, frame_bottom = UIManager.GetFrameCoords(content_frame_id) 
+    if content_frame_id is not None:
+        frame_left, frame_top, frame_right, frame_bottom = UIManager.GetFrameCoords(content_frame_id)
+    else:
+        frame_left = frame_top = frame_right = frame_bottom = 0
 
     if chara_select:
         button_x = frame_right - 8
-        button_y = frame_top - 5
-        base     = (0.20, 0.25, 0.32, 1.0)
-        hover    = (0.30, 0.35, 0.42, 1.0)
-        active   = (0.15, 0.18, 0.24, 1.0)
-        border   = (0.50, 0.55, 0.60, 1.0)
-    elif UIManager.IsWindowVisible(ingame_frame_id):
-        button_x = 20
-        button_y = 20
+        button_y = frame_top - 5.1
+        base     = (0.20, 0.25, 0.32, 1.0) # dark slate blue-gray
+        hover    = (0.30, 0.35, 0.42, 1.0) # lighter muted steel blue
+        active   = (0.15, 0.18, 0.24, 1.0) # darker navy-charcoal mix
+        border   = (0.50, 0.55, 0.60, 1.0) # neutral soft silver-blue
+    elif content_frame_id is not None and index == 0 and not Map.IsMapLoading() and not UIManager.IsWindowVisible(content_frame_id): #Menu Button
+        button_x = frame_right - 12
+        button_y = frame_top - 11
+        state.floating_menu_pos = (button_x, button_y)
+        base   = (0.40, 0.36, 0.33, 1.0)
+        hover  = (0.48, 0.44, 0.40, 1.0)
+        active = (0.28, 0.26, 0.23, 1.0)
+        border = (0.85, 0.82, 0.78, 1.0)
+    elif content_frame_id is not None and index == 0: #Menu Button
+        button_x, button_y =state.floating_menu_pos
+        base   = (0.40, 0.36, 0.33, 1.0)
+        hover  = (0.48, 0.44, 0.40, 1.0)
+        active = (0.28, 0.26, 0.23, 1.0)
+        border = (0.85, 0.82, 0.78, 1.0)
+    elif content_frame_id is not None and index == 1 and not Map.IsMapLoading() and not UIManager.IsWindowVisible(content_frame_id): #District Selection
+        button_x = frame_right - 35
+        button_y = frame_top - 6
+        state.floating_district_pos = (button_x, button_y)
+        base     = (0.20, 0.25, 0.32, 1.0) # dark slate blue-gray
+        hover    = (0.30, 0.35, 0.42, 1.0) # lighter muted steel blue
+        active   = (0.15, 0.18, 0.24, 1.0) # darker navy-charcoal mix
+        border   = (0.50, 0.55, 0.60, 1.0) # neutral soft silver-blue
+    elif content_frame_id is not None and index == 1: #District Selection
+        button_x, button_y =state.floating_district_pos
+        base     = (0.20, 0.25, 0.32, 1.0) # dark slate blue-gray
+        hover    = (0.30, 0.35, 0.42, 1.0) # lighter muted steel blue
+        active   = (0.15, 0.18, 0.24, 1.0) # darker navy-charcoal mix
+        border   = (0.50, 0.55, 0.60, 1.0) # neutral soft silver-blue
+    elif content_frame_id is not None and index == 2 and not Map.IsMapLoading() and not UIManager.IsWindowVisible(content_frame_id): #Skill bar
+        button_x = frame_right + 10
+        button_y = frame_top + 25
+        state.floating_skill_pos = (button_x, button_y)
+        base   = (0.30, 0.30, 0.32, 1.0)  # medium gray
+        hover  = (0.45, 0.45, 0.48, 1.0)  # brighter highlight
+        active = (0.20, 0.20, 0.22, 1.0)  # darker pressed state
+        border = (0.60, 0.60, 0.65, 1.0)  # silver-gray border
+    elif content_frame_id is not None and index == 2: #Skill bar
+        button_x, button_y =state.floating_skill_pos
+        base   = (0.30, 0.30, 0.32, 1.0)  # medium gray
+        hover  = (0.45, 0.45, 0.48, 1.0)  # brighter highlight
+        active = (0.20, 0.20, 0.22, 1.0)  # darker pressed state
+        border = (0.60, 0.60, 0.65, 1.0)  # silver-gray border
+    elif index == 3:
+        if not state.floating_drag_locked and state.hovering_floating_button:
+            if not state.is_dragging_floating_button and PyImGui.is_mouse_clicked(0):
+                mx, my = Overlay().GetMouseCoords()
+                wx, wy = state.floating_window_pos
+                state.floating_button_offset = (mx - wx, my - wy)
+                state.is_dragging_floating_button = True
+
+            if state.is_dragging_floating_button and PyImGui.is_mouse_down(0):
+                mx, my = Overlay().GetMouseCoords()
+                dx, dy = state.floating_button_offset
+                
+                new_x = mx - dx
+                new_y = my - dy
+                
+                button_width = 35
+                button_height = 25
+                
+                clamped_x = max(0, min(new_x, screen_w - button_width))
+                clamped_y = max(0, min(new_y, screen_h - button_height))
+                
+                state.floating_window_pos = (clamped_x, clamped_y)
+
+            elif state.is_dragging_floating_button and not PyImGui.is_mouse_down(0):
+                state.is_dragging_floating_button = False
+                x, y = state.floating_window_pos
+                handler._write_setting("FloatingMenu", "fmx", x)
+                handler._write_setting("FloatingMenu", "fmy", y)
+
+        button_x, button_y = state.floating_window_pos       
         base   = (0.08, 0.08, 0.08, 1.0)
         hover  = (0.16, 0.16, 0.16, 1.0)
         active = (0.05, 0.05, 0.05, 1.0)
         border = (0.25, 0.25, 0.25, 1.0)
-    else:
-        button_x = frame_right - 12
-        button_y = frame_top - 11
-        base     = (0.40, 0.36, 0.33, 1.0)
-        hover    = (0.48, 0.44, 0.40, 1.0)
-        active   = (0.28, 0.26, 0.23, 1.0)
-        border   = (0.85, 0.82, 0.78, 1.0)
+    else: #loading screen backup
+        button_x = 20
+        button_y = 100
+        base   = (0.08, 0.08, 0.08, 1.0)
+        hover  = (0.16, 0.16, 0.16, 1.0)
+        active = (0.05, 0.05, 0.05, 1.0)
+        border = (0.25, 0.25, 0.25, 1.0)
+    
+    if state.floating_custom_colors_enabled and not chara_select:
+        base   = state.floating_custom_colors["base"]
+        hover  = state.floating_custom_colors["hover"]
+        active = state.floating_custom_colors["active"]
+        border = state.floating_custom_colors["border"]
     
     window_flags = (PyImGui.WindowFlags.NoCollapse | PyImGui.WindowFlags.NoTitleBar | 
                     PyImGui.WindowFlags.AlwaysAutoResize | PyImGui.WindowFlags.NoScrollWithMouse |
                     PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoMove | 
                     PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoBackground)
+    
     
     PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        base)
     PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, hover)
@@ -56,12 +139,18 @@ def draw_floating_menu():
     PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameRounding, 3.0)
     PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 1.0, 1.0, 1.0))
 
-    flip_widgets = ((button_x - 80) > screen_w / 2)
+    flip_widgets = ((button_x - 50) > screen_w / 2)
     if flip_widgets:
-        button_x = frame_left - 90
+        if content_frame_id is not None and index == 0 and not UIManager.IsWindowVisible(content_frame_id): #Menu Button
+            button_x = frame_left - 90
+        elif content_frame_id is not None and index == 1 and not UIManager.IsWindowVisible(content_frame_id): #District Selection
+            button_x = frame_left - 100
+        elif content_frame_id is not None and index == 2 and not UIManager.IsWindowVisible(content_frame_id): #Skill bar
+            button_x = frame_left - 110
         state.left_side = True
     else:
         state.left_side = False
+
 
     PyImGui.set_next_window_pos(button_x, button_y)
     PyImGui.set_next_window_size(100, 0)
@@ -90,6 +179,7 @@ def draw_floating_menu():
             button_label = f"{icon} Widgets##WigetUIButton"
         
         if PyImGui.button(button_label, 0, 0):
+                state.hovering_floating_button = PyImGui.is_item_hovered()
                 PyImGui.open_popup("FloatingMenu")
                 state.popup_open = True
         PyImGui.set_next_window_pos(menu_x, menu_y)
