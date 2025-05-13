@@ -9,7 +9,7 @@ global_widget_defaults = {
         "enable_quick_dock": "True",
         "width": "10",
         "height": "50",
-        "offset_y": "709",
+        "offset_y": "545",
         "edge": "left",
         "unlocked": "False",
         "buttons_per_row": "8"
@@ -21,7 +21,7 @@ global_widget_defaults = {
         "a": "1.0"
     },
     "FloatingMenu": {
-        "floating_attachment_index": "1",
+        "floating_attachment_index": "3",
         "fmx": "100",
         "fmy": "100",
         "floating_drag_locked": "True",
@@ -47,7 +47,7 @@ global_widget_defaults = {
         "enabled": "True",
         "category": "Bots",
         "subcategory": "Multiboxing",
-        "icon": "ICON_BRAIN",
+        "icon": "ICON_RUNNING",
         "quickdock": "True"
     },
     "HeroHelper": {
@@ -131,14 +131,14 @@ global_widget_defaults = {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
-        "icon": "ICON_BIBLE",
+        "icon": "ICON_HANDS",
         "quickdock": "True"
     },
     "Dialog Sync": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
-        "icon": "ICON_CIRCLE",
+        "icon": "ICON_EXCLAMATION_CIRCLE",
         "quickdock": "True"
     },
     "Inventory +": {
@@ -180,7 +180,7 @@ global_widget_defaults = {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
-        "icon": "ICON_FLAG",
+        "icon": "ICON_SKULL",
         "quickdock": "True"
     },
     "Return to outpost on defeat": {
@@ -208,7 +208,7 @@ global_widget_defaults = {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
-        "icon": "ICON_MAP_MARKED_ALT",
+        "icon": "ICON_PLANE",
         "quickdock": "True"
     },
     "Vanquish": {
@@ -221,7 +221,7 @@ global_widget_defaults = {
 }
 
 account_widget_defaults = {
-    "WidgetManager": {
+"WidgetManager": {
         "old_menu": "False",
         "enable_all": "True"
     },
@@ -229,7 +229,7 @@ account_widget_defaults = {
         "enable_quick_dock": "True",
         "width": "10",
         "height": "50",
-        "offset_y": "709",
+        "offset_y": "545",
         "edge": "left",
         "unlocked": "False",
         "buttons_per_row": "8"
@@ -241,7 +241,7 @@ account_widget_defaults = {
         "a": "1.0"
     },
     "FloatingMenu": {
-        "floating_attachment_index": "1",
+        "floating_attachment_index": "3",
         "fmx": "100",
         "fmy": "100",
         "floating_drag_locked": "True",
@@ -267,7 +267,7 @@ account_widget_defaults = {
         "enabled": "True",
         "category": "Bots",
         "subcategory": "Multiboxing",
-        "icon": "ICON_BRAIN",
+        "icon": "ICON_RUNNING",
         "quickdock": "True"
     },
     "HeroHelper": {
@@ -320,7 +320,7 @@ account_widget_defaults = {
         "quickdock": "False"
     },   
     "Compass +": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_COMPASS",
@@ -341,7 +341,7 @@ account_widget_defaults = {
         "quickdock": "True"
     },
     "Instance Timer": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_CLOCK",
@@ -351,14 +351,14 @@ account_widget_defaults = {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
-        "icon": "ICON_BIBLE",
+        "icon": "ICON_HANDS",
         "quickdock": "True"
     },
     "Dialog Sync": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
-        "icon": "ICON_CIRCLE",
+        "icon": "ICON_EXCLAMATION_CIRCLE",
         "quickdock": "True"
     },
     "Inventory +": {
@@ -376,7 +376,7 @@ account_widget_defaults = {
         "quickdock": "True"
     },
     "Mission Map +": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_MAP",
@@ -385,7 +385,7 @@ account_widget_defaults = {
     "PCons": {
         "enabled": "False",
         "category": "Gameplay",
-        "subcategory": "Triggers",
+        "subcategory": "Utilities",
         "icon": "ICON_CHEVRON_UP",
         "quickdock": "True"
     },
@@ -400,7 +400,7 @@ account_widget_defaults = {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
-        "icon": "ICON_FLAG",
+        "icon": "ICON_SKULL",
         "quickdock": "True"
     },
     "Return to outpost on defeat": {
@@ -420,7 +420,7 @@ account_widget_defaults = {
     "Titles": {
         "enabled": "True",
         "category": "Gameplay",
-        "subcategory": "Trigers",
+        "subcategory": "Triggers",
         "icon": "ICON_ID_BADGE",
         "quickdock": "True"
     },
@@ -428,11 +428,11 @@ account_widget_defaults = {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
-        "icon": "ICON_MAP_MARKED_ALT",
+        "icon": "ICON_PLANE",
         "quickdock": "True"
     },
     "Vanquish": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_FLAG_CHECKERED",
