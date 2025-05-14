@@ -18,7 +18,9 @@ def main():
             "IDENTIFY",  
         }
     
-    flags = PyImGui.WindowFlags.AlwaysAutoResize
+    if not Routines.Checks.Map.MapValid():
+        return
+    
     if PyImGui.begin("ActionQueue Monitor", PyImGui.WindowFlags.AlwaysAutoResize):
         if PyImGui.begin_tab_bar("InfoTabBar"):
             for queue_name in all_queues:
