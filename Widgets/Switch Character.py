@@ -281,6 +281,12 @@ def configure():
 def main():
     global reroll_widget, window_module
     try:
+        
+        sort_cs_frame = UIManager.IsWindowVisible(UIManager.GetChildFrameID(2232987037,[0]))
+        
+        if sort_cs_frame and not Routines.Checks.Map.MapValid():
+            return
+        
         reroll_widget.Update()
         DrawWindow()
     except Exception as e:
