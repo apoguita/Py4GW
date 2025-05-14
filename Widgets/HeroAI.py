@@ -351,6 +351,17 @@ def UpdateStatus(cached_data:CacheData):
     if HandleCombat(cached_data):
         return
     
+    if not cached_data.data.in_aggro:
+        return
+    
+    target = cached_data.data.target_id
+    if target == 0 or not cached_data.data.target_is_alive:
+        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking)):
+            cached_data.combat_handler.ChooseTarget() 
+        cached_data.auto_attack_timer.Reset()
+        cached_data.combat_handler.ResetSkillPointer()
+        return
+    
     #if were here we are not doing anything
     #auto attack
     if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
@@ -360,6 +371,8 @@ def UpdateStatus(cached_data:CacheData):
         cached_data.combat_handler.ResetSkillPointer()
         return
 
+    
+    
    
 def configure():
     pass
