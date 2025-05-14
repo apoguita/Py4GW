@@ -5,6 +5,7 @@ from Py4GWCoreLib import *
 
 import tkinter as tk
 from tkinter import filedialog
+from datetime import datetime, timedelta
 
 # Use hidden root for file dialogs
 tk_root = tk.Tk()
@@ -42,6 +43,23 @@ first_run     = True
 CONFIG_FILE = os.path.join(script_directory, "Config", "loot_config.json")
 MODELID_DROP_DATA_FILE = os.path.join(script_directory, "Data", "modelid_drop_data.json")
 RARITY_FILTER_DATA_FILE = os.path.join(script_directory, "Data", "rarity_filter_data.json")
+
+# --- Nick cycle setup ---
+NICK_CYCLES_FILE = os.path.join(script_directory, "Data", "Nick_cycles.json")
+nick_cycles = []
+weeks_future = 0
+
+def load_nick_cycles():
+    global nick_cycles
+    if os.path.exists(NICK_CYCLES_FILE):
+        try:
+            with open(NICK_CYCLES_FILE, "r") as f:
+                nick_cycles = json.load(f)
+            print(f"[INFO] Loaded {len(nick_cycles)} entries from Nick_cycles.json")
+        except Exception as e:
+            print(f"[ERROR] Failed to load Nick_cycles.json: {e}")
+    else:
+        print("[ERROR] Nick_cycles.json not found")
 
 # --- File Handling ---
 def load_modelid_drop_data():
@@ -256,7 +274,7 @@ def setup():
         )
 
         load_loot_config()
-
+        load_nick_cycles()
         if os.path.exists(CONFIG_FILE):
             last_config_timestamp = os.path.getmtime(CONFIG_FILE)
         initialized = True
@@ -275,6 +293,9 @@ def DrawWindow():
     global include_model_id_in_tooltip, show_white_list, show_filtered_loot_list
     global show_manual_editor, show_black_list
     global win_x, win_y, win_collapsed, first_run
+    global weeks_future
+    if not Routines.Checks.Map.MapValid():
+        return
 
     # 1) On first draw, restore last position & collapsed state
     if first_run:
@@ -367,6 +388,41 @@ def DrawWindow():
                 save_loot_config()
 
             PyImGui.tree_pop()
+
+        # —— Nick’s Items ——  
+        PyImGui.separator()
+        PyImGui.text("Nick's Items")
+        weeks_future = PyImGui.slider_int("Weeks Ahead", weeks_future, 0, 12)
+
+        # compute date range
+        today       = datetime.today().date()
+        current_mon = today - timedelta(days=today.weekday())
+        max_date    = current_mon + timedelta(weeks=weeks_future)
+
+        # filter cycles using the correct keys & format
+        filtered = []
+        for entry in nick_cycles:
+            week_str = entry.get("Week", "")
+            try:
+                # parse two‐digit year strings like "4/21/25"
+                ed = datetime.strptime(week_str, "%m/%d/%y").date()
+            except ValueError:
+                continue
+            if current_mon <= ed <= max_date:
+                filtered.append((ed, entry.get("Item", "")))
+
+        # display them
+        for ed, nm in filtered:
+            PyImGui.text(f"{ed.isoformat()}: {nm}")
+
+        # “Add Nick Items” button
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_SAVE} Add Nick Items"):
+            for ed, nm in filtered:
+                for item in loot_items:
+                    if item["name"] == nm and not item["enabled"]:
+                        item["enabled"] = True
+                        # … add model_id to the whitelist …
+            save_loot_config()
 
         # —— Single-item Whitelist/Blacklist ——
         PyImGui.separator()
