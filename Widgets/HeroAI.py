@@ -355,13 +355,24 @@ def UpdateStatus(cached_data:CacheData):
         return
     
     target = cached_data.data.target_id
-    if target == 0 or not cached_data.data.target_is_alive:
-        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking)):
-            cached_data.combat_handler.ChooseTarget() 
+    should_retarg = False
+
+    # Step 1: Trigger retarget immediately if target is invalid (dead or 0)
+    if target == 0 or Agent.IsDead(target):
+        should_retarg = True
+
+    # Step 2: Or trigger if weapon-based combat timeout has elapsed
+    elif cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
+        should_retarg = True
+
+    # Step 3: Execute retarget if conditions allow
+    if should_retarg and cached_data.data.is_combat_enabled and not cached_data.data.player_is_attacking:
+        cached_data.combat_handler.ChooseTarget()
         cached_data.auto_attack_timer.Reset()
         cached_data.combat_handler.ResetSkillPointer()
-        return
-    
+
+        
+    """
     #if were here we are not doing anything
     #auto attack
     if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
@@ -370,6 +381,7 @@ def UpdateStatus(cached_data:CacheData):
         cached_data.auto_attack_timer.Reset()
         cached_data.combat_handler.ResetSkillPointer()
         return
+    """
 
     
     
