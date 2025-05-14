@@ -22,6 +22,7 @@ show_white_list = False
 show_filtered_loot_list = False
 show_manual_editor = False
 show_black_list = False
+use_formula_based_nick = False
 
 last_config_check_time = 0
 last_config_timestamp = 0
@@ -289,6 +290,22 @@ def _format_model_id(mid: int) -> str:
         pretty = "Unknown Item"
     return f"{pretty} (ModelID: {mid})"
 
+def get_current_nick_item_by_formula():
+    if not nick_cycles:
+        load_nick_cycles()
+
+    base_date = datetime.strptime("4/21/25", "%m/%d/%y").date()  # Cycle base
+    today = datetime.today().date()
+    this_monday = today - timedelta(days=today.weekday())
+
+    weeks_since_start = (this_monday - base_date).days // 7
+    index = weeks_since_start % len(nick_cycles)
+
+    try:
+        return nick_cycles[index]
+    except IndexError:
+        return None
+
 def DrawWindow():
     global include_model_id_in_tooltip, show_white_list, show_filtered_loot_list
     global show_manual_editor, show_black_list
@@ -389,40 +406,72 @@ def DrawWindow():
 
             PyImGui.tree_pop()
 
-        # —— Nick’s Items ——  
         PyImGui.separator()
         PyImGui.text("Nick's Items")
-        weeks_future = PyImGui.slider_int("Weeks Ahead", weeks_future, 0, 12)
+        global use_formula_based_nick
+        use_formula_based_nick = PyImGui.checkbox("Use Formula-Based Nick Rotation", use_formula_based_nick)
 
-        # compute date range
-        today       = datetime.today().date()
-        current_mon = today - timedelta(days=today.weekday())
-        max_date    = current_mon + timedelta(weeks=weeks_future)
+        if use_formula_based_nick:
+            weeks_future = PyImGui.slider_int("Weeks Ahead", weeks_future, 0, 12)
 
-        # filter cycles using the correct keys & format
-        filtered = []
-        for entry in nick_cycles:
-            week_str = entry.get("Week", "")
-            try:
-                # parse two‐digit year strings like "4/21/25"
-                ed = datetime.strptime(week_str, "%m/%d/%y").date()
-            except ValueError:
-                continue
-            if current_mon <= ed <= max_date:
-                filtered.append((ed, entry.get("Item", "")))
+            base_date = datetime.strptime("4/21/25", "%m/%d/%y").date()
+            today = datetime.today().date()
+            this_monday = today - timedelta(days=today.weekday())
+            weeks_since_start = (this_monday - base_date).days // 7
 
-        # display them
-        for ed, nm in filtered:
-            PyImGui.text(f"{ed.isoformat()}: {nm}")
+            upcoming = []
+            for i in range(weeks_future + 1):
+                index = (weeks_since_start + i) % len(nick_cycles)
+                entry = nick_cycles[index]
+                week_dt = this_monday + timedelta(weeks=i)
+                upcoming.append((week_dt, entry["Item"]))
 
-        # “Add Nick Items” button
-        if PyImGui.button(f"{IconsFontAwesome5.ICON_SAVE} Add Nick Items"):
+            for week_dt, item_name in upcoming:
+                PyImGui.text(f"{week_dt.isoformat()}: {item_name}")
+
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_SAVE} Add Nick Items"):
+                for week_dt, item_name in upcoming:
+                    for item in loot_items:
+                        if item["name"] == item_name and not item["enabled"]:
+                            item["enabled"] = True
+                            model_id = item.get("model_id")
+                            if isinstance(model_id, str) and model_id.startswith("ModelID."):
+                                model_id_name = model_id.split("ModelID.")[1]
+                                if hasattr(ModelID, model_id_name):
+                                    model_id = getattr(ModelID, model_id_name)
+                            loot_filter_singleton.AddToWhitelist(model_id)
+                save_loot_config()
+        else:
+            weeks_future = PyImGui.slider_int("Weeks Ahead", weeks_future, 0, 12)
+            today = datetime.today().date()
+            current_mon = today - timedelta(days=today.weekday())
+            max_date = current_mon + timedelta(weeks=weeks_future)
+
+            filtered = []
+            for entry in nick_cycles:
+                week_str = entry.get("Week", "")
+                try:
+                    ed = datetime.strptime(week_str, "%m/%d/%y").date()
+                except ValueError:
+                    continue
+                if current_mon <= ed <= max_date:
+                    filtered.append((ed, entry.get("Item", "")))
+
             for ed, nm in filtered:
-                for item in loot_items:
-                    if item["name"] == nm and not item["enabled"]:
-                        item["enabled"] = True
-                        # … add model_id to the whitelist …
-            save_loot_config()
+                PyImGui.text(f"{ed.isoformat()}: {nm}")
+
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_SAVE} Add Nick Items"):
+                for ed, nm in filtered:
+                    for item in loot_items:
+                        if item["name"] == nm and not item["enabled"]:
+                            item["enabled"] = True
+                            model_id = item.get("model_id")
+                            if isinstance(model_id, str) and model_id.startswith("ModelID."):
+                                model_id_name = model_id.split("ModelID.")[1]
+                                if hasattr(ModelID, model_id_name):
+                                    model_id = getattr(ModelID, model_id_name)
+                            loot_filter_singleton.AddToWhitelist(model_id)
+                save_loot_config()
 
         # —— Single-item Whitelist/Blacklist ——
         PyImGui.separator()
