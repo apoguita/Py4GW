@@ -272,6 +272,12 @@ class CombatClass:
             
     def ResetSkillPointer(self):
         self.skill_pointer = 0
+        
+    def SetSkillPointer(self, pointer):
+        if 0 <= pointer < MAX_SKILLS:
+            self.skill_pointer = pointer
+        else:
+            self.skill_pointer = 0
             
     def GetEnergyValues(self,agent_id):
         for i in range(MAX_NUM_PLAYERS):
