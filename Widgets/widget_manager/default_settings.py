@@ -58,7 +58,7 @@ global_widget_defaults = {
         "quickdock": "True"
     },
     "Pet Helper": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_DOG",
@@ -217,6 +217,13 @@ global_widget_defaults = {
         "subcategory": "Overlays",
         "icon": "ICON_FLAG_CHECKERED",
         "quickdock": "True"
+    },
+    "Survival Title Helper": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
+        "icon": "ICON_FLAG_CHECKERED",
+        "quickdock": "True"
     }
 }
 
@@ -279,7 +286,7 @@ account_widget_defaults = {
         "quickdock": "True"
     },
     "Pet Helper": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_DOG",
@@ -436,6 +443,13 @@ account_widget_defaults = {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
+        "icon": "ICON_FLAG_CHECKERED",
+        "quickdock": "True"
+    },
+    "Survival Title Helper": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
         "icon": "ICON_FLAG_CHECKERED",
         "quickdock": "True"
     }
