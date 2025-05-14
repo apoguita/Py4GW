@@ -74,6 +74,7 @@ class GameData:
         self.in_aggro = False
         self.free_slots_in_inventory = 0
         self.target_id = 0
+        self.target_is_alive =  False
         self.weapon_type = 0
         
         #control status vars
@@ -147,6 +148,7 @@ class GameData:
         #combat field data
         self.free_slots_in_inventory = Inventory.GetFreeSlotCount()
         self.target_id = Player.GetTargetID()
+        self.target_is_alive = Agent.IsAlive(self.target_id)
         if self.is_outpost:
             if self.RAW_AGENT_ARRAY is None:
                 self.RAW_AGENT_ARRAY = RawAgentArray()
