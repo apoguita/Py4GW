@@ -158,7 +158,7 @@ def main():
     global last_model, last_choice, last_choice_time, state, last_leader_pos
     global win_x, win_y, win_collapsed, first_run_window
 
-    if not Routines.Checks.Map.MapValid() and Routines.Checks.Map.IsExplorable():
+    if not Routines.Checks.Map.MapValid() and Map.IsOutpost():
         return
     
     me = Player.GetAgentID()
