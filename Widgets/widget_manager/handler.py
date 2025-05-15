@@ -1,4 +1,4 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import Timer, Player, ConsoleLog, Py4GW, traceback
 from .default_settings import global_widget_defaults, account_widget_defaults, default_schema_version
 import importlib.util
 import os
@@ -177,6 +177,12 @@ class WidgetHandler:
             return
 
         parser = configparser.ConfigParser()
+        if to_account and not os.path.exists(self.account_path):
+            os.makedirs(self.account_path, exist_ok=True)
+            self._initialize_account_config()
+
+        if not os.path.exists(path):
+            open(path, "a").close()
         parser.read(path)
 
         if not parser.has_section(section):
@@ -212,6 +218,8 @@ class WidgetHandler:
         for section in parser.sections():
             if section in self.widget_data_cache:
                 continue
+            if section in {"WidgetManager", "QuickDock", "QuickDockColor", "FloatingMenu", "Meta"}:
+                continue
             get = lambda k, d: parser.get(section, k, fallback=d)
             self.widget_data_cache[section] = {
                 "category": get("category", "Miscellaneous"),
@@ -220,6 +228,27 @@ class WidgetHandler:
                 "icon": get("icon", "ICON_CIRCLE"),
                 "quickdock": get("quickdock", "False").lower() == "true",
             }
+        # Patch fallback defaults if widget got placeholder metadata
+            if section in global_widget_defaults or section in account_widget_defaults:
+                defaults = account_widget_defaults.get(section) or global_widget_defaults.get(section)
+                current = self.widget_data_cache[section]
+
+                needs_patch = (
+                    current.get("category") == "Miscellaneous"
+                )
+
+                if needs_patch and defaults:
+                    for key in ("category", "subcategory", "icon", "quickdock", "enabled"):
+                        if key not in defaults:
+                            continue
+                        val = defaults[key]
+                        if key in ("quickdock", "enabled"):
+                            val = str(val).lower() == "true"
+                        current[key] = val
+                        self._write_setting(section, key, str(val), to_account=use_account_settings(), force=True)
+
+                    ConsoleLog("WidgetHandler", f"Updated widget '{section}' with default category/subcategory", Py4GW.Console.MessageType.Info)
+
             
     def _load_all_from_dir(self):
         if not os.path.isdir(self.widgets_path):
