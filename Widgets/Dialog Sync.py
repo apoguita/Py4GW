@@ -48,7 +48,7 @@ last_model       = None
 last_choice      = None
 last_choice_time = None
 state            = IDLE
-last_leader_pos  = None  # (x, y, timestamp)
+last_leader_pos  = None
 
 # —— Config Helpers ——
 def _load_config():
@@ -63,7 +63,6 @@ def _load_config():
 def _save_config(cfg):
     with open(INI_PATH, 'w') as f:
         cfg.write(f)
-
 
 def clear_leader_data():
     """Try to delete the sync file; if Windows says it’s in use, just ignore it."""
@@ -159,25 +158,33 @@ def main():
     global last_model, last_choice, last_choice_time, state, last_leader_pos
     global win_x, win_y, win_collapsed, first_run_window
 
-    if not Routines.Checks.Map.MapValid() or Map.IsOutpost():
+    if not Routines.Checks.Map.MapValid() and Routines.Checks.Map.IsExplorable():
         return
+    
+    me = Player.GetAgentID()
+    is_leader = (Party.GetPartyLeaderID() == me)
 
     # —— 0) Move-to-leader FSM ——
     lx, ly, lts = get_leader_position()
-    if state == IDLE and lx is not None and (last_leader_pos is None or lts > last_leader_pos[2]):
-        last_leader_pos = (lx, ly, lts)
-        Player.Move(lx, ly)
-        ConsoleLog("NPCSync", f"Moving to leader at ({lx:.1f},{ly:.1f})", Console.MessageType.Info)
-        state = MOVING_LEADER
 
-    elif state == MOVING_LEADER and last_leader_pos is not None:
-        cx, cy = Player.GetXY()
-        tx, ty, _ = last_leader_pos
-        if math.dist((cx, cy), (tx, ty)) < 50.0:
-            ConsoleLog("NPCSync", "Arrived at leader’s spot", Console.MessageType.Info)
-            clear_leader_data()  # clear only position flag & return to idle
-            last_leader_pos = None
-            state = IDLE
+    if not is_leader:
+        if state == IDLE and lx is not None:
+            now = time.time()
+            if last_leader_pos is None or lts > last_leader_pos[2]:
+                # New leader position detected
+                last_leader_pos = (lx, ly, lts)
+                Player.Move(lx, ly)
+                sleep(0.125) 
+                ConsoleLog("NPCSync", f"Moving to leader at ({lx:.1f},{ly:.1f})", Console.MessageType.Info)
+                state = MOVING_LEADER
+
+        elif state == MOVING_LEADER and last_leader_pos is not None:
+            cx, cy = Player.GetXY()
+            tx, ty, _ = last_leader_pos
+            if math.dist((cx, cy), (tx, ty)) < 50.0:
+                ConsoleLog("NPCSync", "Arrived at leader’s spot", Console.MessageType.Info)
+                last_leader_pos = None
+                state = IDLE
 
     # —— 1) Existing NPC-sync FSM ——
     model_id, choice, ts = get_leader_data()
@@ -230,13 +237,9 @@ def main():
 
     # Runner icon: broadcast position (only in Explorable)
     if PyImGui.button(IconsFontAwesome5.ICON_RUNNING):
-        if Map.IsExplorable():
+        if Routines.Checks.Map.MapValid():
             x, y = Player.GetXY()
             set_leader_position(x, y)
-        else:
-            ConsoleLog("NPCSync",
-                       "This feature is NOT allowed in Outposts",
-                       Console.MessageType.Debug)
     if PyImGui.is_item_hovered():
         PyImGui.set_tooltip("Broadcast my position – only in Explorable maps")
 
