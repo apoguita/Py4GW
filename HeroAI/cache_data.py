@@ -191,6 +191,8 @@ class CacheData:
             self.follow_throttle_timer = ThrottledTimer(500)
             
             self._initialized = True 
+            
+            self.in_looting_routine = False
         
     def reset(self):
         self.data.reset()   

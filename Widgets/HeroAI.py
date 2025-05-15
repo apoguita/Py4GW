@@ -37,32 +37,32 @@ def HandleCombat(cached_data:CacheData):
 
 
 thread_manager = MultiThreading(log_actions=True)
-in_looting_routine = False
+cached_data.in_looting_routine = False
 looting_aftercast = Timer()
 looting_aftercast.Start()
 
 
 def SequentialLootingRoutine():
-    global in_looting_routine, looting_aftercast
+    global cached_data, looting_aftercast
     
     filtered_loot = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
     # Loot filtered items
     ActionQueueManager().ResetQueue("ACTION")
     Routines.Sequential.Items.LootItems(filtered_loot,log = False)
     looting_aftercast.Reset()
-    in_looting_routine = False
+    cached_data.in_looting_routine = False
 
 
 
 def Loot(cached_data:CacheData):
-    global in_looting_routine, looting_aftercast
+    global looting_aftercast
     if not cached_data.data.is_looting_enabled:  # halt operation if looting is disabled
         return False
     
     if cached_data.data.in_aggro:
         return False
     
-    if in_looting_routine:
+    if cached_data.in_looting_routine:
         return True
     
     if not looting_aftercast.HasElapsed(1000):
@@ -72,7 +72,7 @@ def Loot(cached_data:CacheData):
     if len(loot_array) == 0:
         return False
 
-    in_looting_routine = True
+    cached_data.in_looting_routine = True
     thread_manager.stop_thread("SequentialLootingRoutine")
     thread_manager.add_thread("SequentialLootingRoutine", SequentialLootingRoutine)
 
@@ -284,7 +284,6 @@ def DrawEmbeddedWindow(cached_data:CacheData):
     
 
 def UpdateStatus(cached_data:CacheData):
-    global in_looting_routine
     
     RegisterCandidate(cached_data) 
     UpdateCandidates(cached_data)           
@@ -322,7 +321,7 @@ def UpdateStatus(cached_data:CacheData):
     ):
         return
     
-    if in_looting_routine:
+    if cached_data.in_looting_routine:
         return
      
     cached_data.UdpateCombat()
