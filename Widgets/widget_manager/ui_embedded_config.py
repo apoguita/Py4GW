@@ -44,7 +44,7 @@ def draw_embedded_widget_config():
 
     label = "Widgets"
 
-    if not UIManager.IsWindowVisible(interface_frame_id):
+    if isinstance(interface_frame_id, int) and interface_frame_id > 0:
         PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.10, 0.10, 0.10, 0.0))        # transparent base
         PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.25, 0.25, 0.25, 1.0)) # light on hover
         PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.15, 0.15, 0.15, 1.0))  # darker when clicked
@@ -62,12 +62,27 @@ def draw_embedded_widget_config():
         PyImGui.pop_style_var(2)
 
     if state.show_config_window:
-        if not UIManager.IsWindowVisible(interface_frame_id):
-            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967291]), Utils.RGBToColor(0, 0, 0, 255))
-            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967292]), Utils.RGBToColor(0, 0, 0, 255))
-            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967293]), Utils.RGBToColor(0, 0, 0, 255))
-            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967294]), Utils.RGBToColor(0, 0, 0, 255))
-            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967295]), Utils.RGBToColor(0, 0, 0, 255))
+        if isinstance(interface_frame_id, int) and interface_frame_id > 0:
+            int_tab = UIManager.GetChildFrameID(1431953425, [1, 4294967291])
+            con_tab = UIManager.GetChildFrameID(1431953425, [1, 4294967292])
+            gra_tab = UIManager.GetChildFrameID(1431953425, [1, 4294967293])
+            sou_tab = UIManager.GetChildFrameID(1431953425, [1, 4294967294])
+            gen_tab = UIManager.GetChildFrameID(1431953425, [1, 4294967295])
+            frames = {
+                "int_tab": int_tab,
+                "con_tab": con_tab,
+                "gra_tab": gra_tab,
+                "sou_tab": sou_tab,
+                "gen_tab": gen_tab,
+            }
+            visible = all(isinstance(f, int) and f > 0 for f in frames.values())
+            if visible:
+                UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967291]), Utils.RGBToColor(0, 0, 0, 255))
+                UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967292]), Utils.RGBToColor(0, 0, 0, 255))
+                UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967293]), Utils.RGBToColor(0, 0, 0, 255))
+                UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967294]), Utils.RGBToColor(0, 0, 0, 255))
+                UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967295]), Utils.RGBToColor(0, 0, 0, 255))
+
             PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,4.0)
             # PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg , (0.0, 0.0, 0.0, 1.0))
             PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0.05, 0.05, 0.05, 1.0))
