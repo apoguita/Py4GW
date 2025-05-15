@@ -209,7 +209,7 @@ def configure():
                 PyImGui.text_colored("                  Level 1 - 10:", (0.143, 0.724, 0.017, 1.000))
             else:
                 PyImGui.text_wrapped("                  Level 1 - 10:")
-            widget_config.lvl1_10 = PyImGui.slider_int("", widget_config.lvl1_10, 0, 330)
+            widget_config.lvl1_10 = PyImGui.slider_int("1", widget_config.lvl1_10, 0, 330)
             PyImGui.text_wrapped("                       0 - 330")
             if global_vars.lvl1_10_threshold != widget_config.lvl1_10:
                 global_vars.lvl1_10_threshold = widget_config.lvl1_10
@@ -217,7 +217,7 @@ def configure():
                 PyImGui.text_colored("                  Level 11 - 20:", (0.143, 0.724, 0.017, 1.000))
             else:
                 PyImGui.text_wrapped("                  Level 11 - 20:")
-            widget_config.lvl11_20 = PyImGui.slider_int("", widget_config.lvl11_20, 0, 550)
+            widget_config.lvl11_20 = PyImGui.slider_int("20", widget_config.lvl11_20, 0, 550)
             PyImGui.text_wrapped("                       0 - 550")
             if global_vars.lvl11_20_threshold != widget_config.lvl11_20:
                 global_vars.lvl11_20_threshold = widget_config.lvl11_20
