@@ -1,4 +1,4 @@
-from Py4GWCoreLib import UIManager
+from Py4GWCoreLib import UIManager, Map, Party
 # config_scope.py
 selected_settings_scope = 0  # 0 = Global, 1 = Account
 
@@ -9,11 +9,20 @@ def is_in_character_select():
     cs_base = UIManager.GetFrameIDByHash(2232987037)
     cs_c0 = UIManager.GetChildFrameID(2232987037, [0])
     cs_c1 = UIManager.GetChildFrameID(2232987037, [1])
+    ig_menu = UIManager.GetFrameIDByHash(1144678641)
     
-    visible = [
-        not UIManager.IsWindowVisible(cs_c0),
-        not UIManager.IsWindowVisible(cs_c1),
-        not UIManager.IsWindowVisible(cs_base),
-    ]
+    frames = {
+        "cs_base": cs_base,
+        "cs_c0": cs_c0,
+        "cs_c1": cs_c1,
+        "ig_menu": ig_menu,
+    }
     
-    return any(visible)
+    in_load_screen = all(isinstance(f, int) and f == 0 for f in frames.values())
+    in_char_select = (
+        not in_load_screen and
+        any(isinstance(f, int) and f > 0 for f in (cs_base, cs_c0, cs_c1)) and
+        Map.IsMapLoading() and not Party.IsPartyLoaded()
+    )
+    
+    return in_char_select

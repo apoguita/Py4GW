@@ -36,7 +36,7 @@ def draw_floating_menu():
         hover    = (0.30, 0.35, 0.42, 1.0) # lighter muted steel blue
         active   = (0.15, 0.18, 0.24, 1.0) # darker navy-charcoal mix
         border   = (0.50, 0.55, 0.60, 1.0) # neutral soft silver-blue
-    elif content_frame_id is not None and index == 0 and not Map.IsMapLoading() and not UIManager.IsWindowVisible(content_frame_id): #Menu Button
+    elif content_frame_id is not None and index == 0 and not Map.IsMapLoading() and (not UIManager.IsWindowVisible(content_frame_id) or (isinstance(content_frame_id, int) and content_frame_id > 0)): #Menu Button
         button_x = frame_right - 12
         button_y = frame_top - 11
         state.floating_menu_pos = (button_x, button_y)
@@ -45,12 +45,12 @@ def draw_floating_menu():
         active = (0.28, 0.26, 0.23, 1.0)
         border = (0.85, 0.82, 0.78, 1.0)
     elif content_frame_id is not None and index == 0: #Menu Button
-        button_x, button_y =state.floating_menu_pos
+        button_x, button_y = state.floating_menu_pos
         base   = (0.40, 0.36, 0.33, 1.0)
         hover  = (0.48, 0.44, 0.40, 1.0)
         active = (0.28, 0.26, 0.23, 1.0)
         border = (0.85, 0.82, 0.78, 1.0)
-    elif content_frame_id is not None and index == 1 and not Map.IsMapLoading() and not UIManager.IsWindowVisible(content_frame_id): #District Selection
+    elif content_frame_id is not None and index == 1 and not Map.IsMapLoading() and (not UIManager.IsWindowVisible(content_frame_id) or (isinstance(content_frame_id, int) and content_frame_id > 0)): #District Selection
         button_x = frame_right - 35
         button_y = frame_top - 6
         state.floating_district_pos = (button_x, button_y)
@@ -64,7 +64,7 @@ def draw_floating_menu():
         hover    = (0.30, 0.35, 0.42, 1.0) # lighter muted steel blue
         active   = (0.15, 0.18, 0.24, 1.0) # darker navy-charcoal mix
         border   = (0.50, 0.55, 0.60, 1.0) # neutral soft silver-blue
-    elif content_frame_id is not None and index == 2 and not Map.IsMapLoading() and not UIManager.IsWindowVisible(content_frame_id): #Skill bar
+    elif content_frame_id is not None and index == 2 and not Map.IsMapLoading() and (not UIManager.IsWindowVisible(content_frame_id) or (isinstance(content_frame_id, int) and content_frame_id > 0)): #Skill bar
         button_x = frame_right + 10
         button_y = frame_top + 25
         state.floating_skill_pos = (button_x, button_y)
@@ -142,11 +142,11 @@ def draw_floating_menu():
 
     flip_widgets = ((button_x - 50) > screen_w / 2)
     if flip_widgets:
-        if content_frame_id is not None and index == 0 and not UIManager.IsWindowVisible(content_frame_id): #Menu Button
+        if content_frame_id is not None and index == 0 and (not UIManager.IsWindowVisible(content_frame_id) or (isinstance(content_frame_id, int) and content_frame_id > 0)): #Menu Button
             button_x = frame_left - 90
-        elif content_frame_id is not None and index == 1 and not UIManager.IsWindowVisible(content_frame_id): #District Selection
+        elif content_frame_id is not None and index == 1 and (not UIManager.IsWindowVisible(content_frame_id)or (isinstance(content_frame_id, int) and content_frame_id > 0)): #District Selection
             button_x = frame_left - 100
-        elif content_frame_id is not None and index == 2 and not UIManager.IsWindowVisible(content_frame_id): #Skill bar
+        elif content_frame_id is not None and index == 2 and (not UIManager.IsWindowVisible(content_frame_id)or (isinstance(content_frame_id, int) and content_frame_id > 0)): #Skill bar
             button_x = frame_left - 110
         state.left_side = True
     else:
