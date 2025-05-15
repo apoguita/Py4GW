@@ -1,4 +1,4 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import ImGui, PyImGui
 from .handler import handler
 
 module_name = "WidgetManager"
@@ -90,11 +90,4 @@ window_module.window_pos = (window_x, window_y)
 window_module.collapse = handler._read_setting_bool(module_name, "collapsed", True)
 old_menu_window_collapsed = window_module.collapse
 old_menu_window_pos = window_module.window_pos
-
-# Write throttle
-write_timer = Timer()
-write_timer.Start()
-
-menu_write_timer = Timer()
-write_timer.Start()
     

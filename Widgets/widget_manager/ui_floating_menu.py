@@ -1,4 +1,4 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import PyImGui, ImGui, UIManager, Map, Overlay, IconsFontAwesome5, Py4GW, ConsoleLog
 from . import state
 from .handler import handler
 from .ui_widget_menu import draw_widget_popup_menus
