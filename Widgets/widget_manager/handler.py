@@ -169,6 +169,11 @@ class WidgetHandler:
         
         if to_account is None:
             to_account = use_account_settings()
+            
+        if not hasattr(self, "_last_global_values"):
+            self._last_global_values = {}
+        if not hasattr(self, "_last_account_values"):
+            self._last_account_values = {}
 
         cache = self._last_account_values if to_account else self._last_global_values
         path = self.account_ini_path if to_account else self.global_ini_path
@@ -177,12 +182,14 @@ class WidgetHandler:
             return
 
         parser = configparser.ConfigParser()
+        
         if to_account and not os.path.exists(self.account_path):
             os.makedirs(self.account_path, exist_ok=True)
             self._initialize_account_config()
 
         if not os.path.exists(path):
             open(path, "a").close()
+            
         parser.read(path)
 
         if not parser.has_section(section):
