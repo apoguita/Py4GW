@@ -1,4 +1,4 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import UIManager
 # config_scope.py
 selected_settings_scope = 0  # 0 = Global, 1 = Account
 

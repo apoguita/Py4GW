@@ -1,18 +1,6 @@
-from Py4GWCoreLib import *
 from .handler import handler
 from .config_scope import use_account_settings
 from . import state
-
-def write_settings_to_ini():
-    if not state.write_timer.HasElapsed(1000):
-        return
-
-    # if state.use_account_settings:
-    #     # save_account_settings()
-    # else:
-    #     # save_global_settings()
-    
-    state.write_timer.Reset()
 
 def restore_global_defaults():
     from .default_settings import global_widget_defaults
@@ -91,6 +79,9 @@ def initialize_settings():
 
 def load_account_settings():
     from . import config_scope
+    
+    handler._initialize_account_settings()
+    
     state.enable_all = handler._read_setting_bool("WidgetManager", "enable_all", False, force_account=True)
     state.old_menu = handler._read_setting_bool("WidgetManager", "old_menu", True, force_account=True)
     config_scope.selected_settings_scope = 1 if handler._read_setting_bool("WidgetManager", "use_account_settings", True, force_account=True) else 0
