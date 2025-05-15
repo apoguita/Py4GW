@@ -1,4 +1,4 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import Py4GW, Map, Party
 import traceback
 import sys
 
