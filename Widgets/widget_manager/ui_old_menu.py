@@ -1,9 +1,11 @@
-from Py4GWCoreLib import PyImGui, ImGui, IconsFontAwesome5, ConsoleLog, Py4GW, Utils
+from Py4GWCoreLib import PyImGui, ImGui, IconsFontAwesome5, ConsoleLog, Py4GW, Utils, ThrottledTimer
 from .handler import handler
 from .config_scope import use_account_settings
 from . import state
-         
+    
+timer = ThrottledTimer(400)
 def draw_old_widget_ui():
+    global timer
     is_enabled = state.enable_all
     
     if state.window_module.first_run:
@@ -14,10 +16,12 @@ def draw_old_widget_ui():
             
     if PyImGui.begin(state.window_module.window_name, state.window_module.window_flags):
         current_pos = PyImGui.get_window_pos()
-        if current_pos != state.old_menu_window_pos:
+        if (current_pos != state.old_menu_window_pos) and timer.IsExpired():
             state.old_menu_window_pos = tuple(current_pos)
             handler._write_setting("WidgetManager", "omx", str(int(current_pos[0])), to_account=use_account_settings())
             handler._write_setting("WidgetManager", "omy", str(int(current_pos[1])), to_account=use_account_settings())
+            timer.Reset()
+
 
         collapsed = PyImGui.is_window_collapsed()
         if collapsed != state.old_menu_window_collapsed:
