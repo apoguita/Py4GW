@@ -278,9 +278,28 @@ def DrawWindow():
 def configure():
     pass
 
+def is_in_character_select():
+    cs_base = UIManager.GetFrameIDByHash(2232987037)
+    cs_c0 = UIManager.GetChildFrameID(2232987037, [0])
+    cs_c1 = UIManager.GetChildFrameID(2232987037, [1])
+    
+    visible = [
+        not UIManager.IsWindowVisible(cs_c0),
+        not UIManager.IsWindowVisible(cs_c1),
+        not UIManager.IsWindowVisible(cs_base),
+    ]
+    
+    return any(visible)
+
 def main():
-    global reroll_widget, window_module
+    global reroll_widget, window_module, character_select
     try:
+        character_select = is_in_character_select()
+
+        
+        if not character_select and not Routines.Checks.Map.MapValid():
+            return
+        
         reroll_widget.Update()
         DrawWindow()
     except Exception as e:

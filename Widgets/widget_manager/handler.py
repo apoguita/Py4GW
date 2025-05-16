@@ -1,6 +1,5 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import Timer, Player, ConsoleLog, Py4GW, traceback
 from .default_settings import global_widget_defaults, account_widget_defaults, default_schema_version
-from . import state
 import importlib.util
 import os
 import types
@@ -120,7 +119,6 @@ class WidgetHandler:
     
     def _read_setting(self, section, key, default=None, *, force_account=False, force_global=False):
         parser = configparser.ConfigParser()
-        from . import state
 
         paths = []
         if force_account:
@@ -167,8 +165,15 @@ class WidgetHandler:
             return default
 
     def _write_setting(self, section, key, value, *, to_account=None, force=False):
+        from .config_scope import use_account_settings
+        
         if to_account is None:
-            to_account = state.use_account_settings
+            to_account = use_account_settings()
+            
+        if not hasattr(self, "_last_global_values"):
+            self._last_global_values = {}
+        if not hasattr(self, "_last_account_values"):
+            self._last_account_values = {}
 
         cache = self._last_account_values if to_account else self._last_global_values
         path = self.account_ini_path if to_account else self.global_ini_path
@@ -177,6 +182,14 @@ class WidgetHandler:
             return
 
         parser = configparser.ConfigParser()
+        
+        if to_account and not os.path.exists(self.account_path):
+            os.makedirs(self.account_path, exist_ok=True)
+            self._initialize_account_config()
+
+        if not os.path.exists(path):
+            open(path, "a").close()
+            
         parser.read(path)
 
         if not parser.has_section(section):
@@ -196,16 +209,13 @@ class WidgetHandler:
         self._write_setting(section, key, value, to_account=True)
     
     def _load_widget_cache(self):
-        if self.account_email == "unknown":
+        from .config_scope import use_account_settings
+        
+        if self.account_email == "unknown" or not use_account_settings():
             path = self.global_ini_path
-        elif state.use_account_settings is None:
-            path = self.global_ini_path
-        elif state.use_account_settings:
-            path = self.account_ini_path
         else:
-            path = self.global_ini_path
+            path = self.account_ini_path
             
-
         if not os.path.exists(path):
             return
 
@@ -215,6 +225,8 @@ class WidgetHandler:
         for section in parser.sections():
             if section in self.widget_data_cache:
                 continue
+            if section in {"WidgetManager", "QuickDock", "QuickDockColor", "FloatingMenu", "Meta"}:
+                continue
             get = lambda k, d: parser.get(section, k, fallback=d)
             self.widget_data_cache[section] = {
                 "category": get("category", "Miscellaneous"),
@@ -223,6 +235,27 @@ class WidgetHandler:
                 "icon": get("icon", "ICON_CIRCLE"),
                 "quickdock": get("quickdock", "False").lower() == "true",
             }
+        # Patch fallback defaults if widget got placeholder metadata
+            if section in global_widget_defaults or section in account_widget_defaults:
+                defaults = account_widget_defaults.get(section) or global_widget_defaults.get(section)
+                current = self.widget_data_cache[section]
+
+                needs_patch = (
+                    current.get("category") == "Miscellaneous"
+                )
+
+                if needs_patch and defaults:
+                    for key in ("category", "subcategory", "icon", "quickdock", "enabled"):
+                        if key not in defaults:
+                            continue
+                        val = defaults[key]
+                        if key in ("quickdock", "enabled"):
+                            val = str(val).lower() == "true"
+                        current[key] = val
+                        self._write_setting(section, key, str(val), to_account=use_account_settings(), force=True)
+
+                    ConsoleLog("WidgetHandler", f"Updated widget '{section}' with default category/subcategory", Py4GW.Console.MessageType.Info)
+
             
     def _load_all_from_dir(self):
         if not os.path.isdir(self.widgets_path):
@@ -235,6 +268,9 @@ class WidgetHandler:
             path = os.path.join(self.widgets_path, file)
             try:
                 module = self.load_widget(path)
+                if not module:
+                    ConsoleLog("WidgetHandler", f"Skipped widget: {name} (module load failed)", Py4GW.Console.MessageType.Warning)
+                    continue
                 enabled = self.widget_data_cache.get(name, {}).get("enabled", True)
                 self.widgets[name] = {"module": module, "enabled": enabled, "configuring": False}
                 ConsoleLog("WidgetHandler", f"Loaded widget: {name}", Py4GW.Console.MessageType.Info)
@@ -325,13 +361,14 @@ class WidgetHandler:
         self._set_widget_state(name, False)
 
     def _set_widget_state(self, name: str, enabled_state: bool):
+        from .config_scope import use_account_settings
         widget = self.widgets.get(name)
         if not widget:
             ConsoleLog("WidgetHandler", f"Unknown widget: {name}", Py4GW.Console.MessageType.Warning)
             return
 
         widget["enabled"] = enabled_state
-        self._write_setting(name, "enabled", str(enabled_state), to_account=state.use_account_settings)
+        self._write_setting(name, "enabled", str(enabled_state), to_account=use_account_settings())
 
     def is_widget_enabled(self, name: str) -> bool:
         return bool(self.widgets.get(name, {}).get("enabled"))

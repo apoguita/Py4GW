@@ -1,5 +1,6 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import PyImGui, ImGui, IconsFontAwesome5, ConsoleLog, Py4GW, Utils
 from .handler import handler
+from .config_scope import use_account_settings
 from . import state
          
 def draw_old_widget_ui():
@@ -15,18 +16,16 @@ def draw_old_widget_ui():
         current_pos = PyImGui.get_window_pos()
         if current_pos != state.old_menu_window_pos:
             state.old_menu_window_pos = tuple(current_pos)
-            handler._write_setting("WidgetManager", "omx", str(int(current_pos[0])), to_account=state.use_account_settings)
-            handler._write_setting("WidgetManager", "omy", str(int(current_pos[1])), to_account=state.use_account_settings)
+            handler._write_setting("WidgetManager", "omx", str(int(current_pos[0])), to_account=use_account_settings())
+            handler._write_setting("WidgetManager", "omy", str(int(current_pos[1])), to_account=use_account_settings())
 
         collapsed = PyImGui.is_window_collapsed()
         if collapsed != state.old_menu_window_collapsed:
             state.old_menu_window_collapsed = collapsed
-            handler._write_setting("WidgetManager", "collapsed", str(collapsed), to_account=state.use_account_settings)
+            handler._write_setting("WidgetManager", "collapsed", str(collapsed), to_account=use_account_settings())
         if PyImGui.button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets"):
             ConsoleLog(state.module_name, "Reloading Widgets...", Py4GW.Console.MessageType.Info)
             state.initialized = False
-            handler.discover_widgets()
-            state.initialized = True
         ImGui.show_tooltip("Reloads all widgets")
         PyImGui.same_line(0.0, 10)
         
@@ -81,7 +80,7 @@ def draw_widget_contents_old():
                 new_enabled = PyImGui.checkbox(name, bool(info["enabled"]))
                 if new_enabled != info["enabled"]:
                     info["enabled"] = new_enabled
-                    handler._write_setting(name, "enabled", str(new_enabled), to_account=state.use_account_settings)
+                    handler._write_setting(name, "enabled", str(new_enabled), to_account=use_account_settings())
                     
                 PyImGui.table_set_column_index(1)
                 if info["enabled"]:

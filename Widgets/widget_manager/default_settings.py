@@ -51,7 +51,7 @@ global_widget_defaults = {
         "quickdock": "True"
     },
     "HeroHelper": {
-        "enabled": "True",
+        "enabled": "False",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_PEOPLE_CARRY",
@@ -100,7 +100,7 @@ global_widget_defaults = {
         "quickdock": "False"
     },   
     "Compass +": {
-        "enabled": "True",
+        "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_COMPASS",
@@ -128,14 +128,14 @@ global_widget_defaults = {
         "quickdock": "True"
     },
     "Get Blessed": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_HANDS",
         "quickdock": "True"
     },
     "Dialog Sync": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_EXCLAMATION_CIRCLE",
@@ -165,7 +165,7 @@ global_widget_defaults = {
     "PCons": {
         "enabled": "False",
         "category": "Gameplay",
-        "subcategory": "Utilities",
+        "subcategory": "Triggers",
         "icon": "ICON_CHEVRON_UP",
         "quickdock": "True"
     },
@@ -205,7 +205,7 @@ global_widget_defaults = {
         "quickdock": "True"
     },
     "Travel": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_PLANE",
@@ -217,13 +217,21 @@ global_widget_defaults = {
         "subcategory": "Overlays",
         "icon": "ICON_FLAG_CHECKERED",
         "quickdock": "True"
+    },
+    "Survival Title Helper": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
+        "icon": "ICON_FLAG_CHECKERED",
+        "quickdock": "True"
     }
 }
 
 account_widget_defaults = {
 "WidgetManager": {
         "old_menu": "False",
-        "enable_all": "True"
+        "enable_all": "True",
+        "use_account_settings": "False"
     },
     "QuickDock": {
         "enable_quick_dock": "True",
@@ -271,7 +279,7 @@ account_widget_defaults = {
         "quickdock": "True"
     },
     "HeroHelper": {
-        "enabled": "True",
+        "enabled": "False",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_PEOPLE_CARRY",
@@ -320,7 +328,7 @@ account_widget_defaults = {
         "quickdock": "False"
     },   
     "Compass +": {
-        "enabled": "True",
+        "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_COMPASS",
@@ -348,14 +356,14 @@ account_widget_defaults = {
         "quickdock": "True"
     },
     "Get Blessed": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_HANDS",
         "quickdock": "True"
     },
     "Dialog Sync": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_EXCLAMATION_CIRCLE",
@@ -385,7 +393,7 @@ account_widget_defaults = {
     "PCons": {
         "enabled": "False",
         "category": "Gameplay",
-        "subcategory": "Utilities",
+        "subcategory": "Triggers",
         "icon": "ICON_CHEVRON_UP",
         "quickdock": "True"
     },
@@ -425,7 +433,7 @@ account_widget_defaults = {
         "quickdock": "True"
     },
     "Travel": {
-        "enabled": "False",
+        "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_PLANE",
@@ -435,6 +443,13 @@ account_widget_defaults = {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
+        "icon": "ICON_FLAG_CHECKERED",
+        "quickdock": "True"
+    },
+    "Survival Title Helper": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
         "icon": "ICON_FLAG_CHECKERED",
         "quickdock": "True"
     }

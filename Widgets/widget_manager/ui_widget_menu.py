@@ -1,5 +1,6 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import PyImGui, ImGui, Utils, ConsoleLog, IconsFontAwesome5, Py4GW
 from .handler import handler
+from .config_scope import use_account_settings
 from . import state
 
 def draw_widget_popup_menus():
@@ -26,10 +27,13 @@ def draw_widget_popup_menus():
                         info = handler.widgets[name]
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
-                        new_enabled = PyImGui.checkbox(name, info["enabled"])
+                        enabled = bool(info.get("enabled", False))
+                        if not isinstance(info.get("enabled"), bool):
+                            ConsoleLog("WidgetManager", f"[{name}] invalid 'enabled' value: {info.get('enabled')} ({type(info.get('enabled'))})", Py4GW.Console.MessageType.Warning)
+                        new_enabled = PyImGui.checkbox(name, enabled)
                         if new_enabled != info["enabled"]:
                             info["enabled"] = new_enabled
-                            handler._write_setting(name, "enabled", str(new_enabled), to_account=state.use_account_settings)
+                            handler._write_setting(name, "enabled", str(new_enabled), to_account=use_account_settings())
 
                         PyImGui.table_set_column_index(1)
                         if info["enabled"]:
