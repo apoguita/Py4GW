@@ -2,10 +2,10 @@ from Py4GWCoreLib import PyImGui, ImGui, UIManager, Map, Overlay, IconsFontAweso
 from . import state
 from .handler import handler
 from .ui_widget_menu import draw_widget_popup_menus
-from .config_scope import is_in_character_select
+from .config_scope import character_select
 
 def draw_floating_menu():
-    chara_select = is_in_character_select()
+    chara_select = character_select
     index = state.floating_attachment_index
     io = PyImGui.get_io()
     screen_w = io.display_size_x
@@ -195,8 +195,6 @@ def draw_floating_menu():
             if PyImGui.button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets"):
                 ConsoleLog(state.module_name, "Reloading Widgets...", Py4GW.Console.MessageType.Info)
                 state.initialized = False
-                handler.discover_widgets()
-                state.initialized = True
             ImGui.show_tooltip("Reloads all widgets")
             PyImGui.same_line(0.0, 10)
             is_enabled = state.enable_all

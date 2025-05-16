@@ -1,7 +1,7 @@
 from Py4GWCoreLib import PyImGui, ImGui, IconsFontAwesome5
 from . import state
 from .handler import handler
-from .config_scope import use_account_settings, is_in_character_select
+from .config_scope import use_account_settings, character_select
 from .settings_io import load_account_settings, load_global_settings, save_all_settings, restore_global_defaults
 
 def draw_centered_checkbox(label: str, value: bool) -> bool:
@@ -20,7 +20,7 @@ def draw_labeled_slider(label: str, id: str, value: int, min_val: int, max_val: 
     return PyImGui.slider_int(id, value, min_val, max_val)
 
 def draw_floating_menu_config():
-    char_select = is_in_character_select()
+    char_select = character_select
     if char_select:
         PyImGui.spacing()
         PyImGui.text("Floating Widget Menu Settings available in game")
