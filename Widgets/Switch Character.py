@@ -207,7 +207,7 @@ def DrawWindow():
     
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
         new_collapsed = PyImGui.is_window_collapsed()      
-        characters = Player.GetLoginCharacters()
+        characters = sorted(Player.GetLoginCharacters(), key=lambda c: c.player_name.lower())
         
         
         # Define per-profession row colors using RGBA integers (0–255)
@@ -279,17 +279,29 @@ def configure():
     pass
 
 def is_in_character_select():
+    if Party.IsPartyLoaded():
+        return False
+    
     cs_base = UIManager.GetFrameIDByHash(2232987037)
     cs_c0 = UIManager.GetChildFrameID(2232987037, [0])
     cs_c1 = UIManager.GetChildFrameID(2232987037, [1])
+    ig_menu = UIManager.GetFrameIDByHash(1144678641)
     
-    visible = [
-        not UIManager.IsWindowVisible(cs_c0),
-        not UIManager.IsWindowVisible(cs_c1),
-        not UIManager.IsWindowVisible(cs_base),
-    ]
+    frames = {
+        "cs_base": cs_base,
+        "cs_c0": cs_c0,
+        "cs_c1": cs_c1,
+        "ig_menu": ig_menu,
+    }
     
-    return any(visible)
+    in_load_screen = all(isinstance(f, int) and f == 0 for f in frames.values())
+    in_char_select = (
+        not in_load_screen and
+        any(isinstance(f, int) and f > 0 for f in (cs_base, cs_c0, cs_c1)) and 
+        not Party.IsPartyLoaded()
+    )
+    
+    return in_char_select
 
 def main():
     global reroll_widget, window_module, character_select
