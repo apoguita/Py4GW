@@ -263,7 +263,53 @@ def DrawFlaggingWindow(cached_data:CacheData):
         PyImGui.table_next_column()
         CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
         PyImGui.end_table()
+    
+    if PyImGui.collapsing_header("Formation Flagger"):
+        set_formations_relative_to_leader = []
+        final_text_to_announce = ''
+        
+        double_back_line_text = "1,2 - Double Backline"
+        double_back_line = PyImGui.button(double_back_line_text)
+        if double_back_line:
+            final_text_to_announce = double_back_line_text
+            set_formations_relative_to_leader = [
+                (250, -250), (-250, -250), (0, 200), (-450, 300), (-350, 500), (300, 500), (450, 300)
+            ]
+        
+        single_back_line_text = "1 - Single Backline"
+        single_back_line = PyImGui.button(single_back_line_text)
+        if single_back_line:
+            final_text_to_announce = single_back_line
+            set_formations_relative_to_leader = [
+                (0, -250), (-150, 200), (150, 200), (-450, 300), (-350, 500), (300, 500), (450, 300)
+            ]
 
+        if len(set_formations_relative_to_leader):
+            print(f'[INFO] Setting Formation: {final_text_to_announce}')
+            leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
+            leader_x, leader_y, _ = Agent.GetXYZ(Party.GetPartyLeaderID())
+            angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
+
+            cos_a = math.cos(angle_rad)
+            sin_a = math.sin(angle_rad)
+
+            for hero_ai_index in range(1, party_size):
+                offset_x, offset_y = set_formations_relative_to_leader[hero_ai_index - 1]
+                
+                # Rotate offset
+                rotated_x = offset_x * cos_a - offset_y * sin_a
+                rotated_y = offset_x * sin_a + offset_y * cos_a
+
+                # Apply rotated offset to leader's position
+                final_x = leader_x + rotated_x
+                final_y = leader_y + rotated_y
+
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "IsFlagged", True)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosX", final_x)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosY", final_y)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", leader_follow_angle)
+                
+                
     if AllFlag != IsHeroFlagged(cached_data,0):
         capture_hero_flag = True
         capture_flag_all = True
