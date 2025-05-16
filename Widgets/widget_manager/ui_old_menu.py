@@ -26,8 +26,6 @@ def draw_old_widget_ui():
         if PyImGui.button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets"):
             ConsoleLog(state.module_name, "Reloading Widgets...", Py4GW.Console.MessageType.Info)
             state.initialized = False
-            handler.discover_widgets()
-            state.initialized = True
         ImGui.show_tooltip("Reloads all widgets")
         PyImGui.same_line(0.0, 10)
         

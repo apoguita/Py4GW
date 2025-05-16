@@ -8,6 +8,11 @@ def draw_embedded_widget_config():
     interface_frame_id = UIManager.GetChildFrameID(1431953425, [1,4294967291])
     options_inner_frame_id = UIManager.GetChildFrameID(1431953425, [1])
 
+    if isinstance(interface_frame_id, int) and interface_frame_id == 0:
+        return
+    if isinstance(options_inner_frame_id, int) and options_inner_frame_id == 0:
+        return
+
     options_inner_left, options_inner_top, options_inner_right, options_inner_bottom = UIManager.GetFrameCoords(options_inner_frame_id) 
     width = options_inner_right - options_inner_left
     height = options_inner_bottom - options_inner_top 
