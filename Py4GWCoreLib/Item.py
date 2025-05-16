@@ -249,6 +249,11 @@ class Item:
                 """Purpose: Check if an item is a tome by its ID."""
                 return Item.item_instance(item_id).is_tome
 
+            @staticmethod
+            def IsSalvageable(item_id):
+                """Purpose: Check if an item is salvageable by its ID."""
+                return Item.item_instance(item_id).is_salvageable
+
         class Usage:
             @staticmethod
             def IsUsable(item_id):
@@ -259,11 +264,6 @@ class Item:
             def GetUses(item_id):
                 """Purpose: Retrieve the uses of an item by its ID."""
                 return Item.item_instance(item_id).uses
-
-            @staticmethod
-            def IsSalvageable(item_id):
-                """Purpose: Check if an item is salvageable by its ID."""
-                return Item.item_instance(item_id).is_salvageable
 
             @staticmethod
             def IsMaterialSalvageable(item_id):
