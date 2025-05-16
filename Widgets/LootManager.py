@@ -3,6 +3,15 @@ import json
 import time
 from Py4GWCoreLib import *
 
+import tkinter as tk
+from tkinter import filedialog
+from datetime import datetime, timedelta
+
+# Use hidden root for file dialogs
+tk_root = tk.Tk()
+tk_root.withdraw()
+
+
 # --- Globals ---
 loot_filter_singleton = LootConfig()
 loot_items = []
@@ -13,6 +22,7 @@ show_white_list = False
 show_filtered_loot_list = False
 show_manual_editor = False
 show_black_list = False
+use_formula_based_nick = False
 
 last_config_check_time = 0
 last_config_timestamp = 0
@@ -34,6 +44,23 @@ first_run     = True
 CONFIG_FILE = os.path.join(script_directory, "Config", "loot_config.json")
 MODELID_DROP_DATA_FILE = os.path.join(script_directory, "Data", "modelid_drop_data.json")
 RARITY_FILTER_DATA_FILE = os.path.join(script_directory, "Data", "rarity_filter_data.json")
+
+# --- Nick cycle setup ---
+NICK_CYCLES_FILE = os.path.join(script_directory, "Data", "Nick_cycles.json")
+nick_cycles = []
+weeks_future = 0
+
+def load_nick_cycles():
+    global nick_cycles
+    if os.path.exists(NICK_CYCLES_FILE):
+        try:
+            with open(NICK_CYCLES_FILE, "r") as f:
+                nick_cycles = json.load(f)
+            print(f"[INFO] Loaded {len(nick_cycles)} entries from Nick_cycles.json")
+        except Exception as e:
+            print(f"[ERROR] Failed to load Nick_cycles.json: {e}")
+    else:
+        print("[ERROR] Nick_cycles.json not found")
 
 # --- File Handling ---
 def load_modelid_drop_data():
@@ -158,6 +185,75 @@ def load_rarity_filter_settings():
     if loot_filter_singleton.loot_gold_coins:
         loot_filter_singleton.AddToWhitelist(ModelID.Gold_Coins.value)
 
+def save_loot_config_to(path: str):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        output = {
+            "items": loot_items,
+            "rarity": {
+                "loot_whites": loot_filter_singleton.loot_whites,
+                "loot_blues": loot_filter_singleton.loot_blues,
+                "loot_purples": loot_filter_singleton.loot_purples,
+                "loot_golds": loot_filter_singleton.loot_golds,
+                "loot_greens": loot_filter_singleton.loot_greens,
+                "loot_gold_coins": loot_filter_singleton.loot_gold_coins,
+            }
+        }
+        with open(path, "w") as f:
+            json.dump(output, f, indent=4)
+        print(f"[INFO] Saved loot config to: {path}")
+    except Exception as e:
+        print(f"[ERROR] Failed to save custom loot config: {e}")
+
+def load_loot_config_from(path: str):
+    if not os.path.exists(path):
+        print(f"[ERROR] File not found: {path}")
+        return
+
+    try:
+        with open(path, "r") as f:
+            raw = json.load(f)
+            saved_items = {entry["model_id"]: entry for entry in raw.get("items", [])}
+            rarity = raw.get("rarity", {})
+    except Exception as e:
+        print(f"[ERROR] Failed to load from {path}: {e}")
+        return
+
+    loot_filter_singleton.ClearWhitelist()
+
+    for item in loot_items:
+        key = item["model_id"]
+        if key in saved_items:
+            saved_entry = saved_items[key]
+            item["enabled"] = saved_entry.get("enabled", False)
+            item["rarity_filter"] = saved_entry.get("rarity_filter", False)
+        else:
+            # Leave new items disabled by default
+            item["enabled"] = False
+            item["rarity_filter"] = False
+
+        if item["enabled"]:
+            model_id = item["model_id"]
+            if isinstance(model_id, str) and model_id.startswith("ModelID."):
+                model_id_name = model_id.split("ModelID.")[1]
+                if hasattr(ModelID, model_id_name):
+                    model_id = getattr(ModelID, model_id_name)
+            loot_filter_singleton.AddToWhitelist(model_id)
+
+    # Apply saved rarity filters
+    loot_filter_singleton.SetProperties(
+        loot_whites=rarity.get("white", False),
+        loot_blues=rarity.get("blue", False),
+        loot_purples=rarity.get("purple", False),
+        loot_golds=rarity.get("gold", False),
+        loot_greens=rarity.get("green", False),
+        loot_gold_coins=rarity.get("gold_coins", False),
+    )
+
+    # Persist changes to avoid core loop overwrite
+    save_rarity_filter_data()
+    save_loot_config()
+
 # --- Setup ---
 def setup():
     global initialized, loot_items, last_config_timestamp
@@ -179,7 +275,7 @@ def setup():
         )
 
         load_loot_config()
-
+        load_nick_cycles()
         if os.path.exists(CONFIG_FILE):
             last_config_timestamp = os.path.getmtime(CONFIG_FILE)
         initialized = True
@@ -194,10 +290,29 @@ def _format_model_id(mid: int) -> str:
         pretty = "Unknown Item"
     return f"{pretty} (ModelID: {mid})"
 
+def get_current_nick_item_by_formula():
+    if not nick_cycles:
+        load_nick_cycles()
+
+    base_date = datetime.strptime("4/21/25", "%m/%d/%y").date()  # Cycle base
+    today = datetime.today().date()
+    this_monday = today - timedelta(days=today.weekday())
+
+    weeks_since_start = (this_monday - base_date).days // 7
+    index = weeks_since_start % len(nick_cycles)
+
+    try:
+        return nick_cycles[index]
+    except IndexError:
+        return None
+
 def DrawWindow():
     global include_model_id_in_tooltip, show_white_list, show_filtered_loot_list
     global show_manual_editor, show_black_list
     global win_x, win_y, win_collapsed, first_run
+    global weeks_future
+    if not Routines.Checks.Map.MapValid():
+        return
 
     # 1) On first draw, restore last position & collapsed state
     if first_run:
@@ -228,57 +343,135 @@ def DrawWindow():
             )
             PyImGui.tree_pop()
 
-        # —— Rarity Filters ——
+        # ——— Save/Load Configs ———
         PyImGui.separator()
-        PyImGui.text("Groups - By Rarity/Type")
+        PyImGui.text("Save/Load Configs")
         PyImGui.separator()
-        if PyImGui.tree_node("Rarity"):
+
+        # Save Button
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_SAVE} Save to File"):
+            path = filedialog.asksaveasfilename(
+                title="Save Loot Config",
+                defaultextension=".json",
+                filetypes=[("JSON Files", "*.json")]
+            )
+            if path:
+                save_loot_config_to(path)
+
+        PyImGui.same_line(0, 10)
+
+        # Load Button
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_FILE_UPLOAD} Load from File"):
+            path = filedialog.askopenfilename(
+                title="Load Loot Config",
+                filetypes=[("JSON Files", "*.json")]
+            )
+            if path:
+                load_loot_config_from(path)
+
+        if PyImGui.tree_node("Common"):
             rw = loot_filter_singleton.loot_whites
             rb = loot_filter_singleton.loot_blues
             rp = loot_filter_singleton.loot_purples
             rg = loot_filter_singleton.loot_golds
             re = loot_filter_singleton.loot_greens
+            gc = loot_filter_singleton.loot_gold_coins
 
             new_rw = PyImGui.checkbox("White Items", rw)
             new_rb = PyImGui.checkbox("Blue Items", rb)
             new_rp = PyImGui.checkbox("Purple Items", rp)
             new_rg = PyImGui.checkbox("Gold Items", rg)
             new_re = PyImGui.checkbox("Green Items", re)
+            new_gc = PyImGui.checkbox("Gold Coins", gc)
 
-            if (new_rw, new_rb, new_rp, new_rg, new_re) != (rw, rb, rp, rg, re):
+            if (new_rw, new_rb, new_rp, new_rg, new_re, new_gc) != (rw, rb, rp, rg, re, gc):
+                # Update all properties at once
                 loot_filter_singleton.SetProperties(
                     loot_whites=new_rw,
                     loot_blues=new_rb,
                     loot_purples=new_rp,
                     loot_golds=new_rg,
                     loot_greens=new_re,
-                    loot_gold_coins=loot_filter_singleton.loot_gold_coins
+                    loot_gold_coins=new_gc
                 )
                 save_rarity_filter_data()
+
+                # Sync gold coins with whitelist
+                coin_mid = ModelID.Gold_Coins.value
+                if new_gc:
+                    loot_filter_singleton.AddToWhitelist(coin_mid)
+                else:
+                    loot_filter_singleton.RemoveFromWhitelist(coin_mid)
+                save_loot_config()
+
             PyImGui.tree_pop()
 
-            # —— Loot Gold Coins (standalone) ——
-        new_gc = PyImGui.checkbox("Gold Coins", loot_filter_singleton.loot_gold_coins)
-        if new_gc != loot_filter_singleton.loot_gold_coins:
-            # 1a) flip the flag and persist rarity settings
-            loot_filter_singleton.SetProperties(
-                loot_whites=   loot_filter_singleton.loot_whites,
-                loot_blues=    loot_filter_singleton.loot_blues,
-                loot_purples=  loot_filter_singleton.loot_purples,
-                loot_golds=    loot_filter_singleton.loot_golds,
-                loot_greens=   loot_filter_singleton.loot_greens,
-                loot_gold_coins=new_gc
-            )
-            save_rarity_filter_data()
+        PyImGui.separator()
+        PyImGui.text("Nick's Items")
+        global use_formula_based_nick
+        use_formula_based_nick = PyImGui.checkbox("Use Formula-Based Nick Rotation", use_formula_based_nick)
 
-            # 1b) immediately add or remove coins from the whitelist
-            coin_mid = ModelID.Gold_Coins.value
-            if new_gc:
-                loot_filter_singleton.AddToWhitelist(coin_mid)
-            else:
-                loot_filter_singleton.RemoveFromWhitelist(coin_mid)
-            # persist the loot_config so reload doesn’t drop them
-            save_loot_config()
+        if use_formula_based_nick:
+            weeks_future = PyImGui.slider_int("Weeks Ahead", weeks_future, 0, 12)
+
+            base_date = datetime.strptime("4/21/25", "%m/%d/%y").date()
+            today = datetime.today().date()
+            this_monday = today - timedelta(days=today.weekday())
+            weeks_since_start = (this_monday - base_date).days // 7
+
+            upcoming = []
+            for i in range(weeks_future + 1):
+                index = (weeks_since_start + i) % len(nick_cycles)
+                entry = nick_cycles[index]
+                week_dt = this_monday + timedelta(weeks=i)
+                upcoming.append((week_dt, entry["Item"]))
+
+            for week_dt, item_name in upcoming:
+                PyImGui.text(f"{week_dt.isoformat()}: {item_name}")
+
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_SAVE} Add Nick Items"):
+                for week_dt, item_name in upcoming:
+                    for item in loot_items:
+                        if item["name"] == item_name and not item["enabled"]:
+                            item["enabled"] = True
+                            model_id = item.get("model_id")
+                            if isinstance(model_id, str) and model_id.startswith("ModelID."):
+                                model_id_name = model_id.split("ModelID.")[1]
+                                if hasattr(ModelID, model_id_name):
+                                    model_id = getattr(ModelID, model_id_name)
+                            loot_filter_singleton.AddToWhitelist(model_id)
+                save_loot_config()
+        else:
+            weeks_future = PyImGui.slider_int("Weeks Ahead", weeks_future, 0, 12)
+            today = datetime.today().date()
+            current_mon = today - timedelta(days=today.weekday())
+            max_date = current_mon + timedelta(weeks=weeks_future)
+
+            filtered = []
+            for entry in nick_cycles:
+                week_str = entry.get("Week", "")
+                try:
+                    ed = datetime.strptime(week_str, "%m/%d/%y").date()
+                except ValueError:
+                    continue
+                if current_mon <= ed <= max_date:
+                    filtered.append((ed, entry.get("Item", "")))
+
+            for ed, nm in filtered:
+                PyImGui.text(f"{ed.isoformat()}: {nm}")
+
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_SAVE} Add Nick Items"):
+                for ed, nm in filtered:
+                    for item in loot_items:
+                        if item["name"] == nm and not item["enabled"]:
+                            item["enabled"] = True
+                            model_id = item.get("model_id")
+                            if isinstance(model_id, str) and model_id.startswith("ModelID."):
+                                model_id_name = model_id.split("ModelID.")[1]
+                                if hasattr(ModelID, model_id_name):
+                                    model_id = getattr(ModelID, model_id_name)
+                            loot_filter_singleton.AddToWhitelist(model_id)
+                save_loot_config()
 
         # —— Single-item Whitelist/Blacklist ——
         PyImGui.separator()

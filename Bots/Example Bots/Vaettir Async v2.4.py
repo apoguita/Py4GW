@@ -101,6 +101,7 @@ class ConfigVarsClass:
         self.loot_glacial_stones = True
         self.loot_event_items = True
         self.loot_map_pieces = False
+        self.id_whites = False
         self.id_blues = False
         self.id_purples = True
         self.id_golds = True
@@ -539,15 +540,18 @@ def filter_identify_array():
     global bot_vars
     bags_to_check = ItemArray.CreateBagList(1,2,3,4)
     unidentified_items = ItemArray.GetItemArray(bags_to_check)
-    unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsWhite(item_id))
     unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Usage.IsIdentified(item_id))
 
+    # Filter by rarity based on config settings
+    if not bot_vars.config_vars.id_whites:
+        unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsWhite(item_id))
     if not bot_vars.config_vars.id_blues:
         unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsBlue(item_id))
     if not bot_vars.config_vars.id_purples:
         unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsPurple(item_id))
     if not bot_vars.config_vars.id_golds:
-        unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsGold(item_id))          
+        unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsGold(item_id))
+        
     return unidentified_items
 
 def filter_salvage_array():
@@ -644,16 +648,18 @@ def LoadSkillBar():
 
     if primary_profession == "Assassin":
         SkillBar.LoadSkillTemplate("OwVUI2h5lPP8Id2BkAiAvpLBTAA")
+    elif primary_profession == "Mesmer":
+        SkillBar.LoadSkillTemplate("OQdUAQROqPP8Id2BkAiAvpLBTAA")
 
 def IsSkillBarLoaded():
     global bot_vars
     global skillbar
 
     primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
-    if primary_profession != "Assassin" and secondary_profession != "Mesmer":
+    if primary_profession != "Assassin" and primary_profession != "Mesmer":
         frame = inspect.currentframe()
         current_function = frame.f_code.co_name if frame else "Unknown"
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - This bot requires A/Me to work, halting.", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - This bot requires either A/Me or Me/A to work, halting.", Py4GW.Console.MessageType.Error)
         ResetEnvironment()
         StopBot()
         return False
@@ -991,7 +997,7 @@ def process_sell_queue():
     # If the queue is not empty (either had items before, or SellMaterials just added some), run the next action.
     # This prevents SellMaterials being called repeatedly if the queue isn't clearing in one go.
     if not bot_vars.sell_to_vendor_action_queue.is_empty():
-        bot_vars.sell_to_vendor_action_queue.RunNextAction()
+        bot_vars.sell_to_vendor_action_queue.execute_next()
 
 def SellingMaterialsComplete():
     global bot_vars
@@ -2129,13 +2135,22 @@ def DrawWindow():
                         #overlay.DrawLine3D(pos1, pos2,0xFFFFFFFF, 2.0)
 
             if PyImGui.collapsing_header("Config"):
+                # Identification Section
+                if PyImGui.tree_node("Identification"):
+                    if PyImGui.tree_node("Rarities"):
+                        bot_vars.config_vars.id_whites = PyImGui.checkbox("White Items", bot_vars.config_vars.id_whites)
+                        bot_vars.config_vars.id_blues = PyImGui.checkbox("Blue Items", bot_vars.config_vars.id_blues)
+                        bot_vars.config_vars.id_purples = PyImGui.checkbox("Purple Items", bot_vars.config_vars.id_purples)
+                        bot_vars.config_vars.id_golds = PyImGui.checkbox("Gold Items", bot_vars.config_vars.id_golds)
+                        PyImGui.tree_pop()
+                    PyImGui.tree_pop()
+
                 # Loot Section
                 if PyImGui.tree_node("Loot"):
-                
-                        if PyImGui.tree_node("Lockpicks"):
-                            bot_vars.config_vars.loot_lockpicks = PyImGui.checkbox("Lockpicks", bot_vars.config_vars.loot_lockpicks)
-                            if bot_vars.config_vars.loot_lockpicks:  
-                                PyImGui.tree_pop()
+                    if PyImGui.tree_node("Lockpicks"):
+                        bot_vars.config_vars.loot_lockpicks = PyImGui.checkbox("Lockpicks", bot_vars.config_vars.loot_lockpicks)
+                        if bot_vars.config_vars.loot_lockpicks:  
+                            PyImGui.tree_pop()
                             
                         if PyImGui.tree_node("White Dyes"):
                             bot_vars.config_vars.loot_white_dyes = PyImGui.checkbox("White Dyes", bot_vars.config_vars.loot_white_dyes)
@@ -2431,7 +2446,7 @@ def handle_non_movement():
 
         Player.Move(escape_location[0], escape_location[1])
         FSM_vars.stuck_count += 1
-        log_stuck_attempt(escape_location)
+
 
 # def handle_player_movement():
 #     """Tracks player movement and resets relevant timers if moving."""
@@ -2458,24 +2473,6 @@ def handle_player_movement():
         FSM_vars.old_player_x = new_player_x
         FSM_vars.old_player_y = new_player_y
         FSM_vars.stuck_count = 0
-
-
-def log_stuck_attempt(escape_location):
-    global bot_vars
-
-    if not hasattr(bot_vars, "stuck_log_timer"):
-        bot_vars.stuck_log_timer = Timer()
-        bot_vars.stuck_log_timer.Start()
-
-    if bot_vars.stuck_log_timer.HasElapsed(10000):  # Once every 10s
-        px, py = Player.GetXY()
-        ex, ey = escape_location
-        distance = math.hypot(ex - px, ey - py)
-
-        Py4GW.Console.Log(bot_vars.window_module.module_name, 
-            f"[Stuck] Attempting to recover to {escape_location} (distance: {distance:.2f})", 
-            Py4GW.Console.MessageType.Warning)
-        bot_vars.stuck_log_timer.Reset()
 
 
 

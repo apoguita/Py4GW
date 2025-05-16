@@ -1,11 +1,17 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import UIManager, EnumPreference, PyImGui, ImGui, Utils
 from . import state
 from .handler import handler
+from .config_scope import use_account_settings
 from .ui_config_sections import draw_account_widget_config, draw_quick_dock_config, draw_debug_config, draw_floating_menu_config
 
 def draw_embedded_widget_config():
     interface_frame_id = UIManager.GetChildFrameID(1431953425, [1,4294967291])
     options_inner_frame_id = UIManager.GetChildFrameID(1431953425, [1])
+
+    if isinstance(interface_frame_id, int) and interface_frame_id == 0:
+        return
+    if isinstance(options_inner_frame_id, int) and options_inner_frame_id == 0:
+        return
 
     options_inner_left, options_inner_top, options_inner_right, options_inner_bottom = UIManager.GetFrameCoords(options_inner_frame_id) 
     width = options_inner_right - options_inner_left
@@ -43,7 +49,7 @@ def draw_embedded_widget_config():
 
     label = "Widgets"
 
-    if not UIManager.IsWindowVisible(interface_frame_id):
+    if isinstance(interface_frame_id, int) and interface_frame_id > 0:
         PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.10, 0.10, 0.10, 0.0))        # transparent base
         PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.25, 0.25, 0.25, 1.0)) # light on hover
         PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.15, 0.15, 0.15, 1.0))  # darker when clicked
@@ -61,12 +67,27 @@ def draw_embedded_widget_config():
         PyImGui.pop_style_var(2)
 
     if state.show_config_window:
-        if not UIManager.IsWindowVisible(interface_frame_id):
-            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967291]), Utils.RGBToColor(0, 0, 0, 255))
-            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967292]), Utils.RGBToColor(0, 0, 0, 255))
-            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967293]), Utils.RGBToColor(0, 0, 0, 255))
-            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967294]), Utils.RGBToColor(0, 0, 0, 255))
-            UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967295]), Utils.RGBToColor(0, 0, 0, 255))
+        if isinstance(interface_frame_id, int) and interface_frame_id > 0:
+            int_tab = UIManager.GetChildFrameID(1431953425, [1, 4294967291])
+            con_tab = UIManager.GetChildFrameID(1431953425, [1, 4294967292])
+            gra_tab = UIManager.GetChildFrameID(1431953425, [1, 4294967293])
+            sou_tab = UIManager.GetChildFrameID(1431953425, [1, 4294967294])
+            gen_tab = UIManager.GetChildFrameID(1431953425, [1, 4294967295])
+            frames = {
+                "int_tab": int_tab,
+                "con_tab": con_tab,
+                "gra_tab": gra_tab,
+                "sou_tab": sou_tab,
+                "gen_tab": gen_tab,
+            }
+            visible = all(isinstance(f, int) and f > 0 for f in frames.values())
+            if visible:
+                UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967291]), Utils.RGBToColor(0, 0, 0, 255))
+                UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967292]), Utils.RGBToColor(0, 0, 0, 255))
+                UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967293]), Utils.RGBToColor(0, 0, 0, 255))
+                UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967294]), Utils.RGBToColor(0, 0, 0, 255))
+                UIManager().DrawFrame(UIManager.GetChildFrameID(1431953425, [1,4294967295]), Utils.RGBToColor(0, 0, 0, 255))
+
             PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,4.0)
             # PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg , (0.0, 0.0, 0.0, 1.0))
             PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0.05, 0.05, 0.05, 1.0))
@@ -105,7 +126,7 @@ def draw_embedded_widget_config():
                 new_old_menu = PyImGui.checkbox("Disable Old Floating Menu" if state.old_menu else "Enable Old Floating Menu", state.old_menu)
                 if new_old_menu != state.old_menu:
                     state.old_menu = new_old_menu
-                    handler._write_setting("WidgetManager", "old_menu", str(state.old_menu), to_account=state.use_account_settings)
+                    handler._write_setting("WidgetManager", "old_menu", str(state.old_menu), to_account=use_account_settings())
                 PyImGui.show_tooltip("Disable Old Floating Menu" if state.old_menu else "Enable Old Floating Menu")
                 
                 PyImGui.spacing()              

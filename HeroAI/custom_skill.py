@@ -218,7 +218,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.CustomA.value
-        skill.Conditions.LessLife = 0.3
+        skill.Conditions.LessLife = 0.4
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -4761,7 +4761,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Signet.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.UniqueProperty = True
+        #skill.Conditions.UniqueProperty = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -7742,7 +7742,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsOutOfCombat = False
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -7880,8 +7880,8 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = Skill.GetID("Vital_Weapon")
         skill.SkillType = SkillType.WeaponSpell.value
-        skill.TargetAllegiance = Skilltarget.Ally.value
-        skill.Nature = SkillNature.Buff.value
+        skill.TargetAllegiance = Skilltarget.AllyCaster.value
+        skill.Nature = SkillNature.CustomC.value
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -7954,7 +7954,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.OutOfCombat = False
+        skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -7980,6 +7980,8 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Healing.value
         skill.Conditions.HasWeaponSpell = True
+        skill.Conditions.HasCondition = True
+        skill.Conditions.IsOutOfCombat = True
         skill.Conditions.LessLife = 0.8
         self.skill_data[skill.SkillID] = skill
 
@@ -8025,8 +8027,8 @@ class CustomSkillClass:
         skill.SkillID = Skill.GetID("Rejuvenation")
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Healing.value
-        skill.Conditions.IsOutOfCombat = True
+        skill.Nature = SkillNature.CustomC.value
+        skill.Conditions.IsOutOfCombat = False
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -8142,6 +8144,7 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Healing.value
         skill.Conditions.HasWeaponSpell = True
+        skill.Conditions.IsOutOfCombat = True
         skill.Conditions.LessLife = 0.7
         self.skill_data[skill.SkillID] = skill
 

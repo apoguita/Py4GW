@@ -1135,5 +1135,14 @@
     "1431953425,1,4294967292": "Control Options Tab",
     "1431953425,1,3": "Control Options Tab Internal",
     "1431953425,1,2": "Sound Options Tab Internal",
-    "1431953425,0": "Options Window GW Version"
+    "1431953425,0": "Options Window GW Version",
+    "140452905,10": "did_not_cleaning_disconnect_popup_charselect",
+    "1398610279": "did_not_cleaning_disconnect_popup_charselect_YES_BUTTON",
+    "3600335809": "did_not_cleaning_disconnect_popup_charselect_NO_BUTTON",
+    "329735997": "did_not_cleaning_disconnect_popup_charselect_TEXT_FRAME",
+    "4026955783": "did_not_cleaning_disconnect_popup_charselect_QUESTION_MARK",
+    "140452905,17,0": "guild_wars_was_unable_to_complete_the_operation_popup_charselect",
+    "140452905,17,0,0": "guild_wars_was_unable_to_complete_the_operation_popup_charselect_EXCLIMATION_MARK",
+    "140452905,17,0,5": "guild_wars_was_unable_to_complete_the_operation_popup_charselect_OK_BUTTON",
+    "140452905,17,0,1": "guild_wars_was_unable_to_complete_the_operation_popup_charselect_TEXT_FRAME"
 }
