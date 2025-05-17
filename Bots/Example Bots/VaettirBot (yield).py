@@ -3,7 +3,7 @@ import time
 from time import sleep
 from typing import Generator, List, Tuple
 
-MODULE_NAME = "VaettirBot YIELD Example"
+MODULE_NAME = "Apo's YAVB (yield example)"
 #region paths
 
 path_points_to_merchant: List[Tuple[float, float]] = [(-23041, 14939)]
@@ -420,7 +420,7 @@ def InventoryHandler(log_to_console=False):
         #going to merchant
         if log_to_console:
             ConsoleLog(MODULE_NAME, "Going to merchant.", Py4GW.Console.MessageType.Info, log=log_to_console)
-        yield from Routines.Yield.Agents.InteractWithAgentByName("[Merchant]")
+        yield from Routines.Yield.Agents.InteractWithAgentXY(-23110, 14942)
         
         if bot_variables.sell_config.sell_materials:
             items_to_sell = get_filtered_materials_to_sell()
@@ -913,6 +913,22 @@ def DrawWindow():
             bot_variables.config.window_module.first_run = False
 
         if PyImGui.begin(bot_variables.config.window_module.window_name, bot_variables.config.window_module.window_flags):
+            PyImGui.text_colored("Apo's YAVB 1.0", Color(255,255,0,255).to_tuple())
+            PyImGui.text_colored("Yet Another Vaettir Bot", Color(255,255,0,255).to_tuple())
+            PyImGui.separator()
+            
+            PyImGui.text_colored("Status:IDLE", Color(255,0,0,255).to_tuple())
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
             # Control Table
             if PyImGui.begin_table("ControlTable", 2):
                 PyImGui.table_next_row()

@@ -711,6 +711,27 @@ class Routines:
             return Utils.GetFirstFromArray(enemy_array)
          
         @staticmethod
+        def GetFilteredAllyArray(x, y, max_distance=4500.0, other_ally=False):
+            from .AgentArray import AgentArray
+            from .Player import Player
+            from .Agent import Agent
+            """
+            Purpose: filters allies within the specified range.
+            Args:
+                range (int): The maximum distance to search for allies.
+                other_ally (bool): Whether to include other allies in the search.
+            Returns: List of ally agent IDs
+            """
+            ally_array = AgentArray.GetAllyArray()
+            ally_array = AgentArray.Filter.ByDistance(ally_array, (x,y), max_distance)
+            ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsAlive(agent_id))
+            if other_ally:
+                ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Player.GetAgentID() != agent_id)
+                
+            return ally_array
+
+        
+        @staticmethod
         def GetNearestAlly(max_distance=4500.0, exclude_self=True):
             from .AgentArray import AgentArray
             from .Player import Player
