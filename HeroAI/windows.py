@@ -264,26 +264,37 @@ def DrawFlaggingWindow(cached_data:CacheData):
         CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
         PyImGui.end_table()
     
-    if PyImGui.collapsing_header("Formation Flagger"):
+    if PyImGui.collapsing_header("Formation Flagger - Backline(1,2)"):
         set_formations_relative_to_leader = []
         final_text_to_announce = ''
         
-        double_back_line_text = "1,2 - Double Backline"
-        double_back_line = PyImGui.button(double_back_line_text)
-        if double_back_line:
-            final_text_to_announce = double_back_line_text
-            set_formations_relative_to_leader = [
-                (250, -250), (-250, -250), (0, 200), (-450, 300), (-350, 500), (300, 500), (450, 300)
-            ]
+        formations  = {
+            "1,2 - Double Backline Wide": [
+                (250, -250), (-250, -250), (0, 200), (-350, 500), (350, 500), (-450, 300), (450, 300)
+            ],
+            "1,2 - Double Backline Narrow": [
+                (200, -200), (-200, -200), (0, 200), (-300, 500), (300, 500), (-400, 300), (400, 300)
+            ],
+            "1 - Single Backline Wide": [
+                (0, -250), (-150, 200), (150, 200), (-350, 500), (350, 500), (-450, 300), (450, 300)
+            ],
+            "1 - Single Backline Narrow": [
+                (0, -250), (-100, 200), (100, 200), (-300, 500), (300, 500), (-350, 300), (350, 300)
+            ],
+            "1,2 - Double Backline Triple Row Wide": [
+                (250, -250), (-250, -250), (-250, 0), (250, 0), (-250, 300), (0, 300), (250, 300)
+            ],
+            "1,2 - Double Backline Triple Row Narrow": [
+                (-200, -200), (200, -200), (-200, 0), (200, 0), (-200, 300), (0, 300), (200, 300)
+            ],
+        }
         
-        single_back_line_text = "1 - Single Backline"
-        single_back_line = PyImGui.button(single_back_line_text)
-        if single_back_line:
-            final_text_to_announce = single_back_line
-            set_formations_relative_to_leader = [
-                (0, -250), (-150, 200), (150, 200), (-450, 300), (-350, 500), (300, 500), (450, 300)
-            ]
-
+        for formation_text, formation_coordinates in formations.items():
+            should_set_formation = PyImGui.button(formation_text)
+            if should_set_formation:
+                final_text_to_announce = formation_text
+                set_formations_relative_to_leader = formation_coordinates
+        
         if len(set_formations_relative_to_leader):
             print(f'[INFO] Setting Formation: {final_text_to_announce}')
             leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
