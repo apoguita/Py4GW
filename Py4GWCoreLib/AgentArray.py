@@ -311,7 +311,7 @@ class AgentArray:
 
             closest_agent_id = min(largest_cluster, key=distance_to_center)
 
-            return center_of_mass, closest_agent_id
+            return closest_agent_id
 
 class RawAgentArray:
     _instance = None
