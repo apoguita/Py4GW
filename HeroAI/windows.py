@@ -9,6 +9,17 @@ from .targeting import *
 from HeroAI import game_option
 from .cache_data import CacheData
 
+import ctypes
+import os
+import json
+
+user32 = ctypes.WinDLL("user32", use_last_error=True)
+script_directory = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+BASE_DIR = os.path.join(project_root, "Widgets/Config")
+JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
+os.makedirs(BASE_DIR, exist_ok=True)
+
 
 def DrawBuffWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
@@ -222,11 +233,156 @@ def DrawFlags(cached_data:CacheData):
             Party.Heroes.UnflagHero(i)
         Party.Heroes.UnflagAllHeroes()
         CLearFlags = False
-            
-        
+
+
+def ensure_formation_json_exists():
+    if not os.path.exists(JSON_PATH):
+        default_json = {
+            "1,2 - Double Backline Wide": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [
+                    [250, -250],
+                    [-250, -250],
+                    [0, 200],
+                    [-315, 500],
+                    [315, 500],
+                    [-450, 300],
+                    [450, 300],
+                ],
+            },
+            "1,2 - Double Backline Narrow": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [
+                    [200, -200],
+                    [-200, -200],
+                    [0, 200],
+                    [-300, 500],
+                    [300, 500],
+                    [-400, 300],
+                    [400, 300],
+                ],
+            },
+            "1 - Single Backline Wide": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [
+                    [0, -250],
+                    [-150, 200],
+                    [150, 200],
+                    [-350, 500],
+                    [350, 500],
+                    [-450, 300],
+                    [450, 300],
+                ],
+            },
+            "1 - Single Backline Narrow": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [
+                    [0, -250],
+                    [-100, 200],
+                    [100, 200],
+                    [-300, 500],
+                    [300, 500],
+                    [-350, 300],
+                    [350, 300],
+                ],
+            },
+            "1,2 - Double Backline Triple Row Wide": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [
+                    [250, -250],
+                    [-250, -250],
+                    [-250, 0],
+                    [250, 0],
+                    [-250, 300],
+                    [0, 300],
+                    [250, 300],
+                ],
+            },
+            "1,2 - Double Backline Triple Row Narrow": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [
+                    [-200, -200],
+                    [200, -200],
+                    [-200, 0],
+                    [200, 0],
+                    [-200, 300],
+                    [0, 300],
+                    [200, 300],
+                ],
+            },
+            "Disband Formation": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [],
+            },
+        }
+        with open(JSON_PATH, "w") as f:
+            print(JSON_PATH)
+            json.dump(default_json, f)  # empty dict initially
+
+
+def save_formation_hotkey(
+    formation_name: str, hotkey: str, vk: int, coordinates: list[tuple[int, int]]
+):
+    ensure_formation_json_exists()
+    with open(JSON_PATH, "r") as f:
+        data = json.load(f)
+
+    # Save or update the formation
+    data[formation_name] = {
+        "hotkey": hotkey,
+        "vk": vk,
+        "coordinates": coordinates,  # JSON supports list of lists directly
+    }
+
+    with open(JSON_PATH, "w") as f:
+        json.dump(data, f, indent=4)
+
+
+def load_formations_from_json():
+    ensure_formation_json_exists()
+    with open(JSON_PATH, "r") as f:
+        data = json.load(f)
+    return data
+
+
+def get_key_pressed(vk_code):
+    value = user32.GetAsyncKeyState(vk_code) & 0x8000
+    is_value_not_zero = value != 0
+    if is_value_not_zero:
+        return vk_to_char(vk_code)
+    return None
+
+
+def char_to_vk(char: str) -> int:
+    if len(char) != 1:
+        pass
+    vk = user32.VkKeyScanW(ord(char))
+    if vk == -1:
+        pass
+    return vk & 0xFF  # The low byte is the VK code
+
+
+def vk_to_char(vk_code):
+    return chr(user32.MapVirtualKeyW(vk_code, 2))
+
+
+HotKeyValues = {}
+# At the top-level (e.g., global scope or init function)
+if not HotKeyValues:  # Only load once
+    formations = load_formations_from_json()
+    for formation_text, formation_data in formations.items():
+        HotKeyValues[formation_text] = formation_data.get("hotkey", "") or ""
+
 
 def DrawFlaggingWindow(cached_data:CacheData):
-    global HeroFlags, AllFlag, capture_flag_all, capture_hero_flag, capture_hero_index, one_time_set_flag
+    global HeroFlags, AllFlag, capture_flag_all, capture_hero_flag, capture_hero_index, one_time_set_flag, HotKeyValues
     global CLearFlags
     party_size = cached_data.data.party_size
     if party_size == 1:
@@ -263,40 +419,71 @@ def DrawFlaggingWindow(cached_data:CacheData):
         PyImGui.table_next_column()
         CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
         PyImGui.end_table()
-    
+
+    disband_formation = False
     if PyImGui.collapsing_header("Formation Flagger - Backline(1,2)"):
+        HOTKEY = "hotkey"
+        VK = 'vk'
+        COORDINATES = "coordinates"
+
         set_formations_relative_to_leader = []
-        final_text_to_announce = ''
-        
-        formations  = {
-            "1,2 - Double Backline Wide": [
-                (250, -250), (-250, -250), (0, 200), (-350, 500), (350, 500), (-450, 300), (450, 300)
-            ],
-            "1,2 - Double Backline Narrow": [
-                (200, -200), (-200, -200), (0, 200), (-300, 500), (300, 500), (-400, 300), (400, 300)
-            ],
-            "1 - Single Backline Wide": [
-                (0, -250), (-150, 200), (150, 200), (-350, 500), (350, 500), (-450, 300), (450, 300)
-            ],
-            "1 - Single Backline Narrow": [
-                (0, -250), (-100, 200), (100, 200), (-300, 500), (300, 500), (-350, 300), (350, 300)
-            ],
-            "1,2 - Double Backline Triple Row Wide": [
-                (250, -250), (-250, -250), (-250, 0), (250, 0), (-250, 300), (0, 300), (250, 300)
-            ],
-            "1,2 - Double Backline Triple Row Narrow": [
-                (-200, -200), (200, -200), (-200, 0), (200, 0), (-200, 300), (0, 300), (200, 300)
-            ],
-        }
-        
-        for formation_text, formation_coordinates in formations.items():
-            should_set_formation = PyImGui.button(formation_text)
-            if should_set_formation:
-                final_text_to_announce = formation_text
-                set_formations_relative_to_leader = formation_coordinates
-        
+        formations = load_formations_from_json()
+
+        if PyImGui.begin_table("FormationTable", 3):
+            # Setup column widths BEFORE starting the table rows
+            PyImGui.table_setup_column("Formation", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
+            PyImGui.table_setup_column("Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0)  # fixed 30px
+            PyImGui.table_setup_column("Save", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
+            for formation_text, formation_data in formations.items():
+                if formation_data[HOTKEY]:
+                    hotkey_pressed = get_key_pressed(formation_data[VK])
+                else:
+                    hotkey_pressed = False
+
+                PyImGui.table_next_row()
+
+                # Column 1: Formation Button
+                PyImGui.table_next_column()
+                button_pressed = PyImGui.button(formation_text)
+                should_set_formation = hotkey_pressed or button_pressed
+
+                # Column 2: Hotkey Input
+                # Get and display editable input buffer
+                PyImGui.table_next_column()
+                current_value = HotKeyValues[formation_text] or ''
+                PyImGui.set_next_item_width(30)
+                updated_value = PyImGui.input_text(
+                    f"##HotkeyInput_{formation_text}", current_value, 1
+                )
+
+                # Store it persistently
+                HotKeyValues[formation_text] = updated_value
+
+                # Column 3: Save Hotkey Button
+                PyImGui.table_next_column()
+                if PyImGui.button(f"Save Hotkey##{formation_text}"):
+                    input_value = updated_value.lower()
+                    if len(input_value) == 1:
+                        # Normalize to lowercase
+                        input_value = input_value.lower()
+                        vk_value = char_to_vk(input_value)
+                        if vk_value:
+                            print('[INFO] Saving hotkey for', formation_text, 'as', input_value)
+                            save_formation_hotkey(formation_text, input_value, vk_value, formation_data[COORDINATES])
+                        else:
+                            print('[ERROR] Invalid Hotkey')                    
+                    else:
+                        print('[ERROR] Only a single character keyboard keys can be used for a Hotkey')
+
+                if should_set_formation:
+                    if len(formation_data[COORDINATES]):
+                        set_formations_relative_to_leader = formation_data[COORDINATES]
+                    else:
+                        disband_formation = True
+
+        PyImGui.end_table()
+
         if len(set_formations_relative_to_leader):
-            print(f'[INFO] Setting Formation: {final_text_to_announce}')
             leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
             leader_x, leader_y, _ = Agent.GetXYZ(Party.GetPartyLeaderID())
             angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
@@ -306,7 +493,7 @@ def DrawFlaggingWindow(cached_data:CacheData):
 
             for hero_ai_index in range(1, party_size):
                 offset_x, offset_y = set_formations_relative_to_leader[hero_ai_index - 1]
-                
+
                 # Rotate offset
                 rotated_x = offset_x * cos_a - offset_y * sin_a
                 rotated_y = offset_x * sin_a + offset_y * cos_a
@@ -319,8 +506,16 @@ def DrawFlaggingWindow(cached_data:CacheData):
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosX", final_x)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosY", final_y)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", leader_follow_angle)
-                
-                
+        
+        if disband_formation:
+            for i in range(1, party_size):
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "IsFlagged", False)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "FlagPosX", 0.0)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "FlagPosY", 0.0)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "FollowAngle", 0.0)
+            Party.Heroes.UnflagHero(i)
+            Party.Heroes.UnflagAllHeroes()
+
     if AllFlag != IsHeroFlagged(cached_data,0):
         capture_hero_flag = True
         capture_flag_all = True
