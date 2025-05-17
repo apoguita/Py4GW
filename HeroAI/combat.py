@@ -590,7 +590,8 @@ class CombatClass:
         feature_count += (1 if Conditions.LessEnergy > 0 else 0)
         feature_count += (1 if Conditions.Overcast > 0 else 0)
         feature_count += (1 if Conditions.IsPartyWide else 0)
-        feature_count += (1 if Conditions.AgentsInRange > 0 else 0)
+        feature_count += (1 if Conditions.EnemiesInRange > 0 else 0)
+        feature_count += (1 if Conditions.AlliesInRange > 0 else 0)
 
         if Conditions.IsAlive:
             if Agent.IsAlive(vTarget):
@@ -810,6 +811,14 @@ class CombatClass:
             player_pos = Player.GetXY()
             enemy_array = enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Conditions.EnemiesInRangeArea)
             if len(enemy_array) >= Conditions.AgentsInRange:
+                number_of_features += 1
+            else:
+                number_of_features = 0
+                
+        if Conditions.AlliesInRange != 0:
+            player_pos = Player.GetXY()
+            ally_array = ally_array = Routines.Agents.GetFilteredAllyArray(player_pos[0], player_pos[1], Conditions.AlliesInRangeArea,other_ally=True)
+            if len(ally_array) >= Conditions.AgentsInRange:
                 number_of_features += 1
             else:
                 number_of_features = 0

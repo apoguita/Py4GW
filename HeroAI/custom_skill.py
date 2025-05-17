@@ -60,6 +60,10 @@ class CustomSkillClass:
                 #combat field checks
                 self.EnemiesInRange = 0
                 self.EnemiesInRangeArea = Range.Area.value
+                
+                self.AlliesInRange = 0
+                self.AlliesInRangeArea = Range.Area.value
+
 
     class CustomSkill:
         def __init__(self):
@@ -5983,8 +5987,8 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.AlliesInRange = 3
+        skill.Conditions.AlliesInRangeArea = Range.Area.value
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
