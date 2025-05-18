@@ -17,23 +17,81 @@ MODULE_NAME = "HeroAI"
 
 cached_data = CacheData()
 
-def HandleOutOfCombat(cached_data:CacheData):
+
+def HandleOutOfCombat(cached_data: CacheData):
     if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
         return False
     if cached_data.data.in_aggro:
         return False
 
-    return cached_data.combat_handler.HandleCombat(ooc= True)
+    flagged_out_of_combat_follow_distance = 10.0
+
+    party_number = cached_data.data.own_party_number
+    if cached_data.HeroAI_vars.all_player_struct[party_number].IsFlagged:
+        own_follow_x = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosX
+        own_follow_y = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosY
+        own_coords = (own_follow_x, own_follow_y)
+        if (
+            Utils.Distance(own_coords, cached_data.data.player_xy)
+            > flagged_out_of_combat_follow_distance
+        ):
+            return False
+    elif cached_data.HeroAI_vars.all_player_struct[0].IsFlagged:
+        leader_follow_x = cached_data.HeroAI_vars.all_player_struct[0].FlagPosX
+        leader_follow_y = cached_data.HeroAI_vars.all_player_struct[0].FlagPosY
+        leader_coords = (leader_follow_x, leader_follow_y)
+        if (
+            Utils.Distance(leader_coords, cached_data.data.player_xy)
+            > flagged_out_of_combat_follow_distance
+        ):
+            return False
+
+    return cached_data.combat_handler.HandleCombat(ooc=True)
 
 
-
-def HandleCombat(cached_data:CacheData):
+def HandleCombat(cached_data: CacheData):
     if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
         return False
     if not cached_data.data.in_aggro:
         return False
 
-    return cached_data.combat_handler.HandleCombat(ooc= False)
+    party_number = cached_data.data.own_party_number
+    if cached_data.HeroAI_vars.all_player_struct[party_number].IsFlagged:
+        own_follow_x = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosX
+        own_follow_y = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosY
+        own_flag_coords = (own_follow_x, own_follow_y)
+        if (
+            Utils.Distance(own_flag_coords, cached_data.data.player_xy)
+            > RANGED_RANGE_VALUE
+        ):
+            ActionQueueManager().ResetQueue("ACTION")
+            ActionQueueManager().AddAction(
+                "ACTION", Player.Move, own_follow_x, own_follow_y
+            )
+            cached_data.follow_throttle_timer.Reset()
+            return False
+    elif cached_data.HeroAI_vars.all_player_struct[0].IsFlagged:
+        leader_follow_x = cached_data.HeroAI_vars.all_player_struct[0].FlagPosX
+        leader_follow_y = cached_data.HeroAI_vars.all_player_struct[0].FlagPosY
+        leader_flag_coords = (leader_follow_x, leader_follow_y)
+        if (
+            Utils.Distance(leader_flag_coords, cached_data.data.player_xy)
+            > RANGED_RANGE_VALUE
+        ):
+            hero_grid_pos = party_number + cached_data.data.party_hero_count + cached_data.data.party_henchman_count
+            angle_on_hero_grid = follow_angle + Utils.DegToRad(hero_formation[hero_grid_pos])
+
+            ActionQueueManager().ResetQueue("ACTION")
+            ActionQueueManager().AddAction(
+                "ACTION",
+                Player.Move,
+                Range.Touch.value * math.cos(angle_on_hero_grid) + leader_follow_x,
+                Range.Touch.value * math.sin(angle_on_hero_grid) + leader_follow_y,
+            )
+            cached_data.follow_throttle_timer.Reset()
+            return False
+
+    return cached_data.combat_handler.HandleCombat(ooc=False)
 
 
 thread_manager = MultiThreading(log_actions=True)
@@ -45,13 +103,12 @@ looting_aftercast.Start()
 def SequentialLootingRoutine():
     global cached_data, looting_aftercast
     
-    filtered_loot = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
+    filtered_loot = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True) # Changed for LootManager - aC
     # Loot filtered items
     ActionQueueManager().ResetQueue("ACTION")
-    Routines.Sequential.Items.LootItems(filtered_loot,log = False)
+    Routines.Sequential.Items.LootItems(filtered_loot, log=False)
     looting_aftercast.Reset()
     cached_data.in_looting_routine = False
-
 
 
 def Loot(cached_data:CacheData):
@@ -77,7 +134,6 @@ def Loot(cached_data:CacheData):
     thread_manager.add_thread("SequentialLootingRoutine", SequentialLootingRoutine)
 
 
-
 def Follow(cached_data:CacheData):
     global MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_ON_COMBAT
     
@@ -93,7 +149,9 @@ def Follow(cached_data:CacheData):
     follow_y = 0.0
     follow_angle = -1.0
 
-    if cached_data.HeroAI_vars.all_player_struct[party_number].IsFlagged: #my own flag
+    is_own_flagged = False
+    if cached_data.HeroAI_vars.all_player_struct[party_number].IsFlagged:  # my own flag
+        is_own_flagged = True
         follow_x = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosX
         follow_y = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosY
         follow_angle = cached_data.HeroAI_vars.all_player_struct[party_number].FollowAngle
@@ -105,7 +163,9 @@ def Follow(cached_data:CacheData):
         follow_x, follow_y = cached_data.data.party_leader_xy
         follow_angle = cached_data.data.party_leader_rotation_angle
 
-    if cached_data.data.is_melee:
+    if is_own_flagged:
+        FOLLOW_DISTANCE_ON_COMBAT = 48.0
+    elif cached_data.data.is_melee:
         FOLLOW_DISTANCE_ON_COMBAT = MELEE_RANGE_VALUE
     else:
         FOLLOW_DISTANCE_ON_COMBAT = RANGED_RANGE_VALUE
@@ -113,34 +173,28 @@ def Follow(cached_data:CacheData):
     if cached_data.data.in_aggro:
         follow_distance = FOLLOW_DISTANCE_ON_COMBAT
     else:
-        follow_distance = FOLLOW_DISTANCE_OUT_OF_COMBAT
+        follow_distance = FOLLOW_DISTANCE_OUT_OF_COMBAT if not is_own_flagged else 0.0
 
     angle_changed_pass = False
     if cached_data.data.angle_changed and (not cached_data.data.in_aggro):
         angle_changed_pass = True
 
-    close_distance_check =  (DistanceFromWaypoint(follow_x, follow_y) <= follow_distance)
-    
+    close_distance_check = DistanceFromWaypoint(follow_x, follow_y) <= follow_distance
+
     if not angle_changed_pass and close_distance_check:
         return False
-    
 
     hero_grid_pos = party_number + cached_data.data.party_hero_count + cached_data.data.party_henchman_count
     angle_on_hero_grid = follow_angle + Utils.DegToRad(hero_formation[hero_grid_pos])
 
-    #if IsPointValid(follow_x, follow_y):
-    #   return False
-
-    xx = Range.Touch.value * math.cos(angle_on_hero_grid) + follow_x
-    yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y
+    xx = Range.Touch.value * math.cos(angle_on_hero_grid) + follow_x if not is_own_flagged else follow_x
+    yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y if not is_own_flagged else follow_y
 
     cached_data.data.angle_changed = False
     ActionQueueManager().ResetQueue("ACTION")
-    #ConsoleLog("HeroAI follow","distance: " + str(DistanceFromWaypoint(follow_x, follow_y)) + "target: " + str(follow_distance))
     ActionQueueManager().AddAction("ACTION", Player.Move, xx, yy)
     cached_data.follow_throttle_timer.Reset()
     return True
-    
 
 
 def draw_Targeting_floating_buttons(cached_data:CacheData):
@@ -160,8 +214,8 @@ def draw_Targeting_floating_buttons(cached_data:CacheData):
             ActionQueueManager().AddAction("ACTION", Player.Interact, agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
 
-      
-#TabType 
+
+# TabType
 class TabType(Enum):
     party = 1
     control_panel = 2
@@ -169,7 +223,7 @@ class TabType(Enum):
     flagging = 4
     config = 5
     debug = 6 
-    
+
 selected_tab:TabType = TabType.party
 
 def DrawFramedContent(cached_data:CacheData,content_frame_id):
@@ -226,8 +280,8 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
         
     PyImGui.end()
     PyImGui.pop_style_var(1)
-    
-       
+
+
 def DrawEmbeddedWindow(cached_data:CacheData):
     global selected_tab
     parent_frame_id = UIManager.GetFrameIDByHash(PARTY_WINDOW_HASH)   
@@ -280,8 +334,7 @@ def DrawEmbeddedWindow(cached_data:CacheData):
     
     ImGui.PopTransparentWindow()    
     DrawFramedContent(cached_data,content_frame_id)
-    
-    
+
 
 def UpdateStatus(cached_data:CacheData):
     
@@ -363,9 +416,7 @@ def UpdateStatus(cached_data:CacheData):
         cached_data.combat_handler.ResetSkillPointer()
         return
 
-    
-    
-   
+
 def configure():
     pass
 
@@ -400,8 +451,7 @@ def main():
         Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
     finally:
         pass
-        
+
 
 if __name__ == "__main__":
     main()
-
