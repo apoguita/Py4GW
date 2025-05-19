@@ -1428,7 +1428,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsOutOfCombat = False
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -4425,6 +4425,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Signet.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()

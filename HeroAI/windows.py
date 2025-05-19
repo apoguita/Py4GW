@@ -395,12 +395,7 @@ def DrawCandidateWindow(cached_data:CacheData):
 
                 PyImGui.table_set_column_index(1)
                 #name = Agent.GetName(candidate.PlayerID)
-                if cached_data.data.RAW_AGENT_ARRAY is not None:
-                    name = cached_data.data.RAW_AGENT_ARRAY.get_name(candidate.PlayerID)
-                    if name:
-                        cached_names[candidate.PlayerID] = name
-                    else:
-                        cached_names[candidate.PlayerID] = "Unknown"
+
                         
 
                 PyImGui.text(cached_names.get(candidate.PlayerID, ""))    
