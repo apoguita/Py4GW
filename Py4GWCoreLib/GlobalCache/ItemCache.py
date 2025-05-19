@@ -164,7 +164,6 @@ class ItemCache:
         self.Properties = ItemCache._Properties(raw_item_array)
         self.Rarity = ItemCache._Rarity(raw_item_array)
         self.Trade = ItemCache._Trade(raw_item_array)
-        self.Modifiers = ItemCache._Customization.Modifiers(raw_item_array)
         
     def _update_cache(self):
         now = time.time() * 1000
@@ -479,6 +478,7 @@ class ItemCache:
     class _Customization:
         def __init__(self, _raw_item_cache: RawItemCache):
             self._raw_item_cache: RawItemCache = _raw_item_cache
+            self.Modifiers : ItemCache._Customization._Modifiers = ItemCache._Customization._Modifiers(_raw_item_cache)
 
         def IsInscription(self, item_id: int) -> bool:
             item = self._raw_item_cache.get_item_by_id(item_id)
@@ -528,7 +528,7 @@ class ItemCache:
                 return False
             return item.is_sparkly
         
-        class Modifiers:
+        class _Modifiers:
             def __init__(self, _raw_item_cache: RawItemCache):
                 self._raw_item_cache: RawItemCache = _raw_item_cache
             
