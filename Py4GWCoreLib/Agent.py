@@ -701,6 +701,48 @@ class Agent:
         return gadget_agent.gadget_id
 
 
+class AgentName:
+    """
+    Purpose: Requests and Retrieve the name of an agent.
+    """
+    def __init__(self, agent_id, refresh_rate=1000):
+        from .Py4GWcorelib import ThrottledTimer
+        self.agent_id = agent_id
+        self.name = None
+        self.refresh_timer = ThrottledTimer(refresh_rate)
+        self.requested = False
+        self.name_ready = False
+
+    def request_name(self):
+        """Request the agent's name if not already requested."""
+        if not self.requested:
+            Agent.RequestName(self.agent_id)
+            self.requested = True
+
+    def is_name_ready(self):
+        """Check if the name is ready."""
+        return Agent.IsNameReady(self.agent_id)
+
+    def get_name(self):
+        """
+        Get the agent's name.
+        """
+        
+        if not self.name_ready or self.refresh_timer.IsExpired():
+            self.refresh_timer.Reset()
+            if not self.requested:
+                self.request_name()
+                self.name_ready = False
+                return self.name
+                
+                
+        if not self.name_ready and self.is_name_ready():
+            self.name = Agent.GetName(self.agent_id)
+            self.name_ready = True
+            self.requested = False
+                    
+        return self.name
+            
 
 
 

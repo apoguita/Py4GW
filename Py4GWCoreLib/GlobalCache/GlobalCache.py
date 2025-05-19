@@ -1,0 +1,80 @@
+
+from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
+from Py4GWCoreLib import RawAgentArray
+
+from .PlayerCache import PlayerCache
+from .MapCache import MapCache
+from .AgentCache import AgentCache
+from .AgentArrayCache import AgentArrayCache
+from .CameraCache import CameraCache
+from .EffectCache import EffectsCache
+from .ItemCache import RawItemCache, ItemCache, ItemArray
+
+
+class GlobalCache:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(GlobalCache, cls).__new__(cls)
+            cls._instance._init_namespaces()
+        return cls._instance
+
+    def _init_namespaces(self):
+        self._ActionQueueManager = ActionQueueManager()
+        self._TrottleTimers = self.TrottleTimers()
+        self._RawAgentArray = RawAgentArray()
+        self._RawItemCache = RawItemCache()
+        self.Player = PlayerCache(self._ActionQueueManager)
+        self.Map = MapCache(self._ActionQueueManager)
+        self.Agent = AgentCache(self._RawAgentArray)
+        self.AgentArray = AgentArrayCache(self._RawAgentArray)
+        self.Camera = CameraCache(self._ActionQueueManager)
+        self.Effects = EffectsCache()
+        self.Item = ItemCache(self._RawItemCache)
+        self.ItemArray = ItemArray()
+        
+    def _update_cache(self):
+        if self._TrottleTimers._50ms.IsExpired():
+            self.Map._update_cache()
+            if not self.Map.IsMapReady():
+                self.Agent._reset_cache()
+                self.Effects._reset_cache()
+                self.Item._reset_cache()
+                self._TrottleTimers.Reset()
+                return
+            
+            self.Player._update_cache()
+            self._RawAgentArray.update()
+            self.Agent._update_cache()
+            self.AgentArray._update_cache()
+            self.Camera._update_cache()
+            
+            if self._TrottleTimers._100ms.IsExpired():
+                self._RawItemCache.update()
+                self.Item._update_cache()
+                self._TrottleTimers._100ms.Reset()
+              
+            self._TrottleTimers._50ms.Reset()
+            
+        
+
+    class TrottleTimers:
+        def __init__(self):
+            self._50ms = ThrottledTimer(50)
+            self._100ms = ThrottledTimer(100)
+            self._500ms = ThrottledTimer(500)
+            self._1_000ms = ThrottledTimer(1000)
+            self._5_000ms = ThrottledTimer(5000)
+            self._10_000ms = ThrottledTimer(10000)         
+
+        def Reset(self):
+            self._50ms.Reset()
+            self._100ms.Reset()
+            self._500ms.Reset()
+            self._1_000ms.Reset()
+            self._5_000ms.Reset()
+            self._10_000ms.Reset()
+    
+        

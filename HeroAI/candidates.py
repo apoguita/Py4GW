@@ -45,7 +45,7 @@ def UpdateCandidates(cached_data:CacheData):
         cached_data.HeroAI_vars.all_candidate_struct[player].SummonedBy = candidate_data["SummonedBy"]
         cached_data.HeroAI_vars.all_candidate_struct[player].LastUpdated = candidate_data["LastUpdated"]
 
-
+g_invited_by = 0
 def SendPartyCommand(index, cached_data:CacheData, command="Invite"):
     candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
 

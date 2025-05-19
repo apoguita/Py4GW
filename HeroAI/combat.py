@@ -375,6 +375,10 @@ class CombatClass:
             v_target = Routines.Agents.GetNearestEnemyMelee(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
                 v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyClustered:
+            v_target = TargetClusteredEnemy(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
         elif target_allegiance == Skilltarget.AllyMartialRanged:
             v_target = Routines.Agents.GetNearestEnemyRanged(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
@@ -586,53 +590,77 @@ class CombatClass:
         feature_count += (1 if Conditions.LessEnergy > 0 else 0)
         feature_count += (1 if Conditions.Overcast > 0 else 0)
         feature_count += (1 if Conditions.IsPartyWide else 0)
+        feature_count += (1 if Conditions.EnemiesInRange > 0 else 0)
+        feature_count += (1 if Conditions.AlliesInRange > 0 else 0)
 
         if Conditions.IsAlive:
             if Agent.IsAlive(vTarget):
                 number_of_features += 1
 
+        is_conditioned = Agent.IsConditioned(vTarget)
+        is_bleeding = Agent.IsBleeding(vTarget)
+        is_blind = self.HasEffect(vTarget, self.blind)
+        is_burning = self.HasEffect(vTarget, self.burning)
+        is_cracked_armor = self.HasEffect(vTarget, self.cracked_armor)
+        is_crippled = Agent.IsCrippled(vTarget)
+        is_dazed = self.HasEffect(vTarget, self.dazed)
+        is_deep_wound = self.HasEffect(vTarget, self.deep_wound)
+        is_disease = self.HasEffect(vTarget, self.disease)
+        is_poison = Agent.IsPoisoned(vTarget)
+        is_weakness = self.HasEffect(vTarget, self.weakness)
+        
         if Conditions.HasCondition:
-            if Agent.IsConditioned(vTarget):
+            if (is_conditioned or 
+                is_bleeding or 
+                is_blind or 
+                is_burning or 
+                is_cracked_armor or 
+                is_crippled or 
+                is_dazed or 
+                is_deep_wound or 
+                is_disease or 
+                is_poison or 
+                is_weakness):
                 number_of_features += 1
 
         if Conditions.HasBleeding:
-            if Agent.IsBleeding(vTarget):
+            if is_bleeding:
                 number_of_features += 1
 
         if Conditions.HasBlindness:
-            if self.HasEffect(vTarget, self.blind):
+            if is_blind:
                 number_of_features += 1
 
         if Conditions.HasBurning:
-            if self.HasEffect(vTarget, self.burning):
+            if is_burning:
                 number_of_features += 1
 
         if Conditions.HasCrackedArmor:
-            if self.HasEffect(vTarget, self.cracked_armor):
+            if is_cracked_armor:
                 number_of_features += 1
           
         if Conditions.HasCrippled:
-            if Agent.IsCrippled(vTarget):
+            if is_crippled:
                 number_of_features += 1
                 
         if Conditions.HasDazed:
-            if self.HasEffect(vTarget, self.dazed):
+            if is_dazed:
                 number_of_features += 1
           
         if Conditions.HasDeepWound:
-            if self.HasEffect(vTarget, self.deep_wound):
+            if is_deep_wound:
                 number_of_features += 1
                 
         if Conditions.HasDisease:
-            if self.HasEffect(vTarget, self.disease):
+            if is_disease:
                 number_of_features += 1
 
         if Conditions.HasPoison:
-            if Agent.IsPoisoned(vTarget):
+            if is_poison:
                 number_of_features += 1
 
         if Conditions.HasWeakness:
-            if self.HasEffect(vTarget, self.weakness):
+            if is_weakness:
                 number_of_features += 1
          
         if Conditions.HasWeaponSpell:
@@ -779,6 +807,21 @@ class CombatClass:
                     if self.HasEffect(pet_id,self.skills[slot].skill_id ):
                         return False
             
+        if Conditions.EnemiesInRange != 0:
+            player_pos = Player.GetXY()
+            enemy_array = enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Conditions.EnemiesInRangeArea)
+            if len(enemy_array) >= Conditions.EnemiesInRange:
+                number_of_features += 1
+            else:
+                number_of_features = 0
+                
+        if Conditions.AlliesInRange != 0:
+            player_pos = Player.GetXY()
+            ally_array = ally_array = Routines.Agents.GetFilteredAllyArray(player_pos[0], player_pos[1], Conditions.AlliesInRangeArea,other_ally=True)
+            if len(ally_array) >= Conditions.AlliesInRange:
+                number_of_features += 1
+            else:
+                number_of_features = 0
 
         #Py4GW.Console.Log("AreCastConditionsMet", f"feature count: {feature_count}, No of features {number_of_features}", Py4GW.Console.MessageType.Info)
         
@@ -914,30 +957,31 @@ class CombatClass:
         if not self.in_aggro:
             return False
 
-        target_id = Player.GetTargetID()
-        if Agent.IsValid(target_id) or target_id == 0:
-            _, target_aliegance = Agent.GetAllegiance(target_id)
-        
-            if target_aliegance != 'Enemy' or target_id == 0:      
-                nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
-                called_target = self.GetPartyTarget()
-
-                attack_target = 0
-
-                if Agent.IsValid(called_target):
-                    attack_target = called_target
-                elif Agent.IsValid(nearest):
-                    attack_target = nearest
-                else:
-                    return False
-
-                ActionQueueManager().AddAction("ACTION", self.SafeChangeTarget, attack_target)
-                ActionQueueManager().AddAction("ACTION", self.SafeInteract, attack_target)
+            
+        called_target = self.GetPartyTarget()
+        if not Agent.IsDead(called_target):
+            if called_target != 0:
+                ActionQueueManager().AddAction("ACTION", self.SafeInteract, called_target)
                 return True
-            else:
+        
+        target_id = Player.GetTargetID()
+        if target_id == 0:
+            nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+            if nearest != 0:
+                ActionQueueManager().AddAction("ACTION", self.SafeInteract, nearest)
+                return True
+        
+        _, target_aliegance = Agent.GetAllegiance(target_id)
+        if not Agent.IsDead(target_id) and target_aliegance == 'Enemy':
+            if target_id != 0:
                 ActionQueueManager().AddAction("ACTION", self.SafeInteract, target_id)
                 return True
-        return False
+        
+        nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+        if nearest != 0:
+            ActionQueueManager().AddAction("ACTION", self.SafeInteract, nearest)
+            return True
+        
 
     def HandleCombat(self,ooc=False):
         """
