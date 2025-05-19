@@ -158,6 +158,13 @@ class ItemCache:
         self.name_cache: dict[int, tuple[str, float]] = {}  # agent_id -> (name, timestamp)
         self.name_requested: set[int] = set()
         self.name_timeout_ms = 1_000
+        self.Customization = ItemCache._Customization(raw_item_array)
+        self.Type = ItemCache._Type(raw_item_array)
+        self.Usage = ItemCache._Usage(raw_item_array)
+        self.Properties = ItemCache._Properties(raw_item_array)
+        self.Rarity = ItemCache._Rarity(raw_item_array)
+        self.Trade = ItemCache._Trade(raw_item_array)
+        self.Modifiers = ItemCache._Customization.Modifiers(raw_item_array)
         
     def _update_cache(self):
         now = time.time() * 1000
@@ -268,8 +275,9 @@ class ItemCache:
                 return modColor
         return 0
         
-    class Rarity:
-        _raw_item_cache: RawItemCache = RawItemCache()
+    class _Rarity:
+        def __init__(self, _raw_item_cache : RawItemCache):
+            self._raw_item_cache: RawItemCache = _raw_item_cache
         
         def GetRarity(self, item_id: int):
             item = self._raw_item_cache.get_item_by_id(item_id)
@@ -312,9 +320,10 @@ class ItemCache:
             rarity_name  = item.rarity.name
             return rarity_name == "Green"
         
-    class Properties:
-        _raw_item_cache: RawItemCache = RawItemCache()
-        
+    class _Properties:
+        def __init__(self, _raw_item_cache: RawItemCache):
+            self._raw_item_cache: RawItemCache = _raw_item_cache
+
         def IsCustomized(self, item_id: int) -> bool:
             item = self._raw_item_cache.get_item_by_id(item_id)
             if item is None:
@@ -350,10 +359,11 @@ class ItemCache:
             if item is None:
                 return 0
             return item.interaction
-        
-    class Type:
-        _raw_item_cache: RawItemCache = RawItemCache()
-        
+    
+    class _Type:
+        def __init__(self, _raw_item_cache: RawItemCache):
+            self._raw_item_cache: RawItemCache = _raw_item_cache
+
         def IsWeapon(self, item_id: int) -> bool:
             item = self._raw_item_cache.get_item_by_id(item_id)
             if item is None:
@@ -402,9 +412,10 @@ class ItemCache:
                 return False
             return item.is_tome
         
-    class Usage:
-        _raw_item_cache: RawItemCache = RawItemCache()
-        
+    class _Usage:
+        def __init__(self, _raw_item_cache: RawItemCache):
+            self._raw_item_cache: RawItemCache = _raw_item_cache
+
         def IsUsable(self, item_id: int) -> bool:
             item = self._raw_item_cache.get_item_by_id(item_id)
             if item is None:
@@ -465,9 +476,10 @@ class ItemCache:
                 return False
             return item.is_identified
         
-    class Customization:
-        _raw_item_cache: RawItemCache = RawItemCache()
-        
+    class _Customization:
+        def __init__(self, _raw_item_cache: RawItemCache):
+            self._raw_item_cache: RawItemCache = _raw_item_cache
+
         def IsInscription(self, item_id: int) -> bool:
             item = self._raw_item_cache.get_item_by_id(item_id)
             if item is None:
@@ -492,8 +504,33 @@ class ItemCache:
                 return False
             return item.is_suffix_upgradable
         
+        def GetDyeInfo(self, item_id):
+            item = self._raw_item_cache.get_item_by_id(item_id)
+            if item is None:
+                return 0, 0
+            return item.dye_info
+        
+        def GetItemFormula(self, item_id):
+            item = self._raw_item_cache.get_item_by_id(item_id)
+            if item is None:
+                return 0
+            return item.item_formula
+        
+        def IsStackable(self, item_id):
+            item = self._raw_item_cache.get_item_by_id(item_id)
+            if item is None:
+                return False
+            return (item.interaction & 0x80000) != 0
+        
+        def IsSparkly(self, item_id):
+            item = self._raw_item_cache.get_item_by_id(item_id)
+            if item is None:
+                return False
+            return item.is_sparkly
+        
         class Modifiers:
-            _raw_item_cache: RawItemCache = RawItemCache()
+            def __init__(self, _raw_item_cache: RawItemCache):
+                self._raw_item_cache: RawItemCache = _raw_item_cache
             
             def GetModifierCount(self, item_id):
                 item = self._raw_item_cache.get_item_by_id(item_id)
@@ -528,35 +565,12 @@ class ItemCache:
 
                         return arg, arg1, arg2
 
-                return None, None, None
+                return None, None, None     
         
-        def GetDyeInfo(self, item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
-            if item is None:
-                return 0, 0
-            return item.dye_info
-        
-        def GetItemFormula(self, item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
-            if item is None:
-                return 0
-            return item.item_formula
-        
-        def IsStackable(self, item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
-            if item is None:
-                return False
-            return (item.interaction & 0x80000) != 0
-        
-        def IsSparkly(self, item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
-            if item is None:
-                return False
-            return item.is_sparkly
-        
-    class Trade:
-        _raw_item_cache: RawItemCache = RawItemCache()
-        
+    class _Trade:
+        def __init__(self, _raw_item_cache: RawItemCache):
+            self._raw_item_cache: RawItemCache = _raw_item_cache
+
         def IsOfferedInTrade(self, item_id: int) -> bool:
             item = self._raw_item_cache.get_item_by_id(item_id)
             if item is None:
@@ -594,13 +608,3 @@ class ItemArray:
     
     def GetBag(self, bag: int):
         return self._raw_item_cache.get_bag(bag)
-   
-        
-        
-        
-        
-        
-        
-        
-        
-        
