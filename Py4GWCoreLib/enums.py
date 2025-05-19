@@ -373,6 +373,11 @@ class ItemType(IntEnum):
     Minipet = 34
     Scythe = 35
     Spear = 36
+    Weapon = 37
+    MartialWeapon = 38
+    OffhandOrShield = 39
+    EquippableItem = 40
+    SpellcastingWeapon = 41
     Storybook = 43
     Costume = 44
     Costume_Headpiece = 45
@@ -1892,7 +1897,6 @@ class ModelID(IntEnum):
     Igneous_Spider_leg = 123654789195    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Ivory_Troll_Tusk = 123654789196    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Kuskale_Claw = 123654789198    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Lavastrider_Appendage = 123654789199    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Leather_Belt = 123456677        # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Mandragor_Carapace = 123654789181        # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Plauge_Idol = 123654789185    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
@@ -1904,6 +1908,7 @@ class ModelID(IntEnum):
     Smoking_Remains = 8787899465    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Spiny_Seed = 74966338    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Stolen_Supplies = 66665481    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Lavastrider_Appendage = 27058
     Blessing_Of_War = 37843
     Diamond_Djinn_Essence = 19186
     Elder_Kappa_Shell = 837
