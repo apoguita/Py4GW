@@ -53,6 +53,7 @@ class AgentArray:
     @staticmethod
     def GetItemArray():
         """Purpose: Retrieve the agent array pre-filtered by items."""
+        """
         item_owner_cache = ItemOwnerCache()
         loot_array = Player.player_instance().GetItemArray()
         if not loot_array:
@@ -65,6 +66,9 @@ class AgentArray:
             cached_owner_id = item_owner_cache.check_and_cache(item_data.item_id, current_owner_id)
         
         return loot_array
+        """
+        return Player.player_instance().GetItemArray()
+        
     @staticmethod
     def IsAgentIDValid(agent_id):
         """Purpose: Check if the agent ID is valid."""
@@ -311,18 +315,18 @@ class AgentArray:
 
             closest_agent_id = min(largest_cluster, key=distance_to_center)
 
-            return center_of_mass, closest_agent_id
+            return closest_agent_id
 
 class RawAgentArray:
     _instance = None
 
-    def __new__(cls, throttle: int = 50):
+    def __new__(cls, throttle: int = 35):
         if cls._instance is None:
             cls._instance = super(RawAgentArray, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, throttle: int = 50):
+    def __init__(self, throttle: int = 35):
         from .Py4GWcorelib import ThrottledTimer
         if self._initialized:
             self.throttle = throttle
@@ -344,7 +348,6 @@ class RawAgentArray:
         self.agent_cache = {}           # id -> agent instance
         self.current_map_id = 0
 
-        # === Name handling ===
         # === Name handling ===
         self.agent_name_map: dict[int, Tuple[str, float]] = {}  # id -> (name, timestamp)
         self.name_requested: set[int] = set()                   # agents whose names are being requested
@@ -379,6 +382,7 @@ class RawAgentArray:
         current_agent_ids = set(AgentArray.GetAgentArray())
 
         # === Step 2: Resolve names for requested agents ===
+        """
         now = time.time() * 1000
 
         for agent_id in list(self.name_requested):
@@ -389,6 +393,7 @@ class RawAgentArray:
                 self.agent_name_map[agent_id] = (name, now)
                 self.name_requested.discard(agent_id)
 
+        """
         # === Step 3: Refresh or create agents ===
         self.agent_array = []
         for agent_id in current_agent_ids:
@@ -520,6 +525,9 @@ class RawAgentArray:
 
     
     def get_name(self, agent_id: int) -> str:
+        return ""
+    
+        """
         from .Agent import Agent
         import time
 
@@ -533,6 +541,7 @@ class RawAgentArray:
             else:
                 # Expired: re-request if not already doing so
                 if agent_id not in self.name_requested:
+                    
                     Agent.RequestName(agent_id)
                     self.name_requested.add(agent_id)
                 return name
@@ -542,6 +551,8 @@ class RawAgentArray:
             return ""
 
         # Name was never requested or removed: request it now
-        Agent.RequestName(agent_id)
+        
+        #Agent.RequestName(agent_id)
         self.name_requested.add(agent_id)
         return ""
+        """

@@ -86,6 +86,10 @@ class Skilltarget (IntEnum):
     Minion = 14
     Spirit = 15
     Pet = 16
+    #added targets
+    
+    EnemyClustered = 22
+
     
     
    

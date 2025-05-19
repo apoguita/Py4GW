@@ -53,6 +53,7 @@ from .DXOverlay import *
 from .UIManager import *
 from .Routines import *
 from .SkillManager import *
+from .GlobalCache import GLOBAL_CACHE
 
 traceback = traceback
 math = math
@@ -78,6 +79,7 @@ PyPathing = PyPathing
 PyUIManager = PyUIManager
 PyCamera = PyCamera
 Py2DRenderer = Py2DRenderer
+GLOBAL_CACHE = GLOBAL_CACHE
 
 #redirect print output to Py4GW Console
 class Py4GWLogger:
