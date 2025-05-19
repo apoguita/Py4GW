@@ -12,12 +12,6 @@ _cached_popup_state = {
     "grouped": None
 }
 
-def get_enabled(info, name):
-    val = info.get("enabled", False)
-    if __debug__ and not isinstance(val, bool):
-        ConsoleLog("WidgetManager", f"[{name}] invalid 'enabled' value: {val} ({type(val)})", Py4GW.Console.MessageType.Warning)
-    return bool(val)
-
 def draw_widget_popup_menus():
     current_version = id(handler.widgets)
     show_hidden = state.show_hidden_widgets
@@ -78,7 +72,7 @@ def draw_widget_popup_menus():
                 PyImGui.table_next_row()
                 PyImGui.table_set_column_index(0)
 
-                enabled = get_enabled(item["info"], item["name"])
+                enabled = item["info"].get("enabled", False)
                 new_enabled = PyImGui.checkbox(item["name"], enabled)
 
                 if new_enabled != enabled and (item["name"], "enabled") not in written_this_frame:
