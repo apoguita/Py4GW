@@ -1,7 +1,9 @@
 import PyItem
 import Py4GW
 
-from .Item import *
+from .Item import Bag, Item
+from .Py4GWcorelib import ThrottledTimer
+import PyInventory 
 
 class ItemArray:
     @staticmethod
@@ -50,6 +52,40 @@ class ItemArray:
                 Py4GW.Console.Log("GetItemArray", f"Error retrieving items from {bag_enum.name}: {str(e)}", Py4GW.Console.MessageType.Error)
     
         return all_item_ids
+
+    @staticmethod
+    def GetAllBags():
+        """
+        Returns a list of all Bag enums that are valid for use with GetItemArray().
+        Skips NoBag automatically.
+        """
+        valid_bags = []
+
+        for bag in Bag:
+            if bag == Bag.NoBag:
+                continue
+            items = ItemArray.GetItemArray([bag])
+            if items:
+                valid_bags.append(bag)
+
+        return valid_bags
+    
+    @staticmethod
+    def GetBag(bag: int):
+        """
+        Returns a Bag instance for the given bag enum.
+        Returns None if the bag is invalid or has no items.
+        """
+        items = ItemArray.GetItemArray([bag])
+        if not items:
+            return None
+
+        try:
+            bag_instance = PyInventory.Bag(bag, str(bag))
+            bag_instance.GetContext()
+            return bag_instance
+        except Exception:
+            return None
 
     class Filter:
         @staticmethod
@@ -170,8 +206,4 @@ class ItemArray:
             """
             # Sort directly using the condition function
             return sorted(item_array, key=condition_func, reverse=reverse)
-
-     
-
-
 

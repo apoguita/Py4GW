@@ -152,16 +152,6 @@ class Map:
         Map.map_instance().LeaveGH()
 
     @staticmethod
-    def SetFog(state):
-        """
-        Set the fog state of the map.
-        Args:
-            state (bool): The state of the fog.
-        Returns: None
-        """
-        Py4GW.Game.SetFog(state)
-
-    @staticmethod
     def GetInstanceUptime():
         """Retrieve the uptime of the current instance."""
         return Map.map_instance().instance_time

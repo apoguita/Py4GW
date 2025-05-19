@@ -399,7 +399,6 @@ class Player:
         Purpose: Deposit faction points. need to be talking with an embassador.
         Args:
             faction_id (int): The ID of the faction to deposit.
-            amount (int): The amount of points to deposit.
         Returns: None
         """
         Player.player_instance().DepositFaction(faction_id)

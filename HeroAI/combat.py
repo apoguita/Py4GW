@@ -810,7 +810,7 @@ class CombatClass:
         if Conditions.EnemiesInRange != 0:
             player_pos = Player.GetXY()
             enemy_array = enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Conditions.EnemiesInRangeArea)
-            if len(enemy_array) >= Conditions.AgentsInRange:
+            if len(enemy_array) >= Conditions.EnemiesInRange:
                 number_of_features += 1
             else:
                 number_of_features = 0
@@ -818,7 +818,7 @@ class CombatClass:
         if Conditions.AlliesInRange != 0:
             player_pos = Player.GetXY()
             ally_array = ally_array = Routines.Agents.GetFilteredAllyArray(player_pos[0], player_pos[1], Conditions.AlliesInRangeArea,other_ally=True)
-            if len(ally_array) >= Conditions.AgentsInRange:
+            if len(ally_array) >= Conditions.AlliesInRange:
                 number_of_features += 1
             else:
                 number_of_features = 0
@@ -957,30 +957,31 @@ class CombatClass:
         if not self.in_aggro:
             return False
 
-        target_id = Player.GetTargetID()
-        if Agent.IsValid(target_id) or target_id == 0:
-            _, target_aliegance = Agent.GetAllegiance(target_id)
-        
-            if target_aliegance != 'Enemy' or target_id == 0:      
-                nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
-                called_target = self.GetPartyTarget()
-
-                attack_target = 0
-
-                if Agent.IsValid(called_target):
-                    attack_target = called_target
-                elif Agent.IsValid(nearest):
-                    attack_target = nearest
-                else:
-                    return False
-
-                ActionQueueManager().AddAction("ACTION", self.SafeChangeTarget, attack_target)
-                ActionQueueManager().AddAction("ACTION", self.SafeInteract, attack_target)
+            
+        called_target = self.GetPartyTarget()
+        if not Agent.IsDead(called_target):
+            if called_target != 0:
+                ActionQueueManager().AddAction("ACTION", self.SafeInteract, called_target)
                 return True
-            else:
+        
+        target_id = Player.GetTargetID()
+        if target_id == 0:
+            nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+            if nearest != 0:
+                ActionQueueManager().AddAction("ACTION", self.SafeInteract, nearest)
+                return True
+        
+        _, target_aliegance = Agent.GetAllegiance(target_id)
+        if not Agent.IsDead(target_id) and target_aliegance == 'Enemy':
+            if target_id != 0:
                 ActionQueueManager().AddAction("ACTION", self.SafeInteract, target_id)
                 return True
-        return False
+        
+        nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+        if nearest != 0:
+            ActionQueueManager().AddAction("ACTION", self.SafeInteract, nearest)
+            return True
+        
 
     def HandleCombat(self,ooc=False):
         """
