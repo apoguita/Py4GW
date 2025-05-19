@@ -445,13 +445,20 @@ class CombatClass:
             return True
         """
         result = False
+        custom_skill_data = custom_skill_data_handler.get_skill(skill_id)
+        shared_effects = getattr(custom_skill_data.Conditions, "SharedEffects", []) if custom_skill_data else []
+
+
         if self.IsPartyMember(agent_id):
             player_buffs = self.shared_memory_handler.get_agent_buffs(agent_id)
-            for buff in player_buffs:
-                if buff == skill_id:
+            for buff in player_buffs:                
+                if buff == skill_id or buff in shared_effects:
                     result = True
         else:
-            result = Effects.BuffExists(agent_id, skill_id) or Effects.EffectExists(agent_id, skill_id)
+            result = (
+                Effects.BuffExists(agent_id, skill_id) 
+                or Effects.EffectExists(agent_id, skill_id)
+                or any(Effects.BuffExists(agent_id, shared_buff) or Effects.EffectExists(agent_id, shared_buff) for shared_buff in shared_effects))
 
         if not result and not exact_weapon_spell:
            skilltype, _ = Skill.GetType(skill_id)
@@ -498,8 +505,9 @@ class CombatClass:
                 return energy and not Agent.IsCasting(vTarget) and not Agent.IsAttacking(vTarget)
 
             if (self.skills[slot].skill_id == self.mend_body_and_soul):
+                spirits_exist = Routines.Agents.GetNearestSpirit(Range.Earshot.value)
                 life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
-                return life and Agent.IsConditioned(vTarget)
+                return life or (spirits_exist and Agent.IsConditioned(vTarget))
 
             if (self.skills[slot].skill_id == self.grenths_balance):
                 life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
@@ -590,6 +598,7 @@ class CombatClass:
         feature_count += (1 if Conditions.LessEnergy > 0 else 0)
         feature_count += (1 if Conditions.Overcast > 0 else 0)
         feature_count += (1 if Conditions.IsPartyWide else 0)
+        feature_count += (1 if Conditions.RequiresSpiritInEarshot else 0)
         feature_count += (1 if Conditions.EnemiesInRange > 0 else 0)
         feature_count += (1 if Conditions.AlliesInRange > 0 else 0)
 
@@ -779,6 +788,15 @@ class CombatClass:
             total_group_life /= len(allies_array)
             
             if total_group_life < less_life:
+                number_of_features += 1
+                                    
+        if Conditions.RequiresSpiritInEarshot:            
+            distance = Range.Earshot.value
+            spirit_array = AgentArray.GetSpiritPetArray()
+            spirit_array = AgentArray.Filter.ByDistance(spirit_array, Player.GetXY(), distance)            
+            spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsAlive(agent_id))
+            
+            if(len(spirit_array) > 0):
                 number_of_features += 1
                     
         if self.skills[slot].custom_skill_data.SkillType == SkillType.PetAttack.value:
