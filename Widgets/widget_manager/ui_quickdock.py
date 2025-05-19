@@ -3,25 +3,38 @@ from . import state
 from .handler import handler
 from .config_scope import use_account_settings
 
-def quick_dock_menu():
-    fullscreen_frame_id = UIManager.GetFrameIDByHash(140452905)
-    left, top, right, bottom = UIManager.GetFrameCoords(fullscreen_frame_id)
+button_flags = (
+    PyImGui.WindowFlags.NoTitleBar |
+    PyImGui.WindowFlags.AlwaysAutoResize |
+    PyImGui.WindowFlags.NoMove |
+    PyImGui.WindowFlags.NoScrollbar
+)
 
+def quick_dock_menu():
+    io = PyImGui.get_io()
+    left, top = 0, 0
+    right = io.display_size_x
+    bottom = io.display_size_y
+    
     mouse_x, mouse_y = Overlay().GetMouseCoords()
     if state.quick_dock_unlocked and PyImGui.is_mouse_dragging(0, -1.0) and state.quick_dock_hovering_button:
         edge_threshold = 30
+        new_edge = None
         if mouse_y < top + edge_threshold:
-            state.quick_dock_edge[0] = "top"
-            handler._write_setting("QuickDock", "edge", "top", to_account=use_account_settings())
+            new_edge = "top"
         elif mouse_y > bottom - edge_threshold:
-            state.quick_dock_edge[0] = "bottom"
-            handler._write_setting("QuickDock", "edge", "bottom", to_account=use_account_settings())
+            new_edge = "bottom"
         elif mouse_x < left + edge_threshold:
-            state.quick_dock_edge[0] = "left"
-            handler._write_setting("QuickDock", "edge", "left", to_account=use_account_settings())
+            new_edge = "left"
         elif mouse_x > right - edge_threshold:
-            state.quick_dock_edge[0] = "right"
-            handler._write_setting("QuickDock", "edge", "right", to_account=use_account_settings())
+            new_edge = "right"
+
+        if new_edge and new_edge != state.quick_dock_edge[0]:
+            state.quick_dock_edge[0] = new_edge
+
+            if new_edge != state.last_written_quick_dock_edge:
+                handler._write_setting("QuickDock", "edge", new_edge, to_account=use_account_settings())
+                state.last_written_quick_dock_edge = new_edge
 
     if state.quick_dock_edge[0] == "left":
         quick_dock_x = left - 10
@@ -69,6 +82,10 @@ def quick_dock_menu():
                 state.quick_dock_offset_y = max(top, min(bottom - state.quick_dock_height, mouse_y - state.quick_dock_height // 2))
             else:
                 state.quick_dock_offset_y = max(left, min(right - state.quick_dock_width, mouse_x - state.quick_dock_width // 2))
+
+            if state.quick_dock_offset_y != state.last_written_offset_y:
+                handler._write_setting("QuickDock", "offset_y", str(state.quick_dock_offset_y), to_account=use_account_settings())
+                state.last_written_offset_y = state.quick_dock_offset_y
         PyImGui.end()
 
         PyImGui.pop_style_color(1)
@@ -93,14 +110,6 @@ def quick_dock_menu():
             panel_y = quick_dock_y
 
         PyImGui.set_next_window_pos(panel_x, panel_y)
-
-        button_flags = (
-            PyImGui.WindowFlags.NoTitleBar |
-            PyImGui.WindowFlags.AlwaysAutoResize |
-            PyImGui.WindowFlags.NoMove |
-            PyImGui.WindowFlags.NoScrollbar
-        )
-
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FramePadding, 0.0)
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.ItemSpacing, 0.0)
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowPadding, 0.0)
@@ -108,37 +117,46 @@ def quick_dock_menu():
         if PyImGui.begin("##quick_dock_expanded", button_flags):
             state.last_popup_size[0], state.last_popup_size[1] = PyImGui.get_window_size()
 
-            dockable_widgets = [
-                (name, data)
-                for name, data in handler.widget_data_cache.items()
-                if data.get("quickdock", False)
-            ]
+            current_id = id(handler.widget_data_cache)
+            if current_id != state.last_quickdock_cache_id:
+                state.cached_quickdock_widgets = []
+                for name, data in handler.widget_data_cache.items():
+                    if not data.get("quickdock", False):
+                        continue
+
+                    icon_name = data.get("icon", "ICON_CIRCLE")
+                    icon = getattr(IconsFontAwesome5, icon_name, "?")
+                    widget = handler.widgets.get(name)
+                    if not widget:
+                        continue
+
+                    label = f"{icon}##dock_toggle_{name}"
+                    state.cached_quickdock_widgets.append((name, label, widget))
+
+                state.last_quickdock_cache_id = current_id
+
+            color_enabled = (0.2, 0.6, 0.3, 1.0)
+            color_disabled = (0.3, 0.3, 0.3, 1.0)
+            dockable_widgets = state.cached_quickdock_widgets
+            written_this_frame = set()
             button_size = (32, 32)
-            for i, (name, data) in enumerate(dockable_widgets):
-                icon_name = data.get("icon", "ICON_CIRCLE")
-                icon = getattr(IconsFontAwesome5, icon_name, "?")
-                widget = handler.widgets.get(name)
-                if not widget:
-                    continue
-
+            for i, (name, label, widget) in enumerate(dockable_widgets):
                 enabled = widget.get("enabled", False)
-                label = f"{icon}##dock_toggle_{name}"
+                color = color_enabled if enabled else color_disabled
 
-                PyImGui.push_style_color(
-                    PyImGui.ImGuiCol.Button,
-                    (0.2, 0.6, 0.3, 1.0) if enabled else (0.3, 0.3, 0.3, 1.0)
-                )
-
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, color)
+                
                 if PyImGui.button(label, *button_size):
                     widget["enabled"] = not enabled
-                    handler._write_setting(name, "enabled", str(widget["enabled"]), to_account=use_account_settings())
+                    if name not in written_this_frame:
+                        handler._write_setting(name, "enabled", str(widget["enabled"]), to_account=use_account_settings())
+                        written_this_frame.add(name)
 
                 if PyImGui.is_item_hovered():
                     PyImGui.begin_tooltip()
                     PyImGui.text(f"{name} [{'Enabled' if enabled else 'Disabled'}]")
                     PyImGui.end_tooltip()
-
-                    if PyImGui.is_mouse_clicked(2):  # Middle click
+                    if PyImGui.is_mouse_clicked(2):
                         widget["configuring"] = not widget.get("configuring", False)
 
                 PyImGui.pop_style_color(1)
