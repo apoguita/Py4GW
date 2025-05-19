@@ -6,10 +6,10 @@ from .ui_config_sections import draw_account_widget_config, draw_quick_dock_conf
 
 def draw_embedded_widget_config():
     interface_frame_id = UIManager.GetChildFrameID(1431953425, [1,4294967291])
-    options_inner_frame_id = UIManager.GetChildFrameID(1431953425, [1])
-
     if isinstance(interface_frame_id, int) and interface_frame_id == 0:
         return
+    
+    options_inner_frame_id = UIManager.GetChildFrameID(1431953425, [1])
     if isinstance(options_inner_frame_id, int) and options_inner_frame_id == 0:
         return
 
