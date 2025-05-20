@@ -159,6 +159,13 @@ class ItemCache:
         self.name_requested: set[int] = set()
         self.name_timeout_ms = 1_000
         
+        self.Rarity = self._Rarity(self)
+        self.Properties = self._Properties(self)
+        self.Type = self._Type(self)
+        self.Usage = self._Usage(self)
+        self.Customization = self._Customization(self)
+        self.Trade = self._Trade(self)
+        
     def _update_cache(self):
         now = time.time() * 1000
         for item_id in list(self.name_requested):
@@ -268,247 +275,254 @@ class ItemCache:
                 return modColor
         return 0
         
-    class Rarity:
-        _raw_item_cache: RawItemCache = RawItemCache()
+    class _Rarity:
+        def __init__(self, parent):
+            self._parent = parent
         
         def GetRarity(self, item_id: int):
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return 0, ""
             return item.rarity.value, item.rarity.name
         
         def IsWhite(self,item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             rarity_name  = item.rarity.name
             return rarity_name == "White"
         
         def IsBlue(self,item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             rarity_name  = item.rarity.name
             return rarity_name == "Blue"
 
         def IsPurple(self,item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             rarity_name  = item.rarity.name
             return rarity_name == "Purple"
         
         def IsGold(self,item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             rarity_name  = item.rarity.name
             return rarity_name == "Gold"
         
         def IsGreen(self,item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             rarity_name  = item.rarity.name
             return rarity_name == "Green"
         
-    class Properties:
-        _raw_item_cache: RawItemCache = RawItemCache()
+    class _Properties:
+        def __init__(self, parent):
+            self._parent = parent
         
         def IsCustomized(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_customized 
         
         def GetValue(self, item_id: int) -> int:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return 0
             return item.value
         
         def GetQuantity(self, item_id: int) -> int:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return 0
             return item.quantity
         
         def IsEquipped(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return False if item.equipped == 0 else True
         
         def GetProfession(self, item_id: int) -> int:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return 0
             return item.profession
         
         def GetInteraction(self, item_id: int) -> int:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return 0
             return item.interaction
         
-    class Type:
-        _raw_item_cache: RawItemCache = RawItemCache()
+    class _Type:
+        def __init__(self, parent):
+            self._parent = parent
         
         def IsWeapon(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_weapon
         
         def IsArmor(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_armor
         
         def IsInventoryItem(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_inventory_item
         
         def IsStorageItem(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_storage_item
         
         def IsMaterial(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_material
         
         def IsRareMaterial(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_rare_material    
         
         def IsZCoin(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_zcoin
         
         def IsTome(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_tome
         
-    class Usage:
-        _raw_item_cache: RawItemCache = RawItemCache()
+    class _Usage:
+        def __init__(self, parent):
+            self._parent = parent
         
         def IsUsable(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_usable   
         
         def GetUses(self, item_id: int) -> int:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return 0
             return item.uses
         
         def IsSalvageable(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_salvageable
         
         def IsMaterialSalvageable(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return False if item.is_material_salvageable == 0 else True
         
         def IsSalvageKit(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return False if item.is_salvage_kit == 0 else True
         
         def IsLesserKit(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_lesser_kit
         
         def IsExpertSalvageKit(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_expert_salvage_kit
         
         def IsPerfectSalvageKit(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_perfect_salvage_kit
         
         def IsIDKit(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_id_kit
         
         def IsIdentified(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_identified
         
-    class Customization:
-        _raw_item_cache: RawItemCache = RawItemCache()
+    class _Customization:
+        def __init__(self, parent):
+            self._parent = parent
+            self.Modifiers = self._Modifiers(parent)
         
         def IsInscription(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_inscription   
         
         def IsInscribable(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_inscribable
         
         def IsPrefixUpgradable(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_prefix_upgradable
         
         def IsSuffixUpgradable(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_suffix_upgradable
         
-        class Modifiers:
-            _raw_item_cache: RawItemCache = RawItemCache()
+        class _Modifiers:
+            def __init__(self, parent):
+                self._parent = parent
             
             def GetModifierCount(self, item_id):
-                item = self._raw_item_cache.get_item_by_id(item_id)
+                item = self._parent.raw_item_array.get_item_by_id(item_id)
                 if item is None:
                     return 0
                 return len(item.modifiers)
             
             def GetModifiers(self, item_id):
-                item = self._raw_item_cache.get_item_by_id(item_id)
+                item = self._parent.raw_item_array.get_item_by_id(item_id)
                 if item is None:
                     return []
                 return item.modifiers
         
             def ModifierExists(self, item_id, mod_id):
-                item = self._raw_item_cache.get_item_by_id(item_id)
+                item = self._parent.raw_item_array.get_item_by_id(item_id)
                 if item is None:
                     return False
                 for mod in item.modifiers:
@@ -517,7 +531,7 @@ class ItemCache:
                 return False
 
             def GetModifierValues(self, item_id,identifier_lookup):
-                item = self._raw_item_cache.get_item_by_id(item_id)
+                item = self._parent.raw_item_array.get_item_by_id(item_id)
                 if item is None:
                     return None, None, None
                 for modifier in item.modifiers:
@@ -531,40 +545,41 @@ class ItemCache:
                 return None, None, None
         
         def GetDyeInfo(self, item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return 0, 0
             return item.dye_info
         
         def GetItemFormula(self, item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return 0
             return item.item_formula
         
         def IsStackable(self, item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return (item.interaction & 0x80000) != 0
         
         def IsSparkly(self, item_id):
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_sparkly
         
-    class Trade:
-        _raw_item_cache: RawItemCache = RawItemCache()
+    class _Trade:
+        def __init__(self, parent):
+            self._parent = parent
         
         def IsOfferedInTrade(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_offered_in_trade
         
         def IsTradable(self, item_id: int) -> bool:
-            item = self._raw_item_cache.get_item_by_id(item_id)
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
                 return False
             return item.is_tradable

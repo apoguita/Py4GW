@@ -296,8 +296,6 @@ class Inventory:
         Returns:
             bool: True if click was performed, False otherwise.
         """
-        from .Map import Map
-        from .Party import Party
         from .UIManager import UIManager
 
         parent_hash = 140452905
