@@ -31,27 +31,13 @@ def draw_floating_menu_config():
         PyImGui.text("Floating Widget Menu Settings")
         PyImGui.spacing()
         PyImGui.separator()
-        label = "Attach Floating Menu To:"
-        x, y = PyImGui.get_cursor_pos()
-        PyImGui.set_cursor_pos(x, y + 5)
-        PyImGui.text(label)
-        PyImGui.same_line(0, -1)
-        PyImGui.set_cursor_pos(x + 160, y)
-        PyImGui.set_next_item_width(PyImGui.get_content_region_avail()[0])
-        index = state.floating_attachment_index
-        index = PyImGui.combo("##menuloc", index, state.floating_attachment_options)
-        if index != state.floating_attachment_index:
-            state.floating_attachment_index = index
-            handler._write_setting("FloatingMenu", "floating_attachment_index", str(index), to_account=use_account_settings())
-            
-        if state.floating_attachment_index == 3:
-            PyImGui.spacing()
-            lock_text = "Lock Floating Button"
-            new_locked = draw_centered_checkbox(lock_text, state.floating_drag_locked)
-            if new_locked != state.floating_drag_locked:
-                state.floating_drag_locked = new_locked
-                handler._write_setting("FloatingMenu", "floating_drag_locked", str(new_locked))
-            ImGui.show_tooltip("Prevents the floating button from being dragged")        
+        PyImGui.spacing()
+        lock_text = "Lock Floating Button"
+        new_locked = draw_centered_checkbox(lock_text, state.floating_drag_locked)
+        if new_locked != state.floating_drag_locked:
+            state.floating_drag_locked = new_locked
+            handler._write_setting("FloatingMenu", "floating_drag_locked", str(new_locked))
+        ImGui.show_tooltip("Prevents the floating button from being dragged")        
         PyImGui.spacing()
         PyImGui.separator()
         PyImGui.spacing()
