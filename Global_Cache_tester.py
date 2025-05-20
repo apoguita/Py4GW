@@ -2,9 +2,10 @@ from Py4GWCoreLib import *
 
 MODULE_NAME = "global cache"
 
+hovered_item_id = 0
 
 def main():
-    global global_cache
+    global hovered_item_id
     GLOBAL_CACHE._update_cache()
      
     if PyImGui.begin(MODULE_NAME):
@@ -73,7 +74,49 @@ def main():
                 item_value = item.value
                 
                 PyImGui.text(f"Item ID: {item_id} - {item_name} - {item_quantity} - {item_value}")
-         
+                if PyImGui.collapsing_header(f"Mods {item_id}"):
+                    mods = GLOBAL_CACHE.Item.Customization.Modifiers.GetModifiers(item_id)
+                    for mod in mods:
+                        PyImGui.text(f"Mod ID: {mod.ToString()}")
+                        
+        if PyImGui.collapsing_header("Inventory"):
+            def format_currency(amount):
+                platinum = amount // 1000 
+                gold = amount % 1000 
+                return f"{platinum} plat {gold} gold"
+
+            headers = ["Value","Data"]
+            data = [
+                ("Hovered ItemID:", GLOBAL_CACHE.Inventory.GetHoveredItemID()),
+                ("ID Kit with lowest uses:", GLOBAL_CACHE.Inventory.GetFirstIDKit()),
+                ("Salvage Kit with lowest uses", GLOBAL_CACHE.Inventory.GetFirstSalvageKit()),
+                ("First Unidentified Item in bags:", GLOBAL_CACHE.Inventory.GetFirstUnidentifiedItem()),
+                ("Fisrt Unsalvaged Item on Bags",GLOBAL_CACHE.Inventory.GetFirstSalvageableItem()),
+                ("Gold On Character:", format_currency(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())),
+                ("Gold In Storage:", format_currency(GLOBAL_CACHE.Inventory.GetGoldInStorage())),
+            ]
+            
+            ImGui.table("Inventory common infochached", headers, data)
+            
+            hovered_item = GLOBAL_CACHE.Inventory.GetHoveredItemID()
+            
+            if hovered_item != 0:
+                hovered_item_id = hovered_item
+                
+            if PyImGui.button(f"Deposit hovered item {hovered_item_id}"):
+                if hovered_item_id != 0:
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(hovered_item_id)
+                    
+        if PyImGui.collapsing_header("Party"):
+            party_members = GLOBAL_CACHE.Party.GetPlayers()
+            for member in party_members:
+                member_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(member.login_number)
+                member_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(member.login_number)
+                party_number = GLOBAL_CACHE.Party.Players.GetPartyNumberFromLoginNumber(member.login_number)
+                
+                PyImGui.text(f"Member ID: {member_id} - Name: {member_name} - Position: {party_number}")
+            
+            
     PyImGui.end()
     
     

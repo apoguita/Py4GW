@@ -275,7 +275,7 @@ class Party:
             accept (bool): Whether to accept the party request.
         Returns: bool
         """
-        return Party.party_instance().RespondToPartyRequest(party_id, accept)
+        Party.party_instance().RespondToPartyRequest(party_id, accept)
 
     @staticmethod
     def ReturnToOutpost():
