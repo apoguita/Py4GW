@@ -934,18 +934,14 @@ class Map:
                 return game_x, game_y
             
             @staticmethod
-            def ComputedPathingGeometryToScreen(geometry = None, map_bounds = None,
+            def ComputedPathingGeometryToScreen(map_bounds = None,
                                                    player_x = None, player_y = None,
                                                    center_x = None, center_y = None,
                                                    scale = None, rotation = None):
                 """ Convert a screen position of pathing geometry to a screen position relative to the compass."""
                 from .Player import Player
-
-                # Step 1: Get pathing geometry
-                if not geometry:
-                    geometry = Map.Pathing.GetComputedGeometry()
                 
-                # Step 2: Get map bounds
+                # Step 1: Get map bounds
                 if not map_bounds:
                     map_bounds = Map.GetMapBoundaries()
                 
@@ -956,7 +952,7 @@ class Map:
                 map_mid_x = (map_min_x + map_max_x)/2
                 map_mid_y = (map_min_y + map_max_y)/2
 
-                # Step 3: Get compass position/scale/rotation
+                # Step 2: Get compass position/scale/rotation
                 if center_x == None or center_y == None:
                     center_x, center_y = Map.MiniMap.GetMapScreenCenter()
                 if scale == None:
@@ -964,25 +960,25 @@ class Map:
                 if rotation == None:
                     rotation = Map.MiniMap.GetRotation()
 
-                # Step 4: Get Player position
+                # Step 3: Get Player position
                 if player_x == None or player_y == None:
                     player_x, player_y = Player.GetXY()
 
-                # Step 5: Get geometry zoom
+                # Step 4: Get geometry zoom
                 zoom = scale/5000
 
-                # Step 6: Get Player position geometry offset
+                # Step 5: Get Player position geometry offset
                 x_pos_offset = map_mid_x - player_x
                 y_pos_offset = map_mid_y - player_y
 
-                # Step 7: Get rotation offset
+                # Step 6: Get rotation offset
                 player_x_rotated = player_x*math.cos(-rotation) - player_y*math.sin(-rotation)
                 player_y_rotated = player_x*math.sin(-rotation) + player_y*math.cos(-rotation)
 
                 x_rot_offset = player_x - player_x_rotated
                 y_rot_offset = player_y - player_y_rotated
 
-                # Step 8: Get final offset
+                # Step 7: Get final offset
                 x_offset = zoom*(x_pos_offset + x_rot_offset - (map_max_x + map_min_x)/2)
                 y_offset = zoom*(y_pos_offset + y_rot_offset - (map_max_y + map_min_y)/2)
 
