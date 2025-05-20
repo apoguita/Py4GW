@@ -27,6 +27,10 @@ quick_dock_color = [
     handler._read_setting_float("QuickDockColor", "a", 1.0),
 ]
 quick_dock_hovering_button = False
+cached_quickdock_widgets = []
+last_quickdock_cache_id = None
+last_written_quick_dock_edge = None
+last_written_offset_y = None
 
 # Ui Elements
 selected_widget = ""
@@ -54,6 +58,9 @@ floating_skill_pos = (20.0, 100.0)
 fmx = handler._read_setting_int("FloatingMenu", "fmx", 100)
 fmy = handler._read_setting_int("FloatingMenu", "fmy", 100)
 floating_window_pos = (fmx, fmy)
+floating_write_pending = False
+floating_write_timer = 0
+reopen_floating_menu = False
 floating_custom_colors_enabled = handler._read_setting_bool("FloatingMenu", "use_custom_colors", False)
 floating_custom_colors = {
     "base": (
