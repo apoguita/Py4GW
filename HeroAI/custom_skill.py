@@ -1392,7 +1392,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsOutOfCombat = False
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -7856,7 +7856,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Resurrection.value
-        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsOutOfCombat = False
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -7979,7 +7979,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsOutOfCombat = False
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -8015,7 +8015,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Healing.value
-        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsOutOfCombat = False
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -8046,6 +8046,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Healing.value
+        skill.Conditions.IsOutOfCombat = False
         self.skill_data[skill.SkillID] = skill
  
         skill = self.CustomSkill()
@@ -9970,7 +9971,7 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.TargetingStrict = True
-        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsOutOfCombat = False
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -10044,6 +10045,7 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.OtherAlly.value
         skill.Nature = SkillNature.Healing.value
         skill.Conditions.TargetingStrict = True
+        skill.Conditions.LessLife = 0.6
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
