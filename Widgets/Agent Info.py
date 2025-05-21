@@ -1,8 +1,14 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import ImGui 
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Allegiance
+from Py4GWCoreLib import Color
+from typing import Tuple
 
 MODULE_NAME = "Agent Info Viewer"
 LOG_ACTIONS = True
-RAW_AGENT_ARRAY = RawAgentArray()
+
 
 #region WinwowStup
 window_module = ImGui.WindowModule(
@@ -36,7 +42,7 @@ def DrawMainWindow():
         return (
             label,
             agent.id,
-            RAW_AGENT_ARRAY.get_name(agent.id),
+            GLOBAL_CACHE.Agent.GetName(agent.id),
             f"({agent.x:.2f}, {agent.y:.2f}, {agent.z:.2f})",
             _get_type(agent)
         )
@@ -45,10 +51,10 @@ def DrawMainWindow():
         return Color(0,255,0,255).to_tuple() if value else Color(255,0,0,255).to_tuple()
     
     def _draw_agent_tab_item(agent):
-        if not Agent.IsValid(agent.id):   
+        if not GLOBAL_CACHE.Agent.IsValid(agent.id):   
             return   
         PyImGui.text(f"ID: {agent.id}")
-        PyImGui.text(f"Name: {RAW_AGENT_ARRAY.get_name(agent.id)}")
+        PyImGui.text(f"Name: {GLOBAL_CACHE.Agent.GetName(agent.id)}")
         PyImGui.separator()
         if PyImGui.collapsing_header(f"Positional Data:"):
             flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.SizingStretchSame | PyImGui.TableFlags.Resizable
@@ -144,7 +150,7 @@ def DrawMainWindow():
                 PyImGui.end_table()
 
                 
-        if agent.id == Player.GetAgentID():
+        if agent.id == GLOBAL_CACHE.Player.GetAgentID():
             if PyImGui.collapsing_header(f"Player Instance Exclusive Data:"):
             
                 PyImGui.text("Terrain Normal")
@@ -413,13 +419,13 @@ def DrawMainWindow():
                     PyImGui.end_table()
 
         
-    player = Agent.agent_instance(Player.GetAgentID())
-    nearest_enemy = Agent.agent_instance(Routines.Agents.GetNearestEnemy() or 0)
-    nearest_ally = Agent.agent_instance(Routines.Agents.GetNearestAlly() or 0)
-    nearest_item = Agent.agent_instance(Routines.Agents.GetNearestItem() or 0)
-    nearest_gadget = Agent.agent_instance(Routines.Agents.GetNearestGadget() or 0)
-    nearest_npc = Agent.agent_instance(Routines.Agents.GetNearestNPC() or 0)
-    target = Agent.agent_instance(Player.GetTargetID() or 0)
+    player = GLOBAL_CACHE.Agent.GetAgentByID(GLOBAL_CACHE.Player.GetAgentID())
+    nearest_enemy = GLOBAL_CACHE.Agent.GetAgentByID(Routines.Agents.GetNearestEnemy() or 0)
+    nearest_ally = GLOBAL_CACHE.Agent.GetAgentByID(Routines.Agents.GetNearestAlly() or 0)
+    nearest_item = GLOBAL_CACHE.Agent.GetAgentByID(Routines.Agents.GetNearestItem() or 0)
+    nearest_gadget = GLOBAL_CACHE.Agent.GetAgentByID(Routines.Agents.GetNearestGadget() or 0)
+    nearest_npc = GLOBAL_CACHE.Agent.GetAgentByID(Routines.Agents.GetNearestNPC() or 0)
+    target = GLOBAL_CACHE.Agent.GetAgentByID(GLOBAL_CACHE.Player.GetTargetID() or 0)
 
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
         if PyImGui.begin_child("NearestAgents Info", size=(600, 230),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
@@ -446,32 +452,32 @@ def DrawMainWindow():
 
             # Efficiently use the correct pre-filtered array
             if SELECTED_ALLIEGANCE == 0:
-                agent_ids = AgentArray.GetAgentArray()
+                agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
             else:
                 allegiance_enum = list(Allegiance)[SELECTED_ALLIEGANCE]
                 
                 if allegiance_enum == Allegiance.Ally:
-                    agent_ids = AgentArray.GetAllyArray()
+                    agent_ids = GLOBAL_CACHE.AgentArray.GetAllyArray()
                 elif allegiance_enum == Allegiance.Neutral:
-                    agent_ids = AgentArray.GetNeutralArray()
+                    agent_ids = GLOBAL_CACHE.AgentArray.GetNeutralArray()
                 elif allegiance_enum == Allegiance.Enemy:
-                    agent_ids = AgentArray.GetEnemyArray()
+                    agent_ids = GLOBAL_CACHE.AgentArray.GetEnemyArray()
                 elif allegiance_enum == Allegiance.SpiritPet:
-                    agent_ids = AgentArray.GetSpiritPetArray()
+                    agent_ids = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
                 elif allegiance_enum == Allegiance.Minion:
-                    agent_ids = AgentArray.GetMinionArray()
+                    agent_ids = GLOBAL_CACHE.AgentArray.GetMinionArray()
                 elif allegiance_enum == Allegiance.NpcMinipet:
-                    agent_ids = AgentArray.GetNPCMinipetArray()
+                    agent_ids = GLOBAL_CACHE.AgentArray.GetNPCMinipetArray()
                 else:
-                    agent_ids = AgentArray.GetAgentArray()
+                    agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
 
             # Build combo items: "id - name"
             combo_items = []
             id_map = []
             for agent_id in agent_ids:
-                agent = Agent.agent_instance(agent_id)
+                agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
                 if agent and agent.id != 0:
-                    combo_items.append(f"{agent.id} - {RAW_AGENT_ARRAY.get_name(agent.id)}")
+                    combo_items.append(f"{agent.id} - {GLOBAL_CACHE.Agent.GetName(agent.id)}")
                     id_map.append(agent.id)  # maintain index mapping
 
             # Show combo
@@ -490,7 +496,7 @@ def DrawMainWindow():
             # Only show the button if there's a valid agent selected
             if SELECTED_AGENT_ID != 0:
                 if PyImGui.button("Set Target"):
-                    Player.ChangeTarget(SELECTED_AGENT_ID)
+                    GLOBAL_CACHE.Player.ChangeTarget(SELECTED_AGENT_ID)
 
             PyImGui.end_child()
             
@@ -535,14 +541,10 @@ def configure():
     pass
 
 def main():
-    global RAW_AGENT_ARRAY
-    
     if not Routines.Checks.Map.MapValid():
         return
     
     DrawMainWindow()
-    
-    RAW_AGENT_ARRAY.update()    
-        
+
 if __name__ == "__main__":
     main()
