@@ -914,7 +914,8 @@ def DrawFrame():
             rotation_angle = agent.rotation_angle
             level = agent.living_agent.level
             if level > 1:
-                agent_name = mission_map.raw_agent_array_handler.get_name(agent.id)  if mission_map.raw_agent_array_handler is not None else ""
+                #agent_name = mission_map.raw_agent_array_handler.get_name(agent.id)  if mission_map.raw_agent_array_handler is not None else ""
+                agent_name = GLOBAL_CACHE.Agent.GetName(agent.id)
                 if "MERCHANT" in agent_name.upper():
                     marker = mission_map.merchant_marker
                 else:

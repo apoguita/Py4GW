@@ -6,7 +6,6 @@ hovered_item_id = 0
 
 def main():
     global hovered_item_id
-    GLOBAL_CACHE._update_cache()
      
     if PyImGui.begin(MODULE_NAME):
         if PyImGui.collapsing_header("Player"):

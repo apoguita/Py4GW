@@ -483,7 +483,7 @@ class RawAgentArray:
         self.current_map_id = 0
   
 
-    def get_array(self):
+    def get_array(self) -> list[PyAgent.PyAgent]:
         self.update()
         return self.agent_array
     
@@ -522,37 +522,3 @@ class RawAgentArray:
     def get_agent(self, agent_id: int) -> PyAgent.PyAgent:
         self.update()
         return self.agent_dict.get(agent_id) or PyAgent.PyAgent(agent_id)
-
-    
-    def get_name(self, agent_id: int) -> str:
-        return ""
-    
-        """
-        from .Agent import Agent
-        import time
-
-        now = time.time() * 1000  # current time in milliseconds
-
-        # Name is cached and fresh
-        if agent_id in self.agent_name_map:
-            name, timestamp = self.agent_name_map[agent_id]
-            if now - timestamp < self.name_timeout_ms:
-                return name
-            else:
-                # Expired: re-request if not already doing so
-                if agent_id not in self.name_requested:
-                    
-                    Agent.RequestName(agent_id)
-                    self.name_requested.add(agent_id)
-                return name
-
-        # Name is not cached
-        if agent_id in self.name_requested:
-            return ""
-
-        # Name was never requested or removed: request it now
-        
-        #Agent.RequestName(agent_id)
-        self.name_requested.add(agent_id)
-        return ""
-        """

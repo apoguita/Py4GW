@@ -299,11 +299,11 @@ class SkillManager:
                 self.skill_pointer = 0
                 
         def GetEnergyValues(self,agent_id):
-            agent_ernergy = Agent.GetEnergy(agent_id)
-            if agent_ernergy <= 0:
+            agent_energy = Agent.GetEnergy(agent_id)
+            if agent_energy <= 0:
                 return 1.0 #default return full energy to prevent issues
             
-            return agent_ernergy
+            return agent_energy
 
         def IsSkillReady(self, slot):
             if self.skills[slot].skill_id == 0:

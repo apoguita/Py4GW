@@ -31,8 +31,22 @@ class AgentCache:
         agent = self.raw_agent_array.get_agent(agent_id)
         return agent.IsValid(agent_id)
     
+    def GetIdFromAgent(self, agent_id):
+        agent = self.raw_agent_array.get_agent(agent_id)
+        return agent.id
+    
     def GetAgent(self, agent_id):
         return self.raw_agent_array.get_agent(agent_id)
+    
+    def GetAgentByID(self, agent_id):
+        return self.raw_agent_array.get_agent(agent_id)
+    
+    def GetAgentIDByName(self, agent_name:str):
+        agent_array = self.raw_agent_array.get_array()
+        for agent in agent_array:
+            if self.GetName(agent.id).lower() in agent_name.lower():
+                return agent.id   
+        return 0
     
     def GetAttributes(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
@@ -230,6 +244,10 @@ class AgentCache:
         agent = self.raw_agent_array.get_agent(agent_id)
         return agent.living_agent.is_weapon_spelled
     
+    def IsInCombatStance(self, agent_id):
+        agent = self.raw_agent_array.get_agent(agent_id)
+        return agent.living_agent.in_combat_stance
+    
     def IsAggressive(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
         if agent.living_agent.is_attacking or agent.living_agent.is_casting:
@@ -255,7 +273,7 @@ class AgentCache:
     
     def GetWeaponType(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.weapon_type
+        return agent.living_agent.weapon_type.ToInt(), agent.living_agent.weapon_type.GetName()
         
     def GetWeaponExtraData(self,agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
