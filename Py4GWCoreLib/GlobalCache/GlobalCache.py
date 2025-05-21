@@ -51,6 +51,7 @@ class GlobalCache:
     def _reset(self):
         self.Agent._reset_cache()
         self.Effects._reset_cache()
+        self._RawAgentArray.reset()
         self.Item._reset_cache()
         self._TrottleTimers.Reset()
         
@@ -58,15 +59,18 @@ class GlobalCache:
         if self._TrottleTimers._50ms.IsExpired():
             self._TrottleTimers._50ms.Reset()
             self.Map._update_cache()
-            if not self.Map.IsMapReady():
+            
+            if self.Map.IsMapLoading():
                 self._reset()
                 return
             
             self.Party._update_cache()
             self.Player._update_cache()
+            
             if not self.Party.IsPartyLoaded():
                 self._reset()
                 return
+            
                 
             self._RawAgentArray.update()
             self.Agent._update_cache()

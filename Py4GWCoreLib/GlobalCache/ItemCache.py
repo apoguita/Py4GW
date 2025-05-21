@@ -2,7 +2,6 @@ import PyInventory
 import PyItem
 
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
-from Py4GWCoreLib import Routines
 from typing import Dict, List
 import time
 from enum import Enum
@@ -64,12 +63,7 @@ class RawItemCache:
         self.map_valid = False
         
     def update(self):
-        self.map_valid = Routines.Checks.Map.MapValid()
-
-        if not self.map_valid:
-            self.reset()
-            return
-
+        
         if not self.update_throttle.IsExpired():
             return
 

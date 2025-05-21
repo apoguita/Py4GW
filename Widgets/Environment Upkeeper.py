@@ -46,11 +46,7 @@ def configure():
 
 def main():
     global widget_config
-    if Map.IsMapLoading():
-        reset_on_load()
-        GLOBAL_CACHE._reset()
-        return
-    
+
     GLOBAL_CACHE._update_cache()
     
     if widget_config.throttle_raw_agent_array.IsExpired():
