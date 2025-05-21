@@ -1163,7 +1163,7 @@ def ShowItemWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowItemWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
-PyParty_window_state.values = [0, 0, "Ogden", 0, 0, 0, 0, 0, 0, 0, 0]
+PyParty_window_state.values = [0, 0, "Ogden Stonehealer", 0, 0, 0, 0, 0, 0, 0, 0]
 def ShowPartyWindow():
     global PyParty_window_state
     try: 
