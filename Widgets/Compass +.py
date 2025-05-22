@@ -12,7 +12,7 @@ def Debug(message, title = 'DEBUG', msg_type = 'Debug'):
     Py4GW.Console.Log(title, str(message), py4gw_msg_type)
 
 class Marker:
-    def __init__(self, name, visible, size, shape, color, fill_range = None, fill_color = None, config = True, custom = False):
+    def __init__(self, name, visible, size, shape, color, fill_range = None, fill_color = None, model_id = None):
         self.name = name
         self.visible = visible
         self.size = size
@@ -20,8 +20,7 @@ class Marker:
         self.color = color
         self.fill_range = fill_range
         self.fill_color = fill_color
-        self.config = config
-        self.custom = custom
+        self.model_id = model_id
 
     def values(self):
         return (self.visible, self.size, self.shape, self.color, self.fill_range, self.fill_color)
@@ -85,6 +84,9 @@ class Compass():
                 compass_x = round(compass_x)
                 compass_y = round(compass_y)
 
+                if compass_x > 100000 or compass_y > 100000:
+                    return
+
                 self.snapped_pos = PyOverlay.Point2D(compass_x,compass_y)
                 self.snapped_size = round(Map.MiniMap.GetScale(coords))
 
@@ -102,6 +104,8 @@ class Compass():
         def __init__(self):
             self.range_rings = []
             self.markers     = {}
+            self.custom_name = 'Custom Agent Name'
+            self.custom_markers = {}
             self.profession  = [Utils.RGBToColor(102, 102, 102, 255),
                                 Utils.RGBToColor(238, 170,  51, 255),
                                 Utils.RGBToColor( 85, 170,   0, 255),
@@ -113,9 +117,64 @@ class Compass():
                                 Utils.RGBToColor(  0, 170, 170, 255),
                                 Utils.RGBToColor(153, 102,   0, 255),
                                 Utils.RGBToColor(119, 119, 204, 255)]
+            
+            self.spirits_ranger = [SpiritModelID.BRAMBLES,
+                                   SpiritModelID.CONFLAGRATION,
+                                   SpiritModelID.EDGE_OF_EXTINCTION,
+                                   SpiritModelID.ENERGIZING_WIND,
+                                   SpiritModelID.EQUINOX,
+                                   SpiritModelID.FAMINE,
+                                   SpiritModelID.FAVORABLE_WINDS,
+                                   SpiritModelID.FERTILE_SEASON,
+                                   SpiritModelID.FROZEN_SOIL,
+                                   SpiritModelID.GREATER_CONFLAGRATION,
+                                   SpiritModelID.INFURIATING_HEAT,
+                                   SpiritModelID.LACERATE,
+                                   SpiritModelID.MUDDY_TERRAIN,
+                                   SpiritModelID.NATURES_RENEWAL,
+                                   SpiritModelID.PESTILENCE,
+                                   SpiritModelID.PREDATORY_SEASON,
+                                   SpiritModelID.PRIMAL_ECHOES,
+                                   SpiritModelID.QUICKENING_ZEPHYR,
+                                   SpiritModelID.QUICKSAND,
+                                   SpiritModelID.ROARING_WINDS,
+                                   SpiritModelID.SYMBIOSIS,             
+                                   SpiritModelID.TOXICITY,
+                                   SpiritModelID.TRANQUILITY,
+                                   SpiritModelID.WINNOWING,
+                                   SpiritModelID.WINTER]
+            
+            self.spirits_ritualist = {'spirit'  : [SpiritModelID.DISPLACEMENT,
+                                                   SpiritModelID.EARTHBIND,
+                                                   SpiritModelID.EMPOWERMENT, 
+                                                   SpiritModelID.LIFE,
+                                                   SpiritModelID.RECOVERY,
+                                                   SpiritModelID.RECUPERATION,    
+                                                   SpiritModelID.SHELTER,
+                                                   SpiritModelID.SOOTHING,
+                                                   SpiritModelID.UNION],
+                                      'longbow' : [SpiritModelID.ANGUISH,
+                                                   SpiritModelID.BLOODSONG,
+                                                   SpiritModelID.DISENCHANTMENT,
+                                                   SpiritModelID.DISSONANCE,
+                                                   SpiritModelID.PAIN,
+                                                   SpiritModelID.SHADOWSONG,
+                                                   SpiritModelID.ANGER,
+                                                   SpiritModelID.HATE,
+                                                   SpiritModelID.SUFFERING,
+                                                   SpiritModelID.VAMPIRISM,
+                                                   SpiritModelID.WANDERLUST], # 1350
+                                      'earshot' : [SpiritModelID.AGONY,
+                                                   SpiritModelID.REJUVENATION],
+                                      'area'    : [SpiritModelID.PRESERVATION,
+                                                   SpiritModelID.DESTRUCTION,
+                                                   SpiritModelID.RESTORATION]}
+
+            self.spirits_vanguard = [SpiritModelID.WINDS]
 
             self.death_alpha_mod = .33
-            self.spirit_range_alpha = 50
+            self.spirit_alpha = 50
+            self.show_spirit_range = False
 
             self.eoe          = Utils.RGBToColor(  0, 255,   0,  50)
             self.qz           = Utils.RGBToColor(  0,   0, 255,  50)
@@ -141,70 +200,15 @@ class Compass():
             self.AddMarker('Minipet',            True, 3, 'Tear',   Utils.RGBToColor(153, 255, 153, 255))
             self.AddMarker('Neutral',            True, 6, 'Tear',   Utils.RGBToColor(  0,   0, 220, 255))
             self.AddMarker('Enemy',              True, 6, 'Tear',   Utils.RGBToColor(240,   0,   0, 255))
-            self.AddMarker('Spirit (Ranger)',    True, 6, 'Circle', Utils.RGBToColor(204, 255, 153, 255))
-            self.AddMarker('Spirit (Ritualist)', True, 6, 'Tear',   Utils.RGBToColor(187, 255, 255, 255))
-            self.AddMarker('Spirit (Vanguard)',  True, 6, 'Circle', Utils.RGBToColor( 66,   3,   1, 255))
+            self.AddMarker('Spirit (Ranger)',    True, 4, 'Circle', Utils.RGBToColor(204, 255, 153, 255))
+            self.AddMarker('Spirit (Ritualist)', True, 4, 'Tear',   Utils.RGBToColor(187, 255, 255, 255))
+            self.AddMarker('Spirit (Vanguard)',  True, 4, 'Circle', Utils.RGBToColor( 66,   3,   1, 255))
             self.AddMarker('Item (White)',       True, 5, 'Circle', Utils.RGBToColor(255, 255, 255, 255))
             self.AddMarker('Item (Blue)',        True, 5, 'Circle', Utils.RGBToColor(  0, 170, 255, 255))
             self.AddMarker('Item (Purple)',      True, 5, 'Circle', Utils.RGBToColor(110,  65, 200, 255))
             self.AddMarker('Item (Gold)',        True, 5, 'Circle', Utils.RGBToColor(225, 150,   0, 255))
             self.AddMarker('Item (Green)',       True, 5, 'Circle', Utils.RGBToColor( 25, 200,   0, 255))
             self.AddMarker('Signpost',           True, 5, 'Circle', Utils.RGBToColor(120, 120, 120, 255))
-
-            # spirits
-            # self.AddMarker(SpiritModelID.BRAMBLES,              True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.CONFLAGRATION,         True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.EDGE_OF_EXTINCTION,    True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.ENERGIZING_WIND,       True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.EQUINOX,               True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.FAMINE,                True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.FAVORABLE_WINDS,       True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.FERTILE_SEASON,        True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.FROZEN_SOIL,           True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.GREATER_CONFLAGRATION, True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.INFURIATING_HEAT,      True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.LACERATE,              True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.MUDDY_TERRAIN,         True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.NATURES_RENEWAL,       True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.PESTILENCE,            True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.PREDATORY_SEASON,      True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.PRIMAL_ECHOES,         True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.QUICKENING_ZEPHYR,     True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.QUICKSAND,             True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.ROARING_WINDS,         True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.SYMBIOSIS,             True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.TOXICITY,              True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.TRANQUILITY,           True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.WINNOWING,             True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.WINTER,                True, 5, 'Circle', Utils.RGBToColor(204, 255, 153, 255),  Range.Spirit.value, Utils.RGBToColor(204, 255, 153, self.spirit_range_alpha), False)
-
-            # self.AddMarker(SpiritModelID.DISPLACEMENT,          True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),  Range.Spirit.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.EARTHBIND,             True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),  Range.Spirit.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.EMPOWERMENT,           True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),  Range.Spirit.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.LIFE,                  True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),  Range.Spirit.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.RECOVERY,              True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),  Range.Spirit.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.RECUPERATION,          True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),  Range.Spirit.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)    
-            # self.AddMarker(SpiritModelID.SHELTER,               True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),  Range.Spirit.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.SOOTHING,              True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),  Range.Spirit.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.UNION,                 True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),  Range.Spirit.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.ANGUISH,               True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.BLOODSONG,             True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.DISENCHANTMENT,        True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.DISSONANCE,            True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.PAIN,                  True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.SHADOWSONG,            True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.ANGER,                 True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.HATE,                  True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.SUFFERING,             True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.VAMPIRISM,             True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.WANDERLUST,            True, 5, 'Tear',   Utils.RGBToColor(187, 255, 255, 255),                1350, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.AGONY,                 True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255), Range.Earshot.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.REJUVENATION,          True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255), Range.Earshot.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.PRESERVATION,          True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),    Range.Area.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.DESTRUCTION,           True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),    Range.Area.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-            # self.AddMarker(SpiritModelID.RESTORATION,           True, 5, 'Circle', Utils.RGBToColor(187, 255, 255, 255),    Range.Area.value, Utils.RGBToColor(187, 255, 255, self.spirit_range_alpha), False)
-
-            # self.AddMarker(SpiritModelID.WINDS,                 True, 5, 'Circle', Utils.RGBToColor( 66,   3,   1, 255),  Range.Spirit.value, Utils.RGBToColor( 66,   3,   1, self.spirit_range_alpha), False)
 
         def AddRangeRing(self, name, visible, range, fill_color, outline_color, outline_thickness):
             self.range_rings.append(Ring(name, visible, range, fill_color, outline_color, outline_thickness, custom = True))
@@ -215,8 +219,12 @@ class Compass():
                     self.range_rings.remove(ring)
                     break
 
-        def AddMarker(self, name, visible, size, shape, color, fill_range = None, fill_color = None, config = True, custom = False):
-            self.markers[name] = Marker(name, visible, size, shape, color, fill_range, fill_color, config, custom)
+        def AddMarker(self, name, visible, size, shape, color, fill_range = None, fill_color = None):
+            self.markers[name] = Marker(name, visible, size, shape, color, fill_range, fill_color)
+
+        def AddCustomMarker(self, name):
+            self.custom_markers[name] = Marker(name, True, 6, 'Tear', Utils.RGBToColor(125, 125, 125, 255), None, None, 0)
+
         def DeleteMarker(self, name):
             self.markers.pop(name)
 
@@ -232,8 +240,11 @@ class Compass():
                                            self.ini.read_int('position',  'detached_y',         self.position.detached_pos.y))
         self.position.detached_size      = self.ini.read_int('position',  'detached_size',      self.position.detached_size)
 
-        self.pathing.visible  = self.ini.read_bool('pathing', 'visible', self.pathing.visible)
-        self.pathing.color = self.ini.read_int( 'pathing', 'color',   self.pathing.color)
+        self.pathing.visible = self.ini.read_bool('pathing', 'visible', self.pathing.visible)
+        self.pathing.color = self.ini.read_int('pathing', 'color', self.pathing.color)
+
+        self.config.spirit_alpha = self.ini.read_int('misc', 'spirit_alpha', self.config.spirit_alpha)
+        self.config.show_spirit_range = self.ini.read_bool('misc', 'show_spirit_ranges', self.config.show_spirit_range)
 
         for ring in self.config.range_rings:
             ring.visible           = self.ini.read_bool( f'ring_{ring.name}', 'visible',           ring.visible)
@@ -250,6 +261,18 @@ class Compass():
             marker.fill_range = self.ini.read_int( f'marker_{marker.name}', 'fill_range', marker.fill_range)
             marker.fill_color = self.ini.read_int( f'marker_{marker.name}', 'fill_color', marker.fill_color)
 
+        for section in self.ini.list_sections():
+            if str(section).startswith('custom_marker_'):
+                name       = str(section).removeprefix('custom_marker_')
+                model_id   = self.ini.read_int( section, 'model_id',   0)
+                visible    = self.ini.read_bool(section, 'visible',    True)
+                size       = self.ini.read_int( section, 'size',       6)
+                shape      = self.ini.read_key( section, 'shape',      'Tear')
+                color      = self.ini.read_int( section, 'color',      Utils.RGBToColor(125, 125, 125, 255))
+                fill_range = self.ini.read_int( section, 'fill_range', 0)
+                fill_color = self.ini.read_int( section, 'fill_color', Utils.RGBToColor(125, 125, 125, self.config.spirit_alpha))
+                self.config.custom_markers[name] = Marker(name, visible, size, shape, color, fill_range, fill_color, model_id)
+
     def SaveConfig(self):
         self.ini.write_key('position', 'snap_to_game',        str(self.position.snap_to_game))
         self.ini.write_key('position', 'always_point_north',  str(self.position.always_point_north))
@@ -260,6 +283,9 @@ class Compass():
 
         self.ini.write_key('pathing', 'visible', str(self.pathing.visible))
         self.ini.write_key('pathing', 'color',   str(self.pathing.color))
+
+        self.ini.write_key('misc', 'spirit_alpha', str(self.config.spirit_alpha))
+        self.ini.write_key('misc', 'show_spirit_ranges', str(self.config.show_spirit_range))
 
         for ring in self.config.range_rings:
             self.ini.write_key(f'ring_{ring.name}', 'visible',           str(ring.visible))
@@ -275,6 +301,15 @@ class Compass():
             self.ini.write_key(f'marker_{marker.name}', 'color',      str(marker.color))
             self.ini.write_key(f'marker_{marker.name}', 'fill_range', str(marker.fill_range))
             self.ini.write_key(f'marker_{marker.name}', 'fill_color', str(marker.fill_color))
+
+        for marker in self.config.custom_markers.values():
+            self.ini.write_key(f'custom_marker_{marker.name}', 'model_id',   str(marker.model_id))
+            self.ini.write_key(f'custom_marker_{marker.name}', 'visible',    str(marker.visible))
+            self.ini.write_key(f'custom_marker_{marker.name}', 'size',       str(marker.size))
+            self.ini.write_key(f'custom_marker_{marker.name}', 'shape',      str(marker.shape))
+            self.ini.write_key(f'custom_marker_{marker.name}', 'color',      str(marker.color))
+            self.ini.write_key(f'custom_marker_{marker.name}', 'fill_range', str(marker.fill_range))
+            self.ini.write_key(f'custom_marker_{marker.name}', 'fill_color', str(marker.fill_color))
 
     def UpdateOrientation(self):
         self.position.player_pos = Player.GetXY()
@@ -327,7 +362,7 @@ class Compass():
         if not visible: return
 
         if not is_alive:
-            col = list(Utils.ColorToTuple(color))
+            col = Utils.ColorToTuple(color)
             color = Color(int(col[0]*255), int(col[1]*255), int(col[2]*255), 100).to_color()
 
         x, y = Map.MiniMap.MapProjection.GamePosToScreen(x, y, *self.position.player_pos,
@@ -416,6 +451,20 @@ class Compass():
         
         def GetAgentParams(agent):
             return self.position.rotation - agent.rotation_angle, agent.id == self.target_id, agent.living_agent.is_alive
+        
+        def CheckCustomMarkers(agent):
+            model_id = agent.living_agent.player_number
+            for marker in self.config.custom_markers.values():
+                if marker.visible and model_id == marker.model_id:
+                    rot, is_target, is_alive = GetAgentParams(agent)
+                    if marker.fill_range > 0:
+                        color = Utils.ColorToTuple(marker.color)
+                        fill_color = Utils.TupleToColor((color[0],color[1],color[2],self.config.spirit_alpha/255))
+                    else:
+                        fill_color = None
+                    self.DrawAgent(marker.visible, marker.size, marker.shape, marker.color, marker.fill_range, fill_color, agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+                    return True
+            return False
 
         agent_array = GLOBAL_CACHE.AgentArray
         player_agent = None
@@ -424,35 +473,93 @@ class Compass():
 
         for agent in agent_array.GetRawSpiritPetArray():
             if not GetAgentValid(agent): continue
+            if CheckCustomMarkers(agent): continue
             rot, is_target, is_alive = GetAgentParams(agent)
 
-            # if agent.living_agent.is_spawned:
-            #     if not is_alive:
-            #         continue
-            #     model_id = agent.living_agent.player_number
-            #     #if model_id in self.config.spirit_ids['Ranger']:
-            #     self.agent_cache.append((*self.config.markers[model_id].values(), agent.x, agent.y, rot, is_alive, is_target))
-            #     #elif model_id in self.config.spirit_ids['Ritualist']:
-            #     #    self.agent_cache.append((*self.config.markers['Spirit (Ritualist)'].values(), x, y, rot, is_alive, is_target))
-            #     #elif model_id in self.config.spirit_ids['Vanguard']:
-            #     #    self.agent_cache.append((*self.config.markers['Spirit (Vanguard)'].values(), x, y, rot, is_alive, is_target))
-            # else:
-            self.DrawAgent(*self.config.markers['Ally (Pet)'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+            if agent.living_agent.is_spawned:
+                if not is_alive:
+                    continue
+                model_id = agent.living_agent.player_number
+                if model_id in self.config.spirits_ranger:
+                    if self.config.show_spirit_range:
+                        color = Utils.ColorToTuple(self.config.markers['Spirit (Ranger)'].color)
+                        fill_color = Utils.TupleToColor((color[0],color[1],color[2],self.config.spirit_alpha/255))
+                    else:
+                        fill_color = None
+                    self.DrawAgent(self.config.markers['Spirit (Ranger)'].visible, self.config.markers['Spirit (Ranger)'].size, 
+                                   self.config.markers['Spirit (Ranger)'].shape, self.config.markers['Spirit (Ranger)'].color, 
+                                   Range.Spirit.value, fill_color, 
+                                   agent.x, agent.y, rot, is_alive, is_target)
+                elif model_id in self.config.spirits_ritualist['spirit']:
+                    if self.config.show_spirit_range:
+                        color = Utils.ColorToTuple(self.config.markers['Spirit (Ritualist)'].color)
+                        fill_color = Utils.TupleToColor((color[0],color[1],color[2],self.config.spirit_alpha/255))
+                    else:
+                        fill_color = None
+                    self.DrawAgent(self.config.markers['Spirit (Ritualist)'].visible, self.config.markers['Spirit (Ritualist)'].size, 
+                                   'Circle', self.config.markers['Spirit (Ritualist)'].color, 
+                                   Range.Spirit.value, fill_color, 
+                                   agent.x, agent.y, rot, is_alive, is_target)
+                elif model_id in self.config.spirits_ritualist['longbow']:
+                    if self.config.show_spirit_range:
+                        color = Utils.ColorToTuple(self.config.markers['Spirit (Ritualist)'].color)
+                        fill_color = Utils.TupleToColor((color[0],color[1],color[2],self.config.spirit_alpha/255))
+                    else:
+                        fill_color = None
+                    self.DrawAgent(self.config.markers['Spirit (Ritualist)'].visible, self.config.markers['Spirit (Ritualist)'].size, 
+                                   self.config.markers['Spirit (Ritualist)'].shape, self.config.markers['Spirit (Ritualist)'].color, 
+                                   1350, fill_color, 
+                                   agent.x, agent.y, rot, is_alive, is_target)
+                elif model_id in self.config.spirits_ritualist['earshot']:
+                    if self.config.show_spirit_range:
+                        color = Utils.ColorToTuple(self.config.markers['Spirit (Ritualist)'].color)
+                        fill_color = Utils.TupleToColor((color[0],color[1],color[2],self.config.spirit_alpha/255))
+                    else:
+                        fill_color = None
+                    self.DrawAgent(self.config.markers['Spirit (Ritualist)'].visible, self.config.markers['Spirit (Ritualist)'].size, 
+                                   'Circle', self.config.markers['Spirit (Ritualist)'].color, 
+                                   Range.Earshot.value, fill_color, 
+                                   agent.x, agent.y, rot, is_alive, is_target)
+                elif model_id in self.config.spirits_ritualist['area']:
+                    if self.config.show_spirit_range:
+                        color = Utils.ColorToTuple(self.config.markers['Spirit (Ritualist)'].color)
+                        fill_color = Utils.TupleToColor((color[0],color[1],color[2],self.config.spirit_alpha/255))
+                    else:
+                        fill_color = None
+                    self.DrawAgent(self.config.markers['Spirit (Ritualist)'].visible, self.config.markers['Spirit (Ritualist)'].size, 
+                                   'Circle', self.config.markers['Spirit (Ritualist)'].color, 
+                                   Range.Area.value, fill_color, 
+                                   agent.x, agent.y, rot, is_alive, is_target)
+                elif model_id in self.config.spirits_vanguard:
+                    if self.config.show_spirit_range:
+                        color = Utils.ColorToTuple(self.config.markers['Spirit (Vanguard)'].color)
+                        fill_color = Utils.TupleToColor((color[0],color[1],color[2],self.config.spirit_alpha/255))
+                    else:
+                        fill_color = None
+                    self.DrawAgent(self.config.markers['Spirit (Vanguard)'].visible, self.config.markers['Spirit (Vanguard)'].size, 
+                                   self.config.markers['Spirit (Vanguard)'].shape, self.config.markers['Spirit (Vanguard)'].color, 
+                                   Range.Spirit.value, fill_color, 
+                                   agent.x, agent.y, rot, is_alive, is_target)
+            else:
+                self.DrawAgent(*self.config.markers['Ally (Pet)'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
 
         for agent in agent_array.GetRawNeutralArray():
             if not GetAgentValid(agent): continue
+            if CheckCustomMarkers(agent): continue
             rot, is_target, is_alive = GetAgentParams(agent)
 
             self.DrawAgent(*self.config.markers['Neutral'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
 
         for agent in agent_array.GetRawMinionArray():
             if not GetAgentValid(agent): continue
+            if CheckCustomMarkers(agent): continue
             rot, is_target, is_alive = GetAgentParams(agent)
 
             self.DrawAgent(*self.config.markers['Ally (Minion)'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
 
         for agent in agent_array.GetRawEnemyArray():
             if not GetAgentValid(agent): continue
+            if CheckCustomMarkers(agent): continue
             rot, is_target, is_alive = GetAgentParams(agent)
 
             if agent.living_agent.has_boss_glow:
@@ -463,6 +570,7 @@ class Compass():
 
         for agent in agent_array.GetRawAllyArray():
             if not GetAgentValid(agent): continue
+            if CheckCustomMarkers(agent): continue
             rot, is_target, is_alive = GetAgentParams(agent)
 
             if agent.living_agent.is_npc:
@@ -474,6 +582,7 @@ class Compass():
 
         for agent in agent_array.GetRawNPCMinipetArray():
             if not GetAgentValid(agent): continue
+            if CheckCustomMarkers(agent): continue
             rot, is_target, is_alive = GetAgentParams(agent)
 
             if agent.living_agent.has_quest:
@@ -547,7 +656,10 @@ class Compass():
             self.DrawRangeRings()
             if self.pathing.visible:
                 self.DrawPathing()
+            #timer = Timer()
+            #timer.Start()
             self.DrawAgents()
+            #Debug(timer.GetElapsedTime())
 
         self.imgui.end()
 
@@ -631,8 +743,12 @@ def configure():
             PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered,    (0.3, 0.3, 0.3, 1))
             PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,     (0.4, 0.4, 0.4, 1))
 
+            header_opened = False
+
             # position settings
             if PyImGui.collapsing_header(f'Position'):
+                PyImGui.indent(10)
+                header_opened = True
                 compass.position.snap_to_game = PyImGui.checkbox('Snap To Game Compass', compass.position.snap_to_game)
                 compass.position.culling = PyImGui.slider_int('Culling Range',  compass.position.culling,  4000, 5000)
 
@@ -647,10 +763,14 @@ def configure():
                     y = PyImGui.slider_int('Y Position', compass.position.detached_pos.y, compass.position.current_size, round(compass.position.display_size.y - compass.position.current_size))
                     compass.position.detached_pos  = PyOverlay.Point2D(x,y)
                     compass.position.detached_size = PyImGui.slider_int('Scale', compass.position.detached_size, 100, 1000)
+                PyImGui.unindent(10)
 
             # agent settings
             items = ['Circle','Tear', 'Square']
             if PyImGui.collapsing_header(f'Agents'):
+                PyImGui.indent(10)
+
+                header_opened = True
                 for marker in compass.config.markers.values():
                     marker.visible = PyImGui.checkbox(f'##Visible{marker.name}', marker.visible)
                     PyImGui.same_line(0.0, -1)
@@ -664,8 +784,47 @@ def configure():
                     PyImGui.same_line(0.0, -1)
                     marker.color = Utils.TupleToColor(PyImGui.color_edit4(f'{marker.name}##Color', Utils.ColorToTuple(marker.color)))
 
+                PyImGui.separator()
+
+                compass.config.show_spirit_range = PyImGui.checkbox(f'Show Spirit Ranges', compass.config.show_spirit_range)
+                compass.config.spirit_alpha = PyImGui.slider_int(f'Spirit Range Alpha', compass.config.spirit_alpha, 0, 255)
+
+                PyImGui.separator()
+
+                PyImGui.indent(4)
+                for name, marker in compass.config.custom_markers.items():
+                    if PyImGui.collapsing_header(f'{name}##header'):
+                        PyImGui.indent(10)
+                        marker.model_id = PyImGui.input_int(f'Model ID##{name}', marker.model_id)
+
+                        if PyImGui.button(f'Get Model ID from Target##{name}'):
+                            marker.model_id = Agent.GetPlayerNumber(Player.GetTargetID())
+
+                        marker.visible = PyImGui.checkbox(f'Visible##{name}', marker.visible)
+                        marker.size = PyImGui.slider_int(f'Size##{name}',  marker.size,  1, 20)
+                        items = ['Circle','Tear', 'Square']
+                        marker.shape = items[PyImGui.combo(f'Shape##{name}',  items.index(marker.shape),  items)]
+                        marker.color = Utils.TupleToColor(PyImGui.color_edit4(f'Color##{name}', Utils.ColorToTuple(marker.color)))
+                        marker.fill_range = PyImGui.slider_int(f'Fill Range##{name}',  marker.fill_range or 0,  0, 5000)
+                        if PyImGui.button(f'Delete Marker##{name}'):
+                            compass.config.custom_markers.pop(name)
+                            compass.ini.delete_section(f'custom_marker_{name}')
+                            break
+                        PyImGui.unindent(10)
+                PyImGui.unindent(4)
+
+                if PyImGui.button('Add Custom Agent'):
+                    compass.config.AddCustomMarker(compass.config.custom_name)
+                    compass.config.custom_name = 'Custom Agent Name'
+                PyImGui.same_line(0.0, -1)
+                compass.config.custom_name = PyImGui.input_text('##agent_name', compass.config.custom_name)
+
+                PyImGui.unindent(10)
+
             # range ring settings
             if PyImGui.collapsing_header(f'Range Rings'):
+                PyImGui.indent(10)
+                header_opened = True
                 for ring in compass.config.range_rings:
                     ring.visible = PyImGui.checkbox(f'##Visible{ring.name}', ring.visible)
                     PyImGui.same_line(0.0, -1)
@@ -676,12 +835,16 @@ def configure():
                     PyImGui.push_item_width(50)
                     ring.outline_thickness = PyImGui.input_float(f'{ring.name}##Line Thickness', ring.outline_thickness)
                     PyImGui.pop_item_width()
+                PyImGui.unindent(10)
 
             if PyImGui.collapsing_header(f'Pathing'):
+                PyImGui.indent(10)
+                header_opened = True
                 compass.pathing.visible = PyImGui.checkbox('Visible', compass.pathing.visible)
                 compass.pathing.color = Utils.TupleToColor(PyImGui.color_edit4('', Utils.ColorToTuple(compass.pathing.color)))
+                PyImGui.unindent(10)
 
-            if PyImGui.button('Save Settings'):
+            if PyImGui.button('Save Settings', PyImGui.get_window_width() - 20 if header_opened else 150):
                 compass.SaveConfig()
 
             PyImGui.pop_style_color(11)
