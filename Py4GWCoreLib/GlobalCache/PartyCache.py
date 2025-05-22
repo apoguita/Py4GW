@@ -3,13 +3,15 @@ from Py4GWCoreLib import Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 
 class PartyCache:
-    def __init__(self, action_queue_manager):
+    def __init__(self, action_queue_manager, map_cache, player_cache):
         self._action_queue_manager:ActionQueueManager = action_queue_manager
         self._party_instance = PyParty.PyParty()
         self.Players = self._Players(self)
         self.Heroes = self._Heroes(self)
         self.Henchmen = self._Henchmen(self)
         self.Pets = self._Pets(self)
+        self._map_cache = map_cache
+        self._player_cache = player_cache
     
     def _update_cache(self):
         self._party_instance.GetContext()
@@ -41,7 +43,7 @@ class PartyCache:
         return self.Players.GetAgentIDByLoginNumber(leader.login_number)
     
     def GetOwnPartyNumber(self):
-        agent_id = Player.GetAgentID()
+        agent_id = self._player_cache.GetAgentID()
         players = self.GetPlayers()
         for i in range(self.GetPlayerCount()):
             player_id = self.Players.GetAgentIDByLoginNumber(players[i].login_number)
@@ -65,6 +67,8 @@ class PartyCache:
         return self._party_instance.is_party_defeated
     
     def IsPartyLoaded(self):
+        if self._map_cache.IsMapLoading():
+            return False
         return self._party_instance.is_party_loaded
     
     def IsPartyLeader(self):
@@ -83,7 +87,7 @@ class PartyCache:
         self._action_queue_manager.AddAction("ACTION", self._party_instance.tick.SetTicked, ticked)
         
     def ToggleTicked(self):
-        agent_id = Player.GetAgentID()
+        agent_id = self._player_cache.GetAgentID()
         login_number = self.Players.GetLoginNumberByAgentID(agent_id)
         party_number = self.Players.GetPartyNumberFromLoginNumber(login_number)
         

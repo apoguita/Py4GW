@@ -1,7 +1,9 @@
 import PyInventory
 import PyItem
+import Py4GW
 
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
+from Py4GWCoreLib import Bag
 from typing import Dict, List
 import time
 from enum import Enum
@@ -620,14 +622,25 @@ class ItemCache:
 class ItemArray:
     _raw_item_cache: RawItemCache = RawItemCache()
     
-    def GetItemArray(self, bag_list: List[int]):
-        bags = self._raw_item_cache.get_bags(bag_list)
-        item_ids = []
-        for bag in bags:
-            items = bag.GetItems()
-            item_ids.extend([item.item_id for item in items])
-            
-        return item_ids
+    def GetItemArray(self, bags_to_check: List[Bag]):
+        """
+        Given a list of Bag enums, retrieve item IDs from cached bags.
+        :param bags_to_check: A list of Bag enum members.
+        :return: List of item IDs.
+        """
+        # Convert Bag enums to int for cache access
+        bag_ids = [bag_enum.value for bag_enum in bags_to_check]
+        bags = self._raw_item_cache.get_bags(bag_ids)
+
+        all_item_ids = []
+        for bag_enum, bag in zip(bags_to_check, bags):
+            try:
+                items = bag.GetItems()
+                all_item_ids.extend([item.item_id for item in items])
+            except Exception as e:
+                Py4GW.Console.Log("GetItemArray", f"Error retrieving items from {bag_enum.name}: {str(e)}", Py4GW.Console.MessageType.Error)
+
+        return all_item_ids
     
     def GetRawItemArray(self, bag_list: List[int]) -> List[PyItem.PyItem]:
         bags = self._raw_item_cache.get_bags(bag_list)
@@ -642,6 +655,19 @@ class ItemArray:
     def GetBag(self, bag: int):
         return self._raw_item_cache.get_bag(bag)
    
+    def CreateBagList(self, *bag_ids) -> List[Bag]:
+        """
+        Creates a list of Bag enum members based on the provided bag IDs.
+        :param bag_ids: A variable number of bag IDs (integers).
+        :return: A list of Bag enum members.
+        """
+        valid_bags = []
+        for bag_id in bag_ids:
+            try:
+                valid_bags.append(Bag(bag_id))
+            except ValueError:
+                Py4GW.Console.Log("CreateBagList", f"Invalid bag ID: {bag_id}", Py4GW.Console.MessageType.Error)
+        return valid_bags
         
         
         

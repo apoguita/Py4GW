@@ -42,7 +42,7 @@ class GlobalCache:
         self.ItemArray = ItemArray()
         self.Inventory = InventoryCache(self._ActionQueueManager, self._RawItemCache, self.Item)
         self.Trading = TradingCache(self._ActionQueueManager)
-        self.Party = PartyCache(self._ActionQueueManager)
+        self.Party = PartyCache(self._ActionQueueManager, self.Map, self.Player)
         self.Quest = QuestCache(self._ActionQueueManager)
         self.Skill = SkillCache()
         self.SkillBar = SkillbarCache(self._ActionQueueManager)
@@ -60,17 +60,19 @@ class GlobalCache:
             self._TrottleTimers._50ms.Reset()
             self.Map._update_cache()
             
+            """
             if self.Map.IsMapLoading():
                 self._reset()
                 return
-            
+            """
             self.Party._update_cache()
             self.Player._update_cache()
             
+            """
             if not self.Party.IsPartyLoaded():
                 self._reset()
                 return
-            
+            """
                 
             self._RawAgentArray.update()
             self.Agent._update_cache()
