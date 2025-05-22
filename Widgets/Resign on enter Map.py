@@ -1,54 +1,36 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import GLOBAL_CACHE
+
 module_name = "Resign on enter Map"
 
-class config:
-    def __init__(self):
-        self.resigned = False
-        self.resign_timer = ThrottledTimer(3000)
-
-widget_config = config()
-
-def configure():
-    pass
-
-def safe_resign():
-    if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
-        return 
-    Player.SendChatCommand("resign")
-    
-def resigned():
-    global widget_config
-    if not Routines.Checks.Map.MapValid():
-        widget_config.resign_timer.Reset()
-        widget_config.resigned = False
-        return False
-        
-    if not Map.IsExplorable():
-        widget_config.resign_timer.Reset()
-        widget_config.resigned = False
-        return False
-        
-    if not widget_config.resign_timer.IsExpired():
-        return False
-    
-    if widget_config.resigned:
-        return False
-    
-    if Player.GetAgentID() == Party.GetPartyLeaderID():
-        return False
-     
-    for i in range(0, 3):
-        ActionQueueManager().AddAction("ACTION",safe_resign)
-    widget_config.resigned = True
-    
-    return True
+resigned = False
+explorable_loaded_timer = ThrottledTimer(2000)
 
 def main():
-    if not resigned():
+    global resigned, explorable_loaded_timer
+    if not Routines.Checks.Map.MapValid():
+        resigned = False
+        explorable_loaded_timer.Reset()
         return
     
-    ActionQueueManager().ProcessQueue("ACTION")
+    if not GLOBAL_CACHE.Map.IsExplorable():
+        resigned = False
+        explorable_loaded_timer.Reset()
+        return
     
+    if GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
+        resigned = True
+        explorable_loaded_timer.Reset()
+        return
+    
+    if not resigned and explorable_loaded_timer.IsExpired():
+        resigned = True
+        explorable_loaded_timer.Reset()
+        GLOBAL_CACHE.Player.SendChatCommand("resign")
+        
+def configure():
+    pass
 
 if __name__ == "__main__":
     main()

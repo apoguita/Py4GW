@@ -1,5 +1,10 @@
 
-from Py4GWCoreLib import *
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Timer
+from Py4GWCoreLib import UIManager
+from Py4GWCoreLib import Keystroke
+from Py4GWCoreLib import Key
+from Py4GWCoreLib import ConsoleLog
 
 module_name = "Enter character on load"
 play_button_hash = 184818986
@@ -11,10 +16,10 @@ def main():
     global loading_in_character_screen, start_timer, play_button_hash
     if start_timer.IsStopped():
         return
-    if Player.InCharacterSelectScreen() and start_timer.HasElapsed(1000) and loading_in_character_screen:
+    if GLOBAL_CACHE.Player.InCharacterSelectScreen() and start_timer.HasElapsed(1000) and loading_in_character_screen:
         frame_id = UIManager.GetFrameIDByHash(play_button_hash)
         if UIManager.FrameExists(frame_id):
-            Py4GW.Console.Log(module_name, f"Entering Game.", Py4GW.Console.MessageType.Info)
+            ConsoleLog(module_name, f"Entering Game.")
             #UIManager.FrameClick(frame_id)
             Keystroke.PressAndRelease(Key.Enter.value)
 

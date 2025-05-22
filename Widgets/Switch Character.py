@@ -1,5 +1,18 @@
-from Py4GWCoreLib import *
-
+from Py4GWCoreLib import List
+from Py4GWCoreLib import Timer
+from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib import Console
+from Py4GWCoreLib import Keystroke
+from Py4GWCoreLib import Key
+from Py4GWCoreLib import Color
+from Py4GWCoreLib import ProfessionShort
+from Py4GWCoreLib import UIManager
+from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Map
+import traceback
 MODULE_NAME = "Switch Character"
 
 class RerollCharacter:
@@ -28,9 +41,9 @@ class RerollCharacter:
      
     def _is_char_select_context_ready(self) -> bool:
         """Checks if character select is active and context is available."""
-        if not Player.InCharacterSelectScreen():
+        if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
             return False
-        pregame = Player.GetPreGameContext()
+        pregame = GLOBAL_CACHE.Player.GetPreGameContext()
         return pregame is not None and pregame.chars is not None
     
     def _get_target_index(self):
@@ -39,7 +52,7 @@ class RerollCharacter:
             ConsoleLog("Reroll", "Char select context not ready for finding target.", Console.MessageType.Warning)
             return
 
-        pregame = Player.GetPreGameContext()
+        pregame = GLOBAL_CACHE.Player.GetPreGameContext()
         target_name = self.target_character_name
         found_index = -99
         try:
@@ -65,7 +78,7 @@ class RerollCharacter:
             ConsoleLog("Reroll", "Char select context not ready during navigation.", Console.MessageType.Warning)
             return
 
-        pregame = Player.GetPreGameContext()
+        pregame = GLOBAL_CACHE.Player.GetPreGameContext()
         current_index = pregame.index_1
 
         if current_index == self.target_index:
@@ -95,7 +108,7 @@ class RerollCharacter:
             return
 
         if self.state == self.STATE_LOGGING_OUT:
-            if Player.InCharacterSelectScreen():
+            if GLOBAL_CACHE.Player.InCharacterSelectScreen():
                 ConsoleLog("Reroll", "Character select screen detected.", Console.MessageType.Debug)
                 self.state = self.STATE_WAITING_FOR_CHAR_SELECT
                 self.step_timer.Start()
@@ -122,7 +135,7 @@ class RerollCharacter:
                  self.timeout_timer.Stop()
                  return
 
-            pregame = Player.GetPreGameContext()
+            pregame = GLOBAL_CACHE.Player.GetPreGameContext()
             current_index = pregame.index_1
 
             if current_index == self.target_index:
@@ -140,8 +153,8 @@ class RerollCharacter:
                 self.step_timer.Stop()
 
         elif self.state == self.STATE_LOGGING_IN:
-            if not Player.InCharacterSelectScreen():
-                 if Map.IsMapReady() and Party.IsPartyLoaded():
+            if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
+                 if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded():
                      ConsoleLog("Reroll", "Character logged in successfully.", Console.MessageType.Success)
                      self.state = self.STATE_IDLE
                      self.timeout_timer.Stop()   
@@ -149,7 +162,7 @@ class RerollCharacter:
     def _update_character_list(self):
             """Updates the list of available character names if in character select."""
             try:
-                characters = Player.GetLoginCharacters()
+                characters = GLOBAL_CACHE.Player.GetLoginCharacters()
                 if characters:
                     new_names = [char.player_name for char in characters]
                     self.characters = characters
@@ -186,7 +199,7 @@ class RerollCharacter:
         ConsoleLog("Reroll", f"Starting reroll to '{self.target_character_name}'...", Console.MessageType.Info)
         self.state = self.STATE_LOGGING_OUT
         self.timeout_timer.Start()
-        Player.LogoutToCharacterSelect()
+        GLOBAL_CACHE.Player.LogoutToCharacterSelect()
         self.target_index = -99
         self.last_known_index = -99
             
@@ -207,7 +220,7 @@ def DrawWindow():
     
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
         new_collapsed = PyImGui.is_window_collapsed()      
-        characters = sorted(Player.GetLoginCharacters(), key=lambda c: c.player_name.lower())
+        characters = sorted(GLOBAL_CACHE.Player.GetLoginCharacters(), key=lambda c: c.player_name.lower())
         
         
         # Define per-profession row colors using RGBA integers (0–255)
@@ -279,7 +292,7 @@ def configure():
     pass
 
 def is_in_character_select():
-    if Party.IsPartyLoaded():
+    if GLOBAL_CACHE.Party.IsPartyLoaded():
         return False
     
     cs_base = UIManager.GetFrameIDByHash(2232987037)
@@ -298,7 +311,7 @@ def is_in_character_select():
     in_char_select = (
         not in_load_screen and
         any(isinstance(f, int) and f > 0 for f in (cs_base, cs_c0, cs_c1)) and 
-        not Party.IsPartyLoaded()
+        not GLOBAL_CACHE.Party.IsPartyLoaded()
     )
     
     return in_char_select
