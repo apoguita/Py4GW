@@ -1,14 +1,7 @@
-from Py4GWCoreLib import *
-
-from .constants import (
-    CANDIDATES_MODULE_NAME,
-    MAX_NUM_PLAYERS,
-)
-
-from .types import (
-    CandidateStruct,
-)
-
+from Py4GWCoreLib import GLOBAL_CACHE, Py4GW
+import traceback
+from .constants import CANDIDATES_MODULE_NAME,MAX_NUM_PLAYERS
+from .types import CandidateStruct
 from .cache_data import CacheData
 
 def RegisterCandidate(cached_data:CacheData):
@@ -53,7 +46,7 @@ def SendPartyCommand(index, cached_data:CacheData, command="Invite"):
         invited_by = GLOBAL_CACHE.Agent.GetName(candidate.PlayerID)
         #invited_by = Agent.GetName(candidate.PlayerID)
         #this is exempt of the action queue to allow instant invite
-        Party.Players.InvitePlayer(invited_by)
+        GLOBAL_CACHE.Party.Players.InvitePlayer(invited_by)
 
     cached_data.HeroAI_vars.all_candidate_struct[index].InvitedBy=cached_data.data.player_agent_id
     updated_candidate = CandidateStruct(
@@ -100,7 +93,7 @@ def ProcessCandidateCommands(cached_data:CacheData):
 
                 invited_by = GLOBAL_CACHE.Agent.GetName(candidate.InvitedBy)
                 #invited_by = Agent.GetName(candidate.InvitedBy)
-                ActionQueueManager().AddAction("ACTION", Party.Players.InvitePlayer, invited_by)
+                GLOBAL_CACHE.Party.Players.InvitePlayer(invited_by)
                 return True
 
             if (candidate.PlayerID == cached_data.data.player_agent_id) and (candidate.SummonedBy != 0):
@@ -128,7 +121,7 @@ def ProcessCandidateCommands(cached_data:CacheData):
                 )
                 cached_data.HeroAI_vars.shared_memory_handler.set_candidate(self_index, updated_candidate)
 
-                ActionQueueManager().AddAction("ACTION", Map.TravelToDistrict, leader.MapID, leader.MapRegion, leader.MapDistrict)
+                GLOBAL_CACHE.Map.TravelToDistrict(leader.MapID, leader.MapRegion, leader.MapDistrict)
 
                 return True
 

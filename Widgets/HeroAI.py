@@ -1,17 +1,23 @@
-from Py4GWCoreLib import *
+import Py4GW
+from Py4GWCoreLib import MultiThreading, Timer, Range, LootConfig, Routines, Utils, Overlay, IconsFontAwesome5, Keystroke, Key, ImGui, PyImGui
+from Py4GWCoreLib import AgentArray, UIManager, ActionQueueManager
+from Py4GWCoreLib import GLOBAL_CACHE
 
-from HeroAI.types import *
-from HeroAI.globals import *
-from HeroAI.constants import MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_OUT_OF_COMBAT
-from HeroAI.shared_memory_manager import *
-from HeroAI.utils import *
-from HeroAI.candidates import *
-from HeroAI.players import *
-from HeroAI.game_option import *
-from HeroAI.windows import *
-from HeroAI.targeting import *
-from HeroAI.combat import *
-from HeroAI.cache_data import *
+#from HeroAI.types import *
+from HeroAI.globals import hero_formation
+from HeroAI.constants import MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS
+#from HeroAI.shared_memory_manager import *
+from HeroAI.utils import DistanceFromWaypoint, DistanceFromLeader
+from HeroAI.candidates import RegisterCandidate, UpdateCandidates, ProcessCandidateCommands
+from HeroAI.players import RegisterPlayer, UpdatePlayers, RegisterHeroes
+from HeroAI.game_option import UpdateGameOptions
+from HeroAI.windows import DrawMainWindow, DrawControlPanelWindow, DrawMultiboxTools, DrawPanelButtons, DrawCandidateWindow, DrawFlaggingWindow, DrawOptions, DrawFlags, CompareAndSubmitGameOptions, SubmitGameOptions
+#from HeroAI.targeting import *
+#from HeroAI.combat import *
+from HeroAI.cache_data import CacheData
+import math
+from enum import Enum
+import traceback
 
 MODULE_NAME = "HeroAI"
 
@@ -47,7 +53,7 @@ def SequentialLootingRoutine():
     
     filtered_loot = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
     # Loot filtered items
-    ActionQueueManager().ResetQueue("ACTION")
+    #ActionQueueManager().ResetQueue("ACTION")
     Routines.Sequential.Items.LootItems(filtered_loot,log = False)
     looting_aftercast.Reset()
     cached_data.in_looting_routine = False
@@ -81,7 +87,7 @@ def Loot(cached_data:CacheData):
 def Follow(cached_data:CacheData):
     global MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_ON_COMBAT
     
-    if Player.GetAgentID() == Party.GetPartyLeaderID():
+    if GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
         cached_data.follow_throttle_timer.Reset()
         return False
     
@@ -137,27 +143,26 @@ def Follow(cached_data:CacheData):
     cached_data.data.angle_changed = False
     ActionQueueManager().ResetQueue("ACTION")
     #ConsoleLog("HeroAI follow","distance: " + str(DistanceFromWaypoint(follow_x, follow_y)) + "target: " + str(follow_distance))
-    ActionQueueManager().AddAction("ACTION", Player.Move, xx, yy)
-    cached_data.follow_throttle_timer.Reset()
+    GLOBAL_CACHE.Player.Move(xx, yy)
+    #ActionQueueManager().AddAction("ACTION", Player.Move, xx, yy)
     return True
     
 
 
 def draw_Targeting_floating_buttons(cached_data:CacheData):
-    if not Map.IsExplorable():
+    if not GLOBAL_CACHE.Map.IsExplorable():
         return
-    enemies = AgentArray.GetEnemyArray()
-    enemies = AgentArray.Filter.ByCondition(enemies, lambda agent_id: Agent.IsAlive(agent_id))
+    enemies = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+    enemies = AgentArray.Filter.ByCondition(enemies, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
     
     if not enemies:
         return
     for agent_id in enemies:
-        x,y,z = Agent.GetXYZ(agent_id)
+        x,y,z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
         screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
-        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):
-            ActionQueueManager().ResetQueue("ACTION")
-            ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, agent_id)
-            ActionQueueManager().AddAction("ACTION", Player.Interact, agent_id, True)
+        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):         
+            GLOBAL_CACHE.Player.ChangeTarget (agent_id)
+            GLOBAL_CACHE.Player.Interact (agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
 
       
@@ -205,8 +210,8 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
                         for index in range(MAX_NUM_PLAYERS):
                             if cached_data.HeroAI_vars.all_player_struct[index].IsActive and not cached_data.HeroAI_vars.all_player_struct[index].IsHero:
                                 original_game_option = cached_data.HeroAI_vars.all_game_option_struct[index]
-                                login_number = Party.Players.GetLoginNumberByAgentID(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
-                                player_name = Party.Players.GetPlayerNameByLoginNumber(login_number)
+                                login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
+                                player_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
                                 if PyImGui.tree_node(f"{player_name}##ControlPlayer{index}"):
                                     game_option = DrawPanelButtons(original_game_option)
                                     SubmitGameOptions(cached_data, index, game_option, original_game_option)
@@ -234,7 +239,7 @@ def DrawEmbeddedWindow(cached_data:CacheData):
     outpost_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
     explorable_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS)
     
-    if Map.IsMapReady() and Map.IsExplorable():
+    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Map.IsExplorable():
         content_frame_id = explorable_content_frame_id
     else:
         content_frame_id = outpost_content_frame_id
@@ -344,8 +349,11 @@ def UpdateStatus(cached_data:CacheData):
     if Loot(cached_data):
        return
    
-    if Follow(cached_data):
-        return
+    if cached_data.follow_throttle_timer.IsExpired():
+        if Follow(cached_data):
+            cached_data.follow_throttle_timer.Reset()
+            return
+        
 
     if HandleCombat(cached_data):
         return
@@ -374,13 +382,11 @@ def main():
     global cached_data
     try:
         if not Routines.Checks.Map.MapValid():
-            ActionQueueManager().ResetQueue("ACTION")
             return
         
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
             UpdateStatus(cached_data)
-            ActionQueueManager().ProcessQueue("ACTION")
 
 
 
