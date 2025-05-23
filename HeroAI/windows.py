@@ -336,13 +336,9 @@ def DrawFlaggingWindow(cached_data:CacheData):
             one_time_set_flag = False
             capture_mouse_timer.Start()
         
-async_name_gettet_timer = Timer()
-async_name_gettet_timer.Start()
-cached_names = {}
 
 def DrawCandidateWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
-    global async_name_gettet_timer,cached_names
 
     candidate_count = 0
 
@@ -397,16 +393,13 @@ def DrawCandidateWindow(cached_data:CacheData):
                 #name = Agent.GetName(candidate.PlayerID)
 
                         
-
-                PyImGui.text(cached_names.get(candidate.PlayerID, ""))    
+                PyImGui.text(GLOBAL_CACHE.Agent.GetName(candidate.PlayerID)) 
 
         PyImGui.end_table()
 
         if candidate_count == 0:
             PyImGui.text("No candidates found.")
             
-        if async_name_gettet_timer.HasElapsed(1000):
-            async_name_gettet_timer.Reset()
 
     PyImGui.separator()
 

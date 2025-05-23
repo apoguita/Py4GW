@@ -84,7 +84,6 @@ class GameData:
         self.is_targeting_enabled = True
         self.is_combat_enabled = True
         self.is_skill_enabled = [True for _ in range(NUMBER_OF_SKILLS)]
-        self.RAW_AGENT_ARRAY = None
       
         
     def update(self):
@@ -149,10 +148,7 @@ class GameData:
         self.free_slots_in_inventory = Inventory.GetFreeSlotCount()
         self.target_id = Player.GetTargetID()
         self.target_is_alive = Agent.IsAlive(self.target_id)
-        if self.is_outpost:
-            if self.RAW_AGENT_ARRAY is None:
-                self.RAW_AGENT_ARRAY = RawAgentArray()
-            self.RAW_AGENT_ARRAY.update() 
+
         
     
 @dataclass
