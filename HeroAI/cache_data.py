@@ -140,8 +140,6 @@ class GameData:
         self.player_is_melee = Agent.IsMelee(self.player_agent_id)
         self.weapon_type, _ = Agent.GetWeaponType(self.player_agent_id)
         
-        
-        
         #AgentArray data
         self.pet_id = Party.Pets.GetPetID(self.player_agent_id)
         #combat field data
@@ -212,6 +210,10 @@ class CacheData:
         self.data.is_combat_enabled = self.HeroAI_vars.all_game_option_struct[self.data.own_party_number].Combat
         for i in range(NUMBER_OF_SKILLS):
             self.data.is_skill_enabled[i] = self.HeroAI_vars.all_game_option_struct[self.data.own_party_number].Skills[i].Active
+            
+        for index in range(MAX_NUM_PLAYERS):
+            candidate = self.HeroAI_vars.all_candidate_struct[index]
+            agent_name = GLOBAL_CACHE.Agent.GetName(candidate.PlayerID)
         
     def UdpateCombat(self):
         self.combat_handler.Update(self.data)
