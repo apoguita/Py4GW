@@ -1,11 +1,12 @@
-from dataclasses import dataclass, field
-from typing import List, Tuple
+from dataclasses import dataclass
 
-from .constants import *
-from .globals import *
-from .targeting import *
-from .combat import *
-from .custom_skill import CustomSkillClass
+from .constants import SHARED_MEMORY_FILE_NAME, STAY_ALERT_TIME, MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
+from .globals import HeroAI_varsClass, HeroAI_Window_varsClass
+from .combat import CombatClass
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Timer, ThrottledTimer
+from Py4GWCoreLib import Range, Utils, ConsoleLog
+from Py4GWCoreLib import AgentArray
 
 @dataclass
 class GameData:
@@ -88,23 +89,23 @@ class GameData:
         
     def update(self):
         #Map data
-        self.is_map_ready = Map.IsMapReady()
+        self.is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
         if not self.is_map_ready:
             self.is_party_loaded = False
             return
-        self.map_id = Map.GetMapID()
-        self.is_outpost = Map.IsOutpost()
-        self.is_explorable = Map.IsExplorable()
-        self.is_in_cinematic = Map.IsInCinematic()
-        self.region, _ = Map.GetRegion()
-        self.district = Map.GetDistrict()
+        self.map_id = GLOBAL_CACHE.Map.GetMapID()
+        self.is_outpost = GLOBAL_CACHE.Map.IsOutpost()
+        self.is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+        self.is_in_cinematic = GLOBAL_CACHE.Map.IsInCinematic()
+        self.region, _ = GLOBAL_CACHE.Map.GetRegion()
+        self.district = GLOBAL_CACHE.Map.GetDistrict()
         #Party data
-        self.is_party_loaded = Party.IsPartyLoaded()
+        self.is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
         if not self.is_party_loaded:
             return
-        self.party_leader_id = Party.GetPartyLeaderID()
+        self.party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
         
-        self.party_leader_rotation_angle = Agent.GetRotationAngle(self.party_leader_id)
+        self.party_leader_rotation_angle = GLOBAL_CACHE.Agent.GetRotationAngle(self.party_leader_id)
 
         if self.old_angle != self.party_leader_rotation_angle:
             self.angle_changed = True
@@ -112,40 +113,40 @@ class GameData:
         #never reset, so if it changed once, it will be true until the move is issued
 
         
-        self.party_leader_xy = Agent.GetXY(self.party_leader_id)
-        self.party_leader_xyz = Agent.GetXYZ(self.party_leader_id)
-        self.own_party_number = Party.GetOwnPartyNumber()
-        self.heroes = Party.GetHeroes()
-        self.party_size = Party.GetPartySize()
-        self.party_player_count = Party.GetPlayerCount()
-        self.party_hero_count = Party.GetHeroCount()
-        self.party_henchman_count = Party.GetHenchmanCount()
+        self.party_leader_xy = GLOBAL_CACHE.Agent.GetXY(self.party_leader_id)
+        self.party_leader_xyz = GLOBAL_CACHE.Agent.GetXYZ(self.party_leader_id)
+        self.own_party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
+        self.heroes = GLOBAL_CACHE.Party.GetHeroes()
+        self.party_size = GLOBAL_CACHE.Party.GetPartySize()
+        self.party_player_count = GLOBAL_CACHE.Party.GetPlayerCount()
+        self.party_hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+        self.party_henchman_count = GLOBAL_CACHE.Party.GetHenchmanCount()
         #Player data
-        self.player_agent_id = Player.GetAgentID()
-        self.player_login_number = Agent.GetLoginNumber(self.player_agent_id)
-        self.player_energy_regen = Agent.GetEnergyRegen(self.player_agent_id)
-        self.player_max_energy = Agent.GetMaxEnergy(self.player_agent_id)
-        self.player_energy = Agent.GetEnergy(self.player_agent_id)
-        self.player_xy = Agent.GetXY(self.player_agent_id)
-        self.player_xyz = Agent.GetXYZ(self.player_agent_id)
-        self.player_is_casting = Agent.IsCasting(self.player_agent_id)
-        self.player_casting_skill = Agent.GetCastingSkill(self.player_agent_id)
-        self.player_skillbar_casting = SkillBar.GetCasting()
-        self.player_hp = Agent.GetHealth(self.player_agent_id)
-        self.player_is_alive = Agent.IsAlive(self.player_agent_id)
-        self.player_overcast = Agent.GetOvercast(self.player_agent_id)
-        self.player_is_knocked_down = Agent.IsKnockedDown(self.player_agent_id)
-        self.player_is_attacking = Agent.IsAttacking(self.player_agent_id)
-        self.player_is_moving = Agent.IsMoving(self.player_agent_id)
-        self.player_is_melee = Agent.IsMelee(self.player_agent_id)
-        self.weapon_type, _ = Agent.GetWeaponType(self.player_agent_id)
+        self.player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        self.player_login_number = GLOBAL_CACHE.Agent.GetLoginNumber(self.player_agent_id)
+        self.player_energy_regen = GLOBAL_CACHE.Agent.GetEnergyRegen(self.player_agent_id)
+        self.player_max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(self.player_agent_id)
+        self.player_energy = GLOBAL_CACHE.Agent.GetEnergy(self.player_agent_id)
+        self.player_xy = GLOBAL_CACHE.Agent.GetXY(self.player_agent_id)
+        self.player_xyz = GLOBAL_CACHE.Agent.GetXYZ(self.player_agent_id)
+        self.player_is_casting = GLOBAL_CACHE.Agent.IsCasting(self.player_agent_id)
+        self.player_casting_skill = GLOBAL_CACHE.Agent.GetCastingSkill(self.player_agent_id)
+        self.player_skillbar_casting = GLOBAL_CACHE.SkillBar.GetCasting()
+        self.player_hp = GLOBAL_CACHE.Agent.GetHealth(self.player_agent_id)
+        self.player_is_alive = GLOBAL_CACHE.Agent.IsAlive(self.player_agent_id)
+        self.player_overcast = GLOBAL_CACHE.Agent.GetOvercast(self.player_agent_id)
+        self.player_is_knocked_down = GLOBAL_CACHE.Agent.IsKnockedDown(self.player_agent_id)
+        self.player_is_attacking = GLOBAL_CACHE.Agent.IsAttacking(self.player_agent_id)
+        self.player_is_moving = GLOBAL_CACHE.Agent.IsMoving(self.player_agent_id)
+        self.player_is_melee = GLOBAL_CACHE.Agent.IsMelee(self.player_agent_id)
+        self.weapon_type, _ = GLOBAL_CACHE.Agent.GetWeaponType(self.player_agent_id)
         
         #AgentArray data
-        self.pet_id = Party.Pets.GetPetID(self.player_agent_id)
+        self.pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(self.player_agent_id)
         #combat field data
-        self.free_slots_in_inventory = Inventory.GetFreeSlotCount()
-        self.target_id = Player.GetTargetID()
-        self.target_is_alive = Agent.IsAlive(self.target_id)
+        self.free_slots_in_inventory = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
+        self.target_id = GLOBAL_CACHE.Player.GetTargetID()
+        self.target_is_alive = GLOBAL_CACHE.Agent.IsAlive(self.target_id)
 
         
     
@@ -182,7 +183,7 @@ class CacheData:
             self.draw_floating_loot_buttons = False
             self.reset()
             self.ui_state_data = UIStateData()
-            self.follow_throttle_timer = ThrottledTimer(500)
+            self.follow_throttle_timer = ThrottledTimer(1000)
             
             self._initialized = True 
             
@@ -193,10 +194,10 @@ class CacheData:
         
     def InAggro(self, enemy_array, aggro_range = Range.Earshot.value):
         distance = aggro_range
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= distance)
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
-        enemy_array = AgentArray.Sort.ByDistance(enemy_array, Player.GetXY())
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), GLOBAL_CACHE.Agent.GetXY(agent_id)) <= distance)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id)
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, GLOBAL_CACHE.Player.GetXY())
         if len(enemy_array) > 0:
             return True
         return False
@@ -234,9 +235,9 @@ class CacheData:
                 self.data.update()
                 
                 if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
-                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
+                    self.data.in_aggro = self.InAggro(GLOBAL_CACHE.AgentArray.GetEnemyArray(), Range.Earshot.value)
                 else:
-                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Spellcast.value)
+                    self.data.in_aggro = self.InAggro(GLOBAL_CACHE.AgentArray.GetEnemyArray(), Range.Spellcast.value)
                     
                 if self.data.in_aggro:
                     self.stay_alert_timer.Reset()

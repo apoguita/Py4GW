@@ -1,14 +1,8 @@
-from Py4GWCoreLib import *
+import Py4GW
+import traceback
 
-from .constants import (
-    GAME_OPTION_MODULE_NAME,
-    MAX_NUM_PLAYERS,
-    NUMBER_OF_SKILLS
-)
-
+from .constants import GAME_OPTION_MODULE_NAME, MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .cache_data import CacheData
-
-
 
 def UpdateGameOptions(cache_data:CacheData):
     """Update the player list from shared memory."""
@@ -17,7 +11,7 @@ def UpdateGameOptions(cache_data:CacheData):
         own_party_number = cache_data.data.own_party_number
 
         if own_party_number == 0:
-            for index in range(MAX_NUM_PLAYERS):
+            for index in range(0, MAX_NUM_PLAYERS):
                 game_option = cache_data.HeroAI_vars.shared_memory_handler.get_game_option(index)
                 if game_option is None:
                     continue
@@ -32,7 +26,12 @@ def UpdateGameOptions(cache_data:CacheData):
                 for skill_index in range(NUMBER_OF_SKILLS):
                     cache_data.HeroAI_vars.all_game_option_struct[index].Skills[skill_index].Active = game_option["Skills"][skill_index]
         else:
-            game_option = cache_data.HeroAI_vars.shared_memory_handler.get_game_option(own_party_number)
+            game_option = None
+            if own_party_number >= 0 and own_party_number < MAX_NUM_PLAYERS:
+                game_option = cache_data.HeroAI_vars.shared_memory_handler.get_game_option(own_party_number)
+            else:
+                return
+            
             if game_option is None:
                 return
 
