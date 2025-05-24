@@ -359,7 +359,7 @@ class Compass():
         self.renderer.render()
 
     def DrawAgent(self, visible, size, shape, color, fill_range, fill_color, x, y, rotation, is_alive, is_target):
-        if not visible: return
+        if not Map.IsMapReady() or not visible: return
 
         if not is_alive:
             col = Utils.ColorToTuple(color)
