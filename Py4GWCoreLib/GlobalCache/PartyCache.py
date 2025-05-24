@@ -17,32 +17,50 @@ class PartyCache:
         self._party_instance.GetContext()
         
     def GetPartyID(self):
+        if not self.IsPartyLoaded():
+            return 0
         return self._party_instance.party_id
     
     def GetPlayers(self):
+        if not self.IsPartyLoaded():
+            return []
         return self._party_instance.players
     
     def GetHeroes(self):
+        if not self.IsPartyLoaded():
+            return []
         return self._party_instance.heroes
     
     def GetHenchmen(self):
+        if not self.IsPartyLoaded():
+            return []
         return self._party_instance.henchmen
     
     def GetPlayerCount(self):
+        if not self.IsPartyLoaded():
+            return 0
         return self._party_instance.party_player_count
     
     def GetHeroCount(self):
+        if not self.IsPartyLoaded():
+            return 0
         return self._party_instance.party_hero_count
     
     def GetHenchmanCount(self):
+        if not self.IsPartyLoaded():
+            return 0
         return self._party_instance.party_henchman_count
 
     def GetPartyLeaderID(self):
+        if not self.IsPartyLoaded():
+            return 0
         players = self.GetPlayers()
         leader =  players[0]
         return self.Players.GetAgentIDByLoginNumber(leader.login_number)
     
     def GetOwnPartyNumber(self):
+        if not self.IsPartyLoaded():
+            return -1
         agent_id = self._player_cache.GetAgentID()
         players = self.GetPlayers()
         for i in range(self.GetPlayerCount()):
