@@ -168,6 +168,7 @@ class CacheData:
             self.combat_handler = CombatClass()
             self.HeroAI_vars = HeroAI_varsClass()
             self.HeroAI_windows = HeroAI_Window_varsClass()
+            self.name_refresh_throttle = ThrottledTimer(1000)
             self.game_throttle_time = throttle_time
             self.game_throttle_timer = Timer()
             self.game_throttle_timer.Start()
@@ -218,10 +219,16 @@ class CacheData:
         if not GLOBAL_CACHE.Party.IsPartyLoaded():
             return
         
-        if GLOBAL_CACHE.Map.IsOutpost():
-            for index in range(MAX_NUM_PLAYERS):
-                candidate = self.HeroAI_vars.all_candidate_struct[index]
-                agent_name = GLOBAL_CACHE.Agent.GetName(candidate.PlayerID)
+        party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
+        if party_number > 0:
+            return 
+        
+        if self.name_refresh_throttle.IsExpired():
+            self.name_refresh_throttle.Reset()
+            if GLOBAL_CACHE.Map.IsOutpost():
+                for index in range(MAX_NUM_PLAYERS):
+                    candidate = self.HeroAI_vars.all_candidate_struct[index]
+                    agent_name = GLOBAL_CACHE.Agent.GetName(candidate.PlayerID)
         
     def UdpateCombat(self):
         self.combat_handler.Update(self.data)

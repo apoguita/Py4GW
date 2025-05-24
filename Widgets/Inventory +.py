@@ -8,6 +8,7 @@ from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import IconsFontAwesome5
 from Py4GWCoreLib import Bags
+from Py4GWCoreLib import Inventory
 
 
 
@@ -345,7 +346,7 @@ def AutoID(item_id):
         for item_id in global_vars.identification_checkbox_states:
             global_vars.identification_checkbox_states[item_id] = False
     else:
-        GLOBAL_CACHE.Inventory.IdentifyItem(item_id, first_id_kit)
+        Inventory.IdentifyItem(item_id, first_id_kit)
         global_vars.identification_checkbox_states[item_id] = False
     
     # Remove checkbox states that are set to False
@@ -368,7 +369,7 @@ def AutoSalvage(item_id):
         for item_id in global_vars.salvage_checkbox_states:
             global_vars.salvage_checkbox_states[item_id] = False
     else:
-        GLOBAL_CACHE.Inventory.SalvageItem(item_id, first_salv_kit)
+        Inventory.SalvageItem(item_id, first_salv_kit)
         global_vars.salvage_checkbox_states[item_id] = False
         
     # Remove checkbox states that are set to False
