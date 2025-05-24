@@ -325,6 +325,9 @@ class Compass():
     def DrawRangeRings(self):
         for ring in self.config.range_rings:
             if ring.visible:
+                if not Map.IsMapReady():
+                    return
+                
                 self.imgui.draw_list_add_circle(self.position.current_pos.x,
                                                 self.position.current_pos.y,
                                                 self.position.current_size*ring.range/Range.Compass.value,
@@ -356,10 +359,14 @@ class Compass():
         self.renderer.mask.set_circular_mask(True)
         self.renderer.mask.set_mask_radius(self.position.current_size*self.position.culling/Range.Compass.value)
         self.renderer.mask.set_mask_center(self.position.current_pos.x, self.position.current_pos.y)
+
+        if not Map.IsMapReady():
+            return
+
         self.renderer.render()
 
     def DrawAgent(self, visible, size, shape, color, fill_range, fill_color, x, y, rotation, is_alive, is_target):
-        if not visible: return
+        if not Map.IsMapReady() or not visible: return
 
         if not is_alive:
             col = Utils.ColorToTuple(color)
