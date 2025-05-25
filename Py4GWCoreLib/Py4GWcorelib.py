@@ -2010,6 +2010,10 @@ class LootConfig:
         from .Party import Party
         from .Player import Player
         from .Item import Item
+        from .Map import Map
+        
+        if Map.IsMapLoading():
+            return []
         
         def IsValidItem(item_id):
             owner = Agent.GetItemAgentOwnerID(item_id)

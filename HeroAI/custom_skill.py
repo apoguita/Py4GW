@@ -2550,7 +2550,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.OtherAlly.value
         skill.Nature = SkillNature.CustomA.value
-        skill.Conditions.LessLife = 0.35
+        skill.Conditions.LessLife = 0.40
         skill.Conditions.SacrificeHealth = 0.50
         skill.Conditions.TargetingStrict = True
         self.skill_data[skill.SkillID] = skill
@@ -2887,7 +2887,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.CustomA.value
-        skill.Conditions.LessLife = 0.65
+        skill.Conditions.LessLife = 0.8
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -3380,7 +3380,7 @@ class CustomSkillClass:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Signet_of_Lost_Souls")
         skill.SkillType = SkillType.Signet.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
-        skill.Nature = SkillNature.Offensive.value
+        skill.Nature = SkillNature.EnergyBuff.value
         skill.Conditions.LessLife = 0.5
         self.skill_data[skill.SkillID] = skill
 
@@ -4426,7 +4426,7 @@ class CustomSkillClass:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Keystone_Signet")
         skill.SkillType = SkillType.Signet.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.SelfTargeted.value
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
@@ -5454,7 +5454,7 @@ class CustomSkillClass:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Aura_of_Restoration")
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.CustomC.value
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
@@ -5500,7 +5500,7 @@ class CustomSkillClass:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Ether_Renewal")
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Interrupt.value
+        skill.Nature = SkillNature.CustomC.value
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()

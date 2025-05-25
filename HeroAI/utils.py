@@ -1,4 +1,4 @@
-from Py4GWCoreLib import GLOBAL_CACHE, Allegiance, Overlay
+from Py4GWCoreLib import GLOBAL_CACHE, Allegiance, Overlay, Weapon
 from .constants import MAX_NUM_PLAYERS
 from .targeting import *
 from .cache_data import CacheData
@@ -81,5 +81,3 @@ def DrawHeroFlag(pos_x, pos_y):
         Utils.RGBToColor(0, 255, 0, 255)
     )
     Overlay().EndDraw()
-
-
