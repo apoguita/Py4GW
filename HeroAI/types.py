@@ -114,6 +114,15 @@ class SkillNature (Enum):
     CustomG = 17
     CustomH = 18
     CustomI = 19
+    CustomJ = 20
+    CustomK = 21
+    CustomL = 22
+    CustomM = 23
+    CustomN = 24
+    OffensiveA = 25
+    OffensiveB = 26
+    OffensiveC = 27
+    
 
 
 
