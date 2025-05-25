@@ -89,7 +89,17 @@ class Skilltarget (IntEnum):
     #added targets
     
     EnemyClustered = 22
-
+    EnemyAttacking = 23
+    EnemyCasting = 24
+    EnemyCastingSpell = 25
+    EnemyInjured = 26
+    EnemyConditioned = 27
+    EnemyHexed = 28
+    EnemyDegenHexed = 29
+    EnemyEnchanted = 30
+    EnemyMoving = 31
+    EnemyKnockedDown = 32
+    
     
     
    
