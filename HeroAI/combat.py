@@ -3,6 +3,8 @@ from Py4GWCoreLib import GLOBAL_CACHE, SpiritModelID, Timer, Routines, Range, Al
 from Py4GWCoreLib import Weapon
 from .custom_skill import CustomSkillClass
 from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray
+from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyInjured, GetEnemyConditioned
+from .targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, GetEnemyMoving, GetEnemyKnockedDown
 from .types import SkillNature, Skilltarget, SkillType
 from .constants import MAX_NUM_PLAYERS
 from typing import Optional
@@ -407,6 +409,46 @@ class CombatClass:
             v_target = TargetClusteredEnemy(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
                 v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyAttacking:
+            v_target = GetEnemyAttacking(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyCasting:
+            v_target = GetEnemyCasting(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy          
+        elif target_allegiance == Skilltarget.EnemyCastingSpell:
+            v_target = GetEnemyCastingSpell(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyInjured:
+            v_target = GetEnemyInjured(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyConditioned:
+            v_target = GetEnemyConditioned(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyHexed:
+            v_target = GetEnemyHexed(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyDegenHexed:
+            v_target = GetEnemyDegenHexed(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyEnchanted:
+            v_target = GetEnemyEnchanted(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyMoving:
+            v_target = GetEnemyMoving(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyKnockedDown:
+            v_target = GetEnemyKnockedDown(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy           
         elif target_allegiance == Skilltarget.AllyMartialRanged:
             v_target = Routines.Agents.GetNearestEnemyRanged(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:

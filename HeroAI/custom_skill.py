@@ -188,7 +188,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Counterattack")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -204,7 +204,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Disarm")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -383,7 +383,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Agonizing_Chop")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.HasDeepWound = True
         skill.Conditions.IsCasting = True
@@ -443,7 +443,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Disrupting_Chop")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -545,7 +545,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Counter_Blow")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -776,7 +776,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Savage_Slash")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -1084,7 +1084,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Distracting_Blow")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -1092,9 +1092,9 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Distracting_Strike")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Interrupt.value
-        skill.Conditions.IsCasting = True
+        skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -1128,7 +1128,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Skull_Crack")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -1158,7 +1158,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Distracting_Shot")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -1361,7 +1361,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Disrupting_Lunge")
         skill.SkillType = SkillType.PetAttack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -1613,7 +1613,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Broad_Head_Arrow")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -1628,7 +1628,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Concussion_Shot")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -1671,7 +1671,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Disrupting_Shot")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -1765,9 +1765,9 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Punishing_Shot")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Interrupt.value
-        skill.Conditions.IsCasting = True
+        skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -1787,7 +1787,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Savage_Shot")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -2158,7 +2158,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Magebane_Shot")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -3022,7 +3022,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Bane_Signet")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -3030,7 +3030,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Castigation_Signet")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -3156,7 +3156,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Smite")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -3182,7 +3182,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Spear_of_Light")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -3462,7 +3462,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Blood_of_the_Aggressor")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -4448,7 +4448,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Power_Return")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4456,7 +4456,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Psychic_Instability")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4537,7 +4537,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Complicate")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4545,7 +4545,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Cry_of_Frustration")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4646,7 +4646,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Power_Block")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4654,7 +4654,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Power_Flux")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4662,7 +4662,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Power_Leak")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4670,7 +4670,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Power_Lock")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4678,7 +4678,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Power_Spike")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4693,7 +4693,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Psychic_Distraction")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4732,7 +4732,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Signet_of_Disruption")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4740,7 +4740,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Signet_of_Distraction")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -4755,9 +4755,9 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Simple_Thievery")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Interrupt.value
-        skill.Conditions.IsCasting = True
+        skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -4998,7 +4998,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Signet_of_Clumsiness")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -5179,7 +5179,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Leech_Signet")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -5281,7 +5281,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Power_Drain")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -5289,7 +5289,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Power_Leech")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -5341,7 +5341,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Tease")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -5444,7 +5444,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Web_of_Disruption")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -5558,7 +5558,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Blinding_Surge")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.EnemyMartial.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -5645,7 +5645,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Lightning_Javelin")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
@@ -6673,7 +6673,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Disrupting_Stab")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -6681,7 +6681,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Exhausting_Assault")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -6824,7 +6824,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Temple_Strike")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -6892,7 +6892,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Disrupting_Dagger")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
@@ -8701,7 +8701,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Disrupting_Throw")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         skill.Conditions.HasCondition = True
@@ -9224,9 +9224,9 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Lyssas_Assault")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Interrupt.value
-        skill.Conditions.IsCasting = True
+        skill.Conditions.IsAttacking = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
