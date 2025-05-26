@@ -1321,18 +1321,19 @@ class Routines:
             @staticmethod
             def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=150):
                 import random
+                from .Player import Player
 
                 for idx, (target_x, target_y) in enumerate(path_points):
                     GLOBAL_CACHE.Player.Move(target_x, target_y)
                         
-                    current_x, current_y = GLOBAL_CACHE.Player.GetXY()
+                    current_x, current_y = Player.GetXY()
                     previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
 
                     while True:
                         if custom_exit_condition():
                             return
                         
-                        current_x, current_y = GLOBAL_CACHE.Player.GetXY()
+                        current_x, current_y = Player.GetXY()
                         current_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
                         
                         # If not getting closer, enforce move
@@ -1758,6 +1759,7 @@ class Routines:
 
             @staticmethod
             def LootItems(item_array:list[int], log=False):
+                from .Agent import Agent
                 if len(item_array) == 0:
                     return
                 
@@ -1765,12 +1767,12 @@ class Routines:
                     item_id = item_array.pop(0)
                     if item_id == 0:
                         continue
-                    if not GLOBAL_CACHE.Agent.IsValid(item_id):
+                    if not Agent.IsValid(item_id):
                         continue
-                    item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
+                    item_x, item_y = Agent.GetXY(item_id)
                     Routines.Sequential.Movement.FollowPath([(item_x, item_y)])
-                    if GLOBAL_CACHE.Agent.IsValid(item_id):
-                        Routines.Sequential.Player.InteractAgent(item_id)
+                    if Agent.IsValid(item_id):
+                        GLOBAL_CACHE.Player.Interact(item_id, False)
                         sleep(1.250)
                     
                 if log and len(item_array) > 0:

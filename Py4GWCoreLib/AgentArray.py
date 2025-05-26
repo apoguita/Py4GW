@@ -347,6 +347,7 @@ class RawAgentArray:
         self.agent_dict = {}            # id -> agent
         self.agent_cache = {}           # id -> agent instance
         self.current_map_id = 0
+        self.owner_cache = {}            # id -> owner_id (for items)
 
         # === Name handling ===
         self.agent_name_map: dict[int, Tuple[str, float]] = {}  # id -> (name, timestamp)
@@ -382,23 +383,15 @@ class RawAgentArray:
         current_agent_ids = set(AgentArray.GetAgentArray())
 
         # === Step 2: Resolve names for requested agents ===
-        """
-        now = time.time() * 1000
 
-        for agent_id in list(self.name_requested):
-            if Agent.IsNameReady(agent_id):
-                name = Agent.GetName(agent_id)
-                if name in ("Timeout", "Unknown"):
-                    name = ""
-                self.agent_name_map[agent_id] = (name, now)
-                self.name_requested.discard(agent_id)
-
-        """
         # === Step 3: Refresh or create agents ===
         self.agent_array = []
         for agent_id in current_agent_ids:
             if agent_id not in self.agent_cache:
-                self.agent_cache[agent_id] = Agent.agent_instance(agent_id)
+                agent_instance =  Agent.agent_instance(agent_id)
+                self.agent_cache[agent_id] = agent_instance
+                if agent_instance.is_item:
+                    self.owner_cache[agent_id] = agent_instance.item_agent.owner_id
             else:
                 self.agent_cache[agent_id].GetContext()
             agent = self.agent_cache[agent_id]
@@ -408,6 +401,11 @@ class RawAgentArray:
         
         for agent_id in list(self.agent_cache.keys()):
             if agent_id not in current_agent_ids:
+                agent_instance = self.agent_cache[agent_id]
+                if agent_instance.is_item:
+                    # Remove item owner cache if the item is no longer valid
+                    self.owner_cache.pop(agent_id, None)
+                
                 del self.agent_cache[agent_id]
                 self.agent_name_map.pop(agent_id, None)
                 self.name_requested.discard(agent_id)
@@ -522,3 +520,23 @@ class RawAgentArray:
     def get_agent(self, agent_id: int) -> PyAgent.PyAgent:
         self.update()
         return self.agent_dict.get(agent_id) or PyAgent.PyAgent(agent_id)
+    
+    def get_item_owner(self, item_id: int) -> int:
+        """
+        Get the owner ID of an item by its item ID.
+        If the item is not found, returns 0.
+        """
+        self.update()
+        agent = self.agent_dict.get(item_id) or PyAgent.PyAgent(item_id)
+        owner = agent.item_agent.owner_id if agent.is_item else 0
+        cache_owner_id = self.owner_cache.get(item_id, 0)
+        
+        if owner == 0 :
+            return cache_owner_id
+        
+        if cache_owner_id != owner:
+            # Update the cache if the owner has changed
+            self.owner_cache[item_id] = owner
+
+        return self.owner_cache.get(item_id, 0)
+
