@@ -229,7 +229,7 @@ class PyLivingAgent:
 # Class PyItemAgent
 class PyItemAgent:
     agent_id: int
-    owner_id: int = -1
+    owner_id: int
     item_id: int
     h00CC: int
     extra_type: int

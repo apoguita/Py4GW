@@ -546,7 +546,7 @@ class CombatClass:
 
         """ Check if the skill is a resurrection skill and the target is dead """
         if self.skills[slot].custom_skill_data.Nature == SkillNature.Resurrection.value:
-            return True if GLOBAL_CACHE.Agent.IsDead(vTarget) else False
+            return True if not GLOBAL_CACHE.Agent.IsAlive(vTarget) else False
 
 
         if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
@@ -635,7 +635,7 @@ class CombatClass:
                 self.skills[slot].skill_id == self.heal_as_one
                 ):
                 LessLife = GLOBAL_CACHE.Agent.GetHealth(vTarget) < Conditions.LessLife
-                dead = GLOBAL_CACHE.Agent.IsDead(vTarget)
+                dead = not GLOBAL_CACHE.Agent.IsAlive(vTarget)
                 return LessLife or dead
                 
 
@@ -871,7 +871,7 @@ class CombatClass:
                     
         if self.skills[slot].custom_skill_data.SkillType == SkillType.PetAttack.value:
             pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(GLOBAL_CACHE.Player.GetAgentID())
-            if GLOBAL_CACHE.Agent.IsDead(pet_id):
+            if not GLOBAL_CACHE.Agent.IsAlive(pet_id):
                 return False
             
             pet_attack_list = [GLOBAL_CACHE.Skill.GetID("Bestial_Mauling"),
@@ -1051,10 +1051,10 @@ class CombatClass:
 
             
         called_target = self.GetPartyTarget()
-        if not GLOBAL_CACHE.Agent.IsDead(called_target):
-            if called_target != 0:
-                self.SafeInteract(called_target)
-                return True
+        #if GLOBAL_CACHE.Agent.IsAlive(called_target):
+        if called_target != 0:
+            self.SafeInteract(called_target)
+            return True
             
         nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         if nearest != 0:

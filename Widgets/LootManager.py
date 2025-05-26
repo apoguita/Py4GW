@@ -592,7 +592,7 @@ def DrawFilteredLootList():
             # get raw model-ID and distance
             item_data = Agent.GetItemAgent(agent_id)
             raw_mid   = Item.GetModelID(item_data.item_id)
-            dist      = Agent.GetDistance(agent_id)
+            dist      = Utils.Distance(Player.GetAgentID, agent_id)
 
             display_list.append((raw_mid, dist))
 

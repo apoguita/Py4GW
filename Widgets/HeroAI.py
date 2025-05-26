@@ -362,6 +362,8 @@ def UpdateStatus(cached_data:CacheData):
     if not cached_data.data.in_aggro:
         return
     
+    
+    
     target_id = GLOBAL_CACHE.Player.GetTargetID()
     if target_id == 0:
         cached_data.combat_handler.ChooseTarget()
@@ -371,10 +373,12 @@ def UpdateStatus(cached_data:CacheData):
     if target_aliegance != 'Enemy':
         cached_data.combat_handler.ChooseTarget()
         return
+        
+    
     
     #auto attack
     if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
-        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking)):
+        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking) and not cached_data.data.player_is_casting):
             cached_data.combat_handler.ChooseTarget()
         cached_data.auto_attack_timer.Reset()
         cached_data.combat_handler.ResetSkillPointer()
