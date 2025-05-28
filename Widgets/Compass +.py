@@ -370,7 +370,7 @@ class Compass():
 
         if not is_alive:
             col = Utils.ColorToTuple(color)
-            color = Color(int(col[0]*255), int(col[1]*255), int(col[2]*255), 100).to_color()
+            color = Color(int(col[0]*255), int(col[1]*255), int(col[2]*255), int(col[3]*255)).shift(Color(0,0,0,255), .4).to_color()
 
         x, y = Map.MiniMap.MapProjection.GamePosToScreen(x, y, *self.position.player_pos,
                                                                 self.position.current_pos.x, self.position.current_pos.y,
@@ -477,6 +477,12 @@ class Compass():
         player_agent = None
         self.player_id = GLOBAL_CACHE.Player.GetAgentID()
         self.target_id = GLOBAL_CACHE.Player.GetTargetID()
+
+        for agent in agent_array.GetRawGadgetArray():
+            if not GetAgentValid(agent): continue
+            rot, is_target, _ = GetAgentParams(agent)
+
+            self.DrawAgent(*self.config.markers['Signpost'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
 
         for agent in agent_array.GetRawSpiritPetArray():
             if not GetAgentValid(agent): continue
@@ -600,20 +606,14 @@ class Compass():
             else:
                 self.DrawAgent(*self.config.markers['Minipet'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
 
-        if player_agent and player_agent.id and Utils.Distance((player_agent.x, player_agent.y), self.position.player_pos) <= self.position.culling:
+        if player_agent and GetAgentValid(player_agent):
             rot, is_target, is_alive = GetAgentParams(player_agent)
 
             self.DrawAgent(*self.config.markers['Player'].values(), player_agent.x, player_agent.y, rot, is_alive, is_target) # type: ignore
 
-        for agent in agent_array.GetRawGadgetArray():
-            if not GetAgentValid(agent): continue
-            rot, is_target, is_alive = GetAgentParams(agent)
-
-            self.DrawAgent(*self.config.markers['Signpost'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
-
         for agent in agent_array.GetRawItemArray():
             if not GetAgentValid(agent): continue
-            rot, is_target, is_alive = GetAgentParams(agent)
+            rot, is_target, _ = GetAgentParams(agent)
 
             match Item.item_instance(agent.item_agent.item_id).rarity.value:
                 case 1:
@@ -706,7 +706,7 @@ class Compass():
             self.reset = True
             return
 
-        if Map.IsMapReady() and Party.IsPartyLoaded() and not UIManager.IsWorldMapShowing():
+        if Map.IsMapReady() and Party.IsPartyLoaded() and not UIManager.IsWorldMapShowing() and not Map.IsInCinematic():
             if self.reset:
                 self.reset          = False
                 self.geometry       = Map.Pathing.GetComputedGeometry()
@@ -746,9 +746,9 @@ def configure():
             PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive,    (0.4, 0.4, 0.4, 1))
             PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab,       (0.0, 0.0, 0.0, 1))
             PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, (0.0, 0.0, 0.0, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,           (0.2, 0.2, 0.2, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered,    (0.3, 0.3, 0.3, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,     (0.4, 0.4, 0.4, 1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,           (0.35, 0.35, 0.35, 1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered,    (0.45, 0.45, 0.45, 1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,     (0.55, 0.55, 0.55, 1))
 
             header_opened = False
 
@@ -783,9 +783,7 @@ def configure():
                     PyImGui.same_line(0.0, -1)
                     PyImGui.push_item_width(80)
                     marker.size = PyImGui.slider_int(f'##Size{marker.name}',  marker.size,  1, 20)
-                    PyImGui.pop_item_width()
                     PyImGui.same_line(0.0, -1)
-                    PyImGui.push_item_width(80)
                     marker.shape = items[PyImGui.combo(f'##Shape{marker.name}',  items.index(marker.shape),  items)]
                     PyImGui.pop_item_width()
                     PyImGui.same_line(0.0, -1)
@@ -794,37 +792,52 @@ def configure():
                 PyImGui.separator()
 
                 compass.config.show_spirit_range = PyImGui.checkbox(f'Show Spirit Ranges', compass.config.show_spirit_range)
+                PyImGui.same_line(0.0, -1)
+                PyImGui.push_item_width(200)
                 compass.config.spirit_alpha = PyImGui.slider_int(f'Spirit Range Alpha', compass.config.spirit_alpha, 0, 255)
+                PyImGui.pop_item_width()
 
                 PyImGui.separator()
 
-                PyImGui.indent(4)
                 for name, marker in compass.config.custom_markers.items():
+                    marker.visible = PyImGui.checkbox(f'##visible{name}', marker.visible)
+                    PyImGui.same_line(0.0, -1)
                     if PyImGui.collapsing_header(f'{name}##header'):
-                        PyImGui.indent(10)
+                        PyImGui.indent(14)
+                        PyImGui.push_item_width(120)
                         marker.model_id = PyImGui.input_int(f'Model ID##{name}', marker.model_id)
-
-                        if PyImGui.button(f'Get Model ID from Target##{name}'):
+                        
+                        PyImGui.same_line(0.0, -1)
+                        if PyImGui.button(f'Get from Target##{name}', 224):
                             marker.model_id = Agent.GetPlayerNumber(Player.GetTargetID())
-
-                        marker.visible = PyImGui.checkbox(f'Visible##{name}', marker.visible)
+                        
                         marker.size = PyImGui.slider_int(f'Size##{name}',  marker.size,  1, 20)
+                        PyImGui.pop_item_width()
+                        PyImGui.same_line(0.0, 42)
+                        marker.color = Utils.TupleToColor(PyImGui.color_edit4(f'Color##{name}', Utils.ColorToTuple(marker.color)))
+                        PyImGui.push_item_width(120)
                         items = ['Circle','Tear', 'Square']
                         marker.shape = items[PyImGui.combo(f'Shape##{name}',  items.index(marker.shape),  items)]
-                        marker.color = Utils.TupleToColor(PyImGui.color_edit4(f'Color##{name}', Utils.ColorToTuple(marker.color)))
+                        PyImGui.pop_item_width()
+                        PyImGui.push_item_width(224)
+                        PyImGui.same_line(0.0, 30)
                         marker.fill_range = PyImGui.slider_int(f'Fill Range##{name}',  marker.fill_range or 0,  0, 5000)
-                        if PyImGui.button(f'Delete Marker##{name}'):
+                        PyImGui.pop_item_width()
+                        PyImGui.dummy(1,0)
+                        if PyImGui.button(f'Delete Marker##{name}', 417):
                             compass.config.custom_markers.pop(name)
                             compass.ini.delete_section(f'custom_marker_{name}')
                             break
                         PyImGui.unindent(10)
                 PyImGui.unindent(4)
 
-                if PyImGui.button('Add Custom Agent'):
+                PyImGui.push_item_width(150)
+                compass.config.custom_name = PyImGui.input_text('##agent_name', compass.config.custom_name)
+                PyImGui.pop_item_width()
+                PyImGui.same_line(0.0, -1)
+                if PyImGui.button('Add'):
                     compass.config.AddCustomMarker(compass.config.custom_name)
                     compass.config.custom_name = 'Custom Agent Name'
-                PyImGui.same_line(0.0, -1)
-                compass.config.custom_name = PyImGui.input_text('##agent_name', compass.config.custom_name)
 
                 PyImGui.unindent(10)
 
