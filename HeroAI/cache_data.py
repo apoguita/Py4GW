@@ -6,7 +6,7 @@ from .combat import CombatClass
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Timer, ThrottledTimer
 from Py4GWCoreLib import Range, Utils, ConsoleLog
-from Py4GWCoreLib import AgentArray
+from Py4GWCoreLib import AgentArray, Weapon
 
 @dataclass
 class GameData:
@@ -62,6 +62,12 @@ class GameData:
         self.player_is_attacking = False
         self.player_is_moving = False
         self.is_melee = False
+        
+        #attributes
+        self.fast_casting_exists = False
+        self.fast_casting_level = 0
+        self.expertise_exists = False
+        self.expertise_level = 0
         #AgentArray data
         self.nearest_enemy = 0
         self.lowest_ally = 0
@@ -141,6 +147,21 @@ class GameData:
         self.player_is_melee = GLOBAL_CACHE.Agent.IsMelee(self.player_agent_id)
         self.weapon_type, _ = GLOBAL_CACHE.Agent.GetWeaponType(self.player_agent_id)
         
+        attributes = GLOBAL_CACHE.Agent.GetAttributes(self.player_agent_id)
+        self.fast_casting_exists = False
+        self.fast_casting_level = 0
+        self.expertise_exists = False
+        self.expertise_level = 0
+        #check for attributes
+        for attribute in attributes:
+            if attribute.GetName() == "Fast Casting":
+                self.fast_casting_exists = True
+                self.fast_casting_level = attribute.level
+                
+            if attribute.GetName() == "Expertise":
+                self.expertise_exists = True
+                self.expertise_level = attribute.level
+            
         #AgentArray data
         self.pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(self.player_agent_id)
         #combat field data
@@ -163,6 +184,53 @@ class CacheData:
             cls._instance._initialized = False  # Ensure __init__ runs only once
         return cls._instance
     
+    def GetWeaponAttackAftercast(self):
+        """
+        Returns the attack speed of the current weapon.
+        """
+        weapon_type,_ = GLOBAL_CACHE.Agent.GetWeaponType(GLOBAL_CACHE.Player.GetAgentID())
+        player = GLOBAL_CACHE.Agent.GetAgentByID(GLOBAL_CACHE.Player.GetAgentID())
+        if player is None:
+            return 0
+        
+        attack_speed = player.living_agent.weapon_attack_speed
+        attack_speed_modifier = player.living_agent.attack_speed_modifier if player.living_agent.attack_speed_modifier != 0 else 1.0
+        
+        if attack_speed == 0:
+            match weapon_type:
+                case Weapon.Bow.value:
+                    attack_speed = 2.475
+                case Weapon.Axe.value:
+                    attack_speed = 1.33
+                case Weapon.Hammer.value:
+                    attack_speed = 1.75
+                case Weapon.Daggers.value:
+                    attack_speed = 1.33
+                case Weapon.Scythe.value:
+                    attack_speed = 1.5
+                case Weapon.Spear.value:
+                    attack_speed = 1.5
+                case Weapon.Sword.value:
+                    attack_speed = 1.33
+                case Weapon.Scepter.value:
+                    attack_speed = 0.5
+                case Weapon.Scepter2.value:
+                    attack_speed = 0.5
+                case Weapon.Wand.value:
+                    attack_speed = 0.5
+                case Weapon.Staff1.value:
+                    attack_speed = 0.5
+                case Weapon.Staff.value:
+                    attack_speed = 0.5
+                case Weapon.Staff2.value:
+                    attack_speed = 0.5
+                case Weapon.Staff3.value:
+                    attack_speed = 0.5
+                case _:
+                    attack_speed = 0.5
+                    
+        return int((attack_speed / attack_speed_modifier) * 1000)
+    
     def __init__(self, throttle_time=75):
         if not self._initialized:
             self.combat_handler = CombatClass()
@@ -180,7 +248,7 @@ class CacheData:
             self.data = GameData()
             self.auto_attack_timer = Timer()
             self.auto_attack_timer.Start()
-            self.auto_attack_time = 500 #750
+            self.auto_attack_time =  self.GetWeaponAttackAftercast()
             self.draw_floating_loot_buttons = False
             self.reset()
             self.ui_state_data = UIStateData()
@@ -251,6 +319,8 @@ class CacheData:
                     
                 if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
                     self.data.in_aggro = True
+                    
+                self.auto_attack_time = self.GetWeaponAttackAftercast()
                 
         except Exception as e:
             ConsoleLog(f"Update Cahe Data Error:", e)
