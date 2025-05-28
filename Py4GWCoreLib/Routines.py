@@ -207,6 +207,78 @@ class Routines:
                 return False
             
             @staticmethod
+            def apply_fast_casting(skill_id: int, fast_casting_level =0) -> Tuple[float, float]:
+                """
+                Applies Fast Casting effects for cast time and recharge time, following exact in-game mechanics.
+
+                :param agent_id: ID of the agent using the skill.
+                :param skill_id: ID of the skill being evaluated.
+                :return: (adjusted_cast_time, adjusted_recharge_time)
+                """
+                activation_time = GLOBAL_CACHE.Skill.Data.GetActivation(skill_id)
+                recharge_time = GLOBAL_CACHE.Skill.Data.GetRecharge(skill_id)
+                
+                #return activation_time, recharge_time
+
+                if fast_casting_level <= 0:
+                    return activation_time, recharge_time
+
+                # Get skill type and professions
+                is_spell = GLOBAL_CACHE.Skill.Flags.IsSpell(skill_id)
+                is_signet = GLOBAL_CACHE.Skill.Flags.IsSignet(skill_id)
+                _, skill_profession = GLOBAL_CACHE.Skill.GetProfession(skill_id)
+
+                # --- CAST TIME REDUCTION ---
+                if is_spell or is_signet:
+                    # Mesmer spells/signets → always affected
+                    if skill_profession == "Mesmer":
+                        activation_time *= 0.955 ** fast_casting_level
+                        activation_time = round(activation_time, 3)
+                    # Non-Mesmer spells/signets → only affected if cast time >= 2s
+                    elif activation_time >= 2.0:
+                        activation_time *= 0.955 ** fast_casting_level
+                        activation_time = round(activation_time, 3)
+
+                # --- RECHARGE TIME REDUCTION ---
+                if skill_profession == "Mesmer" and is_spell:
+                    recharge_time *= (1.0 - 0.03 * fast_casting_level)
+                    recharge_time = round(recharge_time)
+
+                return activation_time, recharge_time
+
+
+            
+            @staticmethod
+            def apply_expertise_reduction(base_cost: int, expertise_level: int, skill_id) -> int:
+                """
+                Applies the Guild Wars expertise cost reduction correctly.
+                
+                :param base_cost: The original energy cost of the skill.
+                :param expertise_level: The level of Expertise (0-20).
+                :return: The reduced cost, rounded down to an integer.
+                """
+                #return base_cost  # Default to no reduction
+            
+                skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
+                _, skill_profession = GLOBAL_CACHE.Skill.GetProfession(skill_id)
+                if (skill_type == 14 or #attack skills
+                    GLOBAL_CACHE.Skill.Flags.IsRitual(skill_id) or
+                    GLOBAL_CACHE.Skill.Flags.IsTouchRange(skill_id) or
+                    skill_profession == "Ranger"):
+
+                    EXPERTISE_REDUCTION = [
+                        1.00, 0.96, 0.92, 0.88, 0.84, 0.80, 0.76, 0.72, 0.68, 0.64, 0.60,
+                        0.56, 0.52, 0.48, 0.44, 0.40, 0.36, 0.32, 0.28, 0.24, 0.20
+                    ]
+                    if expertise_level < 0 or expertise_level > 20:
+                        expertise_level = max(0, min(expertise_level, 20))  # clamp
+                    reduction_factor = EXPERTISE_REDUCTION[expertise_level]
+                    return max(0, int(base_cost * reduction_factor))  # floor after applying
+                
+                return base_cost  # No reduction for other skills
+
+            
+            @staticmethod
             def GetEnergyCostWithEffects(skill_id, agent_id):
                 """Retrieve the actual energy cost of a skill by its ID and effects.
 
@@ -454,6 +526,7 @@ class Routines:
                                 cost = 0
 
                 cost = max(0, cost)
+
                 return cost
 
     #region Transitions
@@ -1248,18 +1321,19 @@ class Routines:
             @staticmethod
             def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=150):
                 import random
+                from .Player import Player
 
                 for idx, (target_x, target_y) in enumerate(path_points):
                     GLOBAL_CACHE.Player.Move(target_x, target_y)
                         
-                    current_x, current_y = GLOBAL_CACHE.Player.GetXY()
+                    current_x, current_y = Player.GetXY()
                     previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
 
                     while True:
                         if custom_exit_condition():
                             return
                         
-                        current_x, current_y = GLOBAL_CACHE.Player.GetXY()
+                        current_x, current_y = Player.GetXY()
                         current_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
                         
                         # If not getting closer, enforce move
@@ -1685,6 +1759,7 @@ class Routines:
 
             @staticmethod
             def LootItems(item_array:list[int], log=False):
+                from .Agent import Agent
                 if len(item_array) == 0:
                     return
                 
@@ -1692,12 +1767,12 @@ class Routines:
                     item_id = item_array.pop(0)
                     if item_id == 0:
                         continue
-                    if not GLOBAL_CACHE.Agent.IsValid(item_id):
+                    if not Agent.IsValid(item_id):
                         continue
-                    item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
+                    item_x, item_y = Agent.GetXY(item_id)
                     Routines.Sequential.Movement.FollowPath([(item_x, item_y)])
-                    if GLOBAL_CACHE.Agent.IsValid(item_id):
-                        Routines.Sequential.Player.InteractAgent(item_id)
+                    if Agent.IsValid(item_id):
+                        GLOBAL_CACHE.Player.Interact(item_id, False)
                         sleep(1.250)
                     
                 if log and len(item_array) > 0:

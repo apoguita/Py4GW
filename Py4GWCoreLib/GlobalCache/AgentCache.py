@@ -233,8 +233,7 @@ class AgentCache:
         return agent.living_agent.is_degen_hexed
     
     def IsDead(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_dead
+        return not self.IsAlive(agent_id)
     
     def IsAlive(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
@@ -352,8 +351,10 @@ class AgentCache:
         return agent.item_agent
     
     def GetItemAgentOwnerID(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.item_agent.owner_id
+        item_owner = self.raw_agent_array.get_item_owner(agent_id)
+        if item_owner is None:
+            return 0
+        return item_owner
     
     def GetGadgetAgent(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)

@@ -2010,29 +2010,42 @@ class LootConfig:
         from .Party import Party
         from .Player import Player
         from .Item import Item
-        
+        from .Map import Map
+        from .GlobalCache import GLOBAL_CACHE
         def IsValidItem(item_id):
-            owner = Agent.GetItemAgentOwnerID(item_id)
-            return (owner == Player.GetAgentID()) or (owner == 0)
-        
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            owner_id = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
+            return ((owner_id == player_agent_id) or (owner_id == 0))
+
         def IsValidFollowerItem(item_id):
-            owner = Agent.GetItemAgentOwnerID(item_id)
-            return (owner == Player.GetAgentID())
+            party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            owner_id = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
             
-        loot_array = AgentArray.GetItemArray()
-        loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), distance)
-        loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidItem(item_id))
+            if party_leader_id == player_agent_id:
+                # If the player is the party leader, all items are valid
+                return ((owner_id == player_agent_id) or (owner_id == 0))
+            else:
+                # If the player is a follower, only items owned by the player are valid
+                return (owner_id == player_agent_id)
+            
         
+        if Map.IsMapLoading():
+            return []
+            
+        loot_array = GLOBAL_CACHE.AgentArray.GetItemArray()
+        loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), distance)
+
         if multibox_loot:
-            party_leader_id = Party.GetPartyLeaderID()
-            if party_leader_id != Player.GetAgentID():
-                loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidFollowerItem(item_id))
+            loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidFollowerItem(item_id))
+        else:
+            loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidItem(item_id))
 
 
         for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
-            item_data = Agent.GetItemAgent(agent_id)
+            item_data = GLOBAL_CACHE.Agent.GetItemAgent(agent_id)
             item_id = item_data.item_id
-            model_id = Item.GetModelID(item_id)
+            model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
 
             if self.IsWhitelisted(model_id):
                 continue
@@ -2041,23 +2054,23 @@ class LootConfig:
                 loot_array.remove(agent_id)
                 continue
 
-            if not self.loot_whites and Item.Rarity.IsWhite(item_id):
+            if not self.loot_whites and GLOBAL_CACHE.Item.Rarity.IsWhite(item_id):
                 loot_array.remove(agent_id)
                 continue
-            if not self.loot_blues and Item.Rarity.IsBlue(item_id):
+            if not self.loot_blues and GLOBAL_CACHE.Item.Rarity.IsBlue(item_id):
                 loot_array.remove(agent_id)
                 continue
-            if not self.loot_purples and Item.Rarity.IsPurple(item_id):
+            if not self.loot_purples and GLOBAL_CACHE.Item.Rarity.IsPurple(item_id):
                 loot_array.remove(agent_id)
                 continue
-            if not self.loot_golds and Item.Rarity.IsGold(item_id):
+            if not self.loot_golds and GLOBAL_CACHE.Item.Rarity.IsGold(item_id):
                 loot_array.remove(agent_id)
                 continue
-            if not self.loot_greens and Item.Rarity.IsGreen(item_id):
+            if not self.loot_greens and GLOBAL_CACHE.Item.Rarity.IsGreen(item_id):
                 loot_array.remove(agent_id)
                 continue
 
-        loot_array = AgentArray.Sort.ByDistance(loot_array, Player.GetXY())
+        loot_array = AgentArray.Sort.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY())
         return loot_array
 #endregion
 

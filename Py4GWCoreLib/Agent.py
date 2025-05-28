@@ -512,12 +512,12 @@ class Agent:
     @staticmethod
     def IsDead(agent_id):
         """Check if the agent is dead."""
-        return Agent.agent_instance(agent_id).living_agent.is_dead
+        return not Agent.agent_instance(agent_id).living_agent.is_alive
 
     @staticmethod
     def IsAlive(agent_id):
         """Check if the agent is alive."""
-        return not Agent.IsDead(agent_id)
+        return Agent.agent_instance(agent_id).living_agent.is_alive
 
     @staticmethod
     def IsWeaponSpelled(agent_id):

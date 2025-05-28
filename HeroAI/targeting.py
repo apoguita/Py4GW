@@ -1,4 +1,4 @@
-from Py4GWCoreLib import GLOBAL_CACHE, Utils, AgentArray
+from Py4GWCoreLib import GLOBAL_CACHE, Utils, AgentArray, Routines
 from .constants import (
     Range,
     BLOOD_IS_POWER,
@@ -147,4 +147,84 @@ def TargetClusteredEnemy(area=4500.0):
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
     
     clustered_agent = AgentArray.Routines.DetectLargestAgentCluster(enemy_array, area)
+    return Utils.GetFirstFromArray(clustered_agent)
+
+def GetEnemyAttacking(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAttacking(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyCasting(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsCasting(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyCastingSpell(max_distance=4500.0, aggressive_only = False):
+    def _filter_spells(enemy_array):
+        result_array = []
+        for enemy_id in enemy_array:
+            casting_skill_id = GLOBAL_CACHE.Agent.GetCastingSkill(enemy_id)
+            if GLOBAL_CACHE.Skill.Flags.IsSpell(casting_skill_id):
+                result_array.append(enemy_id)
+        return result_array
+
+                
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsCasting(agent_id))
+    enemy_array = _filter_spells(enemy_array)
+    
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyInjured(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Sort.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id))
+    return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyConditioned(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsConditioned(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyHexed(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsHexed(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyDegenHexed(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsDegenHexed(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyEnchanted(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsEnchanted(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyMoving(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsMoving(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyKnockedDown(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsKnockedDown(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
     return Utils.GetFirstFromArray(enemy_array)
