@@ -11,6 +11,7 @@ from HeroAI.utils import DistanceFromWaypoint, DistanceFromLeader
 from HeroAI.players import RegisterPlayer, UpdatePlayers, RegisterHeroes
 from HeroAI.game_option import UpdateGameOptions
 from HeroAI.windows import DrawMainWindow, DrawControlPanelWindow, DrawMultiboxTools, DrawPanelButtons, DrawCandidateWindow, DrawFlaggingWindow, DrawOptions, DrawFlags, CompareAndSubmitGameOptions, SubmitGameOptions
+from HeroAI.windows import DrawMessagingOptions
 #from HeroAI.targeting import *
 #from HeroAI.combat import *
 from HeroAI.cache_data import CacheData
@@ -161,7 +162,7 @@ def draw_Targeting_floating_buttons(cached_data:CacheData):
     for agent_id in enemy_array:
         x,y,z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
         screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
-        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):         
+        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_CROSSHAIRS}##fb_{agent_id}",screen_x,screen_y):         
             GLOBAL_CACHE.Player.ChangeTarget (agent_id)
             GLOBAL_CACHE.Player.Interact (agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
@@ -176,6 +177,7 @@ class TabType(Enum):
     flagging = 4
     config = 5
     debug = 6 
+    messaging = 7
     
 selected_tab:TabType = TabType.party
 
@@ -229,6 +231,9 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
                 DrawFlaggingWindow(cached_data)
             case TabType.config:
                 DrawOptions(cached_data)
+            case TabType.messaging:
+                # Placeholder for messaging tab
+                DrawMessagingOptions()
 
         
     PyImGui.end()
@@ -266,22 +271,24 @@ def DrawEmbeddedWindow(cached_data:CacheData):
                 selected_tab = TabType.control_panel
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("HeroAI Control Panel")
-            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_USER_PLUS + "##candidatesTab"):
-                selected_tab = TabType.candidates
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_BULLHORN + "##messagingTab"):
+                selected_tab = TabType.messaging
                 PyImGui.end_tab_item()
-            ImGui.show_tooltip("Candidates")
-            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_FLAG + "##flaggingTab"):
-                selected_tab = TabType.flagging
-                PyImGui.end_tab_item()
-            ImGui.show_tooltip("Flagging")
+            ImGui.show_tooltip("Messaging")
+            if GLOBAL_CACHE.Map.IsOutpost():
+                if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_USER_PLUS + "##candidatesTab"):
+                    selected_tab = TabType.candidates
+                    PyImGui.end_tab_item()
+                ImGui.show_tooltip("Candidates")
+            else:
+                if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_FLAG + "##flaggingTab"):
+                    selected_tab = TabType.flagging
+                    PyImGui.end_tab_item()
+                ImGui.show_tooltip("Flagging")
             if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_COGS + "##configTab"):
                 selected_tab = TabType.config
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("Config")
-            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_BUG + "##debugTab"):
-                selected_tab = TabType.debug
-                PyImGui.end_tab_item()
-            ImGui.show_tooltip("Debug Options")
             PyImGui.end_tab_bar()
     PyImGui.end()
     

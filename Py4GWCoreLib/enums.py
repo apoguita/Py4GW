@@ -10,6 +10,7 @@ class SharedCommandType(IntEnum):
     OpenChest = 6
     PickUpLoot = 7
     UseSkill = 8
+    Resign = 9
 
 #region mouse
 class MouseButton(IntEnum):

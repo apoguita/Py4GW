@@ -1,5 +1,5 @@
 from operator import index
-from Py4GWCoreLib import GLOBAL_CACHE, IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType
+from Py4GWCoreLib import GLOBAL_CACHE, IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .types import SkillType, SkillNature, Skilltarget, GameOptionStruct
@@ -593,6 +593,17 @@ def DrawOptions(cached_data:CacheData):
     cached_data.ui_state_data.show_classic_controls = PyImGui.checkbox("Show Classic Controls", cached_data.ui_state_data.show_classic_controls)
     #TODO Select combat engine options
 
+def DrawMessagingOptions():
+    global MAX_NUM_PLAYERS
+    PyImGui.text("Combat Field")
+    PyImGui.separator()
+    if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##commands_resign"):
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        for account in accounts:
+            ConsoleLog("Messaging", "Resigning account: " + account.AccountEmail)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))
+    ImGui.show_tooltip("Resign Party")
 
 def DrawDebugWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS

@@ -577,7 +577,7 @@ class Py4GWSharedMemoryManager:
         
         for i in range(self.max_num_players):
             message = self.GetStruct().SharedMessage[i]
-            if message.Running:
+            if message.Active:
                 continue  # Find the first unfinished message slot
             
             message.SenderEmail = sender_email
