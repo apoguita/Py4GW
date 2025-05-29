@@ -375,5 +375,5 @@ class AgentCache:
     
     def GetGadgetID(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.gadget_agent.agent_id
+        return agent.gadget_agent.gadget_id
     

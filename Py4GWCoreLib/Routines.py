@@ -847,7 +847,7 @@ class Routines:
                 range (int): The maximum distance to search for chests.
             Returns: Agent ID or None
             """
-            gadget_array = GLOBAL_CACHE.AgentArray.GetGadgetArray()
+            gadget_array = AgentArray.GetGadgetArray()
             gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
             gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
             for agent_id in gadget_array:

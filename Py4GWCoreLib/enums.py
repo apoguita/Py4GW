@@ -1214,6 +1214,7 @@ TITLE_NAME = {
 
 #endregion
 #region Outpost Names
+
 outposts = {
     4: "Guild Hall - Warrior's Isle",
     5: "Guild Hall - Hunter's Isle",
