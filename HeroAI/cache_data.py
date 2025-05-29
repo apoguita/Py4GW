@@ -291,12 +291,6 @@ class CacheData:
         if party_number > 0:
             return 
         
-        if self.name_refresh_throttle.IsExpired():
-            self.name_refresh_throttle.Reset()
-            if GLOBAL_CACHE.Map.IsOutpost():
-                for index in range(MAX_NUM_PLAYERS):
-                    candidate = self.HeroAI_vars.all_candidate_struct[index]
-                    agent_name = GLOBAL_CACHE.Agent.GetName(candidate.PlayerID)
         
     def UdpateCombat(self):
         self.combat_handler.Update(self.data)

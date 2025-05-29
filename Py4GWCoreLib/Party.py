@@ -72,6 +72,15 @@ class Party:
         Returns: list: A list of henchmen IDs in the party.
         """
         return Party.party_instance().henchmen
+    
+    @staticmethod
+    def GetOthers():
+        """
+        Purpose: Get the list of other party members.
+        Args: None
+        Returns: list: A list of other party members.
+        """
+        return Party.party_instance().others
 
     @staticmethod
     def IsHardModeUnlocked():

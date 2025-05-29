@@ -1,5 +1,16 @@
 from enum import Enum, IntEnum
 
+class SharedCommandType(IntEnum):
+    NoCommand = 0
+    TravelToMap = 1
+    InviteToParty = 2
+    InteractWithTarget = 3
+    TakeDialogWithTarget = 4
+    GetBlessing = 5
+    OpenChest = 6
+    PickUpLoot = 7
+    UseSkill = 8
+
 #region mouse
 class MouseButton(IntEnum):
     Left = 0
