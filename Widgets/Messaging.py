@@ -106,6 +106,14 @@ def TravelToMap(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, f"TravelToMap message processed and finished.", Console.MessageType.Info)
     
+def Resign(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing Resign message: {message}", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    GLOBAL_CACHE.Player.SendChatCommand("resign")
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, f"Resign message processed and finished.", Console.MessageType.Info)
+    
     
 def ProcessMessages():
     account_email = GLOBAL_CACHE.Player.GetAccountEmail()
@@ -131,6 +139,8 @@ def ProcessMessages():
             pass
         case SharedCommandType.UseSkill:
             pass
+        case SharedCommandType.Resign:
+            GLOBAL_CACHE.Coroutines.append(Resign(index, message))
         case _:
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
             pass
