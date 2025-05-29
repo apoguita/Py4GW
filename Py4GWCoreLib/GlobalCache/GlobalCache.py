@@ -16,7 +16,9 @@ from .PartyCache import PartyCache
 from .QuestCache import QuestCache
 from .SkillCache import SkillCache
 from .SkillbarCache import SkillbarCache
+from .SharedMemory import Py4GWSharedMemoryManager
 
+from typing import Generator, List
 
 class GlobalCache:
     _instance = None
@@ -46,6 +48,8 @@ class GlobalCache:
         self.Quest = QuestCache(self._ActionQueueManager)
         self.Skill = SkillCache()
         self.SkillBar = SkillbarCache(self._ActionQueueManager)
+        self.ShMem = Py4GWSharedMemoryManager()
+        self.Coroutines: List[Generator] = []
         
       
     def _reset(self):

@@ -114,6 +114,7 @@ class PyParty:
     players: List[PlayerPartyMember]
     heroes: List[HeroPartyMember]
     henchmen: List[HenchmanPartyMember]
+    others : List[int]
     is_in_hard_mode: bool
     is_hard_mode_unlocked: bool
     party_size: int

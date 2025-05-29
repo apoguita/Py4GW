@@ -8,7 +8,6 @@ from HeroAI.globals import hero_formation
 from HeroAI.constants import MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS
 #from HeroAI.shared_memory_manager import *
 from HeroAI.utils import DistanceFromWaypoint, DistanceFromLeader
-from HeroAI.candidates import RegisterCandidate, UpdateCandidates, ProcessCandidateCommands
 from HeroAI.players import RegisterPlayer, UpdatePlayers, RegisterHeroes
 from HeroAI.game_option import UpdateGameOptions
 from HeroAI.windows import DrawMainWindow, DrawControlPanelWindow, DrawMultiboxTools, DrawPanelButtons, DrawCandidateWindow, DrawFlaggingWindow, DrawOptions, DrawFlags, CompareAndSubmitGameOptions, SubmitGameOptions
@@ -152,18 +151,21 @@ def Follow(cached_data:CacheData):
 def draw_Targeting_floating_buttons(cached_data:CacheData):
     if not GLOBAL_CACHE.Map.IsExplorable():
         return
-    enemies = GLOBAL_CACHE.AgentArray.GetEnemyArray()
-    enemies = AgentArray.Filter.ByCondition(enemies, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
-    
-    if not enemies:
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spirit.value)
+
+    if len(enemy_array) == 0:
         return
-    for agent_id in enemies:
+    
+    Overlay().BeginDraw()
+    for agent_id in enemy_array:
         x,y,z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
         screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
         if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):         
             GLOBAL_CACHE.Player.ChangeTarget (agent_id)
             GLOBAL_CACHE.Player.Interact (agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+    Overlay().EndDraw()
 
       
 #TabType 
@@ -290,9 +292,6 @@ def DrawEmbeddedWindow(cached_data:CacheData):
 
 def UpdateStatus(cached_data:CacheData):
     
-    RegisterCandidate(cached_data) 
-    UpdateCandidates(cached_data)           
-    ProcessCandidateCommands(cached_data)   
     RegisterPlayer(cached_data)   
     RegisterHeroes(cached_data)
     UpdatePlayers(cached_data)      
@@ -362,23 +361,18 @@ def UpdateStatus(cached_data:CacheData):
     if not cached_data.data.in_aggro:
         return
     
-    
-    
     target_id = GLOBAL_CACHE.Player.GetTargetID()
-    if target_id == 0:
-        cached_data.combat_handler.ChooseTarget()
-        return
-     
     _, target_aliegance = GLOBAL_CACHE.Agent.GetAllegiance(target_id)
-    if target_aliegance != 'Enemy':
-        cached_data.combat_handler.ChooseTarget()
-        return
-        
-    
+     
+    if target_id == 0 or GLOBAL_CACHE.Agent.IsDead(target_id) or (target_aliegance != "Enemy"):
+        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking) and (not cached_data.data.player_is_casting) and (not cached_data.data.player_is_moving)):
+            cached_data.combat_handler.ChooseTarget()
+            cached_data.auto_attack_timer.Reset()
+            return
     
     #auto attack
     if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
-        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking) and not cached_data.data.player_is_casting):
+        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking) and (not cached_data.data.player_is_casting) and (not cached_data.data.player_is_moving)):
             cached_data.combat_handler.ChooseTarget()
         cached_data.auto_attack_timer.Reset()
         cached_data.combat_handler.ResetSkillPointer()

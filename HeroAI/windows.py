@@ -1,11 +1,10 @@
 from operator import index
-from Py4GWCoreLib import GLOBAL_CACHE, IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range
+from Py4GWCoreLib import GLOBAL_CACHE, IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .types import SkillType, SkillNature, Skilltarget, GameOptionStruct
 from .globals import capture_mouse_timer, show_area_rings, show_hero_follow_grid, show_distance_on_followers, hero_formation, capture_hero_flag, capture_flag_all, capture_hero_index
 from .utils import IsHeroFlagged, DrawFlagAll, DrawHeroFlag, DistanceFromWaypoint
-from .candidates import SendPartyCommand
 
 from .cache_data import CacheData
 
@@ -340,103 +339,56 @@ def DrawFlaggingWindow(cached_data:CacheData):
         
 
 def DrawCandidateWindow(cached_data:CacheData):
-    global MAX_NUM_PLAYERS
-
-    candidate_count = 0
-
+    def _OnSameMap(self_account, candidate):
+        if (candidate.MapID == self_account.MapID and
+            candidate.MapRegion == self_account.MapRegion and
+            candidate.MapDistrict == self_account.MapDistrict):
+            return True
+        return False
+    
+    def _OnSameParty(self_account, candidate):
+        if self_account.PartyID == candidate.PartyID:
+            return True
+        return False
+        
     table_flags = PyImGui.TableFlags.Sortable | PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg
     if PyImGui.begin_table("CandidateTable", 2, table_flags):
         # Setup columns
-        PyImGui.table_setup_column("Invite", PyImGui.TableColumnFlags.NoSort)
+        PyImGui.table_setup_column("Command", PyImGui.TableColumnFlags.NoSort)
         PyImGui.table_setup_column("Candidate", PyImGui.TableColumnFlags.NoFlag)
         PyImGui.table_headers_row()
 
-        """
-        sort_specs = PyImGui.table_get_sort_specs()
-
-        column_index = 1  # Default to Candidate column
-        sort_direction = 1  # Default to Ascending
-
-        if sort_specs and sort_specs.SpecsCount > 0:
-            spec = sort_specs.Specs
-            column_index = spec.ColumnIndex
-            sort_direction = spec.SortDirection
-
-        sorted_candidates = cached_data.HeroAI_vars.all_candidate_struct[:]
-        if column_index == 1:  # Sort by Candidate Name
-            sorted_candidates.sort(
-                key=lambda x: Agent.GetName(x.PlayerID),
-                reverse=(sort_direction == 2)  # 2 = Descending
-            )
-        """
+        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+        if not self_account:
+            PyImGui.text("No account data found.")
+            PyImGui.end_table()
+            return
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         
-        for index in range(MAX_NUM_PLAYERS):
-            candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
+        for account in accounts:
+            if account.AccountEmail == account_email:
+                continue
             
-            #if async_name_gettet_timer.HasElapsed(1000):
-            #    Agent.RequestName(candidate.PlayerID)
-               
-            
-            if (candidate.PlayerID and
-                candidate.PlayerID != cached_data.data.player_agent_id and
-                candidate.MapID == cached_data.data.map_id and
-                candidate.MapRegion == cached_data.data.region and
-                candidate.MapDistrict == cached_data.data.district):
-
-                candidate_count += 1
-
+            if _OnSameMap(self_account, account) and not _OnSameParty(self_account, account):
                 PyImGui.table_next_row()
-
-                PyImGui.table_set_column_index(0)
-                if PyImGui.button(f"Invite##invite_{candidate.PlayerID}"):
-                    SendPartyCommand(index, cached_data, "Invite")
-
-                PyImGui.table_set_column_index(1)
-                #name = Agent.GetName(candidate.PlayerID)
-
-                        
-                PyImGui.text(GLOBAL_CACHE.Agent.GetName(candidate.PlayerID)) 
-
+                PyImGui.table_next_column()
+                if PyImGui.button(f"Invite##invite_{account.PlayerID}"):
+                    GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
+                    GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.InviteToParty, (self_account.PlayerID,0,0,0))
+                PyImGui.table_next_column()
+                PyImGui.text(f"{account.CharacterName}")
+            else:
+                if not _OnSameMap(self_account, account):
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    if PyImGui.button(f"Summon##summon_{account.PlayerID}"):
+                        GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.TravelToMap, (self_account.MapID,self_account.MapRegion,self_account.MapDistrict,0))
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"{account.CharacterName}")
         PyImGui.end_table()
 
-        if candidate_count == 0:
-            PyImGui.text("No candidates found.")
-            
 
-    PyImGui.separator()
-
-    for index in range(MAX_NUM_PLAYERS):
-        candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
-        if ((candidate.PlayerID and candidate.PlayerID != GLOBAL_CACHE.Player.GetAgentID()) and
-            (candidate.MapID != cached_data.data.map_id or
-            candidate.MapRegion != cached_data.data.region or
-            candidate.MapDistrict != cached_data.data.district)):
-
-            if PyImGui.button(f"Summon from map {GLOBAL_CACHE.Map.GetMapName(candidate.MapID)}##summon_{candidate.PlayerID}"):
-                SendPartyCommand(index, cached_data, "Summon")  
-
-
-def DrawCandidatesDebug(cached_data:CacheData):
-    global MAX_NUM_PLAYERS
-
-    candidate_count = 0     
-    headers = ["Slot","MapID", "MapRegion", "MapDistrict","PlayerID", "InvitedBy", "SummonedBy", "LastUpdated"]
-
-    data = []
-    for i in range(MAX_NUM_PLAYERS):
-        candidate = cached_data.HeroAI_vars.all_candidate_struct[i]
-        data.append((
-            i,  # Slot index
-            candidate.MapID,
-            candidate.MapRegion,
-            candidate.MapDistrict,
-            candidate.PlayerID,
-            candidate.InvitedBy,
-            candidate.SummonedBy,
-            candidate.LastUpdated
-        ))
-
-    ImGui.table("Candidate Debug Table", headers, data)
 
 slot_to_write = 0
 def DrawPlayersDebug(cached_data:CacheData):
@@ -645,8 +597,6 @@ def DrawOptions(cached_data:CacheData):
 def DrawDebugWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
 
-    if PyImGui.collapsing_header("Candidates Debug"):
-        DrawCandidatesDebug(cached_data)
     if PyImGui.collapsing_header("Players Debug"):
         DrawPlayersDebug(cached_data)
     if PyImGui.collapsing_header("Game Options Debug"):
