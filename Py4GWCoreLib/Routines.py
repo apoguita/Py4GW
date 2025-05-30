@@ -847,7 +847,7 @@ class Routines:
                 range (int): The maximum distance to search for chests.
             Returns: Agent ID or None
             """
-            gadget_array = GLOBAL_CACHE.AgentArray.GetGadgetArray()
+            gadget_array = AgentArray.GetGadgetArray()
             gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
             gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
             for agent_id in gadget_array:
@@ -1945,6 +1945,34 @@ class Routines:
                     yield from Routines.Yield.wait(1000)
                 
                 ConsoleLog("TravelToOutpost", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
+    
+            @staticmethod
+            def TravelToRegion(outpost_id, region, district, laguage=0, log=False):
+                """
+                Purpose: Positions yourself safely on the outpost.
+                Args:
+                    outpost_id (int): The ID of the outpost to travel to.
+                    region (int): The region ID to travel to.
+                    district (int): The district ID to travel to.
+                    laguage (int): The language ID to travel to. Default is 0.
+                    log (bool) Optional: Whether to log the action. Default is True.
+                Returns: None
+                """
+                
+                if GLOBAL_CACHE.Map.GetMapID() != outpost_id:
+                    ConsoleLog("TravelToRegion", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
+                    GLOBAL_CACHE.Map.TravelToRegion(outpost_id, region, district, laguage)
+                    yield from Routines.Yield.wait(2000)
+                    waititng_for_map_load = True
+                    while waititng_for_map_load:
+                        if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.GetMapID() == outpost_id:
+                            waititng_for_map_load = False
+                            break
+                        yield from Routines.Yield.wait(1000)
+                    yield from Routines.Yield.wait(1000)
+                
+                ConsoleLog("TravelToRegion", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
+    
     
             @staticmethod
             def WaitforMapLoad(map_id, log=False):

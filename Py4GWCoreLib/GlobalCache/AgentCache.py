@@ -41,6 +41,18 @@ class AgentCache:
     def GetAgentByID(self, agent_id):
         return self.raw_agent_array.get_agent(agent_id)
     
+    def GetAgentEffects(self, agent_id):
+        agent = self.raw_agent_array.get_agent(agent_id)
+        return agent.living_agent.effects
+    
+    def GetTypeMap(self, agent_id):
+        agent = self.raw_agent_array.get_agent(agent_id)
+        return agent.living_agent.type_map
+    
+    def GetModelState(self, agent_id):
+        agent = self.raw_agent_array.get_agent(agent_id)
+        return agent.living_agent.model_state
+    
     def GetAgentIDByName(self, agent_name:str):
         agent_array = self.raw_agent_array.get_array()
         for agent in agent_array:
@@ -193,59 +205,60 @@ class AgentCache:
         return agent.living_agent.hp_regen
     
     def IsMoving(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_moving
+        model_state = self.GetModelState(agent_id)
+        return (model_state == 12) or (model_state == 76) or (model_state == 204)
     
     def IsKnockedDown(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_knocked_down
+        model_state = self.GetModelState(agent_id)
+        return model_state == 1104
     
     def IsBleeding(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_bleeding
+        effects = self.GetAgentEffects(agent_id)
+        return (effects & 0x0001) != 0
     
     def IsCrippled(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_crippled
+        effects = self.GetAgentEffects(agent_id)
+        return (effects & 0x000A) == 0xA
     
     def IsDeepWounded(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_deep_wounded
+        effects = self.GetAgentEffects(agent_id)
+        return (effects & 0x0020) != 0
     
     def IsPoisoned(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_poisoned
+        effects = self.GetAgentEffects(agent_id)
+        return (effects & 0x0040) != 0
     
     def IsConditioned(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_conditioned
+        effects = self.GetAgentEffects(agent_id)
+        return (effects & 0x0002) != 0
     
     def IsEnchanted(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_enchanted
+        effects = self.GetAgentEffects(agent_id)
+        return (effects & 0x0080) != 0
     
     def IsHexed(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_hexed
+        effects = self.GetAgentEffects(agent_id)
+        return (effects & 0x0800) != 0
     
     def IsDegenHexed(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_degen_hexed
+        effects = self.GetAgentEffects(agent_id)
+        return (effects & 0x0400) != 0
     
     def IsDead(self, agent_id):
-        return not self.IsAlive(agent_id)
+        effects = self.GetAgentEffects(agent_id)
+        return ((effects & 0x0010) != 0) or self.IsDeadByTypeMap(agent_id)
     
     def IsAlive(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_alive
+        health = self.GetHealth(agent_id)
+        return not self.IsDead(agent_id) and health > 0.0
     
     def IsWeaponSpelled(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_weapon_spelled
+        effects = self.GetAgentEffects(agent_id)
+        return (effects & 0x8000) != 0
     
     def IsInCombatStance(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.in_combat_stance
+        type_map = self.GetTypeMap(agent_id)
+        return (type_map & 0x000001) != 0
     
     def IsAggressive(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
@@ -255,20 +268,20 @@ class AgentCache:
             return False
         
     def IsAttacking(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_attacking
+        model_state = self.GetModelState(agent_id)
+        return (model_state == 96) or (model_state == 1088) or (model_state == 1120)
         
-    def IsCasting(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_casting
+    def IsCasting(self, agent_id) -> bool:
+        model_state = self.GetModelState(agent_id)
+        return (model_state == 65) or (model_state == 581)
         
     def IsIdle(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_idle
+        model_state = self.GetModelState(agent_id)
+        return (model_state == 68) or (model_state == 64) or (model_state == 100)
         
     def HasBossGlow(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.has_boss_glow
+        type_map = self.GetTypeMap(agent_id)
+        return (type_map & 0x000400) != 0
     
     def GetWeaponType(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
@@ -307,40 +320,40 @@ class AgentCache:
         return  agent.living_agent.allegiance.ToInt(), agent.living_agent.allegiance.GetName()
     
     def IsPlayer(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_player
+        login_number = self.GetLoginNumber(agent_id)
+        return login_number  != 0
     
     def IsNPC(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_npc
+        login_number = self.GetLoginNumber(agent_id)
+        return login_number  == 0
 
     def HasQuest(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.has_quest
+        type_map = self.GetTypeMap(agent_id)
+        return (type_map & 0x000002) != 0
         
     def IsDeadByTypeMap(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_dead_by_typemap
+        type_map = self.GetTypeMap(agent_id)
+        return (type_map & 0x000008) != 0
     
     def IsFemale(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_female
+        type_map = self.GetTypeMap(agent_id)
+        return (type_map & 0x000200) != 0
     
     def IsHidingCape(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_hiding_cape
+        type_map = self.GetTypeMap(agent_id)
+        return (type_map & 0x001000) != 0
     
     def CanBeViewedInPartyWindow(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.can_be_viewed_in_party_window
+        type_map = self.GetTypeMap(agent_id)
+        return (type_map & 0x20000) != 0
         
     def IsSpawned(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_spawned
+        type_map = self.GetTypeMap(agent_id)
+        return (type_map & 0x040000) != 0
         
     def IsBeingObserved(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.is_being_observed
+        type_map = self.GetTypeMap(agent_id)
+        return (type_map & 0x400000) != 0
 
     def GetOvercast(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
@@ -362,5 +375,5 @@ class AgentCache:
     
     def GetGadgetID(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.gadget_agent.agent_id
+        return agent.gadget_agent.gadget_id
     

@@ -1,11 +1,10 @@
 from operator import index
-from Py4GWCoreLib import GLOBAL_CACHE, IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range
+from Py4GWCoreLib import GLOBAL_CACHE, IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .types import SkillType, SkillNature, Skilltarget, GameOptionStruct
 from .globals import capture_mouse_timer, show_area_rings, show_hero_follow_grid, show_distance_on_followers, hero_formation, capture_hero_flag, capture_flag_all, capture_hero_index
 from .utils import IsHeroFlagged, DrawFlagAll, DrawHeroFlag, DistanceFromWaypoint
-from .candidates import SendPartyCommand
 
 from .cache_data import CacheData
 
@@ -235,36 +234,37 @@ def DrawFlaggingWindow(cached_data:CacheData):
         PyImGui.text("No Follower or Heroes to Flag.")
         return
 
-    if PyImGui.begin_table("Flags",3):
-        PyImGui.table_next_row()
-        PyImGui.table_next_column()
-        if party_size >= 2:
-            HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(cached_data,1), 30, 30)
-        PyImGui.table_next_column()
-        if party_size >= 3:
-            HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(cached_data,2),30,30)
-        PyImGui.table_next_column()
-        if party_size >= 4:
-            HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(cached_data,3),30,30)
-        PyImGui.table_next_row()
-        PyImGui.table_next_column()
-        if party_size >= 5:
-            HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(cached_data,4),30,30)
-        PyImGui.table_next_column()
-        AllFlag = ImGui.toggle_button("All", IsHeroFlagged(cached_data,0), 30, 30)
-        PyImGui.table_next_column()
-        if party_size >= 6:
-            HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(cached_data,5),30,30)
-        PyImGui.table_next_row()
-        PyImGui.table_next_column()
-        if party_size >= 7:
-            HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(cached_data,6),30,30)
-        PyImGui.table_next_column()
-        if party_size >= 8:
-            HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(cached_data,7), 30, 30)
-        PyImGui.table_next_column()
-        CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
-        PyImGui.end_table()
+    if PyImGui.collapsing_header("Flagging"):
+        if PyImGui.begin_table("Flags",3):
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            if party_size >= 2:
+                HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(cached_data,1), 30, 30)
+            PyImGui.table_next_column()
+            if party_size >= 3:
+                HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(cached_data,2),30,30)
+            PyImGui.table_next_column()
+            if party_size >= 4:
+                HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(cached_data,3),30,30)
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            if party_size >= 5:
+                HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(cached_data,4),30,30)
+            PyImGui.table_next_column()
+            AllFlag = ImGui.toggle_button("All", IsHeroFlagged(cached_data,0), 30, 30)
+            PyImGui.table_next_column()
+            if party_size >= 6:
+                HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(cached_data,5),30,30)
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            if party_size >= 7:
+                HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(cached_data,6),30,30)
+            PyImGui.table_next_column()
+            if party_size >= 8:
+                HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(cached_data,7), 30, 30)
+            PyImGui.table_next_column()
+            CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
+            PyImGui.end_table()
     
     if PyImGui.collapsing_header("Formation Flagger - Backline(1,2)"):
         set_formations_relative_to_leader = []
@@ -340,103 +340,56 @@ def DrawFlaggingWindow(cached_data:CacheData):
         
 
 def DrawCandidateWindow(cached_data:CacheData):
-    global MAX_NUM_PLAYERS
-
-    candidate_count = 0
-
+    def _OnSameMap(self_account, candidate):
+        if (candidate.MapID == self_account.MapID and
+            candidate.MapRegion == self_account.MapRegion and
+            candidate.MapDistrict == self_account.MapDistrict):
+            return True
+        return False
+    
+    def _OnSameParty(self_account, candidate):
+        if self_account.PartyID == candidate.PartyID:
+            return True
+        return False
+        
     table_flags = PyImGui.TableFlags.Sortable | PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg
     if PyImGui.begin_table("CandidateTable", 2, table_flags):
         # Setup columns
-        PyImGui.table_setup_column("Invite", PyImGui.TableColumnFlags.NoSort)
+        PyImGui.table_setup_column("Command", PyImGui.TableColumnFlags.NoSort)
         PyImGui.table_setup_column("Candidate", PyImGui.TableColumnFlags.NoFlag)
         PyImGui.table_headers_row()
 
-        """
-        sort_specs = PyImGui.table_get_sort_specs()
-
-        column_index = 1  # Default to Candidate column
-        sort_direction = 1  # Default to Ascending
-
-        if sort_specs and sort_specs.SpecsCount > 0:
-            spec = sort_specs.Specs
-            column_index = spec.ColumnIndex
-            sort_direction = spec.SortDirection
-
-        sorted_candidates = cached_data.HeroAI_vars.all_candidate_struct[:]
-        if column_index == 1:  # Sort by Candidate Name
-            sorted_candidates.sort(
-                key=lambda x: Agent.GetName(x.PlayerID),
-                reverse=(sort_direction == 2)  # 2 = Descending
-            )
-        """
+        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+        if not self_account:
+            PyImGui.text("No account data found.")
+            PyImGui.end_table()
+            return
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         
-        for index in range(MAX_NUM_PLAYERS):
-            candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
+        for account in accounts:
+            if account.AccountEmail == account_email:
+                continue
             
-            #if async_name_gettet_timer.HasElapsed(1000):
-            #    Agent.RequestName(candidate.PlayerID)
-               
-            
-            if (candidate.PlayerID and
-                candidate.PlayerID != cached_data.data.player_agent_id and
-                candidate.MapID == cached_data.data.map_id and
-                candidate.MapRegion == cached_data.data.region and
-                candidate.MapDistrict == cached_data.data.district):
-
-                candidate_count += 1
-
+            if _OnSameMap(self_account, account) and not _OnSameParty(self_account, account):
                 PyImGui.table_next_row()
-
-                PyImGui.table_set_column_index(0)
-                if PyImGui.button(f"Invite##invite_{candidate.PlayerID}"):
-                    SendPartyCommand(index, cached_data, "Invite")
-
-                PyImGui.table_set_column_index(1)
-                #name = Agent.GetName(candidate.PlayerID)
-
-                        
-                PyImGui.text(GLOBAL_CACHE.Agent.GetName(candidate.PlayerID)) 
-
+                PyImGui.table_next_column()
+                if PyImGui.button(f"Invite##invite_{account.PlayerID}"):
+                    GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
+                    GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.InviteToParty, (self_account.PlayerID,0,0,0))
+                PyImGui.table_next_column()
+                PyImGui.text(f"{account.CharacterName}")
+            else:
+                if not _OnSameMap(self_account, account):
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    if PyImGui.button(f"Summon##summon_{account.PlayerID}"):
+                        GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.TravelToMap, (self_account.MapID,self_account.MapRegion,self_account.MapDistrict,0))
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"{account.CharacterName}")
         PyImGui.end_table()
 
-        if candidate_count == 0:
-            PyImGui.text("No candidates found.")
-            
 
-    PyImGui.separator()
-
-    for index in range(MAX_NUM_PLAYERS):
-        candidate = cached_data.HeroAI_vars.all_candidate_struct[index]
-        if ((candidate.PlayerID and candidate.PlayerID != GLOBAL_CACHE.Player.GetAgentID()) and
-            (candidate.MapID != cached_data.data.map_id or
-            candidate.MapRegion != cached_data.data.region or
-            candidate.MapDistrict != cached_data.data.district)):
-
-            if PyImGui.button(f"Summon from map {GLOBAL_CACHE.Map.GetMapName(candidate.MapID)}##summon_{candidate.PlayerID}"):
-                SendPartyCommand(index, cached_data, "Summon")  
-
-
-def DrawCandidatesDebug(cached_data:CacheData):
-    global MAX_NUM_PLAYERS
-
-    candidate_count = 0     
-    headers = ["Slot","MapID", "MapRegion", "MapDistrict","PlayerID", "InvitedBy", "SummonedBy", "LastUpdated"]
-
-    data = []
-    for i in range(MAX_NUM_PLAYERS):
-        candidate = cached_data.HeroAI_vars.all_candidate_struct[i]
-        data.append((
-            i,  # Slot index
-            candidate.MapID,
-            candidate.MapRegion,
-            candidate.MapDistrict,
-            candidate.PlayerID,
-            candidate.InvitedBy,
-            candidate.SummonedBy,
-            candidate.LastUpdated
-        ))
-
-    ImGui.table("Candidate Debug Table", headers, data)
 
 slot_to_write = 0
 def DrawPlayersDebug(cached_data:CacheData):
@@ -641,12 +594,33 @@ def DrawOptions(cached_data:CacheData):
     cached_data.ui_state_data.show_classic_controls = PyImGui.checkbox("Show Classic Controls", cached_data.ui_state_data.show_classic_controls)
     #TODO Select combat engine options
 
+def DrawMessagingOptions(cached_data:CacheData):
+    global MAX_NUM_PLAYERS
+    PyImGui.text("Combat Field")
+    PyImGui.separator()
+    if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##commands_resign"):
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        sender_email = cached_data.account_email
+        for account in accounts:
+            ConsoleLog("Messaging", "Resigning account: " + account.AccountEmail)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))
+    ImGui.show_tooltip("Resign Party")
+    PyImGui.same_line(0,-1)
+    if PyImGui.button(f"{IconsFontAwesome5.ICON_COMPRESS_ARROWS_ALT}##commands_pixelstack"):
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
+        if not self_account:
+            return
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        sender_email = cached_data.account_email
+        for account in accounts:
+            if self_account.AccountEmail == account.AccountEmail:
+                continue
+            ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.PlayerPosX,self_account.PlayerPosY,0,0))
 
 def DrawDebugWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
 
-    if PyImGui.collapsing_header("Candidates Debug"):
-        DrawCandidatesDebug(cached_data)
     if PyImGui.collapsing_header("Players Debug"):
         DrawPlayersDebug(cached_data)
     if PyImGui.collapsing_header("Game Options Debug"):
@@ -688,65 +662,115 @@ def DrawMultiboxTools(cached_data:CacheData):
 
 
 
-def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionStruct):
+def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionStruct):   
     global MAX_NUM_PLAYERS
     # Core Options
+    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+    if not accounts:
+        ConsoleLog("HeroAI", "No accounts found in shared memory.")
+        return
+    
     if game_option.Following != cached_data.HeroAI_vars.global_control_game_struct.Following:
         cached_data.HeroAI_vars.global_control_game_struct.Following = game_option.Following
-        for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Following", game_option.Following)
+        for account in accounts:
+            account_email = account.AccountEmail
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+            if hero_ai_data is None:
+                ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                continue
+            
+            hero_ai_data.Following = game_option.Following
+
 
     if game_option.Avoidance != cached_data.HeroAI_vars.global_control_game_struct.Avoidance:
         cached_data.HeroAI_vars.global_control_game_struct.Avoidance = game_option.Avoidance
-        for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Avoidance", game_option.Avoidance)
+        for account in accounts:
+            account_email = account.AccountEmail
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+            if hero_ai_data is None:
+                ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                continue
+            
+            hero_ai_data.Avoidance = game_option.Avoidance
 
     if game_option.Looting != cached_data.HeroAI_vars.global_control_game_struct.Looting:
         cached_data.HeroAI_vars.global_control_game_struct.Looting = game_option.Looting
-        for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Looting", game_option.Looting)
+        for account in accounts:
+            account_email = account.AccountEmail
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+            if hero_ai_data is None:
+                ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                continue
+            
+            hero_ai_data.Looting = game_option.Looting
 
     if game_option.Targeting != cached_data.HeroAI_vars.global_control_game_struct.Targeting:
         cached_data.HeroAI_vars.global_control_game_struct.Targeting = game_option.Targeting
-        for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Targeting", game_option.Targeting)
+        for account in accounts:
+            account_email = account.AccountEmail
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+            if hero_ai_data is None:
+                ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                continue
+            
+            hero_ai_data.Targeting = game_option.Targeting
 
     if game_option.Combat != cached_data.HeroAI_vars.global_control_game_struct.Combat:
         cached_data.HeroAI_vars.global_control_game_struct.Combat = game_option.Combat
-        for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Combat", game_option.Combat)
+        for account in accounts:
+            account_email = account.AccountEmail
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+            if hero_ai_data is None:
+                ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                continue
+            
+            hero_ai_data.Combat = game_option.Combat
 
     # Skills
     for skill_index in range(NUMBER_OF_SKILLS):
         if game_option.Skills[skill_index].Active != cached_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active:
             cached_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active = game_option.Skills[skill_index].Active
-            for i in range(MAX_NUM_PLAYERS):
-                cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(
-                    i, f"Skill_{skill_index + 1}", game_option.Skills[skill_index].Active
-                )
+            for account in accounts:
+                account_email = account.AccountEmail
+                hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+                if hero_ai_data is None:
+                    ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                    continue
+                
+                hero_ai_data.Skills[skill_index] = game_option.Skills[skill_index].Active
 
 
-def SubmitGameOptions(cached_data:CacheData,index,game_option,original_game_option):
+def SubmitGameOptions(cached_data:CacheData,party_pos,game_option,original_game_option):
     # Core Options
+    hero_ai_data = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(party_pos)
+    if hero_ai_data is None:
+        ConsoleLog("HeroAI", "Failed to get HeroAI options from shared memory.")
+        return
     if game_option.Following != original_game_option.Following:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Following", game_option.Following)
+        hero_ai_data.Following = game_option.Following
+        #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Following", game_option.Following)
 
     if game_option.Avoidance != original_game_option.Avoidance:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Avoidance", game_option.Avoidance)
+        hero_ai_data.Avoidance = game_option.Avoidance
+        #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Avoidance", game_option.Avoidance)
 
     if game_option.Looting != original_game_option.Looting:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Looting", game_option.Looting)
+        hero_ai_data.Looting = game_option.Looting
+        #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Looting", game_option.Looting)
 
     if game_option.Targeting != original_game_option.Targeting:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targeting", game_option.Targeting)
+        hero_ai_data.Targeting = game_option.Targeting
+        #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targeting", game_option.Targeting)
 
     if game_option.Combat != original_game_option.Combat:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Combat", game_option.Combat)
+        hero_ai_data.Combat = game_option.Combat
+        #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Combat", game_option.Combat)
 
     # Skills
     for i in range(NUMBER_OF_SKILLS):
         if game_option.Skills[i].Active != original_game_option.Skills[i].Active:
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, f"Skill_{i + 1}", game_option.Skills[i].Active)
+            hero_ai_data.Skills[i] = game_option.Skills[i].Active
+            #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, f"Skill_{i + 1}", game_option.Skills[i].Active)
 
 def DrawPanelButtons(source_game_option):
     game_option = GameOptionStruct()
