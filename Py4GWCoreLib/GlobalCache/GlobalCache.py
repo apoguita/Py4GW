@@ -60,9 +60,9 @@ class GlobalCache:
         self._TrottleTimers.Reset()
         
     def _update_cache(self):
+        self.Map._update_cache()
         if self._TrottleTimers._50ms.IsExpired():
             self._TrottleTimers._50ms.Reset()
-            self.Map._update_cache()
             self.Player._update_cache()
             if self._TrottleTimers._100ms.IsExpired():   
                 self.Party._update_cache()
