@@ -102,12 +102,12 @@ def Follow(cached_data:CacheData):
         follow_x = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosX
         follow_y = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosY
         follow_angle = cached_data.HeroAI_vars.all_player_struct[party_number].FollowAngle
-        following_flag = False
+        following_flag = True
     elif cached_data.HeroAI_vars.all_player_struct[0].IsFlagged:  # leader's flag
         follow_x = cached_data.HeroAI_vars.all_player_struct[0].FlagPosX
         follow_y = cached_data.HeroAI_vars.all_player_struct[0].FlagPosY
         follow_angle = cached_data.HeroAI_vars.all_player_struct[0].FollowAngle
-        following_flag = True
+        following_flag = False
     else:  # follow leader
         following_flag = False
         follow_x, follow_y = cached_data.data.party_leader_xy
