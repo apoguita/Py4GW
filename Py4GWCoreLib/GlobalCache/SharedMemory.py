@@ -16,6 +16,8 @@ SHMEM_SHARED_MEMORY_FILE_NAME = "Py4GW_Shared_Mem"
 SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
 SHMEM_SUBSCRIBE_TIMEOUT_MILISECONDS = 500 # milliseconds
 
+SHMEM_NUMBER_OF_SKILLS = 8
+
     
 class AccountData(Structure):
     _pack_ = 1
@@ -67,11 +69,27 @@ class SharedMessage(Structure):
         ("Timestamp", c_uint), 
     ]
     
+class HeroAIOptionStruct(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("Following", c_bool),
+        ("Avoidance", c_bool), 
+        ("Looting", c_bool), 
+        ("Targeting", c_bool),
+        ("Combat", c_bool),
+        ("Skills", c_bool * SHMEM_NUMBER_OF_SKILLS),
+        ("IsFlagged", c_bool),
+        ("FlagPosX", c_float),
+        ("FlagPosY", c_float),
+        ("FlagFacingAngle", c_float),
+    ] 
+    
 class AllAccounts(Structure):
     _pack_ = 1
     _fields_ = [
         ("AccountData", AccountData * SHMEM_MAX_NUM_PLAYERS),
         ("SharedMessage", SharedMessage * SHMEM_MAX_NUM_PLAYERS),  # Messages for each player
+        ("HeroAIOptions", HeroAIOptionStruct * SHMEM_MAX_NUM_PLAYERS),  # Game options for HeroAI
     ]
         
 class Py4GWSharedMemoryManager:
@@ -152,10 +170,23 @@ class Py4GWSharedMemoryManager:
             for j in range(SHMEM_MAX_NUMBER_OF_BUFFS):
                 player.PlayerBuffs[j] = 0
             player.LastUpdated = self.GetBaseTimestamp()
+            
+            option = self.GetStruct().HeroAIOptions[index]
+            option.Following = True
+            option.Avoidance = True
+            option.Looting = True
+            option.Targeting = True
+            option.Combat = True
+            for i in range(SHMEM_NUMBER_OF_SKILLS):
+                option.Skills[i] = True 
+            option.IsFlaged = False
+            option.FlagPosX = 0.0
+            option.FlagPosY = 0.0
+            option.FlagFacingAngle = 0.0
                
         else:
             ConsoleLog(SMM_MODULE_NAME, f"Invalid player ID: {index}", Py4GW.Console.MessageType.Error)
-            
+       
 
     def FindAccount(self, account_email: str) -> int:
         """Find the index of the account with the given email."""
@@ -468,8 +499,17 @@ class Py4GWSharedMemoryManager:
             if agent_from_login != owner_id:
                 continue
             self.SetHeroData(hero_data)
+            
+    def GetAllActivePlayers(self) -> list[AccountData]:
+        """Get all active players in shared memory."""
+        players = []
+        for i in range(self.max_num_players):
+            player = self.GetStruct().AccountData[i]
+            if player.IsSlotActive:
+                players.append(player)
+        return players
         
-    def GetAllAccountData(self):
+    def GetAllAccountData(self) -> list[AccountData]:
         """Get all player data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
         players = []
         for i in range(self.max_num_players):
@@ -498,7 +538,62 @@ class Py4GWSharedMemoryManager:
         else:
             ConsoleLog(SMM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error)
             return None
+     
+    def GetAccountDataFromPartyNumber(self, party_number: int) -> AccountData | None:
+        """Get player data for the account with the given party number."""
+        for i in range(self.max_num_players):
+            player = self.GetStruct().AccountData[i]
+            if player.IsSlotActive and player.PartyPosition == party_number:
+                return player
+        ConsoleLog(SMM_MODULE_NAME, f"Party number {party_number} not found.", Py4GW.Console.MessageType.Error)
+        return None
         
+    def GerHeroAIOptions(self, account_email: str) -> HeroAIOptionStruct | None:
+        """Get HeroAI options for the account with the given email."""
+        index = self.FindAccount(account_email)
+        if index != -1:
+            return self.GetStruct().HeroAIOptions[index]
+        else:
+            ConsoleLog(SMM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error)
+            return None
+        
+    def GetGerHeroAIOptionsByPartyNumber(self, party_number: int) -> HeroAIOptionStruct | None:
+        """Get HeroAI options for the account with the given party number."""
+        for i in range(self.max_num_players):
+            player = self.GetStruct().AccountData[i]
+            if player.IsSlotActive and player.PartyPosition == party_number:
+                return self.GetStruct().HeroAIOptions[i]
+        return None    
+        
+        
+    def SetHeroAIOptions(self, account_email: str, options: HeroAIOptionStruct):
+        """Set HeroAI options for the account with the given email."""
+        index = self.FindAccount(account_email)
+        if index != -1:
+            self.GetStruct().HeroAIOptions[index] = options
+        else:
+            ConsoleLog(SMM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error)
+    
+    def SetHeroAIProperty(self, account_email: str, property_name: str, value):
+        """Set a specific HeroAI property for the account with the given email."""
+        index = self.FindAccount(account_email)
+        if index != -1:
+            options = self.GetStruct().HeroAIOptions[index]
+            
+            if property_name.startswith("Skill_"):
+                skill_index = int(property_name.split("_")[1])
+                if 0 <= skill_index < SHMEM_NUMBER_OF_SKILLS:
+                    options.Skills[skill_index] = value
+                else:
+                    ConsoleLog(SMM_MODULE_NAME, f"Invalid skill index: {skill_index}.", Py4GW.Console.MessageType.Error)
+                return
+            
+            if hasattr(options, property_name):
+                setattr(options, property_name, value)
+            else:
+                ConsoleLog(SMM_MODULE_NAME, f"Property {property_name} does not exist in HeroAIOptions.", Py4GW.Console.MessageType.Error)
+        else:
+            ConsoleLog(SMM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error)
     
     def GetMapsFromPlayers(self):
         """Get a list of unique maps from all active players."""

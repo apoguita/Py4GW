@@ -593,13 +593,13 @@ def DrawOptions(cached_data:CacheData):
     cached_data.ui_state_data.show_classic_controls = PyImGui.checkbox("Show Classic Controls", cached_data.ui_state_data.show_classic_controls)
     #TODO Select combat engine options
 
-def DrawMessagingOptions():
+def DrawMessagingOptions(cached_data:CacheData):
     global MAX_NUM_PLAYERS
     PyImGui.text("Combat Field")
     PyImGui.separator()
     if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##commands_resign"):
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        sender_email = cached_data.account_email
         for account in accounts:
             ConsoleLog("Messaging", "Resigning account: " + account.AccountEmail)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))
@@ -649,65 +649,115 @@ def DrawMultiboxTools(cached_data:CacheData):
 
 
 
-def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionStruct):
+def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionStruct):   
     global MAX_NUM_PLAYERS
     # Core Options
+    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+    if not accounts:
+        ConsoleLog("HeroAI", "No accounts found in shared memory.")
+        return
+    
     if game_option.Following != cached_data.HeroAI_vars.global_control_game_struct.Following:
         cached_data.HeroAI_vars.global_control_game_struct.Following = game_option.Following
-        for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Following", game_option.Following)
+        for account in accounts:
+            account_email = account.AccountEmail
+            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+            if hero_ai_data is None:
+                ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                continue
+            
+            hero_ai_data.Following = game_option.Following
+
 
     if game_option.Avoidance != cached_data.HeroAI_vars.global_control_game_struct.Avoidance:
         cached_data.HeroAI_vars.global_control_game_struct.Avoidance = game_option.Avoidance
-        for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Avoidance", game_option.Avoidance)
+        for account in accounts:
+            account_email = account.AccountEmail
+            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+            if hero_ai_data is None:
+                ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                continue
+            
+            hero_ai_data.Avoidance = game_option.Avoidance
 
     if game_option.Looting != cached_data.HeroAI_vars.global_control_game_struct.Looting:
         cached_data.HeroAI_vars.global_control_game_struct.Looting = game_option.Looting
-        for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Looting", game_option.Looting)
+        for account in accounts:
+            account_email = account.AccountEmail
+            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+            if hero_ai_data is None:
+                ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                continue
+            
+            hero_ai_data.Looting = game_option.Looting
 
     if game_option.Targeting != cached_data.HeroAI_vars.global_control_game_struct.Targeting:
         cached_data.HeroAI_vars.global_control_game_struct.Targeting = game_option.Targeting
-        for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Targeting", game_option.Targeting)
+        for account in accounts:
+            account_email = account.AccountEmail
+            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+            if hero_ai_data is None:
+                ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                continue
+            
+            hero_ai_data.Targeting = game_option.Targeting
 
     if game_option.Combat != cached_data.HeroAI_vars.global_control_game_struct.Combat:
         cached_data.HeroAI_vars.global_control_game_struct.Combat = game_option.Combat
-        for i in range(MAX_NUM_PLAYERS):
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(i, "Combat", game_option.Combat)
+        for account in accounts:
+            account_email = account.AccountEmail
+            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+            if hero_ai_data is None:
+                ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                continue
+            
+            hero_ai_data.Combat = game_option.Combat
 
     # Skills
     for skill_index in range(NUMBER_OF_SKILLS):
         if game_option.Skills[skill_index].Active != cached_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active:
             cached_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active = game_option.Skills[skill_index].Active
-            for i in range(MAX_NUM_PLAYERS):
-                cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(
-                    i, f"Skill_{skill_index + 1}", game_option.Skills[skill_index].Active
-                )
+            for account in accounts:
+                account_email = account.AccountEmail
+                hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+                if hero_ai_data is None:
+                    ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
+                    continue
+                
+                hero_ai_data.Skills[skill_index] = game_option.Skills[skill_index].Active
 
 
-def SubmitGameOptions(cached_data:CacheData,index,game_option,original_game_option):
+def SubmitGameOptions(cached_data:CacheData,party_pos,game_option,original_game_option):
     # Core Options
+    hero_ai_data = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(party_pos)
+    if hero_ai_data is None:
+        ConsoleLog("HeroAI", "Failed to get HeroAI options from shared memory.")
+        return
     if game_option.Following != original_game_option.Following:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Following", game_option.Following)
+        hero_ai_data.Following = game_option.Following
+        #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Following", game_option.Following)
 
     if game_option.Avoidance != original_game_option.Avoidance:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Avoidance", game_option.Avoidance)
+        hero_ai_data.Avoidance = game_option.Avoidance
+        #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Avoidance", game_option.Avoidance)
 
     if game_option.Looting != original_game_option.Looting:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Looting", game_option.Looting)
+        hero_ai_data.Looting = game_option.Looting
+        #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Looting", game_option.Looting)
 
     if game_option.Targeting != original_game_option.Targeting:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targeting", game_option.Targeting)
+        hero_ai_data.Targeting = game_option.Targeting
+        #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targeting", game_option.Targeting)
 
     if game_option.Combat != original_game_option.Combat:
-        cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Combat", game_option.Combat)
+        hero_ai_data.Combat = game_option.Combat
+        #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Combat", game_option.Combat)
 
     # Skills
     for i in range(NUMBER_OF_SKILLS):
         if game_option.Skills[i].Active != original_game_option.Skills[i].Active:
-            cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, f"Skill_{i + 1}", game_option.Skills[i].Active)
+            hero_ai_data.Skills[i] = game_option.Skills[i].Active
+            #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, f"Skill_{i + 1}", game_option.Skills[i].Active)
 
 def DrawPanelButtons(source_game_option):
     game_option = GameOptionStruct()
