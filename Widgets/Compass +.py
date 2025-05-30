@@ -176,10 +176,6 @@ class Compass():
             self.spirit_alpha = 50
             self.show_spirit_range = False
 
-            self.eoe          = Utils.RGBToColor(  0, 255,   0,  50)
-            self.qz           = Utils.RGBToColor(  0,   0, 255,  50)
-            self.winnowing    = Utils.RGBToColor(  0, 255 ,255,  50)
-
             # range rings
             self.AddRangeRing('Touch',      False, Range.Touch.value,     Utils.RGBToColor(255, 255 , 255,   0), Utils.RGBToColor(255, 255 , 255, 255), 1.5)
             self.AddRangeRing('Adjacent',   False, Range.Adjacent.value,  Utils.RGBToColor(255, 255 , 255,   0), Utils.RGBToColor(255, 255 , 255, 255), 1.5)
@@ -348,7 +344,8 @@ class Compass():
                                                                                              self.position.current_size, self.position.rotation)
         
         if not self.primitives_set:
-            self.renderer.set_primitives(self.geometry, self.pathing.color)
+            color = Utils.ColorToTuple(self.pathing.color)
+            self.renderer.set_primitives(self.geometry, Utils.RGBToDXColor(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255)))
             self.primitives_set = True
 
         self.renderer.world_space.set_zoom(zoom)
@@ -803,6 +800,7 @@ def configure():
                     marker.visible = PyImGui.checkbox(f'##visible{name}', marker.visible)
                     PyImGui.same_line(0.0, -1)
                     if PyImGui.collapsing_header(f'{name}##header'):
+                        header_opened = True
                         PyImGui.indent(14)
                         PyImGui.push_item_width(120)
                         marker.model_id = PyImGui.input_int(f'Model ID##{name}', marker.model_id)
@@ -828,9 +826,9 @@ def configure():
                             compass.config.custom_markers.pop(name)
                             compass.ini.delete_section(f'custom_marker_{name}')
                             break
-                        PyImGui.unindent(10)
-                PyImGui.unindent(4)
+                        PyImGui.unindent(14)
 
+                #PyImGui.indent(4)
                 PyImGui.push_item_width(150)
                 compass.config.custom_name = PyImGui.input_text('##agent_name', compass.config.custom_name)
                 PyImGui.pop_item_width()
@@ -861,6 +859,9 @@ def configure():
                 PyImGui.indent(10)
                 header_opened = True
                 compass.pathing.visible = PyImGui.checkbox('Visible', compass.pathing.visible)
+                PyImGui.same_line(0.0, -1)
+                if PyImGui.button('Update Color'):
+                    compass.primitives_set = False
                 compass.pathing.color = Utils.TupleToColor(PyImGui.color_edit4('', Utils.ColorToTuple(compass.pathing.color)))
                 PyImGui.unindent(10)
 
