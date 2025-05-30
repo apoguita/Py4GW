@@ -53,7 +53,7 @@ def main():
                                     PyImGui.tree_pop()
                                     PyImGui.separator()
                                     
-                                hero_ai_options = SMM.GerHeroAIOptions(player.AccountEmail)
+                                hero_ai_options = SMM.GetHeroAIOptions(player.AccountEmail)
                                 if hero_ai_options is not None:
                                     if PyImGui.tree_node("HeroAI Configs"):
                                         PyImGui.text(f"FlagPosX: {hero_ai_options.FlagPosX:.2f}")

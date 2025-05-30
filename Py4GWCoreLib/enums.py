@@ -11,6 +11,12 @@ class SharedCommandType(IntEnum):
     PickUpLoot = 7
     UseSkill = 8
     Resign = 9
+    PixelStack = 10
+    PCon = 11
+    IdentifyItems = 12
+    SalvageItems = 13
+    MerchantItems = 14
+    MerchantMaterials = 15
 
 #region mouse
 class MouseButton(IntEnum):
