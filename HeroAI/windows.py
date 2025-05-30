@@ -605,6 +605,18 @@ def DrawMessagingOptions(cached_data:CacheData):
             ConsoleLog("Messaging", "Resigning account: " + account.AccountEmail)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))
     ImGui.show_tooltip("Resign Party")
+    PyImGui.same_line(0,-1)
+    if PyImGui.button(f"{IconsFontAwesome5.ICON_COMPRESS_ARROWS_ALT}##commands_pixelstack"):
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
+        if not self_account:
+            return
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        sender_email = cached_data.account_email
+        for account in accounts:
+            if self_account.AccountEmail == account.AccountEmail:
+                continue
+            ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.PlayerPosX,self_account.PlayerPosY,0,0))
 
 def DrawDebugWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
@@ -662,7 +674,7 @@ def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionSt
         cached_data.HeroAI_vars.global_control_game_struct.Following = game_option.Following
         for account in accounts:
             account_email = account.AccountEmail
-            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
             if hero_ai_data is None:
                 ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
                 continue
@@ -674,7 +686,7 @@ def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionSt
         cached_data.HeroAI_vars.global_control_game_struct.Avoidance = game_option.Avoidance
         for account in accounts:
             account_email = account.AccountEmail
-            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
             if hero_ai_data is None:
                 ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
                 continue
@@ -685,7 +697,7 @@ def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionSt
         cached_data.HeroAI_vars.global_control_game_struct.Looting = game_option.Looting
         for account in accounts:
             account_email = account.AccountEmail
-            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
             if hero_ai_data is None:
                 ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
                 continue
@@ -696,7 +708,7 @@ def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionSt
         cached_data.HeroAI_vars.global_control_game_struct.Targeting = game_option.Targeting
         for account in accounts:
             account_email = account.AccountEmail
-            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
             if hero_ai_data is None:
                 ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
                 continue
@@ -707,7 +719,7 @@ def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionSt
         cached_data.HeroAI_vars.global_control_game_struct.Combat = game_option.Combat
         for account in accounts:
             account_email = account.AccountEmail
-            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
             if hero_ai_data is None:
                 ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
                 continue
@@ -720,7 +732,7 @@ def CompareAndSubmitGameOptions(cached_data:CacheData, game_option: GameOptionSt
             cached_data.HeroAI_vars.global_control_game_struct.Skills[skill_index].Active = game_option.Skills[skill_index].Active
             for account in accounts:
                 account_email = account.AccountEmail
-                hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account_email)
+                hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
                 if hero_ai_data is None:
                     ConsoleLog("HeroAI", f"Failed to get HeroAI options for {account_email} from shared memory.")
                     continue

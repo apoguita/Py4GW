@@ -18,7 +18,7 @@ def UpdateGameOptions(cache_data:CacheData):
                 return
             
             for account in accounts:
-                hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(account.AccountEmail)
+                hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
                 if hero_ai_data is None:
                     continue
        
@@ -32,7 +32,7 @@ def UpdateGameOptions(cache_data:CacheData):
                     cache_data.HeroAI_vars.all_game_option_struct[account.PartyPosition].Skills[skill_index].Active = hero_ai_data.Skills[skill_index]
 
         else:
-            hero_ai_data = GLOBAL_CACHE.ShMem.GerHeroAIOptions(cache_data.account_email)
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(cache_data.account_email)
             if hero_ai_data is None:
                 return
 

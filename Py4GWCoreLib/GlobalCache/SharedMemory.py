@@ -548,7 +548,7 @@ class Py4GWSharedMemoryManager:
         ConsoleLog(SMM_MODULE_NAME, f"Party number {party_number} not found.", Py4GW.Console.MessageType.Error)
         return None
         
-    def GerHeroAIOptions(self, account_email: str) -> HeroAIOptionStruct | None:
+    def GetHeroAIOptions(self, account_email: str) -> HeroAIOptionStruct | None:
         """Get HeroAI options for the account with the given email."""
         index = self.FindAccount(account_email)
         if index != -1:
