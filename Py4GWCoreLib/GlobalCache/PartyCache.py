@@ -36,6 +36,11 @@ class PartyCache:
             return []
         return self._party_instance.henchmen
     
+    def GetOthers(self):
+        if not self.IsPartyLoaded():
+            return []
+        return self._party_instance.others
+    
     def GetPlayerCount(self):
         if not self.IsPartyLoaded():
             return 0

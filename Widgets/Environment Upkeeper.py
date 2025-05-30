@@ -48,6 +48,10 @@ def main():
     global widget_config
 
     GLOBAL_CACHE._update_cache()
+    account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    GLOBAL_CACHE.ShMem.SetPlayerData(account_email)
+    GLOBAL_CACHE.ShMem.SetHeroesData()
+    GLOBAL_CACHE.ShMem.SetPetData()
     
     if widget_config.throttle_raw_agent_array.IsExpired():
         widget_config.raw_agent_array.update()
@@ -72,6 +76,14 @@ def main():
     if widget_config.throttle_identify_queue.IsExpired():
         widget_config.action_queue_manager.ProcessQueue("IDENTIFY")
         widget_config.throttle_identify_queue.Reset()
+        
+    GLOBAL_CACHE.ShMem.UpdateTimeouts()
+    
+    for routine in GLOBAL_CACHE.Coroutines[:]:
+        try:
+            next(routine)
+        except StopIteration:
+            GLOBAL_CACHE.Coroutines.remove(routine)
     
     
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import Py4GW
 import traceback
+from Py4GWCoreLib import GLOBAL_CACHE
 
 from .constants import GAME_OPTION_MODULE_NAME, MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .cache_data import CacheData
@@ -11,39 +12,39 @@ def UpdateGameOptions(cache_data:CacheData):
         own_party_number = cache_data.data.own_party_number
 
         if own_party_number == 0:
-            for index in range(0, MAX_NUM_PLAYERS):
-                game_option = cache_data.HeroAI_vars.shared_memory_handler.get_game_option(index)
-                if game_option is None:
-                    continue
-       
-                cache_data.HeroAI_vars.all_game_option_struct[index].Following = game_option["Following"]
-                cache_data.HeroAI_vars.all_game_option_struct[index].Avoidance = game_option["Avoidance"]
-                cache_data.HeroAI_vars.all_game_option_struct[index].Looting = game_option["Looting"]
-                cache_data.HeroAI_vars.all_game_option_struct[index].Targeting = game_option["Targeting"]
-                cache_data.HeroAI_vars.all_game_option_struct[index].Combat = game_option["Combat"]
-                cache_data.HeroAI_vars.all_game_option_struct[index].WindowVisible = game_option["WindowVisible"]
-
-                for skill_index in range(NUMBER_OF_SKILLS):
-                    cache_data.HeroAI_vars.all_game_option_struct[index].Skills[skill_index].Active = game_option["Skills"][skill_index]
-        else:
-            game_option = None
-            if own_party_number >= 0 and own_party_number < MAX_NUM_PLAYERS:
-                game_option = cache_data.HeroAI_vars.shared_memory_handler.get_game_option(own_party_number)
-            else:
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            if accounts is None:
+                Py4GW.Console.Log(GAME_OPTION_MODULE_NAME, "No accounts found in shared memory.", Py4GW.Console.MessageType.Warning)
                 return
             
-            if game_option is None:
+            for account in accounts:
+                hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
+                if hero_ai_data is None:
+                    continue
+       
+                cache_data.HeroAI_vars.all_game_option_struct[account.PartyPosition].Following = hero_ai_data.Following
+                cache_data.HeroAI_vars.all_game_option_struct[account.PartyPosition].Avoidance = hero_ai_data.Avoidance
+                cache_data.HeroAI_vars.all_game_option_struct[account.PartyPosition].Looting = hero_ai_data.Looting
+                cache_data.HeroAI_vars.all_game_option_struct[account.PartyPosition].Targeting = hero_ai_data.Targeting
+                cache_data.HeroAI_vars.all_game_option_struct[account.PartyPosition].Combat = hero_ai_data.Combat
+                cache_data.HeroAI_vars.all_game_option_struct[account.PartyPosition].WindowVisible = True
+                for skill_index in range(NUMBER_OF_SKILLS):
+                    cache_data.HeroAI_vars.all_game_option_struct[account.PartyPosition].Skills[skill_index].Active = hero_ai_data.Skills[skill_index]
+
+        else:
+            hero_ai_data = GLOBAL_CACHE.ShMem.GetHeroAIOptions(cache_data.account_email)
+            if hero_ai_data is None:
                 return
 
-            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Following = game_option["Following"]
-            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Avoidance = game_option["Avoidance"]
-            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Looting = game_option["Looting"]
-            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Targeting = game_option["Targeting"]
-            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Combat = game_option["Combat"]
-            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].WindowVisible = game_option["WindowVisible"]
+            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Following = hero_ai_data.Following
+            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Avoidance = hero_ai_data.Avoidance
+            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Looting = hero_ai_data.Looting
+            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Targeting = hero_ai_data.Targeting
+            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Combat = hero_ai_data.Combat
+            cache_data.HeroAI_vars.all_game_option_struct[own_party_number].WindowVisible = True
             for skill_index in range(NUMBER_OF_SKILLS):
                 cache_data.HeroAI_vars.all_game_option_struct[own_party_number].Skills[
-                    skill_index].Active = game_option["Skills"][skill_index]
+                    skill_index].Active = hero_ai_data.Skills[skill_index]
 
     except Exception as e:
         # Catch-all for any other unexpected exceptions
