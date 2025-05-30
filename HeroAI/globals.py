@@ -62,3 +62,5 @@ capture_flag_all = False
 capture_hero_flag = False
 capture_hero_index = 0
 capture_mouse_timer = Timer()
+
+option_show_floating_targets = True
