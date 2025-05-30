@@ -204,6 +204,8 @@ def ProcessMessages():
             pass
         case SharedCommandType.UseSkill:
             pass
+        case SharedCommandType.LootEx:
+            pass
         case SharedCommandType.Resign:
             GLOBAL_CACHE.Coroutines.append(Resign(index, message))
         case SharedCommandType.PixelStack:
