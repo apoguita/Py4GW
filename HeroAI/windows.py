@@ -234,36 +234,37 @@ def DrawFlaggingWindow(cached_data:CacheData):
         PyImGui.text("No Follower or Heroes to Flag.")
         return
 
-    if PyImGui.begin_table("Flags",3):
-        PyImGui.table_next_row()
-        PyImGui.table_next_column()
-        if party_size >= 2:
-            HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(cached_data,1), 30, 30)
-        PyImGui.table_next_column()
-        if party_size >= 3:
-            HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(cached_data,2),30,30)
-        PyImGui.table_next_column()
-        if party_size >= 4:
-            HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(cached_data,3),30,30)
-        PyImGui.table_next_row()
-        PyImGui.table_next_column()
-        if party_size >= 5:
-            HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(cached_data,4),30,30)
-        PyImGui.table_next_column()
-        AllFlag = ImGui.toggle_button("All", IsHeroFlagged(cached_data,0), 30, 30)
-        PyImGui.table_next_column()
-        if party_size >= 6:
-            HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(cached_data,5),30,30)
-        PyImGui.table_next_row()
-        PyImGui.table_next_column()
-        if party_size >= 7:
-            HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(cached_data,6),30,30)
-        PyImGui.table_next_column()
-        if party_size >= 8:
-            HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(cached_data,7), 30, 30)
-        PyImGui.table_next_column()
-        CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
-        PyImGui.end_table()
+    if PyImGui.collapsing_header("Flagging"):
+        if PyImGui.begin_table("Flags",3):
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            if party_size >= 2:
+                HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(cached_data,1), 30, 30)
+            PyImGui.table_next_column()
+            if party_size >= 3:
+                HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(cached_data,2),30,30)
+            PyImGui.table_next_column()
+            if party_size >= 4:
+                HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(cached_data,3),30,30)
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            if party_size >= 5:
+                HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(cached_data,4),30,30)
+            PyImGui.table_next_column()
+            AllFlag = ImGui.toggle_button("All", IsHeroFlagged(cached_data,0), 30, 30)
+            PyImGui.table_next_column()
+            if party_size >= 6:
+                HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(cached_data,5),30,30)
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            if party_size >= 7:
+                HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(cached_data,6),30,30)
+            PyImGui.table_next_column()
+            if party_size >= 8:
+                HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(cached_data,7), 30, 30)
+            PyImGui.table_next_column()
+            CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
+            PyImGui.end_table()
     
     if PyImGui.collapsing_header("Formation Flagger - Backline(1,2)"):
         set_formations_relative_to_leader = []
