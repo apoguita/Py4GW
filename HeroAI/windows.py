@@ -1,5 +1,5 @@
 from operator import index
-from Py4GWCoreLib import GLOBAL_CACHE, IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog
+from Py4GWCoreLib import GLOBAL_CACHE, IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog, Color
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .types import SkillType, SkillNature, Skilltarget, GameOptionStruct
@@ -594,18 +594,40 @@ def DrawOptions(cached_data:CacheData):
     cached_data.ui_state_data.show_classic_controls = PyImGui.checkbox("Show Classic Controls", cached_data.ui_state_data.show_classic_controls)
     #TODO Select combat engine options
 
+
+class ButtonColor:
+    def __init__(self, button_color:Color, hovered_color:Color, active_color:Color):
+        self.button_color = button_color
+        self.hovered_color = hovered_color
+        self.active_color = active_color
+      
+
+ButtonColors = {
+    "Resign": ButtonColor(button_color=Color(90,0,10,255), hovered_color=Color(160,0,15,255), active_color=Color(210,0,20,255)),  
+    "PixelStack": ButtonColor(button_color=Color(90,0,10,255), hovered_color=Color(160,0,15,255), active_color=Color(190,0,20,255)),
+    "Flag": ButtonColor(button_color=Color(90,0,10,255), hovered_color=Color(160,0,15,255), active_color=Color(190,0,20,255)),
+    "ClearFlags": ButtonColor(button_color=Color(90,0,10,255), hovered_color=Color(160,0,15,255), active_color=Color(190,0,20,255)),
+}
+
+
 def DrawMessagingOptions(cached_data:CacheData):
     global MAX_NUM_PLAYERS
-    PyImGui.text("Combat Field")
+    PyImGui.text("Explorable")
     PyImGui.separator()
-    if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##commands_resign"):
+    
+    if ImGui.colored_button(f"{IconsFontAwesome5.ICON_TIMES}##commands_resign", ButtonColors["Resign"].button_color, ButtonColors["Resign"].hovered_color, ButtonColors["Resign"].active_color):
+    #if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##commands_resign"):
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         sender_email = cached_data.account_email
         for account in accounts:
             ConsoleLog("Messaging", "Resigning account: " + account.AccountEmail)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))
     ImGui.show_tooltip("Resign Party")
+    
     PyImGui.same_line(0,-1)
+    PyImGui.text("|")
+    PyImGui.same_line(0,-1)
+
     if PyImGui.button(f"{IconsFontAwesome5.ICON_COMPRESS_ARROWS_ALT}##commands_pixelstack"):
         self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
         if not self_account:
@@ -617,6 +639,10 @@ def DrawMessagingOptions(cached_data:CacheData):
                 continue
             ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.PlayerPosX,self_account.PlayerPosY,0,0))
+    ImGui.show_tooltip("Pixel Stack (Carto Helper)")
+    PyImGui.separator()
+    PyImGui.text("PCons")
+    
 
 def DrawDebugWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
