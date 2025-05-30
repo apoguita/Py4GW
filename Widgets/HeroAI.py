@@ -32,7 +32,6 @@ def HandleOutOfCombat(cached_data:CacheData):
     return cached_data.combat_handler.HandleCombat(ooc= True)
 
 
-
 def HandleCombat(cached_data:CacheData):
     if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
         return False
@@ -150,10 +149,12 @@ def Follow(cached_data:CacheData):
 
 
 def draw_Targeting_floating_buttons(cached_data:CacheData):
+    if not cached_data.option_show_floating_targets:
+        return
     if not GLOBAL_CACHE.Map.IsExplorable():
         return
     player_pos = GLOBAL_CACHE.Player.GetXY()
-    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spirit.value)
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.SafeCompass.value)
 
     if len(enemy_array) == 0:
         return
@@ -233,7 +234,7 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
                 DrawOptions(cached_data)
             case TabType.messaging:
                 # Placeholder for messaging tab
-                DrawMessagingOptions()
+                DrawMessagingOptions(cached_data)
 
         
     PyImGui.end()
