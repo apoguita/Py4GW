@@ -227,6 +227,16 @@ class Utils:
         return r / 255.0, g / 255.0, b / 255.0, a / 255.0
     
     @staticmethod
+    def NormalToColor(color: Tuple[float, float, float, float]) -> "Color":
+        """Convert a normalized RGBA float tuple (0.0–1.0) to 0–255 integer values."""
+        r = int(color[0] * 255)
+        g = int(color[1] * 255)
+        b = int(color[2] * 255)
+        a = int(color[3] * 255)
+        return Color(r, g, b, a)
+
+    
+    @staticmethod
     def RGBToDXColor(r, g, b, a) -> int:
         return (a << 24) | (r << 16) | (g << 8) | b
     

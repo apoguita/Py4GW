@@ -6,11 +6,14 @@ from ctypes import sizeof
 MODULE_NAME = "Py4GWSharedMemoryManager Monitor"
   
 SMM = GLOBAL_CACHE.ShMem    
+NUMBER_OF_SKILLS = 8
 
 def configure():
     pass  
 
 def main():
+    if not Routines.Checks.Map.MapValid():
+        return
     if PyImGui.begin(f"{MODULE_NAME}"):
         PyImGui.text(f"Py4GW Shared Memory Manager - {SMM.shm_name}")
         PyImGui.separator()
@@ -49,6 +52,41 @@ def main():
                                     PyImGui.text(f"Last Updated: {timestamp.strftime('%H:%M:%S')}.{milliseconds:03d}")
                                     PyImGui.tree_pop()
                                     PyImGui.separator()
+                                    
+                                hero_ai_options = SMM.GetHeroAIOptions(player.AccountEmail)
+                                if hero_ai_options is not None:
+                                    if PyImGui.tree_node("HeroAI Configs"):
+                                        PyImGui.text(f"FlagPosX: {hero_ai_options.FlagPosX:.2f}")
+                                        PyImGui.text(f"FlagPosY: {hero_ai_options.FlagPosY:.2f}")
+                                        PyImGui.text(f"FlagFacingAngle: {Utils.RadToDeg(hero_ai_options.FlagFacingAngle):.2f}")
+                                        PyImGui.tree_pop()
+                                        
+                                        if PyImGui.begin_table("GameOptionTable", 5):
+                                            PyImGui.table_next_row()
+                                            PyImGui.table_next_column()
+                                            hero_ai_options.Following = ImGui.toggle_button(IconsFontAwesome5.ICON_RUNNING + "##Following", hero_ai_options.Following,40,40)
+                                            ImGui.show_tooltip("Following")
+                                            PyImGui.table_next_column()
+                                            hero_ai_options.Avoidance = ImGui.toggle_button(IconsFontAwesome5.ICON_PODCAST + "##Avoidance", hero_ai_options.Avoidance,40,40)
+                                            ImGui.show_tooltip("Avoidance")
+                                            PyImGui.table_next_column()
+                                            hero_ai_options.Looting = ImGui.toggle_button(IconsFontAwesome5.ICON_COINS + "##Looting", hero_ai_options.Looting,40,40)
+                                            ImGui.show_tooltip("Looting")
+                                            PyImGui.table_next_column()
+                                            hero_ai_options.Targeting = ImGui.toggle_button(IconsFontAwesome5.ICON_BULLSEYE + "##Targeting", hero_ai_options.Targeting,40,40)
+                                            ImGui.show_tooltip("Targeting")
+                                            PyImGui.table_next_column()
+                                            hero_ai_options.Combat = ImGui.toggle_button(IconsFontAwesome5.ICON_SKULL_CROSSBONES + "##Combat", hero_ai_options.Combat,40,40)
+                                            ImGui.show_tooltip("Combat")
+                                            PyImGui.end_table()
+                                            
+                                        if PyImGui.begin_table("SkillsTable", NUMBER_OF_SKILLS + 1):
+                                            PyImGui.table_next_row()
+                                            for i in range(NUMBER_OF_SKILLS):
+                                                PyImGui.table_next_column()
+                                                hero_ai_options.Skills[i] = ImGui.toggle_button(f"{i+1}##Skill{i}", hero_ai_options.Skills[i], 22, 22)
+                                                ImGui.show_tooltip(f"Skill {i + 1}")
+                                            PyImGui.end_table()
 
                                 if PyImGui.tree_node("Buffs"):
                                     buffs = [buff for buff in player.PlayerBuffs if buff != 0]

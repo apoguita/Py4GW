@@ -5,6 +5,17 @@ MODULE_NAME = "Messaging"
 
 width, height = 0,0
 
+class HeroAIoptions:
+    def __init__(self):
+        self.Following = False
+        self.Avoidance = False
+        self.Looting = False
+        self.Targeting = False
+        self.Combat = False
+        self.Skills: list[bool] = [False] * 8
+        
+hero_ai_snapshot = HeroAIoptions()
+
 def configure():
     DrawWindow()
 
@@ -78,6 +89,45 @@ def DrawWindow():
 
     PyImGui.end()
     
+def SnapshotHeroAIOptions(acocunt_email):
+    global hero_ai_snapshot
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acocunt_email)
+    if hero_ai_options is None:
+        return
+    
+    hero_ai_snapshot.Following = hero_ai_options.Following
+    hero_ai_snapshot.Avoidance = hero_ai_options.Avoidance
+    hero_ai_snapshot.Looting = hero_ai_options.Looting
+    hero_ai_snapshot.Targeting = hero_ai_options.Targeting
+    hero_ai_snapshot.Combat = hero_ai_options.Combat
+    yield
+    
+def RestoreHeroAISnapshot(acocunt_email):
+    global hero_ai_snapshot
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acocunt_email)
+    if hero_ai_options is None:
+        return
+    
+    hero_ai_options.Following = hero_ai_snapshot.Following
+    hero_ai_options.Avoidance = hero_ai_snapshot.Avoidance
+    hero_ai_options.Looting = hero_ai_snapshot.Looting
+    hero_ai_options.Targeting = hero_ai_snapshot.Targeting
+    hero_ai_options.Combat = hero_ai_snapshot.Combat
+    yield
+
+
+def DisableHeroAIOptions(acocunt_email):
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acocunt_email)
+    if hero_ai_options is None:
+        return
+    
+    hero_ai_options.Following = False
+    hero_ai_options.Avoidance = False
+    hero_ai_options.Looting = False
+    hero_ai_options.Targeting = False
+    hero_ai_options.Combat = False
+    yield
+
 
 def InviteToParty(index, message):
     ConsoleLog(MODULE_NAME, f"Processing InviteToParty message: {message}", Console.MessageType.Info)
@@ -114,6 +164,21 @@ def Resign(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, f"Resign message processed and finished.", Console.MessageType.Info)
     
+def PixelStack(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing PixelStack message: {message}", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        return
+    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    yield from DisableHeroAIOptions(message.ReceiverEmail)
+    yield from Routines.Yield.wait(100)
+    yield from Routines.Yield.Movement.FollowPath([(message.Params[0], message.Params[1])], tolerance=10)
+    yield from Routines.Yield.wait(100)
+    yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, f"PixelStack message processed and finished.", Console.MessageType.Info)
+    
     
 def ProcessMessages():
     account_email = GLOBAL_CACHE.Player.GetAccountEmail()
@@ -139,8 +204,12 @@ def ProcessMessages():
             pass
         case SharedCommandType.UseSkill:
             pass
+        case SharedCommandType.LootEx:
+            pass
         case SharedCommandType.Resign:
             GLOBAL_CACHE.Coroutines.append(Resign(index, message))
+        case SharedCommandType.PixelStack:
+            GLOBAL_CACHE.Coroutines.append(PixelStack(index, message))
         case _:
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
             pass

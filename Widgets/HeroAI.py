@@ -133,9 +133,10 @@ def Loot(cached_data:CacheData):
     thread_manager.add_thread("SequentialLootingRoutine", SequentialLootingRoutine)
 
 
+following_flag = False
 def Follow(cached_data:CacheData):
-    global MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_ON_COMBAT
-
+    global MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_ON_COMBAT, following_flag
+    
     if GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
         cached_data.follow_throttle_timer.Reset()
         return False
@@ -154,11 +155,14 @@ def Follow(cached_data:CacheData):
         follow_x = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosX
         follow_y = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosY
         follow_angle = cached_data.HeroAI_vars.all_player_struct[party_number].FollowAngle
+        following_flag = False
     elif cached_data.HeroAI_vars.all_player_struct[0].IsFlagged:  # leader's flag
         follow_x = cached_data.HeroAI_vars.all_player_struct[0].FlagPosX
         follow_y = cached_data.HeroAI_vars.all_player_struct[0].FlagPosY
         follow_angle = cached_data.HeroAI_vars.all_player_struct[0].FollowAngle
+        following_flag = True
     else:  # follow leader
+        following_flag = False
         follow_x, follow_y = cached_data.data.party_leader_xy
         follow_angle = cached_data.data.party_leader_rotation_angle
     
@@ -186,8 +190,14 @@ def Follow(cached_data:CacheData):
     hero_grid_pos = party_number + cached_data.data.party_hero_count + cached_data.data.party_henchman_count
     angle_on_hero_grid = follow_angle + Utils.DegToRad(hero_formation[hero_grid_pos])
 
-    xx = Range.Touch.value * math.cos(angle_on_hero_grid) + follow_x if not is_own_flagged else follow_x
-    yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y if not is_own_flagged else follow_y
+    #if IsPointValid(follow_x, follow_y):
+    #   return False
+    if following_flag:
+        xx = follow_x
+        yy = follow_y
+    else:   
+        xx = Range.Touch.value * math.cos(angle_on_hero_grid) + follow_x
+        yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y
 
     cached_data.data.angle_changed = False
     ActionQueueManager().ResetQueue("ACTION")
@@ -196,10 +206,12 @@ def Follow(cached_data:CacheData):
 
 
 def draw_Targeting_floating_buttons(cached_data:CacheData):
+    if not cached_data.option_show_floating_targets:
+        return
     if not GLOBAL_CACHE.Map.IsExplorable():
         return
     player_pos = GLOBAL_CACHE.Player.GetXY()
-    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spirit.value)
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.SafeCompass.value)
 
     if len(enemy_array) == 0:
         return
@@ -279,7 +291,7 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
                 DrawOptions(cached_data)
             case TabType.messaging:
                 # Placeholder for messaging tab
-                DrawMessagingOptions()
+                DrawMessagingOptions(cached_data)
 
         
     PyImGui.end()
@@ -342,8 +354,7 @@ def DrawEmbeddedWindow(cached_data:CacheData):
     DrawFramedContent(cached_data,content_frame_id)
 
 
-def UpdateStatus(cached_data:CacheData):
-    
+def UpdateStatus(cached_data:CacheData): 
     RegisterPlayer(cached_data)   
     RegisterHeroes(cached_data)
     UpdatePlayers(cached_data)      
