@@ -1,5 +1,5 @@
 
-from Py4GWCoreLib import GLOBAL_CACHE, PyImGui, SharedCommandType, Routines, ConsoleLog, Console
+from Py4GWCoreLib import GLOBAL_CACHE, PyImGui, SharedCommandType, Routines, ConsoleLog, Console, UIManager
 
 MODULE_NAME = "Messaging"
 
@@ -179,6 +179,56 @@ def PixelStack(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, f"PixelStack message processed and finished.", Console.MessageType.Info)
     
+def InteractWithTarget(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing InteractWithTarget message: {message}", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        return
+    target = int(message.Params[0])
+    if target==0:
+        ConsoleLog(MODULE_NAME, "Invalid target ID.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    
+    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    yield from DisableHeroAIOptions(message.ReceiverEmail)
+    yield from Routines.Yield.wait(100)
+    x,y = GLOBAL_CACHE.Agent.GetXY(target)
+    yield from Routines.Yield.Movement.FollowPath([(x, y)])
+    yield from Routines.Yield.wait(100)
+    yield from Routines.Yield.Player.InteractAgent(target)
+    yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, f"InteractWithTarget message processed and finished.", Console.MessageType.Info)
+    
+def TakeDialogWithTarget(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing InteractWithTarget message: {message}", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        return
+    target = int(message.Params[0])
+    if target==0:
+        ConsoleLog(MODULE_NAME, "Invalid target ID.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    
+    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    yield from DisableHeroAIOptions(message.ReceiverEmail)
+    yield from Routines.Yield.wait(100)
+    x,y = GLOBAL_CACHE.Agent.GetXY(target)
+    yield from Routines.Yield.Movement.FollowPath([(x, y)])
+    yield from Routines.Yield.wait(100)
+    yield from Routines.Yield.Player.InteractAgent(target)
+    yield from Routines.Yield.wait(500)
+    if UIManager.IsNPCDialogVisible():
+        UIManager.ClickDialogButton(message.Params[1])
+        yield from Routines.Yield.wait(200)
+    yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, f"InteractWithTarget message processed and finished.", Console.MessageType.Info)
+    
     
 def ProcessMessages():
     account_email = GLOBAL_CACHE.Player.GetAccountEmail()
@@ -193,9 +243,9 @@ def ProcessMessages():
         case SharedCommandType.InviteToParty:
             GLOBAL_CACHE.Coroutines.append(InviteToParty(index, message))
         case SharedCommandType.InteractWithTarget:
-            pass
+            GLOBAL_CACHE.Coroutines.append(InteractWithTarget(index, message))
         case SharedCommandType.TakeDialogWithTarget:
-            pass
+            GLOBAL_CACHE.Coroutines.append(TakeDialogWithTarget(index, message))
         case SharedCommandType.GetBlessing:
             pass
         case SharedCommandType.OpenChest:
@@ -204,15 +254,27 @@ def ProcessMessages():
             pass
         case SharedCommandType.UseSkill:
             pass
-        case SharedCommandType.LootEx:
-            pass
         case SharedCommandType.Resign:
             GLOBAL_CACHE.Coroutines.append(Resign(index, message))
         case SharedCommandType.PixelStack:
             GLOBAL_CACHE.Coroutines.append(PixelStack(index, message))
+        case SharedCommandType.PCon:
+            pass
+        case SharedCommandType.IdentifyItems:
+            pass
+        case SharedCommandType.SalvageItems:
+            pass
+        case SharedCommandType.MerchantItems:
+            pass
+        case SharedCommandType.MerchantMaterials:
+            pass
+        case SharedCommandType.LootEx:
+            #privately Handled Command, by Frenkey
+            pass
         case _:
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
             pass
+        
     
 def main():
     ProcessMessages()

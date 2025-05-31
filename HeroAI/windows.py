@@ -1,5 +1,6 @@
 from operator import index
 from Py4GWCoreLib import GLOBAL_CACHE, IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog, Color
+from Py4GWCoreLib import UIManager
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .types import SkillType, SkillNature, Skilltarget, GameOptionStruct
@@ -609,12 +610,14 @@ ButtonColors = {
     "ClearFlags": ButtonColor(button_color=Color(90,0,10,255), hovered_color=Color(160,0,15,255), active_color=Color(190,0,20,255)),
 }
 
+show_confirm_dialog = False
+dialog_options = []
+target_id = 0
+
+
 
 def DrawMessagingOptions(cached_data:CacheData):
-    global MAX_NUM_PLAYERS
-    PyImGui.text("Explorable")
-    PyImGui.separator()
-    
+
     if ImGui.colored_button(f"{IconsFontAwesome5.ICON_TIMES}##commands_resign", ButtonColors["Resign"].button_color, ButtonColors["Resign"].hovered_color, ButtonColors["Resign"].active_color):
     #if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##commands_resign"):
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
@@ -640,6 +643,50 @@ def DrawMessagingOptions(cached_data:CacheData):
             ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.PlayerPosX,self_account.PlayerPosY,0,0))
     ImGui.show_tooltip("Pixel Stack (Carto Helper)")
+    
+    PyImGui.same_line(0,-1)
+
+    if PyImGui.button(f"{IconsFontAwesome5.ICON_HAND_POINT_RIGHT}##commands_InteractTarget"):
+        target = GLOBAL_CACHE.Player.GetTargetID()
+        if target == 0:
+            ConsoleLog("Messaging", "No target to interact with.")
+            return
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
+        if not self_account:
+            return
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        sender_email = cached_data.account_email
+        for account in accounts:
+            if self_account.AccountEmail == account.AccountEmail:
+                continue
+            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}")
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,0,0,0))
+    ImGui.show_tooltip("Interact with Target")
+    PyImGui.same_line(0,-1)
+
+    if PyImGui.button(f"{IconsFontAwesome5.ICON_COMMENT_DOTS}##commands_takedialog"):
+        target = GLOBAL_CACHE.Player.GetTargetID()
+        if target == 0:
+            ConsoleLog("Messaging", "No target to interact with.")
+            return
+        if not UIManager.IsNPCDialogVisible():
+            ConsoleLog("Messaging", "No dialog is open.")
+            return
+        
+        # i need to display a modal dialog here to confirm options
+        options = UIManager.GetDialogButtonCount()
+        
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
+        if not self_account:
+            return
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        sender_email = cached_data.account_email
+        for account in accounts:
+            if self_account.AccountEmail == account.AccountEmail:
+                continue
+            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}")
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,1,0,0))
+    ImGui.show_tooltip("Get Dialog")
     PyImGui.separator()
     PyImGui.text("PCons")
     
