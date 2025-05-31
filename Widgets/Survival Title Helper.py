@@ -1,4 +1,16 @@
-from Py4GWCoreLib import *
+import traceback
+import Py4GW
+
+from Py4GWCoreLib import IniHandler, Timer, ThrottledTimer
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import RawAgentArray
+from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Keystroke
+from Py4GWCoreLib import Key
+from Py4GWCoreLib import ActionQueueManager
+
 import os
 
 module_name = "Survival Title Helper"
@@ -83,10 +95,10 @@ class Global_Vars:
             
     def update_cache(self):
         if self.cache_timer.IsExpired():
-            self.player_agent_id = Player.GetAgentID()
-            self.party_players =  Party.GetPlayers()
-            self.plarty_leader_id = Party.GetPartyLeaderID()
-            if Party.IsPartyLeader():
+            self.player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            self.party_players =  GLOBAL_CACHE.Party.GetPlayers()
+            self.plarty_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+            if GLOBAL_CACHE.Party.IsPartyLeader():
                 self.is_party_leader = True
             self.cache_timer.Reset()
 
@@ -97,7 +109,7 @@ def update_max_health():
     global global_vars, agent_array
     #players = Party.GetPlayers()
     for player in global_vars.party_players:
-        agent_id = Party.Players.GetAgentIDByLoginNumber(player.login_number)
+        agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
         agent = agent_array.get_agent(agent_id)
         
         agent_max_health = agent.living_agent.max_hp #Agent.GetMaxHealth(agent_id)
@@ -112,8 +124,8 @@ def update_party_names():
     global global_vars
     #players = Party.GetPlayers()
     for player in global_vars.party_players:
-        agent_id = Party.Players.GetAgentIDByLoginNumber(player.login_number)
-        name = agent_array.get_name(agent_id)
+        agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+        name = GLOBAL_CACHE.Agent.GetName(agent_id) #agent_array.get_name(agent_id)
         if name != "":
             #if agent_id == Party.GetPartyLeaderID():
             if agent_id == global_vars.plarty_leader_id:
@@ -129,14 +141,14 @@ def update_party_names():
 
 def get_max_health(agent_id:int):
     global global_vars
-    level = Agent.GetLevel(agent_id)
+    level = GLOBAL_CACHE.Agent.GetLevel(agent_id)
     default = global_vars.default_max_health_table.get(level, 1)
     max_health = global_vars.players_max_health_table.get(agent_id, default)
     return max_health
 
 def get_threshold(agent_id:int):
     global global_vars
-    level = Agent.GetLevel(agent_id)
+    level = GLOBAL_CACHE.Agent.GetLevel(agent_id)
     if 1 <= level <= 10:
         global_vars.current_threhold = global_vars.lvl1_10_threshold
 
@@ -152,8 +164,7 @@ def reformparty():
     if not len(global_vars.party_players) > 1:
         for agent_id in global_vars.party_names:
             name = global_vars.party_names.get(agent_id, "")
-            ActionQueueManager().AddAction("ACTION", Party.Players.InvitePlayer, name)
-#            Party.Players.InvitePlayer(name)
+            GLOBAL_CACHE.Party.Players.InvitePlayer(name)
         global_vars.reform_party = False
 
 def acceptparty():
@@ -162,8 +173,7 @@ def acceptparty():
     if not len(global_vars.party_players) > 1:
         for agent_id in global_vars.party_leader_name:
             party_leader_name = global_vars.party_leader_name.get(agent_id, "")
-            ActionQueueManager().AddAction("ACTION", Party.Players.InvitePlayer, party_leader_name)
-#            Party.Players.InvitePlayer(name)
+            GLOBAL_CACHE.Party.Players.InvitePlayer(party_leader_name)
             global_vars.reform_party = False
 
 class Config:
@@ -210,7 +220,7 @@ def configure():
         if PyImGui.begin(config_module.window_name, config_module.window_flags):
             # new_collapsed = PyImGui.is_window_collapsed()
 
-            agent_level = Agent.GetLevel(global_vars.player_agent_id)
+            agent_level = GLOBAL_CACHE.Agent.GetLevel(global_vars.player_agent_id)
             PyImGui.text_wrapped(f"         {module_name}:")
             PyImGui.text_wrapped("if any of your player party members")
             PyImGui.text_wrapped("          goes below threshold:")
@@ -293,12 +303,16 @@ def main():
         
         global_vars.update_cache()
         
-        if Map.IsOutpost():
+        if not Routines.Checks.Map.MapValid():
+            global_vars.reset_vars()
+            return
+        
+        if GLOBAL_CACHE.Map.IsOutpost():
             if not global_vars.outpost_timer.IsExpired():
                 return
             
             global_vars.outpost_timer.Reset()
-            map_id = Map.GetMapID()
+            map_id = GLOBAL_CACHE.Map.GetMapID()
             if global_vars.last_outpost != map_id:
                 global_vars.last_outpost = map_id
                 #Py4GW.Console.Log(module_name, f"Last Outpost: {Map.GetMapName(global_vars.last_outpost)}({Map.GetMapID()})", Py4GW.Console.MessageType.Info)
@@ -308,17 +322,16 @@ def main():
                     reformparty()
                 else:
                     acceptparty()
-            ActionQueueManager().ProcessQueue("ACTION")
             return
 
-        elif Map.IsExplorable():  
+        elif GLOBAL_CACHE.Map.IsExplorable():  
             update_max_health()
             update_party_names()
             if global_vars.low_life:
                 global_vars.low_life = False
             #players = Party.GetPlayers()
             for player in global_vars.party_players:
-                agent_id = Party.Players.GetAgentIDByLoginNumber(player.login_number)
+                agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
                 agent = agent_array.get_agent(agent_id)
                 #if 0.0 < Agent.GetHealth(agent_id) < 1.0:
                 if 0.0 < agent.living_agent.hp < 1.0:
@@ -327,7 +340,7 @@ def main():
                     if health <= get_threshold(agent_id):
                         if global_vars.log_low_health:
                             global_vars.log_low_health = False
-                            Py4GW.Console.Log(module_name, f"Player: {agent_array.get_name(agent_id)} ({agent_id}) have low health: {round(health * max_health)}", Py4GW.Console.MessageType.Info)
+                            Py4GW.Console.Log(module_name, f"Player: {GLOBAL_CACHE.Agent.GetName(agent_id)} ({agent_id}) have low health: {round(health * max_health)}", Py4GW.Console.MessageType.Info)
                         global_vars.low_life = True
                         global_vars.low_life_agent = agent_id
 
@@ -335,17 +348,17 @@ def main():
                 if global_vars.travel_timer.HasElapsed(global_vars.travel_time):
                     if len(global_vars.party_players) > 1:
                         global_vars.reform_party = True
-                    ActionQueueManager().AddAction("ACTION", Map.Travel, global_vars.last_outpost)
-#                        Map.Travel(global_vars.last_outpost)
+
+                    GLOBAL_CACHE.Map.Travel(global_vars.last_outpost)
+
                     ActionQueueManager().AddAction("ACTION", Keystroke.PressAndRelease, Key.Y.value)
                     ActionQueueManager().AddAction("ACTION", Keystroke.PressAndRelease, Key.Y.value)
 #                        Keystroke.PressAndRelease(Key.Y.value)
-                    Py4GW.Console.Log(module_name, f"Traveling to: {Map.GetMapName(global_vars.last_outpost)}({global_vars.last_outpost})", Py4GW.Console.MessageType.Info)
+                    Py4GW.Console.Log(module_name, f"Traveling to: {GLOBAL_CACHE.Map.GetMapName(global_vars.last_outpost)}({global_vars.last_outpost})", Py4GW.Console.MessageType.Info)
                     global_vars.low_life = False
                     global_vars.travel_timer.Start()
 
                 global_vars.game_timer.Start()
-            ActionQueueManager().ProcessQueue("ACTION")
             return
 
     except ImportError as e:

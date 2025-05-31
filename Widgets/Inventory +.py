@@ -1,5 +1,22 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import Timer
+from Py4GWCoreLib import Utils
+from Py4GWCoreLib import UIManager
+from Py4GWCoreLib import WindowID
+from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import ActionQueueManager
+from Py4GWCoreLib import IconsFontAwesome5
+from Py4GWCoreLib import Bags
+from Py4GWCoreLib import Inventory
+
+
+
 from enum import Enum
+from typing import Dict
+import math
+from time import sleep
+
 
 module_name = "ID & Salvage"
 
@@ -324,7 +341,7 @@ class TitleClass():
 #region Item Routines
 def AutoID(item_id):
     global global_vars
-    first_id_kit = Inventory.GetFirstIDKit()
+    first_id_kit = GLOBAL_CACHE.Inventory.GetFirstIDKit()
     if first_id_kit == 0:
         for item_id in global_vars.identification_checkbox_states:
             global_vars.identification_checkbox_states[item_id] = False
@@ -347,7 +364,7 @@ def IdentifyItems():
             
 def AutoSalvage(item_id):
     global global_vars
-    first_salv_kit = Inventory.GetFirstSalvageKit(use_lesser=True)
+    first_salv_kit = GLOBAL_CACHE.Inventory.GetFirstSalvageKit(use_lesser=True)
     if first_salv_kit == 0:
         for item_id in global_vars.salvage_checkbox_states:
             global_vars.salvage_checkbox_states[item_id] = False
@@ -365,32 +382,11 @@ def SalvageItems():
     ActionQueueManager().ResetQueue("SALVAGE")
     for item_id in global_vars.salvage_checkbox_states:
         if global_vars.salvage_checkbox_states[item_id]:
-            quantity = Item.Properties.GetQuantity(item_id)
+            quantity = GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)
             for _ in range(quantity):
                 ActionQueueManager().AddAction("SALVAGE", AutoSalvage, item_id)
-                ActionQueueManager().AddAction("SALVAGE",Inventory.AcceptSalvageMaterialsWindow)
-
-@staticmethod
-def DepositItems(item_array:list[int], log=False):
-    if len(item_array) == 0:
-        ActionQueueManager().ResetQueue("ACTION")
-        return
-    
-    total_items, total_capacity = Inventory.GetStorageSpace()
-    free_slots = total_capacity - total_items
-    
-    if free_slots <= 0:
-        return
-
-    for item_id in item_array:
-        ActionQueueManager().AddAction("ACTION",Inventory.DepositItemToStorage, item_id)
-        
-    while not ActionQueueManager().IsEmpty("ACTION"):
-        sleep(0.35)
-        
-    if log and len(item_array) > 0:
-        ConsoleLog("DepositItems", f"Deposited {len(item_array)} items.", Console.MessageType.Info)       
-
+                ActionQueueManager().AddAction("SALVAGE",GLOBAL_CACHE.Inventory.AcceptSalvageMaterialsWindow)
+ 
 #endregion
 
 #region DrawButtonStrip
@@ -426,7 +422,7 @@ def DrawButtonStrip():
                 global_vars.config.selected_tab = TabType.salvage
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("Mass Salvage")
-            if Map.IsOutpost():
+            if GLOBAL_CACHE.Map.IsOutpost():
                 if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_BOX_OPEN + "##XunlaiVaultTab"):
                     global_vars.config.colorize_vars = ColorizeType.vault
                     global_vars.config.selected_tab = TabType.xunlai_vault
@@ -557,11 +553,11 @@ def DrawIdentifyBottomWindow():
 
     def _set_option(state: bool):
         for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
-            bag_to_check = ItemArray.CreateBagList(bag_id)
-            item_array = ItemArray.GetItemArray(bag_to_check)
+            bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+            item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
 
             for item_id in item_array:
-                if Item.Usage.IsIdentified(item_id) or Item.Usage.IsIDKit(item_id):
+                if GLOBAL_CACHE.Item.Usage.IsIdentified(item_id) or GLOBAL_CACHE.Item.Usage.IsIDKit(item_id):
                     continue
                 # Ensure checkbox state exists (if it was removed earlier)
                 if item_id not in global_vars.identification_checkbox_states:
@@ -570,15 +566,15 @@ def DrawIdentifyBottomWindow():
                 # Apply state based on selected filter
                 if global_vars.id_selected_item == 0:
                     global_vars.identification_checkbox_states[item_id] = state
-                elif global_vars.id_selected_item == 1 and Item.Rarity.IsWhite(item_id):
+                elif global_vars.id_selected_item == 1 and GLOBAL_CACHE.Item.Rarity.IsWhite(item_id):
                     global_vars.identification_checkbox_states[item_id] = state
-                elif global_vars.id_selected_item == 2 and Item.Rarity.IsBlue(item_id):
+                elif global_vars.id_selected_item == 2 and GLOBAL_CACHE.Item.Rarity.IsBlue(item_id):
                     global_vars.identification_checkbox_states[item_id] = state
-                elif global_vars.id_selected_item == 3 and Item.Rarity.IsPurple(item_id):
+                elif global_vars.id_selected_item == 3 and GLOBAL_CACHE.Item.Rarity.IsPurple(item_id):
                     global_vars.identification_checkbox_states[item_id] = state
-                elif global_vars.id_selected_item == 4 and Item.Rarity.IsGold(item_id):
+                elif global_vars.id_selected_item == 4 and GLOBAL_CACHE.Item.Rarity.IsGold(item_id):
                     global_vars.identification_checkbox_states[item_id] = state
-                elif global_vars.id_selected_item == 5 and Item.Rarity.IsGreen(item_id):
+                elif global_vars.id_selected_item == 5 and GLOBAL_CACHE.Item.Rarity.IsGreen(item_id):
                     global_vars.identification_checkbox_states[item_id] = state
                     
         # Remove checkbox states that are set to False
@@ -589,16 +585,16 @@ def DrawIdentifyBottomWindow():
     def _get_total_id_uses():
         total_uses = 0
         for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
-            bag_items = ItemArray.GetItemArray(ItemArray.CreateBagList(bag_id))
+            bag_items = GLOBAL_CACHE.ItemArray.GetItemArray(GLOBAL_CACHE.ItemArray.CreateBagList(bag_id))
             for item_id in bag_items:
-                if Item.Usage.IsIDKit(item_id):
-                    total_uses += Item.Usage.GetUses(item_id)
+                if GLOBAL_CACHE.Item.Usage.IsIDKit(item_id):
+                    total_uses += GLOBAL_CACHE.Item.Usage.GetUses(item_id)
 
         global_vars.total_id_uses = total_uses
         return total_uses
     
     def _get_uses_needed():
-        return sum(Item.Properties.GetQuantity(item_id)
+        return sum(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)
                for item_id, checked in global_vars.identification_checkbox_states.items()
                if checked)
 
@@ -669,17 +665,17 @@ def DrawSalvageBottomWindow():
 
     def _set_option(state: bool):
         for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
-            bag_to_check = ItemArray.CreateBagList(bag_id)
-            item_array = ItemArray.GetItemArray(bag_to_check)
+            bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+            item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
 
             for item_id in item_array:
-                if not Item.Usage.IsSalvageable(item_id):
+                if not GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id):
                     continue
                 
-                if Item.Usage.IsSalvageKit(item_id):
+                if GLOBAL_CACHE.Item.Usage.IsSalvageKit(item_id):
                     continue
                 
-                if not (Item.Rarity.IsWhite(item_id) or Item.Usage.IsIdentified(item_id)):
+                if not (GLOBAL_CACHE.Item.Rarity.IsWhite(item_id) or GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)):
                     continue
                 
                 # Ensure checkbox state exists (if it was removed earlier)
@@ -689,15 +685,15 @@ def DrawSalvageBottomWindow():
                 # Apply state based on selected filter
                 if global_vars.salv_selected_item == 0:
                     global_vars.salvage_checkbox_states[item_id] = state
-                elif global_vars.salv_selected_item == 1 and Item.Rarity.IsWhite(item_id):
+                elif global_vars.salv_selected_item == 1 and GLOBAL_CACHE.Item.Rarity.IsWhite(item_id):
                     global_vars.salvage_checkbox_states[item_id] = state
-                elif global_vars.salv_selected_item == 2 and Item.Rarity.IsBlue(item_id):
+                elif global_vars.salv_selected_item == 2 and GLOBAL_CACHE.Item.Rarity.IsBlue(item_id):
                     global_vars.salvage_checkbox_states[item_id] = state
-                elif global_vars.salv_selected_item == 3 and Item.Rarity.IsPurple(item_id):
+                elif global_vars.salv_selected_item == 3 and GLOBAL_CACHE.Item.Rarity.IsPurple(item_id):
                     global_vars.salvage_checkbox_states[item_id] = state
-                elif global_vars.salv_selected_item == 4 and Item.Rarity.IsGold(item_id):
+                elif global_vars.salv_selected_item == 4 and GLOBAL_CACHE.Item.Rarity.IsGold(item_id):
                     global_vars.salvage_checkbox_states[item_id] = state
-                elif global_vars.salv_selected_item == 5 and Item.Rarity.IsGreen(item_id):
+                elif global_vars.salv_selected_item == 5 and GLOBAL_CACHE.Item.Rarity.IsGreen(item_id):
                     global_vars.salvage_checkbox_states[item_id] = state
                     
         # Remove checkbox states that are set to False
@@ -708,16 +704,16 @@ def DrawSalvageBottomWindow():
     def _get_total_salv_uses():
         total_uses = 0
         for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
-            bag_items = ItemArray.GetItemArray(ItemArray.CreateBagList(bag_id))
+            bag_items = GLOBAL_CACHE.ItemArray.GetItemArray(GLOBAL_CACHE.ItemArray.CreateBagList(bag_id))
             for item_id in bag_items:
-                if Item.Usage.IsLesserKit(item_id):
-                    total_uses += Item.Usage.GetUses(item_id)
+                if GLOBAL_CACHE.Item.Usage.IsLesserKit(item_id):
+                    total_uses += GLOBAL_CACHE.Item.Usage.GetUses(item_id)
 
         global_vars.total_salvage_uses = total_uses
         return total_uses
     
     def _get_uses_needed():
-        return sum(Item.Properties.GetQuantity(item_id)
+        return sum(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)
                for item_id, checked in global_vars.salvage_checkbox_states.items()
                if checked)
 
@@ -809,12 +805,12 @@ def ColorizeInventoryBags():
         return [0,0,0,bag_id-1,slot+2]
 
     for bag_id in range(Bags.Backpack, Bags.Bag2+1):
-        bag_to_check = ItemArray.CreateBagList(bag_id)
-        item_array = ItemArray.GetItemArray(bag_to_check)
+        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
         
         for item_id in item_array:
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            slot = Item.GetSlot(item_id)
+            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+            slot = GLOBAL_CACHE.Item.GetSlot(item_id)
             if not _can_draw_item(rarity):
                 continue
             frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
@@ -847,16 +843,16 @@ def ColorizeVaultTabs():
     def _get_offsets(bag_id:int, slot:int):        
         return [0,bag_id-8,slot+2]
     
-    if not Inventory.IsStorageOpen():
+    if not GLOBAL_CACHE.Inventory.IsStorageOpen():
         return
 
     for bag_id in range(Bags.Storage1, Bags.Storage14+1):
-        bag_to_check = ItemArray.CreateBagList(bag_id)
-        item_array = ItemArray.GetItemArray(bag_to_check)
+        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
         
         for item_id in item_array:
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            slot = Item.GetSlot(item_id)
+            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+            slot = GLOBAL_CACHE.Item.GetSlot(item_id)
             if not _can_draw_item(rarity):
                 continue
             frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
@@ -876,12 +872,12 @@ def DrawInventoryBagsStorageMasks():
         return [0,0,0,bag_id-1,slot+2]
 
     for bag_id in range(Bags.Backpack, Bags.Bag2+1):
-        bag_to_check = ItemArray.CreateBagList(bag_id)
-        item_array = ItemArray.GetItemArray(bag_to_check)
+        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
         
         for item_id in item_array:
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            slot = Item.GetSlot(item_id)
+            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+            slot = GLOBAL_CACHE.Item.GetSlot(item_id)
 
             frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
             is_visible = UIManager.FrameExists(frame_id)
@@ -898,7 +894,7 @@ def DrawInventoryBagsStorageMasks():
                     bottom-20,
                     Utils.ColorToTuple(rarity_colors[rarity]["frame"])
                 ):
-                Inventory.DepositItemToStorage(item_id)
+                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
             
 def DrawVaultStorageMasks():        
     def _get_parent_hash():
@@ -908,16 +904,16 @@ def DrawVaultStorageMasks():
     def _get_offsets(bag_id:int, slot:int):        
         return [0,bag_id-8,slot+2]
     
-    if not Inventory.IsStorageOpen():
+    if not GLOBAL_CACHE.Inventory.IsStorageOpen():
         return
 
     for bag_id in range(Bags.Storage1, Bags.Storage14+1):
-        bag_to_check = ItemArray.CreateBagList(bag_id)
-        item_array = ItemArray.GetItemArray(bag_to_check)
+        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
         
         for item_id in item_array:
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            slot = Item.GetSlot(item_id)
+            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+            slot = GLOBAL_CACHE.Item.GetSlot(item_id)
 
             frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
             is_visible = UIManager.FrameExists(frame_id)
@@ -933,7 +929,7 @@ def DrawVaultStorageMasks():
                     bottom-20,
                     Utils.ColorToTuple(rarity_colors[rarity]["frame"])
                 ):
-                Inventory.WithdrawItemFromStorage(item_id)
+                GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(item_id)
 
 #endregion
     
@@ -947,12 +943,12 @@ def DrawIdentifyInventoryMasks():
         return [0,0,0,bag_id-1,slot+2]
 
     for bag_id in range(Bags.Backpack, Bags.Bag2+1):
-        bag_to_check = ItemArray.CreateBagList(bag_id)
-        item_array = ItemArray.GetItemArray(bag_to_check)
+        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
         
         for item_id in item_array:
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            slot = Item.GetSlot(item_id)
+            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+            slot = GLOBAL_CACHE.Item.GetSlot(item_id)
 
             frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
             is_visible = UIManager.FrameExists(frame_id)
@@ -962,14 +958,14 @@ def DrawIdentifyInventoryMasks():
             color_content = rarity_colors[rarity]["content"]
             color_frame = rarity_colors[rarity]["frame"]
             
-            if Item.Usage.IsIdentified(item_id) and not Item.Usage.IsIDKit(item_id):
+            if GLOBAL_CACHE.Item.Usage.IsIdentified(item_id) and not GLOBAL_CACHE.Item.Usage.IsIDKit(item_id):
                 color_content = rarity_colors["Ignored"]["content"]
                 color_frame = rarity_colors["Ignored"]["frame"]
             
             UIManager().DrawFrame(frame_id, color_content)
             UIManager().DrawFrameOutline(frame_id, color_frame)
             
-            if not Item.Usage.IsIdentified(item_id) and not Item.Usage.IsIDKit(item_id):
+            if not GLOBAL_CACHE.Item.Usage.IsIdentified(item_id) and not GLOBAL_CACHE.Item.Usage.IsIDKit(item_id):
                 color_content = rarity_colors["Ignored"]["content"]
                 color_frame = rarity_colors["Ignored"]["frame"]
                 if item_id not in global_vars.identification_checkbox_states:
@@ -999,16 +995,16 @@ def DrawIdentifyVaultMasks():
     def _get_offsets(bag_id:int, slot:int):        
         return [0,bag_id-8,slot+2]
     
-    if not Inventory.IsStorageOpen():
+    if not GLOBAL_CACHE.Inventory.IsStorageOpen():
         return
 
     for bag_id in range(Bags.Storage1, Bags.Storage14+1):
-        bag_to_check = ItemArray.CreateBagList(bag_id)
-        item_array = ItemArray.GetItemArray(bag_to_check)
+        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
         
         for item_id in item_array:
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            slot = Item.GetSlot(item_id)
+            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+            slot = GLOBAL_CACHE.Item.GetSlot(item_id)
 
             frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
             is_visible = UIManager.FrameExists(frame_id)
@@ -1017,7 +1013,7 @@ def DrawIdentifyVaultMasks():
             color_content = rarity_colors[rarity]["content"]
             color_frame = rarity_colors[rarity]["frame"]
             
-            if Item.Usage.IsIdentified(item_id) and not Item.Usage.IsIDKit(item_id):
+            if GLOBAL_CACHE.Item.Usage.IsIdentified(item_id) and not GLOBAL_CACHE.Item.Usage.IsIDKit(item_id):
                 color_content = rarity_colors["Ignored"]["content"]
                 color_frame = rarity_colors["Ignored"]["frame"]
             
@@ -1048,12 +1044,12 @@ def DrawInventoryToStorageMasks():
         return [0,0,0,bag_id-1,slot+2]
 
     for bag_id in range(Bags.Backpack, Bags.Bag2+1):
-        bag_to_check = ItemArray.CreateBagList(bag_id)
-        item_array = ItemArray.GetItemArray(bag_to_check)
+        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
         
         for item_id in item_array:
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            slot = Item.GetSlot(item_id)
+            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+            slot = GLOBAL_CACHE.Item.GetSlot(item_id)
             if not _can_draw_item(rarity):
                 continue
             frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
@@ -1074,12 +1070,12 @@ def DrawSalvageInventoryMasks():
         return [0,0,0,bag_id-1,slot+2]
 
     for bag_id in range(Bags.Backpack, Bags.Bag2+1):
-        bag_to_check = ItemArray.CreateBagList(bag_id)
-        item_array = ItemArray.GetItemArray(bag_to_check)
+        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
         
         for item_id in item_array:
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            slot = Item.GetSlot(item_id)
+            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+            slot = GLOBAL_CACHE.Item.GetSlot(item_id)
 
             frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
             is_visible = UIManager.FrameExists(frame_id)
@@ -1090,9 +1086,9 @@ def DrawSalvageInventoryMasks():
             color_frame = rarity_colors[rarity]["frame"]
             
             is_white =  rarity == "White"
-            is_identified = Item.Usage.IsIdentified(item_id)
-            is_salvageable = Item.Usage.IsSalvageable(item_id)
-            is_salvage_kit = Item.Usage.IsLesserKit(item_id)
+            is_identified = GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)
+            is_salvageable = GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id)
+            is_salvage_kit = GLOBAL_CACHE.Item.Usage.IsLesserKit(item_id)
             
             if not (((is_white and is_salvageable) or (is_identified and is_salvageable)) or is_salvage_kit):
                 color_content = rarity_colors["Ignored"]["content"]
@@ -1127,16 +1123,16 @@ def DrawSalvageVaultMasks():
     def _get_offsets(bag_id:int, slot:int):        
         return [0,bag_id-8,slot+2]
     
-    if not Inventory.IsStorageOpen():
+    if not GLOBAL_CACHE.Inventory.IsStorageOpen():
         return
 
     for bag_id in range(Bags.Storage1, Bags.Storage14+1):
-        bag_to_check = ItemArray.CreateBagList(bag_id)
-        item_array = ItemArray.GetItemArray(bag_to_check)
+        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
         
         for item_id in item_array:
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            slot = Item.GetSlot(item_id)
+            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+            slot = GLOBAL_CACHE.Item.GetSlot(item_id)
 
             frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
             is_visible = UIManager.FrameExists(frame_id)
@@ -1146,9 +1142,9 @@ def DrawSalvageVaultMasks():
             color_frame = rarity_colors[rarity]["frame"]
             
             is_white =  rarity == "White"
-            is_identified = Item.Usage.IsIdentified(item_id)
-            is_salvageable = Item.Usage.IsSalvageable(item_id)
-            is_salvage_kit = Item.Usage.IsLesserKit(item_id)
+            is_identified = GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)
+            is_salvageable = GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id)
+            is_salvage_kit = GLOBAL_CACHE.Item.Usage.IsLesserKit(item_id)
             
             if not (((is_white and is_salvageable) or (is_identified and is_salvageable)) or is_salvage_kit):
                 color_content = rarity_colors["Ignored"]["content"]
@@ -1176,10 +1172,10 @@ def configure():
 def main():
     global global_vars
     
-    if Map.IsMapLoading():
+    if GLOBAL_CACHE.Map.IsMapLoading():
         return
     
-    if not (Map.IsMapReady() and Party.IsPartyLoaded()):
+    if not (GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded()):
         return
     
     global_vars.process_game_throttle()
@@ -1201,9 +1197,9 @@ def main():
     elif global_vars.config.selected_tab == TabType.salvage:
         DrawSalvageBottomWindow()
     elif global_vars.config.selected_tab == TabType.xunlai_vault:
-        if Map.IsOutpost():
-            if not Inventory.IsStorageOpen():
-                Inventory.OpenXunlaiWindow()
+        if GLOBAL_CACHE.Map.IsOutpost():
+            if not GLOBAL_CACHE.Inventory.IsStorageOpen():
+                GLOBAL_CACHE.Inventory.OpenXunlaiWindow()
             else:
                 DrawInventoryBagsStorageMasks()
                 DrawVaultStorageMasks()

@@ -1,4 +1,5 @@
-from Py4GWCoreLib import *
+import Py4GW
+from Py4GWCoreLib import GLOBAL_CACHE
 
 from multiprocessing import shared_memory, Lock
 from ctypes import sizeof
@@ -452,7 +453,7 @@ class SharedMemoryManager:
         """Register new buffs or update existing ones for the agent."""
         try:
             # Process buffs
-            buff_list = Effects.GetBuffs(agent_id)
+            buff_list = GLOBAL_CACHE.Effects.GetBuffs(agent_id)
             for buff in buff_list:
                 buff_data = {
                     "PlayerID": agent_id,
@@ -463,7 +464,7 @@ class SharedMemoryManager:
                 self.set_buff(buff_data)
 
             # Process effects
-            effect_list = Effects.GetEffects(agent_id)
+            effect_list = GLOBAL_CACHE.Effects.GetEffects(agent_id)
             for effect in effect_list:
                 buff_data = {
                     "PlayerID": agent_id,

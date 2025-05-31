@@ -61,14 +61,14 @@ def ShowQuestWindow():
         PyImGui.set_next_window_size(w_width, height_list[merchant_index])
         if PyImGui.begin(f"Quests"):
             
-            PyImGui.text(f"Active Quest ID: {Quest.GetActiveQuest()}")
+            PyImGui.text(f"Active Quest ID: {GLOBAL_CACHE.Quest.GetActiveQuest()}")
             quest_id = PyImGui.input_int("Quest ID", quest_id)
 
             if PyImGui.button("Set Active Quest"):
-                Quest.SetActiveQuest(quest_id)
+                GLOBAL_CACHE.Quest.SetActiveQuest(quest_id)
 
             if PyImGui.button("Abandon Quest"):
-                Quest.AbandonQuest(quest_id)
+                GLOBAL_CACHE.Quest.AbandonQuest(quest_id)
 
 
         PyImGui.end()
@@ -128,12 +128,12 @@ def ShowMerchantWindow():
             PyImGui.text(f"Selected Combo Item: {merchant_index}")
             PyImGui.separator()
 
-            item_list = Trading.Trader.GetOfferedItems()
-            merchant_item_list = Trading.Merchant.GetOfferedItems()
-            quoted_item_id = Trading.Trader.GetQuotedItemID()
-            quoted_value = Trading.Trader.GetQuotedValue()
-            transaction_complete = Trading.IsTransactionComplete()
-            hover = Inventory.GetHoveredItemID()
+            item_list = GLOBAL_CACHE.Trading.Trader.GetOfferedItems()
+            merchant_item_list = GLOBAL_CACHE.Trading.Merchant.GetOfferedItems()
+            quoted_item_id = GLOBAL_CACHE.Trading.Trader.GetQuotedItemID()
+            quoted_value = GLOBAL_CACHE.Trading.Trader.GetQuotedValue()
+            transaction_complete = GLOBAL_CACHE.Trading.IsTransactionComplete()
+            hover = GLOBAL_CACHE.Inventory.GetHoveredItemID()
             if hover != 0 :
                 hovered_item = hover
 
@@ -200,12 +200,12 @@ def ShowMerchantWindow():
                     PyImGui.table_set_column_index(0)
 
                     if PyImGui.button("Request Trader Quote"):
-                        Trading.Trader.RequestQuote(item_id)
+                        GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
                 
                     PyImGui.table_set_column_index(1)
                 
                     if PyImGui.button("Request Trader Sell Quote"):
-                        Trading.Trader.RequestSellQuote(item_id)
+                        GLOBAL_CACHE.Trading.Trader.RequestSellQuote(item_id)
 
                     PyImGui.end_table()
 
@@ -214,12 +214,12 @@ def ShowMerchantWindow():
                     PyImGui.table_set_column_index(0)
 
                     if PyImGui.button("Buy Item"):
-                        Trading.Trader.BuyItem(item_id, cost)
+                        GLOBAL_CACHE.Trading.Trader.BuyItem(item_id, cost)
 
                     PyImGui.table_set_column_index(1)
 
                     if PyImGui.button("Sell Item"):
-                        Trading.Trader.SellItem(item_id, cost)
+                        GLOBAL_CACHE.Trading.Trader.SellItem(item_id, cost)
 
                     PyImGui.end_table()
 
@@ -229,12 +229,12 @@ def ShowMerchantWindow():
                     PyImGui.table_set_column_index(0)
 
                     if PyImGui.button("Buy Item"):
-                        Trading.Merchant.BuyItem(item_id, cost)
+                        GLOBAL_CACHE.Trading.Merchant.BuyItem(item_id, cost)
 
                     PyImGui.table_set_column_index(1)
 
                     if PyImGui.button("Sell Item"):
-                        Trading.Merchant.SellItem(item_id, cost)
+                        GLOBAL_CACHE.Trading.Merchant.SellItem(item_id, cost)
 
                     PyImGui.end_table()
 
@@ -270,7 +270,7 @@ def ShowMerchantWindow():
                     PyImGui.table_set_column_index(0)
 
                     if PyImGui.button("Craft Item"):
-                        Trading.Crafter.CraftItem(item_id, cost, trade_item_list, quantity_list)
+                        GLOBAL_CACHE.Trading.Crafter.CraftItem(item_id, cost, trade_item_list, quantity_list)
                     PyImGui.end_table()
 
             if merchant_index == 4:
@@ -279,7 +279,7 @@ def ShowMerchantWindow():
                     PyImGui.table_set_column_index(0)
 
                     if PyImGui.button("Exchange Item"):
-                        Trading.Collector.ExghangeItem(item_id, cost, trade_item_list, quantity_list)
+                        GLOBAL_CACHE.Trading.Collector.ExghangeItem(item_id, cost, trade_item_list, quantity_list)
                     PyImGui.end_table()
 
         PyImGui.end()
@@ -424,7 +424,7 @@ def ShowPy4GW_Window_main():
 
                 mark_target = PyImGui.checkbox("Mark Target", mark_target)
                 if mark_target:
-                    target_id = Player.GetTargetID()
+                    target_id = GLOBAL_CACHE.Player.GetTargetID()
                     if target_id:
                         target_x, target_y, target_z = Agent.GetXYZ(target_id)
                         Overlay().DrawPoly3D(target_x, target_y, target_z, radius=72, color=0xFFFF0000,numsegments=32,thickness=5.0)
@@ -438,8 +438,8 @@ def ShowPy4GW_Window_main():
                     PyImGui.text_colored("Do not abuse this function!",(1, 0, 0, 1))
                     PyImGui.text_colored("it is unstable on some conditions",(1, 0, 0, 1))
                     x,y,z = Overlay().GetMouseWorldPos()
-                    agent_id = Player.GetAgentID()
-                    player_x, player_y, player_z = Agent.GetXYZ(agent_id)
+                    agent_id = GLOBAL_CACHE.Player.GetAgentID()
+                    player_x, player_y, player_z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
                     
                     headers = ["X", "Y", "Z"]
                     data = [
@@ -460,7 +460,7 @@ def ShowPy4GW_Window_main():
 
                 show_area_rings = PyImGui.checkbox("Show Area Rings", show_area_rings)
                 if show_area_rings:
-                    player_x, player_y, player_z = Agent.GetXYZ(Player.GetAgentID())
+                    player_x, player_y, player_z = GLOBAL_CACHE.Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID())
 
                     #GW Areas
                     Touch = 144
@@ -494,8 +494,8 @@ def ShowEffectsWindow():
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Buffs and Effects"):
 
-            buff_list = Effects.GetBuffs(Player.GetAgentID())
-            effect_list = Effects.GetEffects(Player.GetAgentID())
+            buff_list = GLOBAL_CACHE.Effects.GetBuffs(GLOBAL_CACHE.Player.GetAgentID())
+            effect_list = GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID())
 
             effects_headers = ["Effect ID", "Skill ID", "Skill Name", "Duration", "Attr. Level", "Time Remaining"]
             effects_data = [(effect.effect_id, effect.skill_id, PySkill.Skill(effect.skill_id).id.GetName(), 
@@ -512,7 +512,7 @@ def ShowEffectsWindow():
             PySkill_window_state.values[1]  = ImGui.toggle_button("Drop Buff", PySkill_window_state.values[1])
 
             if PySkill_window_state.values[1]:
-                Effects.DropBuff(PySkill_window_state.values[0])
+                GLOBAL_CACHE.Effects.DropBuff(PySkill_window_state.values[0])
 
         PyImGui.end()
     except Exception as e:
@@ -529,17 +529,17 @@ def ShowSkillbarWindow():
 
             if PyImGui.collapsing_header("Skillbar"):
                 for skill_slot in range(1, 9):  # Loop from 1 to 8 (range is exclusive of the upper bound)
-                    skill_id = SkillBar.GetSkillIDBySlot(skill_slot)
-                    skill_name = Skill.GetName(skill_id)
+                    skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)
+                    skill_name = GLOBAL_CACHE.Skill.GetName(skill_id)
                     if PyImGui.collapsing_header(skill_name):
-                        skill = SkillBar.GetSkillData(skill_slot)
+                        skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
                         adrenaline_a = skill.adrenaline_a
                         adrenaline_b = skill.adrenaline_b
                         recharge = skill.recharge
                         event = skill.event
 
                         if PyImGui.button("Use Skill " + skill_name):
-                            SkillBar.UseSkill(skill_slot)
+                            GLOBAL_CACHE.SkillBar.UseSkill(skill_slot)
 
                         headers = ["Values", "Data"]
                         data = [
@@ -555,22 +555,22 @@ def ShowSkillbarWindow():
                 PyImGui.text("No Heroes in Party")
             else:
                 if PyImGui.collapsing_header("Heroes"):
-                    heroes = Party.GetHeroes()
+                    heroes = GLOBAL_CACHE.Party.GetHeroes()
 
                     for idx, hero in enumerate(heroes):
                         hero_id = hero.hero_id.GetID()
                         agent_id = hero.agent_id
-                        hero_name = Party.Heroes.GetHeroNameById(hero_id)
+                        hero_name = GLOBAL_CACHE.Party.Heroes.GetHeroNameById(hero_id)
                         hero_index = idx + 1
 
                         if PyImGui.collapsing_header(hero_name):
 
-                            hero_skillbar = SkillBar.GetHeroSkillbar(hero_index)
+                            hero_skillbar = GLOBAL_CACHE.SkillBar.GetHeroSkillbar(hero_index)
 
                             for skill_slot in range(1, 9): 
                                 if skill_slot - 1 < len(hero_skillbar):  # Ensure the index is valid
                                     skill = hero_skillbar[skill_slot-1]
-                                    skill_name = Skill.GetName(skill.id.id)
+                                    skill_name = GLOBAL_CACHE.Skill.GetName(skill.id.id)
 
                                     if PyImGui.collapsing_header(skill_name):
                                         adrenaline_a = skill.adrenaline_a
@@ -579,7 +579,7 @@ def ShowSkillbarWindow():
                                         event = skill.event
 
                                         if PyImGui.button("Hero Use Skill " + skill_name):
-                                            SkillBar.HeroUseSkill(agent_id, skill_slot, hero_index)
+                                            GLOBAL_CACHE.SkillBar.HeroUseSkill(agent_id, skill_slot, hero_index)
 
                                         headers = ["Values", "Data"]
                                         data = [
@@ -607,10 +607,10 @@ def ShowSkillDataWindow(skill_id):
         if PyImGui.begin(f"Skill" + str(skill_id)):  
 
             
-            name = Skill.GetName(skill_id)
-            type_id, type_name = Skill.GetType(skill_id)
-            campaign_id, campaign_name = Skill.GetCampaign(skill_id)
-            profession_id, profession_name = Skill.GetProfession(skill_id)
+            name = GLOBAL_CACHE.Skill.GetName(skill_id)
+            type_id, type_name = GLOBAL_CACHE.Skill.GetType(skill_id)
+            campaign_id, campaign_name = GLOBAL_CACHE.Skill.GetCampaign(skill_id)
+            profession_id, profession_name = GLOBAL_CACHE.Skill.GetProfession(skill_id)
 
             headers = ["Values","Data"]
             data = [
@@ -625,20 +625,20 @@ def ShowSkillDataWindow(skill_id):
 
             if PyImGui.collapsing_header("Skill Data"):
 
-                combo = Skill.Data.GetCombo(skill_id)
-                combo_req = Skill.Data.GetComboReq(skill_id)
-                weapon_req = Skill.Data.GetWeaponReq(skill_id)
-                overcast = Skill.Data.GetOvercast(skill_id)
-                energy_cost = Skill.Data.GetEnergyCost(skill_id)
-                health_cost = Skill.Data.GetHealthCost(skill_id)
-                adrenaline = Skill.Data.GetAdrenaline(skill_id)
-                adrenaline_a = Skill.Data.GetAdrenalineA(skill_id)
-                adrenaline_b = Skill.Data.GetAdrenalineB(skill_id)
-                activation = Skill.Data.GetActivation(skill_id)
-                aftercast = Skill.Data.GetAftercast(skill_id)
-                recharge = Skill.Data.GetRecharge(skill_id)
-                recharge2 = Skill.Data.GetRecharge2(skill_id)
-                aoe_range = Skill.Data.GetAoERange(skill_id)
+                combo = GLOBAL_CACHE.Skill.Data.GetCombo(skill_id)
+                combo_req = GLOBAL_CACHE.Skill.Data.GetComboReq(skill_id)
+                weapon_req = GLOBAL_CACHE.Skill.Data.GetWeaponReq(skill_id)
+                overcast = GLOBAL_CACHE.Skill.Data.GetOvercast(skill_id)
+                energy_cost = GLOBAL_CACHE.Skill.Data.GetEnergyCost(skill_id)
+                health_cost = GLOBAL_CACHE.Skill.Data.GetHealthCost(skill_id)
+                adrenaline = GLOBAL_CACHE.Skill.Data.GetAdrenaline(skill_id)
+                adrenaline_a = GLOBAL_CACHE.Skill.Data.GetAdrenalineA(skill_id)
+                adrenaline_b = GLOBAL_CACHE.Skill.Data.GetAdrenalineB(skill_id)
+                activation = GLOBAL_CACHE.Skill.Data.GetActivation(skill_id)
+                aftercast = GLOBAL_CACHE.Skill.Data.GetAftercast(skill_id)
+                recharge = GLOBAL_CACHE.Skill.Data.GetRecharge(skill_id)
+                recharge2 = GLOBAL_CACHE.Skill.Data.GetRecharge2(skill_id)
+                aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(skill_id)
 
                 headers = ["Values","Data"]
                 data = [
@@ -662,13 +662,13 @@ def ShowSkillDataWindow(skill_id):
 
             if PyImGui.collapsing_header("Attribute"):
                 
-                attribute = Skill.Attribute.GetAttribute(skill_id)
+                attribute = GLOBAL_CACHE.Skill.Attribute.GetAttribute(skill_id)
                 attribute_name = attribute.GetName()
                 attribute_level = attribute.level
                 attribute_level_base = attribute.level_base
-                scale0, scale15 = Skill.Attribute.GetScale(skill_id)
-                bonus_ascale0, bonus_ascale15 = Skill.Attribute.GetBonusScale(skill_id)
-                duration_0, duration_15 = Skill.Attribute.GetDuration(skill_id)
+                scale0, scale15 = GLOBAL_CACHE.Skill.Attribute.GetScale(skill_id)
+                bonus_ascale0, bonus_ascale15 = GLOBAL_CACHE.Skill.Attribute.GetBonusScale(skill_id)
+                duration_0, duration_15 = GLOBAL_CACHE.Skill.Attribute.GetDuration(skill_id)
 
 
                 headers = ["Values","Data"]
@@ -687,44 +687,44 @@ def ShowSkillDataWindow(skill_id):
                 ImGui.table("skill attribute info" + str(skill_id), headers, data)
 
             if PyImGui.collapsing_header("Flags"):
-                is_touch_range = Skill.Flags.IsTouchRange(skill_id)
-                is_elite = Skill.Flags.IsElite(skill_id)
-                is_half_range = Skill.Flags.IsHalfRange(skill_id)
-                is_pvp = Skill.Flags.IsPvP(skill_id)
-                is_pve = Skill.Flags.IsPvE(skill_id)
-                is_playable = Skill.Flags.IsPlayable(skill_id)
-                is_stacking = Skill.Flags.IsStacking(skill_id)
-                is_non_stacking = Skill.Flags.IsNonStacking(skill_id)
-                is_unused = Skill.Flags.IsUnused(skill_id)
-                is_hex = Skill.Flags.IsHex(skill_id)
-                is_bounty = Skill.Flags.IsBounty(skill_id)
-                is_scroll = Skill.Flags.IsScroll(skill_id)
-                is_stance = Skill.Flags.IsStance(skill_id)
-                is_spell = Skill.Flags.IsSpell(skill_id)
-                is_enchantment = Skill.Flags.IsEnchantment(skill_id)
-                is_signet = Skill.Flags.IsSignet(skill_id)
-                is_condition = Skill.Flags.IsCondition(skill_id)
-                is_well = Skill.Flags.IsWell(skill_id)
-                is_skill = Skill.Flags.IsSkill(skill_id)
-                is_ward = Skill.Flags.IsWard(skill_id)
-                is_glyph = Skill.Flags.IsGlyph(skill_id)
-                is_title = Skill.Flags.IsTitle(skill_id)
-                is_attack = Skill.Flags.IsAttack(skill_id)
-                is_shout = Skill.Flags.IsShout(skill_id)
-                is_skill2 = Skill.Flags.IsSkill2(skill_id)
-                is_passive = Skill.Flags.IsPassive(skill_id)
-                is_environmental = Skill.Flags.IsEnvironmental(skill_id)
-                is_preparation = Skill.Flags.IsPreparation(skill_id)
-                is_pet_attack = Skill.Flags.IsPetAttack(skill_id)
-                is_trap = Skill.Flags.IsTrap(skill_id)
-                is_ritual = Skill.Flags.IsRitual(skill_id)
-                is_environmantal_trap = Skill.Flags.IsEnvironmentalTrap(skill_id)
-                is_item_spell = Skill.Flags.IsItemSpell(skill_id)
-                is_weapon_spell = Skill.Flags.IsWeaponSpell(skill_id)
-                is_form = Skill.Flags.IsForm(skill_id)
-                is_chant = Skill.Flags.IsChant(skill_id)
-                is_echo_refrain = Skill.Flags.IsEchoRefrain(skill_id)
-                is_disguise = Skill.Flags.IsDisguise(skill_id)
+                is_touch_range = GLOBAL_CACHE.Skill.Flags.IsTouchRange(skill_id)
+                is_elite = GLOBAL_CACHE.Skill.Flags.IsElite(skill_id)
+                is_half_range = GLOBAL_CACHE.Skill.Flags.IsHalfRange(skill_id)
+                is_pvp = GLOBAL_CACHE.Skill.Flags.IsPvP(skill_id)
+                is_pve = GLOBAL_CACHE.Skill.Flags.IsPvE(skill_id)
+                is_playable = GLOBAL_CACHE.Skill.Flags.IsPlayable(skill_id)
+                is_stacking = GLOBAL_CACHE.Skill.Flags.IsStacking(skill_id)
+                is_non_stacking = GLOBAL_CACHE.Skill.Flags.IsNonStacking(skill_id)
+                is_unused = GLOBAL_CACHE.Skill.Flags.IsUnused(skill_id)
+                is_hex = GLOBAL_CACHE.Skill.Flags.IsHex(skill_id)
+                is_bounty = GLOBAL_CACHE.Skill.Flags.IsBounty(skill_id)
+                is_scroll = GLOBAL_CACHE.Skill.Flags.IsScroll(skill_id)
+                is_stance = GLOBAL_CACHE.Skill.Flags.IsStance(skill_id)
+                is_spell = GLOBAL_CACHE.Skill.Flags.IsSpell(skill_id)
+                is_enchantment = GLOBAL_CACHE.Skill.Flags.IsEnchantment(skill_id)
+                is_signet = GLOBAL_CACHE.Skill.Flags.IsSignet(skill_id)
+                is_condition = GLOBAL_CACHE.Skill.Flags.IsCondition(skill_id)
+                is_well = GLOBAL_CACHE.Skill.Flags.IsWell(skill_id)
+                is_skill = GLOBAL_CACHE.Skill.Flags.IsSkill(skill_id)
+                is_ward = GLOBAL_CACHE.Skill.Flags.IsWard(skill_id)
+                is_glyph = GLOBAL_CACHE.Skill.Flags.IsGlyph(skill_id)
+                is_title = GLOBAL_CACHE.Skill.Flags.IsTitle(skill_id)
+                is_attack = GLOBAL_CACHE.Skill.Flags.IsAttack(skill_id)
+                is_shout = GLOBAL_CACHE.Skill.Flags.IsShout(skill_id)
+                is_skill2 = GLOBAL_CACHE.Skill.Flags.IsSkill2(skill_id)
+                is_passive = GLOBAL_CACHE.Skill.Flags.IsPassive(skill_id)
+                is_environmental = GLOBAL_CACHE.Skill.Flags.IsEnvironmental(skill_id)
+                is_preparation = GLOBAL_CACHE.Skill.Flags.IsPreparation(skill_id)
+                is_pet_attack = GLOBAL_CACHE.Skill.Flags.IsPetAttack(skill_id)
+                is_trap = GLOBAL_CACHE.Skill.Flags.IsTrap(skill_id)
+                is_ritual = GLOBAL_CACHE.Skill.Flags.IsRitual(skill_id)
+                is_environmantal_trap = GLOBAL_CACHE.Skill.Flags.IsEnvironmentalTrap(skill_id)
+                is_item_spell = GLOBAL_CACHE.Skill.Flags.IsItemSpell(skill_id)
+                is_weapon_spell = GLOBAL_CACHE.Skill.Flags.IsWeaponSpell(skill_id)
+                is_form = GLOBAL_CACHE.Skill.Flags.IsForm(skill_id)
+                is_chant = GLOBAL_CACHE.Skill.Flags.IsChant(skill_id)
+                is_echo_refrain = GLOBAL_CACHE.Skill.Flags.IsEchoRefrain(skill_id)
+                is_disguise = GLOBAL_CACHE.Skill.Flags.IsDisguise(skill_id)
 
 
                 headers = ["Values","Data"]
@@ -773,15 +773,15 @@ def ShowSkillDataWindow(skill_id):
 
             if PyImGui.collapsing_header("Animations"):
 
-                effect1, effect2 = Skill.Animations.GetEffects(skill_id)
-                special = Skill.Animations.GetSpecial(skill_id)
-                const_effect = Skill.Animations.GetConstEffect(skill_id)
-                caster_overhead_animation_id = Skill.Animations.GetCasterOverheadAnimationID(skill_id)
-                caster_body_animation_id = Skill.Animations.GetCasterBodyAnimationID(skill_id)
-                target_body_animation_id = Skill.Animations.GetTargetBodyAnimationID(skill_id)
-                target_overhead_animation_id = Skill.Animations.GetTargetOverheadAnimationID(skill_id)
-                projectile_animation_1,projectile_animation_2 = Skill.Animations.GetProjectileAnimationID(skill_id)
-                icon_file_id1, icon_file_id2 = Skill.Animations.GetIconFileID(skill_id)
+                effect1, effect2 = GLOBAL_CACHE.Skill.Animations.GetEffects(skill_id)
+                special = GLOBAL_CACHE.Skill.Animations.GetSpecial(skill_id)
+                const_effect = GLOBAL_CACHE.Skill.Animations.GetConstEffect(skill_id)
+                caster_overhead_animation_id = GLOBAL_CACHE.Skill.Animations.GetCasterOverheadAnimationID(skill_id)
+                caster_body_animation_id = GLOBAL_CACHE.Skill.Animations.GetCasterBodyAnimationID(skill_id)
+                target_body_animation_id = GLOBAL_CACHE.Skill.Animations.GetTargetBodyAnimationID(skill_id)
+                target_overhead_animation_id = GLOBAL_CACHE.Skill.Animations.GetTargetOverheadAnimationID(skill_id)
+                projectile_animation_1,projectile_animation_2 = GLOBAL_CACHE.Skill.Animations.GetProjectileAnimationID(skill_id)
+                icon_file_id1, icon_file_id2 = GLOBAL_CACHE.Skill.Animations.GetIconFileID(skill_id)
 
                 headers = ["Values","Data"]
 
@@ -803,15 +803,15 @@ def ShowSkillDataWindow(skill_id):
                 ImGui.table("skill animations info" + str(skill_id), headers, data)
 
             if PyImGui.collapsing_header("ExtraData"):
-                condition = Skill.ExtraData.GetCondition(skill_id)
-                title = Skill.ExtraData.GetTitle(skill_id)
-                id_pvp = Skill.ExtraData.GetIDPvP(skill_id)
-                target = Skill.ExtraData.GetTarget(skill_id)
-                skill_equip_type = Skill.ExtraData.GetSkillEquipType(skill_id)
-                skill_arguments = Skill.ExtraData.GetSkillArguments(skill_id)
-                name_id = Skill.ExtraData.GetNameID(skill_id)
-                concise = Skill.ExtraData.GetConcise(skill_id)
-                description_id = Skill.ExtraData.GetDescriptionID(skill_id)
+                condition = GLOBAL_CACHE.Skill.ExtraData.GetCondition(skill_id)
+                title = GLOBAL_CACHE.Skill.ExtraData.GetTitle(skill_id)
+                id_pvp = GLOBAL_CACHE.Skill.ExtraData.GetIDPvP(skill_id)
+                target = GLOBAL_CACHE.Skill.ExtraData.GetTarget(skill_id)
+                skill_equip_type = GLOBAL_CACHE.Skill.ExtraData.GetSkillEquipType(skill_id)
+                skill_arguments = GLOBAL_CACHE.Skill.ExtraData.GetSkillArguments(skill_id)
+                name_id = GLOBAL_CACHE.Skill.ExtraData.GetNameID(skill_id)
+                concise = GLOBAL_CACHE.Skill.ExtraData.GetConcise(skill_id)
+                description_id = GLOBAL_CACHE.Skill.ExtraData.GetDescriptionID(skill_id)
 
                 headers = ["Values","Data"]
                 data = [
@@ -845,10 +845,10 @@ def ShowSkillWindow():
             description = "Skill class is in charge of handling the skills.\nIt provides methods to retrieve skill data, like skill name, description, type, etc.\nIt has methods pertinent to the skill and related to controlling skill actions."
             ImGui.DrawTextWithTitle("AgentArray class", description,6)   
 
-            hovered_skill = SkillBar.GetHoveredSkillID()
+            hovered_skill = GLOBAL_CACHE.SkillBar.GetHoveredSkillID()
             headers = ["Hovered Skill","Name"]
             data = [
-                (hovered_skill, Skill.GetName(hovered_skill).replace("_", " "))
+                (hovered_skill, GLOBAL_CACHE.Skill.GetName(hovered_skill).replace("_", " "))
             ]
             
             ImGui.table("hovered info", headers, data)
@@ -885,38 +885,38 @@ def ShowInventoryWindow():
 
             headers = ["Value","Data"]
             data = [
-                ("Hovered ItemID:", Inventory.GetHoveredItemID()),
-                ("ID Kit with lowest uses:", Inventory.GetFirstIDKit()),
-                ("Salvage Kit with lowest uses", Inventory.GetFirstSalvageKit()),
-                ("First Unidentified Item in bags:", Inventory.GetFirstUnidentifiedItem()),
-                ("Fisrt Unsalvaged Item on Bags",Inventory.GetFirstSalvageableItem()),
-                ("Gold On Character:", format_currency(Inventory.GetGoldOnCharacter())),
-                ("Gold In Storage:", format_currency(Inventory.GetGoldInStorage())),
+                ("Hovered ItemID:", GLOBAL_CACHE.Inventory.GetHoveredItemID()),
+                ("ID Kit with lowest uses:", GLOBAL_CACHE.Inventory.GetFirstIDKit()),
+                ("Salvage Kit with lowest uses", GLOBAL_CACHE.Inventory.GetFirstSalvageKit()),
+                ("First Unidentified Item in bags:", GLOBAL_CACHE.Inventory.GetFirstUnidentifiedItem()),
+                ("Fisrt Unsalvaged Item on Bags",GLOBAL_CACHE.Inventory.GetFirstSalvageableItem()),
+                ("Gold On Character:", format_currency(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())),
+                ("Gold In Storage:", format_currency(GLOBAL_CACHE.Inventory.GetGoldInStorage())),
             ]
 
             ImGui.table("Inventory common info", headers, data)
 
             if PyImGui.button("Identify First Available Item"):
-                Inventory.IdentifyFirst()
+                GLOBAL_CACHE.Inventory.IdentifyFirst()
 
             PyImGui.separator()
 
             if PyImGui.button("Salvage First Available Item"):
 
                 # Get the first available Salvage Kit
-                salvage_kit_id = Inventory.GetFirstSalvageKit()
+                salvage_kit_id = GLOBAL_CACHE.Inventory.GetFirstSalvageKit()
                 if salvage_kit_id == 0:
                     Py4GW.Console.Log("SalvageFirst", "No salvage kit found.")
                     return False
 
                 # Find the first salvageable item based on the rarity filter
-                salvage_item_id = Inventory.GetFirstSalvageableItem()
+                salvage_item_id = GLOBAL_CACHE.Inventory.GetFirstSalvageableItem()
                 if salvage_item_id == 0:
                     Py4GW.Console.Log("SalvageFirst", "No salvageable item found.")
                     return False
 
                 # Use the Salvage Kit to salvage the item
-                Inventory.SalvageItem(salvage_item_id,salvage_kit_id)
+                GLOBAL_CACHE.Inventory.SalvageItem(salvage_item_id,salvage_kit_id)
                 Py4GW.Console.Log("SalvageFirst", f"Started salvaging item with Item ID: {salvage_item_id} using Salvage Kit ID: {salvage_kit_id}")
 
             if PyImGui.button("Handle Salvage UI"):
@@ -924,13 +924,14 @@ def ShowInventoryWindow():
 
 
             PyImGui.separator()
-            if Inventory.IsStorageOpen():
+            if GLOBAL_CACHE.Inventory.IsStorageOpen():
                 button_caption = "Inventory Open"
             else:
                 button_caption = "Inventory Closed"
             
+            PyImGui.text(button_caption)
             if PyImGui.button("Open Xunlai Chest"):
-                Inventory.OpenXunlaiWindow()
+                GLOBAL_CACHE.Inventory.OpenXunlaiWindow()
 
 
 
@@ -957,8 +958,8 @@ def ShowItemDataWindow(item_id):
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Item: " + str(item_id)):
 
-            item_type_id, item_type_name = Item.GetItemType(item_id)
-            item_name = Item.GetName(item_id)
+            item_type_id, item_type_name = GLOBAL_CACHE.Item.GetItemType(item_id)
+            item_name = GLOBAL_CACHE.Item.GetName(item_id)
             if item_name != _item_name and item_name != "":
                 _item_name = item_name
 
@@ -967,22 +968,35 @@ def ShowItemDataWindow(item_id):
             data = [
                 ("Item Name:", _item_name),
                 ("Item Type:", f"{item_type_id} - {item_type_name}"),
-                ("Model Id:", Item.GetModelID(item_id)),
-                ("Slot(pick up to see):", Item.GetSlot(item_id)),
-                ("AgentId(drop in ground to see)",Item.GetAgentID(item_id)),
-                ("AgentItemID",Item.GetAgentItemID(item_id)),
+                ("Model Id:", GLOBAL_CACHE.Item.GetModelID(item_id)),
+                ("Slot(pick up to see):", GLOBAL_CACHE.Item.GetSlot(item_id)),
+                ("AgentId(drop in ground to see)",GLOBAL_CACHE.Item.GetAgentID(item_id)),
+                ("AgentItemID",GLOBAL_CACHE.Item.GetAgentItemID(item_id)),
             ]
 
             ImGui.table("Item common info", headers, data)
 
             if PyImGui.collapsing_header("Rarity"):
             
-                rarity_id, rarity_name = Item.Rarity.GetRarity(item_id)
-                is_white = Item.Rarity.IsWhite(item_id)
-                is_blue = Item.Rarity.IsBlue(item_id)
-                is_purple = Item.Rarity.IsPurple(item_id)
-                is_gold = Item.Rarity.IsGold(item_id)
-                is_green = Item.Rarity.IsGreen(item_id)
+                rarity_id, rarity_name = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+                is_white = GLOBAL_CACHE.Item.Rarity.IsWhite(item_id)
+                is_blue = GLOBAL_CACHE.Item.Rarity.IsBlue(item_id)
+                is_purple = GLOBAL_CACHE.Item.Rarity.IsPurple(item_id)
+                is_gold = GLOBAL_CACHE.Item.Rarity.IsGold(item_id)
+                is_green = GLOBAL_CACHE.Item.Rarity.IsGreen(item_id)
+                
+                if is_white:
+                    rarity_name = "White"
+                elif is_blue:
+                    rarity_name = "Blue"
+                elif is_purple:
+                    rarity_name = "Purple"
+                elif is_gold:
+                    rarity_name = "Gold"
+                elif is_green:
+                    rarity_name = "Green"
+                    
+                PyImGui.text(f"Rarity: {rarity_name}")
 
                 headers = ["Rarity Type", "Rarity"]
                 data = [
@@ -996,13 +1010,13 @@ def ShowItemDataWindow(item_id):
    
                 headers = ["Value", "Data"]
                 data = [
-                    ("IsCustomized:",Item.Properties.IsCustomized(item_id)),
-                    ("Value:",Item.Properties.GetValue(item_id)),
-                    ("Quantity:",Item.Properties.GetQuantity(item_id)),
-                    ("IsEquipped:",Item.Properties.IsEquipped(item_id)),
-                    ("Profession:",Item.Properties.GetProfession(item_id)),
-                    ("Interaction:",Item.Properties.GetInteraction(item_id)),
-                    ("Interaction(Bin):",bin(Item.Properties.GetInteraction(item_id))),
+                    ("IsCustomized:",GLOBAL_CACHE.Item.Properties.IsCustomized(item_id)),
+                    ("Value:",GLOBAL_CACHE.Item.Properties.GetValue(item_id)),
+                    ("Quantity:",GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)),
+                    ("IsEquipped:",GLOBAL_CACHE.Item.Properties.IsEquipped(item_id)),
+                    ("Profession:",GLOBAL_CACHE.Item.Properties.GetProfession(item_id)),
+                    ("Interaction:",GLOBAL_CACHE.Item.Properties.GetInteraction(item_id)),
+                    ("Interaction(Bin):",bin(GLOBAL_CACHE.Item.Properties.GetInteraction(item_id))),
                 ]
                 ImGui.table("Item properties common info", headers, data)
 
@@ -1010,14 +1024,14 @@ def ShowItemDataWindow(item_id):
 
                 headers = ["Value", "Data"]
                 data = [
-                    ("IsWeapon:",Item.Type.IsWeapon(item_id)),
-                    ("IsArmor:",Item.Type.IsArmor(item_id)),
-                    ("IsInventoryItem:",Item.Type.IsInventoryItem(item_id)),
-                    ("IsStorageItem:",Item.Type.IsStorageItem(item_id)),
-                    ("IsMaterial:",Item.Type.IsMaterial(item_id)),
-                    ("IsRareMaterial:",Item.Type.IsMaterial(item_id)),
-                    ("IsZCoin:",Item.Type.IsZCoin(item_id)),
-                    ("IsTome",Item.Type.IsTome(item_id)),
+                    ("IsWeapon:",GLOBAL_CACHE.Item.Type.IsWeapon(item_id)),
+                    ("IsArmor:",GLOBAL_CACHE.Item.Type.IsArmor(item_id)),
+                    ("IsInventoryItem:",GLOBAL_CACHE.Item.Type.IsInventoryItem(item_id)),
+                    ("IsStorageItem:",GLOBAL_CACHE.Item.Type.IsStorageItem(item_id)),
+                    ("IsMaterial:",GLOBAL_CACHE.Item.Type.IsMaterial(item_id)),
+                    ("IsRareMaterial:",GLOBAL_CACHE.Item.Type.IsMaterial(item_id)),
+                    ("IsZCoin:",GLOBAL_CACHE.Item.Type.IsZCoin(item_id)),
+                    ("IsTome",GLOBAL_CACHE.Item.Type.IsTome(item_id)),
                 ]
                 ImGui.table("Item properties common info", headers, data)
 
@@ -1025,16 +1039,16 @@ def ShowItemDataWindow(item_id):
 
                 headers = ["Value", "Data"]
                 data = [
-                    ("IsUsable:",Item.Usage.IsUsable(item_id)),
-                    ("Uses:",Item.Usage.GetUses(item_id)),
-                    ("IsSalvageable:",Item.Usage.IsSalvageable(item_id)),
-                    ("IsMaterialSalvageable:",Item.Usage.IsMaterialSalvageable(item_id)),
-                    ("IsSalvageKit:",Item.Usage.IsSalvageKit(item_id)),
-                    ("IsLesserKit:",Item.Usage.IsLesserKit(item_id)),
-                    ("IsExpertSalvageKit:",Item.Usage.IsExpertSalvageKit(item_id)),
-                    ("IsPerfectSalvageKit:",Item.Usage.IsPerfectSalvageKit(item_id)),
-                    ("IsIDKit:",Item.Usage.IsIDKit(item_id)),
-                    ("IsIdentified:",Item.Usage.IsIdentified(item_id)),
+                    ("IsUsable:",GLOBAL_CACHE.Item.Usage.IsUsable(item_id)),
+                    ("Uses:",GLOBAL_CACHE.Item.Usage.GetUses(item_id)),
+                    ("IsSalvageable:",GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id)),
+                    ("IsMaterialSalvageable:",GLOBAL_CACHE.Item.Usage.IsMaterialSalvageable(item_id)),
+                    ("IsSalvageKit:",GLOBAL_CACHE.Item.Usage.IsSalvageKit(item_id)),
+                    ("IsLesserKit:",GLOBAL_CACHE.Item.Usage.IsLesserKit(item_id)),
+                    ("IsExpertSalvageKit:",GLOBAL_CACHE.Item.Usage.IsExpertSalvageKit(item_id)),
+                    ("IsPerfectSalvageKit:",GLOBAL_CACHE.Item.Usage.IsPerfectSalvageKit(item_id)),
+                    ("IsIDKit:",GLOBAL_CACHE.Item.Usage.IsIDKit(item_id)),
+                    ("IsIdentified:",GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)),
 
                 ]
                 ImGui.table("Item usage common info", headers, data)
@@ -1046,25 +1060,25 @@ def ShowItemDataWindow(item_id):
 
                 headers = ["Value", "Data"]
                 data = [
-                    ("IsInscription:",Item.Customization.IsInscription(item_id)),
-                    ("IsInscribable:",Item.Customization.IsInscribable(item_id)),
-                    ("IsPrefixUpgradable:",Item.Customization.IsPrefixUpgradable(item_id)),
-                    ("IsSuffixUpgradable:",Item.Customization.IsSuffixUpgradable(item_id)),
-                    ("Item Formula:",Item.Customization.GetItemFormula(item_id)),
-                    ("Item Formula(Hex):",hex(Item.Customization.GetItemFormula(item_id))),
-                    ("Item Formula(Bin):",bin(Item.Customization.GetItemFormula(item_id))),
-                    ("Interaction:",Item.Properties.GetInteraction(item_id)),
+                    ("IsInscription:",GLOBAL_CACHE.Item.Customization.IsInscription(item_id)),
+                    ("IsInscribable:",GLOBAL_CACHE.Item.Customization.IsInscribable(item_id)),
+                    ("IsPrefixUpgradable:",GLOBAL_CACHE.Item.Customization.IsPrefixUpgradable(item_id)),
+                    ("IsSuffixUpgradable:",GLOBAL_CACHE.Item.Customization.IsSuffixUpgradable(item_id)),
+                    ("Item Formula:",GLOBAL_CACHE.Item.Customization.GetItemFormula(item_id)),
+                    ("Item Formula(Hex):",hex(GLOBAL_CACHE.Item.Customization.GetItemFormula(item_id))),
+                    ("Item Formula(Bin):",bin(GLOBAL_CACHE.Item.Customization.GetItemFormula(item_id))),
+                    ("Interaction:",GLOBAL_CACHE.Item.Properties.GetInteraction(item_id)),
                     ("Interaction(Bin):",formatted_bin),
                     
-                    ("IsStackable:",Item.Customization.IsStackable(item_id)),
-                    ("IsSparkly:",Item.Customization.IsSparkly(item_id)),
+                    ("IsStackable:",GLOBAL_CACHE.Item.Customization.IsStackable(item_id)),
+                    ("IsSparkly:",GLOBAL_CACHE.Item.Customization.IsSparkly(item_id)),
                 ]
                 ImGui.table("Item customization common info", headers, data)
 
                 if PyImGui.collapsing_header("Modifiers"):
 
-                    modifiers = Item.Customization.Modifiers.GetModifiers(item_id)
-                    modifier_count = Item.Customization.Modifiers.GetModifierCount(item_id)
+                    modifiers = GLOBAL_CACHE.Item.Customization.Modifiers.GetModifiers(item_id)
+                    modifier_count = GLOBAL_CACHE.Item.Customization.Modifiers.GetModifierCount(item_id)
 
                     PyImGui.text("Modifier Count: " + str(modifier_count))
 
@@ -1089,7 +1103,7 @@ def ShowItemDataWindow(item_id):
                             ImGui.table("Item modifier common info"+ str(idx + 1), headers, data)
 
                 if PyImGui.collapsing_header("DyeInfo"):
-                    dye_info = Item.Customization.GetDyeInfo(item_id)
+                    dye_info = GLOBAL_CACHE.Item.Customization.GetDyeInfo(item_id)
                     dye_tint = dye_info.dye_tint
 
                     PyImGui.text(f"Dye Tint: {dye_tint}")
@@ -1126,7 +1140,7 @@ def ShowItemWindow():
             description = "Item class is in charge of handling the items.\nIt provides methods to retrieve ittem data. \nIn Py4GW Item Attributres are categorized in subclasses, \nbut this has no bearing on the actual item funciton."
             ImGui.DrawTextWithTitle("Item class", description,7)   
 
-            hovered_item = Inventory.GetHoveredItemID()
+            hovered_item = GLOBAL_CACHE.Inventory.GetHoveredItemID()
 
             headers = ["Hovered ItemID"]
             data = [
@@ -1140,7 +1154,7 @@ def ShowItemWindow():
             PyItem_window_state.values[1]  = ImGui.toggle_button("Show Item Data",PyItem_window_state.values[1])
 
             if PyItem_window_state.values[1]:
-                Item.RequestName(PyItem_window_state.values[0])
+                GLOBAL_CACHE.Item.RequestName(PyItem_window_state.values[0])
                 ShowItemDataWindow(PyItem_window_state.values[0])
 
         PyImGui.end()
@@ -1149,7 +1163,7 @@ def ShowItemWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowItemWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
-PyParty_window_state.values = [0, 0, "Ogden", 0, 0, 0, 0, 0, 0, 0, 0]
+PyParty_window_state.values = [0, 0, "Ogden Stonehealer", 0, 0, 0, 0, 0, 0, 0, 0]
 def ShowPartyWindow():
     global PyParty_window_state
     try: 
@@ -1160,42 +1174,42 @@ def ShowPartyWindow():
             #description = "Party class is in charge of handling the party members.\nIt provides methods to retrieve party data, like heroes, henchmen, players and pets.\nIt has methods pertinent to the party and related to controlling party actions.\nParty members are agents, and as such, their data is retrieved from the Agent object."
             #ImGui.DrawTextWithTitle("Party class", description,7)  
 
-            login_number = Party.Players.GetLoginNumberByAgentID(Player.GetAgentID())
-            party_number = Party.Players.GetPartyNumberFromLoginNumber(login_number)
+            login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(Player.GetAgentID())
+            party_number = GLOBAL_CACHE.Party.Players.GetPartyNumberFromLoginNumber(login_number)
             
             headers = ["Info", "Value"]
             data = [
-                ("Party ID:", Party.GetPartyID()),
-                ("Leader ID:", Party.GetPartyLeaderID()),
+                ("Party ID:", GLOBAL_CACHE.Party.GetPartyID()),
+                ("Leader ID:", GLOBAL_CACHE.Party.GetPartyLeaderID()),
                 ("Login Number:", login_number),
                 ("Party Number:", party_number),
-                ("AgentId By Login Number:", Party.Players.GetAgentIDByLoginNumber(login_number)),
-                ("Is Hard Mode Unlocked:", Party.IsHardModeUnlocked()),
-                ("Is Hard Mode:", Party.IsHardMode()),
-                ("Is Normal More:", Party.IsNormalMode()),
-                ("Party Size:", Party.GetPartySize()),
-                ("Player Count:", Party.GetPlayerCount()),
-                ("Hero Count:", Party.GetHeroCount()),
-                ("Henchman Count:", Party.GetHenchmanCount()),
-                ("Is Party Defeated:", Party.IsPartyDefeated()),
-                ("Is Party Loaded:", Party.IsPartyLoaded()),
-                ("Is Party Leader:", Party.IsPartyLeader()),
-                ("Is all party ticked:", Party.IsAllTicked()),
-                ("Is Player Ticked:", Party.IsPlayerTicked(party_number))
+                ("AgentId By Login Number:", GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(login_number)),
+                ("Is Hard Mode Unlocked:", GLOBAL_CACHE.Party.IsHardModeUnlocked()),
+                ("Is Hard Mode:", GLOBAL_CACHE.Party.IsHardMode()),
+                ("Is Normal More:", GLOBAL_CACHE.Party.IsNormalMode()),
+                ("Party Size:", GLOBAL_CACHE.Party.GetPartySize()),
+                ("Player Count:", GLOBAL_CACHE.Party.GetPlayerCount()),
+                ("Hero Count:", GLOBAL_CACHE.Party.GetHeroCount()),
+                ("Henchman Count:", GLOBAL_CACHE.Party.GetHenchmanCount()),
+                ("Is Party Defeated:", GLOBAL_CACHE.Party.IsPartyDefeated()),
+                ("Is Party Loaded:", GLOBAL_CACHE.Party.IsPartyLoaded()),
+                ("Is Party Leader:", GLOBAL_CACHE.Party.IsPartyLeader()),
+                ("Is all party ticked:", GLOBAL_CACHE.Party.IsAllTicked()),
+                ("Is Player Ticked:", GLOBAL_CACHE.Party.IsPlayerTicked(party_number))
             ]
 
             ImGui.table("party info", headers, data)
 
             if PyImGui.button("Toggle Party Tick"):
-                Party.ToggleTicked()
+                GLOBAL_CACHE.Party.ToggleTicked()
 
-            if Party.IsPartyLeader():
-                if Party.IsHardMode():
+            if GLOBAL_CACHE.Party.IsPartyLeader():
+                if GLOBAL_CACHE.Party.IsHardMode():
                     if PyImGui.button("Set Normal Mode"):
-                        Party.SetNormalMode()
+                        GLOBAL_CACHE.Party.SetNormalMode()
                 else:
                     if PyImGui.button("Set Hard Mode"):
-                        Party.SetHardMode()
+                        GLOBAL_CACHE.Party.SetHardMode()
             else:
                 PyImGui.text("Only the party leader can change the party mode")
 
@@ -1207,20 +1221,20 @@ def ShowPartyWindow():
                 PyParty_window_state.values[0] = PyImGui.input_int("Player ID to Kick", PyParty_window_state.values[0])
 
                 if PyImGui.button("Invite Player"):
-                    Party.Players.InvitePlayer(PyParty_window_state.values[0])
+                    GLOBAL_CACHE.Party.Players.InvitePlayer(PyParty_window_state.values[0])
 
                 if PyImGui.button("Kick Player"):
-                    Party.Players.KickPlayer(PyParty_window_state.values[0])
+                    GLOBAL_CACHE.Party.Players.KickPlayer(PyParty_window_state.values[0])
                 PyImGui.separator()
                 PyImGui.text("Player Data")
 
-                players = Party.GetPlayers()
+                players = GLOBAL_CACHE.Party.GetPlayers()
 
                 for player in players:
-                    agent_id = Party.Players.GetAgentIDByLoginNumber(player.login_number)
+                    agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
                     headers = ["Player" + str(party_number)]
                     data = [
-                        (f"Name: {Party.Players.GetPlayerNameByLoginNumber(player.login_number)}"),
+                        (f"Name: {GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(player.login_number)}"),
                         (f"Login Number (player_id): {player.login_number}"),
                         (f"Agent ID: {agent_id}"),
                         (f"Called Target ID: {player.called_target_id}"),
@@ -1234,39 +1248,43 @@ def ShowPartyWindow():
             if PyImGui.collapsing_header("Heroes"):
                 PyParty_window_state.values[1] = PyImGui.input_int("Hero ID to handle", PyParty_window_state.values[1])
                 PyParty_window_state.values[2] = PyImGui.input_text("Hero Name to handle", PyParty_window_state.values[2])
+                
+                hero = PyParty.Hero(PyParty_window_state.values[2])
+                PyImGui.text(f"Hero ID:  {hero.GetID()}")
 
                 if PyImGui.button("Add Hero By ID"):
-                    Party.Heroes.AddHero(PyParty_window_state.values[1])
+                    GLOBAL_CACHE.Party.Heroes.AddHero(PyParty_window_state.values[1])
 
                 if PyImGui.button("Kick Hero By ID"):
-                    Party.Heroes.KickHero(PyParty_window_state.values[1])
+                    GLOBAL_CACHE.Party.Heroes.KickHero(PyParty_window_state.values[1])
 
                 if PyImGui.button("Add Hero By Name"):
+                    #GLOBAL_CACHE.Party.Heroes.AddHeroByName(PyParty_window_state.values[2])
                     Party.Heroes.AddHeroByName(PyParty_window_state.values[2])
 
                 if PyImGui.button("Kick Hero By Name"):
-                    Party.Heroes.KickHeroByName(PyParty_window_state.values[2])
+                    GLOBAL_CACHE.Party.Heroes.KickHeroByName(PyParty_window_state.values[2])
 
                 if PyImGui.button("Kick All Heroes"):
-                    Party.Heroes.KickAllHeroes()
+                    GLOBAL_CACHE.Party.Heroes.KickAllHeroes()
 
                 PyParty_window_state.values[4] = PyImGui.input_float("Hero X Position", PyParty_window_state.values[4])
                 PyParty_window_state.values[5] = PyImGui.input_float("Hero Y Position", PyParty_window_state.values[5])
 
                 if PyImGui.button("Hero Use Skill #4"):
                     hero_agent_id = PyParty_window_state.values[1]
-                    Party.Heroes.UseSkill(hero_agent_id, 4,hero_agent_id)
+                    GLOBAL_CACHE.Party.Heroes.UseSkill(hero_agent_id, 4,hero_agent_id)
                 if PyImGui.button("Flag Hero"):
-                    Party.Heroes.FlagHero(PyParty_window_state.values[1], PyParty_window_state.values[4], PyParty_window_state.values[5])
+                    GLOBAL_CACHE.Party.Heroes.FlagHero(PyParty_window_state.values[1], PyParty_window_state.values[4], PyParty_window_state.values[5])
 
                 if PyImGui.button("Set Hero Behavior Fight"):
-                    Party.Heroes.SetHeroBehavior(PyParty_window_state.values[1], 0)
+                    GLOBAL_CACHE.Party.Heroes.SetHeroBehavior(PyParty_window_state.values[1], 0)
 
                 if PyImGui.button("Set Hero Behavior Guard"):
-                    Party.Heroes.SetHeroBehavior(PyParty_window_state.values[1], 1)
+                    GLOBAL_CACHE.Party.Heroes.SetHeroBehavior(PyParty_window_state.values[1], 1)
 
                 if PyImGui.button("Set Hero Behavior Avoid"):
-                    Party.Heroes.SetHeroBehavior(PyParty_window_state.values[1], 2)
+                    GLOBAL_CACHE.Party.Heroes.SetHeroBehavior(PyParty_window_state.values[1], 2)
 
                 PyImGui.separator()
 
@@ -1275,7 +1293,7 @@ def ShowPartyWindow():
                 PyImGui.separator()
                 PyImGui.text("Hero Data")
 
-                heroes = Party.GetHeroes()
+                heroes = GLOBAL_CACHE.Party.GetHeroes()
 
                 for hero in heroes:
                     hero_id = hero.hero_id.GetID()
@@ -1283,7 +1301,7 @@ def ShowPartyWindow():
 
                     headers = ["Hero:" + str(hero_id)]
                     data = [
-                        (f"Name: {Party.Heroes.GetHeroNameById(hero_id)}"),
+                        (f"Name: {GLOBAL_CACHE.Party.Heroes.GetHeroNameById(hero_id)}"),
                         (f"Hero ID: {hero_id}"),
                         (f"Agent ID: {hero.agent_id}"),
                         (f"Owner Player ID: {hero.owner_player_id}"),
@@ -1299,17 +1317,17 @@ def ShowPartyWindow():
                 PyParty_window_state.values[3] = PyImGui.input_int("Henchman ID to Handle", PyParty_window_state.values[3])
 
                 if PyImGui.button("Add Henchman"):
-                    Party.Henchmen.AddHenchman(PyParty_window_state.values[3])
+                    GLOBAL_CACHE.Party.Henchmen.AddHenchman(PyParty_window_state.values[3])
 
                 if PyImGui.button("Kick Henchman"):
-                    Party.Henchmen.KickHenchman(PyParty_window_state.values[3])
+                    GLOBAL_CACHE.Party.Henchmen.KickHenchman(PyParty_window_state.values[3])
 
 
                 PyImGui.separator()
 
                 PyImGui.text("Henchman Data")
 
-                henchmen = Party.GetHenchmen()
+                henchmen = GLOBAL_CACHE.Party.GetHenchmen()
 
                 for henchman in henchmen:
                     agent_id = henchman.agent_id
@@ -1331,15 +1349,15 @@ def ShowPartyWindow():
                 lock_target_id = 0
 
                 if PyImGui.button("Set Pet Behavior Fight"):
-                    Party.Pets.SetPetBehavior(0,lock_target_id) #need an offensive target
+                    GLOBAL_CACHE.Party.Pets.SetPetBehavior(0,lock_target_id) #need an offensive target
 
                 if PyImGui.button("Set Pet Behavior Guard"):
-                    Party.Pets.SetPetBehavior(1,lock_target_id)
+                    GLOBAL_CACHE.Party.Pets.SetPetBehavior(1,lock_target_id)
 
                 if PyImGui.button("Set Pet Behavior Avoid"):
-                    Party.Pets.SetPetBehavior(2,lock_target_id)
+                    GLOBAL_CACHE.Party.Pets.SetPetBehavior(2,lock_target_id)
 
-                pet = Party.Pets.GetPetInfo(Player.GetAgentID())
+                pet = GLOBAL_CACHE.Party.Pets.GetPetInfo(GLOBAL_CACHE.Player.GetAgentID())
 
                 headers = ["Pet"]
                 data = [
@@ -1373,39 +1391,39 @@ def ShowPlayerWindow():
             description = "The player class is in charge of handling the player agent.\nIt provides methods to retrieve player data, like name, position, target, etc.\nIt has methods pertinent to the  controlled player and related to controlling game actions from the player perspective.\nThe Player itself is an agent, and as such, its data is retrieved from the Agent object."
             ImGui.DrawTextWithTitle("Player class", description)
 
-            posx, posy = Player.GetXY()
+            posx, posy = GLOBAL_CACHE.Player.GetXY()
 
             headers = ["Info", "Value"]
             data = [
-                ("Agent ID:", Player.GetAgentID()),
-                ("Name:", Player.GetName()),
+                ("Agent ID:", GLOBAL_CACHE.Player.GetAgentID()),
+                ("Name:", GLOBAL_CACHE.Player.GetName()),
                 ("XY:", f"({posx:.2f}, {posy:.2f})"),
-                ("Target ID:", Player.GetTargetID()),
-                ("MouseOver ID:", Player.GetMouseOverID()),
-                ("Observing ID:", Player.GetObservingID())
+                ("Target ID:", GLOBAL_CACHE.Player.GetTargetID()),
+                ("MouseOver ID:", GLOBAL_CACHE.Player.GetMouseOverID()),
+                ("Observing ID:", GLOBAL_CACHE.Player.GetObservingID())
             ]
 
             ImGui.table("player info", headers, data)
             PyPlayer_window_state.values[0] = PyImGui.checkbox("Show agent data", PyPlayer_window_state.values[0])
 
             if PyPlayer_window_state.values[0]:
-                draw_agent_window(Player.GetAgentID())
+                draw_agent_window(GLOBAL_CACHE.Player.GetAgentID())
 
             PyImGui.separator()
             if PyImGui.collapsing_header("Player data"):
                 headers = ["Info", "Value"]
                 
-                rank, rating, qualifier_points, wins, losses = Player.GetRankData()
-                tournament_reward_points = Player.GetTournamentRewardPoints()
-                morale = Player.GetMorale()
-                experience = Player.GetExperience()
-                current_skill_points, total_earned_skill_points = Player.GetSkillPointData()
-                current_kurzick, total_earned_kurzick, max_kurzick = Player.GetKurzickData()
-                current_luxon, total_earned_luxon, max_luxon = Player.GetLuxonData()
-                current_imperial, total_earned_imperial, max_imperial = Player.GetImperialData()
-                current_balthazar, total_earned_balthazar, max_balthazar = Player.GetBalthazarData()
-                account_name = Player.GetAccountName()
-                account_email = Player.GetAccountEmail()
+                rank, rating, qualifier_points, wins, losses = GLOBAL_CACHE.Player.GetRankData()
+                tournament_reward_points = GLOBAL_CACHE.Player.GetTournamentRewardPoints()
+                morale = GLOBAL_CACHE.Player.GetMorale()
+                experience = GLOBAL_CACHE.Player.GetExperience()
+                current_skill_points, total_earned_skill_points = GLOBAL_CACHE.Player.GetSkillPointData()
+                current_kurzick, total_earned_kurzick, max_kurzick = GLOBAL_CACHE.Player.GetKurzickData()
+                current_luxon, total_earned_luxon, max_luxon = GLOBAL_CACHE.Player.GetLuxonData()
+                current_imperial, total_earned_imperial, max_imperial = GLOBAL_CACHE.Player.GetImperialData()
+                current_balthazar, total_earned_balthazar, max_balthazar = GLOBAL_CACHE.Player.GetBalthazarData()
+                account_name = GLOBAL_CACHE.Player.GetAccountName()
+                account_email = GLOBAL_CACHE.Player.GetAccountEmail()
                 
                 data = [
                     ("account_name:", account_name),
@@ -1436,11 +1454,11 @@ def ShowPlayerWindow():
                 ImGui.table("PlayerData info", headers, data)
                                 
                 if PyImGui.button("Deposit Faction"):
-                    Player.DepositFaction(FactionAllegiance.Kurzick.value)
+                    GLOBAL_CACHE.Player.DepositFaction(FactionAllegiance.Kurzick.value)
                     
             if PyImGui.collapsing_header("Titles"):
-                current_title = Player.GetActiveTitleID()
-                title_data = Player.GetTitle(current_title)
+                current_title = GLOBAL_CACHE.Player.GetActiveTitleID()
+                title_data = GLOBAL_CACHE.Player.GetTitle(current_title)
                 
                 headers = ["Info", "Value"]
                 
@@ -1474,10 +1492,10 @@ def ShowPlayerWindow():
                 ImGui.table("Title info", headers, data)
                 
                 if PyImGui.button("remove Current Title"):
-                    Player.RemoveActiveTitle()
+                    GLOBAL_CACHE.Player.RemoveActiveTitle()
                     
                 if PyImGui.button("Set Norn Title"):
-                    Player.SetActiveTitle(TitleID.Norn.value)
+                    GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Norn.value)
                 
                 
             if PyImGui.collapsing_header("Methods"):
@@ -1494,28 +1512,28 @@ def ShowPlayerWindow():
                     #The values recieved by this function are in hex, so we need to convert them to int
                     #toolbox data shows Hex values, hex(0x84) = 0x84, int(0x84) = 132
                     #Player.SendDialog(0x84)
-                    Player.SendDialog(dialog_value)
+                    GLOBAL_CACHE.Player.SendDialog(dialog_value)
 
                 if PyImGui.button("dialog take (SendChatCommand preferred method)"):
-                    Player.SendChatCommand("dialog take")
+                    GLOBAL_CACHE.Player.SendChatCommand("dialog take")
                 
                 PyImGui.separator()
                 if PyImGui.button("SendChat command"):
-                    Player.SendChatCommand('target Adept Nai')
+                    GLOBAL_CACHE.Player.SendChatCommand('target Adept Nai')
 
                 if PyImGui.button("SendChat"):
-                    Player.SendChat('#',PyPlayer_window_state.values[2])
+                    GLOBAL_CACHE.Player.SendChat('#',PyPlayer_window_state.values[2])
 
                 if PyImGui.button("Send Whisper"):
-                    Player.SendWhisper(PyPlayer_window_state.values[2],"Hello")
+                    GLOBAL_CACHE.Player.SendWhisper(PyPlayer_window_state.values[2],"Hello")
 
                 PyImGui.separator()
 
                 if PyImGui.button("change target"):
-                    Player.ChangeTarget(PyPlayer_window_state.values[1])
+                    GLOBAL_CACHE.Player.ChangeTarget(PyPlayer_window_state.values[1])
 
                 if PyImGui.button("Interact"):
-                    Player.Interact(PyPlayer_window_state.values[1], call_target=False)
+                    GLOBAL_CACHE.Player.Interact(PyPlayer_window_state.values[1], call_target=False)
 
                 PyImGui.text("Note: it it preferred to disable key use from toolbox")
 
@@ -1525,7 +1543,7 @@ def ShowPlayerWindow():
                 if PyImGui.button("Move"):
                     x = PyPlayer_window_state.values[3]
                     y = PyPlayer_window_state.values[4]
-                    Player.Move(x, y)
+                    GLOBAL_CACHE.Player.Move(x, y)
 
         PyImGui.end()
     except Exception as e:
@@ -1588,7 +1606,7 @@ def ShowGadgetAgentData(agent_id):
                 PyImGui.text("Agent Item Data:")
 
                 # Assume the gadget item data has been retrieved from Agent.GetGadgetItem
-                gadget_data = Agent.GetGadgetAgent(agent_id)
+                gadget_data = GLOBAL_CACHE.Agent.GetGadgetAgent(agent_id)
 
                 # Prepare the data, converting uint32_t fields to decimal, hex, and binary
                 headers = ["Info", "Value"]
@@ -1636,7 +1654,7 @@ def ShowItemAgentData(agent_id):
 
                 PyImGui.text("Agent Item Data:")
 
-                item_data = Agent.GetItemAgent(agent_id)
+                item_data = GLOBAL_CACHE.Agent.GetItemAgent(agent_id)
 
                 headers = ["Info", "Value"]
                 data = [
@@ -1674,37 +1692,37 @@ def ShowLivingAgentData(agent_id):
 
                 PyImGui.text("Agent Living Data:")
 
-                pprof_id, sprof_id = Agent.GetProfessionIDs(agent_id)
-                pprof_name, sprof_name = Agent.GetProfessionNames(agent_id)
-                pprof_short, sprof_short = Agent.GetProfessionShortNames(agent_id)
+                pprof_id, sprof_id = GLOBAL_CACHE.Agent.GetProfessionIDs(agent_id)
+                pprof_name, sprof_name = GLOBAL_CACHE.Agent.GetProfessionNames(agent_id)
+                pprof_short, sprof_short = GLOBAL_CACHE.Agent.GetProfessionShortNames(agent_id)
 
                 profs_id = f"{pprof_id}/{sprof_id}"
                 profs_name = f"{pprof_name}/{sprof_name}"
                 profs_short = f"{pprof_short}/{sprof_short}"
 
-                alliegance_id, alliegance_name = Agent.GetAllegiance(agent_id)
+                alliegance_id, alliegance_name = GLOBAL_CACHE.Agent.GetAllegiance(agent_id)
                 alliegance = f"{alliegance_id}/{alliegance_name}"
                 
-                Agent.RequestName(agent_id)
+                #GLOBAL_CACHE.Agent.RequestName(agent_id)
 
                 # Combine info and value into a single string
                 combined_data = [
                     f"Agent ID: {agent_id}",
-                    f"Owner Id: {Agent.GetOwnerID(agent_id)}",
-                    f"Player Number: {Agent.GetPlayerNumber(agent_id)}",
-                    f"Login Number: {Agent.GetLoginNumber(agent_id)}",
+                    f"Owner Id: {GLOBAL_CACHE.Agent.GetOwnerID(agent_id)}",
+                    f"Player Number: {GLOBAL_CACHE.Agent.GetPlayerNumber(agent_id)}",
+                    f"Login Number: {GLOBAL_CACHE.Agent.GetLoginNumber(agent_id)}",
                     f"Professions ID: {profs_id}",
                     f"Professions Name: {profs_name}",
                     f"Professions ShortName: {profs_short}",
-                    f"Level: {Agent.GetLevel(agent_id)}",
-                    f"Energy: {Agent.GetEnergy(agent_id):.2f}",
-                    f"Max Energy: {Agent.GetMaxEnergy(agent_id)}",
-                    f"Energy Regen: {Agent.GetEnergyRegen(agent_id):.2f}",
-                    f"Health: {Agent.GetHealth(agent_id):.2f}",
-                    f"Max Health: {Agent.GetMaxHealth(agent_id)}",
-                    f"Health Regen: {Agent.GetHealthRegen(agent_id):.2f}",
-                    f"Name: {Agent.GetName(agent_id)}",
-                    f"Strike Dagger Status: {Agent.GetDaggerStatus(agent_id)}",
+                    f"Level: {GLOBAL_CACHE.Agent.GetLevel(agent_id)}",
+                    f"Energy: {GLOBAL_CACHE.Agent.GetEnergy(agent_id):.2f}",
+                    f"Max Energy: {GLOBAL_CACHE.Agent.GetMaxEnergy(agent_id)}",
+                    f"Energy Regen: {GLOBAL_CACHE.Agent.GetEnergyRegen(agent_id):.2f}",
+                    f"Health: {GLOBAL_CACHE.Agent.GetHealth(agent_id):.2f}",
+                    f"Max Health: {GLOBAL_CACHE.Agent.GetMaxHealth(agent_id)}",
+                    f"Health Regen: {GLOBAL_CACHE.Agent.GetHealthRegen(agent_id):.2f}",
+                    f"Name: {GLOBAL_CACHE.Agent.GetName(agent_id)}",
+                    f"Strike Dagger Status: {GLOBAL_CACHE.Agent.GetDaggerStatus(agent_id)}",
                     f"Alliegance: {alliegance}"
                 ]
 
@@ -1725,10 +1743,10 @@ def ShowLivingAgentData(agent_id):
 
                 PyImGui.text("Weapon Data:")
 
-                weapon_id, weapon_name = Agent.GetWeaponType(agent_id)
+                weapon_id, weapon_name = GLOBAL_CACHE.Agent.GetWeaponType(agent_id)
                 weapon = f"{weapon_id}/{weapon_name}"
-
-                weapon_item_id, weapon_item_type, offhand_item_id, offhand_item_type = Agent.GetWeaponExtraData(agent_id)
+                PyImGui.text(f"Weapon Type: {weapon}")
+                weapon_item_id, weapon_item_type, offhand_item_id, offhand_item_type = GLOBAL_CACHE.Agent.GetWeaponExtraData(agent_id)
 
                 headers = ["Info", "Value"]
                 data = [(f"Weapon Item ID: {weapon_item_id}",f"Weapon Item Type: {weapon_item_type}"),
@@ -1740,17 +1758,17 @@ def ShowLivingAgentData(agent_id):
                 PyImGui.text("State:")
 
                 headers = ["IsPlayer", "IsNpc"]
-                data = [(f"{Agent.IsPlayer(agent_id)}",f"{Agent.IsNPC(agent_id)}"),
-                        (f"IsDead: {Agent.IsDead(agent_id)}",f"IsAlive: {Agent.IsAlive(agent_id)}")]
+                data = [(f"{GLOBAL_CACHE.Agent.IsPlayer(agent_id)}",f"{GLOBAL_CACHE.Agent.IsNPC(agent_id)}"),
+                        (f"IsDead: {GLOBAL_CACHE.Agent.IsDead(agent_id)}",f"IsAlive: {GLOBAL_CACHE.Agent.IsAlive(agent_id)}")]
                 ImGui.table("Agent state", headers, data)  
 
                 PyImGui.text("Model State:")
                 combined_data = [
-                    f"IsMoving: {Agent.IsMoving(agent_id)}",
-                    f"IsAttacking: {Agent.IsAttacking(agent_id)}",
-                    f"IsCasting: {Agent.IsCasting(agent_id)}",
-                    f"IsIdle: {Agent.IsIdle(agent_id)}",
-                    f"IsKnockedDown: {Agent.IsKnockedDown(agent_id)}"  
+                    f"IsMoving: {GLOBAL_CACHE.Agent.IsMoving(agent_id)}",
+                    f"IsAttacking: {GLOBAL_CACHE.Agent.IsAttacking(agent_id)}",
+                    f"IsCasting: {GLOBAL_CACHE.Agent.IsCasting(agent_id)}",
+                    f"IsIdle: {GLOBAL_CACHE.Agent.IsIdle(agent_id)}",
+                    f"IsKnockedDown: {GLOBAL_CACHE.Agent.IsKnockedDown(agent_id)}"  
                 ]
 
                 # Format data into rows of 3 columns
@@ -1771,15 +1789,15 @@ def ShowLivingAgentData(agent_id):
 
                 PyImGui.text("Agent TypeMap Bitmasks:")
                 combined_data = [
-                    f"InCombatStance: {Agent.IsInCombatStance(agent_id)}",
-                    f"HasQuest: {Agent.HasQuest(agent_id)}",
-                    f"IsDeadByTypeMap: {Agent.IsDeadByTypeMap(agent_id)}",
-                    f"IsFemale: {Agent.IsFemale(agent_id)}",
-                    f"HasBossGlow: {Agent.HasBossGlow(agent_id)}",
-                    f"IsHidingCape: {Agent.IsHidingCape(agent_id)}",
-                    f"CanBeViewedInPartyWindow: {Agent.CanBeViewedInPartyWindow(agent_id)}",
-                    f"IsSpawned: {Agent.IsSpawned(agent_id)}",
-                    f"IsBeingObserved: {Agent.IsBeingObserved(agent_id)}"
+                    f"InCombatStance: {GLOBAL_CACHE.Agent.IsInCombatStance(agent_id)}",
+                    f"HasQuest: {GLOBAL_CACHE.Agent.HasQuest(agent_id)}",
+                    f"IsDeadByTypeMap: {GLOBAL_CACHE.Agent.IsDeadByTypeMap(agent_id)}",
+                    f"IsFemale: {GLOBAL_CACHE.Agent.IsFemale(agent_id)}",
+                    f"HasBossGlow: {GLOBAL_CACHE.Agent.HasBossGlow(agent_id)}",
+                    f"IsHidingCape: {GLOBAL_CACHE.Agent.IsHidingCape(agent_id)}",
+                    f"CanBeViewedInPartyWindow: {GLOBAL_CACHE.Agent.CanBeViewedInPartyWindow(agent_id)}",
+                    f"IsSpawned: {GLOBAL_CACHE.Agent.IsSpawned(agent_id)}",
+                    f"IsBeingObserved: {GLOBAL_CACHE.Agent.IsBeingObserved(agent_id)}"
                 ]
 
                 # Format data into rows of 3 columns
@@ -1800,17 +1818,17 @@ def ShowLivingAgentData(agent_id):
 
                 PyImGui.text("Agent Combat Info:")
                 combined_data = [
-                    f"IsConditioned: {Agent.IsConditioned(agent_id)}",
-                    f"IsBleeding: {Agent.IsBleeding(agent_id)}",
-                    f"IsCrippled: {Agent.IsCrippled(agent_id)}",
-                    f"IsDeepWounded: {Agent.IsDeepWounded(agent_id)}",
-                    f"isPoisoned: {Agent.IsPoisoned(agent_id)}",
-                    f"IsEnchanted: {Agent.IsEnchanted(agent_id)}",
-                    f"IsHexed: {Agent.IsHexed(agent_id)}",
-                    f"IsdegenHexed: {Agent.IsDegenHexed(agent_id)}",
-                    f"IsWeaponSpelled: {Agent.IsWeaponSpelled(agent_id)}",
-                    f"CastingSkillId: {Agent.GetCastingSkill(agent_id)}",
-                    f"Overcast: {Agent.GetOvercast(agent_id)}"
+                    f"IsConditioned: {GLOBAL_CACHE.Agent.IsConditioned(agent_id)}",
+                    f"IsBleeding: {GLOBAL_CACHE.Agent.IsBleeding(agent_id)}",
+                    f"IsCrippled: {GLOBAL_CACHE.Agent.IsCrippled(agent_id)}",
+                    f"IsDeepWounded: {GLOBAL_CACHE.Agent.IsDeepWounded(agent_id)}",
+                    f"isPoisoned: {GLOBAL_CACHE.Agent.IsPoisoned(agent_id)}",
+                    f"IsEnchanted: {GLOBAL_CACHE.Agent.IsEnchanted(agent_id)}",
+                    f"IsHexed: {GLOBAL_CACHE.Agent.IsHexed(agent_id)}",
+                    f"IsdegenHexed: {GLOBAL_CACHE.Agent.IsDegenHexed(agent_id)}",
+                    f"IsWeaponSpelled: {GLOBAL_CACHE.Agent.IsWeaponSpelled(agent_id)}",
+                    f"CastingSkillId: {GLOBAL_CACHE.Agent.GetCastingSkill(agent_id)}",
+                    f"Overcast: {GLOBAL_CACHE.Agent.GetOvercast(agent_id)}"
                 ]
 
                 # Format data into rows of 3 columns
@@ -1832,7 +1850,8 @@ def ShowLivingAgentData(agent_id):
                 AGENT_INSTANCE = Agent.agent_instance(agent_id).living_agent
                 
                 PyImGui.text("Extra data:")
-                combined_data = [
+                combined_data = []
+                """
                     f"h00C8: {AGENT_INSTANCE.h00C8}",
                     f"h00CC: {AGENT_INSTANCE.h00CC}",
                     f"h00D0: {AGENT_INSTANCE.h00D0}",
@@ -1860,6 +1879,7 @@ def ShowLivingAgentData(agent_id):
                     f"animation_id: {AGENT_INSTANCE.animation_id}",
                     f"h01B6: {AGENT_INSTANCE.h01B6}",
                 ]
+                """
 
                 # Format data into rows of 3 columns
                 columns = 5
@@ -1900,26 +1920,26 @@ def draw_agent_window(agent_id):
    
                 headers = ["Info", "Value"]
                 data = [("Agent ID:", agent_id),
-                        ("Is LivingAgent:", Agent.IsLiving(agent_id)),
-                        ("Is ItemAgent:", Agent.IsItem(agent_id)),
-                        ("Is GadgetAgent:", Agent.IsGadget(agent_id))]
+                        ("Is LivingAgent:", GLOBAL_CACHE.Agent.IsLiving(agent_id)),
+                        ("Is ItemAgent:", GLOBAL_CACHE.Agent.IsItem(agent_id)),
+                        ("Is GadgetAgent:", GLOBAL_CACHE.Agent.IsGadget(agent_id))]
 
                 ImGui.table("agent common info",headers,data)
 
                 PyImGui.text("Positional Data:")
 
-                agent_x, agent_y, agent_z = Agent.GetXYZ(agent_id)
+                agent_x, agent_y, agent_z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
                 pos_str = f"({agent_x:.2f}, {agent_y:.2f}, {agent_z:.2f})"
 
-                vel_x, vel_y = Agent.GetVelocityXY(agent_id)
+                vel_x, vel_y = GLOBAL_CACHE.Agent.GetVelocityXY(agent_id)
                 vel_str = f"({vel_x:.2f}, {vel_y:.2f})"
 
                 headers = ["Info", "Value"]
                 data = [("(X,Y,Z):", pos_str),
-                        ("zplane:", Agent.IsLiving(agent_id)),
-                        ("Rotation Angle:", Agent.GetRotationAngle(agent_id)),
-                        ("Rotation cosine:", Agent.GetRotationCos(agent_id)),
-                        ("Rotation sine:", Agent.GetRotationSin(agent_id)),
+                        ("zplane:", GLOBAL_CACHE.Agent.IsLiving(agent_id)),
+                        ("Rotation Angle:", GLOBAL_CACHE.Agent.GetRotationAngle(agent_id)),
+                        ("Rotation cosine:", GLOBAL_CACHE.Agent.GetRotationCos(agent_id)),
+                        ("Rotation sine:", GLOBAL_CACHE.Agent.GetRotationSin(agent_id)),
                         ("Velocity (X,Y):", vel_str)]
 
                 ImGui.table("agent positional common info",headers,data)
@@ -1928,7 +1948,7 @@ def draw_agent_window(agent_id):
 
                 PyImGui.text("Attributes:")
 
-                attributes = Agent.GetAttributes(agent_id)
+                attributes = GLOBAL_CACHE.Agent.GetAttributes(agent_id)
 
                 headers = ["Attribute", "Base Level", "Level"]
                 data = []
@@ -1939,13 +1959,13 @@ def draw_agent_window(agent_id):
 
                 PyImGui.text("Show Agent type Specific data")
 
-                if Agent.IsLiving(agent_id):
+                if GLOBAL_CACHE.Agent.IsLiving(agent_id):
                     PyAgent_agent_window_state.values[0] = ImGui.toggle_button("Show Living Agent Data", PyAgent_agent_window_state.values[0])
 
-                if Agent.IsItem(agent_id):
+                if GLOBAL_CACHE.Agent.IsItem(agent_id):
                     PyAgent_agent_window_state.values[1] = ImGui.toggle_button("Show Item Agent Data", PyAgent_agent_window_state.values[1])
 
-                if Agent.IsGadget(agent_id):
+                if GLOBAL_CACHE.Agent.IsGadget(agent_id):
                     PyAgent_agent_window_state.values[2] = ImGui.toggle_button("Show Gadget Agent Data", PyAgent_agent_window_state.values[2])
 
 
@@ -1983,41 +2003,41 @@ def ShowPyAgentWindow():
             # Show description text
             ImGui.DrawTextWithTitle(PyAgent_window_state.window_name, description)
 
-            if not Map.IsMapReady():
+            if not GLOBAL_CACHE.Map.IsMapReady():
                     PyImGui.text_colored("Travel : Map is not ready",(1, 0, 0, 1))
 
-            if Map.IsMapReady():
+            if GLOBAL_CACHE.Map.IsMapReady():
                 # Fetch nearest entities
-                player_x, player_y = Player.GetXY()
-                player_id = Player.GetAgentID()
+                player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+                player_id = GLOBAL_CACHE.Player.GetAgentID()
                 
-                enemy_array = AgentArray.GetEnemyArray()
+                enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
                 enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x,player_y))
                 closest_enemy = next(iter(enemy_array), 0)
 
-                ally_array = AgentArray.GetAllyArray()
+                ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
                 ally_array = AgentArray.Manipulation.Subtract(ally_array, [player_id]) #remove player_id from ally array
                 ally_array = AgentArray.Sort.ByDistance(ally_array, (player_x,player_y))
                 closest_ally = next(iter(ally_array), 0)
 
-                item_array = AgentArray.GetItemArray()
+                item_array = GLOBAL_CACHE.AgentArray.GetItemArray()
                 item_array = AgentArray.Sort.ByDistance(item_array, (player_x,player_y))
                 closest_item = next(iter(item_array), 0)
                 
-                gadget_array = AgentArray.GetGadgetArray()
+                gadget_array = GLOBAL_CACHE.AgentArray.GetGadgetArray()
                 gadget_array = AgentArray.Sort.ByDistance(gadget_array, (player_x,player_y))
                 closest_gadget = next(iter(gadget_array), 0)
 
-                npc_array = AgentArray.GetNPCMinipetArray()
+                npc_array = GLOBAL_CACHE.AgentArray.GetNPCMinipetArray()
                 npc_array = AgentArray.Sort.ByDistance(npc_array, (player_x,player_y))
                 closest_npc = next(iter(npc_array), 0)
 
-                player_target = Player.GetTargetID()
+                player_target = GLOBAL_CACHE.Player.GetTargetID()
 
                 # Display table headers
                 PyImGui.text("Nearest Entities:")
                 
-                merchant_id = Agent.GetAgentIDByName("[Merchant]")
+                merchant_id = GLOBAL_CACHE.Agent.GetAgentIDByName("[Merchant]")
                 
                 headers = ["Info", "Value"]
                 data = [("Enemy:", closest_enemy),
@@ -2065,21 +2085,21 @@ def ShowPyImGuiExtraMaplWindow():
         if PyImGui.begin(PyMap_Extra_InfoWindow_state.window_name, PyImGui.WindowFlags.NoResize):
             #ImGui.DrawTextWithTitle(PyMap_Extra_InfoWindow_state.window_name, description)
 
-            map_instance = PyMap.PyMap()
+            map_instance = GLOBAL_CACHE.Map._map_instance
             map_instance.GetContext()
 
-            if not Map.IsOutpost():
+            if not GLOBAL_CACHE.Map.IsOutpost():
                 PyImGui.text("Get to an Outpost to see this data")
                 PyImGui.separator()
     
-            if Map.IsOutpost():
+            if GLOBAL_CACHE.Map.IsOutpost():
 
                 headers = ["Info", "Value"]
-                data = [("Campaign:", Map.GetCampaign()[1]),
-                        ("Continent:", Map.GetContinent()[1]),
-                        ("Region:", Map.GetRegion()[1]),
-                        ("District:", Map.GetDistrict()),
-                        ("Language:", Map.GetLanguage()[1])]
+                data = [("Campaign:", GLOBAL_CACHE.Map.GetCampaign()[1]),
+                        ("Continent:", GLOBAL_CACHE.Map.GetContinent()[1]),
+                        ("Region:", GLOBAL_CACHE.Map.GetRegion()[1]),
+                        ("District:", GLOBAL_CACHE.Map.GetDistrict()),
+                        ("Language:", GLOBAL_CACHE.Map.GetLanguage()[1])]
 
                 ImGui.table("Instance Info Table",headers,data)
 
@@ -2093,7 +2113,7 @@ def ShowPyImGuiExtraMaplWindow():
                     PyImGui.table_set_column_index(0)
                     PyImGui.text("Has Enter Button?")
                     PyImGui.table_set_column_index(1)
-                    PyImGui.text(f"{'Yes' if Map.HasEnterChallengeButton() else 'No'}")
+                    PyImGui.text(f"{'Yes' if GLOBAL_CACHE.Map.HasEnterChallengeButton() else 'No'}")
 
                     PyImGui.end_table()
 
@@ -2106,22 +2126,22 @@ def ShowPyImGuiExtraMaplWindow():
                             PyImGui.table_next_row()
                             PyImGui.table_set_column_index(0)
                             if PyImGui.button("Enter Mission"):
-                                Map.EnterChallenge()
+                                GLOBAL_CACHE.Map.EnterChallenge()
 
                             PyImGui.table_set_column_index(1)
                             if PyImGui.button("Cancel Enter"):
-                               Map.CancelEnterChallenge()
+                               GLOBAL_CACHE.Map.CancelEnterChallenge()
                     
                             PyImGui.end_table()
 
                 PyImGui.separator()
 
             # Explorable Specific Fields
-            if not Map.IsExplorable():
+            if not GLOBAL_CACHE.Map.IsExplorable():
                 PyImGui.text("Get to an Explorable Zone to see this data")
                 PyImGui.separator()
 
-            if Map.IsExplorable():
+            if GLOBAL_CACHE.Map.IsExplorable():
                 PyImGui.text("Explorable Zone Specific Information")
            
                 if PyImGui.begin_table("ExplorableNormalTable", 2, PyImGui.TableFlags.Borders):
@@ -2132,10 +2152,10 @@ def ShowPyImGuiExtraMaplWindow():
                     PyImGui.text(f"{'Yes' if map_instance.is_vanquishable_area else 'No'}")
 
                     PyImGui.end_table()
-                if not Party.IsHardMode():
+                if not GLOBAL_CACHE.Party.IsHardMode():
                     PyImGui.text("Enter Hard mode to see this data")
 
-                if Party.IsHardMode():
+                if GLOBAL_CACHE.Party.IsHardMode():
                     PyImGui.separator()
 
                     headers = ["Foes Killed", "Foes To Kill"]
@@ -2163,22 +2183,22 @@ def ShowPyImGuiTravelWindow():
         if PyImGui.begin(PyMap_Travel_Window_state.window_name, PyImGui.WindowFlags.NoResize):
             ImGui.DrawTextWithTitle(PyMap_Travel_Window_state.window_name, description,8)
 
-            if not Map.IsMapReady():
+            if not GLOBAL_CACHE.Map.IsMapReady():
                     PyImGui.text_colored("Travel : Map is not ready",(1, 0, 0, 1))
                
-            if Map.IsMapReady():
+            if GLOBAL_CACHE.Map.IsMapReady():
 
                 PyImGui.text("Travel to default district")
-                if PyImGui.button(Map.GetMapName(857)): #Embark Beach
-                    Map.Travel(857)
+                if PyImGui.button(GLOBAL_CACHE.Map.GetMapName(857)): #Embark Beach
+                    GLOBAL_CACHE.Map.Travel(857)
 
                 PyImGui.text("Travel to specific district")
-                if PyImGui.button(Map.GetMapName(248)): #Great Temple of Balthazar
-                    Map.TravelToDistrict(248, 0, 0)
+                if PyImGui.button(GLOBAL_CACHE.Map.GetMapName(248)): #Great Temple of Balthazar
+                    GLOBAL_CACHE.Map.TravelToDistrict(248, 0, 0)
 
                 PyImGui.text("Travel trough toolbox chat command")
                 if PyImGui.button("Eye Of The North"):
-                    Player.SendChatCommand("tp eotn")
+                    GLOBAL_CACHE.Player.SendChatCommand("tp eotn")
 
         PyImGui.end()
 
@@ -2204,32 +2224,32 @@ def ShowPyMapWindow():
         if PyImGui.begin(PyMap_window_state.window_name, PyImGui.WindowFlags.NoResize):
             ImGui.DrawTextWithTitle(PyMap_window_state.window_name, description,8)
 
-            map_instance = PyMap.PyMap()
+            map_instance = GLOBAL_CACHE.Map._map_instance
 
             # Instance Fields (General map data)
             PyImGui.text("Instance Information")
 
 
-            instance_time = Map.GetInstanceUptime()
+            instance_time = GLOBAL_CACHE.Map.GetInstanceUptime()
             instance_time_seconds = instance_time / 1000  # Convert to seconds
             formatted_time = time.strftime('%H:%M:%S', time.gmtime(instance_time_seconds))
             time_text = f"{formatted_time} - [{map_instance.instance_time}]"
 
             headers = ["Info", "Value"]
-            data = [("Instance ID:", Map.GetMapID()),
-                    ("Instance Name:", Map.GetMapName()),
+            data = [("Instance ID:", GLOBAL_CACHE.Map.GetMapID()),
+                    ("Instance Name:", GLOBAL_CACHE.Map.GetMapName()),
                     ("Instance Time:", time_text),
-                    ("Amount of Players in Instance:",Map.GetAmountOfPlayersInInstance())]
+                    ("Amount of Players in Instance:",GLOBAL_CACHE.Map.GetAmountOfPlayersInInstance())]
 
             ImGui.table("Instance Info Table",headers,data)
 
             PyImGui.separator()
 
             headers = ["Info", "Value"]
-            data = [("Outpost:", Map.IsOutpost()),
-                    ("Explorable:", Map.IsExplorable()),
-                    ("Loading:", Map.IsMapLoading()),
-                    ("Ready:", Map.IsMapReady())]
+            data = [("Outpost:", GLOBAL_CACHE.Map.IsOutpost()),
+                    ("Explorable:", GLOBAL_CACHE.Map.IsExplorable()),
+                    ("Loading:", GLOBAL_CACHE.Map.IsMapLoading()),
+                    ("Ready:", GLOBAL_CACHE.Map.IsMapReady())]
 
             ImGui.table("Map Status Info Table",headers,data)
 
@@ -2683,7 +2703,7 @@ def configure():
 def main():
     global module_name
     try:
-        if Map.IsMapReady():    
+        if GLOBAL_CACHE.Map.IsMapReady():    
             DrawWindow()
         else:
             CloseAllWindows()

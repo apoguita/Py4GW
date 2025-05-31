@@ -236,6 +236,8 @@ def DrawWindow():
 def main():
     """Required main function for the widget"""
     global widget_config
+    
+    return #disable the widget
 
     if Routines.Checks.Map.MapValid():
         DrawWindow()

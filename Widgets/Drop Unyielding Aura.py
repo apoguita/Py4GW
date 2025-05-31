@@ -1,5 +1,6 @@
-from Py4GWCoreLib import *
-module_name = "Get Bounty"
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Timer
+module_name = "Drop Unyielding Aura"
 
 class config:
     def __init__(self):
@@ -23,30 +24,28 @@ def configure():
 
 def main():
     global widget_config
-    unyielding_aura = Skill.GetID("Unyielding_Aura")
+    unyielding_aura = GLOBAL_CACHE.Skill.GetID("Unyielding_Aura")
     if widget_config.game_throttle_timer.HasElapsed(widget_config.game_throttle_time):
-        widget_config.is_map_loading = Map.IsMapLoading()
+        widget_config.is_map_loading = GLOBAL_CACHE.Map.IsMapLoading()
         if widget_config.is_map_loading:
             return
         
-        widget_config.is_map_ready = Map.IsMapReady()
-        widget_config.is_party_loaded = Party.IsPartyLoaded()
-        widget_config.is_explorable = Map.IsExplorable()
+        widget_config.is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+        widget_config.is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
+        widget_config.is_explorable = GLOBAL_CACHE.Map.IsExplorable()
         widget_config.map_valid = widget_config.is_map_ready and widget_config.is_party_loaded and widget_config.is_explorable
         
         if widget_config.map_valid:
-            player_id = Player.GetAgentID()
-            widget_config.buff_exists = Effects.EffectExists(player_id, unyielding_aura) or Effects.BuffExists(player_id, unyielding_aura)
+            player_id = GLOBAL_CACHE.Player.GetAgentID()
+            widget_config.buff_exists = GLOBAL_CACHE.Effects.EffectExists(player_id, unyielding_aura) or GLOBAL_CACHE.Effects.BuffExists(player_id, unyielding_aura)
         widget_config.game_throttle_timer.Start()
         
     if widget_config.map_valid and  widget_config.buff_exists:
-        buff_id = Effects.GetBuffID(unyielding_aura)
-        ActionQueueManager().AddAction("ACTION", Effects.DropBuff, buff_id)
-        Effects.DropBuff(buff_id)
+        buff_id = GLOBAL_CACHE.Effects.GetBuffID(unyielding_aura)
+        GLOBAL_CACHE.Effects.DropBuff(buff_id)
 
         
 
 if __name__ == "__main__":
     main()
-    ActionQueueManager().ProcessQueue('ACTION')
 

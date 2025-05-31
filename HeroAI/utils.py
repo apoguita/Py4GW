@@ -1,15 +1,14 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import GLOBAL_CACHE, Allegiance, Overlay, Weapon
 from .constants import MAX_NUM_PLAYERS
 from .targeting import *
 from .cache_data import CacheData
 
-import math
 
 def DistanceFromLeader(cached_data:CacheData):
     return Utils.Distance(cached_data.data.party_leader_xy,cached_data.data.player_xy)
 
 def DistanceFromWaypoint(posX,posY):
-    distance = Utils.Distance((posX,posY), Player.GetXY())
+    distance = Utils.Distance((posX,posY), GLOBAL_CACHE.Player.GetXY())
     return distance if distance > 200 else 0
 
 
@@ -26,8 +25,8 @@ def CheckForEffect(agent_id, skill_id):
             if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
                 return True
             
-        allegiance , _ = Agent.GetAllegiance(agent_id)
-        if allegiance == Allegiance.SpiritPet.value and not Agent.IsSpawned(agent_id):
+        allegiance , _ = GLOBAL_CACHE.Agent.GetAllegiance(agent_id)
+        if allegiance == Allegiance.SpiritPet.value and not GLOBAL_CACHE.Agent.IsSpawned(agent_id):
             return True
         
         return False
@@ -44,13 +43,13 @@ def CheckForEffect(agent_id, skill_id):
             if buff == skill_id:
                 result = True
     else:
-        result = Effects.BuffExists(agent_id, skill_id) or Effects.EffectExists(agent_id, skill_id)
+        result = GLOBAL_CACHE.Effects.BuffExists(agent_id, skill_id) or GLOBAL_CACHE.Effects.EffectExists(agent_id, skill_id)
     
     return result
 
 def IsHeroFlagged(cached_data:CacheData,index):
     if  index != 0 and index <= cached_data.data.party_hero_count:
-        return Party.Heroes.IsHeroFlagged(index)
+        return GLOBAL_CACHE.Party.Heroes.IsHeroFlagged(index)
     else:
         return cached_data.HeroAI_vars.all_player_struct[index-cached_data.data.party_hero_count].IsFlagged and cached_data.HeroAI_vars.all_player_struct[index-cached_data.data.party_hero_count].IsActive
 
@@ -82,5 +81,3 @@ def DrawHeroFlag(pos_x, pos_y):
         Utils.RGBToColor(0, 255, 0, 255)
     )
     Overlay().EndDraw()
-
-

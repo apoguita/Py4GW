@@ -1,8 +1,22 @@
-from Py4GWCoreLib import *
-from typing import ClassVar, Union
-import math
+from Py4GWCoreLib import PetModelID, SpiritModelID
+from Py4GWCoreLib import Color
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import Overlay
+from Py4GWCoreLib import DXOverlay
+from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib import PyMissionMap
+from Py4GWCoreLib import Timer
+from Py4GWCoreLib import Utils
+from Py4GWCoreLib import RawAgentArray
+from Py4GWCoreLib import Range
+from Py4GWCoreLib import Rarity
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Map
 
-from dataclasses import dataclass
+from typing import Union
+import math
 
 #region CONSTANTS
 MODULE_NAME = "Mission Map"
@@ -33,57 +47,57 @@ RANGER_SPIRIT_COLOR = Color(r=204, g=255, b=153, a=255)
 RITUALIST_SPIRIT_COLOR = Color(r=187, g=255, b=255, a=255)
 EBON_VANGUARD_COLOR = Color(r=66, g=3, b=1, a=255)
 SPIRIT_BUFFS = [
-    SpiritBuff("Frozen Soil", SpiritModelID.FROZEN_SOIL, Skill.GetID("Frozen_Soil"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Life", SpiritModelID.LIFE, Skill.GetID("Life"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Bloodsong", SpiritModelID.BLOODSONG, Skill.GetID("Bloodsong"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Anger", SpiritModelID.ANGER, Skill.GetID("Signet_of_Spirits"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Hate", SpiritModelID.HATE, Skill.GetID("Signet_of_Spirits"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Suffering", SpiritModelID.SUFFERING, Skill.GetID("Signet_of_Spirits"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Anguish", SpiritModelID.ANGUISH, Skill.GetID("Anguish"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Disenchantment", SpiritModelID.DISENCHANTMENT, Skill.GetID("Disenchantment"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Dissonance", SpiritModelID.DISSONANCE, Skill.GetID("Dissonance"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Pain", SpiritModelID.PAIN, Skill.GetID("Pain"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Shadowsong", SpiritModelID.SHADOWSONG, Skill.GetID("Shadowsong"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Wanderlust", SpiritModelID.WANDERLUST, Skill.GetID("Wanderlust"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Vampirism", SpiritModelID.VAMPIRISM, Skill.GetID("Vampirism"), EBON_VANGUARD_COLOR),
-    SpiritBuff("Agony", SpiritModelID.AGONY, Skill.GetID("Agony"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Displacement", SpiritModelID.DISPLACEMENT, Skill.GetID("Displacement"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Earthbind", SpiritModelID.EARTHBIND, Skill.GetID("Earthbind"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Empowerment", SpiritModelID.EMPOWERMENT, Skill.GetID("Empowerment"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Preservation", SpiritModelID.PRESERVATION, Skill.GetID("Preservation"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Recovery", SpiritModelID.RECOVERY, Skill.GetID("Recovery"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Recuperation", SpiritModelID.RECUPERATION, Skill.GetID("Recuperation"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Rejuvenation", SpiritModelID.REJUVENATION, Skill.GetID("Rejuvenation"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Shelter", SpiritModelID.SHELTER, Skill.GetID("Shelter"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Soothing", SpiritModelID.SOOTHING, Skill.GetID("Soothing"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Union", SpiritModelID.UNION, Skill.GetID("Union"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Destruction", SpiritModelID.DESTRUCTION, Skill.GetID("Destruction"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Restoration", SpiritModelID.RESTORATION, Skill.GetID("Restoration"), RITUALIST_SPIRIT_COLOR),
-    SpiritBuff("Winds", SpiritModelID.WINDS, Skill.GetID("Winds"),EBON_VANGUARD_COLOR),
-    SpiritBuff("Brambles", SpiritModelID.BRAMBLES, Skill.GetID("Brambles"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Conflagration", SpiritModelID.CONFLAGRATION, Skill.GetID("Conflagration"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Energizing Wind", SpiritModelID.ENERGIZING_WIND, Skill.GetID("Energizing_Wind"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Equinox", SpiritModelID.EQUINOX, Skill.GetID("Equinox"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Edge of Extinction", SpiritModelID.EDGE_OF_EXTINCTION, Skill.GetID("Edge_of_Extinction"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Famine", SpiritModelID.FAMINE, Skill.GetID("Famine"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Favorable Winds", SpiritModelID.FAVORABLE_WINDS, Skill.GetID("Favorable_Winds"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Fertile Season", SpiritModelID.FERTILE_SEASON, Skill.GetID("Fertile_Season"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Greater Conflagration", SpiritModelID.GREATER_CONFLAGRATION, Skill.GetID("Greater_Conflagration"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Infuriating Heat", SpiritModelID.INFURIATING_HEAT, Skill.GetID("Infuriating_Heat"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Lacerate", SpiritModelID.LACERATE, Skill.GetID("Lacerate"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Muddy Terrain", SpiritModelID.MUDDY_TERRAIN, Skill.GetID("Muddy_Terrain"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Nature's Renewal", SpiritModelID.NATURES_RENEWAL, Skill.GetID("Natures_Renewal"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Pestilence", SpiritModelID.PESTILENCE, Skill.GetID("Pestilence"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Predatory Season", SpiritModelID.PREDATORY_SEASON, Skill.GetID("Predatory_Season"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Primal Echoes", SpiritModelID.PRIMAL_ECHOES, Skill.GetID("Primal_Echoes"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Quickening Zephyr", SpiritModelID.QUICKENING_ZEPHYR, Skill.GetID("Quickening_Zephyr"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Quicksand", SpiritModelID.QUICKSAND, Skill.GetID("Quicksand"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Roaring Winds", SpiritModelID.ROARING_WINDS, Skill.GetID("Roaring_Winds"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Symbiosis", SpiritModelID.SYMBIOSIS, Skill.GetID("Symbiosis"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Toxicity", SpiritModelID.TOXICITY, Skill.GetID("Toxicity"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Tranquility", SpiritModelID.TRANQUILITY, Skill.GetID("Tranquility"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Winter", SpiritModelID.WINTER, Skill.GetID("Winter"), RANGER_SPIRIT_COLOR),
-    SpiritBuff("Winnowing", SpiritModelID.WINNOWING, Skill.GetID("Winnowing"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Frozen Soil", SpiritModelID.FROZEN_SOIL, GLOBAL_CACHE.Skill.GetID("Frozen_Soil"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Life", SpiritModelID.LIFE, GLOBAL_CACHE.Skill.GetID("Life"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Bloodsong", SpiritModelID.BLOODSONG, GLOBAL_CACHE.Skill.GetID("Bloodsong"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Anger", SpiritModelID.ANGER, GLOBAL_CACHE.Skill.GetID("Signet_of_Spirits"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Hate", SpiritModelID.HATE, GLOBAL_CACHE.Skill.GetID("Signet_of_Spirits"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Suffering", SpiritModelID.SUFFERING, GLOBAL_CACHE.Skill.GetID("Signet_of_Spirits"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Anguish", SpiritModelID.ANGUISH, GLOBAL_CACHE.Skill.GetID("Anguish"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Disenchantment", SpiritModelID.DISENCHANTMENT, GLOBAL_CACHE.Skill.GetID("Disenchantment"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Dissonance", SpiritModelID.DISSONANCE, GLOBAL_CACHE.Skill.GetID("Dissonance"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Pain", SpiritModelID.PAIN, GLOBAL_CACHE.Skill.GetID("Pain"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Shadowsong", SpiritModelID.SHADOWSONG, GLOBAL_CACHE.Skill.GetID("Shadowsong"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Wanderlust", SpiritModelID.WANDERLUST, GLOBAL_CACHE.Skill.GetID("Wanderlust"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Vampirism", SpiritModelID.VAMPIRISM, GLOBAL_CACHE.Skill.GetID("Vampirism"), EBON_VANGUARD_COLOR),
+    SpiritBuff("Agony", SpiritModelID.AGONY, GLOBAL_CACHE.Skill.GetID("Agony"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Displacement", SpiritModelID.DISPLACEMENT, GLOBAL_CACHE.Skill.GetID("Displacement"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Earthbind", SpiritModelID.EARTHBIND, GLOBAL_CACHE.Skill.GetID("Earthbind"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Empowerment", SpiritModelID.EMPOWERMENT, GLOBAL_CACHE.Skill.GetID("Empowerment"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Preservation", SpiritModelID.PRESERVATION, GLOBAL_CACHE.Skill.GetID("Preservation"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Recovery", SpiritModelID.RECOVERY, GLOBAL_CACHE.Skill.GetID("Recovery"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Recuperation", SpiritModelID.RECUPERATION, GLOBAL_CACHE.Skill.GetID("Recuperation"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Rejuvenation", SpiritModelID.REJUVENATION, GLOBAL_CACHE.Skill.GetID("Rejuvenation"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Shelter", SpiritModelID.SHELTER, GLOBAL_CACHE.Skill.GetID("Shelter"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Soothing", SpiritModelID.SOOTHING, GLOBAL_CACHE.Skill.GetID("Soothing"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Union", SpiritModelID.UNION, GLOBAL_CACHE.Skill.GetID("Union"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Destruction", SpiritModelID.DESTRUCTION, GLOBAL_CACHE.Skill.GetID("Destruction"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Restoration", SpiritModelID.RESTORATION, GLOBAL_CACHE.Skill.GetID("Restoration"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Winds", SpiritModelID.WINDS, GLOBAL_CACHE.Skill.GetID("Winds"),EBON_VANGUARD_COLOR),
+    SpiritBuff("Brambles", SpiritModelID.BRAMBLES, GLOBAL_CACHE.Skill.GetID("Brambles"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Conflagration", SpiritModelID.CONFLAGRATION, GLOBAL_CACHE.Skill.GetID("Conflagration"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Energizing Wind", SpiritModelID.ENERGIZING_WIND, GLOBAL_CACHE.Skill.GetID("Energizing_Wind"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Equinox", SpiritModelID.EQUINOX, GLOBAL_CACHE.Skill.GetID("Equinox"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Edge of Extinction", SpiritModelID.EDGE_OF_EXTINCTION, GLOBAL_CACHE.Skill.GetID("Edge_of_Extinction"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Famine", SpiritModelID.FAMINE, GLOBAL_CACHE.Skill.GetID("Famine"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Favorable Winds", SpiritModelID.FAVORABLE_WINDS, GLOBAL_CACHE.Skill.GetID("Favorable_Winds"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Fertile Season", SpiritModelID.FERTILE_SEASON, GLOBAL_CACHE.Skill.GetID("Fertile_Season"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Greater Conflagration", SpiritModelID.GREATER_CONFLAGRATION, GLOBAL_CACHE.Skill.GetID("Greater_Conflagration"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Infuriating Heat", SpiritModelID.INFURIATING_HEAT, GLOBAL_CACHE.Skill.GetID("Infuriating_Heat"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Lacerate", SpiritModelID.LACERATE, GLOBAL_CACHE.Skill.GetID("Lacerate"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Muddy Terrain", SpiritModelID.MUDDY_TERRAIN, GLOBAL_CACHE.Skill.GetID("Muddy_Terrain"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Nature's Renewal", SpiritModelID.NATURES_RENEWAL, GLOBAL_CACHE.Skill.GetID("Natures_Renewal"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Pestilence", SpiritModelID.PESTILENCE, GLOBAL_CACHE.Skill.GetID("Pestilence"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Predatory Season", SpiritModelID.PREDATORY_SEASON, GLOBAL_CACHE.Skill.GetID("Predatory_Season"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Primal Echoes", SpiritModelID.PRIMAL_ECHOES, GLOBAL_CACHE.Skill.GetID("Primal_Echoes"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Quickening Zephyr", SpiritModelID.QUICKENING_ZEPHYR, GLOBAL_CACHE.Skill.GetID("Quickening_Zephyr"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Quicksand", SpiritModelID.QUICKSAND, GLOBAL_CACHE.Skill.GetID("Quicksand"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Roaring Winds", SpiritModelID.ROARING_WINDS, GLOBAL_CACHE.Skill.GetID("Roaring_Winds"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Symbiosis", SpiritModelID.SYMBIOSIS, GLOBAL_CACHE.Skill.GetID("Symbiosis"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Toxicity", SpiritModelID.TOXICITY, GLOBAL_CACHE.Skill.GetID("Toxicity"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Tranquility", SpiritModelID.TRANQUILITY, GLOBAL_CACHE.Skill.GetID("Tranquility"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Winter", SpiritModelID.WINTER, GLOBAL_CACHE.Skill.GetID("Winter"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Winnowing", SpiritModelID.WINNOWING, GLOBAL_CACHE.Skill.GetID("Winnowing"), RANGER_SPIRIT_COLOR),
 ]
 
 def get_spirit_name(model_id: int) -> str:
@@ -707,8 +721,8 @@ class MissionMap:
                                                                 self.mission_map_screen_center_x, self.mission_map_screen_center_y)
 
         
-        self.player_agent_id = Player.GetAgentID()
-        self.player_target_id = Player.GetTargetID()
+        self.player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        self.player_target_id = GLOBAL_CACHE.Player.GetTargetID()
         player_object = self.raw_agent_array_handler.get_agent(self.player_agent_id)   
         
         self.player_x, self.player_y = player_object.x, player_object.y
@@ -914,7 +928,8 @@ def DrawFrame():
             rotation_angle = agent.rotation_angle
             level = agent.living_agent.level
             if level > 1:
-                agent_name = mission_map.raw_agent_array_handler.get_name(agent.id)  if mission_map.raw_agent_array_handler is not None else ""
+                #agent_name = mission_map.raw_agent_array_handler.get_name(agent.id)  if mission_map.raw_agent_array_handler is not None else ""
+                agent_name = GLOBAL_CACHE.Agent.GetName(agent.id)
                 if "MERCHANT" in agent_name.upper():
                     marker = mission_map.merchant_marker
                 else:
@@ -928,7 +943,7 @@ def DrawFrame():
         x,y = _get_agent_xy(agent)
         if agent.is_gadget:
             rotation_angle = agent.rotation_angle
-            gadget_id = Agent.GetGadgetID(agent.id)
+            gadget_id = GLOBAL_CACHE.Agent.GetGadgetID(agent.id)
             if gadget_id in CHEST_GADGET_IDS:
                 marker = mission_map.chest_marker
             else:
@@ -942,7 +957,8 @@ def DrawFrame():
             rotation_angle = agent.rotation_angle
             marker = mission_map.item_marker
             item_id = agent.item_agent.item_id
-            item_rarity = Item.item_instance(item_id).rarity.value
+            item = GLOBAL_CACHE.Item.raw_item_array.get_item_by_id(item_id)
+            item_rarity = item.rarity if item is not None else 0
             if item_rarity == Rarity.Blue.value:
                 marker.Color = mission_map.item_rarity_blue_color
             elif item_rarity == Rarity.Purple.value:

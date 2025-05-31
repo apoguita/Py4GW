@@ -1,17 +1,6 @@
-from Py4GWCoreLib import *
-
-from .constants import (
-    MODULE_NAME,
-    MAX_NUM_PLAYERS,
-    NUMBER_OF_SKILLS,
-)
-
-from .types import (
-    PlayerStruct,
-    CandidateStruct,
-    GameOptionStruct,
-)
-
+from Py4GWCoreLib import ImGui, PyImGui, Timer
+from .constants import MODULE_NAME, MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
+from .types import PlayerStruct, CandidateStruct, GameOptionStruct
 from .shared_memory_manager import SharedMemoryManager
 
 class HeroAI_varsClass:
@@ -73,3 +62,5 @@ capture_flag_all = False
 capture_hero_flag = False
 capture_hero_index = 0
 capture_mouse_timer = Timer()
+
+option_show_floating_targets = True

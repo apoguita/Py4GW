@@ -1,4 +1,9 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import TitleID
+
+
 module_name = "Set title on map load"
 
 class config:
@@ -77,29 +82,30 @@ def main():
     game_throttle_timer.Reset()
     
     is_map_valid = Routines.Checks.Map.MapValid()
-    is_explorable = Map.IsExplorable()
+    is_explorable = GLOBAL_CACHE.Map.IsExplorable()
     
     if not is_map_valid:
         widget_config.title_applied = False
         return
     
-    map_name = Map.GetMapName()
+    if not is_explorable:
+        widget_config.title_applied = False
+        return
+    
+    map_name = GLOBAL_CACHE.Map.GetMapName()
 
     if not widget_config.title_applied:
         if map_name in asuran_map_names:
-            ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Asuran.value)
+            GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Asuran.value)
         elif map_name in deldrimor_map_names:
-            ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Deldrimor.value)
+            GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Deldrimor.value)
         elif map_name in norn_map_names:
-            ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Norn.value)
+            GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Norn.value)
         elif map_name in vanguard_map_names:
-            ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Vanguard.value)
+            GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Vanguard.value)
         elif map_name in lightbringer_map_names:
-            ActionQueueManager().AddAction("ACTION", Player.SetActiveTitle, TitleID.Lightbringer.value)
+            GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Lightbringer.value)
         widget_config.title_applied = True
-        
-    if is_explorable:
-        ActionQueueManager().ProcessQueue("ACTION")
 
 if __name__ == "__main__":
     main()
