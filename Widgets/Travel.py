@@ -1,4 +1,13 @@
-from Py4GWCoreLib import *
+import Py4GW
+
+from Py4GWCoreLib import IniHandler
+from Py4GWCoreLib import Timer
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import IconsFontAwesome5
+
+import os
 import time
 module_name = "Outpost Travel"
 
@@ -18,7 +27,7 @@ game_throttle_timer.Start()
 class Config:
     global ini_handler, module_name
     def __init__(self):
-        self.outposts = dict(zip(Map.GetOutpostIDs(), Map.GetOutpostNames()))
+        self.outposts = dict(zip(GLOBAL_CACHE.Map.GetOutpostIDs(), GLOBAL_CACHE.Map.GetOutpostNames()))
         self.selected_outpost_index = 0
         self.travel_history = []
         
@@ -122,7 +131,7 @@ def DrawWindow():
             if PyImGui.button(IconsFontAwesome5.ICON_PLANE + "##Travel"):
                 if filtered_outposts:
                     selected_id = filtered_ids[widget_config.selected_outpost_index]
-                    ActionQueueManager().AddAction("ACTION", Map.Travel, selected_id)
+                    GLOBAL_CACHE.Map.Travel(selected_id)
                     widget_config.travel_history.append(filtered_outposts[widget_config.selected_outpost_index])
                     is_traveling = True
             ImGui.show_tooltip("Travel")
@@ -134,7 +143,7 @@ def DrawWindow():
                         if PyImGui.selectable(outpost_name, is_selected, PyImGui.SelectableFlags.NoFlag, (0.0, 0.0)):
                             widget_config.selected_outpost_index = index
                             selected_id = filtered_ids[index]
-                            Map.Travel(selected_id)
+                            GLOBAL_CACHE.Map.Travel(selected_id)
                             widget_config.travel_history.append(outpost_name)
                             is_traveling = True
                     PyImGui.end_child()
@@ -145,7 +154,7 @@ def DrawWindow():
             if imgui_io.want_capture_keyboard and PyImGui.is_key_pressed(13):  # ASCII code for Enter key
                 if filtered_outposts:
                     selected_id = filtered_ids[widget_config.selected_outpost_index]
-                    Map.Travel(selected_id)
+                    GLOBAL_CACHE.Map.Travel(selected_id)
                     widget_config.travel_history.append(filtered_outposts[widget_config.selected_outpost_index])
                     is_traveling = True
                     
@@ -156,7 +165,7 @@ def DrawWindow():
                             # Find outpost ID and travel
                             for k, v in widget_config.outposts.items():
                                 if v == history_name:
-                                    Map.Travel(k)
+                                    GLOBAL_CACHE.Map.Travel(k)
                                     is_traveling = True
                                     break
                     PyImGui.end_child()
@@ -187,13 +196,12 @@ def main():
     global is_map_ready, is_party_loaded
     try:
         if game_throttle_timer.HasElapsed(game_throttle_time):
-            is_map_ready = Map.IsMapReady()
-            is_party_loaded = Party.IsPartyLoaded()
+            is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+            is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
             game_throttle_timer.Start()
             
         if is_map_ready and is_party_loaded:
             DrawWindow()
-            ActionQueueManager().ProcessQueue("ACTION")
             
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in main: {str(e)}", Py4GW.Console.MessageType.Debug)

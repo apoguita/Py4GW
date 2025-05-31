@@ -7,9 +7,7 @@ def main():
     global width, height
     
     if PyImGui.begin("timer test"):
-        if PyImGui.button("get Client Size"):
-            io = PyImGui.get_io()
-            print(f"Client Size: {io.display_size_x}, {io.display_size_y}")   
+        PyImGui.text(f"is dead: {Agent.IsDead(Player.GetAgentID())}")   
     PyImGui.end()
     
 if __name__ == "__main__":

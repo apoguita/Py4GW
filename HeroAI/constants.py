@@ -1,5 +1,5 @@
 """This file contains the constants and globals used by the HeroAI module."""
-from Py4GWCoreLib import *
+from Py4GWCoreLib import Range, GLOBAL_CACHE
 
 TRUE = 1
 FALSE = 0
@@ -27,8 +27,8 @@ FOLLOW_DISTANCE_OUT_OF_COMBAT = Range.Area.value
 
 STAY_ALERT_TIME = 750  # milliseconds
 
-BLOOD_IS_POWER = Skill.GetID("Blood_is_Power")
-BLOOD_RITUAL = Skill.GetID("Blood_Ritual")  # skill id
+BLOOD_IS_POWER = GLOBAL_CACHE.Skill.GetID("Blood_is_Power")
+BLOOD_RITUAL = GLOBAL_CACHE.Skill.GetID("Blood_Ritual")  # skill id
 
 PARTY_WINDOW_HASH = 3332025202
 PARTY_WINDOW_FRAME_OUTPOST_OFFSETS = [1]

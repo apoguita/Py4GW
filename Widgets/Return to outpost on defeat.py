@@ -1,4 +1,6 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import Timer
+from Py4GWCoreLib import GLOBAL_CACHE
+
 module_name = "Return to Outpost"
 
 class config:
@@ -25,12 +27,12 @@ def main():
     global game_throttle_time, game_throttle_timer
     
     if game_throttle_timer.HasElapsed(game_throttle_time):
-        is_map_ready = Map.IsMapReady()
-        is_party_loaded = Party.IsPartyLoaded()
-        is_explorable = Map.IsExplorable()
+        is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+        is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
+        is_explorable = GLOBAL_CACHE.Map.IsExplorable()
         
         if is_map_ready and is_party_loaded and is_explorable:
-            is_party_defeated = Party.IsPartyDefeated()
+            is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated()
         game_throttle_timer.Start()
     
     if not is_party_defeated:
@@ -38,13 +40,12 @@ def main():
         return
         
     if is_map_ready and is_party_loaded and is_explorable and is_party_defeated and widget_config.returned == False:
-        ActionQueueManager().AddAction("ACTION",Party.ReturnToOutpost)
+        GLOBAL_CACHE.Party.ReturnToOutpost()
+        #ActionQueueManager().AddAction("ACTION",Party.ReturnToOutpost)
         widget_config.returned = True
     else:
         widget_config.returned = False
      
-    if is_map_ready and is_party_loaded and is_explorable:   
-        ActionQueueManager().ProcessQueue("ACTION")
         
 
 if __name__ == "__main__":

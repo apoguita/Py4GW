@@ -1,5 +1,24 @@
 from enum import Enum, IntEnum
 
+class SharedCommandType(IntEnum):
+    NoCommand = 0
+    TravelToMap = 1
+    InviteToParty = 2
+    InteractWithTarget = 3
+    TakeDialogWithTarget = 4
+    GetBlessing = 5
+    OpenChest = 6
+    PickUpLoot = 7
+    UseSkill = 8
+    Resign = 9
+    PixelStack = 10
+    PCon = 11
+    IdentifyItems = 12
+    SalvageItems = 13
+    MerchantItems = 14
+    MerchantMaterials = 15
+    LootEx = 16 #privately Handled Command, by Frenkey
+
 #region mouse
 class MouseButton(IntEnum):
     Left = 0
@@ -1203,6 +1222,7 @@ TITLE_NAME = {
 
 #endregion
 #region Outpost Names
+
 outposts = {
     4: "Guild Hall - Warrior's Isle",
     5: "Guild Hall - Hunter's Isle",

@@ -1,17 +1,23 @@
-from Py4GWCoreLib import *
+import Py4GW
+from Py4GWCoreLib import MultiThreading, Timer, Range, LootConfig, Routines, Utils, Overlay, IconsFontAwesome5, Keystroke, Key, ImGui, PyImGui
+from Py4GWCoreLib import AgentArray, UIManager, ActionQueueManager
+from Py4GWCoreLib import GLOBAL_CACHE
 
-from HeroAI.types import *
-from HeroAI.globals import *
-from HeroAI.constants import MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_OUT_OF_COMBAT
-from HeroAI.shared_memory_manager import *
-from HeroAI.utils import *
-from HeroAI.candidates import *
-from HeroAI.players import *
-from HeroAI.game_option import *
-from HeroAI.windows import *
-from HeroAI.targeting import *
-from HeroAI.combat import *
-from HeroAI.cache_data import *
+#from HeroAI.types import *
+from HeroAI.globals import hero_formation
+from HeroAI.constants import MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS
+#from HeroAI.shared_memory_manager import *
+from HeroAI.utils import DistanceFromWaypoint, DistanceFromLeader
+from HeroAI.players import RegisterPlayer, UpdatePlayers, RegisterHeroes
+from HeroAI.game_option import UpdateGameOptions
+from HeroAI.windows import DrawMainWindow, DrawControlPanelWindow, DrawMultiboxTools, DrawPanelButtons, DrawCandidateWindow, DrawFlaggingWindow, DrawOptions, DrawFlags, CompareAndSubmitGameOptions, SubmitGameOptions
+from HeroAI.windows import DrawMessagingOptions
+#from HeroAI.targeting import *
+#from HeroAI.combat import *
+from HeroAI.cache_data import CacheData
+import math
+from enum import Enum
+import traceback
 
 MODULE_NAME = "HeroAI"
 
@@ -24,7 +30,6 @@ def HandleOutOfCombat(cached_data:CacheData):
         return False
 
     return cached_data.combat_handler.HandleCombat(ooc= True)
-
 
 
 def HandleCombat(cached_data:CacheData):
@@ -47,7 +52,7 @@ def SequentialLootingRoutine():
     
     filtered_loot = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
     # Loot filtered items
-    ActionQueueManager().ResetQueue("ACTION")
+    #ActionQueueManager().ResetQueue("ACTION")
     Routines.Sequential.Items.LootItems(filtered_loot,log = False)
     looting_aftercast.Reset()
     cached_data.in_looting_routine = False
@@ -77,11 +82,11 @@ def Loot(cached_data:CacheData):
     thread_manager.add_thread("SequentialLootingRoutine", SequentialLootingRoutine)
 
 
-
+following_flag = False
 def Follow(cached_data:CacheData):
-    global MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_ON_COMBAT
+    global MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_ON_COMBAT, following_flag
     
-    if Player.GetAgentID() == Party.GetPartyLeaderID():
+    if GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
         cached_data.follow_throttle_timer.Reset()
         return False
     
@@ -97,11 +102,14 @@ def Follow(cached_data:CacheData):
         follow_x = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosX
         follow_y = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosY
         follow_angle = cached_data.HeroAI_vars.all_player_struct[party_number].FollowAngle
+        following_flag = True
     elif cached_data.HeroAI_vars.all_player_struct[0].IsFlagged:  # leader's flag
         follow_x = cached_data.HeroAI_vars.all_player_struct[0].FlagPosX
         follow_y = cached_data.HeroAI_vars.all_player_struct[0].FlagPosY
         follow_angle = cached_data.HeroAI_vars.all_player_struct[0].FollowAngle
+        following_flag = False
     else:  # follow leader
+        following_flag = False
         follow_x, follow_y = cached_data.data.party_leader_xy
         follow_angle = cached_data.data.party_leader_rotation_angle
 
@@ -130,35 +138,42 @@ def Follow(cached_data:CacheData):
 
     #if IsPointValid(follow_x, follow_y):
     #   return False
-
-    xx = Range.Touch.value * math.cos(angle_on_hero_grid) + follow_x
-    yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y
+    if following_flag:
+        xx = follow_x
+        yy = follow_y
+    else:   
+        xx = Range.Touch.value * math.cos(angle_on_hero_grid) + follow_x
+        yy = Range.Touch.value * math.sin(angle_on_hero_grid) + follow_y
 
     cached_data.data.angle_changed = False
     ActionQueueManager().ResetQueue("ACTION")
     #ConsoleLog("HeroAI follow","distance: " + str(DistanceFromWaypoint(follow_x, follow_y)) + "target: " + str(follow_distance))
-    ActionQueueManager().AddAction("ACTION", Player.Move, xx, yy)
-    cached_data.follow_throttle_timer.Reset()
+    GLOBAL_CACHE.Player.Move(xx, yy)
+    #ActionQueueManager().AddAction("ACTION", Player.Move, xx, yy)
     return True
     
 
 
 def draw_Targeting_floating_buttons(cached_data:CacheData):
-    if not Map.IsExplorable():
+    if not cached_data.option_show_floating_targets:
         return
-    enemies = AgentArray.GetEnemyArray()
-    enemies = AgentArray.Filter.ByCondition(enemies, lambda agent_id: Agent.IsAlive(agent_id))
+    if not GLOBAL_CACHE.Map.IsExplorable():
+        return
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.SafeCompass.value)
+
+    if len(enemy_array) == 0:
+        return
     
-    if not enemies:
-        return
-    for agent_id in enemies:
-        x,y,z = Agent.GetXYZ(agent_id)
+    Overlay().BeginDraw()
+    for agent_id in enemy_array:
+        x,y,z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
         screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
-        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_BULLSEYE}##fb_{agent_id}",screen_x,screen_y):
-            ActionQueueManager().ResetQueue("ACTION")
-            ActionQueueManager().AddAction("ACTION", Player.ChangeTarget, agent_id)
-            ActionQueueManager().AddAction("ACTION", Player.Interact, agent_id, True)
+        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_CROSSHAIRS}##fb_{agent_id}",screen_x,screen_y):         
+            GLOBAL_CACHE.Player.ChangeTarget (agent_id)
+            GLOBAL_CACHE.Player.Interact (agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+    Overlay().EndDraw()
 
       
 #TabType 
@@ -169,6 +184,7 @@ class TabType(Enum):
     flagging = 4
     config = 5
     debug = 6 
+    messaging = 7
     
 selected_tab:TabType = TabType.party
 
@@ -205,8 +221,8 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
                         for index in range(MAX_NUM_PLAYERS):
                             if cached_data.HeroAI_vars.all_player_struct[index].IsActive and not cached_data.HeroAI_vars.all_player_struct[index].IsHero:
                                 original_game_option = cached_data.HeroAI_vars.all_game_option_struct[index]
-                                login_number = Party.Players.GetLoginNumberByAgentID(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
-                                player_name = Party.Players.GetPlayerNameByLoginNumber(login_number)
+                                login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
+                                player_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
                                 if PyImGui.tree_node(f"{player_name}##ControlPlayer{index}"):
                                     game_option = DrawPanelButtons(original_game_option)
                                     SubmitGameOptions(cached_data, index, game_option, original_game_option)
@@ -222,6 +238,9 @@ def DrawFramedContent(cached_data:CacheData,content_frame_id):
                 DrawFlaggingWindow(cached_data)
             case TabType.config:
                 DrawOptions(cached_data)
+            case TabType.messaging:
+                # Placeholder for messaging tab
+                DrawMessagingOptions(cached_data)
 
         
     PyImGui.end()
@@ -234,7 +253,7 @@ def DrawEmbeddedWindow(cached_data:CacheData):
     outpost_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
     explorable_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS)
     
-    if Map.IsMapReady() and Map.IsExplorable():
+    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Map.IsExplorable():
         content_frame_id = explorable_content_frame_id
     else:
         content_frame_id = outpost_content_frame_id
@@ -259,22 +278,24 @@ def DrawEmbeddedWindow(cached_data:CacheData):
                 selected_tab = TabType.control_panel
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("HeroAI Control Panel")
-            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_USER_PLUS + "##candidatesTab"):
-                selected_tab = TabType.candidates
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_BULLHORN + "##messagingTab"):
+                selected_tab = TabType.messaging
                 PyImGui.end_tab_item()
-            ImGui.show_tooltip("Candidates")
-            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_FLAG + "##flaggingTab"):
-                selected_tab = TabType.flagging
-                PyImGui.end_tab_item()
-            ImGui.show_tooltip("Flagging")
+            ImGui.show_tooltip("Messaging")
+            if GLOBAL_CACHE.Map.IsOutpost():
+                if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_USER_PLUS + "##candidatesTab"):
+                    selected_tab = TabType.candidates
+                    PyImGui.end_tab_item()
+                ImGui.show_tooltip("Candidates")
+            else:
+                if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_FLAG + "##flaggingTab"):
+                    selected_tab = TabType.flagging
+                    PyImGui.end_tab_item()
+                ImGui.show_tooltip("Flagging")
             if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_COGS + "##configTab"):
                 selected_tab = TabType.config
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("Config")
-            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_BUG + "##debugTab"):
-                selected_tab = TabType.debug
-                PyImGui.end_tab_item()
-            ImGui.show_tooltip("Debug Options")
             PyImGui.end_tab_bar()
     PyImGui.end()
     
@@ -283,11 +304,7 @@ def DrawEmbeddedWindow(cached_data:CacheData):
     
     
 
-def UpdateStatus(cached_data:CacheData):
-    
-    RegisterCandidate(cached_data) 
-    UpdateCandidates(cached_data)           
-    ProcessCandidateCommands(cached_data)   
+def UpdateStatus(cached_data:CacheData): 
     RegisterPlayer(cached_data)   
     RegisterHeroes(cached_data)
     UpdatePlayers(cached_data)      
@@ -344,20 +361,31 @@ def UpdateStatus(cached_data:CacheData):
     if Loot(cached_data):
        return
    
-    if Follow(cached_data):
-        return
+    if cached_data.follow_throttle_timer.IsExpired():
+        if Follow(cached_data):
+            cached_data.follow_throttle_timer.Reset()
+            return
+        
 
     if HandleCombat(cached_data):
+        cached_data.auto_attack_timer.Reset()
         return
     
     if not cached_data.data.in_aggro:
         return
     
+    target_id = GLOBAL_CACHE.Player.GetTargetID()
+    _, target_aliegance = GLOBAL_CACHE.Agent.GetAllegiance(target_id)
+     
+    if target_id == 0 or GLOBAL_CACHE.Agent.IsDead(target_id) or (target_aliegance != "Enemy"):
+        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking) and (not cached_data.data.player_is_casting) and (not cached_data.data.player_is_moving)):
+            cached_data.combat_handler.ChooseTarget()
+            cached_data.auto_attack_timer.Reset()
+            return
     
-    #if were here we are not doing anything
     #auto attack
     if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
-        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking)):
+        if (cached_data.data.is_combat_enabled and (not cached_data.data.player_is_attacking) and (not cached_data.data.player_is_casting) and (not cached_data.data.player_is_moving)):
             cached_data.combat_handler.ChooseTarget()
         cached_data.auto_attack_timer.Reset()
         cached_data.combat_handler.ResetSkillPointer()
@@ -374,13 +402,11 @@ def main():
     global cached_data
     try:
         if not Routines.Checks.Map.MapValid():
-            ActionQueueManager().ResetQueue("ACTION")
             return
         
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
             UpdateStatus(cached_data)
-            ActionQueueManager().ProcessQueue("ACTION")
 
 
 

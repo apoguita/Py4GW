@@ -1,8 +1,9 @@
 import PyInventory
 import PyItem
+import Py4GW
 
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
-from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Bag
 from typing import Dict, List
 import time
 from enum import Enum
@@ -52,22 +53,19 @@ class RawItemCache:
         
         self.throttle = throttle
         self.bags: Dict[int, PyInventory.Bag] = {}
+        self.transitory_items: Dict[int, PyItem.PyItem] = {}
         self.update_throttle = ThrottledTimer(throttle)
         self.map_valid = False
         self._initialized = True
         
     def reset(self):
         self.bags.clear()
+        self.transitory_items.clear()
         self.update_throttle.Reset()
         self.map_valid = False
         
     def update(self):
-        self.map_valid = Routines.Checks.Map.MapValid()
-
-        if not self.map_valid:
-            self.reset()
-            return
-
+        
         if not self.update_throttle.IsExpired():
             return
 
@@ -80,6 +78,31 @@ class RawItemCache:
                 self.bags[bag] = bag_instance
             except Exception:
                 continue  # Skip invalid bags
+            
+        # Clean up transitory items that no longer exist
+        to_remove = []
+        for item_id, item in self.transitory_items.items():
+            this_item = PyItem.PyItem(item_id)
+            if not this_item:
+                to_remove.append(item_id)
+            elif item.agent_id == 0:  # Invalid agent ID
+                to_remove.append(item_id)
+            elif item.agent_item_id == 0:  # Invalid agent item I
+                to_remove.append(item_id)   
+
+        for item_id in to_remove:
+            del self.transitory_items[item_id]
+            
+    def add_transitory_item(self, item_id: int):
+        """
+        Manually adds an item to the transitory cache if it is not already in any bag.
+        """
+        if self.get_item_by_id(item_id):
+            return  # Already exists in cache
+
+        item = PyItem.PyItem(item_id)
+        if item.item_id != 0:
+            self.transitory_items[item_id] = item
             
     def get_items(self, bag: int):
         """
@@ -149,8 +172,19 @@ class RawItemCache:
             item = bag.FindItemById(item_id)
             if item:
                 return item
-        return None  
+        
+        # Check transitory cache
+        item = self.transitory_items.get(item_id)
+        if item and item.item_id != 0:
+            return item
+
+        # Attempt to create and cache it
+        item = PyItem.PyItem(item_id)
+        if item.item_id != 0:
+            self.transitory_items[item_id] = item
+            return item
     
+        return None  # Item not found
     
 class ItemCache:
     def __init__(self, raw_item_array):
@@ -547,7 +581,7 @@ class ItemCache:
         def GetDyeInfo(self, item_id):
             item = self._parent.raw_item_array.get_item_by_id(item_id)
             if item is None:
-                return 0, 0
+                return PyItem.PyItem(item_id).dye_info
             return item.dye_info
         
         def GetItemFormula(self, item_id):
@@ -588,14 +622,25 @@ class ItemCache:
 class ItemArray:
     _raw_item_cache: RawItemCache = RawItemCache()
     
-    def GetItemArray(self, bag_list: List[int]):
-        bags = self._raw_item_cache.get_bags(bag_list)
-        item_ids = []
-        for bag in bags:
-            items = bag.GetItems()
-            item_ids.extend([item.item_id for item in items])
-            
-        return item_ids
+    def GetItemArray(self, bags_to_check: List[Bag]):
+        """
+        Given a list of Bag enums, retrieve item IDs from cached bags.
+        :param bags_to_check: A list of Bag enum members.
+        :return: List of item IDs.
+        """
+        # Convert Bag enums to int for cache access
+        bag_ids = [bag_enum.value for bag_enum in bags_to_check]
+        bags = self._raw_item_cache.get_bags(bag_ids)
+
+        all_item_ids = []
+        for bag_enum, bag in zip(bags_to_check, bags):
+            try:
+                items = bag.GetItems()
+                all_item_ids.extend([item.item_id for item in items])
+            except Exception as e:
+                Py4GW.Console.Log("GetItemArray", f"Error retrieving items from {bag_enum.name}: {str(e)}", Py4GW.Console.MessageType.Error)
+
+        return all_item_ids
     
     def GetRawItemArray(self, bag_list: List[int]) -> List[PyItem.PyItem]:
         bags = self._raw_item_cache.get_bags(bag_list)
@@ -610,6 +655,19 @@ class ItemArray:
     def GetBag(self, bag: int):
         return self._raw_item_cache.get_bag(bag)
    
+    def CreateBagList(self, *bag_ids) -> List[Bag]:
+        """
+        Creates a list of Bag enum members based on the provided bag IDs.
+        :param bag_ids: A variable number of bag IDs (integers).
+        :return: A list of Bag enum members.
+        """
+        valid_bags = []
+        for bag_id in bag_ids:
+            try:
+                valid_bags.append(Bag(bag_id))
+            except ValueError:
+                Py4GW.Console.Log("CreateBagList", f"Invalid bag ID: {bag_id}", Py4GW.Console.MessageType.Error)
+        return valid_bags
         
         
         
