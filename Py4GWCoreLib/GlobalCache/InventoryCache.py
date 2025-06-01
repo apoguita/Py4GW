@@ -121,6 +121,10 @@ class InventoryCache:
         Returns:
             int: Total quantity of matching items.
         """
+        
+        if model_id <= 0:
+            return 0
+        
         bags_to_check = [
             Bag_enum.Backpack.value,
             Bag_enum.Belt_Pouch.value,
