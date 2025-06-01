@@ -704,13 +704,17 @@ class Py4GWSharedMemoryManager:
                 return index, message
         return -1, None  # Return an empty message if no messages are found
     
-    def PreviewNextMessage(self, account_email: str) -> tuple[int, SharedMessage | None]:
-        """Preview the next message for the given account without marking it as running."""
+    def PreviewNextMessage(self, account_email: str, include_running: bool = True) -> tuple[int, SharedMessage | None]:
+        """Preview the next message for the given account.
+        If include_running is True, will also return a running message."""
         for index in range(self.max_num_players):
             message = self.GetStruct().SharedMessage[index]
-            if message.ReceiverEmail == account_email and message.Active and not message.Running:
+            if message.ReceiverEmail != account_email or not message.Active:
+                continue
+            if not message.Running or include_running:
                 return index, message
         return -1, None
+
     
     def MarkMessageAsRunning(self, account_email: str, message_index: int):
         """Mark a specific message as running."""
