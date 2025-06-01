@@ -547,6 +547,18 @@ class Py4GWSharedMemoryManager:
                 return player
         ConsoleLog(SMM_MODULE_NAME, f"Party number {party_number} not found.", Py4GW.Console.MessageType.Error)
         return None
+    
+    def HasEffect(self, account_email: str, effect_id: int) -> bool:
+        """Check if the account with the given email has the specified effect."""
+        if effect_id == 0:
+            return False
+        
+        player = self.GetAccountDataFromEmail(account_email)
+        if player:
+            for buff in player.PlayerBuffs:
+                if buff == effect_id:
+                    return True
+        return False
         
     def GetHeroAIOptions(self, account_email: str) -> HeroAIOptionStruct | None:
         """Get HeroAI options for the account with the given email."""
