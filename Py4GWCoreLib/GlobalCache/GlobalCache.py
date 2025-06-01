@@ -61,12 +61,16 @@ class GlobalCache:
         
     def _update_cache(self):
         self.Map._update_cache()
-        if self._TrottleTimers._50ms.IsExpired():
-            self._TrottleTimers._50ms.Reset()
+        if self.Map.IsMapLoading():
+            self.Party._update_cache()
             self.Player._update_cache()
-            if self._TrottleTimers._100ms.IsExpired():   
+               
+        if self._TrottleTimers._63ms.IsExpired():
+            self._TrottleTimers._63ms.Reset()
+            if self._TrottleTimers._150ms.IsExpired():   
+                self._TrottleTimers._150ms.Reset()
                 self.Party._update_cache()
-                self._TrottleTimers._100ms.Reset()
+                self.Player._update_cache()
                 self._RawItemCache.update()
                 self.Item._update_cache()
                 self.Camera._update_cache()
@@ -82,7 +86,10 @@ class GlobalCache:
     class TrottleTimers:
         def __init__(self):
             self._50ms = ThrottledTimer(50)
+            self._63ms = ThrottledTimer(63) #4 frames
+            self._75ms = ThrottledTimer(75)
             self._100ms = ThrottledTimer(100)
+            self._150ms = ThrottledTimer(150)
             self._500ms = ThrottledTimer(500)
             self._1_000ms = ThrottledTimer(1000)
             self._5_000ms = ThrottledTimer(5000)
@@ -90,7 +97,10 @@ class GlobalCache:
 
         def Reset(self):
             self._50ms.Reset()
+            self._63ms.Reset()
+            self._75ms.Reset()
             self._100ms.Reset()
+            self._150ms.Reset()
             self._500ms.Reset()
             self._1_000ms.Reset()
             self._5_000ms.Reset()

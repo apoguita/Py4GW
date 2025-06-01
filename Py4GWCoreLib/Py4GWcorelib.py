@@ -2022,12 +2022,21 @@ class LootConfig:
         from .Item import Item
         from .Map import Map
         from .GlobalCache import GLOBAL_CACHE
+        from .Routines import Routines
+        if not Routines.Checks.Map.MapValid():
+            return []
+        
+        
         def IsValidItem(item_id):
+            if not Routines.Checks.Map.MapValid():
+                return False
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
             owner_id = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
             return ((owner_id == player_agent_id) or (owner_id == 0))
 
         def IsValidFollowerItem(item_id):
+            if not Routines.Checks.Map.MapValid():
+                return False
             party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
             owner_id = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
@@ -2040,7 +2049,7 @@ class LootConfig:
                 return (owner_id == player_agent_id)
             
         
-        if Map.IsMapLoading():
+        if not Routines.Checks.Map.MapValid():
             return []
             
         loot_array = GLOBAL_CACHE.AgentArray.GetItemArray()
@@ -2081,6 +2090,7 @@ class LootConfig:
                 continue
 
         loot_array = AgentArray.Sort.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY())
+
         return loot_array
 #endregion
 
