@@ -2,6 +2,7 @@
 from Py4GWCoreLib import GLOBAL_CACHE, PyImGui, SharedCommandType, Routines, ConsoleLog, Console, UIManager
 from Py4GWCoreLib import LootConfig, Range, ActionQueueManager
 
+
 MODULE_NAME = "Messaging"
 
 width, height = 0,0
@@ -163,7 +164,7 @@ def TravelToMap(index, message):
     map_region = sender_data.MapRegion
     map_district = sender_data.MapDistrict
 
-    yield from Routines.Yield.Map.TravelToRegion(map_id, map_region, map_district, laguage=0, log=True)
+    yield from Routines.Yield.Map.TravelToRegion(map_id, map_region, map_district, language=0, log=True)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, f"TravelToMap message processed and finished.", Console.MessageType.Info)
@@ -331,6 +332,14 @@ def PickUpLoot(index, message):
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             ActionQueueManager().ResetAllQueues()
             return True  # Signal that we must exit
+        
+        if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1:
+            ConsoleLog(MODULE_NAME, "No free slots in inventory, halting.", Console.MessageType.Error)
+            yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            ActionQueueManager().ResetAllQueues()
+            return True
+        
         return False
 
     

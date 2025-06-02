@@ -192,6 +192,11 @@ class AgentCache:
         agent = self.raw_agent_array.get_agent(agent_id)
         return agent.living_agent.energy_regen
     
+    def GetEnergyPips(self, agent_id):
+        agent = self.raw_agent_array.get_agent(agent_id)
+        pips = 3.0 / 0.99 * agent.living_agent.energy_regen * agent.living_agent.max_energy
+        return int(pips) if pips > 0 else 0
+    
     def GetHealth(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
         return agent.living_agent.hp
@@ -368,6 +373,7 @@ class AgentCache:
         if item_owner is None:
             return 0
         return item_owner
+        
     
     def GetGadgetAgent(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
