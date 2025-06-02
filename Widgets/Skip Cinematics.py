@@ -9,7 +9,7 @@ class config:
         self.is_map_ready = False
         self.is_party_loaded = False
         self.is_in_cinematic = False
-        self.game_throttle_timer = ThrottledTimer(1000)
+        self.game_throttle_timer = ThrottledTimer(500)
 
 widget_config = config()
 
@@ -28,7 +28,7 @@ def main():
        
         
     if widget_config.is_map_ready and widget_config.is_party_loaded and widget_config.is_in_cinematic and widget_config.skipped == False:
-        for i in range(0,3):
+        for i in range(0,2):
             GLOBAL_CACHE.Map.SkipCinematic()
         widget_config.skipped = True
     else:
