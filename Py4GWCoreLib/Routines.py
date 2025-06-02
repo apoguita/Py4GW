@@ -3,10 +3,12 @@ from Py4GWCoreLib import Utils
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import ActionQueueManager
 from time import sleep
+import time
 from .enums import *
 import inspect
 import math
 from typing import List, Tuple, Callable
+from datetime import datetime, timezone
 """
 from .Map import Map
 from .Party import Party
@@ -1852,8 +1854,13 @@ class Routines:
 
         class Movement:
             @staticmethod
-            def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=150,log=False):
+            def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=150,log=False, timeout:int=5000):
+                def _GetBaseTimestamp():
+                    SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+                    return int((time.time() - SHMEM_ZERO_EPOCH) * 1000)
+                
                 import random
+                start_time =  _GetBaseTimestamp()
                 for idx, (target_x, target_y) in enumerate(path_points):
                     if not Routines.Checks.Map.MapValid():
                         ActionQueueManager().ResetAllQueues()
@@ -1872,6 +1879,13 @@ class Routines:
                         
                         if not Routines.Checks.Map.MapValid():
                             ActionQueueManager().ResetAllQueues()
+                            return
+                        
+                        current_time = _GetBaseTimestamp()
+                        
+                        delta = current_time - start_time
+                        if delta > timeout:
+                            ConsoleLog("FollowPath", "Timeout reached, stopping movement.", Console.MessageType.Warning)
                             return
                         
                         current_x, current_y = GLOBAL_CACHE.Player.GetXY()
@@ -1981,7 +1995,7 @@ class Routines:
                 ConsoleLog("TravelToOutpost", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
     
             @staticmethod
-            def TravelToRegion(outpost_id, region, district, laguage=0, log=False):
+            def TravelToRegion(outpost_id, region, district, language=0, log=False):
                 """
                 Purpose: Positions yourself safely on the outpost.
                 Args:
@@ -1995,7 +2009,7 @@ class Routines:
                 
                 if GLOBAL_CACHE.Map.GetMapID() != outpost_id:
                     ConsoleLog("TravelToRegion", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
-                    GLOBAL_CACHE.Map.TravelToRegion(outpost_id, region, district, laguage)
+                    GLOBAL_CACHE.Map.TravelToRegion(outpost_id, region, district, language)
                     yield from Routines.Yield.wait(2000)
                     waititng_for_map_load = True
                     while waititng_for_map_load:
