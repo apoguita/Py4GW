@@ -1,7 +1,7 @@
 import Py4GW
 from Py4GWCoreLib import MultiThreading, Timer, Range, LootConfig, Routines, Utils, Overlay, IconsFontAwesome5, Keystroke, Key, ImGui, PyImGui
-from Py4GWCoreLib import AgentArray, UIManager, ActionQueueManager
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import AgentArray, UIManager, ActionQueueManager, SharedCommandType
+from Py4GWCoreLib import GLOBAL_CACHE, ConsoleLog
 
 from HeroAI.globals import hero_formation
 from HeroAI.constants import MELEE_RANGE_VALUE, RANGED_RANGE_VALUE, FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS
@@ -93,44 +93,42 @@ def HandleCombat(cached_data: CacheData):
     return cached_data.combat_handler.HandleCombat(ooc=False)
 
 
-thread_manager = MultiThreading(log_actions=True)
 cached_data.in_looting_routine = False
-looting_aftercast = Timer()
-looting_aftercast.Start()
 
-
-def SequentialLootingRoutine():
-    global cached_data, looting_aftercast
+def LootingRoutineActive():
+    account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
     
-    filtered_loot = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
-    # Loot filtered items
-    #ActionQueueManager().ResetQueue("ACTION")
-    Routines.Sequential.Items.LootItems(filtered_loot,log = False)
-    looting_aftercast.Reset()
-    cached_data.in_looting_routine = False
-
+    if index == -1 or message is None:
+        return False
+    
+    if message.Command != SharedCommandType.PickUpLoot:
+        return False
+    return True
 
 def Loot(cached_data:CacheData):
-    global looting_aftercast
     if not cached_data.data.is_looting_enabled:  # halt operation if looting is disabled
         return False
     
     if cached_data.data.in_aggro:
         return False
     
-    if cached_data.in_looting_routine:
+    if LootingRoutineActive():
         return True
-    
-    if not looting_aftercast.HasElapsed(1000):
-        return False
-    
+
     loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
     if len(loot_array) == 0:
+        cached_data.in_looting_routine = False
         return False
 
     cached_data.in_looting_routine = True
-    thread_manager.stop_thread("SequentialLootingRoutine")
-    thread_manager.add_thread("SequentialLootingRoutine", SequentialLootingRoutine)
+    self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
+    if not self_account:
+        cached_data.in_looting_routine = False
+        return False
+    
+    GLOBAL_CACHE.ShMem.SendMessage(self_account.AccountEmail, self_account.AccountEmail, SharedCommandType.PickUpLoot, (0,0,0,0))
+    return True
 
 
 following_flag = False
@@ -388,22 +386,12 @@ def UpdateStatus(cached_data:CacheData):
     ):
         return
     
-    if cached_data.in_looting_routine:
+    if LootingRoutineActive():
         return
      
     cached_data.UdpateCombat()
     if HandleOutOfCombat(cached_data):
         return
-    
-    """
-    if cached_data.data.player_is_moving:
-        #keep following updated if we are already going
-        if cached_data.follow_throttle_timer.IsExpired():
-            Follow(cached_data)
-        return
-    else:
-        cached_data.follow_throttle_timer.Reset()
-    """
     
     if cached_data.data.player_is_moving:
         return

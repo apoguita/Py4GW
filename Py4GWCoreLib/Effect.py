@@ -4,6 +4,15 @@ import PyEffects
 from .Player import Player
 
 class Effects:
+    @staticmethod
+    def get_instance(agent_id):
+        """
+        Purpose: Get the instance of PyEffects for a specific agent.
+        Args:
+            agent_id (int): The agent ID of the party member.
+        Returns: PyEffects.PyEffects: The instance of PyEffects for the specified agent.
+        """
+        return PyEffects.PyEffects(agent_id)
 
     @staticmethod
     def DropBuff(buff_id):
