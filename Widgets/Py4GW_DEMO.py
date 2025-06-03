@@ -2097,7 +2097,7 @@ def ShowPyImGuiExtraMaplWindow():
                 headers = ["Info", "Value"]
                 data = [("Campaign:", GLOBAL_CACHE.Map.GetCampaign()[1]),
                         ("Continent:", GLOBAL_CACHE.Map.GetContinent()[1]),
-                        ("Region:", GLOBAL_CACHE.Map.GetRegion()[1]),
+                        ("Region:", f"{GLOBAL_CACHE.Map.GetRegion()[1]} ({GLOBAL_CACHE.Map.GetRegion()[0]})"),
                         ("District:", GLOBAL_CACHE.Map.GetDistrict()),
                         ("Language:", GLOBAL_CACHE.Map.GetLanguage()[1])]
 

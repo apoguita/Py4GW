@@ -1,11 +1,14 @@
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib import ActionQueueManager
 from time import sleep
+import time
 from .enums import *
 import inspect
 import math
 from typing import List, Tuple, Callable
+from datetime import datetime, timezone
 """
 from .Map import Map
 from .Party import Party
@@ -1322,8 +1325,13 @@ class Routines:
             def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=150):
                 import random
                 from .Player import Player
+                from .Map import Map
+                from .Party import Party
 
                 for idx, (target_x, target_y) in enumerate(path_points):
+                    if not Routines.Checks.Map.MapValid():
+                        return []
+                        
                     GLOBAL_CACHE.Player.Move(target_x, target_y)
                         
                     current_x, current_y = Player.GetXY()
@@ -1332,6 +1340,10 @@ class Routines:
                     while True:
                         if custom_exit_condition():
                             return
+                        
+                        if not Routines.Checks.Map.MapValid():
+                            return []
+                        
                         
                         current_x, current_y = Player.GetXY()
                         current_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
@@ -1760,9 +1772,14 @@ class Routines:
             @staticmethod
             def LootItems(item_array:list[int], log=False):
                 from .Agent import Agent
+                from .Map import Map
                 if len(item_array) == 0:
                     return
                 
+                if not Routines.Checks.Map.MapValid():
+                    ActionQueueManager().ResetAllQueues()
+                    return
+
                 while len (item_array) > 0:
                     item_id = item_array.pop(0)
                     if item_id == 0:
@@ -1770,7 +1787,13 @@ class Routines:
                     if not Agent.IsValid(item_id):
                         continue
                     item_x, item_y = Agent.GetXY(item_id)
+                    if not Routines.Checks.Map.MapValid():
+                        ActionQueueManager().ResetAllQueues()
+                        return
                     Routines.Sequential.Movement.FollowPath([(item_x, item_y)])
+                    if not Routines.Checks.Map.MapValid():
+                        ActionQueueManager().ResetAllQueues()
+                        return
                     if Agent.IsValid(item_id):
                         GLOBAL_CACHE.Player.Interact(item_id, False)
                         sleep(1.250)
@@ -1831,9 +1854,18 @@ class Routines:
 
         class Movement:
             @staticmethod
-            def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=150,log=False):
+            def FollowPath(path_points: List[Tuple[float, float]], custom_exit_condition:Callable[[], bool] =lambda: False, tolerance:float=150,log=False, timeout:int=5000):
+                def _GetBaseTimestamp():
+                    SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+                    return int((time.time() - SHMEM_ZERO_EPOCH) * 1000)
+                
                 import random
+                start_time =  _GetBaseTimestamp()
                 for idx, (target_x, target_y) in enumerate(path_points):
+                    if not Routines.Checks.Map.MapValid():
+                        ActionQueueManager().ResetAllQueues()
+                        return
+                    
                     GLOBAL_CACHE.Player.Move(target_x, target_y)
 
                     current_x, current_y = GLOBAL_CACHE.Player.GetXY()
@@ -1843,6 +1875,17 @@ class Routines:
                         if custom_exit_condition():
                             if log:
                                 ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info)
+                            return
+                        
+                        if not Routines.Checks.Map.MapValid():
+                            ActionQueueManager().ResetAllQueues()
+                            return
+                        
+                        current_time = _GetBaseTimestamp()
+                        
+                        delta = current_time - start_time
+                        if delta > timeout:
+                            ConsoleLog("FollowPath", "Timeout reached, stopping movement.", Console.MessageType.Warning)
                             return
                         
                         current_x, current_y = GLOBAL_CACHE.Player.GetXY()
@@ -1855,6 +1898,11 @@ class Routines:
                             offset_y = random.uniform(-5, 5)
                             if log:
                                 ConsoleLog("FollowPath", f"move to {target_x + offset_x}, {target_y + offset_y}", Console.MessageType.Info)
+                            
+                            if not Routines.Checks.Map.MapValid():
+                                ActionQueueManager().ResetAllQueues()
+                                return
+                            
                             GLOBAL_CACHE.Player.Move(target_x + offset_x, target_y + offset_y)
                         previous_distance = current_distance                    
                         
@@ -1947,7 +1995,7 @@ class Routines:
                 ConsoleLog("TravelToOutpost", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
     
             @staticmethod
-            def TravelToRegion(outpost_id, region, district, laguage=0, log=False):
+            def TravelToRegion(outpost_id, region, district, language=0, log=False):
                 """
                 Purpose: Positions yourself safely on the outpost.
                 Args:
@@ -1961,7 +2009,7 @@ class Routines:
                 
                 if GLOBAL_CACHE.Map.GetMapID() != outpost_id:
                     ConsoleLog("TravelToRegion", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
-                    GLOBAL_CACHE.Map.TravelToRegion(outpost_id, region, district, laguage)
+                    GLOBAL_CACHE.Map.TravelToRegion(outpost_id, region, district, language)
                     yield from Routines.Yield.wait(2000)
                     waititng_for_map_load = True
                     while waititng_for_map_load:
@@ -2317,13 +2365,25 @@ class Routines:
                     item_id = item_array.pop(0)
                     if item_id == 0:
                         continue
+                    
+                    if not Routines.Checks.Map.MapValid():
+                        item_array.clear()
+                        ActionQueueManager().ResetAllQueues()
+                        return
+                    
                     if not GLOBAL_CACHE.Agent.IsValid(item_id):
                         continue
+                    
                     item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
                     yield from Routines.Yield.Movement.FollowPath([(item_x, item_y)])
+                    if not Routines.Checks.Map.MapValid():
+                        item_array.clear()
+                        ActionQueueManager().ResetAllQueues()
+                        return
                     if GLOBAL_CACHE.Agent.IsValid(item_id):
                         yield from Routines.Yield.Player.InteractAgent(item_id)
                         yield from Routines.Yield.wait(1250)
+                        
                     
                 if log and len(item_array) > 0:
                     ConsoleLog("LootItems", f"Looted {len(item_array)} items.", Console.MessageType.Info)

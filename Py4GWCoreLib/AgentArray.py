@@ -394,6 +394,17 @@ class RawAgentArray:
                     self.owner_cache[agent_id] = agent_instance.item_agent.owner_id
             else:
                 self.agent_cache[agent_id].GetContext()
+                agent_instance = self.agent_cache[agent_id]
+
+                if agent_instance.is_item:
+                    current_owner = agent_instance.item_agent.owner_id
+                    cached_owner = self.owner_cache.get(agent_id, 0)
+
+                    # Only update if we discover the real owner (0 → non-zero)
+                    # Never overwrite a valid owner with 0
+                    if current_owner != 0 and current_owner != cached_owner:
+                        self.owner_cache[agent_id] = current_owner
+            
             agent = self.agent_cache[agent_id]
             self.agent_array.append(agent)
 
@@ -529,14 +540,12 @@ class RawAgentArray:
         self.update()
         agent = self.agent_dict.get(item_id) or PyAgent.PyAgent(item_id)
         owner = agent.item_agent.owner_id if agent.is_item else 0
-        cache_owner_id = self.owner_cache.get(item_id, 0)
-        
-        if owner == 0 :
-            return cache_owner_id
-        
-        if cache_owner_id != owner:
-            # Update the cache if the owner has changed
+        cached_owner = self.owner_cache.get(item_id, 0)
+
+        if owner != 0 and owner != cached_owner:
+            # Only update if owner is valid (non-zero)
             self.owner_cache[item_id] = owner
 
         return self.owner_cache.get(item_id, 0)
+
 
