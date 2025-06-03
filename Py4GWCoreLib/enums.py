@@ -1915,7 +1915,6 @@ class ModelID(IntEnum):
     Ghostly_Remains = 123654789193    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Gold_Crimson_Skull_Coin = 123654789194    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Igneous_Spider_leg = 123654789195    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Ivory_Troll_Tusk = 123654789196    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Kuskale_Claw = 123654789198    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Leather_Belt = 123456677        # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Mandragor_Carapace = 123654789181        # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
@@ -1923,11 +1922,12 @@ class ModelID(IntEnum):
     Rinkhal_Talon = 123654789186    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Searing_Ribcage = 123654789187    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Searing_Burrower_Jaw = 123654789189    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Shadowy_Remnants = 751851851    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Silver_Crimson_Skull_Coin = 211111356    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Smoking_Remains = 8787899465    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Spiny_Seed = 74966338    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Stolen_Supplies = 66665481    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Shadowy_Remnants = 441
+    Ivory_Troll_Tusk = 445
     Lavastrider_Appendage = 27058
     Blessing_Of_War = 37843
     Diamond_Djinn_Essence = 19186
