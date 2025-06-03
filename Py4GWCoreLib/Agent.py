@@ -461,6 +461,16 @@ class Agent:
         Returns: float
         """
         return Agent.agent_instance(agent_id).living_agent.energy_regen
+    
+    @staticmethod
+    def GetEnergyPips(agent_id):
+        """
+        Purpose: Retrieve the energy pips of the agent, only works for players and heroes.
+        Args: agent_id (int): The ID of the agent.
+        Returns: int
+        """
+        pips = 3.0 / 0.99 * Agent.agent_instance(agent_id).living_agent.energy_regen * Agent.agent_instance(agent_id).living_agent.max_energy
+        return int(pips) if pips > 0 else 0
 
     @staticmethod
     def GetHealth(agent_id):
