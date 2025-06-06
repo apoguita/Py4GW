@@ -724,11 +724,14 @@ class Agent:
     
     @staticmethod
     def GetItemAgentOwnerID(agent_id):
-        item_owner_cache = ItemOwnerCache()
+        #item_owner_cache = ItemOwnerCache()
         """Retrieve the owner ID of the item agent."""
         item_data =  Agent.GetItemAgent(agent_id)    
+        if item_data is None:
+            return 999
         current_owner_id = item_data.owner_id   
-        return item_owner_cache.check_and_cache(item_data.item_id, current_owner_id)
+        return current_owner_id
+        #return item_owner_cache.check_and_cache(item_data.item_id, current_owner_id)
         
     @staticmethod
     def GetGadgetAgent(agent_id):
