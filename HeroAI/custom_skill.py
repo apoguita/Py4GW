@@ -9533,7 +9533,7 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.CustomC.value
         skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemiesInRangeArea = Range.Spellcast.value
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -10029,7 +10029,7 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemiesInRangeArea = Range.Spellcast.value
         self.skill_data[skill.SkillID] = skill
         
         skill = self.CustomSkill()
