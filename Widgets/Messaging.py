@@ -360,29 +360,29 @@ def PickUpLoot(index, message):
         loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True)
         if len(loot_array) == 0:
             break 
-        item = loot_array.pop(0)
-        if item is None or item == 0:
+        item_id = loot_array.pop(0)
+        if item_id is None or item_id == 0:
             continue
         
         if (yield from _exit_if_not_map_valid()):
             return
         
-        if not GLOBAL_CACHE.Agent.IsValid(item):
+        if not GLOBAL_CACHE.Agent.IsValid(item_id):
             yield from Routines.Yield.wait(100)
             continue
         
-        pos = GLOBAL_CACHE.Agent.GetXY(item)
+        pos = GLOBAL_CACHE.Agent.GetXY(item_id)
         yield from Routines.Yield.Movement.FollowPath([pos])
         yield from Routines.Yield.wait(100)
         if (yield from _exit_if_not_map_valid()):
             return
-        yield from Routines.Yield.Player.InteractAgent(item)
+        yield from Routines.Yield.Player.InteractAgent(item_id)
         yield from Routines.Yield.wait(100)
         while True:
             if (yield from _exit_if_not_map_valid()):
                 return
             loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
-            if item not in loot_array or len(loot_array) == 0:
+            if item_id not in loot_array or len(loot_array) == 0:
                 yield from Routines.Yield.wait(100)
                 break
             yield from Routines.Yield.wait(100)

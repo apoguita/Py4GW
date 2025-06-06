@@ -2014,36 +2014,45 @@ class LootConfig:
     def GetBlacklist(self):
         return list(self.blacklist)
 
-    def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value, multibox_loot: bool = False):
+    def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value, multibox_loot: bool = False, allow_unasigned_loot=False) -> list[int]:
         from .AgentArray import AgentArray
-        from .Agent import Agent
-        from .Party import Party
-        from .Player import Player
-        from .Item import Item
-        from .Map import Map
         from .GlobalCache import GLOBAL_CACHE
         from .Routines import Routines
+        from .Agent import Agent
+        from .Item import Item
         if not Routines.Checks.Map.MapValid():
             return []
-        
         
         def IsValidItem(item_id):
             if not Routines.Checks.Map.MapValid():
                 return False
+            
+            if not Agent.IsValid(item_id):
+                return False    
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            owner_id = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
+            owner_id = Agent.GetItemAgentOwnerID(item_id)
             return ((owner_id == player_agent_id) or (owner_id == 0))
 
         def IsValidFollowerItem(item_id):
             if not Routines.Checks.Map.MapValid():
                 return False
+            if not Agent.IsValid(item_id):
+                return False 
             party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            owner_id = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
+            owner_id = Agent.GetItemAgentOwnerID(item_id)
             
             if party_leader_id == player_agent_id:
-                # If the player is the party leader, all items are valid
-                return ((owner_id == player_agent_id) or (owner_id == 0))
+                # If the player is the party leader, gold coins are valid
+                agent = Agent.agent_instance(item_id)
+                item_agent_id = agent.item_agent.item_id
+                model_id = Item.GetModelID(item_agent_id)
+                if model_id == ModelID.Gold_Coins.value:
+                    is_gold_coin = True
+                else:
+                    is_gold_coin = allow_unasigned_loot
+
+                return ((owner_id == player_agent_id) or (is_gold_coin))
             else:
                 # If the player is a follower, only items owned by the player are valid
                 return (owner_id == player_agent_id)

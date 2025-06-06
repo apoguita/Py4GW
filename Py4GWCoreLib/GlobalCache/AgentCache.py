@@ -369,9 +369,13 @@ class AgentCache:
         return agent.item_agent
     
     def GetItemAgentOwnerID(self, agent_id):
-        item_owner = self.raw_agent_array.get_item_owner(agent_id)
-        if item_owner is None:
-            return 0
+        from Py4GWCoreLib.Agent import Agent
+        agent = Agent.agent_instance(agent_id)
+        if agent is None:
+            return 999
+        item_owner = agent.item_agent.owner_id
+        if item_owner is None or item_owner <0:
+            return 999
         return item_owner
         
     
