@@ -1107,8 +1107,9 @@ def DrawControlPanelWindow(cached_data:CacheData):
                     login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
                     player_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
                     if PyImGui.tree_node(f"{player_name}##ControlPlayer{index}"):
-                        game_option = DrawPanelButtons(original_game_option)
-                        SubmitGameOptions(cached_data, index, game_option, original_game_option)
+                        game_option2 = DrawPanelButtons(original_game_option)
+                        ConsoleLog("HeroAI", f"Submitting game options for player {player_name} at index {index}")
+                        SubmitGameOptions(cached_data, index, game_option2, original_game_option)
                         PyImGui.tree_pop()
 
         cached_data.HeroAI_windows.control_window.process_window()
