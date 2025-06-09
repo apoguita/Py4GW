@@ -1864,7 +1864,7 @@ class Routines:
                 for idx, (target_x, target_y) in enumerate(path_points):
                     if not Routines.Checks.Map.MapValid():
                         ActionQueueManager().ResetAllQueues()
-                        return
+                        return False
                     
                     GLOBAL_CACHE.Player.Move(target_x, target_y)
 
@@ -1875,18 +1875,18 @@ class Routines:
                         if custom_exit_condition():
                             if log:
                                 ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info)
-                            return
+                            return False
                         
                         if not Routines.Checks.Map.MapValid():
                             ActionQueueManager().ResetAllQueues()
-                            return
+                            return False
                         
                         current_time = _GetBaseTimestamp()
                         
                         delta = current_time - start_time
                         if delta > timeout:
                             ConsoleLog("FollowPath", "Timeout reached, stopping movement.", Console.MessageType.Warning)
-                            return
+                            return False
                         
                         current_x, current_y = GLOBAL_CACHE.Player.GetXY()
                         current_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
@@ -1901,7 +1901,7 @@ class Routines:
                             
                             if not Routines.Checks.Map.MapValid():
                                 ActionQueueManager().ResetAllQueues()
-                                return
+                                return False
                             
                             GLOBAL_CACHE.Player.Move(target_x + offset_x, target_y + offset_y)
                         previous_distance = current_distance                    
@@ -1914,6 +1914,8 @@ class Routines:
                                 ConsoleLog("FollowPath", f"Current distance to target: {current_distance}, waiting...", Console.MessageType.Info)
 
                         yield from Routines.Yield.wait(500)
+                    
+                    return True
 
         class Skills:
             @staticmethod
