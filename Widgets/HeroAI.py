@@ -63,6 +63,9 @@ def Loot(cached_data:CacheData):
     
     if LootingRoutineActive():
         return True
+    
+    if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1:
+        return False
 
     loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot= True) # Changed for LootManager - aC
     if len(loot_array) == 0:
