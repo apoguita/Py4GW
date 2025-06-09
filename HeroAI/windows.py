@@ -1007,28 +1007,34 @@ def SubmitGameOptions(cached_data:CacheData,party_pos,game_option,original_game_
         return
     if game_option.Following != original_game_option.Following:
         hero_ai_data.Following = game_option.Following
+        ConsoleLog("HeroAI", f"Following set to {game_option.Following} for party {party_pos}")
         #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Following", game_option.Following)
 
     if game_option.Avoidance != original_game_option.Avoidance:
         hero_ai_data.Avoidance = game_option.Avoidance
+        ConsoleLog("HeroAI", f"Avoidance set to {game_option.Avoidance} for party {party_pos}")
         #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Avoidance", game_option.Avoidance)
 
     if game_option.Looting != original_game_option.Looting:
         hero_ai_data.Looting = game_option.Looting
+        ConsoleLog("HeroAI", f"Looting set to {game_option.Looting} for party {party_pos}")
         #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Looting", game_option.Looting)
 
     if game_option.Targeting != original_game_option.Targeting:
         hero_ai_data.Targeting = game_option.Targeting
+        ConsoleLog("HeroAI", f"Targeting set to {game_option.Targeting} for party {party_pos}")
         #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Targeting", game_option.Targeting)
 
     if game_option.Combat != original_game_option.Combat:
         hero_ai_data.Combat = game_option.Combat
+        ConsoleLog("HeroAI", f"Combat set to {game_option.Combat} for party {party_pos}")
         #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, "Combat", game_option.Combat)
 
     # Skills
     for i in range(NUMBER_OF_SKILLS):
         if game_option.Skills[i].Active != original_game_option.Skills[i].Active:
             hero_ai_data.Skills[i] = game_option.Skills[i].Active
+            ConsoleLog("HeroAI", f"Skill {i + 1} set to {game_option.Skills[i].Active} for party {party_pos}")
             #cached_data.HeroAI_vars.shared_memory_handler.set_game_option_property(index, f"Skill_{i + 1}", game_option.Skills[i].Active)
 
 def DrawPanelButtons(source_game_option):
@@ -1101,8 +1107,9 @@ def DrawControlPanelWindow(cached_data:CacheData):
                     login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(cached_data.HeroAI_vars.all_player_struct[index].PlayerID)
                     player_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
                     if PyImGui.tree_node(f"{player_name}##ControlPlayer{index}"):
-                        game_option = DrawPanelButtons(original_game_option)
-                        SubmitGameOptions(cached_data, index, game_option, original_game_option)
+                        game_option2 = DrawPanelButtons(original_game_option)
+                        ConsoleLog("HeroAI", f"Submitting game options for player {player_name} at index {index}")
+                        SubmitGameOptions(cached_data, index, game_option2, original_game_option)
                         PyImGui.tree_pop()
 
         cached_data.HeroAI_windows.control_window.process_window()
