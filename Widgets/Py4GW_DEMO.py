@@ -950,24 +950,32 @@ def format_binary_grouped(value: int, group_size: int = 4) -> str:
     return ' '.join(binary_str[i:i + group_size] for i in range(0, len(binary_str), group_size))
 
 
-_item_name = "Not recieved"
+_item_names = {}
+
 def ShowItemDataWindow(item_id):
     global _item_name
     try: 
         width, height = 700,700
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Item: " + str(item_id)):
-
+            pass
+            
             item_type_id, item_type_name = GLOBAL_CACHE.Item.GetItemType(item_id)
-            if _item_name == "Not recieved":
+            
+            if item_id in _item_names:
+                item_name = _item_names[item_id]
+            else:
                 item_name = GLOBAL_CACHE.Item.GetName(item_id)
-                if item_name != _item_name and item_name != "":
-                    _item_name = item_name
+                if item_name:  # Only cache if a valid (non-empty) name is returned
+                    _item_names[item_id] = item_name
+                else:
+                    item_name = "Not recieved"  # Show placeholder, don't cache yet
 
+                
 
             headers = ["Value","Data"]
             data = [
-                ("Item Name:", _item_name),
+                ("Item Name:", item_name),
                 ("Item Type:", f"{item_type_id} - {item_type_name}"),
                 ("Model Id:", GLOBAL_CACHE.Item.GetModelID(item_id)),
                 ("Slot(pick up to see):", GLOBAL_CACHE.Item.GetSlot(item_id)),
@@ -976,7 +984,7 @@ def ShowItemDataWindow(item_id):
             ]
 
             ImGui.table("Item common info", headers, data)
-
+            
             if PyImGui.collapsing_header("Rarity"):
             
                 rarity_id, rarity_name = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
