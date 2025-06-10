@@ -73,6 +73,11 @@ class GlobalCache:
                
         if self._TrottleTimers._75ms.IsExpired():
             self._TrottleTimers._75ms.Reset()
+            if self._TrottleTimers._500ms.IsExpired():
+                self._TrottleTimers._500ms.Reset()
+                
+   
+            
             if self._TrottleTimers._150ms.IsExpired():   
                 self._TrottleTimers._150ms.Reset()
                 self.Party._update_cache()
