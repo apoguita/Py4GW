@@ -1,6 +1,8 @@
 
 from Py4GWCoreLib import GLOBAL_CACHE, PyImGui, SharedCommandType, Routines, ConsoleLog, Console, UIManager
 from Py4GWCoreLib import LootConfig, Range, ActionQueueManager
+from datetime import datetime, timezone
+import time
 
 
 MODULE_NAME = "Messaging"
@@ -341,6 +343,10 @@ def PickUpLoot(index, message):
             return True
         
         return False
+    
+    def _GetBaseTimestamp():
+        SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        return int((time.time() - SHMEM_ZERO_EPOCH) * 1000)
 
     
     
@@ -365,6 +371,11 @@ def PickUpLoot(index, message):
             continue
         
         if (yield from _exit_if_not_map_valid()):
+            LootConfig().AddItemIDToBlacklist(item_id)
+            ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
+            yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            ActionQueueManager().ResetAllQueues()
             return
         
         if not GLOBAL_CACHE.Agent.IsValid(item_id):
@@ -372,15 +383,43 @@ def PickUpLoot(index, message):
             continue
         
         pos = GLOBAL_CACHE.Agent.GetXY(item_id)
-        yield from Routines.Yield.Movement.FollowPath([pos])
+        follow_success = yield from Routines.Yield.Movement.FollowPath([pos])
+        if not follow_success:
+            LootConfig().AddItemIDToBlacklist(item_id)
+            ConsoleLog("PickUp Loot", "Failed to follow path to loot item, halting.", Console.MessageType.Warning)
+            yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            ActionQueueManager().ResetAllQueues()
+            return
+
+        
         yield from Routines.Yield.wait(100)
         if (yield from _exit_if_not_map_valid()):
             return
         yield from Routines.Yield.Player.InteractAgent(item_id)
         yield from Routines.Yield.wait(100)
+        start_time =  _GetBaseTimestamp()
+        timeout = 3000
         while True:
-            if (yield from _exit_if_not_map_valid()):
+            current_time = _GetBaseTimestamp()
+            
+            delta = current_time - start_time
+            if delta > timeout:
+                LootConfig().AddItemIDToBlacklist(item_id)
+                ConsoleLog("PickUp Loot", "Timeout reached while picking up loot, halting.", Console.MessageType.Warning)
+                yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+                GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+                ActionQueueManager().ResetAllQueues()
                 return
+            
+            if (yield from _exit_if_not_map_valid()):
+                LootConfig().AddItemIDToBlacklist(item_id)
+                ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
+                yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+                GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+                ActionQueueManager().ResetAllQueues()
+                return
+            
             loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
             if item_id not in loot_array or len(loot_array) == 0:
                 yield from Routines.Yield.wait(100)

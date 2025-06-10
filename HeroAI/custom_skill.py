@@ -2895,8 +2895,9 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Purifying_Veil")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.Ally.value
+        skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.TargetingStrict = True
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
@@ -3250,9 +3251,10 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Holy_Veil")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.Ally.value
-        skill.Nature = SkillNature.Hex_Removal.value
-        skill.Conditions.UniqueProperty = True
+        skill.TargetAllegiance = Skilltarget.AllyMartial.value
+        skill.Nature = SkillNature.Buff.value
+        skill.Conditions.TargetingStrict = True
+        skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
