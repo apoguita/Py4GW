@@ -812,6 +812,21 @@ class Routines:
             spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsSpawned(agent_id))
             spirit_array = AgentArray.Sort.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY())
             return Utils.GetFirstFromArray(spirit_array)
+        
+        @staticmethod
+        def GetFilteredSpiritArray(x, y, max_distance=4500.0):
+            from .AgentArray import AgentArray
+            """
+            Purpose: filters spirits within the specified range.
+            Args:
+                range (int): The maximum distance to search for spirits.
+            Returns: List of spirit agent IDs
+            """
+            spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+            spirit_array = AgentArray.Filter.ByDistance(spirit_array, (x,y), max_distance)
+            spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
+            spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsSpawned(agent_id))
+            return spirit_array
             
         @staticmethod
         def GetLowestMinion(max_distance=4500.0):
@@ -823,6 +838,21 @@ class Routines:
             minion_array = AgentArray.Sort.ByHealth(minion_array)
             return Utils.GetFirstFromArray(minion_array)            
             
+        @staticmethod
+        def GetFilteredMinionArray(x, y, max_distance=4500.0):
+            from .AgentArray import AgentArray
+            """
+            Purpose: filters minions within the specified range.
+            Args:
+                range (int): The maximum distance to search for minions.
+            Returns: List of minion agent IDs
+            """
+            minion_array = GLOBAL_CACHE.AgentArray.GetMinionArray()
+            minion_array = AgentArray.Filter.ByDistance(minion_array, (x,y), max_distance)
+            minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
+            return minion_array    
+        
+        
         @staticmethod
         def GetNearestItem(max_distance=4500.0):
             from .AgentArray import AgentArray

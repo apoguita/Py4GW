@@ -732,9 +732,27 @@ class ThrottledTimer:
     
     def Reset(self):
         self.timer.Reset()
+        
+    def Start(self):
+        self.timer.Start()
+        
+    def Stop(self):
+        self.timer.Stop()
+    
+    def IsStopped(self):
+        return self.timer.IsStopped()
+    
     
     def SetThrottleTime(self, throttle_time):
         self.throttle_time = throttle_time
+        
+    def GetTimeElapsed(self):
+        return self.timer.GetElapsedTime()
+    
+    def GetTimeRemaining(self):
+        if self.timer.IsStopped():
+            return 0
+        return max(0, self.throttle_time - self.timer.GetElapsedTime())
 
 #endregion
 #region KeyHandler
@@ -977,7 +995,7 @@ class ActionQueueManager:
             "LOOT": ActionQueueNode(1250),
             "MERCHANT": ActionQueueNode(750),
             "SALVAGE": ActionQueueNode(325),
-            "IDENTIFY": ActionQueueNode(250)
+            "IDENTIFY": ActionQueueNode(150)
             # Add more queues here if needed
         }
         
