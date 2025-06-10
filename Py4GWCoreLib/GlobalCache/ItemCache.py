@@ -446,6 +446,16 @@ class ItemCache:
                 return False
             return item.is_tome
         
+        def IsTrophy(self, item_id: int) -> bool:
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
+            if item is None:
+                return False
+            _, item_type_name = self._parent.GetItemType(item_id)
+            
+            if item_type_name == "Trophy":
+                return True
+            return False
+        
     class _Usage:
         def __init__(self, parent):
             self._parent = parent
