@@ -1975,6 +1975,8 @@ class LootConfig:
         self.loot_greens = False
         self.whitelist = set()  # Avoid duplicates
         self.blacklist = set()
+        self.item_id_blacklist = set()  # For items that are blacklisted by ID
+        self.item_id_whitelist = set()  # For items that are whitelisted by ID
 
     def SetProperties(self, loot_whites=False, loot_blues=False, loot_purples=False, loot_golds=False, loot_greens=False, loot_gold_coins=False):
         self.loot_gold_coins = loot_gold_coins
@@ -1989,30 +1991,93 @@ class LootConfig:
 
     def AddToBlacklist(self, model_id: int):
         self.blacklist.add(model_id)
+        
+    def AddItemIDToWhitelist(self, item_id: int):
+        """
+        Add an item ID to the whitelist.
+        This is used for items that should be picked up regardless of their model ID.
+        """
+        self.item_id_whitelist.add(item_id)
+        
+    def AddItemIDToBlacklist(self, item_id: int):
+        """
+        Add an item ID to the blacklist.
+        This is used for items that should not be picked up regardless of their model ID.
+        """
+        self.item_id_blacklist.add(item_id)
 
     def RemoveFromWhitelist(self, model_id: int):
         self.whitelist.discard(model_id)
+        
+    def RemoveItemIDFromWhitelist(self, item_id: int):
+        """
+        Remove an item ID from the whitelist.
+        This is used for items that were previously whitelisted.
+        """
+        self.item_id_whitelist.discard(item_id)
 
     def RemoveFromBlacklist(self, model_id: int):
         self.blacklist.discard(model_id)
         
+    def RemoveItemIDFromBlacklist(self, item_id: int):
+        """
+        Remove an item ID from the blacklist.
+        This is used for items that were previously blacklisted.
+        """
+        self.item_id_blacklist.discard(item_id)
+        
     def ClearWhitelist(self):
         self.whitelist.clear()
         
+    def ClearItemIDWhitelist(self):
+        """
+        Clear the item ID whitelist.
+        This is used to remove all item IDs that were whitelisted.
+        """
+        self.item_id_whitelist.clear()
+        
     def ClearBlacklist(self):
         self.blacklist.clear()
+        
+    def ClearItemIDBlacklist(self):
+        """
+        Clear the item ID blacklist.
+        This is used to remove all item IDs that were blacklisted.
+        """
+        self.item_id_blacklist.clear()
 
     def IsWhitelisted(self, model_id: int):
         return model_id in self.whitelist
 
     def IsBlacklisted(self, model_id: int):
         return model_id in self.blacklist
+    
+    def IsItemIDWhitelisted(self, item_id: int):
+        """
+        Check if an item ID is whitelisted.
+        This is used to determine if an item should be picked up based on its ID.
+        """
+        return item_id in self.item_id_whitelist
+    
+    def IsItemIDBlacklisted(self, item_id: int):
+        """
+        Check if an item ID is blacklisted.
+        This is used to determine if an item should be ignored based on its ID.
+        """
+        return item_id in self.item_id_blacklist
 
     def GetWhitelist(self):
         return list(self.whitelist)
 
     def GetBlacklist(self):
         return list(self.blacklist)
+    
+    def GetItemIDBlacklist(self):
+        """
+        Get the list of blacklisted item IDs.
+        This is used to retrieve all item IDs that should not be picked up.
+        """
+        return list(self.item_id_blacklist)
 
     def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value, multibox_loot: bool = False, allow_unasigned_loot=False) -> list[int]:
         from .AgentArray import AgentArray
@@ -2077,8 +2142,15 @@ class LootConfig:
 
             if self.IsWhitelisted(model_id):
                 continue
+            
+            if self.IsItemIDWhitelisted(item_id):
+                continue
 
             if self.IsBlacklisted(model_id):
+                loot_array.remove(agent_id)
+                continue
+            
+            if self.IsItemIDBlacklisted(item_id):
                 loot_array.remove(agent_id)
                 continue
 

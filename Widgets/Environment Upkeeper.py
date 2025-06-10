@@ -55,6 +55,8 @@ def main():
     
     if Routines.Checks.Map.MapValid():
         GLOBAL_CACHE.ShMem.UpdateTimeouts()
+    else:
+        LootConfig().ClearItemIDBlacklist()
     
     for routine in GLOBAL_CACHE.Coroutines[:]:
         try:
