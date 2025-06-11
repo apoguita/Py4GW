@@ -1685,31 +1685,31 @@ def DepositItemsAuto():
             
             if is_tome:
                 GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(250)
+                yield from Routines.Yield.wait(350)
             
             if is_trophy and global_vars.auto_widget_options.deposit_trophies and is_white:
                 GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(250)
+                yield from Routines.Yield.wait(350)
             
             if is_material and global_vars.auto_widget_options.deposit_materials:
                 GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(250)
+                yield from Routines.Yield.wait(350)
             
             if is_blue and global_vars.auto_widget_options.deposit_blues:
                 GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(250)
+                yield from Routines.Yield.wait(350)
             
             if is_purple and global_vars.auto_widget_options.deposit_purples:
                 GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(250)
+                yield from Routines.Yield.wait(350)
             
             if is_gold and global_vars.auto_widget_options.deposit_golds and not is_usable and not is_trophy:
                 GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(250)
+                yield from Routines.Yield.wait(350)
             
             if is_green and global_vars.auto_widget_options.deposit_greens:
                 GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(250)
+                yield from Routines.Yield.wait(350)
         
         
 def IDAndSalvageItems():
@@ -1777,7 +1777,6 @@ def main():
         global_vars.auto_widget_options.lookup_throttle.Stop()
         global_vars.auto_widget_options.status = "Idle"
         if not global_vars.auto_widget_options.outpost_handled and global_vars.auto_widget_options.module_active:
-            ConsoleLog(MODULE_NAME, "Not in explorable, Id Slavaging And Dpositing once", Py4GW.Console.MessageType.Warning)
             GLOBAL_CACHE.Coroutines.append(IDSalvageDepositItems())
             global_vars.auto_widget_options.outpost_handled = True
 
@@ -1791,7 +1790,6 @@ def main():
         global_vars.auto_widget_options.lookup_throttle.SetThrottleTime(global_vars.auto_widget_options._LOOKUP_TIME)
         global_vars.auto_widget_options.lookup_throttle.Stop()
         if global_vars.auto_widget_options.status == "Idle" and global_vars.auto_widget_options.module_active:
-            ConsoleLog(MODULE_NAME, "Auto Widget Options Lookup Throttle expired, starting ID and Salvage routine", Py4GW.Console.MessageType.Info)
             GLOBAL_CACHE.Coroutines.append(IDAndSalvageItems())
         global_vars.auto_widget_options.lookup_throttle.Start()
         
