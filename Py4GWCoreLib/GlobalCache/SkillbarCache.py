@@ -31,8 +31,11 @@ class SkillbarCache:
         hero_skillbar = self._skillbar_instance.GetHeroSkillbar(hero_index)
         return hero_skillbar
     
-    def UseSkill(self, skill_slot, target_agent_id=0):
-        self._action_queue_manager.AddAction("ACTION", self._skillbar_instance.UseSkill, skill_slot, target_agent_id)
+    def UseSkill(self, skill_slot, target_agent_id=0, aftercast_delay=0):
+        self._action_queue_manager.AddActionWithDelay("ACTION",aftercast_delay, self._skillbar_instance.UseSkill, skill_slot, target_agent_id)
+     
+    def UseSkillTargetless(self, skill_slot, aftercast_delay=0):
+        self._action_queue_manager.AddActionWithDelay("ACTION",aftercast_delay, self._skillbar_instance.UseSkillTargetless, skill_slot)
         
     def HeroUseSkill(self, target_agent_id, skill_number, hero_number):
         self._action_queue_manager.AddAction("ACTION", self._skillbar_instance.HeroUseSkill, target_agent_id, skill_number, hero_number)
