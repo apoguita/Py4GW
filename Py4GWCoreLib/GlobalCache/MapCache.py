@@ -52,20 +52,17 @@ class MapCache:
         global outposts
         return list(outposts.values())
     
-    def GetMapIDByName(self, name):
+    def GetMapIDByName(self, name) -> int:
         global explorable_name_to_id
-        """Retrieve the ID of a map by its name."""
         map_id = explorable_name_to_id.get(name)
         if map_id is not None:
             return map_id
 
-        # Get outpost IDs and names, and build a reverse lookup map
         outpost_ids = self.GetOutpostIDs()
         outpost_names = self.GetOutpostNames()
-        outpost_name_to_id = {name: id for id, name in zip(outpost_names, outpost_ids)}
+        outpost_name_to_id = {name: id for name, id in zip(outpost_names, outpost_ids)}
+        return int(outpost_name_to_id.get(name, 0))
 
-        # Check if the name exists in outposts
-        return outpost_name_to_id.get(name, 0)
     
     def GetExplorableIDs(self):
         return list(explorables.keys())

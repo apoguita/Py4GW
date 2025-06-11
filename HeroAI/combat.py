@@ -917,7 +917,7 @@ class CombatClass:
         if Conditions.SpiritsInRange != 0:
             player_pos = GLOBAL_CACHE.Player.GetXY()
             ally_array = ally_array = Routines.Agents.GetFilteredSpiritArray(player_pos[0], player_pos[1], Conditions.SpiritsInRangeArea)
-            if len(ally_array) >= Conditions.AlliesInRange:
+            if len(ally_array) >= Conditions.SpiritsInRange:
                 number_of_features += 1
             else:
                 number_of_features = 0
