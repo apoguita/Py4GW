@@ -66,6 +66,11 @@ class CustomSkillClass:
                 self.AlliesInRange = 0
                 self.AlliesInRangeArea = Range.Area.value
 
+                self.SpiritsInRange = 0
+                self.SpiritsInRangeArea = Range.Area.value
+                
+                self.MinionsInRange = 0
+                self.MinionsInRangeArea = Range.Area.value
 
     class CustomSkill:
         def __init__(self):

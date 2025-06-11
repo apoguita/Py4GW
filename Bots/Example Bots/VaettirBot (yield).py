@@ -919,16 +919,7 @@ def DrawWindow():
             
             PyImGui.text_colored("Status:IDLE", Color(255,0,0,255).to_tuple())
             
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+
             # Control Table
             if PyImGui.begin_table("ControlTable", 2):
                 PyImGui.table_next_row()
