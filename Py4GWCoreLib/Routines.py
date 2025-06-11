@@ -2363,7 +2363,7 @@ class Routines:
                 gold_amount_on_character = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
                 gold_amount_on_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
                 
-                max_allowed_gold = 100000  # Max storage limit
+                max_allowed_gold = 1_000_000  # Max storage limit
                 available_space = max_allowed_gold - gold_amount_on_storage  # How much can be deposited
 
                 # Calculate how much gold we need to deposit
@@ -2373,9 +2373,14 @@ class Routines:
                 gold_to_deposit = min(gold_to_deposit, available_space)
 
                 # If storage is full or no gold needs to be deposited, exit
-                if available_space <= 0 or gold_to_deposit <= 0:
+                if available_space <= 0:
                     if log:
-                        ConsoleLog("DepositGold", "No gold deposited (either storage full or not enough excess gold).", Console.MessageType.Warning)
+                        ConsoleLog("DepositGold", "No gold deposited, storage full.", Console.MessageType.Warning)
+                    return False
+                
+                if gold_to_deposit <= 0:
+                    if log:
+                        ConsoleLog("DepositGold", "No gold deposited, not enough excess gold.", Console.MessageType.Warning)
                     return False
 
                 # Perform the deposit
@@ -2384,7 +2389,7 @@ class Routines:
                 yield from Routines.Yield.wait(350)
                 
                 if log:
-                    ConsoleLog("DepositGold", f"Deposited {gold_to_deposit} gold. Remaining on character: {gold_amount_to_leave_on_character}.", Console.MessageType.Success)
+                    ConsoleLog("DepositGold", f"Deposited {gold_to_deposit} gold.", Console.MessageType.Success)
                 
                 return True
 
