@@ -140,7 +140,7 @@ def DisableHeroAIOptions(acocunt_email):
 #region InviteToParty
 
 def InviteToParty(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing InviteToParty message: {message}", Console.MessageType.Info)
+    #ConsoleLog(MODULE_NAME, f"Processing InviteToParty message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -156,7 +156,7 @@ def InviteToParty(index, message):
 #region TravelToMap
     
 def TravelToMap(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing TravelToMap message: {message}", Console.MessageType.Info)
+    #ConsoleLog(MODULE_NAME, f"Processing TravelToMap message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -175,7 +175,7 @@ def TravelToMap(index, message):
 #region Resign
     
 def Resign(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing Resign message: {message}", Console.MessageType.Info)
+    #ConsoleLog(MODULE_NAME, f"Processing Resign message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     GLOBAL_CACHE.Player.SendChatCommand("resign")
     yield from Routines.Yield.wait(100)
@@ -231,7 +231,7 @@ def InteractWithTarget(index, message):
 #region TakeDialogWithTarget
     
 def TakeDialogWithTarget(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing InteractWithTarget message: {message}", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, f"Processing TakeDialogWithTarget message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -255,7 +255,7 @@ def TakeDialogWithTarget(index, message):
         yield from Routines.Yield.wait(200)
     yield from RestoreHeroAISnapshot(message.ReceiverEmail)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, f"InteractWithTarget message processed and finished.", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, f"TakeDialogWithTarget message processed and finished.", Console.MessageType.Info)
     
 def GetBlessing(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -281,7 +281,7 @@ def GetBlessing(index, message):
         yield from Routines.Yield.wait(200)
     yield from RestoreHeroAISnapshot(message.ReceiverEmail)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, f"InteractWithTarget message processed and finished.", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, f"GetBlessing message processed and finished.", Console.MessageType.Info)
      
     
 #endregion
@@ -299,7 +299,7 @@ def UsePcon(index, message):
     # Halt if any of the effects is already active
     if GLOBAL_CACHE.ShMem.HasEffect(message.ReceiverEmail, pcon_skill_id) or \
        GLOBAL_CACHE.ShMem.HasEffect(message.ReceiverEmail, pcon_skill_id2):
-        ConsoleLog(MODULE_NAME, "Player already has the effect of one of the PCon skills.", Console.MessageType.Warning)
+        #ConsoleLog(MODULE_NAME, "Player already has the effect of one of the PCon skills.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -309,13 +309,13 @@ def UsePcon(index, message):
     elif GLOBAL_CACHE.Inventory.GetModelCount(pcon_model_id2) > 0:
         pcon_model_to_use = pcon_model_id2
     else:
-        ConsoleLog(MODULE_NAME, "Player does not have any of the required PCons in inventory.", Console.MessageType.Warning)
+        #ConsoleLog(MODULE_NAME, "Player does not have any of the required PCons in inventory.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
     item_id = GLOBAL_CACHE.Item.GetItemIdFromModelID(pcon_model_to_use)
     if item_id == 0:
-        ConsoleLog(MODULE_NAME, f"Could not find item ID for PCon model {pcon_model_to_use}.", Console.MessageType.Error)
+        #ConsoleLog(MODULE_NAME, f"Could not find item ID for PCon model {pcon_model_to_use}.", Console.MessageType.Error)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -323,7 +323,7 @@ def UsePcon(index, message):
     ConsoleLog(MODULE_NAME, f"Using PCon model {pcon_model_to_use} with item_id {item_id}.", Console.MessageType.Info)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "UsePcon message processed and finished.", Console.MessageType.Info)
+    #ConsoleLog(MODULE_NAME, "UsePcon message processed and finished.", Console.MessageType.Info)
 #endregion
 
 #region PickUpLoot
@@ -357,7 +357,7 @@ def PickUpLoot(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
     
-    print (f"Picking up: {len(loot_array)} items.")
+    ConsoleLog(MODULE_NAME, f"Starting PickUpLoot routine", Console.MessageType.Info)
 
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
     yield from DisableHeroAIOptions(message.ReceiverEmail)
@@ -429,7 +429,7 @@ def PickUpLoot(index, message):
 
     yield from RestoreHeroAISnapshot(message.ReceiverEmail)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "PickUpLoot message processed and finished.", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, "PickUpLoot routine finished.", Console.MessageType.Info)
 
 
 #region ProcessMessages
