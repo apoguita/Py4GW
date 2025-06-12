@@ -1481,7 +1481,7 @@ outposts = {
     644: "Gunnar's Hold",
     645: "Olafstead",
     648: "Doomlore Shrine",
-    650: "Longeye's Ledge",
+    650: "Longeyes Ledge",
     652: "Central Transfer Chamber",
     675: "Boreal Station",
     721: "Costume Brawl outpost",
