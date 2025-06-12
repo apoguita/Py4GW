@@ -61,6 +61,17 @@ class SkillBar:
         """
         skillbar_instance = PySkillbar.Skillbar()
         skillbar_instance.UseSkill(skill_slot, target_agent_id)
+        
+    @staticmethod
+    def UseSkillTargetless(skill_slot):
+        """
+        Purpose: Use a skill from the skill bar without a target.
+        Args:
+            skill_slot (int): The slot number of the skill to use (1-8).
+        Returns: None
+        """
+        skillbar_instance = PySkillbar.Skillbar()
+        skillbar_instance.UseSkillTargetless(skill_slot)
 
     @staticmethod
     def HeroUseSkill(target_agent_id, skill_number, hero_number):

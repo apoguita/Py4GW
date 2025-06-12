@@ -10,14 +10,10 @@ from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import IconsFontAwesome5
 from Py4GWCoreLib import Bags
 from Py4GWCoreLib import Inventory
-from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import ConsoleLog
-from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Routines
-from Py4GWCoreLib import Item
-
-
+from Py4GWCoreLib import AutoInventoryHandler
 
 from enum import Enum
 from typing import Dict
@@ -136,100 +132,6 @@ rarity_colors = {
 
 #endregion
 
-#region AutoTypes
-class AutoWidgetOptions():
-    def __init__(self):
-        self._LOOKUP_TIME:int = 15000
-        self.lookup_throttle = ThrottledTimer(self._LOOKUP_TIME)
-        self.ini = IniHandler("Inventory_plus.ini")
-        self.initialized = False
-        self.status = "Idle"
-        self.outpost_handled = False
-        self.module_active = False
-        
-        self.id_whites = False
-        self.id_blues = True
-        self.id_purples = True
-        self.id_golds = False
-        self.id_greens = False
-        
-        self.salvage_whites = True
-        self.salvage_rare_materials = False
-        self.salvage_blues = True
-        self.salvage_purples = True
-        self.salvage_golds = False
-        self.salvage_blacklist = []  # Items that should not be salvaged, even if they match the salvage criteria
-        self.blacklisted_model_id = 0
-        self.model_id_search = ""
-        self.model_id_search_mode = 0  # 0 = Contains, 1 = Starts With
-        self.show_dialog_popup = False 
-        
-        self.deposit_trophies = True
-        self.deposit_materials = True
-        self.deposit_blues = True
-        self.deposit_purples = True
-        self.deposit_golds = True
-        self.deposit_greens = True
-        self.keep_gold = 5000
-           
-    def save_to_ini(self, section: str = "WidgetOptions"):
-        self.ini.write_key(section, "module_active", str(self.module_active))
-        self.ini.write_key(section, "lookup_time", str(self._LOOKUP_TIME))
-        self.ini.write_key(section, "id_whites", str(self.id_whites))
-        self.ini.write_key(section, "id_blues", str(self.id_blues))
-        self.ini.write_key(section, "id_purples", str(self.id_purples))
-        self.ini.write_key(section, "id_golds", str(self.id_golds))
-        self.ini.write_key(section, "id_greens", str(self.id_greens))
-
-        self.ini.write_key(section, "salvage_whites", str(self.salvage_whites))
-        self.ini.write_key(section, "salvage_rare_materials", str(self.salvage_rare_materials))
-        self.ini.write_key(section, "salvage_blues", str(self.salvage_blues))
-        self.ini.write_key(section, "salvage_purples", str(self.salvage_purples))
-        self.ini.write_key(section, "salvage_golds", str(self.salvage_golds))
-
-        self.ini.write_key(section, "salvage_blacklist", ",".join(str(i) for i in sorted(set(self.salvage_blacklist))))
-
-        self.ini.write_key(section, "deposit_trophies", str(self.deposit_trophies))
-        self.ini.write_key(section, "deposit_materials", str(self.deposit_materials))
-        self.ini.write_key(section, "deposit_blues", str(self.deposit_blues))
-        self.ini.write_key(section, "deposit_purples", str(self.deposit_purples))
-        self.ini.write_key(section, "deposit_golds", str(self.deposit_golds))
-        self.ini.write_key(section, "deposit_greens", str(self.deposit_greens))
-        self.ini.write_key(section, "keep_gold", str(self.keep_gold))
-
-
-    def load_from_ini(self, ini: IniHandler, section: str = "WidgetOptions"):
-        self._LOOKUP_TIME = ini.read_int(section, "lookup_time", self._LOOKUP_TIME)
-        self.lookup_throttle = ThrottledTimer(self._LOOKUP_TIME)
-
-        self.module_active = ini.read_bool(section, "module_active", self.module_active)
-        self.id_whites = ini.read_bool(section, "id_whites", self.id_whites)
-        self.id_blues = ini.read_bool(section, "id_blues", self.id_blues)
-        self.id_purples = ini.read_bool(section, "id_purples", self.id_purples)
-        self.id_golds = ini.read_bool(section, "id_golds", self.id_golds)
-        self.id_greens = ini.read_bool(section, "id_greens", self.id_greens)
-
-        self.salvage_whites = ini.read_bool(section, "salvage_whites", self.salvage_whites)
-        self.salvage_rare_materials = ini.read_bool(section, "salvage_rare_materials", self.salvage_rare_materials)
-        self.salvage_blues = ini.read_bool(section, "salvage_blues", self.salvage_blues)
-        self.salvage_purples = ini.read_bool(section, "salvage_purples", self.salvage_purples)
-        self.salvage_golds = ini.read_bool(section, "salvage_golds", self.salvage_golds)
-
-        blacklist_str = ini.read_key(section, "salvage_blacklist", "")
-        self.salvage_blacklist = [int(x) for x in blacklist_str.split(",") if x.strip().isdigit()]
-
-
-        self.deposit_trophies = ini.read_bool(section, "deposit_trophies", self.deposit_trophies)
-        self.deposit_materials = ini.read_bool(section, "deposit_materials", self.deposit_materials)
-        self.deposit_blues = ini.read_bool(section, "deposit_blues", self.deposit_blues)
-        self.deposit_purples = ini.read_bool(section, "deposit_purples", self.deposit_purples)
-        self.deposit_golds = ini.read_bool(section, "deposit_golds", self.deposit_golds)
-        self.deposit_greens = ini.read_bool(section, "deposit_greens", self.deposit_greens)
-
-        self.keep_gold = ini.read_int(section, "keep_gold", self.keep_gold)
-
-
-#endregion
 
 #region Globals
 class FrameCoords:
@@ -272,7 +174,7 @@ class GlobalVarsClass:
         self.id_queue_reset_done = False
         self.salv_queue_reset_done = False
         
-        self.auto_widget_options = AutoWidgetOptions()
+        self.auto_widget_options = AutoInventoryHandler()
         
     def process_game_throttle(self):
         if self.game_throttle.HasElapsed(self.game_throttle_time):
@@ -1509,239 +1411,6 @@ def DrawAutoHandler():
     
     show_model_id_dialog_popup()
     
-def AutoID_Auto(item_id):
-    first_id_kit = Inventory.GetFirstIDKit()
-    if first_id_kit == 0:
-        ConsoleLog(MODULE_NAME, "No ID Kit found in inventory", Py4GW.Console.MessageType.Warning)
-    else:
-        Inventory.IdentifyItem(item_id, first_id_kit)
-        
-def AutoSalvage_Auto(item_id):
-    first_salv_kit = Inventory.GetFirstSalvageKit(use_lesser=True)
-    if first_salv_kit == 0:
-        ConsoleLog(MODULE_NAME, "No Salvage Kit found in inventory", Py4GW.Console.MessageType.Warning)
-    else:
-        Inventory.SalvageItem(item_id, first_salv_kit)
-    
-
-            
-    
-def IdentifyItemsAuto():
-    global global_vars
-    def _get_total_id_uses():
-        total_uses = 0
-        for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
-            bag_items = GLOBAL_CACHE.ItemArray.GetItemArray(GLOBAL_CACHE.ItemArray.CreateBagList(bag_id))
-            for item_id in bag_items:
-                if Item.Usage.IsIDKit(item_id):
-                    total_uses += Item.Usage.GetUses(item_id)
-
-        return total_uses
-    
-    total_uses = _get_total_id_uses()
-    current_uses = 0
-    for bag_id in range(Bags.Backpack, Bags.Bag2+1):
-        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
-        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
-        
-        for item_id in item_array:
-            if total_uses == 0:
-                ConsoleLog(MODULE_NAME, f"Identified {current_uses} items, no more ID Kits left in inventory", Py4GW.Console.MessageType.Warning)
-                yield
-                return
-            
-            is_identified = GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)
-            
-            if is_identified:
-                yield
-                continue
-            
-            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
-            if ((rarity == "White" and global_vars.auto_widget_options.id_whites) or
-                (rarity == "Blue" and global_vars.auto_widget_options.id_blues) or
-                (rarity == "Green" and global_vars.auto_widget_options.id_greens) or
-                (rarity == "Purple" and global_vars.auto_widget_options.id_purples) or
-                (rarity == "Gold" and global_vars.auto_widget_options.id_golds)):
-                ActionQueueManager().AddAction("IDENTIFY", AutoID_Auto, item_id)
-                current_uses += 1
-                total_uses -= 1
-                yield
-                
-    while not ActionQueueManager().IsEmpty("IDENTIFY"):
-        yield from Routines.Yield.wait(100)
-                
-    if current_uses > 0:
-        ConsoleLog(MODULE_NAME, f"Identified {current_uses} items", Py4GW.Console.MessageType.Success)
-        
-def SalvageItemsAuto():
-    global widget_options
-    def _get_total_salv_uses():
-        total_uses = 0
-        for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
-            bag_items = GLOBAL_CACHE.ItemArray.GetItemArray(GLOBAL_CACHE.ItemArray.CreateBagList(bag_id))
-            for item_id in bag_items:
-                if Item.Usage.IsLesserKit(item_id):
-                    total_uses += Item.Usage.GetUses(item_id)
-
-        return total_uses
-    
-    total_uses = _get_total_salv_uses()
-    current_uses = 0
-    for bag_id in range(Bags.Backpack, Bags.Bag2+1):
-        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
-        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
-        
-        for item_id in item_array:
-            if total_uses == 0:
-                ConsoleLog(MODULE_NAME, f"Salvaged {current_uses} items, no more Salvage Kits left in inventory", Py4GW.Console.MessageType.Warning)
-                yield
-                return
-            
-            quantity = GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)
-            _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
-            is_white =  rarity == "White"
-            is_blue = rarity == "Blue"
-            is_green = rarity == "Green"
-            is_purple = rarity == "Purple"
-            is_gold = rarity == "Gold"
-            is_material = GLOBAL_CACHE.Item.Type.IsMaterial(item_id)
-            is_material_salvageable = GLOBAL_CACHE.Item.Usage.IsMaterialSalvageable(item_id)
-            is_identified = GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)
-            is_salvageable = GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id)
-            is_salvage_kit = GLOBAL_CACHE.Item.Usage.IsLesserKit(item_id)
-            model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
-            
-            if not ((is_white and is_salvageable) or (is_identified and is_salvageable)):
-                yield
-                continue
-            
-            if model_id in global_vars.auto_widget_options.salvage_blacklist:
-                yield
-                continue
-            
-            if is_white and is_material and is_material_salvageable and not global_vars.auto_widget_options.salvage_rare_materials:
-                yield
-                continue
-            
-            if is_white and not is_material and not global_vars.auto_widget_options.salvage_whites:
-                yield
-                continue
-            
-            if is_blue and not global_vars.auto_widget_options.salvage_blues:
-                yield
-                continue
-            
-            if is_purple and not global_vars.auto_widget_options.salvage_purples:
-                yield
-                continue
-            
-            if is_gold and not global_vars.auto_widget_options.salvage_golds:
-                yield
-                continue
-            
-
-            for _ in range(quantity):
-                ActionQueueManager().AddAction("SALVAGE", AutoSalvage_Auto, item_id)
-                
-                if (is_purple or is_gold):
-                    ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
-                
-                current_uses += 1
-                total_uses -= 1
-                
-                while not ActionQueueManager().IsEmpty("SALVAGE"):
-                    yield from Routines.Yield.wait(50)
-                
-                if total_uses == 0:
-                    ConsoleLog(MODULE_NAME, f"Salvaged {current_uses} items, no more Salvage Kits left in inventory", Py4GW.Console.MessageType.Warning)
-                    yield
-                    return
-
-                yield
-                
-                
-    if current_uses > 0:
-        ConsoleLog(MODULE_NAME, f"Salvaged {current_uses} items", Py4GW.Console.MessageType.Success)
-        
-def DepositItemsAuto():
-    for bag_id in range(Bags.Backpack, Bags.Bag2+1):
-        bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
-        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
-        
-        for item_id in item_array:
-            # Check if the item is a trophy or material
-            is_trophy = GLOBAL_CACHE.Item.Type.IsTrophy(item_id)
-            is_tome = GLOBAL_CACHE.Item.Type.IsTome(item_id)
-            _, item_type = GLOBAL_CACHE.Item.GetItemType(item_id)
-            is_usable = (item_type == "Usable")
-            
-            is_material = GLOBAL_CACHE.Item.Type.IsMaterial(item_id)
-            _, rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
-            is_white =  rarity == "White"
-            is_blue = rarity == "Blue"
-            is_green = rarity == "Green"
-            is_purple = rarity == "Purple"
-            is_gold = rarity == "Gold"
-            
-            if is_tome:
-                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(350)
-            
-            if is_trophy and global_vars.auto_widget_options.deposit_trophies and is_white:
-                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(350)
-            
-            if is_material and global_vars.auto_widget_options.deposit_materials:
-                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(350)
-            
-            if is_blue and global_vars.auto_widget_options.deposit_blues:
-                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(350)
-            
-            if is_purple and global_vars.auto_widget_options.deposit_purples:
-                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(350)
-            
-            if is_gold and global_vars.auto_widget_options.deposit_golds and not is_usable and not is_trophy:
-                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(350)
-            
-            if is_green and global_vars.auto_widget_options.deposit_greens:
-                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-                yield from Routines.Yield.wait(350)
-        
-        
-def IDAndSalvageItems():
-    global global_vars
-    
-    global_vars.auto_widget_options.status = "Identifying"
-    yield from IdentifyItemsAuto()
-    global_vars.auto_widget_options.status = "Salvaging"
-    yield from SalvageItemsAuto()
-    global_vars.auto_widget_options.status = "Idle"
-    yield
-    
-def IDSalvageDepositItems():
-    global global_vars
-    ConsoleLog(MODULE_NAME, "Starting ID, Salvage and Deposit routine", Py4GW.Console.MessageType.Info)
-    global_vars.auto_widget_options.status = "Identifying"
-    yield from IdentifyItemsAuto()
-    
-    global_vars.auto_widget_options.status = "Salvaging"
-    yield from SalvageItemsAuto()
-    
-    global_vars.auto_widget_options.status = "Depositing"
-    yield from DepositItemsAuto()
-    
-    global_vars.auto_widget_options.status = "Depositing Gold"
-    
-    yield from Routines.Yield.Items.DepositGold(global_vars.auto_widget_options.keep_gold, log =True)
-    
-    global_vars.auto_widget_options.status = "Idle"
-    ConsoleLog(MODULE_NAME, "ID, Salvage and Deposit routine completed", Py4GW.Console.MessageType.Success)
-
-#endregion
 
 def GetMainInventoryWindowCoords():
     global global_vars
@@ -1777,7 +1446,7 @@ def main():
         global_vars.auto_widget_options.lookup_throttle.Stop()
         global_vars.auto_widget_options.status = "Idle"
         if not global_vars.auto_widget_options.outpost_handled and global_vars.auto_widget_options.module_active:
-            GLOBAL_CACHE.Coroutines.append(IDSalvageDepositItems())
+            GLOBAL_CACHE.Coroutines.append(global_vars.auto_widget_options.IDSalvageDepositItems())
             global_vars.auto_widget_options.outpost_handled = True
 
     
@@ -1790,7 +1459,7 @@ def main():
         global_vars.auto_widget_options.lookup_throttle.SetThrottleTime(global_vars.auto_widget_options._LOOKUP_TIME)
         global_vars.auto_widget_options.lookup_throttle.Stop()
         if global_vars.auto_widget_options.status == "Idle" and global_vars.auto_widget_options.module_active:
-            GLOBAL_CACHE.Coroutines.append(IDAndSalvageItems())
+            GLOBAL_CACHE.Coroutines.append(global_vars.auto_widget_options.IDAndSalvageItems())
         global_vars.auto_widget_options.lookup_throttle.Start()
         
           
