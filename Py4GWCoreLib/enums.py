@@ -3358,7 +3358,19 @@ class PetModelID(IntEnum):
     HOUND_20_HEARTY = 1147
     HOUND_20_DIRE = 1148
     
-
+#region ProfessionTexctures
+ProfessionTextureMap = {
+    1: '[1] - Warrior.png',
+    2: '[2] - Ranger.png',
+    3: '[3] - Monk.png',
+    4: '[4] - Necromancer.png',
+    5: '[5] - Mesmer.png',
+    6: '[6] - Elementalist.png',
+    7: '[7] - Assassin.png',
+    8: '[8] - Ritualist.png',
+    9: '[9] - Paragon.png',
+    10: '[10] - Dervish.png',
+}
 
 #region SkillTextures
 

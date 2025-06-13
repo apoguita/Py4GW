@@ -5,13 +5,14 @@ from Py4GWCoreLib import Console
 from Py4GWCoreLib import Keystroke
 from Py4GWCoreLib import Key
 from Py4GWCoreLib import Color
-from Py4GWCoreLib import ProfessionShort
+from Py4GWCoreLib import ProfessionShort, Profession, Campaign
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Map
+from Py4GWCoreLib import ProfessionTextureMap
 import traceback
 MODULE_NAME = "Switch Character"
 
@@ -209,6 +210,57 @@ window_module = ImGui.WindowModule(module_name="RerollCharacter", window_name=MO
 
 tmp_is_selected = False
 def DrawWindow():
+    def _show_tooltip():
+        """Helper function to show a tooltip."""
+        if PyImGui.is_item_hovered():
+            if PyImGui.begin_tooltip():
+                #PyImGui.text(f"Name: {name_text}\nLevel: {level}\nProfessions: {ProfessionShort(primary_prof).name}/{ProfessionShort(secondary_prof).name}")
+                profession_name = Profession(primary_prof).name if primary_prof else ""
+                secondary_prof_name = Profession(secondary_prof).name if secondary_prof else ""
+                
+                #row_color
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, row_color.to_tuple_normalized())
+                if PyImGui.begin_child("Tooltipchild", (200, 165), True, PyImGui.WindowFlags.NoFlag):
+                    table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH
+                    if PyImGui.begin_table("tooltipinfotable", 3, table_flags):
+                        PyImGui.table_setup_column("Primary", PyImGui.TableColumnFlags.WidthFixed, 32)
+                        PyImGui.table_setup_column("Secondary", PyImGui.TableColumnFlags.WidthFixed, 32)
+                        PyImGui.table_setup_column("Name", PyImGui.TableColumnFlags.WidthFixed, 150)
+                        PyImGui.table_next_row()
+                        PyImGui.table_set_column_index(0)
+                        ImGui.DrawTexture(primary_texture,32,32)
+                        PyImGui.table_set_column_index(1)
+                        ImGui.DrawTexture(secondary_texture,32,32)
+                        PyImGui.table_set_column_index(2)
+                        PyImGui.text(f"{profession_name}")
+                        PyImGui.text(f"{secondary_prof_name}")
+                        PyImGui.end_table()
+                        #PyImGui.separator()
+                        PyImGui.text(f"Name: {name_text}")
+                        PyImGui.text(f"Level: {level}")
+                        PyImGui.text(f"Map: {current_map_name}")
+                        PyImGui.text(f"Campaign: {campaign_name}")
+                        if character.is_pvp:
+                            PyImGui.text("Type: PvP")
+                        else:
+                            PyImGui.text("Type: PvE")
+                    
+                    
+                    PyImGui.end_child()
+                PyImGui.pop_style_color(1)
+                
+                PyImGui.end_tooltip()
+                
+                    
+          
+    def _item_clicked():
+        """Helper function to check if an item was clicked."""
+        if PyImGui.is_item_clicked(0):
+            reroll_widget.selected_char_index = index
+            reroll_widget.target_character_name = character.player_name
+            ConsoleLog("Reroll", f"UI Selected target: {character.player_name}", Console.MessageType.Debug)
+            reroll_widget.start_reroll()  
+            
     global window_module, tmp_is_selected
     if window_module.first_run:
         PyImGui.set_next_window_size(window_module.window_size[0], window_module.window_size[1])     
@@ -237,50 +289,60 @@ def DrawWindow():
             10:Color(97 , 115, 163, 100),  # Dervish
         }
 
-        if PyImGui.begin_child("characterList2", (300, 210), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table("CharTable", 3, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV):
+        img_size =20
+
+        if PyImGui.begin_child("characterList2", (300, 270), True, PyImGui.WindowFlags.NoFlag):
+            if PyImGui.begin_table("CharTable", 4, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV):
                 
-                PyImGui.table_setup_column("Prof", PyImGui.TableColumnFlags.WidthFixed, 40)
+                PyImGui.table_setup_column("Primary", PyImGui.TableColumnFlags.WidthFixed, 20)
+                PyImGui.table_setup_column("Secondary", PyImGui.TableColumnFlags.WidthFixed, 20)
                 PyImGui.table_setup_column("Name", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Lvl",  PyImGui.TableColumnFlags.WidthFixed, 30)
                 PyImGui.table_headers_row()
 
                 for index, character in enumerate(characters):
+                    name_text = character.player_name + (" (PvP)" if character.is_pvp else "")
+                    primary_prof = character.primary
+                    secondary_prof = character.secondary
+                    primary_texture = f"Textures\\Profession_Icons\\{ProfessionTextureMap.get(character.primary, 'unknown')}"
+                    secondary_texture = f"Textures\\Profession_Icons\\{ProfessionTextureMap.get(character.secondary, 'unknown')}"
+                    level = 20 if character.is_pvp else character.level
+                    current_map = character.map_id
+                    campaign_origin = character.campaign
+                    current_map_name = GLOBAL_CACHE.Map.GetMapName(current_map)
+                    campaign_name = Campaign(campaign_origin).name if campaign_origin else "Unknown"
+                    row_color = Color(0, 0, 0, 50)  # Default row color
+                    
                     PyImGui.table_next_row()
 
-                    primary_prof = character.primary
-                    
                     if primary_prof != 0:
                         # Set the row color based on the primary profession
                         row_color = profession_row_colors.get(primary_prof, Color(255, 255, 255, 50))
                         PyImGui.table_set_bg_color(2, row_color.to_color(), 1)
   
-
-                    # Prof
+                    #Primary
                     PyImGui.table_set_column_index(0)
-                    prof_text = f"{ProfessionShort(character.primary).name.ljust(2)}/{ProfessionShort(character.secondary).name.ljust(2)}"
-                    PyImGui.text(prof_text)
+                    ImGui.DrawTexture(primary_texture,img_size,img_size)
+                    _show_tooltip()
+                    _item_clicked()
+                    # Secondary
+                    PyImGui.table_set_column_index(1)
+                    ImGui.DrawTexture(secondary_texture,img_size,img_size)
+                    _show_tooltip()
+                    _item_clicked()
 
                     # Name
-                    PyImGui.table_set_column_index(1)
-                    name_text = character.player_name + (" (PvP)" if character.is_pvp else "")
+                    PyImGui.table_set_column_index(2)
                     PyImGui.text(name_text)
 
-                    if PyImGui.is_item_hovered():
-                        hover_color = Color(255, 255, 255, 100).to_color()
-                        PyImGui.table_set_bg_color(2, hover_color, 1)  # 2 = CellBg, column 1
-                        PyImGui.set_tooltip(f"Name: {name_text}\nLevel: {character.level}\nProfessions: {ProfessionShort(character.primary).name}/{ProfessionShort(character.secondary).name}")
-
-                    if PyImGui.is_item_clicked(0):
-                        reroll_widget.selected_char_index = index
-                        reroll_widget.target_character_name = character.player_name
-                        ConsoleLog("Reroll", f"UI Selected target: {character.player_name}", Console.MessageType.Debug)
-                        reroll_widget.start_reroll()
+                    _show_tooltip()
+                    _item_clicked()
 
                     # Level
-                    PyImGui.table_set_column_index(2)
-                    level = 20 if character.is_pvp else character.level
+                    PyImGui.table_set_column_index(3)
                     PyImGui.text(f"{level:02}")
+                    _show_tooltip()
+                    _item_clicked()
 
                 PyImGui.end_table()
         PyImGui.end_child()
