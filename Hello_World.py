@@ -1,5 +1,6 @@
 import Py4GW
 from Py4GWCoreLib import PyImGui, ImGui, GLOBAL_CACHE
+from Py4GWCoreLib import ProfessionTextureMap
 
 MODULE_NAME = "tester for everything"
 
@@ -30,7 +31,20 @@ def main():
             if ImGui.ImageButton("##text_unique_name", texture_file, 64, 64):
                 Py4GW.Console.Log(MODULE_NAME, "Button clicked!", Py4GW.Console.MessageType.Info)
               
-
+            primary_path, secondary_path = GLOBAL_CACHE.Agent.GetProfessionsTexturePaths(GLOBAL_CACHE.Player.GetAgentID())
+            
+            ImGui.DrawTexture(primary_path, 64, 64)
+            ImGui.DrawTexture(secondary_path, 64, 64)
+            
+            primary = 1
+            secondary = 5
+            primary_texture = f"Textures\\Profession_Icons\\{ProfessionTextureMap.get(primary, 'unknown')}"
+            secondary_texture = f"Textures\\Profession_Icons\\{ProfessionTextureMap.get(secondary, 'unknown')}"
+              
+            size =  20
+            ImGui.DrawTexture(primary_texture, size, size)
+            ImGui.DrawTexture(secondary_texture, size, size)      
+            
             
         PyImGui.end()
         
