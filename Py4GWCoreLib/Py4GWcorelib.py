@@ -31,6 +31,7 @@ class IniHandler:
         self.filename = filename
         self.last_modified = 0
         self.config = configparser.ConfigParser()
+        self.reload()  # Load the config initially
 
     # ----------------------------
     # Core Methods
@@ -110,7 +111,7 @@ class IniHandler:
     # Write Methods
     # ----------------------------
 
-    def write_key(self, section: str, key: str, value: str) -> None:
+    def write_key(self, section: str, key: str, value) -> None:
         """
         Write or update a key-value pair.
         """

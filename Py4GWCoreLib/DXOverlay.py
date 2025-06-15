@@ -173,6 +173,38 @@ class DXOverlay:
             center = PyOverlay.Point3D(center_x, center_y, center_z+100)
             self.renderer.DrawCubeFilled(center, size, color, use_occlusion)
             
+            
+        def DrawTexture(self, file_path, screen_pos_x, screen_pos_y, width, height, tint=0xFFFFFFFF):
+            if width <= 0 or height <= 0:
+                raise ValueError("Width and height must be greater than zero.")
+            self.renderer.DrawTexture(file_path, screen_pos_x, screen_pos_y, width, height, tint)
+            
+        def DrawTexture3D(self, file_path, world_pos_x, world_pos_y, world_pos_z, width, height, use_occlusion=True, tint=0xFFFFFFFF):
+            if width <= 0 or height <= 0:
+                raise ValueError("Width and height must be greater than zero.")
+            if world_pos_z == 0:
+                world_pos_z = DXOverlay.FindZ(world_pos_x, world_pos_y)
+                
+            self.renderer.DrawTexture3D(file_path, world_pos_x, world_pos_y, world_pos_z+100, width, height, use_occlusion, tint)
+            
+        def DrawQuadTextured3D(self, file_path, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, p4_x, p4_y, p4_z, use_occlusion=True, tint=0xFFFFFFFF):
+            if p1_z == 0:
+                p1_z = DXOverlay.FindZ(p1_x, p1_y)
+            if p2_z == 0:
+                p2_z = DXOverlay.FindZ(p2_x, p2_y)
+            if p3_z == 0:
+                p3_z = DXOverlay.FindZ(p3_x, p3_y)
+            if p4_z == 0:
+                p4_z = DXOverlay.FindZ(p4_x, p4_y)
+                
+            p1 = PyOverlay.Point3D(p1_x, p1_y, p1_z-100)
+            p2 = PyOverlay.Point3D(p2_x, p2_y, p2_z-100)
+            p3 = PyOverlay.Point3D(p3_x, p3_y, p3_z-100)
+            p4 = PyOverlay.Point3D(p4_x, p4_y, p4_z-100)
+            
+            self.renderer.DrawQuadTextured3D(file_path, p1, p2, p3, p4, use_occlusion, tint) 
+
+            
         class _ScreenSpace:
             def __init__(self, parent):
                 self._renderer = parent.renderer

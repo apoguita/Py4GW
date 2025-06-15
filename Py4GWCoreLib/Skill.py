@@ -1,4 +1,5 @@
 import PySkill
+from .enums import SkillTextureMap
 
 class Skill:
     @staticmethod
@@ -426,7 +427,12 @@ class Skill:
             """Purpose: Retrieve the description ID of a skill by its ID."""
             return Skill.skill_instance(skill_id).description_id
 
-        
+        @staticmethod
+        def GetTexturePath(skill_id: int) -> str:
+            filename = SkillTextureMap.get(skill_id)
+            full_path = f"Textures\\Skill_Icons\\{filename}" if filename else ""
+            return full_path
+
 
         
 
