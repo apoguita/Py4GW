@@ -428,7 +428,7 @@ def DrawButtonStrip():
                 active_tooltip = "AutoHandler is active"
             else:
                 active_tooltip = "AutoHandler is inactive"
-            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_CALENDAR_CHECK +  "##AutoHandlerTab"):
+            if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_STOPWATCH +  "##AutoHandlerTab"):
                 global_vars.config.selected_tab = TabType.auto_handler
                 PyImGui.end_tab_item()
             ImGui.show_tooltip(active_tooltip)

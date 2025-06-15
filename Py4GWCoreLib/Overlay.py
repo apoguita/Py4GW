@@ -158,4 +158,17 @@ class Overlay:
     def PopClipRect(self):
         self.overlay_instance.PopClipRect()
 
+    def DrawTexture(self, texture_path, width: float = 32.0, height: float = 32.0):
+        self.overlay_instance.DrawTexture(texture_path, width, height)
+        
+    def DrawTexturedRect(self, x, y, width, height, texture_path):
+        self.overlay_instance.DrawTexturedRect(x, y, width, height, texture_path)
+    
+    def UpkeepTextures(self, upkeep_timer: int = 30):
+        self.overlay_instance.UpkeepTextures(upkeep_timer)
+        
+    def ImageButton(self, caption: str, texture_path: str, width: float = 32.0, height: float = 32.0, frame_padding: int = -1) -> bool:
+        return self.overlay_instance.ImageButton(caption, texture_path, width, height, frame_padding)
+        
+    
     

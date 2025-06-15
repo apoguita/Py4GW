@@ -19,6 +19,7 @@ class WidgetConfig:
         #LootConfig is kept alive by itself being an instance of LootConfig
         self.loot_config = LootConfig()
         self.raw_agent_array = RawAgentArray()
+        self.overlay = Overlay()
         
         self.throttle_raw_agent_array = ThrottledTimer(50)
         self.throttle_action_queue = ThrottledTimer(50)
@@ -91,6 +92,8 @@ def main():
     if widget_config.throttle_identify_queue.IsExpired():
         widget_config.action_queue_manager.ProcessQueue("IDENTIFY")
         widget_config.throttle_identify_queue.Reset()
+        
+    widget_config.overlay.UpkeepTextures()
          
     
 if __name__ == "__main__":
