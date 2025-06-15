@@ -14,16 +14,20 @@ class MapCache:
         self._map_instance.GetContext()
         
     def IsMapReady(self):
-        return self._map_instance.is_map_ready
+        current_map = PyMap.PyMap()
+        return current_map.is_map_ready
     
     def IsOutpost(self):
-        return self._map_instance.instance_type.GetName() == "Outpost"
+        current_map = PyMap.PyMap()
+        return current_map.instance_type.GetName() == "Outpost"
     
     def IsExplorable(self):
-        return self._map_instance.instance_type.GetName() == "Explorable"
+        current_map = PyMap.PyMap()
+        return current_map.instance_type.GetName() == "Explorable"
     
     def IsMapLoading(self):
-        return self._map_instance.instance_type.GetName() == "Loading"
+        current_map = PyMap.PyMap()
+        return current_map.instance_type.GetName() == "Loading"
     
     def GetMapName(self, mapid=None):
         if mapid is None:

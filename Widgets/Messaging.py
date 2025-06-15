@@ -431,6 +431,23 @@ def PickUpLoot(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "PickUpLoot routine finished.", Console.MessageType.Info)
 
+def MessaggeDisableHeroAI(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing DisableHeroAI message: {message}", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    account_email = message.ReceiverEmail
+    yield from SnapshotHeroAIOptions(account_email)
+    yield from DisableHeroAIOptions(account_email)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
+    ConsoleLog(MODULE_NAME, "DisableHeroAI message processed and finished.", Console.MessageType.Info)
+
+def MessaggeEnableHeroAI(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing EnableHeroAI message: {message}", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    account_email = message.ReceiverEmail
+    yield from RestoreHeroAISnapshot(account_email)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
+    ConsoleLog(MODULE_NAME, "EnableHeroAI message processed and finished.", Console.MessageType.Info)
+
 
 #region ProcessMessages
     
@@ -472,6 +489,10 @@ def ProcessMessages():
             pass
         case SharedCommandType.MerchantMaterials:
             pass
+        case SharedCommandType.DisableHeroAI:
+            GLOBAL_CACHE.Coroutines.append(MessaggeDisableHeroAI(index, message))
+        case SharedCommandType.EnableHeroAI:
+            GLOBAL_CACHE.Coroutines.append(MessaggeEnableHeroAI(index, message))
         case SharedCommandType.LootEx:
             #privately Handled Command, by Frenkey
             pass

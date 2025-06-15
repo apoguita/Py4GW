@@ -141,6 +141,47 @@ class InventoryCache:
                     total_quantity += item.quantity
 
         return total_quantity
+    
+    def GetModelCountInStorage(self, model_id: int, Anniversary_panel: bool = True) -> int:
+        """
+        Purpose: Count the number of items with the specified model_id 
+        in storage bags.
+        Args:
+            model_id (int): The model ID of the item to count.
+            Anniversary_panel (bool): Whether to include Storage14.
+        Returns:
+            int: Total quantity of matching items in storage.
+        """
+        
+        if model_id <= 0:
+            return 0
+        
+        bags_to_check = [
+            Bag_enum.Storage_1.value,
+            Bag_enum.Storage_2.value,
+            Bag_enum.Storage_3.value,
+            Bag_enum.Storage_4.value,
+            Bag_enum.Storage_5.value if Anniversary_panel else None,
+            Bag_enum.Storage_6.value,
+            Bag_enum.Storage_7.value,
+            Bag_enum.Storage_8.value,
+            Bag_enum.Storage_9.value,
+            Bag_enum.Storage_10.value,
+            Bag_enum.Storage_11.value,
+            Bag_enum.Storage_12.value,
+            Bag_enum.Storage_13.value,
+            Bag_enum.Storage_14.value,
+        ]
+
+        bags = self._raw_item_cache.get_bags([bag for bag in bags_to_check if bag is not None])
+        total_quantity = 0
+
+        for bag in bags:
+            for item in bag.GetItems():
+                if item.model_id == model_id:
+                    total_quantity += item.quantity
+
+        return total_quantity
 
     def GetFirstIDKit(self) -> int:
         """
@@ -246,6 +287,64 @@ class InventoryCache:
         for bag in bags:
             for item in bag.GetItems():
                 if self.item_cache.Usage.IsSalvageable(item.item_id):
+                    return item.item_id
+
+        return 0
+    
+    def GetFirstModelID(self, model_id: int) -> int:
+        """
+        Purpose: Find the first item with the specified model_id in bags 1, 2, 3, and 4.
+        Args:
+            model_id (int): The model ID to search for.
+        Returns:
+            int: The Item ID of the first item with the specified model_id, or 0 if none found.
+        """
+        bags_to_check = [
+            Bag_enum.Backpack.value,
+            Bag_enum.Belt_Pouch.value,
+            Bag_enum.Bag_1.value,
+            Bag_enum.Bag_2.value
+        ]
+
+        bags = self._raw_item_cache.get_bags(bags_to_check)
+
+        for bag in bags:
+            for item in bag.GetItems():
+                if item.model_id == model_id:
+                    return item.item_id
+
+        return 0
+    
+    def GetfirstModelIDInStorage(self, model_id: int) -> int:
+        """
+        Purpose: Find the first item with the specified model_id in storage bags.
+        Args:
+            model_id (int): The model ID to search for.
+        Returns:
+            int: The Item ID of the first item with the specified model_id, or 0 if none found.
+        """
+        bags_to_check = [
+            Bag_enum.Storage_1.value,
+            Bag_enum.Storage_2.value,
+            Bag_enum.Storage_3.value,
+            Bag_enum.Storage_4.value,
+            Bag_enum.Storage_5.value,
+            Bag_enum.Storage_6.value,
+            Bag_enum.Storage_7.value,
+            Bag_enum.Storage_8.value,
+            Bag_enum.Storage_9.value,
+            Bag_enum.Storage_10.value,
+            Bag_enum.Storage_11.value,
+            Bag_enum.Storage_12.value,
+            Bag_enum.Storage_13.value,
+            Bag_enum.Storage_14.value
+        ]
+
+        bags = self._raw_item_cache.get_bags(bags_to_check)
+
+        for bag in bags:
+            for item in bag.GetItems():
+                if item.model_id == model_id:
                     return item.item_id
 
         return 0
@@ -389,7 +488,7 @@ class InventoryCache:
 
         return None, None
 
-    def DepositItemToStorage(self, item_id: int, Anniversary_panel: bool = True) -> bool:
+    def DepositItemToStorage(self, item_id: int, Anniversary_panel: bool = True, ammount:int = -1) -> bool:
         """
         Purpose: Moves the specified item to storage, filling partial stacks first.
         Args:
@@ -439,6 +538,7 @@ class InventoryCache:
                         if current_qty < MAX_STACK_SIZE:
                             space_left = MAX_STACK_SIZE - current_qty
                             to_move = min(space_left, remaining_quantity)
+                            to_move = min(to_move, ammount) if ammount > 0 else to_move
                             if to_move > 0:
                                 self.MoveItem(item_id, bag_enum.value, item.slot, to_move)
                                 remaining_quantity -= to_move
@@ -460,7 +560,7 @@ class InventoryCache:
 
         return moved_any
     
-    def WithdrawItemFromStorage(self, item_id: int) -> bool:
+    def WithdrawItemFromStorage(self, item_id: int, ammount:int = -1) -> bool:
         """
         Moves the specified item from storage to player inventory, filling partial stacks first.
         Args:
@@ -482,7 +582,7 @@ class InventoryCache:
             Bags.Bag2
         ]
 
-        remaining_quantity = quantity
+        remaining_quantity = min(quantity, ammount) if ammount > 0 else quantity
         moved_any = False
         model_id = self.item_cache.GetModelID(item_id)
 
@@ -502,6 +602,7 @@ class InventoryCache:
                         if item_qty < MAX_STACK_SIZE:
                             space_left = MAX_STACK_SIZE - item_qty
                             to_move = min(space_left, remaining_quantity)
+                            to_move = min(to_move, ammount) if ammount > 0 else to_move
                             if to_move > 0:
                                 self.MoveItem(item_id, bag_enum.value, item.slot, to_move)
                                 remaining_quantity -= to_move
@@ -522,6 +623,36 @@ class InventoryCache:
                     return True
 
         return moved_any
+    
+    def WithdrawItemFromStorageByModelID(self, model_id: int, ammount:int = -1) -> bool:
+        """
+        Withdraws the first item with the specified model_id from storage to inventory.
+        Args:
+            model_id (int): The model ID of the item to withdraw.
+        Returns:
+            bool: True if an item was moved, False if no matching item was found.
+        """
+        item_id = self.GetfirstModelIDInStorage(model_id)
+        if item_id == 0:
+            return False
+        
+        return self.WithdrawItemFromStorage(item_id, ammount)
+    
+    
+    def DepositItemToStorageByModelID(self, model_id: int, Anniversary_panel: bool = True, ammount:int = -1) -> bool:
+        """ 
+        Deposits the first item with the specified model_id from inventory to storage.
+        Args:
+            model_id (int): The model ID of the item to deposit.
+            Anniversary_panel (bool): Whether the Anniversary Panel (Storage14) is enabled.
+        Returns:
+            bool: True if an item was moved, False if no matching item was found.
+        """
+        item_id = self.GetFirstModelID(model_id)
+        if item_id == 0:
+            return False
+        
+        return self.DepositItemToStorage(item_id, Anniversary_panel, ammount)
 
     
     

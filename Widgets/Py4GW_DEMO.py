@@ -965,7 +965,8 @@ def ShowItemDataWindow(item_id):
             if item_id in _item_names:
                 item_name = _item_names[item_id]
             else:
-                item_name = GLOBAL_CACHE.Item.GetName(item_id)
+                #item_name = GLOBAL_CACHE.Item.GetName(item_id)
+                item_name = ""
                 if item_name:  # Only cache if a valid (non-empty) name is returned
                     _item_names[item_id] = item_name
                 else:
