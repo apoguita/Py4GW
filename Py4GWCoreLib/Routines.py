@@ -2000,7 +2000,7 @@ class Routines:
                 ConsoleLog("SetHardMode", "Hard mode set.", Console.MessageType.Info, log=log)
 
             @staticmethod
-            def TravelToOutpost(outpost_id, log=False):
+            def TravelToOutpost(outpost_id, log=False, timeout:int=10000):
                 """
                 Purpose: Positions yourself safely on the outpost.
                 Args:
@@ -2008,7 +2008,7 @@ class Routines:
                     log (bool) Optional: Whether to log the action. Default is True.
                 Returns: None
                 """
-                
+                start_time = Utils.GetBaseTimestamp()
                 if GLOBAL_CACHE.Map.GetMapID() != outpost_id:
                     ConsoleLog("TravelToOutpost", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
                     GLOBAL_CACHE.Map.Travel(outpost_id)
@@ -2018,6 +2018,10 @@ class Routines:
                         if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.GetMapID() == outpost_id:
                             waititng_for_map_load = False
                             break
+                        delta = Utils.GetBaseTimestamp() - start_time
+                        if delta > timeout and timeout > 0:
+                            ConsoleLog("TravelToOutpost", "Timeout reached, stopping waiting for map load.", log=log)
+                            return False
                         yield from Routines.Yield.wait(1000)
                     yield from Routines.Yield.wait(1000)
                 
@@ -2229,7 +2233,7 @@ class Routines:
                     GLOBAL_CACHE.Trading.Merchant.SellItem(item_id, cost)
                        
                 while not ActionQueueManager().IsEmpty("MERCHANT"):
-                    yield from Routines.Yield.wait(350)
+                    yield from Routines.Yield.wait(50)
                 
                 if log:
                     ConsoleLog("SellItems", f"Sold {len(item_array)} items.", Console.MessageType.Info)
@@ -2255,7 +2259,7 @@ class Routines:
                     GLOBAL_CACHE.Trading.Merchant.BuyItem(item_id, value)
                     
                 while not ActionQueueManager().IsEmpty("MERCHANT"):
-                    yield from Routines.Yield.wait(350)
+                    yield from Routines.Yield.wait(50)
                     
                 if log:
                     ConsoleLog("BuyIDKits", f"Bought {kits_to_buy} ID Kits.", Console.MessageType.Info)
@@ -2281,7 +2285,7 @@ class Routines:
                     GLOBAL_CACHE.Trading.Merchant.BuyItem(item_id, value)
                     
                 while not ActionQueueManager().IsEmpty("MERCHANT"):
-                    yield from Routines.Yield.wait(350)
+                    yield from Routines.Yield.wait(50)
                 
                 if log:
                     ConsoleLog("BuySalvageKits", f"Bought {kits_to_buy} Salvage Kits.", Console.MessageType.Info)

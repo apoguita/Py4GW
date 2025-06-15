@@ -17,7 +17,9 @@ class SharedCommandType(IntEnum):
     SalvageItems = 13
     MerchantItems = 14
     MerchantMaterials = 15
-    LootEx = 16 #privately Handled Command, by Frenkey
+    DisableHeroAI = 16
+    EnableHeroAI = 17
+    LootEx = 18 #privately Handled Command, by Frenkey
 
 #region mouse
 class MouseButton(IntEnum):
