@@ -1,0 +1,398 @@
+import traceback
+import Py4GW
+import ctypes
+import os
+import json
+import math
+
+from HeroAI.cache_data import CacheData
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import SharedCommandType
+
+
+user32 = ctypes.WinDLL("user32", use_last_error=True)
+script_directory = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+BASE_DIR = os.path.join(project_root, "Widgets/Config")
+FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
+os.makedirs(BASE_DIR, exist_ok=True)
+
+MODULE_NAME = "CombatPrep"
+
+cached_data = CacheData()
+
+
+def ensure_formation_json_exists():
+    if not os.path.exists(FORMATIONS_JSON_PATH):
+        default_json = {
+            "Flag Front": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [
+                    [0, 1000],
+                    [0, 1000],
+                    [0, 1000],
+                    [0, 1000],
+                    [0, 1000],
+                    [0, 1000],
+                    [0, 1000],
+                ],
+            },
+            "1,2 - Double Backline": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [
+                    [200, -200],
+                    [-200, -200],
+                    [0, 200],
+                    [-200, 450],
+                    [200, 450],
+                    [-400, 300],
+                    [400, 300],
+                ],
+            },
+            "1 - Single Backline": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [
+                    [0, -250],
+                    [-100, 200],
+                    [100, 200],
+                    [-300, 500],
+                    [300, 500],
+                    [-350, 300],
+                    [350, 300],
+                ],
+            },
+            "1,2 - Double Backline Triple Row": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [
+                    [-200, -200],
+                    [200, -200],
+                    [-200, 0],
+                    [200, 0],
+                    [-200, 300],
+                    [0, 300],
+                    [200, 300],
+                ],
+            },
+            "Disband Formation": {
+                "hotkey": None,
+                "vk": None,
+                "coordinates": [],
+            },
+        }
+        with open(FORMATIONS_JSON_PATH, "w") as f:
+            print(FORMATIONS_JSON_PATH)
+            json.dump(default_json, f)  # empty dict initially
+
+
+def save_formation_hotkey(
+    formation_name: str, hotkey: str, vk: int, coordinates: list[tuple[int, int]]
+):
+    ensure_formation_json_exists()
+    with open(FORMATIONS_JSON_PATH, "r") as f:
+        data = json.load(f)
+
+    # Save or update the formation
+    data[formation_name] = {
+        "hotkey": hotkey,
+        "vk": vk,
+        "coordinates": coordinates,  # JSON supports list of lists directly
+    }
+
+    with open(FORMATIONS_JSON_PATH, "w") as f:
+        json.dump(data, f, indent=4)
+
+
+def load_formations_from_json():
+    ensure_formation_json_exists()
+    with open(FORMATIONS_JSON_PATH, "r") as f:
+        data = json.load(f)
+    return data
+
+
+def get_key_pressed(vk_code):
+    value = user32.GetAsyncKeyState(vk_code) & 0x8000
+    is_value_not_zero = value != 0
+    if is_value_not_zero:
+        return vk_to_char(vk_code)
+    return None
+
+
+def char_to_vk(char: str) -> int:
+    if len(char) != 1:
+        pass
+    vk = user32.VkKeyScanW(ord(char))
+    if vk == -1:
+        pass
+    return vk & 0xFF  # The low byte is the VK code
+
+
+def vk_to_char(vk_code):
+    return chr(user32.MapVirtualKeyW(vk_code, 2))
+
+
+formation_hotkey_values = {}
+# At the top-level (e.g., global scope or init function)
+if not formation_hotkey_values:  # Only load once
+    formations = load_formations_from_json()
+    for formation_key, formation_data in formations.items():
+        formation_hotkey_values[formation_key] = formation_data.get("hotkey", "") or ""
+
+skills_prep_hotkey_values = {}
+
+
+def draw_combat_prep_window(cached_data):
+    global formation_hotkey_values, _last_st_prep_press_time
+
+    if not GLOBAL_CACHE.Map.IsExplorable():
+        return
+
+    party_size = cached_data.data.party_size
+    disband_formation = False
+    HOTKEY = "hotkey"
+    VK = "vk"
+    COORDINATES = "coordinates"
+
+    set_formations_relative_to_leader = []
+    formations = load_formations_from_json()
+
+    if PyImGui.begin_table("FormationTable", 3):
+        # Setup column widths BEFORE starting the table rows
+        PyImGui.table_setup_column(
+            "Formation", PyImGui.TableColumnFlags.WidthStretch
+        )  # auto-size
+        PyImGui.table_setup_column(
+            "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
+        )  # fixed 30px
+        PyImGui.table_setup_column(
+            "Save", PyImGui.TableColumnFlags.WidthStretch
+        )  # auto-size
+        for formation_key, formation_data in formations.items():
+            if formation_data[HOTKEY]:
+                hotkey_pressed = get_key_pressed(formation_data[VK])
+            else:
+                hotkey_pressed = False
+
+            PyImGui.table_next_row()
+
+            # Column 1: Formation Button
+            PyImGui.table_next_column()
+            button_pressed = PyImGui.button(formation_key)
+            should_set_formation = hotkey_pressed or button_pressed
+
+            # Column 2: Hotkey Input
+            # Get and display editable input buffer
+            PyImGui.table_next_column()
+            current_value = formation_hotkey_values[formation_key] or ""
+            PyImGui.set_next_item_width(30)
+            raw_value = PyImGui.input_text(
+                f"##HotkeyInput_{formation_key}", current_value, 4
+            )
+
+            updated_value = raw_value.strip()[:1] if raw_value else ""
+            # Store it persistently
+            formation_hotkey_values[formation_key] = updated_value
+
+            # Column 3: Save Hotkey Button
+            PyImGui.table_next_column()
+            if PyImGui.button(f"Save Hotkey##{formation_key}"):
+                input_value = updated_value.lower()
+                if len(input_value) == 1:
+                    # Normalize to lowercase
+                    input_value = input_value.lower()
+                    vk_value = char_to_vk(input_value)
+                    if input_value and vk_value:
+                        save_formation_hotkey(
+                            formation_key,
+                            input_value,
+                            vk_value,
+                            formation_data[COORDINATES],
+                        )
+                    else:
+                        save_formation_hotkey(
+                            formation_key, None, None, formation_data[COORDINATES]
+                        )
+                else:
+                    print(
+                        "[ERROR] Only a single character keyboard keys can be used for a Hotkey"
+                    )
+
+            if should_set_formation:
+                if len(formation_data[COORDINATES]):
+                    set_formations_relative_to_leader = formation_data[COORDINATES]
+                else:
+                    disband_formation = True
+    PyImGui.end_table()
+
+    if len(set_formations_relative_to_leader):
+        leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
+        leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(
+            GLOBAL_CACHE.Party.GetPartyLeaderID()
+        )
+        angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
+
+        cos_a = math.cos(angle_rad)
+        sin_a = math.sin(angle_rad)
+
+        for hero_ai_index in range(1, party_size):
+            offset_x, offset_y = set_formations_relative_to_leader[hero_ai_index - 1]
+
+            # Rotate offset
+            rotated_x = offset_x * cos_a - offset_y * sin_a
+            rotated_y = offset_x * sin_a + offset_y * cos_a
+
+            # Apply rotated offset to leader's position
+            final_x = leader_x + rotated_x
+            final_y = leader_y + rotated_y
+
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                hero_ai_index, "IsFlagged", True
+            )
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                hero_ai_index, "FlagPosX", final_x
+            )
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                hero_ai_index, "FlagPosY", final_y
+            )
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                hero_ai_index, "FollowAngle", leader_follow_angle
+            )
+
+    if disband_formation:
+        for i in range(1, party_size):
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                i, "IsFlagged", False
+            )
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                i, "FlagPosX", 0.0
+            )
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                i, "FlagPosY", 0.0
+            )
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                i, "FollowAngle", 0.0
+            )
+        GLOBAL_CACHE.Party.Heroes.UnflagHero(i)
+        GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
+
+    if PyImGui.begin_table("SkillPrepTable", 3):
+        # Setup column widths BEFORE starting the table rows
+        PyImGui.table_setup_column(
+            "Formation", PyImGui.TableColumnFlags.WidthStretch
+        )  # auto-size
+        PyImGui.table_setup_column(
+            "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
+        )  # fixed 30px
+        PyImGui.table_setup_column(
+            "Save", PyImGui.TableColumnFlags.WidthStretch
+        )  # auto-size
+
+        PyImGui.table_next_row()
+        # Column 1: Formation Button
+        PyImGui.table_next_column()
+        st_button_pressed = PyImGui.button("Spirits Prep")
+
+        # Column 2: Hotkey Input
+        # Get and display editable input buffer
+        PyImGui.table_next_column()
+
+        # Column 3: Save Hotkey Button
+        PyImGui.table_next_column()
+
+        sender_email = cached_data.account_email
+
+        # Currently hardcode to key 5
+        if st_button_pressed or get_key_pressed(0x35):
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            for account in accounts:
+                if sender_email != account.AccountEmail:
+                    message_sequence = [
+                        SharedCommandType.UseSkill,
+                    ]
+                    for message in message_sequence:
+                        args = (
+                            (1, 0, 0, 0)
+                            if message == SharedCommandType.UseSkill
+                            else (0, 0, 0, 0)
+                        )
+                        print(args, message)
+                        GLOBAL_CACHE.ShMem.SendMessage(
+                            sender_email,
+                            account.AccountEmail,
+                            message,
+                            args,
+                        )
+
+    PyImGui.end_table()
+
+
+def configure():
+    pass
+
+
+def main():
+    global cached_data
+    try:
+        if not Routines.Checks.Map.MapValid():
+            return
+
+        cached_data.Update()
+        if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
+            draw_combat_prep_window(cached_data)
+
+    except ImportError as e:
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"ImportError encountered: {str(e)}",
+            Py4GW.Console.MessageType.Error,
+        )
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Stack trace: {traceback.format_exc()}",
+            Py4GW.Console.MessageType.Error,
+        )
+    except ValueError as e:
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"ValueError encountered: {str(e)}",
+            Py4GW.Console.MessageType.Error,
+        )
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Stack trace: {traceback.format_exc()}",
+            Py4GW.Console.MessageType.Error,
+        )
+    except TypeError as e:
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"TypeError encountered: {str(e)}",
+            Py4GW.Console.MessageType.Error,
+        )
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Stack trace: {traceback.format_exc()}",
+            Py4GW.Console.MessageType.Error,
+        )
+    except Exception as e:
+        # Catch-all for any other unexpected exceptions
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Unexpected error encountered: {str(e)}",
+            Py4GW.Console.MessageType.Error,
+        )
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Stack trace: {traceback.format_exc()}",
+            Py4GW.Console.MessageType.Error,
+        )
+    finally:
+        pass
+
+
+if __name__ == "__main__":
+    main()
