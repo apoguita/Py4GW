@@ -19,6 +19,7 @@ cached_data = CacheData()
 MODULE_NAME = "Messaging"
 
 SUMMON_SPIRITS_LUXON = "Summon_Spirits_luxon"
+SUMMON_SPIRITS_KURZICK = "Summon_Spirits_kurzick"
 ARMOR_OF_UNFEELING = "Armor_of_Unfeeling"
 
 width, height = 0, 0
@@ -603,6 +604,7 @@ def UseSkillFromMessage(index, message):
         ]
         skills_to_prep = [
             SUMMON_SPIRITS_LUXON,
+            SUMMON_SPIRITS_KURZICK,
             ARMOR_OF_UNFEELING,
         ]
 
@@ -624,7 +626,11 @@ def UseSkillFromMessage(index, message):
             if not cached_data.combat_handler.IsReadyToCast(slot_number):
                 continue
 
-            if skill in spirit_skills_to_prep or skill == SUMMON_SPIRITS_LUXON:
+            if (
+                skill in spirit_skills_to_prep
+                or skill == SUMMON_SPIRITS_LUXON
+                or skill == SUMMON_SPIRITS_KURZICK
+            ):
                 if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250):
                     yield from Routines.Yield.wait(1250)
 
