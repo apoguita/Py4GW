@@ -1,12 +1,14 @@
 import traceback
-import Py4GW
 import ctypes
 import os
 import json
 import math
+import Py4GW
 
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Party
+from Py4GWCoreLib import Player
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
@@ -136,6 +138,19 @@ def vk_to_char(vk_code):
     return chr(user32.MapVirtualKeyW(vk_code, 2))
 
 
+hotkey_state = {"was_pressed": False}
+
+
+def is_hotkey_pressed_once(vk_code=0x35):
+    pressed = get_key_pressed(vk_code)
+    if pressed and not hotkey_state["was_pressed"]:
+        hotkey_state["was_pressed"] = True
+        return True
+    elif not pressed:
+        hotkey_state["was_pressed"] = False
+    return False
+
+
 formation_hotkey_values = {}
 # At the top-level (e.g., global scope or init function)
 if not formation_hotkey_values:  # Only load once
@@ -147,188 +162,194 @@ skills_prep_hotkey_values = {}
 
 
 def draw_combat_prep_window(cached_data):
-    global formation_hotkey_values, _last_st_prep_press_time
+    global formation_hotkey_values
 
-    if not GLOBAL_CACHE.Map.IsExplorable():
-        return
+    if PyImGui.begin("Combat Prep", PyImGui.WindowFlags.AlwaysAutoResize):
+        # Currently hardcode to key 5
+        me = Player.GetAgentID()
+        is_party_leader = Party.GetPartyLeaderID() == me
+        if not GLOBAL_CACHE.Map.IsExplorable() or not is_party_leader:
+            PyImGui.text("Need to be party Leader and in Explorable Area")
+            return
 
-    party_size = cached_data.data.party_size
-    disband_formation = False
-    HOTKEY = "hotkey"
-    VK = "vk"
-    COORDINATES = "coordinates"
+        # capture current state
+        PyImGui.is_window_collapsed()
+        PyImGui.get_window_pos()
 
-    set_formations_relative_to_leader = []
-    formations = load_formations_from_json()
+        party_size = cached_data.data.party_size
+        disband_formation = False
+        HOTKEY = "hotkey"
+        VK = "vk"
+        COORDINATES = "coordinates"
 
-    if PyImGui.begin_table("FormationTable", 3):
-        # Setup column widths BEFORE starting the table rows
-        PyImGui.table_setup_column(
-            "Formation", PyImGui.TableColumnFlags.WidthStretch
-        )  # auto-size
-        PyImGui.table_setup_column(
-            "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
-        )  # fixed 30px
-        PyImGui.table_setup_column(
-            "Save", PyImGui.TableColumnFlags.WidthStretch
-        )  # auto-size
-        for formation_key, formation_data in formations.items():
-            if formation_data[HOTKEY]:
-                hotkey_pressed = get_key_pressed(formation_data[VK])
-            else:
-                hotkey_pressed = False
+        PyImGui.text("Formations:")
+        PyImGui.separator()
+        set_formations_relative_to_leader = []
+        formations = load_formations_from_json()
+
+        if PyImGui.begin_table("FormationTable", 3):
+            # Setup column widths BEFORE starting the table rows
+            PyImGui.table_setup_column(
+                "Formation", PyImGui.TableColumnFlags.WidthStretch
+            )  # auto-size
+            PyImGui.table_setup_column(
+                "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
+            )  # fixed 30px
+            PyImGui.table_setup_column(
+                "Save", PyImGui.TableColumnFlags.WidthStretch
+            )  # auto-size
+            for formation_key, formation_data in formations.items():
+                if formation_data[HOTKEY]:
+                    hotkey_pressed = get_key_pressed(formation_data[VK])
+                else:
+                    hotkey_pressed = False
+
+                PyImGui.table_next_row()
+
+                # Column 1: Formation Button
+                PyImGui.table_next_column()
+                button_pressed = PyImGui.button(formation_key)
+                should_set_formation = hotkey_pressed or button_pressed
+
+                # Column 2: Hotkey Input
+                # Get and display editable input buffer
+                PyImGui.table_next_column()
+                current_value = formation_hotkey_values[formation_key] or ""
+                PyImGui.set_next_item_width(30)
+                raw_value = PyImGui.input_text(
+                    f"##HotkeyInput_{formation_key}", current_value, 4
+                )
+
+                updated_value = raw_value.strip()[:1] if raw_value else ""
+                # Store it persistently
+                formation_hotkey_values[formation_key] = updated_value
+
+                # Column 3: Save Hotkey Button
+                PyImGui.table_next_column()
+                if PyImGui.button(f"Save Hotkey##{formation_key}"):
+                    input_value = updated_value.lower()
+                    if len(input_value) == 1:
+                        # Normalize to lowercase
+                        input_value = input_value.lower()
+                        vk_value = char_to_vk(input_value)
+                        if input_value and vk_value:
+                            save_formation_hotkey(
+                                formation_key,
+                                input_value,
+                                vk_value,
+                                formation_data[COORDINATES],
+                            )
+                        else:
+                            save_formation_hotkey(
+                                formation_key, None, None, formation_data[COORDINATES]
+                            )
+                    else:
+                        print(
+                            "[ERROR] Only a single character keyboard keys can be used for a Hotkey"
+                        )
+
+                if should_set_formation:
+                    if len(formation_data[COORDINATES]):
+                        set_formations_relative_to_leader = formation_data[COORDINATES]
+                    else:
+                        disband_formation = True
+        PyImGui.end_table()
+
+        if len(set_formations_relative_to_leader):
+            leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
+            leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(
+                GLOBAL_CACHE.Party.GetPartyLeaderID()
+            )
+            angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
+
+            cos_a = math.cos(angle_rad)
+            sin_a = math.sin(angle_rad)
+
+            for hero_ai_index in range(1, party_size):
+                offset_x, offset_y = set_formations_relative_to_leader[hero_ai_index - 1]
+
+                # Rotate offset
+                rotated_x = offset_x * cos_a - offset_y * sin_a
+                rotated_y = offset_x * sin_a + offset_y * cos_a
+
+                # Apply rotated offset to leader's position
+                final_x = leader_x + rotated_x
+                final_y = leader_y + rotated_y
+
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                    hero_ai_index, "IsFlagged", True
+                )
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                    hero_ai_index, "FlagPosX", final_x
+                )
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                    hero_ai_index, "FlagPosY", final_y
+                )
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                    hero_ai_index, "FollowAngle", leader_follow_angle
+                )
+
+        if disband_formation:
+            for i in range(1, party_size):
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                    i, "IsFlagged", False
+                )
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                    i, "FlagPosX", 0.0
+                )
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                    i, "FlagPosY", 0.0
+                )
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                    i, "FollowAngle", 0.0
+                )
+            GLOBAL_CACHE.Party.Heroes.UnflagHero(i)
+            GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
+
+        PyImGui.text("Skill Prep:")
+        PyImGui.separator()
+
+        if PyImGui.begin_table("SkillPrepTable", 3):
+            # Setup column widths BEFORE starting the table rows
+            PyImGui.table_setup_column(
+                "Formation", PyImGui.TableColumnFlags.WidthStretch
+            )  # auto-size
+            PyImGui.table_setup_column(
+                "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
+            )  # fixed 30px
+            PyImGui.table_setup_column(
+                "Save", PyImGui.TableColumnFlags.WidthStretch
+            )  # auto-size
 
             PyImGui.table_next_row()
-
             # Column 1: Formation Button
             PyImGui.table_next_column()
-            button_pressed = PyImGui.button(formation_key)
-            should_set_formation = hotkey_pressed or button_pressed
+            st_button_pressed = PyImGui.button("Spirits Prep")
 
             # Column 2: Hotkey Input
             # Get and display editable input buffer
             PyImGui.table_next_column()
-            current_value = formation_hotkey_values[formation_key] or ""
-            PyImGui.set_next_item_width(30)
-            raw_value = PyImGui.input_text(
-                f"##HotkeyInput_{formation_key}", current_value, 4
-            )
-
-            updated_value = raw_value.strip()[:1] if raw_value else ""
-            # Store it persistently
-            formation_hotkey_values[formation_key] = updated_value
 
             # Column 3: Save Hotkey Button
             PyImGui.table_next_column()
-            if PyImGui.button(f"Save Hotkey##{formation_key}"):
-                input_value = updated_value.lower()
-                if len(input_value) == 1:
-                    # Normalize to lowercase
-                    input_value = input_value.lower()
-                    vk_value = char_to_vk(input_value)
-                    if input_value and vk_value:
-                        save_formation_hotkey(
-                            formation_key,
-                            input_value,
-                            vk_value,
-                            formation_data[COORDINATES],
-                        )
-                    else:
-                        save_formation_hotkey(
-                            formation_key, None, None, formation_data[COORDINATES]
-                        )
-                else:
-                    print(
-                        "[ERROR] Only a single character keyboard keys can be used for a Hotkey"
-                    )
 
-            if should_set_formation:
-                if len(formation_data[COORDINATES]):
-                    set_formations_relative_to_leader = formation_data[COORDINATES]
-                else:
-                    disband_formation = True
-    PyImGui.end_table()
+            sender_email = cached_data.account_email
 
-    if len(set_formations_relative_to_leader):
-        leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
-        leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(
-            GLOBAL_CACHE.Party.GetPartyLeaderID()
-        )
-        angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
+            # Only party leader is allowed to have access to hotkey
+            if is_party_leader:
+                if st_button_pressed or is_hotkey_pressed_once(0x35):
+                    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+                    for account in accounts:
+                        if sender_email != account.AccountEmail:
+                            GLOBAL_CACHE.ShMem.SendMessage(
+                                sender_email,
+                                account.AccountEmail,
+                                SharedCommandType.UseSkill,
+                                (1, 0, 0, 0),
+                            )
 
-        cos_a = math.cos(angle_rad)
-        sin_a = math.sin(angle_rad)
-
-        for hero_ai_index in range(1, party_size):
-            offset_x, offset_y = set_formations_relative_to_leader[hero_ai_index - 1]
-
-            # Rotate offset
-            rotated_x = offset_x * cos_a - offset_y * sin_a
-            rotated_y = offset_x * sin_a + offset_y * cos_a
-
-            # Apply rotated offset to leader's position
-            final_x = leader_x + rotated_x
-            final_y = leader_y + rotated_y
-
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                hero_ai_index, "IsFlagged", True
-            )
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                hero_ai_index, "FlagPosX", final_x
-            )
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                hero_ai_index, "FlagPosY", final_y
-            )
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                hero_ai_index, "FollowAngle", leader_follow_angle
-            )
-
-    if disband_formation:
-        for i in range(1, party_size):
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                i, "IsFlagged", False
-            )
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                i, "FlagPosX", 0.0
-            )
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                i, "FlagPosY", 0.0
-            )
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                i, "FollowAngle", 0.0
-            )
-        GLOBAL_CACHE.Party.Heroes.UnflagHero(i)
-        GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
-
-    if PyImGui.begin_table("SkillPrepTable", 3):
-        # Setup column widths BEFORE starting the table rows
-        PyImGui.table_setup_column(
-            "Formation", PyImGui.TableColumnFlags.WidthStretch
-        )  # auto-size
-        PyImGui.table_setup_column(
-            "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
-        )  # fixed 30px
-        PyImGui.table_setup_column(
-            "Save", PyImGui.TableColumnFlags.WidthStretch
-        )  # auto-size
-
-        PyImGui.table_next_row()
-        # Column 1: Formation Button
-        PyImGui.table_next_column()
-        st_button_pressed = PyImGui.button("Spirits Prep")
-
-        # Column 2: Hotkey Input
-        # Get and display editable input buffer
-        PyImGui.table_next_column()
-
-        # Column 3: Save Hotkey Button
-        PyImGui.table_next_column()
-
-        sender_email = cached_data.account_email
-
-        # Currently hardcode to key 5
-        if st_button_pressed or get_key_pressed(0x35):
-            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-            for account in accounts:
-                if sender_email != account.AccountEmail:
-                    message_sequence = [
-                        SharedCommandType.UseSkill,
-                    ]
-                    for message in message_sequence:
-                        args = (
-                            (1, 0, 0, 0)
-                            if message == SharedCommandType.UseSkill
-                            else (0, 0, 0, 0)
-                        )
-                        print(args, message)
-                        GLOBAL_CACHE.ShMem.SendMessage(
-                            sender_email,
-                            account.AccountEmail,
-                            message,
-                            args,
-                        )
-
-    PyImGui.end_table()
+        PyImGui.end_table()
+    PyImGui.end()
 
 
 def configure():
