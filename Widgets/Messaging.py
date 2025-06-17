@@ -594,6 +594,10 @@ def UseSkillFromMessage(index, message):
         yield from DisableHeroAIOptions(account_email)
 
         # --- Cast Ritualist Spirits ---
+        skills_to_precast = [
+            SUMMON_SPIRITS_LUXON,
+            SUMMON_SPIRITS_KURZICK,
+        ]
         spirit_skills_to_prep = [
             "Shelter",
             "Union",
@@ -603,13 +607,11 @@ def UseSkillFromMessage(index, message):
             "Bloodsong",
             "Vampirism",
         ]
-        skills_to_prep = [
-            SUMMON_SPIRITS_LUXON,
-            SUMMON_SPIRITS_KURZICK,
+        skills_to_postcast = [
             ARMOR_OF_UNFEELING,
         ]
 
-        final_skills = spirit_skills_to_prep + skills_to_prep
+        final_skills = skills_to_precast + spirit_skills_to_prep + skills_to_postcast
 
         for skill in final_skills:
             skill_id = GLOBAL_CACHE.Skill.GetID(skill)
