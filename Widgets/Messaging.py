@@ -1,13 +1,14 @@
-from Py4GWCoreLib import (
-    GLOBAL_CACHE,
-    PyImGui,
-    SharedCommandType,
-    Routines,
-    ConsoleLog,
-    Console,
-    UIManager,
-)
-from Py4GWCoreLib import LootConfig, Range, ActionQueueManager
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import ActionQueueManager
+from Py4GWCoreLib import CombatPrepSkillsType
+from Py4GWCoreLib import Console
+from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib import LootConfig
+from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import Range
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import SharedCommandType
+from Py4GWCoreLib import UIManager
 from datetime import datetime, timezone
 from HeroAI.cache_data import CacheData
 
@@ -652,7 +653,8 @@ def UseSkillFromMessage(index, message):
 
         yield from Routines.Yield.wait(100)
 
-    if message.Params[0] == 1:
+    # TODO(mark): think about potentially using another param value instead of the first one
+    if message.Params[0] == CombatPrepSkillsType.SpiritsPrep:
         yield from cast_rit_spirits()
 
     yield from Routines.Yield.wait(100)

@@ -1,12 +1,13 @@
-import traceback
-import ctypes
-import os
 import json
 import math
+import os
+import traceback
+
 import Py4GW
 
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import CombatPrepSkillsType
 from Py4GWCoreLib import Party
 from Py4GWCoreLib import Player
 from Py4GWCoreLib import PyImGui
@@ -14,18 +15,20 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 
 
-user32 = ctypes.WinDLL("user32", use_last_error=True)
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+
 BASE_DIR = os.path.join(project_root, "Widgets/Config")
 FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
-os.makedirs(BASE_DIR, exist_ok=True)
-
 MODULE_NAME = "CombatPrep"
 
+os.makedirs(BASE_DIR, exist_ok=True)
 cached_data = CacheData()
 
 
+# TODO (mark): add hotkeys for formation data once hotkey support is in Py4GW
+# in the meantime use https://github.com/apoguita/Py4GW/pull/153 for use at your own
+# risk version with other potentially game breaking changes.
 def ensure_formation_json_exists():
     if not os.path.exists(FORMATIONS_JSON_PATH):
         default_json = {
@@ -92,24 +95,6 @@ def ensure_formation_json_exists():
             json.dump(default_json, f)  # empty dict initially
 
 
-def save_formation_hotkey(
-    formation_name: str, hotkey: str, vk: int, coordinates: list[tuple[int, int]]
-):
-    ensure_formation_json_exists()
-    with open(FORMATIONS_JSON_PATH, "r") as f:
-        data = json.load(f)
-
-    # Save or update the formation
-    data[formation_name] = {
-        "hotkey": hotkey,
-        "vk": vk,
-        "coordinates": coordinates,  # JSON supports list of lists directly
-    }
-
-    with open(FORMATIONS_JSON_PATH, "w") as f:
-        json.dump(data, f, indent=4)
-
-
 def load_formations_from_json():
     ensure_formation_json_exists()
     with open(FORMATIONS_JSON_PATH, "r") as f:
@@ -117,53 +102,7 @@ def load_formations_from_json():
     return data
 
 
-def get_key_pressed(vk_code):
-    value = user32.GetAsyncKeyState(vk_code) & 0x8000
-    is_value_not_zero = value != 0
-    if is_value_not_zero:
-        return vk_to_char(vk_code)
-    return None
-
-
-def char_to_vk(char: str) -> int:
-    if len(char) != 1:
-        pass
-    vk = user32.VkKeyScanW(ord(char))
-    if vk == -1:
-        pass
-    return vk & 0xFF  # The low byte is the VK code
-
-
-def vk_to_char(vk_code):
-    return chr(user32.MapVirtualKeyW(vk_code, 2))
-
-
-hotkey_state = {"was_pressed": False}
-
-
-def is_hotkey_pressed_once(vk_code=0x35):
-    pressed = get_key_pressed(vk_code)
-    if pressed and not hotkey_state["was_pressed"]:
-        hotkey_state["was_pressed"] = True
-        return True
-    elif not pressed:
-        hotkey_state["was_pressed"] = False
-    return False
-
-
-formation_hotkey_values = {}
-# At the top-level (e.g., global scope or init function)
-if not formation_hotkey_values:  # Only load once
-    formations = load_formations_from_json()
-    for formation_key, formation_data in formations.items():
-        formation_hotkey_values[formation_key] = formation_data.get("hotkey", "") or ""
-
-skills_prep_hotkey_values = {}
-
-
 def draw_combat_prep_window(cached_data):
-    global formation_hotkey_values
-
     if PyImGui.begin("Combat Prep", PyImGui.WindowFlags.AlwaysAutoResize):
         # Currently hardcode to key 5
         me = Player.GetAgentID()
@@ -178,8 +117,6 @@ def draw_combat_prep_window(cached_data):
 
         party_size = cached_data.data.party_size
         disband_formation = False
-        HOTKEY = "hotkey"
-        VK = "vk"
         COORDINATES = "coordinates"
 
         PyImGui.text("Formations:")
@@ -199,54 +136,12 @@ def draw_combat_prep_window(cached_data):
                 "Save", PyImGui.TableColumnFlags.WidthStretch
             )  # auto-size
             for formation_key, formation_data in formations.items():
-                if formation_data[HOTKEY]:
-                    hotkey_pressed = get_key_pressed(formation_data[VK])
-                else:
-                    hotkey_pressed = False
-
                 PyImGui.table_next_row()
 
                 # Column 1: Formation Button
                 PyImGui.table_next_column()
                 button_pressed = PyImGui.button(formation_key)
-                should_set_formation = hotkey_pressed or button_pressed
-
-                # Column 2: Hotkey Input
-                # Get and display editable input buffer
-                PyImGui.table_next_column()
-                current_value = formation_hotkey_values[formation_key] or ""
-                PyImGui.set_next_item_width(30)
-                raw_value = PyImGui.input_text(
-                    f"##HotkeyInput_{formation_key}", current_value, 4
-                )
-
-                updated_value = raw_value.strip()[:1] if raw_value else ""
-                # Store it persistently
-                formation_hotkey_values[formation_key] = updated_value
-
-                # Column 3: Save Hotkey Button
-                PyImGui.table_next_column()
-                if PyImGui.button(f"Save Hotkey##{formation_key}"):
-                    input_value = updated_value.lower()
-                    if len(input_value) == 1:
-                        # Normalize to lowercase
-                        input_value = input_value.lower()
-                        vk_value = char_to_vk(input_value)
-                        if input_value and vk_value:
-                            save_formation_hotkey(
-                                formation_key,
-                                input_value,
-                                vk_value,
-                                formation_data[COORDINATES],
-                            )
-                        else:
-                            save_formation_hotkey(
-                                formation_key, None, None, formation_data[COORDINATES]
-                            )
-                    else:
-                        print(
-                            "[ERROR] Only a single character keyboard keys can be used for a Hotkey"
-                        )
+                should_set_formation = button_pressed
 
                 if should_set_formation:
                     if len(formation_data[COORDINATES]):
@@ -256,17 +151,23 @@ def draw_combat_prep_window(cached_data):
         PyImGui.end_table()
 
         if len(set_formations_relative_to_leader):
-            leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
+            leader_follow_angle = (
+                cached_data.data.party_leader_rotation_angle
+            )  # in radians
             leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(
                 GLOBAL_CACHE.Party.GetPartyLeaderID()
             )
-            angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
+            angle_rad = (
+                leader_follow_angle - math.pi / 2
+            )  # adjust for coordinate system
 
             cos_a = math.cos(angle_rad)
             sin_a = math.sin(angle_rad)
 
             for hero_ai_index in range(1, party_size):
-                offset_x, offset_y = set_formations_relative_to_leader[hero_ai_index - 1]
+                offset_x, offset_y = set_formations_relative_to_leader[
+                    hero_ai_index - 1
+                ]
 
                 # Rotate offset
                 rotated_x = offset_x * cos_a - offset_y * sin_a
@@ -326,18 +227,11 @@ def draw_combat_prep_window(cached_data):
             PyImGui.table_next_column()
             st_button_pressed = PyImGui.button("Spirits Prep")
 
-            # Column 2: Hotkey Input
-            # Get and display editable input buffer
-            PyImGui.table_next_column()
-
-            # Column 3: Save Hotkey Button
-            PyImGui.table_next_column()
-
             sender_email = cached_data.account_email
 
             # Only party leader is allowed to have access to hotkey
             if is_party_leader:
-                if st_button_pressed or is_hotkey_pressed_once(0x35):
+                if st_button_pressed:
                     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
                     for account in accounts:
                         if sender_email != account.AccountEmail:
@@ -345,7 +239,7 @@ def draw_combat_prep_window(cached_data):
                                 sender_email,
                                 account.AccountEmail,
                                 SharedCommandType.UseSkill,
-                                (1, 0, 0, 0),
+                                (CombatPrepSkillsType.SpiritsPrep, 0, 0, 0),
                             )
 
         PyImGui.end_table()
