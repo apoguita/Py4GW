@@ -11,7 +11,6 @@ from .cache_data import CacheData
 
 import math
 
-
 def DrawBuffWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
     if not cached_data.data.is_explorable:
@@ -266,62 +265,6 @@ def DrawFlaggingWindow(cached_data:CacheData):
             PyImGui.table_next_column()
             CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
             PyImGui.end_table()
-    
-    if PyImGui.collapsing_header("Formation Flagger - Backline(1,2)"):
-        set_formations_relative_to_leader = []
-        final_text_to_announce = ''
-        
-        formations  = {
-            "1,2 - Double Backline Wide": [
-                (250, -250), (-250, -250), (0, 200), (-350, 500), (350, 500), (-450, 300), (450, 300)
-            ],
-            "1,2 - Double Backline Narrow": [
-                (200, -200), (-200, -200), (0, 200), (-300, 500), (300, 500), (-400, 300), (400, 300)
-            ],
-            "1 - Single Backline Wide": [
-                (0, -250), (-150, 200), (150, 200), (-350, 500), (350, 500), (-450, 300), (450, 300)
-            ],
-            "1 - Single Backline Narrow": [
-                (0, -250), (-100, 200), (100, 200), (-300, 500), (300, 500), (-350, 300), (350, 300)
-            ],
-            "1,2 - Double Backline Triple Row Wide": [
-                (250, -250), (-250, -250), (-250, 0), (250, 0), (-250, 300), (0, 300), (250, 300)
-            ],
-            "1,2 - Double Backline Triple Row Narrow": [
-                (-200, -200), (200, -200), (-200, 0), (200, 0), (-200, 300), (0, 300), (200, 300)
-            ],
-        }
-        
-        for formation_text, formation_coordinates in formations.items():
-            should_set_formation = PyImGui.button(formation_text)
-            if should_set_formation:
-                final_text_to_announce = formation_text
-                set_formations_relative_to_leader = formation_coordinates
-        
-        if len(set_formations_relative_to_leader):
-            print(f'[INFO] Setting Formation: {final_text_to_announce}')
-            leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
-            leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(GLOBAL_CACHE.Party.GetPartyLeaderID())
-            angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
-
-            cos_a = math.cos(angle_rad)
-            sin_a = math.sin(angle_rad)
-
-            for hero_ai_index in range(1, party_size):
-                offset_x, offset_y = set_formations_relative_to_leader[hero_ai_index - 1]
-                
-                # Rotate offset
-                rotated_x = offset_x * cos_a - offset_y * sin_a
-                rotated_y = offset_x * sin_a + offset_y * cos_a
-
-                # Apply rotated offset to leader's position
-                final_x = leader_x + rotated_x
-                final_y = leader_y + rotated_y
-
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "IsFlagged", True)
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosX", final_x)
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosY", final_y)
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", leader_follow_angle)
                 
                 
     if AllFlag != IsHeroFlagged(cached_data,0):
