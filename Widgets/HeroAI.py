@@ -59,7 +59,7 @@ def HandleCombat(cached_data: CacheData):
         return False
 
     # Suspends all activity until HeroAI has made it to the flagged position
-    # Still goes into combat as long as its within the range value of the expected flag
+    # Still goes into combat as long as its within the melee range value of the expected flag
     party_number = cached_data.data.own_party_number
     if cached_data.HeroAI_vars.all_player_struct[party_number].IsFlagged:
         own_follow_x = cached_data.HeroAI_vars.all_player_struct[party_number].FlagPosX
@@ -67,7 +67,7 @@ def HandleCombat(cached_data: CacheData):
         own_flag_coords = (own_follow_x, own_follow_y)
         if (
             Utils.Distance(own_flag_coords, cached_data.data.player_xy)
-            > RANGED_RANGE_VALUE
+            > MELEE_RANGE_VALUE
         ):
             ActionQueueManager().ResetQueue("ACTION")
             GLOBAL_CACHE.Player.Move(own_follow_x, own_follow_y)
@@ -78,7 +78,7 @@ def HandleCombat(cached_data: CacheData):
         leader_flag_coords = (leader_follow_x, leader_follow_y)
         if (
             Utils.Distance(leader_flag_coords, cached_data.data.player_xy)
-            > RANGED_RANGE_VALUE
+            > MELEE_RANGE_VALUE
         ):
             hero_grid_pos = party_number + cached_data.data.party_hero_count + cached_data.data.party_henchman_count
             angle_on_hero_grid = Utils.DegToRad(hero_formation[hero_grid_pos])
@@ -237,7 +237,7 @@ class TabType(Enum):
     config = 5
     debug = 6 
     messaging = 7
-    
+
 selected_tab:TabType = TabType.party
 
 def DrawFramedContent(cached_data:CacheData,content_frame_id):

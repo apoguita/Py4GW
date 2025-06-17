@@ -1,4 +1,6 @@
-from enum import Enum, IntEnum
+from enum import Enum
+from enum import IntEnum
+
 
 class SharedCommandType(IntEnum):
     NoCommand = 0
@@ -19,15 +21,21 @@ class SharedCommandType(IntEnum):
     MerchantMaterials = 15
     DisableHeroAI = 16
     EnableHeroAI = 17
-    LootEx = 18 #privately Handled Command, by Frenkey
+    LootEx = 18  # privately Handled Command, by Frenkey
 
-#region mouse
+
+class CombatPrepSkillsType(IntEnum):
+    SpiritsPrep = 1
+
+
+# region mouse
 class MouseButton(IntEnum):
     Left = 0
     Right = 1
     Middle = 2
 
-#region Key
+
+# region Key
 class Key(Enum):
     # Letters
     A = 0x41
@@ -38,13 +46,13 @@ class Key(Enum):
     F = 0x46
     G = 0x47
     H = 0x48
-    I = 0x49
+    I = 0x49  # noqa
     J = 0x4A
     K = 0x4B
     L = 0x4C
     M = 0x4D
     N = 0x4E
-    O = 0x4F
+    O = 0x4F  # noqa
     P = 0x50
     Q = 0x51
     R = 0x52
@@ -129,19 +137,20 @@ class Key(Enum):
     Pause = 0x13
 
     # Special characters (US standard keyboard) (Danish standard keyboard) (English standard keyboard)
-    Semicolon = 0xBA       # ;                   # æ                        # ;
-    Equal = 0xBB           # =                   # ´                        # =
-    Comma = 0xBC           # ,                   # ,                        # ,
-    Minus = 0xBD           # -                   # +                        # -
-    Period = 0xBE          # .                   # .                        # .
-    Slash = 0xBF           # /                   # -                        # /
-    Backtick = 0xC0        # `                   # ½                        # `
-    LeftBracket = 0xDB     # [                   # å                        # [
-    Backslash = 0xDC       # \                   # '                        # #
-    RightBracket = 0xDD    # ]                   # ¨                        # ]
-    Apostrophe = 0xDE      # '                   # ø                        # '
+    Semicolon = 0xBA     # ;                   # æ                        # ;
+    Equal = 0xBB         # =                   # ´                        # =
+    Comma = 0xBC         # ,                   # ,                        # ,
+    Minus = 0xBD         # -                   # +                        # -
+    Period = 0xBE        # .                   # .                        # .
+    Slash = 0xBF         # /                   # -                        # /
+    Backtick = 0xC0      # `                   # ½                        # `
+    LeftBracket = 0xDB   # [                   # å                        # [
+    Backslash = 0xDC     # \                   # '                        # #
+    RightBracket = 0xDD  # ]                   # ¨                        # ]
+    Apostrophe = 0xDE    # '                   # ø                        # '
 
-#region Console
+
+# region Console
 class Console:
     class MessageType:
         Info = 0
@@ -151,9 +160,10 @@ class Console:
         Success = 4
         Performance = 5
         Notice = 6
-        
-#endregion
-#region Range  
+
+
+# endregion
+# region Range
 class Range(Enum):
     Touch = 144.0
     Adjacent = 166.0
@@ -162,11 +172,12 @@ class Range(Enum):
     Earshot = 1012.0
     Spellcast = 1248.0
     Spirit = 2500.0
-    SafeCompass = 4800.0 #made up distance to make easy checks
+    SafeCompass = 4800.0  # made up distance to make easy checks
     Compass = 5000.0
 
-#endregion
-#region ServerRegion
+
+# endregion
+# region ServerRegion
 class ServerRegion(IntEnum):
     International = -2
     America = 0
@@ -176,8 +187,9 @@ class ServerRegion(IntEnum):
     Japan = 4
     Unknown = 255
 
-#endregion
-#region ServerRegionName
+
+# endregion
+# region ServerRegionName
 ServerRegionName = {
     ServerRegion.International.value: "International",
     ServerRegion.America.value: "America",
@@ -186,9 +198,10 @@ ServerRegionName = {
     ServerRegion.China.value: "Traditional Chinese",
     ServerRegion.Japan.value: "Japanese",
 }
-       
-#endregion
-#region ServerLanguage
+
+
+# endregion
+# region ServerLanguage
 class ServerLanguage(IntEnum):
     English = 0
     Korean = 1
@@ -203,8 +216,9 @@ class ServerLanguage(IntEnum):
     BorkBorkBork = 17
     Unknown = 255
 
-#endregion
-#region ServerLanguageName
+
+# endregion
+# region ServerLanguageName
 ServerLanguageName = {
     ServerLanguage.English.value: "English",
     ServerLanguage.Korean.value: "Korean",
@@ -220,9 +234,10 @@ ServerLanguageName = {
     ServerLanguage.Unknown.value: "Unknown",
 }
 
-#endregion
+# endregion
 
-#region District
+
+# region District
 class District(IntEnum):
     Current = 0
     International = 1
@@ -239,8 +254,9 @@ class District(IntEnum):
     AsiaJapanese = 12
     Unknown = 255
 
-#endregion
-#region Language
+
+# endregion
+# region Language
 class Language(IntEnum):
     English = 0
     Korean = 1
@@ -255,10 +271,12 @@ class Language(IntEnum):
     BorkBorkBork = 17
     Unknown = 255
 
-#endregion
-#region District
 
-#region ampaign
+# endregion
+# region District
+
+
+# region ampaign
 class Campaign(IntEnum):
     Core = 0
     Prophecies = 1
@@ -268,8 +286,9 @@ class Campaign(IntEnum):
     BonusMissionPack = 5
     Undefined = 6
 
-#endregion
-#region RegionType
+
+# endregion
+# region RegionType
 class RegionType(IntEnum):
     AllianceBattle = 0
     Arena = 1
@@ -294,8 +313,9 @@ class RegionType(IntEnum):
     Unknown = 20
     DevRegion = 21
 
-#endregion
-#region Continent
+
+# endregion
+# region Continent
 class Continent(IntEnum):
     Kryta = 0
     DevContinent = 1
@@ -305,14 +325,16 @@ class Continent(IntEnum):
     RealmOfTorment = 5
     Undefined = 6
 
-#endregion
-#region Rarity
+
+# endregion
+# region Rarity
 class Rarity(IntEnum):
     White = 0
     Blue = 1
     Purple = 2
     Gold = 3
     Green = 4
+
 
 # SalvageAllType
 class SalvageAllType(IntEnum):
@@ -322,6 +344,7 @@ class SalvageAllType(IntEnum):
     PurpleAndLower = 3
     GoldAndLower = 4
 
+
 # IdentifyAllType
 class IdentifyAllType(IntEnum):
     None_ = 0
@@ -329,9 +352,10 @@ class IdentifyAllType(IntEnum):
     Blue = 2
     Purple = 3
     Gold = 4
-    
-#endregion
-#region bags 
+
+
+# endregion
+# region bags
 class Bags(IntEnum):
     NoBag = 0
     Backpack = 1
@@ -358,9 +382,8 @@ class Bags(IntEnum):
     EquippedItems = 22
 
 
-
-#endregion
-#region ItemType
+# endregion
+# region ItemType
 class ItemType(IntEnum):
     Salvage = 0
     Axe = 2
@@ -370,7 +393,7 @@ class ItemType(IntEnum):
     Bundle = 6
     Chestpiece = 7
     Rune_Mod = 8
-    Usable =9
+    Usable = 9
     Dye = 10
     Materials_Zcoins = 11
     Offhand = 12
@@ -404,8 +427,9 @@ class ItemType(IntEnum):
     Costume_Headpiece = 45
     Unknown = 255
 
-#endregion
-#region DyeColor
+
+# endregion
+# region DyeColor
 class DyeColor(IntEnum):
     NoColor = 0
     Blue = 2
@@ -421,10 +445,11 @@ class DyeColor(IntEnum):
     White = 12
     Pink = 13
 
-#endregion
-#region Profession
+
+# endregion
+# region Profession
 class Profession(IntEnum):
-    _None = 0  
+    _None = 0
     Warrior = 1
     Ranger = 2
     Monk = 3
@@ -435,9 +460,10 @@ class Profession(IntEnum):
     Ritualist = 8
     Paragon = 9
     Dervish = 10
-    
+
+
 class ProfessionShort(IntEnum):
-    _ = 0  
+    _ = 0
     W = 1
     R = 2
     Mo = 3
@@ -449,8 +475,9 @@ class ProfessionShort(IntEnum):
     P = 9
     D = 10
 
-#endregion
-#region Allegiance
+
+# endregion
+# region Allegiance
 class Allegiance(IntEnum):
     Unknown = 0
     Ally = 1  # 0x1 = ally/non-attackable
@@ -459,14 +486,16 @@ class Allegiance(IntEnum):
     SpiritPet = 4  # 0x4 = spirit/pet
     Minion = 5  # 0x5 = minion
     NpcMinipet = 6  # 0x6 = npc/minipet
-    
+
+
 # AllieganceDonation
 class FactionAllegiance(IntEnum):
     Kurzick = 0
     Luxon = 1
-    
-#endregion
-#region Mod structs
+
+
+# endregion
+# region Mod structs
 class Ailment(IntEnum):
     Bleeding = 222
     Blind = 223
@@ -476,7 +505,8 @@ class Ailment(IntEnum):
     Poison = 228
     Dazed = 229
     Weakness = 230
-    
+
+
 class Reduced_Ailment(IntEnum):
     Bleeding = 0
     Blind = 1
@@ -486,8 +516,9 @@ class Reduced_Ailment(IntEnum):
     Poison = 6
     Dazed = 7
     Weakness = 8
-    
-#DamageType
+
+
+# DamageType
 class DamageType(IntEnum):
     Blunt = 0
     Piercing = 1
@@ -506,7 +537,8 @@ class DamageType(IntEnum):
     unknown_14 = 14
     unknown_15 = 15
 
-#WeaponType
+
+# WeaponType
 class Weapon(IntEnum):
     Unknown = 0
     Bow = 1
@@ -533,6 +565,7 @@ class Weapon(IntEnum):
     Unknown8 = 22
     Unknown9 = 23
     Unknown10 = 24
+
 
 # Attribute
 class Attribute(IntEnum):
@@ -582,8 +615,9 @@ class Attribute(IntEnum):
     EarthPrayers = 43
     Mysticism = 44
     None_ = 45  # Avoiding reserved keyword "None"
-    
-#Inscription
+
+
+# Inscription
 class Inscription(IntEnum):
     Fear_Cuts_Deeper = 0
     I_Can_See_Clearly_Now = 1
@@ -603,15 +637,16 @@ class Inscription(IntEnum):
     The_Riddle_of_Steel = 146
 
 
-#endregion
-#region PetBehavior
+# endregion
+# region PetBehavior
 class PetBehavior(IntEnum):
     Fight = 0
     Guard = 1
     Heel = 2
 
-#endregion
-#region HeroType
+
+# endregion
+# region HeroType
 class HeroType(IntEnum):
     None_ = 0  # Avoiding reserved keyword "None"
     Norgu = 1
@@ -651,9 +686,10 @@ class HeroType(IntEnum):
     MercenaryHero8 = 35
     Miku = 36
     ZeiRi = 37
-  
-#endregion
-#region ChatChannel  
+
+
+# endregion
+# region ChatChannel
 class ChatChannel(IntEnum):
     CHANNEL_ALLIANCE = 0
     CHANNEL_ALLIES = 1  # Coop with two groups for instance.
@@ -676,18 +712,20 @@ class ChatChannel(IntEnum):
     CHANNEL_COMMAND = 16
     CHANNEL_UNKNOW = -1
 
-#endregion
-#region UIManager
+
+# endregion
+# region UIManager
+
 
 class UIMessage(IntEnum):
     kNone = 0x0
     kInitFrame = 0x9
-    kDestroyFrame = 0xb
-    kKeyDown = 0x1e  # wparam = UIPacket::kKeyAction*
+    kDestroyFrame = 0xB
+    kKeyDown = 0x1E  # wparam = UIPacket::kKeyAction*
     kKeyUp = 0x20  # wparam = UIPacket::kKeyAction*
     kMouseClick = 0x22  # wparam = UIPacket::kMouseClick*
-    kMouseClick2 = 0x2e  # wparam = UIPacket::kMouseAction*
-    kMouseAction = 0x2f  # wparam = UIPacket::kMouseAction*
+    kMouseClick2 = 0x2E  # wparam = UIPacket::kMouseAction*
+    kMouseAction = 0x2F  # wparam = UIPacket::kMouseAction*
     kUpdateAgentEffects = 0x10000009
     kRerenderAgentModel = 0x10000007  # wparam = uint32_t agent_id
     kShowAgentNameTag = 0x10000019  # wparam = AgentNameTagInfo*
@@ -712,7 +750,9 @@ class UIMessage(IntEnum):
     kTitleProgressUpdated = 0x10000065  # wparam = title_id
     kExperienceGained = 0x10000066  # wparam = experience amount
     kWriteToChatLog = 0x1000007E  # wparam = UIPacket::kWriteToChatLog*
-    kWriteToChatLogWithSender = 0x1000007F  # wparam = UIPacket::kWriteToChatLogWithSender*
+    kWriteToChatLogWithSender = (
+        0x1000007F  # wparam = UIPacket::kWriteToChatLogWithSender*
+    )
     kPlayerChatMessage = 0x10000081  # wparam = UIPacket::kPlayerChatMessage*
     kFriendUpdated = 0x10000089  # wparam = { GW::Friend*, ... }
     kMapLoaded = 0x1000008A
@@ -723,14 +763,18 @@ class UIMessage(IntEnum):
     kDialogBody = 0x100000A4  # wparam = DialogBodyInfo*
     kDialogButton = 0x100000A1  # wparam = DialogButtonInfo*
     kTargetNPCPartyMember = 0x100000B1  # wparam = { uint32_t unk, uint32_t agent_id }
-    kTargetPlayerPartyMember = 0x100000B2  # wparam = { uint32_t unk, uint32_t player_number }
+    kTargetPlayerPartyMember = (
+        0x100000B2  # wparam = { uint32_t unk, uint32_t player_number }
+    )
     kInitMerchantList = 0x100000B3  # wparam = { uint32_t merchant_tab_type, uint32_t unk, uint32_t merchant_agent_id, uint32_t is_pending }
     kQuotedItemPrice = 0x100000BB  # wparam = { uint32_t item_id, uint32_t price }
     kStartMapLoad = 0x100000C0  # wparam = { uint32_t map_id, ... }
     kWorldMapUpdated = 0x100000C5
     kGuildMemberUpdated = 0x100000D8  # wparam = { GuildPlayer::name_ptr }
     kShowHint = 0x100000DF  # wparam = { uint32_t icon_type, wchar_t* message_enc }
-    kUpdateGoldCharacter = 0x100000EA  # wparam = { uint32_t unk, uint32_t gold_character }
+    kUpdateGoldCharacter = (
+        0x100000EA  # wparam = { uint32_t unk, uint32_t gold_character }
+    )
     kUpdateGoldStorage = 0x100000EB  # wparam = { uint32_t unk, uint32_t gold_storage }
     kInventorySlotUpdated = 0x100000EC  # Triggered when an item is moved into a slot
     kEquipmentSlotUpdated = 0x100000ED  # Triggered when an item is moved into a slot
@@ -742,13 +786,19 @@ class UIMessage(IntEnum):
     kItemUpdated = 0x10000104  # wparam = UIPacket::kItemUpdated*
     kMapChange = 0x1000010F  # wparam = map id
     kCalledTargetChange = 0x10000113  # wparam = { player_number, target_id }
-    kErrorMessage = 0x10000117  # wparam = { int error_index, wchar_t* error_encoded_string }
+    kErrorMessage = (
+        0x10000117  # wparam = { int error_index, wchar_t* error_encoded_string }
+    )
     kSendEnterMission = 0x30000002  # wparam = uint32_t arena_id
     kSendLoadSkillbar = 0x30000003  # wparam = UIPacket::kSendLoadSkillbar*
     kSendPingWeaponSet = 0x30000004  # wparam = UIPacket::kSendPingWeaponSet*
     kSendMoveItem = 0x30000005  # wparam = UIPacket::kSendMoveItem*
-    kSendMerchantRequestQuote = 0x30000006  # wparam = UIPacket::kSendMerchantRequestQuote*
-    kSendMerchantTransactItem = 0x30000007  # wparam = UIPacket::kSendMerchantTransactItem*
+    kSendMerchantRequestQuote = (
+        0x30000006  # wparam = UIPacket::kSendMerchantRequestQuote*
+    )
+    kSendMerchantTransactItem = (
+        0x30000007  # wparam = UIPacket::kSendMerchantTransactItem*
+    )
     kSendUseItem = 0x30000008  # wparam = UIPacket::kSendUseItem*
     kSendSetActiveQuest = 0x30000009  # wparam = uint32_t quest_id
     kSendAbandonQuest = 0x3000000A  # wparam = uint32_t quest_id
@@ -773,6 +823,7 @@ class UIMessage(IntEnum):
     kPrintChatMessage = 0x3000001F  # wparam = UIPacket::kPrintChatMessage*  # Triggered when a message wants to be added to the in-game chat window
     kSendWorldAction = 0x30000020  # wparam = UIPacket::kSendWorldAction*
 
+
 class EnumPreference(IntEnum):
     CharSortOrder = 0
     AntiAliasing = 1  # multi sampling
@@ -783,13 +834,15 @@ class EnumPreference(IntEnum):
     InterfaceSize = 6
     FrameLimiter = 7
     Count = 8  # Not meant for use as a real value; represents size
-    
+
+
 class StringPreference(IntEnum):
     Unk1 = 0
     Unk2 = 1
     LastCharacterName = 2
     Count = 3  # Internal use only
-    
+
+
 class NumberPreference(IntEnum):
     AutoTournPartySort = 0
     ChatState = 1  # 1 == showing chat window, 0 == hidden
@@ -833,6 +886,7 @@ class NumberPreference(IntEnum):
     MasterVolume = 39  # Range: 0–100
     ClockMode = 40
     Count = 41  # Internal use
+
 
 class FlagPreference(IntEnum):
     # Boolean preferences
@@ -882,6 +936,7 @@ class FlagPreference(IntEnum):
     LockCompassRotation = 0x5C
 
     Count = 0x5D  # For internal size check
+
 
 class WindowID(IntEnum):
     WindowID_Dialogue1 = 0x0
@@ -1044,7 +1099,7 @@ class ControlAction(IntEnum):
     ControlAction_OpenHeroCommander5 = 0x127
     ControlAction_OpenHeroCommander6 = 0x128
     ControlAction_OpenHeroCommander7 = 0x129
-    
+
     ControlAction_Hero1Skill1 = 0xE5
     ControlAction_Hero1Skill2 = 0xE6
     ControlAction_Hero1Skill3 = 0xE7
@@ -1116,9 +1171,10 @@ class ControlAction(IntEnum):
     ControlAction_UseSkill6 = 0xA9
     ControlAction_UseSkill7 = 0xAA
     ControlAction_UseSkill8 = 0xAB
-    
-#end region
-#region Titles
+
+
+# end region
+# region Titles
 class TitleID(IntEnum):
     Hero = 0
     TyrianCarto = 1
@@ -1168,7 +1224,8 @@ class TitleID(IntEnum):
     TreasureHunter = 45
     Wisdom = 46
     Codex = 47
-    None_ = 0xff  # Use 'None_' to avoid using the reserved keyword 'None'
+    None_ = 0xFF  # Use 'None_' to avoid using the reserved keyword 'None'
+
 
 TITLE_NAME = {
     TitleID.Hero: "Hero",
@@ -1222,8 +1279,8 @@ TITLE_NAME = {
     TitleID.None_: "None",  # Use 'None_' to avoid Python reserved keyword
 }
 
-#endregion
-#region Outpost Names
+# endregion
+# region Outpost Names
 
 outposts = {
     4: "Guild Hall - Warrior's Isle",
@@ -1504,12 +1561,12 @@ outposts = {
     820: "Kamadan Jewel of Istan - Canthan New Year",
     821: "Eye of the North outpost - Wintersday",
     857: "Embark Beach",
- }
+}
 
 outpost_name_to_id = {name: id for id, name in outposts.items()}
 
-#endregion
-#region Explorable Names
+# endregion
+# region Explorable Names
 explorables = {
     7: "Warrior's Isle",
     8: "Hunter's Isle",
@@ -1892,42 +1949,43 @@ explorables = {
 
 explorable_name_to_id = {name: id for id, name in explorables.items()}
 
-#endregion
-#region ItemModels
+
+# endregion
+# region ItemModels
 class ModelID(IntEnum):
     Umbral_Shell = 98765432111
     Vampiric_Fang = 987654789
-    Water_Djinn_Essence = 78965412365 
-    Ancient_Kappa_Shell = 123654789691    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value 
-    Animal_Hide = 1236547896911    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Ashen_Wurm_Husk = 123654789692    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Bleached_Shell = 123654789693    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Blood_Drinker_Pelt = 123654789694    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Bonesnap_Shell = 123654789696    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Branch_Of_Juni_Berries = 123654789695    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Bull_Trainer_Giant_Jawbone = 123654789697    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Dark_Claw = 1236547891    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Dark_Flame_Fang = 12365478911    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Dregde_Manifesto = 12365478914    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Fibrous_Mandragor_Root = 12365478917    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Fledglin_Skree_Wing = 12365478918    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Frozen_Remnant = 12365478919    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Frozen_Shell = 123654789191    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Gargantuan_Jawbone = 123654789192    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Ghostly_Remains = 123654789193    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Gold_Crimson_Skull_Coin = 123654789194    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Igneous_Spider_leg = 123654789195    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Kuskale_Claw = 123654789198    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Leather_Belt = 123456677        # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Mandragor_Carapace = 123654789181        # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Plauge_Idol = 123654789185    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Rinkhal_Talon = 123654789186    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Searing_Ribcage = 123654789187    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Searing_Burrower_Jaw = 123654789189    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Silver_Crimson_Skull_Coin = 211111356    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Smoking_Remains = 8787899465    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Spiny_Seed = 74966338    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Stolen_Supplies = 66665481    # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Water_Djinn_Essence = 78965412365
+    Ancient_Kappa_Shell = 123654789691  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Animal_Hide = 1236547896911  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Ashen_Wurm_Husk = 123654789692  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Bleached_Shell = 123654789693  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Blood_Drinker_Pelt = 123654789694  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Bonesnap_Shell = 123654789696  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Branch_Of_Juni_Berries = 123654789695  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Bull_Trainer_Giant_Jawbone = 123654789697  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Dark_Claw = 1236547891  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Dark_Flame_Fang = 12365478911  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Dregde_Manifesto = 12365478914  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Fibrous_Mandragor_Root = 12365478917  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Fledglin_Skree_Wing = 12365478918  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Frozen_Remnant = 12365478919  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Frozen_Shell = 123654789191  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Gargantuan_Jawbone = 123654789192  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Ghostly_Remains = 123654789193  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Gold_Crimson_Skull_Coin = 123654789194  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Igneous_Spider_leg = 123654789195  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Kuskale_Claw = 123654789198  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Leather_Belt = 123456677  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Mandragor_Carapace = 123654789181  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Plauge_Idol = 123654789185  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Rinkhal_Talon = 123654789186  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Searing_Ribcage = 123654789187  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Searing_Burrower_Jaw = 123654789189  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Silver_Crimson_Skull_Coin = 211111356  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Smoking_Remains = 8787899465  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Spiny_Seed = 74966338  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Stolen_Supplies = 66665481  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Shadowy_Remnants = 441
     Ivory_Troll_Tusk = 445
     Lavastrider_Appendage = 27058
@@ -1937,10 +1995,10 @@ class ModelID(IntEnum):
     Enchanted_Vine = 834
     Diessa_Chalice = 24353
     Dregde_Charm = 27064
-    Kappa_Shell = 839   
+    Kappa_Shell = 839
     Naga_Hide = 832
     Oni_Claw = 817
-    Oni_Taloon = 831    
+    Oni_Taloon = 831
     Copper_Chrimson_Skull_Coin = 806
     Aatxe_Mini = 22765
     Abnormal_Seed = 442
@@ -2439,7 +2497,7 @@ class ModelID(IntEnum):
     Luxon_Key = 6538
     Luxon_Pendant = 810
     Luxon_Totem = 6048
-    Macabre_Tonic =30628
+    Macabre_Tonic = 30628
     Mad_King_Thorn_Mini = 30614
     Mad_Kings_Guard_Mini = 32555
     Maguuma_Key = 5965
@@ -2595,7 +2653,7 @@ class ModelID(IntEnum):
     Sack_Of_Random_Junk = 34213
     Salvage_Kit = 2992
     Sandblasted_Lodestone = 1584
-    Sapphire =  938
+    Sapphire = 938
     Sapphire_Djinn_Essence = 19188
     Saurian_Bone = 27035
     Scale = 953
@@ -2744,7 +2802,7 @@ class ModelID(IntEnum):
     Wintergreen_Scythe = 15877
     Wintergreen_Shield = 15878
     Wintergreen_Spear = 15971
-    Wintergreen_Staff =16128
+    Wintergreen_Staff = 16128
     Wintergreen_Sword = 16130
     Wintergreen_Wand = 15840
     Wintersday_Gift = 21491
@@ -2763,12 +2821,12 @@ class ModelID(IntEnum):
     Zhed_Shadowhoof_Mini = 22197
     Zhos_Journal = 25866
     Zhu_Hanuku_Mini = 34398
-    
-    
-#region AgentModels
+
+
+# region AgentModels
 class SpiritModelID(IntEnum):
-    #SPIRIT_MODEL
-    #RANGER
+    # SPIRIT_MODEL
+    # RANGER
     BRAMBLES = 4239
     CONFLAGRATION = 4237
     ENERGIZING_WIND = 2885
@@ -2794,8 +2852,8 @@ class SpiritModelID(IntEnum):
     TRANQUILITY = 4235
     WINTER = 2874
     WINNOWING = 2875
-    
-    #RITUALIST
+
+    # RITUALIST
     AGONY = 5854
     ANGUISH = 5720
     ANGER = 4229
@@ -2821,21 +2879,21 @@ class SpiritModelID(IntEnum):
     UNION = 4224
     WANDERLUST = 4228
 
-    #OTHER
+    # OTHER
     VAMPIRISM = 5723
     WINDS = 2884
 
-#region Menagerie
-#PET_MODEL
+
+# region Menagerie
+# PET_MODEL
 class PetModelID(IntEnum):
-    #charmable animals
+    # charmable animals
     MELANDRUS_STALKER_WILD = 1345
     RAINBOW_PHOENIX_WILD = 2990
     RAVEN_WILD = 5820
     WOLF_WILD = 1387
     WOLF_ELDER_WILD = 1388
-    
-    
+
     ALBINO_RAT = 561
     ALBINO_RAT_12_ELDER = 562
     ALBINO_RAT_12_PLAYFUL = 563
@@ -3018,7 +3076,7 @@ class PetModelID(IntEnum):
     JINGLE_BEAR_20_AGGRESSIVE = 740
     JINGLE_BEAR_20_HEARTY = 741
     JINGLE_BEAR_20_DIRE = 742
-    
+
     LION = 757
     LION_12_ELDER = 758
     LION_12_PLAYFUL = 759
@@ -3159,7 +3217,7 @@ class PetModelID(IntEnum):
     PHOENIX_20_AGGRESSIVE = 894
     PHOENIX_20_HEARTY = 895
     PHOENIX_20_DIRE = 896
-    
+
     POLAR_BEAR = 911
     POLAR_BEAR_12_ELDER = 912
     POLAR_BEAR_12_PLAYFUL = 913
@@ -3174,7 +3232,7 @@ class PetModelID(IntEnum):
     POLAR_BEAR_20_AGGRESSIVE = 922
     POLAR_BEAR_20_HEARTY = 923
     POLAR_BEAR_20_DIRE = 924
-    
+
     RACING_BEETLE = 939
     RACING_BEETLE_12_ELDER = 940
     RACING_BEETLE_12_PLAYFUL = 941
@@ -3217,7 +3275,7 @@ class PetModelID(IntEnum):
     RAVEN_20_AGGRESSIVE = 978
     RAVEN_20_HEARTY = 979
     RAVEN_20_DIRE = 980
-    
+
     REEF_LURKER = 995
     REEF_LURKER_12_ELDER = 996
     REEF_LURKER_12_PLAYFUL = 997
@@ -3359,1515 +3417,1514 @@ class PetModelID(IntEnum):
     HOUND_20_AGGRESSIVE = 1146
     HOUND_20_HEARTY = 1147
     HOUND_20_DIRE = 1148
-    
-#region ProfessionTexctures
+
+
+# region ProfessionTexctures
 ProfessionTextureMap = {
-    1: '[1] - Warrior.png',
-    2: '[2] - Ranger.png',
-    3: '[3] - Monk.png',
-    4: '[4] - Necromancer.png',
-    5: '[5] - Mesmer.png',
-    6: '[6] - Elementalist.png',
-    7: '[7] - Assassin.png',
-    8: '[8] - Ritualist.png',
-    9: '[9] - Paragon.png',
-    10: '[10] - Dervish.png',
+    1: "[1] - Warrior.png",
+    2: "[2] - Ranger.png",
+    3: "[3] - Monk.png",
+    4: "[4] - Necromancer.png",
+    5: "[5] - Mesmer.png",
+    6: "[6] - Elementalist.png",
+    7: "[7] - Assassin.png",
+    8: "[8] - Ritualist.png",
+    9: "[9] - Paragon.png",
+    10: "[10] - Dervish.png",
 }
 
-#region SkillTextures
+# region SkillTextures
 
 SkillTextureMap = {
-    1: '[1] - Healing Signet.jpg',
-    2: '[2] - Resurrection Signet.jpg',
-    3: '[3] - Signet of Capture.jpg',
-    5: '[5] - Power Block.jpg',
-    6: '[6] - Mantra of Earth.jpg',
-    7: '[7] - Mantra of Flame.jpg',
-    8: '[8] - Mantra of Frost.jpg',
-    9: '[9] - Mantra of Lightning.jpg',
-    10: '[10] - Hex Breaker.jpg',
-    11: '[11] - Distortion.jpg',
-    13: '[13] - Mantra of Recovery.jpg',
-    14: '[14] - Mantra of Persistence.jpg',
-    15: '[15] - Mantra of Inscriptions.jpg',
-    16: '[16] - Mantra of Concentration.jpg',
-    17: '[17] - Mantra of Resolve.jpg',
-    18: '[18] - Mantra of Signets.jpg',
-    19: '[19] - Fragility.jpg',
-    21: '[21] - Inspired Enchantment.jpg',
-    22: '[22] - Inspired Hex.jpg',
-    23: '[23] - Power Spike.jpg',
-    24: '[24] - Power Leak.jpg',
-    25: '[25] - Power Drain.jpg',
-    26: '[26] - Empathy.jpg',
-    27: '[27] - Shatter Delusions.jpg',
-    28: '[28] - Backfire.jpg',
-    29: '[29] - Blackout.jpg',
-    30: '[30] - Diversion.jpg',
-    31: '[31] - Conjure Phantasm.jpg',
-    32: '[32] - Illusion of Weakness.jpg',
-    33: '[33] - Illusionary Weaponry.jpg',
-    34: '[34] - Sympathetic Visage.jpg',
-    35: '[35] - Ignorance.jpg',
-    36: '[36] - Arcane Conundrum.jpg',
-    37: '[37] - Illusion of Haste.jpg',
-    38: '[38] - Channeling.jpg',
-    39: '[39] - Energy Surge.jpg',
-    40: '[40] - Ether Feast.jpg',
-    41: '[41] - Ether Lord.jpg',
-    42: '[42] - Energy Burn.jpg',
-    43: '[43] - Clumsiness.jpg',
-    44: '[44] - Phantom Pain.jpg',
-    45: '[45] - Ethereal Burden.jpg',
-    46: '[46] - Guilt.jpg',
-    47: '[47] - Ineptitude.jpg',
-    48: '[48] - Spirit of Failure.jpg',
-    49: '[49] - Mind Wrack.jpg',
+    1: "[1] - Healing Signet.jpg",
+    2: "[2] - Resurrection Signet.jpg",
+    3: "[3] - Signet of Capture.jpg",
+    5: "[5] - Power Block.jpg",
+    6: "[6] - Mantra of Earth.jpg",
+    7: "[7] - Mantra of Flame.jpg",
+    8: "[8] - Mantra of Frost.jpg",
+    9: "[9] - Mantra of Lightning.jpg",
+    10: "[10] - Hex Breaker.jpg",
+    11: "[11] - Distortion.jpg",
+    13: "[13] - Mantra of Recovery.jpg",
+    14: "[14] - Mantra of Persistence.jpg",
+    15: "[15] - Mantra of Inscriptions.jpg",
+    16: "[16] - Mantra of Concentration.jpg",
+    17: "[17] - Mantra of Resolve.jpg",
+    18: "[18] - Mantra of Signets.jpg",
+    19: "[19] - Fragility.jpg",
+    21: "[21] - Inspired Enchantment.jpg",
+    22: "[22] - Inspired Hex.jpg",
+    23: "[23] - Power Spike.jpg",
+    24: "[24] - Power Leak.jpg",
+    25: "[25] - Power Drain.jpg",
+    26: "[26] - Empathy.jpg",
+    27: "[27] - Shatter Delusions.jpg",
+    28: "[28] - Backfire.jpg",
+    29: "[29] - Blackout.jpg",
+    30: "[30] - Diversion.jpg",
+    31: "[31] - Conjure Phantasm.jpg",
+    32: "[32] - Illusion of Weakness.jpg",
+    33: "[33] - Illusionary Weaponry.jpg",
+    34: "[34] - Sympathetic Visage.jpg",
+    35: "[35] - Ignorance.jpg",
+    36: "[36] - Arcane Conundrum.jpg",
+    37: "[37] - Illusion of Haste.jpg",
+    38: "[38] - Channeling.jpg",
+    39: "[39] - Energy Surge.jpg",
+    40: "[40] - Ether Feast.jpg",
+    41: "[41] - Ether Lord.jpg",
+    42: "[42] - Energy Burn.jpg",
+    43: "[43] - Clumsiness.jpg",
+    44: "[44] - Phantom Pain.jpg",
+    45: "[45] - Ethereal Burden.jpg",
+    46: "[46] - Guilt.jpg",
+    47: "[47] - Ineptitude.jpg",
+    48: "[48] - Spirit of Failure.jpg",
+    49: "[49] - Mind Wrack.jpg",
     50: "[50] - Wastrel's Worry.jpg",
-    51: '[51] - Shame.jpg',
-    52: '[52] - Panic.jpg',
-    53: '[53] - Migraine.jpg',
-    54: '[54] - Crippling Anguish.jpg',
-    55: '[55] - Fevered Dreams.jpg',
-    56: '[56] - Soothing Images.jpg',
-    57: '[57] - Cry of Frustration.jpg',
-    58: '[58] - Signet of Midnight.jpg',
-    59: '[59] - Signet of Weariness.jpg',
-    61: '[61] - Leech Signet.jpg',
-    62: '[62] - Signet of Humility.jpg',
-    63: '[63] - Keystone Signet.jpg',
-    65: '[65] - Arcane Mimicry.jpg',
-    66: '[66] - Spirit Shackles.jpg',
-    67: '[67] - Shatter Hex.jpg',
-    68: '[68] - Drain Enchantment.jpg',
-    69: '[69] - Shatter Enchantment.jpg',
-    72: '[72] - Elemental Resistance.jpg',
-    73: '[73] - Physical Resistance.jpg',
-    74: '[74] - Echo.jpg',
-    75: '[75] - Arcane Echo.jpg',
-    76: '[76] - Imagined Burden.jpg',
-    77: '[77] - Chaos Storm.jpg',
-    78: '[78] - Epidemic.jpg',
-    79: '[79] - Energy Drain.jpg',
-    80: '[80] - Energy Tap.jpg',
-    81: '[81] - Arcane Thievery.jpg',
-    82: '[82] - Mantra of Recall.jpg',
-    83: '[83] - Animate Bone Horror.jpg',
-    84: '[84] - Animate Bone Fiend.jpg',
-    85: '[85] - Animate Bone Minions.jpg',
+    51: "[51] - Shame.jpg",
+    52: "[52] - Panic.jpg",
+    53: "[53] - Migraine.jpg",
+    54: "[54] - Crippling Anguish.jpg",
+    55: "[55] - Fevered Dreams.jpg",
+    56: "[56] - Soothing Images.jpg",
+    57: "[57] - Cry of Frustration.jpg",
+    58: "[58] - Signet of Midnight.jpg",
+    59: "[59] - Signet of Weariness.jpg",
+    61: "[61] - Leech Signet.jpg",
+    62: "[62] - Signet of Humility.jpg",
+    63: "[63] - Keystone Signet.jpg",
+    65: "[65] - Arcane Mimicry.jpg",
+    66: "[66] - Spirit Shackles.jpg",
+    67: "[67] - Shatter Hex.jpg",
+    68: "[68] - Drain Enchantment.jpg",
+    69: "[69] - Shatter Enchantment.jpg",
+    72: "[72] - Elemental Resistance.jpg",
+    73: "[73] - Physical Resistance.jpg",
+    74: "[74] - Echo.jpg",
+    75: "[75] - Arcane Echo.jpg",
+    76: "[76] - Imagined Burden.jpg",
+    77: "[77] - Chaos Storm.jpg",
+    78: "[78] - Epidemic.jpg",
+    79: "[79] - Energy Drain.jpg",
+    80: "[80] - Energy Tap.jpg",
+    81: "[81] - Arcane Thievery.jpg",
+    82: "[82] - Mantra of Recall.jpg",
+    83: "[83] - Animate Bone Horror.jpg",
+    84: "[84] - Animate Bone Fiend.jpg",
+    85: "[85] - Animate Bone Minions.jpg",
     86: "[86] - Grenth's Balance.jpg",
     87: "[87] - Verata's Gaze.jpg",
     88: "[88] - Verata's Aura.jpg",
-    89: '[89] - Deathly Chill.jpg',
+    89: "[89] - Deathly Chill.jpg",
     90: "[90] - Verata's Sacrifice.jpg",
-    91: '[91] - Well of Power.jpg',
-    92: '[92] - Well of Blood.jpg',
-    93: '[93] - Well of Suffering.jpg',
-    94: '[94] - Well of the Profane.jpg',
-    95: '[95] - Putrid Explosion.jpg',
-    96: '[96] - Soul Feast.jpg',
-    97: '[97] - Necrotic Traversal.jpg',
-    98: '[98] - Consume Corpse.jpg',
-    99: '[99] - Parasitic Bond.jpg',
-    100: '[100] - Soul Barbs.jpg',
-    101: '[101] - Barbs.jpg',
-    102: '[102] - Shadow Strike.jpg',
-    103: '[103] - Price of Failure.jpg',
-    104: '[104] - Death Nova.jpg',
-    105: '[105] - Deathly Swarm.jpg',
-    106: '[106] - Rotting Flesh.jpg',
-    107: '[107] - Virulence.jpg',
-    108: '[108] - Suffering.jpg',
-    109: '[109] - Life Siphon.jpg',
-    110: '[110] - Unholy Feast.jpg',
-    111: '[111] - Awaken the Blood.jpg',
-    112: '[112] - Desecrate Enchantments.jpg',
-    113: '[113] - Tainted Flesh.jpg',
-    114: '[114] - Aura of the Lich.jpg',
-    115: '[115] - Blood Renewal.jpg',
-    116: '[116] - Dark Aura.jpg',
-    117: '[117] - Enfeeble.jpg',
-    118: '[118] - Enfeebling Blood.jpg',
-    119: '[119] - Blood is Power.jpg',
-    120: '[120] - Blood of the Master.jpg',
-    121: '[121] - Spiteful Spirit.jpg',
-    122: '[122] - Malign Intervention.jpg',
-    123: '[123] - Insidious Parasite.jpg',
-    124: '[124] - Spinal Shivers.jpg',
-    125: '[125] - Wither.jpg',
-    126: '[126] - Life Transfer.jpg',
-    127: '[127] - Mark of Subversion.jpg',
-    128: '[128] - Soul Leech.jpg',
-    129: '[129] - Defile Flesh.jpg',
-    130: '[130] - Demonic Flesh.jpg',
-    131: '[131] - Barbed Signet.jpg',
-    132: '[132] - Plague Signet.jpg',
-    133: '[133] - Dark Pact.jpg',
-    134: '[134] - Order of Pain.jpg',
-    135: '[135] - Faintheartedness.jpg',
-    136: '[136] - Shadow of Fear.jpg',
-    137: '[137] - Rigor Mortis.jpg',
-    138: '[138] - Dark Bond.jpg',
-    139: '[139] - Infuse Condition.jpg',
-    140: '[140] - Malaise.jpg',
-    141: '[141] - Rend Enchantments.jpg',
-    142: '[142] - Lingering Curse.jpg',
-    143: '[143] - Strip Enchantment.jpg',
-    144: '[144] - Chilblains.jpg',
-    145: '[145] - Signet of Agony.jpg',
-    146: '[146] - Offering of Blood.jpg',
-    147: '[147] - Dark Fury.jpg',
-    148: '[148] - Order of the Vampire.jpg',
-    149: '[149] - Plague Sending.jpg',
-    150: '[150] - Mark of Pain.jpg',
-    151: '[151] - Feast of Corruption.jpg',
-    152: '[152] - Taste of Death.jpg',
-    153: '[153] - Vampiric Gaze.jpg',
-    154: '[154] - Plague Touch.jpg',
-    155: '[155] - Vile Touch.jpg',
-    156: '[156] - Vampiric Touch.jpg',
-    157: '[157] - Blood Ritual.jpg',
-    158: '[158] - Touch of Agony.jpg',
-    159: '[159] - Weaken Armor.jpg',
-    160: '[160] - Windborne Speed.jpg',
-    162: '[162] - Gale.jpg',
-    163: '[163] - Whirlwind.jpg',
-    164: '[164] - Elemental Attunement.jpg',
-    165: '[165] - Armor of Earth.jpg',
-    166: '[166] - Kinetic Armor.jpg',
-    167: '[167] - Eruption.jpg',
-    168: '[168] - Magnetic Aura.jpg',
-    169: '[169] - Earth Attunement.jpg',
-    170: '[170] - Earthquake.jpg',
-    171: '[171] - Stoning.jpg',
-    172: '[172] - Stone Daggers.jpg',
-    173: '[173] - Grasping Earth.jpg',
-    174: '[174] - Aftershock.jpg',
-    175: '[175] - Ward Against Elements.jpg',
-    176: '[176] - Ward Against Melee.jpg',
-    177: '[177] - Ward Against Foes.jpg',
-    178: '[178] - Ether Prodigy.jpg',
-    179: '[179] - Incendiary Bonds.jpg',
-    180: '[180] - Aura of Restoration.jpg',
-    181: '[181] - Ether Renewal.jpg',
-    182: '[182] - Conjure Flame.jpg',
-    183: '[183] - Inferno.jpg',
-    184: '[184] - Fire Attunement.jpg',
-    185: '[185] - Mind Burn.jpg',
-    186: '[186] - Fireball.jpg',
-    187: '[187] - Meteor.jpg',
-    188: '[188] - Flame Burst.jpg',
+    91: "[91] - Well of Power.jpg",
+    92: "[92] - Well of Blood.jpg",
+    93: "[93] - Well of Suffering.jpg",
+    94: "[94] - Well of the Profane.jpg",
+    95: "[95] - Putrid Explosion.jpg",
+    96: "[96] - Soul Feast.jpg",
+    97: "[97] - Necrotic Traversal.jpg",
+    98: "[98] - Consume Corpse.jpg",
+    99: "[99] - Parasitic Bond.jpg",
+    100: "[100] - Soul Barbs.jpg",
+    101: "[101] - Barbs.jpg",
+    102: "[102] - Shadow Strike.jpg",
+    103: "[103] - Price of Failure.jpg",
+    104: "[104] - Death Nova.jpg",
+    105: "[105] - Deathly Swarm.jpg",
+    106: "[106] - Rotting Flesh.jpg",
+    107: "[107] - Virulence.jpg",
+    108: "[108] - Suffering.jpg",
+    109: "[109] - Life Siphon.jpg",
+    110: "[110] - Unholy Feast.jpg",
+    111: "[111] - Awaken the Blood.jpg",
+    112: "[112] - Desecrate Enchantments.jpg",
+    113: "[113] - Tainted Flesh.jpg",
+    114: "[114] - Aura of the Lich.jpg",
+    115: "[115] - Blood Renewal.jpg",
+    116: "[116] - Dark Aura.jpg",
+    117: "[117] - Enfeeble.jpg",
+    118: "[118] - Enfeebling Blood.jpg",
+    119: "[119] - Blood is Power.jpg",
+    120: "[120] - Blood of the Master.jpg",
+    121: "[121] - Spiteful Spirit.jpg",
+    122: "[122] - Malign Intervention.jpg",
+    123: "[123] - Insidious Parasite.jpg",
+    124: "[124] - Spinal Shivers.jpg",
+    125: "[125] - Wither.jpg",
+    126: "[126] - Life Transfer.jpg",
+    127: "[127] - Mark of Subversion.jpg",
+    128: "[128] - Soul Leech.jpg",
+    129: "[129] - Defile Flesh.jpg",
+    130: "[130] - Demonic Flesh.jpg",
+    131: "[131] - Barbed Signet.jpg",
+    132: "[132] - Plague Signet.jpg",
+    133: "[133] - Dark Pact.jpg",
+    134: "[134] - Order of Pain.jpg",
+    135: "[135] - Faintheartedness.jpg",
+    136: "[136] - Shadow of Fear.jpg",
+    137: "[137] - Rigor Mortis.jpg",
+    138: "[138] - Dark Bond.jpg",
+    139: "[139] - Infuse Condition.jpg",
+    140: "[140] - Malaise.jpg",
+    141: "[141] - Rend Enchantments.jpg",
+    142: "[142] - Lingering Curse.jpg",
+    143: "[143] - Strip Enchantment.jpg",
+    144: "[144] - Chilblains.jpg",
+    145: "[145] - Signet of Agony.jpg",
+    146: "[146] - Offering of Blood.jpg",
+    147: "[147] - Dark Fury.jpg",
+    148: "[148] - Order of the Vampire.jpg",
+    149: "[149] - Plague Sending.jpg",
+    150: "[150] - Mark of Pain.jpg",
+    151: "[151] - Feast of Corruption.jpg",
+    152: "[152] - Taste of Death.jpg",
+    153: "[153] - Vampiric Gaze.jpg",
+    154: "[154] - Plague Touch.jpg",
+    155: "[155] - Vile Touch.jpg",
+    156: "[156] - Vampiric Touch.jpg",
+    157: "[157] - Blood Ritual.jpg",
+    158: "[158] - Touch of Agony.jpg",
+    159: "[159] - Weaken Armor.jpg",
+    160: "[160] - Windborne Speed.jpg",
+    162: "[162] - Gale.jpg",
+    163: "[163] - Whirlwind.jpg",
+    164: "[164] - Elemental Attunement.jpg",
+    165: "[165] - Armor of Earth.jpg",
+    166: "[166] - Kinetic Armor.jpg",
+    167: "[167] - Eruption.jpg",
+    168: "[168] - Magnetic Aura.jpg",
+    169: "[169] - Earth Attunement.jpg",
+    170: "[170] - Earthquake.jpg",
+    171: "[171] - Stoning.jpg",
+    172: "[172] - Stone Daggers.jpg",
+    173: "[173] - Grasping Earth.jpg",
+    174: "[174] - Aftershock.jpg",
+    175: "[175] - Ward Against Elements.jpg",
+    176: "[176] - Ward Against Melee.jpg",
+    177: "[177] - Ward Against Foes.jpg",
+    178: "[178] - Ether Prodigy.jpg",
+    179: "[179] - Incendiary Bonds.jpg",
+    180: "[180] - Aura of Restoration.jpg",
+    181: "[181] - Ether Renewal.jpg",
+    182: "[182] - Conjure Flame.jpg",
+    183: "[183] - Inferno.jpg",
+    184: "[184] - Fire Attunement.jpg",
+    185: "[185] - Mind Burn.jpg",
+    186: "[186] - Fireball.jpg",
+    187: "[187] - Meteor.jpg",
+    188: "[188] - Flame Burst.jpg",
     189: "[189] - Rodgort's Invocation.jpg",
-    190: '[190] - Mark of Rodgort.jpg',
-    191: '[191] - Immolate.jpg',
-    192: '[192] - Meteor Shower.jpg',
-    193: '[193] - Phoenix.jpg',
-    194: '[194] - Flare.jpg',
-    195: '[195] - Lava Font.jpg',
-    196: '[196] - Searing Heat.jpg',
-    197: '[197] - Fire Storm.jpg',
-    198: '[198] - Glyph of Elemental Power.jpg',
-    199: '[199] - Glyph of Energy.jpg',
-    200: '[200] - Glyph of Lesser Energy.jpg',
-    201: '[201] - Glyph of Concentration.jpg',
-    202: '[202] - Glyph of Sacrifice.jpg',
-    203: '[203] - Glyph of Renewal.jpg',
-    204: '[204] - Rust.jpg',
-    205: '[205] - Lightning Surge.jpg',
-    206: '[206] - Armor of Frost.jpg',
-    207: '[207] - Conjure Frost.jpg',
-    208: '[208] - Water Attunement.jpg',
-    209: '[209] - Mind Freeze.jpg',
-    210: '[210] - Ice Prison.jpg',
-    211: '[211] - Ice Spikes.jpg',
-    212: '[212] - Frozen Burst.jpg',
-    213: '[213] - Shard Storm.jpg',
-    214: '[214] - Ice Spear.jpg',
-    215: '[215] - Maelstrom.jpg',
-    216: '[216] - Iron Mist.jpg',
-    217: '[217] - Crystal Wave.jpg',
-    218: '[218] - Obsidian Flesh.jpg',
-    219: '[219] - Obsidian Flame.jpg',
-    220: '[220] - Blinding Flash.jpg',
-    221: '[221] - Conjure Lightning.jpg',
-    222: '[222] - Lightning Strike.jpg',
-    223: '[223] - Chain Lightning.jpg',
-    224: '[224] - Enervating Charge.jpg',
-    225: '[225] - Air Attunement.jpg',
-    226: '[226] - Mind Shock.jpg',
-    227: '[227] - Glimmering Mark.jpg',
-    228: '[228] - Thunderclap.jpg',
-    229: '[229] - Lightning Orb.jpg',
-    230: '[230] - Lightning Javelin.jpg',
-    231: '[231] - Shock.jpg',
-    232: '[232] - Lightning Touch.jpg',
-    233: '[233] - Swirling Aura.jpg',
-    234: '[234] - Deep Freeze.jpg',
-    235: '[235] - Blurred Vision.jpg',
-    236: '[236] - Mist Form.jpg',
-    237: '[237] - Water Trident.jpg',
-    238: '[238] - Armor of Mist.jpg',
-    239: '[239] - Ward Against Harm.jpg',
-    240: '[240] - Smite.jpg',
-    241: '[241] - Life Bond.jpg',
+    190: "[190] - Mark of Rodgort.jpg",
+    191: "[191] - Immolate.jpg",
+    192: "[192] - Meteor Shower.jpg",
+    193: "[193] - Phoenix.jpg",
+    194: "[194] - Flare.jpg",
+    195: "[195] - Lava Font.jpg",
+    196: "[196] - Searing Heat.jpg",
+    197: "[197] - Fire Storm.jpg",
+    198: "[198] - Glyph of Elemental Power.jpg",
+    199: "[199] - Glyph of Energy.jpg",
+    200: "[200] - Glyph of Lesser Energy.jpg",
+    201: "[201] - Glyph of Concentration.jpg",
+    202: "[202] - Glyph of Sacrifice.jpg",
+    203: "[203] - Glyph of Renewal.jpg",
+    204: "[204] - Rust.jpg",
+    205: "[205] - Lightning Surge.jpg",
+    206: "[206] - Armor of Frost.jpg",
+    207: "[207] - Conjure Frost.jpg",
+    208: "[208] - Water Attunement.jpg",
+    209: "[209] - Mind Freeze.jpg",
+    210: "[210] - Ice Prison.jpg",
+    211: "[211] - Ice Spikes.jpg",
+    212: "[212] - Frozen Burst.jpg",
+    213: "[213] - Shard Storm.jpg",
+    214: "[214] - Ice Spear.jpg",
+    215: "[215] - Maelstrom.jpg",
+    216: "[216] - Iron Mist.jpg",
+    217: "[217] - Crystal Wave.jpg",
+    218: "[218] - Obsidian Flesh.jpg",
+    219: "[219] - Obsidian Flame.jpg",
+    220: "[220] - Blinding Flash.jpg",
+    221: "[221] - Conjure Lightning.jpg",
+    222: "[222] - Lightning Strike.jpg",
+    223: "[223] - Chain Lightning.jpg",
+    224: "[224] - Enervating Charge.jpg",
+    225: "[225] - Air Attunement.jpg",
+    226: "[226] - Mind Shock.jpg",
+    227: "[227] - Glimmering Mark.jpg",
+    228: "[228] - Thunderclap.jpg",
+    229: "[229] - Lightning Orb.jpg",
+    230: "[230] - Lightning Javelin.jpg",
+    231: "[231] - Shock.jpg",
+    232: "[232] - Lightning Touch.jpg",
+    233: "[233] - Swirling Aura.jpg",
+    234: "[234] - Deep Freeze.jpg",
+    235: "[235] - Blurred Vision.jpg",
+    236: "[236] - Mist Form.jpg",
+    237: "[237] - Water Trident.jpg",
+    238: "[238] - Armor of Mist.jpg",
+    239: "[239] - Ward Against Harm.jpg",
+    240: "[240] - Smite.jpg",
+    241: "[241] - Life Bond.jpg",
     242: "[242] - Balthazar's Spirit.jpg",
-    243: '[243] - Strength of Honor.jpg',
-    244: '[244] - Life Attunement.jpg',
-    245: '[245] - Protective Spirit.jpg',
-    246: '[246] - Divine Intervention.jpg',
-    247: '[247] - Symbol of Wrath.jpg',
-    248: '[248] - Retribution.jpg',
-    249: '[249] - Holy Wrath.jpg',
-    250: '[250] - Essence Bond.jpg',
-    251: '[251] - Scourge Healing.jpg',
-    252: '[252] - Banish.jpg',
-    253: '[253] - Scourge Sacrifice.jpg',
-    254: '[254] - Vigorous Spirit.jpg',
-    255: '[255] - Watchful Spirit.jpg',
-    256: '[256] - Blessed Aura.jpg',
-    257: '[257] - Aegis.jpg',
-    258: '[258] - Guardian.jpg',
-    259: '[259] - Shield of Deflection.jpg',
-    260: '[260] - Aura of Faith.jpg',
-    261: '[261] - Shield of Regeneration.jpg',
-    262: '[262] - Shield of Judgment.jpg',
-    263: '[263] - Protective Bond.jpg',
-    264: '[264] - Pacifism.jpg',
-    265: '[265] - Amity.jpg',
-    266: '[266] - Peace and Harmony.jpg',
+    243: "[243] - Strength of Honor.jpg",
+    244: "[244] - Life Attunement.jpg",
+    245: "[245] - Protective Spirit.jpg",
+    246: "[246] - Divine Intervention.jpg",
+    247: "[247] - Symbol of Wrath.jpg",
+    248: "[248] - Retribution.jpg",
+    249: "[249] - Holy Wrath.jpg",
+    250: "[250] - Essence Bond.jpg",
+    251: "[251] - Scourge Healing.jpg",
+    252: "[252] - Banish.jpg",
+    253: "[253] - Scourge Sacrifice.jpg",
+    254: "[254] - Vigorous Spirit.jpg",
+    255: "[255] - Watchful Spirit.jpg",
+    256: "[256] - Blessed Aura.jpg",
+    257: "[257] - Aegis.jpg",
+    258: "[258] - Guardian.jpg",
+    259: "[259] - Shield of Deflection.jpg",
+    260: "[260] - Aura of Faith.jpg",
+    261: "[261] - Shield of Regeneration.jpg",
+    262: "[262] - Shield of Judgment.jpg",
+    263: "[263] - Protective Bond.jpg",
+    264: "[264] - Pacifism.jpg",
+    265: "[265] - Amity.jpg",
+    266: "[266] - Peace and Harmony.jpg",
     267: "[267] - Judge's Insight.jpg",
-    268: '[268] - Unyielding Aura.jpg',
-    269: '[269] - Mark of Protection.jpg',
-    270: '[270] - Life Barrier.jpg',
+    268: "[268] - Unyielding Aura.jpg",
+    269: "[269] - Mark of Protection.jpg",
+    270: "[270] - Life Barrier.jpg",
     271: "[271] - Zealot's Fire.jpg",
     272: "[272] - Balthazar's Aura.jpg",
-    273: '[273] - Spell Breaker.jpg',
-    274: '[274] - Healing Seed.jpg',
-    275: '[275] - Mend Condition.jpg',
-    276: '[276] - Restore Condition.jpg',
-    277: '[277] - Mend Ailment.jpg',
-    278: '[278] - Purge Conditions.jpg',
-    279: '[279] - Divine Healing.jpg',
-    280: '[280] - Heal Area.jpg',
-    281: '[281] - Orison of Healing.jpg',
-    282: '[282] - Word of Healing.jpg',
+    273: "[273] - Spell Breaker.jpg",
+    274: "[274] - Healing Seed.jpg",
+    275: "[275] - Mend Condition.jpg",
+    276: "[276] - Restore Condition.jpg",
+    277: "[277] - Mend Ailment.jpg",
+    278: "[278] - Purge Conditions.jpg",
+    279: "[279] - Divine Healing.jpg",
+    280: "[280] - Heal Area.jpg",
+    281: "[281] - Orison of Healing.jpg",
+    282: "[282] - Word of Healing.jpg",
     283: "[283] - Dwayna's Kiss.jpg",
-    284: '[284] - Divine Boon.jpg',
-    285: '[285] - Healing Hands.jpg',
-    286: '[286] - Heal Other.jpg',
-    287: '[287] - Heal Party.jpg',
-    288: '[288] - Healing Breeze.jpg',
-    289: '[289] - Vital Blessing.jpg',
-    290: '[290] - Mending.jpg',
-    291: '[291] - Live Vicariously.jpg',
-    292: '[292] - Infuse Health.jpg',
-    293: '[293] - Signet of Devotion.jpg',
-    294: '[294] - Signet of Judgment.jpg',
-    295: '[295] - Purge Signet.jpg',
-    296: '[296] - Bane Signet.jpg',
-    297: '[297] - Blessed Signet.jpg',
-    298: '[298] - Martyr.jpg',
-    299: '[299] - Shielding Hands.jpg',
-    300: '[300] - Contemplation of Purity.jpg',
-    301: '[301] - Remove Hex.jpg',
-    302: '[302] - Smite Hex.jpg',
-    303: '[303] - Convert Hexes.jpg',
-    304: '[304] - Light of Dwayna.jpg',
-    305: '[305] - Resurrect.jpg',
-    306: '[306] - Rebirth.jpg',
-    307: '[307] - Reversal of Fortune.jpg',
-    308: '[308] - Succor.jpg',
-    309: '[309] - Holy Veil.jpg',
-    310: '[310] - Divine Spirit.jpg',
-    311: '[311] - Draw Conditions.jpg',
-    312: '[312] - Holy Strike.jpg',
-    313: '[313] - Healing Touch.jpg',
-    314: '[314] - Restore Life.jpg',
-    315: '[315] - Vengeance.jpg',
-    316: '[316] - To the Limit!.jpg',
-    317: '[317] - Battle Rage.jpg',
-    318: '[318] - Defy Pain.jpg',
-    319: '[319] - Rush.jpg',
-    320: '[320] - Hamstring.jpg',
-    321: '[321] - Wild Blow.jpg',
-    322: '[322] - Power Attack.jpg',
-    323: '[323] - Desperation Blow.jpg',
-    324: '[324] - Thrill of Victory.jpg',
-    325: '[325] - Distracting Blow.jpg',
+    284: "[284] - Divine Boon.jpg",
+    285: "[285] - Healing Hands.jpg",
+    286: "[286] - Heal Other.jpg",
+    287: "[287] - Heal Party.jpg",
+    288: "[288] - Healing Breeze.jpg",
+    289: "[289] - Vital Blessing.jpg",
+    290: "[290] - Mending.jpg",
+    291: "[291] - Live Vicariously.jpg",
+    292: "[292] - Infuse Health.jpg",
+    293: "[293] - Signet of Devotion.jpg",
+    294: "[294] - Signet of Judgment.jpg",
+    295: "[295] - Purge Signet.jpg",
+    296: "[296] - Bane Signet.jpg",
+    297: "[297] - Blessed Signet.jpg",
+    298: "[298] - Martyr.jpg",
+    299: "[299] - Shielding Hands.jpg",
+    300: "[300] - Contemplation of Purity.jpg",
+    301: "[301] - Remove Hex.jpg",
+    302: "[302] - Smite Hex.jpg",
+    303: "[303] - Convert Hexes.jpg",
+    304: "[304] - Light of Dwayna.jpg",
+    305: "[305] - Resurrect.jpg",
+    306: "[306] - Rebirth.jpg",
+    307: "[307] - Reversal of Fortune.jpg",
+    308: "[308] - Succor.jpg",
+    309: "[309] - Holy Veil.jpg",
+    310: "[310] - Divine Spirit.jpg",
+    311: "[311] - Draw Conditions.jpg",
+    312: "[312] - Holy Strike.jpg",
+    313: "[313] - Healing Touch.jpg",
+    314: "[314] - Restore Life.jpg",
+    315: "[315] - Vengeance.jpg",
+    316: "[316] - To the Limit!.jpg",
+    317: "[317] - Battle Rage.jpg",
+    318: "[318] - Defy Pain.jpg",
+    319: "[319] - Rush.jpg",
+    320: "[320] - Hamstring.jpg",
+    321: "[321] - Wild Blow.jpg",
+    322: "[322] - Power Attack.jpg",
+    323: "[323] - Desperation Blow.jpg",
+    324: "[324] - Thrill of Victory.jpg",
+    325: "[325] - Distracting Blow.jpg",
     326: "[326] - Protector's Strike.jpg",
     327: "[327] - Griffon's Sweep.jpg",
-    328: '[328] - Pure Strike.jpg',
-    329: '[329] - Skull Crack.jpg',
-    330: '[330] - Cyclone Axe.jpg',
-    331: '[331] - Hammer Bash.jpg',
+    328: "[328] - Pure Strike.jpg",
+    329: "[329] - Skull Crack.jpg",
+    330: "[330] - Cyclone Axe.jpg",
+    331: "[331] - Hammer Bash.jpg",
     332: "[332] - Bull's Strike.jpg",
-    333: '[333] - I Will Avenge You!.jpg',
-    334: '[334] - Axe Rake.jpg',
-    335: '[335] - Cleave.jpg',
+    333: "[333] - I Will Avenge You!.jpg",
+    334: "[334] - Axe Rake.jpg",
+    335: "[335] - Cleave.jpg",
     336: "[336] - Executioner's Strike.jpg",
-    337: '[337] - Dismember.jpg',
-    338: '[338] - Eviscerate.jpg',
-    339: '[339] - Penetrating Blow.jpg',
-    340: '[340] - Disrupting Chop.jpg',
-    341: '[341] - Swift Chop.jpg',
-    342: '[342] - Axe Twist.jpg',
-    343: '[343] - For Great Justice!.jpg',
-    344: '[344] - Flurry.jpg',
-    345: '[345] - Defensive Stance.jpg',
-    346: '[346] - Frenzy.jpg',
-    347: '[347] - Endure Pain.jpg',
-    348: '[348] - Watch Yourself!.jpg',
-    349: '[349] - Sprint.jpg',
-    350: '[350] - Belly Smash.jpg',
-    351: '[351] - Mighty Blow.jpg',
-    352: '[352] - Crushing Blow.jpg',
-    353: '[353] - Crude Swing.jpg',
-    354: '[354] - Earth Shaker.jpg',
-    355: '[355] - Devastating Hammer.jpg',
-    356: '[356] - Irresistible Blow.jpg',
-    357: '[357] - Counter Blow.jpg',
-    358: '[358] - Backbreaker.jpg',
-    359: '[359] - Heavy Blow.jpg',
-    360: '[360] - Staggering Blow.jpg',
-    361: '[361] - Dolyak Signet.jpg',
+    337: "[337] - Dismember.jpg",
+    338: "[338] - Eviscerate.jpg",
+    339: "[339] - Penetrating Blow.jpg",
+    340: "[340] - Disrupting Chop.jpg",
+    341: "[341] - Swift Chop.jpg",
+    342: "[342] - Axe Twist.jpg",
+    343: "[343] - For Great Justice!.jpg",
+    344: "[344] - Flurry.jpg",
+    345: "[345] - Defensive Stance.jpg",
+    346: "[346] - Frenzy.jpg",
+    347: "[347] - Endure Pain.jpg",
+    348: "[348] - Watch Yourself!.jpg",
+    349: "[349] - Sprint.jpg",
+    350: "[350] - Belly Smash.jpg",
+    351: "[351] - Mighty Blow.jpg",
+    352: "[352] - Crushing Blow.jpg",
+    353: "[353] - Crude Swing.jpg",
+    354: "[354] - Earth Shaker.jpg",
+    355: "[355] - Devastating Hammer.jpg",
+    356: "[356] - Irresistible Blow.jpg",
+    357: "[357] - Counter Blow.jpg",
+    358: "[358] - Backbreaker.jpg",
+    359: "[359] - Heavy Blow.jpg",
+    360: "[360] - Staggering Blow.jpg",
+    361: "[361] - Dolyak Signet.jpg",
     362: "[362] - Warrior's Cunning.jpg",
-    363: '[363] - Shield Bash.jpg',
-    364: '[364] - Charge!.jpg',
-    365: '[365] - Victory Is Mine!.jpg',
-    366: '[366] - Fear Me!.jpg',
-    367: '[367] - Shields Up!.jpg',
-    368: '[368] - I Will Survive!.jpg',
-    370: '[370] - Berserker Stance.jpg',
-    371: '[371] - Balanced Stance.jpg',
+    363: "[363] - Shield Bash.jpg",
+    364: "[364] - Charge!.jpg",
+    365: "[365] - Victory Is Mine!.jpg",
+    366: "[366] - Fear Me!.jpg",
+    367: "[367] - Shields Up!.jpg",
+    368: "[368] - I Will Survive!.jpg",
+    370: "[370] - Berserker Stance.jpg",
+    371: "[371] - Balanced Stance.jpg",
     372: "[372] - Gladiator's Defense.jpg",
-    373: '[373] - Deflect Arrows.jpg',
+    373: "[373] - Deflect Arrows.jpg",
     374: "[374] - Warrior's Endurance.jpg",
-    375: '[375] - Dwarven Battle Stance.jpg',
-    376: '[376] - Disciplined Stance.jpg',
-    377: '[377] - Wary Stance.jpg',
-    378: '[378] - Shield Stance.jpg',
+    375: "[375] - Dwarven Battle Stance.jpg",
+    376: "[376] - Disciplined Stance.jpg",
+    377: "[377] - Wary Stance.jpg",
+    378: "[378] - Shield Stance.jpg",
     379: "[379] - Bull's Charge.jpg",
     380: "[380] - Bonetti's Defense.jpg",
-    381: '[381] - Hundred Blades.jpg',
-    382: '[382] - Sever Artery.jpg',
-    383: '[383] - Galrath Slash.jpg',
-    384: '[384] - Gash.jpg',
-    385: '[385] - Final Thrust.jpg',
-    386: '[386] - Seeking Blade.jpg',
-    387: '[387] - Riposte.jpg',
-    388: '[388] - Deadly Riposte.jpg',
-    389: '[389] - Flourish.jpg',
-    390: '[390] - Savage Slash.jpg',
+    381: "[381] - Hundred Blades.jpg",
+    382: "[382] - Sever Artery.jpg",
+    383: "[383] - Galrath Slash.jpg",
+    384: "[384] - Gash.jpg",
+    385: "[385] - Final Thrust.jpg",
+    386: "[386] - Seeking Blade.jpg",
+    387: "[387] - Riposte.jpg",
+    388: "[388] - Deadly Riposte.jpg",
+    389: "[389] - Flourish.jpg",
+    390: "[390] - Savage Slash.jpg",
     391: "[391] - Hunter's Shot.jpg",
-    392: '[392] - Pin Down.jpg',
-    393: '[393] - Crippling Shot.jpg',
-    394: '[394] - Power Shot.jpg',
-    395: '[395] - Barrage.jpg',
-    396: '[396] - Dual Shot.jpg',
-    397: '[397] - Quick Shot.jpg',
-    398: '[398] - Penetrating Attack.jpg',
-    399: '[399] - Distracting Shot.jpg',
-    400: '[400] - Precision Shot.jpg',
-    402: '[402] - Determined Shot.jpg',
-    403: '[403] - Called Shot.jpg',
-    404: '[404] - Poison Arrow.jpg',
-    405: '[405] - Oath Shot.jpg',
-    406: '[406] - Debilitating Shot.jpg',
-    407: '[407] - Point Blank Shot.jpg',
-    408: '[408] - Concussion Shot.jpg',
-    409: '[409] - Punishing Shot.jpg',
-    411: '[411] - Charm Animal.jpg',
-    412: '[412] - Call of Protection.jpg',
-    415: '[415] - Call of Haste.jpg',
-    422: '[422] - Revive Animal.jpg',
-    423: '[423] - Symbiotic Bond.jpg',
-    424: '[424] - Throw Dirt.jpg',
-    425: '[425] - Dodge.jpg',
-    426: '[426] - Savage Shot.jpg',
-    427: '[427] - Antidote Signet.jpg',
-    428: '[428] - Incendiary Arrows.jpg',
+    392: "[392] - Pin Down.jpg",
+    393: "[393] - Crippling Shot.jpg",
+    394: "[394] - Power Shot.jpg",
+    395: "[395] - Barrage.jpg",
+    396: "[396] - Dual Shot.jpg",
+    397: "[397] - Quick Shot.jpg",
+    398: "[398] - Penetrating Attack.jpg",
+    399: "[399] - Distracting Shot.jpg",
+    400: "[400] - Precision Shot.jpg",
+    402: "[402] - Determined Shot.jpg",
+    403: "[403] - Called Shot.jpg",
+    404: "[404] - Poison Arrow.jpg",
+    405: "[405] - Oath Shot.jpg",
+    406: "[406] - Debilitating Shot.jpg",
+    407: "[407] - Point Blank Shot.jpg",
+    408: "[408] - Concussion Shot.jpg",
+    409: "[409] - Punishing Shot.jpg",
+    411: "[411] - Charm Animal.jpg",
+    412: "[412] - Call of Protection.jpg",
+    415: "[415] - Call of Haste.jpg",
+    422: "[422] - Revive Animal.jpg",
+    423: "[423] - Symbiotic Bond.jpg",
+    424: "[424] - Throw Dirt.jpg",
+    425: "[425] - Dodge.jpg",
+    426: "[426] - Savage Shot.jpg",
+    427: "[427] - Antidote Signet.jpg",
+    428: "[428] - Incendiary Arrows.jpg",
     429: "[429] - Melandru's Arrows.jpg",
     430: "[430] - Marksman's Wager.jpg",
-    431: '[431] - Ignite Arrows.jpg',
-    432: '[432] - Read the Wind.jpg',
-    433: '[433] - Kindle Arrows.jpg',
-    434: '[434] - Choking Gas.jpg',
-    435: '[435] - Apply Poison.jpg',
-    436: '[436] - Comfort Animal.jpg',
-    437: '[437] - Bestial Pounce.jpg',
-    438: '[438] - Maiming Strike.jpg',
-    439: '[439] - Feral Lunge.jpg',
-    440: '[440] - Scavenger Strike.jpg',
+    431: "[431] - Ignite Arrows.jpg",
+    432: "[432] - Read the Wind.jpg",
+    433: "[433] - Kindle Arrows.jpg",
+    434: "[434] - Choking Gas.jpg",
+    435: "[435] - Apply Poison.jpg",
+    436: "[436] - Comfort Animal.jpg",
+    437: "[437] - Bestial Pounce.jpg",
+    438: "[438] - Maiming Strike.jpg",
+    439: "[439] - Feral Lunge.jpg",
+    440: "[440] - Scavenger Strike.jpg",
     441: "[441] - Melandru's Assault.jpg",
-    442: '[442] - Ferocious Strike.jpg',
+    442: "[442] - Ferocious Strike.jpg",
     443: "[443] - Predator's Pounce.jpg",
-    444: '[444] - Brutal Strike.jpg',
-    445: '[445] - Disrupting Lunge.jpg',
-    446: '[446] - Troll Unguent.jpg',
+    444: "[444] - Brutal Strike.jpg",
+    445: "[445] - Disrupting Lunge.jpg",
+    446: "[446] - Troll Unguent.jpg",
     447: "[447] - Otyugh's Cry.jpg",
-    448: '[448] - Escape.jpg',
-    449: '[449] - Practiced Stance.jpg',
-    450: '[450] - Whirling Defense.jpg',
+    448: "[448] - Escape.jpg",
+    449: "[449] - Practiced Stance.jpg",
+    450: "[450] - Whirling Defense.jpg",
     451: "[451] - Melandru's Resilience.jpg",
     452: "[452] - Dryder's Defenses.jpg",
-    453: '[453] - Lightning Reflexes.jpg',
+    453: "[453] - Lightning Reflexes.jpg",
     454: "[454] - Tiger's Fury.jpg",
-    455: '[455] - Storm Chaser.jpg',
+    455: "[455] - Storm Chaser.jpg",
     456: "[456] - Serpent's Quickness.jpg",
-    457: '[457] - Dust Trap.jpg',
-    458: '[458] - Barbed Trap.jpg',
-    459: '[459] - Flame Trap.jpg',
-    460: '[460] - Healing Spring.jpg',
-    461: '[461] - Spike Trap.jpg',
-    462: '[462] - Winter.jpg',
-    463: '[463] - Winnowing.jpg',
-    464: '[464] - Edge of Extinction.jpg',
-    465: '[465] - Greater Conflagration.jpg',
-    466: '[466] - Conflagration.jpg',
-    467: '[467] - Fertile Season.jpg',
-    468: '[468] - Symbiosis.jpg',
-    469: '[469] - Primal Echoes.jpg',
-    470: '[470] - Predatory Season.jpg',
-    471: '[471] - Frozen Soil.jpg',
-    472: '[472] - Favorable Winds.jpg',
-    474: '[474] - Energizing Wind.jpg',
-    475: '[475] - Quickening Zephyr.jpg',
+    457: "[457] - Dust Trap.jpg",
+    458: "[458] - Barbed Trap.jpg",
+    459: "[459] - Flame Trap.jpg",
+    460: "[460] - Healing Spring.jpg",
+    461: "[461] - Spike Trap.jpg",
+    462: "[462] - Winter.jpg",
+    463: "[463] - Winnowing.jpg",
+    464: "[464] - Edge of Extinction.jpg",
+    465: "[465] - Greater Conflagration.jpg",
+    466: "[466] - Conflagration.jpg",
+    467: "[467] - Fertile Season.jpg",
+    468: "[468] - Symbiosis.jpg",
+    469: "[469] - Primal Echoes.jpg",
+    470: "[470] - Predatory Season.jpg",
+    471: "[471] - Frozen Soil.jpg",
+    472: "[472] - Favorable Winds.jpg",
+    474: "[474] - Energizing Wind.jpg",
+    475: "[475] - Quickening Zephyr.jpg",
     476: "[476] - Nature's Renewal.jpg",
-    477: '[477] - Muddy Terrain.jpg',
-    570: '[570] - Mark of Insecurity.jpg',
-    571: '[571] - Disrupting Dagger.jpg',
-    572: '[572] - Deadly Paradox.jpg',
-    763: '[763] - Jaundiced Gaze.jpg',
-    764: '[764] - Wail of Doom.jpg',
-    766: '[766] - Gaze of Contempt.jpg',
+    477: "[477] - Muddy Terrain.jpg",
+    570: "[570] - Mark of Insecurity.jpg",
+    571: "[571] - Disrupting Dagger.jpg",
+    572: "[572] - Deadly Paradox.jpg",
+    763: "[763] - Jaundiced Gaze.jpg",
+    764: "[764] - Wail of Doom.jpg",
+    766: "[766] - Gaze of Contempt.jpg",
     769: "[769] - Viper's Defense.jpg",
-    770: '[770] - Return.jpg',
-    771: '[771] - Aura of Displacement.jpg',
-    772: '[772] - Generous Was Tsungrai.jpg',
-    773: '[773] - Mighty Was Vorizun.jpg',
-    775: '[775] - Death Blossom.jpg',
-    776: '[776] - Twisting Fangs.jpg',
-    777: '[777] - Horns of the Ox.jpg',
-    778: '[778] - Falling Spider.jpg',
-    779: '[779] - Black Lotus Strike.jpg',
-    780: '[780] - Fox Fangs.jpg',
-    781: '[781] - Moebius Strike.jpg',
-    782: '[782] - Jagged Strike.jpg',
-    783: '[783] - Unsuspecting Strike.jpg',
-    784: '[784] - Entangling Asp.jpg',
-    785: '[785] - Mark of Death.jpg',
-    786: '[786] - Iron Palm.jpg',
-    787: '[787] - Resilient Weapon.jpg',
-    788: '[788] - Blind Was Mingson.jpg',
-    789: '[789] - Grasping Was Kuurong.jpg',
-    790: '[790] - Vengeful Was Khanhei.jpg',
-    791: '[791] - Flesh of My Flesh.jpg',
-    792: '[792] - Splinter Weapon.jpg',
-    793: '[793] - Weapon of Warding.jpg',
-    794: '[794] - Wailing Weapon.jpg',
-    795: '[795] - Nightmare Weapon.jpg',
-    799: '[799] - Beguiling Haze.jpg',
-    800: '[800] - Enduring Toxin.jpg',
-    801: '[801] - Shroud of Silence.jpg',
-    802: '[802] - Expose Defenses.jpg',
-    803: '[803] - Power Leech.jpg',
-    804: '[804] - Arcane Languor.jpg',
-    805: '[805] - Animate Vampiric Horror.jpg',
+    770: "[770] - Return.jpg",
+    771: "[771] - Aura of Displacement.jpg",
+    772: "[772] - Generous Was Tsungrai.jpg",
+    773: "[773] - Mighty Was Vorizun.jpg",
+    775: "[775] - Death Blossom.jpg",
+    776: "[776] - Twisting Fangs.jpg",
+    777: "[777] - Horns of the Ox.jpg",
+    778: "[778] - Falling Spider.jpg",
+    779: "[779] - Black Lotus Strike.jpg",
+    780: "[780] - Fox Fangs.jpg",
+    781: "[781] - Moebius Strike.jpg",
+    782: "[782] - Jagged Strike.jpg",
+    783: "[783] - Unsuspecting Strike.jpg",
+    784: "[784] - Entangling Asp.jpg",
+    785: "[785] - Mark of Death.jpg",
+    786: "[786] - Iron Palm.jpg",
+    787: "[787] - Resilient Weapon.jpg",
+    788: "[788] - Blind Was Mingson.jpg",
+    789: "[789] - Grasping Was Kuurong.jpg",
+    790: "[790] - Vengeful Was Khanhei.jpg",
+    791: "[791] - Flesh of My Flesh.jpg",
+    792: "[792] - Splinter Weapon.jpg",
+    793: "[793] - Weapon of Warding.jpg",
+    794: "[794] - Wailing Weapon.jpg",
+    795: "[795] - Nightmare Weapon.jpg",
+    799: "[799] - Beguiling Haze.jpg",
+    800: "[800] - Enduring Toxin.jpg",
+    801: "[801] - Shroud of Silence.jpg",
+    802: "[802] - Expose Defenses.jpg",
+    803: "[803] - Power Leech.jpg",
+    804: "[804] - Arcane Languor.jpg",
+    805: "[805] - Animate Vampiric Horror.jpg",
     806: "[806] - Cultist's Fervor.jpg",
     808: "[808] - Reaper's Mark.jpg",
-    809: '[809] - Shatterstone.jpg',
+    809: "[809] - Shatterstone.jpg",
     810: "[810] - Protector's Defense.jpg",
-    811: '[811] - Run as One.jpg',
-    812: '[812] - Defiant Was Xinrae.jpg',
+    811: "[811] - Run as One.jpg",
+    812: "[812] - Defiant Was Xinrae.jpg",
     813: "[813] - Lyssa's Aura.jpg",
-    814: '[814] - Shadow Refuge.jpg',
-    815: '[815] - Scorpion Wire.jpg',
-    816: '[816] - Mirrored Stance.jpg',
-    817: '[817] - Discord.jpg',
-    818: '[818] - Well of Weariness.jpg',
-    819: '[819] - Vampiric Spirit.jpg',
-    820: '[820] - Depravity.jpg',
-    821: '[821] - Icy Veins.jpg',
-    822: '[822] - Weaken Knees.jpg',
-    823: '[823] - Burning Speed.jpg',
-    824: '[824] - Lava Arrows.jpg',
-    825: '[825] - Bed of Coals.jpg',
-    826: '[826] - Shadow Form.jpg',
-    827: '[827] - Siphon Strength.jpg',
-    828: '[828] - Vile Miasma.jpg',
-    830: '[830] - Ray of Judgment.jpg',
-    831: '[831] - Primal Rage.jpg',
-    832: '[832] - Animate Flesh Golem.jpg',
-    834: '[834] - Reckless Haste.jpg',
-    835: '[835] - Blood Bond.jpg',
-    836: '[836] - Ride the Lightning.jpg',
-    837: '[837] - Energy Boon.jpg',
+    814: "[814] - Shadow Refuge.jpg",
+    815: "[815] - Scorpion Wire.jpg",
+    816: "[816] - Mirrored Stance.jpg",
+    817: "[817] - Discord.jpg",
+    818: "[818] - Well of Weariness.jpg",
+    819: "[819] - Vampiric Spirit.jpg",
+    820: "[820] - Depravity.jpg",
+    821: "[821] - Icy Veins.jpg",
+    822: "[822] - Weaken Knees.jpg",
+    823: "[823] - Burning Speed.jpg",
+    824: "[824] - Lava Arrows.jpg",
+    825: "[825] - Bed of Coals.jpg",
+    826: "[826] - Shadow Form.jpg",
+    827: "[827] - Siphon Strength.jpg",
+    828: "[828] - Vile Miasma.jpg",
+    830: "[830] - Ray of Judgment.jpg",
+    831: "[831] - Primal Rage.jpg",
+    832: "[832] - Animate Flesh Golem.jpg",
+    834: "[834] - Reckless Haste.jpg",
+    835: "[835] - Blood Bond.jpg",
+    836: "[836] - Ride the Lightning.jpg",
+    837: "[837] - Energy Boon.jpg",
     838: "[838] - Dwayna's Sorrow.jpg",
-    839: '[839] - Retreat!.jpg',
-    840: '[840] - Poisoned Heart.jpg',
-    841: '[841] - Fetid Ground.jpg',
-    842: '[842] - Arc Lightning.jpg',
-    843: '[843] - Gust.jpg',
-    844: '[844] - Churning Earth.jpg',
-    845: '[845] - Liquid Flame.jpg',
-    846: '[846] - Steam.jpg',
-    847: '[847] - Boon Signet.jpg',
-    848: '[848] - Reverse Hex.jpg',
-    849: '[849] - Lacerating Chop.jpg',
-    850: '[850] - Fierce Blow.jpg',
-    851: '[851] - Sun and Moon Slash.jpg',
-    852: '[852] - Splinter Shot.jpg',
+    839: "[839] - Retreat!.jpg",
+    840: "[840] - Poisoned Heart.jpg",
+    841: "[841] - Fetid Ground.jpg",
+    842: "[842] - Arc Lightning.jpg",
+    843: "[843] - Gust.jpg",
+    844: "[844] - Churning Earth.jpg",
+    845: "[845] - Liquid Flame.jpg",
+    846: "[846] - Steam.jpg",
+    847: "[847] - Boon Signet.jpg",
+    848: "[848] - Reverse Hex.jpg",
+    849: "[849] - Lacerating Chop.jpg",
+    850: "[850] - Fierce Blow.jpg",
+    851: "[851] - Sun and Moon Slash.jpg",
+    852: "[852] - Splinter Shot.jpg",
     853: "[853] - Melandru's Shot.jpg",
-    854: '[854] - Snare.jpg',
-    858: '[858] - Dancing Daggers.jpg',
-    859: '[859] - Conjure Nightmare.jpg',
-    860: '[860] - Signet of Disruption.jpg',
-    862: '[862] - Ravenous Gaze.jpg',
-    863: '[863] - Order of Apostasy.jpg',
-    864: '[864] - Oppressive Gaze.jpg',
-    865: '[865] - Lightning Hammer.jpg',
-    866: '[866] - Vapor Blade.jpg',
-    867: '[867] - Healing Light.jpg',
-    869: '[869] - Coward!.jpg',
-    870: '[870] - Pestilence.jpg',
-    871: '[871] - Shadowsong.jpg',
-    876: '[876] - Signet of Shadows.jpg',
+    854: "[854] - Snare.jpg",
+    858: "[858] - Dancing Daggers.jpg",
+    859: "[859] - Conjure Nightmare.jpg",
+    860: "[860] - Signet of Disruption.jpg",
+    862: "[862] - Ravenous Gaze.jpg",
+    863: "[863] - Order of Apostasy.jpg",
+    864: "[864] - Oppressive Gaze.jpg",
+    865: "[865] - Lightning Hammer.jpg",
+    866: "[866] - Vapor Blade.jpg",
+    867: "[867] - Healing Light.jpg",
+    869: "[869] - Coward!.jpg",
+    870: "[870] - Pestilence.jpg",
+    871: "[871] - Shadowsong.jpg",
+    876: "[876] - Signet of Shadows.jpg",
     877: "[877] - Lyssa's Balance.jpg",
-    878: '[878] - Visions of Regret.jpg',
-    879: '[879] - Illusion of Pain.jpg',
-    880: '[880] - Stolen Speed.jpg',
-    881: '[881] - Ether Signet.jpg',
-    882: '[882] - Signet of Disenchantment.jpg',
-    883: '[883] - Vocal Minority.jpg',
-    884: '[884] - Searing Flames.jpg',
-    885: '[885] - Shield Guardian.jpg',
-    886: '[886] - Restful Breeze.jpg',
-    887: '[887] - Signet of Rejuvenation.jpg',
-    888: '[888] - Whirling Axe.jpg',
-    889: '[889] - Forceful Blow.jpg',
-    891: '[891] - None Shall Pass!.jpg',
-    892: '[892] - Quivering Blade.jpg',
-    893: '[893] - Seeking Arrows.jpg',
-    898: '[898] - Overload.jpg',
-    899: '[899] - Images of Remorse.jpg',
-    900: '[900] - Shared Burden.jpg',
-    901: '[901] - Soul Bind.jpg',
-    902: '[902] - Blood of the Aggressor.jpg',
-    903: '[903] - Icy Prism.jpg',
-    904: '[904] - Furious Axe.jpg',
-    905: '[905] - Auspicious Blow.jpg',
-    906: '[906] - On Your Knees!.jpg',
-    907: '[907] - Dragon Slash.jpg',
+    878: "[878] - Visions of Regret.jpg",
+    879: "[879] - Illusion of Pain.jpg",
+    880: "[880] - Stolen Speed.jpg",
+    881: "[881] - Ether Signet.jpg",
+    882: "[882] - Signet of Disenchantment.jpg",
+    883: "[883] - Vocal Minority.jpg",
+    884: "[884] - Searing Flames.jpg",
+    885: "[885] - Shield Guardian.jpg",
+    886: "[886] - Restful Breeze.jpg",
+    887: "[887] - Signet of Rejuvenation.jpg",
+    888: "[888] - Whirling Axe.jpg",
+    889: "[889] - Forceful Blow.jpg",
+    891: "[891] - None Shall Pass!.jpg",
+    892: "[892] - Quivering Blade.jpg",
+    893: "[893] - Seeking Arrows.jpg",
+    898: "[898] - Overload.jpg",
+    899: "[899] - Images of Remorse.jpg",
+    900: "[900] - Shared Burden.jpg",
+    901: "[901] - Soul Bind.jpg",
+    902: "[902] - Blood of the Aggressor.jpg",
+    903: "[903] - Icy Prism.jpg",
+    904: "[904] - Furious Axe.jpg",
+    905: "[905] - Auspicious Blow.jpg",
+    906: "[906] - On Your Knees!.jpg",
+    907: "[907] - Dragon Slash.jpg",
     908: "[908] - Marauder's Shot.jpg",
-    909: '[909] - Focused Shot.jpg',
-    910: '[910] - Spirit Rift.jpg',
-    911: '[911] - Union.jpg',
-    913: '[913] - Tranquil Was Tanasen.jpg',
-    914: '[914] - Consume Soul.jpg',
-    915: '[915] - Spirit Light.jpg',
-    916: '[916] - Lamentation.jpg',
-    917: '[917] - Rupture Soul.jpg',
-    918: '[918] - Spirit to Flesh.jpg',
-    919: '[919] - Spirit Burn.jpg',
-    920: '[920] - Destruction.jpg',
-    921: '[921] - Dissonance.jpg',
-    923: '[923] - Disenchantment.jpg',
-    925: '[925] - Recall.jpg',
-    926: '[926] - Sharpen Daggers.jpg',
-    927: '[927] - Shameful Fear.jpg',
-    928: '[928] - Shadow Shroud.jpg',
-    929: '[929] - Shadow of Haste.jpg',
-    930: '[930] - Auspicious Incantation.jpg',
-    931: '[931] - Power Return.jpg',
-    932: '[932] - Complicate.jpg',
-    933: '[933] - Shatter Storm.jpg',
-    934: '[934] - Unnatural Signet.jpg',
-    935: '[935] - Rising Bile.jpg',
-    936: '[936] - Envenom Enchantments.jpg',
-    937: '[937] - Shockwave.jpg',
-    938: '[938] - Ward of Stability.jpg',
-    939: '[939] - Icy Shackles.jpg',
-    941: '[941] - Blessed Light.jpg',
-    942: '[942] - Withdraw Hexes.jpg',
-    943: '[943] - Extinguish.jpg',
-    944: '[944] - Signet of Strength.jpg',
+    909: "[909] - Focused Shot.jpg",
+    910: "[910] - Spirit Rift.jpg",
+    911: "[911] - Union.jpg",
+    913: "[913] - Tranquil Was Tanasen.jpg",
+    914: "[914] - Consume Soul.jpg",
+    915: "[915] - Spirit Light.jpg",
+    916: "[916] - Lamentation.jpg",
+    917: "[917] - Rupture Soul.jpg",
+    918: "[918] - Spirit to Flesh.jpg",
+    919: "[919] - Spirit Burn.jpg",
+    920: "[920] - Destruction.jpg",
+    921: "[921] - Dissonance.jpg",
+    923: "[923] - Disenchantment.jpg",
+    925: "[925] - Recall.jpg",
+    926: "[926] - Sharpen Daggers.jpg",
+    927: "[927] - Shameful Fear.jpg",
+    928: "[928] - Shadow Shroud.jpg",
+    929: "[929] - Shadow of Haste.jpg",
+    930: "[930] - Auspicious Incantation.jpg",
+    931: "[931] - Power Return.jpg",
+    932: "[932] - Complicate.jpg",
+    933: "[933] - Shatter Storm.jpg",
+    934: "[934] - Unnatural Signet.jpg",
+    935: "[935] - Rising Bile.jpg",
+    936: "[936] - Envenom Enchantments.jpg",
+    937: "[937] - Shockwave.jpg",
+    938: "[938] - Ward of Stability.jpg",
+    939: "[939] - Icy Shackles.jpg",
+    941: "[941] - Blessed Light.jpg",
+    942: "[942] - Withdraw Hexes.jpg",
+    943: "[943] - Extinguish.jpg",
+    944: "[944] - Signet of Strength.jpg",
     946: "[946] - Trapper's Focus.jpg",
-    947: '[947] - Brambles.jpg',
-    948: '[948] - Desperate Strike.jpg',
-    949: '[949] - Way of the Fox.jpg',
-    950: '[950] - Shadowy Burden.jpg',
-    951: '[951] - Siphon Speed.jpg',
+    947: "[947] - Brambles.jpg",
+    948: "[948] - Desperate Strike.jpg",
+    949: "[949] - Way of the Fox.jpg",
+    950: "[950] - Shadowy Burden.jpg",
+    951: "[951] - Siphon Speed.jpg",
     952: "[952] - Death's Charge.jpg",
-    953: '[953] - Power Flux.jpg',
-    954: '[954] - Expel Hexes.jpg',
-    955: '[955] - Rip Enchantment.jpg',
-    957: '[957] - Spell Shield.jpg',
-    958: '[958] - Healing Whisper.jpg',
-    959: '[959] - Ethereal Light.jpg',
-    960: '[960] - Release Enchantments.jpg',
-    961: '[961] - Lacerate.jpg',
-    962: '[962] - Spirit Transfer.jpg',
-    963: '[963] - Restoration.jpg',
-    964: '[964] - Vengeful Weapon.jpg',
-    973: '[973] - Blinding Powder.jpg',
-    974: '[974] - Mantis Touch.jpg',
-    975: '[975] - Exhausting Assault.jpg',
-    976: '[976] - Repeating Strike.jpg',
-    977: '[977] - Way of the Lotus.jpg',
-    978: '[978] - Mark of Instability.jpg',
-    979: '[979] - Mistrust.jpg',
-    980: '[980] - Feast of Souls.jpg',
-    981: '[981] - Recuperation.jpg',
-    982: '[982] - Shelter.jpg',
-    983: '[983] - Weapon of Shadow.jpg',
-    985: '[985] - Caltrops.jpg',
-    986: '[986] - Nine Tail Strike.jpg',
-    987: '[987] - Way of the Empty Palm.jpg',
-    988: '[988] - Temple Strike.jpg',
-    989: '[989] - Golden Phoenix Strike.jpg',
-    990: '[990] - Expunge Enchantments.jpg',
-    991: '[991] - Deny Hexes.jpg',
-    992: '[992] - Triple Chop.jpg',
-    993: '[993] - Enraged Smash.jpg',
-    994: '[994] - Renewing Smash.jpg',
-    995: '[995] - Tiger Stance.jpg',
-    996: '[996] - Standing Slash.jpg',
-    997: '[997] - Famine.jpg',
+    953: "[953] - Power Flux.jpg",
+    954: "[954] - Expel Hexes.jpg",
+    955: "[955] - Rip Enchantment.jpg",
+    957: "[957] - Spell Shield.jpg",
+    958: "[958] - Healing Whisper.jpg",
+    959: "[959] - Ethereal Light.jpg",
+    960: "[960] - Release Enchantments.jpg",
+    961: "[961] - Lacerate.jpg",
+    962: "[962] - Spirit Transfer.jpg",
+    963: "[963] - Restoration.jpg",
+    964: "[964] - Vengeful Weapon.jpg",
+    973: "[973] - Blinding Powder.jpg",
+    974: "[974] - Mantis Touch.jpg",
+    975: "[975] - Exhausting Assault.jpg",
+    976: "[976] - Repeating Strike.jpg",
+    977: "[977] - Way of the Lotus.jpg",
+    978: "[978] - Mark of Instability.jpg",
+    979: "[979] - Mistrust.jpg",
+    980: "[980] - Feast of Souls.jpg",
+    981: "[981] - Recuperation.jpg",
+    982: "[982] - Shelter.jpg",
+    983: "[983] - Weapon of Shadow.jpg",
+    985: "[985] - Caltrops.jpg",
+    986: "[986] - Nine Tail Strike.jpg",
+    987: "[987] - Way of the Empty Palm.jpg",
+    988: "[988] - Temple Strike.jpg",
+    989: "[989] - Golden Phoenix Strike.jpg",
+    990: "[990] - Expunge Enchantments.jpg",
+    991: "[991] - Deny Hexes.jpg",
+    992: "[992] - Triple Chop.jpg",
+    993: "[993] - Enraged Smash.jpg",
+    994: "[994] - Renewing Smash.jpg",
+    995: "[995] - Tiger Stance.jpg",
+    996: "[996] - Standing Slash.jpg",
+    997: "[997] - Famine.jpg",
     1014: "[1014] - Let's Get 'Em!.jpg",
-    1018: '[1018] - Critical Eye.jpg',
-    1019: '[1019] - Critical Strike.jpg',
-    1020: '[1020] - Blades of Steel.jpg',
-    1021: '[1021] - Jungle Strike.jpg',
-    1022: '[1022] - Wild Strike.jpg',
-    1023: '[1023] - Leaping Mantis Sting.jpg',
-    1024: '[1024] - Black Mantis Thrust.jpg',
-    1025: '[1025] - Disrupting Stab.jpg',
-    1026: '[1026] - Golden Lotus Strike.jpg',
-    1027: '[1027] - Critical Defenses.jpg',
-    1028: '[1028] - Way of Perfection.jpg',
-    1029: '[1029] - Dark Apostasy.jpg',
+    1018: "[1018] - Critical Eye.jpg",
+    1019: "[1019] - Critical Strike.jpg",
+    1020: "[1020] - Blades of Steel.jpg",
+    1021: "[1021] - Jungle Strike.jpg",
+    1022: "[1022] - Wild Strike.jpg",
+    1023: "[1023] - Leaping Mantis Sting.jpg",
+    1024: "[1024] - Black Mantis Thrust.jpg",
+    1025: "[1025] - Disrupting Stab.jpg",
+    1026: "[1026] - Golden Lotus Strike.jpg",
+    1027: "[1027] - Critical Defenses.jpg",
+    1028: "[1028] - Way of Perfection.jpg",
+    1029: "[1029] - Dark Apostasy.jpg",
     1030: "[1030] - Locust's Fury.jpg",
-    1031: '[1031] - Shroud of Distress.jpg',
-    1032: '[1032] - Heart of Shadow.jpg',
-    1033: '[1033] - Impale.jpg',
-    1034: '[1034] - Seeping Wound.jpg',
+    1031: "[1031] - Shroud of Distress.jpg",
+    1032: "[1032] - Heart of Shadow.jpg",
+    1033: "[1033] - Impale.jpg",
+    1034: "[1034] - Seeping Wound.jpg",
     1035: "[1035] - Assassin's Promise.jpg",
-    1036: '[1036] - Signet of Malice.jpg',
-    1037: '[1037] - Dark Escape.jpg',
-    1038: '[1038] - Crippling Dagger.jpg',
-    1040: '[1040] - Spirit Walk.jpg',
-    1041: '[1041] - Unseen Fury.jpg',
-    1042: '[1042] - Flashing Blades.jpg',
-    1043: '[1043] - Dash.jpg',
-    1044: '[1044] - Dark Prison.jpg',
-    1045: '[1045] - Palm Strike.jpg',
-    1048: '[1048] - Revealed Enchantment.jpg',
-    1049: '[1049] - Revealed Hex.jpg',
-    1052: '[1052] - Accumulated Pain.jpg',
-    1053: '[1053] - Psychic Distraction.jpg',
+    1036: "[1036] - Signet of Malice.jpg",
+    1037: "[1037] - Dark Escape.jpg",
+    1038: "[1038] - Crippling Dagger.jpg",
+    1040: "[1040] - Spirit Walk.jpg",
+    1041: "[1041] - Unseen Fury.jpg",
+    1042: "[1042] - Flashing Blades.jpg",
+    1043: "[1043] - Dash.jpg",
+    1044: "[1044] - Dark Prison.jpg",
+    1045: "[1045] - Palm Strike.jpg",
+    1048: "[1048] - Revealed Enchantment.jpg",
+    1049: "[1049] - Revealed Hex.jpg",
+    1052: "[1052] - Accumulated Pain.jpg",
+    1053: "[1053] - Psychic Distraction.jpg",
     1054: "[1054] - Ancestor's Visage.jpg",
-    1055: '[1055] - Recurring Insecurity.jpg',
+    1055: "[1055] - Recurring Insecurity.jpg",
     1056: "[1056] - Kitah's Burden.jpg",
-    1057: '[1057] - Psychic Instability.jpg',
-    1059: '[1059] - Hex Eater Signet.jpg',
-    1061: '[1061] - Feedback.jpg',
-    1062: '[1062] - Arcane Larceny.jpg',
-    1066: '[1066] - Spoil Victor.jpg',
-    1067: '[1067] - Lifebane Strike.jpg',
-    1068: '[1068] - Bitter Chill.jpg',
-    1069: '[1069] - Taste of Pain.jpg',
-    1070: '[1070] - Defile Enchantments.jpg',
-    1071: '[1071] - Shivers of Dread.jpg',
-    1075: '[1075] - Vampiric Swarm.jpg',
-    1076: '[1076] - Blood Drinker.jpg',
-    1077: '[1077] - Vampiric Bite.jpg',
+    1057: "[1057] - Psychic Instability.jpg",
+    1059: "[1059] - Hex Eater Signet.jpg",
+    1061: "[1061] - Feedback.jpg",
+    1062: "[1062] - Arcane Larceny.jpg",
+    1066: "[1066] - Spoil Victor.jpg",
+    1067: "[1067] - Lifebane Strike.jpg",
+    1068: "[1068] - Bitter Chill.jpg",
+    1069: "[1069] - Taste of Pain.jpg",
+    1070: "[1070] - Defile Enchantments.jpg",
+    1071: "[1071] - Shivers of Dread.jpg",
+    1075: "[1075] - Vampiric Swarm.jpg",
+    1076: "[1076] - Blood Drinker.jpg",
+    1077: "[1077] - Vampiric Bite.jpg",
     1078: "[1078] - Wallow's Bite.jpg",
-    1079: '[1079] - Enfeebling Touch.jpg',
+    1079: "[1079] - Enfeebling Touch.jpg",
     1081: "[1081] - Teinai's Wind.jpg",
-    1082: '[1082] - Shock Arrow.jpg',
-    1083: '[1083] - Unsteady Ground.jpg',
-    1084: '[1084] - Sliver Armor.jpg',
-    1085: '[1085] - Ash Blast.jpg',
+    1082: "[1082] - Shock Arrow.jpg",
+    1083: "[1083] - Unsteady Ground.jpg",
+    1084: "[1084] - Sliver Armor.jpg",
+    1085: "[1085] - Ash Blast.jpg",
     1086: "[1086] - Dragon's Stomp.jpg",
-    1088: '[1088] - Second Wind.jpg',
-    1090: '[1090] - Smoldering Embers.jpg',
-    1091: '[1091] - Double Dragon.jpg',
+    1088: "[1088] - Second Wind.jpg",
+    1090: "[1090] - Smoldering Embers.jpg",
+    1091: "[1091] - Double Dragon.jpg",
     1093: "[1093] - Teinai's Heat.jpg",
-    1094: '[1094] - Breath of Fire.jpg',
-    1095: '[1095] - Star Burst.jpg',
-    1096: '[1096] - Glyph of Essence.jpg',
+    1094: "[1094] - Breath of Fire.jpg",
+    1095: "[1095] - Star Burst.jpg",
+    1096: "[1096] - Glyph of Essence.jpg",
     1097: "[1097] - Teinai's Prison.jpg",
-    1098: '[1098] - Mirror of Ice.jpg',
+    1098: "[1098] - Mirror of Ice.jpg",
     1099: "[1099] - Teinai's Crystals.jpg",
     1113: "[1113] - Kirin's Wrath.jpg",
-    1114: '[1114] - Spirit Bond.jpg',
-    1115: '[1115] - Air of Enchantment.jpg',
+    1114: "[1114] - Spirit Bond.jpg",
+    1115: "[1115] - Air of Enchantment.jpg",
     1117: "[1117] - Heaven's Delight.jpg",
-    1118: '[1118] - Healing Burst.jpg',
+    1118: "[1118] - Healing Burst.jpg",
     1119: "[1119] - Karei's Healing Circle.jpg",
     1120: "[1120] - Jamei's Gaze.jpg",
-    1121: '[1121] - Gift of Health.jpg',
-    1123: '[1123] - Life Sheath.jpg',
-    1126: '[1126] - Empathic Removal.jpg',
-    1128: '[1128] - Resurrection Chant.jpg',
-    1129: '[1129] - Word of Censure.jpg',
-    1130: '[1130] - Spear of Light.jpg',
-    1131: '[1131] - Stonesoul Strike.jpg',
-    1133: '[1133] - Drunken Blow.jpg',
+    1121: "[1121] - Gift of Health.jpg",
+    1123: "[1123] - Life Sheath.jpg",
+    1126: "[1126] - Empathic Removal.jpg",
+    1128: "[1128] - Resurrection Chant.jpg",
+    1129: "[1129] - Word of Censure.jpg",
+    1130: "[1130] - Spear of Light.jpg",
+    1131: "[1131] - Stonesoul Strike.jpg",
+    1133: "[1133] - Drunken Blow.jpg",
     1134: "[1134] - Leviathan's Sweep.jpg",
-    1135: '[1135] - Jaizhenju Strike.jpg',
-    1136: '[1136] - Penetrating Chop.jpg',
-    1137: '[1137] - Yeti Smash.jpg',
-    1140: '[1140] - Storm of Swords.jpg',
-    1141: '[1141] - You Will Die!.jpg',
-    1142: '[1142] - Auspicious Parry.jpg',
-    1144: '[1144] - Silverwing Slash.jpg',
-    1146: '[1146] - Shove.jpg',
-    1191: '[1191] - Sundering Attack.jpg',
+    1135: "[1135] - Jaizhenju Strike.jpg",
+    1136: "[1136] - Penetrating Chop.jpg",
+    1137: "[1137] - Yeti Smash.jpg",
+    1140: "[1140] - Storm of Swords.jpg",
+    1141: "[1141] - You Will Die!.jpg",
+    1142: "[1142] - Auspicious Parry.jpg",
+    1144: "[1144] - Silverwing Slash.jpg",
+    1146: "[1146] - Shove.jpg",
+    1191: "[1191] - Sundering Attack.jpg",
     1192: "[1192] - Zojun's Shot.jpg",
-    1194: '[1194] - Predatory Bond.jpg',
-    1195: '[1195] - Heal as One.jpg',
+    1194: "[1194] - Predatory Bond.jpg",
+    1195: "[1195] - Heal as One.jpg",
     1196: "[1196] - Zojun's Haste.jpg",
-    1197: '[1197] - Needling Shot.jpg',
-    1198: '[1198] - Broad Head Arrow.jpg',
-    1199: '[1199] - Glass Arrows.jpg',
+    1197: "[1197] - Needling Shot.jpg",
+    1198: "[1198] - Broad Head Arrow.jpg",
+    1199: "[1199] - Glass Arrows.jpg",
     1200: "[1200] - Archer's Signet.jpg",
-    1201: '[1201] - Savage Pounce.jpg',
-    1202: '[1202] - Enraged Lunge.jpg',
-    1203: '[1203] - Bestial Mauling.jpg',
-    1205: '[1205] - Poisonous Bite.jpg',
-    1206: '[1206] - Pounce.jpg',
-    1209: '[1209] - Bestial Fury.jpg',
+    1201: "[1201] - Savage Pounce.jpg",
+    1202: "[1202] - Enraged Lunge.jpg",
+    1203: "[1203] - Bestial Mauling.jpg",
+    1205: "[1205] - Poisonous Bite.jpg",
+    1206: "[1206] - Pounce.jpg",
+    1209: "[1209] - Bestial Fury.jpg",
     1211: "[1211] - Viper's Nest.jpg",
-    1212: '[1212] - Equinox.jpg',
-    1213: '[1213] - Tranquility.jpg',
-    1215: '[1215] - Clamor of Souls.jpg',
-    1217: '[1217] - Ritual Lord.jpg',
-    1218: '[1218] - Cruel Was Daoshen.jpg',
-    1219: '[1219] - Protective Was Kaolai.jpg',
-    1220: '[1220] - Attuned Was Songkai.jpg',
-    1221: '[1221] - Resilient Was Xiko.jpg',
-    1222: '[1222] - Lively Was Naomei.jpg',
-    1223: '[1223] - Anguished Was Lingwah.jpg',
-    1224: '[1224] - Draw Spirit.jpg',
-    1225: '[1225] - Channeled Strike.jpg',
-    1226: '[1226] - Spirit Boon Strike.jpg',
-    1227: '[1227] - Essence Strike.jpg',
-    1228: '[1228] - Spirit Siphon.jpg',
-    1229: '[1229] - Explosive Growth.jpg',
-    1230: '[1230] - Boon of Creation.jpg',
-    1231: '[1231] - Spirit Channeling.jpg',
-    1232: '[1232] - Armor of Unfeeling.jpg',
-    1233: '[1233] - Soothing Memories.jpg',
-    1234: '[1234] - Mend Body and Soul.jpg',
-    1235: '[1235] - Dulled Weapon.jpg',
-    1236: '[1236] - Binding Chains.jpg',
-    1237: '[1237] - Painful Bond.jpg',
-    1238: '[1238] - Signet of Creation.jpg',
-    1239: '[1239] - Signet of Spirits.jpg',
-    1240: '[1240] - Soul Twisting.jpg',
-    1244: '[1244] - Ghostly Haste.jpg',
-    1245: '[1245] - Gaze from Beyond.jpg',
+    1212: "[1212] - Equinox.jpg",
+    1213: "[1213] - Tranquility.jpg",
+    1215: "[1215] - Clamor of Souls.jpg",
+    1217: "[1217] - Ritual Lord.jpg",
+    1218: "[1218] - Cruel Was Daoshen.jpg",
+    1219: "[1219] - Protective Was Kaolai.jpg",
+    1220: "[1220] - Attuned Was Songkai.jpg",
+    1221: "[1221] - Resilient Was Xiko.jpg",
+    1222: "[1222] - Lively Was Naomei.jpg",
+    1223: "[1223] - Anguished Was Lingwah.jpg",
+    1224: "[1224] - Draw Spirit.jpg",
+    1225: "[1225] - Channeled Strike.jpg",
+    1226: "[1226] - Spirit Boon Strike.jpg",
+    1227: "[1227] - Essence Strike.jpg",
+    1228: "[1228] - Spirit Siphon.jpg",
+    1229: "[1229] - Explosive Growth.jpg",
+    1230: "[1230] - Boon of Creation.jpg",
+    1231: "[1231] - Spirit Channeling.jpg",
+    1232: "[1232] - Armor of Unfeeling.jpg",
+    1233: "[1233] - Soothing Memories.jpg",
+    1234: "[1234] - Mend Body and Soul.jpg",
+    1235: "[1235] - Dulled Weapon.jpg",
+    1236: "[1236] - Binding Chains.jpg",
+    1237: "[1237] - Painful Bond.jpg",
+    1238: "[1238] - Signet of Creation.jpg",
+    1239: "[1239] - Signet of Spirits.jpg",
+    1240: "[1240] - Soul Twisting.jpg",
+    1244: "[1244] - Ghostly Haste.jpg",
+    1245: "[1245] - Gaze from Beyond.jpg",
     1246: "[1246] - Ancestors' Rage.jpg",
-    1247: '[1247] - Pain.jpg',
-    1249: '[1249] - Displacement.jpg',
-    1250: '[1250] - Preservation.jpg',
-    1251: '[1251] - Life.jpg',
-    1252: '[1252] - Earthbind.jpg',
-    1253: '[1253] - Bloodsong.jpg',
-    1255: '[1255] - Wanderlust.jpg',
-    1257: '[1257] - Spirit Light Weapon.jpg',
-    1258: '[1258] - Brutal Weapon.jpg',
-    1259: '[1259] - Guided Weapon.jpg',
-    1260: '[1260] - Meekness.jpg',
-    1261: '[1261] - Frigid Armor.jpg',
-    1262: '[1262] - Healing Ring.jpg',
-    1263: '[1263] - Renew Life.jpg',
-    1264: '[1264] - Doom.jpg',
+    1247: "[1247] - Pain.jpg",
+    1249: "[1249] - Displacement.jpg",
+    1250: "[1250] - Preservation.jpg",
+    1251: "[1251] - Life.jpg",
+    1252: "[1252] - Earthbind.jpg",
+    1253: "[1253] - Bloodsong.jpg",
+    1255: "[1255] - Wanderlust.jpg",
+    1257: "[1257] - Spirit Light Weapon.jpg",
+    1258: "[1258] - Brutal Weapon.jpg",
+    1259: "[1259] - Guided Weapon.jpg",
+    1260: "[1260] - Meekness.jpg",
+    1261: "[1261] - Frigid Armor.jpg",
+    1262: "[1262] - Healing Ring.jpg",
+    1263: "[1263] - Renew Life.jpg",
+    1264: "[1264] - Doom.jpg",
     1265: "[1265] - Wielder's Boon.jpg",
-    1266: '[1266] - Soothing.jpg',
-    1267: '[1267] - Vital Weapon.jpg',
-    1268: '[1268] - Weapon of Quickening.jpg',
-    1269: '[1269] - Signet of Rage.jpg',
-    1333: '[1333] - Extend Conditions.jpg',
-    1334: '[1334] - Hypochondria.jpg',
+    1266: "[1266] - Soothing.jpg",
+    1267: "[1267] - Vital Weapon.jpg",
+    1268: "[1268] - Weapon of Quickening.jpg",
+    1269: "[1269] - Signet of Rage.jpg",
+    1333: "[1333] - Extend Conditions.jpg",
+    1334: "[1334] - Hypochondria.jpg",
     1335: "[1335] - Wastrel's Demise.jpg",
-    1336: '[1336] - Spiritual Pain.jpg',
-    1337: '[1337] - Drain Delusions.jpg',
-    1338: '[1338] - Persistence of Memory.jpg',
-    1339: '[1339] - Symbols of Inspiration.jpg',
-    1340: '[1340] - Symbolic Celerity.jpg',
-    1341: '[1341] - Frustration.jpg',
-    1342: '[1342] - Tease.jpg',
-    1343: '[1343] - Ether Phantom.jpg',
-    1344: '[1344] - Web of Disruption.jpg',
+    1336: "[1336] - Spiritual Pain.jpg",
+    1337: "[1337] - Drain Delusions.jpg",
+    1338: "[1338] - Persistence of Memory.jpg",
+    1339: "[1339] - Symbols of Inspiration.jpg",
+    1340: "[1340] - Symbolic Celerity.jpg",
+    1341: "[1341] - Frustration.jpg",
+    1342: "[1342] - Tease.jpg",
+    1343: "[1343] - Ether Phantom.jpg",
+    1344: "[1344] - Web of Disruption.jpg",
     1345: "[1345] - Enchanter's Conundrum.jpg",
-    1346: '[1346] - Signet of Illusions.jpg',
-    1347: '[1347] - Discharge Enchantment.jpg',
-    1348: '[1348] - Hex Eater Vortex.jpg',
-    1349: '[1349] - Mirror of Disenchantment.jpg',
-    1350: '[1350] - Simple Thievery.jpg',
-    1351: '[1351] - Animate Shambling Horror.jpg',
-    1352: '[1352] - Order of Undeath.jpg',
-    1353: '[1353] - Putrid Flesh.jpg',
-    1354: '[1354] - Feast for the Dead.jpg',
-    1355: '[1355] - Jagged Bones.jpg',
-    1356: '[1356] - Contagion.jpg',
-    1358: '[1358] - Ulcerous Lungs.jpg',
-    1359: '[1359] - Pain of Disenchantment.jpg',
-    1360: '[1360] - Mark of Fury.jpg',
-    1362: '[1362] - Corrupt Enchantment.jpg',
-    1363: '[1363] - Signet of Sorrow.jpg',
-    1364: '[1364] - Signet of Suffering.jpg',
-    1365: '[1365] - Signet of Lost Souls.jpg',
-    1366: '[1366] - Well of Darkness.jpg',
-    1367: '[1367] - Blinding Surge.jpg',
-    1368: '[1368] - Chilling Winds.jpg',
-    1369: '[1369] - Lightning Bolt.jpg',
+    1346: "[1346] - Signet of Illusions.jpg",
+    1347: "[1347] - Discharge Enchantment.jpg",
+    1348: "[1348] - Hex Eater Vortex.jpg",
+    1349: "[1349] - Mirror of Disenchantment.jpg",
+    1350: "[1350] - Simple Thievery.jpg",
+    1351: "[1351] - Animate Shambling Horror.jpg",
+    1352: "[1352] - Order of Undeath.jpg",
+    1353: "[1353] - Putrid Flesh.jpg",
+    1354: "[1354] - Feast for the Dead.jpg",
+    1355: "[1355] - Jagged Bones.jpg",
+    1356: "[1356] - Contagion.jpg",
+    1358: "[1358] - Ulcerous Lungs.jpg",
+    1359: "[1359] - Pain of Disenchantment.jpg",
+    1360: "[1360] - Mark of Fury.jpg",
+    1362: "[1362] - Corrupt Enchantment.jpg",
+    1363: "[1363] - Signet of Sorrow.jpg",
+    1364: "[1364] - Signet of Suffering.jpg",
+    1365: "[1365] - Signet of Lost Souls.jpg",
+    1366: "[1366] - Well of Darkness.jpg",
+    1367: "[1367] - Blinding Surge.jpg",
+    1368: "[1368] - Chilling Winds.jpg",
+    1369: "[1369] - Lightning Bolt.jpg",
     1370: "[1370] - Storm Djinn's Haste.jpg",
-    1371: '[1371] - Stone Striker.jpg',
-    1372: '[1372] - Sandstorm.jpg',
-    1373: '[1373] - Stone Sheath.jpg',
-    1374: '[1374] - Ebon Hawk.jpg',
-    1375: '[1375] - Stoneflesh Aura.jpg',
-    1376: '[1376] - Glyph of Restoration.jpg',
-    1377: '[1377] - Ether Prism.jpg',
-    1378: '[1378] - Master of Magic.jpg',
-    1379: '[1379] - Glowing Gaze.jpg',
-    1380: '[1380] - Savannah Heat.jpg',
+    1371: "[1371] - Stone Striker.jpg",
+    1372: "[1372] - Sandstorm.jpg",
+    1373: "[1373] - Stone Sheath.jpg",
+    1374: "[1374] - Ebon Hawk.jpg",
+    1375: "[1375] - Stoneflesh Aura.jpg",
+    1376: "[1376] - Glyph of Restoration.jpg",
+    1377: "[1377] - Ether Prism.jpg",
+    1378: "[1378] - Master of Magic.jpg",
+    1379: "[1379] - Glowing Gaze.jpg",
+    1380: "[1380] - Savannah Heat.jpg",
     1381: "[1381] - Flame Djinn's Haste.jpg",
-    1382: '[1382] - Freezing Gust.jpg',
+    1382: "[1382] - Freezing Gust.jpg",
     1390: "[1390] - Judge's Intervention.jpg",
-    1391: '[1391] - Supportive Spirit.jpg',
-    1392: '[1392] - Watchful Healing.jpg',
+    1391: "[1391] - Supportive Spirit.jpg",
+    1392: "[1392] - Watchful Healing.jpg",
     1393: "[1393] - Healer's Boon.jpg",
     1394: "[1394] - Healer's Covenant.jpg",
     1395: "[1395] - Balthazar's Pendulum.jpg",
-    1396: '[1396] - Words of Comfort.jpg',
-    1397: '[1397] - Light of Deliverance.jpg',
-    1398: '[1398] - Scourge Enchantment.jpg',
-    1399: '[1399] - Shield of Absorption.jpg',
-    1400: '[1400] - Reversal of Damage.jpg',
-    1401: '[1401] - Mending Touch.jpg',
-    1402: '[1402] - Critical Chop.jpg',
-    1403: '[1403] - Agonizing Chop.jpg',
-    1404: '[1404] - Flail.jpg',
-    1405: '[1405] - Charging Strike.jpg',
-    1406: '[1406] - Headbutt.jpg',
+    1396: "[1396] - Words of Comfort.jpg",
+    1397: "[1397] - Light of Deliverance.jpg",
+    1398: "[1398] - Scourge Enchantment.jpg",
+    1399: "[1399] - Shield of Absorption.jpg",
+    1400: "[1400] - Reversal of Damage.jpg",
+    1401: "[1401] - Mending Touch.jpg",
+    1402: "[1402] - Critical Chop.jpg",
+    1403: "[1403] - Agonizing Chop.jpg",
+    1404: "[1404] - Flail.jpg",
+    1405: "[1405] - Charging Strike.jpg",
+    1406: "[1406] - Headbutt.jpg",
     1407: "[1407] - Lion's Comfort.jpg",
-    1408: '[1408] - Rage of the Ntouka.jpg',
-    1409: '[1409] - Mokele Smash.jpg',
-    1410: '[1410] - Overbearing Smash.jpg',
-    1411: '[1411] - Signet of Stamina.jpg',
+    1408: "[1408] - Rage of the Ntouka.jpg",
+    1409: "[1409] - Mokele Smash.jpg",
+    1410: "[1410] - Overbearing Smash.jpg",
+    1411: "[1411] - Signet of Stamina.jpg",
     1412: "[1412] - You're All Alone!.jpg",
-    1413: '[1413] - Burst of Aggression.jpg',
-    1414: '[1414] - Enraging Charge.jpg',
-    1415: '[1415] - Crippling Slash.jpg',
-    1416: '[1416] - Barbarous Slice.jpg',
-    1465: '[1465] - Prepared Shot.jpg',
-    1466: '[1466] - Burning Arrow.jpg',
-    1467: '[1467] - Arcing Shot.jpg',
-    1468: '[1468] - Strike as One.jpg',
-    1469: '[1469] - Crossfire.jpg',
-    1470: '[1470] - Barbed Arrows.jpg',
+    1413: "[1413] - Burst of Aggression.jpg",
+    1414: "[1414] - Enraging Charge.jpg",
+    1415: "[1415] - Crippling Slash.jpg",
+    1416: "[1416] - Barbarous Slice.jpg",
+    1465: "[1465] - Prepared Shot.jpg",
+    1466: "[1466] - Burning Arrow.jpg",
+    1467: "[1467] - Arcing Shot.jpg",
+    1468: "[1468] - Strike as One.jpg",
+    1469: "[1469] - Crossfire.jpg",
+    1470: "[1470] - Barbed Arrows.jpg",
     1471: "[1471] - Scavenger's Focus.jpg",
-    1472: '[1472] - Toxicity.jpg',
-    1473: '[1473] - Quicksand.jpg',
+    1472: "[1472] - Toxicity.jpg",
+    1473: "[1473] - Quicksand.jpg",
     1474: "[1474] - Storm's Embrace.jpg",
     1475: "[1475] - Trapper's Speed.jpg",
-    1476: '[1476] - Tripwire.jpg',
-    1478: '[1478] - Renewing Surge.jpg',
-    1479: '[1479] - Offering of Spirit.jpg',
+    1476: "[1476] - Tripwire.jpg",
+    1478: "[1478] - Renewing Surge.jpg",
+    1479: "[1479] - Offering of Spirit.jpg",
     1480: "[1480] - Spirit's Gift.jpg",
-    1481: '[1481] - Death Pact Signet.jpg',
-    1482: '[1482] - Reclaim Essence.jpg',
-    1483: '[1483] - Banishing Strike.jpg',
-    1484: '[1484] - Mystic Sweep.jpg',
+    1481: "[1481] - Death Pact Signet.jpg",
+    1482: "[1482] - Reclaim Essence.jpg",
+    1483: "[1483] - Banishing Strike.jpg",
+    1484: "[1484] - Mystic Sweep.jpg",
     1485: "[1485] - Eremite's Attack.jpg",
-    1486: '[1486] - Reap Impurities.jpg',
-    1487: '[1487] - Twin Moon Sweep.jpg',
-    1488: '[1488] - Victorious Sweep.jpg',
-    1489: '[1489] - Irresistible Sweep.jpg',
-    1490: '[1490] - Pious Assault.jpg',
-    1491: '[1491] - Mystic Twister.jpg',
+    1486: "[1486] - Reap Impurities.jpg",
+    1487: "[1487] - Twin Moon Sweep.jpg",
+    1488: "[1488] - Victorious Sweep.jpg",
+    1489: "[1489] - Irresistible Sweep.jpg",
+    1490: "[1490] - Pious Assault.jpg",
+    1491: "[1491] - Mystic Twister.jpg",
     1493: "[1493] - Grenth's Fingers.jpg",
-    1495: '[1495] - Aura of Thorns.jpg',
+    1495: "[1495] - Aura of Thorns.jpg",
     1496: "[1496] - Balthazar's Rage.jpg",
-    1497: '[1497] - Dust Cloak.jpg',
-    1498: '[1498] - Staggering Force.jpg',
-    1499: '[1499] - Pious Renewal.jpg',
-    1500: '[1500] - Mirage Cloak.jpg',
-    1502: '[1502] - Arcane Zeal.jpg',
-    1503: '[1503] - Mystic Vigor.jpg',
-    1504: '[1504] - Watchful Intervention.jpg',
-    1505: '[1505] - Vow of Piety.jpg',
-    1506: '[1506] - Vital Boon.jpg',
-    1507: '[1507] - Heart of Holy Flame.jpg',
-    1508: '[1508] - Extend Enchantments.jpg',
-    1509: '[1509] - Faithful Intervention.jpg',
-    1510: '[1510] - Sand Shards.jpg',
+    1497: "[1497] - Dust Cloak.jpg",
+    1498: "[1498] - Staggering Force.jpg",
+    1499: "[1499] - Pious Renewal.jpg",
+    1500: "[1500] - Mirage Cloak.jpg",
+    1502: "[1502] - Arcane Zeal.jpg",
+    1503: "[1503] - Mystic Vigor.jpg",
+    1504: "[1504] - Watchful Intervention.jpg",
+    1505: "[1505] - Vow of Piety.jpg",
+    1506: "[1506] - Vital Boon.jpg",
+    1507: "[1507] - Heart of Holy Flame.jpg",
+    1508: "[1508] - Extend Enchantments.jpg",
+    1509: "[1509] - Faithful Intervention.jpg",
+    1510: "[1510] - Sand Shards.jpg",
     1512: "[1512] - Lyssa's Haste.jpg",
-    1513: '[1513] - Guiding Hands.jpg',
-    1514: '[1514] - Fleeting Stability.jpg',
-    1515: '[1515] - Armor of Sanctity.jpg',
-    1516: '[1516] - Mystic Regeneration.jpg',
-    1517: '[1517] - Vow of Silence.jpg',
-    1518: '[1518] - Avatar of Balthazar.jpg',
-    1519: '[1519] - Avatar of Dwayna.jpg',
-    1520: '[1520] - Avatar of Grenth.jpg',
-    1521: '[1521] - Avatar of Lyssa.jpg',
-    1522: '[1522] - Avatar of Melandru.jpg',
-    1523: '[1523] - Meditation.jpg',
+    1513: "[1513] - Guiding Hands.jpg",
+    1514: "[1514] - Fleeting Stability.jpg",
+    1515: "[1515] - Armor of Sanctity.jpg",
+    1516: "[1516] - Mystic Regeneration.jpg",
+    1517: "[1517] - Vow of Silence.jpg",
+    1518: "[1518] - Avatar of Balthazar.jpg",
+    1519: "[1519] - Avatar of Dwayna.jpg",
+    1520: "[1520] - Avatar of Grenth.jpg",
+    1521: "[1521] - Avatar of Lyssa.jpg",
+    1522: "[1522] - Avatar of Melandru.jpg",
+    1523: "[1523] - Meditation.jpg",
     1524: "[1524] - Eremite's Zeal.jpg",
-    1525: '[1525] - Natural Healing.jpg',
-    1526: '[1526] - Imbue Health.jpg',
-    1527: '[1527] - Mystic Healing.jpg',
+    1525: "[1525] - Natural Healing.jpg",
+    1526: "[1526] - Imbue Health.jpg",
+    1527: "[1527] - Mystic Healing.jpg",
     1528: "[1528] - Dwayna's Touch.jpg",
-    1529: '[1529] - Pious Restoration.jpg',
-    1530: '[1530] - Signet of Pious Light.jpg',
-    1531: '[1531] - Intimidating Aura.jpg',
-    1532: '[1532] - Mystic Sandstorm.jpg',
-    1533: '[1533] - Winds of Disenchantment.jpg',
-    1534: '[1534] - Rending Touch.jpg',
-    1535: '[1535] - Crippling Sweep.jpg',
-    1536: '[1536] - Wounding Strike.jpg',
-    1537: '[1537] - Wearying Strike.jpg',
+    1529: "[1529] - Pious Restoration.jpg",
+    1530: "[1530] - Signet of Pious Light.jpg",
+    1531: "[1531] - Intimidating Aura.jpg",
+    1532: "[1532] - Mystic Sandstorm.jpg",
+    1533: "[1533] - Winds of Disenchantment.jpg",
+    1534: "[1534] - Rending Touch.jpg",
+    1535: "[1535] - Crippling Sweep.jpg",
+    1536: "[1536] - Wounding Strike.jpg",
+    1537: "[1537] - Wearying Strike.jpg",
     1538: "[1538] - Lyssa's Assault.jpg",
-    1539: '[1539] - Chilling Victory.jpg',
-    1540: '[1540] - Conviction.jpg',
-    1541: '[1541] - Enchanted Haste.jpg',
-    1542: '[1542] - Pious Concentration.jpg',
-    1543: '[1543] - Pious Haste.jpg',
-    1544: '[1544] - Whirling Charge.jpg',
-    1545: '[1545] - Test of Faith.jpg',
-    1546: '[1546] - Blazing Spear.jpg',
-    1547: '[1547] - Mighty Throw.jpg',
-    1548: '[1548] - Cruel Spear.jpg',
+    1539: "[1539] - Chilling Victory.jpg",
+    1540: "[1540] - Conviction.jpg",
+    1541: "[1541] - Enchanted Haste.jpg",
+    1542: "[1542] - Pious Concentration.jpg",
+    1543: "[1543] - Pious Haste.jpg",
+    1544: "[1544] - Whirling Charge.jpg",
+    1545: "[1545] - Test of Faith.jpg",
+    1546: "[1546] - Blazing Spear.jpg",
+    1547: "[1547] - Mighty Throw.jpg",
+    1548: "[1548] - Cruel Spear.jpg",
     1549: "[1549] - Harrier's Toss.jpg",
-    1550: '[1550] - Unblockable Throw.jpg',
-    1551: '[1551] - Spear of Lightning.jpg',
-    1552: '[1552] - Wearying Spear.jpg',
-    1553: '[1553] - Anthem of Fury.jpg',
-    1554: '[1554] - Crippling Anthem.jpg',
-    1555: '[1555] - Defensive Anthem.jpg',
-    1556: '[1556] - Godspeed.jpg',
-    1557: '[1557] - Anthem of Flame.jpg',
-    1558: '[1558] - Go for the Eyes!.jpg',
-    1559: '[1559] - Anthem of Envy.jpg',
-    1560: '[1560] - Song of Power.jpg',
-    1561: '[1561] - Zealous Anthem.jpg',
-    1562: '[1562] - Aria of Zeal.jpg',
-    1563: '[1563] - Lyric of Zeal.jpg',
-    1564: '[1564] - Ballad of Restoration.jpg',
-    1565: '[1565] - Chorus of Restoration.jpg',
-    1566: '[1566] - Aria of Restoration.jpg',
-    1567: '[1567] - Song of Concentration.jpg',
-    1568: '[1568] - Anthem of Guidance.jpg',
-    1569: '[1569] - Energizing Chorus.jpg',
-    1570: '[1570] - Song of Purification.jpg',
-    1571: '[1571] - Hexbreaker Aria.jpg',
-    1572: '[1572] - Brace Yourself!.jpg',
-    1573: '[1573] - Awe.jpg',
-    1574: '[1574] - Enduring Harmony.jpg',
-    1575: '[1575] - Blazing Finale.jpg',
-    1576: '[1576] - Burning Refrain.jpg',
-    1577: '[1577] - Finale of Restoration.jpg',
-    1578: '[1578] - Mending Refrain.jpg',
-    1579: '[1579] - Purifying Finale.jpg',
-    1580: '[1580] - Bladeturn Refrain.jpg',
-    1581: '[1581] - Glowing Signet.jpg',
+    1550: "[1550] - Unblockable Throw.jpg",
+    1551: "[1551] - Spear of Lightning.jpg",
+    1552: "[1552] - Wearying Spear.jpg",
+    1553: "[1553] - Anthem of Fury.jpg",
+    1554: "[1554] - Crippling Anthem.jpg",
+    1555: "[1555] - Defensive Anthem.jpg",
+    1556: "[1556] - Godspeed.jpg",
+    1557: "[1557] - Anthem of Flame.jpg",
+    1558: "[1558] - Go for the Eyes!.jpg",
+    1559: "[1559] - Anthem of Envy.jpg",
+    1560: "[1560] - Song of Power.jpg",
+    1561: "[1561] - Zealous Anthem.jpg",
+    1562: "[1562] - Aria of Zeal.jpg",
+    1563: "[1563] - Lyric of Zeal.jpg",
+    1564: "[1564] - Ballad of Restoration.jpg",
+    1565: "[1565] - Chorus of Restoration.jpg",
+    1566: "[1566] - Aria of Restoration.jpg",
+    1567: "[1567] - Song of Concentration.jpg",
+    1568: "[1568] - Anthem of Guidance.jpg",
+    1569: "[1569] - Energizing Chorus.jpg",
+    1570: "[1570] - Song of Purification.jpg",
+    1571: "[1571] - Hexbreaker Aria.jpg",
+    1572: "[1572] - Brace Yourself!.jpg",
+    1573: "[1573] - Awe.jpg",
+    1574: "[1574] - Enduring Harmony.jpg",
+    1575: "[1575] - Blazing Finale.jpg",
+    1576: "[1576] - Burning Refrain.jpg",
+    1577: "[1577] - Finale of Restoration.jpg",
+    1578: "[1578] - Mending Refrain.jpg",
+    1579: "[1579] - Purifying Finale.jpg",
+    1580: "[1580] - Bladeturn Refrain.jpg",
+    1581: "[1581] - Glowing Signet.jpg",
     1583: "[1583] - Leader's Zeal.jpg",
     1584: "[1584] - Leader's Comfort.jpg",
-    1585: '[1585] - Signet of Synergy.jpg',
-    1586: '[1586] - Angelic Protection.jpg',
-    1587: '[1587] - Angelic Bond.jpg',
-    1588: '[1588] - Cautery Signet.jpg',
-    1589: '[1589] - Stand Your Ground!.jpg',
-    1590: '[1590] - Lead the Way!.jpg',
-    1591: '[1591] - Make Haste!.jpg',
-    1592: '[1592] - We Shall Return!.jpg',
-    1593: '[1593] - Never Give Up!.jpg',
-    1594: '[1594] - Help Me!.jpg',
-    1595: '[1595] - Fall Back!.jpg',
-    1596: '[1596] - Incoming!.jpg',
+    1585: "[1585] - Signet of Synergy.jpg",
+    1586: "[1586] - Angelic Protection.jpg",
+    1587: "[1587] - Angelic Bond.jpg",
+    1588: "[1588] - Cautery Signet.jpg",
+    1589: "[1589] - Stand Your Ground!.jpg",
+    1590: "[1590] - Lead the Way!.jpg",
+    1591: "[1591] - Make Haste!.jpg",
+    1592: "[1592] - We Shall Return!.jpg",
+    1593: "[1593] - Never Give Up!.jpg",
+    1594: "[1594] - Help Me!.jpg",
+    1595: "[1595] - Fall Back!.jpg",
+    1596: "[1596] - Incoming!.jpg",
     1597: "[1597] - They're on Fire!.jpg",
-    1598: '[1598] - Never Surrender!.jpg',
+    1598: "[1598] - Never Surrender!.jpg",
     1599: "[1599] - It's Just a Flesh Wound..jpg",
-    1600: '[1600] - Barbed Spear.jpg',
-    1601: '[1601] - Vicious Attack.jpg',
-    1602: '[1602] - Stunning Strike.jpg',
-    1603: '[1603] - Merciless Spear.jpg',
-    1604: '[1604] - Disrupting Throw.jpg',
-    1605: '[1605] - Wild Throw.jpg',
-    1633: '[1633] - Malicious Strike.jpg',
-    1634: '[1634] - Shattering Assault.jpg',
-    1635: '[1635] - Golden Skull Strike.jpg',
-    1636: '[1636] - Black Spider Strike.jpg',
-    1637: '[1637] - Golden Fox Strike.jpg',
-    1638: '[1638] - Deadly Haste.jpg',
+    1600: "[1600] - Barbed Spear.jpg",
+    1601: "[1601] - Vicious Attack.jpg",
+    1602: "[1602] - Stunning Strike.jpg",
+    1603: "[1603] - Merciless Spear.jpg",
+    1604: "[1604] - Disrupting Throw.jpg",
+    1605: "[1605] - Wild Throw.jpg",
+    1633: "[1633] - Malicious Strike.jpg",
+    1634: "[1634] - Shattering Assault.jpg",
+    1635: "[1635] - Golden Skull Strike.jpg",
+    1636: "[1636] - Black Spider Strike.jpg",
+    1637: "[1637] - Golden Fox Strike.jpg",
+    1638: "[1638] - Deadly Haste.jpg",
     1639: "[1639] - Assassin's Remedy.jpg",
     1640: "[1640] - Fox's Promise.jpg",
-    1641: '[1641] - Feigned Neutrality.jpg',
-    1642: '[1642] - Hidden Caltrops.jpg',
-    1643: '[1643] - Assault Enchantments.jpg',
+    1641: "[1641] - Feigned Neutrality.jpg",
+    1642: "[1642] - Hidden Caltrops.jpg",
+    1643: "[1643] - Assault Enchantments.jpg",
     1644: "[1644] - Wastrel's Collapse.jpg",
-    1645: '[1645] - Lift Enchantment.jpg',
-    1646: '[1646] - Augury of Death.jpg',
-    1647: '[1647] - Signet of Toxic Shock.jpg',
-    1648: '[1648] - Signet of Twilight.jpg',
-    1649: '[1649] - Way of the Assassin.jpg',
-    1650: '[1650] - Shadow Walk.jpg',
+    1645: "[1645] - Lift Enchantment.jpg",
+    1646: "[1646] - Augury of Death.jpg",
+    1647: "[1647] - Signet of Toxic Shock.jpg",
+    1648: "[1648] - Signet of Twilight.jpg",
+    1649: "[1649] - Way of the Assassin.jpg",
+    1650: "[1650] - Shadow Walk.jpg",
     1651: "[1651] - Death's Retreat.jpg",
-    1652: '[1652] - Shadow Prison.jpg',
-    1653: '[1653] - Swap.jpg',
-    1654: '[1654] - Shadow Meld.jpg',
-    1655: '[1655] - Price of Pride.jpg',
-    1656: '[1656] - Air of Disenchantment.jpg',
-    1657: '[1657] - Signet of Clumsiness.jpg',
-    1658: '[1658] - Symbolic Posture.jpg',
-    1659: '[1659] - Toxic Chill.jpg',
-    1660: '[1660] - Well of Silence.jpg',
-    1661: '[1661] - Glowstone.jpg',
-    1662: '[1662] - Mind Blast.jpg',
-    1663: '[1663] - Elemental Flame.jpg',
-    1664: '[1664] - Invoke Lightning.jpg',
-    1683: '[1683] - Pensive Guardian.jpg',
+    1652: "[1652] - Shadow Prison.jpg",
+    1653: "[1653] - Swap.jpg",
+    1654: "[1654] - Shadow Meld.jpg",
+    1655: "[1655] - Price of Pride.jpg",
+    1656: "[1656] - Air of Disenchantment.jpg",
+    1657: "[1657] - Signet of Clumsiness.jpg",
+    1658: "[1658] - Symbolic Posture.jpg",
+    1659: "[1659] - Toxic Chill.jpg",
+    1660: "[1660] - Well of Silence.jpg",
+    1661: "[1661] - Glowstone.jpg",
+    1662: "[1662] - Mind Blast.jpg",
+    1663: "[1663] - Elemental Flame.jpg",
+    1664: "[1664] - Invoke Lightning.jpg",
+    1683: "[1683] - Pensive Guardian.jpg",
     1684: "[1684] - Scribe's Insight.jpg",
-    1685: '[1685] - Holy Haste.jpg',
-    1686: '[1686] - Glimmer of Light.jpg',
-    1687: '[1687] - Zealous Benediction.jpg',
+    1685: "[1685] - Holy Haste.jpg",
+    1686: "[1686] - Glimmer of Light.jpg",
+    1687: "[1687] - Zealous Benediction.jpg",
     1688: "[1688] - Defender's Zeal.jpg",
-    1689: '[1689] - Signet of Mystic Wrath.jpg',
-    1690: '[1690] - Signet of Removal.jpg',
-    1691: '[1691] - Dismiss Condition.jpg',
-    1692: '[1692] - Divert Hexes.jpg',
-    1693: '[1693] - Counterattack.jpg',
-    1694: '[1694] - Magehunter Strike.jpg',
+    1689: "[1689] - Signet of Mystic Wrath.jpg",
+    1690: "[1690] - Signet of Removal.jpg",
+    1691: "[1691] - Dismiss Condition.jpg",
+    1692: "[1692] - Divert Hexes.jpg",
+    1693: "[1693] - Counterattack.jpg",
+    1694: "[1694] - Magehunter Strike.jpg",
     1695: "[1695] - Soldier's Strike.jpg",
-    1696: '[1696] - Decapitate.jpg',
+    1696: "[1696] - Decapitate.jpg",
     1697: "[1697] - Magehunter's Smash.jpg",
     1698: "[1698] - Soldier's Stance.jpg",
     1699: "[1699] - Soldier's Defense.jpg",
-    1700: '[1700] - Frenzied Defense.jpg',
-    1701: '[1701] - Steady Stance.jpg',
-    1702: '[1702] - Steelfang Slash.jpg',
-    1719: '[1719] - Screaming Shot.jpg',
-    1720: '[1720] - Keen Arrow.jpg',
-    1721: '[1721] - Rampage as One.jpg',
-    1722: '[1722] - Forked Arrow.jpg',
-    1723: '[1723] - Disrupting Accuracy.jpg',
+    1700: "[1700] - Frenzied Defense.jpg",
+    1701: "[1701] - Steady Stance.jpg",
+    1702: "[1702] - Steelfang Slash.jpg",
+    1719: "[1719] - Screaming Shot.jpg",
+    1720: "[1720] - Keen Arrow.jpg",
+    1721: "[1721] - Rampage as One.jpg",
+    1722: "[1722] - Forked Arrow.jpg",
+    1723: "[1723] - Disrupting Accuracy.jpg",
     1724: "[1724] - Expert's Dexterity.jpg",
-    1725: '[1725] - Roaring Winds.jpg',
-    1726: '[1726] - Magebane Shot.jpg',
-    1727: '[1727] - Natural Stride.jpg',
+    1725: "[1725] - Roaring Winds.jpg",
+    1726: "[1726] - Magebane Shot.jpg",
+    1727: "[1727] - Natural Stride.jpg",
     1728: "[1728] - Heket's Rampage.jpg",
-    1729: '[1729] - Smoke Trap.jpg',
-    1730: '[1730] - Infuriating Heat.jpg',
-    1731: '[1731] - Vocal Was Sogolon.jpg',
-    1732: '[1732] - Destructive Was Glaive.jpg',
+    1729: "[1729] - Smoke Trap.jpg",
+    1730: "[1730] - Infuriating Heat.jpg",
+    1731: "[1731] - Vocal Was Sogolon.jpg",
+    1732: "[1732] - Destructive Was Glaive.jpg",
     1733: "[1733] - Wielder's Strike.jpg",
-    1734: '[1734] - Gaze of Fury.jpg',
+    1734: "[1734] - Gaze of Fury.jpg",
     1736: "[1736] - Spirit's Strength.jpg",
     1737: "[1737] - Wielder's Zeal.jpg",
-    1738: '[1738] - Sight Beyond Sight.jpg',
-    1739: '[1739] - Renewing Memories.jpg',
+    1738: "[1738] - Sight Beyond Sight.jpg",
+    1739: "[1739] - Renewing Memories.jpg",
     1740: "[1740] - Wielder's Remedy.jpg",
-    1741: '[1741] - Ghostmirror Light.jpg',
-    1742: '[1742] - Signet of Ghostly Might.jpg',
-    1743: '[1743] - Signet of Binding.jpg',
+    1741: "[1741] - Ghostmirror Light.jpg",
+    1742: "[1742] - Signet of Ghostly Might.jpg",
+    1743: "[1743] - Signet of Binding.jpg",
     1744: "[1744] - Caretaker's Charge.jpg",
-    1745: '[1745] - Anguish.jpg',
-    1747: '[1747] - Empowerment.jpg',
-    1748: '[1748] - Recovery.jpg',
-    1749: '[1749] - Weapon of Fury.jpg',
+    1745: "[1745] - Anguish.jpg",
+    1747: "[1747] - Empowerment.jpg",
+    1748: "[1748] - Recovery.jpg",
+    1749: "[1749] - Weapon of Fury.jpg",
     1750: "[1750] - Xinrae's Weapon.jpg",
     1751: "[1751] - Warmonger's Weapon.jpg",
-    1752: '[1752] - Weapon of Remedy.jpg',
-    1753: '[1753] - Rending Sweep.jpg',
-    1754: '[1754] - Onslaught.jpg',
-    1755: '[1755] - Mystic Corruption.jpg',
+    1752: "[1752] - Weapon of Remedy.jpg",
+    1753: "[1753] - Rending Sweep.jpg",
+    1754: "[1754] - Onslaught.jpg",
+    1755: "[1755] - Mystic Corruption.jpg",
     1756: "[1756] - Grenth's Grasp.jpg",
-    1757: '[1757] - Veil of Thorns.jpg',
+    1757: "[1757] - Veil of Thorns.jpg",
     1758: "[1758] - Harrier's Grasp.jpg",
-    1759: '[1759] - Vow of Strength.jpg',
-    1760: '[1760] - Ebon Dust Aura.jpg',
-    1761: '[1761] - Zealous Vow.jpg',
-    1762: '[1762] - Heart of Fury.jpg',
-    1763: '[1763] - Zealous Renewal.jpg',
+    1759: "[1759] - Vow of Strength.jpg",
+    1760: "[1760] - Ebon Dust Aura.jpg",
+    1761: "[1761] - Zealous Vow.jpg",
+    1762: "[1762] - Heart of Fury.jpg",
+    1763: "[1763] - Zealous Renewal.jpg",
     1764: "[1764] - Attacker's Insight.jpg",
-    1765: '[1765] - Rending Aura.jpg',
-    1766: '[1766] - Featherfoot Grace.jpg',
+    1765: "[1765] - Rending Aura.jpg",
+    1766: "[1766] - Featherfoot Grace.jpg",
     1767: "[1767] - Reaper's Sweep.jpg",
     1768: "[1768] - Harrier's Haste.jpg",
-    1769: '[1769] - Focused Anger.jpg',
-    1770: '[1770] - Natural Temper.jpg',
-    1771: '[1771] - Song of Restoration.jpg',
-    1772: '[1772] - Lyric of Purification.jpg',
+    1769: "[1769] - Focused Anger.jpg",
+    1770: "[1770] - Natural Temper.jpg",
+    1771: "[1771] - Song of Restoration.jpg",
+    1772: "[1772] - Lyric of Purification.jpg",
     1773: "[1773] - Soldier's Fury.jpg",
-    1774: '[1774] - Aggressive Refrain.jpg',
-    1775: '[1775] - Energizing Finale.jpg',
-    1776: '[1776] - Signet of Aggression.jpg',
-    1777: '[1777] - Remedy Signet.jpg',
-    1778: '[1778] - Signet of Return.jpg',
-    1779: '[1779] - Make Your Time!.jpg',
+    1774: "[1774] - Aggressive Refrain.jpg",
+    1775: "[1775] - Energizing Finale.jpg",
+    1776: "[1776] - Signet of Aggression.jpg",
+    1777: "[1777] - Remedy Signet.jpg",
+    1778: "[1778] - Signet of Return.jpg",
+    1779: "[1779] - Make Your Time!.jpg",
     1780: "[1780] - Can't Touch This!.jpg",
-    1781: '[1781] - Find Their Weakness!.jpg',
-    1782: '[1782] - The Power Is Yours!.jpg',
+    1781: "[1781] - Find Their Weakness!.jpg",
+    1782: "[1782] - The Power Is Yours!.jpg",
     1783: "[1783] - Slayer's Spear.jpg",
-    1784: '[1784] - Swift Javelin.jpg',
+    1784: "[1784] - Swift Javelin.jpg",
     1814: "[1814] - Lightbringer's Gaze.jpg",
-    1815: '[1815] - Lightbringer Signet.jpg',
-    1816: '[1816] - Sunspear Rebirth Signet.jpg',
-    1948: '[1948] - Shadow Sanctuary.jpg',
-    1949: '[1949] - Ether Nightmare.jpg',
-    1950: '[1950] - Signet of Corruption.jpg',
-    1951: '[1951] - Elemental Lord.jpg',
-    1952: '[1952] - Selfless Spirit.jpg',
-    1953: '[1953] - Triple Shot.jpg',
-    1954: '[1954] - Save Yourselves!.jpg',
-    1955: '[1955] - Aura of Holy Might.jpg',
-    1957: '[1957] - Spear of Fury.jpg',
-    1986: '[1986] - Vampiric Assault.jpg',
-    1987: '[1987] - Lotus Strike.jpg',
-    1988: '[1988] - Golden Fang Strike.jpg',
-    1990: '[1990] - Falling Lotus Strike.jpg',
+    1815: "[1815] - Lightbringer Signet.jpg",
+    1816: "[1816] - Sunspear Rebirth Signet.jpg",
+    1948: "[1948] - Shadow Sanctuary.jpg",
+    1949: "[1949] - Ether Nightmare.jpg",
+    1950: "[1950] - Signet of Corruption.jpg",
+    1951: "[1951] - Elemental Lord.jpg",
+    1952: "[1952] - Selfless Spirit.jpg",
+    1953: "[1953] - Triple Shot.jpg",
+    1954: "[1954] - Save Yourselves!.jpg",
+    1955: "[1955] - Aura of Holy Might.jpg",
+    1957: "[1957] - Spear of Fury.jpg",
+    1986: "[1986] - Vampiric Assault.jpg",
+    1987: "[1987] - Lotus Strike.jpg",
+    1988: "[1988] - Golden Fang Strike.jpg",
+    1990: "[1990] - Falling Lotus Strike.jpg",
     1991: "[1991] - Sadist's Signet.jpg",
-    1992: '[1992] - Signet of Distraction.jpg',
-    1993: '[1993] - Signet of Recall.jpg',
-    1994: '[1994] - Power Lock.jpg',
-    1995: '[1995] - Waste Not, Want Not.jpg',
-    1996: '[1996] - Sum of All Fears.jpg',
-    1997: '[1997] - Withering Aura.jpg',
-    1998: '[1998] - Cacophony.jpg',
+    1992: "[1992] - Signet of Distraction.jpg",
+    1993: "[1993] - Signet of Recall.jpg",
+    1994: "[1994] - Power Lock.jpg",
+    1995: "[1995] - Waste Not, Want Not.jpg",
+    1996: "[1996] - Sum of All Fears.jpg",
+    1997: "[1997] - Withering Aura.jpg",
+    1998: "[1998] - Cacophony.jpg",
     1999: "[1999] - Winter's Embrace.jpg",
-    2000: '[2000] - Earthen Shackles.jpg',
-    2001: '[2001] - Ward of Weakness.jpg',
-    2002: '[2002] - Glyph of Swiftness.jpg',
-    2003: '[2003] - Cure Hex.jpg',
-    2004: '[2004] - Smite Condition.jpg',
+    2000: "[2000] - Earthen Shackles.jpg",
+    2001: "[2001] - Ward of Weakness.jpg",
+    2002: "[2002] - Glyph of Swiftness.jpg",
+    2003: "[2003] - Cure Hex.jpg",
+    2004: "[2004] - Smite Condition.jpg",
     2005: "[2005] - Smiter's Boon.jpg",
-    2006: '[2006] - Castigation Signet.jpg',
-    2007: '[2007] - Purifying Veil.jpg',
-    2008: '[2008] - Pulverizing Smash.jpg',
-    2009: '[2009] - Keen Chop.jpg',
-    2010: '[2010] - Knee Cutter.jpg',
-    2011: '[2011] - Grapple.jpg',
-    2012: '[2012] - Radiant Scythe.jpg',
+    2006: "[2006] - Castigation Signet.jpg",
+    2007: "[2007] - Purifying Veil.jpg",
+    2008: "[2008] - Pulverizing Smash.jpg",
+    2009: "[2009] - Keen Chop.jpg",
+    2010: "[2010] - Knee Cutter.jpg",
+    2011: "[2011] - Grapple.jpg",
+    2012: "[2012] - Radiant Scythe.jpg",
     2013: "[2013] - Grenth's Aura.jpg",
-    2014: '[2014] - Signet of Pious Restraint.jpg',
+    2014: "[2014] - Signet of Pious Restraint.jpg",
     2015: "[2015] - Farmer's Scythe.jpg",
-    2016: '[2016] - Energetic Was Lee Sa.jpg',
-    2017: '[2017] - Anthem of Weariness.jpg',
-    2018: '[2018] - Anthem of Disruption.jpg',
-    2051: '[2051] - Summon Spirits.jpg',
-    2052: '[2052] - Shadow Fang.jpg',
-    2053: '[2053] - Calculated Risk.jpg',
-    2054: '[2054] - Shrinking Armor.jpg',
-    2055: '[2055] - Aneurysm.jpg',
-    2056: '[2056] - Wandering Eye.jpg',
-    2057: '[2057] - Foul Feast.jpg',
-    2058: '[2058] - Putrid Bile.jpg',
-    2059: '[2059] - Shell Shock.jpg',
-    2060: '[2060] - Glyph of Immolation.jpg',
-    2061: '[2061] - Patient Spirit.jpg',
-    2062: '[2062] - Healing Ribbon.jpg',
-    2063: '[2063] - Aura of Stability.jpg',
-    2064: '[2064] - Spotless Mind.jpg',
-    2065: '[2065] - Spotless Soul.jpg',
-    2066: '[2066] - Disarm.jpg',
-    2067: '[2067] - I Meant to Do That!.jpg',
-    2068: '[2068] - Rapid Fire.jpg',
+    2016: "[2016] - Energetic Was Lee Sa.jpg",
+    2017: "[2017] - Anthem of Weariness.jpg",
+    2018: "[2018] - Anthem of Disruption.jpg",
+    2051: "[2051] - Summon Spirits.jpg",
+    2052: "[2052] - Shadow Fang.jpg",
+    2053: "[2053] - Calculated Risk.jpg",
+    2054: "[2054] - Shrinking Armor.jpg",
+    2055: "[2055] - Aneurysm.jpg",
+    2056: "[2056] - Wandering Eye.jpg",
+    2057: "[2057] - Foul Feast.jpg",
+    2058: "[2058] - Putrid Bile.jpg",
+    2059: "[2059] - Shell Shock.jpg",
+    2060: "[2060] - Glyph of Immolation.jpg",
+    2061: "[2061] - Patient Spirit.jpg",
+    2062: "[2062] - Healing Ribbon.jpg",
+    2063: "[2063] - Aura of Stability.jpg",
+    2064: "[2064] - Spotless Mind.jpg",
+    2065: "[2065] - Spotless Soul.jpg",
+    2066: "[2066] - Disarm.jpg",
+    2067: "[2067] - I Meant to Do That!.jpg",
+    2068: "[2068] - Rapid Fire.jpg",
     2069: "[2069] - Sloth Hunter's Shot.jpg",
-    2070: '[2070] - Aura Slicer.jpg',
-    2071: '[2071] - Zealous Sweep.jpg',
-    2072: '[2072] - Pure Was Li Ming.jpg',
-    2073: '[2073] - Weapon of Aggression.jpg',
-    2074: '[2074] - Chest Thumper.jpg',
-    2075: '[2075] - Hasty Refrain.jpg',
-    2091: '[2091] - Shadow Sanctuary.jpg',
-    2092: '[2092] - Ether Nightmare.jpg',
-    2093: '[2093] - Signet of Corruption.jpg',
-    2094: '[2094] - Elemental Lord.jpg',
-    2095: '[2095] - Selfless Spirit.jpg',
-    2096: '[2096] - Triple Shot.jpg',
-    2097: '[2097] - Save Yourselves!.jpg',
-    2098: '[2098] - Aura of Holy Might.jpg',
-    2099: '[2099] - Spear of Fury.jpg',
-    2100: '[2100] - Summon Spirits.jpg',
-    2101: '[2101] - Critical Agility.jpg',
-    2102: '[2102] - Cry of Pain.jpg',
-    2103: '[2103] - Necrosis.jpg',
-    2104: '[2104] - Intensity.jpg',
-    2105: '[2105] - Seed of Life.jpg',
-    2107: '[2107] - Whirlwind Attack.jpg',
-    2108: '[2108] - Never Rampage Alone.jpg',
-    2109: '[2109] - Eternal Aura.jpg',
-    2110: '[2110] - Vampirism.jpg',
+    2070: "[2070] - Aura Slicer.jpg",
+    2071: "[2071] - Zealous Sweep.jpg",
+    2072: "[2072] - Pure Was Li Ming.jpg",
+    2073: "[2073] - Weapon of Aggression.jpg",
+    2074: "[2074] - Chest Thumper.jpg",
+    2075: "[2075] - Hasty Refrain.jpg",
+    2091: "[2091] - Shadow Sanctuary.jpg",
+    2092: "[2092] - Ether Nightmare.jpg",
+    2093: "[2093] - Signet of Corruption.jpg",
+    2094: "[2094] - Elemental Lord.jpg",
+    2095: "[2095] - Selfless Spirit.jpg",
+    2096: "[2096] - Triple Shot.jpg",
+    2097: "[2097] - Save Yourselves!.jpg",
+    2098: "[2098] - Aura of Holy Might.jpg",
+    2099: "[2099] - Spear of Fury.jpg",
+    2100: "[2100] - Summon Spirits.jpg",
+    2101: "[2101] - Critical Agility.jpg",
+    2102: "[2102] - Cry of Pain.jpg",
+    2103: "[2103] - Necrosis.jpg",
+    2104: "[2104] - Intensity.jpg",
+    2105: "[2105] - Seed of Life.jpg",
+    2107: "[2107] - Whirlwind Attack.jpg",
+    2108: "[2108] - Never Rampage Alone.jpg",
+    2109: "[2109] - Eternal Aura.jpg",
+    2110: "[2110] - Vampirism.jpg",
     2112: "[2112] - There's Nothing to Fear!.jpg",
-    2116: '[2116] - Sneak Attack.jpg',
-    2135: '[2135] - Trampling Ox.jpg',
-    2136: '[2136] - Smoke Powder Defense.jpg',
-    2137: '[2137] - Confusing Images.jpg',
+    2116: "[2116] - Sneak Attack.jpg",
+    2135: "[2135] - Trampling Ox.jpg",
+    2136: "[2136] - Smoke Powder Defense.jpg",
+    2137: "[2137] - Confusing Images.jpg",
     2138: "[2138] - Hexer's Vigor.jpg",
-    2139: '[2139] - Masochism.jpg',
-    2140: '[2140] - Piercing Trap.jpg',
-    2141: '[2141] - Companionship.jpg',
-    2142: '[2142] - Feral Aggression.jpg',
-    2143: '[2143] - Disrupting Shot.jpg',
-    2144: '[2144] - Volley.jpg',
-    2145: '[2145] - Expert Focus.jpg',
-    2146: '[2146] - Pious Fury.jpg',
-    2147: '[2147] - Crippling Victory.jpg',
-    2148: '[2148] - Sundering Weapon.jpg',
-    2149: '[2149] - Weapon of Renewal.jpg',
-    2150: '[2150] - Maiming Spear.jpg',
-    2186: '[2186] - Signet of Deadly Corruption.jpg',
-    2187: '[2187] - Way of the Master.jpg',
-    2188: '[2188] - Defile Defenses.jpg',
+    2139: "[2139] - Masochism.jpg",
+    2140: "[2140] - Piercing Trap.jpg",
+    2141: "[2141] - Companionship.jpg",
+    2142: "[2142] - Feral Aggression.jpg",
+    2143: "[2143] - Disrupting Shot.jpg",
+    2144: "[2144] - Volley.jpg",
+    2145: "[2145] - Expert Focus.jpg",
+    2146: "[2146] - Pious Fury.jpg",
+    2147: "[2147] - Crippling Victory.jpg",
+    2148: "[2148] - Sundering Weapon.jpg",
+    2149: "[2149] - Weapon of Renewal.jpg",
+    2150: "[2150] - Maiming Spear.jpg",
+    2186: "[2186] - Signet of Deadly Corruption.jpg",
+    2187: "[2187] - Way of the Master.jpg",
+    2188: "[2188] - Defile Defenses.jpg",
     2189: "[2189] - Angorodon's Gaze.jpg",
-    2190: '[2190] - Magnetic Surge.jpg',
-    2191: '[2191] - Slippery Ground.jpg',
-    2192: '[2192] - Glowing Ice.jpg',
-    2193: '[2193] - Energy Blast.jpg',
-    2194: '[2194] - Distracting Strike.jpg',
-    2195: '[2195] - Symbolic Strike.jpg',
+    2190: "[2190] - Magnetic Surge.jpg",
+    2191: "[2191] - Slippery Ground.jpg",
+    2192: "[2192] - Glowing Ice.jpg",
+    2193: "[2193] - Energy Blast.jpg",
+    2194: "[2194] - Distracting Strike.jpg",
+    2195: "[2195] - Symbolic Strike.jpg",
     2196: "[2196] - Soldier's Speed.jpg",
-    2197: '[2197] - Body Blow.jpg',
-    2198: '[2198] - Body Shot.jpg',
-    2199: '[2199] - Poison Tip Signet.jpg',
-    2200: '[2200] - Signet of Mystic Speed.jpg',
-    2201: '[2201] - Shield of Force.jpg',
-    2202: '[2202] - Mending Grip.jpg',
-    2203: '[2203] - Spiritleech Aura.jpg',
-    2204: '[2204] - Rejuvenation.jpg',
-    2205: '[2205] - Agony.jpg',
-    2206: '[2206] - Ghostly Weapon.jpg',
-    2207: '[2207] - Inspirational Speech.jpg',
-    2208: '[2208] - Burning Shield.jpg',
-    2209: '[2209] - Holy Spear.jpg',
-    2210: '[2210] - Spear Swipe.jpg',
+    2197: "[2197] - Body Blow.jpg",
+    2198: "[2198] - Body Shot.jpg",
+    2199: "[2199] - Poison Tip Signet.jpg",
+    2200: "[2200] - Signet of Mystic Speed.jpg",
+    2201: "[2201] - Shield of Force.jpg",
+    2202: "[2202] - Mending Grip.jpg",
+    2203: "[2203] - Spiritleech Aura.jpg",
+    2204: "[2204] - Rejuvenation.jpg",
+    2205: "[2205] - Agony.jpg",
+    2206: "[2206] - Ghostly Weapon.jpg",
+    2207: "[2207] - Inspirational Speech.jpg",
+    2208: "[2208] - Burning Shield.jpg",
+    2209: "[2209] - Holy Spear.jpg",
+    2210: "[2210] - Spear Swipe.jpg",
     2211: "[2211] - Alkar's Alchemical Acid.jpg",
-    2212: '[2212] - Light of Deldrimor.jpg',
-    2213: '[2213] - Ear Bite.jpg',
-    2214: '[2214] - Low Blow.jpg',
-    2215: '[2215] - Brawling Headbutt.jpg',
+    2212: "[2212] - Light of Deldrimor.jpg",
+    2213: "[2213] - Ear Bite.jpg",
+    2214: "[2214] - Low Blow.jpg",
+    2215: "[2215] - Brawling Headbutt.jpg",
     2216: "[2216] - Don't Trip!.jpg",
     2217: "[2217] - By Ural's Hammer!.jpg",
-    2218: '[2218] - Drunken Master.jpg',
-    2219: '[2219] - Great Dwarf Weapon.jpg',
-    2220: '[2220] - Great Dwarf Armor.jpg',
-    2221: '[2221] - Breath of the Great Dwarf.jpg',
-    2222: '[2222] - Snow Storm.jpg',
-    2223: '[2223] - Black Powder Mine.jpg',
-    2224: '[2224] - Summon Mursaat.jpg',
-    2225: '[2225] - Summon Ruby Djinn.jpg',
-    2226: '[2226] - Summon Ice Imp.jpg',
-    2227: '[2227] - Summon Naga Shaman.jpg',
-    2228: '[2228] - Deft Strike.jpg',
-    2229: '[2229] - Signet of Infection.jpg',
-    2230: '[2230] - Tryptophan Signet.jpg',
-    2231: '[2231] - Ebon Battle Standard of Courage.jpg',
-    2232: '[2232] - Ebon Battle Standard of Wisdom.jpg',
-    2233: '[2233] - Ebon Battle Standard of Honor.jpg',
-    2234: '[2234] - Ebon Vanguard Sniper Support.jpg',
-    2235: '[2235] - Ebon Vanguard Assassin Support.jpg',
-    2236: '[2236] - Well of Ruin.jpg',
-    2237: '[2237] - Atrophy.jpg',
-    2238: '[2238] - Spear of Redemption.jpg',
-    2353: '[2353] - Finish Him!.jpg',
-    2354: '[2354] - Dodge This!.jpg',
-    2355: '[2355] - I Am the Strongest!.jpg',
-    2356: '[2356] - I Am Unstoppable!.jpg',
-    2357: '[2357] - A Touch of Guile.jpg',
-    2358: '[2358] - You Move Like a Dwarf!.jpg',
-    2359: '[2359] - You Are All Weaklings!.jpg',
-    2360: '[2360] - Feel No Pain.jpg',
-    2361: '[2361] - Club of a Thousand Bears.jpg',
-    2374: '[2374] - Ursan Blessing.jpg',
-    2379: '[2379] - Volfen Blessing.jpg',
-    2384: '[2384] - Raven Blessing.jpg',
-    2411: '[2411] - Mindbender.jpg',
-    2412: '[2412] - Smooth Criminal.jpg',
-    2413: '[2413] - Technobabble.jpg',
-    2414: '[2414] - Radiation Field.jpg',
-    2415: '[2415] - Asuran Scan.jpg',
-    2416: '[2416] - Air of Superiority.jpg',
-    2417: '[2417] - Mental Block.jpg',
-    2418: '[2418] - Pain Inverter.jpg',
-    2420: '[2420] - Ebon Escape.jpg',
-    2421: '[2421] - Weakness Trap.jpg',
-    2422: '[2422] - Winds.jpg',
-    2423: '[2423] - Dwarven Stability.jpg',
-    2657: '[2657] - Call of Haste (PvP).jpg',
+    2218: "[2218] - Drunken Master.jpg",
+    2219: "[2219] - Great Dwarf Weapon.jpg",
+    2220: "[2220] - Great Dwarf Armor.jpg",
+    2221: "[2221] - Breath of the Great Dwarf.jpg",
+    2222: "[2222] - Snow Storm.jpg",
+    2223: "[2223] - Black Powder Mine.jpg",
+    2224: "[2224] - Summon Mursaat.jpg",
+    2225: "[2225] - Summon Ruby Djinn.jpg",
+    2226: "[2226] - Summon Ice Imp.jpg",
+    2227: "[2227] - Summon Naga Shaman.jpg",
+    2228: "[2228] - Deft Strike.jpg",
+    2229: "[2229] - Signet of Infection.jpg",
+    2230: "[2230] - Tryptophan Signet.jpg",
+    2231: "[2231] - Ebon Battle Standard of Courage.jpg",
+    2232: "[2232] - Ebon Battle Standard of Wisdom.jpg",
+    2233: "[2233] - Ebon Battle Standard of Honor.jpg",
+    2234: "[2234] - Ebon Vanguard Sniper Support.jpg",
+    2235: "[2235] - Ebon Vanguard Assassin Support.jpg",
+    2236: "[2236] - Well of Ruin.jpg",
+    2237: "[2237] - Atrophy.jpg",
+    2238: "[2238] - Spear of Redemption.jpg",
+    2353: "[2353] - Finish Him!.jpg",
+    2354: "[2354] - Dodge This!.jpg",
+    2355: "[2355] - I Am the Strongest!.jpg",
+    2356: "[2356] - I Am Unstoppable!.jpg",
+    2357: "[2357] - A Touch of Guile.jpg",
+    2358: "[2358] - You Move Like a Dwarf!.jpg",
+    2359: "[2359] - You Are All Weaklings!.jpg",
+    2360: "[2360] - Feel No Pain.jpg",
+    2361: "[2361] - Club of a Thousand Bears.jpg",
+    2374: "[2374] - Ursan Blessing.jpg",
+    2379: "[2379] - Volfen Blessing.jpg",
+    2384: "[2384] - Raven Blessing.jpg",
+    2411: "[2411] - Mindbender.jpg",
+    2412: "[2412] - Smooth Criminal.jpg",
+    2413: "[2413] - Technobabble.jpg",
+    2414: "[2414] - Radiation Field.jpg",
+    2415: "[2415] - Asuran Scan.jpg",
+    2416: "[2416] - Air of Superiority.jpg",
+    2417: "[2417] - Mental Block.jpg",
+    2418: "[2418] - Pain Inverter.jpg",
+    2420: "[2420] - Ebon Escape.jpg",
+    2421: "[2421] - Weakness Trap.jpg",
+    2422: "[2422] - Winds.jpg",
+    2423: "[2423] - Dwarven Stability.jpg",
+    2657: "[2657] - Call of Haste (PvP).jpg",
     2683: "[2683] - Castigation Signet (Saul D'Alessio).jpg",
     2684: "[2684] - Unnatural Signet (Saul D'Alessio).jpg",
-    2734: '[2734] - Mind Wrack (PvP).jpg',
-    2803: '[2803] - Mind Freeze (PvP).jpg',
-    2804: '[2804] - Mind Shock (PvP).jpg',
-    2805: '[2805] - Mist Form (PvP).jpg',
-    2806: '[2806] - Ward Against Harm (PvP).jpg',
-    2807: '[2807] - Ride the Lightning (PvP).jpg',
-    2808: '[2808] - Enraged Smash (PvP).jpg',
-    2809: '[2809] - Obsidian Flame (PvP).jpg',
-    2857: '[2857] - Aegis (PvP).jpg',
-    2858: '[2858] - Watch Yourself! (PvP).jpg',
-    2859: '[2859] - Enfeeble (PvP).jpg',
-    2860: '[2860] - Ether Renewal (PvP).jpg',
-    2861: '[2861] - Penetrating Attack (PvP).jpg',
-    2862: '[2862] - Shadow Form (PvP).jpg',
-    2863: '[2863] - Discord (PvP).jpg',
-    2864: '[2864] - Sundering Attack (PvP).jpg',
-    2866: '[2866] - Flesh of My Flesh (PvP).jpg',
+    2734: "[2734] - Mind Wrack (PvP).jpg",
+    2803: "[2803] - Mind Freeze (PvP).jpg",
+    2804: "[2804] - Mind Shock (PvP).jpg",
+    2805: "[2805] - Mist Form (PvP).jpg",
+    2806: "[2806] - Ward Against Harm (PvP).jpg",
+    2807: "[2807] - Ride the Lightning (PvP).jpg",
+    2808: "[2808] - Enraged Smash (PvP).jpg",
+    2809: "[2809] - Obsidian Flame (PvP).jpg",
+    2857: "[2857] - Aegis (PvP).jpg",
+    2858: "[2858] - Watch Yourself! (PvP).jpg",
+    2859: "[2859] - Enfeeble (PvP).jpg",
+    2860: "[2860] - Ether Renewal (PvP).jpg",
+    2861: "[2861] - Penetrating Attack (PvP).jpg",
+    2862: "[2862] - Shadow Form (PvP).jpg",
+    2863: "[2863] - Discord (PvP).jpg",
+    2864: "[2864] - Sundering Attack (PvP).jpg",
+    2866: "[2866] - Flesh of My Flesh (PvP).jpg",
     2867: "[2867] - Ancestors' Rage (PvP).jpg",
-    2868: '[2868] - Splinter Weapon (PvP).jpg',
+    2868: "[2868] - Splinter Weapon (PvP).jpg",
     2869: "[2869] - Assassin's Remedy (PvP).jpg",
-    2871: '[2871] - Light of Deliverance (PvP).jpg',
-    2872: '[2872] - Death Pact Signet (PvP).jpg',
+    2871: "[2871] - Light of Deliverance (PvP).jpg",
+    2872: "[2872] - Death Pact Signet (PvP).jpg",
     2875: "[2875] - Harrier's Toss (PvP).jpg",
-    2876: '[2876] - Defensive Anthem (PvP).jpg',
-    2877: '[2877] - Ballad of Restoration (PvP).jpg',
-    2878: '[2878] - Song of Restoration (PvP).jpg',
-    2879: '[2879] - Incoming! (PvP).jpg',
-    2880: '[2880] - Never Surrender! (PvP).jpg',
-    2883: '[2883] - For Great Justice! (PvP).jpg',
-    2884: '[2884] - Mystic Regeneration (PvP).jpg',
-    2885: '[2885] - Enfeebling Blood (PvP).jpg',
-    2887: '[2887] - Signet of Judgment (PvP).jpg',
-    2891: '[2891] - Unyielding Aura (PvP).jpg',
-    2892: '[2892] - Spirit Bond (PvP).jpg',
-    2893: '[2893] - Weapon of Warding (PvP).jpg',
+    2876: "[2876] - Defensive Anthem (PvP).jpg",
+    2877: "[2877] - Ballad of Restoration (PvP).jpg",
+    2878: "[2878] - Song of Restoration (PvP).jpg",
+    2879: "[2879] - Incoming! (PvP).jpg",
+    2880: "[2880] - Never Surrender! (PvP).jpg",
+    2883: "[2883] - For Great Justice! (PvP).jpg",
+    2884: "[2884] - Mystic Regeneration (PvP).jpg",
+    2885: "[2885] - Enfeebling Blood (PvP).jpg",
+    2887: "[2887] - Signet of Judgment (PvP).jpg",
+    2891: "[2891] - Unyielding Aura (PvP).jpg",
+    2892: "[2892] - Spirit Bond (PvP).jpg",
+    2893: "[2893] - Weapon of Warding (PvP).jpg",
     2895: "[2895] - Smiter's Boon (PvP).jpg",
     2925: "[2925] - Sloth Hunter's Shot (PvP).jpg",
     2959: "[2959] - Expert's Dexterity (PvP).jpg",
-    2965: '[2965] - Signet of Spirits (PvP).jpg',
-    2966: '[2966] - Signet of Ghostly Might (PvP).jpg',
-    2969: '[2969] - Read the Wind (PvP).jpg',
-    2998: '[2998] - Fragility (PvP).jpg',
-    2999: '[2999] - Strength of Honor (PvP).jpg',
+    2965: "[2965] - Signet of Spirits (PvP).jpg",
+    2966: "[2966] - Signet of Ghostly Might (PvP).jpg",
+    2969: "[2969] - Read the Wind (PvP).jpg",
+    2998: "[2998] - Fragility (PvP).jpg",
+    2999: "[2999] - Strength of Honor (PvP).jpg",
     3002: "[3002] - Warrior's Endurance (PvP).jpg",
-    3003: '[3003] - Armor of Unfeeling (PvP).jpg',
-    3005: '[3005] - Union (PvP).jpg',
-    3006: '[3006] - Shadowsong (PvP).jpg',
-    3007: '[3007] - Pain (PvP).jpg',
-    3008: '[3008] - Destruction (PvP).jpg',
-    3009: '[3009] - Soothing (PvP).jpg',
-    3010: '[3010] - Displacement (PvP).jpg',
-    3011: '[3011] - Preservation (PvP).jpg',
-    3012: '[3012] - Life (PvP).jpg',
-    3013: '[3013] - Recuperation (PvP).jpg',
-    3014: '[3014] - Dissonance (PvP).jpg',
-    3015: '[3015] - Earthbind (PvP).jpg',
-    3016: '[3016] - Shelter (PvP).jpg',
-    3017: '[3017] - Disenchantment (PvP).jpg',
-    3018: '[3018] - Restoration (PvP).jpg',
-    3019: '[3019] - Bloodsong (PvP).jpg',
-    3020: '[3020] - Wanderlust (PvP).jpg',
-    3021: '[3021] - Savannah Heat (PvP).jpg',
-    3022: '[3022] - Gaze of Fury (PvP).jpg',
-    3023: '[3023] - Anguish (PvP).jpg',
-    3024: '[3024] - Empowerment (PvP).jpg',
-    3025: '[3025] - Recovery (PvP).jpg',
-    3026: '[3026] - Go for the Eyes! (PvP).jpg',
-    3027: '[3027] - Brace Yourself! (PvP).jpg',
-    3028: '[3028] - Blazing Finale (PvP).jpg',
-    3029: '[3029] - Bladeturn Refrain (PvP).jpg',
-    3030: '[3030] - Signet of Return (PvP).jpg',
+    3003: "[3003] - Armor of Unfeeling (PvP).jpg",
+    3005: "[3005] - Union (PvP).jpg",
+    3006: "[3006] - Shadowsong (PvP).jpg",
+    3007: "[3007] - Pain (PvP).jpg",
+    3008: "[3008] - Destruction (PvP).jpg",
+    3009: "[3009] - Soothing (PvP).jpg",
+    3010: "[3010] - Displacement (PvP).jpg",
+    3011: "[3011] - Preservation (PvP).jpg",
+    3012: "[3012] - Life (PvP).jpg",
+    3013: "[3013] - Recuperation (PvP).jpg",
+    3014: "[3014] - Dissonance (PvP).jpg",
+    3015: "[3015] - Earthbind (PvP).jpg",
+    3016: "[3016] - Shelter (PvP).jpg",
+    3017: "[3017] - Disenchantment (PvP).jpg",
+    3018: "[3018] - Restoration (PvP).jpg",
+    3019: "[3019] - Bloodsong (PvP).jpg",
+    3020: "[3020] - Wanderlust (PvP).jpg",
+    3021: "[3021] - Savannah Heat (PvP).jpg",
+    3022: "[3022] - Gaze of Fury (PvP).jpg",
+    3023: "[3023] - Anguish (PvP).jpg",
+    3024: "[3024] - Empowerment (PvP).jpg",
+    3025: "[3025] - Recovery (PvP).jpg",
+    3026: "[3026] - Go for the Eyes! (PvP).jpg",
+    3027: "[3027] - Brace Yourself! (PvP).jpg",
+    3028: "[3028] - Blazing Finale (PvP).jpg",
+    3029: "[3029] - Bladeturn Refrain (PvP).jpg",
+    3030: "[3030] - Signet of Return (PvP).jpg",
     3031: "[3031] - Can't Touch This! (PvP).jpg",
-    3032: '[3032] - Stand Your Ground! (PvP).jpg',
-    3033: '[3033] - We Shall Return! (PvP).jpg',
-    3034: '[3034] - Find Their Weakness! (PvP).jpg',
-    3035: '[3035] - Never Give Up! (PvP).jpg',
-    3036: '[3036] - Help Me! (PvP).jpg',
-    3037: '[3037] - Fall Back! (PvP).jpg',
-    3038: '[3038] - Agony (PvP).jpg',
-    3039: '[3039] - Rejuvenation (PvP).jpg',
-    3040: '[3040] - Anthem of Disruption (PvP).jpg',
-    3045: '[3045] - Comfort Animal (PvP).jpg',
+    3032: "[3032] - Stand Your Ground! (PvP).jpg",
+    3033: "[3033] - We Shall Return! (PvP).jpg",
+    3034: "[3034] - Find Their Weakness! (PvP).jpg",
+    3035: "[3035] - Never Give Up! (PvP).jpg",
+    3036: "[3036] - Help Me! (PvP).jpg",
+    3037: "[3037] - Fall Back! (PvP).jpg",
+    3038: "[3038] - Agony (PvP).jpg",
+    3039: "[3039] - Rejuvenation (PvP).jpg",
+    3040: "[3040] - Anthem of Disruption (PvP).jpg",
+    3045: "[3045] - Comfort Animal (PvP).jpg",
     3047: "[3047] - Melandru's Assault (PvP).jpg",
-    3048: '[3048] - Shroud of Distress (PvP).jpg',
-    3049: '[3049] - Unseen Fury (PvP).jpg',
-    3050: '[3050] - Predatory Bond (PvP).jpg',
-    3051: '[3051] - Enraged Lunge (PvP).jpg',
-    3053: '[3053] - Signet of Deadly Corruption (PvP).jpg',
-    3054: '[3054] - Masochism (PvP).jpg',
-    3058: '[3058] - Unholy Feast (PvP).jpg',
-    3059: '[3059] - Signet of Agony (PvP).jpg',
-    3060: '[3060] - Escape (PvP).jpg',
-    3061: '[3061] - Death Blossom (PvP).jpg',
-    3062: '[3062] - Finale of Restoration (PvP).jpg',
-    3063: '[3063] - Mantra of Resolve (PvP).jpg',
-    3068: '[3068] - Charm Animal (Codex).jpg',
-    3141: '[3141] - Lightning Reflexes (PvP).jpg',
-    3143: '[3143] - Renewing Smash (PvP).jpg',
-    3144: '[3144] - Heal as One (PvP).jpg',
-    3145: '[3145] - Glass Arrows (PvP).jpg',
-    3147: '[3147] - Keen Arrow (PvP).jpg',
-    3148: '[3148] - Anthem of Envy (PvP).jpg',
-    3149: '[3149] - Mending Refrain (PvP).jpg',
-    3151: '[3151] - Empathy (PvP).jpg',
-    3152: '[3152] - Crippling Anguish (PvP).jpg',
+    3048: "[3048] - Shroud of Distress (PvP).jpg",
+    3049: "[3049] - Unseen Fury (PvP).jpg",
+    3050: "[3050] - Predatory Bond (PvP).jpg",
+    3051: "[3051] - Enraged Lunge (PvP).jpg",
+    3053: "[3053] - Signet of Deadly Corruption (PvP).jpg",
+    3054: "[3054] - Masochism (PvP).jpg",
+    3058: "[3058] - Unholy Feast (PvP).jpg",
+    3059: "[3059] - Signet of Agony (PvP).jpg",
+    3060: "[3060] - Escape (PvP).jpg",
+    3061: "[3061] - Death Blossom (PvP).jpg",
+    3062: "[3062] - Finale of Restoration (PvP).jpg",
+    3063: "[3063] - Mantra of Resolve (PvP).jpg",
+    3068: "[3068] - Charm Animal (Codex).jpg",
+    3141: "[3141] - Lightning Reflexes (PvP).jpg",
+    3143: "[3143] - Renewing Smash (PvP).jpg",
+    3144: "[3144] - Heal as One (PvP).jpg",
+    3145: "[3145] - Glass Arrows (PvP).jpg",
+    3147: "[3147] - Keen Arrow (PvP).jpg",
+    3148: "[3148] - Anthem of Envy (PvP).jpg",
+    3149: "[3149] - Mending Refrain (PvP).jpg",
+    3151: "[3151] - Empathy (PvP).jpg",
+    3152: "[3152] - Crippling Anguish (PvP).jpg",
     3156: "[3156] - Soldier's Stance (PvP).jpg",
-    3157: '[3157] - Destructive Was Glaive (PvP).jpg',
-    3179: '[3179] - Mantra of Signets (PvP).jpg',
-    3180: '[3180] - Shatter Delusions (PvP).jpg',
-    3181: '[3181] - Illusionary Weaponry (PvP).jpg',
-    3183: '[3183] - Migraine (PvP).jpg',
-    3184: '[3184] - Accumulated Pain (PvP).jpg',
-    3185: '[3185] - Psychic Instability (PvP).jpg',
-    3186: '[3186] - Shared Burden (PvP).jpg',
-    3187: '[3187] - Stolen Speed (PvP).jpg',
-    3188: '[3188] - Unnatural Signet (PvP).jpg',
-    3189: '[3189] - Spiritual Pain (PvP).jpg',
-    3190: '[3190] - Frustration (PvP).jpg',
-    3191: '[3191] - Mistrust (PvP).jpg',
+    3157: "[3157] - Destructive Was Glaive (PvP).jpg",
+    3179: "[3179] - Mantra of Signets (PvP).jpg",
+    3180: "[3180] - Shatter Delusions (PvP).jpg",
+    3181: "[3181] - Illusionary Weaponry (PvP).jpg",
+    3183: "[3183] - Migraine (PvP).jpg",
+    3184: "[3184] - Accumulated Pain (PvP).jpg",
+    3185: "[3185] - Psychic Instability (PvP).jpg",
+    3186: "[3186] - Shared Burden (PvP).jpg",
+    3187: "[3187] - Stolen Speed (PvP).jpg",
+    3188: "[3188] - Unnatural Signet (PvP).jpg",
+    3189: "[3189] - Spiritual Pain (PvP).jpg",
+    3190: "[3190] - Frustration (PvP).jpg",
+    3191: "[3191] - Mistrust (PvP).jpg",
     3192: "[3192] - Enchanter's Conundrum (PvP).jpg",
-    3193: '[3193] - Signet of Clumsiness (PvP).jpg',
-    3194: '[3194] - Mirror of Disenchantment (PvP).jpg',
-    3195: '[3195] - Wandering Eye (PvP).jpg',
-    3196: '[3196] - Calculated Risk (PvP).jpg',
-    3204: '[3204] - Defy Pain (PvP).jpg',
-    3232: '[3232] - Heal Party (PvP).jpg',
-    3233: '[3233] - Spoil Victor (PvP).jpg',
-    3234: '[3234] - Visions of Regret (PvP).jpg',
-    3251: '[3251] - Fox Fangs (PvP).jpg',
-    3252: '[3252] - Wild Strike (PvP).jpg',
-    3263: '[3263] - Banishing Strike (PvP).jpg',
-    3264: '[3264] - Twin Moon Sweep (PvP).jpg',
-    3265: '[3265] - Irresistible Sweep (PvP).jpg',
-    3266: '[3266] - Pious Assault (PvP).jpg',
-    3269: '[3269] - Guiding Hands (PvP).jpg',
-    3270: '[3270] - Avatar of Dwayna (PvP).jpg',
-    3271: '[3271] - Avatar of Melandru (PvP).jpg',
-    3272: '[3272] - Mystic Healing (PvP).jpg',
-    3273: '[3273] - Signet of Pious Restraint (PvP).jpg',
-    3289: '[3289] - Fevered Dreams (PvP).jpg',
-    3346: '[3346] - Aura of Thorns (PvP).jpg',
-    3347: '[3347] - Dust Cloak (PvP).jpg',
+    3193: "[3193] - Signet of Clumsiness (PvP).jpg",
+    3194: "[3194] - Mirror of Disenchantment (PvP).jpg",
+    3195: "[3195] - Wandering Eye (PvP).jpg",
+    3196: "[3196] - Calculated Risk (PvP).jpg",
+    3204: "[3204] - Defy Pain (PvP).jpg",
+    3232: "[3232] - Heal Party (PvP).jpg",
+    3233: "[3233] - Spoil Victor (PvP).jpg",
+    3234: "[3234] - Visions of Regret (PvP).jpg",
+    3251: "[3251] - Fox Fangs (PvP).jpg",
+    3252: "[3252] - Wild Strike (PvP).jpg",
+    3263: "[3263] - Banishing Strike (PvP).jpg",
+    3264: "[3264] - Twin Moon Sweep (PvP).jpg",
+    3265: "[3265] - Irresistible Sweep (PvP).jpg",
+    3266: "[3266] - Pious Assault (PvP).jpg",
+    3269: "[3269] - Guiding Hands (PvP).jpg",
+    3270: "[3270] - Avatar of Dwayna (PvP).jpg",
+    3271: "[3271] - Avatar of Melandru (PvP).jpg",
+    3272: "[3272] - Mystic Healing (PvP).jpg",
+    3273: "[3273] - Signet of Pious Restraint (PvP).jpg",
+    3289: "[3289] - Fevered Dreams (PvP).jpg",
+    3346: "[3346] - Aura of Thorns (PvP).jpg",
+    3347: "[3347] - Dust Cloak (PvP).jpg",
     3348: "[3348] - Lyssa's Haste (PvP).jpg",
-    3365: '[3365] - Onslaught (PvP).jpg',
-    3366: '[3366] - Heart of Fury (PvP).jpg',
-    3367: '[3367] - Wounding Strike (PvP).jpg',
-    3368: '[3368] - Pious Fury (PvP).jpg',
-    3373: '[3373] - Illusion of Haste (PvP).jpg',
-    3374: '[3374] - Illusion of Pain (PvP).jpg',
-    3375: '[3375] - Aura of Restoration (PvP).jpg',
-    3386: '[3386] - Web of Disruption (PvP).jpg',
-    3396: '[3396] - Lightning Hammer (PvP).jpg',
-    3397: '[3397] - Elemental Flame (PvP).jpg',
-    3398: '[3398] - Slippery Ground (PvP).jpg',
-    3422: '[3422] - Time Ward.jpg',
-    3423: '[3423] - Soul Taker.jpg',
-    3424: '[3424] - Over the Limit.jpg',
-    3425: '[3425] - Judgment Strike.jpg',
-    3426: '[3426] - Seven Weapons Stance.jpg',
-    3427: '[3427] - Together as One!.jpg',
-    3428: '[3428] - Shadow Theft.jpg',
-    3429: '[3429] - Weapons of Three Forges.jpg',
-    3430: '[3430] - Vow of Revolution.jpg',
-    3431: '[3431] - Heroic Refrain.jpg',
+    3365: "[3365] - Onslaught (PvP).jpg",
+    3366: "[3366] - Heart of Fury (PvP).jpg",
+    3367: "[3367] - Wounding Strike (PvP).jpg",
+    3368: "[3368] - Pious Fury (PvP).jpg",
+    3373: "[3373] - Illusion of Haste (PvP).jpg",
+    3374: "[3374] - Illusion of Pain (PvP).jpg",
+    3375: "[3375] - Aura of Restoration (PvP).jpg",
+    3386: "[3386] - Web of Disruption (PvP).jpg",
+    3396: "[3396] - Lightning Hammer (PvP).jpg",
+    3397: "[3397] - Elemental Flame (PvP).jpg",
+    3398: "[3398] - Slippery Ground (PvP).jpg",
+    3422: "[3422] - Time Ward.jpg",
+    3423: "[3423] - Soul Taker.jpg",
+    3424: "[3424] - Over the Limit.jpg",
+    3425: "[3425] - Judgment Strike.jpg",
+    3426: "[3426] - Seven Weapons Stance.jpg",
+    3427: "[3427] - Together as One!.jpg",
+    3428: "[3428] - Shadow Theft.jpg",
+    3429: "[3429] - Weapons of Three Forges.jpg",
+    3430: "[3430] - Vow of Revolution.jpg",
+    3431: "[3431] - Heroic Refrain.jpg",
 }
 
 
-#endregion
-
-
+# endregion
