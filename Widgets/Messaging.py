@@ -188,7 +188,7 @@ def InviteToParty(index, message):
 
 #region LeaveParty
 def LeaveParty(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing LeaveParty message: {message}", Console.MessageType.Info)
+    # ConsoleLog(MODULE_NAME, f"Processing LeaveParty message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -197,7 +197,9 @@ def LeaveParty(index, message):
     GLOBAL_CACHE.Party.LeaveParty()
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, f"LeaveParty message processed and finished.", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME,
+               "LeaveParty message processed and finished.", 
+               Console.MessageType.Info)
 #endregion
 
 # region TravelToMap
