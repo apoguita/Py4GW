@@ -2823,8 +2823,13 @@ class ModelID(IntEnum):
     Zhos_Journal = 25866
     Zhu_Hanuku_Mini = 34398
 
-
-# region AgentModels
+#region AgentModels
+class AgentModelID(IntEnum):
+    FROST_WURM=6491
+    FROZEN_ELEMENTAL = 6478
+    
+	
+ 
 class SpiritModelID(IntEnum):
     # SPIRIT_MODEL
     # RANGER
