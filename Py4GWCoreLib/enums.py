@@ -21,8 +21,9 @@ class SharedCommandType(IntEnum):
     MerchantMaterials = 15
     DisableHeroAI = 16
     EnableHeroAI = 17
-    LootEx = 18  # privately Handled Command, by Frenkey
-
+    LeaveParty = 18
+    PressKey = 19
+    LootEx = 20  # privately Handled Command, by Frenkey   
 
 class CombatPrepSkillsType(IntEnum):
     SpiritsPrep = 1
