@@ -15,7 +15,7 @@ from .Agent import *
 from abc import ABC, abstractmethod
 from .enums import *
 
-
+from typing import Callable
 import threading
 import socket
 import configparser
@@ -1030,7 +1030,7 @@ class ActionQueueManager:
             "ACTION": ActionQueueNode(50),
             "LOOT": ActionQueueNode(1250),
             "MERCHANT": ActionQueueNode(750),
-            "SALVAGE": ActionQueueNode(325),
+            "SALVAGE": ActionQueueNode(350),
             "IDENTIFY": ActionQueueNode(150)
             # Add more queues here if needed
         }
@@ -1463,6 +1463,48 @@ class FSM:
             if self.sub_fsm:
                 self.sub_fsm.reset()
         
+    class YieldRoutineState(State):
+        def __init__(self, id, name=None, coroutine_fn=None):
+            """
+            A state that runs a yield-based coroutine and waits for it to complete.
+
+            :param coroutine_fn: A function that returns a generator (yield-based coroutine)
+            """
+            super().__init__(id=id, name=name or f"YieldRoutine-{id}")
+            self.coroutine_fn = coroutine_fn
+            self.coroutine_instance = None
+
+        def execute(self):
+            from Py4GWCoreLib import GLOBAL_CACHE
+            if not self.executed:
+                if self.coroutine_fn:
+                    try:
+                        self.coroutine_instance = self.coroutine_fn()
+                        if self.coroutine_instance:
+                            GLOBAL_CACHE.Coroutines.append(self.coroutine_instance)
+                    except Exception as e:
+                        ConsoleLog("FSM", f"Error starting coroutine for state '{self.name}': {e}", Py4GW.Console.MessageType.Error)
+                self.reset_transition_timer()
+                self.executed = True
+
+        def can_exit(self):
+            from Py4GWCoreLib import GLOBAL_CACHE
+            """
+            Exit only if coroutine is finished.
+            """
+            if not self.transition_timer.HasElapsed(self.transition_delay_ms):
+                return False
+
+            # Check if coroutine is no longer running
+            if self.coroutine_instance and self.coroutine_instance in GLOBAL_CACHE.Coroutines:
+                return False  # Still running
+
+            return True
+  
+        
+        
+        
+        
     def SetLogBehavior(self, log_actions=False):
         """
         Set whether to log state transitions and actions.
@@ -1492,6 +1534,26 @@ class FSM:
         
         self.states.append(state)
         self.state_counter += 1
+        
+    def AddYieldRoutineStep(self, name, coroutine_fn, transition_delay_ms=0):
+        """
+        Add a yield-based coroutine step to the FSM.
+        The coroutine is added to GLOBAL_CACHE.Coroutines and the FSM waits until it finishes.
+
+        :param name: Name of the state.
+        :param coroutine_fn: Function that returns a yield-based generator.
+        """
+        step = self.YieldRoutineState(
+            id=self.state_counter,
+            name=name,
+            coroutine_fn=coroutine_fn
+        )
+        step.transition_delay_ms = transition_delay_ms
+        if self.states:
+            self.states[-1].set_next_state(step)
+        self.states.append(step)
+        self.state_counter += 1
+
 
     def AddSubroutine(self, name=None, condition_fn=None, sub_fsm=None,
                   on_enter=None, on_exit=None):
@@ -1537,6 +1599,7 @@ class FSM:
 
         if self.log_actions:
             Py4GW.Console.Log("FSM", f"{self.name}: FSM has been reset.", Py4GW.Console.MessageType.Info)
+            
 
     def get_state_names(self):
         return [s.name for s in self.states]
@@ -2146,6 +2209,8 @@ class LootConfig:
         from .Routines import Routines
         from .Agent import Agent
         from .Item import Item
+        from .Player import Player
+        from .Party import Party
         if not Routines.Checks.Map.MapValid():
             return []
         
@@ -2155,17 +2220,18 @@ class LootConfig:
             
             if not Agent.IsValid(item_id):
                 return False    
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            player_agent_id = Player.GetAgentID()
             owner_id = Agent.GetItemAgentOwnerID(item_id)
             return ((owner_id == player_agent_id) or (owner_id == 0))
 
         def IsValidFollowerItem(item_id):
+            
             if not Routines.Checks.Map.MapValid():
                 return False
             if not Agent.IsValid(item_id):
                 return False 
-            party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            party_leader_id = Party.GetPartyLeaderID()
+            player_agent_id = Player.GetAgentID()
             owner_id = Agent.GetItemAgentOwnerID(item_id)
             
             if party_leader_id == player_agent_id:
@@ -2187,8 +2253,8 @@ class LootConfig:
         if not Routines.Checks.Map.MapValid():
             return []
             
-        loot_array = GLOBAL_CACHE.AgentArray.GetItemArray()
-        loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), distance)
+        loot_array = AgentArray.GetItemArray()
+        loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), distance)
 
         if multibox_loot:
             loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidFollowerItem(item_id))
@@ -2197,9 +2263,9 @@ class LootConfig:
 
 
         for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
-            item_data = GLOBAL_CACHE.Agent.GetItemAgent(agent_id)
+            item_data = Agent.GetItemAgent(agent_id)
             item_id = item_data.item_id
-            model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
+            model_id = Item.GetModelID(item_id)
 
             if self.IsWhitelisted(model_id):
                 continue
@@ -2215,23 +2281,23 @@ class LootConfig:
                 loot_array.remove(agent_id)
                 continue
 
-            if not self.loot_whites and GLOBAL_CACHE.Item.Rarity.IsWhite(item_id):
+            if not self.loot_whites and Item.Rarity.IsWhite(item_id):
                 loot_array.remove(agent_id)
                 continue
-            if not self.loot_blues and GLOBAL_CACHE.Item.Rarity.IsBlue(item_id):
+            if not self.loot_blues and Item.Rarity.IsBlue(item_id):
                 loot_array.remove(agent_id)
                 continue
-            if not self.loot_purples and GLOBAL_CACHE.Item.Rarity.IsPurple(item_id):
+            if not self.loot_purples and Item.Rarity.IsPurple(item_id):
                 loot_array.remove(agent_id)
                 continue
-            if not self.loot_golds and GLOBAL_CACHE.Item.Rarity.IsGold(item_id):
+            if not self.loot_golds and Item.Rarity.IsGold(item_id):
                 loot_array.remove(agent_id)
                 continue
-            if not self.loot_greens and GLOBAL_CACHE.Item.Rarity.IsGreen(item_id):
+            if not self.loot_greens and Item.Rarity.IsGreen(item_id):
                 loot_array.remove(agent_id)
                 continue
 
-        loot_array = AgentArray.Sort.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY())
+        loot_array = AgentArray.Sort.ByDistance(loot_array, Player.GetXY())
 
         return loot_array
 #endregion
@@ -2365,7 +2431,7 @@ class AutoInventoryHandler():
         else:
             Inventory.SalvageItem(item_id, first_salv_kit)
             
-    def IdentifyItems(self):
+    def IdentifyItems(self,progress_callback: Optional[Callable[[float], None]] = None):
         from Py4GWCoreLib import GLOBAL_CACHE, Item, Routines, Bags, ActionQueueManager, ConsoleLog
         def _get_total_id_uses():
             total_uses = 0
@@ -2412,7 +2478,7 @@ class AutoInventoryHandler():
         if current_uses > 0:
             ConsoleLog(self.module_name, f"Identified {current_uses} items", Py4GW.Console.MessageType.Success)
             
-    def SalvageItems(self):
+    def SalvageItems(self,progress_callback: Optional[Callable[[float], None]] = None):
         from Py4GWCoreLib import GLOBAL_CACHE, Item, Routines, Bags, ActionQueueManager, ConsoleLog, Inventory
         def _get_total_salv_uses():
             total_uses = 0
@@ -2482,15 +2548,19 @@ class AutoInventoryHandler():
                 for _ in range(quantity):
                     ActionQueueManager().AddAction("SALVAGE", self.AutoSalvage, item_id)
                     
+                    yield from Routines.Yield.Items._wait_for_empty_queue("SALVAGE")
+                    
                     if (is_purple or is_gold):
+                        yield from Routines.Yield.Items._wait_for_salvage_materials_window()
                         ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
+                        yield from Routines.Yield.Items._wait_for_empty_queue("SALVAGE")
+                        
+                    yield from Routines.Yield.wait(100)
                     
                     current_uses += 1
                     total_uses -= 1
                     
-                    while not ActionQueueManager().IsEmpty("SALVAGE"):
-                        yield from Routines.Yield.wait(50)
-                    
+
                     if total_uses == 0:
                         ConsoleLog(self.module_name, f"Salvaged {current_uses} items, no more Salvage Kits left in inventory", Py4GW.Console.MessageType.Warning)
                         yield
@@ -2552,9 +2622,11 @@ class AutoInventoryHandler():
                     yield from Routines.Yield.wait(350)
             
             
-    def IDAndSalvageItems(self):
+    def IDAndSalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None):
         self.status = "Identifying"
         yield from self.IdentifyItems()
+        if progress_callback:
+            progress_callback(0.5)
         self.status = "Salvaging"
         yield from self.SalvageItems()
         self.status = "Idle"
