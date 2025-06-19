@@ -15,6 +15,7 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
+from Py4GWCoreLib.Py4GWcorelib import Keystroke
 
 
 cached_data = CacheData()
@@ -184,6 +185,23 @@ def InviteToParty(index, message):
 
 
 # endregion
+
+#region LeaveParty
+def LeaveParty(index, message):
+    # ConsoleLog(MODULE_NAME, f"Processing LeaveParty message: {message}", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    GLOBAL_CACHE.Party.LeaveParty()
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME,
+               "LeaveParty message processed and finished.", 
+               Console.MessageType.Info)
+#endregion
+
 # region TravelToMap
 
 
@@ -414,6 +432,22 @@ def UsePcon(index, message):
 
 # endregion
 
+#region PressKey
+def PressKey(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    
+    key_id = int(message.Params[0])    
+    repetition = int(message.Params[1]) if len(message.Params) > 1 else 1
+    
+    if key_id:    
+        for _ in range(repetition):
+            Keystroke.PressAndRelease(key_id)
+            yield from Routines.Yield.wait(100)
+    
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "PressKey message processed and finished.", Console.MessageType.Info)   
+#endregion
 
 # region PickUpLoot
 def PickUpLoot(index, message):
@@ -679,6 +713,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(TravelToMap(index, message))
         case SharedCommandType.InviteToParty:
             GLOBAL_CACHE.Coroutines.append(InviteToParty(index, message))
+        case SharedCommandType.LeaveParty:
+            GLOBAL_CACHE.Coroutines.append(LeaveParty(index, message))    
         case SharedCommandType.InteractWithTarget:
             GLOBAL_CACHE.Coroutines.append(InteractWithTarget(index, message))
         case SharedCommandType.TakeDialogWithTarget:
@@ -709,6 +745,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(MessageDisableHeroAI(index, message))
         case SharedCommandType.EnableHeroAI:
             GLOBAL_CACHE.Coroutines.append(MessageEnableHeroAI(index, message))
+        case SharedCommandType.PressKey:
+            GLOBAL_CACHE.Coroutines.append(PressKey(index, message))   
         case SharedCommandType.LootEx:
             # privately Handled Command, by Frenkey
             pass
