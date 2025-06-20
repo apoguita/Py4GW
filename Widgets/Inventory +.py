@@ -396,7 +396,7 @@ def SalvageItems():
         if global_vars.salvage_checkbox_states[item_id]:
             quantity = GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)
             for _ in range(quantity):
-                ActionQueueManager().AddAction("SALVAGE", AutoSalvage, item_id)
+                ActionQueueManager().AddActionWithDelay("SALVAGE",200, AutoSalvage, item_id)
                 ActionQueueManager().AddAction("SALVAGE",Inventory.AcceptSalvageMaterialsWindow)
  
 #endregion
