@@ -8,8 +8,6 @@ import Py4GW
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import CombatPrepSkillsType
-from Py4GWCoreLib import Party
-from Py4GWCoreLib import Player
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
@@ -104,9 +102,9 @@ def load_formations_from_json():
 
 def draw_combat_prep_window(cached_data):
     if PyImGui.begin("Combat Prep", PyImGui.WindowFlags.AlwaysAutoResize):
-        # Currently hardcode to key 5
-        me = Player.GetAgentID()
-        is_party_leader = Party.GetPartyLeaderID() == me
+        is_party_leader = (
+            GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
+        )
         if not GLOBAL_CACHE.Map.IsExplorable() or not is_party_leader:
             PyImGui.text("Need to be party Leader and in Explorable Area")
             return
