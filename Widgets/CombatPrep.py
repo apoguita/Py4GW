@@ -4,24 +4,51 @@ import os
 import traceback
 
 import Py4GW
-
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import CombatPrepSkillsType
+from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
-
+from Py4GWCoreLib import Timer
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
+first_run = True
+
 BASE_DIR = os.path.join(project_root, "Widgets/Config")
 FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
-MODULE_NAME = "CombatPrep"
-
+INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "combat_prep_window.ini")
 os.makedirs(BASE_DIR, exist_ok=True)
+
+# String consts
+HOTKEY = "hotkey"
+MODULE_NAME = "CombatPrep"
+COLLAPSED = "collapsed"
+COORDINATES = "coordinates"
+VK = "vk"
+X_POS = "x"
+Y_POS = "y"
+
+# Flag constants
+IS_FLAGGED = "IsFlagged"
+FLAG_POSITION_X = "FlagPosX"
+FLAG_POSITION_Y = "FlagPosY"
+FOLOW_ANGLE = "FollowAngle"
+
 cached_data = CacheData()
+
+# ——— Window Persistence Setup ———
+ini_window = IniHandler(INI_WIDGET_WINDOW_PATH)
+save_window_timer = Timer()
+save_window_timer.Start()
+
+# load last‐saved window state (fallback to 100,100 / un-collapsed)
+window_x = ini_window.read_int(MODULE_NAME, X_POS, 100)
+window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
+window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
 
 # TODO (mark): add hotkeys for formation data once hotkey support is in Py4GW
@@ -31,9 +58,9 @@ def ensure_formation_json_exists():
     if not os.path.exists(FORMATIONS_JSON_PATH):
         default_json = {
             "Flag Front": {
-                "hotkey": None,
-                "vk": None,
-                "coordinates": [
+                HOTKEY: None,
+                VK: None,
+                COORDINATES: [
                     [0, 1000],
                     [0, 1000],
                     [0, 1000],
@@ -44,9 +71,9 @@ def ensure_formation_json_exists():
                 ],
             },
             "1,2 - Double Backline": {
-                "hotkey": None,
-                "vk": None,
-                "coordinates": [
+                HOTKEY: None,
+                VK: None,
+                COORDINATES: [
                     [200, -200],
                     [-200, -200],
                     [0, 200],
@@ -57,9 +84,9 @@ def ensure_formation_json_exists():
                 ],
             },
             "1 - Single Backline": {
-                "hotkey": None,
-                "vk": None,
-                "coordinates": [
+                HOTKEY: None,
+                VK: None,
+                COORDINATES: [
                     [0, -250],
                     [-100, 200],
                     [100, 200],
@@ -70,9 +97,9 @@ def ensure_formation_json_exists():
                 ],
             },
             "1,2 - Double Backline Triple Row": {
-                "hotkey": None,
-                "vk": None,
-                "coordinates": [
+                HOTKEY: None,
+                VK: None,
+                COORDINATES: [
                     [-200, -200],
                     [200, -200],
                     [-200, 0],
@@ -83,9 +110,9 @@ def ensure_formation_json_exists():
                 ],
             },
             "Disband Formation": {
-                "hotkey": None,
-                "vk": None,
-                "coordinates": [],
+                HOTKEY: None,
+                VK: None,
+                COORDINATES: [],
             },
         }
         with open(FORMATIONS_JSON_PATH, "w") as f:
@@ -175,35 +202,29 @@ def draw_combat_prep_window(cached_data):
                 final_x = leader_x + rotated_x
                 final_y = leader_y + rotated_y
 
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                    hero_ai_index, "IsFlagged", True
-                )
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                    hero_ai_index, "FlagPosX", final_x
-                )
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                    hero_ai_index, "FlagPosY", final_y
-                )
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                    hero_ai_index, "FollowAngle", leader_follow_angle
-                )
+                for flag_key, flag_key_value in [
+                    (IS_FLAGGED, True),
+                    (FLAG_POSITION_X, final_x),
+                    (FLAG_POSITION_Y, final_y),
+                    (FOLOW_ANGLE, leader_follow_angle),
+                ]:
+                    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                        hero_ai_index, flag_key, flag_key_value
+                    )
 
         if disband_formation:
-            for i in range(1, party_size):
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                    i, "IsFlagged", False
-                )
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                    i, "FlagPosX", 0.0
-                )
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                    i, "FlagPosY", 0.0
-                )
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                    i, "FollowAngle", 0.0
-                )
-            GLOBAL_CACHE.Party.Heroes.UnflagHero(i)
-            GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
+            for hero_ai_index in range(1, party_size):
+                for flag_key, flag_key_value in [
+                    (IS_FLAGGED, False),
+                    (FLAG_POSITION_X, 0),
+                    (FLAG_POSITION_Y, 0),
+                    (FOLOW_ANGLE, 0),
+                ]:
+                    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                        hero_ai_index, flag_key, flag_key_value
+                    )
+                GLOBAL_CACHE.Party.Heroes.UnflagHero(hero_ai_index)
+                GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
 
         PyImGui.text("Skill Prep:")
         PyImGui.separator()
@@ -240,6 +261,43 @@ def draw_combat_prep_window(cached_data):
                                 (CombatPrepSkillsType.SpiritsPrep, 0, 0, 0),
                             )
 
+        PyImGui.end_table()
+
+        PyImGui.text("Control Quick Action:")
+        PyImGui.separator()
+        if PyImGui.begin_table("OtherSetupTable", 3):
+            # Setup column widths BEFORE starting the table rows
+            PyImGui.table_setup_column(
+                "OtherSetup", PyImGui.TableColumnFlags.WidthStretch
+            )  # auto-size
+            PyImGui.table_setup_column(
+                "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
+            )  # fixed 30px
+            PyImGui.table_setup_column(
+                "Save", PyImGui.TableColumnFlags.WidthStretch
+            )  # auto-size
+
+            PyImGui.table_next_row()
+            # Column 1: Formation Button
+            PyImGui.table_next_column()
+            disable_party_leader_hero_ai = PyImGui.button("Disable Party Leader HeroAI")
+
+            # Column 2: Hotkey Input
+            # Get and display editable input buffer
+            PyImGui.table_next_column()
+
+            # Column 3: Save Hotkey Button
+            PyImGui.table_next_column()
+
+            sender_email = cached_data.account_email
+
+            if is_party_leader and disable_party_leader_hero_ai:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    sender_email,
+                    SharedCommandType.DisableHeroAI,
+                    (0, 0, 0, 0),
+                )
         PyImGui.end_table()
     PyImGui.end()
 
