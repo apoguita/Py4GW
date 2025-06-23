@@ -178,3 +178,4 @@ cython_debug/
 *.ini
 /Multiboxer
 *.ini
+.isort.cfg
