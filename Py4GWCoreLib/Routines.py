@@ -2073,6 +2073,7 @@ class Routines:
                     log (bool) Optional: Whether to log the action. Default is True.
                 Returns: None
                 """
+                yield from Routines.Yield.wait(1000)
                 start_time = Utils.GetBaseTimestamp()
                 waititng_for_map_load = True
                 while waititng_for_map_load:
@@ -2087,6 +2088,12 @@ class Routines:
                         return False
                        
                     current_map = GLOBAL_CACHE.Map.GetMapID()
+                    
+                    if (GLOBAL_CACHE.Map.IsExplorable() or GLOBAL_CACHE.Map.IsOutpost()) and current_map != map_id:
+                        ConsoleLog("WaitforMapLoad", f"Something went wrong, halting", log=log)
+                        yield from Routines.Yield.wait(1000)
+                        return False
+                    
                     if not current_map == map_id:
                         yield from Routines.Yield.wait(1000)
                         ConsoleLog("WaitforMapLoad", f"Waiting for map load {map_id} (current: {current_map})", log=log)
@@ -2227,11 +2234,15 @@ class Routines:
                 yield from Routines.Yield.Agents.TargetNearestNPCXY(x, y, 100)
                 agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetTargetID())
 
-                yield from Routines.Yield.Movement.FollowPath([(agent_x, agent_y)], timeout=1000)
+                follow_result = yield from Routines.Yield.Movement.FollowPath([(agent_x, agent_y)], timeout=15000)
+                if not follow_result:
+                    ConsoleLog("InteractWithAgentXY", "TIMEOUT on follow path to agent.", Console.MessageType.Warning)
+                    return False
                 yield from Routines.Yield.wait(1000)
                 
                 yield from Routines.Yield.Player.InteractTarget()
                 yield from Routines.Yield.wait(1000)
+                return True
                 
         class Merchant:
             @staticmethod
@@ -2442,7 +2453,7 @@ class Routines:
             @staticmethod
             def LootItems(item_array:list[int], log=False, progress_callback: Optional[Callable[[float], None]] = None):
                 if len(item_array) == 0:
-                    return
+                    return True
                 
                 total_items = len(item_array)
                 while len (item_array) > 0:
@@ -2450,20 +2461,33 @@ class Routines:
                     if item_id == 0:
                         continue
                     
+                    free_slots_in_inventory = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
+                    if free_slots_in_inventory <= 0:
+                        ConsoleLog("LootItems", "No free slots in inventory, stopping loot.", Console.MessageType.Warning)
+                        item_array.clear()
+                        ActionQueueManager().ResetAllQueues()
+                        return False
+                    
                     if not Routines.Checks.Map.MapValid():
                         item_array.clear()
                         ActionQueueManager().ResetAllQueues()
-                        return
+                        return False
                     
                     if not GLOBAL_CACHE.Agent.IsValid(item_id):
                         continue
                     
                     item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
-                    yield from Routines.Yield.Movement.FollowPath([(item_x, item_y)])
+                    item_reached = yield from Routines.Yield.Movement.FollowPath([(item_x, item_y)], timeout=5000)
+                    if not item_reached:
+                        ConsoleLog("LootItems", "Failed to reach item, stopping loot.", Console.MessageType.Warning)
+                        item_array.clear()
+                        ActionQueueManager().ResetAllQueues()
+                        return False
+                    
                     if not Routines.Checks.Map.MapValid():
                         item_array.clear()
                         ActionQueueManager().ResetAllQueues()
-                        return
+                        return False
                     if GLOBAL_CACHE.Agent.IsValid(item_id):
                         yield from Routines.Yield.Player.InteractAgent(item_id)
                         yield from Routines.Yield.wait(1250)
@@ -2472,6 +2496,8 @@ class Routines:
                         progress_callback(1 - len(item_array) / total_items)
                 if log and len(item_array) > 0:
                     ConsoleLog("LootItems", f"Looted {len(item_array)} items.", Console.MessageType.Info)
+                    
+                return True
 
 
 #endregion
