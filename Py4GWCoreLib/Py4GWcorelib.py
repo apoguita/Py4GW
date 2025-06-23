@@ -1,4 +1,5 @@
 import traceback
+import logging
 import math
 from enum import Enum
 import time
@@ -21,8 +22,9 @@ import socket
 import configparser
 import os
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
 
-#region IniHandler
+# region IniHandler
 class IniHandler:
     def __init__(self, filename: str):
         """
@@ -182,7 +184,7 @@ class IniHandler:
                 config.set(target_section, key, value)
             self.save(config)
 
-#endregion
+# endregion
 
 @staticmethod
 def ConsoleLog(sender, message, message_type:int=0 , log: bool = True):
@@ -206,7 +208,7 @@ def ConsoleLog(sender, message, message_type:int=0 , log: bool = True):
             Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Info)
 
 
-#region Utils
+# region Utils
 # Utils
 class Utils:
     from typing import Tuple
@@ -540,8 +542,8 @@ class Utils:
 
             return escape_vector
 
-#endregion
-#region Color
+# endregion
+# region Color
 class Color:
     def __init__(self, r: int = 255, g: int = 255, b: int = 255, a: int = 255):
         self.name: str = "Color"
@@ -628,9 +630,8 @@ class Color:
         return Color(new_r, new_g, new_b, new_a)
 
 
-
-#endregion
-#region Timer
+# endregion
+# region Timer
 class Timer:
     def __init__(self):
         """Initialize the Timer object with default values."""
@@ -722,8 +723,8 @@ def FormatTime(time_ms, mask="hh:mm:ss:ms"):
             formatted_time = formatted_time.replace("ms", f"{milliseconds:03}")
 
         return formatted_time
-#endregion
-#region ThrottledTimer
+# endregion
+# region ThrottledTimer
 
 class ThrottledTimer:
     def __init__(self, throttle_time=1000):
@@ -758,8 +759,8 @@ class ThrottledTimer:
             return 0
         return max(0, self.throttle_time - self.timer.GetElapsedTime())
 
-#endregion
-#region KeyHandler
+# endregion
+# region KeyHandler
 
 class Keystroke:
     @staticmethod
@@ -831,10 +832,10 @@ class Keystroke:
         """
         Keystroke.keystroke_instance().PushKeyCombo(modifiers)
 
-#endregion
+# endregion
 
-    
-#region ActionQueue
+
+# region ActionQueue
 
 class ActionQueue:
     def __init__(self):
@@ -844,7 +845,23 @@ class ActionQueue:
         self._step_ids = deque()          # Step ID queue (internal use)
         self._step_counter = 0            # Unique step ID tracker
         self._last_step_id = None         # Last executed step ID
+    
+    def _get_logger_for_email(self, account_email: str = None):
+        logger_name = f"ActionQueueLogger_{account_email or 'default'}"
+        logger = logging.getLogger(logger_name)
 
+        if not logger.handlers:
+            logger.setLevel(logging.INFO)
+            log_file = f"debug_action_log_{account_email}.log" if account_email else "debug_action_log.log"
+
+            handler = RotatingFileHandler(log_file, mode='a', maxBytes=10_000, backupCount=0)
+            formatter = logging.Formatter('%(asctime)s - %(message)s')
+            handler.setFormatter(formatter)
+
+            logger.addHandler(handler)
+            logger.propagate = False
+
+        return logger
 
     def add_action(self, action, *args, **kwargs):
         """
@@ -857,13 +874,23 @@ class ActionQueue:
         self.queue.append((action, args, kwargs))
         self._step_ids.append(self._step_counter)  # Track step ID
         self._step_counter += 1
-        
+
     def execute_next(self):
         if self.queue:
             action, args, kwargs = self.queue.popleft()
             self._last_step_id = self._step_ids.popleft()  # Extract step ID
+            
+            logger = self._get_logger_for_email()
+            if 'account_email' in kwargs:
+                account_email = kwargs.pop('account_email', None)
+                logger = self._get_logger_for_email(account_email)
+            
+            if logger:
+                logger.info(f"Executed {action.__name__}(*{args}, **{kwargs})")
+                
             action(*args, **kwargs)
             self.history.append((datetime.now(), action, args, kwargs))
+
             return True
         return False
 
@@ -874,20 +901,20 @@ class ActionQueue:
     def get_next_step_id(self):
         """Peek the step ID of the next action (non-invasive)"""
         return self._step_ids[0] if self._step_ids else None
-            
+
     def is_empty(self):
         """Check if the action queue is empty."""
         return not bool(self.queue)
-    
+
     def clear(self):
         """Clear all actions from the queue."""
         self.queue.clear()
         self._step_ids.clear()
-        
+
     def clear_history(self):
         """Clear the action history."""
         self.history.clear()
-        
+
     def get_next_action_name(self):
         """
         Get the name of the next action function in the queue, or None if empty.
@@ -900,7 +927,7 @@ class ActionQueue:
             parts.extend(f"{k}={v}" for k, v in kwargs.items())
             return ','.join(parts)
         return None
-    
+
     def get_all_action_names(self):
         """
         Get a list of all action names with arguments concatenated.
@@ -913,7 +940,7 @@ class ActionQueue:
             parts.extend(f"{k}={v}" for k, v in kwargs.items())
             action_strings.append(','.join(parts))
         return action_strings
-    
+
     def get_history(self):
         """
         Return the raw history queue: list of (datetime, function, args, kwargs).
@@ -937,9 +964,8 @@ class ActionQueue:
         return formatted
 
 
-        
 class ActionQueueNode:
-    def __init__(self,throttle_time=250):
+    def __init__(self, throttle_time=250):
         self.action_queue = ActionQueue()
         self.action_queue_timer = Timer()
         self.action_queue_timer.Start()
@@ -1026,6 +1052,7 @@ class ActionQueueManager:
         return cls._instance
 
     def _initialize_queues(self):
+        self.account_email = None
         self.queues = {
             "ACTION": ActionQueueNode(50),
             "LOOT": ActionQueueNode(1250),
@@ -1038,6 +1065,8 @@ class ActionQueueManager:
     def AddAction(self, queue_name, action, *args, **kwargs):
         """Add an action to a specific queue by name."""
         if queue_name in self.queues:
+            if self.account_email:
+                kwargs['account_email'] = self.account_email
             self.queues[queue_name].add_action(action, *args, **kwargs)
         else:
             raise ValueError(f"Queue '{queue_name}' does not exist.")
@@ -1059,7 +1088,7 @@ class ActionQueueManager:
         for queue in self.queues.values():
             queue.clear()
 
-    # Process specific queue
+     # Process specific queue
     def ProcessQueue(self, queue_name):
         if queue_name in self.queues:
             return self.queues[queue_name].ProcessQueue()
@@ -1101,13 +1130,11 @@ class ActionQueueManager:
         queue = self.GetQueue(queue_name)
         queue.clear_history()
 
-           
-            
-#endregion
+
+# endregion
 
 
-
-#region BehaviorTree
+# region BehaviorTree
 class BehaviorTree:
     class NodeState(Enum):
         RUNNING = 0
@@ -1313,9 +1340,9 @@ class BehaviorTree:
         def __init__(self, nodes=None):
             # Initialize the behavior tree with a list of nodes (can be Sequence, Selector, etc.)
             super().__init__(nodes)
-#endregion
+# endregion
 
-#region FSM
+# region FSM
 
 class FSM:
 
@@ -1858,10 +1885,10 @@ class FSM:
             if state.name == state_name:
                 return state
         return None
-    
-#endregion
 
-#region MultiThreading
+# endregion
+
+# region MultiThreading
 
 class MultiThreading:
     def __init__(self, timeout=1.0, log_actions=False):
@@ -2071,10 +2098,10 @@ class MultiThreading:
         """Manually stop watchdog if needed."""
         self.watchdog_active = False
 
-#endregion
+# endregion
 
 
-#region ConfigCalsses
+# region ConfigCalsses
 class LootConfig:
     _instance = None
 
@@ -2300,13 +2327,13 @@ class LootConfig:
         loot_array = AgentArray.Sort.ByDistance(loot_array, Player.GetXY())
 
         return loot_array
-#endregion
+# endregion
 
 
 import Py4GW
 
 
-#region AutoInventory
+# region AutoInventory
 class AutoInventoryHandler():
     _instance = None
 
@@ -2652,4 +2679,4 @@ class AutoInventoryHandler():
         ConsoleLog("AutoInventoryHandler", "ID, Salvage and Deposit routine completed", Py4GW.Console.MessageType.Success)
 
 
-#endregion
+# endregion

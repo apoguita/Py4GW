@@ -186,7 +186,8 @@ def InviteToParty(index, message):
 
 # endregion
 
-#region LeaveParty
+
+# region LeaveParty
 def LeaveParty(index, message):
     # ConsoleLog(MODULE_NAME, f"Processing LeaveParty message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -197,10 +198,14 @@ def LeaveParty(index, message):
     GLOBAL_CACHE.Party.LeaveParty()
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME,
-               "LeaveParty message processed and finished.", 
-               Console.MessageType.Info)
-#endregion
+    ConsoleLog(
+        MODULE_NAME,
+        "LeaveParty message processed and finished.",
+        Console.MessageType.Info,
+    )
+
+
+# endregion
 
 # region TravelToMap
 
@@ -432,22 +437,32 @@ def UsePcon(index, message):
 
 # endregion
 
-#region PressKey
+
+# region PressKey
 def PressKey(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info)
+    ConsoleLog(
+        MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info
+    )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
-    
-    key_id = int(message.Params[0])    
+
+    key_id = int(message.Params[0])
     repetition = int(message.Params[1]) if len(message.Params) > 1 else 1
-    
-    if key_id:    
+
+    if key_id:
         for _ in range(repetition):
             Keystroke.PressAndRelease(key_id)
             yield from Routines.Yield.wait(100)
-    
+
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "PressKey message processed and finished.", Console.MessageType.Info)   
-#endregion
+    ConsoleLog(
+        MODULE_NAME,
+        "PressKey message processed and finished.",
+        Console.MessageType.Info,
+    )
+
+
+# endregion
+
 
 # region PickUpLoot
 def PickUpLoot(index, message):
@@ -643,6 +658,8 @@ def UseSkillFromMessage(index, message):
             "Signet_of_Spirits",
             "Bloodsong",
             "Vampirism",
+            "Rejuvenation",
+            "Recuperation",
         ]
         skills_to_postcast = [
             ARMOR_OF_UNFEELING,
@@ -650,42 +667,49 @@ def UseSkillFromMessage(index, message):
 
         final_skills = skills_to_precast + spirit_skills_to_prep + skills_to_postcast
 
-        for skill in final_skills:
-            skill_id = GLOBAL_CACHE.Skill.GetID(skill)
-            slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+        try:
+            for skill in final_skills:
+                skill_id = GLOBAL_CACHE.Skill.GetID(skill)
+                slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
 
-            if not skill_id or not slot_number:
-                continue
+                if not skill_id or not slot_number:
+                    continue
 
-            if (
-                skill in spirit_skills_to_prep
-                and cached_data.combat_handler.SpiritBuffExists(skill_id)
-            ):
-                continue
+                if (
+                    skill in spirit_skills_to_prep
+                    and cached_data.combat_handler.SpiritBuffExists(skill_id)
+                ):
+                    continue
 
-            if not cached_data.combat_handler.IsReadyToCast(slot_number):
-                continue
+                if not cached_data.combat_handler.IsReadyToCast(slot_number):
+                    continue
 
-            if (
-                skill in spirit_skills_to_prep
-                or skill == SUMMON_SPIRITS_LUXON
-                or skill == SUMMON_SPIRITS_KURZICK
-            ):
-                if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250):
-                    yield from Routines.Yield.wait(1250)
-
-            if skill == ARMOR_OF_UNFEELING:
-                has_any_spirits_in_range = any(
-                    cached_data.combat_handler.SpiritBuffExists(
-                        GLOBAL_CACHE.Skill.GetID(spirit_skill)
-                    )
-                    for spirit_skill in spirit_skills_to_prep
-                )
-                if has_any_spirits_in_range:
-                    if Routines.Yield.Skills.CastSkillID(
-                        skill_id, aftercast_delay=1250
-                    ):
+                if (
+                    skill in spirit_skills_to_prep
+                    or skill == SUMMON_SPIRITS_LUXON
+                    or skill == SUMMON_SPIRITS_KURZICK
+                ):
+                    if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250):
                         yield from Routines.Yield.wait(1250)
+
+                if skill == ARMOR_OF_UNFEELING:
+                    has_any_spirits_in_range = any(
+                        cached_data.combat_handler.SpiritBuffExists(
+                            GLOBAL_CACHE.Skill.GetID(spirit_skill)
+                        )
+                        for spirit_skill in spirit_skills_to_prep
+                    )
+                    if has_any_spirits_in_range:
+                        if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250):
+                            yield from Routines.Yield.wait(1250)
+
+        except Exception as e:
+            ConsoleLog(
+                MODULE_NAME,
+                f"Error during spirit casting loop: {e}",
+                Console.MessageType.Error
+            )
+            yield from Routines.Yield.wait(500)  # optional backoff
 
         # --- Re-enable Hero AI ---
         yield from RestoreHeroAISnapshot(account_email)
@@ -714,7 +738,7 @@ def ProcessMessages():
         case SharedCommandType.InviteToParty:
             GLOBAL_CACHE.Coroutines.append(InviteToParty(index, message))
         case SharedCommandType.LeaveParty:
-            GLOBAL_CACHE.Coroutines.append(LeaveParty(index, message))    
+            GLOBAL_CACHE.Coroutines.append(LeaveParty(index, message))
         case SharedCommandType.InteractWithTarget:
             GLOBAL_CACHE.Coroutines.append(InteractWithTarget(index, message))
         case SharedCommandType.TakeDialogWithTarget:
@@ -746,7 +770,7 @@ def ProcessMessages():
         case SharedCommandType.EnableHeroAI:
             GLOBAL_CACHE.Coroutines.append(MessageEnableHeroAI(index, message))
         case SharedCommandType.PressKey:
-            GLOBAL_CACHE.Coroutines.append(PressKey(index, message))   
+            GLOBAL_CACHE.Coroutines.append(PressKey(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by Frenkey
             pass
