@@ -16,7 +16,6 @@ from typing import Callable
 from typing import Optional
 
 import PyAgent
-import PyPlayer
 import PyKeystroke
 
 import Py4GW
@@ -877,15 +876,15 @@ class ActionQueue:
         self._step_counter = 0  # Unique step ID tracker
         self._last_step_id = None  # Last executed step ID
 
-    def _get_logger_for_account_name(self, account_name: str = None):
-        logger_name = f"ActionQueueLogger_{account_name or 'default'}"
+    def _get_logger_for_account_email(self, account_email: str = None):
+        logger_name = f"ActionQueueLogger_{account_email or 'default'}"
         logger = logging.getLogger(logger_name)
 
         if not logger.handlers:
             logger.setLevel(logging.INFO)
             log_file = (
-                f"debug_action_log_{account_name}.log"
-                if account_name
+                f"debug_action_log_{account_email}.log"
+                if account_email
                 else "debug_action_log.log"
             )
 
@@ -917,8 +916,8 @@ class ActionQueue:
             action, args, kwargs = self.queue.popleft()
             self._last_step_id = self._step_ids.popleft()  # Extract step ID
 
-            account_name = PyPlayer.PyPlayer().account_name
-            logger = self._get_logger_for_account_name(account_name)
+            account_email = PyPlayer.PyPlayer().account_email
+            logger = self._get_logger_for_account_email(account_email)
 
             if logger:
                 logger.info(f"Called {action.__name__}(*{args}, **{kwargs})")
@@ -1086,6 +1085,7 @@ class ActionQueueManager:
         return cls._instance
 
     def _initialize_queues(self):
+        self.account_email = None
         self.queues = {
             "ACTION": ActionQueueNode(50),
             "LOOT": ActionQueueNode(1250),
