@@ -424,43 +424,6 @@ def draw_combat_prep_window(cached_data):
                     (0, 0, 0, 0),
                 )
         PyImGui.end_table()
-
-        PyImGui.text("Control Quick Action:")
-        PyImGui.separator()
-        if PyImGui.begin_table("OtherSetupTable", 3):
-            # Setup column widths BEFORE starting the table rows
-            PyImGui.table_setup_column(
-                "OtherSetup", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
-            PyImGui.table_setup_column(
-                "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
-            )  # fixed 30px
-            PyImGui.table_setup_column(
-                "Save", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
-
-            PyImGui.table_next_row()
-            # Column 1: Formation Button
-            PyImGui.table_next_column()
-            disable_party_leader_hero_ai = PyImGui.button("Disable Party Leader HeroAI")
-
-            # Column 2: Hotkey Input
-            # Get and display editable input buffer
-            PyImGui.table_next_column()
-
-            # Column 3: Save Hotkey Button
-            PyImGui.table_next_column()
-
-            sender_email = cached_data.account_email
-
-            if is_party_leader and disable_party_leader_hero_ai:
-                GLOBAL_CACHE.ShMem.SendMessage(
-                    sender_email,
-                    sender_email,
-                    SharedCommandType.DisableHeroAI,
-                    (0, 0, 0, 0),
-                )
-        PyImGui.end_table()
     PyImGui.end()
 
     if save_window_timer.HasElapsed(1000):
