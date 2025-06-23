@@ -62,33 +62,12 @@ class xunlaivault_config:
         self.synch_vault_with_inventory = True
         self.frame_id = 0
         self.xunlai_window_exists = False
-    
-#id config    
-class id_config:
-    def __init__(self):
-        self.enabled = False
-        self.frame_id = 0
-        self.inventory_window_exists = False
-  
-#salvage config      
-class salvage_config:
-    def __init__(self):
-        self.enabled = False
-        self.frame_id = 0
-        self.inventory_window_exists = False
         
 #global config
 class config:
     global parent_frame_id, inventory_frame_hash, MAX_BAGS
     
     def __init__(self):
-        self.inventory_window_exists = False
-        
-        self.game_throttle_time = 500
-        self.game_throttle_timer = Timer()
-        self.game_throttle_timer.Start()
-        self.id_vars = id_config()
-        self.salvage_vars = salvage_config()
         self.colorize_vars = ColorizeType.colorize
         self.selected_tab = TabType.colorize
         

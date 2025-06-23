@@ -6669,6 +6669,13 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
+        
+        skill = self.CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Death_Blossom")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.Nature = SkillNature.Offensive.value
+        self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Desperate_Strike")

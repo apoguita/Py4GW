@@ -540,10 +540,11 @@ def DrawOptions(cached_data:CacheData):
 
 
 class ButtonColor:
-    def __init__(self, button_color:Color, hovered_color:Color, active_color:Color):
+    def __init__(self, button_color:Color, hovered_color:Color, active_color:Color, texture_path=""):
         self.button_color = button_color
         self.hovered_color = hovered_color
         self.active_color = active_color
+        self.texture_path = texture_path
       
 
 ButtonColors = {
@@ -551,20 +552,20 @@ ButtonColors = {
     "PixelStack": ButtonColor(button_color=Color(90,0,10,255), hovered_color=Color(160,0,15,255), active_color=Color(190,0,20,255)),
     "Flag": ButtonColor(button_color=Color(90,0,10,255), hovered_color=Color(160,0,15,255), active_color=Color(190,0,20,255)),
     "ClearFlags": ButtonColor(button_color=Color(90,0,10,255), hovered_color=Color(160,0,15,255), active_color=Color(190,0,20,255)),
-    "Celerity": ButtonColor(button_color = Color(129, 33, 188, 255), hovered_color = Color(165, 100, 200, 255), active_color = Color(135, 225, 230, 255)),  
-    "GrailOfMight": ButtonColor(button_color=Color(70,0,10,255), hovered_color=Color(160,0,15,255), active_color=Color(252,225,115,255)),
-    "ArmorOfSalvation": ButtonColor(button_color = Color(96, 60, 15, 255),hovered_color = Color(187, 149, 38, 255),active_color = Color(225, 150, 0, 255)),
-    "CandyCane": ButtonColor(button_color = Color(63, 91, 54, 255),hovered_color = Color(149, 72, 34, 255),active_color = Color(96, 172, 28, 255)),
-    "BirthdayCupcake": ButtonColor(button_color = Color(138, 54, 80, 255),hovered_color = Color(255, 186, 198, 255),active_color = Color(205, 94, 215, 255)),
-    "GoldenEgg": ButtonColor(button_color = Color(245, 227, 143, 255),hovered_color = Color(253, 248, 234, 255),active_color = Color(129, 82, 35, 255)),
-    "CandyCorn": ButtonColor(button_color = Color(239, 174, 33, 255),hovered_color = Color(206, 178, 148, 255),active_color = Color(239, 77, 16, 255)),
-    "CandyApple": ButtonColor(button_color = Color(75, 26, 28, 255),hovered_color = Color(202, 60, 88, 255),active_color = Color(179, 0, 39, 255)),
-    "PumpkinPie": ButtonColor(button_color = Color(224, 176, 126, 255),hovered_color = Color(226, 209, 210, 255),active_color = Color(129, 87, 54, 255)),
-    "DrakeKabob": ButtonColor(button_color = Color(28, 28, 28, 255),hovered_color = Color(190, 187, 184, 255),active_color = Color(94, 26, 13, 255)),
-    "SkalefinSoup": ButtonColor(button_color = Color(68, 85, 142, 255),hovered_color = Color(255, 255, 107, 255),active_color = Color(106, 139, 51, 255)),
-    "PahnaiSalad": ButtonColor(button_color = Color(113, 43, 25, 255),hovered_color = Color(185, 157, 90, 255),active_color = Color(137, 175, 10, 255)),
-    "WarSupplies": ButtonColor(button_color = Color(51, 26, 13, 255),hovered_color = Color(113, 43, 25, 255),active_color = Color(202, 115, 77, 255)),
-    "Alcohol": ButtonColor(button_color = Color(58, 41, 50, 255),hovered_color = Color(169, 145, 111, 255),active_color = Color(173, 173, 156, 255)),
+    "Celerity": ButtonColor(button_color = Color(129, 33, 188, 255), hovered_color = Color(165, 100, 200, 255), active_color = Color(135, 225, 230, 255),texture_path="Textures\\Consumables\\Trimmed\\Essence_of_Celerity.png"),  
+    "GrailOfMight": ButtonColor(button_color=Color(70,0,10,255), hovered_color=Color(160,0,15,255), active_color=Color(252,225,115,255), texture_path="Textures\\Consumables\\Trimmed\\Grail_of_Might.png"),
+    "ArmorOfSalvation": ButtonColor(button_color = Color(96, 60, 15, 255),hovered_color = Color(187, 149, 38, 255),active_color = Color(225, 150, 0, 255), texture_path="Textures\\Consumables\\Trimmed\\Armor_of_Salvation.png"),
+    "CandyCane": ButtonColor(button_color = Color(63, 91, 54, 255),hovered_color = Color(149, 72, 34, 255),active_color = Color(96, 172, 28, 255), texture_path="Textures\\Consumables\\Trimmed\\Rainbow_Candy_Cane.png"),
+    "BirthdayCupcake": ButtonColor(button_color = Color(138, 54, 80, 255),hovered_color = Color(255, 186, 198, 255),active_color = Color(205, 94, 215, 255), texture_path="Textures\\Consumables\\Trimmed\\Birthday_Cupcake.png"),
+    "GoldenEgg": ButtonColor(button_color = Color(245, 227, 143, 255),hovered_color = Color(253, 248, 234, 255),active_color = Color(129, 82, 35, 255), texture_path="Textures\\Consumables\\Trimmed\\Golden_Egg.png"),
+    "CandyCorn": ButtonColor(button_color = Color(239, 174, 33, 255),hovered_color = Color(206, 178, 148, 255),active_color = Color(239, 77, 16, 255), texture_path="Textures\\Consumables\\Trimmed\\Candy_Corn.png"),
+    "CandyApple": ButtonColor(button_color = Color(75, 26, 28, 255),hovered_color = Color(202, 60, 88, 255),active_color = Color(179, 0, 39, 255), texture_path="Textures\\Consumables\\Trimmed\\Candy_Apple.png"),
+    "PumpkinPie": ButtonColor(button_color = Color(224, 176, 126, 255),hovered_color = Color(226, 209, 210, 255),active_color = Color(129, 87, 54, 255), texture_path="Textures\\Consumables\\Trimmed\\Slice_of_Pumpkin_Pie.png"),
+    "DrakeKabob": ButtonColor(button_color = Color(28, 28, 28, 255),hovered_color = Color(190, 187, 184, 255),active_color = Color(94, 26, 13, 255), texture_path="Textures\\Consumables\\Trimmed\\Drake_Kabob.png"),
+    "SkalefinSoup": ButtonColor(button_color = Color(68, 85, 142, 255),hovered_color = Color(255, 255, 107, 255),active_color = Color(106, 139, 51, 255), texture_path="Textures\\Consumables\\Trimmed\\Bowl_of_Skalefin_Soup.png"),
+    "PahnaiSalad": ButtonColor(button_color = Color(113, 43, 25, 255),hovered_color = Color(185, 157, 90, 255),active_color = Color(137, 175, 10, 255), texture_path="Textures\\Consumables\\Trimmed\\Pahnai_Salad.png"),
+    "WarSupplies": ButtonColor(button_color = Color(51, 26, 13, 255),hovered_color = Color(113, 43, 25, 255),active_color = Color(202, 115, 77, 255), texture_path="Textures\\Consumables\\Trimmed\\War_Supplies.png"),
+    "Alcohol": ButtonColor(button_color = Color(58, 41, 50, 255),hovered_color = Color(169, 145, 111, 255),active_color = Color(173, 173, 156, 255), texture_path="Textures\\Consumables\\Trimmed\\Dwarven_Ale.png"),
     "Blank": ButtonColor(button_color= Color(0, 0, 0, 0), hovered_color=Color(0, 0, 0, 0), active_color=Color(0, 0, 0, 0)),
 }
 
@@ -657,165 +658,143 @@ def DrawMessagingOptions(cached_data:CacheData):
     ImGui.show_tooltip("Get Dialog")
     PyImGui.separator()
     if PyImGui.collapsing_header("PCons"):
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["Celerity"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_GLOBE_ASIA}##commands_pcon_celerity", 
-                                ButtonColors["Celerity"].button_color, 
-                                ButtonColors["Celerity"].hovered_color, 
-                                ButtonColors["Celerity"].active_color, 
-                                width=30, height=30):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["Celerity"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["Celerity"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["Celerity"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##Esence_unique_name", ButtonColors["Celerity"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Esence of Celerity")
         
         PyImGui.same_line(0,-1)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["GrailOfMight"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_WINE_GLASS}##commands_pcon_grail_of_might", 
-                                ButtonColors["GrailOfMight"].button_color, 
-                                ButtonColors["GrailOfMight"].hovered_color, 
-                                ButtonColors["GrailOfMight"].active_color, 
-                                width=30, height=30):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["GrailOfMight"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["GrailOfMight"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["GrailOfMight"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##Grail_unique_name", ButtonColors["GrailOfMight"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Grail_Of_Might.value, GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Grail of Might")
-        
+
         PyImGui.same_line(0,-1)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["ArmorOfSalvation"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_SPLOTCH}##commands_pcon_ArmorOfSalvation", 
-                                ButtonColors["ArmorOfSalvation"].button_color, 
-                                ButtonColors["ArmorOfSalvation"].hovered_color, 
-                                ButtonColors["ArmorOfSalvation"].active_color, 
-                                width=30, height=30):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["ArmorOfSalvation"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["ArmorOfSalvation"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["ArmorOfSalvation"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##Armor_unique_name", ButtonColors["ArmorOfSalvation"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Armor_Of_Salvation.value, GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Armor of Salvation")
         
         PyImGui.same_line(0,-1)
         PyImGui.text("|")
         PyImGui.same_line(0,-1)
         
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["CandyCane"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_CANDY_CANE}##commands_pcon_CandyCane", 
-                                ButtonColors["CandyCane"].button_color, 
-                                ButtonColors["CandyCane"].hovered_color, 
-                                ButtonColors["CandyCane"].active_color, 
-                                width=30, height=30):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["CandyCane"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["CandyCane"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["CandyCane"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##CandyCane_unique_name", ButtonColors["CandyCane"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Rainbow_Cc.value, 0, ModelID.Honeycomb.value, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Rainbow Candy Cane / Honeycomb")
         PyImGui.separator()
         
-
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["BirthdayCupcake"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_BIRTHDAY_CAKE}##commands_pcon_BirthdayCupcake", 
-                                ButtonColors["BirthdayCupcake"].button_color, 
-                                ButtonColors["BirthdayCupcake"].hovered_color, 
-                                ButtonColors["BirthdayCupcake"].active_color, 
-                                width=30, height=30):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["BirthdayCupcake"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["BirthdayCupcake"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["BirthdayCupcake"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##BirthdayCupcake_unique_name", ButtonColors["BirthdayCupcake"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Birthday_Cupcake.value, GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Birthday Cupcake")
         
         PyImGui.same_line(0,-1)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["GoldenEgg"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_EGG}##commands_pcon_GoldenEgg", 
-                                ButtonColors["GoldenEgg"].button_color, 
-                                ButtonColors["GoldenEgg"].hovered_color, 
-                                ButtonColors["GoldenEgg"].active_color, 
-                                width=30, height=30):
+        
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["GoldenEgg"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["GoldenEgg"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["GoldenEgg"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##GoldenEgg_unique_name", ButtonColors["GoldenEgg"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Golden_Egg.value, GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Golden Egg")
         
         PyImGui.same_line(0,-1)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["CandyCorn"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_CARROT}##commands_pcon_CandyCorn", 
-                                ButtonColors["CandyCorn"].button_color, 
-                                ButtonColors["CandyCorn"].hovered_color, 
-                                ButtonColors["CandyCorn"].active_color, 
-                                width=30, height=30):
+        
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["CandyCorn"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["CandyCorn"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["CandyCorn"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##CandyCorn_unique_name", ButtonColors["CandyCorn"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Candy_Corn.value, GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Candy Corn")
         
         PyImGui.same_line(0,-1)
         PyImGui.text("|")
         PyImGui.same_line(0,-1)
         
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["Alcohol"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_WINE_BOTTLE}##commands_pcon_Alcohol", 
-                                ButtonColors["Alcohol"].button_color, 
-                                ButtonColors["Alcohol"].hovered_color, 
-                                ButtonColors["Alcohol"].active_color, 
-                                width=30, height=30):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["Alcohol"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["Alcohol"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["Alcohol"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##Alcohol_unique_name", ButtonColors["Alcohol"].texture_path, 32, 32):
             pass
-        PyImGui.pop_style_color(1)
-        ImGui.show_tooltip("Alcohol")
+        PyImGui.pop_style_color(3)
+        ImGui.show_tooltip("Alcohol (WIP)")
+
         PyImGui.separator()
         
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["CandyApple"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_APPLE_ALT}##commands_pcon_CandyApple", 
-                                ButtonColors["CandyApple"].button_color, 
-                                ButtonColors["CandyApple"].hovered_color, 
-                                ButtonColors["CandyApple"].active_color, 
-                                width=30, height=30):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["CandyApple"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["CandyApple"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["CandyApple"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##CandyApple_unique_name", ButtonColors["CandyApple"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Candy_Apple.value, GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Candy Apple")
         
         PyImGui.same_line(0,-1)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["PumpkinPie"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_CHEESE}##commands_pcon_PumpkinPie", 
-                                ButtonColors["PumpkinPie"].button_color, 
-                                ButtonColors["PumpkinPie"].hovered_color, 
-                                ButtonColors["PumpkinPie"].active_color, 
-                                width=30, height=30):
+        
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["PumpkinPie"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["PumpkinPie"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["PumpkinPie"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##PumpkinPie_unique_name", ButtonColors["PumpkinPie"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Slice_Of_Pumpkin_Pie.value, GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Slice of Pumpkin Pie")
         
         PyImGui.same_line(0,-1)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["DrakeKabob"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_SLASH}##commands_pcon_DrakeKabob", 
-                                ButtonColors["DrakeKabob"].button_color, 
-                                ButtonColors["DrakeKabob"].hovered_color, 
-                                ButtonColors["DrakeKabob"].active_color, 
-                                width=30, height=30):
-            _post_pcon_message((ModelID.Drake_Kabob.value, GLOBAL_CACHE.Skill.GetID("Drake_Skin"), 0, 0))
-        PyImGui.pop_style_color(1)
+        
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["DrakeKabob"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["DrakeKabob"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["DrakeKabob"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##DrakeKabob_unique_name", ButtonColors["DrakeKabob"].texture_path, 32, 32):
+            _post_pcon_message((ModelID.Slice_Of_Pumpkin_Pie.value, GLOBAL_CACHE.Skill.GetID("Drake_Skin"), 0, 0))
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Drake Kabob")
 
         PyImGui.separator()
         
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["SkalefinSoup"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_MORTAR_PESTLE}##commands_pcon_SkalefinSoup", 
-                                ButtonColors["SkalefinSoup"].button_color, 
-                                ButtonColors["SkalefinSoup"].hovered_color, 
-                                ButtonColors["SkalefinSoup"].active_color, 
-                                width=30, height=30):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["SkalefinSoup"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["SkalefinSoup"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["SkalefinSoup"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##SkalefinSoup_unique_name", ButtonColors["SkalefinSoup"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Bowl_Of_Skalefin_Soup.value, GLOBAL_CACHE.Skill.GetID("Skale_Vigor"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Skalefin Soup")
         
         PyImGui.same_line(0,-1)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["PahnaiSalad"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_RING}##commands_pcon_PahnaiSalad", 
-                                ButtonColors["PahnaiSalad"].button_color, 
-                                ButtonColors["PahnaiSalad"].hovered_color, 
-                                ButtonColors["PahnaiSalad"].active_color, 
-                                width=30, height=30):
+        
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["PahnaiSalad"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["PahnaiSalad"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["PahnaiSalad"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##PahnaiSalad_unique_name", ButtonColors["PahnaiSalad"].texture_path, 32, 32):
             _post_pcon_message((ModelID.Pahnai_Salad.value, GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Pahnai Salad")
         
         PyImGui.same_line(0,-1)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ButtonColors["WarSupplies"].active_color.to_tuple_normalized())
-        if ImGui.colored_button(f"{IconsFontAwesome5.ICON_TOOLBOX}##commands_pcon_WarSupplies", 
-                                ButtonColors["WarSupplies"].button_color, 
-                                ButtonColors["WarSupplies"].hovered_color, 
-                                ButtonColors["WarSupplies"].active_color, 
-                                width=30, height=30):
+        
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, ButtonColors["WarSupplies"].button_color.to_tuple_normalized())  # On color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["WarSupplies"].hovered_color.to_tuple_normalized())  # Hover color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["WarSupplies"].active_color.to_tuple_normalized())
+        if ImGui.ImageButton("##WarSupplies_unique_name", ButtonColors["WarSupplies"].texture_path, 32, 32):
             _post_pcon_message((ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied"), 0, 0))
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(3)
         ImGui.show_tooltip("War Supplies")
     
     

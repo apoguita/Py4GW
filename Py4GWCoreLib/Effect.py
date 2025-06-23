@@ -143,3 +143,25 @@ class Effects:
             if buff.skill_id == skill_id:
                     return buff.buff_id
         return 0
+
+    @staticmethod
+    def GetAlcoholLevel() -> int:
+        """
+        Purpose: Get the alcohol level of a specific agent.
+        Args:
+            agent_id (int): The agent ID of the party member.
+        Returns: int: The alcohol level of the agent.
+        """
+        return PyEffects.PyEffects.GetAlcoholLevel()
+    
+    @staticmethod
+    def ApplyDrunkEffect(intensity: int, tint: int):
+        """
+        Purpose: Apply a drunk effect to a specific agent.
+        Args:
+            agent_id (int): The agent ID of the party member.
+            intensity (int): The intensity of the drunk effect.
+            tint (int): The tint color for the drunk effect.
+        Returns: None
+        """
+        PyEffects.PyEffects.ApplyDrunkEffect(intensity, tint)
