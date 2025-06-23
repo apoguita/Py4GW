@@ -7,7 +7,6 @@ import traceback
 import Py4GW
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import CombatPrepSkillsType
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
@@ -52,8 +51,6 @@ save_window_timer.Start()
 window_x = ini_window.read_int(MODULE_NAME, X_POS, 100)
 window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
-
-action_queue_manager = ActionQueueManager()
 
 
 # TODO (mark): add hotkeys for formation data once hotkey support is in Py4GW
@@ -454,9 +451,6 @@ def main():
 
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
-
-            if cached_data.account_email:
-                action_queue_manager.account_email = cached_data.account_email
             draw_combat_prep_window(cached_data)
 
     except ImportError as e:

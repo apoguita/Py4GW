@@ -1,5 +1,4 @@
 import time
-
 from datetime import datetime
 from datetime import timezone
 
@@ -16,7 +15,6 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
-
 
 cached_data = CacheData()
 
