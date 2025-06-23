@@ -5,7 +5,6 @@ import os
 import traceback
 
 import Py4GW
-
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
@@ -15,7 +14,6 @@ from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
-
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 script_directory = os.path.dirname(os.path.abspath(__file__))
