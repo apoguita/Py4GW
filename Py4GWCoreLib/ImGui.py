@@ -42,7 +42,21 @@ class ImGui:
         SeparatorTextAlign = 26
         SeparatorTextPadding = 27
         COUNT = 28
-    
+        
+    @staticmethod
+    def DrawTexture(texture_path: str, width: float = 32.0, height: float = 32.0):
+        Overlay().DrawTexture(texture_path, width, height)
+     
+    @staticmethod   
+    def DrawTexturedRect(x: float, y: float, width: float, height: float, texture_path: str):
+        Overlay().BeginDraw()
+        Overlay().DrawTexturedRect(x, y, width, height, texture_path)
+        Overlay().EndDraw()
+        
+    @staticmethod
+    def ImageButton(caption: str, texture_path: str, width: float = 32.0, height: float = 32.0, frame_padding: int = -1) -> bool:
+        return Overlay().ImageButton(caption, texture_path, width, height, frame_padding)
+        
     @staticmethod
     def show_tooltip(text: str):
         """

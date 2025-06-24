@@ -9,7 +9,7 @@ from .Party import Party
 from typing import Optional
 from .Py4GWcorelib import ThrottledTimer
 from .Py4GWcorelib import ActionQueueManager
-from .Py4GWcorelib import Utils
+from .Py4GWcorelib import Console
 from .Py4GWcorelib import ConsoleLog
 from .enums import Range
 from .Routines import Routines
@@ -123,46 +123,6 @@ MAX_NUM_PLAYERS = 8
 
 
 class SkillManager:
-    class HeroAICombat:
-        def __init__(self):
-            self.cache_data = CacheData()
-            self.game_throttle_timer = ThrottledTimer(75)
-
-        def _HandleOutOfCombat(self):
-            if not self.cache_data.data.is_combat_enabled:  # halt operation if combat is disabled
-                return False
-            if self.cache_data.data.in_aggro:
-                return False
-
-            return self.cache_data.combat_handler.HandleCombat(ooc= True)
-
-        def _HandleCombat(self):
-            if not self.cache_data.data.is_combat_enabled:  # halt operation if combat is disabled
-                return False
-            if not self.cache_data.data.in_aggro:
-                return False
-            return self.cache_data.combat_handler.HandleCombat(ooc= False)
-
-        def HandleCombat(self):
-            self.cache_data.Update()
-            RegisterPlayer(self.cache_data)  
-            RegisterHeroes(self.cache_data) 
-            UpdatePlayers(self.cache_data)
-            
-            if self.game_throttle_timer.IsExpired():
-                self.game_throttle_timer.Reset()
-                if self.cache_data.data.in_aggro:
-                    if self._HandleCombat():
-                        return
-                else:
-                    if self._HandleOutOfCombat():
-                        return
-                
-                if self.cache_data.auto_attack_timer.HasElapsed(self.cache_data.auto_attack_time):
-                    if not self.cache_data.data.player_is_attacking:
-                        self.cache_data.combat_handler.ChooseTarget()
-                    self.cache_data.auto_attack_timer.Reset()
-
     class Autocombat: 
         custom_skill_data_handler = CustomSkillClass()
         class _SkillData:

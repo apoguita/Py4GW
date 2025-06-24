@@ -13,15 +13,14 @@ import PyKeystroke
 
 from .Agent import *
 from abc import ABC, abstractmethod
-from .Player import Player
 from .enums import *
 
-
+from typing import Callable
 import threading
 import socket
 import configparser
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 #region IniHandler
 class IniHandler:
@@ -32,6 +31,7 @@ class IniHandler:
         self.filename = filename
         self.last_modified = 0
         self.config = configparser.ConfigParser()
+        self.reload()  # Load the config initially
 
     # ----------------------------
     # Core Methods
@@ -111,7 +111,7 @@ class IniHandler:
     # Write Methods
     # ----------------------------
 
-    def write_key(self, section: str, key: str, value: str) -> None:
+    def write_key(self, section: str, key: str, value) -> None:
         """
         Write or update a key-value pair.
         """
@@ -327,6 +327,10 @@ class Utils:
         except (ValueError, TypeError, OverflowError):
             return fallback
 
+    @staticmethod
+    def GetBaseTimestamp():
+        SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        return int((time.time() - SHMEM_ZERO_EPOCH) * 1000)
 
     class VectorFields:
         """
@@ -732,9 +736,27 @@ class ThrottledTimer:
     
     def Reset(self):
         self.timer.Reset()
+        
+    def Start(self):
+        self.timer.Start()
+        
+    def Stop(self):
+        self.timer.Stop()
+    
+    def IsStopped(self):
+        return self.timer.IsStopped()
+    
     
     def SetThrottleTime(self, throttle_time):
         self.throttle_time = throttle_time
+        
+    def GetTimeElapsed(self):
+        return self.timer.GetElapsedTime()
+    
+    def GetTimeRemaining(self):
+        if self.timer.IsStopped():
+            return 0
+        return max(0, self.throttle_time - self.timer.GetElapsedTime())
 
 #endregion
 #region KeyHandler
@@ -819,6 +841,9 @@ class ActionQueue:
         """Initialize the action queue."""
         self.queue = deque() # Use deque for efficient FIFO operations
         self.history = deque(maxlen=100)  # Store recent action history with a cap
+        self._step_ids = deque()          # Step ID queue (internal use)
+        self._step_counter = 0            # Unique step ID tracker
+        self._last_step_id = None         # Last executed step ID
 
 
     def add_action(self, action, *args, **kwargs):
@@ -830,16 +855,25 @@ class ActionQueue:
         :param kwargs: Keyword arguments for the function.
         """
         self.queue.append((action, args, kwargs))
+        self._step_ids.append(self._step_counter)  # Track step ID
+        self._step_counter += 1
         
     def execute_next(self):
         if self.queue:
             action, args, kwargs = self.queue.popleft()
+            self._last_step_id = self._step_ids.popleft()  # Extract step ID
             action(*args, **kwargs)
-            
             self.history.append((datetime.now(), action, args, kwargs))
             return True
         return False
 
+    def get_last_step_id(self):
+        """Return the step ID of the last executed action"""
+        return self._last_step_id
+
+    def get_next_step_id(self):
+        """Peek the step ID of the next action (non-invasive)"""
+        return self._step_ids[0] if self._step_ids else None
             
     def is_empty(self):
         """Check if the action queue is empty."""
@@ -848,6 +882,7 @@ class ActionQueue:
     def clear(self):
         """Clear all actions from the queue."""
         self.queue.clear()
+        self._step_ids.clear()
         
     def clear_history(self):
         """Clear the action history."""
@@ -909,28 +944,47 @@ class ActionQueueNode:
         self.action_queue_timer = Timer()
         self.action_queue_timer.Start()
         self.action_queue_time = throttle_time
+        self._aftercast_delays = deque()
+        
 
     def execute_next(self):
-        if self.action_queue_timer.HasElapsed(self.action_queue_time):      
+        delay = self._aftercast_delays[0] if self._aftercast_delays else 0
+        if self.action_queue_timer.HasElapsed(self.action_queue_time + delay):      
             result = self.action_queue.execute_next()
             self.action_queue_timer.Reset()
+            if self._aftercast_delays:
+                self._aftercast_delays.popleft()
             return result
         return False
+    
+    def AftercastDelay(self):
+        """Dummy action used to enforce a delay step in the queue."""
+        pass
                 
     def add_action(self, action, *args, **kwargs):
         self.action_queue.add_action(action, *args, **kwargs)
+        self._aftercast_delays.append(0)
+        
+    def add_action_with_delay(self, delay, action, *args, **kwargs):
+        self.action_queue.add_action(action, *args, **kwargs)
+        self._aftercast_delays.append(0)  # Real action runs immediately
+
+        self.action_queue.add_action(self.AftercastDelay)
+        self._aftercast_delays.append(delay)  # Delay applies to this no-op step
         
     def is_empty(self):
         return self.action_queue.is_empty()
     
     def clear(self):
         self.action_queue.clear()
+        self._aftercast_delays.clear()
         
     def clear_history(self):
         self.action_queue.clear_history()
         
     def IsExpired(self):
-        return self.action_queue_timer.HasElapsed(self.action_queue_time)
+        delay = self._aftercast_delays[0] if self._aftercast_delays else 0
+        return self.action_queue_timer.HasElapsed(self.action_queue_time + delay)
     
     def ProcessQueue(self):
         if self.IsExpired():
@@ -976,8 +1030,8 @@ class ActionQueueManager:
             "ACTION": ActionQueueNode(50),
             "LOOT": ActionQueueNode(1250),
             "MERCHANT": ActionQueueNode(750),
-            "SALVAGE": ActionQueueNode(325),
-            "IDENTIFY": ActionQueueNode(250)
+            "SALVAGE": ActionQueueNode(350),
+            "IDENTIFY": ActionQueueNode(150)
             # Add more queues here if needed
         }
         
@@ -985,6 +1039,13 @@ class ActionQueueManager:
         """Add an action to a specific queue by name."""
         if queue_name in self.queues:
             self.queues[queue_name].add_action(action, *args, **kwargs)
+        else:
+            raise ValueError(f"Queue '{queue_name}' does not exist.")
+        
+    def AddActionWithDelay(self, queue_name, delay, action, *args, **kwargs):
+        """Add an action with a delay to a specific queue by name."""
+        if queue_name in self.queues:
+            self.queues[queue_name].add_action_with_delay(delay, action, *args, **kwargs)
         else:
             raise ValueError(f"Queue '{queue_name}' does not exist.")
 
@@ -1402,6 +1463,48 @@ class FSM:
             if self.sub_fsm:
                 self.sub_fsm.reset()
         
+    class YieldRoutineState(State):
+        def __init__(self, id, name=None, coroutine_fn=None):
+            """
+            A state that runs a yield-based coroutine and waits for it to complete.
+
+            :param coroutine_fn: A function that returns a generator (yield-based coroutine)
+            """
+            super().__init__(id=id, name=name or f"YieldRoutine-{id}")
+            self.coroutine_fn = coroutine_fn
+            self.coroutine_instance = None
+
+        def execute(self):
+            from Py4GWCoreLib import GLOBAL_CACHE
+            if not self.executed:
+                if self.coroutine_fn:
+                    try:
+                        self.coroutine_instance = self.coroutine_fn()
+                        if self.coroutine_instance:
+                            GLOBAL_CACHE.Coroutines.append(self.coroutine_instance)
+                    except Exception as e:
+                        ConsoleLog("FSM", f"Error starting coroutine for state '{self.name}': {e}", Py4GW.Console.MessageType.Error)
+                self.reset_transition_timer()
+                self.executed = True
+
+        def can_exit(self):
+            from Py4GWCoreLib import GLOBAL_CACHE
+            """
+            Exit only if coroutine is finished.
+            """
+            if not self.transition_timer.HasElapsed(self.transition_delay_ms):
+                return False
+
+            # Check if coroutine is no longer running
+            if self.coroutine_instance and self.coroutine_instance in GLOBAL_CACHE.Coroutines:
+                return False  # Still running
+
+            return True
+  
+        
+        
+        
+        
     def SetLogBehavior(self, log_actions=False):
         """
         Set whether to log state transitions and actions.
@@ -1431,6 +1534,26 @@ class FSM:
         
         self.states.append(state)
         self.state_counter += 1
+        
+    def AddYieldRoutineStep(self, name, coroutine_fn, transition_delay_ms=0):
+        """
+        Add a yield-based coroutine step to the FSM.
+        The coroutine is added to GLOBAL_CACHE.Coroutines and the FSM waits until it finishes.
+
+        :param name: Name of the state.
+        :param coroutine_fn: Function that returns a yield-based generator.
+        """
+        step = self.YieldRoutineState(
+            id=self.state_counter,
+            name=name,
+            coroutine_fn=coroutine_fn
+        )
+        step.transition_delay_ms = transition_delay_ms
+        if self.states:
+            self.states[-1].set_next_state(step)
+        self.states.append(step)
+        self.state_counter += 1
+
 
     def AddSubroutine(self, name=None, condition_fn=None, sub_fsm=None,
                   on_enter=None, on_exit=None):
@@ -1476,6 +1599,7 @@ class FSM:
 
         if self.log_actions:
             Py4GW.Console.Log("FSM", f"{self.name}: FSM has been reset.", Py4GW.Console.MessageType.Info)
+            
 
     def get_state_names(self):
         return [s.name for s in self.states]
@@ -1975,6 +2099,8 @@ class LootConfig:
         self.loot_greens = False
         self.whitelist = set()  # Avoid duplicates
         self.blacklist = set()
+        self.item_id_blacklist = set()  # For items that are blacklisted by ID
+        self.item_id_whitelist = set()  # For items that are whitelisted by ID
 
     def SetProperties(self, loot_whites=False, loot_blues=False, loot_purples=False, loot_golds=False, loot_greens=False, loot_gold_coins=False):
         self.loot_gold_coins = loot_gold_coins
@@ -1989,61 +2115,136 @@ class LootConfig:
 
     def AddToBlacklist(self, model_id: int):
         self.blacklist.add(model_id)
+        
+    def AddItemIDToWhitelist(self, item_id: int):
+        """
+        Add an item ID to the whitelist.
+        This is used for items that should be picked up regardless of their model ID.
+        """
+        self.item_id_whitelist.add(item_id)
+        
+    def AddItemIDToBlacklist(self, item_id: int):
+        """
+        Add an item ID to the blacklist.
+        This is used for items that should not be picked up regardless of their model ID.
+        """
+        self.item_id_blacklist.add(item_id)
 
     def RemoveFromWhitelist(self, model_id: int):
         self.whitelist.discard(model_id)
+        
+    def RemoveItemIDFromWhitelist(self, item_id: int):
+        """
+        Remove an item ID from the whitelist.
+        This is used for items that were previously whitelisted.
+        """
+        self.item_id_whitelist.discard(item_id)
 
     def RemoveFromBlacklist(self, model_id: int):
         self.blacklist.discard(model_id)
         
+    def RemoveItemIDFromBlacklist(self, item_id: int):
+        """
+        Remove an item ID from the blacklist.
+        This is used for items that were previously blacklisted.
+        """
+        self.item_id_blacklist.discard(item_id)
+        
     def ClearWhitelist(self):
         self.whitelist.clear()
         
+    def ClearItemIDWhitelist(self):
+        """
+        Clear the item ID whitelist.
+        This is used to remove all item IDs that were whitelisted.
+        """
+        self.item_id_whitelist.clear()
+        
     def ClearBlacklist(self):
         self.blacklist.clear()
+        
+    def ClearItemIDBlacklist(self):
+        """
+        Clear the item ID blacklist.
+        This is used to remove all item IDs that were blacklisted.
+        """
+        self.item_id_blacklist.clear()
 
     def IsWhitelisted(self, model_id: int):
         return model_id in self.whitelist
 
     def IsBlacklisted(self, model_id: int):
         return model_id in self.blacklist
+    
+    def IsItemIDWhitelisted(self, item_id: int):
+        """
+        Check if an item ID is whitelisted.
+        This is used to determine if an item should be picked up based on its ID.
+        """
+        return item_id in self.item_id_whitelist
+    
+    def IsItemIDBlacklisted(self, item_id: int):
+        """
+        Check if an item ID is blacklisted.
+        This is used to determine if an item should be ignored based on its ID.
+        """
+        return item_id in self.item_id_blacklist
 
     def GetWhitelist(self):
         return list(self.whitelist)
 
     def GetBlacklist(self):
         return list(self.blacklist)
+    
+    def GetItemIDBlacklist(self):
+        """
+        Get the list of blacklisted item IDs.
+        This is used to retrieve all item IDs that should not be picked up.
+        """
+        return list(self.item_id_blacklist)
 
-    def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value, multibox_loot: bool = False):
+    def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value, multibox_loot: bool = False, allow_unasigned_loot=False) -> list[int]:
         from .AgentArray import AgentArray
-        from .Agent import Agent
-        from .Party import Party
-        from .Player import Player
-        from .Item import Item
-        from .Map import Map
         from .GlobalCache import GLOBAL_CACHE
         from .Routines import Routines
+        from .Agent import Agent
+        from .Item import Item
+        from .Player import Player
+        from .Party import Party
         if not Routines.Checks.Map.MapValid():
             return []
-        
         
         def IsValidItem(item_id):
             if not Routines.Checks.Map.MapValid():
                 return False
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            owner_id = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
+            
+            if not Agent.IsValid(item_id):
+                return False    
+            player_agent_id = Player.GetAgentID()
+            owner_id = Agent.GetItemAgentOwnerID(item_id)
             return ((owner_id == player_agent_id) or (owner_id == 0))
 
         def IsValidFollowerItem(item_id):
+            
             if not Routines.Checks.Map.MapValid():
                 return False
-            party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            owner_id = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
+            if not Agent.IsValid(item_id):
+                return False 
+            party_leader_id = Party.GetPartyLeaderID()
+            player_agent_id = Player.GetAgentID()
+            owner_id = Agent.GetItemAgentOwnerID(item_id)
             
             if party_leader_id == player_agent_id:
-                # If the player is the party leader, all items are valid
-                return ((owner_id == player_agent_id) or (owner_id == 0))
+                # If the player is the party leader, gold coins are valid
+                agent = Agent.agent_instance(item_id)
+                item_agent_id = agent.item_agent.item_id
+                model_id = Item.GetModelID(item_agent_id)
+                if model_id == ModelID.Gold_Coins.value:
+                    is_gold_coin = True
+                else:
+                    is_gold_coin = allow_unasigned_loot
+
+                return ((owner_id == player_agent_id) or (is_gold_coin))
             else:
                 # If the player is a follower, only items owned by the player are valid
                 return (owner_id == player_agent_id)
@@ -2052,8 +2253,8 @@ class LootConfig:
         if not Routines.Checks.Map.MapValid():
             return []
             
-        loot_array = GLOBAL_CACHE.AgentArray.GetItemArray()
-        loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), distance)
+        loot_array = AgentArray.GetItemArray()
+        loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), distance)
 
         if multibox_loot:
             loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidFollowerItem(item_id))
@@ -2062,35 +2263,393 @@ class LootConfig:
 
 
         for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
-            item_data = GLOBAL_CACHE.Agent.GetItemAgent(agent_id)
+            item_data = Agent.GetItemAgent(agent_id)
             item_id = item_data.item_id
-            model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
+            model_id = Item.GetModelID(item_id)
 
             if self.IsWhitelisted(model_id):
+                continue
+            
+            if self.IsItemIDWhitelisted(item_id):
                 continue
 
             if self.IsBlacklisted(model_id):
                 loot_array.remove(agent_id)
                 continue
-
-            if not self.loot_whites and GLOBAL_CACHE.Item.Rarity.IsWhite(item_id):
-                loot_array.remove(agent_id)
-                continue
-            if not self.loot_blues and GLOBAL_CACHE.Item.Rarity.IsBlue(item_id):
-                loot_array.remove(agent_id)
-                continue
-            if not self.loot_purples and GLOBAL_CACHE.Item.Rarity.IsPurple(item_id):
-                loot_array.remove(agent_id)
-                continue
-            if not self.loot_golds and GLOBAL_CACHE.Item.Rarity.IsGold(item_id):
-                loot_array.remove(agent_id)
-                continue
-            if not self.loot_greens and GLOBAL_CACHE.Item.Rarity.IsGreen(item_id):
+            
+            if self.IsItemIDBlacklisted(item_id):
                 loot_array.remove(agent_id)
                 continue
 
-        loot_array = AgentArray.Sort.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY())
+            if not self.loot_whites and Item.Rarity.IsWhite(item_id):
+                loot_array.remove(agent_id)
+                continue
+            if not self.loot_blues and Item.Rarity.IsBlue(item_id):
+                loot_array.remove(agent_id)
+                continue
+            if not self.loot_purples and Item.Rarity.IsPurple(item_id):
+                loot_array.remove(agent_id)
+                continue
+            if not self.loot_golds and Item.Rarity.IsGold(item_id):
+                loot_array.remove(agent_id)
+                continue
+            if not self.loot_greens and Item.Rarity.IsGreen(item_id):
+                loot_array.remove(agent_id)
+                continue
+
+        loot_array = AgentArray.Sort.ByDistance(loot_array, Player.GetXY())
 
         return loot_array
 #endregion
 
+
+import Py4GW
+
+
+#region AutoInventory
+class AutoInventoryHandler():
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(AutoInventoryHandler, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self):
+        from Py4GWCoreLib import ThrottledTimer, IniHandler
+        if self._initialized:
+            return
+        self._LOOKUP_TIME:int = 15000
+        self.lookup_throttle = ThrottledTimer(self._LOOKUP_TIME)
+        self.ini = IniHandler("AutoLoot.ini")
+        self.initialized = False
+        self.status = "Idle"
+        self.outpost_handled = False
+        self.module_active = False
+        self.module_name = "AutoInventoryHandler"
+        
+        self.id_whites = False
+        self.id_blues = True
+        self.id_purples = True
+        self.id_golds = False
+        self.id_greens = False
+        
+        self.salvage_whites = True
+        self.salvage_rare_materials = False
+        self.salvage_blues = True
+        self.salvage_purples = True
+        self.salvage_golds = False
+        self.salvage_blacklist = []  # Items that should not be salvaged, even if they match the salvage criteria
+        self.blacklisted_model_id = 0
+        self.model_id_search = ""
+        self.model_id_search_mode = 0  # 0 = Contains, 1 = Starts With
+        self.show_dialog_popup = False 
+        
+        self.deposit_trophies = True
+        self.deposit_materials = True
+        self.deposit_blues = True
+        self.deposit_purples = True
+        self.deposit_golds = True
+        self.deposit_greens = True
+        self.keep_gold = 5000
+        
+        self.load_from_ini(self.ini, "AutoLootOptions")
+        self._initialized = True
+           
+    def save_to_ini(self, section: str = "AutoLootOptions"):
+        self.ini.write_key(section, "module_active", str(self.module_active))
+        self.ini.write_key(section, "lookup_time", str(self._LOOKUP_TIME))
+        self.ini.write_key(section, "id_whites", str(self.id_whites))
+        self.ini.write_key(section, "id_blues", str(self.id_blues))
+        self.ini.write_key(section, "id_purples", str(self.id_purples))
+        self.ini.write_key(section, "id_golds", str(self.id_golds))
+        self.ini.write_key(section, "id_greens", str(self.id_greens))
+
+        self.ini.write_key(section, "salvage_whites", str(self.salvage_whites))
+        self.ini.write_key(section, "salvage_rare_materials", str(self.salvage_rare_materials))
+        self.ini.write_key(section, "salvage_blues", str(self.salvage_blues))
+        self.ini.write_key(section, "salvage_purples", str(self.salvage_purples))
+        self.ini.write_key(section, "salvage_golds", str(self.salvage_golds))
+
+        self.ini.write_key(section, "salvage_blacklist", ",".join(str(i) for i in sorted(set(self.salvage_blacklist))))
+
+        self.ini.write_key(section, "deposit_trophies", str(self.deposit_trophies))
+        self.ini.write_key(section, "deposit_materials", str(self.deposit_materials))
+        self.ini.write_key(section, "deposit_blues", str(self.deposit_blues))
+        self.ini.write_key(section, "deposit_purples", str(self.deposit_purples))
+        self.ini.write_key(section, "deposit_golds", str(self.deposit_golds))
+        self.ini.write_key(section, "deposit_greens", str(self.deposit_greens))
+        self.ini.write_key(section, "keep_gold", str(self.keep_gold))
+
+
+    def load_from_ini(self, ini, section: str = "AutoLootOptions"):
+        from Py4GWCoreLib import ThrottledTimer
+
+        self._LOOKUP_TIME = ini.read_int(section, "lookup_time", self._LOOKUP_TIME)
+        self.lookup_throttle = ThrottledTimer(self._LOOKUP_TIME)
+
+        self.module_active = ini.read_bool(section, "module_active", self.module_active)
+        self.id_whites = ini.read_bool(section, "id_whites", self.id_whites)
+        self.id_blues = ini.read_bool(section, "id_blues", self.id_blues)
+        self.id_purples = ini.read_bool(section, "id_purples", self.id_purples)
+        self.id_golds = ini.read_bool(section, "id_golds", self.id_golds)
+        self.id_greens = ini.read_bool(section, "id_greens", self.id_greens)
+
+        self.salvage_whites = ini.read_bool(section, "salvage_whites", self.salvage_whites)
+        self.salvage_rare_materials = ini.read_bool(section, "salvage_rare_materials", self.salvage_rare_materials)
+        self.salvage_blues = ini.read_bool(section, "salvage_blues", self.salvage_blues)
+        self.salvage_purples = ini.read_bool(section, "salvage_purples", self.salvage_purples)
+        self.salvage_golds = ini.read_bool(section, "salvage_golds", self.salvage_golds)
+
+        blacklist_str = ini.read_key(section, "salvage_blacklist", "")
+        self.salvage_blacklist = [int(x) for x in blacklist_str.split(",") if x.strip().isdigit()]
+
+
+        self.deposit_trophies = ini.read_bool(section, "deposit_trophies", self.deposit_trophies)
+        self.deposit_materials = ini.read_bool(section, "deposit_materials", self.deposit_materials)
+        self.deposit_blues = ini.read_bool(section, "deposit_blues", self.deposit_blues)
+        self.deposit_purples = ini.read_bool(section, "deposit_purples", self.deposit_purples)
+        self.deposit_golds = ini.read_bool(section, "deposit_golds", self.deposit_golds)
+        self.deposit_greens = ini.read_bool(section, "deposit_greens", self.deposit_greens)
+
+        self.keep_gold = ini.read_int(section, "keep_gold", self.keep_gold)
+        
+    def AutoID(self, item_id):
+        from Py4GWCoreLib import Inventory, ConsoleLog
+        first_id_kit = Inventory.GetFirstIDKit()
+        if first_id_kit == 0:
+            ConsoleLog(self.module_name, "No ID Kit found in inventory", Py4GW.Console.MessageType.Warning)
+        else:
+            Inventory.IdentifyItem(item_id, first_id_kit)
+            
+    def AutoSalvage(self, item_id):
+        from Py4GWCoreLib import Inventory, ConsoleLog
+        first_salv_kit = Inventory.GetFirstSalvageKit(use_lesser=True)
+        if first_salv_kit == 0:
+            ConsoleLog(self.module_name, "No Salvage Kit found in inventory", Py4GW.Console.MessageType.Warning)
+        else:
+            Inventory.SalvageItem(item_id, first_salv_kit)
+            
+    def IdentifyItems(self,progress_callback: Optional[Callable[[float], None]] = None):
+        from Py4GWCoreLib import GLOBAL_CACHE, Item, Routines, Bags, ActionQueueManager, ConsoleLog
+        def _get_total_id_uses():
+            total_uses = 0
+            for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
+                bag_items = GLOBAL_CACHE.ItemArray.GetItemArray(GLOBAL_CACHE.ItemArray.CreateBagList(bag_id))
+                for item_id in bag_items:
+                    if Item.Usage.IsIDKit(item_id):
+                        total_uses += Item.Usage.GetUses(item_id)
+
+            return total_uses
+        
+        total_uses = _get_total_id_uses()
+        current_uses = 0
+        for bag_id in range(Bags.Backpack, Bags.Bag2+1):
+            bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+            item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
+            
+            for item_id in item_array:
+                if total_uses == 0:
+                    ConsoleLog(self.module_name, f"Identified {current_uses} items, no more ID Kits left in inventory", Py4GW.Console.MessageType.Warning)
+                    yield
+                    return
+                
+                is_identified = GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)
+                
+                if is_identified:
+                    yield
+                    continue
+                
+                _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+                if ((rarity == "White" and self.id_whites) or
+                    (rarity == "Blue" and self.id_blues) or
+                    (rarity == "Green" and self.id_greens) or
+                    (rarity == "Purple" and self.id_purples) or
+                    (rarity == "Gold" and self.id_golds)):
+                    ActionQueueManager().AddAction("IDENTIFY", self.AutoID, item_id)
+                    current_uses += 1
+                    total_uses -= 1
+                    yield
+                    
+        while not ActionQueueManager().IsEmpty("IDENTIFY"):
+            yield from Routines.Yield.wait(100)
+                    
+        if current_uses > 0:
+            ConsoleLog(self.module_name, f"Identified {current_uses} items", Py4GW.Console.MessageType.Success)
+            
+    def SalvageItems(self,progress_callback: Optional[Callable[[float], None]] = None):
+        from Py4GWCoreLib import GLOBAL_CACHE, Item, Routines, Bags, ActionQueueManager, ConsoleLog, Inventory
+        def _get_total_salv_uses():
+            total_uses = 0
+            for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
+                bag_items = GLOBAL_CACHE.ItemArray.GetItemArray(GLOBAL_CACHE.ItemArray.CreateBagList(bag_id))
+                for item_id in bag_items:
+                    if Item.Usage.IsLesserKit(item_id):
+                        total_uses += Item.Usage.GetUses(item_id)
+
+            return total_uses
+        
+        total_uses = _get_total_salv_uses()
+        current_uses = 0
+        for bag_id in range(Bags.Backpack, Bags.Bag2+1):
+            bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+            item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
+            
+            for item_id in item_array:
+                if total_uses == 0:
+                    ConsoleLog(self.module_name, f"Salvaged {current_uses} items, no more Salvage Kits left in inventory", Py4GW.Console.MessageType.Warning)
+                    yield
+                    return
+                
+                quantity = GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)
+                _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+                is_white =  rarity == "White"
+                is_blue = rarity == "Blue"
+                is_green = rarity == "Green"
+                is_purple = rarity == "Purple"
+                is_gold = rarity == "Gold"
+                is_material = GLOBAL_CACHE.Item.Type.IsMaterial(item_id)
+                is_material_salvageable = GLOBAL_CACHE.Item.Usage.IsMaterialSalvageable(item_id)
+                is_identified = GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)
+                is_salvageable = GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id)
+                is_salvage_kit = GLOBAL_CACHE.Item.Usage.IsLesserKit(item_id)
+                model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
+                
+                if not ((is_white and is_salvageable) or (is_identified and is_salvageable)):
+                    yield
+                    continue
+                
+                if model_id in self.salvage_blacklist:
+                    yield
+                    continue
+                
+                if is_white and is_material and is_material_salvageable and not self.salvage_rare_materials:
+                    yield
+                    continue
+                
+                if is_white and not is_material and not self.salvage_whites:
+                    yield
+                    continue
+                
+                if is_blue and not self.salvage_blues:
+                    yield
+                    continue
+                
+                if is_purple and not self.salvage_purples:
+                    yield
+                    continue
+                
+                if is_gold and not self.salvage_golds:
+                    yield
+                    continue
+                
+
+                for _ in range(quantity):
+                    ActionQueueManager().AddAction("SALVAGE", self.AutoSalvage, item_id)
+                    
+                    yield from Routines.Yield.Items._wait_for_empty_queue("SALVAGE")
+                    
+                    if (is_purple or is_gold):
+                        yield from Routines.Yield.Items._wait_for_salvage_materials_window()
+                        ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
+                        yield from Routines.Yield.Items._wait_for_empty_queue("SALVAGE")
+                        
+                    yield from Routines.Yield.wait(100)
+                    
+                    current_uses += 1
+                    total_uses -= 1
+                    
+
+                    if total_uses == 0:
+                        ConsoleLog(self.module_name, f"Salvaged {current_uses} items, no more Salvage Kits left in inventory", Py4GW.Console.MessageType.Warning)
+                        yield
+                        return
+
+                    yield
+                    
+                    
+        if current_uses > 0:
+            ConsoleLog(self.module_name, f"Salvaged {current_uses} items", Py4GW.Console.MessageType.Success)
+            
+    def DepositItemsAuto(self):
+        from Py4GWCoreLib import GLOBAL_CACHE, Routines, Bags
+        for bag_id in range(Bags.Backpack, Bags.Bag2+1):
+            bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
+            item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
+            
+            for item_id in item_array:
+                # Check if the item is a trophy or material
+                is_trophy = GLOBAL_CACHE.Item.Type.IsTrophy(item_id)
+                is_tome = GLOBAL_CACHE.Item.Type.IsTome(item_id)
+                _, item_type = GLOBAL_CACHE.Item.GetItemType(item_id)
+                is_usable = (item_type == "Usable")
+                
+                is_material = GLOBAL_CACHE.Item.Type.IsMaterial(item_id)
+                _, rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+                is_white =  rarity == "White"
+                is_blue = rarity == "Blue"
+                is_green = rarity == "Green"
+                is_purple = rarity == "Purple"
+                is_gold = rarity == "Gold"
+                
+                if is_tome:
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                    yield from Routines.Yield.wait(350)
+                
+                if is_trophy and self.deposit_trophies and is_white:
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                    yield from Routines.Yield.wait(350)
+                
+                if is_material and self.deposit_materials:
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                    yield from Routines.Yield.wait(350)
+                
+                if is_blue and self.deposit_blues:
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                    yield from Routines.Yield.wait(350)
+                
+                if is_purple and self.deposit_purples:
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                    yield from Routines.Yield.wait(350)
+                
+                if is_gold and self.deposit_golds and not is_usable and not is_trophy:
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                    yield from Routines.Yield.wait(350)
+                
+                if is_green and self.deposit_greens:
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                    yield from Routines.Yield.wait(350)
+            
+            
+    def IDAndSalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None):
+        self.status = "Identifying"
+        yield from self.IdentifyItems()
+        if progress_callback:
+            progress_callback(0.5)
+        self.status = "Salvaging"
+        yield from self.SalvageItems()
+        self.status = "Idle"
+        yield
+        
+    def IDSalvageDepositItems(self):
+        from Py4GWCoreLib import Routines, ConsoleLog
+        ConsoleLog("AutoInventoryHandler", "Starting ID, Salvage and Deposit routine", Py4GW.Console.MessageType.Info)
+        self.status = "Identifying"
+        yield from self.IdentifyItems()
+        
+        self.status = "Salvaging"
+        yield from self.SalvageItems()
+        
+        self.status = "Depositing"
+        yield from self.DepositItemsAuto()
+        
+        self.status = "Depositing Gold"
+        
+        yield from Routines.Yield.Items.DepositGold(self.keep_gold, log =False)
+        
+        self.status = "Idle"
+        ConsoleLog("AutoInventoryHandler", "ID, Salvage and Deposit routine completed", Py4GW.Console.MessageType.Success)
+
+
+#endregion

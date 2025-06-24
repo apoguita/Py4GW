@@ -1,5 +1,8 @@
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib import ActionQueueNode
+from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib import Map
 
 module_name = "Skip Cinematic"
 
@@ -10,6 +13,7 @@ class config:
         self.is_party_loaded = False
         self.is_in_cinematic = False
         self.game_throttle_timer = ThrottledTimer(500)
+        self.custom_action_queue = ActionQueueNode(100)
 
 widget_config = config()
 
@@ -29,12 +33,13 @@ def main():
         
     if widget_config.is_map_ready and widget_config.is_party_loaded and widget_config.is_in_cinematic and widget_config.skipped == False:
         for i in range(0,2):
-            GLOBAL_CACHE.Map.SkipCinematic()
+            widget_config.custom_action_queue.add_action(Map.SkipCinematic)
         widget_config.skipped = True
     else:
         widget_config.skipped = False
 
-        
+    if not widget_config.custom_action_queue.is_empty():
+        widget_config.custom_action_queue.execute_next()
 
 if __name__ == "__main__":
     main()

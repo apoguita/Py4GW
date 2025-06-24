@@ -1,0 +1,743 @@
+- Inventory+
+- HeroAI adding targetting options
+- Looting Improvements
+- adding logging on shMem game options
+- Added extra logging for Shared Mem options
+- Skip Cinematic Widget dixes
+- Stability Fixes
+- Merge pull request #160 from Ac108a/patch-1
+- Update modelid_drop_data.json
+- Update enums.py
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Adding Caching on shared memory
+- Merge pull request #159 from jtmele1/compass+
+- changed quest-giving npc markers from 6-pointed star to 8-pointed star enemy spirits now show spirit ranges (marker color matches 'Enemy' marker, spirit area color matches 'Spirit (____)' color) custom agent checkmarks now match the color of the custom agent for readability
+- reimplemented global Pick up Loot Message
+- HeroAI, Adding Pcon Handling
+- Messaging, added routines
+- Merge pull request #158 from markpnoi26/adjust_absolute_positioning_on_flag
+- added fix
+- Merge pull request #157 from frenkey-derp/patch-8
+- Merge pull request #156 from frenkey-derp/patch-7
+- Update enums.py
+- Update Messaging.py
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- Color Picker Widget
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- ui fixes and added EoE, QZ, and Winnowing as custom agents (to match toolbox)
+- HeroAI, Added Pixel Stack  Routines and Message
+- HeroAI Follow Individual Flag exact
+- HeroAI Migrating Account Control to global Shared Memory
+- HeroAi, Adding Messaging tab
+- Boreal Yield Updating script for using global yield environment
+- Global Shared Memory Manager
+- Merge pull request #155 from jtmele1/compass+
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- changed dead markers from alpha mod to transition to black changed custom marker ui + other ui improvements fixed compass showing in cinematics (hopefully) changed draw order to draw gadgets first
+- Fixing Looting Issues
+- HeroAI, adding Targetting options
+- HeroAI, combat, fast casting, expertise
+- Py4GW DLL , stability fixes on loading statuses for Player, Party
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- HeroAI, Name throttling to prevent random crashes form handlign names
+- Merge pull request #152 from jtmele1/compass+
+- more map checks
+- (hopefully) fixed draw error when zoning
+- Py4GW DLL Map Loading sanity Checks
+- HeroAI, moving to using GLOBAL_CACHE
+- HeroAI candidate Name Sanity chesk
+- HeroAI  precaching candidate Names
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- HeroAI Fixing Candidate Window
+- Merge pull request #151 from jtmele1/compass+
+- custom markers
+- Merge pull request #150 from jtmele1/compass+
+- refactored compass code updaged to use GLOBAL_CACHE
+- Modifiyng Widgets to use Global Cache
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- AgentIngo Widget
+- Merge pull request #149 from LLYANL/main
+- Update custom_skill.py
+- Routines class update for Global Cache
+- GLOBAL CACHE Adding classes
+- GLOBAL CACHE , adding Cclasses
+- Merge pull request #145 from jtmele1/compass+
+- Merge pull request #144 from Torx10/wm-enhance
+- Merge pull request #147 from frenkey-derp/patch-6
+- Merge pull request #146 from frenkey-derp/patch-5
+- Update combat.py
+- Update custom_skill.py
+- update compass for global cache
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- fix(ui_widget_menu): checkbox state now syncs correctly with widget enabled
+- perf(widget_manager): optimize UI and reduce per-frame overhead
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Added GlobalCache Singleton Class
+- Merge pull request #141 from frenkey-derp/patch-4
+- Merge pull request #143 from Ac108a/main
+- Update enums.py
+- Update enums.py
+- Merge pull request #140 from frenkey-derp/patch-3
+- Update enums.py
+- HeroAI adding AlliesInRange condition
+- HeroAI, adding support for Wards and Aoe Targetting
+- Merge pull request #138 from markpnoi26/clean-up-formations
+- added improvements to formations flagger
+- Merge pull request #137 from markpnoi26/formation_flagger
+- Merge pull request #136 from Torx10/sc-edit
+- added formation flagging, double backline/single backline
+- adjust sorting, adjust chara select check
+- perf(widget_manager)
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- Performance enhancing changes
+- Merge pull request #134 from Torx10/wm-main
+- perf(ui): throttle character select updates
+- Added Yield Library for zsequential coding
+- Merge pull request #132 from Zilvereyes/dev
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- HeroAI, adding looting status to cached data
+- Merge pull request #133 from Torx10/wm-fixes
+- fix(ui): improve frame detection using different ID checks
+- Update Survival Title Helper.py
+- fixing map status
+- Merge pull request #131 from Ac108a/main
+- Update Dialog Sync.py
+- Update Dialog Sync.py
+- Merge pull request #130 from Torx10/widget_manager
+- fix+refactor(widget_manager): patch metadata and remove wildcards
+- added Survival Title Helper Widget
+- Merge pull request #129 from Torx10/widget_updates
+- Hero AI adjusting Loot + Auto attack timers
+- feat(widget manager): overhaul widget configuration system and UI
+- HeroAI improving retargetting
+- HeroAI, increase responsivenesson changing targets
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- HeroAI shared memory, fixing issues with hourly bases timouts and reconnections
+- Merge pull request #128 from Ac108a/patch-2
+- Update LootManager.py
+- Merge pull request #127 from Ac108a/main
+- Create Nick_cycles.json
+- Update LootManager.py
+- Merge pull request #126 from Torx10/widget_modifications
+- fix(config): improve character select detection reliability
+- Merge pull request #125 from Torx10/widget_modifications
+- fix(widgets): Adjusted loading screen checks to reduce potential crashes
+- sanity check in Get Blessed widget
+- Merge pull request #120 from Ac108a/main
+- Reverting Widget Manager
+- Merge pull request #123 from apoguita/revert-122-widget_updates
+- Revert "refactor(widget_manager): widget config scope to fix circular reference and fix floating button drag logic"
+- Merge pull request #122 from Torx10/widget_updates
+- fix(widget_manager) remove import that isnt needed and possible circular cause.
+- Update LootManager.py
+- Update modelid_drop_data.json
+- fix(widget_manager) Add None check to internal _load_widget_manager     should print the module trying to load none in the console.
+- fix(ui): restrict Quick Dock dragging to direct interaction only
+- refactor(widget_manager): decouple config scope to remove circular deps
+- Update modelid_drop_data.json
+- Update enums.py
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- Update Get Blessed.py
+- Update Dialog Sync.py
+- Update Get Blessed.py
+- Merge pull request #119 from Torx10/widget-update
+- Added support for saving console positions and size in the Py4Gw.ini
+- feat(config): add restore default settings option
+- Merge remote-tracking branch 'upstream/main' into widget-update
+- feat(settings): support restore defaults and strict meta config
+- Updating Widget defaults
+- Merge pull request #118 from Torx10/widget-update
+- refactor(widget-config): fix boolean defaults and unify floating menu state
+- feat(settings): unify config saving and improve account/global support
+- feat(widget_manager): improve default loading and quickdock UI
+- refactor(widget-manager): modularize and improve widget handling
+- refactor(widget): restructure manager logic and improve layout
+- Up To date
+- Merge pull request #117 from Ac108a/main
+- Update Dialog Sync.py
+- Merge pull request #116 from Ac108a/main
+- Update Dialog Sync.py
+- Update Py4GW.ini
+- Create Dialog Sync.py
+- Update and rename Blessing_UI.py to Get Blessed.py
+- Merge branch 'apoguita:main' into main
+- PyImGui Fixing Issues with IO struct
+- Update __init__.py
+- Update Verify_Blessing.py
+- Update Blessing_dialog_helper.py
+- Update Blessing_Core.py
+- removing all name handling form Rawaagentarray
+- RawAgentArray names, temporarily removed Agent Name Update
+- adding back reset function to raw agent array
+- Fifing Agent Name bugs in RawAgentArray
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- HeroAI, Adding Custom Override Priorities
+- Merge pull request #115 from Ac108a/Blessed
+- Update Blessing_Core.py
+- Adding functions to PyImgui
+- HeroAI adjusting following logic, fixing bugs on auto attack
+- Merge pull request #114 from Ac108a/main
+- Merge pull request #113 from Zilvereyes/Pet-Helper
+- Update LootManager.py
+- Create Verify_Blessing.py
+- Create Blessing_dialog_helper.py
+- Create Blessing_Core.py
+- Create __init__.py
+- Delete Blessed_helpers directory
+- Update Py4GW.ini
+- Update Blessed_Config.ini
+- Create Blessing_UI.py
+- Create Verify_Blessing.py
+- Create Blessing_dialog_helper.py
+- Create Blessing_Core.py
+- Create __init__.py
+- Update Pet Helper.py
+- Update of enums.py & Pet Helper.py
+- Update Pet Helper.py
+- removing blessing UI
+- HeroAI, fixing Following issues
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Resolved merge conflict: kept local Py4GW.ini
+- Merge pull request #112 from Ac108a/patch-1
+- Create Blessed_Config.ini
+- Create Blessing_UI.py
+- Update Py4GW.ini
+- Create Verify_Blessing-py
+- Create Blessing_dialog_helper.py
+- Create Blessing_Core.py
+- Create __init__.py
+- Merge pull request #111 from apoguita/revert-109-patch-1
+- Revert "Patch 1"
+- Merge pull request #110 from frenkey-derp/patch-2
+- Merge pull request #109 from Ac108a/Bounty Taker
+- Update Inventory.py
+- Update Py4GW.ini
+- Create Blessed_Config.ini
+- Create Blessing_UI.py
+- Create Verify_Blessing.py
+- Create Blessing_dialog_helper.py
+- Create Blessing_Core.py
+- Create __init__.py
+- HeroAI , fixing crashes on dissapearing Targets
+- HeroAI, fixing Priority casting sequence reset
+- RawAgentArray Python Native reimplement
+- RawAgentArray Improved caching of names
+- RawAgentArray, Adjuting Internal timer
+- Merge pull request #106 from Ac108a/patch-1
+- Increasing internal throttle of RawAgent Array
+- Update enums.py
+- Merge pull request #105 from Ac108a/patch-1
+- Update modelid_drop_data.json
+- Update enums.py
+- adding begin_with_close to PyImgui
+- Merge pull request #104 from Ac108a/patch-1
+- Fixing reset issues on Environment Upkeeper
+- Added Environment Upkeeper widget
+- Update rarity_filter_data.json
+- Update modelid_drop_data.json
+- Update LootManager.py
+- Adjusting Switch character list to show 10 characters
+- renaming Reroll Character to Switch character widget
+- Merge pull request #103 from apoguita/revert-102-patch-1
+- Revert "Update LootManager.py"
+- Merge pull request #102 from Ac108a/patch-1
+- Update LootManager.py
+- Merge pull request #101 from Ac108a/patch-1
+- Update modelid_drop_data.json
+- Stability changes
+- Resign On Neter Map, sanity checks, Increased throttle from 50ms to 3000ms
+- RawAgentArray , adding cleanup on map change
+- RawAgentArray, sanity check on Map change array clear
+- Raw Agent Array, increased throttling
+- Py4GW DLL, Adding RawAgent routines to game enqueue
+- RawAgentArray Temporary Removed Agent NameHandling to allow testing
+- Skip Cinematic Widget , increased throttle time
+- adjusting Agent Request Name timings
+- Added thread safety on request Agent Names
+- Added extra sanity checks for map loading on agent array and Request Agent Names
+- Merge pull request #99 from Ac108a/patch-1
+- Update enums.py
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- HeroAI , Healing Skill Balance
+- Merge pull request #96 from Copephobia/outpost-names
+- Add Outpost Names and Missing Explorable Names
+- HeroAI, balancing Healing and Prot Skills, Fixing Vanquish Widget
+- Merge pull request #92 from thermad/Quickfix
+- Increased MissionMap load delay
+- Raw Agent Array stability improvements
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Mission Map+ extra Stability checks & handling
+- Merge pull request #89 from apoguita/revert-88-fix-skill-priority
+- Revert "fix PrioritizeSkills algorithm"
+- Merge pull request #88 from pierregorce/fix-skill-priority
+- Adjusting coimbat cooldown timer STAY_ALERT_TIME
+- fix PrioritizeSkills algorithm
+- added Action Queue Monitor Widget
+- HeroAI adding sanity checks on RawAgentArray
+- Misison Map + , Adding artifical load timer
+- Merge pull request #87 from Zilvereyes/dev
+- Merge pull request #86 from Torx10/main
+- Merge branch 'apoguita:main' into dev
+- Merge branch 'dev' of https://github.com/Zilvereyes/Py4GW into dev
+- Update Pet Helper.py
+- Merge remote-tracking branch 'upstream/main'
+- delete some weapons for space
+- Merge pull request #85 from apoguita/revert-78-main
+- Revert "Better Shout & Stance managment"
+- Merge pull request #84 from Torx10/main
+- turn off debug
+- testing copy func
+- proof farmer changes
+- Fixinf Boreal bot Async Pick up and Dialog
+- Mision Map+ removed threading
+- Added support for All Xunlai Inventory Tabs
+- Fixing HeroAI Looting, Added Multibox checks on LootArray
+- Merge pull request #83 from Zilvereyes/dev
+- Merge branch 'apoguita:main' into dev
+- Update Pet Helper.py
+- Merge pull request #82 from Zilvereyes/dev
+- Update Pet Helper.py
+- PetHelper UI and functionality
+- removed Unidentified fields from Agent object
+- HeroAI fixing looting routines
+- adjusting RawAgentArray throttle timer
+- Raw Agent Array Caching  and Throttling
+- Enter Character on Load Rework
+- Merge pull request #80 from thermad/Quick-Fix
+- Fixed a small bug
+- Update readme.txt
+- Merge pull request #79 from frenkey-derp/patch-1
+- Fixed EnergyBuff Targeting
+- disables RawAgentarray fro mdll, readded code in python.
+- Raw agent array temp removal
+- Merge pull request #78 from Greg-76/main
+- Merge pull request #77 from Copephobia/rollerbeetle-bot
+- Better Shout & Stance managment
+- Add check for missing account name (not registered)
+- RawAgentArray Sanity checks
+- reroll Character UI rework, reorganized Widget Categories, added imgui functions
+- Merge pull request #76 from Torx10/main
+- add extra check in create chara
+- Merge pull request #75 from Torx10/main
+- added under lvl 5 check
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Map ready Sanity checks on RawAgentArray
+- Merge pull request #74 from Ac108a/patch-1
+- Merge pull request #73 from Zilvereyes/dev
+- Update modelid_drop_data.json
+- Merge branch 'apoguita:main' into dev
+- Update PetHelper.py
+- Adding Loot manager to repo
+- Merge pull request #72 from Ac108a/main
+- Update enums.py
+- Update LootManager.py
+- Update LootManager.py
+- Update LootManager.py
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- package tester
+- Update LootManager.py
+- Update LootManager.py
+- Merge pull request #71 from Torx10/main
+- remove click
+- Merge pull request #70 from Torx10/main
+- safer click
+- more changes
+- Merge pull request #69 from Torx10/widget_manager_singleton
+- Merge pull request #68 from Greg-76/main
+- Merge pull request #67 from haxgw/patch-3
+- Update enums.py
+- Update PetHelper.py
+- singleton rewrite of widget_manager.py and extended its features if people need it.
+- push
+- Update enums.py
+- Update Py4GW.ini
+- Create LootManager.py
+- Delete Widgets/Loot.py
+- Update Py4GW.ini
+- Update Py4GWcorelib.py
+- Create rarity_filter_data.json
+- Create modelid_drop_data.json
+- Update HeroAI.py
+- Update Vaettir Async v2.4.py
+- Adding Vaettir Async v2.4
+- Merge pull request #66 from Copephobia/rollerbeetle-bot
+- FSM fixes, skill fixes
+- Merge pull request #65 from Torx10/main
+- proof farmer timings and bug fixes
+- Update to use skill IDs
+- Merge pull request #64 from Torx10/proof_farmer
+- debug
+- adjust timing and change hero add to #
+- Merge pull request #63 from Torx10/proof_farmer
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- raw agent array improvements
+- fix timers, fix success rate
+- Added Reroll Character Widget
+- Added Proof Of legend Farmer, Fixes on Mission Map  +
+- Merge pull request #62 from Copephobia/rollerbeetle-bot
+- Merge pull request #61 from Zilvereyes/dev
+- Merge pull request #60 from Torx10/fsm_bugfix
+- RawAgentArray Sanity checks
+- Rollerbeetle Racing Bot
+- Update PetHelper.py
+- Update PetHelper.py
+- Update Py4GW.ini, Routines.py & Add PetHelper.py
+- Adding Imgui clipboard control functions
+- frame testing functions
+- can_exit() fix
+- fixed it to be a proper min state duration
+- fix transition timer on can_exit
+- Update imgui.ini
+- HeroAI fixing Heal Order for Npcs/ Pets
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- HeroAI, fixed Buff spreading on Pets
+- Merge pull request #59 from Torx10/fsm_adjust
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Added Reroll Character Widget
+- log actions flag on subroutines
+- fsm event transition
+- Merge pull request #58 from Torx10/rerollwidget
+- reroll widget
+- Merge pull request #57 from Torx10/frame_alias
+- more frames added
+- HeroAI added support for Area Healing skills (heal area, heal party, etc)
+- added methods to loot filter singleton class
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- HeroAI NPC Support
+- Merge pull request #56 from Torx10/FSM_fix
+- Merge pull request #54 from LordNikon360/fixing-event-items-for-hunter-all-krytan-brandy-etc
+- fix transition timer perma reset
+- extending Keyhandler Class for Special Keys
+- Added Thread restart on Mission Map+
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- addint quest data
+- need spacing between classes so i dont go crazy
+- Removing Items file, no need and fixing others to use Py4Gw enums
+- fixing dye color numbers and adding some missing model ids
+- Adding GetDyeColor to get dye color from vials of dye
+- Merge pull request #55 from Torx10/UIManager_Update
+- adjust formatting, add frames
+- fixing hunters ale id
+- Misison Map stability fixes
+- Merge pull request #53 from LordNikon360/fixing-event-items-for-hunter-all-krytan-brandy-etc
+- fixing item array for pcons and event items
+- convert compass to use RawAgentArray class
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- Misison Map+ additions
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- compass changes
+- mission map+ render on party leader window only
+- sharing logout data & methods
+- skip cinematic widget
+- misison map + fixes and speed ups
+- HeroAI, fixed issues with pets crashing the spirit buff checks
+- removed inexistent function on Vaettir 3.0
+- widget Improvements
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Misison Map + Optimizations
+- Merge pull request #52 from Torx10/fsm_routine_extend
+- HeroAI, support for 12 Accounts, fixing flagging issues
+- HeroAI, fixed Flagging
+- Fixed HeroAI, candidate window
+- extend FSM and Movement routines
+- Added Agent Name Handling to RawAgent Array Singleton
+- Added RawAgentArray singleton class
+- updating DLL and enum Language, Region catalogs
+- Merge pull request #51 from Zilvereyes/dev
+- Update combat.py, custom_skill.py, Agent.py, enum.py, Player.py, Routines.py & SkillManager.py
+- Merge pull request #50 from Torx10/herohelper
+- Overlay Class as singleton
+- Added Spirit, Pet, enemy Pet, Item Color to Mission Map +
+- Added Menagerie PetModelID enum
+- hero helper
+- Added Agent Info Widget
+- ItemType Enum fix
+- removing undocumented data from agent object
+- Merge pull request #49 from jtmele1/compass+
+- added compass window visibility check
+- Merge branch 'apoguita:main' into herohelper
+- embed on hero frame
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Exposing Agent Data, Mission Map Improvements
+- Merge pull request #47 from jtmele1/compass+
+- attempting to fix PyOverlay.Point2D type error
+- Matching Compass+ Colors on Mission map +
+- Added Compass + Widget
+- Merge pull request #46 from jtmele1/compass+
+- put compass into widget form
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- optimization
+- cleaning UI debug interface and variables
+- Added Interface Scaling to Map overlay
+- Added Mission Map + widget
+- swapped to use raw agent array
+- Added AgentArray.GetRawAgentArray()
+- vaettir fixes
+- Mission map optimizations
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Vaettir improvements
+- Merge pull request #45 from jtmele1/compass+
+- added translation functions to Map.Minimap updated compass.py to include new translation functions TODO: optimize compass
+- Mission Map  Mega zoom
+- reversing laucnher changes
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- added alpha blending to primitives
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Added DxOverlayClass, Minimap Class, Mission Map Class
+- fixed rotating
+- Merge pull request #44 from Zilvereyes/main
+- Merge branch 'apoguita:main' into main
+- compass updates
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- Minimap Rotation
+- Update Py4GW - LDoA.py
+- Merge pull request #43 from Zilvereyes/main
+- Update Py4GW - LDoA.py
+- Update Py4GW - LDoA.py
+- Update Py4GW.py, Agent.py, Party.py & Routines.py
+- pathing improvements
+- added pathing and range culling
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- compass improvements
+- 2Drenderer improvements
+- removed unnecessary rotation math
+- Merge branch 'main' of https://github.com/apoguita/Py4GW into compass+
+- always render player marker on top
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- 2D Renderer class
+- embedded menu
+- Merge pull request #42 from Zilvereyes/main
+- Update Py4GW - LDoA.py & enum.py
+- removed unnecessary rounding added agent is valid check
+- swapped draw order for circle markers
+- swapped drawing to pyimgui from overlay class added ctrl+click to target added alt+click to move
+- Merge pull request #41 from Zilvereyes/main
+- Update Py4GW - LDoA.py & enum.py
+- fixed player scale copy/paste error
+- changed agent calcs to use typed agent arrays rather than entire agent array player id now updates every time maps are changes target id is now updated by the action queue
+- compass improvements
+- Update Py4GW - LDoA.py
+- Merge pull request #40 from Zilvereyes/main
+- fixing omissions
+- Update Py4GW - LDoA.py
+- exposing UiManager methods, Minimap class
+- Mission Map +
+- update cof_bone_farmer
+- Added Overlay Drawing Primitives
+- esposing map/mission Map Data
+- Merge pull request #39 from Torx10/boreal_async
+- Exposing Map Data
+- boreal_async_fix
+- Added Mission Map data
+- gmod
+- Merge pull request #38 from Torx10/lib_changes
+- remove gmod
+- adjust .gitignore, change transition
+- adjust comments
+- add addons folder to .gitignore, adjust Routines.Transition
+- Added PyCamera class
+- fixes for Ldoa using summoning stones
+- Added SkillManage Class, AutoCombatClass
+- Added Agent handling routines
+- fixed targetting omissions on HeroAI
+- added GetEnergyCostWithEffects to HeroAI casting routines
+- added ThrottledTimer class
+- moved heroai to widgets
+- proper type usage
+- Merge pull request #37 from thermad/heroai-staging
+- Update custom_skill.py
+- Fixed typo in name Targetting->Targeting
+- Seperated QueueTypes into an Enum
+- Create Kill_all_GW_instances.au3
+- Update .gitignore
+- Added support for party members to handle Ranger pets
+- Added support for Ranger Pets and ranger pert Attacks on HeroAI
+- Merge pull request #36 from Torx10/frame-data-update
+- Merge pull request #33 from LordNikon360/adding-check-item-owner-in-pickup-loop
+- added Drop Unyielding Aura Widget
+- more nameplate frame data
+- more frame data
+- update frame data
+- Merge pull request #35 from Torx10/herohelper
+- added accout email to data
+- update hero helper again
+- update hero helper
+- ModelId enum
+- Inventory+ Xunlai vault module
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Inventory+ widget, IconExplorer Widget
+- Merge pull request #34 from LordNikon360/fixing-gray-dye-mod-struct-id
+- fixing gray dye id
+- Inventory+ improvements
+- Hero AI UI and Stability
+- Inventory Plus Stability changes
+- logging for HeroAI
+- chat debug for looting
+- lenghten the shared memory timeout
+- death condition
+- Vaettir Bot timings and Stability changes
+- LootConfig Singleton Class
+- Action Queue changes
+- Inventory Plus Improvements
+- Salvaging Improvements
+- removing secondary profession check before loading skillbar
+- ActionQueueManager
+- Merge pull request #32 from LordNikon360/adding-check-item-owner-in-pickup-loop
+- Adding player id to pickup item
+- added ProcessQueue methoid to ActionQueueNode
+- BorealBot restart on death
+- follow path fixes
+- FollowPath routine improvements
+- Merge pull request #31 from LordNikon360/adding-salad-farmer-script
+- Update Items.py
+- Updating salad farm
+- Merge pull request #30 from LordNikon360/adding-salad-farmer-script
+- Adding salad farmer
+- Merge pull request #29 from LordNikon360/comment-out-wiki-data-use-on-get-profession-names
+- Merge pull request #28 from LordNikon360/fixing-soup-farmer-dye-collection
+- Update Agent.py
+- Py4GW Launcher timings
+- fixed issues with stuck routine
+- fixing death issues Vaettir bOt
+- Vaettir improvements
+- Adjusting soup farmer to correctly detect dye
+- Vaettir bot GUI fixes
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- improving threading usage on vaettir bot
+- Merge pull request #27 from LordNikon360/adding-soup-farmer
+- merge
+- Multithreading class improvements, Boreal bot improvements
+- adding exchange at end
+- make leave party on defaul
+- Making leave party optional
+- Update Soup_Farm.py
+- Update Soup_Farm.py
+- fixing missed getting offered items again
+- Fixing buy id kits when merchant does not have superior
+- Update Soup_Farm.py
+- only exchange no farm option
+- fixing soup exchanger with multiple stacks
+- Update Soup_Farm.py
+- reset loot tries
+- Update Soup_Farm.py
+- fixing timer
+- Adding soup farmer
+- Vasettir 3.0
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Vaettir 3.0 killing, looting & inventory handling
+- Merge pull request #26 from LordNikon360/fixing-salvager-script
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Vaettir Bot V3.0 Skill Handling
+- Update Salvager.py
+- Merge pull request #25 from LordNikon360/update-kabob-script-with-salvage-fix
+- Merge branch 'main' into update-kabob-script-with-salvage-fix
+- Update Kabob_Farm.py
+- updating salvaging portion and exchanger
+- Added Sequential Routines,start of  Vaettir 3.0
+- added Watchdog thread to Boreal bot
+- added watchdog to sequential_coding_template
+- Sequential bot Example
+- Sequential coding template
+- Sequentiasl coding example
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Launcher Improvements
+- Merge pull request #24 from LordNikon360/Fix-exchange-function-and-cleanup
+- added compact Mode
+- Added Targetting Helper to HeroAI
+- HeroAI Lootfixes and targetting helper
+- moving inventory+ to the widgets folder
+- Delete VaettirBot 2.0.py
+- Vaettir Stability
+- Update Drake Kabob model id
+- Update Accept Material Salvaging.py
+- added Salvager to Inventory + widget
+- Inventory+ widget, Kabob Farmer bot, Imgui Improvements
+- Merge pull request #23 from LordNikon360/fixing-salv-always-only-adding-ping-handling
+- adding total timer  and bug fix
+- Updating UI and run timers
+- Update Kabob_Farm.py
+- fixing bug where ti would stuck in salv only mode, no selling and ping checking
+- Added GetChildFrameID , Nikons Scripts, performance imrpovements
+- HeroAI Fps drop fixes
+- added Accept Material Salvage Widget
+- bos script reorganization
+- Merge pull request #18 from apoguita/revert-17-feature/pyinstaller-config
+- Revert "Feature/pyinstaller config"
+- Merge pull request #17 from Royel-Payne/feature/pyinstaller-config
+- UIManager class & Get Bounty Widget
+- Frame cataloguing
+- Improving Frame detection and logging
+- Merge branch 'PyInstaller-packaging---Config-file-changes' of https://github.com/Royel-Payne/Py4GW into Pylnstaller-packaging--Config-file-changes
+- clean up duplicate imports
+- correct issue with view not persisting in new sessions
+- correct file handling with dlls
+- Packaged Launcher - corrected file handling issues
+- PyUIManager improvements
+- PyInstaller packaging updates: Config file changes
+- add view modes - compact/advanced - versioning for compatibility
+- Merge branch 'feature/mod-support'
+- Added mod support (gMod)
+- Added mod support (gMod)
+- Added mod support (gMod)
+- update comments
+- Add gMod.dll to the Addons directory
+- Added gMod support - updated requirements.txt
+- Added UI Manager Class
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- fixing old launcher
+- Merge pull request #12 from apoguita/revert-11-add-python-launcher-v2
+- Revert "Update Py4GW_Launcher - UI improvements, Mod support, Compact/Advanced Views"
+- Merge pull request #11 from Royel-Payne/add-python-launcher-v2
+- Updated Launcher exe: UI improvement, Mod support, Compact/Advanced View.
+- Updated Launcher: UI improvement, Mod support, Compact/Advanced View.
+- Added default config for HeroHelper widget
+- HeroAI, FPS drop fix
+- Added Hero Helper Widget
+- Replace root files with Py4GW_Launcher.py, .exe; add gMod.dll to Addons/ .. added gMod support for mod files .tpf files. Updated UI for a better user experience.
+- added  AcceptSalvageMaterialsWindow
+- Ini Handlre file creation on relaod
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- HeroAI, crash fixes and party creation bug
+- Merge pull request #10 from LordNikon360/main
+- Update Salvager.py
+- HeroAI stability changes
+- Merge pull request #9 from 7774fock/main
+- Update GetAllegiance
+- Update Agent.py
+- HeroAI Stability changes
+- Merge pull request #4 from Torx10/widget_manager_change
+- Merge pull request #7 from LordNikon360/main
+- Update Salvager.py
+- Update Salvager.py
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- Code Refactor for Allowing full stubs to be used Intellisense Code Completion
+- Merge pull request #6 from haxgw/patch-2
+- Merge pull request #5 from haxgw/patch-1
+- Fix GetModelId Agent.py
+- Fix AbandonQuest in Quest.py
+- Miscellaneous functions and Stub Handling
+- fixed typo
+- Added ImGui.dummy
+- add a reload button, add a button with dynamic label
+- Merge pull request #3 from apoguita/revert-2-update_widget_manager
+- Revert "added reload option, modified layout"
+- Merge branch 'main' of https://github.com/apoguita/Py4GW
+- adding CoF DervBone farmer
+- Merge pull request #2 from Torx10/update_widget_manager
+- added reload option, modified layout
+- Updated LDoA bot
+- added singlenton classes to HeroAI
+- Added Async data Routines, Agent Names, Item Names, Chat logs
+- redirected print to the Py4GW console
+- moved tests and examples to legacy folder
+- removed LUA dependency from requirements
+- Added Agent Names
+- gitignore update
+- updating gitignore
+- reverted agent names
+- remove propagation of Shared Memory Handlers
+- HeroAI action enqueue
+- Lua bindings
+- Update requirements.txt
+- Added LUA support
