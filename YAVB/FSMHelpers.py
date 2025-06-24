@@ -1,4 +1,4 @@
-from .BuildMgr import ShawowFormAssassinVaettir
+from .BuildMgr import ShadowFormAssassinVaettir, ShadowFormMesmerVaettir
 from .LogConsole import LogConsole
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Routines
@@ -7,6 +7,7 @@ from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import Utils
 from typing import List, Tuple
 from Py4GWCoreLib import LootConfig
+from Py4GWCoreLib import Profession
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -60,7 +61,12 @@ class _FSM_Helpers:
             self._parent = parent
             
         def _init_build(self):
-            self._parent.build = ShawowFormAssassinVaettir()
+            profession = self._parent.primary_profession
+            match profession:
+                case Profession.Assassin.value:
+                    self._parent.build = ShadowFormAssassinVaettir()
+                case Profession.Mesmer.value:
+                    self._parent.build = ShadowFormMesmerVaettir()  # Placeholder for Mesmer build
             
         def _stop_execution(self):
             if self._parent.script_running:
@@ -76,7 +82,7 @@ class _FSM_Helpers:
                 self._parent.state = "Idle"
                 self._parent.FSM.stop()
                 
-                build = self._parent.build or ShawowFormAssassinVaettir()
+                build = self._parent.build or ShadowFormAssassinVaettir() if self._parent.primary_profession == Profession.Assassin.value else ShadowFormMesmerVaettir()
                 GLOBAL_CACHE.Coroutines.clear()  # Clear all coroutines
 
             yield from Routines.Yield.wait(100)
@@ -93,7 +99,7 @@ class _FSM_Helpers:
                 self._parent.state = "Idle"
                 self._parent.FSM.restart()
                 
-                build = self._parent.build or ShawowFormAssassinVaettir()
+                build = self._parent.build or ShadowFormAssassinVaettir()
                 GLOBAL_CACHE.Coroutines.clear()  # Clear all coroutines
 
                     
@@ -229,7 +235,7 @@ class _FSM_Helpers:
         def LoadSkillBar(self):
             if not self._parent.build:
                 self._init_build()
-            build = self._parent.build or ShawowFormAssassinVaettir()
+            build = self._parent.build or ShadowFormAssassinVaettir()
             self._parent.SetCurrentStep("Load Skill Bar", 0.02)
             self._parent.LogMessage("Loading Skill Bar", f"{build.build_name}.", LogConsole.LogSeverity.INFO)
             yield from build.LoadSkillBar()
@@ -467,7 +473,7 @@ class _FSM_Helpers:
         def AddSkillCastingCoroutine(self):
             self._parent.farming_stats.StartNewRun()
             GLOBAL_CACHE.Coroutines.append(self._parent.HandleStuckJagaMoraine())
-            build = self._parent.build or ShawowFormAssassinVaettir()
+            build = self._parent.build or ShadowFormAssassinVaettir()
             GLOBAL_CACHE.Coroutines.append(build.ProcessSkillCasting())
             self._parent.LogDetailedMessage("Skill Casting Coroutine", "Added to Coroutines.", LogConsole.LogSeverity.INFO)
             
@@ -528,7 +534,7 @@ class _FSM_Helpers:
                 self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                 yield from self._reset_execution()
                 
-            build = self._parent.build or ShawowFormAssassinVaettir()
+            build = self._parent.build or ShadowFormAssassinVaettir()
             yield from build.CastHeartOfShadow()
                 
         def FarmingRoute2(self):
@@ -560,7 +566,7 @@ class _FSM_Helpers:
                 self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                 yield from self._reset_execution()
                 
-            build = self._parent.build or ShawowFormAssassinVaettir()
+            build = self._parent.build or ShadowFormAssassinVaettir()
             yield from build.CastHeartOfShadow()
                 
         def FarmingRoutetoKillSpot(self):
@@ -620,7 +626,7 @@ class _FSM_Helpers:
             yield from Routines.Yield.wait(1000)  # Wait a bit to ensure the enemies are dead
           
         def RemoveSkillCastingCoroutine(self):
-            build = self._parent.build or ShawowFormAssassinVaettir()
+            build = self._parent.build or ShadowFormAssassinVaettir()
             if build.ProcessSkillCasting() in GLOBAL_CACHE.Coroutines:
                 GLOBAL_CACHE.Coroutines.remove(build.ProcessSkillCasting())
             if self._parent.HandleStuckJagaMoraine() in GLOBAL_CACHE.Coroutines:

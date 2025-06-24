@@ -1,5 +1,5 @@
 import Py4GW
-from typing import Optional
+from typing import Optional, Union
 import math
 import random
 import json
@@ -12,7 +12,7 @@ from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ConsoleLog
 
-from .BuildMgr import ShawowFormAssassinVaettir
+from .BuildMgr import ShadowFormAssassinVaettir, ShadowFormMesmerVaettir
 from .ProgressTracker import ProgressTracker
 from .LogConsole import LogConsole
 from .StatsMgr import RunStatistics
@@ -47,7 +47,7 @@ class YAVB:
         self.banner_index = 0
         
         #build
-        self.build: Optional[ShawowFormAssassinVaettir] = None
+        self.build: Optional[Union[ShadowFormAssassinVaettir, ShadowFormMesmerVaettir]] = None
         self.supported_professions = {}
     
         #merchant options
@@ -375,7 +375,7 @@ class YAVB:
                         
                     self.movement_check_timer.Reset()
                 
-                build = self.build or ShawowFormAssassinVaettir()   
+                build = self.build or ShadowFormAssassinVaettir()   
                 yield from build.CastShroudOfDistress()
                     
                 agent_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
@@ -409,7 +409,7 @@ class YAVB:
                 yield from self.FSM_Helpers._reset_execution()
                 continue
               
-            build = self.build or ShawowFormAssassinVaettir() 
+            build = self.build or ShadowFormAssassinVaettir() 
             if self.in_waiting_routine:
                 self.stuck_counter = 0
                 build.SetStuckCounter(self.stuck_counter)
