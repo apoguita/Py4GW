@@ -876,7 +876,7 @@ class ActionQueue:
         self._step_counter = 0  # Unique step ID tracker
         self._last_step_id = None  # Last executed step ID
 
-    def _get_logger_for_account_email(self, account_email: str = None):
+    def _get_logger_for_account_email(self, account_email=None):
         logger_name = f"ActionQueueLogger_{account_email or 'default'}"
         logger = logging.getLogger(logger_name)
 

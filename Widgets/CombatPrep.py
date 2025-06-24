@@ -122,9 +122,7 @@ def ensure_formation_json_exists():
             json.dump(default_json, f)  # empty dict initially
 
 
-def save_formation_hotkey(
-    formation_name: str, hotkey: str, vk: int, coordinates: list[tuple[int, int]]
-):
+def save_formation_hotkey(formation_name, hotkey=None, vk=None, coordinates=[]):
     ensure_formation_json_exists()
     with open(FORMATIONS_JSON_PATH, "r") as f:
         data = json.load(f)
