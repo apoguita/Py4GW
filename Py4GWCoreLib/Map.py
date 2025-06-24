@@ -76,7 +76,7 @@ class Map:
         return list(outposts.values())
     
     @staticmethod
-    def GetMapIDByName(name):
+    def GetMapIDByName(name) -> int:
         global explorable_name_to_id
         """Retrieve the ID of a map by its name."""
         map_id = explorable_name_to_id.get(name)
@@ -89,7 +89,8 @@ class Map:
         outpost_name_to_id = {name: id for id, name in zip(outpost_names, outpost_ids)}
 
         # Check if the name exists in outposts
-        return outpost_name_to_id.get(name, 0)
+        return int(outpost_name_to_id.get(name, 0))
+        
 
     @staticmethod
     def GetExplorableIDs():

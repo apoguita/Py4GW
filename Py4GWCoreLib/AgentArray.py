@@ -538,14 +538,7 @@ class RawAgentArray:
         If the item is not found, returns 0.
         """
         self.update()
-        agent = self.agent_dict.get(item_id) or PyAgent.PyAgent(item_id)
-        owner = agent.item_agent.owner_id if agent.is_item else 0
-        cached_owner = self.owner_cache.get(item_id, 0)
-
-        if owner != 0 and owner != cached_owner:
-            # Only update if owner is valid (non-zero)
-            self.owner_cache[item_id] = owner
-
-        return self.owner_cache.get(item_id, 0)
-
+        agent = PyAgent.PyAgent(item_id)
+        owner = agent.item_agent.owner_id if agent.is_item else 999
+        return owner
 

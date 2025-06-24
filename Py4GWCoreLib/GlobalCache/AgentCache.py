@@ -176,6 +176,25 @@ class AgentCache:
         agent = self.raw_agent_array.get_agent(agent_id)
         return agent.living_agent.profession.ToInt(), agent.living_agent.secondary_profession.ToInt()
     
+    def GetProfessionsTexturePaths(self,agent_id):
+        agent_instance = self.raw_agent_array.get_agent(agent_id)
+        primary = agent_instance.living_agent.profession.ToInt()
+        primary_name = agent_instance.living_agent.profession.GetName()
+        secondary = agent_instance.living_agent.secondary_profession.ToInt()
+        secondary_name = agent_instance.living_agent.secondary_profession.GetName()
+        
+        if primary == 0:
+            primary_texture = ""
+        else:
+            primary_texture = f"Textures\\Profession_Icons\\[{primary}] - {primary_name}.png"
+        if secondary == 0:
+            secondary_texture = ""
+        else:
+            secondary_texture = f"Textures\\Profession_Icons\\[{secondary}] - {secondary_name}.png"
+            
+        return primary_texture, secondary_texture
+    
+    
     def GetLevel(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
         return agent.living_agent.level
@@ -369,9 +388,13 @@ class AgentCache:
         return agent.item_agent
     
     def GetItemAgentOwnerID(self, agent_id):
-        item_owner = self.raw_agent_array.get_item_owner(agent_id)
-        if item_owner is None:
-            return 0
+        from Py4GWCoreLib.Agent import Agent
+        agent = Agent.agent_instance(agent_id)
+        if agent is None:
+            return 999
+        item_owner = agent.item_agent.owner_id
+        if item_owner is None or item_owner <0:
+            return 999
         return item_owner
         
     

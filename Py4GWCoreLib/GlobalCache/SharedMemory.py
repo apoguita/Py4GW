@@ -13,7 +13,7 @@ SHMEM_MAX_NUM_PLAYERS = 64
 SMM_MODULE_NAME = "Py4GW - Shared Memory"
 SHMEM_SHARED_MEMORY_FILE_NAME = "Py4GW_Shared_Mem"
 SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
-SHMEM_SUBSCRIBE_TIMEOUT_MILISECONDS = 500 # milliseconds
+SHMEM_SUBSCRIBE_TIMEOUT_MILISECONDS = 5000 # milliseconds
 
 SHMEM_NUMBER_OF_SKILLS = 8
 
@@ -749,6 +749,7 @@ class Py4GWSharedMemoryManager:
             if player.IsSlotActive:
                 delta = current_time - player.LastUpdated
                 if delta > SHMEM_SUBSCRIBE_TIMEOUT_MILISECONDS:
+                    #ConsoleLog(SMM_MODULE_NAME, f"Player {player.AccountEmail} has timed out after {delta} ms.", Py4GW.Console.MessageType.Warning)
                     self.ResetPlayerData(index)
                     
     def SendMessage(self, sender_email: str, receiver_email: str, command: SharedCommandType, params: tuple = (0.0, 0.0, 0.0, 0.0)):

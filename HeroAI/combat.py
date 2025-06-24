@@ -671,6 +671,8 @@ class CombatClass:
         feature_count += (1 if Conditions.RequiresSpiritInEarshot else 0)
         feature_count += (1 if Conditions.EnemiesInRange > 0 else 0)
         feature_count += (1 if Conditions.AlliesInRange > 0 else 0)
+        feature_count += (1 if Conditions.SpiritsInRange > 0 else 0)
+        feature_count += (1 if Conditions.MinionsInRange > 0 else 0)
 
         if Conditions.IsAlive:
             if GLOBAL_CACHE.Agent.IsAlive(vTarget):
@@ -911,6 +913,23 @@ class CombatClass:
                 number_of_features += 1
             else:
                 number_of_features = 0
+                
+        if Conditions.SpiritsInRange != 0:
+            player_pos = GLOBAL_CACHE.Player.GetXY()
+            ally_array = ally_array = Routines.Agents.GetFilteredSpiritArray(player_pos[0], player_pos[1], Conditions.SpiritsInRangeArea)
+            if len(ally_array) >= Conditions.SpiritsInRange:
+                number_of_features += 1
+            else:
+                number_of_features = 0
+                
+        if Conditions.MinionsInRange != 0:
+            player_pos = GLOBAL_CACHE.Player.GetXY()
+            ally_array = ally_array = Routines.Agents.GetFilteredMinionArray(player_pos[0], player_pos[1], Conditions.MinionsInRangeArea)
+            if len(ally_array) >= Conditions.MinionsInRange:
+                number_of_features += 1
+            else:
+                number_of_features = 0
+            
 
         #Py4GW.Console.Log("AreCastConditionsMet", f"feature count: {feature_count}, No of features {number_of_features}", Py4GW.Console.MessageType.Info)
         

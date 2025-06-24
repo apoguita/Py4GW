@@ -71,8 +71,13 @@ class GlobalCache:
             self.AgentArray._update_cache()
             self.SkillBar._update_cache()
                
-        if self._TrottleTimers._63ms.IsExpired():
-            self._TrottleTimers._63ms.Reset()
+        if self._TrottleTimers._75ms.IsExpired():
+            self._TrottleTimers._75ms.Reset()
+            if self._TrottleTimers._500ms.IsExpired():
+                self._TrottleTimers._500ms.Reset()
+                
+   
+            
             if self._TrottleTimers._150ms.IsExpired():   
                 self._TrottleTimers._150ms.Reset()
                 self.Party._update_cache()
