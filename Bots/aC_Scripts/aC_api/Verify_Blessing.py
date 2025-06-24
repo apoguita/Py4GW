@@ -13,6 +13,7 @@ class Blessings(Enum):
     Skale_Hunt       = (1790, 1835, 1836, 1975, 1976)
     Skree_Battle     = (1792, 1828, 1965, 1966)
     Undead_Hunt      = (1796, 1854, 1981, 1982)
+    Insect_Hunt      = (1967)
 
     # — Nightfall: Lightbringer promotion bounties —
     Anguish_Hunt     = (1898, 2040)
