@@ -1,3 +1,4 @@
+import ctypes
 import json
 import math
 import os
@@ -13,6 +14,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
 
+user32 = ctypes.WinDLL("user32", use_last_error=True)
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
@@ -60,54 +62,22 @@ def ensure_formation_json_exists():
             "Flag Front": {
                 HOTKEY: None,
                 VK: None,
-                COORDINATES: [
-                    [0, 1000],
-                    [0, 1000],
-                    [0, 1000],
-                    [0, 1000],
-                    [0, 1000],
-                    [0, 1000],
-                    [0, 1000],
-                ],
+                COORDINATES: [[0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000]],
             },
             "1,2 - Double Backline": {
                 HOTKEY: None,
                 VK: None,
-                COORDINATES: [
-                    [200, -200],
-                    [-200, -200],
-                    [0, 200],
-                    [-200, 450],
-                    [200, 450],
-                    [-400, 300],
-                    [400, 300],
-                ],
+                COORDINATES: [[200, -200], [-200, -200], [0, 200], [-200, 450], [200, 450], [-400, 300], [400, 300]],
             },
             "1 - Single Backline": {
                 HOTKEY: None,
                 VK: None,
-                COORDINATES: [
-                    [0, -250],
-                    [-100, 200],
-                    [100, 200],
-                    [-300, 500],
-                    [300, 500],
-                    [-350, 300],
-                    [350, 300],
-                ],
+                COORDINATES: [[0, -250], [-100, 200], [100, 200], [-300, 500], [300, 500], [-350, 300], [350, 300]],
             },
             "1,2 - Double Backline Triple Row": {
                 HOTKEY: None,
                 VK: None,
-                COORDINATES: [
-                    [-200, -200],
-                    [200, -200],
-                    [-200, 0],
-                    [200, 0],
-                    [-200, 300],
-                    [0, 300],
-                    [200, 300],
-                ],
+                COORDINATES: [[-200, -200], [200, -200], [-200, 0], [200, 0], [-200, 300], [0, 300], [200, 300]],
             },
             "Disband Formation": {
                 HOTKEY: None,
@@ -128,7 +98,7 @@ def load_formations_from_json():
 
 
 def draw_combat_prep_window(cached_data):
-    global window_x, window_y, window_collapsed, first_run
+    global formation_hotkey_values, window_x, window_y, window_collapsed, first_run
 
     # 1) On first draw, restore last position & collapsed state
     if first_run:
@@ -136,16 +106,12 @@ def draw_combat_prep_window(cached_data):
         PyImGui.set_next_window_collapsed(window_collapsed, 0)
         first_run = False
 
-    is_window_opened = PyImGui.begin(
-        "Combat Prep", PyImGui.WindowFlags.AlwaysAutoResize
-    )
+    is_window_opened = PyImGui.begin("Combat Prep", PyImGui.WindowFlags.AlwaysAutoResize)
     new_collapsed = PyImGui.is_window_collapsed()
     end_pos = PyImGui.get_window_pos()
 
     if is_window_opened:
-        is_party_leader = (
-            GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
-        )
+        is_party_leader = GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
         if not GLOBAL_CACHE.Map.IsExplorable() or not is_party_leader:
             PyImGui.text("Need to be party Leader and in Explorable Area")
             return
@@ -156,7 +122,6 @@ def draw_combat_prep_window(cached_data):
 
         party_size = cached_data.data.party_size
         disband_formation = False
-        COORDINATES = "coordinates"
 
         PyImGui.text("Formations:")
         PyImGui.separator()
@@ -165,15 +130,9 @@ def draw_combat_prep_window(cached_data):
 
         if PyImGui.begin_table("FormationTable", 3):
             # Setup column widths BEFORE starting the table rows
-            PyImGui.table_setup_column(
-                "Formation", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
-            PyImGui.table_setup_column(
-                "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
-            )  # fixed 30px
-            PyImGui.table_setup_column(
-                "Save", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
+            PyImGui.table_setup_column("Formation", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
+            PyImGui.table_setup_column("Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0)  # fixed 30px
+            PyImGui.table_setup_column("Save", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
             for formation_key, formation_data in formations.items():
                 PyImGui.table_next_row()
 
@@ -190,23 +149,16 @@ def draw_combat_prep_window(cached_data):
         PyImGui.end_table()
 
         if len(set_formations_relative_to_leader):
-            leader_follow_angle = (
-                cached_data.data.party_leader_rotation_angle
-            )  # in radians
-            leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(
-                GLOBAL_CACHE.Party.GetPartyLeaderID()
-            )
-            angle_rad = (
-                leader_follow_angle - math.pi / 2
-            )  # adjust for coordinate system
+            leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
+            party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+            leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(party_leader_id)
+            angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
 
             cos_a = math.cos(angle_rad)
             sin_a = math.sin(angle_rad)
 
             for hero_ai_index in range(1, party_size):
-                offset_x, offset_y = set_formations_relative_to_leader[
-                    hero_ai_index - 1
-                ]
+                offset_x, offset_y = set_formations_relative_to_leader[hero_ai_index - 1]
 
                 # Rotate offset
                 rotated_x = offset_x * cos_a - offset_y * sin_a
@@ -245,20 +197,21 @@ def draw_combat_prep_window(cached_data):
 
         if PyImGui.begin_table("SkillPrepTable", 3):
             # Setup column widths BEFORE starting the table rows
-            PyImGui.table_setup_column(
-                "Formation", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
-            PyImGui.table_setup_column(
-                "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
-            )  # fixed 30px
-            PyImGui.table_setup_column(
-                "Save", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
+            PyImGui.table_setup_column("SkillUsage", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
+            PyImGui.table_setup_column("Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0)  # fixed 30px
+            PyImGui.table_setup_column("Save", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
 
             PyImGui.table_next_row()
             # Column 1: Formation Button
             PyImGui.table_next_column()
             st_button_pressed = PyImGui.button("Spirits Prep")
+
+            # Column 2: Hotkey Input
+            # Get and display editable input buffer
+            PyImGui.table_next_column()
+
+            # Column 3: Save Hotkey Button
+            PyImGui.table_next_column()
 
             sender_email = cached_data.account_email
 
@@ -274,22 +227,15 @@ def draw_combat_prep_window(cached_data):
                                 SharedCommandType.UseSkill,
                                 (CombatPrepSkillsType.SpiritsPrep, 0, 0, 0),
                             )
-
         PyImGui.end_table()
 
         PyImGui.text("Control Quick Action:")
         PyImGui.separator()
         if PyImGui.begin_table("OtherSetupTable", 3):
             # Setup column widths BEFORE starting the table rows
-            PyImGui.table_setup_column(
-                "OtherSetup", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
-            PyImGui.table_setup_column(
-                "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
-            )  # fixed 30px
-            PyImGui.table_setup_column(
-                "Save", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
+            PyImGui.table_setup_column("OtherSetup", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
+            PyImGui.table_setup_column("Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0)  # fixed 30px
+            PyImGui.table_setup_column("Save", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
 
             PyImGui.table_next_row()
             # Column 1: Formation Button
@@ -343,50 +289,18 @@ def main():
             draw_combat_prep_window(cached_data)
 
     except ImportError as e:
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"ImportError encountered: {str(e)}",
-            Py4GW.Console.MessageType.Error,
-        )
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"Stack trace: {traceback.format_exc()}",
-            Py4GW.Console.MessageType.Error,
-        )
+        Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
     except ValueError as e:
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"ValueError encountered: {str(e)}",
-            Py4GW.Console.MessageType.Error,
-        )
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"Stack trace: {traceback.format_exc()}",
-            Py4GW.Console.MessageType.Error,
-        )
+        Py4GW.Console.Log(MODULE_NAME, f"ValueError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
     except TypeError as e:
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"TypeError encountered: {str(e)}",
-            Py4GW.Console.MessageType.Error,
-        )
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"Stack trace: {traceback.format_exc()}",
-            Py4GW.Console.MessageType.Error,
-        )
+        Py4GW.Console.Log(MODULE_NAME, f"TypeError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
     except Exception as e:
         # Catch-all for any other unexpected exceptions
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"Unexpected error encountered: {str(e)}",
-            Py4GW.Console.MessageType.Error,
-        )
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"Stack trace: {traceback.format_exc()}",
-            Py4GW.Console.MessageType.Error,
-        )
+        Py4GW.Console.Log(MODULE_NAME, f"Unexpected error encountered: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
     finally:
         pass
 
