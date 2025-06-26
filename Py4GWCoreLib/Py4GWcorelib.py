@@ -341,12 +341,7 @@ class Utils:
         Additionally, custom repulsion and attraction positions can be provided.
         """
 
-        def __init__(
-            self,
-            probe_position,
-            custom_repulsion_radius=100,
-            custom_attraction_radius=100,
-        ):
+        def __init__(self, probe_position, custom_repulsion_radius=100, custom_attraction_radius=100):
             """
             Initialize the VectorFields object with player position and default settings.
             Args:
@@ -2056,9 +2051,7 @@ class MultiThreading:
         with self.lock:
             if name not in self.threads:
                 Py4GW.Console.Log(
-                    "MultiThreading",
-                    f"Thread '{name}' does not exist.",
-                    Py4GW.Console.MessageType.Warning,
+                    "MultiThreading", f"Thread '{name}' does not exist.", Py4GW.Console.MessageType.Warning
                 )
                 return
 
@@ -2066,9 +2059,7 @@ class MultiThreading:
             thread = thread_info.get("thread")
             if thread and thread.is_alive():
                 Py4GW.Console.Log(
-                    "MultiThreading",
-                    f"Thread '{name}' already running.",
-                    Py4GW.Console.MessageType.Warning,
+                    "MultiThreading", f"Thread '{name}' already running.", Py4GW.Console.MessageType.Warning
                 )
                 return
 
@@ -2079,33 +2070,21 @@ class MultiThreading:
 
             def wrapped_target(*args, **kwargs):
                 if self.log_actions:
-                    Py4GW.Console.Log(
-                        "MultiThreading",
-                        f"Thread '{name}' running.",
-                        Py4GW.Console.MessageType.Info,
-                    )
+                    Py4GW.Console.Log("MultiThreading", f"Thread '{name}' running.", Py4GW.Console.MessageType.Info)
                 try:
                     execute_fn(*args, **kwargs)
                 except SystemExit:
                     if self.log_actions:
                         Py4GW.Console.Log(
-                            "MultiThreading",
-                            f"Thread '{name}' forcefully exited.",
-                            Py4GW.Console.MessageType.Info,
+                            "MultiThreading", f"Thread '{name}' forcefully exited.", Py4GW.Console.MessageType.Info
                         )
                 except Exception as e:
                     Py4GW.Console.Log(
-                        "MultiThreading",
-                        f"Thread '{name}' exception: {str(e)}",
-                        Py4GW.Console.MessageType.Error,
+                        "MultiThreading", f"Thread '{name}' exception: {str(e)}", Py4GW.Console.MessageType.Error
                     )
                 finally:
                     if self.log_actions:
-                        Py4GW.Console.Log(
-                            "MultiThreading",
-                            f"Thread '{name}' exited.",
-                            Py4GW.Console.MessageType.Info,
-                        )
+                        Py4GW.Console.Log("MultiThreading", f"Thread '{name}' exited.", Py4GW.Console.MessageType.Info)
 
             new_thread = threading.Thread(target=wrapped_target, args=args, kwargs=kwargs, daemon=True)
             self.threads[name]["thread"] = new_thread
@@ -2113,11 +2092,7 @@ class MultiThreading:
             new_thread.start()
 
             if self.log_actions:
-                Py4GW.Console.Log(
-                    "MultiThreading",
-                    f"Thread '{name}' started.",
-                    Py4GW.Console.MessageType.Success,
-                )
+                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' started.", Py4GW.Console.MessageType.Success)
 
     def update_keepalive(self, name):
         """Update keepalive timestamp."""
@@ -2139,9 +2114,7 @@ class MultiThreading:
             if name not in self.threads:
                 if self.log_actions:
                     Py4GW.Console.Log(
-                        "MultiThreading",
-                        f"Thread '{name}' does not exist.",
-                        Py4GW.Console.MessageType.Warning,
+                        "MultiThreading", f"Thread '{name}' does not exist.", Py4GW.Console.MessageType.Warning
                     )
                 return
 
@@ -2150,20 +2123,14 @@ class MultiThreading:
             if thread and thread.is_alive():
                 if self.log_actions:
                     Py4GW.Console.Log(
-                        "MultiThreading",
-                        f"Force stopping thread '{name}'.",
-                        Py4GW.Console.MessageType.Warning,
+                        "MultiThreading", f"Force stopping thread '{name}'.", Py4GW.Console.MessageType.Warning
                     )
                 ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
                 time.sleep(0.1)
 
             del self.threads[name]
         if self.log_actions:
-            Py4GW.Console.Log(
-                "MultiThreading",
-                f"Thread '{name}' stopped and removed.",
-                Py4GW.Console.MessageType.Info,
-            )
+            Py4GW.Console.Log("MultiThreading", f"Thread '{name}' stopped and removed.", Py4GW.Console.MessageType.Info)
 
     def stop_all_threads(self):
         with self.lock:
@@ -2191,11 +2158,7 @@ class MultiThreading:
 
     def start_watchdog(self, main_thread_name):
         if self.watchdog_thread and self.watchdog_thread.is_alive():
-            Py4GW.Console.Log(
-                "MultiThreading",
-                "Watchdog already running.",
-                Py4GW.Console.MessageType.Warning,
-            )
+            Py4GW.Console.Log("MultiThreading", "Watchdog already running.", Py4GW.Console.MessageType.Warning)
             return
 
         self.watchdog_active = True
@@ -2250,10 +2213,7 @@ class MultiThreading:
 
                 if not active_threads:
                     ConsoleLog(
-                        "Watchdog",
-                        "No active threads left. Stopping watchdog.",
-                        Console.MessageType.Notice,
-                        log=True,
+                        "Watchdog", "No active threads left. Stopping watchdog.", Console.MessageType.Notice, log=True
                     )
                     self.watchdog_active = False
                     break
@@ -2264,11 +2224,7 @@ class MultiThreading:
             with self.lock:
                 if "watchdog" in self.threads:
                     del self.threads["watchdog"]
-            Py4GW.Console.Log(
-                "Watchdog",
-                "Watchdog stopped & cleaned.",
-                Py4GW.Console.MessageType.Info,
-            )
+            Py4GW.Console.Log("Watchdog", "Watchdog stopped & cleaned.", Py4GW.Console.MessageType.Info)
 
         # Register watchdog in threads registry
         with self.lock:
@@ -2286,11 +2242,7 @@ class MultiThreading:
         self.threads["watchdog"]["thread"] = watchdog_thread
         watchdog_thread.start()
         if self.log_actions:
-            Py4GW.Console.Log(
-                "MultiThreading",
-                "Watchdog thread started.",
-                Py4GW.Console.MessageType.Success,
-            )
+            Py4GW.Console.Log("MultiThreading", "Watchdog thread started.", Py4GW.Console.MessageType.Success)
 
     def stop_watchdog(self):
         """Manually stop watchdog if needed."""
@@ -2942,9 +2894,7 @@ class AutoInventoryHandler:
 
         self.status = "Idle"
         ConsoleLog(
-            "AutoInventoryHandler",
-            "ID, Salvage and Deposit routine completed",
-            Py4GW.Console.MessageType.Success,
+            "AutoInventoryHandler", "ID, Salvage and Deposit routine completed", Py4GW.Console.MessageType.Success
         )
 
 
