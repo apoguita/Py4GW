@@ -332,11 +332,7 @@ class Utils:
 
     @staticmethod
     def GetBaseTimestamp():
-        SHMEM_ZERO_EPOCH = (
-            datetime.now(timezone.utc)
-            .replace(hour=0, minute=0, second=0, microsecond=0)
-            .timestamp()
-        )
+        SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
         return int((time.time() - SHMEM_ZERO_EPOCH) * 1000)
 
     class VectorFields:
@@ -681,17 +677,13 @@ class Timer:
     def Pause(self):
         """Pause the timer."""
         if self.running and not self.paused:
-            self.paused_time = (
-                time.perf_counter() - self.start_time
-            )  # Capture elapsed time
+            self.paused_time = time.perf_counter() - self.start_time  # Capture elapsed time
             self.paused = True
 
     def Resume(self):
         """Resume the timer."""
         if self.running and self.paused:
-            self.start_time = (
-                time.perf_counter() - self.paused_time
-            )  # Adjust start time
+            self.start_time = time.perf_counter() - self.paused_time  # Adjust start time
             self.paused = False
 
     def IsStopped(self):
@@ -882,15 +874,9 @@ class ActionQueue:
 
         if not logger.handlers:
             logger.setLevel(logging.INFO)
-            log_file = (
-                f"debug_action_log_{account_email}.log"
-                if account_email
-                else "debug_action_log.log"
-            )
+            log_file = f"debug_action_log_{account_email}.log" if account_email else "debug_action_log.log"
 
-            handler = RotatingFileHandler(
-                log_file, mode="a", maxBytes=10_000, backupCount=0
-            )
+            handler = RotatingFileHandler(log_file, mode="a", maxBytes=10_000, backupCount=0)
             formatter = logging.Formatter("%(asctime)s - %(message)s")
             handler.setFormatter(formatter)
 
@@ -1105,9 +1091,7 @@ class ActionQueueManager:
     def AddActionWithDelay(self, queue_name, delay, action, *args, **kwargs):
         """Add an action with a delay to a specific queue by name."""
         if queue_name in self.queues:
-            self.queues[queue_name].add_action_with_delay(
-                delay, action, *args, **kwargs
-            )
+            self.queues[queue_name].add_action_with_delay(delay, action, *args, **kwargs)
         else:
             raise ValueError(f"Queue '{queue_name}' does not exist.")
 
@@ -1176,9 +1160,7 @@ class BehaviorTree:
 
     class Node(ABC):
         def __init__(self):
-            self.state: "BehaviorTree.NodeState" = (
-                BehaviorTree.NodeState.RUNNING
-            )  # Default state
+            self.state: "BehaviorTree.NodeState" = BehaviorTree.NodeState.RUNNING  # Default state
 
         @abstractmethod
         def tick(self) -> "BehaviorTree.NodeState":
@@ -1241,13 +1223,9 @@ class BehaviorTree:
                     return BehaviorTree.NodeState.FAILURE  # Stop if any child fails
 
                 if result == BehaviorTree.NodeState.RUNNING:
-                    return (
-                        BehaviorTree.NodeState.RUNNING
-                    )  # If a child is still running, keep running
+                    return BehaviorTree.NodeState.RUNNING  # If a child is still running, keep running
 
-            return (
-                BehaviorTree.NodeState.SUCCESS
-            )  # Only return success if all children succeed
+            return BehaviorTree.NodeState.SUCCESS  # Only return success if all children succeed
 
     # Selector Node - executes children in order, returns success if any succeed
     class SelectorNode(CompositeNode):
@@ -1260,24 +1238,16 @@ class BehaviorTree:
                     return BehaviorTree.NodeState.SUCCESS  # Stop if any child succeeds
 
                 if result == BehaviorTree.NodeState.RUNNING:
-                    return (
-                        BehaviorTree.NodeState.RUNNING
-                    )  # If a child is still running, keep running
+                    return BehaviorTree.NodeState.RUNNING  # If a child is still running, keep running
 
-            return (
-                BehaviorTree.NodeState.FAILURE
-            )  # Only return failure if all children fail
+            return BehaviorTree.NodeState.FAILURE  # Only return failure if all children fail
 
     # Parallel Node - runs all children in parallel, succeeds or fails based on thresholds
     class ParallelNode(CompositeNode):
         def __init__(self, success_threshold=1, failure_threshold=1, children=None):
             super().__init__(children)
-            self.success_threshold = (
-                success_threshold  # Number of successes needed for SUCCESS
-            )
-            self.failure_threshold = (
-                failure_threshold  # Number of failures needed for FAILURE
-            )
+            self.success_threshold = success_threshold  # Number of successes needed for SUCCESS
+            self.failure_threshold = failure_threshold  # Number of failures needed for FAILURE
 
         def tick(self):
             """Executes all children in parallel."""
@@ -1298,9 +1268,7 @@ class BehaviorTree:
                 if failure_count >= self.failure_threshold:
                     return BehaviorTree.NodeState.FAILURE
 
-            return (
-                BehaviorTree.NodeState.RUNNING
-            )  # If thresholds are not met, it's still running
+            return BehaviorTree.NodeState.RUNNING  # If thresholds are not met, it's still running
 
     # Inverter Node - inverts the result of its child node
     class InverterNode(Node):
@@ -1341,12 +1309,8 @@ class BehaviorTree:
             """
             super().__init__()
             self.child = child  # The child node to repeat
-            self.repeat_interval = (
-                repeat_interval  # Time in milliseconds between repetitions
-            )
-            self.repeat_limit = (
-                repeat_limit  # Maximum number of repetitions (-1 for unlimited)
-            )
+            self.repeat_interval = repeat_interval  # Time in milliseconds between repetitions
+            self.repeat_limit = repeat_limit  # Maximum number of repetitions (-1 for unlimited)
             self.current_repeats = 0  # Counter to track the number of repetitions
             self.timer = Timer()  # Instance of Timer class
             self.timer.Start()  # Start the timer immediately
@@ -1356,9 +1320,7 @@ class BehaviorTree:
             """Run the child node if the cooldown has passed and repeat limit is not reached."""
             # Check if the repeat limit has been reached
             if self.repeat_limit != -1 and self.current_repeats >= self.repeat_limit:
-                return (
-                    BehaviorTree.NodeState.SUCCESS
-                )  # Stop after reaching the repeat limit
+                return BehaviorTree.NodeState.SUCCESS  # Stop after reaching the repeat limit
 
             # If the repetition is allowed, run the child node
             if self.repetition_allowed:
@@ -1370,9 +1332,7 @@ class BehaviorTree:
                 ]:
                     # After the child finishes, start the cooldown timer
                     self.timer.Start()
-                    self.repetition_allowed = (
-                        False  # Prevent running until the cooldown ends
-                    )
+                    self.repetition_allowed = False  # Prevent running until the cooldown ends
                     self.current_repeats += 1  # Increment the repeat counter
 
                 return result
@@ -1382,9 +1342,7 @@ class BehaviorTree:
                 self.repetition_allowed = True  # Allow the next repetition
                 self.timer.Stop()  # Reset the timer
 
-            return (
-                BehaviorTree.NodeState.RUNNING
-            )  # Keep the node in the running state during cooldown
+            return BehaviorTree.NodeState.RUNNING  # Keep the node in the running state during cooldown
 
         def reset(self):
             """Reset the repeater node and the child state."""
@@ -1444,21 +1402,11 @@ class FSM:
             """
             self.id = id
             self.name = name or f"State-{id}"  # If no name is provided, use "State-ID"
-            self.execute_fn = execute_fn or (
-                lambda: None
-            )  # Default to no action if not provided
-            self.exit_condition = exit_condition or (
-                lambda: True
-            )  # Default to False if not provided
-            self.run_once = (
-                run_once  # Flag to control whether the action runs once or repeatedly
-            )
-            self.executed = (
-                False  # Track whether the state's execute function has been run
-            )
-            self.transition_delay_ms = (
-                transition_delay_ms  # Delay before transitioning to the next state
-            )
+            self.execute_fn = execute_fn or (lambda: None)  # Default to no action if not provided
+            self.exit_condition = exit_condition or (lambda: True)  # Default to False if not provided
+            self.run_once = run_once  # Flag to control whether the action runs once or repeatedly
+            self.executed = False  # Track whether the state's execute function has been run
+            self.transition_delay_ms = transition_delay_ms  # Delay before transitioning to the next state
             self.transition_timer = Timer()  # Timer to manage the delay
             self.on_enter = on_enter or (lambda: None)
             self.on_exit = on_exit or (lambda: None)
@@ -1507,9 +1455,7 @@ class FSM:
             :param event_name: The name of the event that triggers this transition.
             :param target_state_name: The name of the state to transition to.
             """
-            if not isinstance(event_name, str) or not isinstance(
-                target_state_name, str
-            ):
+            if not isinstance(event_name, str) or not isinstance(target_state_name, str):
                 raise TypeError("Event name and target state name must be strings.")
             self.event_transitions[event_name] = target_state_name
 
@@ -1532,9 +1478,7 @@ class FSM:
             :param sub_fsm: An optional sub-FSM that will be run if condition_fn returns False.
             """
             super().__init__(id, name, on_enter=on_enter, on_exit=on_exit)
-            self.condition_fn = condition_fn or (
-                lambda: True
-            )  # Default to True if no condition provided
+            self.condition_fn = condition_fn or (lambda: True)  # Default to True if no condition provided
             self.sub_fsm = sub_fsm
             self.sub_fsm_active = False
             self.log_actions = log_actions
@@ -1626,10 +1570,7 @@ class FSM:
                 return False
 
             # Check if coroutine is no longer running
-            if (
-                self.coroutine_instance
-                and self.coroutine_instance in GLOBAL_CACHE.Coroutines
-            ):
+            if self.coroutine_instance and self.coroutine_instance in GLOBAL_CACHE.Coroutines:
                 return False  # Still running
 
             return True
@@ -1681,18 +1622,14 @@ class FSM:
         :param name: Name of the state.
         :param coroutine_fn: Function that returns a yield-based generator.
         """
-        step = self.YieldRoutineState(
-            id=self.state_counter, name=name, coroutine_fn=coroutine_fn
-        )
+        step = self.YieldRoutineState(id=self.state_counter, name=name, coroutine_fn=coroutine_fn)
         step.transition_delay_ms = transition_delay_ms
         if self.states:
             self.states[-1].set_next_state(step)
         self.states.append(step)
         self.state_counter += 1
 
-    def AddSubroutine(
-        self, name=None, condition_fn=None, sub_fsm=None, on_enter=None, on_exit=None
-    ):
+    def AddSubroutine(self, name=None, condition_fn=None, sub_fsm=None, on_enter=None, on_exit=None):
         """Add a condition node that evaluates a condition and can run a subroutine FSM."""
         condition_node = FSM.ConditionState(
             id=self.state_counter,
@@ -1956,9 +1893,7 @@ class FSM:
             return
 
         self.current_state.exit()
-        next_state_polling = getattr(
-            self.current_state, "next_state", None
-        )  # Get the *original* next_state
+        next_state_polling = getattr(self.current_state, "next_state", None)  # Get the *original* next_state
 
         if next_state_polling:
             original_state_name = self.current_state.name  # Store name before changing
@@ -2172,9 +2107,7 @@ class MultiThreading:
                             Py4GW.Console.MessageType.Info,
                         )
 
-            new_thread = threading.Thread(
-                target=wrapped_target, args=args, kwargs=kwargs, daemon=True
-            )
+            new_thread = threading.Thread(target=wrapped_target, args=args, kwargs=kwargs, daemon=True)
             self.threads[name]["thread"] = new_thread
             self.threads[name]["last_keepalive"] = time.time()
             new_thread.start()
@@ -2221,9 +2154,7 @@ class MultiThreading:
                         f"Force stopping thread '{name}'.",
                         Py4GW.Console.MessageType.Warning,
                     )
-                ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                    ctypes.c_long(thread.ident), ctypes.py_object(SystemExit)
-                )
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
                 time.sleep(0.1)
 
             del self.threads[name]
@@ -2273,9 +2204,7 @@ class MultiThreading:
             from .Map import Map
 
             if self.log_actions:
-                Py4GW.Console.Log(
-                    "Watchdog", "Watchdog started.", Py4GW.Console.MessageType.Info
-                )
+                Py4GW.Console.Log("Watchdog", "Watchdog started.", Py4GW.Console.MessageType.Info)
             while self.watchdog_active:
                 current_time = time.time()
                 expired_threads = []
@@ -2317,9 +2246,7 @@ class MultiThreading:
 
                 # Check if only watchdog remains
                 with self.lock:
-                    active_threads = [
-                        name for name in self.threads.keys() if name != "watchdog"
-                    ]
+                    active_threads = [name for name in self.threads.keys() if name != "watchdog"]
 
                 if not active_threads:
                     ConsoleLog(
@@ -2568,17 +2495,11 @@ class LootConfig:
         loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), distance)
 
         if multibox_loot:
-            loot_array = AgentArray.Filter.ByCondition(
-                loot_array, lambda item_id: IsValidFollowerItem(item_id)
-            )
+            loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidFollowerItem(item_id))
         else:
-            loot_array = AgentArray.Filter.ByCondition(
-                loot_array, lambda item_id: IsValidItem(item_id)
-            )
+            loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidItem(item_id))
 
-        for agent_id in loot_array[
-            :
-        ]:  # Iterate over a copy to avoid modifying while iterating
+        for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
             item_data = Agent.GetItemAgent(agent_id)
             item_id = item_data.item_id
             model_id = Item.GetModelID(item_id)
@@ -2657,9 +2578,7 @@ class AutoInventoryHandler:
         self.salvage_blues = True
         self.salvage_purples = True
         self.salvage_golds = False
-        self.salvage_blacklist = (
-            []
-        )  # Items that should not be salvaged, even if they match the salvage criteria
+        self.salvage_blacklist = []  # Items that should not be salvaged, even if they match the salvage criteria
         self.blacklisted_model_id = 0
         self.model_id_search = ""
         self.model_id_search_mode = 0  # 0 = Contains, 1 = Starts With
@@ -2686,9 +2605,7 @@ class AutoInventoryHandler:
         self.ini.write_key(section, "id_greens", str(self.id_greens))
 
         self.ini.write_key(section, "salvage_whites", str(self.salvage_whites))
-        self.ini.write_key(
-            section, "salvage_rare_materials", str(self.salvage_rare_materials)
-        )
+        self.ini.write_key(section, "salvage_rare_materials", str(self.salvage_rare_materials))
         self.ini.write_key(section, "salvage_blues", str(self.salvage_blues))
         self.ini.write_key(section, "salvage_purples", str(self.salvage_purples))
         self.ini.write_key(section, "salvage_golds", str(self.salvage_golds))
@@ -2720,37 +2637,21 @@ class AutoInventoryHandler:
         self.id_golds = ini.read_bool(section, "id_golds", self.id_golds)
         self.id_greens = ini.read_bool(section, "id_greens", self.id_greens)
 
-        self.salvage_whites = ini.read_bool(
-            section, "salvage_whites", self.salvage_whites
-        )
-        self.salvage_rare_materials = ini.read_bool(
-            section, "salvage_rare_materials", self.salvage_rare_materials
-        )
+        self.salvage_whites = ini.read_bool(section, "salvage_whites", self.salvage_whites)
+        self.salvage_rare_materials = ini.read_bool(section, "salvage_rare_materials", self.salvage_rare_materials)
         self.salvage_blues = ini.read_bool(section, "salvage_blues", self.salvage_blues)
-        self.salvage_purples = ini.read_bool(
-            section, "salvage_purples", self.salvage_purples
-        )
+        self.salvage_purples = ini.read_bool(section, "salvage_purples", self.salvage_purples)
         self.salvage_golds = ini.read_bool(section, "salvage_golds", self.salvage_golds)
 
         blacklist_str = ini.read_key(section, "salvage_blacklist", "")
-        self.salvage_blacklist = [
-            int(x) for x in blacklist_str.split(",") if x.strip().isdigit()
-        ]
+        self.salvage_blacklist = [int(x) for x in blacklist_str.split(",") if x.strip().isdigit()]
 
-        self.deposit_trophies = ini.read_bool(
-            section, "deposit_trophies", self.deposit_trophies
-        )
-        self.deposit_materials = ini.read_bool(
-            section, "deposit_materials", self.deposit_materials
-        )
+        self.deposit_trophies = ini.read_bool(section, "deposit_trophies", self.deposit_trophies)
+        self.deposit_materials = ini.read_bool(section, "deposit_materials", self.deposit_materials)
         self.deposit_blues = ini.read_bool(section, "deposit_blues", self.deposit_blues)
-        self.deposit_purples = ini.read_bool(
-            section, "deposit_purples", self.deposit_purples
-        )
+        self.deposit_purples = ini.read_bool(section, "deposit_purples", self.deposit_purples)
         self.deposit_golds = ini.read_bool(section, "deposit_golds", self.deposit_golds)
-        self.deposit_greens = ini.read_bool(
-            section, "deposit_greens", self.deposit_greens
-        )
+        self.deposit_greens = ini.read_bool(section, "deposit_greens", self.deposit_greens)
 
         self.keep_gold = ini.read_int(section, "keep_gold", self.keep_gold)
 
@@ -2782,9 +2683,7 @@ class AutoInventoryHandler:
         else:
             Inventory.SalvageItem(item_id, first_salv_kit)
 
-    def IdentifyItems(
-        self, progress_callback: Optional[Callable[[float], None]] = None
-    ):
+    def IdentifyItems(self, progress_callback: Optional[Callable[[float], None]] = None):
         from Py4GWCoreLib import GLOBAL_CACHE
         from Py4GWCoreLib import ActionQueueManager
         from Py4GWCoreLib import Bags
@@ -2795,9 +2694,7 @@ class AutoInventoryHandler:
         def _get_total_id_uses():
             total_uses = 0
             for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
-                bag_items = GLOBAL_CACHE.ItemArray.GetItemArray(
-                    GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
-                )
+                bag_items = GLOBAL_CACHE.ItemArray.GetItemArray(GLOBAL_CACHE.ItemArray.CreateBagList(bag_id))
                 for item_id in bag_items:
                     if Item.Usage.IsIDKit(item_id):
                         total_uses += Item.Usage.GetUses(item_id)
@@ -2861,9 +2758,7 @@ class AutoInventoryHandler:
         def _get_total_salv_uses():
             total_uses = 0
             for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
-                bag_items = GLOBAL_CACHE.ItemArray.GetItemArray(
-                    GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
-                )
+                bag_items = GLOBAL_CACHE.ItemArray.GetItemArray(GLOBAL_CACHE.ItemArray.CreateBagList(bag_id))
                 for item_id in bag_items:
                     if Item.Usage.IsLesserKit(item_id):
                         total_uses += Item.Usage.GetUses(item_id)
@@ -2894,17 +2789,13 @@ class AutoInventoryHandler:
                 is_purple = rarity == "Purple"
                 is_gold = rarity == "Gold"
                 is_material = GLOBAL_CACHE.Item.Type.IsMaterial(item_id)
-                is_material_salvageable = GLOBAL_CACHE.Item.Usage.IsMaterialSalvageable(
-                    item_id
-                )
+                is_material_salvageable = GLOBAL_CACHE.Item.Usage.IsMaterialSalvageable(item_id)
                 is_identified = GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)
                 is_salvageable = GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id)
                 is_salvage_kit = GLOBAL_CACHE.Item.Usage.IsLesserKit(item_id)  # noqa
                 model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
 
-                if not (
-                    (is_white and is_salvageable) or (is_identified and is_salvageable)
-                ):
+                if not ((is_white and is_salvageable) or (is_identified and is_salvageable)):
                     yield
                     continue
 
@@ -2912,12 +2803,7 @@ class AutoInventoryHandler:
                     yield
                     continue
 
-                if (
-                    is_white
-                    and is_material
-                    and is_material_salvageable
-                    and not self.salvage_rare_materials
-                ):
+                if is_white and is_material and is_material_salvageable and not self.salvage_rare_materials:
                     yield
                     continue
 
@@ -2944,9 +2830,7 @@ class AutoInventoryHandler:
 
                     if is_purple or is_gold:
                         yield from Routines.Yield.Items._wait_for_salvage_materials_window()
-                        ActionQueueManager().AddAction(
-                            "SALVAGE", Inventory.AcceptSalvageMaterialsWindow
-                        )
+                        ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
                         yield from Routines.Yield.Items._wait_for_empty_queue("SALVAGE")
 
                     yield from Routines.Yield.wait(100)
@@ -3024,9 +2908,7 @@ class AutoInventoryHandler:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
 
-    def IDAndSalvageItems(
-        self, progress_callback: Optional[Callable[[float], None]] = None
-    ):
+    def IDAndSalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None):
         self.status = "Identifying"
         yield from self.IdentifyItems()
         if progress_callback:
