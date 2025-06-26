@@ -4429,7 +4429,7 @@ class CustomSkillClass:
         self.skill_data[skill.SkillID] = skill
 
         # NECROMANCER NO ATTRIBUTE
-        
+
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Gaze_of_Contempt")
         skill.SkillType = SkillType.Spell.value
@@ -5492,7 +5492,7 @@ class CustomSkillClass:
         self.skill_data[skill.SkillID] = skill
 
         # ELEMENTALIST ENERGY STORAGE
-        
+
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Aura_of_Restoration")
         skill.SkillType = SkillType.Enchantment.value

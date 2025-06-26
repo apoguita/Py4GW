@@ -2874,11 +2874,7 @@ class AutoInventoryHandler:
         from Py4GWCoreLib import ConsoleLog
         from Py4GWCoreLib import Routines
 
-        ConsoleLog(
-            "AutoInventoryHandler",
-            "Starting ID, Salvage and Deposit routine",
-            Py4GW.Console.MessageType.Info,
-        )
+        ConsoleLog("AutoInventoryHandler", "Starting ID, Salvage and Deposit routine", Py4GW.Console.MessageType.Info)
         self.status = "Identifying"
         yield from self.IdentifyItems()
 
