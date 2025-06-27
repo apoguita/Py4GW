@@ -36,6 +36,13 @@ window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
 
+"""
+CHECKLIST:
+ - Widgets//widget_manager//default_settings.py - need to add some basic configs
+ - Py4GW.ini - need to add some basic configs
+"""
+
+
 # Pass in whatever your widget needs as argument
 def draw_widget(cached_data):
     global window_x, window_y, window_collapsed, first_run
