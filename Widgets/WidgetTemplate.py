@@ -51,19 +51,21 @@ def draw_widget(cached_data):
 
     if is_window_opened:
         # (TODO) Fill in your widget functions and the draw window logic here
-
         # Build widget stuff here
-        if save_window_timer.HasElapsed(1000):
-            # Position changed?
-            if (end_pos[0], end_pos[1]) != (window_x, window_y):
-                window_x, window_y = int(end_pos[0]), int(end_pos[1])
-                ini_window.write_key(MODULE_NAME, X_POS, str(window_x))
-                ini_window.write_key(MODULE_NAME, Y_POS, str(window_y))
-            # Collapsed state changed?
-            if new_collapsed != window_collapsed:
-                window_collapsed = new_collapsed
-                ini_window.write_key(MODULE_NAME, COLLAPSED, str(window_collapsed))
-            save_window_timer.Reset()
+        pass
+
+    PyImGui.end()
+    if save_window_timer.HasElapsed(1000):
+        # Position changed?
+        if (end_pos[0], end_pos[1]) != (window_x, window_y):
+            window_x, window_y = int(end_pos[0]), int(end_pos[1])
+            ini_window.write_key(MODULE_NAME, X_POS, str(window_x))
+            ini_window.write_key(MODULE_NAME, Y_POS, str(window_y))
+        # Collapsed state changed?
+        if new_collapsed != window_collapsed:
+            window_collapsed = new_collapsed
+            ini_window.write_key(MODULE_NAME, COLLAPSED, str(window_collapsed))
+        save_window_timer.Reset()
 
 
 def configure():
