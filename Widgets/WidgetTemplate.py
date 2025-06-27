@@ -8,6 +8,13 @@ from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Timer
 
+"""
+CHECKLIST:
+ - Make a copy of this file and name your module, follow the file paths listed for configs and modify these functions.
+ - Widgets//widget_manager//default_settings.py - need to add some basic configs
+ - Py4GW.ini - need to add some basic configs
+"""
+
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
@@ -25,7 +32,7 @@ save_window_timer = Timer()
 save_window_timer.Start()
 
 # String consts
-MODULE_NAME = "MyNewWidget"
+MODULE_NAME = "<new_module_name_goes_here>"  # Change this Module name
 COLLAPSED = "collapsed"
 X_POS = "x"
 Y_POS = "y"
@@ -34,13 +41,6 @@ Y_POS = "y"
 window_x = ini_window.read_int(MODULE_NAME, X_POS, 100)
 window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
-
-
-"""
-CHECKLIST:
- - Widgets//widget_manager//default_settings.py - need to add some basic configs
- - Py4GW.ini - need to add some basic configs
-"""
 
 
 # Pass in whatever your widget needs as argument
