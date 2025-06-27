@@ -464,4 +464,5 @@ account_widget_defaults = {
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },
+    # TODO: Register your Widget here
 }
