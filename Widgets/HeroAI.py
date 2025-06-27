@@ -46,6 +46,8 @@ from Py4GWCoreLib import Utils
 
 MODULE_NAME = "HeroAI"
 
+FOLLOW_COMBAT_DISTANCE = 25.0  # if body blocked, we get close enough.
+
 cached_data = CacheData()
 
 
@@ -82,8 +84,6 @@ def HandleCombat(cached_data: CacheData):
     if not cached_data.data.in_aggro:
         return False
 
-    combat_follow_distance = 15.0  # if body blocked, we get close enough.
-
     # Suspends all activity until HeroAI has made it to the flagged position
     # Still goes into combat as long as its within the combat follow range value of the expected flag
     party_number = cached_data.data.own_party_number
@@ -92,13 +92,13 @@ def HandleCombat(cached_data: CacheData):
         own_follow_x = all_player_struct[party_number].FlagPosX
         own_follow_y = all_player_struct[party_number].FlagPosY
         own_flag_coords = (own_follow_x, own_follow_y)
-        if Utils.Distance(own_flag_coords, cached_data.data.player_xy) > combat_follow_distance:
+        if Utils.Distance(own_flag_coords, cached_data.data.player_xy) >= FOLLOW_COMBAT_DISTANCE:
             return True  # Forces a reset on autoattack timer
     elif all_player_struct[0].IsFlagged:
         leader_follow_x = all_player_struct[0].FlagPosX
         leader_follow_y = all_player_struct[0].FlagPosY
         leader_flag_coords = (leader_follow_x, leader_follow_y)
-        if Utils.Distance(leader_flag_coords, cached_data.data.player_xy) > combat_follow_distance:
+        if Utils.Distance(leader_flag_coords, cached_data.data.player_xy) >= FOLLOW_COMBAT_DISTANCE:
             return True  # Forces a reset on autoattack timer
     return cached_data.combat_handler.HandleCombat(ooc=False)
 
@@ -171,10 +171,8 @@ def Follow(cached_data: CacheData):
     follow_y = 0.0
     follow_angle = -1.0
 
-    is_own_flagged = False
     all_player_struct = cached_data.HeroAI_vars.all_player_struct
     if all_player_struct[party_number].IsFlagged:  # my own flag
-        is_own_flagged = True
         follow_x = all_player_struct[party_number].FlagPosX
         follow_y = all_player_struct[party_number].FlagPosY
         follow_angle = all_player_struct[party_number].FollowAngle
@@ -189,9 +187,8 @@ def Follow(cached_data: CacheData):
         follow_x, follow_y = cached_data.data.party_leader_xy
         follow_angle = cached_data.data.party_leader_rotation_angle
 
-    if is_own_flagged:
-        # 1/3rd distance of touch range to ensure formation flag is respected
-        FOLLOW_DISTANCE_ON_COMBAT = 48.0
+    if following_flag:
+        FOLLOW_DISTANCE_ON_COMBAT = FOLLOW_COMBAT_DISTANCE
     elif cached_data.data.is_melee:
         FOLLOW_DISTANCE_ON_COMBAT = MELEE_RANGE_VALUE
     else:
@@ -200,7 +197,7 @@ def Follow(cached_data: CacheData):
     if cached_data.data.in_aggro:
         follow_distance = FOLLOW_DISTANCE_ON_COMBAT
     else:
-        follow_distance = FOLLOW_DISTANCE_OUT_OF_COMBAT if not is_own_flagged else 0.0
+        follow_distance = FOLLOW_DISTANCE_OUT_OF_COMBAT if not following_flag else 0.0
 
     angle_changed_pass = False
     if cached_data.data.angle_changed and (not cached_data.data.in_aggro):
@@ -214,8 +211,6 @@ def Follow(cached_data: CacheData):
     hero_grid_pos = party_number + cached_data.data.party_hero_count + cached_data.data.party_henchman_count
     angle_on_hero_grid = follow_angle + Utils.DegToRad(hero_formation[hero_grid_pos])
 
-    # if IsPointValid(follow_x, follow_y):
-    #   return False
     if following_flag:
         xx = follow_x
         yy = follow_y
