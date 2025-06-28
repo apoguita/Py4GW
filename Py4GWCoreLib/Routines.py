@@ -2320,10 +2320,11 @@ class Routines:
             @staticmethod
             def _wait_for_salvage_materials_window():
                 from Py4GWCoreLib import UIManager
+                yield from Routines.Yield.wait(50)
                 salvage_materials_frame = UIManager.GetChildFrameID(140452905, [6, 100, 6])
                 while not UIManager.FrameExists(salvage_materials_frame):
-                    yield from Routines.Yield.wait(100)
-                yield from Routines.Yield.wait(100)
+                    yield from Routines.Yield.wait(50)
+                yield from Routines.Yield.wait(50)
             
             @staticmethod
             def _wait_for_empty_queue(queue_name:str):
