@@ -3425,6 +3425,12 @@ class PetModelID(IntEnum):
     HOUND_20_HEARTY = 1147
     HOUND_20_DIRE = 1148
 
+#region ItemModelTextures
+ITEM_MODEL_TEXTURE_PATH = "Textures\\Item Models\\"
+ItemModelTextureMap = {
+   2992: ITEM_MODEL_TEXTURE_PATH + "[2992] Salvage_Kit.png",
+   5899: ITEM_MODEL_TEXTURE_PATH + "[5899] Superior_Identification_Kit.png", 
+}
 
 # region ProfessionTexctures
 ProfessionTextureMap = {
