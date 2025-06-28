@@ -625,7 +625,7 @@ class Color:
         new_b = int(self.b * (1 - amount) + gray * amount)
 
         return Color(r=new_r, g=new_g, b=new_b, a=self.a)
-    
+
     def saturate(self, amount: float = 1.0) -> "Color":
         """
         Returns a new Color instance with increased saturation by the given amount [0..1].
@@ -648,7 +648,6 @@ class Color:
 
         return Color(r=new_r, g=new_g, b=new_b, a=self.a)
 
-    
     def shift(self, target: "Color", amount: float) -> "Color":
         """
         Returns a new Color instance shifted toward the target Color by the given amount [0..1].
@@ -662,11 +661,12 @@ class Color:
         new_a = int(self.a + (target.a - self.a) * amount)
 
         return Color(new_r, new_g, new_b, new_a)
-    
+
     @classmethod
     def _make(cls, r: int, g: int, b: int, a: int = 255) -> "Color":
         return cls(r, g, b, a)
-    
+
+
 class ColorPalette:
     _colors: dict[str, Color] = {
         "aqua": Color(0, 255, 255),
@@ -732,7 +732,7 @@ class ColorPalette:
         "violet": Color(238, 130, 238),
         "wheat": Color(245, 222, 179),
         "white": Color(255, 255, 255),
-        "yellow": Color(255, 255, 0)
+        "yellow": Color(255, 255, 0),
     }
 
     @staticmethod
@@ -747,8 +747,9 @@ class ColorPalette:
     def HasColor(name: str) -> bool:
         return name.lower() in ColorPalette._colors
 
-#endregion
-#region Timer
+
+# endregion
+# region Timer
 class Timer:
     def __init__(self):
         """Initialize the Timer object with default values."""
@@ -1178,7 +1179,7 @@ class ActionQueueManager:
             "LOOT": ActionQueueNode(1250),
             "MERCHANT": ActionQueueNode(750),
             "SALVAGE": ActionQueueNode(125),
-            "IDENTIFY": ActionQueueNode(150)
+            "IDENTIFY": ActionQueueNode(150),
             # Add more queues here if needed
         }
 
@@ -2743,50 +2744,63 @@ class AutoInventoryHandler:
             )
         else:
             Inventory.SalvageItem(item_id, first_salv_kit)
-            
-    def IdentifyItems(self,progress_callback: Optional[Callable[[float], None]] = None):
-        from Py4GWCoreLib import GLOBAL_CACHE, ItemArray, Routines, Bags, ActionQueueManager, ConsoleLog
-        from Py4GWCoreLib import Inventory, Item
+
+    def IdentifyItems(self, progress_callback: Optional[Callable[[float], None]] = None):
         import PyItem
-        
+        from Py4GWCoreLib import ActionQueueManager
+        from Py4GWCoreLib import Bags
+        from Py4GWCoreLib import ConsoleLog
+        from Py4GWCoreLib import Inventory
+        from Py4GWCoreLib import Item
+        from Py4GWCoreLib import ItemArray
+        from Py4GWCoreLib import Routines
+
         bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
         item_array = ItemArray.GetItemArray(bag_list)
-        
+
         identified_items = 0
-            
+
         for item_id in item_array:
             first_id_kit = Inventory.GetFirstIDKit()
-             
+
             if first_id_kit == 0:
                 Py4GW.Console.Log("AutoIdentify", "No ID Kit found in inventory.", Py4GW.Console.MessageType.Warning)
-                return   
-                
+                return
+
             item_instance = PyItem.PyItem(item_id)
             is_identified = item_instance.is_identified
-                
+
             if is_identified:
                 continue
-                
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            if ((rarity == "White" and self.id_whites) or
-                (rarity == "Blue" and self.id_blues) or
-                (rarity == "Green" and self.id_greens) or
-                (rarity == "Purple" and self.id_purples) or
-                (rarity == "Gold" and self.id_golds)):
-                ActionQueueManager().AddAction("ACTION", Inventory.IdentifyItem,item_id, first_id_kit)
+
+            _, rarity = Item.Rarity.GetRarity(item_id)
+            if (
+                (rarity == "White" and self.id_whites)
+                or (rarity == "Blue" and self.id_blues)
+                or (rarity == "Green" and self.id_greens)
+                or (rarity == "Purple" and self.id_purples)
+                or (rarity == "Gold" and self.id_golds)
+            ):
+                ActionQueueManager().AddAction("ACTION", Inventory.IdentifyItem, item_id, first_id_kit)
                 identified_items += 1
                 while True:
                     yield from Routines.Yield.wait(50)
                     item_instance.GetContext()
                     if item_instance.is_identified:
                         break
-                    
+
         if identified_items > 0:
             ConsoleLog(self.module_name, f"Identified {identified_items} items", Py4GW.Console.MessageType.Success)
-            
+
     def SalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None):
-        from Py4GWCoreLib import GLOBAL_CACHE, Item, ItemArray, Routines, Bags, ActionQueueManager, ConsoleLog, Inventory
         import PyItem
+        from Py4GWCoreLib import GLOBAL_CACHE
+        from Py4GWCoreLib import ActionQueueManager
+        from Py4GWCoreLib import Bags
+        from Py4GWCoreLib import ConsoleLog
+        from Py4GWCoreLib import Inventory
+        from Py4GWCoreLib import ItemArray
+        from Py4GWCoreLib import Routines
 
         bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
         item_array = ItemArray.GetItemArray(bag_list)
@@ -2803,7 +2817,7 @@ class AutoInventoryHandler:
             _, rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
             is_white = rarity == "White"
             is_blue = rarity == "Blue"
-            is_green = rarity == "Green"
+            is_green = rarity == "Green"  # noqa
             is_purple = rarity == "Purple"
             is_gold = rarity == "Gold"
 
@@ -2833,12 +2847,12 @@ class AutoInventoryHandler:
 
             # Repeat until item no longer exists
             while True:
-                
+
                 bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
                 item_array = ItemArray.GetItemArray(bag_list)
                 if item_id not in item_array:
                     break  # Fully consumed / disappeared
-    
+
                 item_instance.GetContext()
                 quantity = item_instance.quantity
                 if quantity == 0:
@@ -2846,7 +2860,9 @@ class AutoInventoryHandler:
 
                 salvage_kit = Inventory.GetFirstSalvageKit(use_lesser=True)
                 if salvage_kit == 0:
-                    Py4GW.Console.Log("AutoSalvage", "No Salvage Kit found in inventory.", Py4GW.Console.MessageType.Warning)
+                    Py4GW.Console.Log(
+                        "AutoSalvage", "No Salvage Kit found in inventory.", Py4GW.Console.MessageType.Warning
+                    )
                     return
 
                 ActionQueueManager().AddAction("ACTION", Inventory.SalvageItem, item_id, salvage_kit)
@@ -2877,7 +2893,6 @@ class AutoInventoryHandler:
         if salvaged_items > 0:
             ConsoleLog(self.module_name, f"Salvaged {salvaged_items} items", Py4GW.Console.MessageType.Success)
 
-            
     def DepositItemsAuto(self):
         from Py4GWCoreLib import GLOBAL_CACHE
         from Py4GWCoreLib import Bags
