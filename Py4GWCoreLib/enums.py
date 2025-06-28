@@ -23,7 +23,8 @@ class SharedCommandType(IntEnum):
     EnableHeroAI = 17
     LeaveParty = 18
     PressKey = 19
-    LootEx = 20  # privately Handled Command, by Frenkey   
+    LootEx = 20  # privately Handled Command, by Frenkey
+
 
 class CombatPrepSkillsType(IntEnum):
     SpiritsPrep = 1
@@ -2823,13 +2824,13 @@ class ModelID(IntEnum):
     Zhos_Journal = 25866
     Zhu_Hanuku_Mini = 34398
 
-#region AgentModels
+
+# region AgentModels
 class AgentModelID(IntEnum):
-    FROST_WURM=6491
+    FROST_WURM = 6491
     FROZEN_ELEMENTAL = 6478
-    
-	
- 
+
+
 class SpiritModelID(IntEnum):
     # SPIRIT_MODEL
     # RANGER
