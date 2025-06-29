@@ -2320,7 +2320,7 @@ class Routines:
             @staticmethod
             def _wait_for_salvage_materials_window():
                 from Py4GWCoreLib import UIManager
-                yield from Routines.Yield.wait(50)
+                yield from Routines.Yield.wait(150)
                 salvage_materials_frame = UIManager.GetChildFrameID(140452905, [6, 100, 6])
                 while not UIManager.FrameExists(salvage_materials_frame):
                     yield from Routines.Yield.wait(50)
@@ -2453,6 +2453,7 @@ class Routines:
 
             @staticmethod
             def LootItems(item_array:list[int], log=False, progress_callback: Optional[Callable[[float], None]] = None):
+                from Py4GWCoreLib import AgentArray
                 if len(item_array) == 0:
                     return True
                 
@@ -2491,7 +2492,12 @@ class Routines:
                         return False
                     if GLOBAL_CACHE.Agent.IsValid(item_id):
                         yield from Routines.Yield.Player.InteractAgent(item_id)
-                        yield from Routines.Yield.wait(1250)
+                        while True:
+                            yield from Routines.Yield.wait(50)
+                            item_array = AgentArray.GetItemArray()
+                            if item_id not in item_array:
+                                break
+
                         
                     if progress_callback and total_items > 0:
                         progress_callback(1 - len(item_array) / total_items)

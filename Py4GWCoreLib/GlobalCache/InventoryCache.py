@@ -600,7 +600,7 @@ class InventoryCache:
         remaining_quantity = min(quantity, ammount) if ammount > 0 else quantity
         moved_any = False
         model_id = self.item_cache.GetModelID(item_id)
-        is_dye = model_id == (model_id == ModelID.Vial_Of_Dye.value)
+        is_dye = (model_id == ModelID.Vial_Of_Dye.value)
         dye1_to_match = None
         if is_dye:
             dye_info = self.item_cache.Customization.GetDyeInfo(item_id)
