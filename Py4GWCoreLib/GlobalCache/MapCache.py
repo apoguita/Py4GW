@@ -107,6 +107,15 @@ class MapCache:
     def HasEnterChallengeButton(self):
         return self._map_instance.has_enter_button
     
+    def IsOnWorldMap(self):
+        return self._map_instance.is_on_world_map
+    
+    def IsPVP(self):
+        return self._map_instance.is_pvp
+    
+    def IsGuildHall(self):
+        return self._map_instance.is_guild_hall
+    
     def EnterChallenge(self):
         self._action_queue_manager.AddAction("ACTION", self._map_instance.EnterChallenge)
         

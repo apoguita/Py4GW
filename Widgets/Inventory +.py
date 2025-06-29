@@ -4,6 +4,8 @@ from Py4GWCoreLib import *
 MODULE_NAME = "Inventory +"
 INVENTORY_FRAME_HASH = 291586130
 XUNLAI_VAULT_FRAME_HASH = 2315448754
+MERCHANT_FRAME = 3613855137
+MERCHANT_BUY_BUTTON_FRAME_HASH = 1532320307
 AUTO_HANDLER = AutoInventoryHandler()
     
 class WidgetUI:
@@ -92,9 +94,10 @@ class WidgetUI:
      
     #endregion
     #region InitUI       
-    def __init__(self, inventory_frame_id=0, id_checkboxes=None, salvage_checkboxes=None):
+    def __init__(self, inventory_frame_id=0, id_checkboxes=None, salvage_checkboxes=None, merchant_checkboxes=None):
         self.id_checkboxes:Dict[int, bool] = id_checkboxes if id_checkboxes is not None else {}
         self.salvage_checkboxes:Dict[int, bool] = salvage_checkboxes if salvage_checkboxes is not None else {}
+        self.merchant_checkboxes:Dict[int, bool] = merchant_checkboxes if merchant_checkboxes is not None else {}
         self.inventory_frame_id = inventory_frame_id
         self.inventory_frame = self.Frame(0)
         self.tab_icons: List["WidgetUI.TabIcon"] = []
@@ -104,6 +107,9 @@ class WidgetUI:
         self.colorize_globals = self.Colorizeglobals()
         
         self.widget_active = True
+        self.show_transfer_buttons = True
+        self.selected_combo_merchant = 0
+        self.merchant_buy_quantity = 0
         
         
     def set_inventory_frame_id(self, inventory_frame_id):
@@ -179,11 +185,19 @@ class WidgetUI:
             PyImGui.WindowFlags.NoTitleBar |
             PyImGui.WindowFlags.NoScrollbar |
             PyImGui.WindowFlags.NoScrollWithMouse |
-            PyImGui.WindowFlags.AlwaysAutoResize
+            PyImGui.WindowFlags.AlwaysAutoResize |
+            PyImGui.WindowFlags.NoBackground
         )
 
         PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, -1, -0)
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0, 0, 0, 0))  # Fully transparent
+        
+        # Transparent button face
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.0, 0.0, 0.0, 0.0))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.0, 0.0, 0.0, 0.0))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.0, 0.0, 0.0, 0.0))
+
         PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color.to_tuple_normalized())
         result = False
         if PyImGui.begin(f"{caption}##invisible_buttonwindow{name}", flags):
@@ -191,7 +205,7 @@ class WidgetUI:
 
             
         PyImGui.end()
-        PyImGui.pop_style_color(1)
+        PyImGui.pop_style_color(5)  # Button, Hovered, Active, Text, WindowBg
         PyImGui.pop_style_var(2)
 
         return result
@@ -293,6 +307,12 @@ class WidgetUI:
         y = self.inventory_frame.top
         width = 35
         height = self.inventory_frame.height -5
+        compact_mode = False
+        if height < 190:
+            #height = 190
+            width = 60
+            x = x - 30
+            compact_mode = True
         
         PyImGui.set_next_window_pos(x, y)
         PyImGui.set_next_window_size(width, height)
@@ -325,6 +345,9 @@ class WidgetUI:
                 if toggle_status:
                     self.selected_tab_icon_index = self.tab_icons.index(icon)
                 ImGui.show_tooltip(icon.icon_tooltip)
+                
+                if compact_mode and (index % 2 == 0):
+                    PyImGui.same_line(0, 3)
 
         PyImGui.end()
         PyImGui.pop_style_var(2)
@@ -688,6 +711,42 @@ class WidgetUI:
     
     #endregion
     
+    #region XunlaiBottomStrip
+    def draw_xunlai_bottom_strip(self):
+        x = self.inventory_frame.left +5
+        y = self.inventory_frame.bottom
+        width = self.inventory_frame.width
+        height = 30
+        
+        PyImGui.set_next_window_pos(x, y)
+        PyImGui.set_next_window_size(0, height)
+
+        flags = (
+            PyImGui.WindowFlags.NoCollapse |
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoScrollbar |
+            PyImGui.WindowFlags.NoScrollWithMouse |
+            PyImGui.WindowFlags.AlwaysAutoResize
+        )
+        
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 5, 5)
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0, 0)
+        
+        if PyImGui.begin("XunlaiButtons", flags):
+            
+            state = self.colorize_globals.colorize_whites
+            color = self.colorize_globals.white_color
+            self.show_transfer_buttons = ImGui.toggle_button(IconsFontAwesome5.ICON_CARET_SQUARE_RIGHT, self.show_transfer_buttons, width=20, height=20)
+            ImGui.show_tooltip("Show Deposit/Withdraw Buttons")
+            PyImGui.same_line(0,-1)
+            PyImGui.text("|")
+            PyImGui.same_line(0,-1)  
+
+            
+
+        PyImGui.end()
+        PyImGui.pop_style_var(2)
+    
     
     #region ColorizeItems
     
@@ -756,6 +815,19 @@ class WidgetUI:
         }
         color = rarity_colors.get(rarity, Color(255, 255, 255, 255))
         _color = Color(color.r, color.g, color.b, color.a)
+        return _color
+    
+    def _get_floating_button_color(self, rarity:str):
+        rarity_colors = {
+            "White": self.colorize_globals.white_color,
+            "Blue": self.colorize_globals.blue_color,
+            "Green": self.colorize_globals.green_color,
+            "Purple": self.colorize_globals.purple_color,
+            "Gold": self.colorize_globals.gold_color,
+            "Disabled": self.colorize_globals.disabled_color
+        }
+        color = rarity_colors.get(rarity, Color(255, 255, 255, 255))
+        _color = Color(color.r, color.g, color.b, 150)
         return _color
         
     #endregion
@@ -927,7 +999,7 @@ class WidgetUI:
                                         y=bottom-25, 
                                         width=25, 
                                         height=25, 
-                                        color=self._get_checkbox_color(rarity)):
+                                        color=self._get_floating_button_color(rarity)):
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     
             
@@ -959,7 +1031,7 @@ class WidgetUI:
                                         y=bottom-25, 
                                         width=25, 
                                         height=25, 
-                                        color=self._get_checkbox_color(rarity)):
+                                        color=self._get_floating_button_color(rarity)):
                     GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(item_id)
                 
          
@@ -987,10 +1059,15 @@ class WidgetUI:
                 Inventory.OpenXunlaiWindow()
             self.colorize_items()
             self.colorize_vault_items()
-            self.draw_deposit_buttons()
-            self.draw_withdraw_buttons()
+            
+            self.draw_xunlai_bottom_strip()
+            
+            if self.show_transfer_buttons:
+                self.draw_deposit_buttons()
+                self.draw_withdraw_buttons()
         elif selected_tab.icon_name == "##TradeTab":
-            pass
+            self.colorize_merchants()
+            self.draw_merchants_bottom_strip()
    
    
     #region AtuoHandler
@@ -1207,6 +1284,9 @@ class WidgetUI:
                     PyImGui.same_line(0,3)
                     AUTO_HANDLER.deposit_event_items = ImGui.toggle_button(IconsFontAwesome5.ICON_HAT_WIZARD + "##depositeventitems", AUTO_HANDLER.deposit_event_items)
                     ImGui.show_tooltip("Deposit Event Items")
+                    PyImGui.same_line(0,3)
+                    AUTO_HANDLER.deposit_dyes = ImGui.toggle_button(IconsFontAwesome5.ICON_FLASK + "##depositdyes", AUTO_HANDLER.deposit_dyes)
+                    ImGui.show_tooltip("Deposit Dyes")
                     
                     PyImGui.same_line(0,3)
                     state = AUTO_HANDLER.deposit_blues
@@ -1241,6 +1321,337 @@ class WidgetUI:
         PyImGui.end() 
         PyImGui.pop_style_var(1)
 
+#region DrawMerchants
+    def _is_merchant(self):
+        merchant_item_list = Trading.Trader.GetOfferedItems()
+        merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+        
+        salvage_kit = ModelID.Salvage_Kit.value
+
+        if salvage_kit in merchant_item_models:
+            return True
+        return False
+    
+    def _is_material_trader(self):
+        merchant_item_list = Trading.Trader.GetOfferedItems()
+        merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+        
+        wood_planks = ModelID.Wood_Plank.value
+
+        if wood_planks in merchant_item_models:
+            return True
+        return False
+    
+    def _is_rare_material_trader(self):
+        merchant_item_list = Trading.Trader.GetOfferedItems()
+        merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+        
+        glob_of_ectoplasm = ModelID.Glob_Of_Ectoplasm.value
+
+        if glob_of_ectoplasm in merchant_item_models:
+            return True
+        return False
+    
+    def _is_rune_trader(self):
+        merchant_item_list = Trading.Trader.GetOfferedItems()
+        merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+        
+        rune_of_superior_vigor = ModelID.Rune_Of_Superior_Vigor.value
+
+        if rune_of_superior_vigor in merchant_item_models:
+            return True
+        return False
+    
+    def _is_scroll_trader(self):
+        merchant_item_list = Trading.Trader.GetOfferedItems()
+        merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+        
+        scroll_of_berserkers_insitght = ModelID.Scroll_Of_Berserkers_Insight.value
+
+        if scroll_of_berserkers_insitght in merchant_item_models:
+            return True
+        return False
+    
+    def _is_dye_trader(self):
+        merchant_item_list = Trading.Trader.GetOfferedItems()
+        merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+        
+        vial_of_dye = ModelID.Vial_Of_Dye.value
+
+        if vial_of_dye in merchant_item_models and not self._is_material_trader():
+            return True
+        return False
+    
+    def _get_merchant_minimum_quantity(self) -> int:
+        required_quantity = 10 #if is_material_trader else 1
+        if not self._is_material_trader():
+            required_quantity = 1
+            
+        return required_quantity
+        
+        
+    def colorize_merchants(self):
+        merchant_frame_id = UIManager.GetFrameIDByHash(MERCHANT_FRAME)
+        merchant_frame_exists = UIManager.FrameExists(merchant_frame_id)
+        if not merchant_frame_exists:
+            content_frame = UIManager.GetChildFrameID(self._get_parent_hash(), [0])
+            left, top, right, bottom = UIManager.GetFrameCoords(content_frame)
+            y_offset = 2
+            x_offset = 0
+            height = bottom - top + y_offset
+            width = right - left + x_offset
+            UIManager().DrawFrame(content_frame, Utils.RGBToColor(0, 0, 0, 255))
+            flags = ( PyImGui.WindowFlags.NoCollapse | 
+                    PyImGui.WindowFlags.NoTitleBar |
+                    PyImGui.WindowFlags.NoResize
+            )
+            PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+            
+            PyImGui.set_next_window_pos(left, top)
+            PyImGui.set_next_window_size(width, height)
+            
+            if PyImGui.begin("MerchantDeny",True, flags):
+                PyImGui.text_wrapped("Aproach a Merchant to use the Merchant features.")
+                    
+            PyImGui.end()
+            PyImGui.pop_style_var(1)
+            return
+        
+        
+        # merchant test area
+     
+        merchant_item_list = Trading.Trader.GetOfferedItems()
+        merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+
+        for bag_id in range(Bags.Backpack, Bags.Bag2+1):
+            bag_to_check = ItemArray.CreateBagList(bag_id)
+            item_array = ItemArray.GetItemArray(bag_to_check)
+            
+            for item_id in item_array:
+                model = Item.GetModelID(item_id)
+                _,rarity = Item.Rarity.GetRarity(item_id)
+                slot = Item.GetSlot(item_id)
+                quantity = Item.Properties.GetQuantity(item_id)
+                required_quantity = self._get_merchant_minimum_quantity()
+
+                frame_id = UIManager.GetChildFrameID(self._get_parent_hash(), self._get_offsets(bag_id, slot))
+                is_visible = UIManager.FrameExists(frame_id)
+                if not is_visible:
+                    continue
+                
+                frame_color = self._get_frame_color(rarity)
+                frame_outline_color = self._get_frame_outline_color(rarity)
+                
+                is_on_list = model in merchant_item_models
+                
+                if self._is_merchant() and Item.Properties.GetValue(item_id) >= 1:
+                    is_on_list = True
+                
+                
+                enough_quantity = quantity >= required_quantity
+                if not (is_on_list and enough_quantity):
+                    frame_color = self._get_frame_color("Disabled")
+                    frame_outline_color = self._get_frame_outline_color("Disabled")
+                
+                UIManager().DrawFrame(frame_id, frame_color)
+                UIManager().DrawFrameOutline(frame_id, frame_outline_color)
+                
+                #--------------- Checkboxes ---------------
+                
+                if is_on_list and enough_quantity:
+                    if item_id not in self.merchant_checkboxes:
+                        self.merchant_checkboxes[item_id] = False
+                    
+                    left,top, right, bottom = UIManager.GetFrameCoords(frame_id)
+                    self.merchant_checkboxes[item_id] = self.floating_checkbox(
+                        f"{item_id}", 
+                        self.merchant_checkboxes[item_id], 
+                        right -25, 
+                        bottom-25,
+                        width=25,
+                        height=25,
+                        color = self._get_checkbox_color(rarity)
+                    )
+                            
+                # Remove checkbox states that are set to False
+                for item_id in list(self.merchant_checkboxes):
+                    if not self.merchant_checkboxes[item_id]:
+                        del self.merchant_checkboxes[item_id]
+        
+        #end merchant test area
+        
+
+        
+    def draw_merchants_bottom_strip(self): 
+        def _tick_checkboxes(rarity: str, tick_state: bool):
+            merchant_item_list = Trading.Trader.GetOfferedItems()
+            merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+            required_quantity = self._get_merchant_minimum_quantity()
+
+            for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
+                bag_to_check = ItemArray.CreateBagList(bag_id)
+                item_array = ItemArray.GetItemArray(bag_to_check)
+
+                for item_id in item_array:
+                    model = Item.GetModelID(item_id)
+                    quantity = Item.Properties.GetQuantity(item_id)
+
+                    if self._is_merchant() and Item.Properties.GetValue(item_id) >= 1:
+                        is_on_list = True
+                    else:
+                        is_on_list = model in merchant_item_models
+
+                    if not is_on_list or quantity < required_quantity:
+                        continue
+
+                    # Apply state based on selected rarity
+                    if rarity == "All":
+                        self.merchant_checkboxes[item_id] = tick_state
+                    elif rarity == "White" and Item.Rarity.IsWhite(item_id):
+                        self.merchant_checkboxes[item_id] = tick_state
+                    elif rarity == "Blue" and Item.Rarity.IsBlue(item_id):
+                        self.merchant_checkboxes[item_id] = tick_state
+                    elif rarity == "Purple" and Item.Rarity.IsPurple(item_id):
+                        self.merchant_checkboxes[item_id] = tick_state
+                    elif rarity == "Gold" and Item.Rarity.IsGold(item_id):
+                        self.merchant_checkboxes[item_id] = tick_state
+                    elif rarity == "Green" and Item.Rarity.IsGreen(item_id):
+                        self.merchant_checkboxes[item_id] = tick_state
+
+            # Clean up unchecked checkboxes
+            for item_id in list(self.merchant_checkboxes):
+                if not self.merchant_checkboxes[item_id]:
+                    del self.merchant_checkboxes[item_id]
+
+                
+            
+        
+        x = self.inventory_frame.left +5
+        y = self.inventory_frame.bottom
+        width = self.inventory_frame.width
+        height = 57
+        
+        PyImGui.set_next_window_pos(x, y)
+        PyImGui.set_next_window_size(0, height)
+
+        window_flags = (
+            PyImGui.WindowFlags.NoCollapse |
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoScrollbar |
+            PyImGui.WindowFlags.NoScrollWithMouse |
+            PyImGui.WindowFlags.AlwaysAutoResize
+        )
+        
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 5, 5)
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0, 0)
+        
+        table_flags = (
+            PyImGui.TableFlags.BordersInnerV |
+            PyImGui.TableFlags.NoPadOuterX
+        )
+        
+        if PyImGui.begin("MerchButtonsWindow", window_flags):
+            if PyImGui.begin_table("MerchButtonsTable", 4, table_flags):
+                PyImGui.table_setup_column("Buttons", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column("MainButton", PyImGui.TableColumnFlags.WidthFixed, 40)
+                PyImGui.table_setup_column("BuyCombo", PyImGui.TableColumnFlags.WidthFixed, 100)
+                PyImGui.table_setup_column("BuyButton", PyImGui.TableColumnFlags.WidthFixed, 40)
+
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                
+                if self.game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##MerchAllButton","Select All", width=20, height=20, color=self.colorize_globals.disabled_color):
+                    _tick_checkboxes("All", True)
+                        
+                        
+                PyImGui.same_line(0,3)
+                PyImGui.text("|")
+                PyImGui.same_line(0,3)
+                
+                if self.game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##MerchWhitesButton","Select All Whites", width=20, height=20, color=self.colorize_globals.white_color):
+                    print(self.colorize_globals.white_color.__repr__())
+                    _tick_checkboxes("White", True)
+                            
+                PyImGui.same_line(0,3)
+                if self.game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##MerchBluesButton","Select All Blues", width=20, height=20, color=self.colorize_globals.blue_color):
+                    print(self.colorize_globals.blue_color.__repr__())
+                    _tick_checkboxes("Blue", True)
+                            
+                PyImGui.same_line(0,3)
+                if self.game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##MerchPurplesButton","Select All Purples", width=20, height=20, color=self.colorize_globals.purple_color):
+                    print(self.colorize_globals.purple_color.__repr__())
+                    _tick_checkboxes("Purple", True)
+                            
+                PyImGui.same_line(0,3)
+                if self.game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##MerchGoldsButton","Select All Golds", width=20, height=20, color=self.colorize_globals.gold_color):
+                    print(self.colorize_globals.gold_color.__repr__())
+                    _tick_checkboxes("Gold", True)
+                            
+                PyImGui.same_line(0,3)
+                if self.game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##MerchGreensButton","Select All Greens", width=20, height=20, color=self.colorize_globals.green_color):
+                    print(self.colorize_globals.green_color.__repr__())
+                    _tick_checkboxes("Green", True)           
+                            
+                #next row of buttons
+                if self.game_button(IconsFontAwesome5.ICON_SQUARE,"##MerchClearAllButton","Clear All", width=20, height=20, color=self.colorize_globals.disabled_color):
+                    print(self.colorize_globals.white_color.__repr__())
+                    _tick_checkboxes("All", False) 
+                            
+                PyImGui.same_line(0,3)
+                PyImGui.text("|")
+                PyImGui.same_line(0,3)
+                
+                if self.game_button(IconsFontAwesome5.ICON_SQUARE,"##MerchClearWhitesButton","Clear Whites", width=20, height=20, color=self.colorize_globals.white_color):
+                    print(self.colorize_globals.white_color.__repr__())
+                    _tick_checkboxes("White", False)
+                    
+                PyImGui.same_line(0,3)
+                if self.game_button(IconsFontAwesome5.ICON_SQUARE,"##MerchClearBluesButton","Clear Blues", width=20, height=20, color=self.colorize_globals.blue_color):
+                    print(self.colorize_globals.blue_color.__repr__())
+                    _tick_checkboxes("Blue", False)
+                    
+                PyImGui.same_line(0,3)
+                if self.game_button(IconsFontAwesome5.ICON_SQUARE,"##MerchClearPurplesButton","Clear Purples", width=20, height=20, color=self.colorize_globals.purple_color):
+                    print(self.colorize_globals.purple_color.__repr__())
+                    _tick_checkboxes("Purple", False)
+                    
+                PyImGui.same_line(0,3)
+                if self.game_button(IconsFontAwesome5.ICON_SQUARE,"##MerchClearGoldsButton","Clear Golds", width=20, height=20, color=self.colorize_globals.gold_color):
+                    print(self.colorize_globals.gold_color.__repr__())
+                    _tick_checkboxes("Gold", False)
+                PyImGui.same_line(0,3)
+                
+                if self.game_button(IconsFontAwesome5.ICON_SQUARE,"##MerchClearGreensButton","Clear Greens", width=20, height=20, color=self.colorize_globals.green_color):
+                    print(self.colorize_globals.green_color.__repr__())
+                    _tick_checkboxes("Green", False)
+                    
+            PyImGui.table_next_column()
+            if PyImGui.button(IconsFontAwesome5.ICON_FILE_INVOICE_DOLLAR + "##MerchSellButton", width=40, height=40):
+                GLOBAL_CACHE.Coroutines.append(MerchantCheckedItems(self.merchant_checkboxes))
+            ImGui.show_tooltip("Sell selected items.")  
+            
+            PyImGui.table_next_column()
+            
+
+            merchant_item_list = Trading.Trader.GetOfferedItems()
+            combo_items = [GLOBAL_CACHE.Item.GetName(item_id) for item_id in merchant_item_list]
+
+            PyImGui.push_item_width(100)
+            self.selected_combo_merchant = PyImGui.combo("##MerchantCombo", self.selected_combo_merchant, combo_items) 
+            self.merchant_buy_quantity = PyImGui.input_int("##MerchantBuyQuantity", self.merchant_buy_quantity, 1, 10, PyImGui.InputTextFlags.NoFlag)
+            PyImGui.pop_item_width()
+            PyImGui.table_next_column()
+            if PyImGui.button(IconsFontAwesome5.ICON_SHOPPING_CART + "##MerchBuyButton", width=40, height=40):
+                #ConsoleLog(MODULE_NAME, "Buying items from merchant.", Py4GW.Console.MessageType.Info)
+                GLOBAL_CACHE.Coroutines.append(BuyMerchantItems(merchant_item_list.copy(), self.selected_combo_merchant, self.merchant_buy_quantity))
+            ImGui.show_tooltip("Buy items.")
+            
+            PyImGui.end_table()
+                        
+        PyImGui.end()
+        PyImGui.pop_style_var(2)
+        
+        
     
 #region IdentifyCheckedItems         
  
@@ -1271,7 +1682,7 @@ def IdentifyCheckedItems(id_checkboxes: Dict[int, bool]):
     ConsoleLog(MODULE_NAME, f"Identified {identified_items} items.", Py4GW.Console.MessageType.Info)
 
 
-#region IdentifyCheckedItems         
+#region SalvageCheckedItems         
 def SalvageCheckedItems(salvage_checkboxes: Dict[int, bool]):
     salvaged_items = 0
     items_to_salvage = list(salvage_checkboxes.items())
@@ -1323,6 +1734,140 @@ def SalvageCheckedItems(salvage_checkboxes: Dict[int, bool]):
             checked = salvage_checkboxes.get(item_id, False)
 
     ConsoleLog(MODULE_NAME, f"Salvaged {salvaged_items} items.", Py4GW.Console.MessageType.Info)
+    
+def MerchantCheckedItems(merchant_checkboxes: Dict[int, bool]):
+    def _is_merchant():
+        merchant_item_list = Trading.Trader.GetOfferedItems()
+        merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+        return ModelID.Salvage_Kit.value in merchant_item_models
+
+    def _is_material_trader():
+        merchant_item_list = Trading.Trader.GetOfferedItems()
+        merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+        return ModelID.Wood_Plank.value in merchant_item_models
+
+    def _get_merchant_minimum_quantity() -> int:
+        return 10 if _is_material_trader() else 1
+
+    if _is_merchant():
+        ConsoleLog(MODULE_NAME, "Selling to regular merchants is not yet supported.", Py4GW.Console.MessageType.Warning)
+        return
+
+    if not merchant_checkboxes:
+        ConsoleLog(MODULE_NAME, "No items selected for selling.", Py4GW.Console.MessageType.Warning)
+        return
+
+    required_quantity = _get_merchant_minimum_quantity()
+    bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
+    sold_items = 0
+    ammount_sold = 0
+
+    for item_id, checked in list(merchant_checkboxes.items()):
+        if not checked:
+            continue
+
+        while True:
+            item_array = ItemArray.GetItemArray(bag_list)
+            if item_id not in item_array:
+                #ConsoleLog(MODULE_NAME, f"Item {item_id} no longer in inventory.", Py4GW.Console.MessageType.Info)
+                merchant_checkboxes[item_id] = False
+                break
+
+            quantity = Item.Properties.GetQuantity(item_id)
+            if quantity < required_quantity:
+                #ConsoleLog(MODULE_NAME, f"Item {item_id} has quantity {quantity} which is below required {required_quantity}.", Py4GW.Console.MessageType.Info)
+                merchant_checkboxes[item_id] = False
+                break
+
+            # Request quote
+            GLOBAL_CACHE.Trading.Trader.RequestSellQuote(item_id)
+            while True:
+                yield from Routines.Yield.wait(50)
+                quoted_value = Trading.Trader.GetQuotedValue()
+                if quoted_value >= 0:
+                    break
+
+            if quoted_value == 0:
+                ConsoleLog(MODULE_NAME, f"Item {item_id} has no value, skipping.", Py4GW.Console.MessageType.Warning)
+                merchant_checkboxes[item_id] = False
+                break
+
+            # Proceed with sale
+            GLOBAL_CACHE.Trading.Trader.SellItem(item_id, quoted_value)
+            #ConsoleLog(MODULE_NAME, f"Sold item {item_id} for {quoted_value}.", Py4GW.Console.MessageType.Success)
+
+            # Wait for confirmation
+            while True:
+                yield from Routines.Yield.wait(50)
+                if Trading.IsTransactionComplete():
+                    break
+
+            sold_items += required_quantity  # Assumed fixed chunk sold
+            ammount_sold += quoted_value * required_quantity
+
+    ConsoleLog(MODULE_NAME, f"Merchant sold {sold_items} items for a total of {ammount_sold} gold.", Py4GW.Console.MessageType.Info)
+
+def BuyMerchantItems(merchant_item_list, selected_index, quantity):
+    def _is_material_trader():
+        merchant_models = [
+            Item.GetModelID(item_id)
+            for item_id in Trading.Trader.GetOfferedItems()
+        ]
+        return ModelID.Wood_Plank.value in merchant_models
+
+    def _get_minimum_quantity():
+        return 10 if _is_material_trader() else 1
+
+    if selected_index < 0 or selected_index >= len(merchant_item_list):
+        ConsoleLog(MODULE_NAME, "Invalid merchant selection.", Py4GW.Console.MessageType.Warning)
+        return
+
+    item_id = merchant_item_list[selected_index]
+    required_quantity = _get_minimum_quantity()
+
+    if quantity < required_quantity:
+        ConsoleLog(
+            MODULE_NAME,
+            f"Minimum quantity required is {required_quantity}.",
+            Py4GW.Console.MessageType.Warning
+        )
+        return
+
+    total_items_bought = 0
+    total_gold_spent = 0
+
+    while quantity >= required_quantity:
+        GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
+
+        while True:
+            yield from Routines.Yield.wait(50)
+            cost = Trading.Trader.GetQuotedValue()
+            if cost >= 0:
+                break
+
+        if cost == 0:
+            ConsoleLog(MODULE_NAME, f"Item {item_id} has no price, skipping.", Py4GW.Console.MessageType.Warning)
+            return
+
+        GLOBAL_CACHE.Trading.Trader.BuyItem(item_id, cost)
+        #ConsoleLog(MODULE_NAME,f"Bought {required_quantity} units of item {item_id} for {cost}g.", Py4GW.Console.MessageType.Success)
+
+        while True:
+            yield from Routines.Yield.wait(50)
+            if Trading.IsTransactionComplete():
+                break
+
+        quantity -= required_quantity
+        total_items_bought += required_quantity
+        total_gold_spent += cost
+
+    ConsoleLog(
+        MODULE_NAME,
+        f"Purchase complete: {total_items_bought} items bought for a total of {total_gold_spent} gold.",
+        Py4GW.Console.MessageType.Info
+    )
+
+
 
              
 class Globals:     
@@ -1391,9 +1936,11 @@ class WidgetConfig:
     def __init__(self):
         self.id_checkboxes: Dict[int, bool] = {}
         self.salvage_checkboxes: Dict[int, bool] = {}
+        self.merchant_checkboxes: Dict[int, bool] = {}
         self.UI = WidgetUI(inventory_frame_id=0,
                            id_checkboxes=self.id_checkboxes,
-                           salvage_checkboxes=self.salvage_checkboxes)
+                           salvage_checkboxes=self.salvage_checkboxes,
+                            merchant_checkboxes=self.merchant_checkboxes)
         self.globals = Globals(self.UI)
 
 
@@ -1415,11 +1962,6 @@ def main():
         widget_config.UI.draw_button_strip()
         widget_config.UI.draw_colorize_options()
         
-        
-        
-        
-        
-
 
     except Exception as e:
         Py4GW.Console.Log(MODULE_NAME, f"Error: {str(e)}", Py4GW.Console.MessageType.Error)

@@ -1146,5 +1146,8 @@
     "140452905,17,0,5": "guild_wars_was_unable_to_complete_the_operation_popup_charselect_OK_BUTTON",
     "140452905,17,0,1": "guild_wars_was_unable_to_complete_the_operation_popup_charselect_TEXT_FRAME",
     "291586130,0": "Inventory Bags Window.Content",
-    "3378147614": "Mission Map"
+    "3378147614": "Mission Map",
+    "3613855137": "Merchant",
+    "3613855137,0,0,6": "Collector.Exchange",
+    "1532320307": "Merchant Buy Button"
 }
