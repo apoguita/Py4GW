@@ -8,8 +8,6 @@ Inject.au3
 Widgets/Config/Travel.ini
 Widgets/Config/
 
-# Ignore JaborsFork
-Addons/GWToolboxdll.dll
 # .tpf files, including in subfolders and ignored
 Addons/*.tpf
 Addons/**/*.tpf
@@ -175,7 +173,5 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-*.ini
 /Multiboxer
-*.ini
 .isort.cfg
