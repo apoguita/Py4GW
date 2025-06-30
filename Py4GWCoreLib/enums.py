@@ -2651,6 +2651,7 @@ class ModelID(IntEnum):
     Ruby = 937
     Ruby_Djinn_Essence = 19187
     Rune_Of_Holding = 2988
+    Rune_Of_Superior_Vigor = 5551
     Sack_Of_Random_Junk = 34213
     Salvage_Kit = 2992
     Sandblasted_Lodestone = 1584
@@ -3424,6 +3425,12 @@ class PetModelID(IntEnum):
     HOUND_20_HEARTY = 1147
     HOUND_20_DIRE = 1148
 
+#region ItemModelTextures
+ITEM_MODEL_TEXTURE_PATH = "Textures\\Item Models\\"
+ItemModelTextureMap = {
+   2992: ITEM_MODEL_TEXTURE_PATH + "[2992] Salvage_Kit.png",
+   5899: ITEM_MODEL_TEXTURE_PATH + "[5899] Superior_Identification_Kit.png", 
+}
 
 # region ProfessionTexctures
 ProfessionTextureMap = {
