@@ -21,7 +21,7 @@ project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 first_run = True
 
 BASE_DIR = os.path.join(project_root, "Widgets/Config")
-INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "<your_ini_file_name_here>.ini")
+INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "your_ini_file_name_here.ini")
 os.makedirs(BASE_DIR, exist_ok=True)
 
 cached_data = CacheData()
