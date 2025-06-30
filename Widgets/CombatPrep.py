@@ -1,4 +1,3 @@
-import ctypes
 import json
 import math
 import os
@@ -14,7 +13,6 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
 
-user32 = ctypes.WinDLL("user32", use_last_error=True)
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
