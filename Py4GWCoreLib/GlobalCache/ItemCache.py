@@ -258,7 +258,7 @@ class ItemCache:
         return item.IsItemNameReady()
         
     def GetName(self, item_id: int) -> str:
-        now = time.time() * 1000  # current time in ms
+        now = time.time() * 1500  # current time in ms
         item = self.raw_item_array.get_item_by_id(item_id)
         if item is None:
             return ""

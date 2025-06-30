@@ -364,6 +364,9 @@ class UIManager:
         :param frame_id: The ID of the frame.
         :return: bool: True if the frame exists, False otherwise.
         """
+        frame_aray = UIManager.GetFrameArray()
+        if frame_id not in frame_aray:
+            return False
         return UIManager.IsFrameCreated(frame_id) and UIManager.IsVisible(frame_id)
     
     @staticmethod
