@@ -15,12 +15,14 @@ def DrawWindow(title: str = "FontAwesome Icon Names"):
         headers = ["Icon 1", "Icon 2", "Icon 3", "Icon 4"]
         num_columns = len(headers)
 
+        PyImGui.set_next_window_size(1200, 800)
+        
         if PyImGui.begin(title):
             PyImGui.text("Filter Icons:")
             PyImGui.same_line(0,-1)
             filter_text = PyImGui.input_text("##IconFilter", filter_text)
 
-            if PyImGui.begin_table("IconTable", 4):
+            if PyImGui.begin_table("IconTable", 4, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV):
                 for header in headers:
                     PyImGui.table_setup_column(header)
                 PyImGui.table_headers_row()
@@ -32,7 +34,7 @@ def DrawWindow(title: str = "FontAwesome Icon Names"):
                         if isinstance(value, str):
                             row.append(value + f" name: {name}")
                             if len(row) == 4:
-                                PyImGui.table_next_row()
+                                PyImGui.table_next_row(0, 32)
                                 for i, cell in enumerate(row):
                                     PyImGui.table_set_column_index(i)
                                     PyImGui.text(cell)
