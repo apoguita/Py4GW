@@ -229,6 +229,7 @@ global_widget_defaults = {
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },
+    # TODO: Register your Widget here
 }
 
 account_widget_defaults = {
@@ -464,4 +465,5 @@ account_widget_defaults = {
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },
+    # TODO: Register your Widget here
 }
