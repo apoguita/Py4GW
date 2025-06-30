@@ -2408,52 +2408,52 @@ class LootConfig:
     # ------- Whitelist management -------
     def AddToWhitelist(self, model_id: int):
         self.whitelist.add(model_id)
-        
+
     def RemoveFromWhitelist(self, model_id: int):
         self.whitelist.discard(model_id)
-        
+
     def ClearWhitelist(self):
         self.whitelist.clear()
-    
+
     def IsWhitelisted(self, model_id: int):
         return model_id in self.whitelist
-    
+
     def GetWhitelist(self):
         return list(self.whitelist)
-        
+
     # ------- Blacklist management ------
     def AddToBlacklist(self, model_id: int):
         self.blacklist.add(model_id)
-        
+
     def RemoveFromBlacklist(self, model_id: int):
         self.blacklist.discard(model_id)
-        
+
     def ClearBlacklist(self):
         self.blacklist.clear()
-        
+
     def IsBlacklisted(self, model_id: int):
         return model_id in self.blacklist
-    
+
     def GetBlacklist(self):
         return list(self.blacklist)
-        
-    # ------- Item ID Whitelist management -------    
+
+    # ------- Item ID Whitelist management -------
     def AddItemIDToWhitelist(self, item_id: int):
         self.item_id_whitelist.add(item_id)
-        
+
     def RemoveItemIDFromWhitelist(self, item_id: int):
         self.item_id_whitelist.discard(item_id)
-    
+
     def ClearItemIDWhitelist(self):
         self.item_id_whitelist.clear()
-        
+
     def IsItemIDWhitelisted(self, item_id: int):
         return item_id in self.item_id_whitelist
-        
-    # ------- Item ID Blacklist management -------   
+
+    # ------- Item ID Blacklist management -------
     def AddItemIDToBlacklist(self, item_id: int):
         self.item_id_blacklist.add(item_id)
-   
+
     def RemoveItemIDFromBlacklist(self, item_id: int):
         self.item_id_blacklist.discard(item_id)
 
@@ -2465,7 +2465,7 @@ class LootConfig:
 
     def GetItemIDBlacklist(self):
         return list(self.item_id_blacklist)
-    
+
     # === Dye-based lists (by dye1 int) ===
     # -- Dye Whitelist management -------
     def AddToDyeWhitelist(self, dye1_int: int):
@@ -2473,16 +2473,16 @@ class LootConfig:
 
     def RemoveFromDyeWhitelist(self, dye1_int: int):
         self.dye_whitelist.discard(dye1_int)
-        
+
     def ClearDyeWhitelist(self):
         self.dye_whitelist.clear()
-        
+
     def IsDyeWhitelisted(self, dye1_int: int):
         return dye1_int in self.dye_whitelist
-    
+
     def GetDyeWhitelist(self):
         return list(self.dye_whitelist)
-        
+
     # -- Dye Blacklist management -------
     def AddToDyeBlacklist(self, dye1_int: int):
         self.dye_blacklist.add(dye1_int)
@@ -2592,7 +2592,6 @@ class LootConfig:
                     loot_array.remove(agent_id)
                     continue
                 # Otherwise allowed to proceed based on rarity settings
-
 
             if not self.loot_whites and Item.Rarity.IsWhite(item_id):
                 loot_array.remove(agent_id)
@@ -2940,13 +2939,9 @@ class AutoInventoryHandler:
                 is_green = rarity == "Green"
                 is_purple = rarity == "Purple"
                 is_gold = rarity == "Gold"
-<<<<<<< HEAD
 
-=======
-                
                 model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
-                
->>>>>>> origin/main
+
                 if is_tome:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
@@ -2974,25 +2969,20 @@ class AutoInventoryHandler:
                 if is_green and self.deposit_greens:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-<<<<<<< HEAD
 
-=======
-                    
                 if model_id == ModelID.Vial_Of_Dye.value and self.deposit_dyes:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                    
+
                 event_items = set()
-                
+
                 event_items.add(ModelID.Birthday_Cupcake.value)
                 event_items.add(ModelID.Victory_Token.value)
-                
+
                 if model_id in event_items and self.deposit_event_items:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-            
-            
->>>>>>> origin/main
+
     def IDAndSalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None):
         self.status = "Identifying"
         yield from self.IdentifyItems()
