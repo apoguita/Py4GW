@@ -181,6 +181,21 @@ class Map:
     def HasEnterChallengeButton():
         """Check if the map has an enter challenge button."""
         return Map.map_instance().has_enter_button
+    
+    @staticmethod
+    def IsOnWorldMap():
+        """Check if the map is on the world map."""
+        return Map.map_instance().is_on_world_map
+    
+    @staticmethod
+    def IsPVP():
+        """Check if the map is a PvP map."""
+        return Map.map_instance().is_pvp
+    
+    @staticmethod
+    def IsGuildHall():
+        """Check if the map is a Guild Hall."""
+        return Map.map_instance().is_guild_hall
 
     @staticmethod
     def EnterChallenge():

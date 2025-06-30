@@ -2652,6 +2652,7 @@ class ModelID(IntEnum):
     Ruby = 937
     Ruby_Djinn_Essence = 19187
     Rune_Of_Holding = 2988
+    Rune_Of_Superior_Vigor = 5551
     Sack_Of_Random_Junk = 34213
     Salvage_Kit = 2992
     Sandblasted_Lodestone = 1584
