@@ -96,7 +96,7 @@ def load_formations_from_json():
 
 
 def draw_combat_prep_window(cached_data):
-    global formation_hotkey_values, window_x, window_y, window_collapsed, first_run
+    global window_x, window_y, window_collapsed, first_run
 
     # 1) On first draw, restore last position & collapsed state
     if first_run:
