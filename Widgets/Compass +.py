@@ -679,6 +679,10 @@ class Compass():
                 GLOBAL_CACHE.Player.Move(*world_pos)
 
     def Update(self):
+        is_party_leader = GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
+        if not is_party_leader:
+            return
+
         if not self.config_loaded:
             self.LoadConfig()
             self.config_loaded = True
