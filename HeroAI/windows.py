@@ -654,7 +654,7 @@ def DrawMessagingOptions(cached_data:CacheData):
             if self_account.AccountEmail == account.AccountEmail:
                 continue
             ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}")
-            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,1,0,0))
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target,1,0,0))
     ImGui.show_tooltip("Get Dialog")
     PyImGui.separator()
     if PyImGui.collapsing_header("PCons"):
