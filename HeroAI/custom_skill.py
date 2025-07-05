@@ -3085,7 +3085,7 @@ class CustomSkillClass:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Judges_Insight")
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.AllyMartial.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.Offensive.value
         skill.Conditions.TargetingStrict = True
         self.skill_data[skill.SkillID] = skill
 
