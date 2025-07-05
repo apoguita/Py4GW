@@ -190,19 +190,8 @@ def is_hotkey_pressed_once(vk_code=0x35):
     return False
 
 
-formation_hotkey_values = {}
-# At the top-level (e.g., global scope or init function)
-if not formation_hotkey_values:  # Only load once
-    formations = load_formations_from_json()
-    for formation_key, formation_data in formations.items():
-        formation_hotkey_values[formation_key] = formation_data.get(VK, "") or ""
-
-skills_prep_hotkey_values = {}
-
-
 def draw_combat_prep_window(cached_data):
     global first_run
-    global formation_hotkey_values
     global last_location_spirits_casted
     global time_since_last_cast
     global window_collapsed
