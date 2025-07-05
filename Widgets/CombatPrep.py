@@ -35,6 +35,7 @@ SPIRITS_CAST_COOLDOWN_MS = 4000
 COLLAPSED = "collapsed"
 COORDINATES = "coordinates"
 TEXTURE = "texture"
+VALUE = 'value'
 VK = "vk"
 X_POS = "x"
 Y_POS = "y"
@@ -56,6 +57,12 @@ save_window_timer.Start()
 window_x = ini_window.read_int(MODULE_NAME, X_POS, 100)
 window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
+
+# Global Trackers
+hotkey_state = {"was_pressed": False}
+last_location_spirits_casted = {"x": 0.0, "y": 0.0}
+last_spirit_cast_time = {"timestamp": 0}
+auto_spirit_cast_enabled = {"value": True}
 
 
 # TODO (mark): add hotkeys for formation data once hotkey support is in Py4GW
@@ -169,11 +176,6 @@ def get_party_center():
     center_y = total_y / count
 
     return center_x, center_y
-
-
-hotkey_state = {"was_pressed": False}
-last_location_spirits_casted = {"x": 0.0, "y": 0.0}
-last_spirit_cast_time = {"timestamp": 0}
 
 
 def is_hotkey_pressed_once(vk_code=0x35):
@@ -312,19 +314,26 @@ def draw_combat_prep_window(cached_data):
         PyImGui.separator()
 
         if PyImGui.begin_table("SkillPrepTable", 3):
-            # Setup column widths BEFORE starting the table rows
-            PyImGui.table_setup_column("SkillUsage_1", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
-            PyImGui.table_setup_column("SkillUsage_2", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
-            PyImGui.table_setup_column("SkillUsage_3", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
+            PyImGui.table_setup_column("SkillUsage_1", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("SkillUsage_2", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("SkillUsage_3", PyImGui.TableColumnFlags.WidthStretch)
 
             PyImGui.table_next_row()
-            # Column 1: Formation Button
             PyImGui.table_next_column()
+
+            # --- Spirits Prep Button ---
             st_button_pressed = ImGui.ImageButton(
                 "##SpiritsPrepButton", f'{TEXTURES_PATH}/st_sos_combo.png', 80, 80
             )
             ImGui.show_tooltip("Spirits Prep")
 
+            # --- Auto-cast Toggle Below ---
+            auto_spirit_cast_enabled[VALUE] = ImGui.toggle_button(
+                "Smart Cast##SpiritsSmartCast", auto_spirit_cast_enabled[VALUE], 20, 80
+            )
+            ImGui.show_tooltip("Enable smart-casting of spirits when party is close enough to an enemy")
+
+            # --- Logic ---
             sender_email = cached_data.account_email
 
             if is_party_leader:
@@ -334,21 +343,25 @@ def draw_combat_prep_window(cached_data):
                 dist_x = party_center_x - last_location_spirits_casted["x"]
                 dist_y = party_center_y - last_location_spirits_casted["y"]
                 distance_squared = dist_x * dist_x + dist_y * dist_y
-                distance_threshold_squared = 2300 * 2300  # use squared distance to avoid expensive sqrt
-                now = int(time.time() * 1000)  # current time in ms
+                distance_threshold_squared = 2300 * 2300
+                now = int(time.time() * 1000)
                 time_since_last_cast = now - last_spirit_cast_time["timestamp"]
 
                 should_cast = (
                     st_button_pressed
                     or is_hotkey_pressed_once(0x35)
-                    or (enemy_agent and distance_squared >= distance_threshold_squared)
-                ) and time_since_last_cast >= SPIRITS_CAST_COOLDOWN_MS  # can only spam every 4 seconds
+                    or (
+                        auto_spirit_cast_enabled[VALUE]
+                        and enemy_agent
+                        and distance_squared >= distance_threshold_squared
+                    )
+                ) and time_since_last_cast >= SPIRITS_CAST_COOLDOWN_MS
 
                 if should_cast:
-                    # Update last location
                     last_location_spirits_casted["x"] = party_center_x
                     last_location_spirits_casted["y"] = party_center_y
                     last_spirit_cast_time["timestamp"] = now
+
                     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
                     for account in accounts:
                         if sender_email != account.AccountEmail:
