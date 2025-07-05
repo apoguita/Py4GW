@@ -182,11 +182,11 @@ def get_party_center():
 
 def is_hotkey_pressed_once(vk_code=0x35):
     pressed = get_key_pressed(vk_code)
-    if pressed and not hotkey_state["was_pressed"]:
-        hotkey_state["was_pressed"] = True
+    if pressed and not hotkey_state[WAS_PRESSED]:
+        hotkey_state[WAS_PRESSED] = True
         return True
     elif not pressed:
-        hotkey_state["was_pressed"] = False
+        hotkey_state[WAS_PRESSED] = False
     return False
 
 
