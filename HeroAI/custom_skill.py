@@ -3084,7 +3084,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Judges_Insight")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.AllyMartialMelee.value
+        skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.TargetingStrict = True
         self.skill_data[skill.SkillID] = skill
@@ -4987,7 +4987,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Ineptitude")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyMartial.value
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
@@ -5073,7 +5073,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Wandering_Eye")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyMartial.value
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
