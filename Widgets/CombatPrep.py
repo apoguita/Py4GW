@@ -71,7 +71,7 @@ def ensure_formation_json_exists():
         # Ensure top-level keys and per-formation structure are valid
         if not isinstance(data, dict):
             return False
-        for name, entry in data.items():
+        for name, entry in data.items():  # noqa: name unused
             if not isinstance(entry, dict):
                 return False
             if not all(k in entry for k in (VK, COORDINATES, TEXTURE)):
@@ -203,9 +203,7 @@ def draw_combat_prep_window(cached_data):
 
                 PyImGui.table_next_column()
 
-                button_pressed = ImGui.ImageButton(
-                    f"##{formation_key}", formation_data[TEXTURE], 80, 80
-                )
+                button_pressed = ImGui.ImageButton(f"##{formation_key}", formation_data[TEXTURE], 80, 80)
                 ImGui.show_tooltip(formation_key)
 
                 should_set_formation = button_pressed
@@ -275,9 +273,7 @@ def draw_combat_prep_window(cached_data):
             PyImGui.table_next_column()
 
             # --- Spirits Prep Button ---
-            st_button_pressed = ImGui.ImageButton(
-                "##SpiritsPrepButton", f'{TEXTURES_PATH}/st_sos_combo.png', 80, 80
-            )
+            st_button_pressed = ImGui.ImageButton("##SpiritsPrepButton", f'{TEXTURES_PATH}/st_sos_combo.png', 80, 80)
             ImGui.show_tooltip("Spirits Prep")
 
             # --- Auto-cast Toggle Below ---
