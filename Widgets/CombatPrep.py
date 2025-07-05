@@ -25,12 +25,13 @@ first_run = True
 BASE_DIR = os.path.join(project_root, "Widgets/Config")
 FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "combat_prep_window.ini")
+TEXTURES_PATH = 'Textures/CombatPrep'
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # String consts
 MODULE_NAME = "CombatPrep"
 
-CAST_COOLDOWN_MS = 4000
+SPIRITS_CAST_COOLDOWN_MS = 4000
 COLLAPSED = "collapsed"
 COORDINATES = "coordinates"
 TEXTURE = "texture"
@@ -78,27 +79,27 @@ def ensure_formation_json_exists():
         "1,2 - Double Backline": {
             VK: 0x31,
             COORDINATES: [[200, -200], [-200, -200], [0, 200], [-200, 450], [200, 450], [-400, 300], [400, 300]],
-            TEXTURE: 'Textures\\CombatPrep\\double_backline.png',
+            TEXTURE: f'{TEXTURES_PATH}/double_backline.png',
         },
         "1 - Single Backline": {
             VK: 0x32,
             COORDINATES: [[0, -250], [-100, 200], [100, 200], [-300, 500], [300, 500], [-350, 300], [350, 300]],
-            TEXTURE: 'Textures\\CombatPrep\\single_backline.png',
+            TEXTURE: f'{TEXTURES_PATH}/single_backline.png',
         },
         "1,2 - Double Backline Triple Row": {
             VK: 0x54,
             COORDINATES: [[-200, -200], [200, -200], [-200, 0], [200, 0], [-200, 300], [0, 300], [200, 300]],
-            TEXTURE: 'Textures\\CombatPrep\\double_backline_triple_row.png',
+            TEXTURE: f'{TEXTURES_PATH}/double_backline_triple_row.png',
         },
         "Flag Front": {
             VK: 0x5A,
             COORDINATES: [[0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000]],
-            TEXTURE: 'Textures\\CombatPrep\\flag_front.png',
+            TEXTURE: f'{TEXTURES_PATH}/flag_front.png',
         },
         "Disband Formation": {
             VK: 0x47,
             COORDINATES: [],
-            TEXTURE: 'Textures\\CombatPrep\\disband_formation.png',
+            TEXTURE: f'{TEXTURES_PATH}/disband_formation.png',
         },
     }
 
@@ -320,7 +321,7 @@ def draw_combat_prep_window(cached_data):
             # Column 1: Formation Button
             PyImGui.table_next_column()
             st_button_pressed = ImGui.ImageButton(
-                "##SpiritsPrepButton", 'Textures\\CombatPrep\\st_sos_combo.png', 80, 80
+                "##SpiritsPrepButton", f'{TEXTURES_PATH}/st_sos_combo.png', 80, 80
             )
             ImGui.show_tooltip("Spirits Prep")
 
@@ -341,7 +342,7 @@ def draw_combat_prep_window(cached_data):
                     st_button_pressed
                     or is_hotkey_pressed_once(0x35)
                     or (enemy_agent and distance_squared >= distance_threshold_squared)
-                ) and time_since_last_cast >= CAST_COOLDOWN_MS
+                ) and time_since_last_cast >= SPIRITS_CAST_COOLDOWN_MS  # can only spam every 4 seconds
 
                 if should_cast:
                     # Update last location
@@ -371,13 +372,13 @@ def draw_combat_prep_window(cached_data):
             # Column 1: Formation Button
             PyImGui.table_next_column()
             disable_party_leader_hero_ai = ImGui.ImageButton(
-                "##DisablePartyLeaderHeroAI", 'Textures\\CombatPrep\\disable_pt_leader_hero_ai.png', 80, 80
+                "##DisablePartyLeaderHeroAI", f'{TEXTURES_PATH}/disable_pt_leader_hero_ai.png', 80, 80
             )
             ImGui.show_tooltip("Disable Party Leader HeroAI")
 
             PyImGui.table_next_column()
             reenable_party_members_hero_ai = ImGui.ImageButton(
-                "##EnablePartyHeroAI", 'Textures\\CombatPrep\\reenable_pt_hero_ai.png', 80, 80
+                "##EnablePartyHeroAI", f'{TEXTURES_PATH}/reenable_pt_hero_ai.png', 80, 80
             )
             ImGui.show_tooltip("Reenabled Party Members HeroAI")
 
