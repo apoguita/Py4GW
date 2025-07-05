@@ -2,16 +2,16 @@ import ctypes
 import json
 import math
 import os
-import traceback
 import time
+import traceback
 
 import Py4GW
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import CombatPrepSkillsType
+from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
-from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
@@ -31,12 +31,14 @@ os.makedirs(BASE_DIR, exist_ok=True)
 # String consts
 MODULE_NAME = "CombatPrep"
 
-SPIRITS_CAST_COOLDOWN_MS = 4000
 COLLAPSED = "collapsed"
 COORDINATES = "coordinates"
+SPIRITS_CAST_COOLDOWN_MS = 4000
+TIMESTAMP = "timestamp"
 TEXTURE = "texture"
 VALUE = 'value'
 VK = "vk"
+WAS_PRESSED = "was_pressed"
 X_POS = "x"
 Y_POS = "y"
 
@@ -59,10 +61,10 @@ window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
 # Global Trackers
-hotkey_state = {"was_pressed": False}
-last_location_spirits_casted = {"x": 0.0, "y": 0.0}
-last_spirit_cast_time = {"timestamp": 0}
-auto_spirit_cast_enabled = {"value": True}
+last_location_spirits_casted = {X_POS: 0.0, Y_POS: 0.0}
+last_spirit_cast_time = {TIMESTAMP: 0}
+auto_spirit_cast_enabled = {VALUE: True}
+hotkey_state = {WAS_PRESSED: False}
 
 
 # TODO (mark): add hotkeys for formation data once hotkey support is in Py4GW
@@ -73,7 +75,7 @@ def ensure_formation_json_exists():
         # Ensure top-level keys and per-formation structure are valid
         if not isinstance(data, dict):
             return False
-        for name, entry in data.items():
+        for name, entry in data.items():  # noqa: name unused
             if not isinstance(entry, dict):
                 return False
             if not all(k in entry for k in (VK, COORDINATES, TEXTURE)):
@@ -329,7 +331,7 @@ def draw_combat_prep_window(cached_data):
 
             # --- Auto-cast Toggle Below ---
             auto_spirit_cast_enabled[VALUE] = ImGui.toggle_button(
-                "Smart Cast##SpiritsSmartCast", auto_spirit_cast_enabled[VALUE], 20, 80
+                "Smart Cast##SpiritsSmartCast", auto_spirit_cast_enabled[VALUE], 80, 20
             )
             ImGui.show_tooltip("Enable smart-casting of spirits when party is close enough to an enemy")
 
@@ -340,16 +342,15 @@ def draw_combat_prep_window(cached_data):
                 enemy_agent = Routines.Agents.GetNearestEnemy(max_distance=1850)
                 party_center_x, party_center_y = get_party_center()
 
-                dist_x = party_center_x - last_location_spirits_casted["x"]
-                dist_y = party_center_y - last_location_spirits_casted["y"]
+                dist_x = party_center_x - last_location_spirits_casted[X_POS]
+                dist_y = party_center_y - last_location_spirits_casted[Y_POS]
                 distance_squared = dist_x * dist_x + dist_y * dist_y
                 distance_threshold_squared = 2300 * 2300
                 now = int(time.time() * 1000)
-                time_since_last_cast = now - last_spirit_cast_time["timestamp"]
+                time_since_last_cast = now - last_spirit_cast_time[TIMESTAMP]
 
                 should_cast = (
                     st_button_pressed
-                    or is_hotkey_pressed_once(0x35)
                     or (
                         auto_spirit_cast_enabled[VALUE]
                         and enemy_agent
@@ -358,9 +359,9 @@ def draw_combat_prep_window(cached_data):
                 ) and time_since_last_cast >= SPIRITS_CAST_COOLDOWN_MS
 
                 if should_cast:
-                    last_location_spirits_casted["x"] = party_center_x
-                    last_location_spirits_casted["y"] = party_center_y
-                    last_spirit_cast_time["timestamp"] = now
+                    last_location_spirits_casted[X_POS] = party_center_x
+                    last_location_spirits_casted[Y_POS] = party_center_y
+                    last_spirit_cast_time[TIMESTAMP] = now
 
                     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
                     for account in accounts:
