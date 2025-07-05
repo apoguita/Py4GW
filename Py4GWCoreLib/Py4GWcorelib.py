@@ -1,28 +1,30 @@
-import traceback
-import math
-from enum import Enum
-import time
-from time import sleep
-from collections import namedtuple, deque
-from typing import Optional
+import configparser
 import ctypes
+import logging
+import math
+import os
+import threading
+import time
+from abc import ABC
+from abc import abstractmethod
+from collections import deque
+from datetime import datetime
+from datetime import timezone
+from enum import Enum
+from logging.handlers import RotatingFileHandler
+from typing import Callable
+from typing import Optional
 
-import Py4GW
 import PyAgent
 import PyKeystroke
 
+import Py4GW
+
 from .Agent import *
-from abc import ABC, abstractmethod
 from .enums import *
 
-from typing import Callable
-import threading
-import socket
-import configparser
-import os
-from datetime import datetime, timezone
 
-#region IniHandler
+# region IniHandler
 class IniHandler:
     def __init__(self, filename: str):
         """
@@ -36,15 +38,15 @@ class IniHandler:
     # ----------------------------
     # Core Methods
     # ----------------------------
-    
+
     def reload(self) -> configparser.ConfigParser:
         """Reload the INI file only if it has changed.
-        
+
         If the file doesn't exist, create an empty file.
         """
         if not os.path.exists(self.filename):
             # Create an empty file if it doesn't exist.
-            with open(self.filename, 'w') as f:
+            with open(self.filename, "w") as f:
                 f.write("")
             # Update last_modified since a new file was created.
             self.last_modified = os.path.getmtime(self.filename)
@@ -60,7 +62,7 @@ class IniHandler:
         """
         Save changes to the INI file.
         """
-        with open(self.filename, 'w') as configfile:
+        with open(self.filename, "w") as configfile:
             config.write(configfile)
 
     # ----------------------------
@@ -182,10 +184,12 @@ class IniHandler:
                 config.set(target_section, key, value)
             self.save(config)
 
-#endregion
+
+# endregion
+
 
 @staticmethod
-def ConsoleLog(sender, message, message_type:int=0 , log: bool = True):
+def ConsoleLog(sender, message, message_type: int = 0, log: bool = True):
     """Logs a message with an optional message type."""
     if log:
         if message_type == 0:
@@ -206,10 +210,11 @@ def ConsoleLog(sender, message, message_type:int=0 , log: bool = True):
             Py4GW.Console.Log(sender, message, Py4GW.Console.MessageType.Info)
 
 
-#region Utils
+# region Utils
 # Utils
 class Utils:
     from typing import Tuple
+
     @staticmethod
     def Distance(pos1, pos2):
         """
@@ -220,12 +225,12 @@ class Utils:
         Returns: float
         """
         return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
-    
+
     @staticmethod
     def RGBToNormal(r, g, b, a):
         """return a normalized RGBA tuple from 0-255 values"""
         return r / 255.0, g / 255.0, b / 255.0, a / 255.0
-    
+
     @staticmethod
     def NormalToColor(color: Tuple[float, float, float, float]) -> "Color":
         """Convert a normalized RGBA float tuple (0.0–1.0) to 0–255 integer values."""
@@ -235,22 +240,21 @@ class Utils:
         a = int(color[3] * 255)
         return Color(r, g, b, a)
 
-    
     @staticmethod
     def RGBToDXColor(r, g, b, a) -> int:
         return (a << 24) | (r << 16) | (g << 8) | b
-    
+
     @staticmethod
     def RGBToColor(r, g, b, a) -> int:
         return (a << 24) | (b << 16) | (g << 8) | r
-    
+
     @staticmethod
     def ColorToTuple(color: int) -> Tuple[float, float, float, float]:
         """Convert a 32-bit integer color (ABGR) to a normalized (0.0 - 1.0) RGBA tuple."""
         a = (color >> 24) & 0xFF  # Extract Alpha (highest 8 bits)
         b = (color >> 16) & 0xFF  # Extract Blue  (next 8 bits)
-        g = (color >> 8) & 0xFF   # Extract Green (next 8 bits)
-        r = color & 0xFF          # Extract Red   (lowest 8 bits)
+        g = (color >> 8) & 0xFF  # Extract Green (next 8 bits)
+        r = color & 0xFF  # Extract Red   (lowest 8 bits)
         return r / 255.0, g / 255.0, b / 255.0, a / 255.0  # Convert to RGBA float
 
     @staticmethod
@@ -261,7 +265,7 @@ class Utils:
         b = int(color_tuple[2] * 255)  # Convert B back to 0-255
         a = int(color_tuple[3] * 255)  # Convert A back to 0-255
         return Utils.RGBToColor(r, g, b, a)  # Encode back as ABGR
-    
+
     @staticmethod
     def DegToRad(degrees):
         return degrees * (math.pi / 180)
@@ -269,23 +273,23 @@ class Utils:
     @staticmethod
     def RadToDeg(radians):
         return radians * (180 / math.pi)
-    
+
     @staticmethod
     def TrueFalseColor(condition):
         if condition:
             return Utils.RGBToNormal(0, 255, 0, 255)
         else:
             return Utils.RGBToNormal(255, 0, 0, 255)
-        
+
     @staticmethod
     def GetFirstFromArray(array):
         if array is None:
             return 0
-        
+
         if len(array) > 0:
             return array[0]
         return 0
-    
+
     @staticmethod
     def GwinchToPixels(gwinch_value: float, zoom_offset=0.0) -> float:
         from .Map import Map
@@ -297,7 +301,6 @@ class Utils:
         pixels_per_gwinch = (scale_x * zoom) / gwinches
         return gwinch_value * pixels_per_gwinch
 
-        
     @staticmethod
     def PixelsToGwinch(pixel_value: float, zoom_offset=0.0) -> float:
         from .Map import Map
@@ -317,7 +320,7 @@ class Utils:
             return int(value)
         except (ValueError, TypeError, OverflowError):
             return fallback
-        
+
     @staticmethod
     def SafeFloat(value, fallback=0.0):
         try:
@@ -367,9 +370,9 @@ class Utils:
                 is_dangerous (bool): Whether the array represents a dangerous (repulsion) or safe (attraction) set. Default is True.
             """
             self.agent_arrays_settings[array_name] = {
-                'agent_array': agent_array,
-                'radius': radius,
-                'is_dangerous': is_dangerous
+                "agent_array": agent_array,
+                "radius": radius,
+                "is_dangerous": is_dangerous,
             }
 
         def add_custom_repulsion_position(self, position):
@@ -411,8 +414,6 @@ class Utils:
             if distance == 0:
                 return (0, 0)  # Avoid division by zero
             return ((pos_b[0] - pos_a[0]) / distance, (pos_b[1] - pos_a[1]) / distance)
-
-
 
         def process_agent_array(self, agent_array, radius, is_dangerous):
             """
@@ -484,23 +485,35 @@ class Utils:
             # Process all agent arrays
             for array_name, settings in self.agent_arrays_settings.items():
                 agent_vector = self.process_agent_array(
-                    settings['agent_array'], settings['radius'], settings['is_dangerous'])
+                    settings["agent_array"],
+                    settings["radius"],
+                    settings["is_dangerous"],
+                )
                 final_vector[0] += agent_vector[0]
                 final_vector[1] += agent_vector[1]
 
             # Process custom repulsion positions
-            repulsion_vector = self.process_custom_positions(self.custom_repulsion_positions, self.custom_repulsion_radius, True)
+            repulsion_vector = self.process_custom_positions(
+                self.custom_repulsion_positions, self.custom_repulsion_radius, True
+            )
             final_vector[0] += repulsion_vector[0]
             final_vector[1] += repulsion_vector[1]
 
             # Process custom attraction positions
-            attraction_vector = self.process_custom_positions(self.custom_attraction_positions, self.custom_attraction_radius, False)
+            attraction_vector = self.process_custom_positions(
+                self.custom_attraction_positions, self.custom_attraction_radius, False
+            )
             final_vector[0] += attraction_vector[0]
             final_vector[1] += attraction_vector[1]
 
             return tuple(final_vector)
 
-        def generate_escape_vector(self, agent_arrays, custom_repulsion_positions=None, custom_attraction_positions=None):
+        def generate_escape_vector(
+            self,
+            agent_arrays,
+            custom_repulsion_positions=None,
+            custom_attraction_positions=None,
+        ):
             """
             Purpose: Generate an escape vector based on the input agent arrays and custom repulsion/attraction settings.
             Args:
@@ -517,10 +530,10 @@ class Utils:
             """
             # Loop through the provided agent arrays and add them to the vector fields
             for agent_array in agent_arrays:
-                name = agent_array['name']
-                array = agent_array['array']
-                radius = agent_array['radius']
-                is_dangerous = agent_array['is_dangerous']
+                name = agent_array["name"]
+                array = agent_array["array"]
+                radius = agent_array["radius"]
+                is_dangerous = agent_array["is_dangerous"]
 
                 # Add each agent array to the vector field with its properties
                 self.add_agent_array(name, array, radius, is_dangerous)
@@ -540,8 +553,9 @@ class Utils:
 
             return escape_vector
 
-#endregion
-#region Color
+
+# endregion
+# region Color
 class Color:
     def __init__(self, r: int = 255, g: int = 255, b: int = 255, a: int = 255):
         self.name: str = "Color"
@@ -549,56 +563,55 @@ class Color:
         self.g: int = g
         self.b: int = b
         self.a: int = a
-        
+
     def set_r(self, r: int) -> None:
         self.r = r
-    
+
     def set_g(self, g: int) -> None:
         self.g = g
-        
+
     def set_b(self, b: int) -> None:
         self.b = b
-        
+
     def set_a(self, a: int) -> None:
         self.a = a
-        
+
     def set_rgba(self, r: int, g: int, b: int, a: int) -> None:
         self.r = r
         self.g = g
         self.b = b
         self.a = a
 
-    def get_r (self) -> int:
+    def get_r(self) -> int:
         return self.r
-    
-    def get_g (self) -> int:
-        return self.g
-    
-    def get_b (self) -> int:
-        return self.b
-    
-    def get_a (self) -> int: 
-        return self.a
-    
-    def get_rgba (self) -> tuple:
-        return (self.r, self.g, self.b, self.a)
 
+    def get_g(self) -> int:
+        return self.g
+
+    def get_b(self) -> int:
+        return self.b
+
+    def get_a(self) -> int:
+        return self.a
+
+    def get_rgba(self) -> tuple:
+        return (self.r, self.g, self.b, self.a)
 
     def to_color(self) -> int:
         return Utils.RGBToColor(self.r, self.g, self.b, self.a)
-    
+
     def to_dx_color(self) -> int:
         return Utils.RGBToDXColor(self.r, self.g, self.b, self.a)
-    
+
     def to_tuple(self) -> tuple:
         return (self.r, self.g, self.b, self.a)
-    
+
     def to_tuple_normalized(self) -> tuple:
         return (self.r / 255, self.g / 255, self.b / 255, self.a / 255)
 
     def __repr__(self) -> str:
         return f"{self.name} (RGBA: {self.r}, {self.g}, {self.b}, {self.a})"
-    
+
     def desaturate(self, amount: float = 1.0) -> "Color":
         """
         Returns a new Color instance, desaturated toward gray by the given amount [0..1].
@@ -612,7 +625,7 @@ class Color:
         new_b = int(self.b * (1 - amount) + gray * amount)
 
         return Color(r=new_r, g=new_g, b=new_b, a=self.a)
-    
+
     def saturate(self, amount: float = 1.0) -> "Color":
         """
         Returns a new Color instance with increased saturation by the given amount [0..1].
@@ -635,7 +648,6 @@ class Color:
 
         return Color(r=new_r, g=new_g, b=new_b, a=self.a)
 
-    
     def shift(self, target: "Color", amount: float) -> "Color":
         """
         Returns a new Color instance shifted toward the target Color by the given amount [0..1].
@@ -649,11 +661,12 @@ class Color:
         new_a = int(self.a + (target.a - self.a) * amount)
 
         return Color(new_r, new_g, new_b, new_a)
-    
+
     @classmethod
     def _make(cls, r: int, g: int, b: int, a: int = 255) -> "Color":
         return cls(r, g, b, a)
-    
+
+
 class ColorPalette:
     _colors: dict[str, Color] = {
         "aqua": Color(0, 255, 255),
@@ -719,7 +732,7 @@ class ColorPalette:
         "violet": Color(238, 130, 238),
         "wheat": Color(245, 222, 179),
         "white": Color(255, 255, 255),
-        "yellow": Color(255, 255, 0)
+        "yellow": Color(255, 255, 0),
     }
 
     @staticmethod
@@ -734,8 +747,9 @@ class ColorPalette:
     def HasColor(name: str) -> bool:
         return name.lower() in ColorPalette._colors
 
-#endregion
-#region Timer
+
+# endregion
+# region Timer
 class Timer:
     def __init__(self):
         """Initialize the Timer object with default values."""
@@ -757,7 +771,7 @@ class Timer:
         """Stop the timer."""
         self.running = False
         self.paused = False
-        
+
     def Reset(self):
         """Reset the timer."""
         self.Start()
@@ -802,69 +816,74 @@ class Timer:
 
     def FormatElapsedTime(self, mask="hh:mm:ss:ms"):
         return FormatTime(self.GetElapsedTime(), mask)
-    
+
     def __repr__(self):
         return f"<Timer running={self.IsRunning()}>"
 
+
 def FormatTime(time_ms, mask="hh:mm:ss:ms"):
-        """Get the formatted elapsed time string based on the mask provided."""
-        ms = int(time_ms)
-        seconds = ms // 1000
-        hours = seconds // 3600
-        minutes = (seconds % 3600) // 60
-        secs = seconds % 60
-        milliseconds = ms % 1000  # Directly get remaining milliseconds
+    """Get the formatted elapsed time string based on the mask provided."""
+    ms = int(time_ms)
+    seconds = ms // 1000
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    milliseconds = ms % 1000  # Directly get remaining milliseconds
 
-        # Apply the mask
-        formatted_time = mask
-        if "hh" in mask:
-            formatted_time = formatted_time.replace("hh", f"{hours:02}")
-        if "mm" in mask:
-            formatted_time = formatted_time.replace("mm", f"{minutes:02}")
-        if "ss" in mask:
-            formatted_time = formatted_time.replace("ss", f"{secs:02}")
-        if "ms" in mask:
-            formatted_time = formatted_time.replace("ms", f"{milliseconds:03}")
+    # Apply the mask
+    formatted_time = mask
+    if "hh" in mask:
+        formatted_time = formatted_time.replace("hh", f"{hours:02}")
+    if "mm" in mask:
+        formatted_time = formatted_time.replace("mm", f"{minutes:02}")
+    if "ss" in mask:
+        formatted_time = formatted_time.replace("ss", f"{secs:02}")
+    if "ms" in mask:
+        formatted_time = formatted_time.replace("ms", f"{milliseconds:03}")
 
-        return formatted_time
-#endregion
-#region ThrottledTimer
+    return formatted_time
+
+
+# endregion
+# region ThrottledTimer
+
 
 class ThrottledTimer:
     def __init__(self, throttle_time=1000):
         self.throttle_time = throttle_time
         self.timer = Timer()
         self.timer.Start()
-        
+
     def IsExpired(self):
         return self.timer.HasElapsed(self.throttle_time)
-    
+
     def Reset(self):
         self.timer.Reset()
-        
+
     def Start(self):
         self.timer.Start()
-        
+
     def Stop(self):
         self.timer.Stop()
-    
+
     def IsStopped(self):
         return self.timer.IsStopped()
-    
-    
+
     def SetThrottleTime(self, throttle_time):
         self.throttle_time = throttle_time
-        
+
     def GetTimeElapsed(self):
         return self.timer.GetElapsedTime()
-    
+
     def GetTimeRemaining(self):
         if self.timer.IsStopped():
             return 0
         return max(0, self.throttle_time - self.timer.GetElapsedTime())
 
-#endregion
-#region KeyHandler
+
+# endregion
+# region KeyHandler
+
 
 class Keystroke:
     @staticmethod
@@ -874,7 +893,6 @@ class Keystroke:
         Returns: PyScanCodeKeystroke
         """
         return PyKeystroke.PyScanCodeKeystroke()
-
 
     @staticmethod
     def Press(key):
@@ -936,20 +954,38 @@ class Keystroke:
         """
         Keystroke.keystroke_instance().PushKeyCombo(modifiers)
 
-#endregion
 
-    
-#region ActionQueue
+# endregion
+
+
+# region ActionQueue
+
 
 class ActionQueue:
     def __init__(self):
         """Initialize the action queue."""
-        self.queue = deque() # Use deque for efficient FIFO operations
+        self.queue = deque()  # Use deque for efficient FIFO operations
         self.history = deque(maxlen=100)  # Store recent action history with a cap
-        self._step_ids = deque()          # Step ID queue (internal use)
-        self._step_counter = 0            # Unique step ID tracker
-        self._last_step_id = None         # Last executed step ID
+        self._step_ids = deque()  # Step ID queue (internal use)
+        self._step_counter = 0  # Unique step ID tracker
+        self._last_step_id = None  # Last executed step ID
 
+    def _get_logger_for_account_email(self, account_email=None):
+        logger_name = f"ActionQueueLogger_{account_email or 'default'}"
+        logger = logging.getLogger(logger_name)
+
+        if not logger.handlers:
+            logger.setLevel(logging.INFO)
+            log_file = f"debug_action_log_{account_email}.log" if account_email else "debug_action_log.log"
+
+            handler = RotatingFileHandler(log_file, mode="a", maxBytes=10_000, backupCount=0)
+            formatter = logging.Formatter("%(asctime)s - %(message)s")
+            handler.setFormatter(formatter)
+
+            logger.addHandler(handler)
+            logger.propagate = False
+
+        return logger
 
     def add_action(self, action, *args, **kwargs):
         """
@@ -962,13 +998,21 @@ class ActionQueue:
         self.queue.append((action, args, kwargs))
         self._step_ids.append(self._step_counter)  # Track step ID
         self._step_counter += 1
-        
+
     def execute_next(self):
         if self.queue:
             action, args, kwargs = self.queue.popleft()
             self._last_step_id = self._step_ids.popleft()  # Extract step ID
+
+            account_email = PyPlayer.PyPlayer().account_email
+            logger = self._get_logger_for_account_email(account_email)
+
+            if logger:
+                logger.info(f"Called {action.__name__}(*{args}, **{kwargs})")
+
             action(*args, **kwargs)
             self.history.append((datetime.now(), action, args, kwargs))
+
             return True
         return False
 
@@ -979,20 +1023,20 @@ class ActionQueue:
     def get_next_step_id(self):
         """Peek the step ID of the next action (non-invasive)"""
         return self._step_ids[0] if self._step_ids else None
-            
+
     def is_empty(self):
         """Check if the action queue is empty."""
         return not bool(self.queue)
-    
+
     def clear(self):
         """Clear all actions from the queue."""
         self.queue.clear()
         self._step_ids.clear()
-        
+
     def clear_history(self):
         """Clear the action history."""
         self.history.clear()
-        
+
     def get_next_action_name(self):
         """
         Get the name of the next action function in the queue, or None if empty.
@@ -1003,9 +1047,9 @@ class ActionQueue:
             parts = [action.__name__]
             parts.extend(str(arg) for arg in args)
             parts.extend(f"{k}={v}" for k, v in kwargs.items())
-            return ','.join(parts)
+            return ",".join(parts)
         return None
-    
+
     def get_all_action_names(self):
         """
         Get a list of all action names with arguments concatenated.
@@ -1016,9 +1060,9 @@ class ActionQueue:
             parts = [action.__name__]
             parts.extend(str(arg) for arg in args)
             parts.extend(f"{k}={v}" for k, v in kwargs.items())
-            action_strings.append(','.join(parts))
+            action_strings.append(",".join(parts))
         return action_strings
-    
+
     def get_history(self):
         """
         Return the raw history queue: list of (datetime, function, args, kwargs).
@@ -1036,75 +1080,73 @@ class ActionQueue:
                 parts = [f"{ts.strftime('%H:%M:%S')} - {func.__name__}"]
                 parts.extend(str(arg) for arg in args)
                 parts.extend(f"{k}={v}" for k, v in kwargs.items())
-                formatted.append(', '.join(parts))
+                formatted.append(", ".join(parts))
             except Exception as e:
                 formatted.append(f"[ERROR formatting entry #{i}]: {e}")
         return formatted
 
 
-        
 class ActionQueueNode:
-    def __init__(self,throttle_time=250):
+    def __init__(self, throttle_time=250):
         self.action_queue = ActionQueue()
         self.action_queue_timer = Timer()
         self.action_queue_timer.Start()
         self.action_queue_time = throttle_time
         self._aftercast_delays = deque()
-        
 
     def execute_next(self):
         delay = self._aftercast_delays[0] if self._aftercast_delays else 0
-        if self.action_queue_timer.HasElapsed(self.action_queue_time + delay):      
+        if self.action_queue_timer.HasElapsed(self.action_queue_time + delay):
             result = self.action_queue.execute_next()
             self.action_queue_timer.Reset()
             if self._aftercast_delays:
                 self._aftercast_delays.popleft()
             return result
         return False
-    
+
     def AftercastDelay(self):
         """Dummy action used to enforce a delay step in the queue."""
         pass
-                
+
     def add_action(self, action, *args, **kwargs):
         self.action_queue.add_action(action, *args, **kwargs)
         self._aftercast_delays.append(0)
-        
+
     def add_action_with_delay(self, delay, action, *args, **kwargs):
         self.action_queue.add_action(action, *args, **kwargs)
         self._aftercast_delays.append(0)  # Real action runs immediately
 
         self.action_queue.add_action(self.AftercastDelay)
         self._aftercast_delays.append(delay)  # Delay applies to this no-op step
-        
+
     def is_empty(self):
         return self.action_queue.is_empty()
-    
+
     def clear(self):
         self.action_queue.clear()
         self._aftercast_delays.clear()
-        
+
     def clear_history(self):
         self.action_queue.clear_history()
-        
+
     def IsExpired(self):
         delay = self._aftercast_delays[0] if self._aftercast_delays else 0
         return self.action_queue_timer.HasElapsed(self.action_queue_time + delay)
-    
+
     def ProcessQueue(self):
         if self.IsExpired():
             return self.execute_next()
         return False
-    
+
     def GetNextActionName(self):
         return self.action_queue.get_next_action_name()
-    
+
     def GetAllActionNames(self):
         return self.action_queue.get_all_action_names()
-    
+
     def GetHistory(self):
         return self.action_queue.get_history()
-    
+
     def GetHistoryNames(self):
         return self.action_queue.get_history_names()
 
@@ -1131,22 +1173,23 @@ class ActionQueueManager:
         return cls._instance
 
     def _initialize_queues(self):
+        self.account_email = None
         self.queues = {
             "ACTION": ActionQueueNode(50),
             "LOOT": ActionQueueNode(1250),
             "MERCHANT": ActionQueueNode(750),
             "SALVAGE": ActionQueueNode(125),
-            "IDENTIFY": ActionQueueNode(150)
+            "IDENTIFY": ActionQueueNode(150),
             # Add more queues here if needed
         }
-        
+
     def AddAction(self, queue_name, action, *args, **kwargs):
         """Add an action to a specific queue by name."""
         if queue_name in self.queues:
             self.queues[queue_name].add_action(action, *args, **kwargs)
         else:
             raise ValueError(f"Queue '{queue_name}' does not exist.")
-        
+
     def AddActionWithDelay(self, queue_name, delay, action, *args, **kwargs):
         """Add an action with a delay to a specific queue by name."""
         if queue_name in self.queues:
@@ -1181,23 +1224,23 @@ class ActionQueueManager:
         if queue is None:
             raise ValueError(f"Queue '{queue_name}' does not exist.")
         return queue
-    
+
     def IsEmpty(self, queue_name) -> bool:
         queue = self.GetQueue(queue_name)
         return queue.is_empty()
-    
+
     def GetNextActionName(self, queue_name) -> str:
         queue = self.GetQueue(queue_name)
         return queue.GetNextActionName() or ""
-    
+
     def GetAllActionNames(self, queue_name) -> list:
         queue = self.GetQueue(queue_name)
         return queue.GetAllActionNames()
-    
+
     def GetHistory(self, queue_name) -> list:
         queue = self.GetQueue(queue_name)
         return queue.GetHistory()
-    
+
     def GetHistoryNames(self, queue_name) -> list:
         queue = self.GetQueue(queue_name)
         return queue.GetHistoryNames()
@@ -1206,19 +1249,17 @@ class ActionQueueManager:
         queue = self.GetQueue(queue_name)
         queue.clear_history()
 
-           
-            
-#endregion
+
+# endregion
 
 
-
-#region BehaviorTree
+# region BehaviorTree
 class BehaviorTree:
     class NodeState(Enum):
         RUNNING = 0
         SUCCESS = 1
         FAILURE = 2
- 
+
     class Node(ABC):
         def __init__(self):
             self.state: "BehaviorTree.NodeState" = BehaviorTree.NodeState.RUNNING  # Default state
@@ -1245,7 +1286,6 @@ class BehaviorTree:
         def tick(self):
             """Executes the action and returns the result."""
             return self.action()  # Call the action function
-
 
     class ConditionNode(Node):
         def __init__(self, condition):
@@ -1280,15 +1320,14 @@ class BehaviorTree:
             """Executes children in sequence."""
             for child in self.children:
                 result = child.run()  # Run each child node
-            
+
                 if result == BehaviorTree.NodeState.FAILURE:
                     return BehaviorTree.NodeState.FAILURE  # Stop if any child fails
-            
+
                 if result == BehaviorTree.NodeState.RUNNING:
                     return BehaviorTree.NodeState.RUNNING  # If a child is still running, keep running
-            
-            return BehaviorTree.NodeState.SUCCESS  # Only return success if all children succeed
 
+            return BehaviorTree.NodeState.SUCCESS  # Only return success if all children succeed
 
     # Selector Node - executes children in order, returns success if any succeed
     class SelectorNode(CompositeNode):
@@ -1296,15 +1335,14 @@ class BehaviorTree:
             """Executes children in order, returns success if any succeed."""
             for child in self.children:
                 result = child.run()  # Run each child node
-            
+
                 if result == BehaviorTree.NodeState.SUCCESS:
                     return BehaviorTree.NodeState.SUCCESS  # Stop if any child succeeds
-            
+
                 if result == BehaviorTree.NodeState.RUNNING:
                     return BehaviorTree.NodeState.RUNNING  # If a child is still running, keep running
 
             return BehaviorTree.NodeState.FAILURE  # Only return failure if all children fail
-
 
     # Parallel Node - runs all children in parallel, succeeds or fails based on thresholds
     class ParallelNode(CompositeNode):
@@ -1334,7 +1372,6 @@ class BehaviorTree:
 
             return BehaviorTree.NodeState.RUNNING  # If thresholds are not met, it's still running
 
-
     # Inverter Node - inverts the result of its child node
     class InverterNode(Node):
         def __init__(self, child):
@@ -1344,7 +1381,7 @@ class BehaviorTree:
         def tick(self):
             """Inverts the result of the child node."""
             result = self.child.run()  # Run the child node
-        
+
             if result == BehaviorTree.NodeState.SUCCESS:
                 return BehaviorTree.NodeState.FAILURE  # Invert SUCCESS to FAILURE
             elif result == BehaviorTree.NodeState.FAILURE:
@@ -1391,7 +1428,10 @@ class BehaviorTree:
             if self.repetition_allowed:
                 result = self.child.run()  # Run the child node
 
-                if result in [BehaviorTree.NodeState.SUCCESS, BehaviorTree.NodeState.FAILURE]:
+                if result in [
+                    BehaviorTree.NodeState.SUCCESS,
+                    BehaviorTree.NodeState.FAILURE,
+                ]:
                     # After the child finishes, start the cooldown timer
                     self.timer.Start()
                     self.repetition_allowed = False  # Prevent running until the cooldown ends
@@ -1418,9 +1458,12 @@ class BehaviorTree:
         def __init__(self, nodes=None):
             # Initialize the behavior tree with a list of nodes (can be Sequence, Selector, etc.)
             super().__init__(nodes)
-#endregion
 
-#region FSM
+
+# endregion
+
+# region FSM
+
 
 class FSM:
 
@@ -1440,7 +1483,17 @@ class FSM:
         self.on_complete = None
 
     class State:
-        def __init__(self, id, name=None, execute_fn=None, exit_condition=None, transition_delay_ms=0, run_once=True, on_enter=None, on_exit=None):
+        def __init__(
+            self,
+            id,
+            name=None,
+            execute_fn=None,
+            exit_condition=None,
+            transition_delay_ms=0,
+            run_once=True,
+            on_enter=None,
+            on_exit=None,
+        ):
             """
             :param id: Internal ID of the state.
             :param name: Optional name of the state (for debugging purposes).
@@ -1485,9 +1538,9 @@ class FSM:
             """
             if not self.transition_timer.HasElapsed(self.transition_delay_ms):
                 return False
-            
+
             return self.exit_condition()
-            
+
         def reset(self):
             """Reset the state so it can be re-entered, if needed."""
             self.executed = False
@@ -1496,7 +1549,7 @@ class FSM:
         def set_next_state(self, next_state):
             """Set the next state for transitions."""
             self.next_state = next_state
-        
+
         def add_event_transition(self, event_name: str, target_state_name: str):
             """
             Define a transition triggered by a specific event.
@@ -1507,10 +1560,18 @@ class FSM:
             if not isinstance(event_name, str) or not isinstance(target_state_name, str):
                 raise TypeError("Event name and target state name must be strings.")
             self.event_transitions[event_name] = target_state_name
-            
+
     class ConditionState(State):
-        def __init__(self, id, name=None, condition_fn=None, sub_fsm=None,
-                 on_enter=None, on_exit=None, log_actions=False):
+        def __init__(
+            self,
+            id,
+            name=None,
+            condition_fn=None,
+            sub_fsm=None,
+            on_enter=None,
+            on_exit=None,
+            log_actions=False,
+        ):
             """
             A state that evaluates a condition and decides whether to continue or run a sub-FSM.
 
@@ -1544,30 +1605,34 @@ class FSM:
                 self.executed = True  # Condition not met, continue to the next state
                 self.reset_transition_timer()  # Fix missing timer reset
                 return
-            
+
             if self.sub_fsm and not self.sub_fsm_active:
                 # Condition met, start the sub-FSM
                 if self.log_actions:
-                    ConsoleLog("FSM", f"Starting FSM Subroutine", Py4GW.Console.MessageType.Success)
+                    ConsoleLog(
+                        "FSM",
+                        "Starting FSM Subroutine",
+                        Py4GW.Console.MessageType.Success,
+                    )
                 self.sub_fsm.reset()
                 self.sub_fsm.start()
                 self.sub_fsm_active = True
             else:
                 self.executed = True  # Ensure exit is possible if no sub_fsm
                 self.reset_transition_timer()  # Fix missing timer reset
-            
+
         def can_exit(self):
             """
             The node can exit only if the condition is met or the sub-FSM has finished running.
             """
             return self.executed and not self.sub_fsm_active
-        
+
         def reset(self):
             super().reset()
             self.sub_fsm_active = False
             if self.sub_fsm:
                 self.sub_fsm.reset()
-        
+
     class YieldRoutineState(State):
         def __init__(self, id, name=None, coroutine_fn=None):
             """
@@ -1581,6 +1646,7 @@ class FSM:
 
         def execute(self):
             from Py4GWCoreLib import GLOBAL_CACHE
+
             if not self.executed:
                 if self.coroutine_fn:
                     try:
@@ -1588,12 +1654,17 @@ class FSM:
                         if self.coroutine_instance:
                             GLOBAL_CACHE.Coroutines.append(self.coroutine_instance)
                     except Exception as e:
-                        ConsoleLog("FSM", f"Error starting coroutine for state '{self.name}': {e}", Py4GW.Console.MessageType.Error)
+                        ConsoleLog(
+                            "FSM",
+                            f"Error starting coroutine for state '{self.name}': {e}",
+                            Py4GW.Console.MessageType.Error,
+                        )
                 self.reset_transition_timer()
                 self.executed = True
 
         def can_exit(self):
             from Py4GWCoreLib import GLOBAL_CACHE
+
             """
             Exit only if coroutine is finished.
             """
@@ -1605,11 +1676,7 @@ class FSM:
                 return False  # Still running
 
             return True
-  
-        
-        
-        
-        
+
     def SetLogBehavior(self, log_actions=False):
         """
         Set whether to log state transitions and actions.
@@ -1621,7 +1688,16 @@ class FSM:
         """Get the current logging behavior setting."""
         return self.log_actions
 
-    def AddState(self, name=None, execute_fn=None, exit_condition=None, transition_delay_ms=0, run_once=True, on_enter=None, on_exit=None):
+    def AddState(
+        self,
+        name=None,
+        execute_fn=None,
+        exit_condition=None,
+        transition_delay_ms=0,
+        run_once=True,
+        on_enter=None,
+        on_exit=None,
+    ):
         """Add a state with an optional name, execution function, and exit condition."""
         state = FSM.State(
             id=self.state_counter,
@@ -1631,15 +1707,15 @@ class FSM:
             run_once=run_once,
             transition_delay_ms=transition_delay_ms,
             on_enter=on_enter,
-            on_exit=on_exit
+            on_exit=on_exit,
         )
-        
+
         if self.states:
             self.states[-1].set_next_state(state)
-        
+
         self.states.append(state)
         self.state_counter += 1
-        
+
     def AddYieldRoutineStep(self, name, coroutine_fn, transition_delay_ms=0):
         """
         Add a yield-based coroutine step to the FSM.
@@ -1648,20 +1724,14 @@ class FSM:
         :param name: Name of the state.
         :param coroutine_fn: Function that returns a yield-based generator.
         """
-        step = self.YieldRoutineState(
-            id=self.state_counter,
-            name=name,
-            coroutine_fn=coroutine_fn
-        )
+        step = self.YieldRoutineState(id=self.state_counter, name=name, coroutine_fn=coroutine_fn)
         step.transition_delay_ms = transition_delay_ms
         if self.states:
             self.states[-1].set_next_state(step)
         self.states.append(step)
         self.state_counter += 1
 
-
-    def AddSubroutine(self, name=None, condition_fn=None, sub_fsm=None,
-                  on_enter=None, on_exit=None):
+    def AddSubroutine(self, name=None, condition_fn=None, sub_fsm=None, on_enter=None, on_exit=None):
         """Add a condition node that evaluates a condition and can run a subroutine FSM."""
         condition_node = FSM.ConditionState(
             id=self.state_counter,
@@ -1670,7 +1740,7 @@ class FSM:
             sub_fsm=sub_fsm,
             on_enter=on_enter,
             on_exit=on_exit,
-            log_actions=self.log_actions
+            log_actions=self.log_actions,
         )
         if self.states:
             self.states[-1].set_next_state(condition_node)
@@ -1683,7 +1753,11 @@ class FSM:
             raise ValueError(f"{self.name}: No states have been added to the FSM.")
         self.current_state = self.states[0]
         self.finished = False
-        Py4GW.Console.Log("FSM", f"{self.name}: Starting FSM with initial state: {self.current_state.name}", Py4GW.Console.MessageType.Success)
+        Py4GW.Console.Log(
+            "FSM",
+            f"{self.name}: Starting FSM with initial state: {self.current_state.name}",
+            Py4GW.Console.MessageType.Success,
+        )
 
     def stop(self):
         """Stop the FSM and mark it as finished."""
@@ -1691,7 +1765,11 @@ class FSM:
         self.finished = True
 
         if self.log_actions:
-            Py4GW.Console.Log("FSM", f"{self.name}: FSM has been stopped by user.", Py4GW.Console.MessageType.Info)
+            Py4GW.Console.Log(
+                "FSM",
+                f"{self.name}: FSM has been stopped by user.",
+                Py4GW.Console.MessageType.Info,
+            )
 
     def reset(self):
         """Reset the FSM to the initial state without starting it."""
@@ -1703,25 +1781,32 @@ class FSM:
             state.reset()  # Reset all states
 
         if self.log_actions:
-            Py4GW.Console.Log("FSM", f"{self.name}: FSM has been reset.", Py4GW.Console.MessageType.Info)
-            
+            Py4GW.Console.Log(
+                "FSM",
+                f"{self.name}: FSM has been reset.",
+                Py4GW.Console.MessageType.Info,
+            )
 
     def get_state_names(self):
         return [s.name for s in self.states]
 
     def terminate(self):
         if self.log_actions:
-            Py4GW.Console.Log("FSM", f"{self.name}: Terminated forcefully.", Py4GW.Console.MessageType.Warning)
+            Py4GW.Console.Log(
+                "FSM",
+                f"{self.name}: Terminated forcefully.",
+                Py4GW.Console.MessageType.Warning,
+            )
         self.current_state = None
         self.finished = True
 
     def run_until(self, condition_fn):
         while not self.finished and not condition_fn():
             self.update()
-    
+
     def set_completion_callback(self, callback_fn):
         self.on_complete = callback_fn
-    
+
     def get_current_state_index(self):
         if not self.current_state or self.current_state not in self.states:
             return -1
@@ -1730,7 +1815,7 @@ class FSM:
     def get_next_state_index(self):
         if not self.current_state:
             return -1
-        next_state = getattr(self.current_state, 'next_state', None)
+        next_state = getattr(self.current_state, "next_state", None)
         if not next_state or next_state not in self.states:
             return -1
         return self.states.index(next_state)
@@ -1745,7 +1830,7 @@ class FSM:
             fn()
 
         self.current_state.exit = wrapped_exit
-    
+
     def pause(self):
         self.paused = True
 
@@ -1765,8 +1850,17 @@ class FSM:
         self.reset()
         self.start()
 
-    def AddWaitState(self, name, condition_fn, timeout_ms=10000, on_timeout=None, on_enter=None, on_exit=None):
+    def AddWaitState(
+        self,
+        name,
+        condition_fn,
+        timeout_ms=10000,
+        on_timeout=None,
+        on_enter=None,
+        on_exit=None,
+    ):
         timer = Timer()
+
         def exit_fn():
             if condition_fn():
                 return True
@@ -1776,7 +1870,11 @@ class FSM:
                         on_timeout()
                     except Exception as e:
                         if self.log_actions:
-                            ConsoleLog("FSM", f"Error in on_timeout for state '{name}': {e}", Py4GW.Console.MessageType.Error)
+                            ConsoleLog(
+                                "FSM",
+                                f"Error in on_timeout for state '{name}': {e}",
+                                Py4GW.Console.MessageType.Error,
+                            )
                 return True
             return False
 
@@ -1786,8 +1884,8 @@ class FSM:
             execute_fn=lambda: None,
             exit_condition=exit_fn,
             run_once=True,
-            on_enter=on_enter,      # <-- PASS on_enter
-            on_exit=on_exit 
+            on_enter=on_enter,  # <-- PASS on_enter
+            on_exit=on_exit,
         )
         wait_state.transition_timer = timer
         if self.states:
@@ -1805,7 +1903,7 @@ class FSM:
         :return: True if the event caused a transition, False otherwise.
         """
         if self.paused or self.finished or not self.current_state:
-            return False # Cannot transition if paused, finished, or not started
+            return False  # Cannot transition if paused, finished, or not started
 
         target_state_name = self.current_state.event_transitions.get(event_name)
 
@@ -1813,7 +1911,11 @@ class FSM:
             target_state = self._get_state_by_name(target_state_name)
             if target_state:
                 if self.log_actions:
-                    ConsoleLog("FSM", f"{self.name}: Event '{event_name}' triggered transition from '{self.current_state.name}' to '{target_state.name}'", Py4GW.Console.MessageType.Info)
+                    ConsoleLog(
+                        "FSM",
+                        f"{self.name}: Event '{event_name}' triggered transition from '{self.current_state.name}' to '{target_state.name}'",
+                        Py4GW.Console.MessageType.Info,
+                    )
 
                 # --- Perform Transition ---
                 original_state_name = self.current_state.name
@@ -1823,65 +1925,100 @@ class FSM:
                     try:
                         self.on_transition(original_state_name, target_state.name)
                     except Exception as e:
-                         ConsoleLog("FSM", f"Error in on_transition callback during event '{event_name}': {e}", Py4GW.Console.MessageType.Error)
-
+                        ConsoleLog(
+                            "FSM",
+                            f"Error in on_transition callback during event '{event_name}': {e}",
+                            Py4GW.Console.MessageType.Error,
+                        )
 
                 self.current_state = target_state
-                self.current_state.reset() # Reset the new state
+                self.current_state.reset()  # Reset the new state
                 self.current_state.enter()
                 # --- End Transition ---
 
                 return True
             else:
                 # Log error: target state name defined but not found
-                ConsoleLog("FSM", f"{self.name}: Event '{event_name}' defined transition to unknown state '{target_state_name}' from state '{self.current_state.name}'", Py4GW.Console.MessageType.Error)
+                ConsoleLog(
+                    "FSM",
+                    f"{self.name}: Event '{event_name}' defined transition to unknown state '{target_state_name}' from state '{self.current_state.name}'",
+                    Py4GW.Console.MessageType.Error,
+                )
                 return False
         else:
             # Event not handled by the current state
             if self.log_actions:
-                 ConsoleLog("FSM", f"{self.name}: Event '{event_name}' triggered but not handled by current state '{self.current_state.name}'", Py4GW.Console.MessageType.Debug)
+                ConsoleLog(
+                    "FSM",
+                    f"{self.name}: Event '{event_name}' triggered but not handled by current state '{self.current_state.name}'",
+                    Py4GW.Console.MessageType.Debug,
+                )
             return False
 
     def update(self):
         if self.paused:
             if self.log_actions:
-                ConsoleLog("FSM", f"{self.name}: FSM is paused.", Py4GW.Console.MessageType.Warning)
+                ConsoleLog(
+                    "FSM",
+                    f"{self.name}: FSM is paused.",
+                    Py4GW.Console.MessageType.Warning,
+                )
             return
-        
+
         if self.finished:
             if self.log_actions:
-                ConsoleLog("FSM", f"{self.name}: FSM has finished.", Py4GW.Console.MessageType.Warning)
+                ConsoleLog(
+                    "FSM",
+                    f"{self.name}: FSM has finished.",
+                    Py4GW.Console.MessageType.Warning,
+                )
             return
-        
+
         if not self.current_state:
             if self.log_actions:
-                ConsoleLog("FSM", f"{self.name}: FSM has not been started.", Py4GW.Console.MessageType.Warning)
+                ConsoleLog(
+                    "FSM",
+                    f"{self.name}: FSM has not been started.",
+                    Py4GW.Console.MessageType.Warning,
+                )
             return
 
         if self.log_actions:
-            ConsoleLog("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
+            ConsoleLog(
+                "FSM",
+                f"{self.name}: Executing state: {self.current_state.name}",
+                Py4GW.Console.MessageType.Info,
+            )
         self.current_state.execute()
 
         if not self.current_state.can_exit():
             return
 
         self.current_state.exit()
-        next_state_polling = getattr(self.current_state, 'next_state', None) # Get the *original* next_state
-        
+        next_state_polling = getattr(self.current_state, "next_state", None)  # Get the *original* next_state
+
         if next_state_polling:
-            original_state_name = self.current_state.name # Store name before changing
+            original_state_name = self.current_state.name  # Store name before changing
             if self.on_transition:
-                 try:
-                     self.on_transition(original_state_name, next_state_polling.name)
-                 except Exception as e:
-                     ConsoleLog("FSM", f"Error in on_transition callback during polling transition: {e}", Py4GW.Console.MessageType.Error)
-            
+                try:
+                    self.on_transition(original_state_name, next_state_polling.name)
+                except Exception as e:
+                    ConsoleLog(
+                        "FSM",
+                        f"Error in on_transition callback during polling transition: {e}",
+                        Py4GW.Console.MessageType.Error,
+                    )
+
             self.current_state = next_state_polling
             self.current_state.reset()
             self.current_state.enter()
 
             if self.log_actions:
-                ConsoleLog("FSM", f"{self.name}: Transitioning to state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
+                ConsoleLog(
+                    "FSM",
+                    f"{self.name}: Transitioning to state: {self.current_state.name}",
+                    Py4GW.Console.MessageType.Info,
+                )
             return
 
         final_state_name = self.current_state.name
@@ -1889,18 +2026,26 @@ class FSM:
         self.finished = True
 
         if self.log_actions:
-            ConsoleLog("FSM", f"{self.name}: Reached the final state: {final_state_name}. FSM has completed.", Py4GW.Console.MessageType.Success)
-        
+            ConsoleLog(
+                "FSM",
+                f"{self.name}: Reached the final state: {final_state_name}. FSM has completed.",
+                Py4GW.Console.MessageType.Success,
+            )
+
         if self.on_complete:
             try:
                 self.on_complete()
             except Exception as e:
-                ConsoleLog("FSM", f"Error in on_complete callback: {e}", Py4GW.Console.MessageType.Error)
+                ConsoleLog(
+                    "FSM",
+                    f"Error in on_complete callback: {e}",
+                    Py4GW.Console.MessageType.Error,
+                )
 
     def is_started(self):
         """Check whether the FSM has been started."""
         return self.current_state is not None and not self.finished
-                
+
     def is_finished(self):
         """Check whether the FSM has finished executing all states."""
         return self.finished
@@ -1910,10 +2055,14 @@ class FSM:
         for state in self.states:
             if state.name == state_name:
                 self.current_state = state
-                self.current_state.reset() # Reset the state upon jumping to it
+                self.current_state.reset()  # Reset the state upon jumping to it
                 self.current_state.enter()
                 if self.log_actions:
-                    Py4GW.Console.Log("FSM", f"{self.name}: Jumped to state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
+                    Py4GW.Console.Log(
+                        "FSM",
+                        f"{self.name}: Jumped to state: {self.current_state.name}",
+                        Py4GW.Console.MessageType.Info,
+                    )
                 return
         raise ValueError(f"State with name '{state_name}' not found.")
 
@@ -1923,7 +2072,7 @@ class FSM:
             return 0
         return self.states.index(self.current_state) + 1
 
-    def get_state_count (self):
+    def get_state_count(self):
         """Get the total number of states in the FSM."""
         return len(self.states)
 
@@ -1933,7 +2082,7 @@ class FSM:
             if state.name == state_name:
                 return idx + 1
         return 0
-    
+
     def get_current_step_name(self):
         """Get the name of the current step (state) in the FSM."""
         if self.current_state is None:
@@ -1944,7 +2093,7 @@ class FSM:
         """Get the name of the next step (state) in the FSM."""
         if self.current_state is None:
             return f"{self.name}: FSM not started or finished"
-        if hasattr(self.current_state, 'next_state') and self.current_state.next_state:
+        if hasattr(self.current_state, "next_state") and self.current_state.next_state:
             return self.current_state.next_state.name
         return f"{self.name}: No next state (final state reached)"
 
@@ -1956,17 +2105,19 @@ class FSM:
         if current_index > 0:
             return self.states[current_index - 1].name
         return f"{self.name}: No previous state (first state)"
-    
+
     def _get_state_by_name(self, state_name: str) -> Optional[State]:
         """Finds a state object by its name."""
         for state in self.states:
             if state.name == state_name:
                 return state
         return None
-    
-#endregion
 
-#region MultiThreading
+
+# endregion
+
+# region MultiThreading
+
 
 class MultiThreading:
     def __init__(self, timeout=1.0, log_actions=False):
@@ -1982,7 +2133,11 @@ class MultiThreading:
         """Add and immediately start a thread."""
         with self.lock:
             if name in self.threads:
-                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' already exists.", Py4GW.Console.MessageType.Warning)
+                Py4GW.Console.Log(
+                    "MultiThreading",
+                    f"Thread '{name}' already exists.",
+                    Py4GW.Console.MessageType.Warning,
+                )
                 return
 
             # Prepare thread entry
@@ -1992,7 +2147,7 @@ class MultiThreading:
                 "target_fn": execute_fn,
                 "args": args,
                 "kwargs": kwargs,
-                "last_keepalive": last_keepalive
+                "last_keepalive": last_keepalive,
             }
 
         # Start thread immediately
@@ -2002,13 +2157,17 @@ class MultiThreading:
         """Start the thread."""
         with self.lock:
             if name not in self.threads:
-                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' does not exist.", Py4GW.Console.MessageType.Warning)
+                Py4GW.Console.Log(
+                    "MultiThreading", f"Thread '{name}' does not exist.", Py4GW.Console.MessageType.Warning
+                )
                 return
 
             thread_info = self.threads[name]
             thread = thread_info.get("thread")
             if thread and thread.is_alive():
-                Py4GW.Console.Log("MultiThreading", f"Thread '{name}' already running.", Py4GW.Console.MessageType.Warning)
+                Py4GW.Console.Log(
+                    "MultiThreading", f"Thread '{name}' already running.", Py4GW.Console.MessageType.Warning
+                )
                 return
 
             # Create a NEW thread object every time we start
@@ -2023,9 +2182,13 @@ class MultiThreading:
                     execute_fn(*args, **kwargs)
                 except SystemExit:
                     if self.log_actions:
-                        Py4GW.Console.Log("MultiThreading", f"Thread '{name}' forcefully exited.", Py4GW.Console.MessageType.Info)
+                        Py4GW.Console.Log(
+                            "MultiThreading", f"Thread '{name}' forcefully exited.", Py4GW.Console.MessageType.Info
+                        )
                 except Exception as e:
-                    Py4GW.Console.Log("MultiThreading", f"Thread '{name}' exception: {str(e)}", Py4GW.Console.MessageType.Error)
+                    Py4GW.Console.Log(
+                        "MultiThreading", f"Thread '{name}' exception: {str(e)}", Py4GW.Console.MessageType.Error
+                    )
                 finally:
                     if self.log_actions:
                         Py4GW.Console.Log("MultiThreading", f"Thread '{name}' exited.", Py4GW.Console.MessageType.Info)
@@ -2043,7 +2206,7 @@ class MultiThreading:
         with self.lock:
             if name in self.threads:
                 self.threads[name]["last_keepalive"] = time.time()
-                
+
     def update_all_keepalives(self):
         """Update keepalive timestamp for all threads except the watchdog."""
         current_time = time.time()
@@ -2053,19 +2216,22 @@ class MultiThreading:
                     continue
                 self.threads[name]["last_keepalive"] = current_time
 
-
     def stop_thread(self, name):
         with self.lock:
             if name not in self.threads:
                 if self.log_actions:
-                    Py4GW.Console.Log("MultiThreading", f"Thread '{name}' does not exist.", Py4GW.Console.MessageType.Warning)
+                    Py4GW.Console.Log(
+                        "MultiThreading", f"Thread '{name}' does not exist.", Py4GW.Console.MessageType.Warning
+                    )
                 return
 
             thread_info = self.threads[name]
             thread = thread_info.get("thread")
             if thread and thread.is_alive():
                 if self.log_actions:
-                    Py4GW.Console.Log("MultiThreading", f"Force stopping thread '{name}'.", Py4GW.Console.MessageType.Warning)
+                    Py4GW.Console.Log(
+                        "MultiThreading", f"Force stopping thread '{name}'.", Py4GW.Console.MessageType.Warning
+                    )
                 ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(thread.ident), ctypes.py_object(SystemExit))
                 time.sleep(0.1)
 
@@ -2080,9 +2246,6 @@ class MultiThreading:
         for name in thread_names:
             self.stop_thread(name)
 
-
-
-
     def check_timeouts(self):
         """Watchdog force-stops expired threads."""
         current_time = time.time()
@@ -2093,9 +2256,12 @@ class MultiThreading:
                     expired.append(name)
 
         for name in expired:
-            Py4GW.Console.Log("MultiThreading", f"Thread '{name}' keepalive expired, force stopping.", Py4GW.Console.MessageType.Warning)
+            Py4GW.Console.Log(
+                "MultiThreading",
+                f"Thread '{name}' keepalive expired, force stopping.",
+                Py4GW.Console.MessageType.Warning,
+            )
             self.stop_thread(name)
-
 
     def start_watchdog(self, main_thread_name):
         if self.watchdog_thread and self.watchdog_thread.is_alive():
@@ -2106,6 +2272,7 @@ class MultiThreading:
 
         def watchdog_fn():
             from .Map import Map
+
             if self.log_actions:
                 Py4GW.Console.Log("Watchdog", "Watchdog started.", Py4GW.Console.MessageType.Info)
             while self.watchdog_active:
@@ -2128,12 +2295,22 @@ class MultiThreading:
                 # Expire threads
                 for name in expired_threads:
                     if name != main_thread_name:
-                        ConsoleLog("Watchdog", f"Thread '{name}' timed out. Stopping it.", Console.MessageType.Warning, log=True)
+                        ConsoleLog(
+                            "Watchdog",
+                            f"Thread '{name}' timed out. Stopping it.",
+                            Console.MessageType.Warning,
+                            log=True,
+                        )
                         self.stop_thread(name)
 
                 # MAIN_THREAD_NAME expired → stop all
                 if main_thread_name in expired_threads:
-                    ConsoleLog("Watchdog", f"Main thread '{main_thread_name}' timed out! Stopping all threads.", Console.MessageType.Error, log=True)
+                    ConsoleLog(
+                        "Watchdog",
+                        f"Main thread '{main_thread_name}' timed out! Stopping all threads.",
+                        Console.MessageType.Error,
+                        log=True,
+                    )
                     self.stop_all_threads()
                     break
 
@@ -2142,7 +2319,9 @@ class MultiThreading:
                     active_threads = [name for name in self.threads.keys() if name != "watchdog"]
 
                 if not active_threads:
-                    ConsoleLog("Watchdog", "No active threads left. Stopping watchdog.", Console.MessageType.Notice, log=True)
+                    ConsoleLog(
+                        "Watchdog", "No active threads left. Stopping watchdog.", Console.MessageType.Notice, log=True
+                    )
                     self.watchdog_active = False
                     break
 
@@ -2161,7 +2340,7 @@ class MultiThreading:
                 "target_fn": None,
                 "args": (),
                 "kwargs": {},
-                "last_keepalive": time.time()
+                "last_keepalive": time.time(),
             }
 
         # Start watchdog thread
@@ -2176,10 +2355,11 @@ class MultiThreading:
         """Manually stop watchdog if needed."""
         self.watchdog_active = False
 
-#endregion
+
+# endregion
 
 
-#region ConfigCalsses
+# region ConfigCalsses
 class LootConfig:
     _instance = None
 
@@ -2209,7 +2389,15 @@ class LootConfig:
         self.dye_whitelist = set()
         self.dye_blacklist = set()
 
-    def SetProperties(self, loot_whites=False, loot_blues=False, loot_purples=False, loot_golds=False, loot_greens=False, loot_gold_coins=False):
+    def SetProperties(
+        self,
+        loot_whites=False,
+        loot_blues=False,
+        loot_purples=False,
+        loot_golds=False,
+        loot_greens=False,
+        loot_gold_coins=False,
+    ):
         self.loot_gold_coins = loot_gold_coins
         self.loot_whites = loot_whites
         self.loot_blues = loot_blues
@@ -2220,52 +2408,52 @@ class LootConfig:
     # ------- Whitelist management -------
     def AddToWhitelist(self, model_id: int):
         self.whitelist.add(model_id)
-        
+
     def RemoveFromWhitelist(self, model_id: int):
         self.whitelist.discard(model_id)
-        
+
     def ClearWhitelist(self):
         self.whitelist.clear()
-    
+
     def IsWhitelisted(self, model_id: int):
         return model_id in self.whitelist
-    
+
     def GetWhitelist(self):
         return list(self.whitelist)
-        
+
     # ------- Blacklist management ------
     def AddToBlacklist(self, model_id: int):
         self.blacklist.add(model_id)
-        
+
     def RemoveFromBlacklist(self, model_id: int):
         self.blacklist.discard(model_id)
-        
+
     def ClearBlacklist(self):
         self.blacklist.clear()
-        
+
     def IsBlacklisted(self, model_id: int):
         return model_id in self.blacklist
-    
+
     def GetBlacklist(self):
         return list(self.blacklist)
-        
-    # ------- Item ID Whitelist management -------    
+
+    # ------- Item ID Whitelist management -------
     def AddItemIDToWhitelist(self, item_id: int):
         self.item_id_whitelist.add(item_id)
-        
+
     def RemoveItemIDFromWhitelist(self, item_id: int):
         self.item_id_whitelist.discard(item_id)
-    
+
     def ClearItemIDWhitelist(self):
         self.item_id_whitelist.clear()
-        
+
     def IsItemIDWhitelisted(self, item_id: int):
         return item_id in self.item_id_whitelist
-        
-    # ------- Item ID Blacklist management -------   
+
+    # ------- Item ID Blacklist management -------
     def AddItemIDToBlacklist(self, item_id: int):
         self.item_id_blacklist.add(item_id)
-   
+
     def RemoveItemIDFromBlacklist(self, item_id: int):
         self.item_id_blacklist.discard(item_id)
 
@@ -2277,7 +2465,7 @@ class LootConfig:
 
     def GetItemIDBlacklist(self):
         return list(self.item_id_blacklist)
-    
+
     # === Dye-based lists (by dye1 int) ===
     # -- Dye Whitelist management -------
     def AddToDyeWhitelist(self, dye1_int: int):
@@ -2285,16 +2473,16 @@ class LootConfig:
 
     def RemoveFromDyeWhitelist(self, dye1_int: int):
         self.dye_whitelist.discard(dye1_int)
-        
+
     def ClearDyeWhitelist(self):
         self.dye_whitelist.clear()
-        
+
     def IsDyeWhitelisted(self, dye1_int: int):
         return dye1_int in self.dye_whitelist
-    
+
     def GetDyeWhitelist(self):
         return list(self.dye_whitelist)
-        
+
     # -- Dye Blacklist management -------
     def AddToDyeBlacklist(self, dye1_int: int):
         self.dye_blacklist.add(dye1_int)
@@ -2311,37 +2499,42 @@ class LootConfig:
     def GetDyeBlacklist(self):
         return list(self.dye_blacklist)
 
-    def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value, multibox_loot: bool = False, allow_unasigned_loot=False) -> list[int]:
-        from .AgentArray import AgentArray
-        from .GlobalCache import GLOBAL_CACHE
-        from .Routines import Routines
+    def GetfilteredLootArray(
+        self,
+        distance: float = Range.SafeCompass.value,
+        multibox_loot: bool = False,
+        allow_unasigned_loot=False,
+    ) -> list[int]:
         from .Agent import Agent
+        from .AgentArray import AgentArray
         from .Item import Item
-        from .Player import Player
         from .Party import Party
+        from .Player import Player
+        from .Routines import Routines
+
         if not Routines.Checks.Map.MapValid():
             return []
-        
+
         def IsValidItem(item_id):
             if not Routines.Checks.Map.MapValid():
                 return False
-            
+
             if not Agent.IsValid(item_id):
-                return False    
+                return False
             player_agent_id = Player.GetAgentID()
             owner_id = Agent.GetItemAgentOwnerID(item_id)
-            return ((owner_id == player_agent_id) or (owner_id == 0))
+            return (owner_id == player_agent_id) or (owner_id == 0)
 
         def IsValidFollowerItem(item_id):
-            
+
             if not Routines.Checks.Map.MapValid():
                 return False
             if not Agent.IsValid(item_id):
-                return False 
+                return False
             party_leader_id = Party.GetPartyLeaderID()
             player_agent_id = Player.GetAgentID()
             owner_id = Agent.GetItemAgentOwnerID(item_id)
-            
+
             if party_leader_id == player_agent_id:
                 # If the player is the party leader, gold coins are valid
                 agent = Agent.agent_instance(item_id)
@@ -2352,15 +2545,14 @@ class LootConfig:
                 else:
                     is_gold_coin = allow_unasigned_loot
 
-                return ((owner_id == player_agent_id) or (is_gold_coin))
+                return (owner_id == player_agent_id) or (is_gold_coin)
             else:
                 # If the player is a follower, only items owned by the player are valid
-                return (owner_id == player_agent_id)
-            
-        
+                return owner_id == player_agent_id
+
         if not Routines.Checks.Map.MapValid():
             return []
-            
+
         loot_array = AgentArray.GetItemArray()
         loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), distance)
 
@@ -2369,7 +2561,6 @@ class LootConfig:
         else:
             loot_array = AgentArray.Filter.ByCondition(loot_array, lambda item_id: IsValidItem(item_id))
 
-
         for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
             item_data = Agent.GetItemAgent(agent_id)
             item_id = item_data.item_id
@@ -2377,14 +2568,14 @@ class LootConfig:
 
             if self.IsWhitelisted(model_id):
                 continue
-            
+
             if self.IsItemIDWhitelisted(item_id):
                 continue
 
             if self.IsBlacklisted(model_id):
                 loot_array.remove(agent_id)
                 continue
-            
+
             if self.IsItemIDBlacklisted(item_id):
                 loot_array.remove(agent_id)
                 continue
@@ -2401,7 +2592,6 @@ class LootConfig:
                     loot_array.remove(agent_id)
                     continue
                 # Otherwise allowed to proceed based on rarity settings
-
 
             if not self.loot_whites and Item.Rarity.IsWhite(item_id):
                 loot_array.remove(agent_id)
@@ -2422,14 +2612,13 @@ class LootConfig:
         loot_array = AgentArray.Sort.ByDistance(loot_array, Player.GetXY())
 
         return loot_array
-#endregion
 
 
-import Py4GW
+# endregion
 
 
-#region AutoInventory
-class AutoInventoryHandler():
+# region AutoInventory
+class AutoInventoryHandler:
     _instance = None
 
     def __new__(cls):
@@ -2439,10 +2628,12 @@ class AutoInventoryHandler():
         return cls._instance
 
     def __init__(self):
-        from Py4GWCoreLib import ThrottledTimer, IniHandler
+        from Py4GWCoreLib import IniHandler
+        from Py4GWCoreLib import ThrottledTimer
+
         if self._initialized:
             return
-        self._LOOKUP_TIME:int = 15000
+        self._LOOKUP_TIME: int = 15000
         self.lookup_throttle = ThrottledTimer(self._LOOKUP_TIME)
         self.ini = IniHandler("AutoLoot.ini")
         self.initialized = False
@@ -2450,13 +2641,13 @@ class AutoInventoryHandler():
         self.outpost_handled = False
         self.module_active = False
         self.module_name = "AutoInventoryHandler"
-        
+
         self.id_whites = False
         self.id_blues = True
         self.id_purples = True
         self.id_golds = False
         self.id_greens = False
-        
+
         self.salvage_whites = True
         self.salvage_rare_materials = False
         self.salvage_blues = True
@@ -2466,8 +2657,8 @@ class AutoInventoryHandler():
         self.blacklisted_model_id = 0
         self.model_id_search = ""
         self.model_id_search_mode = 0  # 0 = Contains, 1 = Starts With
-        self.show_dialog_popup = False 
-        
+        self.show_dialog_popup = False
+
         self.deposit_trophies = True
         self.deposit_materials = True
         self.deposit_blues = True
@@ -2477,10 +2668,10 @@ class AutoInventoryHandler():
         self.deposit_event_items = True
         self.deposit_dyes = True
         self.keep_gold = 5000
-        
+
         self.load_from_ini(self.ini, "AutoLootOptions")
         self._initialized = True
-           
+
     def save_to_ini(self, section: str = "AutoLootOptions"):
         self.ini.write_key(section, "module_active", str(self.module_active))
         self.ini.write_key(section, "lookup_time", str(self._LOOKUP_TIME))
@@ -2496,7 +2687,11 @@ class AutoInventoryHandler():
         self.ini.write_key(section, "salvage_purples", str(self.salvage_purples))
         self.ini.write_key(section, "salvage_golds", str(self.salvage_golds))
 
-        self.ini.write_key(section, "salvage_blacklist", ",".join(str(i) for i in sorted(set(self.salvage_blacklist))))
+        self.ini.write_key(
+            section,
+            "salvage_blacklist",
+            ",".join(str(i) for i in sorted(set(self.salvage_blacklist))),
+        )
 
         self.ini.write_key(section, "deposit_trophies", str(self.deposit_trophies))
         self.ini.write_key(section, "deposit_materials", str(self.deposit_materials))
@@ -2507,7 +2702,6 @@ class AutoInventoryHandler():
         self.ini.write_key(section, "deposit_golds", str(self.deposit_golds))
         self.ini.write_key(section, "deposit_greens", str(self.deposit_greens))
         self.ini.write_key(section, "keep_gold", str(self.keep_gold))
-
 
     def load_from_ini(self, ini, section: str = "AutoLootOptions"):
         from Py4GWCoreLib import ThrottledTimer
@@ -2531,7 +2725,6 @@ class AutoInventoryHandler():
         blacklist_str = ini.read_key(section, "salvage_blacklist", "")
         self.salvage_blacklist = [int(x) for x in blacklist_str.split(",") if x.strip().isdigit()]
 
-
         self.deposit_trophies = ini.read_bool(section, "deposit_trophies", self.deposit_trophies)
         self.deposit_materials = ini.read_bool(section, "deposit_materials", self.deposit_materials)
         self.deposit_event_items = ini.read_bool(section, "deposit_event_items", self.deposit_event_items)
@@ -2542,66 +2735,91 @@ class AutoInventoryHandler():
         self.deposit_greens = ini.read_bool(section, "deposit_greens", self.deposit_greens)
 
         self.keep_gold = ini.read_int(section, "keep_gold", self.keep_gold)
-        
+
     def AutoID(self, item_id):
-        from Py4GWCoreLib import Inventory, ConsoleLog
+        from Py4GWCoreLib import ConsoleLog
+        from Py4GWCoreLib import Inventory
+
         first_id_kit = Inventory.GetFirstIDKit()
         if first_id_kit == 0:
-            ConsoleLog(self.module_name, "No ID Kit found in inventory", Py4GW.Console.MessageType.Warning)
+            ConsoleLog(
+                self.module_name,
+                "No ID Kit found in inventory",
+                Py4GW.Console.MessageType.Warning,
+            )
         else:
             Inventory.IdentifyItem(item_id, first_id_kit)
-            
+
     def AutoSalvage(self, item_id):
-        from Py4GWCoreLib import Inventory, ConsoleLog
+        from Py4GWCoreLib import ConsoleLog
+        from Py4GWCoreLib import Inventory
+
         first_salv_kit = Inventory.GetFirstSalvageKit(use_lesser=True)
         if first_salv_kit == 0:
-            ConsoleLog(self.module_name, "No Salvage Kit found in inventory", Py4GW.Console.MessageType.Warning)
+            ConsoleLog(
+                self.module_name,
+                "No Salvage Kit found in inventory",
+                Py4GW.Console.MessageType.Warning,
+            )
         else:
             Inventory.SalvageItem(item_id, first_salv_kit)
-            
-    def IdentifyItems(self,progress_callback: Optional[Callable[[float], None]] = None):
-        from Py4GWCoreLib import GLOBAL_CACHE, ItemArray, Routines, Bags, ActionQueueManager, ConsoleLog
-        from Py4GWCoreLib import Inventory, Item
+
+    def IdentifyItems(self, progress_callback: Optional[Callable[[float], None]] = None):
         import PyItem
-        
+        from Py4GWCoreLib import ActionQueueManager
+        from Py4GWCoreLib import Bags
+        from Py4GWCoreLib import ConsoleLog
+        from Py4GWCoreLib import Inventory
+        from Py4GWCoreLib import Item
+        from Py4GWCoreLib import ItemArray
+        from Py4GWCoreLib import Routines
+
         bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
         item_array = ItemArray.GetItemArray(bag_list)
-        
+
         identified_items = 0
-            
+
         for item_id in item_array:
             first_id_kit = Inventory.GetFirstIDKit()
-             
+
             if first_id_kit == 0:
                 Py4GW.Console.Log("AutoIdentify", "No ID Kit found in inventory.", Py4GW.Console.MessageType.Warning)
-                return   
-                
+                return
+
             item_instance = PyItem.PyItem(item_id)
             is_identified = item_instance.is_identified
-                
+
             if is_identified:
                 continue
-                
-            _,rarity = Item.Rarity.GetRarity(item_id)
-            if ((rarity == "White" and self.id_whites) or
-                (rarity == "Blue" and self.id_blues) or
-                (rarity == "Green" and self.id_greens) or
-                (rarity == "Purple" and self.id_purples) or
-                (rarity == "Gold" and self.id_golds)):
-                ActionQueueManager().AddAction("ACTION", Inventory.IdentifyItem,item_id, first_id_kit)
+
+            _, rarity = Item.Rarity.GetRarity(item_id)
+            if (
+                (rarity == "White" and self.id_whites)
+                or (rarity == "Blue" and self.id_blues)
+                or (rarity == "Green" and self.id_greens)
+                or (rarity == "Purple" and self.id_purples)
+                or (rarity == "Gold" and self.id_golds)
+            ):
+                ActionQueueManager().AddAction("ACTION", Inventory.IdentifyItem, item_id, first_id_kit)
                 identified_items += 1
                 while True:
                     yield from Routines.Yield.wait(50)
                     item_instance.GetContext()
                     if item_instance.is_identified:
                         break
-                    
+
         if identified_items > 0:
             ConsoleLog(self.module_name, f"Identified {identified_items} items", Py4GW.Console.MessageType.Success)
-            
+
     def SalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None):
-        from Py4GWCoreLib import GLOBAL_CACHE, Item, ItemArray, Routines, Bags, ActionQueueManager, ConsoleLog, Inventory
         import PyItem
+        from Py4GWCoreLib import GLOBAL_CACHE
+        from Py4GWCoreLib import ActionQueueManager
+        from Py4GWCoreLib import Bags
+        from Py4GWCoreLib import ConsoleLog
+        from Py4GWCoreLib import Inventory
+        from Py4GWCoreLib import ItemArray
+        from Py4GWCoreLib import Routines
 
         bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
         item_array = ItemArray.GetItemArray(bag_list)
@@ -2622,7 +2840,7 @@ class AutoInventoryHandler():
             _, rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
             is_white = rarity == "White"
             is_blue = rarity == "Blue"
-            is_green = rarity == "Green"
+            is_green = rarity == "Green"  # noqa
             is_purple = rarity == "Purple"
             is_gold = rarity == "Gold"
 
@@ -2652,12 +2870,12 @@ class AutoInventoryHandler():
 
             # Repeat until item no longer exists
             while True:
-                
+
                 bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
                 item_array = ItemArray.GetItemArray(bag_list)
                 if item_id not in item_array:
                     break  # Fully consumed / disappeared
-    
+
                 item_instance.GetContext()
                 quantity = item_instance.quantity
                 if quantity == 0:
@@ -2665,7 +2883,9 @@ class AutoInventoryHandler():
 
                 salvage_kit = Inventory.GetFirstSalvageKit(use_lesser=True)
                 if salvage_kit == 0:
-                    Py4GW.Console.Log("AutoSalvage", "No Salvage Kit found in inventory.", Py4GW.Console.MessageType.Warning)
+                    Py4GW.Console.Log(
+                        "AutoSalvage", "No Salvage Kit found in inventory.", Py4GW.Console.MessageType.Warning
+                    )
                     return
 
                 ActionQueueManager().AddAction("ACTION", Inventory.SalvageItem, item_id, salvage_kit)
@@ -2696,72 +2916,73 @@ class AutoInventoryHandler():
         if salvaged_items > 0:
             ConsoleLog(self.module_name, f"Salvaged {salvaged_items} items", Py4GW.Console.MessageType.Success)
 
-            
     def DepositItemsAuto(self):
-        from Py4GWCoreLib import GLOBAL_CACHE, Routines, Bags
-        for bag_id in range(Bags.Backpack, Bags.Bag2+1):
+        from Py4GWCoreLib import GLOBAL_CACHE
+        from Py4GWCoreLib import Bags
+        from Py4GWCoreLib import Routines
+
+        for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
             bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
             item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
-            
+
             for item_id in item_array:
                 # Check if the item is a trophy or material
                 is_trophy = GLOBAL_CACHE.Item.Type.IsTrophy(item_id)
                 is_tome = GLOBAL_CACHE.Item.Type.IsTome(item_id)
                 _, item_type = GLOBAL_CACHE.Item.GetItemType(item_id)
-                is_usable = (item_type == "Usable")
-                
+                is_usable = item_type == "Usable"
+
                 is_material = GLOBAL_CACHE.Item.Type.IsMaterial(item_id)
                 _, rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
-                is_white =  rarity == "White"
+                is_white = rarity == "White"
                 is_blue = rarity == "Blue"
                 is_green = rarity == "Green"
                 is_purple = rarity == "Purple"
                 is_gold = rarity == "Gold"
-                
+
                 model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
-                
+
                 if is_tome:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
+
                 if is_trophy and self.deposit_trophies and is_white:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
+
                 if is_material and self.deposit_materials:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
+
                 if is_blue and self.deposit_blues:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
+
                 if is_purple and self.deposit_purples:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
+
                 if is_gold and self.deposit_golds and not is_usable and not is_trophy:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
+
                 if is_green and self.deposit_greens:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                    
+
                 if model_id == ModelID.Vial_Of_Dye.value and self.deposit_dyes:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                    
+
                 event_items = set()
-                
+
                 event_items.add(ModelID.Birthday_Cupcake.value)
                 event_items.add(ModelID.Victory_Token.value)
-                
+
                 if model_id in event_items and self.deposit_event_items:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-            
-            
+
     def IDAndSalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None):
         self.status = "Identifying"
         yield from self.IdentifyItems()
@@ -2771,25 +2992,29 @@ class AutoInventoryHandler():
         yield from self.SalvageItems()
         self.status = "Idle"
         yield
-        
+
     def IDSalvageDepositItems(self):
-        from Py4GWCoreLib import Routines, ConsoleLog
+        from Py4GWCoreLib import ConsoleLog
+        from Py4GWCoreLib import Routines
+
         ConsoleLog("AutoInventoryHandler", "Starting ID, Salvage and Deposit routine", Py4GW.Console.MessageType.Info)
         self.status = "Identifying"
         yield from self.IdentifyItems()
-        
+
         self.status = "Salvaging"
         yield from self.SalvageItems()
-        
+
         self.status = "Depositing"
         yield from self.DepositItemsAuto()
-        
+
         self.status = "Depositing Gold"
-        
-        yield from Routines.Yield.Items.DepositGold(self.keep_gold, log =False)
-        
+
+        yield from Routines.Yield.Items.DepositGold(self.keep_gold, log=False)
+
         self.status = "Idle"
-        ConsoleLog("AutoInventoryHandler", "ID, Salvage and Deposit routine completed", Py4GW.Console.MessageType.Success)
+        ConsoleLog(
+            "AutoInventoryHandler", "ID, Salvage and Deposit routine completed", Py4GW.Console.MessageType.Success
+        )
 
 
-#endregion
+# endregion

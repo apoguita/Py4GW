@@ -983,6 +983,10 @@ def configure():
 
 def main():  
     try:  
+        is_party_leader = GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
+        if not is_party_leader:
+            return
+        
         if not Routines.Checks.Map.MapValid():
             mission_map.geometry = [] 
             mission_map.Map_load_timer.Reset()

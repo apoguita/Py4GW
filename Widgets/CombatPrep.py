@@ -1,3 +1,4 @@
+import ctypes
 import json
 import math
 import os
@@ -15,6 +16,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
 
+user32 = ctypes.WinDLL("user32", use_last_error=True)
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
@@ -36,6 +38,7 @@ TIMESTAMP = "timestamp"
 TEXTURE = "texture"
 VALUE = 'value'
 VK = "vk"
+WAS_PRESSED = "was_pressed"
 X_POS = "x"
 Y_POS = "y"
 
@@ -61,6 +64,7 @@ window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 last_location_spirits_casted = {X_POS: 0.0, Y_POS: 0.0}
 last_spirit_cast_time = {TIMESTAMP: 0}
 auto_spirit_cast_enabled = {VALUE: True}
+hotkey_state = {WAS_PRESSED: False}
 
 
 # TODO (mark): add hotkeys for formation data once hotkey support is in Py4GW
@@ -136,6 +140,27 @@ def load_formations_from_json():
     return data
 
 
+def get_key_pressed(vk_code):
+    value = user32.GetAsyncKeyState(vk_code) & 0x8000
+    is_value_not_zero = value != 0
+    if is_value_not_zero:
+        return vk_to_char(vk_code)
+    return None
+
+
+def char_to_vk(char: str) -> int:
+    if len(char) != 1:
+        pass
+    vk = user32.VkKeyScanW(ord(char))
+    if vk == -1:
+        pass
+    return vk & 0xFF  # The low byte is the VK code
+
+
+def vk_to_char(vk_code):
+    return chr(user32.MapVirtualKeyW(vk_code, 2))
+
+
 def get_party_center():
     total_x = 0
     total_y = 0
@@ -153,6 +178,16 @@ def get_party_center():
     center_y = total_y / count
 
     return center_x, center_y
+
+
+def is_hotkey_pressed_once(vk_code=0x35):
+    pressed = get_key_pressed(vk_code)
+    if pressed and not hotkey_state[WAS_PRESSED]:
+        hotkey_state[WAS_PRESSED] = True
+        return True
+    elif not pressed:
+        hotkey_state[WAS_PRESSED] = False
+    return False
 
 
 def draw_combat_prep_window(cached_data):
@@ -203,10 +238,15 @@ def draw_combat_prep_window(cached_data):
 
                 PyImGui.table_next_column()
 
-                button_pressed = ImGui.ImageButton(f"##{formation_key}", formation_data[TEXTURE], 80, 80)
+                button_pressed = ImGui.ImageButton(
+                    f"##{formation_key}", formation_data[TEXTURE], 80, 80
+                )
                 ImGui.show_tooltip(formation_key)
 
-                should_set_formation = button_pressed
+                hotkey_pressed = (
+                    get_key_pressed(formation_data[VK]) if formation_data[VK] else False
+                )
+                should_set_formation = hotkey_pressed or button_pressed
 
                 if should_set_formation:
                     if len(formation_data[COORDINATES]):
@@ -273,7 +313,9 @@ def draw_combat_prep_window(cached_data):
             PyImGui.table_next_column()
 
             # --- Spirits Prep Button ---
-            st_button_pressed = ImGui.ImageButton("##SpiritsPrepButton", f'{TEXTURES_PATH}/st_sos_combo.png', 80, 80)
+            st_button_pressed = ImGui.ImageButton(
+                "##SpiritsPrepButton", f'{TEXTURES_PATH}/st_sos_combo.png', 80, 80
+            )
             ImGui.show_tooltip("Spirits Prep")
 
             # --- Auto-cast Toggle Below ---
