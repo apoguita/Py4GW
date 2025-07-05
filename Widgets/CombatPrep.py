@@ -1,12 +1,14 @@
 import json
 import math
 import os
+import time
 import traceback
 
 import Py4GW
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import CombatPrepSkillsType
+from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
@@ -21,13 +23,18 @@ first_run = True
 BASE_DIR = os.path.join(project_root, "Widgets/Config")
 FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "combat_prep_window.ini")
+TEXTURES_PATH = 'Textures/CombatPrep'
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # String consts
-HOTKEY = "hotkey"
 MODULE_NAME = "CombatPrep"
+
 COLLAPSED = "collapsed"
 COORDINATES = "coordinates"
+SPIRITS_CAST_COOLDOWN_MS = 4000
+TIMESTAMP = "timestamp"
+TEXTURE = "texture"
+VALUE = 'value'
 VK = "vk"
 X_POS = "x"
 Y_POS = "y"
@@ -50,74 +57,76 @@ window_x = ini_window.read_int(MODULE_NAME, X_POS, 100)
 window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
+# Global Trackers
+last_location_spirits_casted = {X_POS: 0.0, Y_POS: 0.0}
+last_spirit_cast_time = {TIMESTAMP: 0}
+auto_spirit_cast_enabled = {VALUE: True}
+
 
 # TODO (mark): add hotkeys for formation data once hotkey support is in Py4GW
 # in the meantime use https://github.com/apoguita/Py4GW/pull/153 for use at your own
 # risk version with other potentially game breaking changes.
 def ensure_formation_json_exists():
-    if not os.path.exists(FORMATIONS_JSON_PATH):
-        default_json = {
-            "Flag Front": {
-                HOTKEY: None,
-                VK: None,
-                COORDINATES: [
-                    [0, 1000],
-                    [0, 1000],
-                    [0, 1000],
-                    [0, 1000],
-                    [0, 1000],
-                    [0, 1000],
-                    [0, 1000],
-                ],
-            },
-            "1,2 - Double Backline": {
-                HOTKEY: None,
-                VK: None,
-                COORDINATES: [
-                    [200, -200],
-                    [-200, -200],
-                    [0, 200],
-                    [-200, 450],
-                    [200, 450],
-                    [-400, 300],
-                    [400, 300],
-                ],
-            },
-            "1 - Single Backline": {
-                HOTKEY: None,
-                VK: None,
-                COORDINATES: [
-                    [0, -250],
-                    [-100, 200],
-                    [100, 200],
-                    [-300, 500],
-                    [300, 500],
-                    [-350, 300],
-                    [350, 300],
-                ],
-            },
-            "1,2 - Double Backline Triple Row": {
-                HOTKEY: None,
-                VK: None,
-                COORDINATES: [
-                    [-200, -200],
-                    [200, -200],
-                    [-200, 0],
-                    [200, 0],
-                    [-200, 300],
-                    [0, 300],
-                    [200, 300],
-                ],
-            },
-            "Disband Formation": {
-                HOTKEY: None,
-                VK: None,
-                COORDINATES: [],
-            },
-        }
+    def is_valid_formation_data(data):
+        # Ensure top-level keys and per-formation structure are valid
+        if not isinstance(data, dict):
+            return False
+        for name, entry in data.items():  # noqa: name unused
+            if not isinstance(entry, dict):
+                return False
+            if not all(k in entry for k in (VK, COORDINATES, TEXTURE)):
+                return False
+            if not isinstance(entry[COORDINATES], list):
+                return False
+        return True
+
+    default_json = {
+        "1,2 - Double Backline": {
+            VK: 0x31,
+            COORDINATES: [[200, -200], [-200, -200], [0, 200], [-200, 450], [200, 450], [-400, 300], [400, 300]],
+            TEXTURE: f'{TEXTURES_PATH}/double_backline.png',
+        },
+        "1 - Single Backline": {
+            VK: 0x32,
+            COORDINATES: [[0, -250], [-100, 200], [100, 200], [-300, 500], [300, 500], [-350, 300], [350, 300]],
+            TEXTURE: f'{TEXTURES_PATH}/single_backline.png',
+        },
+        "1,2 - Double Backline Triple Row": {
+            VK: 0x54,
+            COORDINATES: [[-200, -200], [200, -200], [-200, 0], [200, 0], [-200, 300], [0, 300], [200, 300]],
+            TEXTURE: f'{TEXTURES_PATH}/double_backline_triple_row.png',
+        },
+        "Flag Front": {
+            VK: 0x5A,
+            COORDINATES: [[0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000]],
+            TEXTURE: f'{TEXTURES_PATH}/flag_front.png',
+        },
+        "Disband Formation": {
+            VK: 0x47,
+            COORDINATES: [],
+            TEXTURE: f'{TEXTURES_PATH}/disband_formation.png',
+        },
+    }
+
+    should_overwrite = False
+
+    if os.path.exists(FORMATIONS_JSON_PATH):
+        try:
+            with open(FORMATIONS_JSON_PATH, "r") as f:
+                data = json.load(f)
+            if not is_valid_formation_data(data):
+                print("[CombatPrep] Invalid format detected, overwriting.")
+                should_overwrite = True
+        except (json.JSONDecodeError, IOError):
+            print("[CombatPrep] JSON error detected, overwriting.")
+            should_overwrite = True
+    else:
+        should_overwrite = True
+
+    if should_overwrite:
         with open(FORMATIONS_JSON_PATH, "w") as f:
-            print(FORMATIONS_JSON_PATH)
-            json.dump(default_json, f)  # empty dict initially
+            json.dump(default_json, f, indent=4)
+            print(f"[CombatPrep] Formation JSON reset at {FORMATIONS_JSON_PATH}")
 
 
 def load_formations_from_json():
@@ -127,8 +136,32 @@ def load_formations_from_json():
     return data
 
 
+def get_party_center():
+    total_x = 0
+    total_y = 0
+    count = 0
+
+    for slot in GLOBAL_CACHE.Party.GetPlayers():
+        agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(slot.login_number)
+        if agent_id:
+            agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(agent_id)
+            total_x += agent_x
+            total_y += agent_y
+            count += 1
+
+    center_x = total_x / count
+    center_y = total_y / count
+
+    return center_x, center_y
+
+
 def draw_combat_prep_window(cached_data):
-    global window_x, window_y, window_collapsed, first_run
+    global first_run
+    global last_location_spirits_casted
+    global time_since_last_cast
+    global window_collapsed
+    global window_x
+    global window_y
 
     # 1) On first draw, restore last position & collapsed state
     if first_run:
@@ -136,16 +169,12 @@ def draw_combat_prep_window(cached_data):
         PyImGui.set_next_window_collapsed(window_collapsed, 0)
         first_run = False
 
-    is_window_opened = PyImGui.begin(
-        "Combat Prep", PyImGui.WindowFlags.AlwaysAutoResize
-    )
+    is_window_opened = PyImGui.begin("Combat Prep", PyImGui.WindowFlags.AlwaysAutoResize)
     new_collapsed = PyImGui.is_window_collapsed()
     end_pos = PyImGui.get_window_pos()
 
     if is_window_opened:
-        is_party_leader = (
-            GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
-        )
+        is_party_leader = GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
         if not GLOBAL_CACHE.Map.IsExplorable() or not is_party_leader:
             PyImGui.text("Need to be party Leader and in Explorable Area")
             return
@@ -156,7 +185,6 @@ def draw_combat_prep_window(cached_data):
 
         party_size = cached_data.data.party_size
         disband_formation = False
-        COORDINATES = "coordinates"
 
         PyImGui.text("Formations:")
         PyImGui.separator()
@@ -164,22 +192,20 @@ def draw_combat_prep_window(cached_data):
         formations = load_formations_from_json()
 
         if PyImGui.begin_table("FormationTable", 3):
-            # Setup column widths BEFORE starting the table rows
-            PyImGui.table_setup_column(
-                "Formation", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
-            PyImGui.table_setup_column(
-                "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
-            )  # fixed 30px
-            PyImGui.table_setup_column(
-                "Save", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
-            for formation_key, formation_data in formations.items():
-                PyImGui.table_next_row()
+            PyImGui.table_setup_column("Formation_1", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("Formation_2", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("Formation_3", PyImGui.TableColumnFlags.WidthStretch)
 
-                # Column 1: Formation Button
+            col_index = 0
+            for formation_key, formation_data in formations.items():
+                if col_index % 3 == 0:
+                    PyImGui.table_next_row()
+
                 PyImGui.table_next_column()
-                button_pressed = PyImGui.button(formation_key)
+
+                button_pressed = ImGui.ImageButton(f"##{formation_key}", formation_data[TEXTURE], 80, 80)
+                ImGui.show_tooltip(formation_key)
+
                 should_set_formation = button_pressed
 
                 if should_set_formation:
@@ -187,26 +213,21 @@ def draw_combat_prep_window(cached_data):
                         set_formations_relative_to_leader = formation_data[COORDINATES]
                     else:
                         disband_formation = True
+
+                col_index += 1
         PyImGui.end_table()
 
         if len(set_formations_relative_to_leader):
-            leader_follow_angle = (
-                cached_data.data.party_leader_rotation_angle
-            )  # in radians
-            leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(
-                GLOBAL_CACHE.Party.GetPartyLeaderID()
-            )
-            angle_rad = (
-                leader_follow_angle - math.pi / 2
-            )  # adjust for coordinate system
+            leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
+            party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+            leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(party_leader_id)
+            angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
 
             cos_a = math.cos(angle_rad)
             sin_a = math.sin(angle_rad)
 
             for hero_ai_index in range(1, party_size):
-                offset_x, offset_y = set_formations_relative_to_leader[
-                    hero_ai_index - 1
-                ]
+                offset_x, offset_y = set_formations_relative_to_leader[hero_ai_index - 1]
 
                 # Rotate offset
                 rotated_x = offset_x * cos_a - offset_y * sin_a
@@ -244,27 +265,51 @@ def draw_combat_prep_window(cached_data):
         PyImGui.separator()
 
         if PyImGui.begin_table("SkillPrepTable", 3):
-            # Setup column widths BEFORE starting the table rows
-            PyImGui.table_setup_column(
-                "Formation", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
-            PyImGui.table_setup_column(
-                "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
-            )  # fixed 30px
-            PyImGui.table_setup_column(
-                "Save", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
+            PyImGui.table_setup_column("SkillUsage_1", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("SkillUsage_2", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("SkillUsage_3", PyImGui.TableColumnFlags.WidthStretch)
 
             PyImGui.table_next_row()
-            # Column 1: Formation Button
             PyImGui.table_next_column()
-            st_button_pressed = PyImGui.button("Spirits Prep")
 
+            # --- Spirits Prep Button ---
+            st_button_pressed = ImGui.ImageButton("##SpiritsPrepButton", f'{TEXTURES_PATH}/st_sos_combo.png', 80, 80)
+            ImGui.show_tooltip("Spirits Prep")
+
+            # --- Auto-cast Toggle Below ---
+            auto_spirit_cast_enabled[VALUE] = ImGui.toggle_button(
+                "Smart Cast##SpiritsSmartCast", auto_spirit_cast_enabled[VALUE], 80, 20
+            )
+            ImGui.show_tooltip("Enable smart-casting of spirits when party is close enough to an enemy")
+
+            # --- Logic ---
             sender_email = cached_data.account_email
 
-            # Only party leader is allowed to have access to hotkey
             if is_party_leader:
-                if st_button_pressed:
+                enemy_agent = Routines.Agents.GetNearestEnemy(max_distance=1850)
+                party_center_x, party_center_y = get_party_center()
+
+                dist_x = party_center_x - last_location_spirits_casted[X_POS]
+                dist_y = party_center_y - last_location_spirits_casted[Y_POS]
+                distance_squared = dist_x * dist_x + dist_y * dist_y
+                distance_threshold_squared = 2300 * 2300
+                now = int(time.time() * 1000)
+                time_since_last_cast = now - last_spirit_cast_time[TIMESTAMP]
+
+                should_cast = (
+                    st_button_pressed
+                    or (
+                        auto_spirit_cast_enabled[VALUE]
+                        and enemy_agent
+                        and distance_squared >= distance_threshold_squared
+                    )
+                ) and time_since_last_cast >= SPIRITS_CAST_COOLDOWN_MS
+
+                if should_cast:
+                    last_location_spirits_casted[X_POS] = party_center_x
+                    last_location_spirits_casted[Y_POS] = party_center_y
+                    last_spirit_cast_time[TIMESTAMP] = now
+
                     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
                     for account in accounts:
                         if sender_email != account.AccountEmail:
@@ -274,27 +319,29 @@ def draw_combat_prep_window(cached_data):
                                 SharedCommandType.UseSkill,
                                 (CombatPrepSkillsType.SpiritsPrep, 0, 0, 0),
                             )
-
         PyImGui.end_table()
 
         PyImGui.text("Control Quick Action:")
         PyImGui.separator()
         if PyImGui.begin_table("OtherSetupTable", 3):
             # Setup column widths BEFORE starting the table rows
-            PyImGui.table_setup_column(
-                "OtherSetup", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
-            PyImGui.table_setup_column(
-                "Hotkey", PyImGui.TableColumnFlags.WidthFixed, 30.0
-            )  # fixed 30px
-            PyImGui.table_setup_column(
-                "Save", PyImGui.TableColumnFlags.WidthStretch
-            )  # auto-size
+            PyImGui.table_setup_column("OtherSetup_1", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
+            PyImGui.table_setup_column("OtherSetup_2", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
+            PyImGui.table_setup_column("OtherSetup_3", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
 
             PyImGui.table_next_row()
             # Column 1: Formation Button
             PyImGui.table_next_column()
-            disable_party_leader_hero_ai = PyImGui.button("Disable Party Leader HeroAI")
+            disable_party_leader_hero_ai = ImGui.ImageButton(
+                "##DisablePartyLeaderHeroAI", f'{TEXTURES_PATH}/disable_pt_leader_hero_ai.png', 80, 80
+            )
+            ImGui.show_tooltip("Disable Party Leader HeroAI")
+
+            PyImGui.table_next_column()
+            reenable_party_members_hero_ai = ImGui.ImageButton(
+                "##EnablePartyHeroAI", f'{TEXTURES_PATH}/reenable_pt_hero_ai.png', 80, 80
+            )
+            ImGui.show_tooltip("Reenabled Party Members HeroAI")
 
             # Column 2: Hotkey Input
             # Get and display editable input buffer
@@ -312,6 +359,17 @@ def draw_combat_prep_window(cached_data):
                     SharedCommandType.DisableHeroAI,
                     (0, 0, 0, 0),
                 )
+
+            if is_party_leader and reenable_party_members_hero_ai:
+                accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+                for account in accounts:
+                    if sender_email != account.AccountEmail:
+                        GLOBAL_CACHE.ShMem.SendMessage(
+                            sender_email,
+                            account.AccountEmail,
+                            SharedCommandType.EnableHeroAI,
+                            (0, 0, 0, 0),
+                        )
         PyImGui.end_table()
     PyImGui.end()
 
@@ -343,50 +401,18 @@ def main():
             draw_combat_prep_window(cached_data)
 
     except ImportError as e:
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"ImportError encountered: {str(e)}",
-            Py4GW.Console.MessageType.Error,
-        )
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"Stack trace: {traceback.format_exc()}",
-            Py4GW.Console.MessageType.Error,
-        )
+        Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
     except ValueError as e:
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"ValueError encountered: {str(e)}",
-            Py4GW.Console.MessageType.Error,
-        )
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"Stack trace: {traceback.format_exc()}",
-            Py4GW.Console.MessageType.Error,
-        )
+        Py4GW.Console.Log(MODULE_NAME, f"ValueError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
     except TypeError as e:
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"TypeError encountered: {str(e)}",
-            Py4GW.Console.MessageType.Error,
-        )
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"Stack trace: {traceback.format_exc()}",
-            Py4GW.Console.MessageType.Error,
-        )
+        Py4GW.Console.Log(MODULE_NAME, f"TypeError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
     except Exception as e:
         # Catch-all for any other unexpected exceptions
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"Unexpected error encountered: {str(e)}",
-            Py4GW.Console.MessageType.Error,
-        )
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"Stack trace: {traceback.format_exc()}",
-            Py4GW.Console.MessageType.Error,
-        )
+        Py4GW.Console.Log(MODULE_NAME, f"Unexpected error encountered: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
     finally:
         pass
 
