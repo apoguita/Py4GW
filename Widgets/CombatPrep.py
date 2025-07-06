@@ -331,7 +331,7 @@ class CombatPrep:
 
             should_cast = (
                 shouts_button_pressed
-                or is_hotkey_pressed_once(0x35)
+                or is_hotkey_pressed_once(0x36)
                 or (
                     auto_shout_cast_enabled[VALUE]
                     and enemy_agent
