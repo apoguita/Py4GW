@@ -28,6 +28,7 @@ class SharedCommandType(IntEnum):
 
 class CombatPrepSkillsType(IntEnum):
     SpiritsPrep = 1
+    ShoutsPrep = 2
 
 
 # region mouse

@@ -118,9 +118,9 @@ def DrawWindow():
 
 # endregion
 # region HeroAI Snapshot
-def SnapshotHeroAIOptions(acocunt_email):
+def SnapshotHeroAIOptions(account_email):
     global hero_ai_snapshot
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acocunt_email)
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
     if hero_ai_options is None:
         return
 
@@ -132,9 +132,9 @@ def SnapshotHeroAIOptions(acocunt_email):
     yield
 
 
-def RestoreHeroAISnapshot(acocunt_email):
+def RestoreHeroAISnapshot(account_email):
     global hero_ai_snapshot
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acocunt_email)
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
     if hero_ai_options is None:
         return
 
@@ -146,8 +146,8 @@ def RestoreHeroAISnapshot(acocunt_email):
     yield
 
 
-def DisableHeroAIOptions(acocunt_email):
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acocunt_email)
+def DisableHeroAIOptions(account_email):
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
     if hero_ai_options is None:
         return
 
@@ -156,6 +156,18 @@ def DisableHeroAIOptions(acocunt_email):
     hero_ai_options.Looting = False
     hero_ai_options.Targeting = False
     hero_ai_options.Combat = False
+    yield
+
+def EnableHeroAIOptions(account_email):
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+    if hero_ai_options is None:
+        return
+    
+    hero_ai_options.Following = True
+    hero_ai_options.Avoidance = True
+    hero_ai_options.Looting = True
+    hero_ai_options.Targeting = True
+    hero_ai_options.Combat = True
     yield
 
 
@@ -618,7 +630,10 @@ def MessageEnableHeroAI(index, message):
     )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
-    yield from RestoreHeroAISnapshot(account_email)
+    if message.Params[0]:
+        yield from EnableHeroAIOptions(account_email)
+    else:
+        yield from RestoreHeroAISnapshot(account_email)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
     ConsoleLog(
         MODULE_NAME,
@@ -629,9 +644,87 @@ def MessageEnableHeroAI(index, message):
 
 # region UseSkillFromMessage
 def UseSkillFromMessage(index, message):
+    # --- Paragon Shouts ---
+    paragon_skills = [
+        "Theres_Nothing_to_Fear",
+        "Stand_Your_Ground",
+    ]
+
+    # --- Ritualist Spirits ---
+    skills_to_precast = [
+        SUMMON_SPIRITS_LUXON,
+        SUMMON_SPIRITS_KURZICK,
+    ]
+    spirit_skills_to_prep = [
+        "Shelter",
+        "Union",
+        "Earthbind",
+        "Displacement",
+        "Signet_of_Spirits",
+        "Bloodsong",
+        "Vampirism",
+        "Rejuvenation",
+        "Recuperation",
+    ]
+    skills_to_postcast = [
+        ARMOR_OF_UNFEELING,
+    ]
+    full_ritualist_skills = skills_to_precast + spirit_skills_to_prep + skills_to_postcast
+
+    def curr_agent_has_ritualist_skills():
+        for skill in full_ritualist_skills:
+            skill_id = GLOBAL_CACHE.Skill.GetID(skill)
+            slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+
+            if slot_number:
+                return True
+        return False
+    
+    def curr_agent_has_paragon_skills():
+        for skill in paragon_skills:
+            skill_id = GLOBAL_CACHE.Skill.GetID(skill)
+            slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+
+            if slot_number:
+                return True
+        return False
+
+    def cast_paragon_shouts():
+        global cached_data
+        account_email = message.ReceiverEmail
+        GLOBAL_CACHE.ShMem.MarkMessageAsRunning(account_email, index)
+
+        ConsoleLog(
+            MODULE_NAME, "Paragon shout skills initialized", Console.MessageType.Info
+        )
+
+        # --- Cast Paragon Shouts ---
+        try:
+            for skill in paragon_skills:
+                skill_id = GLOBAL_CACHE.Skill.GetID(skill)
+                slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+
+                if not skill_id or not slot_number:
+                    continue
+
+                if not cached_data.combat_handler.IsReadyToCast(slot_number):
+                    continue
+
+                if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=100):
+                    yield from Routines.Yield.wait(100)
+
+
+        except Exception as e:
+            ConsoleLog(
+                MODULE_NAME,
+                f"Error during shout casting loop: {e}",
+                Console.MessageType.Error
+            )
+            yield from Routines.Yield.wait(500)  # optional backoff
+        yield from Routines.Yield.wait(100)
+
     def cast_rit_spirits():
         global cached_data
-
         account_email = message.ReceiverEmail
         GLOBAL_CACHE.ShMem.MarkMessageAsRunning(account_email, index)
 
@@ -643,30 +736,10 @@ def UseSkillFromMessage(index, message):
         yield from SnapshotHeroAIOptions(account_email)
         yield from DisableHeroAIOptions(account_email)
 
-        # --- Cast Ritualist Spirits ---
-        skills_to_precast = [
-            SUMMON_SPIRITS_LUXON,
-            SUMMON_SPIRITS_KURZICK,
-        ]
-        spirit_skills_to_prep = [
-            "Shelter",
-            "Union",
-            "Earthbind",
-            "Displacement",
-            "Signet_of_Spirits",
-            "Bloodsong",
-            "Vampirism",
-            "Rejuvenation",
-            "Recuperation",
-        ]
-        skills_to_postcast = [
-            ARMOR_OF_UNFEELING,
-        ]
 
-        final_skills = skills_to_precast + spirit_skills_to_prep + skills_to_postcast
-
+        # --- Cast Ritualist Skills ---
         try:
-            for skill in final_skills:
+            for skill in full_ritualist_skills:
                 skill_id = GLOBAL_CACHE.Skill.GetID(skill)
                 slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
 
@@ -714,9 +787,11 @@ def UseSkillFromMessage(index, message):
 
         yield from Routines.Yield.wait(100)
 
-    # TODO(mark): think about potentially using another param value instead of the first one
-    if message.Params[0] == CombatPrepSkillsType.SpiritsPrep:
+    cast_params = message.Params[0]
+    if cast_params == CombatPrepSkillsType.SpiritsPrep and curr_agent_has_ritualist_skills():
         yield from cast_rit_spirits()
+    elif cast_params == CombatPrepSkillsType.ShoutsPrep and curr_agent_has_paragon_skills():
+        yield from cast_paragon_shouts()
 
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
