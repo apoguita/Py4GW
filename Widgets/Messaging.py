@@ -353,7 +353,7 @@ def TakeDialogWithTarget(index, message):
     yield from Routines.Yield.Player.InteractAgent(target)
     yield from Routines.Yield.wait(500)
     if UIManager.IsNPCDialogVisible():
-        UIManager.ClickDialogButton(message.Params[1])
+        UIManager.ClickDialogButton(int(message.Params[1]))
         yield from Routines.Yield.wait(200)
     yield from RestoreHeroAISnapshot(message.ReceiverEmail)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
