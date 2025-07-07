@@ -24,6 +24,7 @@ project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
 first_run = True
 
+MODULE_NAME = "CombatPrep"
 BASE_DIR = os.path.join(project_root, "Widgets/Config")
 FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "combat_prep_window.ini")
@@ -31,11 +32,13 @@ TEXTURES_PATH = 'Textures/CombatPrep'
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # String consts
-MODULE_NAME = "CombatPrep"
-
 COLLAPSED = "collapsed"
 COORDINATES = "coordinates"
 DEFAULT = "default"
+DISABLE_PARTY_LEADER_TOOL_TIP_TEXT = "Disable Party Leader HeroAI"
+DISABLE_PARTY_MEMBERS_TOOL_TIP_TEXT = "Disable Party Members HeroAI"
+ENABLE_PARTY_LEADER_TOOL_TIP_TEXT = "Enable Party Leader HeroAI"
+ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT = "Enable Party Members HeroAI"
 MODULE_ICON_SIZE = 'module_icon_size'
 MODULE_LAYOUT = 'module_layout'
 ROW = "row"
@@ -46,9 +49,13 @@ SPIRITS_BRAIN_TEXT = IconsFontAwesome5.ICON_BRAIN + "##Spirits"
 SPIRITS_BUTTON_ID = "##SpiritsPrepButton"
 SHOUTS_CAST_COOLDOWN_MS = 5000
 SHOUTS_BUTTON_TOOL_TIP_TEXT = "Shouts Prep"
-SHOUTS_TOOL_TIP_TEXT = "Enable smart-casting of shouts when party is close enough to an enemy and within earshot of party leader"
+SHOUTS_TOOL_TIP_TEXT = (
+    "Enable smart-casting of shouts when party is close enough to an enemy and within earshot of party leader"
+)
 SHOUTS_BRAIN_TEXT = IconsFontAwesome5.ICON_BRAIN + "##Shouts"
 SHOUTS_BUTTON_ID = "##ShoutsPrepButton"
+TOGGLE_PARTY_LEADER_BUTTON_ID = '##TogglePartyLeaderHeroAI'
+TOGGLE_PARTY_MEMBERS_BUTTON_ID = '##TogglePartyHeroAI'
 TIMESTAMP = "timestamp"
 TEXTURE = "texture"
 VALUE = 'value'
@@ -224,6 +231,63 @@ class CombatPrep:
         party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
         return GLOBAL_CACHE.Agent.GetXY(party_leader_id)
 
+    def get_party_leader_hero_ai_status(self):
+        if not self.is_party_leader:
+            return False
+
+        # assumes this is party leader account email because they are the only one that has access
+        hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(self.cached_data.account_email)
+        if hero_ai_options is None:
+            return False
+
+        status = True
+        for option in [
+            hero_ai_options.Following,
+            hero_ai_options.Avoidance,
+            hero_ai_options.Looting,
+            hero_ai_options.Targeting,
+            hero_ai_options.Combat,
+        ]:
+            if option:
+                status = option and status
+        return status
+
+    def get_party_leader_texture_path_icon(self):
+        texture_path_to_use = (
+            f'{TEXTURES_PATH}/enable_pt_leader_hero_ai.png'
+            if self.get_party_leader_hero_ai_status()
+            else f'{TEXTURES_PATH}/disable_pt_leader_hero_ai.png'
+        )
+        return texture_path_to_use
+
+    def get_party_members_hero_ai_status(self):
+        status = True
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            if self.cached_data.account_email != account.AccountEmail:
+                hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
+                if hero_ai_options is None:
+                    continue
+
+                for option in [
+                    hero_ai_options.Following,
+                    hero_ai_options.Avoidance,
+                    hero_ai_options.Looting,
+                    hero_ai_options.Targeting,
+                    hero_ai_options.Combat,
+                ]:
+                    if option:
+                        status = option and status
+        return status
+
+    def get_party_members_texture_path_icon(self):
+        texture_path_to_use = (
+            f'{TEXTURES_PATH}/enable_pt_hero_ai.png'
+            if self.get_party_members_hero_ai_status()
+            else f'{TEXTURES_PATH}/disable_pt_hero_ai.png'
+        )
+        return texture_path_to_use
+
     # callback methods
     def cb_set_formation(self, set_formations_relative_to_leader, disband_formation):
         party_size = self.cached_data.data.party_size
@@ -284,7 +348,6 @@ class CombatPrep:
             distance_threshold_squared = 2300 * 2300
             now = int(time.time() * 1000)
             time_since_last_cast = now - last_spirit_cast_time[TIMESTAMP]
-            
 
             should_cast = (
                 st_button_pressed
@@ -306,7 +369,7 @@ class CombatPrep:
                             SharedCommandType.UseSkill,
                             (CombatPrepSkillsType.SpiritsPrep, 0, 0, 0),
                         )
-    
+
     def cb_shouts_prep(self, shouts_button_pressed):
         sender_email = self.cached_data.account_email
 
@@ -355,30 +418,46 @@ class CombatPrep:
                             (CombatPrepSkillsType.ShoutsPrep, 0, 0, 0),
                         )
 
-    def cb_disable_party_leader_hero_ai(self, disable_party_leader_hero_ai_button_pressed):
+    def cb_toggle_party_leader_hero_ai(self, toggle_party_leader_hero_ai_button_pressed):
         sender_email = self.cached_data.account_email
 
-        if self.is_party_leader and disable_party_leader_hero_ai_button_pressed:
-            GLOBAL_CACHE.ShMem.SendMessage(
-                sender_email,
-                sender_email,
-                SharedCommandType.DisableHeroAI,
-                (0, 0, 0, 0),
-            )
+        if self.is_party_leader and toggle_party_leader_hero_ai_button_pressed:
+            if self.get_party_leader_hero_ai_status():
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    sender_email,
+                    SharedCommandType.DisableHeroAI,
+                    (0, 0, 0, 0),
+                )
+            else:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    sender_email,
+                    SharedCommandType.EnableHeroAI,
+                    (1, 0, 0, 0),
+                )
 
-    def cb_reenable_party_members_hero_ai(self, reenable_party_members_hero_ai_button_pressed):
+    def cb_toggle_party_members_hero_ai(self, toggle_party_members_hero_ai_button_pressed):
         sender_email = self.cached_data.account_email
 
-        if self.is_party_leader and reenable_party_members_hero_ai_button_pressed:
+        if self.is_party_leader and toggle_party_members_hero_ai_button_pressed:
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             for account in accounts:
                 if sender_email != account.AccountEmail:
-                    GLOBAL_CACHE.ShMem.SendMessage(
-                        sender_email,
-                        account.AccountEmail,
-                        SharedCommandType.EnableHeroAI,
-                        (1, 0, 0, 0),
-                    )
+                    if self.get_party_members_hero_ai_status():
+                        GLOBAL_CACHE.ShMem.SendMessage(
+                            sender_email,
+                            account.AccountEmail,
+                            SharedCommandType.DisableHeroAI,
+                            (0, 0, 0, 0),
+                        )
+                    else:
+                        GLOBAL_CACHE.ShMem.SendMessage(
+                            sender_email,
+                            account.AccountEmail,
+                            SharedCommandType.EnableHeroAI,
+                            (1, 0, 0, 0),
+                        )
 
     # UI formats
     def _row_ui(self):
@@ -429,20 +508,31 @@ class CombatPrep:
                         ImGui.show_tooltip(SHOUTS_BUTTON_TOOL_TIP_TEXT)
                         self.cb_shouts_prep(shouts_button_pressed)
                     elif col_index == 7:
-                        disable_btn = ImGui.ImageButton(
-                            "##DisablePartyLeaderHeroAI",
-                            f'{TEXTURES_PATH}/disable_pt_leader_hero_ai.png',
+                        toggle_button_pressed = ImGui.ImageButton(
+                            TOGGLE_PARTY_LEADER_BUTTON_ID,
+                            self.get_party_leader_texture_path_icon(),
                             icon_size,
                             icon_size,
                         )
-                        ImGui.show_tooltip("Disable Party Leader HeroAI")
-                        self.cb_disable_party_leader_hero_ai(disable_btn)
+                        ImGui.show_tooltip(
+                            DISABLE_PARTY_LEADER_TOOL_TIP_TEXT
+                            if self.get_party_leader_hero_ai_status()
+                            else ENABLE_PARTY_LEADER_TOOL_TIP_TEXT
+                        )
+                        self.cb_toggle_party_leader_hero_ai(toggle_button_pressed)
                     elif col_index == 8:
-                        reenable_btn = ImGui.ImageButton(
-                            "##EnablePartyHeroAI", f'{TEXTURES_PATH}/reenable_pt_hero_ai.png', icon_size, icon_size
+                        toggle_button_pressed = ImGui.ImageButton(
+                            TOGGLE_PARTY_MEMBERS_BUTTON_ID,
+                            self.get_party_members_texture_path_icon(),
+                            icon_size,
+                            icon_size,
                         )
-                        ImGui.show_tooltip("Reenable Party Members HeroAI")
-                        self.cb_reenable_party_members_hero_ai(reenable_btn)
+                        ImGui.show_tooltip(
+                            DISABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
+                            if self.get_party_members_hero_ai_status()
+                            else ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
+                        )
+                        self.cb_toggle_party_members_hero_ai(toggle_button_pressed)
 
             # Apply selected formation
             self.cb_set_formation(set_formations_relative_to_leader, disband_formation)
@@ -561,18 +651,26 @@ class CombatPrep:
             PyImGui.table_next_row()
             # Column 1: Formation Button
             PyImGui.table_next_column()
-            disable_party_leader_hero_ai_button_pressed = ImGui.ImageButton(
-                "##DisablePartyLeaderHeroAI", f'{TEXTURES_PATH}/disable_pt_leader_hero_ai.png', icon_size, icon_size
+            toggle_button_pressed_party_leader = ImGui.ImageButton(
+                TOGGLE_PARTY_LEADER_BUTTON_ID, self.get_party_leader_texture_path_icon(), icon_size, icon_size
             )
-            ImGui.show_tooltip("Disable Party Leader HeroAI")
-            self.cb_disable_party_leader_hero_ai(disable_party_leader_hero_ai_button_pressed)
+            ImGui.show_tooltip(
+                DISABLE_PARTY_LEADER_TOOL_TIP_TEXT
+                if self.get_party_leader_hero_ai_status()
+                else ENABLE_PARTY_LEADER_TOOL_TIP_TEXT
+            )
+            self.cb_toggle_party_leader_hero_ai(toggle_button_pressed_party_leader)
 
             PyImGui.table_next_column()
-            reenable_party_members_hero_ai_button_pressed = ImGui.ImageButton(
-                "##EnablePartyHeroAI", f'{TEXTURES_PATH}/reenable_pt_hero_ai.png', icon_size, icon_size
+            toggle_button_pressed_party_members = ImGui.ImageButton(
+                TOGGLE_PARTY_MEMBERS_BUTTON_ID, self.get_party_members_texture_path_icon(), icon_size, icon_size
             )
-            ImGui.show_tooltip("Reenabled Party Members HeroAI")
-            self.cb_reenable_party_members_hero_ai(reenable_party_members_hero_ai_button_pressed)
+            ImGui.show_tooltip(
+                DISABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
+                if self.get_party_members_hero_ai_status()
+                else ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
+            )
+            self.cb_toggle_party_members_hero_ai(toggle_button_pressed_party_members)
 
             # Column 2: Hotkey Input
             PyImGui.table_next_column()
