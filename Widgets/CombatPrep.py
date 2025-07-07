@@ -231,7 +231,7 @@ class CombatPrep:
         party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
         return GLOBAL_CACHE.Agent.GetXY(party_leader_id)
 
-    def get_party_leader_hero_ai_status(self):
+    def is_party_leader_hero_ai_status_enabled(self):
         if not self.is_party_leader:
             return False
 
@@ -248,19 +248,18 @@ class CombatPrep:
             hero_ai_options.Targeting,
             hero_ai_options.Combat,
         ]:
-            if option:
-                status = option and status
+            status = option and status
         return status
 
     def get_party_leader_texture_path_icon(self):
         texture_path_to_use = (
             f'{TEXTURES_PATH}/enable_pt_leader_hero_ai.png'
-            if self.get_party_leader_hero_ai_status()
+            if self.is_party_leader_hero_ai_status_enabled()
             else f'{TEXTURES_PATH}/disable_pt_leader_hero_ai.png'
         )
         return texture_path_to_use
 
-    def get_party_members_hero_ai_status(self):
+    def is_party_members_hero_ai_status_enabled(self):
         status = True
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         for account in accounts:
@@ -276,14 +275,13 @@ class CombatPrep:
                     hero_ai_options.Targeting,
                     hero_ai_options.Combat,
                 ]:
-                    if option:
-                        status = option and status
+                    status = option and status
         return status
 
     def get_party_members_texture_path_icon(self):
         texture_path_to_use = (
             f'{TEXTURES_PATH}/enable_pt_hero_ai.png'
-            if self.get_party_members_hero_ai_status()
+            if self.is_party_members_hero_ai_status_enabled()
             else f'{TEXTURES_PATH}/disable_pt_hero_ai.png'
         )
         return texture_path_to_use
@@ -422,7 +420,7 @@ class CombatPrep:
         sender_email = self.cached_data.account_email
 
         if self.is_party_leader and toggle_party_leader_hero_ai_button_pressed:
-            if self.get_party_leader_hero_ai_status():
+            if self.is_party_leader_hero_ai_status_enabled():
                 GLOBAL_CACHE.ShMem.SendMessage(
                     sender_email,
                     sender_email,
@@ -444,7 +442,7 @@ class CombatPrep:
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             for account in accounts:
                 if sender_email != account.AccountEmail:
-                    if self.get_party_members_hero_ai_status():
+                    if self.is_party_members_hero_ai_status_enabled():
                         GLOBAL_CACHE.ShMem.SendMessage(
                             sender_email,
                             account.AccountEmail,
@@ -494,6 +492,8 @@ class CombatPrep:
                         else:
                             disband_formation = True
                 else:
+                    st_button_pressed = False
+                    shouts_button_pressed = False
                     # Remaining slots = static control buttons
                     if col_index == 5:
                         st_button_pressed = ImGui.ImageButton(
@@ -516,7 +516,7 @@ class CombatPrep:
                         )
                         ImGui.show_tooltip(
                             DISABLE_PARTY_LEADER_TOOL_TIP_TEXT
-                            if self.get_party_leader_hero_ai_status()
+                            if self.is_party_leader_hero_ai_status_enabled()
                             else ENABLE_PARTY_LEADER_TOOL_TIP_TEXT
                         )
                         self.cb_toggle_party_leader_hero_ai(toggle_button_pressed)
@@ -529,7 +529,7 @@ class CombatPrep:
                         )
                         ImGui.show_tooltip(
                             DISABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
-                            if self.get_party_members_hero_ai_status()
+                            if self.is_party_members_hero_ai_status_enabled()
                             else ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
                         )
                         self.cb_toggle_party_members_hero_ai(toggle_button_pressed)
@@ -656,7 +656,7 @@ class CombatPrep:
             )
             ImGui.show_tooltip(
                 DISABLE_PARTY_LEADER_TOOL_TIP_TEXT
-                if self.get_party_leader_hero_ai_status()
+                if self.is_party_leader_hero_ai_status_enabled()
                 else ENABLE_PARTY_LEADER_TOOL_TIP_TEXT
             )
             self.cb_toggle_party_leader_hero_ai(toggle_button_pressed_party_leader)
@@ -667,7 +667,7 @@ class CombatPrep:
             )
             ImGui.show_tooltip(
                 DISABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
-                if self.get_party_members_hero_ai_status()
+                if self.is_party_members_hero_ai_status_enabled()
                 else ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
             )
             self.cb_toggle_party_members_hero_ai(toggle_button_pressed_party_members)
