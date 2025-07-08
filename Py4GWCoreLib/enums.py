@@ -140,17 +140,17 @@ class Key(Enum):
     Pause = 0x13
 
     # Special characters (US standard keyboard) (Danish standard keyboard) (English standard keyboard)
-    Semicolon = 0xBA  # ;                   # æ                        # ;
-    Equal = 0xBB  # =                   # ´                        # =
-    Comma = 0xBC  # ,                   # ,                        # ,
-    Minus = 0xBD  # -                   # +                        # -
-    Period = 0xBE  # .                   # .                        # .
-    Slash = 0xBF  # /                   # -                        # /
-    Backtick = 0xC0  # `                   # ½                        # `
-    LeftBracket = 0xDB  # [                   # å                        # [
-    Backslash = 0xDC  # \                   # '                        # #
+    Semicolon = 0xBA     # ;                   # æ                        # ;
+    Equal = 0xBB         # =                   # ´                        # =
+    Comma = 0xBC         # ,                   # ,                        # ,
+    Minus = 0xBD         # -                   # +                        # -
+    Period = 0xBE        # .                   # .                        # .
+    Slash = 0xBF         # /                   # -                        # /
+    Backtick = 0xC0      # `                   # ½                        # `
+    LeftBracket = 0xDB   # [                   # å                        # [
+    Backslash = 0xDC     # \                   # '                        # #
     RightBracket = 0xDD  # ]                   # ¨                        # ]
-    Apostrophe = 0xDE  # '                   # ø                        # '
+    Apostrophe = 0xDE    # '                   # ø                        # '
 
 
 # region Console
