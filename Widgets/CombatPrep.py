@@ -8,9 +8,11 @@ import Py4GW
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import CombatPrepSkillsType
+from Py4GWCoreLib import IconsFontAwesome5
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
@@ -20,6 +22,7 @@ project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
 first_run = True
 
+MODULE_NAME = "CombatPrep"
 BASE_DIR = os.path.join(project_root, "Widgets/Config")
 FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "combat_prep_window.ini")
@@ -27,15 +30,35 @@ TEXTURES_PATH = 'Textures/CombatPrep'
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # String consts
-MODULE_NAME = "CombatPrep"
-
 COLLAPSED = "collapsed"
 COORDINATES = "coordinates"
+DEFAULT = "default"
+DISABLE_PARTY_LEADER_TOOL_TIP_TEXT = "Disable Party Leader HeroAI"
+DISABLE_PARTY_MEMBERS_TOOL_TIP_TEXT = "Disable Party Members HeroAI"
+ENABLE_PARTY_LEADER_TOOL_TIP_TEXT = "Enable Party Leader HeroAI"
+ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT = "Enable Party Members HeroAI"
+MODULE_ICON_SIZE = 'module_icon_size'
+MODULE_LAYOUT = 'module_layout'
+ROW = "row"
 SPIRITS_CAST_COOLDOWN_MS = 4000
+SPIRITS_BUTTON_TOOL_TIP_TEXT = "Spirits Prep"
+SPIRITS_TOOL_TIP_TEXT = "Enable smart-casting of spirits when party is close enough to an enemy"
+SPIRITS_BRAIN_TEXT = IconsFontAwesome5.ICON_BRAIN + "##Spirits"
+SPIRITS_BUTTON_ID = "##SpiritsPrepButton"
+SHOUTS_CAST_COOLDOWN_MS = 5000
+SHOUTS_BUTTON_TOOL_TIP_TEXT = "Shouts Prep"
+SHOUTS_TOOL_TIP_TEXT = (
+    "Enable smart-casting of shouts when party is close enough to an enemy and within earshot of party leader"
+)
+SHOUTS_BRAIN_TEXT = IconsFontAwesome5.ICON_BRAIN + "##Shouts"
+SHOUTS_BUTTON_ID = "##ShoutsPrepButton"
+TOGGLE_PARTY_LEADER_BUTTON_ID = '##TogglePartyLeaderHeroAI'
+TOGGLE_PARTY_MEMBERS_BUTTON_ID = '##TogglePartyHeroAI'
 TIMESTAMP = "timestamp"
 TEXTURE = "texture"
 VALUE = 'value'
 VK = "vk"
+WAS_PRESSED = "was_pressed"
 X_POS = "x"
 Y_POS = "y"
 
@@ -55,12 +78,20 @@ save_window_timer.Start()
 # load last‐saved window state (fallback to 100,100 / un-collapsed)
 window_x = ini_window.read_int(MODULE_NAME, X_POS, 100)
 window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
+module_layout = ini_window.read_key(MODULE_NAME, MODULE_LAYOUT, DEFAULT)
+module_icon_size = ini_window.read_int(MODULE_NAME, MODULE_ICON_SIZE, 80)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
 # Global Trackers
 last_location_spirits_casted = {X_POS: 0.0, Y_POS: 0.0}
 last_spirit_cast_time = {TIMESTAMP: 0}
 auto_spirit_cast_enabled = {VALUE: True}
+
+last_location_shouts_casted = {X_POS: 0.0, Y_POS: 0.0}
+last_shout_cast_time = {TIMESTAMP: 0}
+auto_shout_cast_enabled = {VALUE: True}
+
+hotkey_state = {WAS_PRESSED: False}
 
 
 # TODO (mark): add hotkeys for formation data once hotkey support is in Py4GW
@@ -136,89 +167,97 @@ def load_formations_from_json():
     return data
 
 
-def get_party_center():
-    total_x = 0
-    total_y = 0
-    count = 0
+class CombatPrep:
+    def __init__(self, cached_data, module_icon_size, module_layout):
+        self.is_party_leader = GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
+        self.formations = load_formations_from_json()
+        self.cached_data = cached_data
+        self.module_icon_size = module_icon_size
+        self.module_layout = module_layout
 
-    for slot in GLOBAL_CACHE.Party.GetPlayers():
-        agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(slot.login_number)
-        if agent_id:
-            agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(agent_id)
-            total_x += agent_x
-            total_y += agent_y
-            count += 1
+    # helper methods
+    def get_party_center(self):
+        total_x = 0
+        total_y = 0
+        count = 0
 
-    center_x = total_x / count
-    center_y = total_y / count
+        for slot in GLOBAL_CACHE.Party.GetPlayers():
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(slot.login_number)
+            if agent_id:
+                agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(agent_id)
+                total_x += agent_x
+                total_y += agent_y
+                count += 1
 
-    return center_x, center_y
+        center_x = total_x / count
+        center_y = total_y / count
 
+        return center_x, center_y
 
-def draw_combat_prep_window(cached_data):
-    global first_run
-    global last_location_spirits_casted
-    global time_since_last_cast
-    global window_collapsed
-    global window_x
-    global window_y
+    def get_party_leader_x_y(self):
+        party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+        return GLOBAL_CACHE.Agent.GetXY(party_leader_id)
 
-    # 1) On first draw, restore last position & collapsed state
-    if first_run:
-        PyImGui.set_next_window_pos(window_x, window_y)
-        PyImGui.set_next_window_collapsed(window_collapsed, 0)
-        first_run = False
+    def is_party_leader_hero_ai_status_enabled(self):
+        if not self.is_party_leader:
+            return False
 
-    is_window_opened = PyImGui.begin("Combat Prep", PyImGui.WindowFlags.AlwaysAutoResize)
-    new_collapsed = PyImGui.is_window_collapsed()
-    end_pos = PyImGui.get_window_pos()
+        # assumes this is party leader account email because they are the only one that has access
+        hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(self.cached_data.account_email)
+        if hero_ai_options is None:
+            return False
 
-    if is_window_opened:
-        is_party_leader = GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
-        if not GLOBAL_CACHE.Map.IsExplorable() or not is_party_leader:
-            PyImGui.text("Need to be party Leader and in Explorable Area")
-            return
+        status = True
+        for option in [
+            hero_ai_options.Following,
+            hero_ai_options.Avoidance,
+            hero_ai_options.Looting,
+            hero_ai_options.Targeting,
+            hero_ai_options.Combat,
+        ]:
+            status = option and status
+        return status
 
-        # capture current state
-        PyImGui.is_window_collapsed()
-        PyImGui.get_window_pos()
+    def get_party_leader_texture_path_icon(self):
+        texture_path_to_use = (
+            f'{TEXTURES_PATH}/enable_pt_leader_hero_ai.png'
+            if self.is_party_leader_hero_ai_status_enabled()
+            else f'{TEXTURES_PATH}/disable_pt_leader_hero_ai.png'
+        )
+        return texture_path_to_use
 
-        party_size = cached_data.data.party_size
-        disband_formation = False
+    def is_party_members_hero_ai_status_enabled(self):
+        status = True
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            if self.cached_data.account_email != account.AccountEmail:
+                hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
+                if hero_ai_options is None:
+                    continue
 
-        PyImGui.text("Formations:")
-        PyImGui.separator()
-        set_formations_relative_to_leader = []
-        formations = load_formations_from_json()
+                for option in [
+                    hero_ai_options.Following,
+                    hero_ai_options.Avoidance,
+                    hero_ai_options.Looting,
+                    hero_ai_options.Targeting,
+                    hero_ai_options.Combat,
+                ]:
+                    status = option and status
+        return status
 
-        if PyImGui.begin_table("FormationTable", 3):
-            PyImGui.table_setup_column("Formation_1", PyImGui.TableColumnFlags.WidthStretch)
-            PyImGui.table_setup_column("Formation_2", PyImGui.TableColumnFlags.WidthStretch)
-            PyImGui.table_setup_column("Formation_3", PyImGui.TableColumnFlags.WidthStretch)
+    def get_party_members_texture_path_icon(self):
+        texture_path_to_use = (
+            f'{TEXTURES_PATH}/enable_pt_hero_ai.png'
+            if self.is_party_members_hero_ai_status_enabled()
+            else f'{TEXTURES_PATH}/disable_pt_hero_ai.png'
+        )
+        return texture_path_to_use
 
-            col_index = 0
-            for formation_key, formation_data in formations.items():
-                if col_index % 3 == 0:
-                    PyImGui.table_next_row()
-
-                PyImGui.table_next_column()
-
-                button_pressed = ImGui.ImageButton(f"##{formation_key}", formation_data[TEXTURE], 80, 80)
-                ImGui.show_tooltip(formation_key)
-
-                should_set_formation = button_pressed
-
-                if should_set_formation:
-                    if len(formation_data[COORDINATES]):
-                        set_formations_relative_to_leader = formation_data[COORDINATES]
-                    else:
-                        disband_formation = True
-
-                col_index += 1
-        PyImGui.end_table()
-
+    # callback methods
+    def cb_set_formation(self, set_formations_relative_to_leader, disband_formation):
+        party_size = self.cached_data.data.party_size
         if len(set_formations_relative_to_leader):
-            leader_follow_angle = cached_data.data.party_leader_rotation_angle  # in radians
+            leader_follow_angle = self.cached_data.data.party_leader_rotation_angle  # in radians
             party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
             leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(party_leader_id)
             angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
@@ -243,7 +282,7 @@ def draw_combat_prep_window(cached_data):
                     (FLAG_POSITION_Y, final_y),
                     (FOLOW_ANGLE, leader_follow_angle),
                 ]:
-                    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                    self.cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
                         hero_ai_index, flag_key, flag_key_value
                     )
 
@@ -255,139 +294,424 @@ def draw_combat_prep_window(cached_data):
                     (FLAG_POSITION_Y, 0),
                     (FOLOW_ANGLE, 0),
                 ]:
-                    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
+                    self.cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
                         hero_ai_index, flag_key, flag_key_value
                     )
                 GLOBAL_CACHE.Party.Heroes.UnflagHero(hero_ai_index)
                 GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
 
-        PyImGui.text("Skill Prep:")
-        PyImGui.separator()
+    def cb_spirits_prep(self, st_button_pressed):
+        sender_email = self.cached_data.account_email
 
-        if PyImGui.begin_table("SkillPrepTable", 3):
-            PyImGui.table_setup_column("SkillUsage_1", PyImGui.TableColumnFlags.WidthStretch)
-            PyImGui.table_setup_column("SkillUsage_2", PyImGui.TableColumnFlags.WidthStretch)
-            PyImGui.table_setup_column("SkillUsage_3", PyImGui.TableColumnFlags.WidthStretch)
+        if self.is_party_leader:
+            enemy_agent = Routines.Agents.GetNearestEnemy(max_distance=1850)
+            party_center_x, party_center_y = self.get_party_center()
 
-            PyImGui.table_next_row()
-            PyImGui.table_next_column()
+            dist_x = party_center_x - last_location_spirits_casted[X_POS]
+            dist_y = party_center_y - last_location_spirits_casted[Y_POS]
+            distance_squared = dist_x * dist_x + dist_y * dist_y
+            distance_threshold_squared = 2300 * 2300
+            now = int(time.time() * 1000)
+            time_since_last_cast = now - last_spirit_cast_time[TIMESTAMP]
 
-            # --- Spirits Prep Button ---
-            st_button_pressed = ImGui.ImageButton("##SpiritsPrepButton", f'{TEXTURES_PATH}/st_sos_combo.png', 80, 80)
-            ImGui.show_tooltip("Spirits Prep")
+            should_cast = (
+                st_button_pressed
+                or (auto_spirit_cast_enabled[VALUE] and enemy_agent and distance_squared >= distance_threshold_squared)
+            ) and time_since_last_cast >= SPIRITS_CAST_COOLDOWN_MS
 
-            # --- Auto-cast Toggle Below ---
-            auto_spirit_cast_enabled[VALUE] = ImGui.toggle_button(
-                "Smart Cast##SpiritsSmartCast", auto_spirit_cast_enabled[VALUE], 80, 20
-            )
-            ImGui.show_tooltip("Enable smart-casting of spirits when party is close enough to an enemy")
+            if should_cast:
+                last_location_spirits_casted[X_POS] = party_center_x
+                last_location_spirits_casted[Y_POS] = party_center_y
+                last_spirit_cast_time[TIMESTAMP] = now
 
-            # --- Logic ---
-            sender_email = cached_data.account_email
-
-            if is_party_leader:
-                enemy_agent = Routines.Agents.GetNearestEnemy(max_distance=1850)
-                party_center_x, party_center_y = get_party_center()
-
-                dist_x = party_center_x - last_location_spirits_casted[X_POS]
-                dist_y = party_center_y - last_location_spirits_casted[Y_POS]
-                distance_squared = dist_x * dist_x + dist_y * dist_y
-                distance_threshold_squared = 2300 * 2300
-                now = int(time.time() * 1000)
-                time_since_last_cast = now - last_spirit_cast_time[TIMESTAMP]
-
-                should_cast = (
-                    st_button_pressed
-                    or (
-                        auto_spirit_cast_enabled[VALUE]
-                        and enemy_agent
-                        and distance_squared >= distance_threshold_squared
-                    )
-                ) and time_since_last_cast >= SPIRITS_CAST_COOLDOWN_MS
-
-                if should_cast:
-                    last_location_spirits_casted[X_POS] = party_center_x
-                    last_location_spirits_casted[Y_POS] = party_center_y
-                    last_spirit_cast_time[TIMESTAMP] = now
-
-                    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-                    for account in accounts:
-                        if sender_email != account.AccountEmail:
-                            GLOBAL_CACHE.ShMem.SendMessage(
-                                sender_email,
-                                account.AccountEmail,
-                                SharedCommandType.UseSkill,
-                                (CombatPrepSkillsType.SpiritsPrep, 0, 0, 0),
-                            )
-        PyImGui.end_table()
-
-        PyImGui.text("Control Quick Action:")
-        PyImGui.separator()
-        if PyImGui.begin_table("OtherSetupTable", 3):
-            # Setup column widths BEFORE starting the table rows
-            PyImGui.table_setup_column("OtherSetup_1", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
-            PyImGui.table_setup_column("OtherSetup_2", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
-            PyImGui.table_setup_column("OtherSetup_3", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
-
-            PyImGui.table_next_row()
-            # Column 1: Formation Button
-            PyImGui.table_next_column()
-            disable_party_leader_hero_ai = ImGui.ImageButton(
-                "##DisablePartyLeaderHeroAI", f'{TEXTURES_PATH}/disable_pt_leader_hero_ai.png', 80, 80
-            )
-            ImGui.show_tooltip("Disable Party Leader HeroAI")
-
-            PyImGui.table_next_column()
-            reenable_party_members_hero_ai = ImGui.ImageButton(
-                "##EnablePartyHeroAI", f'{TEXTURES_PATH}/reenable_pt_hero_ai.png', 80, 80
-            )
-            ImGui.show_tooltip("Reenabled Party Members HeroAI")
-
-            # Column 2: Hotkey Input
-            # Get and display editable input buffer
-            PyImGui.table_next_column()
-
-            # Column 3: Save Hotkey Button
-            PyImGui.table_next_column()
-
-            sender_email = cached_data.account_email
-
-            if is_party_leader and disable_party_leader_hero_ai:
-                GLOBAL_CACHE.ShMem.SendMessage(
-                    sender_email,
-                    sender_email,
-                    SharedCommandType.DisableHeroAI,
-                    (0, 0, 0, 0),
-                )
-
-            if is_party_leader and reenable_party_members_hero_ai:
                 accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
                 for account in accounts:
                     if sender_email != account.AccountEmail:
                         GLOBAL_CACHE.ShMem.SendMessage(
                             sender_email,
                             account.AccountEmail,
-                            SharedCommandType.EnableHeroAI,
+                            SharedCommandType.UseSkill,
+                            (CombatPrepSkillsType.SpiritsPrep, 0, 0, 0),
+                        )
+
+    def cb_shouts_prep(self, shouts_button_pressed):
+        sender_email = self.cached_data.account_email
+
+        if self.is_party_leader:
+            enemy_agent = Routines.Agents.GetNearestEnemy(max_distance=1850)
+            center_x, center_y = self.get_party_leader_x_y()
+            player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+
+            dist_x = center_x - player_x
+            dist_y = center_y - player_y
+            distance_squared = dist_x * dist_x + dist_y * dist_y
+            earshot_radius_squared = Range.Earshot.value * Range.Earshot.value
+            is_within_earshot_of_party_leader = distance_squared <= earshot_radius_squared
+
+            dist_x_last = center_x - last_location_shouts_casted[X_POS]
+            dist_y_last = center_y - last_location_shouts_casted[Y_POS]
+            distance_from_last_cast_squared = dist_x_last * dist_x_last + dist_y_last * dist_y_last
+            distance_threshold_squared = 2300 * 2300
+
+            now = int(time.time() * 1000)
+            time_since_last_cast = now - last_shout_cast_time[TIMESTAMP]
+
+            should_cast = (
+                shouts_button_pressed
+                or (
+                    auto_shout_cast_enabled[VALUE]
+                    and enemy_agent
+                    and distance_from_last_cast_squared >= distance_threshold_squared
+                    and is_within_earshot_of_party_leader
+                )
+            ) and time_since_last_cast >= SHOUTS_CAST_COOLDOWN_MS
+
+            if should_cast:
+                last_location_shouts_casted[X_POS] = center_x
+                last_location_shouts_casted[Y_POS] = center_y
+                last_shout_cast_time[TIMESTAMP] = now
+
+                accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+                for account in accounts:
+                    if sender_email != account.AccountEmail:
+                        GLOBAL_CACHE.ShMem.SendMessage(
+                            sender_email,
+                            account.AccountEmail,
+                            SharedCommandType.UseSkill,
+                            (CombatPrepSkillsType.ShoutsPrep, 0, 0, 0),
+                        )
+
+    def cb_toggle_party_leader_hero_ai(self, toggle_party_leader_hero_ai_button_pressed):
+        sender_email = self.cached_data.account_email
+
+        if self.is_party_leader and toggle_party_leader_hero_ai_button_pressed:
+            if self.is_party_leader_hero_ai_status_enabled():
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    sender_email,
+                    SharedCommandType.DisableHeroAI,
+                    (0, 0, 0, 0),
+                )
+            else:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    sender_email,
+                    SharedCommandType.EnableHeroAI,
+                    (1, 0, 0, 0),
+                )
+
+    def cb_toggle_party_members_hero_ai(self, toggle_party_members_hero_ai_button_pressed):
+        sender_email = self.cached_data.account_email
+
+        if self.is_party_leader and toggle_party_members_hero_ai_button_pressed:
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            for account in accounts:
+                if sender_email != account.AccountEmail:
+                    if self.is_party_members_hero_ai_status_enabled():
+                        GLOBAL_CACHE.ShMem.SendMessage(
+                            sender_email,
+                            account.AccountEmail,
+                            SharedCommandType.DisableHeroAI,
                             (0, 0, 0, 0),
                         )
-        PyImGui.end_table()
-    PyImGui.end()
+                    else:
+                        GLOBAL_CACHE.ShMem.SendMessage(
+                            sender_email,
+                            account.AccountEmail,
+                            SharedCommandType.EnableHeroAI,
+                            (1, 0, 0, 0),
+                        )
 
-    if save_window_timer.HasElapsed(1000):
-        # Position changed?
-        if (end_pos[0], end_pos[1]) != (window_x, window_y):
-            window_x, window_y = int(end_pos[0]), int(end_pos[1])
-            ini_window.write_key(MODULE_NAME, X_POS, str(window_x))
-            ini_window.write_key(MODULE_NAME, Y_POS, str(window_y))
-        # Collapsed state changed?
-        if new_collapsed != window_collapsed:
-            window_collapsed = new_collapsed
-            ini_window.write_key(MODULE_NAME, COLLAPSED, str(window_collapsed))
-        save_window_timer.Reset()
+    # UI formats
+    def _row_ui(self):
+        disband_formation = False
+        set_formations_relative_to_leader = []
+        icon_size = self.module_icon_size
+
+        if PyImGui.begin_table("CompactRowUI", 9):
+            # Setup columns
+            for column in range(9):
+                PyImGui.table_setup_column(f"Icon_{column}", PyImGui.TableColumnFlags.WidthStretch)
+
+            # --- First row: Formations + control buttons ---
+            PyImGui.table_next_row()
+            formation_keys = list(self.formations.keys())
+
+            for col_index in range(9):
+                PyImGui.table_next_column()
+
+                if col_index < len(formation_keys):
+                    # Show formation buttons
+                    formation_key = formation_keys[col_index]
+                    formation_data = self.formations[formation_key]
+
+                    pressed = ImGui.ImageButton(f"##{formation_key}", formation_data[TEXTURE], icon_size, icon_size)
+                    ImGui.show_tooltip(formation_key)
+
+                    should_set = pressed
+
+                    if should_set:
+                        if formation_data[COORDINATES]:
+                            set_formations_relative_to_leader = formation_data[COORDINATES]
+                        else:
+                            disband_formation = True
+                else:
+                    st_button_pressed = False
+                    shouts_button_pressed = False
+                    # Remaining slots = static control buttons
+                    if col_index == 5:
+                        st_button_pressed = ImGui.ImageButton(
+                            SPIRITS_BUTTON_ID, f'{TEXTURES_PATH}/st_sos_combo.png', icon_size, icon_size
+                        )
+                        ImGui.show_tooltip(SPIRITS_BUTTON_TOOL_TIP_TEXT)
+                        self.cb_spirits_prep(st_button_pressed)
+                    if col_index == 6:
+                        shouts_button_pressed = ImGui.ImageButton(
+                            SHOUTS_BUTTON_ID, f'{TEXTURES_PATH}/shouts_combo.png', icon_size, icon_size
+                        )
+                        ImGui.show_tooltip(SHOUTS_BUTTON_TOOL_TIP_TEXT)
+                        self.cb_shouts_prep(shouts_button_pressed)
+                    elif col_index == 7:
+                        toggle_button_pressed = ImGui.ImageButton(
+                            TOGGLE_PARTY_LEADER_BUTTON_ID,
+                            self.get_party_leader_texture_path_icon(),
+                            icon_size,
+                            icon_size,
+                        )
+                        ImGui.show_tooltip(
+                            DISABLE_PARTY_LEADER_TOOL_TIP_TEXT
+                            if self.is_party_leader_hero_ai_status_enabled()
+                            else ENABLE_PARTY_LEADER_TOOL_TIP_TEXT
+                        )
+                        self.cb_toggle_party_leader_hero_ai(toggle_button_pressed)
+                    elif col_index == 8:
+                        toggle_button_pressed = ImGui.ImageButton(
+                            TOGGLE_PARTY_MEMBERS_BUTTON_ID,
+                            self.get_party_members_texture_path_icon(),
+                            icon_size,
+                            icon_size,
+                        )
+                        ImGui.show_tooltip(
+                            DISABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
+                            if self.is_party_members_hero_ai_status_enabled()
+                            else ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
+                        )
+                        self.cb_toggle_party_members_hero_ai(toggle_button_pressed)
+
+            # Apply selected formation
+            self.cb_set_formation(set_formations_relative_to_leader, disband_formation)
+
+            # --- Second row: toggles aligned by column ---
+            PyImGui.table_next_row()
+            for col_index in range(8):
+                PyImGui.table_next_column()
+
+                if col_index == 5:
+                    auto_spirit_cast_enabled[VALUE] = ImGui.toggle_button(
+                        SPIRITS_BRAIN_TEXT,
+                        auto_spirit_cast_enabled[VALUE],
+                        icon_size + icon_size * 0.15,
+                        icon_size / 1.75,
+                    )
+                    ImGui.show_tooltip(SPIRITS_TOOL_TIP_TEXT)
+                if col_index == 6:
+                    auto_shout_cast_enabled[VALUE] = ImGui.toggle_button(
+                        SHOUTS_BRAIN_TEXT,
+                        auto_shout_cast_enabled[VALUE],
+                        icon_size + icon_size * 0.15,
+                        icon_size / 1.75,
+                    )
+                    ImGui.show_tooltip(SHOUTS_TOOL_TIP_TEXT)
+        PyImGui.end_table()
+
+    def _default_ui(self):
+        disband_formation = False
+        set_formations_relative_to_leader = []
+        icon_size = self.module_icon_size
+
+        PyImGui.text("Formations:")
+        PyImGui.separator()
+
+        if PyImGui.begin_table("FormationTable", 3):
+            for column in range(3):
+                PyImGui.table_setup_column(f"Formation_{column}", PyImGui.TableColumnFlags.WidthStretch)
+
+            col_index = 0
+            for formation_key, formation_data in self.formations.items():
+                if col_index % 3 == 0:
+                    PyImGui.table_next_row()
+
+                PyImGui.table_next_column()
+
+                set_formation_button_pressed = ImGui.ImageButton(
+                    f"##{formation_key}", formation_data[TEXTURE], icon_size, icon_size
+                )
+                ImGui.show_tooltip(formation_key)
+
+                should_set_formation = set_formation_button_pressed
+
+                if should_set_formation:
+                    if len(formation_data[COORDINATES]):
+                        set_formations_relative_to_leader = formation_data[COORDINATES]
+                    else:
+                        disband_formation = True
+
+                col_index += 1
+            self.cb_set_formation(set_formations_relative_to_leader, disband_formation)
+        PyImGui.end_table()
+
+        PyImGui.text("Skill Prep:")
+        PyImGui.separator()
+
+        if PyImGui.begin_table("SkillPrepTable", 3):
+            for column in range(3):
+                PyImGui.table_setup_column(f"SkillUsage_{column}", PyImGui.TableColumnFlags.WidthStretch)
+
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+
+            # --- Spirits Prep Button ---
+            st_button_pressed = ImGui.ImageButton(
+                SPIRITS_BUTTON_ID, f'{TEXTURES_PATH}/st_sos_combo.png', icon_size, icon_size
+            )
+            ImGui.show_tooltip(SPIRITS_BUTTON_TOOL_TIP_TEXT)
+
+            # --- Auto-cast Toggle Below ---
+            auto_spirit_cast_enabled[VALUE] = ImGui.toggle_button(
+                SPIRITS_BRAIN_TEXT,
+                auto_spirit_cast_enabled[VALUE],
+                icon_size + icon_size * 0.15,
+                icon_size / 1.75,
+            )
+            ImGui.show_tooltip(SPIRITS_TOOL_TIP_TEXT)
+            self.cb_spirits_prep(st_button_pressed)
+
+            PyImGui.table_next_column()
+
+            # --- Shouts Prep Button ---
+            shouts_button_pressed = ImGui.ImageButton(
+                SHOUTS_BUTTON_ID, f'{TEXTURES_PATH}/shouts_combo.png', icon_size, icon_size
+            )
+            ImGui.show_tooltip(SHOUTS_BUTTON_TOOL_TIP_TEXT)
+
+            # --- Auto-cast Toggle Below ---
+            auto_shout_cast_enabled[VALUE] = ImGui.toggle_button(
+                SHOUTS_BRAIN_TEXT,
+                auto_shout_cast_enabled[VALUE],
+                icon_size + icon_size * 0.15,
+                icon_size / 1.75,
+            )
+            ImGui.show_tooltip(SHOUTS_TOOL_TIP_TEXT)
+            self.cb_shouts_prep(shouts_button_pressed)
+        PyImGui.end_table()
+
+        PyImGui.text("Control Quick Action:")
+        PyImGui.separator()
+        if PyImGui.begin_table("OtherSetupTable", 3):
+            for column in range(3):
+                PyImGui.table_setup_column(f"OtherSetup_{column}", PyImGui.TableColumnFlags.WidthStretch)  # auto-size
+
+            PyImGui.table_next_row()
+            # Column 1: Formation Button
+            PyImGui.table_next_column()
+            toggle_button_pressed_party_leader = ImGui.ImageButton(
+                TOGGLE_PARTY_LEADER_BUTTON_ID, self.get_party_leader_texture_path_icon(), icon_size, icon_size
+            )
+            ImGui.show_tooltip(
+                DISABLE_PARTY_LEADER_TOOL_TIP_TEXT
+                if self.is_party_leader_hero_ai_status_enabled()
+                else ENABLE_PARTY_LEADER_TOOL_TIP_TEXT
+            )
+            self.cb_toggle_party_leader_hero_ai(toggle_button_pressed_party_leader)
+
+            PyImGui.table_next_column()
+            toggle_button_pressed_party_members = ImGui.ImageButton(
+                TOGGLE_PARTY_MEMBERS_BUTTON_ID, self.get_party_members_texture_path_icon(), icon_size, icon_size
+            )
+            ImGui.show_tooltip(
+                DISABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
+                if self.is_party_members_hero_ai_status_enabled()
+                else ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
+            )
+            self.cb_toggle_party_members_hero_ai(toggle_button_pressed_party_members)
+
+            # Column 2: Hotkey Input
+            PyImGui.table_next_column()
+
+            # Column 3: Save Hotkey Button
+            PyImGui.table_next_column()
+        PyImGui.end_table()
+
+    # UI methods - UI drawing and functionality marker for calling the callback methods
+    def draw_window(self):
+        global first_run
+        global last_location_spirits_casted
+        global time_since_last_cast
+        global window_collapsed
+        global window_x
+        global window_y
+
+        # 1) On first draw, restore last position & collapsed state
+        if first_run:
+            PyImGui.set_next_window_pos(window_x, window_y)
+            PyImGui.set_next_window_collapsed(window_collapsed, 0)
+            first_run = False
+
+        is_window_opened = PyImGui.begin("Combat Prep", PyImGui.WindowFlags.AlwaysAutoResize)
+        new_collapsed = PyImGui.is_window_collapsed()
+        end_pos = PyImGui.get_window_pos()
+
+        if is_window_opened:
+            if not GLOBAL_CACHE.Map.IsExplorable() or not self.is_party_leader:
+                PyImGui.text("Need to be party Leader and in Explorable Area")
+                return
+
+            # capture current state
+            PyImGui.is_window_collapsed()
+            PyImGui.get_window_pos()
+            if self.module_layout == ROW:
+                self._row_ui()
+            else:
+                self._default_ui()
+        PyImGui.end()
+
+        if save_window_timer.HasElapsed(1000):
+            # Position changed?
+            if (end_pos[0], end_pos[1]) != (window_x, window_y):
+                window_x, window_y = int(end_pos[0]), int(end_pos[1])
+                ini_window.write_key(MODULE_NAME, X_POS, str(window_x))
+                ini_window.write_key(MODULE_NAME, Y_POS, str(window_y))
+            # Collapsed state changed?
+            if new_collapsed != window_collapsed:
+                window_collapsed = new_collapsed
+                ini_window.write_key(MODULE_NAME, COLLAPSED, str(window_collapsed))
+            save_window_timer.Reset()
 
 
 def configure():
-    pass
+    global module_icon_size
+    global module_layout
+
+    if PyImGui.begin('Combat Prep Configs', PyImGui.WindowFlags.AlwaysAutoResize):
+        # --- Icon Size ---
+        icon_sizes = ['80', '60', '40']
+        current_icon_index = icon_sizes.index(str(module_icon_size))
+        new_icon_index = PyImGui.combo('Icon Size', current_icon_index, icon_sizes)
+        new_icon_size = int(icon_sizes[new_icon_index])
+        if new_icon_size != module_icon_size:
+            module_icon_size = new_icon_size
+            ini_window.write_key(MODULE_NAME, MODULE_ICON_SIZE, str(module_icon_size))
+
+        # --- Layout ---
+        layouts = [DEFAULT, ROW]
+        current_layout_index = layouts.index(module_layout)
+        new_layout_index = PyImGui.combo('Layout Style', current_layout_index, layouts)
+        new_layout = layouts[new_layout_index]
+        if new_layout != module_layout:
+            module_layout = new_layout
+            ini_window.write_key(MODULE_NAME, MODULE_LAYOUT, module_layout)
+
+    PyImGui.end()
 
 
 def main():
@@ -398,7 +722,8 @@ def main():
 
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
-            draw_combat_prep_window(cached_data)
+            combat_prep = CombatPrep(cached_data, module_icon_size, module_layout)
+            combat_prep.draw_window()
 
     except ImportError as e:
         Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
