@@ -23,10 +23,12 @@ class SharedCommandType(IntEnum):
     EnableHeroAI = 17
     LeaveParty = 18
     PressKey = 19
-    LootEx = 20  # privately Handled Command, by Frenkey   
+    LootEx = 20  # privately Handled Command, by Frenkey
+
 
 class CombatPrepSkillsType(IntEnum):
     SpiritsPrep = 1
+    ShoutsPrep = 2
 
 
 # region mouse
@@ -138,17 +140,17 @@ class Key(Enum):
     Pause = 0x13
 
     # Special characters (US standard keyboard) (Danish standard keyboard) (English standard keyboard)
-    Semicolon = 0xBA     # ;                   # æ                        # ;
-    Equal = 0xBB         # =                   # ´                        # =
-    Comma = 0xBC         # ,                   # ,                        # ,
-    Minus = 0xBD         # -                   # +                        # -
-    Period = 0xBE        # .                   # .                        # .
-    Slash = 0xBF         # /                   # -                        # /
-    Backtick = 0xC0      # `                   # ½                        # `
-    LeftBracket = 0xDB   # [                   # å                        # [
-    Backslash = 0xDC     # \                   # '                        # #
+    Semicolon = 0xBA  # ;                   # æ                        # ;
+    Equal = 0xBB  # =                   # ´                        # =
+    Comma = 0xBC  # ,                   # ,                        # ,
+    Minus = 0xBD  # -                   # +                        # -
+    Period = 0xBE  # .                   # .                        # .
+    Slash = 0xBF  # /                   # -                        # /
+    Backtick = 0xC0  # `                   # ½                        # `
+    LeftBracket = 0xDB  # [                   # å                        # [
+    Backslash = 0xDC  # \                   # '                        # #
     RightBracket = 0xDD  # ]                   # ¨                        # ]
-    Apostrophe = 0xDE    # '                   # ø                        # '
+    Apostrophe = 0xDE  # '                   # ø                        # '
 
 
 # region Console
@@ -751,9 +753,7 @@ class UIMessage(IntEnum):
     kTitleProgressUpdated = 0x10000065  # wparam = title_id
     kExperienceGained = 0x10000066  # wparam = experience amount
     kWriteToChatLog = 0x1000007E  # wparam = UIPacket::kWriteToChatLog*
-    kWriteToChatLogWithSender = (
-        0x1000007F  # wparam = UIPacket::kWriteToChatLogWithSender*
-    )
+    kWriteToChatLogWithSender = 0x1000007F  # wparam = UIPacket::kWriteToChatLogWithSender*
     kPlayerChatMessage = 0x10000081  # wparam = UIPacket::kPlayerChatMessage*
     kFriendUpdated = 0x10000089  # wparam = { GW::Friend*, ... }
     kMapLoaded = 0x1000008A
@@ -764,18 +764,14 @@ class UIMessage(IntEnum):
     kDialogBody = 0x100000A4  # wparam = DialogBodyInfo*
     kDialogButton = 0x100000A1  # wparam = DialogButtonInfo*
     kTargetNPCPartyMember = 0x100000B1  # wparam = { uint32_t unk, uint32_t agent_id }
-    kTargetPlayerPartyMember = (
-        0x100000B2  # wparam = { uint32_t unk, uint32_t player_number }
-    )
+    kTargetPlayerPartyMember = 0x100000B2  # wparam = { uint32_t unk, uint32_t player_number }
     kInitMerchantList = 0x100000B3  # wparam = { uint32_t merchant_tab_type, uint32_t unk, uint32_t merchant_agent_id, uint32_t is_pending }
     kQuotedItemPrice = 0x100000BB  # wparam = { uint32_t item_id, uint32_t price }
     kStartMapLoad = 0x100000C0  # wparam = { uint32_t map_id, ... }
     kWorldMapUpdated = 0x100000C5
     kGuildMemberUpdated = 0x100000D8  # wparam = { GuildPlayer::name_ptr }
     kShowHint = 0x100000DF  # wparam = { uint32_t icon_type, wchar_t* message_enc }
-    kUpdateGoldCharacter = (
-        0x100000EA  # wparam = { uint32_t unk, uint32_t gold_character }
-    )
+    kUpdateGoldCharacter = 0x100000EA  # wparam = { uint32_t unk, uint32_t gold_character }
     kUpdateGoldStorage = 0x100000EB  # wparam = { uint32_t unk, uint32_t gold_storage }
     kInventorySlotUpdated = 0x100000EC  # Triggered when an item is moved into a slot
     kEquipmentSlotUpdated = 0x100000ED  # Triggered when an item is moved into a slot
@@ -787,19 +783,13 @@ class UIMessage(IntEnum):
     kItemUpdated = 0x10000104  # wparam = UIPacket::kItemUpdated*
     kMapChange = 0x1000010F  # wparam = map id
     kCalledTargetChange = 0x10000113  # wparam = { player_number, target_id }
-    kErrorMessage = (
-        0x10000117  # wparam = { int error_index, wchar_t* error_encoded_string }
-    )
+    kErrorMessage = 0x10000117  # wparam = { int error_index, wchar_t* error_encoded_string }
     kSendEnterMission = 0x30000002  # wparam = uint32_t arena_id
     kSendLoadSkillbar = 0x30000003  # wparam = UIPacket::kSendLoadSkillbar*
     kSendPingWeaponSet = 0x30000004  # wparam = UIPacket::kSendPingWeaponSet*
     kSendMoveItem = 0x30000005  # wparam = UIPacket::kSendMoveItem*
-    kSendMerchantRequestQuote = (
-        0x30000006  # wparam = UIPacket::kSendMerchantRequestQuote*
-    )
-    kSendMerchantTransactItem = (
-        0x30000007  # wparam = UIPacket::kSendMerchantTransactItem*
-    )
+    kSendMerchantRequestQuote = 0x30000006  # wparam = UIPacket::kSendMerchantRequestQuote*
+    kSendMerchantTransactItem = 0x30000007  # wparam = UIPacket::kSendMerchantTransactItem*
     kSendUseItem = 0x30000008  # wparam = UIPacket::kSendUseItem*
     kSendSetActiveQuest = 0x30000009  # wparam = uint32_t quest_id
     kSendAbandonQuest = 0x3000000A  # wparam = uint32_t quest_id
@@ -1957,33 +1947,57 @@ class ModelID(IntEnum):
     Umbral_Shell = 98765432111
     Vampiric_Fang = 987654789
     Water_Djinn_Essence = 78965412365
-    Ancient_Kappa_Shell = 123654789691  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Ancient_Kappa_Shell = (
+        123654789691  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Animal_Hide = 1236547896911  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Ashen_Wurm_Husk = 123654789692  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Bleached_Shell = 123654789693  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Blood_Drinker_Pelt = 123654789694  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Blood_Drinker_Pelt = (
+        123654789694  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Bonesnap_Shell = 123654789696  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Branch_Of_Juni_Berries = 123654789695  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Bull_Trainer_Giant_Jawbone = 123654789697  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Branch_Of_Juni_Berries = (
+        123654789695  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
+    Bull_Trainer_Giant_Jawbone = (
+        123654789697  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Dark_Claw = 1236547891  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Dark_Flame_Fang = 12365478911  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Dregde_Manifesto = 12365478914  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Fibrous_Mandragor_Root = 12365478917  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Fledglin_Skree_Wing = 12365478918  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Fibrous_Mandragor_Root = (
+        12365478917  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
+    Fledglin_Skree_Wing = (
+        12365478918  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Frozen_Remnant = 12365478919  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Frozen_Shell = 123654789191  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Gargantuan_Jawbone = 123654789192  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Gargantuan_Jawbone = (
+        123654789192  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Ghostly_Remains = 123654789193  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Gold_Crimson_Skull_Coin = 123654789194  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Igneous_Spider_leg = 123654789195  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Gold_Crimson_Skull_Coin = (
+        123654789194  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
+    Igneous_Spider_leg = (
+        123654789195  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Kuskale_Claw = 123654789198  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Leather_Belt = 123456677  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Mandragor_Carapace = 123654789181  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Mandragor_Carapace = (
+        123654789181  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Plauge_Idol = 123654789185  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Rinkhal_Talon = 123654789186  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Searing_Ribcage = 123654789187  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Searing_Burrower_Jaw = 123654789189  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Silver_Crimson_Skull_Coin = 211111356  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Searing_Burrower_Jaw = (
+        123654789189  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
+    Silver_Crimson_Skull_Coin = (
+        211111356  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Smoking_Remains = 8787899465  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Spiny_Seed = 74966338  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Stolen_Supplies = 66665481  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
@@ -2824,13 +2838,13 @@ class ModelID(IntEnum):
     Zhos_Journal = 25866
     Zhu_Hanuku_Mini = 34398
 
-#region AgentModels
+
+# region AgentModels
 class AgentModelID(IntEnum):
-    FROST_WURM=6491
+    FROST_WURM = 6491
     FROZEN_ELEMENTAL = 6478
-    
-	
- 
+
+
 class SpiritModelID(IntEnum):
     # SPIRIT_MODEL
     # RANGER
@@ -3425,11 +3439,12 @@ class PetModelID(IntEnum):
     HOUND_20_HEARTY = 1147
     HOUND_20_DIRE = 1148
 
-#region ItemModelTextures
+
+# region ItemModelTextures
 ITEM_MODEL_TEXTURE_PATH = "Textures\\Item Models\\"
 ItemModelTextureMap = {
-   2992: ITEM_MODEL_TEXTURE_PATH + "[2992] Salvage_Kit.png",
-   5899: ITEM_MODEL_TEXTURE_PATH + "[5899] Superior_Identification_Kit.png", 
+    2992: ITEM_MODEL_TEXTURE_PATH + "[2992] Salvage_Kit.png",
+    5899: ITEM_MODEL_TEXTURE_PATH + "[5899] Superior_Identification_Kit.png",
 }
 
 # region ProfessionTexctures
