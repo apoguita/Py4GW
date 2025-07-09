@@ -681,6 +681,12 @@ class ColorPalette:
         "gold": Color(255, 215, 0),
         "gray": Color(128, 128, 128),
         "green": Color(0, 128, 0),
+        "gw_blue": Color(0, 170, 255, 255),
+        "gw_disabled":  Color(26, 26, 26, 255),
+        "gw_gold": Color(225, 150, 0, 255),
+        "gw_green": Color(25, 200, 0, 255),
+        "gw_purple": Color(110, 65, 200, 255),
+        "gw_white": Color(255, 255, 255, 255),
         "indigo": Color(75, 0, 130),
         "ivory": Color(255, 255, 240),
         "khaki": Color(240, 230, 140),
@@ -2319,13 +2325,8 @@ class LootConfig:
         from .Item import Item
         from .Player import Player
         from .Party import Party
-        if not Routines.Checks.Map.MapValid():
-            return []
         
         def IsValidItem(item_id):
-            if not Routines.Checks.Map.MapValid():
-                return False
-            
             if not Agent.IsValid(item_id):
                 return False    
             player_agent_id = Player.GetAgentID()
@@ -2333,9 +2334,6 @@ class LootConfig:
             return ((owner_id == player_agent_id) or (owner_id == 0))
 
         def IsValidFollowerItem(item_id):
-            
-            if not Routines.Checks.Map.MapValid():
-                return False
             if not Agent.IsValid(item_id):
                 return False 
             party_leader_id = Party.GetPartyLeaderID()
@@ -2378,44 +2376,42 @@ class LootConfig:
             if self.IsWhitelisted(model_id):
                 continue
             
-            if self.IsItemIDWhitelisted(item_id):
-                continue
-
             if self.IsBlacklisted(model_id):
                 loot_array.remove(agent_id)
                 continue
             
+            
+            # Rarity filtering
+            if Item.Rarity.IsWhite(item_id):
+                if not self.loot_whites:
+                    loot_array.remove(agent_id)
+                    continue
+
+            if Item.Rarity.IsBlue(item_id):
+                if not self.loot_blues:
+                    loot_array.remove(agent_id)
+                    continue
+
+            if Item.Rarity.IsPurple(item_id):
+                if not self.loot_purples:
+                    loot_array.remove(agent_id)
+                    continue
+
+            if Item.Rarity.IsGold(item_id):
+                if not self.loot_golds:
+                    loot_array.remove(agent_id)
+                    continue
+
+            if Item.Rarity.IsGreen(item_id):
+                if not self.loot_greens:
+                    loot_array.remove(agent_id)
+                    continue
+
+            
+            if self.IsItemIDWhitelisted(item_id):
+                continue
+            
             if self.IsItemIDBlacklisted(item_id):
-                loot_array.remove(agent_id)
-                continue
-
-            # --- Dye-specific handling ---
-            if model_id == ModelID.Vial_Of_Dye.value:
-                dye_info = Item.Customization.GetDyeInfo(item_id)
-                dye1_val = dye_info.dye1.ToInt()
-
-                if self.dye_whitelist and dye1_val not in self.dye_whitelist:
-                    loot_array.remove(agent_id)
-                    continue
-                if dye1_val in self.dye_blacklist:
-                    loot_array.remove(agent_id)
-                    continue
-                # Otherwise allowed to proceed based on rarity settings
-
-
-            if not self.loot_whites and Item.Rarity.IsWhite(item_id):
-                loot_array.remove(agent_id)
-                continue
-            if not self.loot_blues and Item.Rarity.IsBlue(item_id):
-                loot_array.remove(agent_id)
-                continue
-            if not self.loot_purples and Item.Rarity.IsPurple(item_id):
-                loot_array.remove(agent_id)
-                continue
-            if not self.loot_golds and Item.Rarity.IsGold(item_id):
-                loot_array.remove(agent_id)
-                continue
-            if not self.loot_greens and Item.Rarity.IsGreen(item_id):
                 loot_array.remove(agent_id)
                 continue
 

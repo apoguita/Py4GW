@@ -237,11 +237,11 @@ def draw_Targeting_floating_buttons(cached_data: CacheData):
 
     Overlay().BeginDraw()
     for agent_id in enemy_array:
-        x, y, z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
-        screen_x, screen_y = Overlay.WorldToScreen(x, y, z + 25)
-        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_CROSSHAIRS}##fb_{agent_id}", screen_x, screen_y):
-            GLOBAL_CACHE.Player.ChangeTarget(agent_id)
-            GLOBAL_CACHE.Player.Interact(agent_id, True)
+        x,y,z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
+        screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
+        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_CROSSHAIRS}",name = agent_id, x = screen_x-12, y = screen_y-12 , width= 25, height= 25):       
+            GLOBAL_CACHE.Player.ChangeTarget (agent_id)
+            GLOBAL_CACHE.Player.Interact (agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
     Overlay().EndDraw()
 

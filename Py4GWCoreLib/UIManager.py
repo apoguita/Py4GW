@@ -310,7 +310,7 @@ class UIManager:
         return PyUIManager.UIManager.is_world_map_showing()
     
     @staticmethod
-    def IsShiftScreebshot():
+    def IsShiftScreenshot():
         """
         Check if the shift screenshot is enabled.
 
