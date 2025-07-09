@@ -40,6 +40,10 @@ class HeroAIoptions:
 
 hero_ai_snapshot = HeroAIoptions()
 
+combat_prep_first_skills_check = True
+hero_ai_has_ritualist_skills = False
+hero_ai_has_paragon_skills = False
+
 
 # region ImGui
 def configure():
@@ -118,9 +122,9 @@ def DrawWindow():
 
 # endregion
 # region HeroAI Snapshot
-def SnapshotHeroAIOptions(acocunt_email):
+def SnapshotHeroAIOptions(account_email):
     global hero_ai_snapshot
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acocunt_email)
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
     if hero_ai_options is None:
         return
 
@@ -132,9 +136,9 @@ def SnapshotHeroAIOptions(acocunt_email):
     yield
 
 
-def RestoreHeroAISnapshot(acocunt_email):
+def RestoreHeroAISnapshot(account_email):
     global hero_ai_snapshot
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acocunt_email)
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
     if hero_ai_options is None:
         return
 
@@ -146,8 +150,8 @@ def RestoreHeroAISnapshot(acocunt_email):
     yield
 
 
-def DisableHeroAIOptions(acocunt_email):
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acocunt_email)
+def DisableHeroAIOptions(account_email):
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
     if hero_ai_options is None:
         return
 
@@ -156,6 +160,19 @@ def DisableHeroAIOptions(acocunt_email):
     hero_ai_options.Looting = False
     hero_ai_options.Targeting = False
     hero_ai_options.Combat = False
+    yield
+
+
+def EnableHeroAIOptions(account_email):
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+    if hero_ai_options is None:
+        return
+
+    hero_ai_options.Following = True
+    hero_ai_options.Avoidance = True
+    hero_ai_options.Looting = True
+    hero_ai_options.Targeting = True
+    hero_ai_options.Combat = True
     yield
 
 
@@ -219,9 +236,7 @@ def TravelToMap(index, message):
     map_region = sender_data.MapRegion
     map_district = sender_data.MapDistrict
 
-    yield from Routines.Yield.Map.TravelToRegion(
-        map_id, map_region, map_district, language=0, log=True
-    )
+    yield from Routines.Yield.Map.TravelToRegion(map_id, map_region, map_district, language=0, log=True)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(
@@ -241,9 +256,7 @@ def Resign(index, message):
     GLOBAL_CACHE.Player.SendChatCommand("resign")
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(
-        MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info
-    )
+    ConsoleLog(MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info)
 
 
 # endregion
@@ -262,9 +275,7 @@ def PixelStack(index, message):
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
     yield from DisableHeroAIOptions(message.ReceiverEmail)
     yield from Routines.Yield.wait(100)
-    yield from Routines.Yield.Movement.FollowPath(
-        [(message.Params[0], message.Params[1])], tolerance=10
-    )
+    yield from Routines.Yield.Movement.FollowPath([(message.Params[0], message.Params[1])], tolerance=10)
     yield from Routines.Yield.wait(100)
     yield from RestoreHeroAISnapshot(message.ReceiverEmail)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -388,9 +399,7 @@ def GetBlessing(index, message):
 
 
 def UsePcon(index, message):
-    ConsoleLog(
-        MODULE_NAME, f"Processing UsePcon message: {message}", Console.MessageType.Info
-    )
+    ConsoleLog(MODULE_NAME, f"Processing UsePcon message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
     pcon_model_id = int(message.Params[0])
@@ -399,9 +408,9 @@ def UsePcon(index, message):
     pcon_skill_id2 = int(message.Params[3])
 
     # Halt if any of the effects is already active
-    if GLOBAL_CACHE.ShMem.HasEffect(
-        message.ReceiverEmail, pcon_skill_id
-    ) or GLOBAL_CACHE.ShMem.HasEffect(message.ReceiverEmail, pcon_skill_id2):
+    if GLOBAL_CACHE.ShMem.HasEffect(message.ReceiverEmail, pcon_skill_id) or GLOBAL_CACHE.ShMem.HasEffect(
+        message.ReceiverEmail, pcon_skill_id2
+    ):
         # ConsoleLog(MODULE_NAME, "Player already has the effect of one of the PCon skills.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
@@ -438,9 +447,7 @@ def UsePcon(index, message):
 
 # region PressKey
 def PressKey(index, message):
-    ConsoleLog(
-        MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info
-    )
+    ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
     key_id = int(message.Params[0])
@@ -485,18 +492,12 @@ def PickUpLoot(index, message):
         return False
 
     def _GetBaseTimestamp():
-        SHMEM_ZERO_EPOCH = (
-            datetime.now(timezone.utc)
-            .replace(hour=0, minute=0, second=0, microsecond=0)
-            .timestamp()
-        )
+        SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
         return int((time.time() - SHMEM_ZERO_EPOCH) * 1000)
 
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
-    loot_array = LootConfig().GetfilteredLootArray(
-        Range.Earshot.value, multibox_loot=True
-    )
+    loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
     if len(loot_array) == 0:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
@@ -507,9 +508,7 @@ def PickUpLoot(index, message):
     yield from DisableHeroAIOptions(message.ReceiverEmail)
     yield from Routines.Yield.wait(100)
     while True:
-        loot_array = LootConfig().GetfilteredLootArray(
-            Range.Earshot.value, multibox_loot=True
-        )
+        loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
         if len(loot_array) == 0:
             break
         item_id = loot_array.pop(0)
@@ -518,9 +517,7 @@ def PickUpLoot(index, message):
 
         if (yield from _exit_if_not_map_valid()):
             LootConfig().AddItemIDToBlacklist(item_id)
-            ConsoleLog(
-                "PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning
-            )
+            ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
             yield from RestoreHeroAISnapshot(message.ReceiverEmail)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             ActionQueueManager().ResetAllQueues()
@@ -579,9 +576,7 @@ def PickUpLoot(index, message):
                 ActionQueueManager().ResetAllQueues()
                 return
 
-            loot_array = LootConfig().GetfilteredLootArray(
-                Range.Earshot.value, multibox_loot=True
-            )
+            loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
             if item_id not in loot_array or len(loot_array) == 0:
                 yield from Routines.Yield.wait(100)
                 break
@@ -618,7 +613,10 @@ def MessageEnableHeroAI(index, message):
     )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
-    yield from RestoreHeroAISnapshot(account_email)
+    if message.Params[0]:
+        yield from EnableHeroAIOptions(account_email)
+    else:
+        yield from RestoreHeroAISnapshot(account_email)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
     ConsoleLog(
         MODULE_NAME,
@@ -629,72 +627,120 @@ def MessageEnableHeroAI(index, message):
 
 # region UseSkillFromMessage
 def UseSkillFromMessage(index, message):
-    def cast_rit_spirits():
+    global combat_prep_first_skills_check
+    global hero_ai_has_paragon_skills
+    global hero_ai_has_ritualist_skills
+
+    account_email = message.ReceiverEmail
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(account_email, index)
+
+    # --- Paragon Shouts ---
+    paragon_skills = [
+        "Theres_Nothing_to_Fear",
+        "Stand_Your_Ground",
+    ]
+
+    # --- Ritualist Spirits ---
+    skills_to_precast = [
+        SUMMON_SPIRITS_LUXON,
+        SUMMON_SPIRITS_KURZICK,
+    ]
+    spirit_skills_to_prep = [
+        "Shelter",
+        "Union",
+        "Earthbind",
+        "Displacement",
+        "Signet_of_Spirits",
+        "Bloodsong",
+        "Vampirism",
+        "Rejuvenation",
+        "Recuperation",
+    ]
+    skills_to_postcast = [
+        ARMOR_OF_UNFEELING,
+    ]
+    full_ritualist_skills = skills_to_precast + spirit_skills_to_prep + skills_to_postcast
+
+    def curr_agent_has_ritualist_skills():
+        for skill in full_ritualist_skills:
+            skill_id = GLOBAL_CACHE.Skill.GetID(skill)
+            slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+
+            if slot_number:
+                return True
+        return False
+
+    def curr_agent_has_paragon_skills():
+        for skill in paragon_skills:
+            skill_id = GLOBAL_CACHE.Skill.GetID(skill)
+            slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+
+            if slot_number:
+                return True
+        return False
+
+    def cast_paragon_shouts():
         global cached_data
 
-        account_email = message.ReceiverEmail
-        GLOBAL_CACHE.ShMem.MarkMessageAsRunning(account_email, index)
+        ConsoleLog(MODULE_NAME, "Paragon shout skills initialized", Console.MessageType.Info)
 
-        ConsoleLog(
-            MODULE_NAME, "Ritualist skills initialized", Console.MessageType.Info
-        )
-
-        # --- Disable Hero AI ---
         yield from SnapshotHeroAIOptions(account_email)
         yield from DisableHeroAIOptions(account_email)
 
-        # --- Cast Ritualist Spirits ---
-        skills_to_precast = [
-            SUMMON_SPIRITS_LUXON,
-            SUMMON_SPIRITS_KURZICK,
-        ]
-        spirit_skills_to_prep = [
-            "Shelter",
-            "Union",
-            "Earthbind",
-            "Displacement",
-            "Signet_of_Spirits",
-            "Bloodsong",
-            "Vampirism",
-            "Rejuvenation",
-            "Recuperation",
-        ]
-        skills_to_postcast = [
-            ARMOR_OF_UNFEELING,
-        ]
-
-        final_skills = skills_to_precast + spirit_skills_to_prep + skills_to_postcast
-
+        # --- Cast Paragon Shouts ---
         try:
-            for skill in final_skills:
+            for skill in paragon_skills:
                 skill_id = GLOBAL_CACHE.Skill.GetID(skill)
                 slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
 
                 if not skill_id or not slot_number:
                     continue
 
-                if (
-                    skill in spirit_skills_to_prep
-                    and cached_data.combat_handler.SpiritBuffExists(skill_id)
-                ):
+                if not cached_data.combat_handler.IsReadyToCast(slot_number):
+                    continue
+
+                if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=100):
+                    yield from Routines.Yield.wait(100)
+
+        except Exception as e:
+            ConsoleLog(MODULE_NAME, f"Error during shout casting loop: {e}", Console.MessageType.Error)
+            yield from Routines.Yield.wait(500)  # optional backoff
+
+        # --- Re-enable Hero AI ---
+        yield from RestoreHeroAISnapshot(account_email)
+        yield from Routines.Yield.wait(100)
+
+    def cast_rit_spirits():
+        global cached_data
+
+        ConsoleLog(MODULE_NAME, "Ritualist skills initialized", Console.MessageType.Info)
+
+        # --- Disable Hero AI ---
+        yield from SnapshotHeroAIOptions(account_email)
+        yield from DisableHeroAIOptions(account_email)
+
+        # --- Cast Ritualist Skills ---
+        try:
+            for skill in full_ritualist_skills:
+                skill_id = GLOBAL_CACHE.Skill.GetID(skill)
+                slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+
+                if not skill_id or not slot_number:
+                    continue
+
+                if skill in spirit_skills_to_prep and cached_data.combat_handler.SpiritBuffExists(skill_id):
                     continue
 
                 if not cached_data.combat_handler.IsReadyToCast(slot_number):
                     continue
 
-                if (
-                    skill in spirit_skills_to_prep
-                    or skill == SUMMON_SPIRITS_LUXON
-                    or skill == SUMMON_SPIRITS_KURZICK
-                ):
+                if skill in spirit_skills_to_prep or skill == SUMMON_SPIRITS_LUXON or skill == SUMMON_SPIRITS_KURZICK:
                     if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250):
                         yield from Routines.Yield.wait(1250)
 
                 if skill == ARMOR_OF_UNFEELING:
                     has_any_spirits_in_range = any(
-                        cached_data.combat_handler.SpiritBuffExists(
-                            GLOBAL_CACHE.Skill.GetID(spirit_skill)
-                        )
+                        cached_data.combat_handler.SpiritBuffExists(GLOBAL_CACHE.Skill.GetID(spirit_skill))
                         for spirit_skill in spirit_skills_to_prep
                     )
                     if has_any_spirits_in_range:
@@ -702,21 +748,24 @@ def UseSkillFromMessage(index, message):
                             yield from Routines.Yield.wait(1250)
 
         except Exception as e:
-            ConsoleLog(
-                MODULE_NAME,
-                f"Error during spirit casting loop: {e}",
-                Console.MessageType.Error
-            )
+            ConsoleLog(MODULE_NAME, f"Error during spirit casting loop: {e}", Console.MessageType.Error)
             yield from Routines.Yield.wait(500)  # optional backoff
 
         # --- Re-enable Hero AI ---
         yield from RestoreHeroAISnapshot(account_email)
-
         yield from Routines.Yield.wait(100)
 
-    # TODO(mark): think about potentially using another param value instead of the first one
-    if message.Params[0] == CombatPrepSkillsType.SpiritsPrep:
+    cast_params = message.Params[0]
+
+    if combat_prep_first_skills_check:
+        hero_ai_has_ritualist_skills = curr_agent_has_ritualist_skills()
+        hero_ai_has_paragon_skills = curr_agent_has_paragon_skills()
+        combat_prep_first_skills_check = False
+
+    if cast_params == CombatPrepSkillsType.SpiritsPrep and hero_ai_has_ritualist_skills:
         yield from cast_rit_spirits()
+    elif cast_params == CombatPrepSkillsType.ShoutsPrep and hero_ai_has_paragon_skills:
+        yield from cast_paragon_shouts()
 
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
