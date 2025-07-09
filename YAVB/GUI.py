@@ -6,6 +6,11 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import IconsFontAwesome5
+from Py4GWCoreLib import LootConfig
+from Py4GWCoreLib import Range
+from Py4GWCoreLib import Item
+from Py4GWCoreLib import Agent
+from Py4GWCoreLib import ImguiFonts
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -155,7 +160,12 @@ class YAVB_GUI:
                     if PyImGui.begin_table("YAVB Info", 1, PyImGui.TableFlags.NoFlag):
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
-                        PyImGui.text_scaled(f"{self.parent.GetBanner()}", Color(255, 255, 0, 255).to_tuple_normalized(), 1.4)
+                        ImGui.push_font("Regular", 20)
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, Color(255, 255, 0, 255).to_tuple_normalized())
+                        #PyImGui.text_scaled(f"{self.parent.GetBanner()}", Color(255, 255, 0, 255).to_tuple_normalized(), 1.4)
+                        PyImGui.text(f"{self.parent.GetBanner()}")
+                        PyImGui.pop_style_color(1)
+                        ImGui.pop_font()
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
                         PyImGui.text_wrapped(f"{self.parent.GetTagLine()}")
@@ -308,8 +318,26 @@ class YAVB_GUI:
                                     PyImGui.text(f"Run Effectivity: {self.parent.farming_stats.GetRuneffectivity():.2f}%")
                                     PyImGui.text(f"Kill Effectivity: {self.parent.farming_stats.GetKillEffectivity():.2f}%")
                                     PyImGui.text(f"Avg Kills on Success: {self.parent.farming_stats.GetAverageKillsOnSuccess():.2f}")
+                                    
+                                    PyImGui.end_tab_item()
                                         
+                                if PyImGui.begin_tab_item("Debug"):
+                                    PyImGui.text("Debug Information")
+                                    PyImGui.separator()
+                                    loot_singleton = LootConfig()
+                                    PyImGui.text(f"white_config = {loot_singleton.loot_whites}")
 
+                                    filtered_agent_ids = loot_singleton.GetfilteredLootArray(distance=Range.Earshot.value, multibox_loot=False, allow_unasigned_loot=True)
+
+                                    PyImGui.separator()
+                                    for agent_id in filtered_agent_ids:
+                                        item_data = Agent.GetItemAgent(agent_id)
+                                        item_id = item_data.item_id
+                                        model_id = Item.GetModelID(item_id)
+                                        name = GLOBAL_CACHE.Agent.GetName(agent_id)
+                                        PyImGui.text(f"agent_id: {agent_id}, name: {name}, item_id: {item_id}, model_id: {model_id}")
+
+                                    PyImGui.end_tab_item()
                                     
                                     
                             PyImGui.end_table()

@@ -23,10 +23,13 @@ class SharedCommandType(IntEnum):
     EnableHeroAI = 17
     LeaveParty = 18
     PressKey = 19
-    LootEx = 20  # privately Handled Command, by Frenkey   
+    LootEx = 20  # privately Handled Command, by Frenkey
+
 
 class CombatPrepSkillsType(IntEnum):
     SpiritsPrep = 1
+    ShoutsPrep = 2
+
 
 
 # region mouse
@@ -690,6 +693,35 @@ class HeroType(IntEnum):
 
 
 # endregion
+#region ImguiFonts
+class ImguiFonts(IntEnum):
+    Regular_14 = 0
+    Regular_22 = 1
+    Regular_30 = 2
+    Regular_46 = 3
+    Regular_62 = 4
+    Regular_124 = 5
+    Bold_14 = 6
+    Bold_22 = 7
+    Bold_30 = 8
+    Bold_46 = 9
+    Bold_62 = 10
+    Bold_124 = 11
+    Italic_14 = 12
+    Italic_22 = 13
+    Italic_30 = 14
+    Italic_46 = 15
+    Italic_62 = 16
+    Italic_124 = 17
+    BoldItalic_14 = 18
+    BoldItalic_22 = 19
+    BoldItalic_30 = 20
+    BoldItalic_46 = 21
+    BoldItalic_62 = 22
+    BoldItalic_124 = 23
+
+
+#endregion
 # region ChatChannel
 class ChatChannel(IntEnum):
     CHANNEL_ALLIANCE = 0
@@ -751,9 +783,7 @@ class UIMessage(IntEnum):
     kTitleProgressUpdated = 0x10000065  # wparam = title_id
     kExperienceGained = 0x10000066  # wparam = experience amount
     kWriteToChatLog = 0x1000007E  # wparam = UIPacket::kWriteToChatLog*
-    kWriteToChatLogWithSender = (
-        0x1000007F  # wparam = UIPacket::kWriteToChatLogWithSender*
-    )
+    kWriteToChatLogWithSender = 0x1000007F  # wparam = UIPacket::kWriteToChatLogWithSender*
     kPlayerChatMessage = 0x10000081  # wparam = UIPacket::kPlayerChatMessage*
     kFriendUpdated = 0x10000089  # wparam = { GW::Friend*, ... }
     kMapLoaded = 0x1000008A
@@ -764,18 +794,14 @@ class UIMessage(IntEnum):
     kDialogBody = 0x100000A4  # wparam = DialogBodyInfo*
     kDialogButton = 0x100000A1  # wparam = DialogButtonInfo*
     kTargetNPCPartyMember = 0x100000B1  # wparam = { uint32_t unk, uint32_t agent_id }
-    kTargetPlayerPartyMember = (
-        0x100000B2  # wparam = { uint32_t unk, uint32_t player_number }
-    )
+    kTargetPlayerPartyMember = 0x100000B2  # wparam = { uint32_t unk, uint32_t player_number }
     kInitMerchantList = 0x100000B3  # wparam = { uint32_t merchant_tab_type, uint32_t unk, uint32_t merchant_agent_id, uint32_t is_pending }
     kQuotedItemPrice = 0x100000BB  # wparam = { uint32_t item_id, uint32_t price }
     kStartMapLoad = 0x100000C0  # wparam = { uint32_t map_id, ... }
     kWorldMapUpdated = 0x100000C5
     kGuildMemberUpdated = 0x100000D8  # wparam = { GuildPlayer::name_ptr }
     kShowHint = 0x100000DF  # wparam = { uint32_t icon_type, wchar_t* message_enc }
-    kUpdateGoldCharacter = (
-        0x100000EA  # wparam = { uint32_t unk, uint32_t gold_character }
-    )
+    kUpdateGoldCharacter = 0x100000EA  # wparam = { uint32_t unk, uint32_t gold_character }
     kUpdateGoldStorage = 0x100000EB  # wparam = { uint32_t unk, uint32_t gold_storage }
     kInventorySlotUpdated = 0x100000EC  # Triggered when an item is moved into a slot
     kEquipmentSlotUpdated = 0x100000ED  # Triggered when an item is moved into a slot
@@ -787,19 +813,13 @@ class UIMessage(IntEnum):
     kItemUpdated = 0x10000104  # wparam = UIPacket::kItemUpdated*
     kMapChange = 0x1000010F  # wparam = map id
     kCalledTargetChange = 0x10000113  # wparam = { player_number, target_id }
-    kErrorMessage = (
-        0x10000117  # wparam = { int error_index, wchar_t* error_encoded_string }
-    )
+    kErrorMessage = 0x10000117  # wparam = { int error_index, wchar_t* error_encoded_string }
     kSendEnterMission = 0x30000002  # wparam = uint32_t arena_id
     kSendLoadSkillbar = 0x30000003  # wparam = UIPacket::kSendLoadSkillbar*
     kSendPingWeaponSet = 0x30000004  # wparam = UIPacket::kSendPingWeaponSet*
     kSendMoveItem = 0x30000005  # wparam = UIPacket::kSendMoveItem*
-    kSendMerchantRequestQuote = (
-        0x30000006  # wparam = UIPacket::kSendMerchantRequestQuote*
-    )
-    kSendMerchantTransactItem = (
-        0x30000007  # wparam = UIPacket::kSendMerchantTransactItem*
-    )
+    kSendMerchantRequestQuote = 0x30000006  # wparam = UIPacket::kSendMerchantRequestQuote*
+    kSendMerchantTransactItem = 0x30000007  # wparam = UIPacket::kSendMerchantTransactItem*
     kSendUseItem = 0x30000008  # wparam = UIPacket::kSendUseItem*
     kSendSetActiveQuest = 0x30000009  # wparam = uint32_t quest_id
     kSendAbandonQuest = 0x3000000A  # wparam = uint32_t quest_id
@@ -1957,33 +1977,57 @@ class ModelID(IntEnum):
     Umbral_Shell = 98765432111
     Vampiric_Fang = 987654789
     Water_Djinn_Essence = 78965412365
-    Ancient_Kappa_Shell = 123654789691  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Ancient_Kappa_Shell = (
+        123654789691  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Animal_Hide = 1236547896911  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Ashen_Wurm_Husk = 123654789692  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Bleached_Shell = 123654789693  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Blood_Drinker_Pelt = 123654789694  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Blood_Drinker_Pelt = (
+        123654789694  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Bonesnap_Shell = 123654789696  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Branch_Of_Juni_Berries = 123654789695  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Bull_Trainer_Giant_Jawbone = 123654789697  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Branch_Of_Juni_Berries = (
+        123654789695  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
+    Bull_Trainer_Giant_Jawbone = (
+        123654789697  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Dark_Claw = 1236547891  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Dark_Flame_Fang = 12365478911  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Dregde_Manifesto = 12365478914  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Fibrous_Mandragor_Root = 12365478917  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Fledglin_Skree_Wing = 12365478918  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Fibrous_Mandragor_Root = (
+        12365478917  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
+    Fledglin_Skree_Wing = (
+        12365478918  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Frozen_Remnant = 12365478919  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Frozen_Shell = 123654789191  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Gargantuan_Jawbone = 123654789192  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Gargantuan_Jawbone = (
+        123654789192  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Ghostly_Remains = 123654789193  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Gold_Crimson_Skull_Coin = 123654789194  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Igneous_Spider_leg = 123654789195  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Gold_Crimson_Skull_Coin = (
+        123654789194  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
+    Igneous_Spider_leg = (
+        123654789195  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Kuskale_Claw = 123654789198  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Leather_Belt = 123456677  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Mandragor_Carapace = 123654789181  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Mandragor_Carapace = (
+        123654789181  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Plauge_Idol = 123654789185  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Rinkhal_Talon = 123654789186  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Searing_Ribcage = 123654789187  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Searing_Burrower_Jaw = 123654789189  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Silver_Crimson_Skull_Coin = 211111356  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Searing_Burrower_Jaw = (
+        123654789189  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
+    Silver_Crimson_Skull_Coin = (
+        211111356  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    )
     Smoking_Remains = 8787899465  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Spiny_Seed = 74966338  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Stolen_Supplies = 66665481  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
@@ -2024,7 +2068,7 @@ class ModelID(IntEnum):
     Armor_Of_Salvation = 24860
     Artic_Summon = 30962
     Ascalonian_Key = 5966
-    Assassin_Elitetome = 21786
+    Assassin_Elite_Tome = 21786
     Assassin_Tome = 21796
     Asura_Mini = 22189
     Augmented_Flesh = 826
@@ -2122,7 +2166,7 @@ class ModelID(IntEnum):
     Cc_Inspiration = 1064
     Cc_Protection = 1879
     Cc_Restoration = 1884
-    Cc_Shard = 556
+    Candy_Cane_Shard = 556
     Cc_Smiting = 1880
     Cc_Soul_Reaping = 1752
     Cc_Spawning = 1883
@@ -2187,7 +2231,7 @@ class ModelID(IntEnum):
     Demonic_Remains = 476
     Demonic_Summon = 30963
     Demrikovs_Judgement = 36670
-    Dervish_Elitetome = 21793
+    Dervish_Elite_Tome = 21793
     Dervish_Tome = 21803
     Desert_Griffon_Mini = 32521
     Dessicated_Hydra_Claw = 454
@@ -2273,7 +2317,7 @@ class ModelID(IntEnum):
     El_Zenmai_Tonic = 36439
     El_Zhed_Shadowhoof_Tonic = 36431
     Elemental_Sword = 2267
-    Elementalist_Elitetome = 21789
+    Elementalist_Elite_Tome = 21789
     Elementalist_Tome = 21799
     Elf_Mini = 22756
     Elixir_Of_Valor = 21227
@@ -2303,7 +2347,7 @@ class ModelID(IntEnum):
     Flame_Djinn_Mini = 32528
     Flame_Of_Balthazar = 2514
     Flask_Of_Firewater = 2513
-    Flesh_Reaver_Morsel = 27062
+    Fleshreaver_Morsel = 27062
     Flowstone_Elemental_Mini = 32525
     Focus_Core = 15551
     Forbidden_Key = 6534
@@ -2428,14 +2472,14 @@ class ModelID(IntEnum):
     Insect_Appendage = 1597
     Insect_Carapace = 1617
     Intricate_Grawl_Necklace = 499
-    Iridescant_Griffon_Wing = 453
+    Iridescent_Griffon_Wing = 453
     Iron_Ingot = 948
     Irukandji_Mini = 30613
     Istani_Key = 15557
     Jade_Armor_Mini = 13788
     Jade_Bracelet = 809
     Jade_Mandible = 457
-    Jade_Orb = 15940
+    Jade_Wind_Orb = 15940
     Jadeite_Shard = 6533
     Jadeite_Summon = 30966
     Jar_Of_Honey = 31150
@@ -2513,10 +2557,10 @@ class ModelID(IntEnum):
     Mantid_Pincer = 815
     Mantid_Ungula = 27054
     Mantis_Pincer = 829
-    Map_Piece_Bl = 24631
-    Map_Piece_Br = 24632
-    Map_Piece_Tl = 24629
-    Map_Piece_Tr = 24630
+    Map_Piece_Bottom_Left = 24631
+    Map_Piece_Bottom_Right = 24632
+    Map_Piece_Top_Left = 24629
+    Map_Piece_Top_Right = 24630
     Margonite_Gemstone = 21128
     Margonite_Key = 15560
     Margonite_Mask = 1581
@@ -2526,7 +2570,7 @@ class ModelID(IntEnum):
     Medal_Of_Honor = 35122
     Merchant_Summon = 21154
     Mergoyle_Skull = 436
-    Mesmer_Elitetome = 21787
+    Mesmer_Elite_Tome = 21787
     Mesmer_Tome = 21797
     Miners_Key = 5961
     Minister_Reiko_Mini = 30224
@@ -2537,12 +2581,12 @@ class ModelID(IntEnum):
     Minutely_Mad_King_Tonic = 37772
     Mischievious_Tonic = 31020
     Mischievous_Summon = 31022
-    Modnir_Mane = 27043
+    Modniir_Mane = 27043
     Molten_Claw = 503
     Molten_Eye = 506
     Molten_Heart = 514
     Monastery_Credit = 5819
-    Monk_Elitetome = 21790
+    Monk_Elite_Tome = 21790
     Monk_Tome = 21800
     Monumental_Tapestry = 27583
     Monstrous_Claw = 923
@@ -2564,7 +2608,7 @@ class ModelID(IntEnum):
     Naga_Raincaller_Mini = 15515
     Naga_Skin = 848
     Necrid_Horseman_Mini = 13786
-    Necromancer_Elitetome = 21788
+    Necromancer_Elite_Tome = 21788
     Necromancer_Tome = 21798
     Nian_Mini = 32526
     Night_Falls = 28479
@@ -2583,15 +2627,15 @@ class ModelID(IntEnum):
     Palawa_Joko_Mini = 22757
     Panda_Mini = 15517
     Paper_Wrapped_Parcel = 34212
-    Paragon_Elitetome = 21795
+    Paragon_Elite_Tome = 21795
     Paragon_Tome = 21805
     Party_Beacon = 36683
     Passage_Scroll_Deep = 22279
     Passage_Scroll_Fow = 22280
     Passage_Scroll_Urgoz = 3256
     Passage_Scroll_Uw = 3746
-    Patch_Of_Simian_Fur = 27038
-    Peppermint_Cc = 6370
+    Patch_of_Simian_Fur = 27038
+    Peppermint_Candy_Cane = 6370
     Perfect_Salvage_Kit = 25881
     Phantasmal_Tonic = 30642
     Phantom_Key = 5882
@@ -2628,9 +2672,9 @@ class ModelID(IntEnum):
     Putrid_Cyst = 827
     Quetzal_Crest = 27039
     Quetzal_Sly_Mini = 32523
-    Rainbow_Cc = 21489
+    Rainbow_Candy_Cane = 21489
     Scroll_Of_Rampagers_Insight = 5975
-    Ranger_Elitetome = 21792
+    Ranger_Elite_Tome = 21792
     Ranger_Tome = 21802
     Raptor_Mini = 30619
     Rawhide_Belt = 483
@@ -2640,7 +2684,7 @@ class ModelID(IntEnum):
     Red_Rock_Candy = 31153
     Refined_Jelly = 19039
     Rift_Warden_Mini = 36651
-    Ritualist_Elitetome = 21794
+    Ritualist_Elite_Tome = 21794
     Ritualist_Tome = 21804
     Roaring_Ether_Claw = 1629
     Roaring_Ether_Mini = 30620
@@ -2708,7 +2752,7 @@ class ModelID(IntEnum):
     Skelk_Fang = 27060
     Skree_Wing = 1610
     Skull_Juju = 814
-    Slayers_Insight_Scroll = 5611
+    Scroll_of_Slayers_Insight = 5611
     Slice_Of_Pumpkin_Pie = 28436
     Small_Equipment_Pack = 31221
     Smite_Crawler_Mini = 32556
@@ -2744,7 +2788,7 @@ class ModelID(IntEnum):
     Summit_Giant_Herder = 34391
     Superior_Identification_Kit = 5899
     Superior_Salvage_Kit = 5900
-    Superior_Charr_Carving = 27052
+    Superb_Charr_Carving = 27052
     Sword_Hilt = 897
     Sword_Pommel = 909
     Tangled_Seed = 468
@@ -2786,7 +2830,7 @@ class ModelID(IntEnum):
     Wand = 15552
     War_Supplies = 35121
     Warden_Horn = 822
-    Warrior_Elitetome = 21791
+    Warrior_Elite_Tome = 21791
     Warrior_Tome = 21801
     Water_Djinn_Mini = 22754
     Wayfarer_Mark = 37765
@@ -2798,7 +2842,7 @@ class ModelID(IntEnum):
     Wind_Rider_Mini = 22763
     Wintergreen_Axe = 15835
     Wintergreen_Bow = 15836
-    Wintergreen_Cc = 21488
+    Wintergreen_Candy_Cane = 21488
     Wintergreen_Daggers = 15838
     Wintergreen_Hammer = 15839
     Wintergreen_Scythe = 15877
@@ -2824,13 +2868,13 @@ class ModelID(IntEnum):
     Zhos_Journal = 25866
     Zhu_Hanuku_Mini = 34398
 
-#region AgentModels
+
+# region AgentModels
 class AgentModelID(IntEnum):
-    FROST_WURM=6491
+    FROST_WURM = 6491
     FROZEN_ELEMENTAL = 6478
-    
-	
- 
+
+
 class SpiritModelID(IntEnum):
     # SPIRIT_MODEL
     # RANGER
@@ -3426,11 +3470,623 @@ class PetModelID(IntEnum):
     HOUND_20_DIRE = 1148
 
 #region ItemModelTextures
+def get_texture_for_model(model_id: int) -> str:
+    """
+    Get the texture path for a given model_id. 
+    If not found, returns a fallback image path like '2992 not found.jpg'.
+    """
+    if model_id in ItemModelTextureMap:
+        return ItemModelTextureMap[model_id]
+    return ItemModelTextureMap[0]
+
+
 ITEM_MODEL_TEXTURE_PATH = "Textures\\Item Models\\"
 ItemModelTextureMap = {
-   2992: ITEM_MODEL_TEXTURE_PATH + "[2992] Salvage_Kit.png",
-   5899: ITEM_MODEL_TEXTURE_PATH + "[5899] Superior_Identification_Kit.png", 
+    0: ITEM_MODEL_TEXTURE_PATH + "[0] - File Not found.png",
+    20: ITEM_MODEL_TEXTURE_PATH + "[20] - Large_Bag_of_Gold.jpg",
+    34: ITEM_MODEL_TEXTURE_PATH + "[34] - Belt Pouch.png",
+    35: ITEM_MODEL_TEXTURE_PATH + "[35] - Bag.png",
+    70: ITEM_MODEL_TEXTURE_PATH + "[70] - Jungle Skale Fin.png",
+    422: ITEM_MODEL_TEXTURE_PATH + "[422] - Spider Leg.png",
+    423: ITEM_MODEL_TEXTURE_PATH + "[423] - Charr Carving.png",
+    424: ITEM_MODEL_TEXTURE_PATH + "[424] - Icy Lodestone.png",
+    425: ITEM_MODEL_TEXTURE_PATH + "[425] - Dull Carapace.png",
+    426: ITEM_MODEL_TEXTURE_PATH + "[426] - Gargoyle Skull.png",
+    427: ITEM_MODEL_TEXTURE_PATH + "[427] - Worn Belt.png",
+    428: ITEM_MODEL_TEXTURE_PATH + "[428] - Unnatural Seed.png",
+    429: ITEM_MODEL_TEXTURE_PATH + "[429] - Skale_Fin_(pre-Searing).png",
+    430: ITEM_MODEL_TEXTURE_PATH + "[430] - Skeletal Limb.png",
+    431: ITEM_MODEL_TEXTURE_PATH + "[431] - Enchanted Lodestone.png",
+    432: ITEM_MODEL_TEXTURE_PATH + "[432] - Grawl Necklace.png",
+    433: ITEM_MODEL_TEXTURE_PATH + "[433] - Baked Husk.png",
+    434: ITEM_MODEL_TEXTURE_PATH + "[434] - Spiked Crest.png",
+    435: ITEM_MODEL_TEXTURE_PATH + "[435] - Hardened Hump.png",
+    436: ITEM_MODEL_TEXTURE_PATH + "[436] - Mergoyle Skull.png",
+    439: ITEM_MODEL_TEXTURE_PATH + "[439] - Glowing Heart.png",
+    440: ITEM_MODEL_TEXTURE_PATH + "[440] - Forest Minotaur Horn.png",
+    441: ITEM_MODEL_TEXTURE_PATH + "[441] - Shadowy Remnants.png",
+    442: ITEM_MODEL_TEXTURE_PATH + "[442] - Abnormal Seed.png",
+    443: ITEM_MODEL_TEXTURE_PATH + "[443] - Bog Skale Fin.png",
+    444: ITEM_MODEL_TEXTURE_PATH + "[444] - Feathered Caromi Scalp.png",
+    445: ITEM_MODEL_TEXTURE_PATH + "[445] - Ivory Troll Tusk.png",
+    446: ITEM_MODEL_TEXTURE_PATH + "[446] - Shriveled Eye.png",
+    447: ITEM_MODEL_TEXTURE_PATH + "[447] - Dune Burrower Jaw.png",
+    448: ITEM_MODEL_TEXTURE_PATH + "[448] - Losaru Mane.png",
+    449: ITEM_MODEL_TEXTURE_PATH + "[449] - Bleached Carapace.png",
+    450: ITEM_MODEL_TEXTURE_PATH + "[450] - Topaz Crest.png",
+    451: ITEM_MODEL_TEXTURE_PATH + "[451] - Encrusted Lodestone.png",
+    452: ITEM_MODEL_TEXTURE_PATH + "[452] - Massive Jawbone.png",
+    453: ITEM_MODEL_TEXTURE_PATH + "[453] - Iridescent_Griffon_Wing.png",
+    454: ITEM_MODEL_TEXTURE_PATH + "[454] - Dessicated Hydra Claw.png",
+    455: ITEM_MODEL_TEXTURE_PATH + "[455] - Minotaur Horn.png",
+    457: ITEM_MODEL_TEXTURE_PATH + "[457] - Jade Mandible.png",
+    459: ITEM_MODEL_TEXTURE_PATH + "[459] - Forgotten Seal.png",
+    460: ITEM_MODEL_TEXTURE_PATH + "[460] - White Mantle Emblem.png",
+    461: ITEM_MODEL_TEXTURE_PATH + "[461] - White Mantle Badge.png",
+    462: ITEM_MODEL_TEXTURE_PATH + "[462] - Mursaat Token.png",
+    463: ITEM_MODEL_TEXTURE_PATH + "[463] - Ebon Spider Leg.png",
+    464: ITEM_MODEL_TEXTURE_PATH + "[464] - Ancient Eye.png",
+    465: ITEM_MODEL_TEXTURE_PATH + "[465] - Behemoth Jaw.png",
+    466: ITEM_MODEL_TEXTURE_PATH + "[466] - Maguuma Mane.png",
+    467: ITEM_MODEL_TEXTURE_PATH + "[467] - Thorny Carapace.png",
+    468: ITEM_MODEL_TEXTURE_PATH + "[468] - Tangled Seed.png",
+    469: ITEM_MODEL_TEXTURE_PATH + "[469] - Mossy Mandible.png",
+    471: ITEM_MODEL_TEXTURE_PATH + "[471] - Jungle Troll Tusk.png",
+    472: ITEM_MODEL_TEXTURE_PATH + "[472] - Obsidian Burrower Jaw.png",
+    473: ITEM_MODEL_TEXTURE_PATH + "[473] - Demonic Fang.png",
+    474: ITEM_MODEL_TEXTURE_PATH + "[474] - Phantom Residue.png",
+    475: ITEM_MODEL_TEXTURE_PATH + "[475] - Gruesome Sternum.png",
+    476: ITEM_MODEL_TEXTURE_PATH + "[476] - Demonic Remains.png",
+    477: ITEM_MODEL_TEXTURE_PATH + "[477] - Stormy Eye.png",
+    478: ITEM_MODEL_TEXTURE_PATH + "[478] - Scar Behemoth Jaw.png",
+    479: ITEM_MODEL_TEXTURE_PATH + "[479] - Fetid Carapace.png",
+    480: ITEM_MODEL_TEXTURE_PATH + "[480] - Singed Gargoyle Skull.png",
+    482: ITEM_MODEL_TEXTURE_PATH + "[482] - Gruesome Ribcage.png",
+    483: ITEM_MODEL_TEXTURE_PATH + "[483] - Rawhide Belt.png",
+    484: ITEM_MODEL_TEXTURE_PATH + "[484] - Leathery Claw.png",
+    485: ITEM_MODEL_TEXTURE_PATH + "[485] - Scorched Seed.png",
+    486: ITEM_MODEL_TEXTURE_PATH + "[486] - Scorched Lodestone.png",
+    487: ITEM_MODEL_TEXTURE_PATH + "[487] - Ornate Grawl Necklace.png",
+    488: ITEM_MODEL_TEXTURE_PATH + "[488] - Shiverpeak Mane.png",
+    489: ITEM_MODEL_TEXTURE_PATH + "[489] - Frostfire Fang.png",
+    490: ITEM_MODEL_TEXTURE_PATH + "[490] - Icy Hump.png",
+    492: ITEM_MODEL_TEXTURE_PATH + "[492] - Huge Jawbone.png",
+    493: ITEM_MODEL_TEXTURE_PATH + "[493] - Frosted Griffon Wing.png",
+    494: ITEM_MODEL_TEXTURE_PATH + "[494] - Frigid Heart.png",
+    495: ITEM_MODEL_TEXTURE_PATH + "[495] - Curved Minotaur Horn.png",
+    496: ITEM_MODEL_TEXTURE_PATH + "[496] - Azure Remains.png",
+    497: ITEM_MODEL_TEXTURE_PATH + "[497] - Alpine Seed.png",
+    498: ITEM_MODEL_TEXTURE_PATH + "[498] - Feathered Avicara Scalp.png",
+    499: ITEM_MODEL_TEXTURE_PATH + "[499] - Intricate Grawl Necklace.png",
+    500: ITEM_MODEL_TEXTURE_PATH + "[500] - Mountain Troll Tusk.png",
+    502: ITEM_MODEL_TEXTURE_PATH + "[502] - Stone Summit Badge.png",
+    503: ITEM_MODEL_TEXTURE_PATH + "[503] - Molten Claw.png",
+    504: ITEM_MODEL_TEXTURE_PATH + "[504] - Decayed Orr Emblem.png",
+    505: ITEM_MODEL_TEXTURE_PATH + "[505] - Igneous Spider Leg.png",
+    506: ITEM_MODEL_TEXTURE_PATH + "[506] - Molten Eye.png",
+    508: ITEM_MODEL_TEXTURE_PATH + "[508] - Fiery Crest.png",
+    510: ITEM_MODEL_TEXTURE_PATH + "[510] - Igneous Hump.png",
+    511: ITEM_MODEL_TEXTURE_PATH + "[511] - Unctuous Remains.png",
+    513: ITEM_MODEL_TEXTURE_PATH + "[513] - Mahgo Claw.png",
+    514: ITEM_MODEL_TEXTURE_PATH + "[514] - Molten Heart.png",
+    518: ITEM_MODEL_TEXTURE_PATH + "[518] - Corrosive Spider Leg.png",
+    519: ITEM_MODEL_TEXTURE_PATH + "[519] - Umbral Eye.png",
+    520: ITEM_MODEL_TEXTURE_PATH + "[520] - Shadowy Crest.png",
+    522: ITEM_MODEL_TEXTURE_PATH + "[522] - Dark Remains.png",
+    523: ITEM_MODEL_TEXTURE_PATH + "[523] - Gloom Seed.png",
+    525: ITEM_MODEL_TEXTURE_PATH + "[525] - Umbral Skeletal Limb.png",
+    526: ITEM_MODEL_TEXTURE_PATH + "[526] - Shadowy Husk.png",
+    532: ITEM_MODEL_TEXTURE_PATH + "[532] - Enslavement Stone.png",
+    556: ITEM_MODEL_TEXTURE_PATH + "[556] - Candy_Cane_Shard.png",
+    604: ITEM_MODEL_TEXTURE_PATH + "[604] - Kurzick Bauble.png",
+    806: ITEM_MODEL_TEXTURE_PATH + "[806] - Copper Crimson Skull Coin.png",
+    809: ITEM_MODEL_TEXTURE_PATH + "[809] - Jade Bracelet.png",
+    810: ITEM_MODEL_TEXTURE_PATH + "[810] - Luxon Pendant.png",
+    811: ITEM_MODEL_TEXTURE_PATH + "[811] - Bone_Charm_(trophy).png",
+    813: ITEM_MODEL_TEXTURE_PATH + "[813] - Truffle.png",
+    814: ITEM_MODEL_TEXTURE_PATH + "[814] - Skull Juju.png",
+    815: ITEM_MODEL_TEXTURE_PATH + "[815] - Mantid Pincer.png",
+    816: ITEM_MODEL_TEXTURE_PATH + "[816] - Stone Horn.png",
+    817: ITEM_MODEL_TEXTURE_PATH + "[817] - Oni Claw.png",
+    818: ITEM_MODEL_TEXTURE_PATH + "[818] - Dredge Incisor.png",
+    819: ITEM_MODEL_TEXTURE_PATH + "[819] - Dragon Root.png",
+    820: ITEM_MODEL_TEXTURE_PATH + "[820] - Stone Carving.png",
+    822: ITEM_MODEL_TEXTURE_PATH + "[822] - Warden Horn.png",
+    824: ITEM_MODEL_TEXTURE_PATH + "[824] - Pulsating Growth.png",
+    825: ITEM_MODEL_TEXTURE_PATH + "[825] - Forgotten Trinket Box.png",
+    826: ITEM_MODEL_TEXTURE_PATH + "[826] - Augmented Flesh.png",
+    827: ITEM_MODEL_TEXTURE_PATH + "[827] - Putrid Cyst.png",
+    829: ITEM_MODEL_TEXTURE_PATH + "[829] - Mantis Pincer.png",
+    831: ITEM_MODEL_TEXTURE_PATH + "[831] - Oni Talon.png",
+    832: ITEM_MODEL_TEXTURE_PATH + "[832] - Naga Hide.png",
+    833: ITEM_MODEL_TEXTURE_PATH + "[833] - Naga Pelt.png",
+    834: ITEM_MODEL_TEXTURE_PATH + "[834] - Enchanted Vine.png",
+    835: ITEM_MODEL_TEXTURE_PATH + "[835] - Feathered Crest.png",
+    836: ITEM_MODEL_TEXTURE_PATH + "[836] - Feathered Scalp.png",
+    837: ITEM_MODEL_TEXTURE_PATH + "[837] - Elder Kappa Shell.png",
+    838: ITEM_MODEL_TEXTURE_PATH + "[838] - Kappa Hatchling Shell.png",
+    839: ITEM_MODEL_TEXTURE_PATH + "[839] - Kappa Shell.png",
+    841: ITEM_MODEL_TEXTURE_PATH + "[841] - Black Pearl.png",
+    842: ITEM_MODEL_TEXTURE_PATH + "[842] - Rot Wallow Tusk.png",
+    843: ITEM_MODEL_TEXTURE_PATH + "[843] - Kraken Eye.png",
+    844: ITEM_MODEL_TEXTURE_PATH + "[844] - Azure Crest.png",
+    846: ITEM_MODEL_TEXTURE_PATH + "[846] - Kirin Horn.png",
+    847: ITEM_MODEL_TEXTURE_PATH + "[847] - Keen Oni Talon.png",
+    848: ITEM_MODEL_TEXTURE_PATH + "[848] - Naga Skin.png",
+    849: ITEM_MODEL_TEXTURE_PATH + "[849] - Guardian Moss.png",
+    850: ITEM_MODEL_TEXTURE_PATH + "[850] - Archaic Kappa Shell.png",
+    851: ITEM_MODEL_TEXTURE_PATH + "[851] - Stolen Provisions.png",
+    852: ITEM_MODEL_TEXTURE_PATH + "[852] - Soul Stone.png",
+    853: ITEM_MODEL_TEXTURE_PATH + "[853] - Vermin Hide.png",
+    854: ITEM_MODEL_TEXTURE_PATH + "[854] - Venerable Mantid Pincer.png",
+    855: ITEM_MODEL_TEXTURE_PATH + "[855] - Celestial Essence.png",
+    893: ITEM_MODEL_TEXTURE_PATH + "[893] - Axe Haft.png",
+    894: ITEM_MODEL_TEXTURE_PATH + "[894] - Bow String.png",
+    895: ITEM_MODEL_TEXTURE_PATH + "[895] - Hammer Haft.png",
+    896: ITEM_MODEL_TEXTURE_PATH + "[896] - Staff Head.png",
+    897: ITEM_MODEL_TEXTURE_PATH + "[897] - Sword Hilt.png",
+    905: ITEM_MODEL_TEXTURE_PATH + "[905] - Axe Grip.png",
+    906: ITEM_MODEL_TEXTURE_PATH + "[906] - Bow Grip.png",
+    907: ITEM_MODEL_TEXTURE_PATH + "[907] - Hammer Grip.png",
+    908: ITEM_MODEL_TEXTURE_PATH + "[908] - Staff Wrapping.png",
+    909: ITEM_MODEL_TEXTURE_PATH + "[909] - Sword Pommel.png",
+    910: ITEM_MODEL_TEXTURE_PATH + "[910] - Hunters Ale.png",
+    921: ITEM_MODEL_TEXTURE_PATH + "[921] - Bone.png",
+    922: ITEM_MODEL_TEXTURE_PATH + "[922] - Lump_of_Charcoal.png",
+    923: ITEM_MODEL_TEXTURE_PATH + "[923] - Monstrous Claw.png",
+    925: ITEM_MODEL_TEXTURE_PATH + "[925] - Bolt of Cloth.png",
+    926: ITEM_MODEL_TEXTURE_PATH + "[926] - Bolt of Linen.png",
+    927: ITEM_MODEL_TEXTURE_PATH + "[927] - Bolt_of_Damask.png",
+    928: ITEM_MODEL_TEXTURE_PATH + "[928] - Bolt of Silk.png",
+    929: ITEM_MODEL_TEXTURE_PATH + "[929] - Pile_of_Glittering_Dust.png",
+    930: ITEM_MODEL_TEXTURE_PATH + "[930] - Glob of Ectoplasm.png",
+    931: ITEM_MODEL_TEXTURE_PATH + "[931] - Monstrous Eye.png",
+    932: ITEM_MODEL_TEXTURE_PATH + "[932] - Monstrous Fang.png",
+    933: ITEM_MODEL_TEXTURE_PATH + "[933] - Feather.png",
+    934: ITEM_MODEL_TEXTURE_PATH + "[934] - Plant Fiber.png",
+    935: ITEM_MODEL_TEXTURE_PATH + "[935] - Diamond.png",
+    936: ITEM_MODEL_TEXTURE_PATH + "[936] - Onyx Gemstone.png",
+    937: ITEM_MODEL_TEXTURE_PATH + "[937] - Ruby.png",
+    938: ITEM_MODEL_TEXTURE_PATH + "[938] - Sapphire.png",
+    939: ITEM_MODEL_TEXTURE_PATH + "[939] - Tempered Glass Vial.png",
+    940: ITEM_MODEL_TEXTURE_PATH + "[940] - Tanned Hide Square.png",
+    941: ITEM_MODEL_TEXTURE_PATH + "[941] - Fur Square.png",
+    942: ITEM_MODEL_TEXTURE_PATH + "[942] - Leather Square.png",
+    943: ITEM_MODEL_TEXTURE_PATH + "[943] - Elonian Leather Square.png",
+    944: ITEM_MODEL_TEXTURE_PATH + "[944] - Vial of Ink.png",
+    945: ITEM_MODEL_TEXTURE_PATH + "[945] - Obsidian Shard.png",
+    946: ITEM_MODEL_TEXTURE_PATH + "[946] - Wood Plank.png",
+    948: ITEM_MODEL_TEXTURE_PATH + "[948] - Iron Ingot.png",
+    949: ITEM_MODEL_TEXTURE_PATH + "[949] - Steel Ingot.png",
+    950: ITEM_MODEL_TEXTURE_PATH + "[950] - Deldrimor Steel Ingot.png",
+    951: ITEM_MODEL_TEXTURE_PATH + "[951] - Roll_of_Parchment.png",
+    952: ITEM_MODEL_TEXTURE_PATH + "[952] - Roll_of_Vellum.png",
+    953: ITEM_MODEL_TEXTURE_PATH + "[953] - Scale.png",
+    954: ITEM_MODEL_TEXTURE_PATH + "[954] - Chitin Fragment.png",
+    955: ITEM_MODEL_TEXTURE_PATH + "[955] - Granite Slab.png",
+    956: ITEM_MODEL_TEXTURE_PATH + "[956] - Spiritwood Plank.png",
+    1009: ITEM_MODEL_TEXTURE_PATH + "[1009] - Moon Shell.png",
+    1577: ITEM_MODEL_TEXTURE_PATH + "[1577] - Copper Shilling.png",
+    1578: ITEM_MODEL_TEXTURE_PATH + "[1578] - Gold Doubloon.png",
+    1579: ITEM_MODEL_TEXTURE_PATH + "[1579] - Silver Bullion Coin.png",
+    1580: ITEM_MODEL_TEXTURE_PATH + "[1580] - Demonic Relic.png",
+    1581: ITEM_MODEL_TEXTURE_PATH + "[1581] - Margonite Mask.png",
+    1582: ITEM_MODEL_TEXTURE_PATH + "[1582] - Kournan Pendant.png",
+    1583: ITEM_MODEL_TEXTURE_PATH + "[1583] - Mummy Wrapping.png",
+    1584: ITEM_MODEL_TEXTURE_PATH + "[1584] - Sandblasted Lodestone.png",
+    1587: ITEM_MODEL_TEXTURE_PATH + "[1587] - Inscribed Shard.png",
+    1588: ITEM_MODEL_TEXTURE_PATH + "[1588] - Dusty Insect Carapace.png",
+    1590: ITEM_MODEL_TEXTURE_PATH + "[1590] - Giant Tusk.png",
+    1597: ITEM_MODEL_TEXTURE_PATH + "[1597] - Insect Appendage.png",
+    1598: ITEM_MODEL_TEXTURE_PATH + "[1598] - Juvenile Termite Leg.png",
+    1600: ITEM_MODEL_TEXTURE_PATH + "[1600] - Sentient Root.png",
+    1601: ITEM_MODEL_TEXTURE_PATH + "[1601] - Sentient Seed.png",
+    1603: ITEM_MODEL_TEXTURE_PATH + "[1603] - Skale Tooth.png",
+    1604: ITEM_MODEL_TEXTURE_PATH + "[1604] - Skale Claw.png",
+    1605: ITEM_MODEL_TEXTURE_PATH + "[1605] - Skeleton Bone.png",
+    1609: ITEM_MODEL_TEXTURE_PATH + "[1609] - Cobalt Talon.png",
+    1610: ITEM_MODEL_TEXTURE_PATH + "[1610] - Skree Wing.png",
+    1617: ITEM_MODEL_TEXTURE_PATH + "[1617] - Insect Carapace.png",
+    1619: ITEM_MODEL_TEXTURE_PATH + "[1619] - Sentient Lodestone.png",
+    1620: ITEM_MODEL_TEXTURE_PATH + "[1620] - Immolated Djinn Essence.png",
+    1629: ITEM_MODEL_TEXTURE_PATH + "[1629] - Roaring Ether Claw.png",
+    1668: ITEM_MODEL_TEXTURE_PATH + "[1668] - Mandragor Husk.png",
+    1671: ITEM_MODEL_TEXTURE_PATH + "[1671] - Mandragor Swamproot.png",
+    1675: ITEM_MODEL_TEXTURE_PATH + "[1675] - Behemoth Hide.png",
+    1681: ITEM_MODEL_TEXTURE_PATH + "[1681] - Geode.png",
+    1682: ITEM_MODEL_TEXTURE_PATH + "[1682] - Hunting Minotaur Horn.png",
+    1686: ITEM_MODEL_TEXTURE_PATH + "[1686] - Mandragor Root.png",
+    2267: ITEM_MODEL_TEXTURE_PATH + "[2267] - Elemental Sword.jpg",
+    2513: ITEM_MODEL_TEXTURE_PATH + "[2513] - Flask of Firewater.png",
+    2514: ITEM_MODEL_TEXTURE_PATH + "[2514] - Flame of Balthazar.png",
+    2571: ITEM_MODEL_TEXTURE_PATH + "[2571] - Celestial Sigil.png",
+    2989: ITEM_MODEL_TEXTURE_PATH + "[2989] - Identification Kit.png",
+    2991: ITEM_MODEL_TEXTURE_PATH + "[2991] - Expert Salvage Kit.png",
+    2992: ITEM_MODEL_TEXTURE_PATH + "[2992] - Salvage_Kit.png",
+    2994: ITEM_MODEL_TEXTURE_PATH + "[2994] - Red Iris Flower.png",
+    3256: ITEM_MODEL_TEXTURE_PATH + "[3256] - Passage_Scroll_to_Urgoz's_Warren.png",
+    3746: ITEM_MODEL_TEXTURE_PATH + "[3746] - Passage_Scroll_to_the_Underworld.png",
+    4195: ITEM_MODEL_TEXTURE_PATH + "[4195] - Golden Lantern.png",
+    5585: ITEM_MODEL_TEXTURE_PATH + "[5585] - Dwarven Ale.png",
+    5594: ITEM_MODEL_TEXTURE_PATH + "[5594] - Scroll_of_Hero's_Insight.png",
+    5595: ITEM_MODEL_TEXTURE_PATH + "[5595] - Scroll of Berserker%27s Insight.png",
+    5611: ITEM_MODEL_TEXTURE_PATH + "[5611] - Scroll_of_Slayer's_Insight.png",
+    5817: ITEM_MODEL_TEXTURE_PATH + "[5817] - Equipment Requisition.png",
+    5819: ITEM_MODEL_TEXTURE_PATH + "[5819] - Monastery Credit.png",
+    5853: ITEM_MODEL_TEXTURE_PATH + "[5853] - Scroll_of_Adventurer's_Insight.png",
+    5882: ITEM_MODEL_TEXTURE_PATH + "[5882] - Phantom_Key.png",
+    5899: ITEM_MODEL_TEXTURE_PATH + "[5899] - Superior_Identification_Kit.png",
+    5900: ITEM_MODEL_TEXTURE_PATH + "[5900] - Superior Salvage Kit.png",
+    5960: ITEM_MODEL_TEXTURE_PATH + "[5960] - Elonian_Key.png",
+    5961: ITEM_MODEL_TEXTURE_PATH + "[5961] - Miner's_Key.png",
+    5962: ITEM_MODEL_TEXTURE_PATH + "[5962] - Shiverpeak_Key.png",
+    5963: ITEM_MODEL_TEXTURE_PATH + "[5963] - Darkstone_Key.png",
+    5964: ITEM_MODEL_TEXTURE_PATH + "[5964] - Krytan_Key.png",
+    5965: ITEM_MODEL_TEXTURE_PATH + "[5965] - Maguuma_Key.png",
+    5966: ITEM_MODEL_TEXTURE_PATH + "[5966] - Ascalonian_Key.png",
+    5967: ITEM_MODEL_TEXTURE_PATH + "[5967] - Steel_Key.png",
+    5971: ITEM_MODEL_TEXTURE_PATH + "[5971] - Obsidian_Key.png",
+    5975: ITEM_MODEL_TEXTURE_PATH + "[5975] - Scroll_of_Rampager's_Insight.png",
+    5976: ITEM_MODEL_TEXTURE_PATH + "[5976] - Scroll_of_Hunter's_Insight.png",
+    6048: ITEM_MODEL_TEXTURE_PATH + "[6048] - Luxon Totem.png",
+    6049: ITEM_MODEL_TEXTURE_PATH + "[6049] - Witchs_Brew.png",
+    6068: ITEM_MODEL_TEXTURE_PATH + "[6068] - Imperial Commendation.png",
+    6069: ITEM_MODEL_TEXTURE_PATH + "[6069] - Amulet of the Mists.png",
+    6323: ITEM_MODEL_TEXTURE_PATH + "[6323] - Dagger Tang.png",
+    6331: ITEM_MODEL_TEXTURE_PATH + "[6331] - Dagger Handle.png",
+    6366: ITEM_MODEL_TEXTURE_PATH + "[6366] - Spiked Eggnog.png",
+    6367: ITEM_MODEL_TEXTURE_PATH + "[6367] - Vial of Absinthe.png",
+    6369: ITEM_MODEL_TEXTURE_PATH + "[6369] - Squash Serum.png",
+    6370: ITEM_MODEL_TEXTURE_PATH + "[6370] - Peppermint_Candy_Cane.png",
+    6375: ITEM_MODEL_TEXTURE_PATH + "[6375] - Eggnog.png",
+    6376: ITEM_MODEL_TEXTURE_PATH + "[6376] - Snowman Summoner.png",
+    6532: ITEM_MODEL_TEXTURE_PATH + "[6532] - Amber Chunk.png",
+    6533: ITEM_MODEL_TEXTURE_PATH + "[6533] - Jadeite Shard.png",
+    6534: ITEM_MODEL_TEXTURE_PATH + "[6534] - Forbidden_Key.png",
+    6535: ITEM_MODEL_TEXTURE_PATH + "[6535] - Kurzick_Key.png",
+    6536: ITEM_MODEL_TEXTURE_PATH + "[6536] - Stoneroot_Key.png",
+    6537: ITEM_MODEL_TEXTURE_PATH + "[6537] - Shing_Jea_Key.png",
+    6538: ITEM_MODEL_TEXTURE_PATH + "[6538] - Luxon_Key.png",
+    6539: ITEM_MODEL_TEXTURE_PATH + "[6539] - Deep_Jade_Key.png",
+    6540: ITEM_MODEL_TEXTURE_PATH + "[6540] - Canthan_Key.png",
+    13785: ITEM_MODEL_TEXTURE_PATH + "[13785] - Miniature Whiptail Devourer.png",
+    13792: ITEM_MODEL_TEXTURE_PATH + "[13792] - Miniature Temple Guardian.png",
+    15064: ITEM_MODEL_TEXTURE_PATH + "[15064] - Totem Axe.jpg",
+    15477: ITEM_MODEL_TEXTURE_PATH + "[15477] - Bottle of Rice Wine.png",
+    15478: ITEM_MODEL_TEXTURE_PATH + "[15478] - Festival Prize.png",
+    15479: ITEM_MODEL_TEXTURE_PATH + "[15479] - Red Bean Cake.png",
+    15528: ITEM_MODEL_TEXTURE_PATH + "[15528] - Creme Brulee.png",
+    15543: ITEM_MODEL_TEXTURE_PATH + "[15543] - Scythe Snathe.png",
+    15544: ITEM_MODEL_TEXTURE_PATH + "[15544] - Spearhead.png",
+    15551: ITEM_MODEL_TEXTURE_PATH + "[15551] - Focus Core.png",
+    15553: ITEM_MODEL_TEXTURE_PATH + "[15553] - Scythe Grip.png",
+    15554: ITEM_MODEL_TEXTURE_PATH + "[15554] - Shield Handle.png",
+    15555: ITEM_MODEL_TEXTURE_PATH + "[15555] - Spear Grip.png",
+    15556: ITEM_MODEL_TEXTURE_PATH + "[15556] - Ancient_Elonian_Key.png",				
+    15557: ITEM_MODEL_TEXTURE_PATH + "[15557] - Istani_Key.png",				
+    15558: ITEM_MODEL_TEXTURE_PATH + "[15558] - Vabbian_Key.png",				
+    15559: ITEM_MODEL_TEXTURE_PATH + "[15559] - Kournan_Key.png",				
+    15560: ITEM_MODEL_TEXTURE_PATH + "[15560] - Margonite_Key.png",				
+    15835: ITEM_MODEL_TEXTURE_PATH + "[15835] - Wintergreen Axe.jpg",
+    15836: ITEM_MODEL_TEXTURE_PATH + "[15836] - Wintergreen Bow.jpg",
+    15837: ITEM_MODEL_TEXTURE_PATH + "[15837] - Transmogrifier Tonic.png",
+    15838: ITEM_MODEL_TEXTURE_PATH + "[15838] - Wintergreen Daggers.jpg",
+    15839: ITEM_MODEL_TEXTURE_PATH + "[15839] - Wintergreen Hammer.jpg",
+    15840: ITEM_MODEL_TEXTURE_PATH + "[15840] - Wintergreen Wand.jpg",
+    15877: ITEM_MODEL_TEXTURE_PATH + "[15877] - Wintergreen Scythe.jpg",
+    15878: ITEM_MODEL_TEXTURE_PATH + "[15878] - Wintergreen Shield.jpg",
+    15940: ITEM_MODEL_TEXTURE_PATH + "[15940] - Jade_Wind_Orb.png",																									
+    15971: ITEM_MODEL_TEXTURE_PATH + "[15971] - Wintergreen Spear.jpg",
+    16128: ITEM_MODEL_TEXTURE_PATH + "[16128] - Wintergreen Staff.jpg",
+    16130: ITEM_MODEL_TEXTURE_PATH + "[16130] - Wintergreen Sword.jpg",
+    17060: ITEM_MODEL_TEXTURE_PATH + "[17060] - Drake Kabob.png",
+    17061: ITEM_MODEL_TEXTURE_PATH + "[17061] - Bowl of Skalefin Soup.png",
+    17062: ITEM_MODEL_TEXTURE_PATH + "[17062] - Pahnai Salad.png",
+    17081: ITEM_MODEL_TEXTURE_PATH + "[17081] - Battle Commendation.png",
+    17082: ITEM_MODEL_TEXTURE_PATH + "[17082] - Trade Contract.png",
+    18345: ITEM_MODEL_TEXTURE_PATH + "[18345] - Victory Token.png",
+    19039: ITEM_MODEL_TEXTURE_PATH + "[19039] - Refined Jelly.png",
+    19170: ITEM_MODEL_TEXTURE_PATH + "[19170] - Mandragor Root Cake.png",
+    19171: ITEM_MODEL_TEXTURE_PATH + "[19171] - Zehtuka's_Jug.png",
+    19172: ITEM_MODEL_TEXTURE_PATH + "[19172] - Bottle of Juniberry Gin.png",
+    19173: ITEM_MODEL_TEXTURE_PATH + "[19173] - Bottle of Vabbian Wine.png",
+    19174: ITEM_MODEL_TEXTURE_PATH + "[19174] - Demonic_Key.png",
+    19182: ITEM_MODEL_TEXTURE_PATH + "[19182] - Ancient Artifact.png",
+    19183: ITEM_MODEL_TEXTURE_PATH + "[19183] - Iboga Petal.png",
+    19184: ITEM_MODEL_TEXTURE_PATH + "[19184] - Skale Fin.png",
+    19185: ITEM_MODEL_TEXTURE_PATH + "[19185] - Chunk of Drake Flesh.png",
+    19186: ITEM_MODEL_TEXTURE_PATH + "[19186] - Diamond Djinn Essence.png",
+    19187: ITEM_MODEL_TEXTURE_PATH + "[19187] - Ruby Djinn Essence.png",
+    19188: ITEM_MODEL_TEXTURE_PATH + "[19188] - Sapphire Djinn Essence.png",
+    19190: ITEM_MODEL_TEXTURE_PATH + "[19190] - Ancient Armor Remnant.png",
+    19191: ITEM_MODEL_TEXTURE_PATH + "[19191] - Stolen Sunspear Armor.png",
+    19192: ITEM_MODEL_TEXTURE_PATH + "[19192] - Mysterious Armor Piece.png",
+    19193: ITEM_MODEL_TEXTURE_PATH + "[19193] - Primeval Armor Remnant.png",
+    19195: ITEM_MODEL_TEXTURE_PATH + "[19195] - Kournan Coin.png",
+    19196: ITEM_MODEL_TEXTURE_PATH + "[19196] - Inscribed Secret.png",
+    19197: ITEM_MODEL_TEXTURE_PATH + "[19197] - Book of Secrets.png",
+    19198: ITEM_MODEL_TEXTURE_PATH + "[19198] - Sentient Spore.png",
+    19199: ITEM_MODEL_TEXTURE_PATH + "[19199] - Heket Tongue.png",
+    21069: ITEM_MODEL_TEXTURE_PATH + "[21069] - Miniature Varesh.png",
+    21127: ITEM_MODEL_TEXTURE_PATH + "[21127] - Armbrace of Truth.png",
+    21128: ITEM_MODEL_TEXTURE_PATH + "[21128] - Margonite Gemstone.png",
+    21129: ITEM_MODEL_TEXTURE_PATH + "[21129] - Stygian Gemstone.png",
+    21130: ITEM_MODEL_TEXTURE_PATH + "[21130] - Titan Gemstone.png",
+    21131: ITEM_MODEL_TEXTURE_PATH + "[21131] - Torment Gemstone.png",
+    21227: ITEM_MODEL_TEXTURE_PATH + "[21227] - Elixir of Valor.png",
+    21228: ITEM_MODEL_TEXTURE_PATH + "[21228] - Coffer of Whispers.png",
+    21488: ITEM_MODEL_TEXTURE_PATH + "[21488] - Wintergreen Candy Cane.png",
+    21489: ITEM_MODEL_TEXTURE_PATH + "[21489] - Rainbow_Candy_Cane.png",
+    21490: ITEM_MODEL_TEXTURE_PATH + "[21490] - Yuletide Tonic.png",
+    21491: ITEM_MODEL_TEXTURE_PATH + "[21491] - Wintersday Gift.png",
+    21492: ITEM_MODEL_TEXTURE_PATH + "[21492] - Fruitcake.png",
+    21509: ITEM_MODEL_TEXTURE_PATH + "[21509] - Glob of Frozen Ectoplasm.png",
+    21786: ITEM_MODEL_TEXTURE_PATH + "[21786] - Elite_Assassin_Tome.png",
+    21787: ITEM_MODEL_TEXTURE_PATH + "[21787] - Elite_Mesmer_Tome.png",
+    21788: ITEM_MODEL_TEXTURE_PATH + "[21788] - Elite_Necromancer_Tome.png",
+    21789: ITEM_MODEL_TEXTURE_PATH + "[21789] - Elite_Elementalist_Tome.png",
+    21790: ITEM_MODEL_TEXTURE_PATH + "[21790] - Elite_Monk_Tome.png",
+    21791: ITEM_MODEL_TEXTURE_PATH + "[21791] - Elite_Warrior_Tome.png",
+    21792: ITEM_MODEL_TEXTURE_PATH + "[21792] - Elite_Ranger_Tome.png",
+    21793: ITEM_MODEL_TEXTURE_PATH + "[21793] - Elite_Dervish_Tome.png",
+    21794: ITEM_MODEL_TEXTURE_PATH + "[21794] - Elite_Ritualist_Tome.png",
+    21795: ITEM_MODEL_TEXTURE_PATH + "[21795] - Elite_Paragon_Tome.png",
+    21796: ITEM_MODEL_TEXTURE_PATH + "[21796] - Assassin_Tome.png",
+    21797: ITEM_MODEL_TEXTURE_PATH + "[21797] - Mesmer_Tome.png",
+    21798: ITEM_MODEL_TEXTURE_PATH + "[21798] - Necromancer_Tome.png",
+    21799: ITEM_MODEL_TEXTURE_PATH + "[21799] - Elementalist_Tome.png",
+    21800: ITEM_MODEL_TEXTURE_PATH + "[21800] - Monk_Tome.png",
+    21801: ITEM_MODEL_TEXTURE_PATH + "[21801] - Warrior_Tome.png",
+    21802: ITEM_MODEL_TEXTURE_PATH + "[21802] - Ranger_Tome.png",
+    21803: ITEM_MODEL_TEXTURE_PATH + "[21803] - Dervish_Tome.png",
+    21804: ITEM_MODEL_TEXTURE_PATH + "[21804] - Ritualist_Tome.png",
+    21805: ITEM_MODEL_TEXTURE_PATH + "[21805] - Paragon_Tome.png",
+    21809: ITEM_MODEL_TEXTURE_PATH + "[21809] - Bottle Rocket.png",
+    21810: ITEM_MODEL_TEXTURE_PATH + "[21810] - Champagne Popper.png",
+    21811: ITEM_MODEL_TEXTURE_PATH + "[21811] - Red Gift Bag.png",
+    21812: ITEM_MODEL_TEXTURE_PATH + "[21812] - Sugary Blue Drink.png",
+    21813: ITEM_MODEL_TEXTURE_PATH + "[21813] - Sparkler.png",
+    21833: ITEM_MODEL_TEXTURE_PATH + "[21833] - Lunar Token.png",
+    22190: ITEM_MODEL_TEXTURE_PATH + "[22190] - Shamrock Ale.png",
+    22191: ITEM_MODEL_TEXTURE_PATH + "[22191] - Four Leaf Clover.png",
+    22192: ITEM_MODEL_TEXTURE_PATH + "[22192] - Beetle Juice Tonic.png",
+    22196: ITEM_MODEL_TEXTURE_PATH + "[22196] - Miniature Vizu.png",
+    22269: ITEM_MODEL_TEXTURE_PATH + "[22269] - Birthday Cupcake.png",
+    22279: ITEM_MODEL_TEXTURE_PATH + "[22279] - Passage_Scroll_to_the_Deep.png",
+    22280: ITEM_MODEL_TEXTURE_PATH + "[22280] - Passage_Scroll_to_the_Fissure_of_Woe.png",
+    22644: ITEM_MODEL_TEXTURE_PATH + "[22644] - Chocolate Bunny.png",
+    22751: ITEM_MODEL_TEXTURE_PATH + "[22751] - Lockpick.png",
+    22752: ITEM_MODEL_TEXTURE_PATH + "[22752] - Golden Egg.png",
+    22754: ITEM_MODEL_TEXTURE_PATH + "[22754] - Miniature Water Djinn.png",
+    22763: ITEM_MODEL_TEXTURE_PATH + "[22763] - Miniature Wind Rider.png",
+    22765: ITEM_MODEL_TEXTURE_PATH + "[22765] - Miniature Aatxe.png",
+    22766: ITEM_MODEL_TEXTURE_PATH + "[22766] - Miniature Thorn Wolf.png",
+    23242: ITEM_MODEL_TEXTURE_PATH + "[23242] - Everlasting Transmogrifier Tonic.png",
+    24353: ITEM_MODEL_TEXTURE_PATH + "[24353] - Diessa Chalice.png",
+    24354: ITEM_MODEL_TEXTURE_PATH + "[24354] - Golden Rin Relic.png",
+    24593: ITEM_MODEL_TEXTURE_PATH + "[24593] - Aged Dwarven Ale.png",
+    24629: ITEM_MODEL_TEXTURE_PATH + "[24629] - Top_Left_Map_Piece.png",
+    24630: ITEM_MODEL_TEXTURE_PATH + "[24630] - Top_Right_Map_Piece.png",
+    24631: ITEM_MODEL_TEXTURE_PATH + "[24631] - Bottom_Left_Map_Piece.png",
+    24632: ITEM_MODEL_TEXTURE_PATH + "[24632] - Bottom_Right_Map_Piece.png",
+    24859: ITEM_MODEL_TEXTURE_PATH + "[24859] - Essence of Celerity.png",
+    24860: ITEM_MODEL_TEXTURE_PATH + "[24860] - Armor of Salvation.png",
+    24861: ITEM_MODEL_TEXTURE_PATH + "[24861] - Grail Of Might.png",
+    24897: ITEM_MODEL_TEXTURE_PATH + "[24897] - Brass Knuckles.jpg",
+    25881: ITEM_MODEL_TEXTURE_PATH + "[25881] - Perfect Salvage Kit.png",
+    26603: ITEM_MODEL_TEXTURE_PATH + "[26603] - Master Dungeon Guide.png",
+    26784: ITEM_MODEL_TEXTURE_PATH + "[26784] - Honeycomb.png",
+    26993: ITEM_MODEL_TEXTURE_PATH + "[26993] - Arachni%27s Scythe.jpg",
+    27033: ITEM_MODEL_TEXTURE_PATH + "[27033] - Destroyer Core.png",
+    27034: ITEM_MODEL_TEXTURE_PATH + "[27034] - Incubus Wing.png",
+    27035: ITEM_MODEL_TEXTURE_PATH + "[27035] - Saurian Bone.png",
+    27036: ITEM_MODEL_TEXTURE_PATH + "[27036] - Amphibian Tongue.png",
+    27037: ITEM_MODEL_TEXTURE_PATH + "[27037] - Weaver Leg.png",
+    27038: ITEM_MODEL_TEXTURE_PATH + "[27038] - Patch_of_Simian_Fur.png",
+    27039: ITEM_MODEL_TEXTURE_PATH + "[27039] - Quetzal Crest.png",
+    27040: ITEM_MODEL_TEXTURE_PATH + "[27040] - Skelk Claw.png",
+    27041: ITEM_MODEL_TEXTURE_PATH + "[27041] - Sentient Vine.png",
+    27042: ITEM_MODEL_TEXTURE_PATH + "[27042] - Frigid Mandragor Husk.png",
+    27043: ITEM_MODEL_TEXTURE_PATH + "[27043] - Modniir_Mane.png",
+    27044: ITEM_MODEL_TEXTURE_PATH + "[27044] - Stone Summit Emblem.png",
+    27045: ITEM_MODEL_TEXTURE_PATH + "[27045] - Jotun Pelt.png",
+    27046: ITEM_MODEL_TEXTURE_PATH + "[27046] - Berserker Horn.png",
+    27047: ITEM_MODEL_TEXTURE_PATH + "[27047] - Glacial Stone.png",
+    27048: ITEM_MODEL_TEXTURE_PATH + "[27048] - Frozen Wurm Husk.png",
+    27049: ITEM_MODEL_TEXTURE_PATH + "[27049] - Mountain Root.png",
+    27050: ITEM_MODEL_TEXTURE_PATH + "[27050] - Pile_of_Elemental_Dust.png",
+    27052: ITEM_MODEL_TEXTURE_PATH + "[27052] - Superb_Charr_Carving.png",
+    27053: ITEM_MODEL_TEXTURE_PATH + "[27053] - Stone Grawl Necklace.png",
+    27054: ITEM_MODEL_TEXTURE_PATH + "[27054] - Mantid Ungula.png",
+    27055: ITEM_MODEL_TEXTURE_PATH + "[27055] - Skale Fang.png",
+    27057: ITEM_MODEL_TEXTURE_PATH + "[27057] - Stone Claw.png",
+    27058: ITEM_MODEL_TEXTURE_PATH + "[27058] - Lavastrider Appendage.png",
+    27060: ITEM_MODEL_TEXTURE_PATH + "[27060] - Skelk Fang.png",
+    27061: ITEM_MODEL_TEXTURE_PATH + "[27061] - Fungal Root.png",
+    27062: ITEM_MODEL_TEXTURE_PATH + "[27062] - Fleshreaver_Morsel.png",
+    27064: ITEM_MODEL_TEXTURE_PATH + "[27064] - Dredge_Charm.png",
+    27065: ITEM_MODEL_TEXTURE_PATH + "[27065] - Golem Runestone.png",
+    27066: ITEM_MODEL_TEXTURE_PATH + "[27066] - Beetle Egg.png",
+    27067: ITEM_MODEL_TEXTURE_PATH + "[27067] - Blob of Ooze.png",
+    27069: ITEM_MODEL_TEXTURE_PATH + "[27069] - Chromatic Scale.png",
+    27070: ITEM_MODEL_TEXTURE_PATH + "[27070] - Dryder Web.png",
+    27071: ITEM_MODEL_TEXTURE_PATH + "[27071] - Vaettir Essence.png",
+    27321: ITEM_MODEL_TEXTURE_PATH + "[27321] - Deldrimor Armor Remnant.png",
+    27322: ITEM_MODEL_TEXTURE_PATH + "[27322] - Cloth of the Brotherhood.png",
+    27341: ITEM_MODEL_TEXTURE_PATH + "[27341] - Charr Battle Plan Decoder.png",
+    27563: ITEM_MODEL_TEXTURE_PATH + "[27563] - Bison Championship Token.png",
+    27583: ITEM_MODEL_TEXTURE_PATH + "[27583] - Monumental Tapestry.png",
+    27729: ITEM_MODEL_TEXTURE_PATH + "[27729] - Krait Skin.png",
+    27974: ITEM_MODEL_TEXTURE_PATH + "[27974] - Undead Bone.png",
+    27976: ITEM_MODEL_TEXTURE_PATH + "[27976] - Encrypted Charr Battle Plans.png",
+    28431: ITEM_MODEL_TEXTURE_PATH + "[28431] - Candy Apple.png",
+    28432: ITEM_MODEL_TEXTURE_PATH + "[28432] - Candy Corn.png",
+    28433: ITEM_MODEL_TEXTURE_PATH + "[28433] - Pumpkin Cookie.png",
+    28434: ITEM_MODEL_TEXTURE_PATH + "[28434] - Trick-or-Treat Bag.png",
+    28435: ITEM_MODEL_TEXTURE_PATH + "[28435] - Hard Apple Cider.png",
+    28436: ITEM_MODEL_TEXTURE_PATH + "[28436] - Slice_of_Pumpkin_Pie.png",
+    28479: ITEM_MODEL_TEXTURE_PATH + "[28479] - Night Falls.png",
+    28571: ITEM_MODEL_TEXTURE_PATH + "[28571] - Zaishen Key.png",
+    29018: ITEM_MODEL_TEXTURE_PATH + "[29018] - Burol Ironfist%27s Commendation.png",
+    29108: ITEM_MODEL_TEXTURE_PATH + "[29108] - Imperial Guard Requisition Order.png",
+    29109: ITEM_MODEL_TEXTURE_PATH + "[29109] - Ministerial Decree.png",
+    29241: ITEM_MODEL_TEXTURE_PATH + "[29241] - Yuletide_Tonic.png",
+    29436: ITEM_MODEL_TEXTURE_PATH + "[29436] - Crate of Fireworks.png",
+    29543: ITEM_MODEL_TEXTURE_PATH + "[29543] - Disco Ball.png",
+    30209: ITEM_MODEL_TEXTURE_PATH + "[30209] - Tengu Support Flare.png",
+    30212: ITEM_MODEL_TEXTURE_PATH + "[30212] - Imperial Guard Lockbox.png",
+    30610: ITEM_MODEL_TEXTURE_PATH + "[30610] - Miniature Abyssal.png",
+    30624: ITEM_MODEL_TEXTURE_PATH + "[30624] - Abyssal Tonic.png",
+    30625: ITEM_MODEL_TEXTURE_PATH + "[30625] - Everlasting Abyssal Tonic.png",
+    30626: ITEM_MODEL_TEXTURE_PATH + "[30626] - Cerebral Tonic.png",
+    30627: ITEM_MODEL_TEXTURE_PATH + "[30627] - Everlasting Cerebral Tonic.png",
+    30628: ITEM_MODEL_TEXTURE_PATH + "[30628] - Macabre Tonic.png",
+    30629: ITEM_MODEL_TEXTURE_PATH + "[30629] - Everlasting Macabre Tonic.png",
+    30630: ITEM_MODEL_TEXTURE_PATH + "[30630] - Trapdoor Tonic.png",
+    30631: ITEM_MODEL_TEXTURE_PATH + "[30631] - Everlasting Trapdoor Tonic.png",
+    30632: ITEM_MODEL_TEXTURE_PATH + "[30632] - Searing Tonic.png",
+    30633: ITEM_MODEL_TEXTURE_PATH + "[30633] - Everlasting Searing Tonic.png",
+    30634: ITEM_MODEL_TEXTURE_PATH + "[30634] - Automatonic.png",
+    30636: ITEM_MODEL_TEXTURE_PATH + "[30636] - Skeletonic Tonic.png",
+    30638: ITEM_MODEL_TEXTURE_PATH + "[30638] - Boreal Tonic.png",
+    30639: ITEM_MODEL_TEXTURE_PATH + "[30639] - Everlasting Boreal Tonic.png",
+    30640: ITEM_MODEL_TEXTURE_PATH + "[30640] - Gelatinous Tonic.png",
+    30641: ITEM_MODEL_TEXTURE_PATH + "[30641] - Everlasting Gelatinous Tonic.png",
+    30642: ITEM_MODEL_TEXTURE_PATH + "[30642] - Phantasmal Tonic.png",
+    30643: ITEM_MODEL_TEXTURE_PATH + "[30643] - Everlasting Phantasmal Tonic.png",
+    30646: ITEM_MODEL_TEXTURE_PATH + "[30646] - Abominable Tonic.png",
+    30647: ITEM_MODEL_TEXTURE_PATH + "[30647] - Everlasting Abominable Tonic.png",
+    30648: ITEM_MODEL_TEXTURE_PATH + "[30648] - Frosty Tonic.png",
+    30693: ITEM_MODEL_TEXTURE_PATH + "[30693] - Deldrimor Talisman.png",
+    30846: ITEM_MODEL_TEXTURE_PATH + "[30846] - Automaton Summoning Stone.png",
+    30847: ITEM_MODEL_TEXTURE_PATH + "[30847] - Igneous Summoning Stone.png",
+    30855: ITEM_MODEL_TEXTURE_PATH + "[30855] - Bottle of Grog.png",
+    30959: ITEM_MODEL_TEXTURE_PATH + "[30959] - Chitinous Summoning Stone.png",
+    30961: ITEM_MODEL_TEXTURE_PATH + "[30961] - Amber Summoning Stone.png",
+    30963: ITEM_MODEL_TEXTURE_PATH + "[30963] - Demonic Summoning Stone.png",
+    30964: ITEM_MODEL_TEXTURE_PATH + "[30964] - Gelatinous Summoning Stone.png",
+    30965: ITEM_MODEL_TEXTURE_PATH + "[30965] - Fossilized Summoning Stone.png",
+    31021: ITEM_MODEL_TEXTURE_PATH + "[31021] - Mischievous_Tonic.png",
+    31023: ITEM_MODEL_TEXTURE_PATH + "[31023] - Frosty Summoning Stone.png",
+    31141: ITEM_MODEL_TEXTURE_PATH + "[31141] - Mysterious Tonic.png",
+    31142: ITEM_MODEL_TEXTURE_PATH + "[31142] - Cottontail Tonic.png",
+    31143: ITEM_MODEL_TEXTURE_PATH + "[31143] - Everlasting Cottontail Tonic.png",
+    31144: ITEM_MODEL_TEXTURE_PATH + "[31144] - Zaishen Tonic.png",
+    31145: ITEM_MODEL_TEXTURE_PATH + "[31145] - Aged Hunter%27s Ale.png",
+    31148: ITEM_MODEL_TEXTURE_PATH + "[31148] - Gift of the Traveler.png",
+    31149: ITEM_MODEL_TEXTURE_PATH + "[31149] - Gift of the Huntsman.png",
+    31151: ITEM_MODEL_TEXTURE_PATH + "[31151] - Blue Rock Candy.png",
+    31152: ITEM_MODEL_TEXTURE_PATH + "[31152] - Green Rock Candy.png",
+    31153: ITEM_MODEL_TEXTURE_PATH + "[31153] - Red Rock Candy.png",
+    31172: ITEM_MODEL_TEXTURE_PATH + "[31172] - Unseen Tonic.png",
+    31173: ITEM_MODEL_TEXTURE_PATH + "[31173] - Everlasting Unseen Tonic.png",
+    31202: ITEM_MODEL_TEXTURE_PATH + "[31202] - Copper Zaishen Coin.png",
+    31203: ITEM_MODEL_TEXTURE_PATH + "[31203] - Gold Zaishen Coin.png",
+    31204: ITEM_MODEL_TEXTURE_PATH + "[31204] - Silver Zaishen Coin.png",
+    31221: ITEM_MODEL_TEXTURE_PATH + "[31221] - Small Equipment Pack.png",
+    31222: ITEM_MODEL_TEXTURE_PATH + "[31222] - Light Equipment Pack.png",
+    31223: ITEM_MODEL_TEXTURE_PATH + "[31223] - Large Equipment Pack.png",
+    31224: ITEM_MODEL_TEXTURE_PATH + "[31224] - Heavy Equipment Pack.png",
+    32518: ITEM_MODEL_TEXTURE_PATH + "[32518] - Miniature Terrorweb Dryder.png",
+    32519: ITEM_MODEL_TEXTURE_PATH + "[32519] - Miniature Abomination.png",
+    32557: ITEM_MODEL_TEXTURE_PATH + "[32557] - Ghastly Summoning Stone.png",
+    32558: ITEM_MODEL_TEXTURE_PATH + "[32558] - Everlasting Mobstopper.png",
+    32559: ITEM_MODEL_TEXTURE_PATH + "[32559] - Captured Skeleton.png",
+    34176: ITEM_MODEL_TEXTURE_PATH + "[34176] - Celestial Summoning Stone.png",
+    34212: ITEM_MODEL_TEXTURE_PATH + "[34212] - Paper Wrapped Parcel.png",
+    34387: ITEM_MODEL_TEXTURE_PATH + "[34387] - Siege Devourer.jpg",
+    34391: ITEM_MODEL_TEXTURE_PATH + "[34391] - Summit Giant Herder.jpg",
+    34395: ITEM_MODEL_TEXTURE_PATH + "[34395] - Miniature Ventari.png",
+    35120: ITEM_MODEL_TEXTURE_PATH + "[35120] - Royal Gift.png",
+    35121: ITEM_MODEL_TEXTURE_PATH + "[35121] - War Supplies.png",
+    35123: ITEM_MODEL_TEXTURE_PATH + "[35123] - Confessor%27s Orders.png",
+    35124: ITEM_MODEL_TEXTURE_PATH + "[35124] - Krytan Brandy.png",
+    35125: ITEM_MODEL_TEXTURE_PATH + "[35125] - Krytan Lokum.png",
+    36425: ITEM_MODEL_TEXTURE_PATH + "[36425] - Everlasting Koss Tonic.png",
+    36426: ITEM_MODEL_TEXTURE_PATH + "[36426] - Everlasting Dunkoro Tonic.png",
+    36427: ITEM_MODEL_TEXTURE_PATH + "[36427] - Everlasting Melonni Tonic.png",
+    36428: ITEM_MODEL_TEXTURE_PATH + "[36428] - Everlasting Acolyte Jin Tonic.png",
+    36429: ITEM_MODEL_TEXTURE_PATH + "[36429] - Everlasting Acolyte Sousuke Tonic.png",
+    36430: ITEM_MODEL_TEXTURE_PATH + "[36430] - Everlasting Tahlkora Tonic.png",
+    36431: ITEM_MODEL_TEXTURE_PATH + "[36431] - Everlasting Zhed Shadowhoof Tonic.png",
+    36434: ITEM_MODEL_TEXTURE_PATH + "[36434] - Everlasting Goren Tonic.png",
+    36435: ITEM_MODEL_TEXTURE_PATH + "[36435] - Everlasting Norgu Tonic.png",
+    36436: ITEM_MODEL_TEXTURE_PATH + "[36436] - Everlasting Morgahn Tonic.png",
+    36437: ITEM_MODEL_TEXTURE_PATH + "[36437] - Everlasting Razah Tonic.png",
+    36438: ITEM_MODEL_TEXTURE_PATH + "[36438] - Everlasting Olias Tonic.png",
+    36439: ITEM_MODEL_TEXTURE_PATH + "[36439] - Everlasting Zenmai Tonic.png",
+    36440: ITEM_MODEL_TEXTURE_PATH + "[36440] - Everlasting Ogden Stonehealer Tonic.png",
+    36441: ITEM_MODEL_TEXTURE_PATH + "[36441] - Everlasting Vekk Tonic.png",
+    36442: ITEM_MODEL_TEXTURE_PATH + "[36442] - Everlasting Gwen Tonic.png",
+    36443: ITEM_MODEL_TEXTURE_PATH + "[36443] - Everlasting Xandra Tonic.png",
+    36444: ITEM_MODEL_TEXTURE_PATH + "[36444] - Everlasting Kahmu Tonic.png",
+    36447: ITEM_MODEL_TEXTURE_PATH + "[36447] - Everlasting Anton Tonic.png",
+    36448: ITEM_MODEL_TEXTURE_PATH + "[36448] - Everlasting Hayda Tonic.png",
+    36449: ITEM_MODEL_TEXTURE_PATH + "[36449] - Everlasting Livia Tonic.png",
+    36450: ITEM_MODEL_TEXTURE_PATH + "[36450] - Everlasting Keiran Thackeray Tonic.png",
+    36451: ITEM_MODEL_TEXTURE_PATH + "[36451] - Everlasting Miku Tonic.png",
+    36453: ITEM_MODEL_TEXTURE_PATH + "[36453] - Everlasting Shiro Tonic.png",
+    36455: ITEM_MODEL_TEXTURE_PATH + "[36455] - Everlasting Prince Rurik Tonic.png",
+    36456: ITEM_MODEL_TEXTURE_PATH + "[36456] - Everlasting Margonite Tonic.png",
+    36457: ITEM_MODEL_TEXTURE_PATH + "[36457] - Everlasting Destroyer Tonic.png",
+    36458: ITEM_MODEL_TEXTURE_PATH + "[36458] - Everlasting Queen Salma Tonic.png",
+    36460: ITEM_MODEL_TEXTURE_PATH + "[36460] - Everlasting Slightly Mad King Tonic.png",
+    36461: ITEM_MODEL_TEXTURE_PATH + "[36461] - Everlasting Kuunavang Tonic.png",
+    36652: ITEM_MODEL_TEXTURE_PATH + "[36652] - Everlasting Guild Lord Tonic.png",
+    36660: ITEM_MODEL_TEXTURE_PATH + "[36660] - Everlasting Ghostly Hero Tonic.png",
+    36663: ITEM_MODEL_TEXTURE_PATH + "[36663] - Everlasting Ghostly Priest Tonic.png",
+    36664: ITEM_MODEL_TEXTURE_PATH + "[36664] - Everlasting Flame Sentinel Tonic.png",
+    36665: ITEM_MODEL_TEXTURE_PATH + "[36665] - Champion%27s Zaishen Strongbox.png",
+    36667: ITEM_MODEL_TEXTURE_PATH + "[36667] - Gladiator%27s Zaishen Strongbox.png",
+    36670: ITEM_MODEL_TEXTURE_PATH + "[36670] - Demrikov%27s Judgement.jpg",
+    36677: ITEM_MODEL_TEXTURE_PATH + "[36677] - Envoy Scythe.jpg",
+    36678: ITEM_MODEL_TEXTURE_PATH + "[36678] - Vetaura%27s Harbinger.jpg",
+    36680: ITEM_MODEL_TEXTURE_PATH + "[36680] - Torivos%27 Rage.png",
+    36681: ITEM_MODEL_TEXTURE_PATH + "[36681] - Delicious Cake.png",
+    36682: ITEM_MODEL_TEXTURE_PATH + "[36682] - Battle Isle Iced Tea.png",
+    36683: ITEM_MODEL_TEXTURE_PATH + "[36683] - Party Beacon.png",
+    36985: ITEM_MODEL_TEXTURE_PATH + "[36985] - Ministerial Commendation.png",
+    37765: ITEM_MODEL_TEXTURE_PATH + "[37765] - Wayfarer%27s Mark.png",
+    37771: ITEM_MODEL_TEXTURE_PATH + "[37771] - Spooky Tonic.png",
+    37772: ITEM_MODEL_TEXTURE_PATH + "[37772] - Minutely Mad King Tonic.png",
+    37798: ITEM_MODEL_TEXTURE_PATH + "[37798] - Birthday Present.png",
+    37810: ITEM_MODEL_TEXTURE_PATH + "[37810] - Legionnaire Summoning Crystal.png",
+    37843: ITEM_MODEL_TEXTURE_PATH + "[37843] - Blessing of War.png",
+    66665481: ITEM_MODEL_TEXTURE_PATH + "[66665481] - Stolen Supplies.png",
+    74966338: ITEM_MODEL_TEXTURE_PATH + "[74966338] - Spiny Seed.png",
+    123456677: ITEM_MODEL_TEXTURE_PATH + "[123456677] - Leather Belt.png",
+    211111356: ITEM_MODEL_TEXTURE_PATH + "[211111356] - Silver Crimson Skull Coin.png",
+    987654789: ITEM_MODEL_TEXTURE_PATH + "[987654789] - Vampiric Fang.png",
+    1236547891: ITEM_MODEL_TEXTURE_PATH + "[1236547891] - Dark Claw.png",
+    8787899465: ITEM_MODEL_TEXTURE_PATH + "[8787899465] - Smoking Remains.png",
+    12365478911: ITEM_MODEL_TEXTURE_PATH + "[12365478911] - Dark Flame Fang.png",
+    12365478914: ITEM_MODEL_TEXTURE_PATH + "[12365478914] - Dredge Manifesto.png",
+    12365478917: ITEM_MODEL_TEXTURE_PATH + "[12365478917] - Fibrous Mandragor Root.png",
+    12365478918: ITEM_MODEL_TEXTURE_PATH + "[12365478918] - Fledgling Skree Wing.png",
+    12365478919: ITEM_MODEL_TEXTURE_PATH + "[12365478919] - Frozen Remnant.png",
+    78965412365: ITEM_MODEL_TEXTURE_PATH + "[78965412365] - Water Djinn Essence.png",
+    98765432111: ITEM_MODEL_TEXTURE_PATH + "[98765432111] - Umbral Shell.png",
+    123654789181: ITEM_MODEL_TEXTURE_PATH + "[123654789181] - Mandragor Carapace.png",
+    123654789185: ITEM_MODEL_TEXTURE_PATH + "[123654789185] - Plague Idol.png",
+    123654789186: ITEM_MODEL_TEXTURE_PATH + "[123654789186] - Rinkhal Talon.png",
+    123654789187: ITEM_MODEL_TEXTURE_PATH + "[123654789187] - Gruesome Ribcage.png",
+    123654789189: ITEM_MODEL_TEXTURE_PATH + "[123654789189] - Searing Burrower Jaw.png",
+    123654789191: ITEM_MODEL_TEXTURE_PATH + "[123654789191] - Frozen Shell.png",
+    123654789192: ITEM_MODEL_TEXTURE_PATH + "[123654789192] - Gargantuan Jawbone.png",
+    123654789193: ITEM_MODEL_TEXTURE_PATH + "[123654789193] - Ghostly Remains.png",
+    123654789194: ITEM_MODEL_TEXTURE_PATH + "[123654789194] - Gold Crimson Skull Coin.png",
+    123654789195: ITEM_MODEL_TEXTURE_PATH + "[123654789195] - Igneous Spider Leg.png",
+    123654789198: ITEM_MODEL_TEXTURE_PATH + "[123654789198] - Kuskale Claw.png",
+    123654789691: ITEM_MODEL_TEXTURE_PATH + "[123654789691] - Ancient Kappa Shell.png",
+    123654789692: ITEM_MODEL_TEXTURE_PATH + "[123654789692] - Ashen Wurm Husk.png",
+    123654789693: ITEM_MODEL_TEXTURE_PATH + "[123654789693] - Bleached Shell.png",
+    123654789694: ITEM_MODEL_TEXTURE_PATH + "[123654789694] - Blood Drinker Pelt.png",
+    123654789695: ITEM_MODEL_TEXTURE_PATH + "[123654789695] - Branch of Juni Berries.png",
+    123654789696: ITEM_MODEL_TEXTURE_PATH + "[123654789696] - Bonesnap Shell.png",
+    123654789697: ITEM_MODEL_TEXTURE_PATH + "[123654789697] - Bull Trainer Giant Jawbone.png",
+    1236547896911: ITEM_MODEL_TEXTURE_PATH + "[1236547896911] - Animal Hide.png",
 }
+
 
 # region ProfessionTexctures
 ProfessionTextureMap = {
@@ -4941,3 +5597,4 @@ SkillTextureMap = {
 
 
 # endregion
+

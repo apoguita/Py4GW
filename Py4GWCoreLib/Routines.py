@@ -2494,8 +2494,8 @@ class Routines:
                         yield from Routines.Yield.Player.InteractAgent(item_id)
                         while True:
                             yield from Routines.Yield.wait(50)
-                            item_array = AgentArray.GetItemArray()
-                            if item_id not in item_array:
+                            live_items  = AgentArray.GetItemArray()
+                            if item_id not in live_items :
                                 break
 
                         
