@@ -261,7 +261,9 @@ class ShadowFormAssassinVaettir(Build):
                 yield from Routines.Yield.wait(1000)
                 continue
 
-            if not self.in_killing_routine:
+            if not self.in_killing_routine or GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.05:
+                if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.05:
+                    ConsoleLog(self.build_name, "Forcing HoS to survive, run was going to fail anyways :(", Py4GW.Console.MessageType.Warning, log=False)
                 if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.35 or self.stuck_counter > 0:
                     center_point1 = (10980, -21532)
                     center_point2 = (11461, -17282)

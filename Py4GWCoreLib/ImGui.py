@@ -2,7 +2,8 @@ import Py4GW
 import PyImGui
 from enum import Enum, IntEnum
 from .Overlay import Overlay
-from Py4GWCoreLib.Py4GWcorelib import Color
+from Py4GWCoreLib.Py4GWcorelib import Color, ColorPalette
+from Py4GWCoreLib.enums import get_texture_for_model, ImguiFonts
 
 from enum import IntEnum
 
@@ -46,6 +47,14 @@ class ImGui:
     @staticmethod
     def DrawTexture(texture_path: str, width: float = 32.0, height: float = 32.0):
         Overlay().DrawTexture(texture_path, width, height)
+        
+    @staticmethod
+    def DrawTextureExtended(texture_path: str, size: tuple[float, float],
+                            uv0: tuple[float, float] = (0.0, 0.0),
+                            uv1: tuple[float, float] = (1.0, 1.0),
+                            tint: tuple[int, int, int, int] = (255, 255, 255, 255),
+                            border_color: tuple[int, int, int, int] = (0, 0, 0, 0)):
+        Overlay().DrawTextureExtended(texture_path, size, uv0, uv1, tint, border_color)
      
     @staticmethod   
     def DrawTexturedRect(x: float, y: float, width: float, height: float, texture_path: str):
@@ -54,8 +63,36 @@ class ImGui:
         Overlay().EndDraw()
         
     @staticmethod
+    def DrawTexturedRectExtended(pos: tuple[float, float], size: tuple[float, float], texture_path: str,
+                                    uv0: tuple[float, float] = (0.0, 0.0),  
+                                    uv1: tuple[float, float] = (1.0, 1.0),
+                                    tint: tuple[int, int, int, int] = (255, 255, 255, 255)):
+        Overlay().BeginDraw()
+        Overlay().DrawTexturedRectExtended(pos, size, texture_path, uv0, uv1, tint)
+        Overlay().EndDraw()
+        
+    @staticmethod
     def ImageButton(caption: str, texture_path: str, width: float = 32.0, height: float = 32.0, frame_padding: int = -1) -> bool:
         return Overlay().ImageButton(caption, texture_path, width, height, frame_padding)
+    
+    @staticmethod
+    def ImageButtonExtended(caption: str, texture_path: str, size: tuple[float, float],
+                            uv0: tuple[float, float] = (0.0, 0.0),
+                            uv1: tuple[float, float] = (1.0, 1.0),
+                            bg_color: tuple[int, int, int, int] = (0, 0, 0, 0),
+                            tint_color: tuple[int, int, int, int] = (255, 255, 255, 255),
+                            frame_padding: int = -1) -> bool:
+        return Overlay().ImageButtonExtended(caption, texture_path, size, uv0, uv1, bg_color, tint_color, frame_padding)
+    
+    @staticmethod
+    def GetModelIDTexture(model_id: int) -> str:
+        """
+        Purpose: Get the texture path for a given model_id.
+        Args:
+            model_id (int): The model ID to get the texture for.
+        Returns: str: The texture path or a fallback image path if not found.
+        """
+        return get_texture_for_model(model_id)
         
     @staticmethod
     def show_tooltip(text: str):
@@ -115,53 +152,77 @@ class ImGui:
             v = not v
 
         return v
-
+    
     @staticmethod
-    def floating_button(caption,x, y, width=45, height=40, font_color=None):
-        # Set the position and size of the floating button
-        PyImGui.set_next_window_pos(x-width/2, y-height/2)
-        PyImGui.set_next_window_size(width, height)  # Button window size
-        
+    def image_toggle_button(label: str, texture_path: str, v: bool, width=0, height=0) -> bool:
+        """
+        Purpose: Create a toggle button that displays an image and changes its state when clicked.
+        Args:
+            label (str): The label of the button.
+            texture_path (str): The path to the image texture.
+            v (bool): The current toggle state (True for on, False for off).
+        Returns: bool: The new state of the button after being clicked.
+        """
         clicked = False
 
-        # Create a floating, borderless window for the button
-        flags=( PyImGui.WindowFlags.NoCollapse | 
+        if v:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, Color(156, 156, 230, 255).to_tuple_normalized())  # On color
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, Color(156, 156, 230, 255).to_tuple_normalized())  # Hover color
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, Color(156, 156, 156, 255).to_tuple_normalized())
+            if width != 0 and height != 0:
+                clicked = ImGui.ImageButton(label, texture_path, width, height)      
+            else:
+                clicked = ImGui.ImageButton(label, texture_path)
+            PyImGui.pop_style_color(3)
+        else:
+            if width != 0 and height != 0:
+                clicked = ImGui.ImageButton(label, texture_path, width, height)
+            else:
+                clicked = ImGui.ImageButton(label, texture_path) 
+        if clicked:
+            v = not v
+        return v
+
+    @staticmethod
+    def floating_button(caption, x, y, width = 18, height = 18 , color: Color = Color(255, 255, 255, 255), name = ""):
+        if not name:
+            name = caption
+        
+        PyImGui.set_next_window_pos(x, y)
+        PyImGui.set_next_window_size(width, height)
+
+        flags = (
+            PyImGui.WindowFlags.NoCollapse |
             PyImGui.WindowFlags.NoTitleBar |
-            PyImGui.WindowFlags.NoMove |
             PyImGui.WindowFlags.NoScrollbar |
             PyImGui.WindowFlags.NoScrollWithMouse |
             PyImGui.WindowFlags.AlwaysAutoResize |
-            PyImGui.WindowFlags.NoBackground |
-            PyImGui.WindowFlags.NoBringToFrontOnFocus
-        ) 
+            PyImGui.WindowFlags.NoBackground
+        )
+
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, -1, -0)
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0, 0, 0, 0))  # Fully transparent
         
-        if PyImGui.begin(f"FloatingButton_{caption}", flags):
+        # Transparent button face
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.0, 0.0, 0.0, 0.0))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.0, 0.0, 0.0, 0.0))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.0, 0.0, 0.0, 0.0))
 
-            # Style adjustments for padding and alignment
-            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.ButtonTextAlign, 0.0, 0.0)  # Center text
-            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 5.0, 5.0)  # Padding inside the button
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color.to_tuple_normalized())
+        result = False
+        if PyImGui.begin(f"{caption}##invisible_buttonwindow{name}", flags):
+            result = PyImGui.button(f"{caption}##floating_button{name}", width=width, height=height)
 
-            # Create the button and check if it is clicked
-            if font_color is None:
-                clicked = PyImGui.button(caption, width, height)
-            else:
-                # Set the font color if provided
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, font_color)
-                clicked = PyImGui.button(caption, width, height)
-                # Restore the default font color
-                PyImGui.pop_style_color(1)
-
-            # Restore styles
-            PyImGui.pop_style_var(2)
-
+            
         PyImGui.end()
+        PyImGui.pop_style_color(5)  # Button, Hovered, Active, Text, WindowBg
+        PyImGui.pop_style_var(2)
 
-        return clicked  # Return True if clicked, False otherwise
+        return result
     
     @staticmethod
-    def floating_checkbox(caption, state,x,y):
-        width=25
-        height=25
+    def floating_checkbox(caption, state,  x, y, width = 18, height = 18 , color: Color = Color(255, 255, 255, 255)):
         # Set the position and size of the floating button
         PyImGui.set_next_window_pos(x, y)
         PyImGui.set_next_window_size(width, height)
@@ -171,24 +232,109 @@ class ImGui:
             PyImGui.WindowFlags.NoTitleBar |
             PyImGui.WindowFlags.NoScrollbar |
             PyImGui.WindowFlags.NoScrollWithMouse |
-            PyImGui.WindowFlags.AlwaysAutoResize |
-            PyImGui.WindowFlags.NoBackground
-        ) 
+            PyImGui.WindowFlags.AlwaysAutoResize  ) 
         
         PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding,0.0,0.0)
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
-
-            
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 3, 5)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, color.to_tuple_normalized())
+        
         result = state
+        
+        white = ColorPalette.GetColor("White")
+        
         if PyImGui.begin(f"##invisible_window{caption}", flags):
-            result = PyImGui.checkbox(f"##floating_checkbox{caption}", state)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0.2, 0.3, 0.4, 0.1))  # Normal state color
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0.3, 0.4, 0.5, 0.1))  # Hovered state
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0.4, 0.5, 0.6, 0.1))  # Checked state
+            PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark, color.shift(white, 0.5).to_tuple_normalized())  # Checkmark color
 
+            result = PyImGui.checkbox(f"##floating_checkbox{caption}", state)
+            PyImGui.pop_style_color(4)
         PyImGui.end()
-        PyImGui.pop_style_var(2)
+        PyImGui.pop_style_var(3)
+        PyImGui.pop_style_color(1)
         return result
             
+    _last_font_scaled = False  # Module-level tracking flag
+    @staticmethod
+    def push_font(font_family: str, pixel_size: int):
+        _available_sizes = [14, 22, 30, 46, 62, 124]
+        _font_map = {
+                "Regular": {
+                    14: ImguiFonts.Regular_14,
+                    22: ImguiFonts.Regular_22,
+                    30: ImguiFonts.Regular_30,
+                    46: ImguiFonts.Regular_46,
+                    62: ImguiFonts.Regular_62,
+                    124: ImguiFonts.Regular_124,
+                },
+                "Bold": {
+                    14: ImguiFonts.Bold_14,
+                    22: ImguiFonts.Bold_22,
+                    30: ImguiFonts.Bold_30,
+                    46: ImguiFonts.Bold_46,
+                    62: ImguiFonts.Bold_62,
+                    124: ImguiFonts.Bold_124,
+                },
+                "Italic": {
+                    14: ImguiFonts.Italic_14,
+                    22: ImguiFonts.Italic_22,
+                    30: ImguiFonts.Italic_30,
+                    46: ImguiFonts.Italic_46,
+                    62: ImguiFonts.Italic_62,
+                    124: ImguiFonts.Italic_124,
+                },
+                "BoldItalic": {
+                    14: ImguiFonts.BoldItalic_14,
+                    22: ImguiFonts.BoldItalic_22,
+                    30: ImguiFonts.BoldItalic_30,
+                    46: ImguiFonts.BoldItalic_46,
+                    62: ImguiFonts.BoldItalic_62,
+                    124: ImguiFonts.BoldItalic_124,
+                }
+            }
+
+        global _last_font_scaled
+        _last_font_scaled = False  # Reset the flag each time a font is pushed
+        if pixel_size < 1:
+            raise ValueError("Pixel size must be a positive integer")
+        
+        family_map = _font_map.get(font_family)
+        if not family_map:
+            raise ValueError(f"Unknown font family '{font_family}'")
+
+        # Exact match
+        if pixel_size in _available_sizes:
+            font_enum = family_map[pixel_size]
+            PyImGui.push_font(font_enum.value)
+            _last_font_scaled = False
+            return
+
+        # Scale down using the next available size
+        for defined_size in _available_sizes:
+            if defined_size > pixel_size:
+                font_enum = family_map[defined_size]
+                scale = pixel_size / defined_size
+                PyImGui.push_font_scaled(font_enum.value, scale)
+                _last_font_scaled = True
+                return
+
+        # If requested size is larger than the largest available, scale up
+        largest_size = _available_sizes[-1]
+        font_enum = family_map[largest_size]
+        scale = pixel_size / largest_size
+        PyImGui.push_font_scaled(font_enum.value, scale)
+        _last_font_scaled = True
         
 
+    @staticmethod
+    def pop_font():
+        global _last_font_scaled
+        if _last_font_scaled:
+            PyImGui.pop_font_scaled()
+        else:
+            PyImGui.pop_font()
 
     @staticmethod
     def table(title:str, headers, data):

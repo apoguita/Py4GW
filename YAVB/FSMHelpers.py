@@ -59,6 +59,7 @@ path_points_to_return_to_jaga_moraine: List[Tuple[float, float]] = [(-20300, 560
 class _FSM_Helpers:
         def __init__(self, parent: 'YAVB'):
             self._parent = parent
+            self.loot_singleton = LootConfig()
             
         def _init_build(self):
             profession = self._parent.primary_profession
@@ -639,7 +640,8 @@ class _FSM_Helpers:
             self._parent.LogMessage("Looting Items", "Starting Looting Routine", LogConsole.LogSeverity.INFO)
             self._parent.SetCurrentStep("Loot Items", 0.10)
             yield from Routines.Yield.wait(1500)  # Wait for a second before starting to loot
-            filtered_agent_ids = LootConfig().GetfilteredLootArray(Range.Earshot.value)
+            
+            filtered_agent_ids = self.loot_singleton.GetfilteredLootArray(distance=Range.Earshot.value, multibox_loot=False, allow_unasigned_loot=True)
             yield from Routines.Yield.Items.LootItems(filtered_agent_ids, 
                                                       log=self._parent.detailed_logging,
                                                       progress_callback=self._parent.AdvanceProgress)
