@@ -119,7 +119,7 @@ class Player:
         Args: None
         Returns: bool
         """
-        return Player.player_instance().IsTyping()
+        return Player.player_instance().Istyping()
 
     @staticmethod
     def GetChatHistory():

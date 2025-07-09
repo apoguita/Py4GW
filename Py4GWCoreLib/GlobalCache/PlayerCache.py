@@ -51,7 +51,7 @@ class PlayerCache:
         return chat_history
     
     def IsTyping(self):
-        return self._player_instance.IsTyping()
+        return self._player_instance.Istyping()
     
     def SendChatCommand(self, msg):
         self._action_queue_manager.AddAction("ACTION", self._player_instance.SendChatCommand,msg)
