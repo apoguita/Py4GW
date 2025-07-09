@@ -146,11 +146,11 @@ global_vars = Global_Vars()
 def DrawWindow():
     global global_vars
     caption = "Helper ON" if global_vars.widget_active else "Helper OFF"
-    caption_color = Color(0, 255, 0, 255).to_tuple() if global_vars.widget_active and global_vars.pet_bahavior != PetBehavior.Heel else Color(243, 230, 0, 255).to_tuple() if global_vars.widget_active and global_vars.pet_bahavior == PetBehavior.Heel else Color(255, 0, 0, 255).to_tuple()
-    log_caption_color = Color(0, 255, 0, 255).to_tuple() if global_vars.log_action else Color(255, 0, 0, 255).to_tuple()
-    if ImGui.floating_button(caption, global_vars.title_frame_coords.left+75, global_vars.title_frame_coords.top+3, 90, 30, caption_color):
+    caption_color = Color(0, 255, 0, 255) if global_vars.widget_active and global_vars.pet_bahavior != PetBehavior.Heel else Color(243, 230, 0, 255) if global_vars.widget_active and global_vars.pet_bahavior == PetBehavior.Heel else Color(255, 0, 0, 255)
+    log_caption_color = Color(0, 255, 0, 255) if global_vars.log_action else Color(255, 0, 0, 255)
+    if ImGui.floating_button(caption=caption, x=global_vars.title_frame_coords.left+75, y=global_vars.title_frame_coords.top+3, width=90, height=30, color=caption_color):
         global_vars.widget_active = not global_vars.widget_active
-    if ImGui.floating_button("Log", global_vars.title_frame_coords.left+135, global_vars.title_frame_coords.top+3, 50, 30, log_caption_color):
+    if ImGui.floating_button(caption="Log", x=global_vars.title_frame_coords.left+135, y=global_vars.title_frame_coords.top+3, width=50, height=30, color= log_caption_color):
         global_vars.log_action = not global_vars.log_action
     
 

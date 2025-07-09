@@ -1,28 +1,20 @@
 import Py4GW
 from Py4GWCoreLib import *
 
-MODULE_NAME = "tester for everything"
+MODULE_NAME = "tester for fonts"
 
-x =0.0
-y = 0.0
 
 def main():
-    global x,y
+    global npc_name
     try:
         window_flags=PyImGui.WindowFlags.AlwaysAutoResize #| PyImGui.WindowFlags.MenuBar
         if PyImGui.begin("move", window_flags):
+            if PyImGui.button("donate"):
+                GLOBAL_CACHE.Player.DepositFaction(0)
+                
+        if PyImGui.button("test"):
+            Player.SendFakeChat(ChatChannel.CHANNEL_ALL, "<c=#AAAAAA>[FAKESENDER]</c> <c=#FFFFFF>hello world</c>")
             
-            current_x, current_y = Player.GetXY()
-            PyImGui.text(f"Current Position: x={current_x}, y={current_y}")
-            PyImGui.separator()
-            x = PyImGui.input_float("x", x)
-            y = PyImGui.input_float("y", y)
-            if PyImGui.button("Move"):
-                Player.Move(x, y)
-                            
-            if PyImGui.button("Move trough ActionQueue"):
-                GLOBAL_CACHE.Player.Move(x, y)
-           
             
         PyImGui.end()
         

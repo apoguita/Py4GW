@@ -1,0 +1,3386 @@
+[
+    {
+        "name": "Bottle Of Rice Wine",
+        "model_id": "ModelID.Bottle_Of_Rice_Wine",
+        "group": "Alcohol",
+        "subgroup": "1 Points",
+        "drop_info": "Jarimiya the Unmerciful",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bottle Of Vabbian Wine",
+        "model_id": "ModelID.Bottle_Of_Vabbian_Wine",
+        "group": "Alcohol",
+        "subgroup": "1 Points",
+        "drop_info": "Jarimiya the Unmerciful",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dwarven Ale",
+        "model_id": "ModelID.Dwarven_Ale",
+        "group": "Alcohol",
+        "subgroup": "1 Points",
+        "drop_info": "Irontoe's Chest",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Eggnog",
+        "model_id": "ModelID.Eggnog",
+        "group": "Alcohol",
+        "subgroup": "1 Points",
+        "drop_info": "Winterday & Chest of Wintersday Past",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Hard Apple Cider",
+        "model_id": "ModelID.Hard_Apple_Cider",
+        "group": "Alcohol",
+        "subgroup": "1 Points",
+        "drop_info": "Special Treats Week & Anniversary Celebration",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Hunters Ale",
+        "model_id": "ModelID.Hunters_Ale",
+        "group": "Alcohol",
+        "subgroup": "1 Points",
+        "drop_info": "Anniversary Celebration",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Shamrock Ale",
+        "model_id": "ModelID.Shamrock_Ale",
+        "group": "Alcohol",
+        "subgroup": "1 Points",
+        "drop_info": "Lucky Treats Week",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Vial Of Absinthe",
+        "model_id": "ModelID.Vial_Of_Absinthe",
+        "group": "Alcohol",
+        "subgroup": "1 Points",
+        "drop_info": "Halloween",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Witchs Brew",
+        "model_id": "ModelID.Witchs_Brew",
+        "group": "Alcohol",
+        "subgroup": "1 Points",
+        "drop_info": "Halloween",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Zehtukas Jug",
+        "model_id": "ModelID.Zehtukas_Jug",
+        "group": "Alcohol",
+        "subgroup": "1 Points",
+        "drop_info": "The Desolation",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Aged Dwarven Ale",
+        "model_id": "ModelID.Aged_Dwarven_Ale",
+        "group": "Alcohol",
+        "subgroup": "3 Points",
+        "drop_info": "Irontoe's Chest",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bottle Of Grog",
+        "model_id": "ModelID.Bottle_Of_Grog",
+        "group": "Alcohol",
+        "subgroup": "3 Points",
+        "drop_info": "Pirate Week",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Krytan Brandy",
+        "model_id": "ModelID.Krytan_Brandy",
+        "group": "Alcohol",
+        "subgroup": "3 Points",
+        "drop_info": "Anniversary Celebration",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Spiked Eggnog",
+        "model_id": "ModelID.Spiked_Eggnog",
+        "group": "Alcohol",
+        "subgroup": "3 Points",
+        "drop_info": "Winterday & Chest of Wintersday Past",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Battle Isle Iced Tea",
+        "model_id": "ModelID.Battle_Isle_Iced_Tea",
+        "group": "Alcohol",
+        "subgroup": "50 Points",
+        "drop_info": "Anniversary Celebration",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Fruitcake",
+        "model_id": "ModelID.Fruitcake",
+        "group": "Sweets",
+        "subgroup": "1 Points",
+        "drop_info": "Wintersday & Chest of Wintersday Past",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Golden Egg",
+        "model_id": "ModelID.Golden_Egg",
+        "group": "Sweets",
+        "subgroup": "1 Points",
+        "drop_info": "Sweet Treats Week",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Sugary Blue Drink",
+        "model_id": "ModelID.Sugary_Blue_Drink",
+        "group": "Sweets",
+        "subgroup": "1 Points",
+        "drop_info": "Anniversary Celebrations & Wayfarer's Reverie & Dragon Festival & Canthan New Year",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Honeycomb",
+        "model_id": "ModelID.Honeycomb",
+        "group": "Sweets",
+        "subgroup": "1 Points",
+        "drop_info": "Anniversary Celebrations & April Fools' Day",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Slice Of Pumpkin Pie",
+        "model_id": "ModelID.Slice_Of_Pumpkin_Pie",
+        "group": "Sweets",
+        "subgroup": "1 Points",
+        "drop_info": "Special Treats Week",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Wintergreen Cc",
+        "model_id": "ModelID.Wintergreen_Cc",
+        "group": "Sweets",
+        "subgroup": "1 Points",
+        "drop_info": "Wintersday & Chest of Wintersday Past",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Rainbow Cc",
+        "model_id": "ModelID.Rainbow_Cc",
+        "group": "Sweets",
+        "subgroup": "1 Points",
+        "drop_info": "Wintersday & Chest of Wintersday Past",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Peppermint Cc",
+        "model_id": "ModelID.Peppermint_Cc",
+        "group": "Sweets",
+        "subgroup": "2 Points",
+        "drop_info": "Wintersday & Chest of Wintersday Past",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Birthday Cupcake",
+        "model_id": "ModelID.Birthday_Cupcake",
+        "group": "Sweets",
+        "subgroup": "2 Points",
+        "drop_info": "Anniversary Celebrations & Dragon Festival & Canthan New Year",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Chocolate Bunny",
+        "model_id": "ModelID.Chocolate_Bunny",
+        "group": "Sweets",
+        "subgroup": "2 Points",
+        "drop_info": "Sweet Treats Week",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Red Bean Cake",
+        "model_id": "ModelID.Red_Bean_Cake",
+        "group": "Sweets",
+        "subgroup": "2 Points",
+        "drop_info": "Anniversary Celebration & Dragon Festival",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Creme Brulee",
+        "model_id": "ModelID.Creme_Brulee",
+        "group": "Sweets",
+        "subgroup": "2 Points",
+        "drop_info": "Anniversary Celebration & Dragon Festival",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Delicious Cake",
+        "model_id": "ModelID.Delicious_Cake",
+        "group": "Sweets",
+        "subgroup": "50 Points",
+        "drop_info": "Anniversary Celebration",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bottle Rocket",
+        "model_id": "ModelID.Bottle_Rocket",
+        "group": "Party",
+        "subgroup": "1 Points",
+        "drop_info": "Anniversary Celebration & Wayfarer's Reverie",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Champagne Popper",
+        "model_id": "ModelID.Champagne_Popper",
+        "group": "Party",
+        "subgroup": "1 Points",
+        "drop_info": "Anniversary Celebration & Wayfarer's Reverie",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Sparkler",
+        "model_id": "ModelID.Sparkler",
+        "group": "Party",
+        "subgroup": "1 Points",
+        "drop_info": "Anniversary Celebration & Wayfarer's Reverie",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Snowman Summoner",
+        "model_id": "ModelID.Snowman_Summoner",
+        "group": "Party",
+        "subgroup": "1 Points",
+        "drop_info": "Wintersday & Chest of Wintersday Past",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "El Mischievious Tonic",
+        "model_id": "ModelID.El_Mischievious_Tonic",
+        "group": "Party",
+        "subgroup": "2 Points",
+        "drop_info": "Winterday",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "El Yuletide Tonic",
+        "model_id": "ModelID.El_Yuletide_Tonic",
+        "group": "Party",
+        "subgroup": "2 Points",
+        "drop_info": "Wintersday & Chest of Wintersday Past",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Party Beacon",
+        "model_id": "ModelID.Party_Beacon",
+        "group": "Party",
+        "subgroup": "50 Points",
+        "drop_info": "Anniversary Celebration",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Four Leaf Clover",
+        "model_id": "ModelID.Four_Leaf_Clover",
+        "group": "Death Penalty Removal",
+        "subgroup": "Lucky Points",
+        "drop_info": "Lucky Treats Week",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Scroll Of Hunters Insight",
+        "model_id": "ModelID.Scroll_Of_Hunters_Insight",
+        "group": "Scrolls",
+        "subgroup": "Common XP Scrolls",
+        "drop_info": "Bosses NM & HM",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Scroll Of Rampagers Insight",
+        "model_id": "ModelID.Scroll_Of_Rampagers_Insight",
+        "group": "Scrolls",
+        "subgroup": "Common XP Scrolls",
+        "drop_info": "Bosses NM & HM",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Scroll Of Adventurers Insight",
+        "model_id": "ModelID.Scroll_Of_Adventurers_Insight",
+        "group": "Scrolls",
+        "subgroup": "Common XP Scrolls",
+        "drop_info": "Bosses NM & HM",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Scroll Of Heros Insight",
+        "model_id": "ModelID.Scroll_Of_Heros_Insight",
+        "group": "Scrolls",
+        "subgroup": "Rare XP Scrolls",
+        "drop_info": "Bosses NM & HM",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Slayers Insight Scroll",
+        "model_id": "ModelID.Slayers_Insight_Scroll",
+        "group": "Scrolls",
+        "subgroup": "Rare XP Scrolls",
+        "drop_info": "Bosses NM & HM",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Scroll Of Berserkers Insight",
+        "model_id": "ModelID.Scroll_Of_Berserkers_Insight",
+        "group": "Scrolls",
+        "subgroup": "Rare XP Scrolls",
+        "drop_info": "Bosses NM & HM",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Passage Scroll Deep",
+        "model_id": "ModelID.Passage_Scroll_Deep",
+        "group": "Scrolls",
+        "subgroup": "Passage Scrolls",
+        "drop_info": "Bosses HM & Foes The Deep",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Passage Scroll Fow",
+        "model_id": "ModelID.Passage_Scroll_Fow",
+        "group": "Scrolls",
+        "subgroup": "Passage Scrolls",
+        "drop_info": "Bosses HM & Foes Fow",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Passage Scroll Urgoz",
+        "model_id": "ModelID.Passage_Scroll_Urgoz",
+        "group": "Scrolls",
+        "subgroup": "Passage Scrolls",
+        "drop_info": "Bosses HM & Foes Urgoz",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Passage Scroll Uw",
+        "model_id": "ModelID.Passage_Scroll_Uw",
+        "group": "Scrolls",
+        "subgroup": "Passage Scrolls",
+        "drop_info": "Bosses HM & Foes The Uw",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Assassin Tome",
+        "model_id": "ModelID.Assassin_Tome",
+        "group": "Tomes",
+        "subgroup": "Normal Tomes",
+        "drop_info": "Foes & Chests in Hard Mode",
+        "enabled": false,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dervish Tome",
+        "model_id": "ModelID.Dervish_Tome",
+        "group": "Tomes",
+        "subgroup": "Normal Tomes",
+        "drop_info": "Foes & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Elementalist Tome",
+        "model_id": "ModelID.Elementalist_Tome",
+        "group": "Tomes",
+        "subgroup": "Normal Tomes",
+        "drop_info": "Foes & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mesmer Tome",
+        "model_id": "ModelID.Mesmer_Tome",
+        "group": "Tomes",
+        "subgroup": "Normal Tomes",
+        "drop_info": "Foes & Chests in Hard Mode",
+        "enabled": false,
+        "rarity_filter": false
+    },
+    {
+        "name": "Monk Tome",
+        "model_id": "ModelID.Monk_Tome",
+        "group": "Tomes",
+        "subgroup": "Normal Tomes",
+        "drop_info": "Foes & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Necromancer Tome",
+        "model_id": "ModelID.Necromancer_Tome",
+        "group": "Tomes",
+        "subgroup": "Normal Tomes",
+        "drop_info": "Foes & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Paragon Tome",
+        "model_id": "ModelID.Paragon_Tome",
+        "group": "Tomes",
+        "subgroup": "Normal Tomes",
+        "drop_info": "Foes & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ranger Tome",
+        "model_id": "ModelID.Ranger_Tome",
+        "group": "Tomes",
+        "subgroup": "Normal Tomes",
+        "drop_info": "Foes & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ritualist Tome",
+        "model_id": "ModelID.Ritualist_Tome",
+        "group": "Tomes",
+        "subgroup": "Normal Tomes",
+        "drop_info": "Foes & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Warrior Tome",
+        "model_id": "ModelID.Warrior_Tome",
+        "group": "Tomes",
+        "subgroup": "Normal Tomes",
+        "drop_info": "Foes & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Assassin Elitetome",
+        "model_id": "ModelID.Assassin_Elitetome",
+        "group": "Tomes",
+        "subgroup": "Elite Tomes",
+        "drop_info": "Bosses & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dervish Elitetome",
+        "model_id": "ModelID.Dervish_Elitetome",
+        "group": "Tomes",
+        "subgroup": "Elite Tomes",
+        "drop_info": "Bosses & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Elementalist Elitetome",
+        "model_id": "ModelID.Elementalist_Elitetome",
+        "group": "Tomes",
+        "subgroup": "Elite Tomes",
+        "drop_info": "Bosses & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mesmer Elitetome",
+        "model_id": "ModelID.Mesmer_Elitetome",
+        "group": "Tomes",
+        "subgroup": "Elite Tomes",
+        "drop_info": "Bosses & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Monk Elitetome",
+        "model_id": "ModelID.Monk_Elitetome",
+        "group": "Tomes",
+        "subgroup": "Elite Tomes",
+        "drop_info": "Bosses & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Necromancer Elitetome",
+        "model_id": "ModelID.Necromancer_Elitetome",
+        "group": "Tomes",
+        "subgroup": "Elite Tomes",
+        "drop_info": "Bosses & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Paragon Elitetome",
+        "model_id": "ModelID.Paragon_Elitetome",
+        "group": "Tomes",
+        "subgroup": "Elite Tomes",
+        "drop_info": "Bosses & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ranger Elitetome",
+        "model_id": "ModelID.Ranger_Elitetome",
+        "group": "Tomes",
+        "subgroup": "Elite Tomes",
+        "drop_info": "Bosses & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ritualist Elitetome",
+        "model_id": "ModelID.Ritualist_Elitetome",
+        "group": "Tomes",
+        "subgroup": "Elite Tomes",
+        "drop_info": "Bosses & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Warrior Elitetome",
+        "model_id": "ModelID.Warrior_Elitetome",
+        "group": "Tomes",
+        "subgroup": "Elite Tomes",
+        "drop_info": "Bosses & Chests in Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Lockpick",
+        "model_id": "ModelID.Lockpick",
+        "group": "Keys",
+        "subgroup": "Core Keys",
+        "drop_info": "Foes All Regions Hard Mode",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Phantom Key",
+        "model_id": "ModelID.Phantom_Key",
+        "group": "Keys",
+        "subgroup": "Core Keys",
+        "drop_info": "Foes The Underworld",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Obsidian Key",
+        "model_id": "ModelID.Obsidian_Key",
+        "group": "Keys",
+        "subgroup": "Core Keys",
+        "drop_info": "Foes Fissure of Woe",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ascalonian Key",
+        "model_id": "ModelID.Ascalonian_Key",
+        "group": "Keys",
+        "subgroup": "Prophecies Keys",
+        "drop_info": "Foes Ascalon",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Steel Key",
+        "model_id": "ModelID.Steel_Key",
+        "group": "Keys",
+        "subgroup": "Prophecies Keys",
+        "drop_info": "Foes Northern Silverpeaks",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Krytan Key",
+        "model_id": "ModelID.Krytan_Key",
+        "group": "Keys",
+        "subgroup": "Prophecies Keys",
+        "drop_info": "Foes Kryta",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Maguuma Key",
+        "model_id": "ModelID.Maguuma_Key",
+        "group": "Keys",
+        "subgroup": "Prophecies Keys",
+        "drop_info": "Foes Maguuma Jungle",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Elonian Key",
+        "model_id": "ModelID.Elonian_Key",
+        "group": "Keys",
+        "subgroup": "Prophecies Keys",
+        "drop_info": "Foes Crystal Desert",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Shiverpeak Key",
+        "model_id": "ModelID.Shiverpeak_Key",
+        "group": "Keys",
+        "subgroup": "Prophecies Keys",
+        "drop_info": "Foes Southern Shiverpeaks",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Darkstone Key",
+        "model_id": "ModelID.Darkstone_Key",
+        "group": "Keys",
+        "subgroup": "Prophecies Keys",
+        "drop_info": "Foes Ring Of Fire Island Chain",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Miners Key",
+        "model_id": "ModelID.Miners_Key",
+        "group": "Keys",
+        "subgroup": "Prophecies Keys",
+        "drop_info": "Foes Sorrows Furnace",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Shing Jea Key",
+        "model_id": "ModelID.Shing_Jea_Key",
+        "group": "Keys",
+        "subgroup": "Factions Keys",
+        "drop_info": "Foes Shing Jea Island",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Canthan Key",
+        "model_id": "ModelID.Canthan_Key",
+        "group": "Keys",
+        "subgroup": "Factions Keys",
+        "drop_info": "Foes Kaineng City",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Kurzick Key",
+        "model_id": "ModelID.Kurzick_Key",
+        "group": "Keys",
+        "subgroup": "Factions Keys",
+        "drop_info": "Foes Echovald Forest",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stoneroot Key",
+        "model_id": "ModelID.Stoneroot_Key",
+        "group": "Keys",
+        "subgroup": "Factions Keys",
+        "drop_info": "Foes Urgoz Warren",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Luxon Key",
+        "model_id": "ModelID.Luxon_Key",
+        "group": "Keys",
+        "subgroup": "Factions Keys",
+        "drop_info": "Foes Jade Sea",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Deep Jade Key",
+        "model_id": "ModelID.Deep_Jade_Key",
+        "group": "Keys",
+        "subgroup": "Factions Keys",
+        "drop_info": "Foes The Deep",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Forbidden Key",
+        "model_id": "ModelID.Forbidden_Key",
+        "group": "Keys",
+        "subgroup": "Factions Keys",
+        "drop_info": "Foes Raisu Palace",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Istani Key",
+        "model_id": "ModelID.Istani_Key",
+        "group": "Keys",
+        "subgroup": "Nightfall Keys",
+        "drop_info": "Foes Istan",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Kournan Key",
+        "model_id": "ModelID.Kournan_Key",
+        "group": "Keys",
+        "subgroup": "Nightfall Keys",
+        "drop_info": "Foes Kourna",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Vabbian Key",
+        "model_id": "ModelID.Vabbian_Key",
+        "group": "Keys",
+        "subgroup": "Nightfall Keys",
+        "drop_info": "Foes Vabbi",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ancient Elonian Key",
+        "model_id": "ModelID.Ancient_Elonian_Key",
+        "group": "Keys",
+        "subgroup": "Nightfall Keys",
+        "drop_info": "Foes The Desolation",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Margonite Key",
+        "model_id": "ModelID.Margonite_Key",
+        "group": "Keys",
+        "subgroup": "Nightfall Keys",
+        "drop_info": "Foes Realm Of Terror",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Demonic Key",
+        "model_id": "ModelID.Demonic_Key",
+        "group": "Keys",
+        "subgroup": "Nightfall Keys",
+        "drop_info": "Foes Domain Of Anguish",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bolt Of Cloth",
+        "model_id": "ModelID.Bolt_Of_Cloth",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bone",
+        "model_id": "ModelID.Bone",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Chitin Fragment",
+        "model_id": "ModelID.Chitin_Fragment",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Feather",
+        "model_id": "ModelID.Feather",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Granite Slab",
+        "model_id": "ModelID.Granite_Slab",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Iron Ingot",
+        "model_id": "ModelID.Iron_Ingot",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Pile Of Glittering Dust",
+        "model_id": "ModelID.Pile_Of_Glittering_Dust",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Plant Fiber",
+        "model_id": "ModelID.Plant_Fiber",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Scale",
+        "model_id": "ModelID.Scale",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Tanned Hide Square",
+        "model_id": "ModelID.Tanned_Hide_Square",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Wood Plank",
+        "model_id": "ModelID.Wood_Plank",
+        "group": "Materials",
+        "subgroup": "Common Materials",
+        "drop_info": "Common Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Amber Chunk",
+        "model_id": "ModelID.Amber_Chunk",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bolt Of Damask",
+        "model_id": "ModelID.Bolt_Of_Damask",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bolt Of Linen",
+        "model_id": "ModelID.Bolt_Of_Linen",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bolt Of Silk",
+        "model_id": "ModelID.Bolt_Of_Silk",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Deldrimor Steel Ingot",
+        "model_id": "ModelID.Deldrimor_Steel_Ingot",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Diamond",
+        "model_id": "ModelID.Diamond",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Elonian Leather Square",
+        "model_id": "ModelID.Elonian_Leather_Square",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Fur Square",
+        "model_id": "ModelID.Fur_Square",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Glob Of Ectoplasm",
+        "model_id": "ModelID.Glob_Of_Ectoplasm",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Jadeite Shard",
+        "model_id": "ModelID.Jadeite_Shard",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Leather Square",
+        "model_id": "ModelID.Leather_Square",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Lump Of Charcoal",
+        "model_id": "ModelID.Lump_Of_Charcoal",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Monstrous Claw",
+        "model_id": "ModelID.Monstrous_Claw",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Monstrous Eye",
+        "model_id": "ModelID.Monstrous_Eye",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Monstrous Fang",
+        "model_id": "ModelID.Monstrous_Fang",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Obsidian Shard",
+        "model_id": "ModelID.Obsidian_Shard",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Onyx Gemstone",
+        "model_id": "ModelID.Onyx_Gemstone",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Roll Of Parchment",
+        "model_id": "ModelID.Roll_Of_Parchment",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Roll Of Vellum",
+        "model_id": "ModelID.Roll_Of_Vellum",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ruby",
+        "model_id": "ModelID.Ruby",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Sapphire",
+        "model_id": "ModelID.Sapphire",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Spiritwood Plank",
+        "model_id": "ModelID.Spiritwood_Plank",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Steel Ingot",
+        "model_id": "ModelID.Steel_Ingot",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Tempered Glass Vial",
+        "model_id": "ModelID.Tempered_Glass_Vial",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Vial Of Ink",
+        "model_id": "ModelID.Vial_Of_Ink",
+        "group": "Materials",
+        "subgroup": "Rare Materials",
+        "drop_info": "Rare Material",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Abnormal Seed",
+        "model_id": "ModelID.Abnormal_Seed",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "Dropped by Ancient Oakhearts, Entangling Roots, Large- and Spined Aloe, Oakhearts, Reed Stalkers in the Kryta.",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Alpine Seed",
+        "model_id": "ModelID.Alpine_Seed",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "Dropped by Ancient Oakhearts, Entangling Roots, Large- and Spined Aloe, Oakhearts, Reed Stalkers in the Kryta",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Amphibian Tongue",
+        "model_id": "ModelID.Amphibian_Tongue",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "Dropped by Heket enemies in the Maguuma Jungle",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ancient Eye",
+        "model_id": "ModelID.Ancient_Eye",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "MODELID NOT AQUIRED!!! Dropped by Wind Riders in Maguuma Jungle",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ancient Kappa Shell",
+        "model_id": "ModelID.Ancient_Kappa_Shell",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "MODELID NOT AQUIRED!!! Dropped by Ancient Kappa in The Undercity, Kaineng City",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Animal Hide",
+        "model_id": "ModelID.Animal_Hide",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "MODELID NOT AQUIRED!!!",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Archaic Kappa Shell",
+        "model_id": "ModelID.Archaic_Kappa_Shell",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "Dropped by Kappa in the Shenzun Tunnels, Factions",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ashen Wurm Husk",
+        "model_id": "ModelID.Ashen_Wurm_Husk",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "MODELID NOT AQUIRED!!!",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Augmented Flesh",
+        "model_id": "ModelID.Augmented_Flesh",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "Dropped by afflicted in Sing Jea Island",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Azure Crest",
+        "model_id": "ModelID.Azure_Crest",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "Dropped by Rockhide and Saltspray Dragons in The Jade Sea",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Azure Remains",
+        "model_id": "ModelID.Azure_Remains",
+        "group": "Trophies",
+        "subgroup": "A",
+        "drop_info": "Dropped by Azure Shadows in Southern Shiverpeaks",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Baked Husk",
+        "model_id": "ModelID.Baked_Husk",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by Plague Worm, Worm Queen in Lakeside County - Ascalon (pre-Searing)",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Beetle Egg",
+        "model_id": "ModelID.Beetle_Egg",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by Ghosteater Beetle, Thorn Beetle, Thorn Beetle Queen in Depths of Tyria - EOTN",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Behemoth Hide",
+        "model_id": "ModelID.Behemoth_Hide",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by Behemoth Gravebane, Scytheclaw Behemoth in Vabii - Nightfall",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Behemoth Jaw",
+        "model_id": "ModelID.Behemoth_Jaw",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by Henge Guardian, Root Begemoth in Maguuma Jungle - Prophecies",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Berserker Horn",
+        "model_id": "ModelID.Berserker_Horn",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by Berserking Creatures in Far Shiverpeaks - EOTN",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Black Pearl",
+        "model_id": "ModelID.Black_Pearl",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by Creeping Carp, Irukandji, Scuttle Fish - The Jade Sea",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bleached Carapace",
+        "model_id": "ModelID.Bleached_Carapace",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by Rockshot Devourer in Crystal Desert - Prophecies & Dalada Uplands - EOTN",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bleached Shell",
+        "model_id": "ModelID.Bleached_Shell",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "MODELID NOT AQUIRED!!! Dropped by Sand Wurm, Siege Wurm in Crystal Desert - Prophecies",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Blob Of Ooze",
+        "model_id": "ModelID.Blob_Of_Ooze",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by Ooze in Depths of Tyria & Magma Blister in Charr Homelands - EOTN",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Blood Drinker Pelt",
+        "model_id": "ModelID.Blood_Drinker_Pelt",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "MODELID NOT AQUIRED!!! Dropped by Blood Drinker, Rhythm Drinker in Echovald Forest - Factions",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bog Skale Fin",
+        "model_id": "ModelID.Bog_Skale_Fin",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bone Charm",
+        "model_id": "ModelID.Bone_Charm",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bonesnap Shell",
+        "model_id": "ModelID.Bonesnap_Shell",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Branch of Juni Berries",
+        "model_id": "ModelID.Branch_Of_Juni_Berries",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Bull Trainer Giant Jawbone",
+        "model_id": "ModelID.Bull_Trainer_Giant_Jawbone",
+        "group": "Trophies",
+        "subgroup": "B",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Celestial Essence",
+        "model_id": "ModelID.Celestial_Essence",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Charr Carving",
+        "model_id": "ModelID.Charr_Carving",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Chromatic Scale",
+        "model_id": "ModelID.Chromatic_Scale",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Chunk Of Drake Flesh",
+        "model_id": "ModelID.Chunk_Of_Drake_Flesh",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Cobalt Talon",
+        "model_id": "ModelID.Cobalt_Talon",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Copper Chrimson Skull Coin",
+        "model_id": "ModelID.Copper_Chrimson_Skull_Coin",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Copper Shilling",
+        "model_id": "ModelID.Copper_Shilling",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Corrosive Spider Leg",
+        "model_id": "ModelID.Corrosive_Spider_Leg",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Curved Mintaur Horn",
+        "model_id": "ModelID.Curved_Mintaur_Horn",
+        "group": "Trophies",
+        "subgroup": "C",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dark Claw",
+        "model_id": "ModelID.Dark_Claw",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dark Flame Fang",
+        "model_id": "ModelID.Dark_Flame_Fang",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dark Remains",
+        "model_id": "ModelID.Dark_Remains",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Decayed Orr Emblem",
+        "model_id": "ModelID.Decayed_Orr_Emblem",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Demonic Fang",
+        "model_id": "ModelID.Demonic_Fang",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Demonic Relic",
+        "model_id": "ModelID.Demonic_Relic",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Demonic Remains",
+        "model_id": "ModelID.Demonic_Remains",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dessicated Hydra Claw",
+        "model_id": "ModelID.Dessicated_Hydra_Claw",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Destroyer Core",
+        "model_id": "ModelID.Destroyer_Core",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Diamond Djinn Essence",
+        "model_id": "ModelID.Diamond_Djinn_Essence",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Diessa Chalice",
+        "model_id": "ModelID.Diessa_Chalice",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Foes in the Cathedral of Flames during the Temple of the Damned quest",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dragon Root",
+        "model_id": "ModelID.Dragon_Root",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dregde Charm",
+        "model_id": "ModelID.Dregde_Charm",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dredge Incisor",
+        "model_id": "ModelID.Dredge_Incisor",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dregde Manifesto",
+        "model_id": "ModelID.Dregde_Manifesto",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dryder Web",
+        "model_id": "ModelID.Dryder_Web",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dull Carapace",
+        "model_id": "ModelID.Dull_Carapace",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dune Burrower Jaw",
+        "model_id": "ModelID.Dune_Burrower_Jaw",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Dusty Insect Carapace",
+        "model_id": "ModelID.Dusty_Insect_Carapace",
+        "group": "Trophies",
+        "subgroup": "D",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ebon Spider Leg",
+        "model_id": "ModelID.Ebon_Spider_Leg",
+        "group": "Trophies",
+        "subgroup": "E",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Elder Kappa Shell",
+        "model_id": "ModelID.Elder_Kappa_Shell",
+        "group": "Trophies",
+        "subgroup": "E",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Enchanted Lodestone",
+        "model_id": "ModelID.Enchanted_Lodestone",
+        "group": "Trophies",
+        "subgroup": "E",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Enchanted Vine",
+        "model_id": "ModelID.Enchanted_Vine",
+        "group": "Trophies",
+        "subgroup": "E",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Encrusted Lodestone",
+        "model_id": "ModelID.Encrusted_Lodestone",
+        "group": "Trophies",
+        "subgroup": "E",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Enslavement Stone",
+        "model_id": "ModelID.Enslavement_Stone",
+        "group": "Trophies",
+        "subgroup": "E",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Feathered Avicara Scalp",
+        "model_id": "ModelID.Feathered_Avicara_Scalp",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Feathered Caromi Scalp",
+        "model_id": "ModelID.Feathered_Caromi_Scalp",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Feathered Crest",
+        "model_id": "ModelID.Feathered_Crest",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Feathered Scalp",
+        "model_id": "ModelID.Feathered_Scalp",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Fetid Carapace",
+        "model_id": "ModelID.Fetid_Carapace",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Fibrous Mandragor Root",
+        "model_id": "ModelID.Fibrous_Mandragor_Root",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Fiery Crest",
+        "model_id": "ModelID.Fiery_Crest",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Fledglin Skree Wing",
+        "model_id": "ModelID.Fledglin_Skree_Wing",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Flesh Reaver Morsel",
+        "model_id": "ModelID.Flesh_Reaver_Morsel",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Forest Minotaur Horn",
+        "model_id": "ModelID.Forest_Minotaur_Horn",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Forgotten Seal",
+        "model_id": "ModelID.Forgotten_Seal",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Forgotten Trinket Box",
+        "model_id": "ModelID.Forgotten_Trinket_Box",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Frigid Heart",
+        "model_id": "ModelID.Frigid_Heart",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Frigid Mandragor Husk",
+        "model_id": "ModelID.Frigid_Mandragor_Husk",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Frosted Griffon Wing",
+        "model_id": "ModelID.Frosted_Griffon_Wing",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Frostfire Fang",
+        "model_id": "ModelID.Frostfire_Fang",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Frozen Remnant",
+        "model_id": "ModelID.Frozen_Remnant",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Frozen Shell",
+        "model_id": "ModelID.Frozen_Shell",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Frozen Wurm Husk",
+        "model_id": "ModelID.Frozen_Wurm_Husk",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Fungal Root",
+        "model_id": "ModelID.Fungal_Root",
+        "group": "Trophies",
+        "subgroup": "F",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Gargantuan Jawbone",
+        "model_id": "ModelID.Gargantuan_Jawbone",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Gargoyle Skull",
+        "model_id": "ModelID.Gargoyle_Skull",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Geode",
+        "model_id": "ModelID.Geode",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ghostly Remains",
+        "model_id": "ModelID.Ghostly_Remains",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Giant Tusk",
+        "model_id": "ModelID.Giant_Tusk",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Glacial Stone",
+        "model_id": "ModelID.Glacial_Stone",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Gloom Seed",
+        "model_id": "ModelID.Gloom_Seed",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Glowing Heart",
+        "model_id": "ModelID.Glowing_Heart",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Gold Crimson Skull Coin",
+        "model_id": "ModelID.Gold_Crimson_Skull_Coin",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Gold Doubloon",
+        "model_id": "ModelID.Gold_Doubloon",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Golden Rin Relic",
+        "model_id": "ModelID.Golden_Rin_Relic",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Golem Runestone",
+        "model_id": "ModelID.Golem_Runestone",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Grawl Necklace",
+        "model_id": "ModelID.Grawl_Necklace",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Gruesome Ribcage",
+        "model_id": "ModelID.Gruesome_Ribcage",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Gruesome Sternum",
+        "model_id": "ModelID.Gruesome_Sternum",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Guardian Moss",
+        "model_id": "ModelID.Guardian_Moss",
+        "group": "Trophies",
+        "subgroup": "G",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Hardened Hump",
+        "model_id": "ModelID.Hardened_Hump",
+        "group": "Trophies",
+        "subgroup": "H",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Heket Tongue",
+        "model_id": "ModelID.Heket_Tongue",
+        "group": "Trophies",
+        "subgroup": "H",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Huge Jawbone",
+        "model_id": "ModelID.Huge_Jawbone",
+        "group": "Trophies",
+        "subgroup": "H",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Hunting Minotaur Horn",
+        "model_id": "ModelID.Hunting_Minotaur_Horn",
+        "group": "Trophies",
+        "subgroup": "H",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Iboga Petal",
+        "model_id": "ModelID.Iboga_Petal",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Icy Hump",
+        "model_id": "ModelID.Icy_Hump",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Icy Lodestone",
+        "model_id": "ModelID.Icy_Lodestone",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Igneous Hump",
+        "model_id": "ModelID.Igneous_Hump",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Igneous Spider Leg",
+        "model_id": "ModelID.Igneous_Spider_Leg",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Immolated Djinn Essence",
+        "model_id": "ModelID.Immolated_Djinn_Essence",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Incubus Wing",
+        "model_id": "ModelID.Incubus_Wing",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Inscribed Shard",
+        "model_id": "ModelID.Inscribed_Shard",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Insect Appendage",
+        "model_id": "ModelID.Insect_Appendage",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Insect Carapace",
+        "model_id": "ModelID.Insect_Carapace",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Intricate Grawl Necklace",
+        "model_id": "ModelID.Intricate_Grawl_Necklace",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Iridescant Griffon Wing",
+        "model_id": "ModelID.Iridescant_Griffon_Wing",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ivory Troll Tusk",
+        "model_id": "ModelID.Ivory_Troll_Tusk",
+        "group": "Trophies",
+        "subgroup": "I",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Jade Bracelet",
+        "model_id": "ModelID.Jade_Bracelet",
+        "group": "Trophies",
+        "subgroup": "J",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Jade Mandible",
+        "model_id": "ModelID.Jade_Mandible",
+        "group": "Trophies",
+        "subgroup": "J",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Jade Orb",
+        "model_id": "ModelID.Jade_Orb",
+        "group": "Trophies",
+        "subgroup": "J",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Jotun Pelt",
+        "model_id": "ModelID.Jotun_Pelt",
+        "group": "Trophies",
+        "subgroup": "J",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Jungle Skale Fin",
+        "model_id": "ModelID.Jungle_Skale_Fin",
+        "group": "Trophies",
+        "subgroup": "J",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Jungle Troll Tusk",
+        "model_id": "ModelID.Jungle_Troll_Tusk",
+        "group": "Trophies",
+        "subgroup": "J",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Juvenile Termite Leg",
+        "model_id": "ModelID.Juvenile_Termite_Leg",
+        "group": "Trophies",
+        "subgroup": "J",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Kappa Hatchling Shell",
+        "model_id": "ModelID.Kappa_Hatchling_Shell",
+        "group": "Trophies",
+        "subgroup": "K",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Kappa Shell",
+        "model_id": "ModelID.Kappa_Shell",
+        "group": "Trophies",
+        "subgroup": "K",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Keen Oni Claw",
+        "model_id": "ModelID.Keen_Oni_Claw",
+        "group": "Trophies",
+        "subgroup": "K",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Keen Oni Talon",
+        "model_id": "ModelID.Keen_Oni_Talon",
+        "group": "Trophies",
+        "subgroup": "K",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Kirin Horn",
+        "model_id": "ModelID.Kirin_Horn",
+        "group": "Trophies",
+        "subgroup": "K",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Kournan Pendant",
+        "model_id": "ModelID.Kournan_Pendant",
+        "group": "Trophies",
+        "subgroup": "K",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Krait Skin",
+        "model_id": "ModelID.Krait_Skin",
+        "group": "Trophies",
+        "subgroup": "K",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Kraken Eye",
+        "model_id": "ModelID.Kraken_Eye",
+        "group": "Trophies",
+        "subgroup": "K",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Kurzick Bauble",
+        "model_id": "ModelID.Kurzick_Bauble",
+        "group": "Trophies",
+        "subgroup": "K",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Kuskale Claw",
+        "model_id": "ModelID.Kuskale_Claw",
+        "group": "Trophies",
+        "subgroup": "K",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Lavastrider Appendage",
+        "model_id": "ModelID.Lavastrider_Appendage",
+        "group": "Trophies",
+        "subgroup": "L",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Leather Belt",
+        "model_id": "ModelID.Leather_Belt",
+        "group": "Trophies",
+        "subgroup": "L",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Leathery Claw",
+        "model_id": "ModelID.Leathery_Claw",
+        "group": "Trophies",
+        "subgroup": "L",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Losaru Mane",
+        "model_id": "ModelID.Losaru_Mane",
+        "group": "Trophies",
+        "subgroup": "L",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Luxon Pendant",
+        "model_id": "ModelID.Luxon_Pendant",
+        "group": "Trophies",
+        "subgroup": "L",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Maguuma Mane",
+        "model_id": "ModelID.Maguuma_Mane",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mahgo Claw",
+        "model_id": "ModelID.Mahgo_Claw",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mandragor Carapace",
+        "model_id": "ModelID.Mandragor_Carapace",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mandragor Husk",
+        "model_id": "ModelID.Mandragor_Husk",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mandragor Root",
+        "model_id": "ModelID.Mandragor_Root",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mandragor Swamproot",
+        "model_id": "ModelID.Mandragor_Swamproot",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mantid Pincer",
+        "model_id": "ModelID.Mantid_Pincer",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mantid Ungula",
+        "model_id": "ModelID.Mantid_Ungula",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mantis Pincer",
+        "model_id": "ModelID.Mantis_Pincer",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Margonite Mask",
+        "model_id": "ModelID.Margonite_Mask",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Massive Jawbone",
+        "model_id": "ModelID.Massive_Jawbone",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mergoyle Skull",
+        "model_id": "ModelID.Mergoyle_Skull",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Minotaur Horn",
+        "model_id": "ModelID.Minotaur_Horn",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Modnir Mane",
+        "model_id": "ModelID.Modnir_Mane",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Molten Claw",
+        "model_id": "ModelID.Molten_Claw",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Molten Eye",
+        "model_id": "ModelID.Molten_Eye",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Molten Heart",
+        "model_id": "ModelID.Molten_Heart",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mossy Mandible",
+        "model_id": "ModelID.Mossy_Mandible",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mountain Root",
+        "model_id": "ModelID.Mountain_Root",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mountain Troll Tusk",
+        "model_id": "ModelID.Mountain_Troll_Tusk",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Moon Shell",
+        "model_id": "ModelID.Moon_Shell",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mummy Wrapping",
+        "model_id": "ModelID.Mummy_Wrapping",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Mursaat Token",
+        "model_id": "ModelID.Mursaat_Token",
+        "group": "Trophies",
+        "subgroup": "M",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Naga Hide",
+        "model_id": "ModelID.Naga_Hide",
+        "group": "Trophies",
+        "subgroup": "N",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Naga Pelt",
+        "model_id": "ModelID.Naga_Pelt",
+        "group": "Trophies",
+        "subgroup": "N",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Naga Skin",
+        "model_id": "ModelID.Naga_Skin",
+        "group": "Trophies",
+        "subgroup": "N",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Obsidian Burrower Jaw",
+        "model_id": "ModelID.Obsidian_Burrower_Jaw",
+        "group": "Trophies",
+        "subgroup": "O",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Oni Claw",
+        "model_id": "ModelID.Oni_Claw",
+        "group": "Trophies",
+        "subgroup": "O",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Oni Taloon",
+        "model_id": "ModelID.Oni_Taloon",
+        "group": "Trophies",
+        "subgroup": "O",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ornate Grawl Necklace",
+        "model_id": "ModelID.Ornate_Grawl_Necklace",
+        "group": "Trophies",
+        "subgroup": "O",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Patch Of Simian Fur",
+        "model_id": "ModelID.Patch_Of_Simian_Fur",
+        "group": "Trophies",
+        "subgroup": "P",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Phantom Residue",
+        "model_id": "ModelID.Phantom_Residue",
+        "group": "Trophies",
+        "subgroup": "P",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Pile Of Elemental Dust",
+        "model_id": "ModelID.Pile_Of_Elemental_Dust",
+        "group": "Trophies",
+        "subgroup": "P",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Plague Idol",
+        "model_id": "ModelID.Plauge_Idol",
+        "group": "Trophies",
+        "subgroup": "P",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Pulsating Growth",
+        "model_id": "ModelID.Pulsating_Growth",
+        "group": "Trophies",
+        "subgroup": "P",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Putrid Cyst",
+        "model_id": "ModelID.Putrid_Cyst",
+        "group": "Trophies",
+        "subgroup": "P",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Quetzal Crest",
+        "model_id": "ModelID.Quetzal_Crest",
+        "group": "Trophies",
+        "subgroup": "Q",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Rawhide Belt",
+        "model_id": "ModelID.Rawhide_Belt",
+        "group": "Trophies",
+        "subgroup": "R",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Red Iris Flower",
+        "model_id": "ModelID.Red_Iris_Flower",
+        "group": "Trophies",
+        "subgroup": "R",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Rinkhal Talon",
+        "model_id": "ModelID.Rinkhal_Talon",
+        "group": "Trophies",
+        "subgroup": "R",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Roaring Ether Claw",
+        "model_id": "ModelID.Roaring_Ether_Claw",
+        "group": "Trophies",
+        "subgroup": "R",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Rot Wallow Tusk",
+        "model_id": "ModelID.Rot_Wallow_Tusk",
+        "group": "Trophies",
+        "subgroup": "R",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ruby Djinn Essence",
+        "model_id": "ModelID.Ruby_Djinn_Essence",
+        "group": "Trophies",
+        "subgroup": "R",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Shadowy Husk",
+        "model_id": "ModelID.Shadowy_Husk",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Shadowy Remnants",
+        "model_id": "ModelID.Shadowy_Remnants",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Shiverpeak Mane",
+        "model_id": "ModelID.Shiverpeak_Mane",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Shriveled Eye",
+        "model_id": "ModelID.Shriveled_Eye",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Silver Bullion Coin",
+        "model_id": "ModelID.Silver_Bullion_Coin",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Silver Crimson Skull Coin",
+        "model_id": "ModelID.Silver_Crimson_Skull_Coin",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Singed Gargoyle Skull",
+        "model_id": "ModelID.Singed_Gargoyle_Skull",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skale Claw",
+        "model_id": "ModelID.Skale_Claw",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skale Fang",
+        "model_id": "ModelID.Skale_Fang",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skale Fin",
+        "model_id": "ModelID.Skale_Fin",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skale Fin (pre-Searing)",
+        "model_id": "ModelID.Skale_Fin_PreSearing",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skale Tooth",
+        "model_id": "ModelID.Skale_Tooth",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skeletal Limb",
+        "model_id": "ModelID.Skeletal_Limb",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skeleton Bone",
+        "model_id": "ModelID.Skeleton_Bone",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skelk Claw",
+        "model_id": "ModelID.Skelk_Claw",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skelk Fang",
+        "model_id": "ModelID.Skelk_Fang",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skree Wing",
+        "model_id": "ModelID.Skree_Wing",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Skull Juju",
+        "model_id": "ModelID.Skull_Juju",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Smoking Remains",
+        "model_id": "ModelID.Smoking_Remains",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Soul Stone",
+        "model_id": "ModelID.Soul_Stone",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Spider Leg",
+        "model_id": "ModelID.Spider_Leg",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Spiked Crest",
+        "model_id": "ModelID.Spiked_Crest",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Spiny Seed",
+        "model_id": "ModelID.Spiny_Seed",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stolen Provisions",
+        "model_id": "ModelID.Stolen_Provisions",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stolen Supplies",
+        "model_id": "ModelID.Stolen_Supplies",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stone Carving",
+        "model_id": "ModelID.Stone_Carving",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stone Claw",
+        "model_id": "ModelID.Stone_Claw",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stone Grawl Necklace",
+        "model_id": "ModelID.Stone_Grawl_Necklace",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stone Horn",
+        "model_id": "ModelID.Stone_Horn",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stone Summit Badge",
+        "model_id": "ModelID.Stone_Summit_Badge",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stone Summit Emblem",
+        "model_id": "ModelID.Stone_Summit_Emblem",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stormy Eye",
+        "model_id": "ModelID.Stormy_Eye",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Superb Charr Carving",
+        "model_id": "ModelID.Superior_Charr_Carving",
+        "group": "Trophies",
+        "subgroup": "S",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Tangled Seed",
+        "model_id": "ModelID.Tangled_Seed",
+        "group": "Trophies",
+        "subgroup": "T",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Thorny Carapace",
+        "model_id": "ModelID.Thorny_Carapace",
+        "group": "Trophies",
+        "subgroup": "T",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Topaz Crest",
+        "model_id": "ModelID.Topaz_Crest",
+        "group": "Trophies",
+        "subgroup": "T",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Truffle",
+        "model_id": "ModelID.Truffle",
+        "group": "Trophies",
+        "subgroup": "T",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Umbral Eye",
+        "model_id": "ModelID.Umbral_Eye",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Umbral Shell",
+        "model_id": "ModelID.Umbral_Shell",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Umbral Skeletal Limb",
+        "model_id": "ModelID.Umbral_Skeletal_Limb",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Unctuous Remains",
+        "model_id": "ModelID.Unctuous_Remains",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Undead Bone",
+        "model_id": "ModelID.Undead_Bone",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Unnatural Seed",
+        "model_id": "ModelID.Unnatural_Seed",
+        "group": "Trophies",
+        "subgroup": "U",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Vaettir Essence",
+        "model_id": "ModelID.Vaettir_Essence",
+        "group": "Trophies",
+        "subgroup": "V",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Vampiric Fang",
+        "model_id": "ModelID.Vampiric_Fang",
+        "group": "Trophies",
+        "subgroup": "V",
+        "drop_info": "Dropped in Urgoz's Warren by Hopping Vampire & Thought Stealer",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Venerable Mantid Pincer",
+        "model_id": "ModelID.Venerable_Mantid_Pincer",
+        "group": "Trophies",
+        "subgroup": "V",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Vermin Hide",
+        "model_id": "ModelID.Vermin_Hide",
+        "group": "Trophies",
+        "subgroup": "V",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "War Supplies",
+        "model_id": "ModelID.War_Supplies",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Warden Horn",
+        "model_id": "ModelID.Warden_Horn",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Water Djinn Essence",
+        "model_id": "ModelID.Water_Djinn_Essence",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Weaver Leg",
+        "model_id": "ModelID.Weaver_Leg",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "White Mantle Badge",
+        "model_id": "ModelID.White_Mantle_Badge",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "White Mantle Emblem",
+        "model_id": "ModelID.White_Mantle_Emblem",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Worn Belt",
+        "model_id": "ModelID.Worn_Belt",
+        "group": "Trophies",
+        "subgroup": "W",
+        "drop_info": "Dropped by data to be added",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Confessors Orders",
+        "model_id": "ModelID.Confessors_Orders",
+        "group": "Reward Trophies",
+        "subgroup": "Prophecies",
+        "drop_info": "Dropped by the White Mantle & Peacekeepers",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Torment Gemstone",
+        "model_id": "ModelID.Torment_Gemstone",
+        "group": "Reward Trophies",
+        "subgroup": "Nightfall",
+        "drop_info": "Dropped in Domain of Anguish (DOA)",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Margonite Gemstone",
+        "model_id": "ModelID.Margonite_Gemstone",
+        "group": "Reward Trophies",
+        "subgroup": "Nightfall",
+        "drop_info": "Dropped in Domain of Anguish (DOA)",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Stygian Gemstone",
+        "model_id": "ModelID.Stygian_Gemstone",
+        "group": "Reward Trophies",
+        "subgroup": "Nightfall",
+        "drop_info": "Dropped in Domain of Anguish (DOA)",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Titan Gemstone",
+        "model_id": "ModelID.Titan_Gemstone",
+        "group": "Reward Trophies",
+        "subgroup": "Nightfall",
+        "drop_info": "Dropped in Domain of Anguish (DOA)",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Deldrimor Armor Remnant",
+        "model_id": "ModelID.Deldrimor_Armor_Remnant",
+        "group": "Reward Trophies",
+        "subgroup": "Eye Of North",
+        "drop_info": "Dropped from Hierophant's Chest",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Cloth Of The Brotherhood",
+        "model_id": "ModelID.Cloth_Of_The_Brotherhood",
+        "group": "Reward Trophies",
+        "subgroup": "Eye Of North",
+        "drop_info": "Dropped from Chest of the Brotherhood",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Ministerial Commendation",
+        "model_id": "ModelID.Ministerial_Commendation",
+        "group": "Reward Trophies",
+        "subgroup": "Winds Of Change",
+        "drop_info": "Random drop from members of the Ministry of Purity",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Lunar Token",
+        "model_id": "ModelID.Lunar_Token",
+        "group": "Reward Trophies",
+        "subgroup": "Special Events",
+        "drop_info": "Dropped during Cathan New Year - Random drop by foes",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Blessing Of War",
+        "model_id": "ModelID.Blessing_Of_War",
+        "group": "Reward Trophies",
+        "subgroup": "Special Events",
+        "drop_info": "Dropped after every 25 Zaishen Keys are used to open the Zaishen Chest",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Victory Token",
+        "model_id": "ModelID.Victory_Token",
+        "group": "Reward Trophies",
+        "subgroup": "Special Events",
+        "drop_info": "Dropped during Anniversary & Dragon Festival - Randomly dropped by PvE foes",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Wayfarer Mark",
+        "model_id": "ModelID.Wayfarer_Mark",
+        "group": "Reward Trophies",
+        "subgroup": "Special Events",
+        "drop_info": "Dropped during Wayfarer's Reverie, randomly dropped by PvE foes",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Cc Shard",
+        "model_id": "ModelID.Cc_Shard",
+        "group": "Reward Trophies",
+        "subgroup": "Special Events",
+        "drop_info": "Dropped during Wintersday, randomly dropped by PvE foes",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Glob Of Frozen Ectoplasm",
+        "model_id": "ModelID.Glob_Of_Frozen_Ectoplasm",
+        "group": "Reward Trophies",
+        "subgroup": "Special Events",
+        "drop_info": "Dropped during In Grenth's Defense and You're a Mean One, Mr. Grenth",
+        "enabled": true,
+        "rarity_filter": false
+    },
+    {
+        "name": "Map Piece (Bottom-Left)",
+        "model_id": "ModelID.Map_Piece_Bl",
+        "group": "Quest Items",
+        "subgroup": "Map Pieces",
+        "drop_info": "Dropped by data to be added",
+        "enabled": false,
+        "rarity_filter": false
+    },
+    {
+        "name": "Map Piece (Bottom-Right)",
+        "model_id": "ModelID.Map_Piece_Br",
+        "group": "Quest Items",
+        "subgroup": "Map Pieces",
+        "drop_info": "Dropped by data to be added",
+        "enabled": false,
+        "rarity_filter": false
+    },
+    {
+        "name": "Map Piece (Top-Left)",
+        "model_id": "ModelID.Map_Piece_Tl",
+        "group": "Quest Items",
+        "subgroup": "Map Pieces",
+        "drop_info": "Dropped by data to be added",
+        "enabled": false,
+        "rarity_filter": false
+    },
+    {
+        "name": "Map Piece (Top-Right)",
+        "model_id": "ModelID.Map_Piece_Tr",
+        "group": "Quest Items",
+        "subgroup": "Map Pieces",
+        "drop_info": "Dropped by data to be added",
+        "enabled": false,
+        "rarity_filter": false
+    }
+]
