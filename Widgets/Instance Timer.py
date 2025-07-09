@@ -6,6 +6,7 @@ from Py4GWCoreLib import Overlay
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import FormatTime
 from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Color
 import os
 module_name = "Instance Timer"
 
@@ -23,13 +24,12 @@ class Config:
         # Read configuration values from INI file
         self.x = ini_handler.read_int(module_name, "x", 100)
         self.y = ini_handler.read_int(module_name, "y", 100)
-        self.scale = ini_handler.read_float(module_name, "scale", 4.0)
-        self.color = (
-            ini_handler.read_float(module_name, "color_r", 1.0),
-            ini_handler.read_float(module_name, "color_g", 1.0),
-            ini_handler.read_float(module_name, "color_b", 1.0),
-            ini_handler.read_float(module_name, "color_a", 1.0),
-        )
+        self.font_size = ini_handler.read_int(module_name, "font_size", 20)
+        self.color = Color(
+                    ini_handler.read_int(module_name, "color_r", 255),
+                    ini_handler.read_int(module_name, "color_g", 255),
+                    ini_handler.read_int(module_name, "color_b", 255),
+                    ini_handler.read_int(module_name, "color_a", 255))
         self.string = "00:00:00:000"
         self.true_instance_timer = ini_handler.read_bool(module_name, "true_instance_timer", False)
         self.instance_entry_time = 0
@@ -40,11 +40,11 @@ class Config:
         """Save the current configuration to the INI file."""
         ini_handler.write_key(module_name, "x", str(self.x))
         ini_handler.write_key(module_name, "y", str(self.y))
-        ini_handler.write_key(module_name, "scale", str(self.scale))
-        ini_handler.write_key(module_name, "color_r", str(self.color[0]))
-        ini_handler.write_key(module_name, "color_g", str(self.color[1]))
-        ini_handler.write_key(module_name, "color_b", str(self.color[2]))
-        ini_handler.write_key(module_name, "color_a", str(self.color[3]))
+        ini_handler.write_key(module_name, "font_size", str(self.font_size))
+        ini_handler.write_key(module_name, "color_r", str(self.color.get_r()))
+        ini_handler.write_key(module_name, "color_g", str(self.color.get_g()))
+        ini_handler.write_key(module_name, "color_b", str(self.color.get_b()))
+        ini_handler.write_key(module_name, "color_a", str(self.color.get_a()))
         ini_handler.write_key(module_name, "true_instance_timer", str(self.true_instance_timer))
 
 
@@ -89,8 +89,14 @@ def configure():
         screen_width, screen_height = overlay.GetDisplaySize().x, overlay.GetDisplaySize().y
         widget_config.x = PyImGui.slider_int("X", widget_config.x, 0, screen_width)
         widget_config.y = PyImGui.slider_int("Y", widget_config.y, 0, screen_height)
-        widget_config.scale = PyImGui.slider_float("Scale", widget_config.scale, 1.0, 10.0)
-        widget_config.color = PyImGui.color_edit4("Color", widget_config.color)
+        widget_config.font_size = PyImGui.slider_int("Font Size", widget_config.font_size, 1, 250)
+        color = PyImGui.color_edit4("Color", widget_config.color.to_tuple_normalized())
+        widget_config.color = Color(
+            int(color[0] * 255),
+            int(color[1] * 255),
+            int(color[2] * 255),
+            int(color[3] * 255)
+        )
         widget_config.true_instance_timer = PyImGui.checkbox("True Instance Timer", widget_config.true_instance_timer)
 
         widget_config.save()
@@ -116,7 +122,11 @@ def DrawWindow():
     PyImGui.set_next_window_pos(widget_config.x, widget_config.y)
 
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
-        PyImGui.text_scaled(widget_config.string,widget_config.color,widget_config.scale)
+        ImGui.push_font("Regular", widget_config.font_size)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text,widget_config.color.to_tuple_normalized())
+        PyImGui.text(widget_config.string)
+        PyImGui.pop_style_color(1)
+        ImGui.pop_font()
     PyImGui.end()
 
 

@@ -40,6 +40,10 @@ class HeroAIoptions:
 
 hero_ai_snapshot = HeroAIoptions()
 
+combat_prep_first_skills_check = True
+hero_ai_has_ritualist_skills = False
+hero_ai_has_paragon_skills = False
+
 
 # region ImGui
 def configure():
@@ -623,6 +627,13 @@ def MessageEnableHeroAI(index, message):
 
 # region UseSkillFromMessage
 def UseSkillFromMessage(index, message):
+    global combat_prep_first_skills_check
+    global hero_ai_has_paragon_skills
+    global hero_ai_has_ritualist_skills
+
+    account_email = message.ReceiverEmail
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(account_email, index)
+
     # --- Paragon Shouts ---
     paragon_skills = [
         "Theres_Nothing_to_Fear",
@@ -670,8 +681,6 @@ def UseSkillFromMessage(index, message):
 
     def cast_paragon_shouts():
         global cached_data
-        account_email = message.ReceiverEmail
-        GLOBAL_CACHE.ShMem.MarkMessageAsRunning(account_email, index)
 
         ConsoleLog(MODULE_NAME, "Paragon shout skills initialized", Console.MessageType.Info)
 
@@ -703,8 +712,6 @@ def UseSkillFromMessage(index, message):
 
     def cast_rit_spirits():
         global cached_data
-        account_email = message.ReceiverEmail
-        GLOBAL_CACHE.ShMem.MarkMessageAsRunning(account_email, index)
 
         ConsoleLog(MODULE_NAME, "Ritualist skills initialized", Console.MessageType.Info)
 
@@ -749,9 +756,15 @@ def UseSkillFromMessage(index, message):
         yield from Routines.Yield.wait(100)
 
     cast_params = message.Params[0]
-    if cast_params == CombatPrepSkillsType.SpiritsPrep and curr_agent_has_ritualist_skills():
+
+    if combat_prep_first_skills_check:
+        hero_ai_has_ritualist_skills = curr_agent_has_ritualist_skills()
+        hero_ai_has_paragon_skills = curr_agent_has_paragon_skills()
+        combat_prep_first_skills_check = False
+
+    if cast_params == CombatPrepSkillsType.SpiritsPrep and hero_ai_has_ritualist_skills:
         yield from cast_rit_spirits()
-    elif cast_params == CombatPrepSkillsType.ShoutsPrep and curr_agent_has_paragon_skills():
+    elif cast_params == CombatPrepSkillsType.ShoutsPrep and hero_ai_has_paragon_skills:
         yield from cast_paragon_shouts()
 
     yield from Routines.Yield.wait(100)

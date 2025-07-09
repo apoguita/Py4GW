@@ -28,8 +28,62 @@ def main():
             
             if ImGui.ImageButton("##text_unique_name", texture_file, 64, 64):
                 Py4GW.Console.Log(MODULE_NAME, "Button clicked!", Py4GW.Console.MessageType.Info)
-              
+                
+            PyImGui.text("Extended Texture Drawing:")
+            ImGui.DrawTextureExtended(
+                texture_file,
+                size=(64, 64),
+                uv0=(0.0, 0.0),
+                uv1=(1.0, 1.0),
+                tint=(255, 255, 255, 255),
+                border_color=(0, 0, 0, 0)
+            )
+            PyImGui.same_line(0,-1)
+            ImGui.DrawTextureExtended(
+                texture_file,
+                size=(64, 64),
+                uv0=(0.0, 0.0),
+                uv1=(1.0, 1.0),
+                tint=(255, 0, 0, 255),
+                border_color=(0, 0, 0, 0)
+            )
 
+            PyImGui.same_line(0,-1)
+            ImGui.DrawTextureExtended(
+                texture_file,
+                size=(64, 64),
+                uv0=(0.0, 0.0),
+                uv1=(1.0, 1.0),
+                tint=(0, 255, 0, 255),
+                border_color=(0, 0, 0, 0)
+            )
+            PyImGui.same_line(0,-1)
+            ImGui.DrawTextureExtended(
+                texture_file,
+                size=(64, 64),
+                uv0=(0.0, 0.0),
+                uv1=(1.0, 1.0),
+                tint=(0, 0, 255, 255),
+                border_color=(0, 0, 0, 0)
+            )
+            PyImGui.same_line(0,-1)
+            ImGui.DrawTextureExtended(
+                texture_file,
+                size=(64, 64),
+                uv0=(0.0, 0.0),
+                uv1=(1.0, 1.0),
+                tint=(64, 64, 64, 255),
+                border_color=(0, 0, 0, 0)
+            )
+            
+            ImGui.DrawTextureExtended(
+                texture_file,
+                size=(256, 256),
+                uv0=(0.3, 0.3),
+                uv1=(0.8, 0.8),
+                tint=(255, 255, 255, 255),
+                border_color=(0, 0, 0, 0)
+            )
             
         PyImGui.end()
         
