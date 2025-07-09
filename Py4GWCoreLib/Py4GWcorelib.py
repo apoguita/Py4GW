@@ -2569,9 +2569,6 @@ class LootConfig:
             if self.IsWhitelisted(model_id):
                 continue
 
-            if self.IsItemIDWhitelisted(item_id):
-                continue
-
             if self.IsBlacklisted(model_id):
                 loot_array.remove(agent_id)
                 continue
