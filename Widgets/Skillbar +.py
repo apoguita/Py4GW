@@ -233,7 +233,7 @@ class SkillBarPlus:
             if PyImGui.collapsing_header(f'Auto Cast'):
                 self.enable_click = PyImGui.checkbox('Enable alt + right click on a skillbar skill to toggle autocasting.', self.enable_click)
 
-                icon_size = 48
+                icon_size = 36
                 offset = icon_size + 24
 
                 for i in range(8):
