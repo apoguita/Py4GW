@@ -229,6 +229,13 @@ global_widget_defaults = {
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },
+    "CustomBehaviors": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True"
+    },
     # TODO: Register your Widget here
 }
 
@@ -465,5 +472,13 @@ account_widget_defaults = {
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },
+    "CustomBehaviors": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True"
+    },
+
     # TODO: Register your Widget here
 }
