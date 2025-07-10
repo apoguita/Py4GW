@@ -963,6 +963,7 @@ class CombatClass:
         # Check if the player is already casting
          # Validate target
         v_target = self.GetAppropiateTarget(slot)
+
         if v_target is None or v_target == 0:
             self.in_casting_routine = False
             return False, 0
@@ -981,7 +982,8 @@ class CombatClass:
             self.in_casting_routine = False
             return False, v_target
         # Check if the skill is recharging
-        if self.skills[slot].skillbar_data.recharge != 0:
+
+        if not Routines.Checks.Skills.IsSkillIDReady(self.skills[slot].skill_id):
             self.in_casting_routine = False
             return False, v_target
         
