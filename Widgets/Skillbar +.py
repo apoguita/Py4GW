@@ -8,18 +8,21 @@ class SkillBarPlus:
     ini = IniHandler(os.path.join(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")), "Widgets/Config/Skillbar +.ini"))
     
     class SkillsPlus:
-        overlay        = PyOverlay.Overlay()
-        skill_ids      = []
-        coords         = []
-        font_size      = 40
-        draw_bg        = True
-        bg_default     = Utils.RGBToColor(0, 255, 0, 50)
-        bg_near        = Utils.RGBToColor(255, 0, 0, 150)
-        near_threshold = 5
-        draw_duration  = True
-        duration_font  = 16
-        duration_bg    = Utils.RGBToColor(0, 0, 0, 255)
-        duration_bar   = Utils.RGBToColor(100, 100, 100, 255)
+        overlay         = PyOverlay.Overlay()
+        skill_ids       = []
+        coords          = []
+        font_size       = 40
+        draw_bg         = True
+        bg_default      = Utils.RGBToColor(0, 255, 0, 50)
+        bg_near         = Utils.RGBToColor(255, 0, 0, 150)
+        near_threshold  = 5
+        draw_duration   = True
+        duration_font   = 16
+        duration_bg     = Utils.RGBToColor(0, 0, 0, 255)
+        duration_bar    = Utils.RGBToColor(100, 100, 100, 255)
+        duration_offset = 0
+        duration_bar_height = 20
+        skill_height = 100
 
         def Clear(self):
             self.coords = []
@@ -74,7 +77,10 @@ class SkillBarPlus:
             text_width, text_height = PyImGui.calc_text_size(str(remaining))
 
             left, top, right, bottom = coords
+            self.skill_height = bottom - top
+            top += self.duration_offset
             bottom = top + int(text_height*.75 + 4)
+            self.duration_bar_height = bottom - top
             self.overlay.DrawQuadFilled(PyOverlay.Point2D(left,top),
                                         PyOverlay.Point2D(right,top),
                                         PyOverlay.Point2D(right,bottom + 2),
@@ -93,7 +99,7 @@ class SkillBarPlus:
             text_width = text_width + 4
             text_height = text_height*.75 + 4
 
-            self.DrawText(f'bar{id}', str(remaining), left + (width - text_width)/2, 3 + top + (height - text_height)/2, text_width, text_height)
+            self.DrawText(id, str(remaining), left + (width - text_width)/2, 3 + top + (height - text_height)/2, text_width, text_height)
 
             ImGui.pop_font()
 
@@ -116,7 +122,7 @@ class SkillBarPlus:
                             self.DrawBackground(self.coords[i], color)
 
                         if self.draw_duration:
-                            self.DrawDurationBar(i, self.coords[i], duration, remaining)
+                            self.DrawDurationBar(f'duration{i}', self.coords[i], duration, remaining)
 
                 recharge = GLOBAL_CACHE.SkillBar.GetSkillData(i+1).get_recharge/1000
                 recharge = math.floor(recharge) if recharge > 1 else round(recharge,1)
@@ -149,9 +155,10 @@ class SkillBarPlus:
 
                 self.draw_duration = PyImGui.checkbox('Draw Effect Durations on Skillbar', self.draw_duration)
                 if self.draw_duration:
-                    self.duration_font = PyImGui.slider_int('Font Size##EffectDuration',  self.duration_font,  4, 30)
-                    self.duration_bg   = Utils.TupleToColor(PyImGui.color_edit4('Duration Bar Background', Utils.ColorToTuple(self.duration_bg)))
-                    self.duration_bar  = Utils.TupleToColor(PyImGui.color_edit4('Duration Bar Foreground', Utils.ColorToTuple(self.duration_bar)))
+                    self.duration_font   = PyImGui.slider_int('Font Size##EffectDuration',  self.duration_font,  4, 30)
+                    self.duration_bg     = Utils.TupleToColor(PyImGui.color_edit4('Duration Bar Background', Utils.ColorToTuple(self.duration_bg)))
+                    self.duration_bar    = Utils.TupleToColor(PyImGui.color_edit4('Duration Bar Foreground', Utils.ColorToTuple(self.duration_bar)))
+                    self.duration_offset = PyImGui.slider_int('Duration Bar Y Offset',  self.duration_offset,  -self.duration_bar_height - 1, self.skill_height)
 
     class EffectsPlus:
         font_size = 20
@@ -261,20 +268,21 @@ class SkillBarPlus:
     auto = AutoCast()
 
     def LoadConfig(self):
-        self.skills.font_size      = self.ini.read_int('skills', 'font', 40)
-        self.skills.draw_bg        = self.ini.read_bool('skills', 'draw_bg', True)
-        self.skills.bg_default     = self.ini.read_int('skills', 'color_default', Utils.RGBToColor(0, 255, 0, 50))
-        self.skills.bg_near        = self.ini.read_int('skills', 'color_near', Utils.RGBToColor(255, 0, 0, 150))
-        self.skills.near_threshold = self.ini.read_int('skills', 'threshold',3)
-        self.draw_duration         = self.ini.read_bool('skills', 'draw_duration', False)
-        self.duration_font         = self.ini.read_int('skills', 'duration_font', 16)
-        self.duration_bg           = self.ini.read_int('skills', 'duration_bg', Utils.RGBToColor(0, 0, 0, 255))
-        self.duration_bar          = self.ini.read_int('skills', 'duration_bar', Utils.RGBToColor(100, 100, 100, 255))
+        self.skills.font_size       = self.ini.read_int('skills', 'font', 40)
+        self.skills.draw_bg         = self.ini.read_bool('skills', 'draw_bg', True)
+        self.skills.bg_default      = self.ini.read_int('skills', 'color_default', Utils.RGBToColor(0, 255, 0, 50))
+        self.skills.bg_near         = self.ini.read_int('skills', 'color_near', Utils.RGBToColor(255, 0, 0, 150))
+        self.skills.near_threshold  = self.ini.read_int('skills', 'threshold',3)
+        self.skills.draw_duration   = self.ini.read_bool('skills', 'draw_duration', False)
+        self.skills.duration_font   = self.ini.read_int('skills', 'duration_font', 16)
+        self.skills.duration_bg     = self.ini.read_int('skills', 'duration_bg', Utils.RGBToColor(0, 0, 0, 255))
+        self.skills.duration_bar    = self.ini.read_int('skills', 'duration_bar', Utils.RGBToColor(100, 100, 100, 255))
+        self.skills.duration_offset = self.ini.read_int('skills', 'duration_offset', 0)
 
-        self.effects.font_size     = self.ini.read_int('effects', 'font', 20)
-        self.effects.bg_color      = self.ini.read_int('effects', 'color', Utils.RGBToColor(0, 0, 0, 150))
+        self.effects.font_size      = self.ini.read_int('effects', 'font', 20)
+        self.effects.bg_color       = self.ini.read_int('effects', 'color', Utils.RGBToColor(0, 0, 0, 150))
 
-        self.auto.enable_click   = self.ini.read_bool('auto', 'enable_click', False)
+        self.auto.enable_click      = self.ini.read_bool('auto', 'enable_click', False)
 
     def SaveConfig(self):
         self.ini.write_key('skills', 'font', str(self.skills.font_size))
@@ -286,6 +294,7 @@ class SkillBarPlus:
         self.ini.write_key('skills', 'duration_font', str(self.skills.duration_font))
         self.ini.write_key('skills', 'duration_bg', str(self.skills.duration_bg))
         self.ini.write_key('skills', 'duration_bar', str(self.skills.duration_bar))
+        self.ini.write_key('skills', 'duration_offset', str(self.skills.duration_offset))
 
         self.ini.write_key('effects', 'font', str(self.effects.font_size))
         self.ini.write_key('effects', 'color', str(self.effects.bg_color))
