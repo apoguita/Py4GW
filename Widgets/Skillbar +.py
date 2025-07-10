@@ -263,8 +263,8 @@ class SkillBarPlus:
     def LoadConfig(self):
         self.skills.font_size      = self.ini.read_int('skills', 'font', 40)
         self.skills.draw_bg        = self.ini.read_bool('skills', 'draw_bg', True)
-        self.skills.bg_default     = self.ini.read_int('skills', 'color_default', Utils.RGBToColor(0, 0, 0, 150))
-        self.skills.bg_near        = self.ini.read_int('skills', 'color_near', Utils.RGBToColor(0, 255, 0, 50))
+        self.skills.bg_default     = self.ini.read_int('skills', 'color_default', Utils.RGBToColor(0, 255, 0, 50))
+        self.skills.bg_near        = self.ini.read_int('skills', 'color_near', Utils.RGBToColor(255, 0, 0, 150))
         self.skills.near_threshold = self.ini.read_int('skills', 'threshold',3)
         self.draw_duration         = self.ini.read_bool('skills', 'draw_duration', False)
         self.duration_font         = self.ini.read_int('skills', 'duration_font', 16)
@@ -274,7 +274,7 @@ class SkillBarPlus:
         self.effects.font_size     = self.ini.read_int('effects', 'font', 20)
         self.effects.bg_color      = self.ini.read_int('effects', 'color', Utils.RGBToColor(0, 0, 0, 150))
 
-        self.auto.enable_click   = self.ini.read_bool('auto', 'enable_click', True)
+        self.auto.enable_click   = self.ini.read_bool('auto', 'enable_click', False)
 
     def SaveConfig(self):
         self.ini.write_key('skills', 'font', str(self.skills.font_size))
