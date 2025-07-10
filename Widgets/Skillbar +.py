@@ -2,24 +2,29 @@ from Py4GWCoreLib import *
 import ctypes
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
-window_module = ImGui.WindowModule('Skillbar+', window_name = 'Skillbar+', window_pos = (1200, 400), window_flags = PyImGui.WindowFlags.AlwaysAutoResize)
+window_module = ImGui.WindowModule('Skillbar+', window_name = 'Skillbar+', window_flags = PyImGui.WindowFlags.AlwaysAutoResize)
 
 class SkillBarPlus:
     ini = IniHandler(os.path.join(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")), "Widgets/Config/Skillbar +.ini"))
     
     class SkillsPlus:
         overlay        = PyOverlay.Overlay()
+        skill_ids      = []
         coords         = []
         font_size      = 40
         draw_bg        = True
-        bg_default     = Utils.RGBToColor(0, 0, 0, 150)
-        bg_near        = Utils.RGBToColor(0, 255, 0, 50)
-        near_threshold = 3
+        bg_default     = Utils.RGBToColor(0, 255, 0, 50)
+        bg_near        = Utils.RGBToColor(255, 0, 0, 150)
+        near_threshold = 5
+        draw_duration  = True
+        duration_font  = 16
+        duration_bg    = Utils.RGBToColor(0, 0, 0, 255)
+        duration_bar   = Utils.RGBToColor(100, 100, 100, 255)
 
         def Clear(self):
             self.coords = []
 
-        def GetCoords(self):
+        def Update(self):
             for i in range(8):
                 frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = f'Skillbar.Skill{i + 1}')
                 coords = UIManager.GetFrameCoords(frame_id)
@@ -27,6 +32,8 @@ class SkillBarPlus:
                     frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = f'Skillbar.Skill{i + 1}')
                     coords = UIManager.GetFrameCoords(frame_id)
                 self.coords.append(coords)
+
+                self.skill_ids.append(SkillBar.GetSkillIDBySlot(i+1))
 
         def DrawText(self, caption, text, x, y, w, h):
             PyImGui.set_next_window_pos(x, y)
@@ -57,19 +64,64 @@ class SkillBarPlus:
                                         PyOverlay.Point2D(right,bottom),
                                         PyOverlay.Point2D(left,bottom),
                                         color)
+            
+        def DrawDurationBar(self, id, coords, duration, remaining):
+            ImGui.push_font("Regular", self.duration_font)
+
+            percentage = remaining/duration
+            remaining = math.floor(remaining) if remaining > 1 else round(remaining,1)
+                
+            text_width, text_height = PyImGui.calc_text_size(str(remaining))
+
+            left, top, right, bottom = coords
+            bottom = top + int(text_height*.75 + 4)
+            self.overlay.DrawQuadFilled(PyOverlay.Point2D(left,top),
+                                        PyOverlay.Point2D(right,top),
+                                        PyOverlay.Point2D(right,bottom + 2),
+                                        PyOverlay.Point2D(left,bottom + 2),
+                                        self.duration_bg)
+            
+            bar_length = int(((right - 1) - (left + 1))*percentage)
+            self.overlay.DrawQuadFilled(PyOverlay.Point2D(left + 1,top + 1),
+                                        PyOverlay.Point2D(left + bar_length,top + 1),
+                                        PyOverlay.Point2D(left + bar_length,bottom + 1),
+                                        PyOverlay.Point2D(left + 1,bottom + 1),
+                                        self.duration_bar)
+            
+            width = right - left
+            height = bottom - top
+            text_width = text_width + 4
+            text_height = text_height*.75 + 4
+
+            self.DrawText(f'bar{id}', str(remaining), left + (width - text_width)/2, 3 + top + (height - text_height)/2, text_width, text_height)
+
+            ImGui.pop_font()
 
         def Draw(self):
             self.overlay.BeginDraw()
 
             for i in range(8):
+                if self.draw_bg or self.draw_duration:
+                    duration = 0
+                    remaining = 0
+                    for effect in GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID()):
+                        if effect.skill_id == self.skill_ids[i]:
+                            duration = effect.duration
+                            remaining = effect.time_remaining/1000
+                            break
+
+                    if remaining and remaining < 50000:
+                        if self.draw_bg:
+                            color = self.bg_default if remaining > (self.near_threshold) else self.bg_near
+                            self.DrawBackground(self.coords[i], color)
+
+                        if self.draw_duration:
+                            self.DrawDurationBar(i, self.coords[i], duration, remaining)
+
                 recharge = GLOBAL_CACHE.SkillBar.GetSkillData(i+1).get_recharge/1000
                 recharge = math.floor(recharge) if recharge > 1 else round(recharge,1)
                 if 1000 > recharge > 0:
                     left, top, right, bottom = self.coords[i]
-
-                    if self.draw_bg:
-                        color = self.bg_default if recharge > (self.near_threshold - 1) else self.bg_near
-                        self.DrawBackground(self.coords[i], color)
 
                     width = right - left
                     height = bottom - top
@@ -91,9 +143,15 @@ class SkillBarPlus:
                 self.font_size = PyImGui.slider_int('Font Size##Skillbar',  self.font_size,  10, 100)
                 self.draw_bg = PyImGui.checkbox('Draw Background Colors', self.draw_bg)
                 if self.draw_bg:
-                    self.bg_default = Utils.TupleToColor(PyImGui.color_edit4('Default', Utils.ColorToTuple(self.bg_default)))
-                    self.bg_near = Utils.TupleToColor(PyImGui.color_edit4('Nearly Recharged', Utils.ColorToTuple(self.bg_near)))
-                    self.near_threshold = PyImGui.input_int('Almost Recharged Threshold (s)', self.near_threshold)
+                    self.bg_default = Utils.TupleToColor(PyImGui.color_edit4('Under Skill Effect', Utils.ColorToTuple(self.bg_default)))
+                    self.bg_near = Utils.TupleToColor(PyImGui.color_edit4('Skill Effect Nearly Expired', Utils.ColorToTuple(self.bg_near)))
+                    self.near_threshold = PyImGui.input_int('Nearly Expired Threshold (s)', self.near_threshold)
+
+                self.draw_duration = PyImGui.checkbox('Draw Effect Durations on Skillbar', self.draw_duration)
+                if self.draw_duration:
+                    self.duration_font = PyImGui.slider_int('Font Size##EffectDuration',  self.duration_font,  4, 30)
+                    self.duration_bg   = Utils.TupleToColor(PyImGui.color_edit4('Duration Bar Background', Utils.ColorToTuple(self.duration_bg)))
+                    self.duration_bar  = Utils.TupleToColor(PyImGui.color_edit4('Duration Bar Foreground', Utils.ColorToTuple(self.duration_bar)))
 
     class EffectsPlus:
         font_size = 20
@@ -130,9 +188,11 @@ class SkillBarPlus:
                 while frame_coords[0] == 0:
                     frame_coords = UIManager.GetFrameCoords(frame_id)
 
-                time_remaining = effect.time_remaining
-                if effect.time_remaining > 30*60*1000: continue
-                time_remaining = str(round(time_remaining/1000))
+                time_remaining = effect.time_remaining/1000
+                if time_remaining > 30*60:
+                    continue
+                time_remaining = math.floor(time_remaining) if time_remaining > 1 else round(time_remaining,1)
+                time_remaining = str(time_remaining)
 
                 _, _, right, bottom = frame_coords
 
@@ -206,6 +266,10 @@ class SkillBarPlus:
         self.skills.bg_default     = self.ini.read_int('skills', 'color_default', Utils.RGBToColor(0, 0, 0, 150))
         self.skills.bg_near        = self.ini.read_int('skills', 'color_near', Utils.RGBToColor(0, 255, 0, 50))
         self.skills.near_threshold = self.ini.read_int('skills', 'threshold',3)
+        self.draw_duration         = self.ini.read_bool('skills', 'draw_duration', False)
+        self.duration_font         = self.ini.read_int('skills', 'duration_font', 16)
+        self.duration_bg           = self.ini.read_int('skills', 'duration_bg', Utils.RGBToColor(0, 0, 0, 255))
+        self.duration_bar          = self.ini.read_int('skills', 'duration_bar', Utils.RGBToColor(100, 100, 100, 255))
 
         self.effects.font_size     = self.ini.read_int('effects', 'font', 20)
         self.effects.bg_color      = self.ini.read_int('effects', 'color', Utils.RGBToColor(0, 0, 0, 150))
@@ -218,6 +282,10 @@ class SkillBarPlus:
         self.ini.write_key('skills', 'color_default', str(self.skills.bg_default))
         self.ini.write_key('skills', 'color_near', str(self.skills.bg_near))
         self.ini.write_key('skills', 'threshold', str(self.skills.near_threshold))
+        self.ini.write_key('skills', 'draw_duration', str(self.skills.draw_duration))
+        self.ini.write_key('skills', 'duration_font', str(self.skills.duration_font))
+        self.ini.write_key('skills', 'duration_bg', str(self.skills.duration_bg))
+        self.ini.write_key('skills', 'duration_bar', str(self.skills.duration_bar))
 
         self.ini.write_key('effects', 'font', str(self.effects.font_size))
         self.ini.write_key('effects', 'color', str(self.effects.bg_color))
@@ -244,10 +312,13 @@ def configure():
 
     if not Map.IsMapReady() or not Party.IsPartyLoaded(): return
     
-    if window_module.first_run:    
-        PyImGui.set_next_window_pos(window_module.window_pos[0], window_module.window_pos[1])
+    if window_module.first_run:
+        x = sbp.ini.read_int('pos', 'x', 500)
+        y = sbp.ini.read_int('pos', 'y', 300)
+        PyImGui.set_next_window_pos(x, y)
         window_module.first_run = False
 
+    pos = (-1, -1)
     try:
         if PyImGui.begin(window_module.window_name, window_module.window_flags):
             PyImGui.push_style_color(PyImGui.ImGuiCol.Header,           (.2,.2,.2,1))
@@ -265,8 +336,13 @@ def configure():
             sbp.DrawConfig()
 
             PyImGui.pop_style_color(11)
+
+            pos = PyImGui.get_window_pos()
         PyImGui.end()
 
+        if pos != (-1, -1):
+            sbp.ini.write_key('pos', 'x', str(int(pos[0])))
+            sbp.ini.write_key('pos', 'y', str(int(pos[1])))
         sbp.SaveConfig()
 
     except Exception as e:
@@ -283,7 +359,7 @@ def main():
 
         if Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded() and not UIManager.IsWorldMapShowing():
             if not sbp.skills.coords:
-                sbp.skills.GetCoords()
+                sbp.skills.Update()
             sbp.skills.Draw()
             sbp.effects.Draw()
             sbp.auto.Cast()
