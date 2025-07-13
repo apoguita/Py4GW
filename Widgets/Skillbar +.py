@@ -195,10 +195,6 @@ class SkillBarPlus:
             for effect in GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID()):
                 frame_id = UIManager.GetChildFrameID(1726357791, [effect.skill_id + 4])
                 frame_coords = UIManager.GetFrameCoords(frame_id)
-                if frame_coords[0] == 0:
-                    continue
-                # while frame_coords[0] == 0:
-                #     frame_coords = UIManager.GetFrameCoords(frame_id)
 
                 time_remaining = effect.time_remaining/1000
                 if time_remaining > 30*60:
