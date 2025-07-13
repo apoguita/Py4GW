@@ -182,6 +182,18 @@ class HoveredFlags(IntEnum):
     AllowWhenOverlapped = 1 << 5
     AllowWhenDisabled = 1 << 6
 
+class DrawFlags(IntEnum):
+    _NoFlag = 0
+    RoundCornersNone = 0
+    RoundCornersTopLeft = 1 << 0
+    RoundCornersTopRight = 1 << 1
+    RoundCornersBottomLeft = 1 << 2
+    RoundCornersBottomRight = 1 << 3
+    RoundCornersTop = RoundCornersTopLeft | RoundCornersTopRight
+    RoundCornersBottom = RoundCornersBottomLeft | RoundCornersBottomRight
+    RoundCornersLeft = RoundCornersTopLeft | RoundCornersBottomLeft
+    RoundCornersRight = RoundCornersTopRight | RoundCornersBottomRight
+    RoundCornersAll = RoundCornersTop | RoundCornersBottom
 
 class ImGuiIO:
     def __init__(self):
@@ -273,6 +285,19 @@ class ImGuiCol(IntEnum):
     NavWindowingDimBg = 51
     ModalWindowDimBg = 52
     
+class ImGuiCond(IntEnum):
+    _None = 0
+    Always = 1 << 0
+    Once = 1 << 1
+    FirstUseEver = 1 << 2
+    Appearing = 1 << 3
+    
+class ImGuiMouseButton(IntEnum):
+    Left = 0
+    Right = 1
+    Middle = 2
+    Count = 5
+
 
 @staticmethod
 def new_line() -> None: ...
@@ -599,6 +624,11 @@ def get_window_content_region_min() -> Tuple[float, float]: ...
 @staticmethod
 def get_window_content_region_max() -> Tuple[float, float]: ...
 
+@staticmethod
+def set_window_pos(x: float, y: float, cond: ImGuiCond = ImGuiCond._None) -> None: ...
+@staticmethod
+def set_window_size(width: float, height: float, cond: ImGuiCond = ImGuiCond._None) -> None: ...
+
 #Tables
 @staticmethod
 def get_column_index() -> int: ...
@@ -622,6 +652,10 @@ def is_mouse_down(button: int) -> bool: ...
 def is_mouse_released(button: int) -> bool: ...
 @staticmethod
 def is_mouse_dragging(button: int, lock_threshold: float = -1.0) -> bool: ...
+@staticmethod
+def get_mouse_drag_delta(button: int = ImGuiMouseButton.Left, lock_threshold:float=0.0) -> Tuple[float, float]: ...
+@staticmethod
+def reset_mouse_drag_delta(button: int = ImGuiMouseButton.Left) -> None: ...
 @staticmethod
 def is_item_hovered() -> bool: ...
 @staticmethod
@@ -698,9 +732,15 @@ def get_tree_node_to_label_spacing() -> float: ...
 def set_next_item_open(is_open: bool, cond: int = 0) -> None: ...
 @staticmethod
 def set_next_item_width(item_width: float) -> None: ...
+@staticmethod
+def get_item_rect_min() -> Tuple[float, float]: ...
+@staticmethod
+def get_item_rect_max() -> Tuple[float, float]: ...
 @overload
 def collapsing_header(label: str) -> bool: ...
 @overload
 def collapsing_header(label: str, flags: int) -> bool: ...
 @staticmethod
 def dummy(width:int, height:int) -> None: ...
+
+

@@ -308,6 +308,12 @@ class Utils:
 
         pixels_per_gwinch = (scale_x * zoom) / gwinches
         return pixel_value / pixels_per_gwinch
+    
+    @staticmethod
+    def PixelsToUV(x: int, y: int, w: int, h: int, texture_width: int, texture_height: int) -> tuple[tuple[float, float], tuple[float, float]]:
+        uv0 = (x / texture_width, y / texture_height)
+        uv1 = ((x + w) / texture_width, (y + h) / texture_height)
+        return uv0, uv1
 
     @staticmethod
     def SafeInt(value, fallback=0):
@@ -687,6 +693,16 @@ class ColorPalette:
         "gw_green": Color(25, 200, 0, 255),
         "gw_purple": Color(110, 65, 200, 255),
         "gw_white": Color(255, 255, 255, 255),
+        "gw_warrior": Color(222, 185, 104, 255), 
+        "gw_ranger": Color(147, 194, 74, 255),
+        "gw_monk": Color(171, 215, 229, 255),
+        "gw_necromancer": Color(87, 174, 112, 255),
+        "gw_mesmer": Color(161, 84, 146, 255),
+        "gw_elementalist": Color(197, 75, 75, 255),
+        "gw_assassin": Color(234, 18, 125, 255),
+        "gw_ritualist": Color(39, 234, 204, 255),
+        "gw_paragon": Color(208, 122, 14, 255),
+        "gw_dervish": Color(97, 115, 163, 255),
         "indigo": Color(75, 0, 130),
         "ivory": Color(255, 255, 240),
         "khaki": Color(240, 230, 140),

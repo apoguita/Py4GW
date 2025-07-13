@@ -1,7 +1,19 @@
 import PySkill
+import json
+import os
 from .enums import SkillTextureMap
 
 class Skill:
+    _desc_cache = None  # Cache JSON data once loaded
+    
+    @staticmethod
+    def _load_descriptions():
+        if Skill._desc_cache is None:
+            path = os.path.join(os.path.dirname(__file__), "skill_descriptions.json")
+            with open(path, encoding="utf-8") as f:
+                Skill._desc_cache = json.load(f)
+        return Skill._desc_cache
+    
     @staticmethod
     def skill_instance(skill_id):
         return PySkill.Skill(skill_id)
@@ -10,11 +22,62 @@ class Skill:
     def GetName(skill_id):
         """Purpose: Retrieve the name of a skill by its ID."""
         return Skill.skill_instance(skill_id).id.GetName()
+    
+    @staticmethod
+    def GetNameFromWiki(skill_id):
+        """Purpose: Retrieve the name of a skill by its ID from the wiki."""
+        data = Skill._load_descriptions()
+        return data.get(str(skill_id), {}).get("name", Skill.GetName(skill_id))
+    
+    @staticmethod
+    def GetURL(skill_id):
+        """Purpose: Retrieve the URL of a skill by its ID."""
+        data = Skill._load_descriptions()
+        return data.get(str(skill_id), {}).get("url", "")
+    
+    @staticmethod
+    def GetProgressionData(skill_id):
+        """
+        Purpose: Retrieve the progression data for a given skill.
+        Returns a list of (attribute_name, field_name, values_dict)
+        """
+        data = Skill._load_descriptions()
+        entry = data.get(str(skill_id), {})
+        progressions = entry.get("progression")
+
+        if not progressions:
+            return []
+
+        if isinstance(progressions, dict):
+            progressions = [progressions]
+
+        results = []
+        for prog in progressions:
+            attr = prog.get("attribute", "")
+            field = prog.get("field", "")
+            values = {int(k): float(v) for k, v in prog.get("values", {}).items()}
+            results.append((attr, field, values))
+
+        return results
+
+
 
     @staticmethod
     def GetID(skill_name:str):
         """Purpose: Retrieve the ID of a skill by its ID."""
         return Skill.skill_instance(skill_name).id.id
+    
+    @staticmethod
+    def GetDescription(skill_id: int) -> str:
+        """Return full description from skill_descriptions.json."""
+        data = Skill._load_descriptions()
+        return data.get(str(skill_id), {}).get("desc_full", "No description available.")
+
+    @staticmethod
+    def GetConciseDescription(skill_id: int) -> str:
+        """Return concise description from skill_descriptions.json."""
+        data = Skill._load_descriptions()
+        return data.get(str(skill_id), {}).get("desc_concise", "No description available.")
 
     @staticmethod
     def GetType(skill_id):
@@ -49,6 +112,9 @@ class Skill:
         @staticmethod
         def GetOvercast(skill_id):
             """Purpose: Retrieve the overcast of a skill by its ID."""
+            special = Skill.skill_instance(skill_id).special
+            if (special & 0x0001) == 0:
+                return 0
             return Skill.skill_instance(skill_id).overcast
 
         @staticmethod
