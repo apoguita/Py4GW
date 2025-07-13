@@ -254,7 +254,6 @@ class SkillBarPlus:
                         Routines.Checks.Skills.HasEnoughAdrenaline(player_id, skill_id) and 
                         Routines.Checks.Skills.HasEnoughLife(player_id, skill_id)):
                         self.cast_timer.Reset()
-                        print(i+1)
                         self.action_queue.AddAction('ACTION',SkillBar.UseSkill, i + 1)
 
         def Config(self):
