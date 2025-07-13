@@ -248,8 +248,14 @@ class SkillBarPlus:
         def Cast(self):
             for i in range(8):
                 if self.slots[i] and self.CanQueue(i + 1):
-                    self.cast_timer.Reset()
-                    self.action_queue.AddAction('ACTION',SkillBar.UseSkill, i + 1)
+                    player_id = GLOBAL_CACHE.Player.GetAgentID()
+                    skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(i + 1)
+                    if (Routines.Checks.Skills.HasEnoughEnergy(player_id, skill_id)     and 
+                        Routines.Checks.Skills.HasEnoughAdrenaline(player_id, skill_id) and 
+                        Routines.Checks.Skills.HasEnoughLife(player_id, skill_id)):
+                        self.cast_timer.Reset()
+                        print(i+1)
+                        self.action_queue.AddAction('ACTION',SkillBar.UseSkill, i + 1)
 
         def Config(self):
             if PyImGui.collapsing_header(f'Auto Cast'):
