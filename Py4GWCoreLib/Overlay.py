@@ -191,5 +191,9 @@ class Overlay:
                           frame_padding: int = -1) -> bool:
         return self.overlay_instance.ImageButton(caption, texture_path, size, uv0, uv1, bg_color, tint_color, frame_padding)
         
-    
+    def DrawTextureInForegound(self, pos: Tuple[float, float], size: Tuple[float, float], texture_path: str,
+                       uv0: Tuple[float, float] = (0.0, 0.0),
+                       uv1: Tuple[float, float] = (1.0, 1.0),
+                       tint: Tuple[int, int, int, int] = (255, 255, 255, 255)) -> None:
+        self.overlay_instance.DrawTextureInForegound(pos, size, texture_path, uv0, uv1, tint)
     
