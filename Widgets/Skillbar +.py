@@ -29,13 +29,17 @@ class SkillBarPlus:
 
         def GetSkillFrames(self):
             for i in range(8):
-                frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = f'Skillbar.Skill{i + 1}')
+                frame_id = UIManager.GetChildFrameID(641635682, [i])
                 if not UIManager.FrameExists(frame_id): 
-                    return
+                    continue
                 coords = UIManager.GetFrameCoords(frame_id)
                 self.coords.append(coords)
 
                 self.skill_ids.append(SkillBar.GetSkillIDBySlot(i+1))
+            
+            if len(self.coords) < 8 or len(self.skill_ids) < 8:
+                self.coords = []
+                self.skill_ids = []
 
         def DrawText(self, caption, text, x, y, w, h):
             PyImGui.set_next_window_pos(x, y)
@@ -105,6 +109,9 @@ class SkillBarPlus:
         def Draw(self):
             self.overlay.BeginDraw()
 
+            if not self.coords: return
+            if not self.skill_ids: return
+
             for i in range(8):
                 if self.draw_bg or self.draw_duration:
                     duration = 0
@@ -117,7 +124,16 @@ class SkillBarPlus:
 
                     if remaining and remaining < 50000:
                         if self.draw_bg:
-                            color = self.bg_default if remaining > (self.near_threshold) else self.bg_near
+                            color = self.bg_near
+                            if remaining > self.near_threshold + 1:
+                                color = self.bg_default
+                            elif remaining > self.near_threshold:
+                                bg_color = tuple(int(c * 255) for c in Utils.ColorToTuple(self.bg_default))
+                                near_color = tuple(int(c * 255) for c in Utils.ColorToTuple(self.bg_near))
+                                amount = 1 - (remaining - self.near_threshold)
+                                color = Color(*bg_color).shift(Color(*near_color), amount).to_color()
+
+
                             self.DrawBackground(self.coords[i], color)
 
                         if self.draw_duration:
