@@ -79,6 +79,9 @@ class Skill:
     adrenaline_a: int
     adrenaline_b: int
     recharge2: int
+    h0004: int
+    h0032: int
+    h0037: int
 
     @overload
     def __init__(self) -> None: ...

@@ -27,6 +27,26 @@ class SkillCache:
         if skill.id.id == 0:
             return ""
         return skill.id.GetName()
+    
+    def GetNameFromWiki(self, skill_id: int) -> str:
+        """Return skill name from skill_descriptions.json."""
+        from ..Skill import Skill 
+        return Skill.GetNameFromWiki(skill_id)
+    
+    def GetURL(self, skill_id: int) -> str:
+        """Return skill URL from skill_descriptions.json."""
+        from ..Skill import Skill 
+        return Skill.GetURL(skill_id)
+    
+    def GetDescription(self, skill_id: int) -> str:
+        """Return full description from skill_descriptions.json."""
+        from ..Skill import Skill 
+        return Skill.GetDescription(skill_id)
+
+    def GetConciseDescription(self, skill_id: int) -> str:
+        """Return concise description from skill_descriptions.json."""
+        from ..Skill import Skill 
+        return Skill.GetConciseDescription(skill_id)
         
     def GetID(self, skill_name: str) -> int:
         skill = PySkill.Skill(skill_name)
@@ -68,6 +88,9 @@ class SkillCache:
         
         def GetOvercast(self, skill_id) -> int:
             skill = self._get_skill_instance(skill_id)
+            special = skill.special
+            if (special & 0x0001) == 0:
+                return 0    
             return skill.overcast
         
         def GetEnergyCost(self, skill_id) -> int:

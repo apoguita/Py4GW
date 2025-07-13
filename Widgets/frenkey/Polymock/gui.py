@@ -20,7 +20,7 @@ class UI:
             cls.widget_state = state.WidgetState()
             cls.expanded = False
             cls.gui_open = True        
-            cls.item_textures_path = os.path.join(utility.GetPy4GWPath(), "Textures", "Items")
+            cls.item_textures_path = "Textures\\Item Models\\"
         
         return cls._instance
                     

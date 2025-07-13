@@ -692,7 +692,7 @@ def DrawMessagingOptions(cached_data:CacheData):
         PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, ButtonColors["CandyCane"].hovered_color.to_tuple_normalized())  # Hover color
         PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, ButtonColors["CandyCane"].active_color.to_tuple_normalized())
         if ImGui.ImageButton("##CandyCane_unique_name", ButtonColors["CandyCane"].texture_path, 32, 32):
-            _post_pcon_message((ModelID.Rainbow_Cc.value, 0, ModelID.Honeycomb.value, 0))
+            _post_pcon_message((ModelID.Rainbow_Candy_Cane.value, 0, ModelID.Honeycomb.value, 0))
         PyImGui.pop_style_color(3)
         ImGui.show_tooltip("Rainbow Candy Cane / Honeycomb")
         PyImGui.separator()

@@ -61,73 +61,73 @@ class PolymockBar():
         return f"PolymockBar(name='{self.name}', skills={self.skills})"
 
 class PolymockPieces(Enum):
-    Gargoyle = PolymockBar("Gargoyle", 24361, "Gargoyle_Polymock_Piece.png", {
+    Gargoyle = PolymockBar("Gargoyle", 24361, "[24361] - Gargoyle Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Lightning_Strike"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Lightning_Orb"), SkillReaction.BlockOrInterrupt, True),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Lightning_Djinns_Haste")),
     })
 
-    Mergoyle = PolymockBar("Mergoyle", 24369, "Mergoyle_Polymock_Piece.png", {
+    Mergoyle = PolymockBar("Mergoyle", 24369, "[24369] - Mergoyle Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Overload"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Glyph_Destabilization"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Mind_Wreck"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Skale = PolymockBar("Skale", 24373, "Skale_Polymock_Piece.png", {
+    Skale = PolymockBar("Skale", 24373, "[24373] - Skale Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Deathly_Chill"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Rising_Bile"), SkillReaction.Block, True),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Rotting_Flesh"), SkillReaction.BlockOrInterrupt),
     })
 
-    Fire_Imp = PolymockBar("Fire Imp", 24359, "Fire_Imp_Polymock_Piece.png", {
+    Fire_Imp = PolymockBar("Fire Imp", 24359, "[24359] - Fire Imp Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Flare"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Immolate"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Meteor"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Kappa = PolymockBar("Kappa", 24367, "Kappa_Polymock_Piece.png", {
+    Kappa = PolymockBar("Kappa", 24367, "[24367] - Kappa Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Ice_Spear"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Ice_Shard_Storm"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Frozen_Trident"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Ice_Imp = PolymockBar("Ice Imp", 24366, "Ice_Imp_Polymock_Piece.png", {
+    Ice_Imp = PolymockBar("Ice Imp", 24366, "[24366] - Ice Imp Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Ice_Spear"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Icy_Prison"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Mind_Freeze"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Earth_Elemental = PolymockBar("Earth Elemental", 24357, "Earth_Elemental_Polymock_Piece.png", {
+    Earth_Elemental = PolymockBar("Earth Elemental", 24357, "[24357] - Earth Elemental Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Stone_Daggers"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Obsidian_Flame"), SkillReaction.BlockOrInterrupt, True),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Earthquake"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Ice_Elemental = PolymockBar("Ice Elemental", 24365, "Ice_Elemental_Polymock_Piece.png", {
+    Ice_Elemental = PolymockBar("Ice Elemental", 24365, "[24365] - Ice Elemental Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Ice_Spear"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Frozen_Armor"), SkillReaction.Interrupt),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Glyph_Freeze"), SkillReaction.Block, True),
     })
 
-    Fire_Elemental = PolymockBar("Fire Elemental", 24358, "Fire_Elemental_Polymock_Piece.png", {
+    Fire_Elemental = PolymockBar("Fire Elemental", 24358, "[24358] - Fire Elemental Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Flare"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Fireball"), SkillReaction.Block, True),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Rodgorts_Invocation"), SkillReaction.BlockOrInterrupt),
     })
 
-    Aloe_Seed = PolymockBar("Aloe Seed", 24355, "Aloe_Seed_Polymock_Piece.png", {
+    Aloe_Seed = PolymockBar("Aloe Seed", 24355, "[24355] - Aloe Seed Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Smite"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Smite_Hex"), SkillReaction.Interrupt),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Bane_Signet"), SkillReaction.Block, True),
     })
 
-    Mirage_Iboga = PolymockBar("Mirage Iboga", 24363, "Mirage_Iboga_Polymock_Piece.png", {
+    Mirage_Iboga = PolymockBar("Mirage Iboga", 24363, "[24363] - Mirage Iboga Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Overload"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Calculated_Risk"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Recurring_Insecurity"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Gaki = PolymockBar("Gaki", 24360, "Gaki_Polymock_Piece.png", {
+    Gaki = PolymockBar("Gaki", 24360, "[24360] - Gaki Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Smite"), SkillReaction.Interrupt),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Signet_of_Revenge"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Signet_of_Smiting"), SkillReaction.Block, True),
@@ -139,31 +139,31 @@ class PolymockPieces(Enum):
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Migraine"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Mursaat_Elementalist = PolymockBar("Mursaat Elementalist", 24370, "Mursaat_Elementalist_Polymock_Piece.png", {
+    Mursaat_Elementalist = PolymockBar("Mursaat Elementalist", 24370, "[24370] - Mursaat Elementalist Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Lightning_Strike"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Mind_Shock"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Shock_Arrow"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Naga_Shaman = PolymockBar("Naga Shaman", 24372, "Naga_Shaman_Polymock_Piece.png", {
+    Naga_Shaman = PolymockBar("Naga Shaman", 24372, "[24372] - Naga Shaman Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Lamentation"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Spirit_Rift"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Painful_Bond"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Ruby_Djinn = PolymockBar("Ruby Djinn", 24371, "Ruby_Djinn_Polymock_Piece.png", {
+    Ruby_Djinn = PolymockBar("Ruby Djinn", 24371, "[24371] - Ruby Djinn Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Flare"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Searing_Flames"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Glowing_Gaze"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Stone_Rain = PolymockBar("Stone Rain", 24374, "Stone_Rain_Polymock_Piece.png", {
+    Stone_Rain = PolymockBar("Stone Rain", 24374, "[24374] - Stone Rain Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Stone_Daggers"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Eruption"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Stoning"), SkillReaction.BlockOrInterrupt, True),
     })
 
-    Wind_Rider = PolymockBar("Wind Rider", 24356, "Wind_Rider_Polymock_Piece.png", {
+    Wind_Rider = PolymockBar("Wind Rider", 24356, "[24356] - Wind Rider Polymock Piece.png", {
         1: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Overload"), SkillReaction.Block),
         2: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Backfire"), SkillReaction.Block),
         3: Polymock_Skill(GLOBAL_CACHE.Skill.GetID("Polymock_Guilt"), SkillReaction.BlockOrInterrupt, True),

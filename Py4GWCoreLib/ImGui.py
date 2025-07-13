@@ -84,6 +84,12 @@ class ImGui:
                             frame_padding: int = -1) -> bool:
         return Overlay().ImageButtonExtended(caption, texture_path, size, uv0, uv1, bg_color, tint_color, frame_padding)
     
+    def DrawTextureInForegound(self, pos: tuple[float, float], size: tuple[float, float], texture_path: str,
+                       uv0: tuple[float, float] = (0.0, 0.0),
+                       uv1: tuple[float, float] = (1.0, 1.0),
+                       tint: tuple[int, int, int, int] = (255, 255, 255, 255)):
+        Overlay().DrawTextureInForegound(pos, size, texture_path, uv0, uv1, tint)
+    
     @staticmethod
     def GetModelIDTexture(model_id: int) -> str:
         """
