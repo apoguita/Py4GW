@@ -27,16 +27,12 @@ class SkillBarPlus:
         def Clear(self):
             self.coords = []
 
-        def Update(self):
+        def GetSkillFrames(self):
             for i in range(8):
                 frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = f'Skillbar.Skill{i + 1}')
-                coords = UIManager.GetFrameCoords(frame_id)
-                if coords[0] == 0:
-                    coords = []
+                if not UIManager.FrameExists(frame_id): 
                     return
-                # while coords[0] == 0:
-                #     frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = f'Skillbar.Skill{i + 1}')
-                #     coords = UIManager.GetFrameCoords(frame_id)
+                coords = UIManager.GetFrameCoords(frame_id)
                 self.coords.append(coords)
 
                 self.skill_ids.append(SkillBar.GetSkillIDBySlot(i+1))
@@ -194,6 +190,8 @@ class SkillBarPlus:
         def Draw(self):
             for effect in GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID()):
                 frame_id = UIManager.GetChildFrameID(1726357791, [effect.skill_id + 4])
+                if not UIManager.FrameExists(frame_id): 
+                    continue
                 frame_coords = UIManager.GetFrameCoords(frame_id)
 
                 time_remaining = effect.time_remaining/1000
@@ -369,7 +367,7 @@ def main():
 
         if Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded() and not Map.IsInCinematic() and not UIManager.IsWorldMapShowing():
             if not sbp.skills.coords:
-                sbp.skills.Update()
+                sbp.skills.GetSkillFrames()
             sbp.skills.Draw()
             sbp.effects.Draw()
             sbp.auto.Cast()
