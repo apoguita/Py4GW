@@ -31,9 +31,12 @@ class SkillBarPlus:
             for i in range(8):
                 frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = f'Skillbar.Skill{i + 1}')
                 coords = UIManager.GetFrameCoords(frame_id)
-                while coords[0] == 0:
-                    frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = f'Skillbar.Skill{i + 1}')
-                    coords = UIManager.GetFrameCoords(frame_id)
+                if coords[0] == 0:
+                    coords = []
+                    return
+                # while coords[0] == 0:
+                #     frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = f'Skillbar.Skill{i + 1}')
+                #     coords = UIManager.GetFrameCoords(frame_id)
                 self.coords.append(coords)
 
                 self.skill_ids.append(SkillBar.GetSkillIDBySlot(i+1))
@@ -192,8 +195,6 @@ class SkillBarPlus:
             for effect in GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID()):
                 frame_id = UIManager.GetChildFrameID(1726357791, [effect.skill_id + 4])
                 frame_coords = UIManager.GetFrameCoords(frame_id)
-                while frame_coords[0] == 0:
-                    frame_coords = UIManager.GetFrameCoords(frame_id)
 
                 time_remaining = effect.time_remaining/1000
                 if time_remaining > 30*60:
@@ -319,7 +320,7 @@ def IsKeyPressed(vk_code):
 def configure():
     global window_module, sbp
 
-    if not Map.IsMapReady() or not Party.IsPartyLoaded(): return
+    if not Map.IsMapReady() or not Party.IsPartyLoaded() or Map.IsInCinematic(): return
     
     if window_module.first_run:
         x = sbp.ini.read_int('pos', 'x', 500)
@@ -366,7 +367,7 @@ def main():
             sbp.skills.Clear()
             sbp.auto.slots = [False]*8
 
-        if Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded() and not UIManager.IsWorldMapShowing():
+        if Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded() and not Map.IsInCinematic() and not UIManager.IsWorldMapShowing():
             if not sbp.skills.coords:
                 sbp.skills.Update()
             sbp.skills.Draw()
