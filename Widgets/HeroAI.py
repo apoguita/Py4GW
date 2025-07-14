@@ -47,6 +47,7 @@ from Py4GWCoreLib import Utils
 MODULE_NAME = "HeroAI"
 
 FOLLOW_COMBAT_DISTANCE = 25.0  # if body blocked, we get close enough.
+LEADER_FLAG_TOUCH_RANGE_TRESHOLD_VALUE = Range.Touch.value * 1.1
 
 cached_data = CacheData()
 
@@ -72,7 +73,7 @@ def HandleOutOfCombat(cached_data: CacheData):
         leader_follow_x = all_player_struct[0].FlagPosX
         leader_follow_y = all_player_struct[0].FlagPosY
         leader_coords = (leader_follow_x, leader_follow_y)
-        if Utils.Distance(leader_coords, cached_data.data.player_xy) > flagged_out_of_combat_follow_distance:
+        if Utils.Distance(leader_coords, cached_data.data.player_xy) > LEADER_FLAG_TOUCH_RANGE_TRESHOLD_VALUE:
             return False
 
     return cached_data.combat_handler.HandleCombat(ooc=True)
@@ -98,7 +99,7 @@ def HandleCombat(cached_data: CacheData):
         leader_follow_x = all_player_struct[0].FlagPosX
         leader_follow_y = all_player_struct[0].FlagPosY
         leader_flag_coords = (leader_follow_x, leader_follow_y)
-        if Utils.Distance(leader_flag_coords, cached_data.data.player_xy) >= FOLLOW_COMBAT_DISTANCE:
+        if Utils.Distance(leader_flag_coords, cached_data.data.player_xy) >= LEADER_FLAG_TOUCH_RANGE_TRESHOLD_VALUE:
             return True  # Forces a reset on autoattack timer
     return cached_data.combat_handler.HandleCombat(ooc=False)
 
@@ -237,11 +238,13 @@ def draw_Targeting_floating_buttons(cached_data: CacheData):
 
     Overlay().BeginDraw()
     for agent_id in enemy_array:
-        x,y,z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
-        screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
-        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_CROSSHAIRS}",name = agent_id, x = screen_x-12, y = screen_y-12 , width= 25, height= 25):       
-            GLOBAL_CACHE.Player.ChangeTarget (agent_id)
-            GLOBAL_CACHE.Player.Interact (agent_id, True)
+        x, y, z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
+        screen_x, screen_y = Overlay.WorldToScreen(x, y, z + 25)
+        if ImGui.floating_button(
+            f"{IconsFontAwesome5.ICON_CROSSHAIRS}", name=agent_id, x=screen_x - 12, y=screen_y - 12, width=25, height=25
+        ):
+            GLOBAL_CACHE.Player.ChangeTarget(agent_id)
+            GLOBAL_CACHE.Player.Interact(agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
     Overlay().EndDraw()
 
