@@ -107,7 +107,24 @@ def display_title_progress(title_name, title_id, tiers):
 
     # 6) Query available width via get_content_region_avail()[0] and draw the bar
     avail_width, _ = PyImGui.get_content_region_avail()
-    PyImGui.progress_bar(fraction, avail_width, overlay)
+    start_x, start_y = PyImGui.get_cursor_pos()
+
+    PyImGui.progress_bar(fraction, avail_width, " ") # " " to remove all text, "" would result in "xx.x %" on the bar 
+
+    # Center overlay text on the progress bar
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, heading_gray)
+
+    text_width, text_height = PyImGui.calc_text_size(overlay)
+    bar_height = PyImGui.get_cursor_pos_y() - start_y
+    
+    y_offset = -1
+    center_x = start_x + (avail_width - text_width) / 2
+    center_y = start_y + (bar_height - text_height) / 2 + y_offset
+
+    PyImGui.set_cursor_pos(center_x, center_y)
+    PyImGui.text(overlay)
+
+    PyImGui.pop_style_color(1)
 
     PyImGui.pop_style_color(2)
     PyImGui.pop_style_var(1)
