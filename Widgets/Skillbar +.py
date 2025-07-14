@@ -27,19 +27,19 @@ class SkillBarPlus:
         def Clear(self):
             self.coords = []
 
-        def Update(self):
+        def GetSkillFrames(self):
             for i in range(8):
-                frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = f'Skillbar.Skill{i + 1}')
+                frame_id = UIManager.GetChildFrameID(641635682, [i])
+                if not UIManager.FrameExists(frame_id): 
+                    continue
                 coords = UIManager.GetFrameCoords(frame_id)
-                if coords[0] == 0:
-                    coords = []
-                    return
-                # while coords[0] == 0:
-                #     frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = f'Skillbar.Skill{i + 1}')
-                #     coords = UIManager.GetFrameCoords(frame_id)
                 self.coords.append(coords)
 
                 self.skill_ids.append(SkillBar.GetSkillIDBySlot(i+1))
+            
+            if len(self.coords) < 8 or len(self.skill_ids) < 8:
+                self.coords = []
+                self.skill_ids = []
 
         def DrawText(self, caption, text, x, y, w, h):
             PyImGui.set_next_window_pos(x, y)
@@ -109,6 +109,9 @@ class SkillBarPlus:
         def Draw(self):
             self.overlay.BeginDraw()
 
+            if not self.coords: return
+            if not self.skill_ids: return
+
             for i in range(8):
                 if self.draw_bg or self.draw_duration:
                     duration = 0
@@ -121,7 +124,16 @@ class SkillBarPlus:
 
                     if remaining and remaining < 50000:
                         if self.draw_bg:
-                            color = self.bg_default if remaining > (self.near_threshold) else self.bg_near
+                            color = self.bg_near
+                            if remaining > self.near_threshold + 1:
+                                color = self.bg_default
+                            elif remaining > self.near_threshold:
+                                bg_color = tuple(int(c * 255) for c in Utils.ColorToTuple(self.bg_default))
+                                near_color = tuple(int(c * 255) for c in Utils.ColorToTuple(self.bg_near))
+                                amount = 1 - (remaining - self.near_threshold)
+                                color = Color(*bg_color).shift(Color(*near_color), amount).to_color()
+
+
                             self.DrawBackground(self.coords[i], color)
 
                         if self.draw_duration:
@@ -194,6 +206,8 @@ class SkillBarPlus:
         def Draw(self):
             for effect in GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID()):
                 frame_id = UIManager.GetChildFrameID(1726357791, [effect.skill_id + 4])
+                if not UIManager.FrameExists(frame_id): 
+                    continue
                 frame_coords = UIManager.GetFrameCoords(frame_id)
 
                 time_remaining = effect.time_remaining/1000
@@ -234,8 +248,13 @@ class SkillBarPlus:
         def Cast(self):
             for i in range(8):
                 if self.slots[i] and self.CanQueue(i + 1):
-                    self.cast_timer.Reset()
-                    self.action_queue.AddAction('ACTION',SkillBar.UseSkill, i + 1)
+                    player_id = GLOBAL_CACHE.Player.GetAgentID()
+                    skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(i + 1)
+                    if (Routines.Checks.Skills.HasEnoughEnergy(player_id, skill_id)     and 
+                        Routines.Checks.Skills.HasEnoughAdrenaline(player_id, skill_id) and 
+                        Routines.Checks.Skills.HasEnoughLife(player_id, skill_id)):
+                        self.cast_timer.Reset()
+                        self.action_queue.AddAction('ACTION',SkillBar.UseSkill, i + 1)
 
         def Config(self):
             if PyImGui.collapsing_header(f'Auto Cast'):
@@ -369,7 +388,7 @@ def main():
 
         if Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded() and not Map.IsInCinematic() and not UIManager.IsWorldMapShowing():
             if not sbp.skills.coords:
-                sbp.skills.Update()
+                sbp.skills.GetSkillFrames()
             sbp.skills.Draw()
             sbp.effects.Draw()
             sbp.auto.Cast()
