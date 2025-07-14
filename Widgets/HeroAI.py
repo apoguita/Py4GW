@@ -47,6 +47,7 @@ from Py4GWCoreLib import Utils
 MODULE_NAME = "HeroAI"
 
 FOLLOW_COMBAT_DISTANCE = 25.0  # if body blocked, we get close enough.
+LEADER_FLAG_TOUCH_RANGE_TRESHOLD_VALUE = Range.Touch.value * 1.1
 
 cached_data = CacheData()
 
@@ -72,7 +73,7 @@ def HandleOutOfCombat(cached_data: CacheData):
         leader_follow_x = all_player_struct[0].FlagPosX
         leader_follow_y = all_player_struct[0].FlagPosY
         leader_coords = (leader_follow_x, leader_follow_y)
-        if Utils.Distance(leader_coords, cached_data.data.player_xy) > flagged_out_of_combat_follow_distance:
+        if Utils.Distance(leader_coords, cached_data.data.player_xy) > LEADER_FLAG_TOUCH_RANGE_TRESHOLD_VALUE:
             return False
 
     return cached_data.combat_handler.HandleCombat(ooc=True)
@@ -98,7 +99,7 @@ def HandleCombat(cached_data: CacheData):
         leader_follow_x = all_player_struct[0].FlagPosX
         leader_follow_y = all_player_struct[0].FlagPosY
         leader_flag_coords = (leader_follow_x, leader_follow_y)
-        if Utils.Distance(leader_flag_coords, cached_data.data.player_xy) >= FOLLOW_COMBAT_DISTANCE:
+        if Utils.Distance(leader_flag_coords, cached_data.data.player_xy) >= LEADER_FLAG_TOUCH_RANGE_TRESHOLD_VALUE:
             return True  # Forces a reset on autoattack timer
     return cached_data.combat_handler.HandleCombat(ooc=False)
 
