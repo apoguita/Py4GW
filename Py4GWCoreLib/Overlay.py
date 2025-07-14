@@ -196,4 +196,10 @@ class Overlay:
                        uv1: Tuple[float, float] = (1.0, 1.0),
                        tint: Tuple[int, int, int, int] = (255, 255, 255, 255)) -> None:
         self.overlay_instance.DrawTextureInForegound(pos, size, texture_path, uv0, uv1, tint)
+        
+    def DrawTextureInDrawList(self, pos: Tuple[float, float], size: Tuple[float, float], texture_path: str,
+                       uv0: Tuple[float, float] = (0.0, 0.0),
+                       uv1: Tuple[float, float] = (1.0, 1.0),
+                       tint: Tuple[int, int, int, int] = (255, 255, 255, 255)) -> None:
+        self.overlay_instance.DrawTextureInDrawlist(pos, size, texture_path, uv0, uv1, tint)
     

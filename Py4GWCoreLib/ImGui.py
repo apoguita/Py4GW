@@ -4,6 +4,7 @@ from enum import Enum, IntEnum
 from .Overlay import Overlay
 from Py4GWCoreLib.Py4GWcorelib import Color, ColorPalette
 from Py4GWCoreLib.enums import get_texture_for_model, ImguiFonts
+from Py4GWCoreLib import Utils
 
 from enum import IntEnum
 
@@ -84,11 +85,19 @@ class ImGui:
                             frame_padding: int = -1) -> bool:
         return Overlay().ImageButtonExtended(caption, texture_path, size, uv0, uv1, bg_color, tint_color, frame_padding)
     
-    def DrawTextureInForegound(self, pos: tuple[float, float], size: tuple[float, float], texture_path: str,
+    @staticmethod
+    def DrawTextureInForegound(pos: tuple[float, float], size: tuple[float, float], texture_path: str,
                        uv0: tuple[float, float] = (0.0, 0.0),
                        uv1: tuple[float, float] = (1.0, 1.0),
                        tint: tuple[int, int, int, int] = (255, 255, 255, 255)):
         Overlay().DrawTextureInForegound(pos, size, texture_path, uv0, uv1, tint)
+      
+    @staticmethod  
+    def DrawTextureInDrawList(pos: tuple[float, float], size: tuple[float, float], texture_path: str,
+                       uv0: tuple[float, float] = (0.0, 0.0),
+                       uv1: tuple[float, float] = (1.0, 1.0),
+                       tint: tuple[int, int, int, int] = (255, 255, 255, 255)):
+        Overlay().DrawTextureInDrawList(pos, size, texture_path, uv0, uv1, tint)
     
     @staticmethod
     def GetModelIDTexture(model_id: int) -> str:
@@ -486,3 +495,468 @@ class ImGui:
     @staticmethod
     def PopTransparentWindow():
         PyImGui.pop_style_var(4)
+        
+        
+    class gw_window():
+        _state = {}
+        
+        TEXTURE_FOLDER = "Textures\\Game UI\\"
+        FRAME_ATLAS = "ui_window_frame_atlas.png"
+        FRAME_ATLAS_DIMENSIONS = (128,128)
+        TITLE_ATLAS = "ui_window_title_frame_atlas.png"
+        TITLE_ATLAS_DIMENSIONS = (128, 32)
+        CLOSE_BUTTON_ATLAS = "close_button.png"
+        
+        LOWER_BORDER_PIXEL_MAP = (11,110,78,128)
+        LOWER_RIGHT_CORNER_TAB_PIXEL_MAP = (78,110,117,128)
+
+        # Pixel maps for title bar
+        LEFT_TITLE_PIXEL_MAP = (0,0,18,32)
+        RIGHT_TITLE_PIXEL_MAP = (110,0,128,32)
+        TITLE_AREA_PIXEL_MAP = (19,0,109,32)
+
+        # Pixel maps for LEFT side
+        UPPER_LEFT_TAB_PIXEL_MAP = (0,0,17,35)
+        LEFT_BORDER_PIXEL_MAP = (0,36,17,74)
+        LOWER_LEFT_TAB_PIXEL_MAP = (0,75,11,110)
+        LOWER_LEFT_CORNER_PIXEL_MAP = (0,110,11,128)
+
+        # Pixel maps for RIGHT side
+        UPPER_RIGHT_TAB_PIXEL_MAP = (113,0,128,35)
+        RIGHT_BORDER_PIXEL_MAP = (111,36,128,74)
+        LOWER_RIGHT_TAB_PIXEL_MAP = (117,75,128,110)
+        LOWER_RIGHT_CORNER_PIXEL_MAP = (117,110,128,128)
+
+        CLOSE_BUTTON_PIXEL_MAP = (0, 0, 15,15)
+        CLOSE_BUTTON_HOVERED_PIXEL_MAP = (16, 0, 31, 15)
+        
+        @staticmethod
+        def draw_region_in_drawlist(x: float, y: float,
+                            width: int, height: int,
+                            pixel_map: tuple[int, int, int, int],
+                            texture_path: str,
+                            atlas_dimensions: tuple[int, int],
+                            tint: tuple[int, int, int, int] = (255, 255, 255, 255)):
+            """
+            Draws a region defined by pixel_map into the current window's draw list at (x, y).
+            """
+            x0, y0, x1, y1 = pixel_map
+            _width = x1 - x0 if width == 0 else width
+            _height = y1 - y0 if height == 0 else height
+            
+            source_width = x1 - x0
+            source_height = y1 - y0
+
+            uv0, uv1 = Utils.PixelsToUV(x0, y0, source_width, source_height, atlas_dimensions[0], atlas_dimensions[1])
+
+            ImGui.DrawTextureInDrawList(
+                pos=(x, y),
+                size=(_width, _height),
+                texture_path=texture_path,
+                uv0=uv0,
+                uv1=uv1,
+                tint=tint
+            )
+         
+        @staticmethod
+        def begin(name: str,
+            pos: tuple[float, float] = (0.0, 0.0),
+            size: tuple[float, float] = (0.0, 0.0),
+            collapsed: bool = False,
+            cond: int = PyImGui.ImGuiCond.FirstUseEver) -> bool:
+            if name not in ImGui.gw_window._state:
+                ImGui.gw_window._state[name] = {
+                    "collapsed": collapsed
+                }
+            
+            state = ImGui.gw_window._state[name]
+
+            if size != (0.0, 0.0):
+                PyImGui.set_next_window_size(size, cond)
+            if pos != (0.0, 0.0):
+                PyImGui.set_next_window_pos(pos, cond)
+                
+            PyImGui.set_next_window_collapsed(state["collapsed"], cond)
+
+            if state["collapsed"]:
+                internal_flags  = (PyImGui.WindowFlags.NoFlag)
+            else:
+                internal_flags =  PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoBackground
+                
+        
+            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 0, 0)
+            
+            opened = PyImGui.begin(name, internal_flags)
+            state["collapsed"] = PyImGui.is_window_collapsed()
+            state["_active"] = opened
+            
+            if not opened:
+                PyImGui.end()
+                PyImGui.pop_style_var(1)
+                return False
+            
+            # Window position and size
+            window_pos = PyImGui.get_window_pos()
+            window_size = PyImGui.get_window_size()
+                
+            window_left, window_top = window_pos
+            window_width, window_height = window_size
+            window_right = window_left + window_width
+            window_bottom = window_top + window_height
+            
+            #TITLE AREA
+            #LEFT TITLE
+            x0, y0, x1, y1 = ImGui.gw_window.LEFT_TITLE_PIXEL_MAP
+            LT_width = x1 - x0
+            LT_height = y1 - y0
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_left,
+                y=window_top-5,
+                width=LT_width,
+                height=LT_height,
+                pixel_map=ImGui.gw_window.LEFT_TITLE_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.TITLE_ATLAS,
+                atlas_dimensions=ImGui.gw_window.TITLE_ATLAS_DIMENSIONS,
+                tint=(255, 255, 255, 255)
+            )
+            
+            # RIGHT TITLE
+            x0, y0, x1, y1 = ImGui.gw_window.RIGHT_TITLE_PIXEL_MAP
+            rt_width = x1 - x0
+            rt_height = y1 - y0
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_right - rt_width,
+                y=window_top - 5,
+                width=rt_width,
+                height=rt_height,
+                pixel_map=ImGui.gw_window.RIGHT_TITLE_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.TITLE_ATLAS,
+                atlas_dimensions=ImGui.gw_window.TITLE_ATLAS_DIMENSIONS
+            )
+            
+            # CLOSE BUTTON
+            x0, y0, x1, y1 = ImGui.gw_window.CLOSE_BUTTON_PIXEL_MAP
+            cb_width = x1 - x0
+            cb_height = y1 - y0
+
+            x = window_right - cb_width - 13
+            y = window_top + 8
+
+            # Position the interactive region
+            PyImGui.draw_list_add_rect(
+                x,                    # x1
+                y,                    # y1
+                x + cb_width,         # x2
+                y + cb_height,        # y2
+                Color(255, 0, 0, 255).to_color(),  # col in ABGR
+                0.0,                  # rounding
+                0,                    # rounding_corners_flags
+                1.0                   # thickness
+            )
+
+            PyImGui.set_cursor_screen_pos(x-1, y-1)
+            if PyImGui.invisible_button("##close_button", cb_width+2, cb_height+2):
+                state["collapsed"] = not state["collapsed"]
+                PyImGui.set_window_collapsed(state["collapsed"], PyImGui.ImGuiCond.Always)
+
+            # Determine UV range based on state
+            if PyImGui.is_item_active():
+                uv0 = (0.666, 0.0)  # Pushed
+                uv1 = (1.0, 1.0)
+            elif PyImGui.is_item_hovered():
+                uv0 = (0.333, 0.0)  # Hovered
+                uv1 = (0.666, 1.0)
+            else:
+                uv0 = (0.0, 0.0)     # Normal
+                uv1 = (0.333, 1.0)
+
+            #Draw close button is done after the title bar
+            #TITLE BAR
+            x0, y0, x1, y1 = ImGui.gw_window.TITLE_AREA_PIXEL_MAP
+            title_width = int(window_width - 36)
+            title_height = y1 - y0
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_left + 18,
+                y=window_top - 5,
+                width=title_width,
+                height=title_height,
+                pixel_map=ImGui.gw_window.TITLE_AREA_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.TITLE_ATLAS,
+                atlas_dimensions=ImGui.gw_window.TITLE_ATLAS_DIMENSIONS,
+                tint=(255, 255, 255, 255)
+            )
+            
+            # FLOATING BUTTON: Title bar behavior (drag + double-click collapse)
+            titlebar_x = window_left + 18
+            titlebar_y = window_top - 5
+            titlebar_width = window_width - 36
+            titlebar_height = title_height
+
+            PyImGui.set_cursor_screen_pos(titlebar_x, titlebar_y)
+            PyImGui.invisible_button("##titlebar_fake", titlebar_width, 32)
+
+            # Handle dragging
+            if PyImGui.is_item_active():
+                delta = PyImGui.get_mouse_drag_delta(0, 0.0)
+                new_window_pos = (window_left + delta[0], window_top + delta[1])
+                PyImGui.reset_mouse_drag_delta(0)
+                PyImGui.set_window_pos(new_window_pos[0], new_window_pos[1], PyImGui.ImGuiCond.Always)
+
+            # Handle double-click to collapse
+            if PyImGui.is_item_hovered() and PyImGui.is_mouse_double_clicked(0):
+                state["collapsed"] = not state["collapsed"]
+                PyImGui.set_window_collapsed(state["collapsed"], PyImGui.ImGuiCond.Always)
+                
+            # Draw CLOSE BUTTON in the title bar
+            ImGui.DrawTextureInDrawList(
+                pos=(x, y),
+                size=(cb_width, cb_height),
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.CLOSE_BUTTON_ATLAS,
+                uv0=uv0,
+                uv1=uv1,
+                tint=(255, 255, 255, 255)
+            )
+            
+            # Draw title text
+            text_x = window_left + 32
+            text_y = window_top + 10
+            
+            PyImGui.draw_list_add_text(
+                text_x,
+                text_y,
+                Color(225, 225, 225, 225).to_color(),  # White text (ABGR)
+                name
+            )
+            
+            # Draw the frame around the window
+            # LEFT SIDE
+            #LEFT UPPER TAB
+            x0, y0, x1, y1 = ImGui.gw_window.UPPER_LEFT_TAB_PIXEL_MAP
+            lut_tab_width = x1 - x0
+            lut_tab_height = y1 - y0
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_left,
+                y=window_top + LT_height - 5,
+                width= lut_tab_width,
+                height= lut_tab_height,
+                pixel_map=ImGui.gw_window.UPPER_LEFT_TAB_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.FRAME_ATLAS,
+                atlas_dimensions=ImGui.gw_window.FRAME_ATLAS_DIMENSIONS,
+                tint=(255, 255, 255, 255)
+            )
+            
+            #LEFT CORNER
+            x0, y0, x1, y1 = ImGui.gw_window.LOWER_LEFT_CORNER_PIXEL_MAP
+            lc_width = x1 - x0
+            lc_height = y1 - y0
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_left,
+                y=window_bottom - lc_height,
+                width= lc_width,
+                height= lc_height,
+                pixel_map=ImGui.gw_window.LOWER_LEFT_CORNER_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.FRAME_ATLAS,
+                atlas_dimensions=ImGui.gw_window.FRAME_ATLAS_DIMENSIONS,
+                tint=(255, 255, 255, 255)
+            )
+            
+            
+            #LEFT LOWER TAB
+            x0, y0, x1, y1 = ImGui.gw_window.LOWER_LEFT_TAB_PIXEL_MAP
+            ll_tab_width = x1 - x0
+            ll_tab_height = y1 - y0
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_left,
+                y=window_bottom - lc_height -ll_tab_height,
+                width=ll_tab_width,
+                height=ll_tab_height,
+                pixel_map=ImGui.gw_window.LOWER_LEFT_TAB_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.FRAME_ATLAS,
+                atlas_dimensions=ImGui.gw_window.FRAME_ATLAS_DIMENSIONS,
+                tint=(255, 255, 255, 255)
+            )
+            
+            #LEFT BORDER
+            x0, y0, x1, y1 = ImGui.gw_window.LEFT_BORDER_PIXEL_MAP
+            left_border_width = x1 - x0
+            left_border_height = y1 - y0
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_left,
+                y=window_top + LT_height - 5 + lut_tab_height,
+                width= left_border_width,
+                height= int(window_height - (LT_height + lut_tab_height + ll_tab_height + lc_height) +5),
+                pixel_map=ImGui.gw_window.LEFT_BORDER_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.FRAME_ATLAS,
+                atlas_dimensions=ImGui.gw_window.FRAME_ATLAS_DIMENSIONS,
+                tint=(255, 255, 255, 255)
+            )
+        
+            # RIGHT SIDE
+            # UPPER RIGHT TAB
+            x0, y0, x1, y1 = ImGui.gw_window.UPPER_RIGHT_TAB_PIXEL_MAP
+            urt_width = x1 - x0
+            urt_height = y1 - y0
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_right - urt_width,
+                y=window_top + rt_height - 5,
+                width=urt_width,
+                height=urt_height,
+                pixel_map=ImGui.gw_window.UPPER_RIGHT_TAB_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.FRAME_ATLAS,
+                atlas_dimensions=ImGui.gw_window.FRAME_ATLAS_DIMENSIONS
+            )
+
+            # LOWER RIGHT CORNER
+            x0, y0, x1, y1 = ImGui.gw_window.LOWER_RIGHT_CORNER_PIXEL_MAP
+            rc_width = x1 - x0
+            rc_height = y1 - y0
+            corner_x = window_right - rc_width
+            corner_y = window_bottom - rc_height
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_right - rc_width,
+                y=window_bottom - rc_height,
+                width=rc_width,
+                height=rc_height,
+                pixel_map=ImGui.gw_window.LOWER_RIGHT_CORNER_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.FRAME_ATLAS,
+                atlas_dimensions=ImGui.gw_window.FRAME_ATLAS_DIMENSIONS
+            )
+            # DRAG: Resize from corner
+            PyImGui.set_cursor_screen_pos(corner_x-10, corner_y-10)
+            PyImGui.invisible_button("##resize_corner", rc_width+10, rc_height+10)
+            if PyImGui.is_item_active():
+                delta = PyImGui.get_mouse_drag_delta(0, 0.0)
+                new_window_size = (window_size[0] + delta[0], window_size[1] + delta[1])
+                PyImGui.reset_mouse_drag_delta(0)
+                PyImGui.set_window_size(new_window_size[0], new_window_size[1], PyImGui.ImGuiCond.Always)
+
+            # LOWER RIGHT TAB
+            x0, y0, x1, y1 = ImGui.gw_window.LOWER_RIGHT_TAB_PIXEL_MAP
+            lrt_width = x1 - x0
+            lrt_height = y1 - y0
+            tab_x = window_right - lrt_width
+            tab_y = window_bottom - rc_height - lrt_height
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_right - lrt_width,
+                y=window_bottom - rc_height - lrt_height,
+                width=lrt_width,
+                height=lrt_height,
+                pixel_map=ImGui.gw_window.LOWER_RIGHT_TAB_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.FRAME_ATLAS,
+                atlas_dimensions=ImGui.gw_window.FRAME_ATLAS_DIMENSIONS
+            )
+            PyImGui.set_cursor_screen_pos(tab_x-10, tab_y)
+            PyImGui.invisible_button("##resize_tab_above", lrt_width+10, lrt_height)
+            if PyImGui.is_item_active():
+                delta = PyImGui.get_mouse_drag_delta(0, 0.0)
+                new_window_size = (window_size[0] + delta[0], window_size[1] + delta[1])
+                PyImGui.reset_mouse_drag_delta(0)
+                PyImGui.set_window_size(new_window_size[0], new_window_size[1], PyImGui.ImGuiCond.Always)
+
+            # RIGHT BORDER
+            x0, y0, x1, y1 = ImGui.gw_window.RIGHT_BORDER_PIXEL_MAP
+            right_border_width = x1 - x0
+            right_border_height = y1 - y0
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_right - right_border_width,
+                y=window_top + rt_height - 5 + urt_height,
+                width=right_border_width,
+                height=int(window_height - (rt_height + urt_height + lrt_height + rc_height) + 5),
+                pixel_map=ImGui.gw_window.RIGHT_BORDER_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.FRAME_ATLAS,
+                atlas_dimensions=ImGui.gw_window.FRAME_ATLAS_DIMENSIONS
+            )
+
+            #BOTTOM BORDER
+            # Tab to the left of LOWER_RIGHT_CORNER
+            x0, y0, x1, y1 = ImGui.gw_window.LOWER_RIGHT_CORNER_TAB_PIXEL_MAP
+            tab_width = x1 - x0
+            tab_height = y1 - y0
+            
+            tab_x = window_right - rc_width - tab_width
+            tab_y = window_bottom - rc_height
+
+            ImGui.gw_window.draw_region_in_drawlist(
+                x=window_right - rc_width - tab_width,       # left of the corner
+                y=window_bottom - rc_height,                 # same vertical alignment as corner
+                width=tab_width,
+                height=tab_height,
+                pixel_map=ImGui.gw_window.LOWER_RIGHT_CORNER_TAB_PIXEL_MAP,
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.FRAME_ATLAS,
+                atlas_dimensions=ImGui.gw_window.FRAME_ATLAS_DIMENSIONS
+            )
+            
+            # DRAG: Resize from left tab
+            PyImGui.set_cursor_screen_pos(tab_x, tab_y-10)
+            PyImGui.invisible_button("##resize_tab_left", tab_width, tab_height+10)
+            PyImGui.set_item_allow_overlap()
+            if PyImGui.is_item_active():
+                delta = PyImGui.get_mouse_drag_delta(0,0.0)
+                new_window_size = (window_size[0] + delta[0], window_size[1] + delta[1])
+                PyImGui.reset_mouse_drag_delta(0)
+                PyImGui.set_window_size(new_window_size[0], new_window_size[1], PyImGui.ImGuiCond.Always)
+            
+            x0, y0, x1, y1 = ImGui.gw_window.LOWER_BORDER_PIXEL_MAP
+            border_tex_width = x1 - x0
+            border_tex_height = y1 - y0
+            border_start_x = window_left + lc_width
+            border_end_x = window_right - rc_width - tab_width  # ← use the actual width of LOWER_RIGHT_CORNER_TAB
+            border_draw_width = border_end_x - border_start_x
+
+            uv0, uv1 = Utils.PixelsToUV(x0, y0, border_tex_width, border_tex_height,
+                                        ImGui.gw_window.FRAME_ATLAS_DIMENSIONS[0], ImGui.gw_window.FRAME_ATLAS_DIMENSIONS[1])
+
+            ImGui.DrawTextureInDrawList(
+                pos=(border_start_x, window_bottom - border_tex_height),
+                size=(border_draw_width, border_tex_height),
+                texture_path=ImGui.gw_window.TEXTURE_FOLDER + ImGui.gw_window.FRAME_ATLAS,
+                uv0=uv0,
+                uv1=uv1,
+                tint=(255, 255, 255, 255)
+            )
+        
+            content_margin_top = title_height  # e.g. 32
+            content_margin_left = lc_width     # left corner/border
+            content_margin_right = rc_width    # right corner/border
+            content_margin_bottom = border_tex_height  # bottom border height
+            
+            content_x = window_left + content_margin_left -1
+            content_y = window_top + content_margin_top -5
+            content_width = window_width - content_margin_left - content_margin_right +2
+            content_height = window_height - content_margin_top - content_margin_bottom +10
+
+            PyImGui.set_cursor_screen_pos(content_x, content_y)
+
+            color = Color(0, 0, 0, 200)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, color.to_tuple_normalized())
+            PyImGui.push_style_var(ImGui.ImGuiStyleVar.ChildRounding, 6.0)
+
+            # Create a child window for the content area
+            padding = 8.0
+            PyImGui.begin_child("ContentArea",(content_width, content_height), False, PyImGui.WindowFlags.NoFlag)
+
+            PyImGui.set_cursor_pos(padding, padding)  # Manually push content in from top-left
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, (0, 0, 0, 0)) 
+            
+            inner_width = content_width - (padding * 2)
+            inner_height = content_height - (padding * 2)
+
+            PyImGui.begin_child("InnerLayout",(inner_width, inner_height), False, PyImGui.WindowFlags.NoFlag)
+        
+            return True
+        
+        @staticmethod
+        def end(name: str):
+            state = ImGui.gw_window._state.get(name)
+            if not state or not state.get("_active", False):
+                return  # this window was not successfully begun, do not call end stack
+
+            PyImGui.end_child()  # InnerLayout
+            PyImGui.pop_style_color(1)
+            PyImGui.end_child()  # ContentArea
+            PyImGui.pop_style_var(1)
+            PyImGui.pop_style_color(1)
+            PyImGui.end()
+            PyImGui.pop_style_var(1)
+            
+            state["_active"] = False
