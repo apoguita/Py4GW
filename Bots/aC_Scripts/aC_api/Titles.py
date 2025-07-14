@@ -124,7 +124,7 @@ def display_title_progress(title_name, title_id, tiers):
     PyImGui.set_cursor_pos(center_x, center_y)
     PyImGui.text(overlay)
 
-    PyImGui.pop_style_color()
+    PyImGui.pop_style_color(1)
 
     PyImGui.pop_style_color(2)
     PyImGui.pop_style_var(1)
