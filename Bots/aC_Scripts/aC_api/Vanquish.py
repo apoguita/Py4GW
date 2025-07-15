@@ -30,7 +30,7 @@ def draw_vanquish_status(label: str = "Vanquish Status"):
 
     if _cached_vanquish["valid"]:
         killed = _cached_vanquish["killed"]
-        total = _cached_vanquish["total"]
+        total = _cached_vanquish["total"] + killed
         percent = (killed / total * 100) if total > 0 else 0
         PyImGui.text(f"{label}: {killed:,} / {total:,} ({percent:.1f}%)")
     else:
