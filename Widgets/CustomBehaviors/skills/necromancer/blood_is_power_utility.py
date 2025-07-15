@@ -70,5 +70,8 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-        result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
+
+        target = self._get_target()
+        if target is None: return BehaviorResult.ACTION_SKIPPED
+        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target)
         return result
