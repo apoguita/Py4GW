@@ -395,7 +395,7 @@ class UIManager:
         return left,top, right, bottom
     
         
-    def DrawFrame(self,frame_id, draw_color):
+    def DrawFrame(self,frame_id:int, draw_color:int):
         """
         Draw a frame on the UI.
 
