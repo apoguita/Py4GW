@@ -168,6 +168,8 @@ class ImGui:
 
         return v
     
+    
+    
     @staticmethod
     def image_toggle_button(label: str, texture_path: str, v: bool, width=0, height=0) -> bool:
         """
@@ -235,6 +237,73 @@ class ImGui:
         PyImGui.pop_style_var(2)
 
         return result
+    
+    @staticmethod
+    def floating_toggle_button(
+        caption: str,
+        x: float,
+        y: float,
+        v: bool,
+        width: int = 18,
+        height: int = 18,
+        color: Color = Color(255, 255, 255, 255),
+        name: str = ""
+    ) -> bool:
+        """
+        Purpose: Create a floating toggle button with custom position and styling.
+        Args:
+            caption (str): Text to display on the button.
+            x (float): X position on screen.
+            y (float): Y position on screen.
+            v (bool): Current toggle state.
+            width (int): Button width.
+            height (int): Button height.
+            color (Color): Text color.
+            name (str): Unique suffix name to avoid ID conflicts.
+        Returns:
+            bool: New toggle state.
+        """
+        if not name:
+            name = caption
+
+        PyImGui.set_next_window_pos(x, y)
+        PyImGui.set_next_window_size(width, height)
+
+        flags = (
+            PyImGui.WindowFlags.NoCollapse |
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoScrollbar |
+            PyImGui.WindowFlags.NoScrollWithMouse |
+            PyImGui.WindowFlags.AlwaysAutoResize |
+            PyImGui.WindowFlags.NoBackground
+        )
+
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, -1, -0)
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
+
+        PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0, 0, 0, 0))  # Fully transparent
+        #PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color.to_tuple_normalized())
+
+        if v:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.153, 0.318, 0.929, 1.0))  # ON color
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.6, 0.6, 0.9, 1.0))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.6, 0.6, 0.6, 1.0))
+        else:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, color.to_tuple_normalized()) 
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered,  color.desaturate(0.9).to_tuple_normalized())
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  color.saturate(0.9).to_tuple_normalized())
+
+        new_state = v
+        if PyImGui.begin(f"{caption}##toggle_window{name}", flags):
+            if PyImGui.button(f"{caption}##toggle_button{name}", width=width, height=height):
+                new_state = not v
+        PyImGui.end()
+
+        PyImGui.pop_style_color(4)
+        PyImGui.pop_style_var(2)
+
+        return new_state
+
     
     @staticmethod
     def floating_checkbox(caption, state,  x, y, width = 18, height = 18 , color: Color = Color(255, 255, 255, 255)):

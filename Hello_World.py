@@ -14,8 +14,13 @@ def main():
                                  collapsed=False,  
                                  cond=PyImGui.ImGuiCond.FirstUseEver):  
             PyImGui.text(f"hello_world")
-            if PyImGui.button("print hello world"):
-                print("Hello, World!")
+            if PyImGui.button("Request Chat history"):
+                GLOBAL_CACHE.Player.RequestChatHistory()
+                
+            if GLOBAL_CACHE.Player.IsChatHistoryReady():
+                chat_history = GLOBAL_CACHE.Player.GetChatHistory()
+                for message in chat_history:
+                    PyImGui.text(message)
    
         ImGui.gw_window.end("MainFakeGWWindow")
         
