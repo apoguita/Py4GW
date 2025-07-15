@@ -116,60 +116,6 @@ def display_title_progress(title_name, title_id, tiers):
     PyImGui.pop_style_color(1)
     PyImGui.pop_style_var(1)
     PyImGui.spacing()
- #   max_points = tiers[-1][0] if tiers else 1
-#
-#    # 2) Draw the title text (“Not Too Grumpy (6)”) in heading_gray
-#    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, heading_gray)
-#    PyImGui.text(f"{tier_label} (Tier {current_tier})")
-#    PyImGui.pop_style_color(1)
-#
-#    # 3) Calculate fill fraction and overlay text
-#    fraction = 0.0
-#    if max_points > 0:
-#        fraction = float(points) / float(max_points)
-#        fraction = max(0.0, min(1.0, fraction))
-#    overlay = f"{points:,} / {max_points:,}"
-#
-#    # 4) Make the bar very slim by reducing FramePadding to (0, 2)
-#    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0.0, 2.0)
-#
-#    # 5) Use icon_teal for the filled portion
-#    PyImGui.push_style_color(PyImGui.ImGuiCol.PlotHistogram,       icon_teal)
-#    PyImGui.push_style_color(PyImGui.ImGuiCol.PlotHistogramHovered, icon_teal)
-#
-#    # 6) Query available width via get_content_region_avail()[0] and draw the bar
-#    avail_width, _ = PyImGui.get_content_region_avail()
-#    start_x, start_y = PyImGui.get_cursor_pos()
-#
-#    PyImGui.progress_bar(fraction, avail_width, " ") # " " to remove all text, "" would result in "xx.x %" on the bar 
-#
-    # Center overlay text on the progress bar
-#    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, heading_gray)
-#
-#    text_width, text_height = PyImGui.calc_text_size(overlay)
-#    bar_height = PyImGui.get_cursor_pos_y() - start_y
-#    
-#    y_offset = -1
-#    center_x = start_x + (avail_width - text_width) / 2
-#    center_y = start_y + (bar_height - text_height) / 2 + y_offset
-#
-#    PyImGui.set_cursor_pos(center_x, center_y)
-#    PyImGui.text(overlay)
-#
-#    PyImGui.pop_style_color(1)
-#
-#    PyImGui.pop_style_color(2)
-#    PyImGui.pop_style_var(1)
-#    PyImGui.spacing()
-
-# Example usage
-# Display all titles
-#display_title_track("Vanguard Title", 40, vanguard_tiers)
-#display_title_track("Norn Title", 41, norn_tiers)
-#display_title_track("Asura Title", 38, asura_tiers)
-#display_title_track("Deldrimor Title", 39, deldrimor_tiers)
-#display_title_track("Sunspear Title", 17, sunspear_tiers)
-#display_title_track("Lightbringer Title", 20, lightbringer_tiers)
 
 
 def display_faction(title_name, title_id, get_data_func, tier_list):
@@ -302,10 +248,6 @@ luxon_tiers = [
     (7_500_000, "Hero of the Luxons"),
     (10_000_000, "Savior of the Luxons")
 ]
-
-#EXAMPLE Kurzick (TitleID 5), Luxon (TitleID 6)
-#display_faction("Kurzick", 5, Player.GetKurzickData, kurzick_tiers)
-#display_faction("Luxon", 6, Player.GetLuxonData, luxon_tiers)
 
 # Factions-related regions
 luxon_regions = {"Factions_TheJadeSea"}
