@@ -206,7 +206,8 @@ class RerollCharacter:
             
 
 reroll_widget = RerollCharacter()
-window_module = ImGui.WindowModule(module_name="RerollCharacter", window_name=MODULE_NAME, window_size=(300, 150), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+window_module = ImGui.WindowModule(module_name="RerollCharacter", window_name=MODULE_NAME, window_size=(337, 326), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+is_visible = False
 
 tmp_is_selected = False
 def DrawWindow():
@@ -270,7 +271,14 @@ def DrawWindow():
     new_collapsed = True
     end_pos = window_module.window_pos
     
-    if PyImGui.begin(window_module.window_name, window_module.window_flags):
+    if ImGui.gw_window.begin( name = window_module.window_name,
+                                  pos  = (window_module.window_pos[0], window_module.window_pos[1]),
+                                  size = (window_module.window_size[0], window_module.window_size[1]),
+                                  collapsed = window_module.collapse,
+                                  pos_cond = PyImGui.ImGuiCond.FirstUseEver,
+                                  size_cond = PyImGui.ImGuiCond.Always):
+        
+    #if PyImGui.begin(window_module.window_name, window_module.window_flags):
         new_collapsed = PyImGui.is_window_collapsed()      
         characters = sorted(GLOBAL_CACHE.Player.GetLoginCharacters(), key=lambda c: c.player_name.lower())
         
@@ -348,7 +356,8 @@ def DrawWindow():
         PyImGui.end_child()
 
         end_pos = PyImGui.get_window_pos()
-    PyImGui.end()
+    #PyImGui.end()
+    ImGui.gw_window.end(window_module.window_name)
 
 def configure():
     pass
@@ -379,16 +388,34 @@ def is_in_character_select():
     return in_char_select
 
 def main():
-    global reroll_widget, window_module, character_select
+    global reroll_widget, window_module, character_select, is_visible
     try:
         character_select = is_in_character_select()
 
-        
         if not character_select and not Routines.Checks.Map.MapValid():
             return
         
         reroll_widget.Update()
-        DrawWindow()
+        
+        frame_id = UIManager.GetChildFrameID(1144678641, [0])
+        left, top, right, bottom = 0, 0, 0, 0
+        if UIManager.FrameExists(frame_id): 
+            left, top, right, bottom = UIManager.GetFrameCoords(frame_id)
+            
+        is_visible = ImGui.floating_toggle_button(
+            caption="Switch Character",
+            x=left,
+            y=top-25,
+            v=is_visible,
+            width=right-left,
+            height=25,
+            color=Color(80, 91, 136, 255),
+            name="SwitchCharacterButton"
+        )
+
+        if is_visible:
+            DrawWindow()
+            
     except Exception as e:
         ConsoleLog(MODULE_NAME, f"Error in main loop: {e}", Console.MessageType.Error)
         ConsoleLog(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Console.MessageType.Error)
