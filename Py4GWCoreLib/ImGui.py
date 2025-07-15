@@ -563,7 +563,8 @@ class ImGui:
             pos: tuple[float, float] = (0.0, 0.0),
             size: tuple[float, float] = (0.0, 0.0),
             collapsed: bool = False,
-            cond: int = PyImGui.ImGuiCond.FirstUseEver) -> bool:
+            pos_cond: int = PyImGui.ImGuiCond.FirstUseEver, 
+            size_cond: int = PyImGui.ImGuiCond.FirstUseEver) -> bool:
             if name not in ImGui.gw_window._state:
                 ImGui.gw_window._state[name] = {
                     "collapsed": collapsed
@@ -572,11 +573,11 @@ class ImGui:
             state = ImGui.gw_window._state[name]
 
             if size != (0.0, 0.0):
-                PyImGui.set_next_window_size(size, cond)
+                PyImGui.set_next_window_size(size, size_cond)
             if pos != (0.0, 0.0):
-                PyImGui.set_next_window_pos(pos, cond)
+                PyImGui.set_next_window_pos(pos, pos_cond)
                 
-            PyImGui.set_next_window_collapsed(state["collapsed"], cond)
+            PyImGui.set_next_window_collapsed(state["collapsed"], pos_cond)
 
             if state["collapsed"]:
                 internal_flags  = (PyImGui.WindowFlags.NoFlag)
