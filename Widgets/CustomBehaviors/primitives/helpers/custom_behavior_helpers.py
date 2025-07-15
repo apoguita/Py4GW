@@ -206,6 +206,8 @@ class Resources:
         spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
         spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), within_range.value)
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
+        spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsSpawned(agent_id))
+        
         if condition is not None:
             spirit_array = AgentArray.Filter.ByCondition(spirit_array, condition)
 
