@@ -39,7 +39,6 @@ class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
     @override
     def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
         return [
-            self.auto_attack,
         ]
 
     @property

@@ -84,60 +84,38 @@ def display_title_progress(title_name, title_id, tiers):
             break
 
     tier_label = tiers[current_tier - 1][1] if current_tier > 0 else "Unknown"
-    max_points = tiers[-1][0] if tiers else 1
 
-    # 2) Draw the title text (“Not Too Grumpy (6)”) in heading_gray
-    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, heading_gray)
-    PyImGui.text(f"{tier_label} (Tier {current_tier})")
-    PyImGui.pop_style_color(1)
+    if current_tier < len(tiers):
+        cap = tiers[current_tier][0]
+    else:
+        cap = tiers[-1][0]
 
-    # 3) Calculate fill fraction and overlay text
-    fraction = 0.0
-    if max_points > 0:
-        fraction = float(points) / float(max_points)
-        fraction = max(0.0, min(1.0, fraction))
-    overlay = f"{points:,} / {max_points:,}"
+    fraction = float(points) / float(cap) if cap > 0 else 0.0
+    fraction = max(0.0, min(1.0, fraction))
+    overlay = f"{points:,} / {cap:,}"
 
-    # 4) Make the bar very slim by reducing FramePadding to (0, 2)
     PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0.0, 2.0)
-
-    # 5) Use icon_teal for the filled portion
     PyImGui.push_style_color(PyImGui.ImGuiCol.PlotHistogram,       icon_teal)
     PyImGui.push_style_color(PyImGui.ImGuiCol.PlotHistogramHovered, icon_teal)
 
-    # 6) Query available width via get_content_region_avail()[0] and draw the bar
     avail_width, _ = PyImGui.get_content_region_avail()
     start_x, start_y = PyImGui.get_cursor_pos()
 
-    PyImGui.progress_bar(fraction, avail_width, " ") # " " to remove all text, "" would result in "xx.x %" on the bar 
+    PyImGui.progress_bar(fraction, avail_width, " ")
 
-    # Center overlay text on the progress bar
     PyImGui.push_style_color(PyImGui.ImGuiCol.Text, heading_gray)
+    tw, th = PyImGui.calc_text_size(overlay)
+    bh = PyImGui.get_cursor_pos_y() - start_y
+    cx = start_x + (avail_width - tw) / 2
+    cy = start_y   + (bh         - th) / 2  - 1
 
-    text_width, text_height = PyImGui.calc_text_size(overlay)
-    bar_height = PyImGui.get_cursor_pos_y() - start_y
-    
-    y_offset = -1
-    center_x = start_x + (avail_width - text_width) / 2
-    center_y = start_y + (bar_height - text_height) / 2 + y_offset
-
-    PyImGui.set_cursor_pos(center_x, center_y)
+    PyImGui.set_cursor_pos(cx, cy)
     PyImGui.text(overlay)
 
     PyImGui.pop_style_color(1)
-
-    PyImGui.pop_style_color(2)
+    PyImGui.pop_style_color(1)
     PyImGui.pop_style_var(1)
     PyImGui.spacing()
-
-# Example usage
-# Display all titles
-#display_title_track("Vanguard Title", 40, vanguard_tiers)
-#display_title_track("Norn Title", 41, norn_tiers)
-#display_title_track("Asura Title", 38, asura_tiers)
-#display_title_track("Deldrimor Title", 39, deldrimor_tiers)
-#display_title_track("Sunspear Title", 17, sunspear_tiers)
-#display_title_track("Lightbringer Title", 20, lightbringer_tiers)
 
 
 def display_faction(title_name, title_id, get_data_func, tier_list):
@@ -184,8 +162,26 @@ def display_faction(title_name, title_id, get_data_func, tier_list):
     PyImGui.push_style_color(PyImGui.ImGuiCol.PlotHistogram,       icon_teal)
     PyImGui.push_style_color(PyImGui.ImGuiCol.PlotHistogramHovered, icon_teal)
 
+    # 6) Query available width via get_content_region_avail()[0] and draw the bar
     avail_width, _ = PyImGui.get_content_region_avail()
-    PyImGui.progress_bar(rep_fraction, avail_width, rep_overlay)
+    start_x, start_y = PyImGui.get_cursor_pos()
+
+    PyImGui.progress_bar(rep_fraction, avail_width, " ") # " " to remove all text, "" would result in "xx.x %" on the bar 
+
+    # Center overlay text on the progress bar
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, heading_gray)
+
+    text_width, text_height = PyImGui.calc_text_size(rep_overlay)
+    bar_height = PyImGui.get_cursor_pos_y() - start_y
+    
+    y_offset = -1
+    center_x = start_x + (avail_width - text_width) / 2
+    center_y = start_y + (bar_height - text_height) / 2 + y_offset
+
+    PyImGui.set_cursor_pos(center_x, center_y)
+    PyImGui.text(rep_overlay)
+
+    PyImGui.pop_style_color(1)
 
     PyImGui.pop_style_color(2)
     PyImGui.pop_style_var(1)
@@ -196,10 +192,7 @@ def display_faction(title_name, title_id, get_data_func, tier_list):
     PyImGui.text(f"{title_name}")
     PyImGui.pop_style_color(1)
 
-    unspent_fraction = 0.0
-    if max_unspent > 0:
-        unspent_fraction = float(current_unspent) / float(max_unspent)
-        unspent_fraction = max(0.0, min(1.0, unspent_fraction))
+    unspent_fraction = float(current_unspent) / max_unspent if max_unspent else 0.0
     unspent_overlay = f"{current_unspent:,} / {max_unspent:,}"
 
     PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0.0, 2.0)
@@ -207,7 +200,19 @@ def display_faction(title_name, title_id, get_data_func, tier_list):
     PyImGui.push_style_color(PyImGui.ImGuiCol.PlotHistogramHovered, icon_teal)
 
     avail_width2, _ = PyImGui.get_content_region_avail()
-    PyImGui.progress_bar(unspent_fraction, avail_width2, unspent_overlay)
+    start_x2, start_y2 = PyImGui.get_cursor_pos()
+    PyImGui.progress_bar(unspent_fraction, avail_width2, " ")
+
+    # Center overlay text manually
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, heading_gray)
+    text_width2, text_height2 = PyImGui.calc_text_size(unspent_overlay)
+    bar_height2 = PyImGui.get_cursor_pos_y() - start_y2
+    y_offset2 = -1
+    center_x2 = start_x2 + (avail_width2 - text_width2) / 2
+    center_y2 = start_y2 + (bar_height2 - text_height2) / 2 + y_offset2
+    PyImGui.set_cursor_pos(center_x2, center_y2)
+    PyImGui.text(unspent_overlay)                # ← now uses the correct variable
+    PyImGui.pop_style_color(1)
 
     PyImGui.pop_style_color(2)
     PyImGui.pop_style_var(1)
@@ -244,10 +249,6 @@ luxon_tiers = [
     (10_000_000, "Savior of the Luxons")
 ]
 
-#EXAMPLE Kurzick (TitleID 5), Luxon (TitleID 6)
-#display_faction("Kurzick", 5, Player.GetKurzickData, kurzick_tiers)
-#display_faction("Luxon", 6, Player.GetLuxonData, luxon_tiers)
-
 # Factions-related regions
 luxon_regions = {"Factions_TheJadeSea"}
 kurzick_regions = {"Factions_EchovaldForest"}
@@ -261,8 +262,8 @@ nightfall_regions = {
 # Eye of the North regions
 eotn_region_titles = {
     "EOTN_Tarnished_Coast": [(38, "Asura Title", asura_tiers)],
-    "EOTN_FarShiverpeaks": [(41, "Norn Title", norn_tiers)],
-    "EOTN_CharrHomelands": [(40, "Vanguard Title", vanguard_tiers)]
+    "EOTN_Far_Silverpeaks": [(41, "Norn Title", norn_tiers)],
+    "EOTN_Charr_Homelands": [(40, "Vanguard Title", vanguard_tiers)]
 }
 
 __all__ = [
