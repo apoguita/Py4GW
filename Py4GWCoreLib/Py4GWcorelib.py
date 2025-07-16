@@ -2388,15 +2388,21 @@ class LootConfig:
             item_data = Agent.GetItemAgent(agent_id)
             item_id = item_data.item_id
             model_id = Item.GetModelID(item_id)
-
+            
+            if self.IsItemIDWhitelisted(item_id):
+                continue
+            
+            if self.IsItemIDBlacklisted(item_id):
+                loot_array.remove(agent_id)
+                continue
+                
             if self.IsWhitelisted(model_id):
                 continue
             
             if self.IsBlacklisted(model_id):
                 loot_array.remove(agent_id)
                 continue
-            
-            
+                
             # Rarity filtering
             if Item.Rarity.IsWhite(item_id):
                 if not self.loot_whites:
@@ -2422,14 +2428,6 @@ class LootConfig:
                 if not self.loot_greens:
                     loot_array.remove(agent_id)
                     continue
-
-            
-            if self.IsItemIDWhitelisted(item_id):
-                continue
-            
-            if self.IsItemIDBlacklisted(item_id):
-                loot_array.remove(agent_id)
-                continue
 
         loot_array = AgentArray.Sort.ByDistance(loot_array, Player.GetXY())
 
