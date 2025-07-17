@@ -207,13 +207,38 @@ class FollowPathAndAggro:
     def _advance_to_next_point(self):
         if not self.follow_handler.is_following():
             next_point = self.path_handler.advance()
-            if next_point:
-                self._current_path_point = next_point
-                self.follow_handler.move_to_waypoint(*next_point)
-                self.status_message = f"Moving to {next_point}"
+            if not next_point:
+                # SAFETY: No next point found
+                self.status_message = "No valid next waypoint! Stopping pathing."
                 if self.log_actions:
-                    ConsoleLog("FollowPathAndAggro", f"Moving to {next_point}", Console.MessageType.Info)
+                    ConsoleLog("FollowPathAndAggro", "PathHandler returned None – halting movement.", Console.MessageType.Warning)
+                
+                # Optional fallback: reset to start or nearest point
+                if hasattr(self.path_handler, "reset"):
+                    self.path_handler.reset()  # resets to first node
+                    retry_point = self.path_handler.advance()
+                    if retry_point:
+                        self._current_path_point = retry_point
+                        self.follow_handler.move_to_waypoint(*retry_point)
+                        self.status_message = f"Path reset → moving to {retry_point}"
+                        ConsoleLog("FollowPathAndAggro", f"Path reset after failure, moving to {retry_point}", Console.MessageType.Warning)
+                return  # do nothing else this tick
+            
+            # If we got a valid next_point
+            self._current_path_point = next_point
+            self.follow_handler.move_to_waypoint(*next_point)
+            self.status_message = f"Moving to {next_point}"
+            if self.log_actions:
+                ConsoleLog("FollowPathAndAggro", f"Moving to {next_point}", Console.MessageType.Info)
         else:
+            # SAFETY: make sure _current_path_point is valid
+            if not self._current_path_point:
+                self.status_message = "Lost current path point, hang on a second"
+                if self.log_actions:
+                    pass
+                self.follow_handler._following = False
+                return
+            
             px, py = Player.GetXY()
             tx, ty = self._current_path_point
             if Utils.Distance((px, py), (tx, ty)) <= ARRIVAL_TOLERANCE:
