@@ -385,6 +385,10 @@ def UpdateStatus(cached_data: CacheData):
         CustomBehaviorLoader().initialize_custom_behavior_candidate()
         custom_combat_behavior = CustomBehaviorLoader().custom_combat_behavior
 
+    is_custom_behavior_override = (
+        is_custom_behavior_widget_active and custom_combat_behavior and custom_combat_behavior.get_is_enabled()
+    )
+
     cached_data.UpdateGameOptions()
 
     DrawEmbeddedWindow(cached_data)
@@ -418,7 +422,7 @@ def UpdateStatus(cached_data: CacheData):
     cached_data.UdpateCombat()
 
     # This handles is we try OOC skills, it will be handled by custom behavior below, see comment
-    if not is_custom_behavior_widget_active and HandleOutOfCombat(cached_data):
+    if not is_custom_behavior_override and HandleOutOfCombat(cached_data):
         return
 
     if cached_data.data.player_is_moving:
@@ -433,7 +437,7 @@ def UpdateStatus(cached_data: CacheData):
             return
 
     # This is handling custom behavior
-    if is_custom_behavior_widget_active and custom_combat_behavior and custom_combat_behavior.get_is_enabled():
+    if is_custom_behavior_override:
         if HandleCombatFlagging(cached_data):
             return
 
