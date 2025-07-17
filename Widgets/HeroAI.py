@@ -437,7 +437,7 @@ def UpdateStatus(cached_data: CacheData):
             return
 
     # This is handling custom behavior
-    if is_custom_behavior_override:
+    if is_custom_behavior_override and cached_data.data.is_combat_enabled:
         if HandleCombatFlagging(cached_data):
             return
 
