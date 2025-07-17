@@ -2,12 +2,12 @@ from abc import abstractmethod
 from typing import List, Generator, Any
 
 from HeroAI.cache_data import CacheData
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Routines
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
 
 
 class CustomBehaviorBase:
@@ -27,7 +27,7 @@ class CustomBehaviorBase:
         self._generator_handle_close_to_aggro = self._handle_close_to_aggro(cached_data)
         self._generator_handle_far_from_aggro = self._handle_far_from_aggro(cached_data)
         self.__cache_data = cached_data
-        self.__is_enabled:bool = False
+        self.__is_enabled: bool = False
 
     def enable(self):
         self.__is_enabled = True
@@ -41,17 +41,17 @@ class CustomBehaviorBase:
         return self._fetch_state(self.__cache_data)
 
     def get_final_state(self) -> BehaviorState:
-        party_forced_state:BehaviorState|None = CustomBehaviorParty().get_party_forced_state()
+        party_forced_state: BehaviorState | None = CustomBehaviorParty().get_party_forced_state()
         account_state = self.get_state()
-        final_state:BehaviorState = account_state if party_forced_state is None else party_forced_state
+        final_state: BehaviorState = account_state if party_forced_state is None else party_forced_state
         return final_state
 
     def get_is_enabled(self) -> bool:
         return self.__is_enabled
 
     def get_final_is_enabled(self) -> bool:
-        party_forced_state:bool = CustomBehaviorParty().get_party_is_enable()
-        final_is_enabled:bool = party_forced_state and self.__is_enabled
+        party_forced_state: bool = CustomBehaviorParty().get_party_is_enable()
+        final_is_enabled: bool = party_forced_state and self.__is_enabled
         return final_is_enabled
 
     # build
@@ -65,8 +65,9 @@ class CustomBehaviorBase:
         ordered_skills_by_skill_id: dict[int, "CustomSkill"] = {}
         for i in range(8):
             skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(i + 1)
-            if skill_id == 0: continue
-            skill_name =  GLOBAL_CACHE.Skill.GetName(skill_id)
+            if skill_id == 0:
+                continue
+            skill_name = GLOBAL_CACHE.Skill.GetName(skill_id)
             custom_skill = CustomSkill(skill_name)
             ordered_skills_by_skill_id[skill_id] = custom_skill
 
@@ -95,10 +96,11 @@ class CustomBehaviorBase:
             return skills_by_skill_id
 
         from Widgets import HeroAI
-        self.__cache_data.combat_handler.PrioritizeSkills()
-        generic_skills:List["HeroAI.CombatClass.SkillData"] = self.__cache_data.combat_handler.skills
 
-        custom_skills:dict[int, "CustomSkill"] = __get_custom_behavior_build()
+        self.__cache_data.combat_handler.PrioritizeSkills()
+        generic_skills: List["HeroAI.CombatClass.SkillData"] = self.__cache_data.combat_handler.skills  # type: ignore
+
+        custom_skills: dict[int, "CustomSkill"] = __get_custom_behavior_build()
         not_customized_skills: List["CustomSkill"] = []
 
         for skill in generic_skills:
@@ -108,7 +110,7 @@ class CustomBehaviorBase:
         return not_customized_skills
 
     def count_matches_between_custom_behavior_match_in_game_build(self) -> int:
-        result:int = 0
+        result: int = 0
         in_game_build: dict[int, "CustomSkill"] = self.get_in_game_build()
         custom_behavior_build: List["CustomSkill"] = self.skills_required_in_behavior
 
@@ -116,18 +118,20 @@ class CustomBehaviorBase:
             print(f"custom_skill: {custom_skill.skill_id} {custom_skill.skill_name}")
             if in_game_build.get(custom_skill.skill_id) is not None:
                 print(f"match: {custom_skill.skill_id} {custom_skill.skill_name}")
-                result +=1
+                result += 1
 
         return result
 
-    #orchestration
+    # orchestration
 
-    def act(self, cached_data: CacheData):
+    def act(self, cached_data: CacheData, manual_disable_heroai=True):
 
-        if not self.get_final_is_enabled(): return
-        if not Routines.Checks.Map.MapValid(): return
+        if not self.get_final_is_enabled():
+            return
+        if not Routines.Checks.Map.MapValid():
+            return
 
-        if self.get_final_is_enabled():
+        if self.get_final_is_enabled() and manual_disable_heroai:
             account_email = GLOBAL_CACHE.Player.GetAccountEmail()
             hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
             if hero_ai_options is not None:
@@ -135,7 +139,7 @@ class CustomBehaviorBase:
                 hero_ai_options.Following = hero_ai_options.Following
                 hero_ai_options.Looting = hero_ai_options.Looting
 
-        final_state:BehaviorState = self.get_final_state()
+        final_state: BehaviorState = self.get_final_state()
 
         if final_state == BehaviorState.IDLE:
             return
@@ -143,31 +147,31 @@ class CustomBehaviorBase:
             try:
                 next(self._generator_handle_in_aggro)
             except StopIteration:
-                print(f"act.IN_AGGRO is not expected to StopIteration.")
+                print("act.IN_AGGRO is not expected to StopIteration.")
             except Exception as e:
                 print(f"act.IN_AGGRO is not expected to exit : {e}")
         elif final_state == BehaviorState.CLOSE_TO_AGGRO:
             try:
                 next(self._generator_handle_close_to_aggro)
             except StopIteration:
-                print(f"act.CLOSE_TO_AGGRO is not expected to StopIteration.")
+                print("act.CLOSE_TO_AGGRO is not expected to StopIteration.")
             except Exception as e:
                 print(f"act.CLOSE_TO_AGGRO is not expected to exit : {e}")
         elif final_state == BehaviorState.FAR_FROM_AGGRO:
             try:
                 next(self._generator_handle_far_from_aggro)
             except StopIteration:
-                print(f"act.FAR_FROM_AGGRO is not expected to StopIteration.")
+                print("act.FAR_FROM_AGGRO is not expected to StopIteration.")
             except Exception as e:
                 print(f"act.FAR_FROM_AGGRO is not expected to exit : {e}")
         else:
             print(f"State {final_state} is not managed.")
 
-    #abstract/overridable
+    # abstract/overridable
 
     def _fetch_state(self, cached_data: CacheData) -> BehaviorState:
 
-        if self.get_final_is_enabled() == False:
+        if not self.get_final_is_enabled():
             return BehaviorState.IDLE
 
         if not Routines.Checks.Map.MapValid():

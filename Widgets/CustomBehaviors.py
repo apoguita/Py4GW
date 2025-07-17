@@ -166,12 +166,10 @@ def gui():
     PyImGui.end()
 
 def main():
-
     if not Routines.Checks.Map.MapValid():
         return
 
     gui()
-    deamon()
     
 
 def configure():
