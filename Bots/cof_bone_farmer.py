@@ -585,7 +585,6 @@ class Loot:
             return False
 
         if Agent.IsDead(Player.GetAgentID()):
-            self.LogLoot()
             return True
         
         if not bot_vars.inv.log:
@@ -638,7 +637,7 @@ loot      = Loot()
 # endregion
 
 # region helper functions
-def Debug(message, title = 'DEBUG', msg_type = 'Debug'):
+def Debug(message, title = 'Log', msg_type = 'Debug'):
     py4gw_msg_type = Py4GW.Console.MessageType.Debug
     if msg_type == 'Debug':         py4gw_msg_type = Py4GW.Console.MessageType.Debug
     elif msg_type == 'Error':       py4gw_msg_type = Py4GW.Console.MessageType.Error
@@ -802,9 +801,7 @@ def InteractNPC():
     if not Agent.IsMoving(Player.GetAgentID()):
         Keystroke.PressAndRelease(Key.Space.value)
 
-    filename = r'D:\Games\Guild Wars\Py4GW\my_bots\frame_aliases.json'
-    frame_id = UIManager.GetFrameIDByCustomLabel(filename = filename,frame_label = 'NPC Bounty Dialog') or 0
-    if frame_id:
+    if UIManager.IsNPCDialogVisible():
         return True
     
     return False
@@ -1049,11 +1046,9 @@ fsm_farm_states = [
     ('waiting...'            , dict(transition_delay_ms=3000)),
     ('prepping skills'       , dict(execute_fn=lambda:PrepSkills(),exit_condition=lambda:PrepSkills(),run_once=False)),
     ('going to kill spot'    , dict(execute_fn=lambda:FollowPath(bot_vars.path.kill,bot_vars.exact_move),exit_condition=lambda:PathFinished(bot_vars.path.kill,bot_vars.exact_move),run_once=False)),
-    ('requesting names'      , dict(execute_fn=lambda:RequestEnemyNames())),
     ('waiting for enemies'   , dict(exit_condition=lambda:WaitForSettle(200,3))),
     ('equipping scythe'      , dict(execute_fn=lambda:combat.ChangeWeaponSet(build.scythe),exit_condition=lambda:Agent.GetWeaponType(Player.GetAgentID())[1]=='Scythe',run_once=False)),
     ('killing enemies'       , dict(exit_condition=lambda:WaitForKill())),
-    ('requesting names'      , dict(execute_fn=lambda:RequestItemNames())),
     ('looting items'         , dict(exit_condition=lambda:loot.Loot())),
     ('resigning'             , dict(execute_fn=lambda:Player.SendChatCommand('resign'),exit_condition=lambda:Party.IsPartyDefeated(),transition_delay_ms=1000)),
     ('returning'             , dict(execute_fn=lambda:Party.ReturnToOutpost(),exit_condition=lambda:ArrivedOutpost(bot_vars.map.starting),transition_delay_ms=200)),
@@ -1348,6 +1343,7 @@ class Draw:
             PyImGui.set_next_window_pos(bot_vars.gui.window_module.window_pos[0], bot_vars.gui.window_module.window_pos[1])
             bot_vars.gui.window_module.first_run = False
 
+        try:
             PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowBorderSize,0.0)
             PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
             PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameRounding,0.0)
@@ -1362,7 +1358,6 @@ class Draw:
             PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBgActive,    (0.0, 0.0, 0.0, 0.7))
             PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBgCollapsed, (0.0, 0.0, 0.0, 0.7))
 
-        try:
             if PyImGui.begin(bot_vars.gui.window_module.window_name, bot_vars.gui.window_module.window_flags):
                 bot_vars.gui.window_pos  = PyImGui.get_window_pos()
                 bot_vars.gui.window_size = PyImGui.get_window_size()
@@ -1374,6 +1369,9 @@ class Draw:
                     self.CreateSettings()
                     PyImGui.tree_pop()
             PyImGui.end()
+
+            PyImGui.pop_style_var(3)
+            PyImGui.pop_style_color(8)
         except Exception as e:
             current_function = inspect.currentframe().f_code.co_name # type: ignore
             Py4GW.Console.Log('BOT', f'Error in {current_function}: {str(e)}', Py4GW.Console.MessageType.Error)
