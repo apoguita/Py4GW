@@ -23,7 +23,7 @@ project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 first_run = True
 
 MODULE_NAME = "CombatPrep"
-BASE_DIR = os.path.join(project_root, "Widgets/Config")
+BASE_DIR = os.path.join(project_root, "Widgets/Config/textures/combat_prep")
 FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "combat_prep_window.ini")
 TEXTURES_PATH = 'Textures/CombatPrep'
