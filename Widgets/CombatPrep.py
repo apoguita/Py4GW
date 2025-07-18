@@ -23,10 +23,10 @@ project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 first_run = True
 
 MODULE_NAME = "CombatPrep"
-BASE_DIR = os.path.join(project_root, "Widgets/Config/textures/combat_prep")
+BASE_DIR = os.path.join(project_root, "Widgets/Config")
 FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "combat_prep_window.ini")
-TEXTURES_PATH = 'Textures/CombatPrep'
+TEXTURES_PATH = 'Widgets/Config/textures/combat_prep'
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # String consts
@@ -55,7 +55,7 @@ SHOUTS_BUTTON_ID = "##ShoutsPrepButton"
 TOGGLE_PARTY_LEADER_BUTTON_ID = '##TogglePartyLeaderHeroAI'
 TOGGLE_PARTY_MEMBERS_BUTTON_ID = '##TogglePartyHeroAI'
 TIMESTAMP = "timestamp"
-TEXTURE = "texture"
+TEXTURE = "texture_path"
 VALUE = 'value'
 VK = "vk"
 WAS_PRESSED = "was_pressed"
