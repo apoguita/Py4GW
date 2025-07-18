@@ -43,13 +43,19 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import Utils
+from Py4GW_widget_manager import get_widget_handler
+from Widgets.CustomBehaviors.gui.deamon import deamon as deamon
+from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+
 
 MODULE_NAME = "HeroAI"
 
 FOLLOW_COMBAT_DISTANCE = 25.0  # if body blocked, we get close enough.
-LEADER_FLAG_TOUCH_RANGE_TRESHOLD_VALUE = Range.Touch.value * 1.1
+LEADER_FLAG_TOUCH_RANGE_THRESHOLD_VALUE = Range.Touch.value * 1.1
+
 
 cached_data = CacheData()
+widget_handler = get_widget_handler()
 
 
 def HandleOutOfCombat(cached_data: CacheData):
@@ -58,33 +64,10 @@ def HandleOutOfCombat(cached_data: CacheData):
     if cached_data.data.in_aggro:
         return False
 
-    flagged_out_of_combat_follow_distance = 10.0
-
-    # suspends all activity until HeroAI has made it to the flagged position
-    party_number = cached_data.data.own_party_number
-    all_player_struct = cached_data.HeroAI_vars.all_player_struct
-    if all_player_struct[party_number].IsFlagged:
-        own_follow_x = all_player_struct[party_number].FlagPosX
-        own_follow_y = all_player_struct[party_number].FlagPosY
-        own_coords = (own_follow_x, own_follow_y)
-        if Utils.Distance(own_coords, cached_data.data.player_xy) > flagged_out_of_combat_follow_distance:
-            return False
-    elif all_player_struct[0].IsFlagged:
-        leader_follow_x = all_player_struct[0].FlagPosX
-        leader_follow_y = all_player_struct[0].FlagPosY
-        leader_coords = (leader_follow_x, leader_follow_y)
-        if Utils.Distance(leader_coords, cached_data.data.player_xy) > LEADER_FLAG_TOUCH_RANGE_TRESHOLD_VALUE:
-            return False
-
     return cached_data.combat_handler.HandleCombat(ooc=True)
 
 
-def HandleCombat(cached_data: CacheData):
-    if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
-        return False
-    if not cached_data.data.in_aggro:
-        return False
-
+def HandleCombatFlagging(cached_data):
     # Suspends all activity until HeroAI has made it to the flagged position
     # Still goes into combat as long as its within the combat follow range value of the expected flag
     party_number = cached_data.data.own_party_number
@@ -99,8 +82,20 @@ def HandleCombat(cached_data: CacheData):
         leader_follow_x = all_player_struct[0].FlagPosX
         leader_follow_y = all_player_struct[0].FlagPosY
         leader_flag_coords = (leader_follow_x, leader_follow_y)
-        if Utils.Distance(leader_flag_coords, cached_data.data.player_xy) >= LEADER_FLAG_TOUCH_RANGE_TRESHOLD_VALUE:
+        if Utils.Distance(leader_flag_coords, cached_data.data.player_xy) >= LEADER_FLAG_TOUCH_RANGE_THRESHOLD_VALUE:
             return True  # Forces a reset on autoattack timer
+    return False
+
+
+def HandleCombat(cached_data: CacheData):
+    if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
+        return False
+    if not cached_data.data.in_aggro:
+        return False
+
+    combat_flagging_handled = HandleCombatFlagging(cached_data)
+    if combat_flagging_handled:
+        return combat_flagging_handled
     return cached_data.combat_handler.HandleCombat(ooc=False)
 
 
@@ -238,11 +233,13 @@ def draw_Targeting_floating_buttons(cached_data: CacheData):
 
     Overlay().BeginDraw()
     for agent_id in enemy_array:
-        x,y,z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
-        screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
-        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_CROSSHAIRS}",name = agent_id, x = screen_x-12, y = screen_y-12 , width= 25, height= 25):       
-            GLOBAL_CACHE.Player.ChangeTarget (agent_id)
-            GLOBAL_CACHE.Player.Interact (agent_id, True)
+        x, y, z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
+        screen_x, screen_y = Overlay.WorldToScreen(x, y, z + 25)
+        if ImGui.floating_button(
+            f"{IconsFontAwesome5.ICON_CROSSHAIRS}", name=agent_id, x=screen_x - 12, y=screen_y - 12, width=25, height=25
+        ):
+            GLOBAL_CACHE.Player.ChangeTarget(agent_id)
+            GLOBAL_CACHE.Player.Interact(agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
     Overlay().EndDraw()
 
@@ -381,6 +378,17 @@ def UpdateStatus(cached_data: CacheData):
     UpdatePlayers(cached_data)
     UpdateGameOptions(cached_data)
 
+    # Check if we should override combat behavior with CustomBehaviorsWidget
+    is_custom_behavior_widget_active = widget_handler.is_widget_enabled('CustomBehaviors')
+    custom_combat_behavior = None
+    if is_custom_behavior_widget_active:
+        CustomBehaviorLoader().initialize_custom_behavior_candidate()
+        custom_combat_behavior = CustomBehaviorLoader().custom_combat_behavior
+
+    is_custom_behavior_override = (
+        is_custom_behavior_widget_active and custom_combat_behavior and custom_combat_behavior.get_is_enabled()
+    )
+
     cached_data.UpdateGameOptions()
 
     DrawEmbeddedWindow(cached_data)
@@ -412,7 +420,9 @@ def UpdateStatus(cached_data: CacheData):
         return
 
     cached_data.UdpateCombat()
-    if HandleOutOfCombat(cached_data):
+
+    # This is so that we dont handle OOC skills if is_custom_behavior_override is True
+    if not is_custom_behavior_override and HandleOutOfCombat(cached_data):
         return
 
     if cached_data.data.player_is_moving:
@@ -425,6 +435,14 @@ def UpdateStatus(cached_data: CacheData):
         if Follow(cached_data):
             cached_data.follow_throttle_timer.Reset()
             return
+
+    # This is handling custom behavior over all other combat related code
+    if is_custom_behavior_override and cached_data.data.is_combat_enabled:
+        if HandleCombatFlagging(cached_data):
+            return
+
+        deamon(manual_disable_heroai=False)
+        return
 
     if HandleCombat(cached_data):
         cached_data.auto_attack_timer.Reset()

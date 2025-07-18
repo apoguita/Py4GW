@@ -4,14 +4,15 @@ from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBeha
 
 
 @staticmethod
-def deamon():
+def deamon(manual_disable_heroai=True):
     CustomBehaviorLoader().initialize_custom_behavior_candidate()
 
     if CustomBehaviorLoader().custom_combat_behavior is not None:
         CustomBehaviorLoader().ensure_custom_behavior_match_in_game_build()
-        pass
 
     if CustomBehaviorLoader().custom_combat_behavior is not None:
-        CustomBehaviorLoader().custom_combat_behavior.act(CacheData())
+        CustomBehaviorLoader().custom_combat_behavior.act(  # type: ignore
+            CacheData(), manual_disable_heroai=manual_disable_heroai
+        )
 
     ActionQueueManager().ProcessQueue("ACTION")
