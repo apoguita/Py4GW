@@ -421,7 +421,7 @@ def UpdateStatus(cached_data: CacheData):
 
     cached_data.UdpateCombat()
 
-    # This handles is we try OOC skills, it will be handled by custom behavior below, see comment
+    # This is so that we dont handle OOC skills if is_custom_behavior_override is True
     if not is_custom_behavior_override and HandleOutOfCombat(cached_data):
         return
 
@@ -436,7 +436,7 @@ def UpdateStatus(cached_data: CacheData):
             cached_data.follow_throttle_timer.Reset()
             return
 
-    # This is handling custom behavior
+    # This is handling custom behavior over all other combat related code
     if is_custom_behavior_override and cached_data.data.is_combat_enabled:
         if HandleCombatFlagging(cached_data):
             return
