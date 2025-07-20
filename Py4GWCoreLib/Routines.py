@@ -73,6 +73,7 @@ class Routines:
                     return True
                 return False
             
+            
     
             @staticmethod
             def IsEnemyBehind (agent_id):
@@ -662,6 +663,20 @@ class Routines:
         def GetNearestNPC(distance:float = 4500.0):
             player_pos = GLOBAL_CACHE.Player.GetXY()
             return Routines.Agents.GetNearestNPCXY(player_pos[0], player_pos[1], distance)
+        
+        @staticmethod
+        def GetAgentIDByModelID(model_id:int):
+            """
+            Purpose: Get the agent ID by model ID.
+            Args:
+                model_id (int): The model ID of the agent.
+            Returns: int: The agent ID or 0 if not found.
+            """
+            agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+            for agent_id in agent_ids:
+                if GLOBAL_CACHE.Agent.GetModelID(agent_id) == model_id:
+                    return agent_id
+            return 0
          
         @staticmethod
         def GetFilteredEnemyArray(x, y, max_distance=4500.0, aggressive_only = False):
@@ -1534,6 +1549,20 @@ class Routines:
                         return agent_id
 
                 return 0  # Not found
+            
+            @staticmethod
+            def GetAgentIDByModelID(model_id:int):
+                """
+                Purpose: Get the agent ID by model ID.
+                Args:
+                    model_id (int): The model ID of the agent.
+                Returns: int: The agent ID or 0 if not found.
+                """
+                agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+                for agent_id in agent_ids:
+                    if GLOBAL_CACHE.Agent.GetModelID(agent_id) == model_id:
+                        return agent_id
+                return 0
 
             @staticmethod
             def ChangeTarget(agent_id):
@@ -1890,7 +1919,8 @@ class Routines:
                 tolerance: float = 150,
                 log: bool = False,
                 timeout: int = -1,
-                progress_callback: Optional[Callable[[float], None]] = None
+                progress_callback: Optional[Callable[[float], None]] = None,
+                custom_pause_fn: Optional[Callable[[], bool]] = None 
             ):
                 import random
                 start_time = Utils.GetBaseTimestamp()
@@ -1915,6 +1945,14 @@ class Routines:
                         if not Routines.Checks.Map.MapValid():
                             ActionQueueManager().ResetAllQueues()
                             return False
+                        
+                        if custom_pause_fn:
+                            while custom_pause_fn():
+                                if log:
+                                    ConsoleLog("FollowPath", "Custom pause condition active, pausing movement...", Console.MessageType.Debug)
+                                start_time = Utils.GetBaseTimestamp()  # Reset timeout timer
+                                yield from Routines.Yield.wait(500)
+                        
 
                         current_time = Utils.GetBaseTimestamp()
                         delta = current_time - start_time
@@ -2148,6 +2186,20 @@ class Routines:
                 return 0  # Not found
 
             @staticmethod
+            def GetAgentIDByModelID(model_id:int):
+                """
+                Purpose: Get the agent ID by model ID.
+                Args:
+                    model_id (int): The model ID of the agent.
+                Returns: int: The agent ID or 0 if not found.
+                """
+                agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+                for agent_id in agent_ids:
+                    if GLOBAL_CACHE.Agent.GetModelID(agent_id) == model_id:
+                        return agent_id
+                return 0
+
+            @staticmethod
             def ChangeTarget(agent_id):
                 if agent_id != 0:
                     GLOBAL_CACHE.Player.ChangeTarget(agent_id)
@@ -2238,10 +2290,10 @@ class Routines:
                 if not follow_result:
                     ConsoleLog("InteractWithAgentXY", "TIMEOUT on follow path to agent.", Console.MessageType.Warning)
                     return False
-                yield from Routines.Yield.wait(1000)
+                yield from Routines.Yield.wait(500)
                 
                 yield from Routines.Yield.Player.InteractTarget()
-                yield from Routines.Yield.wait(1000)
+                yield from Routines.Yield.wait(500)
                 return True
                 
         class Merchant:

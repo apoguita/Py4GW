@@ -100,6 +100,11 @@ class Effects:
         return effect_exists
 
     @staticmethod
+    def HasEffect(agent_id: int, skill_id: int):
+        return Effects.EffectExists(agent_id, skill_id) or Effects.BuffExists(agent_id, skill_id)
+
+
+    @staticmethod
     def EffectAttributeLevel(agent_id: int, skill_id: int):
         """
         Purpose: Get the attribute level of a specific effect.
