@@ -251,6 +251,11 @@ def TravelToMap(index, message):
 
 
 def Resign(index, message):
+    if not Routines.Checks.Map.MapValid():
+        ConsoleLog(MODULE_NAME, "Map is not valid, cannot process resign message.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+        
     # ConsoleLog(MODULE_NAME, f"Processing Resign message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     GLOBAL_CACHE.Player.SendChatCommand("resign")
