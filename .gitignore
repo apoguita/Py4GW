@@ -6,7 +6,10 @@ Py4GW_Launcher.exe
 imgui.ini
 Inject.au3
 Widgets/Config/Travel.ini
-Widgets/Config/
+Widgets/Config/*
+
+!Widgets/Config/textures/
+!Widgets/Config/textures/**
 
 # .tpf files, including in subfolders and ignored
 Addons/*.tpf
