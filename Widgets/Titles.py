@@ -33,7 +33,7 @@ deldrimor_map_names = {
 }
 
 norn_map_names = {
-    "Attack of the Nornbear", "Bjora Marches", "Blood Washes Blood",
+    "Attack of the Nornbear", "Bjora Marches",
     "Boreal Station", "Cold as Ice", "Curse of the Nornbear",
     "Drakkar Lake", "Eye of the North", "Gunnar's Hold", "Ice Cliff Chasms",
     "Jaga Moraine", "Mano a Norn-o", "Norrhart Domains", "Olafstead",
@@ -43,6 +43,7 @@ norn_map_names = {
 
 vanguard_map_names = {
     "Against the Charr", "Ascalon City", "Assault on the Stronghold",
+     "Blood Washes Blood",
     "Cathedral of Flames (Level 1)", "Cathedral of Flames (Level 2)",
     "Cathedral of Flames (Level 3)", "Dalada Uplands", "Diessa Lowlands",
     "Doomlore Shrine", "Dragon's Gullet", "Eastern Frontier",
