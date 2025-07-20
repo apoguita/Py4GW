@@ -61,6 +61,10 @@ class EffectsCache:
     @classmethod
     def EffectExists(cls, agent_id: int, skill_id: int):
         return any(effect.skill_id == skill_id for effect in cls.GetEffects(agent_id))
+    
+    @classmethod
+    def HasEffect(cls,agent_id: int, skill_id: int):
+        return cls.EffectExists(agent_id, skill_id) or cls.BuffExists(agent_id, skill_id)
 
     @classmethod
     def EffectAttributeLevel(cls, agent_id: int, skill_id: int):
