@@ -1,6 +1,5 @@
 import Py4GW
 import PyImGui
-from Hello_World import GUARDMAN_ZUI_DLG4
 from Py4GWCoreLib import *
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import GLOBAL_CACHE
@@ -24,7 +23,7 @@ class FSM_Config:
         self.initialize()
         
     def initialize(self):
-        self.FSM.AddYieldRoutineStep(name="Exit Monastery Overlook", coroutine_fn=self.ExitMonasteryOverlook)
+        self.FSM.AddYieldRoutineStep(name = "Exit Monastery Overlook", coroutine_fn=self.ExitMonasteryOverlook)
         self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 001",coroutine_fn = lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Shing Jea Monastery")))
         self.FSM.AddYieldRoutineStep(name = "Exit to Courtyard 001", coroutine_fn=self.ExitToCourtyard)
         self.FSM.AddYieldRoutineStep(name = "Wait for Linnok Courtyard Map Load 002", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Linnok Courtyard")))
@@ -37,7 +36,7 @@ class FSM_Config:
         self.FSM.AddYieldRoutineStep(name = "Travel to Minister Cho", coroutine_fn=self.TravelToMinisterCho)
         minister_cho_map_id = 214
         self.FSM.AddYieldRoutineStep(name = "Wait for Minister Cho Map Load", coroutine_fn=lambda: self.WaitforMapLoad(minister_cho_map_id))
-        self.FSM.AddYieldRoutineStep(name = "Prepare for Mission", coroutine_fn=self.PrepareForMission)
+        self.FSM.AddYieldRoutineStep(name = "Prepare for Mission", coroutine_fn=self.PrepareForMinisterChoMission)
         self.FSM.AddYieldRoutineStep(name = "Wait for Minister Cho Mission Load", coroutine_fn=lambda: self.WaitforMapLoad(minister_cho_map_id))
         self.FSM.AddYieldRoutineStep(name = "Minister Cho Mission", coroutine_fn=self.MinisterChoMission)
         self.FSM.AddYieldRoutineStep(name = "Take Warning the Tengu and Exit", coroutine_fn=self.TakeWarningTheTenguandExit)
@@ -59,11 +58,15 @@ class FSM_Config:
         self.FSM.AddYieldRoutineStep(name = "Wait for Saoshang Trail Map Load", coroutine_fn=lambda: self.WaitforMapLoad(saoshang_trail_map_id))
         self.FSM.AddYieldRoutineStep(name = "Traverse Saoshang Trail", coroutine_fn=self.TraverseSaoshangTrail)
         self.FSM.AddYieldRoutineStep(name = "Wait for Seitung Harbor Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor")))
-
-
+        self.FSM.AddYieldRoutineStep(name = "Take Reward and Exit Seitung Harbor", coroutine_fn=self.TakeRewardAndExitSeitungHarbor)
+        self.FSM.AddYieldRoutineStep(name = "Wait for Jaya Bluffs Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Jaya Bluffs")))
         self.FSM.AddYieldRoutineStep(name = "Go to Zen Daijun 001", coroutine_fn=self.GoToZenDaijunPart001)
         self.FSM.AddYieldRoutineStep(name = "Wait for Haiju Lagoon Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Haiju Lagoon")))
         self.FSM.AddYieldRoutineStep(name = "Go to Zen Daijun 002", coroutine_fn=self.GoToZenDaijunPart002)
+        zen_daijun_map_id = 213
+        self.FSM.AddYieldRoutineStep(name = "Wait for Zen Daijun Map Load", coroutine_fn=lambda: self.WaitforMapLoad(zen_daijun_map_id))
+        self.FSM.AddYieldRoutineStep(name = "Prepare for Zen Daijun Mission", coroutine_fn=self.PrepareForZenDaijunMission)
+        self.FSM.AddYieldRoutineStep(name = "Zen Daijun Mission", coroutine_fn=self.ZenDaijunMission)
         self.FSM.AddYieldRoutineStep(name = "End Routines", coroutine_fn=self.Endroutine)
         
     #region HELPERS
@@ -78,7 +81,7 @@ class FSM_Config:
         
         profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         if profession == "Warrior":
-            yield from Routines.Yield.Skills.LoadSkillbar("OQcSEluJPMDjwAAAAAAAAA",log=False)
+            yield from Routines.Yield.Skills.LoadSkillbar("OQcUEvq0jvIClLHAAAAAAAAAAA",log=False)
         elif profession == "Ranger":
             yield from Routines.Yield.Skills.LoadSkillbar("OgcScleJPMDjwAAAAAAAAA",log=False)
         elif profession == "Monk":
@@ -92,22 +95,54 @@ class FSM_Config:
         elif profession == "Ritualist":
             yield from Routines.Yield.Skills.LoadSkillbar("OAei8Jg24y+mAAAAAAAAAAAA",log=False)
         elif profession == "Assassin":
-            yield from Routines.Yield.Skills.LoadSkillbar("OwBR0J5hBAAAAAAAAAAA",log=False)
+            yield from Routines.Yield.Skills.LoadSkillbar("OwBj0NfyoJPsLDAAAAAAAAAA",log=False)
             
         GLOBAL_CACHE.Party.LeaveParty()
+        yield from Routines.Yield.wait(200)
         
-        HEALER_ID = 1
-        GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
-        SPIRITS_ID = 5
-        GLOBAL_CACHE.Party.Henchmen.AddHenchman(SPIRITS_ID)
-        GUARDIAN_ID = 2
-        GLOBAL_CACHE.Party.Henchmen.AddHenchman(GUARDIAN_ID)
+        party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
         
+        zen_daijun_map_id = 213
+        
+        if party_size <= 4:
+            HEALER_ID = 1
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
+            SPIRITS_ID = 5
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(SPIRITS_ID)
+            GUARDIAN_ID = 2
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(GUARDIAN_ID)
+            yield from Routines.Yield.wait(500)
+        elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor"):
+            GUARDIAN_ID = 2
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(GUARDIAN_ID)
+            DEADLY_ID = 3
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(DEADLY_ID)
+            SHOCK_ID = 1
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(SHOCK_ID)
+            SPIRITS_ID = 4
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(SPIRITS_ID)
+            HEALER_ID = 5
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
+            yield from Routines.Yield.wait(500)
+        elif GLOBAL_CACHE.Map.GetMapID() == zen_daijun_map_id:
+            FIGHTER_ID = 3
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(FIGHTER_ID)
+            CUTTHROAT_ID = 2
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(CUTTHROAT_ID)
+            EARTH_ID = 1
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(EARTH_ID)
+            SPIRIT_ID = 8
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(SPIRIT_ID)
+            HEALER_ID = 5
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
+            yield from Routines.Yield.wait(500)
+
         summoning_stone_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Igneous_Summoning_Stone.value)
         if summoning_stone_in_bags < 1:
             GLOBAL_CACHE.Player.SendChatCommand("bonus")
+            yield from Routines.Yield.wait(200)
             
-        target_cupcake_count = 10     
+        target_cupcake_count = 50     
         if self.use_cupcakes:
             model_id = ModelID.Birthday_Cupcake.value
             cupcake_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
@@ -127,7 +162,7 @@ class FSM_Config:
 
         yield from Routines.Yield.wait(250)
         
-        target_honeycomb_count = 20
+        target_honeycomb_count = 100
         if self.use_honeycombs:
             model_id = ModelID.Honeycomb.value
             honey_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
@@ -450,7 +485,7 @@ class FSM_Config:
         
         yield from Routines.Yield.wait(5000)
         
-    def PrepareForMission(self):
+    def PrepareForMinisterChoMission(self):
         ACCEPT_QUEST = 0x813E07
         if not (yield from self.interact_with_agent((7884, -10029), dialog_id=ACCEPT_QUEST)):
             return
@@ -704,8 +739,21 @@ class FSM_Config:
                 GLOBAL_CACHE.Coroutines.remove(autocombat)
                 yield from Routines.Yield.wait(3000)
                 
-    def TakeRewardAndExitSaoshangTrail(self):
-        pass
+    def TakeRewardAndExitSeitungHarbor(self):
+        TAKE_REWARD = 0x815607
+        if not (yield from self.interact_with_agent((16368, 12011), dialog_id=TAKE_REWARD)):
+            return
+        
+        yield from self._prepare_for_battle()
+        
+        path_to_exit: List[Tuple[float, float]] = [(16404, 12067),(16835, 12615),(17477, 13201),(18250, 13437),(19037, 13272),
+                                                    (18744, 14040),(18289, 14775),(18566, 15587),(18790, 16400),(18097, 16895),
+                                                    (17317, 17275),(16777,17540)]
+        
+        if not (yield from self.follow_path(path_to_exit)):
+            return
+
+        
     
     def GoToZenDaijunPart001(self):
         path_to_zendaijun: List[Tuple[float, float]] = [(10062, -12912),(9347, -12883),(8607, -12472),(8352, -11650),
@@ -760,6 +808,81 @@ class FSM_Config:
             if not (yield from self.interact_with_agent((16489, -22213), dialog_id=CONTINUE)):
                 return
             
+        finally:  
+            if autocombat in GLOBAL_CACHE.Coroutines:
+                GLOBAL_CACHE.Coroutines.remove(autocombat)
+                yield from Routines.Yield.wait(3000)
+       
+    def PrepareForZenDaijunMission(self):
+        yield from self._prepare_for_battle()
+        GLOBAL_CACHE.Map.EnterChallenge()
+        yield from Routines.Yield.wait(6500)  # Wait for the map to load and the challenge to start
+                 
+    def ZenDaijunMission(self):
+        autocombat = self.AutoCombat()
+        GLOBAL_CACHE.Coroutines.append(autocombat)
+
+        try:
+            yield from Routines.Yield.wait(1000)
+            yield from self._pop_imp()
+
+            path_to_mission001: List[Tuple[float, float]] = [(16209, 11436),(15963, 11216),(15963, 11216),(15678, 10945),(14834, 10261),
+                                                          (13806, 10172),(12878, 10531),(12185, 10801),(12185, 10801),(11665, 11386),
+                                                    ]
+
+            if not (yield from self.follow_path(path_to_mission001, pause_on_danger=True)):
+                return
+                    
+            yield from Routines.Yield.wait(1000)
+            
+            if not (yield from self.interact_with_agent((11665, 11386))):
+                return
+            
+            path_to_mission002: List[Tuple[float, float]] = [(11778, 11357),(11578, 10636),(10668, 10063),(9674, 9621),(9432, 8855),
+                                                            (9990, 8394),(10546, 8083),(11333, 7338),(11203, 6624),(11291, 7054),
+                                                            (11439, 6399),(10720, 6401),(11164, 6355),(11604, 5498),(11655, 4416),
+                                                            (11503, 3382),(10571, 3564),(9797, 4083),(9288, 4538),(9049, 4791),
+                                                            (8179, 4976),(7606, 3947),(7221, 3334),(6365, 2676),(5874, 2333),
+                                                            (4996, 1462),(4754,1451)
+                                                    ]
+
+            if not (yield from self.follow_path(path_to_mission002, pause_on_danger=True)):
+                return
+            
+            yield from Routines.Yield.wait(1000)
+                    
+            if not (yield from self.interact_with_agent((4754,1451))):
+                return
+            
+            path_to_mission003: List[Tuple[float, float]] = [(4892, 1523),(5648, 1911),(5941, 1166),(5605, 132),(5170, -844),
+                                                            (4163, -1129),(3101, -900),(2084, -523),(1260, 155),(554, 969),
+                                                            (-131, 1797),(68, 2814),(568, 3807),(805, 4636),(468, 5633),
+                                                            (-23, 6374),(-363, 6868),(-1040, 7713),(-1960, 8288),(-2880, 8726),
+                                                            (-4059, 8273),(-4981, 8589),(-5457, 8807),(-6451, 8854),(-6986, 8796),
+                                                            (-7930, 8726),(-8792, 8658),(-9888, 8290),(-9587, 7820),(-9354, 7509),
+                                                            (-9808, 7193),(-11056, 5854),(-10904, 5217),(-11331, 5927),(-10923, 5216),
+                                                            (-10554, 4751),(-10242, 4154),(-10915, 3609),(-11792, 2876),(-12651, 2898),
+                                                            (-13285, 2865),(-14370, 2116),(-14454, 1373),(-14327, 905),(-14206, 1528),
+                                                            (-14179, 913),(-13788, 147),(-13379, -197),(-13039, -375),(-12539, -326),
+                                                            (-12327, 76),(-11758, 697),(-10961, 479),(-10308, 60),(-9882, -149),
+                                                    ]
+
+            if not (yield from self.follow_path(path_to_mission003, pause_on_danger=True)):
+                return
+            
+            GLOBAL_CACHE.Party.Heroes.FlagAllHeroes(-8656, -712)
+            yield from Routines.Yield.wait(3000)
+            
+            path_to_mission004: List[Tuple[float, float]] = [(-8625, -742),(-8298, -1270),(-8198, -1147),(-7851, -1458),]
+
+            if not (yield from self.follow_path(path_to_mission004, pause_on_danger=True)):
+                return
+            
+            while True:
+                mapid = GLOBAL_CACHE.Map.GetMapID() #251
+                if (Routines.Checks.Map.MapValid() and (mapid == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor"))):
+                    break
+                yield from Routines.Yield.wait(1000)
         finally:  
             if autocombat in GLOBAL_CACHE.Coroutines:
                 GLOBAL_CACHE.Coroutines.remove(autocombat)
