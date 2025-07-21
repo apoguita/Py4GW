@@ -2244,12 +2244,22 @@ def ShowPyMapWindow():
             instance_time_seconds = instance_time / 1000  # Convert to seconds
             formatted_time = time.strftime('%H:%M:%S', time.gmtime(instance_time_seconds))
             time_text = f"{formatted_time} - [{map_instance.instance_time}]"
+            party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+            player_size = GLOBAL_CACHE.Map.GetMaxPlayerSize()
+            min_party_size = GLOBAL_CACHE.Map.GetMinPartySize()
+            min_player_size = GLOBAL_CACHE.Map.GetMinPlayerSize()
+            
 
             headers = ["Info", "Value"]
             data = [("Instance ID:", GLOBAL_CACHE.Map.GetMapID()),
                     ("Instance Name:", GLOBAL_CACHE.Map.GetMapName()),
                     ("Instance Time:", time_text),
-                    ("Amount of Players in Instance:",GLOBAL_CACHE.Map.GetAmountOfPlayersInInstance())]
+                    ("Amount of Players in Instance:",GLOBAL_CACHE.Map.GetAmountOfPlayersInInstance()),
+                    ("Max Party Size:", party_size),
+                    ("Max Player Size:", player_size),
+                    ("Min Party Size:", min_party_size),
+                    ("Min Player Size:", min_player_size)
+                    ]
 
             ImGui.table("Instance Info Table",headers,data)
 
