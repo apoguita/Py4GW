@@ -4,19 +4,16 @@ import pkgutil
 from typing import Generator, Any, List
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines
-from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base import CustomBehaviorBase
-from Widgets.CustomBehaviors.primitives.constants import DEBUG, USE_GENERIC_IF_NO_TEMPLATE
+from Widgets.CustomBehaviors.primitives.constants import DEBUG
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
-from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
-from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 class MatchResult:
-    def __init__(self, build_size: int, matching_count: int, instance: CustomBehaviorBase, is_matched_with_current_build: bool):
+    def __init__(self, build_size: int, matching_count: int, instance: CustomBehaviorBaseUtility, is_matched_with_current_build: bool):
         self.build_size = build_size
         self.matching_count: int = matching_count
         self.matching_result = build_size - matching_count
         self.is_matched_with_current_build: bool = is_matched_with_current_build
-        self.instance: CustomBehaviorBase = instance
+        self.instance: CustomBehaviorBaseUtility = instance
 
 class CustomBehaviorLoader:
     _instance = None  # Singleton instance
@@ -29,7 +26,7 @@ class CustomBehaviorLoader:
 
     def __init__(self):
         if not self._initialized:
-            self.custom_combat_behavior:CustomBehaviorBase | None = None
+            self.custom_combat_behavior:CustomBehaviorBaseUtility | None = None
             self._has_loaded = False
             self.__behaviors_found:list[MatchResult] = []
             self._initialized = True
@@ -123,17 +120,16 @@ class CustomBehaviorLoader:
 
     def __find_and_order_custom_behaviors(self) -> List[MatchResult]:
 
-        subclasses: list[type] = self.__find_subclasses_in_folder(CustomBehaviorBase, "Widgets.CustomBehaviors.skillbars")
+        subclasses: list[type] = self.__find_subclasses_in_folder(CustomBehaviorBaseUtility, "Widgets.CustomBehaviors.skillbars")
         matches: List[MatchResult] = []
 
         for subclass in subclasses:
             if DEBUG: print(f"Checking subclass: {subclass.__name__} (defined in {subclass.__module__})")
-            from HeroAI.cache_data import CacheData
-            instance: CustomBehaviorBase = subclass(CacheData())
+            instance: CustomBehaviorBaseUtility = subclass()
 
             build_size = len(instance.skills_required_in_behavior)
             print(f"build_size: {build_size}")
-            matching_count = instance.count_matches_between_custom_behavior_match_in_game_build()
+            matching_count = instance.count_matches_between_custom_behavior_and_in_game_build()
             print(f"matching_count: {matching_count}")
             
             if matching_count == build_size:
@@ -162,12 +158,10 @@ class CustomBehaviorLoader:
 
         self.__behaviors_found = self.__find_and_order_custom_behaviors()
         __behaviors_candidates = [behavior for behavior in self.__behaviors_found if behavior.is_matched_with_current_build]
-        result: CustomBehaviorBase | None = __behaviors_candidates[0].instance if len(__behaviors_candidates) > 0 else None
+        result: CustomBehaviorBaseUtility | None = __behaviors_candidates[0].instance if len(__behaviors_candidates) > 0 else None
 
         party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
         if DEBUG: print(f"party_number: {party_number}")
-        from HeroAI.cache_data import CacheData
-        shared_memory_handler = CacheData().HeroAI_vars.shared_memory_handler
 
         if result is not None:
             if DEBUG: print(f"custom behavior instance affected")
@@ -176,12 +170,6 @@ class CustomBehaviorLoader:
         else:
             if DEBUG: print(f"no custom behavior found")
             self.custom_combat_behavior = None
-
-            # if USE_GENERIC_IF_NO_TEMPLATE:
-            #     if DEBUG: 
-            #         print(f"=> fallback to generic utility system")
-            #         from HeroAI.cache_data import CacheData
-            #         self.custom_combat_behavior = FullyGenericBehavior(cached_data=CacheData())
 
         self._has_loaded = True
 
@@ -193,50 +181,3 @@ class CustomBehaviorLoader:
     def get_all_custom_behavior_candidates(self) -> list[MatchResult] | None:
         if self._has_loaded: return self.__behaviors_found
         return None
-
-    def ensure_custom_behavior_match_in_game_build(self):
-        if self._has_loaded and self.custom_combat_behavior is not None:
-
-            if type(self.custom_combat_behavior).mro()[1].__name__ == CustomBehaviorBaseUtility.__name__:
-                
-                utility_build_full:list[CustomSkillUtilityBase] = self.custom_combat_behavior.get_skills_final_list()
-                skill_allowed_in_behavior:list[CustomSkillUtilityBase] = self.custom_combat_behavior.skills_allowed_in_behavior
-                skill_ids_allowed_in_behavior:list[int] = [item.custom_skill.skill_id for item in skill_allowed_in_behavior]
-
-                utility_build = []
-                
-                for skill in utility_build_full:
-                    if skill in self.custom_combat_behavior.additional_autonomous_skills:
-                        continue
-                    utility_build.append(skill)
-                
-                in_game_build:dict[int, CustomSkill] = self.custom_combat_behavior.get_in_game_build()
-                skill_ids_in_custom_behavior:list[int] = [item.custom_skill.skill_id for item in utility_build]
-                is_completed:bool = self.custom_combat_behavior.complete_build_with_generic_skills
-
-                if not is_completed:
-
-                    for skill_id in skill_ids_in_custom_behavior:
-                        if skill_id not in in_game_build.keys():
-                            if DEBUG: print(f"{skill_id} doesn't exist, stop customing")
-                            self._has_loaded = False
-                            self.custom_combat_behavior = None
-                            return
-
-                    for skill_id in in_game_build.keys():
-                        if skill_id not in skill_ids_in_custom_behavior and skill_id in skill_ids_allowed_in_behavior:
-                            if DEBUG: print(f"{skill_id} should exist, refresh")
-                            self._has_loaded = False
-                            self.custom_combat_behavior = None
-                            return
-                
-
-                if is_completed:
-                    for skill_id in in_game_build.keys():
-                        if skill_id not in skill_ids_in_custom_behavior:
-                            if DEBUG: print(f"{skill_id} doesn't exist, stop customing")
-                            self._has_loaded = False
-                            self.custom_combat_behavior = None
-                            return
-                return
-        return "pas custom"
