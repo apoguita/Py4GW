@@ -30,7 +30,7 @@ class CustomSkillUtilityBase:
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
         if custom_behavior_helpers.Resources.get_player_absolute_energy() < self.mana_required_to_cast: return False
-        if not Routines.Checks.Skills.IsSkillIDReady(self.custom_skill.skill_id): return False
+        if not Routines.Checks.Skills.IsSkillSlotReady(self.custom_skill.skill_slot): return False
         if not custom_behavior_helpers.Resources.has_enough_resources(self.custom_skill): return False
         return True
     
@@ -50,7 +50,7 @@ class CustomSkillUtilityBase:
         if score < 0 and score > 100: raise Exception(f"{self.custom_skill.skill_name} : score must be between 0 and 100, calculated {score}.")
         return score
 
-    def execute(self, cached_data: CacheData, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
+    def execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
         print(f"Executing {self.custom_skill.skill_name}")
         gen:Generator[Any | None, Any | None, BehaviorResult] = self._execute(state)
         result:BehaviorResult = yield from gen
@@ -68,3 +68,11 @@ class CustomSkillUtilityBase:
                 if Routines.Checks.Skills.IsSkillIDReady(skill.skill_id):
                     return True
         return False
+
+    @abstractmethod
+    def customized_debug_ui(self, current_state: BehaviorState) -> None:
+        """
+        This method is used to display the debug UI for the skill.
+        Can be overridden by the skill itself to display additional information.
+        """
+        pass

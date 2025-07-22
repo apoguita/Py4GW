@@ -6,6 +6,7 @@ from typing import Any, Callable, List, Optional, Tuple
 from dataclasses import dataclass
 
 from HeroAI.cache_data import CacheData
+from HeroAI.windows import skill_slot
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
@@ -125,8 +126,7 @@ class Resources:
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
 
         adrenaline_required = GLOBAL_CACHE.Skill.Data.GetAdrenaline(skill_casted.skill_id)
-        slot_id = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_casted.skill_id)
-        adrenaline_a = GLOBAL_CACHE.SkillBar.GetSkillData(slot_id).adrenaline_a
+        adrenaline_a = GLOBAL_CACHE.SkillBar.GetSkillData(skill_casted.skill_slot).adrenaline_a
         has_enough_adrenaline = True
         if adrenaline_required > 0 and adrenaline_a < adrenaline_required:
             has_enough_adrenaline = False
@@ -264,7 +264,8 @@ class Actions:
 
     @staticmethod
     def cast_skill_to_lambda(skill: CustomSkill, select_target: Optional[Callable[[], int]]) -> Generator[Any, Any, BehaviorResult]:
-        if not Routines.Checks.Skills.IsSkillIDReady(skill.skill_id):
+
+        if not Routines.Checks.Skills.IsSkillSlotReady(skill.skill_slot):
             yield
             return BehaviorResult.ACTION_SKIPPED
 
@@ -282,7 +283,7 @@ class Actions:
             target_agent_id = selected_target
 
         if target_agent_id is not None: Routines.Sequential.Agents.ChangeTarget(target_agent_id)
-        Routines.Sequential.Skills.CastSkillID(skill.skill_id)
+        Routines.Sequential.Skills.CastSkillSlot(skill.skill_slot)
         if DEBUG: print(f"cast_skill_to_target {skill.skill_name} to {target_agent_id}")
         yield from Helpers.delay_aftercast(skill)
         return BehaviorResult.ACTION_PERFORMED
@@ -334,7 +335,7 @@ class Actions:
 
     @staticmethod
     def cast_effect_before_expiration(skill: CustomSkill, time_before_expire: int) -> Generator[Any, Any, BehaviorResult]:
-        if not Routines.Checks.Skills.IsSkillIDReady(skill.skill_id):
+        if not Routines.Checks.Skills.IsSkillSlotReady(skill.skill_slot):
             yield
             return BehaviorResult.ACTION_SKIPPED
 
@@ -345,8 +346,7 @@ class Actions:
         has_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), skill.skill_id)
         buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), skill.skill_id) if has_buff else 0
         if not has_buff or buff_time_remaining <= time_before_expire:
-            skill_slot = SkillBar.GetSlotBySkillID(skill.skill_id)
-            ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, skill_slot, 0)
+            ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, skill.skill_slot, 0)
             if DEBUG: print(f"cast_effect_before_expiration {skill.skill_name}")
             yield from Helpers.delay_aftercast(skill)
             return BehaviorResult.ACTION_PERFORMED

@@ -1,10 +1,8 @@
 from typing import List, Any, Generator, Callable, override
 import time
-from HeroAI.cache_data import CacheData
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base import CustomBehaviorBase
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -20,11 +18,11 @@ from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import K
 from Widgets.CustomBehaviors.skills.generic.protective_shout_utility import ProtectiveShoutUtility
 from Widgets.CustomBehaviors.skills.paragon.heroic_refrain_utility import HeroicRefrainUtility
 
-class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
+class AssassinTank_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self, cached_data: CacheData):
-        super().__init__(cached_data)
-        in_game_build = list(CustomBehaviorBase.get_in_game_build().values())
+    def __init__(self):
+        super().__init__()
+        in_game_build = list(self.skillbar_management.get_in_game_build().values())
         self.auto_attack: CustomSkillUtilityBase = AutoAttackUtility(current_build=in_game_build)
 
         #core
@@ -78,4 +76,5 @@ class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
         return [
             self.shadow_form_utility.custom_skill,
             self.deadly_paradox_utility.custom_skill,
+            self.i_am_unstopabble.custom_skill,
         ]
