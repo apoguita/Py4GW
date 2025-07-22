@@ -32,7 +32,7 @@ class AssassinTank_UtilitySkillBar(CustomBehaviorBaseUtility):
 
         
         #optional
-        self.silver_armor_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Silver_Armor"), current_build=in_game_build, score_definition=ScoreStaticDefinition(61), mana_required_to_cast=17, allowed_states=[BehaviorState.IN_AGGRO])
+        self.silver_armor_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Sliver_Armor"), current_build=in_game_build, score_definition=ScoreStaticDefinition(61), mana_required_to_cast=17, allowed_states=[BehaviorState.IN_AGGRO])
         self.stoneflesh_aura_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Stoneflesh_Aura"), current_build=in_game_build, score_definition=ScoreStaticDefinition(60), mana_required_to_cast=17, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
         self.armor_of_earth_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Armor_of_Earth"), current_build=in_game_build, score_definition=ScoreStaticDefinition(58), mana_required_to_cast=17, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
 
