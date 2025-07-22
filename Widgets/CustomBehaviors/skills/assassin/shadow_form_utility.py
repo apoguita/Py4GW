@@ -16,7 +16,7 @@ class ShadowFormUtility(CustomSkillUtilityBase):
     score_definition: ScoreStaticDefinition,
     mana_required_to_cast: int = 0,
     is_deadly_paradox_required: bool = False,
-    renew_before_expiration_in_milliseconds: int = 1200,
+    renew_before_expiration_in_milliseconds: int = 1800,
     allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO]
     ) -> None:
 

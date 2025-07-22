@@ -11,6 +11,9 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 
 class DeadlyParadoxUtility(CustomSkillUtilityBase):
+    '''
+    is_shadow_form_prerequisite is the only behavior supported atm
+    '''
     def __init__(self, 
     current_build: list[CustomSkill], 
     score_definition: ScoreStaticDefinition,
@@ -22,11 +25,13 @@ class DeadlyParadoxUtility(CustomSkillUtilityBase):
             skill=CustomSkill("Deadly_Paradox"), 
             in_game_build=current_build, 
             score_definition=score_definition, 
-            mana_required_to_cast=mana_required_to_cast, 
+            mana_required_to_cast=mana_required_to_cast,
             allowed_states=allowed_states)
         
         self.score_definition: ScoreStaticDefinition = score_definition
-        self.renew_before_expiration_in_milliseconds: int = 1200
+
+        self.shadow_form_skill: CustomSkill = CustomSkill("Shadow_Form")
+        self.renew_before_shadow_form_expiration_in_milliseconds: int = 3500
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
@@ -34,7 +39,13 @@ class DeadlyParadoxUtility(CustomSkillUtilityBase):
         has_deadly_paradox_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
         if has_deadly_paradox_buff: return None
 
-        return self.score_definition.get_score()
+        has_shadow_form_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.shadow_form_skill.skill_id)
+        if not has_shadow_form_buff: return self.score_definition.get_score()
+
+        shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.shadow_form_skill.skill_id)
+        if shadow_form_buff_time_remaining <= self.renew_before_shadow_form_expiration_in_milliseconds: return self.score_definition.get_score()
+
+        return None
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
