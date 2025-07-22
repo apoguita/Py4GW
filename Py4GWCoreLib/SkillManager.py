@@ -11,6 +11,7 @@ from .Py4GWcorelib import ThrottledTimer
 from .Py4GWcorelib import ActionQueueManager
 from .Py4GWcorelib import Console
 from .Py4GWcorelib import ConsoleLog
+from .Py4GWcorelib import *
 from .enums import Range
 from .Routines import Routines
 from .Effect import Effects
@@ -168,18 +169,38 @@ class SkillManager:
             ordered_skills = []
             
             priorities = [
+                SkillNature.CustomA,
                 SkillNature.Interrupt,
+                SkillNature.CustomB,
                 SkillNature.Enchantment_Removal,
+                SkillNature.CustomC,
                 SkillNature.Healing,
-                SkillNature.Hex_Removal,
-                SkillNature.Condi_Cleanse,
-                SkillNature.EnergyBuff,
+                SkillNature.CustomD,
                 SkillNature.Resurrection,
-                SkillNature.Buff
+                SkillNature.CustomE,
+                SkillNature.Hex_Removal,
+                SkillNature.CustomF,
+                SkillNature.Condi_Cleanse,
+                SkillNature.CustomG,
+                SkillNature.SelfTargeted,
+                SkillNature.CustomH,
+                SkillNature.EnergyBuff,
+                SkillNature.CustomI,
+                SkillNature.Buff,
+                SkillNature.CustomJ,
+                SkillNature.OffensiveA,
+                SkillNature.CustomK,
+                SkillNature.OffensiveB,
+                SkillNature.CustomL,
+                SkillNature.OffensiveC,
+                SkillNature.CustomM,
+                SkillNature.Offensive,
+                SkillNature.CustomN,
             ]
 
             for priority in priorities:
-                for i in range(ptr,MAX_SKILLS):
+                #for i in range(ptr,MAX_SKILLS):
+                for i in range(MAX_SKILLS):
                     skill = original_skills[i]
                     if not ptr_chk[i] and skill.custom_skill_data.Nature == priority.value:
                         self.skill_order[ptr] = i
@@ -211,7 +232,8 @@ class SkillManager:
 
             
             for skill_type in skill_types:
-                for i in range(ptr,MAX_SKILLS):
+                #for i in range(ptr,MAX_SKILLS):
+                for i in range(MAX_SKILLS):
                     skill = original_skills[i]
                     if not ptr_chk[i] and skill.custom_skill_data.SkillType == skill_type.value:
                         self.skill_order[ptr] = i
@@ -221,9 +243,10 @@ class SkillManager:
 
             combos = [3, 2, 1]  # Dual attack, off-hand attack, lead attack
             for combo in combos:
-                for i in range(ptr,MAX_SKILLS):
+                #for i in range(ptr,MAX_SKILLS):
+                for i in range(MAX_SKILLS):
                     skill = original_skills[i]
-                    if not ptr_chk[i] and Skill.Data.GetCombo(skill.skill_id) == combo:
+                    if not ptr_chk[i] and GLOBAL_CACHE.Skill.Data.GetCombo(skill.skill_id) == combo:
                         self.skill_order[ptr] = i
                         ptr_chk[i] = True
                         ptr += 1
@@ -238,6 +261,7 @@ class SkillManager:
                     ordered_skills.append(original_skills[i])
             
             self.skills = ordered_skills
+            
         
         def GetSkills(self):
             """
@@ -746,9 +770,9 @@ class SkillManager:
             if Agent.IsCasting(Player.GetAgentID()):
                 self.in_casting_routine = False
                 return False, v_target
-            if Agent.GetCastingSkill(Player.GetAgentID()) != 0:
-                self.in_casting_routine = False
-                return False, v_target
+            #if Agent.GetCastingSkill(Player.GetAgentID()) != 0:
+            #    self.in_casting_routine = False
+            #    return False, v_target
             if SkillBar.GetCasting() != 0:
                 self.in_casting_routine = False
                 return False, v_target
@@ -869,52 +893,100 @@ class SkillManager:
                     
                     ActionQueueManager().AddAction("ACTION", Player.Interact, target_id)
                     return True
-        
-        def _HandleCombat(self,ooc=False):
-            """
-            tries to Execute the next skill in the skill order.
-            """
-        
-            slot = self.skill_pointer
-            skill_id = self.skills[slot].skill_id
-            
-            is_skill_ready = self.IsSkillReady(slot)
                 
-            if not is_skill_ready:
-                self.AdvanceSkillPointer()
-                return False
+        def GetWeaponAttackAftercast(self):
+            """
+            Returns the attack speed of the current weapon.
+            """
+            weapon_type,_ = GLOBAL_CACHE.Agent.GetWeaponType(GLOBAL_CACHE.Player.GetAgentID())
+            player = GLOBAL_CACHE.Agent.GetAgentByID(GLOBAL_CACHE.Player.GetAgentID())
+            if player is None:
+                return 0
             
+            attack_speed = player.living_agent.weapon_attack_speed
+            attack_speed_modifier = player.living_agent.attack_speed_modifier if player.living_agent.attack_speed_modifier != 0 else 1.0
             
-            is_read_to_cast, target_agent_id = self.IsReadyToCast(slot)
-    
-            if not is_read_to_cast:
-                self.AdvanceSkillPointer()
-                return False
-            
-            is_ooc_skill = self.IsOOCSkill(slot)
+            if attack_speed == 0:
+                match weapon_type:
+                    case Weapon.Bow.value:
+                        attack_speed = 2.475
+                    case Weapon.Axe.value:
+                        attack_speed = 1.33
+                    case Weapon.Hammer.value:
+                        attack_speed = 1.75
+                    case Weapon.Daggers.value:
+                        attack_speed = 1.33
+                    case Weapon.Scythe.value:
+                        attack_speed = 1.5
+                    case Weapon.Spear.value:
+                        attack_speed = 1.5
+                    case Weapon.Sword.value:
+                        attack_speed = 1.33
+                    case Weapon.Scepter.value:
+                        attack_speed = 0.75 #1.75
+                    case Weapon.Scepter2.value:
+                        attack_speed = 0.75 #1.75
+                    case Weapon.Wand.value:
+                        attack_speed = 0.75 #1.75
+                    case Weapon.Staff1.value:
+                        attack_speed = 0.75 #1.75
+                    case Weapon.Staff.value:
+                        attack_speed = 0.75 #1.75
+                    case Weapon.Staff2.value:
+                        attack_speed = 0.75 #1.75
+                    case Weapon.Staff3.value:
+                        attack_speed = 0.75 #1.75
+                    case _:
+                        attack_speed = 0.75 #1.75
+                        
+            return int((attack_speed / attack_speed_modifier) * 1000)
+        
+        def _HandleCombat(self, ooc=False):
+            """
+            Scans through all skills starting at skill_pointer in a single frame.
+            Casts the first usable skill. Always advances skill_pointer by 1 after attempt.
+            """
+            num_skills = len(self.skills)
+            for i in range(num_skills):
+                slot = (self.skill_pointer + i) % num_skills
+                skill_id = self.skills[slot].skill_id
 
-            if ooc:
-                if not is_ooc_skill:
-                    self.AdvanceSkillPointer()
-                    return False
+                if not self.IsSkillReady(slot):
+                    continue
 
-            if target_agent_id == 0:
-                self.AdvanceSkillPointer()
-                return False
+                is_ready_to_cast, target_agent_id = self.IsReadyToCast(slot)
+                if not is_ready_to_cast:
+                    continue
 
-            if not Agent.IsLiving(target_agent_id):
-                return False
-                
-            self.in_casting_routine = True
+                if ooc and not self.IsOOCSkill(slot):
+                    continue
 
-            aftercast = Skill.Data.GetActivation(skill_id) * 1000
-            aftercast += Skill.Data.GetAftercast(skill_id) * 750
-            aftercast += self.ping_handler.GetCurrentPing()
-            self.aftercast_timer.SetThrottleTime(aftercast)
-            self.aftercast_timer.Reset()
-            ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
+                if target_agent_id == 0 or not Agent.IsLiving(target_agent_id):
+                    continue
+
+                # Found a valid skill to cast
+                self.in_casting_routine = True
+
+                aftercast = Skill.Data.GetActivation(skill_id) * 1000
+                aftercast += Skill.Data.GetAftercast(skill_id) * 1000
+                aftercast += self.ping_handler.GetCurrentPing()
+
+                skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
+                if skill_type == SkillType.Attack.value:
+                    aftercast += self.GetWeaponAttackAftercast()
+
+                self.aftercast_timer.SetThrottleTime(aftercast)
+                self.aftercast_timer.Reset()
+                ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[slot] + 1, target_agent_id)
+
+                self.skill_pointer = (slot + 1) % num_skills  # Jump ahead of used skill
+                return True
+
+            # No usable skill found — advance pointer only 1 step
             self.AdvanceSkillPointer()
-            return True
+            return False
+
+
         
         def HandleCombat(self):
             if self.game_throttle_timer.IsExpired():
@@ -931,4 +1003,5 @@ class SkillManager:
                     self.auto_attack_timer.Reset()
                     if self.ChooseTarget():
                         return
+                
                 
