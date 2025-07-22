@@ -680,6 +680,8 @@ class Agent:
     @staticmethod
     def GetCastingSkill(agent_id):
         """ Purpose: Retrieve the casting skill of the agent."""
+        if not Agent.agent_instance(agent_id).living_agent.is_casting:
+            return 0    
         return Agent.agent_instance(agent_id).living_agent.casting_skill_id
 
     @staticmethod

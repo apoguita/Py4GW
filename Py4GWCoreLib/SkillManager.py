@@ -941,51 +941,61 @@ class SkillManager:
                         
             return int((attack_speed / attack_speed_modifier) * 1000)
         
-        def _HandleCombat(self, ooc=False):
+        def _HandleCombat(self,ooc=False):
             """
-            Scans through all skills starting at skill_pointer in a single frame.
-            Casts the first usable skill. Always advances skill_pointer by 1 after attempt.
+            tries to Execute the next skill in the skill order.
             """
-            num_skills = len(self.skills)
-            for i in range(num_skills):
-                slot = (self.skill_pointer + i) % num_skills
-                skill_id = self.skills[slot].skill_id
+        
+            slot = self.skill_pointer
+            skill_id = self.skills[slot].skill_id
+            
+            is_skill_ready = self.IsSkillReady(slot)
+                
+            if not is_skill_ready:
+                self.AdvanceSkillPointer()
+                return False
+            
+            
+            is_read_to_cast, target_agent_id = self.IsReadyToCast(slot)
+    
+            if not is_read_to_cast:
+                self.AdvanceSkillPointer()
+                return False
+            
+            is_ooc_skill = self.IsOOCSkill(slot)
 
-                if not self.IsSkillReady(slot):
-                    continue
+            if ooc:
+                if not is_ooc_skill:
+                    self.AdvanceSkillPointer()
+                    return False
 
-                is_ready_to_cast, target_agent_id = self.IsReadyToCast(slot)
-                if not is_ready_to_cast:
-                    continue
+            if target_agent_id == 0:
+                self.AdvanceSkillPointer()
+                return False
 
-                if ooc and not self.IsOOCSkill(slot):
-                    continue
-
-                if target_agent_id == 0 or not Agent.IsLiving(target_agent_id):
-                    continue
-
-                # Found a valid skill to cast
-                self.in_casting_routine = True
-
-                aftercast = Skill.Data.GetActivation(skill_id) * 1000
-                aftercast += Skill.Data.GetAftercast(skill_id) * 1000
-                aftercast += self.ping_handler.GetCurrentPing()
-
-                skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
-                if skill_type == SkillType.Attack.value:
-                    aftercast += self.GetWeaponAttackAftercast()
-
-                self.aftercast_timer.SetThrottleTime(aftercast)
-                self.aftercast_timer.Reset()
-                ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[slot] + 1, target_agent_id)
-
-                self.skill_pointer = (slot + 1) % num_skills  # Jump ahead of used skill
-                return True
-
-            # No usable skill found — advance pointer only 1 step
+            if not Agent.IsLiving(target_agent_id):
+                return False
+                
+            self.in_casting_routine = True
+            
+            aftercast = Skill.Data.GetActivation(skill_id) * 1000
+            aftercast += Skill.Data.GetAftercast(skill_id) * 1000
+            aftercast += self.ping_handler.GetCurrentPing()
+            
+            skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
+            if skill_type == SkillType.Attack.value:
+                self.aftercast += self.GetWeaponAttackAftercast()
+            
+            
+            
+            self.aftercast_timer.SetThrottleTime(aftercast)
+            self.aftercast_timer.Reset()
+            ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, self.skill_order[self.skill_pointer]+1, target_agent_id)
             self.AdvanceSkillPointer()
-            return False
-
+            return True
+			
+			
+			
 
         
         def HandleCombat(self):

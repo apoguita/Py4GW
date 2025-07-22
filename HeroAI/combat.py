@@ -971,9 +971,9 @@ class CombatClass:
         if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
             self.in_casting_routine = False
             return False, v_target
-        #if GLOBAL_CACHE.Agent.GetCastingSkill(GLOBAL_CACHE.Player.GetAgentID()) != 0:
-        #    self.in_casting_routine = False
-        #    return False, v_target
+        if GLOBAL_CACHE.Agent.GetCastingSkill(GLOBAL_CACHE.Player.GetAgentID()) != 0:
+            self.in_casting_routine = False
+            return False, v_target
         if GLOBAL_CACHE.SkillBar.GetCasting() != 0:
             self.in_casting_routine = False
             return False, v_target
