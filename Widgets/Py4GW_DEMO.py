@@ -1352,6 +1352,22 @@ def ShowPartyWindow():
                     ImGui.table("henchman info"+ str(agent_id), headers, data)
                     
                     PyImGui.separator()
+                    
+            if PyImGui.collapsing_header("Others"):
+                others = GLOBAL_CACHE.Party.GetOthers()
+                
+                for other in others:
+                    agent_id = other
+
+                    headers = ["Other:" + str(agent_id)]
+                    data = [
+                        (f"Agent ID: {agent_id}"),
+                        (f"Name: {GLOBAL_CACHE.Agent.GetName(agent_id)}"),
+                    ]
+
+                    ImGui.table("other info"+ str(agent_id), headers, data)
+                    
+                    PyImGui.separator()
 
             if PyImGui.collapsing_header("Pets"):
                 PyImGui.text("Pet Data")
