@@ -332,6 +332,8 @@ class AgentCache:
         return not self.IsMelee(agent_id)
     
     def GetCastingSkill(self, agent_id):
+        if not self.IsCasting(agent_id):
+            return 0
         agent = self.raw_agent_array.get_agent(agent_id)
         return agent.living_agent.casting_skill_id
     
