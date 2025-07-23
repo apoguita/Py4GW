@@ -36,9 +36,9 @@ class ShroudOfDistressUtility(CustomSkillUtilityBase):
             return None
 
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        current_energy_percent = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id)
+        current_health_percent = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
 
-        if current_energy_percent > 0.6: 
+        if current_health_percent > 0.55: 
             return None
 
         buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
