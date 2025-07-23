@@ -55,7 +55,7 @@ class Routines:
         class Effects:
             @staticmethod
             def HasBuff(agent_id, skill_id):
-                if GLOBAL_CACHE.Effects.BuffExists(agent_id, skill_id) or GLOBAL_CACHE.Effects.EffectExists(agent_id, skill_id):
+                if GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id):
                     return True
                 return False
 

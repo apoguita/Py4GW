@@ -1,6 +1,5 @@
 import Py4GW
 import PyImGui
-from Hello_World import GUARDMAN_ZUI_DLG4
 from Py4GWCoreLib import *
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import GLOBAL_CACHE
@@ -18,16 +17,17 @@ class FSM_Config:
         self.run_timer = Timer()
         
         self.use_cupcakes = True
+        self.amount_of_cupcakes = 50
         self.use_honeycombs = True
-        
-        
+        self.amount_of_honeycombs = 100
+
         self.initialize()
         
     def initialize(self):
-        self.FSM.AddYieldRoutineStep(name="Exit Monastery Overlook", coroutine_fn=self.ExitMonasteryOverlook)
+        self.FSM.AddYieldRoutineStep(name = "Exit Monastery Overlook", coroutine_fn=self.ExitMonasteryOverlook)
         self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 001",coroutine_fn = lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Shing Jea Monastery")))
-        self.FSM.AddYieldRoutineStep(name = "Exit to Courtyard 001", coroutine_fn=self.ExitToCourtyard)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Linnok Courtyard Map Load 002", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Linnok Courtyard")))
+        self.FSM.AddYieldRoutineStep(name = "Exit to Courtyard 001", coroutine_fn=self.ExitToCourtyard001)
+        self.FSM.AddYieldRoutineStep(name = "Wait for Linnok Courtyard Map Load 001", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Linnok Courtyard")))
         self.FSM.AddYieldRoutineStep(name = "Unlock Secondary and Exit", coroutine_fn=self.UnlockSecondaryAndExit)
         self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 002",coroutine_fn = lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Shing Jea Monastery")))
         self.FSM.AddYieldRoutineStep(name = "Unlock Xunlai Storage", coroutine_fn=self.UnlockXunlaiStorage)
@@ -37,7 +37,7 @@ class FSM_Config:
         self.FSM.AddYieldRoutineStep(name = "Travel to Minister Cho", coroutine_fn=self.TravelToMinisterCho)
         minister_cho_map_id = 214
         self.FSM.AddYieldRoutineStep(name = "Wait for Minister Cho Map Load", coroutine_fn=lambda: self.WaitforMapLoad(minister_cho_map_id))
-        self.FSM.AddYieldRoutineStep(name = "Prepare for Mission", coroutine_fn=self.PrepareForMission)
+        self.FSM.AddYieldRoutineStep(name = "Prepare for Minister Cho Mission", coroutine_fn=self.PrepareForMinisterChoMission)
         self.FSM.AddYieldRoutineStep(name = "Wait for Minister Cho Mission Load", coroutine_fn=lambda: self.WaitforMapLoad(minister_cho_map_id))
         self.FSM.AddYieldRoutineStep(name = "Minister Cho Mission", coroutine_fn=self.MinisterChoMission)
         self.FSM.AddYieldRoutineStep(name = "Take Warning the Tengu and Exit", coroutine_fn=self.TakeWarningTheTenguandExit)
@@ -58,12 +58,17 @@ class FSM_Config:
         saoshang_trail_map_id = 313
         self.FSM.AddYieldRoutineStep(name = "Wait for Saoshang Trail Map Load", coroutine_fn=lambda: self.WaitforMapLoad(saoshang_trail_map_id))
         self.FSM.AddYieldRoutineStep(name = "Traverse Saoshang Trail", coroutine_fn=self.TraverseSaoshangTrail)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Seitung Harbor Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor")))
-
-
+        self.FSM.AddYieldRoutineStep(name = "Wait for Seitung Harbor Map Load 001", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor")))
+        self.FSM.AddYieldRoutineStep(name = "Take Reward and Exit Seitung Harbor", coroutine_fn=self.TakeRewardAndExitSeitungHarbor)
+        self.FSM.AddYieldRoutineStep(name = "Wait for Jaya Bluffs Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Jaya Bluffs")))
         self.FSM.AddYieldRoutineStep(name = "Go to Zen Daijun 001", coroutine_fn=self.GoToZenDaijunPart001)
         self.FSM.AddYieldRoutineStep(name = "Wait for Haiju Lagoon Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Haiju Lagoon")))
         self.FSM.AddYieldRoutineStep(name = "Go to Zen Daijun 002", coroutine_fn=self.GoToZenDaijunPart002)
+        zen_daijun_map_id = 213
+        self.FSM.AddYieldRoutineStep(name = "Wait for Zen Daijun Map Load", coroutine_fn=lambda: self.WaitforMapLoad(zen_daijun_map_id))
+        self.FSM.AddYieldRoutineStep(name = "Prepare for Zen Daijun Mission", coroutine_fn=self.PrepareForZenDaijunMission)
+        self.FSM.AddYieldRoutineStep(name = "Zen Daijun Mission", coroutine_fn=self.ZenDaijunMission)
+        self.FSM.AddYieldRoutineStep(name = "Wait for Seitung Harbor Map Load 002", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor")))
         self.FSM.AddYieldRoutineStep(name = "End Routines", coroutine_fn=self.Endroutine)
         
     #region HELPERS
@@ -78,83 +83,142 @@ class FSM_Config:
         
         profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         if profession == "Warrior":
-            yield from Routines.Yield.Skills.LoadSkillbar("OQcSEluJPMDjwAAAAAAAAA",log=False)
+            yield from Routines.Yield.Skills.LoadSkillbar("OQcUEvq0jvIClLHAAAAAAAAAAA",log=False)
         elif profession == "Ranger":
-            yield from Routines.Yield.Skills.LoadSkillbar("OgcScleJPMDjwAAAAAAAAA",log=False)
+            yield from Routines.Yield.Skills.LoadSkillbar("OgcUcLs1jvIPsv5yAAAAAAAAAA",log=False)
         elif profession == "Monk":
             yield from Routines.Yield.Skills.LoadSkillbar("OwcB0lkRuMAAAAAAAAAA",log=False)
         elif profession == "Necromancer":
-            yield from Routines.Yield.Skills.LoadSkillbar("OAdSUqvIucaAAAAAAAAAAA",log=False)
+            yield from Routines.Yield.Skills.LoadSkillbar("OAdTUOj8FxlTDAAAAAAAAAAA",log=False)
         elif profession == "Mesmer":
-            yield from Routines.Yield.Skills.LoadSkillbar("OQdSIsvIagLDAAAAAAAAAA",log=False)
+            yield from Routines.Yield.Skills.LoadSkillbar("OQdTAEx9FRDcZAAAAAAAAAAA",log=False)
         elif profession == "Elementalist":
-            yield from Routines.Yield.Skills.LoadSkillbar("OgdSosvICjLDAAAAAAAAAA",log=False)
+            yield from Routines.Yield.Skills.LoadSkillbar("OgdToM28FRYcZAAAAAAAAAAA",log=False)
         elif profession == "Ritualist":
-            yield from Routines.Yield.Skills.LoadSkillbar("OAei8Jg24y+mAAAAAAAAAAAA",log=False)
+            yield from Routines.Yield.Skills.LoadSkillbar("OAej8JgHpMusvJAAAAAAAAAAAA",log=False)
         elif profession == "Assassin":
-            yield from Routines.Yield.Skills.LoadSkillbar("OwBR0J5hBAAAAAAAAAAA",log=False)
+            yield from Routines.Yield.Skills.LoadSkillbar("OwBj0NfyoJPsLDAAAAAAAAAA",log=False)
             
         GLOBAL_CACHE.Party.LeaveParty()
+        yield from Routines.Yield.wait(250)
         
-        HEALER_ID = 1
-        GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
-        SPIRITS_ID = 5
-        GLOBAL_CACHE.Party.Henchmen.AddHenchman(SPIRITS_ID)
-        GUARDIAN_ID = 2
-        GLOBAL_CACHE.Party.Henchmen.AddHenchman(GUARDIAN_ID)
+        party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
         
+        zen_daijun_map_id = 213
+        
+        if party_size <= 4:
+            HEALER_ID = 1
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
+            yield from Routines.Yield.wait(200)
+            SPIRITS_ID = 5
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(SPIRITS_ID)
+            yield from Routines.Yield.wait(200)
+            GUARDIAN_ID = 2
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(GUARDIAN_ID)
+            yield from Routines.Yield.wait(200)
+        elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor"):
+            GUARDIAN_ID = 2
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(GUARDIAN_ID)
+            yield from Routines.Yield.wait(200)
+            DEADLY_ID = 3
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(DEADLY_ID)
+            yield from Routines.Yield.wait(200)
+            SHOCK_ID = 1
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(SHOCK_ID)
+            yield from Routines.Yield.wait(200)
+            SPIRITS_ID = 4
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(SPIRITS_ID)
+            yield from Routines.Yield.wait(200)
+            HEALER_ID = 5
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
+            yield from Routines.Yield.wait(200)
+        elif GLOBAL_CACHE.Map.GetMapID() == zen_daijun_map_id:
+            FIGHTER_ID = 3
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(FIGHTER_ID)
+            yield from Routines.Yield.wait(200)
+            CUTTHROAT_ID = 2
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(CUTTHROAT_ID)
+            yield from Routines.Yield.wait(200)
+            EARTH_ID = 1
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(EARTH_ID)
+            yield from Routines.Yield.wait(200)
+            SPIRIT_ID = 8
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(SPIRIT_ID)
+            yield from Routines.Yield.wait(200)
+            HEALER_ID = 5
+            GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
+            yield from Routines.Yield.wait(200)
+
         summoning_stone_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Igneous_Summoning_Stone.value)
         if summoning_stone_in_bags < 1:
             GLOBAL_CACHE.Player.SendChatCommand("bonus")
+            yield from Routines.Yield.wait(200)
             
-        target_cupcake_count = 10     
+        target_cupcake_count = self.amount_of_cupcakes 
         if self.use_cupcakes:
             model_id = ModelID.Birthday_Cupcake.value
             cupcake_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
             cupcake_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
-            
-            if cupcake_in_bags < target_cupcake_count and cupcake_in_storage > 0:
-                cupcakes_needed = min(target_cupcake_count - cupcake_in_bags, cupcake_in_storage)
+
+            cupcakes_needed = target_cupcake_count - cupcake_in_bags
+            if cupcakes_needed > 0 and cupcake_in_storage > 0:
+                # First, try to withdraw exactly what we need
                 items_withdrawn = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, cupcakes_needed)
                 yield from Routines.Yield.wait(250)
+
                 if not items_withdrawn:
-                    Py4GW.Console.Log(MODULE_NAME, "Failed to withdraw cupcakes from storage.", Py4GW.Console.MessageType.Error)
-            else:
-                if cupcake_in_storage < target_cupcake_count - cupcake_in_bags:
-                    Py4GW.Console.Log(MODULE_NAME, "Not enough cupcakes in storage.", Py4GW.Console.MessageType.Error)
-                    yield from self._stop_execution()
-                    return
+                    # Try withdrawing as much as possible instead
+                    fallback_amount = min(cupcakes_needed, cupcake_in_storage)
+                    items_withdrawn = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, fallback_amount)
+                    yield from Routines.Yield.wait(250)
+
+                    if not items_withdrawn:
+                        Py4GW.Console.Log(MODULE_NAME, "Failed to withdraw cupcakes from storage.", Py4GW.Console.MessageType.Error)
 
         yield from Routines.Yield.wait(250)
         
-        target_honeycomb_count = 20
+        target_honeycomb_count = self.amount_of_honeycombs
         if self.use_honeycombs:
             model_id = ModelID.Honeycomb.value
             honey_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
             honey_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
-            
-            if honey_in_bags < target_honeycomb_count and honey_in_storage > 0:
-                honey_needed = min(target_honeycomb_count - honey_in_bags, honey_in_storage)
+
+            honey_needed = target_honeycomb_count - honey_in_bags
+            if honey_needed > 0 and honey_in_storage > 0:
+                # Try withdrawing the full amount first
                 items_withdrawn = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, honey_needed)
                 yield from Routines.Yield.wait(250)
-                if not items_withdrawn:
-                    Py4GW.Console.Log(MODULE_NAME, "Failed to withdraw honeycombs from storage.", Py4GW.Console.MessageType.Error)
-            else:
-                if honey_in_storage < target_honeycomb_count - honey_in_bags:
-                    Py4GW.Console.Log(MODULE_NAME, "Not enough honeycombs in storage.", Py4GW.Console.MessageType.Error)
-                    yield from self._stop_execution()
-                    return
 
-        yield from Routines.Yield.wait(1000)
-        
-    def _pop_imp(self):
+                if not items_withdrawn:
+                    # Fallback to withdraw whatever is available
+                    fallback_amount = min(honey_needed, honey_in_storage)
+                    items_withdrawn = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, fallback_amount)
+                    yield from Routines.Yield.wait(250)
+
+                    if not items_withdrawn:
+                        Py4GW.Console.Log(MODULE_NAME, "Failed to withdraw honeycombs from storage.", Py4GW.Console.MessageType.Error)
+
+    def PopImp(self):
         summoning_stone = ModelID.Igneous_Summoning_Stone.value
         stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(summoning_stone)
-        if stone_id:
+        imp_effect_id = 2886
+        has_effect = GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), imp_effect_id)
+
+        imp_model_id = 513
+        others = GLOBAL_CACHE.Party.GetOthers()
+        cast_imp = True  # Assume we should cast
+
+        for other in others:
+            if GLOBAL_CACHE.Agent.GetModelID(other) == imp_model_id:
+                if not GLOBAL_CACHE.Agent.IsDead(other):
+                    # Imp is alive — no need to cast
+                    cast_imp = False
+                break  # Found the imp, no need to keep checking
+
+        if stone_id and not has_effect and cast_imp:
             GLOBAL_CACHE.Inventory.UseItem(stone_id)
             yield from Routines.Yield.wait(500)
-        
-        
+
     def UseCupcake(self):
         if not self.use_cupcakes:
             return
@@ -206,6 +270,7 @@ class FSM_Config:
                 ActionQueueManager().ResetQueue("ACTION")
                 yield from Routines.Yield.wait(100)
             else:
+                yield from self.PopImp()
                 yield from self.UseCupcake()
                 yield from self.UseHoneycomb()
                 
@@ -239,11 +304,36 @@ class FSM_Config:
     from typing import Generator, Any, Tuple, List
 
     def follow_path(self, path: List[Tuple[float, float]], pause_on_danger: bool = False) -> Generator[Any, Any, bool]:
+        pause_fn = (lambda: Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot)) if pause_on_danger else None
+        is_someone_dead = False
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        henchmen = GLOBAL_CACHE.Party.GetHenchmen()
+        heroes = GLOBAL_CACHE.Party.GetHeroes()
+
+        
+        for player in players:
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            if GLOBAL_CACHE.Agent.IsDead(agent_id):
+                is_someone_dead = True
+                break
+        for henchman in henchmen:
+            if GLOBAL_CACHE.Agent.IsDead(henchman.agent_id):
+                is_someone_dead = True
+                break
+            
+        for hero in heroes:
+            if GLOBAL_CACHE.Agent.IsDead(hero.agent_id):
+                is_someone_dead = True
+                break
+            
+        pause_fn = pause_fn or (lambda: is_someone_dead)
+        
+        
         success_movement = yield from Routines.Yield.Movement.FollowPath(
             path_points=path,
             custom_exit_condition=lambda: self._movement_eval_exit_on_map_loading(),
             log=False,
-            custom_pause_fn=(lambda: Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot)) if pause_on_danger else None
+            custom_pause_fn= pause_fn,
         )
 
         if not success_movement:
@@ -291,7 +381,7 @@ class FSM_Config:
             return
 
         
-    def ExitToCourtyard(self):
+    def ExitToCourtyard001(self):
         path_to_courtyard: List[Tuple[float, float]] = [(-7407, 7048),(-7568, 7678),(-7815,8522),(-7386,9265),
                                                         (-6589,9508),(-5718,9480),(-4856,9478),(-3988,9473),(-3480,9460)]
              
@@ -318,11 +408,11 @@ class FSM_Config:
             return
         
         while not UIManager.FrameExists(cancel_button_frame_id):
-            yield from Routines.Yield.wait(500)
+            yield from Routines.Yield.wait(1000)
             return
         
         UIManager.FrameClick(cancel_button_frame_id)
-        yield from Routines.Yield.wait(500)
+        yield from Routines.Yield.wait(1000)
         
         cancel_button_frame_id = UIManager.GetFrameIDByHash(784833442)
         if not cancel_button_frame_id:
@@ -331,18 +421,17 @@ class FSM_Config:
             return
         
         while not UIManager.FrameExists(cancel_button_frame_id):
-            yield from Routines.Yield.wait(500)
+            yield from Routines.Yield.wait(1000)
             return
         
         UIManager.FrameClick(cancel_button_frame_id)
-        yield from Routines.Yield.wait(500)
-          
-        x,y = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID())
+        yield from Routines.Yield.wait(1000)
+
         TAKE_REWARD = 0x813D07
-        if not (yield from self.interact_with_agent((x, y), dialog_id=TAKE_REWARD)):
+        if not (yield from self.interact_with_agent((-92, 9217), dialog_id=TAKE_REWARD)):
             return
         TAKE_QUEST = 0x813E01
-        if not (yield from self.interact_with_agent((x, y), dialog_id=TAKE_QUEST)):
+        if not (yield from self.interact_with_agent((-92, 9217), dialog_id=TAKE_QUEST)):
             return
         
         exit_path = path_to_togo.reverse() or []
@@ -379,13 +468,13 @@ class FSM_Config:
             iron_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(ModelID.Iron_Ingot.value)
             
             if iron_in_storage < 5:
-                Py4GW.Console.Log(MODULE_NAME, "Not enough Iron Ingots to craft weapons.", Py4GW.Console.MessageType.Error)
+                Py4GW.Console.Log(MODULE_NAME, "Not enough Iron Ingots (5) to craft weapons.", Py4GW.Console.MessageType.Error)
                 yield from self._stop_execution()
                 return
-            
-            items_witdrawn = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(ModelID.Iron_Ingot.value, 5)
-            if not items_witdrawn:
-                Py4GW.Console.Log(MODULE_NAME, "Failed to withdraw Iron Ingots from storage.", Py4GW.Console.MessageType.Error)
+
+            items_withdrawn = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(ModelID.Iron_Ingot.value, 5)
+            if not items_withdrawn:
+                Py4GW.Console.Log(MODULE_NAME, "Failed to withdraw (5) Iron Ingots from storage.", Py4GW.Console.MessageType.Error)
                 yield from self._stop_execution()
                 return
             
@@ -418,8 +507,10 @@ class FSM_Config:
             yield from self._prepare_for_battle()
             wand = GLOBAL_CACHE.Inventory.GetFirstModelID(6508) #wand
             GLOBAL_CACHE.Inventory.EquipItem(wand, GLOBAL_CACHE.Player.GetAgentID())
+            yield from Routines.Yield.wait(100)
             shield = GLOBAL_CACHE.Inventory.GetFirstModelID(6514) #shield
             GLOBAL_CACHE.Inventory.EquipItem(shield, GLOBAL_CACHE.Player.GetAgentID())
+            yield from Routines.Yield.wait(100)
         
     def ExitShingJeaMonastery(self):
         path_to_exit: List[Tuple[float, float]] = [(-6544,12262),(-7204,12363),(-8055,12528),(-8907,12697),(-9757,12864),
@@ -450,7 +541,7 @@ class FSM_Config:
         
         yield from Routines.Yield.wait(5000)
         
-    def PrepareForMission(self):
+    def PrepareForMinisterChoMission(self):
         ACCEPT_QUEST = 0x813E07
         if not (yield from self.interact_with_agent((7884, -10029), dialog_id=ACCEPT_QUEST)):
             return
@@ -459,16 +550,13 @@ class FSM_Config:
 
         GLOBAL_CACHE.Map.EnterChallenge()
 
-        yield from Routines.Yield.wait(6500)  # Wait for the map to load and the challenge to start
+        yield from Routines.Yield.wait(4500)  # Wait for the map to load and the challenge to start
         
     def MinisterChoMission(self):
         autocombat = self.AutoCombat()
         GLOBAL_CACHE.Coroutines.append(autocombat)
 
         try:
-            yield from Routines.Yield.wait(1000)
-            yield from self._pop_imp()
-                
             path_to_mission: List[Tuple[float, float]] = [(6358,-7348),(5444, -7748),(5254, -7879),(4170, -8836),(3059, -9734),(1634, -9598),
                                                         (92, -8496),(-64, -8182),(840, -7188),(1274, -6695),(1602, -6502),
                                                         (2447, -5387),(3595, -4592),(4950, -5042),(4269, -4182),(4225, -3439),
@@ -482,8 +570,7 @@ class FSM_Config:
                                                         (-8281, -1795),(-7445, -698),(-6990, 663),(-7239, 2019),(-8049, 2389),
                                                         (-7824, 2133),(-8595, 1960),(-9102, 1900),(-9723, 1561),(-10135, 1537),
                                                         (-10819, 1943),(-11040, 2313),(-11910, 1552),(-13163, 1223),(-13637, 1226),
-                                                        (-14432, 1263),(-14602, 2536),(-14611, 3224),(-14576, 2748),(-15830, 2409),
-                                                        (-16953, 2447),
+                                                        (-14576, 2748),(-15830, 2409),(-16953, 2447),
                                                     ]
 
             if not (yield from self.follow_path(path_to_mission, pause_on_danger=True)):
@@ -500,7 +587,7 @@ class FSM_Config:
         finally:  
             if autocombat in GLOBAL_CACHE.Coroutines:
                 GLOBAL_CACHE.Coroutines.remove(autocombat)
-                yield from Routines.Yield.wait(3000)
+                yield from Routines.Yield.wait(1000)
             
     def TakeWarningTheTenguandExit(self):
         TAKE_WARNING = 0x815301
@@ -529,9 +616,7 @@ class FSM_Config:
                 
         autocombat = self.AutoCombat()
         GLOBAL_CACHE.Coroutines.append(autocombat)
-        
-        yield from self._pop_imp()
-        
+
         try:
         
             second_half_path: List[Tuple[float, float]] = [(687, 12331),(-115, 11996),(-920, 11681),(-1782, 11613),(-2636, 11539),
@@ -621,9 +706,7 @@ class FSM_Config:
         
         autocombat = self.AutoCombat()
         GLOBAL_CACHE.Coroutines.append(autocombat)
-        
-        yield from self._pop_imp()
-        
+
         try:
             SISTER_TAI_MODEL_ID = 3316
             while True:
@@ -693,9 +776,7 @@ class FSM_Config:
 
         autocombat = self.AutoCombat()
         GLOBAL_CACHE.Coroutines.append(autocombat)
-        
-        yield from self._pop_imp()
-        
+
         try:
             if not (yield from self.follow_path(path_to_saoshang, pause_on_danger=True)):
                 return
@@ -704,8 +785,21 @@ class FSM_Config:
                 GLOBAL_CACHE.Coroutines.remove(autocombat)
                 yield from Routines.Yield.wait(3000)
                 
-    def TakeRewardAndExitSaoshangTrail(self):
-        pass
+    def TakeRewardAndExitSeitungHarbor(self):
+        TAKE_REWARD = 0x815607
+        if not (yield from self.interact_with_agent((16368, 12011), dialog_id=TAKE_REWARD)):
+            return
+        
+        yield from self._prepare_for_battle()
+        
+        path_to_exit: List[Tuple[float, float]] = [(16404, 12067),(16835, 12615),(17477, 13201),(18250, 13437),(19037, 13272),
+                                                    (18744, 14040),(18289, 14775),(18566, 15587),(18790, 16400),(18097, 16895),
+                                                    (17317, 17275),(16777,17540)]
+        
+        if not (yield from self.follow_path(path_to_exit)):
+            return
+
+        
     
     def GoToZenDaijunPart001(self):
         path_to_zendaijun: List[Tuple[float, float]] = [(10062, -12912),(9347, -12883),(8607, -12472),(8352, -11650),
@@ -718,9 +812,7 @@ class FSM_Config:
         
         autocombat = self.AutoCombat()
         GLOBAL_CACHE.Coroutines.append(autocombat)
-        
-        yield from self._pop_imp()
-        
+
         try:
             if not (yield from self.follow_path(path_to_zendaijun, pause_on_danger=True)):
                 return
@@ -749,9 +841,7 @@ class FSM_Config:
         
         autocombat = self.AutoCombat()
         GLOBAL_CACHE.Coroutines.append(autocombat)
-        
-        yield from self._pop_imp()
-        
+
         try:
             if not (yield from self.follow_path(path_to_zendaijun, pause_on_danger=True)):
                 return
@@ -763,7 +853,100 @@ class FSM_Config:
         finally:  
             if autocombat in GLOBAL_CACHE.Coroutines:
                 GLOBAL_CACHE.Coroutines.remove(autocombat)
+                yield from Routines.Yield.wait(6000)
+       
+    def PrepareForZenDaijunMission(self):
+        yield from self._prepare_for_battle()
+        GLOBAL_CACHE.Map.EnterChallenge()
+        yield from Routines.Yield.wait(6500)  # Wait for the map to load and the challenge to start
+                 
+    def ZenDaijunMission(self):
+        autocombat = self.AutoCombat()
+        GLOBAL_CACHE.Coroutines.append(autocombat)
+
+        try:
+            path_to_mission001: List[Tuple[float, float]] = [(16209, 11436),(15963, 11216),(15963, 11216),(15678, 10945),(14834, 10261),
+                                                          (13806, 10172),(12878, 10531),(12185, 10801),(12185, 10801),(11665, 11386),
+                                                    ]
+
+            if not (yield from self.follow_path(path_to_mission001, pause_on_danger=True)):
+                return
+                    
+            yield from Routines.Yield.wait(1000)
+            
+            if not (yield from self.interact_with_agent((11665, 11386))):
+                return
+            
+            path_to_mission002: List[Tuple[float, float]] = [(11778, 11357),(11578, 10636),(10668, 10063),(9674, 9621),(9432, 8855),
+                                                            (9990, 8394),(10546, 8083),(11333, 7338),(11203, 6624),(11291, 7054),
+                                                            (11439, 6399),(10720, 6401),(11164, 6355),(11604, 5498),(11655, 4416),
+                                                            (11503, 3382),(10571, 3564),(9797, 4083),(9288, 4538),(9049, 4791),
+                                                            (8179, 4976),(7606, 3947),(7221, 3334),(6365, 2676),(5874, 2333),
+                                                            (4996, 1462),(4754,1451)
+                                                    ]
+
+            if not (yield from self.follow_path(path_to_mission002, pause_on_danger=True)):
+                return
+            
+            yield from Routines.Yield.wait(1000)
+                    
+            if not (yield from self.interact_with_agent((4754,1451))):
+                return
+            
+            path_to_mission003: List[Tuple[float, float]] = [(4892, 1523),(5648, 1911),(5941, 1166),(5605, 132),(5170, -844),
+                                                            (4163, -1129),(3101, -900),(2084, -523),(1260, 155),(554, 969),
+                                                            (-131, 1797),(68, 2814),(568, 3807),(805, 4636),(468, 5633),
+                                                            (-23, 6374),(-363, 6868),(-1040, 7713),(-1960, 8288),(-2880, 8726),
+                                                            (-4059, 8273),(-4981, 8589),(-5457, 8807),(-6451, 8854),(-6986, 8796),
+                                                            (-7930, 8726),(-8792, 8658),(-9888, 8290),(-9587, 7820),(-9354, 7509),
+                                                            (-9808, 7193),(-11056, 5854),(-10904, 5217),(-11331, 5927),(-10923, 5216),
+                                                            (-10554, 4751),(-10242, 4154),(-10915, 3609),(-11792, 2876),(-12651, 2898),
+                                                            (-13285, 2865),(-14370, 2116),(-14454, 1373),(-14327, 905),(-14206, 1528),
+                                                            (-14179, 913),(-13788, 147),(-13379, -197),(-13039, -375),(-12539, -326),
+                                                            (-12327, 76),(-11758, 697),(-10961, 479),(-10308, 60),(-9882, -149),
+                                                    ]
+
+            if not (yield from self.follow_path(path_to_mission003, pause_on_danger=True)):
+                return
+            
+            GLOBAL_CACHE.Party.Heroes.FlagAllHeroes(-8656, -712)
+            yield from Routines.Yield.wait(3000)
+            
+            path_to_mission004: List[Tuple[float, float]] = [(-8625, -742),(-8298, -1270),(-8198, -1147),(-7851, -1458),]
+
+            if not (yield from self.follow_path(path_to_mission004, pause_on_danger=True)):
+                return
+            
+            while True:
+                mapid = GLOBAL_CACHE.Map.GetMapID() #251
+                if (Routines.Checks.Map.MapValid() and (mapid == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor"))):
+                    break
+                yield from Routines.Yield.wait(1000)
+        finally:  
+            if autocombat in GLOBAL_CACHE.Coroutines:
+                GLOBAL_CACHE.Coroutines.remove(autocombat)
                 yield from Routines.Yield.wait(3000)
+                
+    def EvaluateLevel10(self):
+        level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+        if level < 10:
+            zen_daijun_map_id = 213
+            GLOBAL_CACHE.Map.Travel(zen_daijun_map_id)
+            yield from Routines.Yield.wait(1000)
+            self.FSM.jump_to_state_by_name("Wait for Zen Daijun Map Load")
+            return
+        
+        TAKE_QUEST = 0x815D01
+        if not (yield from self.interact_with_agent((16927, 9004), dialog_id=TAKE_QUEST)):
+            return
+        
+        BOOK_PASSAGE = 0x81
+        if not (yield from self.interact_with_agent((16927, 9004), dialog_id=BOOK_PASSAGE)):
+            return
+        
+        I_AM_SURE = 0x84
+        GLOBAL_CACHE.Player.SendDialog(I_AM_SURE)  # Accept the quest to book passage
+
 
 main_FSM = FSM_Config()
 selected_step = 0
@@ -778,9 +961,9 @@ def ShowMainWindow():
         PyImGui.text("Time Elapsed: " + str(main_FSM.run_timer.FormatElapsedTime("hh:mm:ss")))
         
         main_FSM.use_cupcakes = PyImGui.checkbox("Use Cupcakes", main_FSM.use_cupcakes)
+        main_FSM.amount_of_cupcakes = PyImGui.slider_int("Amount of Cupcakes", main_FSM.amount_of_cupcakes, 1, 100)
         main_FSM.use_honeycombs = PyImGui.checkbox("Use Honeycombs", main_FSM.use_honeycombs)
-        
-        PyImGui.text("Morale: " + str(GLOBAL_CACHE.Player.GetMorale()))
+        main_FSM.amount_of_honeycombs = PyImGui.slider_int("Amount of Honeycombs", main_FSM.amount_of_honeycombs, 1, 100)
 
         if PyImGui.button("Start"):
             main_FSM.script_running = True
@@ -803,6 +986,11 @@ def ShowMainWindow():
                 main_FSM.run_timer.Reset()
                 main_FSM.FSM.jump_to_state_by_name(fsm_steps[selected_step])
                 
+        others = GLOBAL_CACHE.Party.GetOthers()
+        if others:
+            for other in others:
+                name = GLOBAL_CACHE.Agent.GetName(other)
+                PyImGui.text(f"Other: {name} (ID: {other})")
 
     PyImGui.end()
     
