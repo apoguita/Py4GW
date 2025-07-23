@@ -329,8 +329,6 @@ class CombatClass:
     def InCastingRoutine(self):
         if self.aftercast_timer.HasElapsed(self.aftercast):
             self.in_casting_routine = False
-            #if self.in_aggro:
-            #    self.ChooseTarget(interact=True)
             self.aftercast_timer.Reset()
 
         return self.in_casting_routine
@@ -502,18 +500,14 @@ class CombatClass:
                 return True
             
         allegiance , _ = GLOBAL_CACHE.Agent.GetAllegiance(agent_id)
-        if allegiance == Allegiance.SpiritPet.value and not GLOBAL_CACHE.Agent.IsSpawned(agent_id):
+        if (allegiance == Allegiance.SpiritPet.value and 
+            not GLOBAL_CACHE.Agent.IsSpawned(agent_id)):
             return True
         
         return False
         
     def HasEffect(self, agent_id, skill_id, exact_weapon_spell=False):
-        """
-        alliegeance, _ = Agent.GetAllegiance(agent_id)
-        
-        if alliegeance == Allegiance.NpcMinipet:
-            return True
-        """
+
         result = False
         custom_skill_data = custom_skill_data_handler.get_skill(skill_id)
         shared_effects = getattr(custom_skill_data.Conditions, "SharedEffects", []) if custom_skill_data else []
@@ -766,15 +760,14 @@ class CombatClass:
                             break
 
         if Conditions.HasDervishEnchantment:
-            if GLOBAL_CACHE.Player.GetAgentID() == vTarget:
-                buff_list = self.shared_memory_handler.get_agent_buffs(vTarget)
-                for buff in buff_list:
-                    skill_type, _ = GLOBAL_CACHE.Skill.GetType(buff)
-                    if skill_type == SkillType.Enchantment.value:
-                        _, profession = GLOBAL_CACHE.Skill.GetProfession(buff)
-                        if profession == "Dervish":
-                            number_of_features += 1
-                            break
+            buff_list = self.shared_memory_handler.get_agent_buffs(GLOBAL_CACHE.Player.GetAgentID())
+            for buff in buff_list:
+                skill_type, _ = GLOBAL_CACHE.Skill.GetType(buff)
+                if skill_type == SkillType.Enchantment.value:
+                    _, profession = GLOBAL_CACHE.Skill.GetProfession(buff)
+                    if profession == "Dervish":
+                        number_of_features += 1
+                        break
 
         if Conditions.HasHex:
             if GLOBAL_CACHE.Agent.IsHexed(vTarget):
@@ -971,9 +964,9 @@ class CombatClass:
         if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
             self.in_casting_routine = False
             return False, v_target
-        if GLOBAL_CACHE.Agent.GetCastingSkill(GLOBAL_CACHE.Player.GetAgentID()) != 0:
-            self.in_casting_routine = False
-            return False, v_target
+        #if GLOBAL_CACHE.Agent.GetCastingSkill(GLOBAL_CACHE.Player.GetAgentID()) != 0:
+        #    self.in_casting_routine = False
+        #    return False, v_target
         if GLOBAL_CACHE.SkillBar.GetCasting() != 0:
             self.in_casting_routine = False
             return False, v_target

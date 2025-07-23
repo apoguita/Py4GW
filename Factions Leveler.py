@@ -232,7 +232,7 @@ class FSM_Config:
         cupcake__id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Birthday_Cupcake.value)
         cupcake_effect = GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")
         
-        if not Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), cupcake_effect) and cupcake__id:
+        if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), cupcake_effect) and cupcake__id:
             GLOBAL_CACHE.Inventory.UseItem(cupcake__id)
             yield from Routines.Yield.wait(500)
             
