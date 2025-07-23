@@ -11,16 +11,18 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 
-class UnnaturalSignetUtility(CustomSkillUtilityBase):
+class WastrelsDemiseUtility(CustomSkillUtilityBase):
     def __init__(self, 
         current_build: list[CustomSkill], 
+        mana_required_to_cast: int = 0,
         score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 70 if enemy_qte >= 3 else 40 if enemy_qte <= 2 else 0),
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
         ) -> None:
 
         super().__init__(
-            skill=CustomSkill("Unnatural_Signet"), 
+            skill=CustomSkill("Wastrels_Demise"), 
             in_game_build=current_build, 
+            mana_required_to_cast=mana_required_to_cast,
             score_definition=score_definition,
             allowed_states=allowed_states)
                 
@@ -30,7 +32,7 @@ class UnnaturalSignetUtility(CustomSkillUtilityBase):
         
         targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
                     within_range=Range.Spellcast,
-                    condition=lambda agent_id: GLOBAL_CACHE.Agent.IsHexed(agent_id),
+                    condition=lambda agent_id: not GLOBAL_CACHE.Agent.IsHexed(agent_id),
                     sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.HP_DESC),
                     range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
         return targets

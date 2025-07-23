@@ -262,42 +262,42 @@ class EventBus:
 EVENT_BUS = EventBus()
 
 
-# Convenience functions for easier usage
-def subscribe(event_type: EventType, callback: Callable[[EventMessage], None], subscriber_name: str = "Unknown") -> bool:
-    """Subscribe to an event type using the global event bus."""
-    return EVENT_BUS.subscribe(event_type, callback, subscriber_name)
+# # Convenience functions for easier usage
+# def subscribe(event_type: EventType, callback: Callable[[EventMessage], None], subscriber_name: str = "Unknown") -> bool:
+#     """Subscribe to an event type using the global event bus."""
+#     return EVENT_BUS.subscribe(event_type, callback, subscriber_name)
 
 
-def unsubscribe(event_type: EventType, callback: Callable[[EventMessage], None], subscriber_name: str = "Unknown") -> bool:
-    """Unsubscribe from an event type using the global event bus."""
-    return EVENT_BUS.unsubscribe(event_type, callback, subscriber_name)
+# def unsubscribe(event_type: EventType, callback: Callable[[EventMessage], None], subscriber_name: str = "Unknown") -> bool:
+#     """Unsubscribe from an event type using the global event bus."""
+#     return EVENT_BUS.unsubscribe(event_type, callback, subscriber_name)
 
 
-def publish(event_type: EventType, data: Any = None, publisher_name: str = "Unknown") -> bool:
-    """Publish an event using the global event bus."""
-    return EVENT_BUS.publish(event_type, data, publisher_name)
+# def publish(event_type: EventType, data: Any = None, publisher_name: str = "Unknown") -> bool:
+#     """Publish an event using the global event bus."""
+#     return EVENT_BUS.publish(event_type, data, publisher_name)
 
 
-def get_subscriber_count(event_type: EventType) -> int:
-    """Get subscriber count for an event type."""
-    return EVENT_BUS.get_subscriber_count(event_type)
+# def get_subscriber_count(event_type: EventType) -> int:
+#     """Get subscriber count for an event type."""
+#     return EVENT_BUS.get_subscriber_count(event_type)
 
 
-def get_all_event_types() -> List[EventType]:
-    """Get all event types with subscribers."""
-    return EVENT_BUS.get_all_event_types()
+# def get_all_event_types() -> List[EventType]:
+#     """Get all event types with subscribers."""
+#     return EVENT_BUS.get_all_event_types()
 
 
-def clear_subscribers(event_type: Optional[EventType] = None):
-    """Clear subscribers for an event type or all events."""
-    EVENT_BUS.clear_subscribers(event_type)
+# def clear_subscribers(event_type: Optional[EventType] = None):
+#     """Clear subscribers for an event type or all events."""
+#     EVENT_BUS.clear_subscribers(event_type)
 
 
-def set_debug_mode(enabled: bool):
-    """Enable or disable debug mode."""
-    EVENT_BUS.set_debug_mode(enabled)
+# def set_debug_mode(enabled: bool):
+#     """Enable or disable debug mode."""
+#     EVENT_BUS.set_debug_mode(enabled)
 
 
-def get_messages_by_category(category: str, limit: Optional[int] = None) -> List[EventMessage]:
-    """Get messages by category prefix."""
-    return EVENT_BUS.get_messages_by_category(category, limit) 
+# def get_messages_by_category(category: str, limit: Optional[int] = None) -> List[EventMessage]:
+#     """Get messages by category prefix."""
+#     return EVENT_BUS.get_messages_by_category(category, limit) 

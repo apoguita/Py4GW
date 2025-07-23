@@ -1,12 +1,10 @@
 from typing import List, Any, Generator, Callable, override
 import time
-from HeroAI.cache_data import CacheData
 from Py4GWCoreLib.enums import SpiritModelID
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base import CustomBehaviorBase
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -26,9 +24,9 @@ from Widgets.CustomBehaviors.skills.ritualist.summon_spirit_utility import Summo
 
 class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self, cached_data: CacheData):
-        super().__init__(cached_data)
-        in_game_build = list(CustomBehaviorBase.get_in_game_build().values())
+    def __init__(self):
+        super().__init__()
+        in_game_build = list(self.skillbar_management.get_in_game_build().values())
         self.auto_attack: CustomSkillUtilityBase = AutoAttackUtility(current_build=in_game_build)
 
         # core skills

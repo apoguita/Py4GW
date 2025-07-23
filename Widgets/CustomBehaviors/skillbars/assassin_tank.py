@@ -1,10 +1,8 @@
 from typing import List, Any, Generator, Callable, override
 import time
-from HeroAI.cache_data import CacheData
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base import CustomBehaviorBase
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -20,29 +18,29 @@ from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import K
 from Widgets.CustomBehaviors.skills.generic.protective_shout_utility import ProtectiveShoutUtility
 from Widgets.CustomBehaviors.skills.paragon.heroic_refrain_utility import HeroicRefrainUtility
 
-class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
+class AssassinTank_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self, cached_data: CacheData):
-        super().__init__(cached_data)
-        in_game_build = list(CustomBehaviorBase.get_in_game_build().values())
+    def __init__(self):
+        super().__init__()
+        in_game_build = list(self.skillbar_management.get_in_game_build().values())
         self.auto_attack: CustomSkillUtilityBase = AutoAttackUtility(current_build=in_game_build)
 
         #core
-        self.deadly_paradox_utility: CustomSkillUtilityBase = DeadlyParadoxUtility(score_definition=ScoreStaticDefinition(70), current_build=in_game_build, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
+        self.deadly_paradox_utility: CustomSkillUtilityBase = DeadlyParadoxUtility(score_definition=ScoreStaticDefinition(70), current_build=in_game_build, mana_required_to_cast=17, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
         self.shroud_of_distress_utility: CustomSkillUtilityBase = ShroudOfDistressUtility(score_definition=ScoreStaticDefinition(66), current_build=in_game_build, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
         self.shadow_form_utility: CustomSkillUtilityBase = ShadowFormUtility(score_definition=ScoreStaticDefinition(65), is_deadly_paradox_required=True, current_build=in_game_build, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
 
-        
+    
         #optional
-        self.silver_armor_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Silver_Armor"), current_build=in_game_build, score_definition=ScoreStaticDefinition(61), mana_required_to_cast=17, allowed_states=[BehaviorState.IN_AGGRO])
-        self.stoneflesh_aura_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Stoneflesh_Aura"), current_build=in_game_build, score_definition=ScoreStaticDefinition(60), mana_required_to_cast=17, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
-        self.armor_of_earth_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Armor_of_Earth"), current_build=in_game_build, score_definition=ScoreStaticDefinition(58), mana_required_to_cast=17, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
+        self.silver_armor_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Sliver_Armor"), current_build=in_game_build, score_definition=ScoreStaticDefinition(61), mana_required_to_cast=20, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
+        self.stoneflesh_aura_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Stoneflesh_Aura"), current_build=in_game_build, score_definition=ScoreStaticDefinition(60), mana_required_to_cast=20, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
+        self.armor_of_earth_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Armor_of_Earth"), current_build=in_game_build, score_definition=ScoreStaticDefinition(58), mana_required_to_cast=20, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
 
         self.critical_agility_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Critical_Agility"), current_build=in_game_build, score_definition=ScoreStaticDefinition(50), mana_required_to_cast=20, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
 
         #common
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(45))
-        self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(score_definition=ScoreStaticDefinition(40), current_build=in_game_build, mana_required_to_cast=20)
+        self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(score_definition=ScoreStaticDefinition(40), current_build=in_game_build, mana_required_to_cast=24)
     
 
     @property
@@ -78,4 +76,5 @@ class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
         return [
             self.shadow_form_utility.custom_skill,
             self.deadly_paradox_utility.custom_skill,
+            self.i_am_unstopabble.custom_skill,
         ]

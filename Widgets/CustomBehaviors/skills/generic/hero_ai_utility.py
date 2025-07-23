@@ -1,6 +1,7 @@
 from typing import List, Any, Generator, Callable, override
 
 from HeroAI.cache_data import CacheData
+from HeroAI.combat import CombatClass
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -23,7 +24,8 @@ class HeroAiUtility(CustomSkillUtilityBase):
         ) -> None:
 
         super().__init__(
-            skill=skill, in_game_build=current_build, 
+            skill=skill, 
+            in_game_build=current_build, 
             score_definition=score_definition, 
             mana_required_to_cast=mana_required_to_cast, 
             allowed_states= [BehaviorState.IN_AGGRO, BehaviorState.FAR_FROM_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
@@ -45,8 +47,6 @@ class HeroAiUtility(CustomSkillUtilityBase):
         if cached_data.combat_handler.skills is None or len(cached_data.combat_handler.skills) == 0:
             print("combat_handler.skills is None or empty, trying to prioritize skills")
             return None
-        
-        # print([skill.skill_id for skill in cached_data.combat_handler.skills])
 
         def find_order():
             skills = enumerate(cached_data.combat_handler.skills)
@@ -57,6 +57,10 @@ class HeroAiUtility(CustomSkillUtilityBase):
 
         order = find_order()
         if order == -1: return None
+
+        is_ooc_skill = cached_data.combat_handler.IsOOCSkill(order)
+        if is_ooc_skill and current_state is BehaviorState.IN_AGGRO: return None
+
         is_ready_to_cast, target_agent_id = cached_data.combat_handler.IsReadyToCast(order)
 
         if not is_ready_to_cast: return None

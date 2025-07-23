@@ -1,4 +1,3 @@
-from HeroAI.cache_data import CacheData
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 
@@ -8,10 +7,10 @@ def deamon():
     CustomBehaviorLoader().initialize_custom_behavior_candidate()
 
     if CustomBehaviorLoader().custom_combat_behavior is not None:
-        CustomBehaviorLoader().ensure_custom_behavior_match_in_game_build()
-        pass
+        if not CustomBehaviorLoader().custom_combat_behavior.is_custom_behavior_match_in_game_build():
+            CustomBehaviorLoader().refresh_custom_behavior_candidate()
 
     if CustomBehaviorLoader().custom_combat_behavior is not None:
-        CustomBehaviorLoader().custom_combat_behavior.act(CacheData())
+        CustomBehaviorLoader().custom_combat_behavior.act()
 
     ActionQueueManager().ProcessQueue("ACTION")
