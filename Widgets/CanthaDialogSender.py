@@ -114,7 +114,7 @@ DIALOG_GROUPS = {
 def draw_widget():
     global window_x, window_y, window_collapsed, first_run
 
-    is_window_opened = PyImGui.begin("Nightfall Quest Dialogs", PyImGui.WindowFlags.AlwaysAutoResize)
+    is_window_opened = PyImGui.begin("Cantha Quest Dialogs", PyImGui.WindowFlags.AlwaysAutoResize)
     if is_window_opened:
         group_names = list(DIALOG_GROUPS.keys())
         groups_per_tabbar = 5
