@@ -1,6 +1,5 @@
 from typing import override
 
-from HeroAI.cache_data import CacheData
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
@@ -116,6 +115,3 @@ class AssassinTankUtilitySkillBar(CustomBehaviorBaseUtility):
             self.deadly_paradox_utility.custom_skill,
             self.i_am_unstopabble.custom_skill,
         ]
-
-
-s
