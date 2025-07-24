@@ -195,7 +195,6 @@ class Routines:
 
                 if (
                     GLOBAL_CACHE.Agent.IsCasting(player_agent_id) 
-                    or GLOBAL_CACHE.Agent.GetCastingSkill(player_agent_id) != 0
                     or GLOBAL_CACHE.Agent.IsKnockedDown(player_agent_id)
                     or GLOBAL_CACHE.Agent.IsDead(player_agent_id)
                     or GLOBAL_CACHE.SkillBar.GetCasting() != 0
@@ -206,7 +205,7 @@ class Routines:
             @staticmethod
             def InCastingProcess():
                 player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-                if GLOBAL_CACHE.Agent.IsCasting(player_agent_id) or GLOBAL_CACHE.SkillBar.GetCasting() != 0 or GLOBAL_CACHE.Agent.GetCastingSkill(player_agent_id) != 0:
+                if GLOBAL_CACHE.Agent.IsCasting(player_agent_id) or GLOBAL_CACHE.SkillBar.GetCasting() != 0:
                     return True
                 return False
             

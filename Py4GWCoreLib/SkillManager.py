@@ -147,9 +147,9 @@ class SkillManager:
             self.stay_alert_timer = ThrottledTimer(2500)
             self.game_throttle_timer = ThrottledTimer(75)
             weapon_aftercast = self.GetWeaponAttackAftercast()
-            self.auto_attack_timer = ThrottledTimer(weapon_aftercast * 1000)
+            self.auto_attack_timer = ThrottledTimer(weapon_aftercast)
             self.ping_handler = Py4GW.PingHandler()
-            self.in_casting_routine = True
+            self.in_casting_routine = False
             self.aggressive_enemies_only = False
             
             
@@ -168,6 +168,10 @@ class SkillManager:
                 if attribute.GetName() == "Expertise":
                     self.expertise_exists = True
                     self.expertise_level = attribute.level
+                    
+        def SetWeaponAttackAftercast(self):
+            weapon_aftercast = self.GetWeaponAttackAftercast()
+            self.auto_attack_timer = ThrottledTimer(weapon_aftercast)
 
         def SetAggressiveEnemiesOnly(self, state, log_action=False):
             self.aggressive_enemies_only = state
@@ -976,10 +980,12 @@ class SkillManager:
         def IsReadyToCast(self, slot):
             # Check if the player is already casting
             # Validate target
+            old_target= GLOBAL_CACHE.Player.GetTargetID()
             v_target = self.GetAppropiateTarget(slot)
 
             if v_target is None or v_target == 0:
                 self.in_casting_routine = False
+                print("No valid target found for skill slot", slot)
                 return False, 0
 
             if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
@@ -1194,6 +1200,7 @@ class SkillManager:
                 
             self.aftercast += self.ping_handler.GetCurrentPing()
 
+            self.aftercast_timer.SetThrottleTime(self.aftercast)
             self.aftercast_timer.Reset()
             GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[self.skill_pointer]+1, target_agent_id)
             self.ResetSkillPointer()
@@ -1208,15 +1215,25 @@ class SkillManager:
                 self.game_throttle_timer.Reset()
                 self.PrioritizeSkills()
                 if not self.InAggro():
-                    self._HandleCombat(ooc=True)
+                    if self._HandleCombat(ooc=True):
+                        self.auto_attack_timer.Reset()
                     return
-                    
+                   
+
                 if self._HandleCombat(ooc=False):
+                    self.auto_attack_timer.Reset()
                     return
                 
                 if self.auto_attack_timer.IsExpired():
+                    if (
+                        not GLOBAL_CACHE.Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()) and
+                        not GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()) and
+                        not GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())    
+                    ):
+                        self.ChooseTarget()
+
                     self.auto_attack_timer.Reset()
-                    if self.ChooseTarget():
-                        return
+                    self.ResetSkillPointer()
+                    return
                 
                 
