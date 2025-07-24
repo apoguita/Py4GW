@@ -47,8 +47,6 @@ class UnnaturalSignetUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        if custom_behavior_helpers.Resources.get_player_absolute_energy() < 18:
-            return None
         targets = self._get_targets()
         if len(targets) == 0:
             return None

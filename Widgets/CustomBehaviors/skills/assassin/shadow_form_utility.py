@@ -19,6 +19,7 @@ class ShadowFormUtility(CustomSkillUtilityBase):
         score_definition: ScoreStaticDefinition,
         mana_required_to_cast: int = 0,
         is_deadly_paradox_required: bool = False,
+        renew_before_expiration_in_milliseconds: int = 1800,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO],
     ) -> None:
 
@@ -33,7 +34,7 @@ class ShadowFormUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = score_definition
         self.is_deadly_paradox_required: bool = is_deadly_paradox_required
         self.deadly_paradox_skill: CustomSkill = CustomSkill("Deadly_Paradox")
-        self.renew_before_expiration_in_milliseconds: int = 1200
+        self.renew_before_expiration_in_milliseconds: int = renew_before_expiration_in_milliseconds
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
@@ -52,7 +53,7 @@ class ShadowFormUtility(CustomSkillUtilityBase):
         deadly_paradox_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(
             GLOBAL_CACHE.Player.GetAgentID(), self.deadly_paradox_skill.skill_id
         )
-        if deadly_paradox_buff_time_remaining <= 1200:
+        if deadly_paradox_buff_time_remaining <= self.renew_before_expiration_in_milliseconds:
             return None  # we wait for deadly paradox refresh to be buffed
 
         if not has_shadow_form_buff:
