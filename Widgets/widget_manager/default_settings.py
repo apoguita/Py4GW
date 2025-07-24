@@ -225,7 +225,7 @@ global_widget_defaults = {
     "CombatPrep": {
         "enabled": "False",
         "category": "Bots",
-        "subcategory": "Helpers",
+        "subcategory": "Multiboxing",
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },
@@ -239,7 +239,7 @@ global_widget_defaults = {
     "HeroAICustomBehavior": {
         "enabled": "False",
         "category": "Bots",
-        "subcategory": "Helpers",
+        "subcategory": "Multiboxing",
         "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True",
     },
@@ -489,7 +489,7 @@ account_widget_defaults = {
     "CombatPrep": {
         "enabled": "False",
         "category": "Bots",
-        "subcategory": "Helpers",
+        "subcategory": "Multiboxing",
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },
@@ -503,7 +503,7 @@ account_widget_defaults = {
     "HeroAICustomBehavior": {
         "enabled": "False",
         "category": "Bots",
-        "subcategory": "Helpers",
+        "subcategory": "Multiboxing",
         "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True",
     },
