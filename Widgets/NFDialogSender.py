@@ -1,4 +1,3 @@
-import math
 import os
 import traceback
 
@@ -250,6 +249,9 @@ def draw_widget():
 
                         PyImGui.end_tab_item()
                 PyImGui.end_tab_bar()
+            PyImGui.spacing()
+            PyImGui.separator()
+            PyImGui.spacing()
 
     PyImGui.end()
 

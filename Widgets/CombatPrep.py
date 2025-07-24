@@ -42,6 +42,7 @@ ENABLE_PARTY_LEADER_TOOL_TIP_TEXT = "Enable Party Leader HeroAI"
 ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT = "Enable Party Members HeroAI"
 MODULE_ICON_SIZE = 'module_icon_size'
 MODULE_LAYOUT = 'module_layout'
+USE_HOTKEYS = 'use_hotkeys'
 ROW = "row"
 SPIRITS_CAST_COOLDOWN_MS = 4000
 SPIRITS_BUTTON_TOOL_TIP_TEXT = "Spirits Prep"
@@ -86,6 +87,7 @@ window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 module_layout = ini_window.read_key(MODULE_NAME, MODULE_LAYOUT, DEFAULT)
 module_icon_size = ini_window.read_int(MODULE_NAME, MODULE_ICON_SIZE, 80)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
+should_use_hotkeys = ini_window.read_bool(MODULE_NAME, USE_HOTKEYS, False)
 
 # Global Trackers
 last_location_spirits_casted = {X_POS: 0.0, Y_POS: 0.0}
@@ -173,6 +175,9 @@ def load_formations_from_json():
 
 
 def get_key_pressed(vk_code):
+    if not should_use_hotkeys:
+        return None
+
     value = user32.GetAsyncKeyState(vk_code) & 0x8000
     is_value_not_zero = value != 0
     if is_value_not_zero:
@@ -740,6 +745,7 @@ class CombatPrep:
 def configure():
     global module_icon_size
     global module_layout
+    global should_use_hotkeys
 
     if PyImGui.begin('Combat Prep Configs', PyImGui.WindowFlags.AlwaysAutoResize):
         # --- Icon Size ---
@@ -760,6 +766,11 @@ def configure():
             module_layout = new_layout
             ini_window.write_key(MODULE_NAME, MODULE_LAYOUT, module_layout)
 
+        # --- Hotkey Usage ---
+        previous_should_use_hotkey_value = should_use_hotkeys
+        should_use_hotkeys = ImGui.toggle_button('Allow to use pre-set Hotkeys##ShouldUseHotkeys', should_use_hotkeys)
+        if should_use_hotkeys != previous_should_use_hotkey_value:
+            ini_window.write_key(MODULE_NAME, USE_HOTKEYS, should_use_hotkeys)
     PyImGui.end()
 
 
