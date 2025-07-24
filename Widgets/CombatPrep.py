@@ -1,3 +1,4 @@
+import ctypes
 import json
 import math
 import os
@@ -18,6 +19,7 @@ from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
 from Py4GW_widget_manager import get_widget_handler
 
+user32 = ctypes.WinDLL("user32", use_last_error=True)
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
@@ -170,6 +172,37 @@ def load_formations_from_json():
     return data
 
 
+def get_key_pressed(vk_code):
+    value = user32.GetAsyncKeyState(vk_code) & 0x8000
+    is_value_not_zero = value != 0
+    if is_value_not_zero:
+        return vk_to_char(vk_code)
+    return None
+
+
+def char_to_vk(char: str) -> int:
+    if len(char) != 1:
+        pass
+    vk = user32.VkKeyScanW(ord(char))
+    if vk == -1:
+        pass
+    return vk & 0xFF  # The low byte is the VK code
+
+
+def vk_to_char(vk_code):
+    return chr(user32.MapVirtualKeyW(vk_code, 2))
+
+
+def is_hotkey_pressed_once(vk_code=0x35):
+    pressed = get_key_pressed(vk_code)
+    if pressed and not hotkey_state[WAS_PRESSED]:
+        hotkey_state[WAS_PRESSED] = True
+        return True
+    elif not pressed:
+        hotkey_state[WAS_PRESSED] = False
+    return False
+
+
 class CombatPrep:
     def __init__(self, cached_data, module_icon_size, module_layout):
         self.is_party_leader = GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
@@ -319,6 +352,7 @@ class CombatPrep:
 
             should_cast = (
                 st_button_pressed
+                or is_hotkey_pressed_once(0x36)
                 or (auto_spirit_cast_enabled[VALUE] and enemy_agent and distance_squared >= distance_threshold_squared)
             ) and time_since_last_cast >= SPIRITS_CAST_COOLDOWN_MS
 
@@ -361,6 +395,7 @@ class CombatPrep:
 
             should_cast = (
                 shouts_button_pressed
+                or is_hotkey_pressed_once(0x36)
                 or (
                     auto_shout_cast_enabled[VALUE]
                     and enemy_agent
@@ -451,7 +486,8 @@ class CombatPrep:
                     pressed = ImGui.ImageButton(f"##{formation_key}", formation_data[TEXTURE], icon_size, icon_size)
                     ImGui.show_tooltip(formation_key)
 
-                    should_set = pressed
+                    hotkey_pressed = get_key_pressed(formation_data[VK]) if formation_data[VK] else False
+                    should_set = hotkey_pressed or pressed
 
                     if should_set:
                         if formation_data[COORDINATES]:
@@ -551,7 +587,8 @@ class CombatPrep:
                 )
                 ImGui.show_tooltip(formation_key)
 
-                should_set_formation = set_formation_button_pressed
+                hotkey_pressed = get_key_pressed(formation_data[VK]) if formation_data[VK] else False
+                should_set_formation = hotkey_pressed or set_formation_button_pressed
 
                 if should_set_formation:
                     if len(formation_data[COORDINATES]):

@@ -39,6 +39,26 @@ window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
 # Full structured dialog GUI for Guild Wars: Nightfall quests
 DIALOG_GROUPS = {
+    "GTOB Professions": {
+        "dialogs": [
+            (0x0184, 'Warrior'),
+            (0x0284, 'Ranger'),
+            (0x0384, 'Monk'),
+            (0x0484, 'Necromancer'),
+            (0x0584, 'Mesmer'),
+            (0x0684, 'Elementalist'),
+            (0x0784, 'Assassin'),
+            (0x0884, 'Ritualist'),
+            (0x0984, 'Paragon'),
+            (0x0A84, 'Dervish'),
+
+        ]
+    },
+    "Docks Ferry": {
+        "dialogs": [
+            (0x85, "Hannah")
+        ]
+    },
     "And a Hero Shall Lead Them": {
         "dialogs": [
             (0x822601, "Start (Lonai)"),
