@@ -38,6 +38,21 @@ window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
 # Full structured dialog GUI for Guild Wars: Nightfall quests
 DIALOG_GROUPS = {
+    "GTOB Professions": {
+        "dialogs": [
+            (0x0184, 'Warrior'),
+            (0x0284, 'Ranger'),
+            (0x0384, 'Monk'),
+            (0x0484, 'Necromancer'),
+            (0x0584, 'Mesmer'),
+            (0x0684, 'Elementalist'),
+            (0x0784, 'Assassin'),
+            (0x0884, 'Ritualist'),
+            (0x0984, 'Paragon'),
+            (0x0A84, 'Dervish'),
+        ],
+        "note": "Travel to GTOB. Talk to the professions changer, make sure you have enough gold.",
+    },
     "Choose Secondary Profession": {
         "dialogs": [
             (0x813D0B, "Warrior"),
@@ -53,27 +68,19 @@ DIALOG_GROUPS = {
             "After entering Linnok Courtyard, send one of these dialogs to Master Togo to choose your "
             "secondary and skip the tutorial quests. Recommended: Assassin for Dash. "
             "Game may crash when sending these; restarting Guild Wars lets you continue as if it worked."
-        )
+        ),
     },
     "A Formal Introduction": {
         "note": "After selecting your secondary profession and restarting (if crash occurs), take this quest from Master Togo."
     },
     "Minister Cho's Estate Entry": {
         "dialogs": [(0x80000B, "Guardsman Kayao")],
-        "note": "Zone back into Shing Jea Monastery and run to the estate. Use /bonus and equip the bow, shield, and summoning stone before entering."
+        "note": "Zone back into Shing Jea Monastery and run to the estate. Use /bonus and equip the bow, shield, and summoning stone before entering.",
     },
-    "Minister Cho's Estate": {
-        "note": "Mission run with Taya, Lukas, and Aeson. Complete it fully."
-    },
-    "Warning the Tengu": {
-        "note": "Quest to complete after Cho’s Estate. Bring Taya, Lukas, and Aeson."
-    },
-    "The Threat Grows": {
-        "note": "Another post-Cho’s Estate quest. Use the same party: Taya, Lukas, Aeson."
-    },
-    "Journey to the Master": {
-        "note": "Still part of the early quest chain. Use Taya, Lukas, and Aeson."
-    },
+    "Minister Cho's Estate": {"note": "Mission run with Taya, Lukas, and Aeson. Complete it fully."},
+    "Warning the Tengu": {"note": "Quest to complete after Cho’s Estate. Bring Taya, Lukas, and Aeson."},
+    "The Threat Grows": {"note": "Another post-Cho’s Estate quest. Use the same party: Taya, Lukas, Aeson."},
+    "Journey to the Master": {"note": "Still part of the early quest chain. Use Taya, Lukas, and Aeson."},
     "The Road Less Traveled": {
         "note": (
             "This quest kicks non-Factions characters and heroes. Use cupcakes, apples, and war supplies "
@@ -82,7 +89,7 @@ DIALOG_GROUPS = {
     },
     "Zen Daijun Entry": {
         "dialogs": [(0x80000B, "Brother Hanjui")],
-        "note": "Run to Zen Daijun from Seitung Harbor. Avoid Afflicted Mesmers. Use party: Taya, Lukas, Kisai, Yuun, Aeson."
+        "note": "Run to Zen Daijun from Seitung Harbor. Avoid Afflicted Mesmers. Use party: Taya, Lukas, Kisai, Yuun, Aeson.",
     },
     "Zen Daijun Mission": {
         "note": (
@@ -90,9 +97,7 @@ DIALOG_GROUPS = {
             "Be cautious near Afflicted Yijo. Avoid Spirit Rift wipes by flagging heroes out."
         )
     },
-    "Travel to Kaineng Docks": {
-        "note": "Talk to First Mate Xiang in Seitung Harbor to sail to Kaineng."
-    },
+    "Travel to Kaineng Docks": {"note": "Talk to First Mate Xiang in Seitung Harbor to sail to Kaineng."},
     "Travel to Kaineng Center": {
         "note": (
             "Run through The Marketplace to Kaineng Center. Take Headmaster Vhang, Lo Sha, Su, Kai Ying, Sister Tai, "
@@ -100,14 +105,12 @@ DIALOG_GROUPS = {
         )
     },
     "Sunspears in Cantha": {
-        "note": (
-            "Take this quest from Imperial Guardsman Linro in Kaineng Center to spawn Kormir in Bejunkan Pier."
-        )
+        "note": ("Take this quest from Imperial Guardsman Linro in Kaineng Center to spawn Kormir in Bejunkan Pier.")
     },
     "Kormir in Bejunkan Pier": {
         "dialogs": [(0x84, "Kormir")],
-        "note": "Send dialog 0x84 to Kormir to progress the Sunspears quest."
-    }
+        "note": "Send dialog 0x84 to Kormir to progress the Sunspears quest.",
+    },
 }
 
 
@@ -126,7 +129,7 @@ def draw_widget():
 
             tabbar_id = f"tabbar_{i // groups_per_tabbar}"
             if PyImGui.begin_tab_bar(tabbar_id):
-                for group_name in group_names[i:i + groups_per_tabbar]:
+                for group_name in group_names[i : i + groups_per_tabbar]:
                     group_data = DIALOG_GROUPS[group_name]
                     if PyImGui.begin_tab_item(group_name):
                         dialogs = group_data.get("dialogs", [])

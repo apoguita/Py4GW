@@ -50,14 +50,11 @@ DIALOG_GROUPS = {
             (0x0884, 'Ritualist'),
             (0x0984, 'Paragon'),
             (0x0A84, 'Dervish'),
-
         ],
         "note": "Travel to GTOB. Talk to the professions changer, make sure you have enough gold.",
     },
     "Docks Ferry": {
-        "dialogs": [
-            (0x85, "Hannah")
-        ],
+        "dialogs": [(0x85, "Hannah")],
         "note": "Ferry to Docks, will not make it so you can do the mission",
     },
     "And a Hero Shall Lead Them": {
@@ -233,7 +230,7 @@ def draw_widget():
 
             tabbar_id = f"tabbar_{i // groups_per_tabbar}"
             if PyImGui.begin_tab_bar(tabbar_id):
-                for group_name in group_names[i:i + groups_per_tabbar]:
+                for group_name in group_names[i : i + groups_per_tabbar]:
                     group_data = DIALOG_GROUPS[group_name]
                     if PyImGui.begin_tab_item(group_name):
                         dialogs = group_data.get("dialogs", [])
