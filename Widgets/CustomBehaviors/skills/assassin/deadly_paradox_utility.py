@@ -1,7 +1,9 @@
-from tkinter.constants import N
-from typing import Any, Generator, override
+from typing import Any
+from typing import Generator
+from typing import override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Routines
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -11,28 +13,33 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 
 class DeadlyParadoxUtility(CustomSkillUtilityBase):
-    def __init__(self, 
-    current_build: list[CustomSkill], 
-    score_definition: ScoreStaticDefinition,
-    mana_required_to_cast: int = 0,
-    allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO]
+    def __init__(
+        self,
+        current_build: list[CustomSkill],
+        score_definition: ScoreStaticDefinition,
+        mana_required_to_cast: int = 0,
+        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO],
     ) -> None:
 
         super().__init__(
-            skill=CustomSkill("Deadly_Paradox"), 
-            in_game_build=current_build, 
-            score_definition=score_definition, 
-            mana_required_to_cast=mana_required_to_cast, 
-            allowed_states=allowed_states)
-        
+            skill=CustomSkill("Deadly_Paradox"),
+            in_game_build=current_build,
+            score_definition=score_definition,
+            mana_required_to_cast=mana_required_to_cast,
+            allowed_states=allowed_states,
+        )
+
         self.score_definition: ScoreStaticDefinition = score_definition
         self.renew_before_expiration_in_milliseconds: int = 1200
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        has_deadly_paradox_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
-        if has_deadly_paradox_buff: return None
+        has_deadly_paradox_buff = Routines.Checks.Effects.HasBuff(
+            GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id
+        )
+        if has_deadly_paradox_buff:
+            return None
 
         return self.score_definition.get_score()
 

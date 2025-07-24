@@ -1,4 +1,4 @@
-from typing import override
+from typing import override  # type: ignore
 
 from HeroAI.cache_data import CacheData
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import (

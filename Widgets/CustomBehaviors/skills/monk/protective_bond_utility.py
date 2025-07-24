@@ -13,13 +13,13 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 
-class HeroicRefrainUtility(CustomSkillUtilityBase):
+class ProtectiveBondUtility(CustomSkillUtilityBase):
     def __init__(
         self, current_build: list[CustomSkill], score_definition: ScoreStaticDefinition = ScoreStaticDefinition(50)
     ) -> None:
 
         super().__init__(
-            skill=CustomSkill("Heroic_Refrain"),
+            skill=CustomSkill("Protective_Bond"),
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=0,
@@ -29,9 +29,6 @@ class HeroicRefrainUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = score_definition
 
     def _get_target(self) -> custom_behavior_helpers.SortableAgentData | None:
-
-        # no double cast to reach 20 leadership for now - 19 is enough as POC
-
         from HeroAI.utils import CheckForEffect
 
         targets: list[custom_behavior_helpers.SortableAgentData] = (
@@ -44,8 +41,9 @@ class HeroicRefrainUtility(CustomSkillUtilityBase):
             )
         )
 
-        if targets is None:
+        if not targets:
             return None
+
         if len(targets) <= 0:
             return None
 

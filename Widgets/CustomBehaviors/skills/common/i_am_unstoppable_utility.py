@@ -1,31 +1,33 @@
-from tkinter.constants import N
-from typing import Any, Generator, override
+from typing import Any
+from typing import Generator
+from typing import override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
-from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 
 class IAmUnstoppableUtility(CustomSkillUtilityBase):
-    def __init__(self, 
-        current_build: list[CustomSkill], 
+    def __init__(
+        self,
+        current_build: list[CustomSkill],
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(90),
         mana_required_to_cast: int = 0,
-        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
-        ) -> None:
+        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO],
+    ) -> None:
 
         super().__init__(
-            skill=CustomSkill("I_Am_Unstoppable"), 
-            in_game_build=current_build, 
-            score_definition=score_definition, 
-            mana_required_to_cast=mana_required_to_cast, 
-            allowed_states=allowed_states)
-        
+            skill=CustomSkill("I_Am_Unstoppable"),
+            in_game_build=current_build,
+            score_definition=score_definition,
+            mana_required_to_cast=mana_required_to_cast,
+            allowed_states=allowed_states,
+        )
+
         self.score_definition: ScoreStaticDefinition = score_definition
 
     @override
@@ -34,7 +36,8 @@ class IAmUnstoppableUtility(CustomSkillUtilityBase):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         current_heath_percent = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
 
-        if current_heath_percent < 1: return self.score_definition.get_score()
+        if current_heath_percent < 1:
+            return self.score_definition.get_score()
         return None
 
     @override
