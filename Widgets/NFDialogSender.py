@@ -51,12 +51,14 @@ DIALOG_GROUPS = {
             (0x0984, 'Paragon'),
             (0x0A84, 'Dervish'),
 
-        ]
+        ],
+        "note": "Travel to GTOB. Talk to the professions changer, make sure you have enough gold.",
     },
     "Docks Ferry": {
         "dialogs": [
             (0x85, "Hannah")
-        ]
+        ],
+        "note": "Ferry to Docks, will not make it so you can do the mission",
     },
     "And a Hero Shall Lead Them": {
         "dialogs": [
