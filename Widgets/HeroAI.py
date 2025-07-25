@@ -162,7 +162,8 @@ following_flag = False
 
 
 def follow(cached_data: CacheData):
-    global FOLLOW_DISTANCE_ON_COMBAT, following_flag
+    global FOLLOW_DISTANCE_ON_COMBAT
+    global following_flag
 
     if GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
         cached_data.follow_throttle_timer.Reset()
