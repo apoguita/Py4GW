@@ -1,3 +1,4 @@
+import ctypes
 import json
 import math
 import os
@@ -16,7 +17,9 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
+from Py4GW_widget_manager import get_widget_handler
 
+user32 = ctypes.WinDLL("user32", use_last_error=True)
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
@@ -39,6 +42,7 @@ ENABLE_PARTY_LEADER_TOOL_TIP_TEXT = "Enable Party Leader HeroAI"
 ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT = "Enable Party Members HeroAI"
 MODULE_ICON_SIZE = 'module_icon_size'
 MODULE_LAYOUT = 'module_layout'
+USE_HOTKEYS = 'use_hotkeys'
 ROW = "row"
 SPIRITS_CAST_COOLDOWN_MS = 4000
 SPIRITS_BUTTON_TOOL_TIP_TEXT = "Spirits Prep"
@@ -69,6 +73,8 @@ FLAG_POSITION_Y = "FlagPosY"
 FOLOW_ANGLE = "FollowAngle"
 
 cached_data = CacheData()
+widget_handler = get_widget_handler()
+
 
 # ——— Window Persistence Setup ———
 ini_window = IniHandler(INI_WIDGET_WINDOW_PATH)
@@ -81,6 +87,7 @@ window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 module_layout = ini_window.read_key(MODULE_NAME, MODULE_LAYOUT, DEFAULT)
 module_icon_size = ini_window.read_int(MODULE_NAME, MODULE_ICON_SIZE, 80)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
+should_use_hotkeys = ini_window.read_bool(MODULE_NAME, USE_HOTKEYS, False)
 
 # Global Trackers
 last_location_spirits_casted = {X_POS: 0.0, Y_POS: 0.0}
@@ -165,6 +172,40 @@ def load_formations_from_json():
     with open(FORMATIONS_JSON_PATH, "r") as f:
         data = json.load(f)
     return data
+
+
+def get_key_pressed(vk_code):
+    if not should_use_hotkeys:
+        return None
+
+    value = user32.GetAsyncKeyState(vk_code) & 0x8000
+    is_value_not_zero = value != 0
+    if is_value_not_zero:
+        return vk_to_char(vk_code)
+    return None
+
+
+def char_to_vk(char: str) -> int:
+    if len(char) != 1:
+        pass
+    vk = user32.VkKeyScanW(ord(char))
+    if vk == -1:
+        pass
+    return vk & 0xFF  # The low byte is the VK code
+
+
+def vk_to_char(vk_code):
+    return chr(user32.MapVirtualKeyW(vk_code, 2))
+
+
+def is_hotkey_pressed_once(vk_code=0x35):
+    pressed = get_key_pressed(vk_code)
+    if pressed and not hotkey_state[WAS_PRESSED]:
+        hotkey_state[WAS_PRESSED] = True
+        return True
+    elif not pressed:
+        hotkey_state[WAS_PRESSED] = False
+    return False
 
 
 class CombatPrep:
@@ -316,6 +357,7 @@ class CombatPrep:
 
             should_cast = (
                 st_button_pressed
+                or is_hotkey_pressed_once(0x36)
                 or (auto_spirit_cast_enabled[VALUE] and enemy_agent and distance_squared >= distance_threshold_squared)
             ) and time_since_last_cast >= SPIRITS_CAST_COOLDOWN_MS
 
@@ -358,6 +400,7 @@ class CombatPrep:
 
             should_cast = (
                 shouts_button_pressed
+                or is_hotkey_pressed_once(0x36)
                 or (
                     auto_shout_cast_enabled[VALUE]
                     and enemy_agent
@@ -448,7 +491,8 @@ class CombatPrep:
                     pressed = ImGui.ImageButton(f"##{formation_key}", formation_data[TEXTURE], icon_size, icon_size)
                     ImGui.show_tooltip(formation_key)
 
-                    should_set = pressed
+                    hotkey_pressed = get_key_pressed(formation_data[VK]) if formation_data[VK] else False
+                    should_set = hotkey_pressed or pressed
 
                     if should_set:
                         if formation_data[COORDINATES]:
@@ -548,7 +592,8 @@ class CombatPrep:
                 )
                 ImGui.show_tooltip(formation_key)
 
-                should_set_formation = set_formation_button_pressed
+                hotkey_pressed = get_key_pressed(formation_data[VK]) if formation_data[VK] else False
+                should_set_formation = hotkey_pressed or set_formation_button_pressed
 
                 if should_set_formation:
                     if len(formation_data[COORDINATES]):
@@ -662,8 +707,17 @@ class CombatPrep:
         end_pos = PyImGui.get_window_pos()
 
         if is_window_opened:
-            if not GLOBAL_CACHE.Map.IsExplorable() or not self.is_party_leader:
-                PyImGui.text("Need to be party Leader and in Explorable Area")
+            is_hero_ai_enabled = widget_handler.is_widget_enabled("HeroAI")
+            if not GLOBAL_CACHE.Map.IsExplorable() or not self.is_party_leader or not is_hero_ai_enabled:
+                header_text = "The following prevents you from using CombatPrep:"
+                final_text = header_text
+                if not GLOBAL_CACHE.Map.IsExplorable():
+                    final_text += "\n  - Not in Explorable Area"
+                if not self.is_party_leader:
+                    final_text += "\n  - Not Currently Party Leader"
+                if not is_hero_ai_enabled:
+                    final_text += "\n  - HeroAI is not running "
+                PyImGui.text(final_text)
                 return
 
             # capture current state
@@ -691,6 +745,7 @@ class CombatPrep:
 def configure():
     global module_icon_size
     global module_layout
+    global should_use_hotkeys
 
     if PyImGui.begin('Combat Prep Configs', PyImGui.WindowFlags.AlwaysAutoResize):
         # --- Icon Size ---
@@ -711,6 +766,11 @@ def configure():
             module_layout = new_layout
             ini_window.write_key(MODULE_NAME, MODULE_LAYOUT, module_layout)
 
+        # --- Hotkey Usage ---
+        previous_should_use_hotkey_value = should_use_hotkeys
+        should_use_hotkeys = ImGui.toggle_button('Allow to use pre-set Hotkeys##ShouldUseHotkeys', should_use_hotkeys)
+        if should_use_hotkeys != previous_should_use_hotkey_value:
+            ini_window.write_key(MODULE_NAME, USE_HOTKEYS, should_use_hotkeys)
     PyImGui.end()
 
 

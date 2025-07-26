@@ -4987,7 +4987,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Ineptitude")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.EnemyMartial.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
@@ -5073,7 +5073,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Wandering_Eye")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.EnemyMartial.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 

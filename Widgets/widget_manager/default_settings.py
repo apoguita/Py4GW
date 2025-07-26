@@ -225,7 +225,7 @@ global_widget_defaults = {
     "CombatPrep": {
         "enabled": "False",
         "category": "Bots",
-        "subcategory": "Helpers",
+        "subcategory": "Multiboxing",
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },
@@ -234,7 +234,28 @@ global_widget_defaults = {
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_PEOPLE_CARRY",
-        "quickdock": "True"
+        "quickdock": "True",
+    },
+    "HeroAICustomBehavior": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Multiboxing",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    "NFDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    "CanthaDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
     },
     # TODO: Register your Widget here
 }
@@ -468,7 +489,7 @@ account_widget_defaults = {
     "CombatPrep": {
         "enabled": "False",
         "category": "Bots",
-        "subcategory": "Helpers",
+        "subcategory": "Multiboxing",
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },
@@ -477,8 +498,28 @@ account_widget_defaults = {
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_PEOPLE_CARRY",
-        "quickdock": "True"
+        "quickdock": "True",
     },
-
+    "HeroAICustomBehavior": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Multiboxing",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    "NFDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    "CanthaDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
     # TODO: Register your Widget here
 }
