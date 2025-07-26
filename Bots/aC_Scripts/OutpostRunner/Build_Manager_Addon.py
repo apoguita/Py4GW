@@ -1,0 +1,136 @@
+import time
+from Py4GWCoreLib import *
+
+jotun = [6480, 6481, 6482, 6483]
+modniir = [6475, 6476, 6473]
+frozen_elementals = [6478]
+mandragor = [4400, 4930, 4396, 4402, 4932, 4401, 4931, 4307, 4306, 6658, 6657]
+wurms = [1802, 4323, 7326] 
+mountain_pinesoul = [6488]
+skeletons = [7038, 7040]
+zombie = [7043]
+enchanted = [6862, 1866, 6869]
+quetzal = [6337, 6338, 6339, 6340]
+#== variable for scan throttle ==
+scan_throttle_ms = 0.1
+danger_check_cooldown = 5 
+spell_caster_check_cooldown = 5
+#== variables for anti cripple/kd danger check ==
+cripple_kd_models = set(jotun + modniir + frozen_elementals + mandragor + wurms + mountain_pinesoul + skeletons + zombie + enchanted + quetzal)
+last_cripple_kd_check = 0
+last_cripple_kd_scan_time = 0
+#== variables for spellcaster danger check ==
+last_spellcaster_check = 0
+last_scan_time_spellcaster = 0
+#== variables for stuck detection ==
+prev_pos = None
+last_move_time = time.time()
+
+# Initialize FSM runner
+
+
+def get_cripple_kd_enemies(model_id):
+    """Return the category name based on which list contains the model_id."""
+    if model_id in jotun:
+        return "Jotun"
+    elif model_id in modniir:
+        return "Modniir"
+    elif model_id in frozen_elementals:
+        return "Frozen Elemental"
+    elif model_id in mandragor:
+        return "Mandragor"
+    elif model_id in wurms:
+        return "Wurm"
+    elif model_id in mountain_pinesoul:
+        return "Mountain Pinesouls"
+    elif model_id in enchanted:
+        return "Enchanted sword or axe"
+    elif model_id in skeletons:
+        return "Skeletons"
+    elif model_id in zombie:
+        return "Zombie Brute"
+    elif model_id in quetzal:
+        return "Quetzal Stark"
+    return "Unknown"
+
+def CheckCrippleKDanger(x, y):
+    """
+    Checks if any dangerous foe (Jotun, Modniir, Frozen Elementals, Mandragor, Wurms)
+    is within 2000 units. If found, logs a warning and starts a 20s cooldown before next check.
+    """
+    global last_cripple_kd_check, last_cripple_kd_scan_time, scan_throttle_ms, danger_check_cooldown
+
+    now = time.time()
+    if now - last_cripple_kd_check < danger_check_cooldown:
+        return  
+
+    if now - last_cripple_kd_scan_time < scan_throttle_ms:
+        return
+    last_cripple_kd_scan_time = now
+
+    nearby_enemies = Routines.Agents.GetFilteredEnemyArray(x, y, max_distance=500.0)
+    for enemy_id in nearby_enemies:
+        model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
+        if model_id in cripple_kd_models:
+            enemy_category = get_cripple_kd_enemies(model_id)
+            Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, f"Cripple/KD danger - {enemy_category} spotted!")
+            #ConsoleLog("Build Manager",f"Cripple/KD danger - {enemy_category} spotted!",Console.MessageType.Debug)
+            last_cripple_kd_check = now
+            return True 
+    return False
+
+def CheckSpellcasterDanger(custom_distance=2000):
+    """
+    Checks if any dangerous spellcaster enemy
+    is within 2000 units. If found, logs a warning and starts a 20s cooldown before next check.
+    """
+    global last_spellcaster_check, last_scan_time_spellcaster, scan_throttle_ms, spell_caster_check_cooldown
+    checkdistance = custom_distance
+
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    special_casters = [6481, 6482, 6483, 6634]
+
+    now_spellcaster = time.time()
+    if now_spellcaster - last_spellcaster_check < spell_caster_check_cooldown:
+        return
+    
+    if now_spellcaster - last_scan_time_spellcaster < scan_throttle_ms:
+        return
+    last_scan_time_spellcaster = now_spellcaster
+
+    nearby_enemies = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance=2000.0)
+    special_caster_found = False
+    for enemy_id in nearby_enemies:
+        model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
+        if model_id in special_casters:
+            special_caster_found = True
+            break
+
+    nearby_spellcaster = Routines.Agents.GetNearestEnemyCaster(checkdistance, aggressive_only = False)
+    
+    if special_caster_found or nearby_spellcaster:
+            Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, f"Spellcaster - spotted!")
+            #ConsoleLog("Build Manager",f"Spellcaster - spotted!",Console.MessageType.Debug)
+            last_spellcaster_check = now_spellcaster
+            return True 
+    return False
+
+def BodyBlockDetection(seconds=2.0):
+    nearby_enemies = Routines.Agents.GetNearestEnemy(Range.Touch.value)
+    global last_move_time, prev_pos
+    if nearby_enemies:
+        pos = GLOBAL_CACHE.Player.GetXY()
+        if not pos:
+            return False
+    
+        if not prev_pos:
+            prev_pos = pos
+            last_move_time = time.time()
+            return False
+
+        if Utils.Distance(pos, prev_pos) > Range.Touch.value:
+            prev_pos = pos
+            last_move_time = time.time()
+            return False
+
+        return time.time() - last_move_time >= seconds
