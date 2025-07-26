@@ -216,7 +216,6 @@ class CustomBehaviorBaseUtility:
     # orchestration
 
     def act(self):
-
         if not self.get_final_is_enabled():
             return
         if not Routines.Checks.Map.MapValid():
