@@ -54,7 +54,12 @@ DIALOG_GROUPS = {
         "note": "Travel to GTOB. Talk to the professions changer, make sure you have enough gold.",
     },
     "Docks Ferry": {
-        "dialogs": [(0x85, "Hannah")],
+        "dialogs": [
+            (0x85, "Hannah"),
+            (0x88, "Unlocking Kaineng (Mhenlo)"),
+            (0x89, "Unlocking LA (Mhenlo)"),
+            (0x85, "At Lion's Gate targeting Lionsguard Neiro to LA"),
+        ],
         "note": "Ferry to Docks, will not make it so you can do the mission",
     },
     "And a Hero Shall Lead Them": {
