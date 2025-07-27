@@ -38,8 +38,7 @@ window_module = ImGui.WindowModule(
     module_name, 
     window_name="Outpost Travel", 
     window_size=(235, 145),
-    window_flags=PyImGui.WindowFlags.NoFlag,
-    can_close=True,
+    window_flags=PyImGui.WindowFlags.NoFlag
 )
 
 
