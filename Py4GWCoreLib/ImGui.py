@@ -880,9 +880,10 @@ class ImGui:
                     if self.__dragging:
                         PyImGui.set_window_focus(self.window_name)
                         PyImGui.set_window_focus(f"{self.window_name}##titlebar_fake")
-                        
-                    self.__draw_decorations() 
-                    
+
+                    if self.open:
+                        self.__draw_decorations()
+
                     PyImGui.pop_style_var(1)
                     
                     if has_always_auto_resize:                    
