@@ -38,7 +38,8 @@ window_module = ImGui.WindowModule(
     module_name, 
     window_name="Outpost Travel", 
     window_size=(235, 145),
-    window_flags=PyImGui.WindowFlags.NoFlag
+    window_flags=PyImGui.WindowFlags.NoFlag,
+    can_close=True,
 )
 
 
@@ -79,7 +80,7 @@ def configure():
 
     new_collapsed = True
     end_pos = config_module.window_pos
-    if PyImGui.begin(config_module.window_name, config_module.window_flags):
+    if config_module.begin():
         new_collapsed = PyImGui.is_window_collapsed()
         
         PyImGui.text("Outpost Travel Configuration")
@@ -91,7 +92,7 @@ def configure():
         PyImGui.separator()
         
         end_pos = PyImGui.get_window_pos()
-    PyImGui.end()
+    config_module.end()
     
     if end_pos[0] != config_module.window_pos[0] or end_pos[1] != config_module.window_pos[1]:
         config_module.window_pos = (int(end_pos[0]), int(end_pos[1]))
@@ -121,12 +122,7 @@ def DrawWindow():
         new_collapsed = True
         end_pos = window_module.window_pos
 
-        if ImGui.gw_window.begin( name = window_module.window_name,
-                                  pos  = (window_module.window_pos[0], window_module.window_pos[1]),
-                                  size = (window_module.window_size[0], window_module.window_size[1] + padding1 + padding2),
-                                  collapsed = window_module.collapse,
-                                  pos_cond = PyImGui.ImGuiCond.FirstUseEver,
-                                  size_cond = PyImGui.ImGuiCond.Always):
+        if window_module.begin():
                                  
         #if PyImGui.begin(window_module.window_name, window_module.window_flags):
             new_collapsed = PyImGui.is_window_collapsed()
@@ -193,7 +189,7 @@ def DrawWindow():
 
             end_pos = PyImGui.get_window_pos()
         #PyImGui.end()
-        ImGui.gw_window.end(window_module.window_name)
+        window_module.end()
 
         if save_throttle_timer.HasElapsed(save_throttle_time):
             if end_pos[0] != window_module.window_pos[0] or end_pos[1] != window_module.window_pos[1]:
