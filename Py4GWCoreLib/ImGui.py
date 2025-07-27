@@ -830,6 +830,9 @@ class ImGui:
             if not self.module_name:
                 return False
                         
+            if not self.open:
+                return False
+            
             self.__current_theme = self.get_theme()
             ImGui.push_style(self.__current_theme)                            
         
@@ -895,7 +898,8 @@ class ImGui:
                     if self.can_close:              
                         self.expanded, self.open = PyImGui.begin_with_close(name = self.window_name, p_open=self.open, flags=self.window_flags)
                     else:
-                        self.open = PyImGui.begin(self.window_name, self.open, self.window_flags) 
+                        internal_flags = int(self.window_flags)
+                        self.open = PyImGui.begin(self.window_name, self.window_flags) 
                         self.expanded = PyImGui.is_window_collapsed() == False   
             
             if is_expanded and self.expanded and self.open:
@@ -912,6 +916,9 @@ class ImGui:
 
         def end(self):
             if not self.module_name:
+                return
+            
+            if not self.open:
                 return
             
             ImGui.pop_style(self.__current_theme)
