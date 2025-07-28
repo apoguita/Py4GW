@@ -120,27 +120,27 @@ def ensure_formation_json_exists():
 
     default_json = {
         "1,2 - Double Backline": {
-            VK: 0x31,
+            VK: None,
             COORDINATES: [[200, -200], [-200, -200], [0, 200], [-200, 450], [200, 450], [-400, 300], [400, 300]],
             TEXTURE: f'{TEXTURES_PATH}/double_backline.png',
         },
         "1 - Single Backline": {
-            VK: 0x32,
+            VK: None,
             COORDINATES: [[0, -250], [-100, 200], [100, 200], [-300, 500], [300, 500], [-350, 300], [350, 300]],
             TEXTURE: f'{TEXTURES_PATH}/single_backline.png',
         },
         "1,2 - Double Backline Triple Row": {
-            VK: 0x54,
+            VK: None,
             COORDINATES: [[-200, -200], [200, -200], [-200, 0], [200, 0], [-200, 300], [0, 300], [200, 300]],
             TEXTURE: f'{TEXTURES_PATH}/double_backline_triple_row.png',
         },
         "Flag Front": {
-            VK: 0x5A,
+            VK: None,
             COORDINATES: [[0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000]],
             TEXTURE: f'{TEXTURES_PATH}/flag_front.png',
         },
         "Disband Formation": {
-            VK: 0x47,
+            VK: None,
             COORDINATES: [],
             TEXTURE: f'{TEXTURES_PATH}/disband_formation.png',
         },
@@ -167,6 +167,17 @@ def ensure_formation_json_exists():
             print(f"[CombatPrep] Formation JSON reset at {FORMATIONS_JSON_PATH}")
 
 
+def is_my_instance_focused():
+    hwnd = user32.GetForegroundWindow()
+    if not hwnd:
+        return False
+
+    pid = ctypes.c_ulong()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+
+    return pid.value == os.getpid()
+
+
 def load_formations_from_json():
     ensure_formation_json_exists()
     with open(FORMATIONS_JSON_PATH, "r") as f:
@@ -175,7 +186,7 @@ def load_formations_from_json():
 
 
 def get_key_pressed(vk_code):
-    if not should_use_hotkeys:
+    if not should_use_hotkeys or not is_my_instance_focused():
         return None
 
     value = user32.GetAsyncKeyState(vk_code) & 0x8000
@@ -326,6 +337,10 @@ class CombatPrep:
                     self.cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
                         hero_ai_index, flag_key, flag_key_value
                     )
+
+                agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(hero_ai_index)
+                if agent_id:
+                    GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, final_x, final_y)
 
         if disband_formation:
             for hero_ai_index in range(1, party_size):
