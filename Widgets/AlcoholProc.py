@@ -20,9 +20,16 @@ from Py4GWCoreLib import Item
 from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Bags
+from Py4GWCoreLib import IconsFontAwesome5
 
-# Your existing setup
-script_directory = os.getcwd()
+try:
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    in_file = True
+except NameError:
+    # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
+    script_directory = os.getcwd()
+    in_file = False
+
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
 first_run = True
@@ -71,14 +78,24 @@ ALCOHOL_SKILLS_TO_DETECT = [
 
 ALCOHOL_MODEL_IDS = [
     ModelID.Bottle_Of_Rice_Wine,
-    ModelID.Bottle_Of_Vabbian_Wine,
-    ModelID.Dwarven_Ale,
     ModelID.Eggnog,
+    ModelID.Dwarven_Ale,
     ModelID.Hard_Apple_Cider,
     ModelID.Hunters_Ale,
+    ModelID.Bottle_Of_Juniberry_Gin,
     ModelID.Shamrock_Ale,
+    ModelID.Bottle_Of_Vabbian_Wine,
     ModelID.Vial_Of_Absinthe,
     ModelID.Witchs_Brew,
+    ModelID.Zehtukas_Jug,
+    ModelID.Aged_Dwarven_Ale,
+    ModelID.Aged_Hunters_Ale,
+    ModelID.Bottle_Of_Grog,
+    ModelID.Flask_Of_Firewater,
+    ModelID.Keg_Of_Aged_Hunters_Ale,
+    ModelID.Krytan_Brandy,
+    ModelID.Spiked_Eggnog,
+    ModelID.Battle_Isle_Iced_Tea,
 ]
 
 
@@ -101,21 +118,51 @@ class KBDLLHOOKSTRUCT(ctypes.Structure):
 hook_handle = None
 hook_thread = None
 hook_proc = None
-should_suppress_key = False  # Controlled by your widget toggle
+should_suppress_key = True  # Controlled by your widget toggle
 suppressed_key_callbacks = {}
+
+
+def ensure_alcohol_json_exists():
+    def is_valid_data(data):
+        if not isinstance(data, dict):
+            return False
+        return True
+
+    default_json = {"1": "1", "2": "2", "3": "3", "4": "4", "5": "5", "6": "6", "7": "7", "8": "8"}
+
+    should_overwrite = False
+
+    if os.path.exists(ALCOHOL_PROCS_JSON_PATH):
+        try:
+            with open(ALCOHOL_PROCS_JSON_PATH, "r") as f:
+                data = json.load(f)
+            if not is_valid_data(data):
+                print("[AlcoholProc] Invalid format detected, overwriting.")
+                should_overwrite = True
+        except (json.JSONDecodeError, IOError):
+            print("[AlcoholProc] JSON error detected, overwriting.")
+            should_overwrite = True
+    else:
+        should_overwrite = True
+
+    if should_overwrite:
+        with open(ALCOHOL_PROCS_JSON_PATH, "w") as f:
+            json.dump(default_json, f, indent=4)
+            print(f"[AlcoholProc] Formation JSON reset at {ALCOHOL_PROCS_JSON_PATH}")
 
 
 def use_alcohol():
     for bag in range(Bags.Backpack, Bags.Bag2 + 1):
         items = ItemArray.GetItemArray(ItemArray.CreateBagList(bag))
         for item in items:
-            if Item.GetModelID(item) in [model.value for model in ALCOHOL_MODEL_IDS]:
+            if Item.GetModelID(item) in {model.value for model in ALCOHOL_MODEL_IDS}:
                 GLOBAL_CACHE.Inventory.UseItem(item)
                 return True
     return False
 
 
 def load_alcohol_keybinds_from_json():
+    ensure_alcohol_json_exists()
     with open(ALCOHOL_PROCS_JSON_PATH, "r") as f:
         data = json.load(f)
 
@@ -131,7 +178,11 @@ def load_alcohol_keybinds_from_json():
             if vk is not None:
 
                 def cast_after_consuming_alcohol(sid):
-                    if not Effects.GetAlcoholLevel() and should_suppress_key:
+                    if (
+                        not Effects.GetAlcoholLevel()
+                        and cached_data.combat_handler.IsReadyToCast(slot_number)
+                        and should_suppress_key
+                    ):
                         use_alcohol()
                     Routines.Yield.Skills.CastSkillID(sid, aftercast_delay=100)
 
@@ -167,7 +218,12 @@ def char_to_vk(char: str) -> int:
 def keyboard_hook(nCode, wParam, lParam):
     if nCode == 0 and wParam == WM_KEYDOWN:
         kb = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
-        if kb.vkCode in suppressed_key_callbacks and should_suppress_key and is_my_instance_focused():
+        if (
+            not GLOBAL_CACHE.Player.IsTyping()
+            and kb.vkCode in suppressed_key_callbacks
+            and should_suppress_key
+            and is_my_instance_focused()
+        ):
             Py4GW.Console.Log(
                 MODULE_NAME, f"Suppressed {vk_to_char(kb.vkCode).upper()} key press", Py4GW.Console.MessageType.Debug
             )
@@ -223,7 +279,12 @@ start_hook_thread()
 
 
 def draw_widget():
-    global window_x, window_y, window_collapsed, first_run, should_suppress_key
+    global window_x
+    global window_y
+    global window_collapsed
+    global first_run
+    global should_suppress_key
+    global in_file
 
     if first_run:
         PyImGui.set_next_window_pos(window_x, window_y)
@@ -239,9 +300,9 @@ def draw_widget():
         should_suppress_key = ImGui.toggle_button('Start Alcohol Support##StartAlcoholSupport', should_suppress_key)
 
         keybinds = load_alcohol_keybinds_from_json()
-        if keybinds and PyImGui.begin_table(
-            "Alcohol Proccer", 2, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg
-        ):
+        if keybinds and PyImGui.begin_table("Alcohol Injector", 2):
+            PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, 50)
+            PyImGui.table_setup_column("Keybind", PyImGui.TableColumnFlags.WidthStretch)
             for skill_name in ALCOHOL_SKILLS_TO_DETECT:
 
                 skill_id = GLOBAL_CACHE.Skill.GetID(skill_name)
@@ -252,7 +313,7 @@ def draw_widget():
                     PyImGui.table_next_row()
                     PyImGui.table_next_column()
                     prefix = ""
-                    if "Widgets" in str(script_directory):
+                    if not in_file:
                         prefix = "..\\"
 
                     texture_file = prefix + GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id)
@@ -263,11 +324,19 @@ def draw_widget():
                     keybind_value = (
                         keybinds.get(str(slot_number)).upper() if keybinds.get(str(slot_number)) else "[Unbound]"
                     )
-                    PyImGui.text(keybind_value)
+                    PyImGui.text(f"Keybind:\n\n[{keybind_value}]")
 
             PyImGui.end_table()
         else:
             PyImGui.text("No keybinds loaded.")
+
+        if PyImGui.begin_table("Help Text", 1):
+            PyImGui.table_setup_column("Text", PyImGui.TableColumnFlags.WidthFixed, 120)
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            PyImGui.text_wrapped(IconsFontAwesome5.ICON_HANDS_HELPING + " Keybinds Help")
+            ImGui.show_tooltip(f"Update your current skill keybinds in '{script_directory}\\alcohol_procs.json' - by default it uses 1-8 keys")
+            PyImGui.end_table()
     PyImGui.end()
 
     # Save window state every second
@@ -316,3 +385,15 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# {
+#     "1": "q",
+#     "2": "w",
+#     "3": "e",
+#     "4": "r",
+#     "5": "a",
+#     "6": "s",
+#     "7": "d",
+#     "8": "f"
+# }
