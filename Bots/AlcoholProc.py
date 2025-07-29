@@ -21,7 +21,6 @@ from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Bags
 from Py4GWCoreLib import IconsFontAwesome5
-from Py4GWCoreLib.Py4GWcorelib import Color
 
 
 def find_project_root(current_path: str, anchor_dir: str = "Py4GW") -> str:
