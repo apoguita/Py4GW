@@ -257,13 +257,6 @@ global_widget_defaults = {
         "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True",
     },
-    "AlcoholProc": {
-        "enabled": "False",
-        "category": "Gameplay",
-        "subcategory": "Utilities",
-        "icon": "ICON_FILL_DRIP",
-        "quickdock": "True",
-    },
     # TODO: Register your Widget here
 }
 
@@ -526,13 +519,6 @@ account_widget_defaults = {
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_PEOPLE_CARRY",
-        "quickdock": "True",
-    },
-    "AlcoholProc": {
-        "enabled": "False",
-        "category": "Gameplay",
-        "subcategory": "Utilities",
-        "icon": "ICON_FILL_DRIP",
         "quickdock": "True",
     },
     # TODO: Register your Widget here

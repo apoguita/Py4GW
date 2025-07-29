@@ -22,18 +22,28 @@ from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Bags
 from Py4GWCoreLib import IconsFontAwesome5
 
+
+def find_project_root(current_path: str, anchor_dir: str = "Py4GW") -> str:
+    """
+    Walks up the directory tree from `current_path` until it finds `anchor_dir`.
+    """
+    while current_path and os.path.basename(current_path) != anchor_dir:
+        new_path = os.path.dirname(current_path)
+        if new_path == current_path:  # Reached filesystem root
+            raise RuntimeError(f"Could not find project root '{anchor_dir}' from '{current_path}'")
+        current_path = new_path
+    return current_path
+
+
 try:
-    script_directory = os.path.dirname(os.path.abspath(__file__))
-    in_file = True
+    script_path = os.path.abspath(__file__)
 except NameError:
-    # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
-    script_directory = os.getcwd()
-    in_file = False
+    script_path = os.path.abspath(os.getcwd())  # Fallback for interactive mode
 
-project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
-
+project_root = find_project_root(script_path, anchor_dir="Py4GW")
 first_run = True
-BASE_DIR = os.path.join(project_root, "Widgets/Config")
+
+BASE_DIR = os.path.join(project_root, "Bots")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "AlcoholProc.ini")
 ALCOHOL_PROCS_JSON_PATH = os.path.join(BASE_DIR, "alcohol_procs.json")
 os.makedirs(BASE_DIR, exist_ok=True)
@@ -172,9 +182,9 @@ def load_alcohol_keybinds_from_json():
         skill_id = GLOBAL_CACHE.Skill.GetID(skill_name)
         slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
 
-        slot_number = str(slot_number)
-        if slot_number in data:
-            vk = char_to_vk(data[slot_number])
+        str_slot_number = str(slot_number)
+        if str_slot_number in data:
+            vk = char_to_vk(data[str_slot_number])
             if vk is not None:
 
                 def cast_after_consuming_alcohol(sid):
@@ -219,10 +229,10 @@ def keyboard_hook(nCode, wParam, lParam):
     if nCode == 0 and wParam == WM_KEYDOWN:
         kb = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
         if (
-            not GLOBAL_CACHE.Player.IsTyping()
+            is_my_instance_focused()
+            and not GLOBAL_CACHE.Player.IsTyping()
             and kb.vkCode in suppressed_key_callbacks
             and should_suppress_key
-            and is_my_instance_focused()
         ):
             Py4GW.Console.Log(
                 MODULE_NAME, f"Suppressed {vk_to_char(kb.vkCode).upper()} key press", Py4GW.Console.MessageType.Debug
@@ -312,11 +322,8 @@ def draw_widget():
                     # Skill icon column
                     PyImGui.table_next_row()
                     PyImGui.table_next_column()
-                    prefix = ""
-                    if not in_file:
-                        prefix = "..\\"
 
-                    texture_file = prefix + GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id)
+                    texture_file = os.path.join(project_root, GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id))
                     ImGui.DrawTexture(texture_file, 44, 44)
 
                     # Keybind column
@@ -335,7 +342,9 @@ def draw_widget():
             PyImGui.table_next_row()
             PyImGui.table_next_column()
             PyImGui.text_wrapped(IconsFontAwesome5.ICON_HANDS_HELPING + " Keybinds Help")
-            ImGui.show_tooltip(f"Update your current skill keybinds in '{script_directory}\\alcohol_procs.json' - by default it uses 1-8 keys")
+            ImGui.show_tooltip(
+                f"Update your current skill keybinds in '{script_path}\\alcohol_procs.json' - by default it uses 1-8 keys"
+            )
             PyImGui.end_table()
     PyImGui.end()
 

@@ -35,7 +35,7 @@ MODULE_NAME = "CombatPrep"
 BASE_DIR = os.path.join(project_root, "Widgets/Config")
 FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "combat_prep_window.ini")
-TEXTURES_PATH = 'Widgets/Config/textures/combat_prep'
+TEXTURES_PATH = os.path.join(BASE_DIR, 'textures/combat_prep')
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # String consts
@@ -126,27 +126,27 @@ def ensure_formation_json_exists():
 
     default_json = {
         "1,2 - Double Backline": {
-            VK: None,
+            VK: 0x31,
             COORDINATES: [[200, -200], [-200, -200], [0, 200], [-200, 450], [200, 450], [-400, 300], [400, 300]],
             TEXTURE: f'{TEXTURES_PATH}/double_backline.png',
         },
         "1 - Single Backline": {
-            VK: None,
+            VK: 0x32,
             COORDINATES: [[0, -250], [-100, 200], [100, 200], [-300, 500], [300, 500], [-350, 300], [350, 300]],
             TEXTURE: f'{TEXTURES_PATH}/single_backline.png',
         },
         "1,2 - Double Backline Triple Row": {
-            VK: None,
+            VK: 0x06,
             COORDINATES: [[-200, -200], [200, -200], [-200, 0], [200, 0], [-200, 300], [0, 300], [200, 300]],
             TEXTURE: f'{TEXTURES_PATH}/double_backline_triple_row.png',
         },
         "Flag Front": {
-            VK: None,
+            VK: 0x05,
             COORDINATES: [[0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000], [0, 1000]],
             TEXTURE: f'{TEXTURES_PATH}/flag_front.png',
         },
         "Disband Formation": {
-            VK: None,
+            VK: 0x04,
             COORDINATES: [],
             TEXTURE: f'{TEXTURES_PATH}/disband_formation.png',
         },
