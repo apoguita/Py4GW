@@ -21,6 +21,7 @@ from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Bags
 from Py4GWCoreLib import IconsFontAwesome5
+from Py4GWCoreLib.Py4GWcorelib import Color
 
 
 def find_project_root(current_path: str, anchor_dir: str = "Py4GW") -> str:
@@ -307,7 +308,9 @@ def draw_widget():
 
     if is_window_opened:
         # Toggle suppression via your UI
-        should_suppress_key = ImGui.toggle_button('Start Alcohol Support##StartAlcoholSupport', should_suppress_key)
+        should_suppress_key = ImGui.toggle_button(
+            f'Alcohol Support is {"ON" if should_suppress_key else "OFF"}##StartAlcoholSupport', should_suppress_key
+        )
 
         keybinds = load_alcohol_keybinds_from_json()
         if keybinds and PyImGui.begin_table("Alcohol Injector", 2):
@@ -343,7 +346,7 @@ def draw_widget():
             PyImGui.table_next_column()
             PyImGui.text_wrapped(IconsFontAwesome5.ICON_HANDS_HELPING + " Keybinds Help")
             ImGui.show_tooltip(
-                f"Update your current skill keybinds in '{script_path}\\alcohol_procs.json' - by default it uses 1-8 keys"
+                f"Update your current skill keybinds in '{BASE_DIR}\\alcohol_procs.json' - by default it uses 1-8 keys"
             )
             PyImGui.end_table()
     PyImGui.end()

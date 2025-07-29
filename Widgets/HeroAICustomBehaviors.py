@@ -21,15 +21,23 @@ from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility i
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
+load_on_explorable = True
 WITH_DETAIL = False
 
 
 def render_custom_behavior_gui():
     global WITH_DETAIL
+    global load_on_explorable
 
     custom_combat_behavior = CustomBehaviorLoader().custom_combat_behavior
-    if PyImGui.button(f"{IconsFontAwesome5.ICON_SYNC} Search build again"):
+    in_explorable_area = GLOBAL_CACHE.Map.IsExplorable()
+    if PyImGui.button(f"{IconsFontAwesome5.ICON_SYNC} Search build again") or (
+        in_explorable_area and load_on_explorable
+    ):
+        load_on_explorable = False
         CustomBehaviorLoader().refresh_custom_behavior_candidate()
+    elif not in_explorable_area:
+        load_on_explorable = True
 
     if not custom_combat_behavior:
         PyImGui.text("Current build is None.")
@@ -48,14 +56,6 @@ def render_custom_behavior_gui():
         if PyImGui.button(f"{IconsFontAwesome5.ICON_CHECK} Enable"):
             custom_combat_behavior.enable()
     pass
-
-    if custom_combat_behavior and type(custom_combat_behavior).mro()[1].__name__ != CustomBehaviorBaseUtility.__name__:
-        PyImGui.separator()
-        PyImGui.text("Generic skills : ")
-        generic_behavior_build = custom_combat_behavior.get_generic_behavior_build()
-        if generic_behavior_build:
-            for skill in generic_behavior_build:  # type: ignore
-                PyImGui.text(f"bbb {skill.skill_name}")  # type: ignore
 
     if custom_combat_behavior and type(custom_combat_behavior).mro()[1].__name__ == CustomBehaviorBaseUtility.__name__:
         PyImGui.separator()
