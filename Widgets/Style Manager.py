@@ -52,7 +52,7 @@ window_module.open = window_open
 selected_theme = ini_handler.read_int(module_name + " Config", "theme", ImGui.StyleTheme.Guild_Wars.value)
 themes = [theme.name.replace("_", " ") for theme in ImGui.StyleTheme]
 
-is_map_ready, is_party_loaded = False, False
+ImGui.set_theme(ImGui.StyleTheme(selected_theme))
 
 def configure():
     window_module.open = True        
@@ -104,18 +104,10 @@ def DrawWindow():
 def main():
     """Required main function for the widget"""
     global game_throttle_timer, game_throttle_time, window_module
-    global is_map_ready, is_party_loaded
     
-    try:
-        if game_throttle_timer.HasElapsed(game_throttle_time):
-            is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
-            is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
-            game_throttle_timer.Start()
-            
-        if is_map_ready and is_party_loaded:
-            DrawWindow()
-            
-            window_module.open  = False
+    try:            
+        DrawWindow()
+        window_module.open  = False
             
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in main: {str(e)}", Py4GW.Console.MessageType.Debug)
