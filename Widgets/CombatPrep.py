@@ -20,7 +20,13 @@ from Py4GWCoreLib import Timer
 from Py4GW_widget_manager import get_widget_handler
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
-script_directory = os.path.dirname(os.path.abspath(__file__))
+try:
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    in_file = True
+except NameError:
+    # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
+    script_directory = os.getcwd()
+    in_file = False
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 
 first_run = True
