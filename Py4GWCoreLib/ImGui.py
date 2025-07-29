@@ -872,8 +872,8 @@ class ImGui:
                 self.window_pos = (screen_width / 2 - window_size[0] / 2, screen_height / 2 - window_size[1] / 2)
             else:
                 self.window_pos = window_pos
-                self.end_pos = window_pos  # Initialize end_pos to window_pos
                 
+            self.end_pos = window_pos  # Initialize end_pos to window_pos
             self.window_flags = window_flags
             self.first_run = True
 
