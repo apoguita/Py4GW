@@ -236,6 +236,20 @@ global_widget_defaults = {
         "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True"
     },
+    "NFDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    "CanthaDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
     # TODO: Register your Widget here
 }
 
@@ -479,6 +493,19 @@ account_widget_defaults = {
         "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True"
     },
-
+    "NFDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    "CanthaDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
     # TODO: Register your Widget here
 }
