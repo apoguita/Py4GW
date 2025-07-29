@@ -395,6 +395,47 @@ class ImGui:
             PyImGui.text(text)
             PyImGui.end_tooltip()
 
+    @staticmethod
+    def search_field(label_id: str, text: str, placeholder: str, width: float = 0.0) -> tuple[bool, str]:
+        remaining_space = PyImGui.get_content_region_avail()
+        width = remaining_space[0] if width <= 0 else width
+        PyImGui.push_item_width(width)
+
+        x, y = PyImGui.get_cursor_pos()
+        search = PyImGui.input_text(label_id, text)
+        
+        item_rect_min = PyImGui.get_item_rect_min()
+        item_rect_max = PyImGui.get_item_rect_max()
+        item_height = item_rect_max[1] - item_rect_min[1]
+
+        if not PyImGui.is_item_active() and not text:
+            line_height = PyImGui.get_text_line_height()
+            search_font_size = int(line_height * 0.8)
+            padding = (item_height - line_height) / 2 + 2  # Adjust padding to fit the search icon and text
+            
+            # Draw the search icon
+            PyImGui.set_cursor_pos(x + 5, y + padding)
+            
+            ImGui.push_font("Regular", search_font_size)
+            search_icon_size = PyImGui.calc_text_size(IconsFontAwesome5.ICON_SEARCH)
+            PyImGui.text(IconsFontAwesome5.ICON_SEARCH)
+            ImGui.pop_font()
+
+            # Draw the placeholder text
+            PyImGui.set_cursor_pos(x + 5 + search_icon_size[0] + 5, y + padding)
+
+            max_text_width = width - (x + search_icon_size[0] + 5)
+            truncated = placeholder
+            for i in range(len(placeholder), 0, -1):
+                substring = placeholder[:i]
+                text_size = PyImGui.calc_text_size(substring)
+                if text_size[0] <= max_text_width:
+                    truncated = substring
+                    break
+
+            PyImGui.text(truncated)
+
+        return (search != text, search)
 
     @staticmethod
     def colored_button(label: str, button_color:Color, hovered_color:Color, active_color:Color, width=0, height=0):
