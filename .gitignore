@@ -5,6 +5,8 @@ Py4GW_Launcher.exe
 
 imgui.ini
 Inject.au3
+AlcoholProc.ini
+alcohol_procs.json
 Widgets/Config/Travel.ini
 Widgets/Config/*
 

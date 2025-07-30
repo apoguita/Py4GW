@@ -1,19 +1,28 @@
-import inspect
 import importlib
+import inspect
 import pkgutil
-from typing import Generator, Any, List
+from typing import List
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Routines
 from Widgets.CustomBehaviors.primitives.constants import DEBUG
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 
+
 class MatchResult:
-    def __init__(self, build_size: int, matching_count: int, instance: CustomBehaviorBaseUtility, is_matched_with_current_build: bool):
+    def __init__(
+        self,
+        build_size: int,
+        matching_count: int,
+        instance: CustomBehaviorBaseUtility,
+        is_matched_with_current_build: bool,
+    ):
         self.build_size = build_size
         self.matching_count: int = matching_count
         self.matching_result = build_size - matching_count
         self.is_matched_with_current_build: bool = is_matched_with_current_build
         self.instance: CustomBehaviorBaseUtility = instance
+
 
 class CustomBehaviorLoader:
     _instance = None  # Singleton instance
@@ -26,9 +35,9 @@ class CustomBehaviorLoader:
 
     def __init__(self):
         if not self._initialized:
-            self.custom_combat_behavior:CustomBehaviorBaseUtility | None = None
+            self.custom_combat_behavior: CustomBehaviorBaseUtility | None = None
             self._has_loaded = False
-            self.__behaviors_found:list[MatchResult] = []
+            self.__behaviors_found: list[MatchResult] = []
             self._initialized = True
 
     # internal
@@ -49,19 +58,19 @@ class CustomBehaviorLoader:
         def __is_utility_class(cls: type) -> bool:
             """
             Determines if a class is a utility class based on its characteristics.
-            
+
             Args:
                 cls: The class to check
-                
+
             Returns:
                 bool: True if the class appears to be a utility class
             """
             # Check if class name contains 'Utility'
             is_named_utility = 'UtilitySkillBar' in cls.__name__
-            
+
             # Check if class has a utility flag or attribute
             has_utility_flag = getattr(cls, '_is_utility', False)
-            
+
             # A class is considered a utility if:
             # 1. It has 'Utility' in its name, or
             # 2. It's explicitly marked as a utility class
@@ -89,7 +98,8 @@ class CustomBehaviorLoader:
                 try:
                     # Dynamically import the module
                     module = importlib.import_module(module_name)
-                    if DEBUG: print(f"Loaded module: {module.__name__}")
+                    if DEBUG:
+                        print(f"Loaded module: {module.__name__}")
                     loaded_modules.append(module)
                 except ImportError as e:
                     print(f"Failed to import module {module_name}: {e}")
@@ -107,9 +117,10 @@ class CustomBehaviorLoader:
         for module in modules:
             # Inspect module contents for subclasses
             for name, obj in inspect.getmembers(module):
-                
-                if("_UtilitySkillBar" in name):
-                    if DEBUG: print(f"Found subclass: {obj.__name__}")
+
+                if "UtilitySkillBar" in name:
+                    if DEBUG:
+                        print(f"Found subclass: {obj.__name__}")
                     subclasses.append(obj)
                     break
 
@@ -120,27 +131,47 @@ class CustomBehaviorLoader:
 
     def __find_and_order_custom_behaviors(self) -> List[MatchResult]:
 
-        subclasses: list[type] = self.__find_subclasses_in_folder(CustomBehaviorBaseUtility, "Widgets.CustomBehaviors.skillbars")
+        subclasses: list[type] = self.__find_subclasses_in_folder(
+            CustomBehaviorBaseUtility, "Widgets.CustomBehaviors.skillbars"
+        )
         matches: List[MatchResult] = []
 
         for subclass in subclasses:
-            if DEBUG: print(f"Checking subclass: {subclass.__name__} (defined in {subclass.__module__})")
+            if DEBUG:
+                print(f"Checking subclass: {subclass.__name__} (defined in {subclass.__module__})")
             instance: CustomBehaviorBaseUtility = subclass()
 
             build_size = len(instance.skills_required_in_behavior)
             print(f"build_size: {build_size}")
             matching_count = instance.count_matches_between_custom_behavior_and_in_game_build()
             print(f"matching_count: {matching_count}")
-            
+
             if matching_count == build_size:
-                if DEBUG: print(f"Found custom behavior: {subclass.__name__} (defined in {subclass.__module__})")
+                if DEBUG:
+                    print(f"Found custom behavior: {subclass.__name__} (defined in {subclass.__module__})")
                 # matches.append((matching_count,instance, True))
                 is_matched_with_current_build = True if matching_count > 0 else False
-                matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=is_matched_with_current_build))
+                matches.append(
+                    MatchResult(
+                        build_size=build_size,
+                        matching_count=matching_count,
+                        instance=instance,
+                        is_matched_with_current_build=is_matched_with_current_build,
+                    )
+                )
             else:
-                if DEBUG: print(f"{subclass.__name__} (defined in {subclass.__module__} - Custom behavior does not match in-game build.")
-                matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=False))
-
+                if DEBUG:
+                    print(
+                        f"{subclass.__name__} (defined in {subclass.__module__} - Custom behavior does not match in-game build."
+                    )
+                matches.append(
+                    MatchResult(
+                        build_size=build_size,
+                        matching_count=matching_count,
+                        instance=instance,
+                        is_matched_with_current_build=False,
+                    )
+                )
 
         matches = sorted(matches, key=lambda x: (x.matching_result, -x.matching_count))
 
@@ -157,27 +188,35 @@ class CustomBehaviorLoader:
             return
 
         self.__behaviors_found = self.__find_and_order_custom_behaviors()
-        __behaviors_candidates = [behavior for behavior in self.__behaviors_found if behavior.is_matched_with_current_build]
-        result: CustomBehaviorBaseUtility | None = __behaviors_candidates[0].instance if len(__behaviors_candidates) > 0 else None
+        __behaviors_candidates = [
+            behavior for behavior in self.__behaviors_found if behavior.is_matched_with_current_build
+        ]
+        result: CustomBehaviorBaseUtility | None = (
+            __behaviors_candidates[0].instance if len(__behaviors_candidates) > 0 else None
+        )
 
         party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
-        if DEBUG: print(f"party_number: {party_number}")
+        if DEBUG:
+            print(f"party_number: {party_number}")
 
         if result is not None:
-            if DEBUG: print(f"custom behavior instance affected")
+            if DEBUG:
+                print("custom behavior instance affected")
             self.custom_combat_behavior = result
             self.custom_combat_behavior.enable()
         else:
-            if DEBUG: print(f"no custom behavior found")
+            if DEBUG:
+                print("no custom behavior found")
             self.custom_combat_behavior = None
 
         self._has_loaded = True
 
     def refresh_custom_behavior_candidate(self):
-        #load all and refresh
+        # load all and refresh
         self._has_loaded = False
         pass
 
     def get_all_custom_behavior_candidates(self) -> list[MatchResult] | None:
-        if self._has_loaded: return self.__behaviors_found
+        if self._has_loaded:
+            return self.__behaviors_found
         return None
