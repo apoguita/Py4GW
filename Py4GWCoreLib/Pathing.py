@@ -368,7 +368,69 @@ PATHING_MAP_GROUPS = [
     [
         name_to_map_id["Tsumei Village"],
         name_to_map_id["Sunqua Vale"],
-    ]
+    ],#Nightfall Region - Istan Island - Below - aC
+    [
+        name_to_map_id["Kamadan Jewel of Istan - Halloween"],
+        name_to_map_id["Kamadan Jewel of Istan - Wintersday"],
+        name_to_map_id["Kamadan Jewel of Istan - Canthan New Year"],
+        name_to_map_id["Kamadan Jewel of Istan"],
+        name_to_map_id["Consulate"],
+        name_to_map_id["Consulate Docks outpost"],
+        name_to_map_id["Sun Docks"],
+    ],
+    [
+        name_to_map_id["Sunspear Great Hall"],
+        name_to_map_id["Plains of Jarin"],
+    ], #Nightfall Region - Kourna - Below - aC
+    [
+        name_to_map_id["Nundu Bay outpost"],
+        name_to_map_id["Marga Coast"],
+    ],
+    [
+        name_to_map_id["Camp Hojanu"],
+        name_to_map_id["Barbarous Shore"],
+    ],
+    [
+        name_to_map_id["Venta Cemetery outpost"],
+        name_to_map_id["Sunward Marches"],
+    ],
+    [
+        name_to_map_id["Rilohn Refuge outpost"],
+        name_to_map_id["The Floodplain of Mahnkelon"],
+    ],
+    [
+        name_to_map_id["Chantry of Secrets"],
+        name_to_map_id["Yatendi Canyons"],
+    ], #Nightfall Region - Vabbi - Below - aC
+    [
+        name_to_map_id["Honur Hill"],
+        name_to_map_id["Resplendent Makuun"],
+        name_to_map_id["Bokka Amphitheatre"],
+    ],
+    [
+        name_to_map_id["Tihark Orchard outpost"],
+        name_to_map_id["Forum Highlands"],
+    ],
+    [
+        name_to_map_id["Grand Court of Sebelkeh outpost"],
+        name_to_map_id["The Mirror of Lyss"],
+    ],
+    [
+        name_to_map_id["Dasha Vestibule outpost"],
+        name_to_map_id["The Hidden City of Ahdashim"],
+    ], #Nightfall Region - The Desolation - Below - aC
+    [
+        name_to_map_id["Bone Palace"],
+        name_to_map_id["Joko's Domain"],
+    ],
+    [
+        name_to_map_id["Ruins of Morah outpost"],
+        name_to_map_id["The Alkali Pan"],
+    ],
+    [
+        name_to_map_id["The Mouth of Torment"],
+        name_to_map_id["The Ruptured Heart"]
+    ],
 ]
 
 class AutoPathing:
