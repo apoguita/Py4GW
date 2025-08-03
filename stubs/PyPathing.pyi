@@ -17,8 +17,9 @@ class PathingTrapezoid:
 class Portal:
     left_layer_id: int
     right_layer_id: int
-    h0004: int
+    h0004: int #LayerID
     pair_index: int
+    count: int
     trapezoid_indices: List[int]
 
     def __init__(self) -> None: ...
@@ -53,7 +54,7 @@ class PathingMap:
     zplane: int
     h0004: int
     h0008: int
-    h000C: int
+    h000C: int # This is the layer ID
     h0010: int
     trapezoids: List[PathingTrapezoid]
     sink_nodes: List[SinkNode]

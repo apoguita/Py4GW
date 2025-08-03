@@ -1743,7 +1743,7 @@ explorables = {
     240: "Bukdek Byway",
     241: "The Undercity",
     244: "Arborstone (explorable area)",
-    245: "Minister Cho's Estate (explorable area)",
+    245: "Minister Chos Estate (explorable area)",
     246: "Zen Daijun (explorable area)",
     247: "Boreas Seabed (explorable area)",
     252: "Linnok Courtyard",
@@ -2012,6 +2012,12 @@ explorables = {
 }
 
 explorable_name_to_id = {name: id for id, name in explorables.items()}
+
+#region NametoMapID
+name_to_map_id = {
+    **outpost_name_to_id,
+    **explorable_name_to_id
+}
 
 
 # endregion
