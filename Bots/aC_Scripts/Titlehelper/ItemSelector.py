@@ -13,50 +13,62 @@ toggle_state = {
 alcohol_items = {
     "1 point - Alcohol": [
         ModelID.Bottle_Of_Rice_Wine,
-        ModelID.Bottle_Of_Vabbian_Wine,
-        ModelID.Dwarven_Ale,
         ModelID.Eggnog,
+        ModelID.Dwarven_Ale,
         ModelID.Hard_Apple_Cider,
         ModelID.Hunters_Ale,
+        ModelID.Bottle_Of_Juniberry_Gin,
+        ModelID.Shamrock_Ale,
+        ModelID.Bottle_Of_Vabbian_Wine,
+        ModelID.Vial_Of_Absinthe,     
+        ModelID.Witchs_Brew,      
+        ModelID.Zehtukas_Jug,
     ],
     "3 points - Alcohol": [
-        ModelID.Shamrock_Ale,
-        ModelID.Vial_Of_Absinthe,
-        ModelID.Witchs_Brew,
-        ModelID.Zehtukas_Jug,
         ModelID.Aged_Dwarven_Ale,
+        ModelID.Aged_Hunters_Ale,
         ModelID.Bottle_Of_Grog,
-    ],
-    "50 points - Alcohol": [
+        ModelID.Flask_Of_Firewater,
+        ModelID.Keg_Of_Aged_Hunters_Ale,
         ModelID.Krytan_Brandy,
         ModelID.Spiked_Eggnog,
+    ],
+    "50 points - Alcohol": [
         ModelID.Battle_Isle_Iced_Tea,
     ],
 }
 
 sweets_items = {
-    "1 point - Sweets": [
+    "1 Point - Sweets": [
         ModelID.Fruitcake,
+        ModelID.Mandragor_Root_Cake,
         ModelID.Sugary_Blue_Drink,
     ],
-    "3 points - Sweets": [
+    "2 Points - Sweets": [
         ModelID.Chocolate_Bunny,
+        ModelID.Red_Bean_Cake,
+        ModelID.Jar_Of_Honey,
+
+    ],
+    "3 Points - Sweets": [
+        ModelID.Creme_Brulee,
+        ModelID.Krytan_Lokum,
+        ModelID.Minitreats_Of_Purity,
     ],
     "50 points - Sweets": [
-        ModelID.Red_Bean_Cake,
-        ModelID.Creme_Brulee,
         ModelID.Delicious_Cake,
     ],
 }
 
 party_items = {
-    "1 point - Party": [
+    "1 Point - Party": [
         ModelID.Bottle_Rocket,
         ModelID.Champagne_Popper,
         ModelID.Sparkler,
         ModelID.Snowman_Summoner,
+        ModelID.Squash_Serum,
     ],
-    "50 points - Party": [
+    "50 Points - Party": [
         ModelID.Party_Beacon,
     ],
 }
