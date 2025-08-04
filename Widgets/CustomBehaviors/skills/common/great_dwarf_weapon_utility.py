@@ -36,7 +36,7 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
 
     def _get_target(self) -> int | None:
 
-        allowed_classes = [Profession.Assassin.value, Profession.Ranger.value]
+        allowed_classes = [Profession.Assassin.value, Profession.Ranger.value, Profession.Dervish.value, Profession.Warrior.value, Profession.Paragon.value]
         from HeroAI.utils import CheckForEffect
 
         # Check if we have a valid target
