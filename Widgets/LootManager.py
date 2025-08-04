@@ -92,8 +92,13 @@ def load_rarity_filter_data():
 def save_loot_config():
     try:
         os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+        # Save both loot_items and blacklist
+        config_data = {
+            "items": loot_items,
+            "blacklist": list(loot_filter_singleton.GetBlacklist())
+        }
         with open(CONFIG_FILE, "w") as f:
-            json.dump(loot_items, f, indent=4)
+            json.dump(config_data, f, indent=4)
         print("[INFO] Saved loot_config.json")
     except Exception as e:
         print(f"[ERROR] Failed to save loot_config.json: {str(e)}")
@@ -118,37 +123,70 @@ def load_loot_config():
     """
     Merge saved user settings back onto the fresh catalog.
     """
-    # 1) Read saved flags into a dict
-    saved = {}
+    # 1) Read saved data
+    saved_items = {}
+    saved_blacklist = []
+    saved_dye_whitelist = []
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r") as f:
-                for entry in json.load(f):
-                    saved[entry["model_id"]] = entry
+                data = json.load(f)
+                # Handle both old format (just items) and new format (items + blacklist + dye_whitelist)
+                if isinstance(data, list):
+                    # Old format - just items
+                    for entry in data:
+                        saved_items[entry["model_id"]] = entry
+                else:
+                    # New format - items, blacklist, and dye_whitelist
+                    for entry in data.get("items", []):
+                        saved_items[entry["model_id"]] = entry
+                    saved_blacklist = data.get("blacklist", [])
+                    saved_dye_whitelist = data.get("dye_whitelist", [])
         except Exception as e:
             print(f"[ERROR] Failed to parse {CONFIG_FILE}: {e}")
 
-    # 2) Clear the whitelist
+    # 2) Clear the whitelist, blacklist, and dye whitelist
     loot_filter_singleton.ClearWhitelist()
+    loot_filter_singleton.ClearBlacklist()
+    loot_filter_singleton.ClearDyeWhitelist()
 
-    # 3) Merge saved flags onto each catalog item
+    # 3) Load blacklist
+    for model_id in saved_blacklist:
+        loot_filter_singleton.AddToBlacklist(model_id)
+        
+    # 4) Load dye whitelist
+    for dye_id in saved_dye_whitelist:
+        loot_filter_singleton.AddToDyeWhitelist(dye_id)
+
+    # 4) Merge saved flags onto each catalog item
     for item in loot_items:
         key = item["model_id"]
-        if key in saved:
-            item["enabled"]       = saved[key].get("enabled", False)
-            item["rarity_filter"] = saved[key].get("rarity_filter", False)
+        if key in saved_items:
+            item["enabled"]       = saved_items[key].get("enabled", False)
+            item["rarity_filter"] = saved_items[key].get("rarity_filter", False)
         else:
             item["enabled"]       = False
             item["rarity_filter"] = False
 
         # 4) Whitelist enabled items
         if item["enabled"]:
-            mid = item["model_id"]
-            if isinstance(mid, str) and mid.startswith("ModelID."):
-                name = mid.split(".", 1)[1]
-                if hasattr(ModelID, name):
-                    mid = getattr(ModelID, name)
-            loot_filter_singleton.AddToWhitelist(mid)
+            # Handle dye items differently
+            if item.get("group") == "Dyes":
+                from Py4GWCoreLib import DyeColor
+                dye_name = item["name"].replace(" Dye", "")
+                try:
+                    dye_enum = DyeColor[dye_name]
+                    loot_filter_singleton.AddToDyeWhitelist(dye_enum.value)
+                except KeyError:
+                    pass
+            else:
+                # Handle regular items
+                mid = item["model_id"]
+                if isinstance(mid, str) and mid.startswith("ModelID."):
+                    name = mid.split(".", 1)[1]
+                    if hasattr(ModelID, name):
+                        mid = getattr(ModelID, name)
+                loot_filter_singleton.AddToWhitelist(mid)
 
     # 5) Always keep gold coins if that toggle’s on
     if loot_filter_singleton.loot_gold_coins:
@@ -190,6 +228,8 @@ def save_loot_config_to(path: str):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         output = {
             "items": loot_items,
+            "blacklist": list(loot_filter_singleton.GetBlacklist()),
+            "dye_whitelist": list(loot_filter_singleton.GetDyeWhitelist()),
             "rarity": {
                 "loot_whites": loot_filter_singleton.loot_whites,
                 "loot_blues": loot_filter_singleton.loot_blues,
@@ -214,12 +254,24 @@ def load_loot_config_from(path: str):
         with open(path, "r") as f:
             raw = json.load(f)
             saved_items = {entry["model_id"]: entry for entry in raw.get("items", [])}
+            saved_blacklist = raw.get("blacklist", [])
+            saved_dye_whitelist = raw.get("dye_whitelist", [])
             rarity = raw.get("rarity", {})
     except Exception as e:
         print(f"[ERROR] Failed to load from {path}: {e}")
         return
 
     loot_filter_singleton.ClearWhitelist()
+    loot_filter_singleton.ClearBlacklist()
+    loot_filter_singleton.ClearDyeWhitelist()
+
+    # Load blacklist
+    for model_id in saved_blacklist:
+        loot_filter_singleton.AddToBlacklist(model_id)
+        
+    # Load dye whitelist
+    for dye_id in saved_dye_whitelist:
+        loot_filter_singleton.AddToDyeWhitelist(dye_id)
 
     for item in loot_items:
         key = item["model_id"]
@@ -264,6 +316,22 @@ def setup():
             {**entry, "enabled": False, "rarity_filter": False}
             for entry in _raw_catalog
         ]
+        
+        # Add dye items to the loot_items list
+        from Py4GWCoreLib import DyeColor
+        for dye in DyeColor:
+            if dye == DyeColor.NoColor:
+                continue
+            dye_item = {
+                "name": f"{dye.name} Dye",
+                "model_id": f"ModelID.{dye.name}_Dye",
+                "group": "Dyes",
+                "subgroup": "Colors",
+                "enabled": False,
+                "rarity_filter": False,
+                "drop_info": "Dye drops from various sources"
+            }
+            loot_items.append(dye_item)
 
         rarity_data = load_rarity_filter_data()
         loot_filter_singleton.SetProperties(
@@ -274,11 +342,34 @@ def setup():
             loot_greens=rarity_data.get("green", False)
         )
 
+        # Setup dye whitelist - only allow Black and White dyes
+        setup_dye_whitelist()
+
         load_loot_config()
         load_nick_cycles()
+        
+        # Set up default dye whitelist if none exists
+        if not loot_filter_singleton.GetDyeWhitelist():
+            setup_dye_whitelist()
+        
         if os.path.exists(CONFIG_FILE):
             last_config_timestamp = os.path.getmtime(CONFIG_FILE)
         initialized = True
+
+def setup_dye_whitelist():
+    """
+    Set up default dye whitelist with only Black and White dyes.
+    """
+    from Py4GWCoreLib import DyeColor
+    
+    # Clear existing dye whitelist
+    loot_filter_singleton.ClearDyeWhitelist()
+    
+    # Add only Black and White to whitelist
+    loot_filter_singleton.AddToDyeWhitelist(DyeColor.Black.value)
+    loot_filter_singleton.AddToDyeWhitelist(DyeColor.White.value)
+    
+    print(f"[INFO] Set up dye whitelist with Black and White dyes only")
 
 
 # --- GUI Functions ---
@@ -406,6 +497,8 @@ def DrawWindow():
 
             PyImGui.tree_pop()
 
+
+
         PyImGui.separator()
         PyImGui.text("Nick's Items")
         global use_formula_based_nick
@@ -478,6 +571,56 @@ def DrawWindow():
         PyImGui.text("Single items - By ModelID")
         PyImGui.separator()
 
+        # Select All button
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_CHECK_SQUARE} Select All Items"):
+            for item in loot_items:
+                if not item["enabled"]:
+                    item["enabled"] = True
+                    # Handle dye items differently
+                    if item.get("group") == "Dyes":
+                        from Py4GWCoreLib import DyeColor
+                        dye_name = item["name"].replace(" Dye", "")
+                        try:
+                            dye_enum = DyeColor[dye_name]
+                            loot_filter_singleton.AddToDyeWhitelist(dye_enum.value)
+                        except KeyError:
+                            pass
+                    else:
+                        # Handle regular items
+                        model_id = item.get("model_id")
+                        if isinstance(model_id, str) and model_id.startswith("ModelID."):
+                            model_id_name = model_id.split("ModelID.")[1]
+                            if hasattr(ModelID, model_id_name):
+                                model_id = getattr(ModelID, model_id_name)
+                        loot_filter_singleton.AddToWhitelist(model_id)
+            save_loot_config()
+
+        PyImGui.same_line(0, 10)
+
+        # Deselect All button
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_SQUARE} Deselect All Items"):
+            for item in loot_items:
+                if item["enabled"]:
+                    item["enabled"] = False
+                    # Handle dye items differently
+                    if item.get("group") == "Dyes":
+                        from Py4GWCoreLib import DyeColor
+                        dye_name = item["name"].replace(" Dye", "")
+                        try:
+                            dye_enum = DyeColor[dye_name]
+                            loot_filter_singleton.RemoveFromDyeWhitelist(dye_enum.value)
+                        except KeyError:
+                            pass
+                    else:
+                        # Handle regular items
+                        model_id = item.get("model_id")
+                        if isinstance(model_id, str) and model_id.startswith("ModelID."):
+                            model_id_name = model_id.split("ModelID.")[1]
+                            if hasattr(ModelID, model_id_name):
+                                model_id = getattr(ModelID, model_id_name)
+                        loot_filter_singleton.RemoveFromWhitelist(model_id)
+            save_loot_config()
+
         grouped = {}
         for item in loot_items:
             group    = item.get("group", "Unknown")
@@ -494,16 +637,30 @@ def DrawWindow():
                                 item["enabled"] = new_val
                                 save_loot_config()
 
-                                model_id = item.get("model_id")
-                                if isinstance(model_id, str) and model_id.startswith("ModelID."):
-                                    model_id_name = model_id.split("ModelID.")[1]
-                                    if hasattr(ModelID, model_id_name):
-                                        model_id = getattr(ModelID, model_id_name)
-
-                                if new_val:
-                                    loot_filter_singleton.AddToWhitelist(model_id)
+                                # Handle dye items differently
+                                if item.get("group") == "Dyes":
+                                    from Py4GWCoreLib import DyeColor
+                                    dye_name = item["name"].replace(" Dye", "")
+                                    try:
+                                        dye_enum = DyeColor[dye_name]
+                                        if new_val:
+                                            loot_filter_singleton.AddToDyeWhitelist(dye_enum.value)
+                                        else:
+                                            loot_filter_singleton.RemoveFromDyeWhitelist(dye_enum.value)
+                                    except KeyError:
+                                        pass  # Skip if dye not found
                                 else:
-                                    loot_filter_singleton.RemoveFromWhitelist(model_id)
+                                    # Handle regular items
+                                    model_id = item.get("model_id")
+                                    if isinstance(model_id, str) and model_id.startswith("ModelID."):
+                                        model_id_name = model_id.split("ModelID.")[1]
+                                        if hasattr(ModelID, model_id_name):
+                                            model_id = getattr(ModelID, model_id_name)
+
+                                    if new_val:
+                                        loot_filter_singleton.AddToWhitelist(model_id)
+                                    else:
+                                        loot_filter_singleton.RemoveFromWhitelist(model_id)
 
                             if PyImGui.is_item_hovered() and "drop_info" in item:
                                 tip = f"Dropped from: {item['drop_info']}"
