@@ -421,14 +421,17 @@ class AutoPathing:
         self.load_time = time.time() - start_time
         self.is_ready = True
 
-    def get_path(self, start: Tuple[float, float], goal: Tuple[float, float]) -> list[Tuple[float, float]]:
+    def get_path(self, start: Tuple[float, float], goal: Tuple[float, float]):
         """
         Returns the raw path including exact start and goal positions.
         """
+        yield
         if not self.navmesh:
+            yield
             return []
         astar = AStar(self.navmesh)
         if astar.search(start, goal):
+            yield
             return astar.get_path()
         return []
 
