@@ -7210,7 +7210,8 @@ class CustomSkillClass:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Shadow_Refuge")
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.Healing.value
+        skill.Conditions.LessLife = 0.65
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
