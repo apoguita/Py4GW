@@ -483,17 +483,48 @@ class AutoPathing:
         self.load_time = time.time() - start_time
         self.is_ready = True
 
-    def get_path(self, start: Tuple[float, float], goal: Tuple[float, float]):
+    def get_path(self, start: Tuple[float, float, float], goal: Tuple[float, float, float]):
+        from . import Routines
         """
-        Returns the raw path including exact start and goal positions.
+        Returns the best available path from start to goal.
+        First tries the game's fast PathPlanner.
+        Falls back to A* if needed.
+        Coroutine function, must be yield-from'd.
+        Always returns List[Tuple[float, float, float]] (3D).
         """
-        yield
+        import PyPathing
+
+        # --- Try PathPlanner First ---
+        path_planner = PyPathing.PathPlanner()
+        path_planner.reset()
+        path_planner.plan(
+            start_x=start[0], start_y=start[1], start_z=start[2],
+            goal_x=goal[0], goal_y=goal[1], goal_z=goal[2]
+        )
+
+        while True:
+            yield from Routines.Yield.wait(100)
+            status = path_planner.get_status()
+            if status == PyPathing.PathStatus.Ready:
+                yield
+                return path_planner.get_path()
+            elif status == PyPathing.PathStatus.Failed:
+                break
+            yield  # wait next frame
+
+        # --- Fallback to A* ---
         if not self.navmesh:
             yield
             return []
-        astar = AStar(self.navmesh)
-        if astar.search(start, goal):
-            yield
-            return astar.get_path()
-        return []
 
+        astar = AStar(self.navmesh)
+        success = astar.search((start[0], start[1]), (goal[0], goal[1]))
+
+        yield
+        if success:
+            raw_path = astar.get_path()
+            yield
+            smoothed = self.navmesh.smooth_path_by_los(raw_path)
+            return [(x, y, start[2]) for (x, y) in smoothed]
+
+        return []

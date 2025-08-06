@@ -54,6 +54,7 @@ from .UIManager import *
 from .Routines import *
 from .SkillManager import *
 from .GlobalCache import GLOBAL_CACHE
+from .Pathing import AutoPathing
 
 traceback = traceback
 math = math
@@ -72,7 +73,7 @@ PySkill = PySkill
 PySkillbar = PySkillbar
 PyMerchant = PyMerchant
 PyEffects = PyEffects
-#PyKeystroke = PyKeystroke
+PyPathing = PyPathing
 PyOverlay = PyOverlay
 PyQuest = PyQuest
 PyPathing = PyPathing
@@ -80,6 +81,7 @@ PyUIManager = PyUIManager
 PyCamera = PyCamera
 Py2DRenderer = Py2DRenderer
 GLOBAL_CACHE = GLOBAL_CACHE
+AutoPathing = AutoPathing
 
 #redirect print output to Py4GW Console
 class Py4GWLogger:

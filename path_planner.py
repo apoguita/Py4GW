@@ -13,7 +13,7 @@ path_planner = PyPathing.PathPlanner()
 last_goal_pos: Tuple[float, float, float] = (0.0, 0.0, 0.0)
 last_start_pos: Tuple[float, float, float] = (0.0, 0.0, 0.0)
 
-update_timer = ThrottledTimer(250)  # Update every 100ms
+update_timer = ThrottledTimer(50)  # Update every 100ms
 update_path_by_mouse_coords = False
 
 def main():
@@ -50,6 +50,7 @@ def main():
                     )
                     # Do not clear planned_path to prevent flicker
                     update_timer.Reset()
+            
 
             if PyImGui.button("Plan Path"):
                 last_start_pos = (player_x, player_y, player_z)
