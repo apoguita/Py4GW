@@ -94,6 +94,11 @@ class PathPlanner:
              goal_y: float,
              goal_z: float) -> None: ...
     """Submit a path planning task to the game thread."""
+    
+    def compute_immediate(self, start_x: float, start_y: float, start_z: float,
+                                goal_x: float, goal_y: float, goal_z: float) -> list[tuple[float, float, float]]:
+        """Compute an immediate path without submitting to the game thread.
+        Returns a list of (x, y, z) tuples if successful, or an empty list if failed."""
 
     def get_status(self) -> PathStatus: ...
     """Get current status of the path planner."""
