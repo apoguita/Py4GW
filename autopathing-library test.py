@@ -29,15 +29,15 @@ def main():
         
         player_pos = GLOBAL_CACHE.Player.GetXY()
         
-        
-    
+
+
         x = PyImGui.input_int("Start X", x)
         y = PyImGui.input_int("Start Y", y)
 
-        
         if PyImGui.button("Capture Start Position"):
             player_pos = GLOBAL_CACHE.Player.GetXY()
-            x, y = player_pos
+            x = int(player_pos[0])
+            y = int(player_pos[1])
             print(f"Captured start position: ({x}, {y})")
 
         if PyImGui.button("Search Path"):
@@ -61,6 +61,8 @@ def main():
         else:
             if result_path:
                 PyImGui.text(f"Path found with {len(result_path)} points in {time.time() - start_process_time:.2f} seconds")
+                for i, point in enumerate(result_path):
+                    PyImGui.text(f"Point {i}: ({point[0]}, {point[1]}, {point[2]})")
             else:
                 PyImGui.text("No path found or search not initiated.")
 

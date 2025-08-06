@@ -30,6 +30,9 @@ def main():
             PyImGui.text(f"Mouse:  ({mouse_x:.0f}, {mouse_y:.0f}, {mouse_z:.0f})")
             PyImGui.separator()
             
+            if PyImGui.button("Capture End Position"):
+                last_goal_pos = (-14961, 11453, player_z)
+            
             update_path_by_mouse_coords = ImGui.toggle_button(
                 "Update Path by Mouse Coordinates",
                 update_path_by_mouse_coords
@@ -39,6 +42,7 @@ def main():
                 status = path_planner.get_status()
                 if update_timer.IsExpired() and status != PyPathing.PathStatus.Pending:
                     last_goal_pos = (mouse_x, mouse_y, player_z)
+                    last_goal_pos = (-14961, 11453, player_z)
                     path_planner.reset()
                     path_planner.plan(
                         start_x=player_x,

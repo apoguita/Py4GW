@@ -20,6 +20,9 @@ class FSM_Config:
         self.amount_of_cupcakes = 50
         self.use_honeycombs = True
         self.amount_of_honeycombs = 100
+        
+        self.draw_follow_path = True
+        self.path_to_draw = []
 
         self.initialize()
         
@@ -305,6 +308,7 @@ class FSM_Config:
     from typing import Generator, Any, Tuple, List
 
     def follow_path(self, path: List[Tuple[float, float]], pause_on_danger: bool = False) -> Generator[Any, Any, bool]:
+        self.path_to_draw = path.copy()
         pause_fn = (lambda: Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot)) if pause_on_danger else None
         is_someone_dead = False
         players = GLOBAL_CACHE.Party.GetPlayers()
@@ -366,13 +370,22 @@ class FSM_Config:
 
         return True
     
+    def draw_path(self, points, rgba):
+        if points and len(points) >= 2:
+            color = Color(*rgba).to_dx_color()
+            for i in range(len(points) - 1):
+                x1, y1 = points[i]
+                x2, y2 = points[i + 1]
+                z1 = DXOverlay.FindZ(x1, y1) - 125
+                z2 = DXOverlay.FindZ(x2, y2) - 125
+                DXOverlay().DrawLine3D(x1, y1, z1, x2, y2, z2, color, False)
+            
+    
 
     #region LOGIC
         
-    def ExitMonasteryOverlook(self):
-        path_to_ludo: List[Tuple[float, float]] = [
-                        (-2132, 1054),(-2746, 1300),(-3565, 1395),(-4365, 1689),(-5095, 2151),
-                        (-5645, 2819),(-6014, 3596),(-6356, 4393),(-6720, 5178),(-7011, 5750),]
+    def ExitMonasteryOverlook(self):             
+        path_to_ludo = yield from AutoPathing().get_path_to(-7011, 5750)
 
         if not (yield from self.follow_path(path_to_ludo)):
             return
@@ -383,16 +396,14 @@ class FSM_Config:
 
         
     def ExitToCourtyard001(self):
-        path_to_courtyard: List[Tuple[float, float]] = [(-7407, 7048),(-7568, 7678),(-7815,8522),(-7386,9265),
-                                                        (-6589,9508),(-5718,9480),(-4856,9478),(-3988,9473),(-3480,9460)]
-             
+        path_to_courtyard = yield from AutoPathing().get_path_to(-3480, 9460)
+        
         if not (yield from self.follow_path(path_to_courtyard)):
             return
         
                 
     def UnlockSecondaryAndExit(self):
-        path_to_togo: List[Tuple[float, float]] = [(-3281, 9442),(-2673, 9447),(-1790, 9441),(-904, 9434),(-159, 9174),]
-
+        path_to_togo = yield from AutoPathing().get_path_to(-159, 9174)
         if not (yield from self.follow_path(path_to_togo)):
             return
         
@@ -444,7 +455,6 @@ class FSM_Config:
                 
     def UnlockXunlaiStorage(self):
         path_to_xunlai: List[Tuple[float, float]] = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3869, 10346),]
-
         if not (yield from self.follow_path(path_to_xunlai)):
             return
 
@@ -454,8 +464,7 @@ class FSM_Config:
 
         
     def CraftWeapons(self):
-        path_to_crafter: List[Tuple[float, float]] = [(-3869, 10346),(-3943, 11015),(-4062, 11863),(-4722, 12376),(-5561, 12170),(-6423, 12183),]
-
+        path_to_crafter = yield from AutoPathing().get_path_to(-6423, 12183)
         if not (yield from self.follow_path(path_to_crafter)):
             return
     
@@ -514,24 +523,12 @@ class FSM_Config:
             yield from Routines.Yield.wait(100)
         
     def ExitShingJeaMonastery(self):
-        path_to_exit: List[Tuple[float, float]] = [(-6544,12262),(-7204,12363),(-8055,12528),(-8907,12697),(-9757,12864),
-                                                   (-10458,12403),(-11166,11974),(-12022, 11834),(-12848,11576),(-13228,10872),
-                                                   (-13956,10470),(-14476,10989),(-14961,11453),]
-
+        path_to_exit = yield from AutoPathing().get_path_to(-14961,11453)
         if not (yield from self.follow_path(path_to_exit)):
             return
         
     def TravelToMinisterCho(self):
-        path_to_minister: List[Tuple[float, float]] = [
-                (20323, -8150), (20627, -7571), (21028, -6807), (21508, -6090), (21813, -5296),
-                (21744, -4443), (21620, -3579), (21309, -2800), (20648, -2244), (19915, -1782),
-                (19153, -1380), (18432, -902),  (17981, -171),  (17612, 611),   (17204, 1378),
-                (16636, 2026),  (16129, 2657),  (15381, 3102),  (14614, 3502),  (13827, 3875),
-                (13061, 4284),  (12447, 4889),  (11951, 5598),  (11446, 6305),  (10947, 7005),
-                (10402, 7682),  (9802, 8308),   (9187, 8916),   (8463, 9372),   (7637, 9616),
-                (7319, 10348),  (7299, 11215),  (7280, 12086),  (7261, 12952),  (7223, 13820),
-                (6944, 14640),  (6745, 15483),  (6698, 16095),
-            ]
+        path_to_minister = yield from AutoPathing().get_path_to(6698, 16095)
         
         if not (yield from self.follow_path(path_to_minister)):
             return
@@ -959,6 +956,10 @@ def ShowMainWindow():
         
         PyImGui.text("Current State: " + main_FSM.FSM.get_current_step_name())
         PyImGui.text("Script Running: " + str(main_FSM.script_running))
+        
+        main_FSM.draw_follow_path = PyImGui.checkbox("Draw Follow Path", main_FSM.draw_follow_path)
+
+        
         PyImGui.text("Time Elapsed: " + str(main_FSM.run_timer.FormatElapsedTime("hh:mm:ss")))
         
         main_FSM.use_cupcakes = PyImGui.checkbox("Use Cupcakes", main_FSM.use_cupcakes)
@@ -994,7 +995,10 @@ def ShowMainWindow():
                 PyImGui.text(f"Other: {name} (ID: {other})")
 
     PyImGui.end()
-    
+
+    if main_FSM.draw_follow_path:
+        main_FSM.draw_path(main_FSM.path_to_draw, (255, 0, 255, 255))
+
 def main():
     global main_FSM
     try:
