@@ -19,7 +19,7 @@ class OutpostRunnerOverwatch:
         self.runner = fsm_runner
         self._coroutine = None
         self._active = False
-        self._stuck_threshold = 15  # seconds of no movement before considered stuck
+        self._stuck_threshold = 45  # seconds of no movement before considered stuck
 
     def start(self):
         """Start overwatch coroutine"""
@@ -118,7 +118,7 @@ class OutpostRunnerOverwatch:
             yield from Routines.Yield.wait(3000)  # small delay to let transition settle
 
             # === STEP 1: Wait for resign conditions before returning to outpost ===
-            timeout = 10.0
+            timeout = 20
             start_time = time.time()
 
             while time.time() - start_time < timeout:
@@ -139,7 +139,7 @@ class OutpostRunnerOverwatch:
                 return
 
             # === STEP 2: Wait for return to outpost and restart fsm ===
-            timeout = 5.0
+            timeout = 20
             start_time = time.time()
 
             while time.time() - start_time < timeout:
