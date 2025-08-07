@@ -43,7 +43,7 @@ RUN_NAME_MAP = {
     },
     "Tyria - Ascalon to Lion's Arch": {
         "_1_AscalonCity_To_PikenSquare": "1 - Ascalon City To Piken Square",
-        "_2_PikenSquare_To_GrendichCourthouse": "2 - Ascalon City To Grendich Court House",
+        "_2_PikenSquare_To_GrendichCourthouse": "2 - Piken Square To Grendich Court House",
         "_3_GrendichCourthouse_To_YaksBend": "3 - Grendich Court House To Yak's Bend",
         "_4_YaksBend_To_IceToothCave": "4 - Yak's Bend To Ice Tooth Cave",
         "_5_IceToothCave_To_BeaconsPerch": "5 - IceTooth Cave To Beacon's Perch",
