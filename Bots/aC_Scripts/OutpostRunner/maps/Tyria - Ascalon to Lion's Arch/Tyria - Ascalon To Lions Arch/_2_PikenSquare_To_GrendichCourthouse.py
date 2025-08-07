@@ -1,0 +1,88 @@
+from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
+
+# 1) IDs
+_2_pikensquare_to_grendichcourthouse_ids = {
+    "outpost_id": outpost_name_to_id["Piken Square"],
+}
+
+# 2) Outpost exit path (inside Piken Square)
+_2_pikensquare_to_grendichcourthouse_outpost_path = [
+    (20238, 7794),
+    (20235, 7654),
+]
+
+# 3) Segments - Reversed from the original _7_GrendichCourthouse_To_PikenSquare.py
+_2_pikensquare_to_grendichcourthouse_segments = [
+    {
+        "map_id": explorable_name_to_id["The Breach"],
+        "path": [
+            # Starting path from Piken Square exit
+            (20353, 7152),    # Just outside Piken Square
+            (20250, 7100),   # Moving southwest
+            (20100, 7000),   # Continuing southwest
+            (20000, 6800),   # Turning south
+            (19900, 6600),   # Continuing south
+            (19721.0, 6468.0),  # Joining the main path
+            (17762.0, 6548.0),
+            (16155.0, 6123.0),
+            (15598.0, 5948.0),
+            (15551.0, 7549.0),
+            (13413.0, 7644.0),
+            (12194.0, 7636.0),
+            (11479.0, 8340.0),
+            (10383.0, 8683.0),
+            (8670.0, 9310.0),
+            (3558.0, 8387.0),
+            (1683.0, 8969.0),
+            (638.0, 9920.0),
+            (-1049.0, 10887.0),
+            (-2416.0, 10571.0),
+            (-3434.0, 9745.0),
+            (-7356.0, 9487.0),
+            (-8162.0, 9535.0),
+            (-10099.0, 9869.0),
+            (-11530.0, 9531.0),
+            (-12997.0, 8352.0),
+            (-13361.0, 6232.0),
+            (-14360.0, 5178.0),
+            (-15757.0, 4064.0),
+            (-17855.0, 3711.0),
+            (-18507, 3200),
+            (-19600, 3300),
+        ],
+    },
+    
+    {
+        "map_id": explorable_name_to_id["Diessa Lowlands"],
+        "path": [
+            (22147.0, -15153.0),
+            (21577.0, -14612.0),
+            (20887.0, -13781.0),
+            (18751.0, -12262.0),
+            (17518.0, -11380.0),
+            (15665.0, -10984.0),
+            (12755.0, -11216.0),
+            (11111.0, -10674.0),
+            (10245.0, -8993.0),
+            (9324.0, -6571.0),
+            (8386.0, -3041.0),
+            (7314.0, -206.0),
+            (6782.0, 767.0),
+            (5355.0, 1200.0),
+            (2391.0, 1683.0),
+            (644.0, 1203.0),
+            (-557.0, 2149.0),
+            (-1307.0, 3164.0),
+            (-1734.0, 5052.0),
+            (-181.0, 6947.0),
+            (1576.0, 8762.0),
+            (2326.0, 10173.0),
+            (2917.0, 11657.0),
+            (3090, 13016),
+            (2528, 13308),
+            (2000, 13500),
+        ],
+    },
+]
+
+
