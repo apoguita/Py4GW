@@ -4,7 +4,7 @@ import PyOverlay
 import PyMap
 import math
 import heapq
-import time
+import pickle
 from .enums import name_to_map_id
 from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
@@ -28,12 +28,19 @@ class Portal:
         self.b = b
         
 class NavMesh:
-    def __init__(self, pathing_maps):
+    def __init__(self, pathing_maps, map_id: int, GRID_SIZE:float = 1000):
+        self.map_id = map_id
+        self.GRID_SIZE = GRID_SIZE
         self.trapezoids: Dict[int, PathingTrapezoid] = {}
         self.portals: List[Portal] = []
         self.portal_graph: Dict[int, List[int]] = {}
         self.trap_id_to_layer: Dict[int, int] = {}         # trap id -> layer z
         self.layer_portals: Dict[int, List[PathingPortal]] = {}
+        self.spatial_grid: Dict[Tuple[float, float], List[PathingTrapezoid]] = {}
+
+
+
+
 
         # Index data
         for layer in pathing_maps:
@@ -46,6 +53,8 @@ class NavMesh:
 
         self.create_all_local_portals()
         self.create_all_cross_layer_portals()
+        self._populate_spatial_grid()
+
         
     def get_adjacent_side(self, a: PathingTrapezoid, b: PathingTrapezoid) -> Optional[str]:
         if abs(a.YB - b.YT) < 1.0: return 'bottom_top'
@@ -206,48 +215,62 @@ class NavMesh:
                 return t.id
         return None
     
-    def has_line_of_sight(self, p1: Tuple[float, float], p2: Tuple[float, float]) -> bool:
-        """
-        Checks if there's a safe line of sight between two trapezoid centers.
-        Applies internal margin and adjustment to stay within walkable bounds.
-        """
-        margin = 100
-        steps = int(math.dist(p1, p2) / 100) + 1
+    def _populate_spatial_grid(self):
+        for trap in self.trapezoids.values():
+            min_x = int(min(trap.XBL, trap.XTL) // self.GRID_SIZE)
+            max_x = int(max(trap.XBR, trap.XTR) // self.GRID_SIZE)
+            min_y = int(trap.YB // self.GRID_SIZE)
+            max_y = int(trap.YT // self.GRID_SIZE)
 
-        trapezoids = self.trapezoids.values()
+            for gx in range(min_x, max_x + 1):
+                for gy in range(min_y, max_y + 1):
+                    key = (gx, gy)
+                    if key not in self.spatial_grid:
+                        self.spatial_grid[key] = []
+                    self.spatial_grid[key].append(trap)
+
+
+
+    def has_line_of_sight(self, 
+                          p1: Tuple[float, float], 
+                          p2: Tuple[float, float], 
+                          margin: float = 100, 
+                          step_dist: float = 200.0) -> bool:
+        
+        total_dist = math.dist(p1, p2)
+        steps = int(total_dist / step_dist) + 1
+        dx = (p2[0] - p1[0]) / steps
+        dy = (p2[1] - p1[1]) / steps
 
         for i in range(1, steps):
-            t = i / steps
-            x = p1[0] + (p2[0] - p1[0]) * t
-            y = p1[1] + (p2[1] - p1[1]) * t
+            x = p1[0] + dx * i
+            y = p1[1] + dy * i
+            gx = int(x) // self.GRID_SIZE
+            gy = int(y) // self.GRID_SIZE
+            candidates = self.spatial_grid.get((gx, gy), [])
 
-            trap_id = None
-            for trap in trapezoids:
+
+            for trap in candidates:
                 if y > trap.YT or y < trap.YB:
                     continue
                 height = trap.YT - trap.YB
-                ratio = (y - trap.YB) / height if height != 0 else 0
+                if height == 0: continue
+                ratio = (y - trap.YB) / height
                 left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
                 right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-                if left_x <= x <= right_x:
-                    trap_id = trap.id
+                if left_x + margin <= x <= right_x - margin:
                     break
-
-            if trap_id is None:
+            else:
                 return False
-
-            trap = self.trapezoids[trap_id]
-            height = trap.YT - trap.YB
-            ratio = (y - trap.YB) / height if height != 0 else 0
-            left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
-            right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-
-            if x < left_x + margin or x > right_x - margin:
-                return False
-
         return True
+
+
+
     
-    def smooth_path_by_los(self, path: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    def smooth_path_by_los(self, 
+                           path: List[Tuple[float, float]],
+                           margin: float = 100,
+                           step_dist: float = 200.0) -> List[Tuple[float, float]]:
         if len(path) <= 2:
             return path
 
@@ -256,12 +279,58 @@ class NavMesh:
         while i < len(path) - 1:
             j = len(path) - 1
             while j > i + 1:
-                if self.has_line_of_sight(path[i], path[j]):
+                if self.has_line_of_sight(path[i], path[j], margin, step_dist):
                     break
                 j -= 1
             result.append(path[j])
             i = j
         return result
+    
+    def save_to_file(self, folder: str):
+        filepath = f"{folder}/navmesh_{self.map_id}.bin"
+        data = {
+            "map_id": self.map_id,
+            "portals": [((p.p1.x, p.p1.y), (p.p2.x, p.p2.y), p.a.m_t.id, p.b.m_t.id) for p in self.portals],
+            "portal_graph": self.portal_graph
+        }
+        with open(filepath, "wb") as f:
+            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+    @staticmethod
+    def load_from_file(pathing_maps, map_id: int, folder: str) -> "NavMesh":
+        filepath = f"{folder}/navmesh_{map_id}.bin"
+
+        nav = NavMesh.__new__(NavMesh)
+        nav.map_id = map_id
+        nav.trapezoids = {}
+        nav.portals = []
+        nav.portal_graph = {}
+        nav.trap_id_to_layer = {}
+        nav.layer_portals = {}
+
+        for layer in pathing_maps:
+            z = layer.zplane
+            traps = layer.trapezoids
+            nav.layer_portals[z] = layer.portals
+            nav.trapezoids.update({t.id: t for t in traps})
+            nav.trap_id_to_layer.update({t.id: z for t in traps})
+
+        with open(filepath, "rb") as f:
+            data = pickle.load(f)
+
+        for (x1, y1), (x2, y2), a_id, b_id in data["portals"]:
+            a = AABB(nav.trapezoids[a_id])
+            b = AABB(nav.trapezoids[b_id])
+            p1 = Point2D(x1, y1)
+            p2 = Point2D(x2, y2)
+            nav.portals.append(Portal(p1, p2, a, b))
+
+        nav.portal_graph = data["portal_graph"]
+
+        Py4GW.Console.Log("NavMesh", f"Loaded NavMesh for map {map_id} with {len(nav.portals)} portals and {len(nav.trapezoids)} trapezoids.", Py4GW.Console.MessageType.Info)
+        return nav
+
 
 class AStarNode:
     def __init__(self, node_id, g, f, parent=None):
@@ -286,7 +355,7 @@ class AStar:
         goal_id = self.navmesh.find_trapezoid_id_by_coord(goal_pos)
 
         if start_id is None or goal_id is None:
-            Py4GW.Console.Log("A-Star", "Invalid start or goal trapezoid", Py4GW.Console.MessageType.Error)
+            Py4GW.Console.Log("A-Star", f"Invalid start or goal trapezoid: {start_id}, {goal_id}", Py4GW.Console.MessageType.Error)
             return False
 
         open_list: List[AStarNode] = []
@@ -445,10 +514,10 @@ class AutoPathing:
     def __init__(self):
         if self._initialized:
             return
-        self.navmesh: Optional[NavMesh] = None
         self.load_time: float = 0.0
         self.is_ready: bool = False
         self.pathing_map_cache: dict[tuple[int, ...], NavMesh] = {}
+        self._last_group_key: Optional[tuple[int, ...]] = None
         self._initialized = True
 
     def _get_group_key(self, map_id: int) -> tuple[int, ...]:
@@ -458,43 +527,44 @@ class AutoPathing:
         return (map_id,)  # Default: treat each unknown map_id as its own group
 
     def load_pathing_maps(self):
-        import time
+        map_id = PyMap.PyMap().map_id.ToInt()
+        group_key = self._get_group_key(map_id)
+        yield
+
+        if group_key in self.pathing_map_cache:
+            yield
+            return  # Already loaded
+
+        pathing_maps = PyPathing.get_pathing_maps()
+        navmesh = NavMesh(pathing_maps, map_id)
+        self.pathing_map_cache[group_key] = navmesh
+        yield
+        
+        """try:
+            navmesh = NavMesh.load_from_file(pathing_maps, map_id, folder="NavMeshCache")
+        except FileNotFoundError:
+            navmesh = NavMesh(pathing_maps, map_id)
+            navmesh.save_to_file("NavMeshCache")"""
+
+    def get_navmesh(self) -> Optional[NavMesh]:
+        map_id = PyMap.PyMap().map_id.ToInt()
+        group_key = self._get_group_key(map_id)
+        return self.pathing_map_cache.get(group_key, None)
+
+    def get_path(self, 
+                 start: Tuple[float, float, float], 
+                 goal: Tuple[float, float, float],
+                 smooth_by_los: bool = True,
+                 margin: float = 100,
+                 step_dist: float = 200.0,
+                 smooth_by_chaikin: bool = False,
+                 chaikin_iterations: int = 1):
+        from . import Routines
+
         map_id = PyMap.PyMap().map_id.ToInt()
         group_key = self._get_group_key(map_id)
 
-        # Reuse preprocessed navmesh if available
-        if group_key in self.pathing_map_cache:
-            self.navmesh = self.pathing_map_cache[group_key]
-            self.is_ready = True
-            yield
-            return
-
-        # First-time load and processing
-        start_time = time.time()
-        yield  # allow UI to refresh
-
-        pathing_maps = PyPathing.get_pathing_maps()
-        navmesh = NavMesh(pathing_maps)
-        self.pathing_map_cache[group_key] = navmesh
-        self.navmesh = navmesh
-
-        yield  # allow next frame
-
-        self.load_time = time.time() - start_time
-        self.is_ready = True
-
-    def get_path(self, start: Tuple[float, float, float], goal: Tuple[float, float, float]):
-        from . import Routines
-        """
-        Returns the best available path from start to goal.
-        First tries the game's fast PathPlanner.
-        Falls back to A* if needed.
-        Coroutine function, must be yield-from'd.
-        Always returns List[Tuple[float, float, float]] (3D).
-        """
-        import PyPathing
-
-        # --- Try PathPlanner First ---
+        # --- Try fast planner first ---
         path_planner = PyPathing.PathPlanner()
         path_planner.reset()
         path_planner.plan(
@@ -507,24 +577,73 @@ class AutoPathing:
             status = path_planner.get_status()
             if status == PyPathing.PathStatus.Ready:
                 yield
-                return path_planner.get_path()
+                raw_path = path_planner.get_path()
+                path2d = [(pt[0], pt[1]) for pt in raw_path]
+                
+                if smooth_by_chaikin:
+                    path2d = chaikin_smooth_path(path2d, chaikin_iterations)
+                
+                return [(x, y, start[2]) for (x, y) in path2d]
+            
             elif status == PyPathing.PathStatus.Failed:
                 break
-            yield  # wait next frame
+            yield
 
         # --- Fallback to A* ---
-        if not self.navmesh:
-            yield
-            return []
-
-        astar = AStar(self.navmesh)
-        success = astar.search((start[0], start[1]), (goal[0], goal[1]))
+        navmesh = self.pathing_map_cache.get(group_key)
+        if not navmesh:
+            yield from self.load_pathing_maps()
+            navmesh = self.pathing_map_cache.get(group_key)
+            if not navmesh:
+                yield
+                return []
 
         yield
+        astar = AStar(navmesh)
+        success = astar.search((start[0], start[1]), (goal[0], goal[1]))
+        yield
+
         if success:
             raw_path = astar.get_path()
             yield
-            smoothed = self.navmesh.smooth_path_by_los(raw_path)
+            if smooth_by_los:
+                smoothed = navmesh.smooth_path_by_los(raw_path, margin, step_dist)
+            else:
+                smoothed = raw_path
+                
+            if smooth_by_chaikin:
+                smoothed = chaikin_smooth_path(smoothed, chaikin_iterations)
+                
             return [(x, y, start[2]) for (x, y) in smoothed]
 
         return []
+
+    def get_path_to(self, x: float, y: float,
+                    smooth_by_los: bool = True,
+                    margin: float = 100,
+                    step_dist: float = 200.0,
+                    smooth_by_chaikin: bool = False,
+                    chaikin_iterations: int = 1):
+        import PyPlayer
+        import PyAgent
+
+        _player = PyPlayer.PyPlayer()
+        if not _player.agent:
+            yield
+            return []
+
+        pos = (_player.agent.x, _player.agent.y)
+        zplane = PyAgent.PyAgent(_player.agent.id).zplane
+        start = (pos[0], pos[1], zplane)
+        goal = (x, y, zplane)
+
+        path = yield from self.get_path(start, goal,
+                                        smooth_by_los=smooth_by_los,
+                                        margin=margin,
+                                        step_dist=step_dist,
+                                        smooth_by_chaikin=smooth_by_chaikin,
+                                        chaikin_iterations=chaikin_iterations)
+        return [(x, y) for (x, y, _) in path]
+
+    
+
