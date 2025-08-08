@@ -1,6 +1,6 @@
 import Py4GW
 from Py4GWCoreLib import ConsoleLog, Map, Party, Player, Agent, Effects, SharedCommandType, ThrottledTimer
-from ctypes import Structure, c_uint, c_float, c_bool, c_wchar
+from ctypes import Structure, c_int, c_uint, c_float, c_bool, c_wchar
 from multiprocessing import shared_memory
 from ctypes import sizeof
 from datetime import datetime, timezone
@@ -33,7 +33,7 @@ class AccountData(Structure):
         ("OwnerPlayerID", c_uint),
         ("HeroID", c_uint),
         ("MapID", c_uint),
-        ("MapRegion", c_uint),
+        ("MapRegion", c_int),
         ("MapDistrict", c_uint),
         ("PlayerID", c_uint),
         ("PlayerHP", c_float),

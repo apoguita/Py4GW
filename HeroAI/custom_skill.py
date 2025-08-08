@@ -4662,8 +4662,9 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Mistrust")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.EnemyCaster.value
-        skill.Nature = SkillNature.Offensive.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
+        skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
