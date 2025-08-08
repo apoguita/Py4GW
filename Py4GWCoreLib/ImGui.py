@@ -419,13 +419,13 @@ class ImGui:
             PyImGui.end_tooltip()
     
     @staticmethod
-    def search_field(label_id: str, text: str, placeholder: str, width: float = 0.0) -> tuple[bool, str]:
+    def search_field(label_id: str, text: str, placeholder: str, width: float = 0.0, flags : PyImGui.InputTextFlags = PyImGui.InputTextFlags.NoFlag) -> tuple[bool, str]:
         remaining_space = PyImGui.get_content_region_avail()
         width = remaining_space[0] if width <= 0 else width
         PyImGui.push_item_width(width)
 
         x, y = PyImGui.get_cursor_pos()
-        search = PyImGui.input_text(label_id, text)
+        search = PyImGui.input_text(label_id, text, flags)
         
         item_rect_min = PyImGui.get_item_rect_min()
         item_rect_max = PyImGui.get_item_rect_max()
@@ -1365,10 +1365,11 @@ class ImGui:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(29, 62, 106, 100)))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(29, 62, 106, 140)))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBg, Utils.ColorToTuple(Utils.RGBToColor(0, 0, 0, 150)))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBgActive, Utils.ColorToTuple(Utils.RGBToColor(0, 0, 0, 200)))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBgActive, Utils.ColorToTuple(Utils.RGBToColor(0, 0, 0, 150)))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBgCollapsed, Utils.ColorToTuple(Utils.RGBToColor(0, 0, 0, 225)))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 255, 255, 50)))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarBg, Utils.ColorToTuple(Utils.RGBToColor(0, 0, 0, 150)))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, Utils.ColorToTuple(Utils.RGBToColor(2, 2, 2, 150)))
                 
                 PyImGui.push_style_var(ImGui.ImGuiStyleVar.TabRounding, 0.0)
                 PyImGui.push_style_var(ImGui.ImGuiStyleVar.GrabRounding, 0.0)
@@ -1392,7 +1393,7 @@ class ImGui:
                 pass
             
             case ImGui.StyleTheme.Minimalus:
-                PyImGui.pop_style_color(14)
+                PyImGui.pop_style_color(15)
                 PyImGui.pop_style_var(7)
           
     class gw_window():
