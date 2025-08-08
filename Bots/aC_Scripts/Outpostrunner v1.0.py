@@ -19,7 +19,7 @@ _cached_runs_by_region = {}
 
 # === STATIC FRIENDLY NAME MAP ===
 RUN_NAME_MAP = {
-    "Eye Of The North": {
+    "Eye Of The North - Full Tour": {
         "_1_Eotn_To_Gunnars": "1 - Eotn To Gunnars",
         "_2_Gunnars_To_Longeyes": "2 - Gunnars To Longeyes",
         "_3_Longeyes_To_Doomlore": "3 - Longeyes To Doomlore",
@@ -30,8 +30,46 @@ RUN_NAME_MAP = {
         "_8_Vlox_To_Gadds": "8 - Vlox To Gadds",
         "_9_Vlox_To_Tarnished": "9 - Vlox To Tarnished",
         "_10_Tarnished_To_Rata": "10 - Tarnished To Rata",
+    },
+    "Tyria - Lion's Arch To Ascalon": {
+        "_1_LionsArch_To_GatesOfKryta": "1 - Lions Arch To Gates Of Kryta",
+        "_2_GatesOfKryta_To_BeaconsPerch": "2 - Gates Of Kryta To Beacons Perch",
+        "_3_BeaconsPerch_To_IceToothCave": "3 - Beacon's Perch To Ice Tooth Cave",
+        "_4_IceToothCave_To_YaksBend": "4 - Ice Tooth's Cave To Yak's Bend",
+        "_5_YaksBend_To_GrendichCourthouse": "5 - Yak's Bend To Grendich Courthouse",
+        "_6_GrendichCourthouse_To_NolaniAcademy": "6 - Grendich Courthouse To Nolani Academy",
+        "_7_GrendichCourthouse_To_PikenSquare": "7 - Grendich Courthouse To Piken Square",
+        "_8_PikenSquare_To_AscalonCity": "8 - Piken Square To Ascalon City",
+    },
+    "Tyria - Ascalon to Lion's Arch": {
+        "_1_AscalonCity_To_PikenSquare": "1 - Ascalon City To Piken Square",
+        "_2_PikenSquare_To_GrendichCourthouse": "2 - Piken Square To Grendich Court House",
+        "_3_GrendichCourthouse_To_YaksBend": "3 - Grendich Court House To Yak's Bend",
+        "_4_YaksBend_To_IceToothCave": "4 - Yak's Bend To Ice Tooth Cave",
+        "_5_IceToothCave_To_BeaconsPerch": "5 - IceTooth Cave To Beacon's Perch",
+        "_6_BeaconsPerch_To_GatesOfKryta": "6 - Beacons Perch To Gates Of Kryta",
+        "_7_GatesOfKryta_To_LionsArch": "7 - Gates Of Krtya To Lion's Arch", 
+        
+
+    },
+    "Tyria - Beacon's Perch To Droknars Forge": {
+        "_1_BeaconsPerch_To_DroknarsForge": "1 - Beacons Perch To Droknars Forge",
+
+    },
+    "Tyria - Ascalon - East Outposts": {
+        "_1_AscalonCity_To_Sardelac": "1 - Ascalon City To Sardelac",
+        "_2_Sardelac_To_FortRanik": "2 - Sardelac To Fort Ranik",
+        "_3_FortRanik_To_SerenityTemple": "3 - Fort Ranik To Serenity Temple",
+        "_4_SerenityTemple_To_FrontierGate": "4 - Serenity Temple To Frontier Gate",
+        "_5_FrontierGate_To_RuinsOfSurmia": "5 - Frontier Gate To Ruins Of Surmia",    
+    },
+    "Tyria - Kryta - West Outposts": {
+        "_1_LionsArch_To_DAlessioSeaboard": "1 - Lion's Arch -> D'Alessio Seabord",
+        "_2_DAlessioSeaboard_To_BergenHotsprings": "2 - D'Alessio Seaboard -> Bergen Hot Springs",
+        "_3_BergenHotSprings_To_BeetleTun": "3 - Bergen Hot Springs -> Beetletun",
+        "_4_Beetletun_To_DivinityCoast": "4 - Beetletun -> Divinity Coast",
+        "_5_BergenHotSprings_To_TempleOfTheAges": "5 - Bergen Hot Springs -> Temple Of The Ages"
     }
-}
 
 # 7) Neutral button colors (light gray → slightly brighter on hover → slightly darker on active)
 neutral_button        = Color(33, 51, 58, 255).to_tuple_normalized()  # default button
