@@ -1,0 +1,274 @@
+{
+    "Colors": {
+        "Border": {
+            "r": 255,
+            "g": 255,
+            "b": 255,
+            "a": 50
+        },
+        "BorderShadow": {
+            "r": 26,
+            "g": 26,
+            "b": 26,
+            "a": 128
+        },
+        "Button": {
+            "r": 29,
+            "g": 62,
+            "b": 106,
+            "a": 100
+        },
+        "ButtonActive": {
+            "r": 29,
+            "g": 62,
+            "b": 106,
+            "a": 140
+        },
+        "ButtonHovered": {
+            "r": 29,
+            "g": 62,
+            "b": 106,
+            "a": 200
+        },
+        "CheckMark": {
+            "r": 204,
+            "g": 204,
+            "b": 204,
+            "a": 255
+        },
+        "FrameBg": {
+            "r": 26,
+            "g": 23,
+            "b": 30,
+            "a": 255
+        },
+        "FrameBgActive": {
+            "r": 143,
+            "g": 143,
+            "b": 148,
+            "a": 255
+        },
+        "FrameBgHovered": {
+            "r": 61,
+            "g": 59,
+            "b": 74,
+            "a": 255
+        },
+        "Header": {
+            "r": 26,
+            "g": 38,
+            "b": 51,
+            "a": 255
+        },
+        "HeaderActive": {
+            "r": 15,
+            "g": 13,
+            "b": 18,
+            "a": 255
+        },
+        "HeaderHovered": {
+            "r": 143,
+            "g": 143,
+            "b": 148,
+            "a": 255
+        },
+        "MenuBarBg": {
+            "r": 26,
+            "g": 23,
+            "b": 30,
+            "a": 255
+        },
+        "PlotHistogram": {
+            "r": 102,
+            "g": 99,
+            "b": 96,
+            "a": 160
+        },
+        "PlotHistogramHovered": {
+            "r": 64,
+            "g": 255,
+            "b": 0,
+            "a": 255
+        },
+        "PlotLines": {
+            "r": 102,
+            "g": 99,
+            "b": 96,
+            "a": 160
+        },
+        "PlotLinesHovered": {
+            "r": 64,
+            "g": 255,
+            "b": 0,
+            "a": 255
+        },
+        "PopupBg": {
+            "r": 2,
+            "g": 2,
+            "b": 2,
+            "a": 215
+        },
+        "ResizeGrip": {
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 0
+        },
+        "ResizeGripActive": {
+            "r": 15,
+            "g": 13,
+            "b": 18,
+            "a": 255
+        },
+        "ResizeGripHovered": {
+            "r": 143,
+            "g": 143,
+            "b": 148,
+            "a": 255
+        },
+        "ScrollbarBg": {
+            "r": 2,
+            "g": 2,
+            "b": 2,
+            "a": 215
+        },
+        "ScrollbarGrab": {
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 150
+        },
+        "ScrollbarGrabActive": {
+            "r": 51,
+            "g": 76,
+            "b": 102,
+            "a": 128
+        },
+        "ScrollbarGrabHovered": {
+            "r": 51,
+            "g": 76,
+            "b": 102,
+            "a": 128
+        },
+        "SliderGrab": {
+            "r": 29,
+            "g": 62,
+            "b": 106,
+            "a": 100
+        },
+        "SliderGrabActive": {
+            "r": 29,
+            "g": 62,
+            "b": 106,
+            "a": 140
+        },
+        "Tab": {
+            "r": 29,
+            "g": 62,
+            "b": 106,
+            "a": 100
+        },
+        "TabActive": {
+            "r": 29,
+            "g": 62,
+            "b": 106,
+            "a": 200
+        },
+        "TabHovered": {
+            "r": 29,
+            "g": 62,
+            "b": 106,
+            "a": 250
+        },
+        "Text": {
+            "r": 204,
+            "g": 204,
+            "b": 204,
+            "a": 255
+        },
+        "TextDisabled": {
+            "r": 51,
+            "g": 51,
+            "b": 51,
+            "a": 255
+        },
+        "TextSelectedBg": {
+            "r": 26,
+            "g": 255,
+            "b": 26,
+            "a": 110
+        },
+        "TitleBg": {
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 150
+        },
+        "TitleBgActive": {
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 150
+        },
+        "TitleBgCollapsed": {
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 215
+        },
+        "WindowBg": {
+            "r": 2,
+            "g": 2,
+            "b": 2,
+            "a": 150
+        }
+    },
+    "StyleVars": {
+        "ChildRounding": {
+            "value1": 0
+        },
+        "FramePadding": {
+            "value1": 5,
+            "value2": 5
+        },
+        "FrameRounding": {
+            "value1": 0
+        },
+        "GrabMinSize": {
+            "value1": 5
+        },
+        "GrabRounding": {
+            "value1": 0
+        },
+        "IndentSpacing": {
+            "value1": 20
+        },
+        "ItemInnerSpacing": {
+            "value1": 6,
+            "value2": 4
+        },
+        "ItemSpacing": {
+            "value1": 10,
+            "value2": 6
+        },
+        "PopupRounding": {
+            "value1": 0
+        },
+        "ScrollbarRounding": {
+            "value1": 0
+        },
+        "ScrollbarSize": {
+            "value1": 20
+        },
+        "TabRounding": {
+            "value1": 0
+        },
+        "WindowPadding": {
+            "value1": 10,
+            "value2": 10
+        },
+        "WindowRounding": {
+            "value1": 0
+        }
+    }
+}
