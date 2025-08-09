@@ -89,6 +89,13 @@ DIALOG_GROUPS = {
             "Talon Silverwing, and Professor Gai. Flag henchmen on one Afflicted group and run past."
         )
     },
+    "Vizunah Square foreign": {
+        "dialogs": [(0x800009, "NPC at the entrance of Vizunah Square (Foreign)")],
+        "note": (
+            "Make sure you have one character in team that has the quest Welcome to Cantha uncompleted in the quest log. "
+            "Run from The Marketplace to Vizunah Square foreign Center."
+        )
+    },
     "Sunspears in Cantha": {
         "note": ("Take this quest from Imperial Guardsman Linro in Kaineng Center to spawn Kormir in Bejunkan Pier.")
     },
