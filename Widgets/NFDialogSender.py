@@ -38,21 +38,6 @@ window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
 # Full structured dialog GUI for Guild Wars: Nightfall quests
 DIALOG_GROUPS = {
-    "GTOB Professions": {
-        "dialogs": [
-            (0x0184, 'Warrior'),
-            (0x0284, 'Ranger'),
-            (0x0384, 'Monk'),
-            (0x0484, 'Necromancer'),
-            (0x0584, 'Mesmer'),
-            (0x0684, 'Elementalist'),
-            (0x0784, 'Assassin'),
-            (0x0884, 'Ritualist'),
-            (0x0984, 'Paragon'),
-            (0x0A84, 'Dervish'),
-        ],
-        "note": "Travel to GTOB. Talk to the professions changer, make sure you have enough gold.",
-    },
     "Docks Ferry": {
         "dialogs": [
             (0x85, "Hannah"),
@@ -217,7 +202,29 @@ DIALOG_GROUPS = {
         ],
         "note": "Scout Ahtok is in danger; be quick.",
     },
+    "Eternal Forgemaster": {
+        "dialogs": [
+            (0x07F, 'FOW Armor'),
+        ],
+        "note": "No need to do all the quests, just make sure the forgemaster",
+    },
+    "GTOB Professions": {
+        "dialogs": [
+            (0x0184, 'Warrior'),
+            (0x0284, 'Ranger'),
+            (0x0384, 'Monk'),
+            (0x0484, 'Necromancer'),
+            (0x0584, 'Mesmer'),
+            (0x0684, 'Elementalist'),
+            (0x0784, 'Assassin'),
+            (0x0884, 'Ritualist'),
+            (0x0984, 'Paragon'),
+            (0x0A84, 'Dervish'),
+        ],
+        "note": "Travel to GTOB. Talk to the professions changer, make sure you have enough gold.",
+    },
 }
+
 
 
 def draw_widget():
