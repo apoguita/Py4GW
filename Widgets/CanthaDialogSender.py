@@ -36,23 +36,8 @@ window_x = ini_window.read_int(MODULE_NAME, X_POS, 100)
 window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
-# Full structured dialog GUI for Guild Wars: Nightfall quests
+# Full structured dialog GUI for Guild Wars: Cantha quests
 DIALOG_GROUPS = {
-    "GTOB Professions": {
-        "dialogs": [
-            (0x0184, 'Warrior'),
-            (0x0284, 'Ranger'),
-            (0x0384, 'Monk'),
-            (0x0484, 'Necromancer'),
-            (0x0584, 'Mesmer'),
-            (0x0684, 'Elementalist'),
-            (0x0784, 'Assassin'),
-            (0x0884, 'Ritualist'),
-            (0x0984, 'Paragon'),
-            (0x0A84, 'Dervish'),
-        ],
-        "note": "Travel to GTOB. Talk to the professions changer, make sure you have enough gold.",
-    },
     "Choose Secondary Profession": {
         "dialogs": [
             (0x813D0B, "Warrior"),
@@ -110,6 +95,27 @@ DIALOG_GROUPS = {
     "Kormir in Bejunkan Pier": {
         "dialogs": [(0x84, "Kormir")],
         "note": "Send dialog 0x84 to Kormir to progress the Sunspears quest.",
+    },
+    "Eternal Forgemaster": {
+        "dialogs": [
+            (0x07F, 'FOW Armor'),
+        ],
+        "note": "No need to do all the quests, just make sure the forgemaster",
+    },
+    "GTOB Professions": {
+        "dialogs": [
+            (0x0184, 'Warrior'),
+            (0x0284, 'Ranger'),
+            (0x0384, 'Monk'),
+            (0x0484, 'Necromancer'),
+            (0x0584, 'Mesmer'),
+            (0x0684, 'Elementalist'),
+            (0x0784, 'Assassin'),
+            (0x0884, 'Ritualist'),
+            (0x0984, 'Paragon'),
+            (0x0A84, 'Dervish'),
+        ],
+        "note": "Travel to GTOB. Talk to the professions changer, make sure you have enough gold.",
     },
 }
 
