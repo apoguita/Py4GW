@@ -1,5 +1,6 @@
 import json
 import os
+from typing import overload
 import Py4GW
 import PyImGui
 from enum import Enum, IntEnum
@@ -1780,8 +1781,7 @@ class ImGui:
             
             state["_active"] = False
 
-
-class Style():
+class Style:
     class StyleVar:
         def __init__(self, img_style_enum : ImGui.ImGuiStyleVar, value1: float, value2: float | None = None):
             self.img_style_enum: ImGui.ImGuiStyleVar = img_style_enum
@@ -1811,12 +1811,55 @@ class Style():
                 value2=data.get("value2", None)
             )
 
+        def copy(self):
+            return Style.StyleVar(
+                img_style_enum=self.img_style_enum,
+                value1=self.value1,
+                value2=self.value2
+            )
+
+        def __ne__(self, value):
+            if not isinstance(value, Style.StyleVar):
+                return True
+
+            return (self.img_style_enum != value.img_style_enum or
+                    self.value1 != value.value1 or
+                    self.value2 != value.value2)
+
+        def __eq__(self, value):
+            if not isinstance(value, Style.StyleVar):
+                return False
+
+            return (self.img_style_enum == value.img_style_enum and
+                    self.value1 == value.value1 and
+                    self.value2 == value.value2)
+
     class StyleColor():
         def __init__(self, img_color_enum : PyImGui.ImGuiCol, r: int, g: int, b: int, a: int = 255):
             self.img_color_enum = img_color_enum
-            self.set_color(r, g, b, a)
+            self.set_rgb_color(r, g, b, a)
 
-        def set_color(self, r: int, g: int, b: int, a: int = 255):
+        def __eq__(self, other):
+            if not isinstance(other, Style.StyleColor):
+                return False
+            
+            return (self.img_color_enum == other.img_color_enum and
+                    self.r == other.r and
+                    self.g == other.g and
+                    self.b == other.b and
+                    self.a == other.a)        
+        
+        def __ne__(self, value):
+            if not isinstance(value, Style.StyleColor):
+                return True
+
+            return (self.img_color_enum != value.img_color_enum or
+                    self.r != value.r or
+                    self.g != value.g or
+                    self.b != value.b or
+                    self.a != value.a)
+
+        def set_rgb_color(self, r: int, g: int, b: int, a: int = 255):
             self.r = r
             self.g = g
             self.b = b
@@ -1825,6 +1868,17 @@ class Style():
             self.rgb_tuple = (r, g, b, a)
             self.color_tuple = r / 255.0, g / 255.0, b / 255.0, a / 255.0  # Convert to RGBA float
             self.color_int = Utils.RGBToColor(r, g, b, a)
+
+        def set_tuple_color(self, color: tuple[float, float, float, float]):
+            #convert from color tuple
+            self.r = int(color[0] * 255)
+            self.g = int(color[1] * 255)
+            self.b = int(color[2] * 255)
+            self.a = int(color[3] * 255)
+
+            self.rgb_tuple = (self.r, self.g, self.b, self.a)
+            self.color_tuple = color
+            self.color_int = Utils.RGBToColor(self.r, self.g, self.b, self.a)
 
         def push_color(self):
             PyImGui.push_style_color(self.img_color_enum, self.color_tuple)
@@ -1847,6 +1901,15 @@ class Style():
                 g=data["g"],
                 b=data["b"],
                 a=data.get("a", 255)
+            )
+
+        def copy(self):
+            return Style.StyleColor(
+                img_color_enum=self.img_color_enum,
+                r=self.r,
+                g=self.g,
+                b=self.b,
+                a=self.a
             )
 
     def __init__(self):
@@ -1924,16 +1987,26 @@ class Style():
 
     def _rebuild_lists(self):
         attributes = {name: getattr(self, name) for name in dir(self)}
-        self.Colors : list[Style.StyleColor] = [attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleColor)]
-        self.StyleVars : list[Style.StyleVar] = [attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleVar)]
+        self.Colors : dict[PyImGui.ImGuiCol, Style.StyleColor] = {attributes[name].img_color_enum: attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleColor)}
+        self.StyleVars : dict[ImGui.ImGuiStyleVar, Style.StyleVar] = {attributes[name].img_style_enum: attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleVar)}
+
+    def copy(self):
+        style = Style()
+
+        for color_name, color_data in self.Colors.items():
+            setattr(style, color_name.name, color_data.copy())
+
+        for var_name, var_data in self.StyleVars.items():
+            setattr(style, var_name.name, var_data.copy())
+
+        style._rebuild_lists()
+        return style
 
     def push_style(self):
-        for var in self.StyleVars:
-            # ConsoleLog("Style", f"Pushing style variable {var.img_style_enum.name} with value {var.value1}, {var.value2}")
+        for var in self.StyleVars.values():
             var.push_style_var()
 
-        for color in self.Colors:
-            # ConsoleLog("Style", f"Pushing style color {color.img_color_enum.name} with value {color.r}, {color.g}, {color.b}, {color.a}")
+        for color in self.Colors.values():
             color.push_color()
 
     def pop_style(self):
@@ -1942,8 +2015,8 @@ class Style():
 
     def save_to_json(self, path: str):
         style_data = {
-            "Colors": {c.img_color_enum.name: c.to_json() for c in self.Colors},
-            "StyleVars": {v.img_style_enum.name: v.to_json() for v in self.StyleVars}
+            "Colors": {c.img_color_enum.name: c.to_json() for c in self.Colors.values()},
+            "StyleVars": {v.img_style_enum.name: v.to_json() for v in self.StyleVars.values()}
         }
         with open(path, "w") as f:
             json.dump(style_data, f, indent=4)
@@ -1951,13 +2024,12 @@ class Style():
     @classmethod
     def load_from_json(cls, path: str) -> 'Style':
         if not os.path.exists(path):
-            ConsoleLog("Style", f"Style JSON file {path} does not exist.")
             return cls()
 
         with open(path, "r") as f:
             style_data = json.load(f)
 
-        style = cls()  # start with defaults
+        style = cls()
 
         for color_name, color_data in style_data.get("Colors", {}).items():
             setattr(style, color_name, cls.StyleColor.from_json(color_name, color_data))
@@ -1966,36 +2038,3 @@ class Style():
 
         style._rebuild_lists()
         return style
-
-class StyleGuildWars(Style):
-    def __init__(self):
-        super().__init__()
-        # Override specific styles for Guild Wars
-        self.MenuBarBg = Utils.ColorToTuple(Utils.RGBToColor(255, 255, 255, 0))
-        
-class StyleMinimalus(Style):
-    def __init__(self):
-        super().__init__()
-        
-        self.TabRounding = Style.StyleVar(ImGui.ImGuiStyleVar.TabRounding, 0)
-        self.GrabRounding = Style.StyleVar(ImGui.ImGuiStyleVar.GrabRounding, 0)
-        self.ChildRounding = Style.StyleVar(ImGui.ImGuiStyleVar.ChildRounding, 0)
-        self.FrameRounding = Style.StyleVar(ImGui.ImGuiStyleVar.FrameRounding, 0)
-        self.PopupRounding = Style.StyleVar(ImGui.ImGuiStyleVar.PopupRounding, 0)
-        self.WindowRounding = Style.StyleVar(ImGui.ImGuiStyleVar.WindowRounding, 0)
-
-        self.Text = Style.StyleColor(PyImGui.ImGuiCol.Text, 255, 255, 255, 255)
-        self.Button = Style.StyleColor(PyImGui.ImGuiCol.Button, 29, 62, 106, 100)
-        self.ButtonHovered = Style.StyleColor(PyImGui.ImGuiCol.ButtonHovered, 29, 62, 106, 200)
-        self.ButtonActive = Style.StyleColor(PyImGui.ImGuiCol.ButtonActive, 29, 62, 106, 140)
-        self.Tab = Style.StyleColor(PyImGui.ImGuiCol.Tab, 29, 62, 106, 100)
-        self.TabHovered = Style.StyleColor(PyImGui.ImGuiCol.TabHovered, 29, 62, 106, 250)
-        self.TabActive = Style.StyleColor(PyImGui.ImGuiCol.TabActive, 29, 62, 106, 200)
-        self.SliderGrab = Style.StyleColor(PyImGui.ImGuiCol.SliderGrab, 29, 62, 106, 100)
-        self.SliderGrabActive = Style.StyleColor(PyImGui.ImGuiCol.SliderGrabActive, 29, 62, 106, 140)
-        self.TitleBg = Style.StyleColor(PyImGui.ImGuiCol.TitleBg, 0, 0, 0, 150)
-        self.TitleBgActive = Style.StyleColor(PyImGui.ImGuiCol.TitleBgActive, 0, 0, 0, 150)
-        self.TitleBgCollapsed = Style.StyleColor(PyImGui.ImGuiCol.TitleBgCollapsed, 0, 0, 0, 225)
-        self.Border = Style.StyleColor(PyImGui.ImGuiCol.Border, 255, 255, 255, 50)
-        self.ScrollbarBg = Style.StyleColor(PyImGui.ImGuiCol.ScrollbarBg, 0, 0, 0, 150)
-        self.WindowBg = Style.StyleColor(PyImGui.ImGuiCol.WindowBg, 2, 2, 2, 150)
