@@ -36,7 +36,7 @@ window_x = ini_window.read_int(MODULE_NAME, X_POS, 100)
 window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
-# Full structured dialog GUI for Guild Wars: Nightfall quests
+# Full structured dialog GUI for Guild Wars: Cantha quests
 DIALOG_GROUPS = {
     "Choose Secondary Profession": {
         "dialogs": [
