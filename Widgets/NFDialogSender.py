@@ -226,6 +226,7 @@ DIALOG_GROUPS = {
 }
 
 
+
 def draw_widget():
     global window_x, window_y, window_collapsed, first_run
 
