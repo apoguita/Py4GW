@@ -70,6 +70,7 @@ RUN_NAME_MAP = {
         "_4_Beetletun_To_DivinityCoast": "4 - Beetletun -> Divinity Coast",
         "_5_BergenHotSprings_To_TempleOfTheAges": "5 - Bergen Hot Springs -> Temple Of The Ages"
     }
+}
 
 # 7) Neutral button colors (light gray → slightly brighter on hover → slightly darker on active)
 neutral_button        = Color(33, 51, 58, 255).to_tuple_normalized()  # default button
