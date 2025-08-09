@@ -181,9 +181,9 @@
             "a": 250
         },
         "Text": {
-            "r": 204,
-            "g": 204,
-            "b": 204,
+            "r": 255,
+            "g": 255,
+            "b": 255,
             "a": 255
         },
         "TextDisabled": {
@@ -225,50 +225,50 @@
     },
     "StyleVars": {
         "ChildRounding": {
-            "value1": 0
+            "value1": 0.0
         },
         "FramePadding": {
-            "value1": 5,
-            "value2": 5
+            "value1": 5.0,
+            "value2": 5.0
         },
         "FrameRounding": {
-            "value1": 0
+            "value1": 0.0
         },
         "GrabMinSize": {
-            "value1": 5
+            "value1": 5.0
         },
         "GrabRounding": {
-            "value1": 0
+            "value1": 0.0
         },
         "IndentSpacing": {
-            "value1": 20
+            "value1": 20.0
         },
         "ItemInnerSpacing": {
-            "value1": 6,
-            "value2": 4
+            "value1": 6.0,
+            "value2": 4.0
         },
         "ItemSpacing": {
-            "value1": 10,
-            "value2": 6
+            "value1": 10.0,
+            "value2": 6.0
         },
         "PopupRounding": {
-            "value1": 0
+            "value1": 0.0
         },
         "ScrollbarRounding": {
-            "value1": 0
+            "value1": 0.0
         },
         "ScrollbarSize": {
-            "value1": 20
+            "value1": 20.0
         },
         "TabRounding": {
-            "value1": 0
+            "value1": 0.0
         },
         "WindowPadding": {
-            "value1": 10,
-            "value2": 10
+            "value1": 10.0,
+            "value2": 10.0
         },
         "WindowRounding": {
-            "value1": 0
+            "value1": 0.0
         }
     }
 }
