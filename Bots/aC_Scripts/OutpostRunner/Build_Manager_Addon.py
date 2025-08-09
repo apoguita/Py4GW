@@ -13,13 +13,14 @@ enchanted = [6862, 1866, 6869]
 quetzal = [6337, 6338, 6339, 6340]
 stone_summit_scout = [2646]
 minotaur = [1797, 2493, 2486]
+summit_giant = [2657, 2530]
 
 #== variable for scan throttle ==
 scan_throttle_ms = 0.1
 danger_check_cooldown = 5 
 spell_caster_check_cooldown = 5
 #== variables for anti cripple/kd danger check ==
-cripple_kd_models = set(jotun + modniir + frozen_elementals + mandragor + wurms + mountain_pinesoul + skeletons + zombie + enchanted + quetzal + stone_summit_scout + minotaur)
+cripple_kd_models = set(jotun + modniir + frozen_elementals + mandragor + wurms + mountain_pinesoul + skeletons + zombie + enchanted + quetzal + stone_summit_scout + minotaur + summit_giant)
 last_cripple_kd_check = 0
 last_cripple_kd_scan_time = 0
 #== variables for spellcaster danger check ==
@@ -57,7 +58,9 @@ def get_cripple_kd_enemies(model_id):
     elif model_id in minotaur:
         return "Minotuar"
     elif model_id in stone_summit_scout:
-        "Stone Summit Scout"
+        return "Stone Summit Scout"
+    elif model_id in summit_giant:
+        return "Summit Giants"
     return "Unknown"
 
 def CheckCrippleKDanger(x, y):
