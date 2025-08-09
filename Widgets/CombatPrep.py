@@ -64,6 +64,8 @@ SHOUTS_BRAIN_TEXT = IconsFontAwesome5.ICON_BRAIN + "##Shouts"
 SHOUTS_BUTTON_ID = "##ShoutsPrepButton"
 TOGGLE_PARTY_LEADER_BUTTON_ID = '##TogglePartyLeaderHeroAI'
 TOGGLE_PARTY_MEMBERS_BUTTON_ID = '##TogglePartyHeroAI'
+TOGGLE_PARTY_MEMBERS_COOLDOWN_MS = 20000
+TOGGLE_PARTY_MEMBERS_TOOL_TIP_TEXT = "Enables Auto triggering every 20 seconds to prevent Rits and Paragon from lagging"
 TIMESTAMP = "timestamp"
 TEXTURE = "texture_path"
 VALUE = 'value'
@@ -103,6 +105,10 @@ auto_spirit_cast_enabled = {VALUE: True}
 last_location_shouts_casted = {X_POS: 0.0, Y_POS: 0.0}
 last_shout_cast_time = {TIMESTAMP: 0}
 auto_shout_cast_enabled = {VALUE: True}
+
+last_toggle_party_members_hero_ai_follow_time = {TIMESTAMP: 0}
+auto_toggle_party_members_hero_ai_follow_enabled = {VALUE: True}
+
 
 hotkey_state = {WAS_PRESSED: False}
 
@@ -466,9 +472,27 @@ class CombatPrep:
 
     def cb_toggle_party_members_hero_ai(self, toggle_party_members_hero_ai_button_pressed):
         sender_email = self.cached_data.account_email
+        now = int(time.time() * 1000)
+        time_since_last_cast = now - last_toggle_party_members_hero_ai_follow_time[TIMESTAMP]
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+
+        if (
+            auto_toggle_party_members_hero_ai_follow_enabled[VALUE]
+            and time_since_last_cast >= TOGGLE_PARTY_MEMBERS_COOLDOWN_MS
+            and not self.is_party_members_hero_ai_status_enabled()
+        ):
+            last_toggle_party_members_hero_ai_follow_time[TIMESTAMP] = now
+            for account in accounts:
+                if sender_email != account.AccountEmail:
+                    GLOBAL_CACHE.ShMem.SendMessage(
+                        sender_email,
+                        account.AccountEmail,
+                        SharedCommandType.EnableHeroAI,
+                        (1, 0, 0, 0),
+                    )
+            return
 
         if self.is_party_leader and toggle_party_members_hero_ai_button_pressed:
-            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             for account in accounts:
                 if sender_email != account.AccountEmail:
                     if self.is_party_members_hero_ai_status_enabled():
@@ -568,7 +592,7 @@ class CombatPrep:
 
             # --- Second row: toggles aligned by column ---
             PyImGui.table_next_row()
-            for col_index in range(8):
+            for col_index in range(9):
                 PyImGui.table_next_column()
 
                 if col_index == 5:
@@ -587,6 +611,14 @@ class CombatPrep:
                         icon_size / 1.75,
                     )
                     ImGui.show_tooltip(SHOUTS_TOOL_TIP_TEXT)
+                if col_index == 8:
+                    auto_toggle_party_members_hero_ai_follow_enabled[VALUE] = ImGui.toggle_button(
+                        SHOUTS_BRAIN_TEXT,
+                        auto_toggle_party_members_hero_ai_follow_enabled[VALUE],
+                        icon_size + icon_size * 0.15,
+                        icon_size / 1.75,
+                    )
+                    ImGui.show_tooltip(TOGGLE_PARTY_MEMBERS_TOOL_TIP_TEXT)
         PyImGui.end_table()
 
     def _default_ui(self):
@@ -699,6 +731,13 @@ class CombatPrep:
                 if self.is_party_members_hero_ai_status_enabled()
                 else ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
             )
+            auto_toggle_party_members_hero_ai_follow_enabled[VALUE] = ImGui.toggle_button(
+                SHOUTS_BRAIN_TEXT,
+                auto_toggle_party_members_hero_ai_follow_enabled[VALUE],
+                icon_size + icon_size * 0.15,
+                icon_size / 1.75,
+            )
+            ImGui.show_tooltip(TOGGLE_PARTY_MEMBERS_TOOL_TIP_TEXT)
             self.cb_toggle_party_members_hero_ai(toggle_button_pressed_party_members)
 
             # Column 2: Hotkey Input
