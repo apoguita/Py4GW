@@ -2,7 +2,6 @@ from typing import Any
 from typing import Generator
 from typing import override
 
-from Py4GWCoreLib.enums import Profession
 from Py4GWCoreLib.enums import Range
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -14,59 +13,61 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 
-class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
-
+class LifeAttunementUtility(CustomSkillUtilityBase):
     def __init__(
-        self,
-        current_build: list[CustomSkill],
-        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(30),
-        mana_required_to_cast: int = 10,
-        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO],
+        self, current_build: list[CustomSkill], score_definition: ScoreStaticDefinition = ScoreStaticDefinition(50)
     ) -> None:
 
         super().__init__(
-            skill=CustomSkill("Great_Dwarf_Weapon"),
+            skill=CustomSkill("Life_Attunement"),
             in_game_build=current_build,
             score_definition=score_definition,
-            mana_required_to_cast=mana_required_to_cast,
-            allowed_states=allowed_states,
+            mana_required_to_cast=0,
+            allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
         )
 
         self.score_definition: ScoreStaticDefinition = score_definition
 
-    def _get_target(self) -> int | None:
-
-        allowed_classes = [Profession.Assassin.value, Profession.Ranger.value, Profession.Dervish.value, Profession.Warrior.value, Profession.Paragon.value]
+    def _get_target(self) -> custom_behavior_helpers.SortableAgentData | None:
         from HeroAI.utils import CheckForEffect
 
-        # Check if we have a valid target
-        target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
-            within_range=Range.Spellcast,
-            condition=lambda agent_id: agent_id != GLOBAL_CACHE.Player.GetAgentID()
-            and GLOBAL_CACHE.Agent.GetProfessionIDs(agent_id)[0] in allowed_classes
-            and not CheckForEffect(agent_id, self.custom_skill.skill_id),
-            sort_key=(TargetingOrder.DISTANCE_DESC, TargetingOrder.CASTER_THEN_MELEE),
-            range_to_count_enemies=None,
-            range_to_count_allies=None,
+        targets: list[custom_behavior_helpers.SortableAgentData] = (
+            custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
+                within_range=Range.Spellcast,
+                condition=lambda agent_id: not CheckForEffect(agent_id, self.custom_skill.skill_id),
+                sort_key=(TargetingOrder.DISTANCE_ASC, TargetingOrder.CASTER_THEN_MELEE),
+                range_to_count_enemies=None,
+                range_to_count_allies=None,
+            )
         )
 
-        return target
+        if not targets:
+            return None
+
+        if len(targets) <= 0:
+            return None
+
+        # take player first.
+        for target in targets:
+            if target.agent_id == GLOBAL_CACHE.Player.GetAgentID():
+                return target
+
+        # then take party, no priority atm
+        return targets[0]
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-
-        target = self._get_target()
+        target: custom_behavior_helpers.SortableAgentData | None = self._get_target()
         if target is None:
             return None
         return self.score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-
-        target = self._get_target()
+        target: custom_behavior_helpers.SortableAgentData | None = self._get_target()
         if target is None:
             return BehaviorResult.ACTION_SKIPPED
         result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(
-            self.custom_skill, target_agent_id=target
+            self.custom_skill, target_agent_id=target.agent_id
         )
         return result
