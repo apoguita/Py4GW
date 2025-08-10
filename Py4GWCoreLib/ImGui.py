@@ -278,9 +278,97 @@ class GameTextures(Enum):
     Button = SplitTexture(
         texture = os.path.join(TEXTURE_FOLDER, "ui_button.png"),
         texture_size=(32, 32),
-        left=(2, 4, 6, 28),
+        left=(2, 4, 7, 28),
         mid=(8, 4, 24, 28),
         right=(24, 4, 30, 28),   
+    )
+    
+    DisabledButton = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_disabled_button.png"),
+        texture_size=(32, 32),
+        left=(2, 4, 7, 28),
+        mid=(8, 4, 24, 28),
+        right=(24, 4, 30, 28),   
+    )
+    
+    PrimaryButton = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_primary_button.png"),
+        texture_size=(32, 32),
+        left=(2, 4, 7, 28),
+        mid=(8, 4, 24, 28),
+        right=(24, 4, 30, 28),   
+    )
+    
+    Dropdown = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_dropdown.png"),
+        texture_size=(128, 32),
+        left=(1, 4, 14, 27),
+        mid=(15, 4, 92, 27),
+        right=(93, 4, 126, 27),   
+    )
+    
+    Increase = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_increas_decrease.png"),
+        texture_size = (32, 32),
+        size = (12, 12),
+        normal = (1, 3),
+        hovered = (17, 3),
+    )
+    
+    Decrease = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_increas_decrease.png"),
+        texture_size = (32, 32),
+        size = (12, 12),
+        normal = (1, 19),
+        hovered = (17, 19),
+    )
+    
+    ScrollUp = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scroll_up_down.png"),
+        texture_size = (16, 64),
+        size = (14, 14),
+        normal = (1, 2),
+        active = (33, 2),
+    )
+
+    ScrollDown = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scroll_up_down.png"),
+        texture_size = (16, 64),
+        size = (14, 14),
+        normal = (17, 0),
+        active = (49, 0),
+    )
+    
+    ScrollGrab_Top = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
+        texture_size=(16, 16),
+        left=(2, 0, 5, 5),
+        mid=(6, 0, 9, 5),
+        right=(10, 0, 13, 5),   
+    )
+    
+    ScrollGrab_Middle = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
+        texture_size=(16, 16),
+        left=(2, 6, 5, 10),
+        mid=(6, 6, 9, 10),
+        right=(10, 6, 13, 10),   
+    )
+
+    ScrollGrab_Bottom = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
+        texture_size=(16, 16),
+        left=(2, 11, 5, 16),
+        mid=(6, 11, 9, 16),
+        right=(10, 11, 13, 16),    
+    )
+    
+    Tab = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_tab.png"),
+        texture_size=(32, 32),
+        left=(2, 1, 8, 32),
+        mid=(9, 1, 23, 32),
+        right=(24, 1, 30, 32),   
     )
     
     TravelCursor = MapTexture(
@@ -318,7 +406,6 @@ class Style:
 
         @classmethod
         def from_json(cls, name, data):
-            ConsoleLog("Style", f"Loading StyleVar {name} style from JSON {data}")
             return cls(
                 img_style_enum=getattr(ImGui.ImGuiStyleVar, name),
                 value1=data["value1"],
@@ -407,8 +494,6 @@ class Style:
 
         @classmethod
         def from_json(cls, name, data):
-            ConsoleLog("Style", f"Loading StyleColor {name} style from JSON {data}")
-            
             return cls(
                 img_color_enum=getattr(PyImGui.ImGuiCol, name),
                 r=data["r"],
@@ -754,7 +839,6 @@ class ImGui:
 
         return (search != text, search)
 
-
     @staticmethod
     def colored_button(label: str, button_color:Color, hovered_color:Color, active_color:Color, width=0, height=0):
         clicked = False
@@ -799,8 +883,6 @@ class ImGui:
             v = not v
 
         return v
-    
-    
     
     @staticmethod
     def image_toggle_button(label: str, texture_path: str, v: bool, width=0, height=0) -> bool:
@@ -936,7 +1018,6 @@ class ImGui:
 
         return new_state
 
-    
     @staticmethod
     def floating_checkbox(caption, state,  x, y, width = 18, height = 18 , color: Color = Color(255, 255, 255, 255)):
         # Set the position and size of the floating button
@@ -1042,7 +1123,6 @@ class ImGui:
         scale = pixel_size / largest_size
         PyImGui.push_font_scaled(font_enum.value, scale)
         _last_font_scaled = True
-        
 
     @staticmethod
     def pop_font():
@@ -1576,7 +1656,6 @@ class ImGui:
     def set_theme(theme: Style.StyleTheme):
         ImGui.Selected_Theme = theme
         ImGui.Styles[theme] = Style.load_from_json(theme)           
-        
 
     @staticmethod
     def push_theme_style(theme: Style.StyleTheme = Style.StyleTheme.ImGui):
@@ -1596,6 +1675,98 @@ class ImGui:
 
         ImGui.Styles[theme].pop_style()
 
+    #region Themed controls
+    @staticmethod
+    def themed_button(label, width : float = 0, height: float = 26, active : bool = True) -> bool:
+        clicked = False
+        remaining_space = PyImGui.get_content_region_avail()
+        width = remaining_space[0] if width <= 0 else width
+        height = remaining_space[1] - 1 if height <= 0 else height
+        PyImGui.begin_disabled(not active)
+
+        match(ImGui.Selected_Theme):
+            case Style.StyleTheme.Guild_Wars:
+                x,y = PyImGui.get_cursor_screen_pos()
+                display_label = label.split("##")[0]
+
+                button_rect = (x, y, width, height)
+                tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and active else (200, 200, 200, 255)
+
+                (GameTextures.Button if active else GameTextures.DisabledButton).value.draw_in_drawlist(
+                    button_rect[0], 
+                    button_rect[1],
+                    (button_rect[2], button_rect[3]),
+                    tint=tint,
+                )
+                
+                text_size = PyImGui.calc_text_size(display_label)
+                text_x = button_rect[0] + (button_rect[2] - text_size[0]) / 2
+                text_y = button_rect[1] + (button_rect[3] - text_size[1]) / 2 
+                
+                PyImGui.draw_list_add_text(
+                    text_x,
+                    text_y,
+                    Utils.RGBToColor(150, 150, 150, 255) if not active else Utils.RGBToColor(255, 255, 255, 255),
+                    display_label,
+                )
+                
+                PyImGui.set_cursor_screen_pos(x, y)            
+                clicked = PyImGui.invisible_button(label, width, height)
+                
+            case Style.StyleTheme.Minimalus:
+                clicked = PyImGui.button(label, width, height)
+            
+            case Style.StyleTheme.ImGui:
+                clicked = PyImGui.button(label, width, height)
+        
+        PyImGui.end_disabled()
+        
+        return clicked
+    @staticmethod
+    
+    def themed_primary_button(label, width : float = 0, height: float = 26) -> bool:
+        clicked = False
+        remaining_space = PyImGui.get_content_region_avail()
+        width = remaining_space[0] if width <= 0 else width
+        height = remaining_space[1] - 1 if height <= 0 else height
+        
+        match(ImGui.Selected_Theme):
+            case Style.StyleTheme.Guild_Wars:
+                x,y = PyImGui.get_cursor_screen_pos()
+                display_label = label.split("##")[0]
+
+                button_rect = (x, y, width, height)
+                
+                GameTextures.Button.value.draw_in_drawlist(
+                    button_rect[0], 
+                    button_rect[1],
+                    (button_rect[2], button_rect[3]),
+                    tint=(255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) else (200, 200, 200, 255),
+                )
+                
+                text_size = PyImGui.calc_text_size(display_label)
+                text_x = button_rect[0] + (button_rect[2] - text_size[0]) / 2
+                text_y = button_rect[1] + (button_rect[3] - text_size[1]) / 2 
+                
+                PyImGui.draw_list_add_text(
+                    text_x,
+                    text_y,
+                    Utils.RGBToColor(255, 255, 255, 255),
+                    display_label,
+                )
+                
+                PyImGui.set_cursor_screen_pos(x, y)            
+                clicked = PyImGui.invisible_button(label, width, height)
+                
+            case Style.StyleTheme.Minimalus:
+                clicked = PyImGui.button(label, width, height)
+            
+            case Style.StyleTheme.ImGui:
+                clicked = PyImGui.button(label, width, height)
+            
+        return clicked
+    #endregion
+    
     class gw_window():
         _state = {}
         

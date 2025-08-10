@@ -2,16 +2,16 @@ import Py4GW
 
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import Timer
-from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import GameTextures
 from Py4GWCoreLib import Style
 from Py4GWCoreLib import IconsFontAwesome5
 
 import os
 import time
 
-from Py4GWCoreLib.Py4GWcorelib import ConsoleLog
+from Py4GWCoreLib.Py4GWcorelib import Utils
 module_name = "Style Manager"
 
 '''
@@ -63,8 +63,65 @@ ImGui.set_theme(Style.StyleTheme(selected_theme))
 current_style : Style = ImGui.Styles.get(ImGui.Selected_Theme, Style())
 org_style : Style = ImGui.Styles.get(ImGui.Selected_Theme, Style()).copy()
 
+def themed_dropdown():
+    pass
+
 def configure():
     window_module.open = True        
+    
+def undo_button(label, width : float = 0, height: float = 25) -> bool:
+    clicked = False
+    remaining_space = PyImGui.get_content_region_avail()
+    width = remaining_space[0] if width <= 0 else width
+    height = remaining_space[1] - 1 if height <= 0 else height
+
+    match(ImGui.Selected_Theme):
+        case Style.StyleTheme.Guild_Wars:
+            ImGui.push_font("Regular", 9)
+            x,y = PyImGui.get_cursor_screen_pos()
+            display_label = label.split("##")[0]
+
+            button_rect = (x, y, width, height)
+            
+            GameTextures.Button.value.draw_in_drawlist(
+                button_rect[0], 
+                button_rect[1],
+                (button_rect[2], button_rect[3]),
+                tint=(255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) else (200, 200, 200, 255),
+            )
+            
+            text_size = PyImGui.calc_text_size(display_label)
+            text_x = x + ((width - text_size[0] + 1) / 2)
+            text_y = y + ((height - text_size[1] - 2) / 2)
+
+            PyImGui.push_clip_rect(
+                button_rect[0] + 1,
+                button_rect[1] - 2,
+                button_rect[2] - 2,
+                button_rect[3] - 4,
+                False
+            )
+
+            PyImGui.draw_list_add_text(
+                text_x,
+                text_y,
+                Utils.RGBToColor(255, 255, 255, 255),
+                display_label,
+            )
+
+            PyImGui.pop_clip_rect()
+
+            PyImGui.set_cursor_screen_pos(x, y)
+            clicked = PyImGui.invisible_button(label, width, height)
+            ImGui.pop_font()
+
+        case Style.StyleTheme.Minimalus:
+            clicked = PyImGui.button(label, width, height)
+        
+        case Style.StyleTheme.ImGui:
+            clicked = PyImGui.button(label, width, height)
+
+    return clicked
 
 def DrawWindow():
     global window_module, module_name, ini_handler, window_x, window_y, window_collapsed, window_open, current_style, org_style, window_width, window_height
@@ -84,9 +141,10 @@ def DrawWindow():
             value = PyImGui.combo("##theme_selector", ImGui.Selected_Theme.value, themes)
             
             if value != ImGui.Selected_Theme.value:
-                ImGui.set_theme(Style.StyleTheme(value))
-                current_style = ImGui.Styles.get(Style.StyleTheme(value), Style())
-                org_style = ImGui.Styles.get(Style.StyleTheme(value), Style()).copy()
+                theme = Style.StyleTheme(value)
+                ImGui.set_theme(theme)
+                current_style = ImGui.Styles.get(theme, Style())
+                org_style = current_style.copy()
                 py4_gw_ini_handler.write_key("settings", "style_theme", ImGui.Selected_Theme.name)
                 
                 
@@ -104,18 +162,13 @@ def DrawWindow():
                 any_changed = any(var != org_style.StyleVars[enum] for enum, var in current_style.StyleVars.items())
                 any_changed |= any(col != org_style.Colors[enum] for enum, col in current_style.Colors.items())
                 
-                PyImGui.begin_disabled(not any_changed)                    
-                
-                if PyImGui.button("Save Changes", button_width):
+                if ImGui.themed_button("Save Changes", button_width, active=any_changed):
                     current_style.save_to_json(ImGui.Selected_Theme)
                     org_style = current_style.copy()
                 
-
-                PyImGui.end_disabled()
-                
                 PyImGui.same_line(0, 5)
 
-                if PyImGui.button("Reset to Default", button_width):
+                if ImGui.themed_button("Reset to Default", button_width, active=any_changed):
                     current_style.delete(ImGui.Selected_Theme)
                     ImGui.set_theme(ImGui.Selected_Theme)
                     
@@ -159,10 +212,10 @@ def DrawWindow():
                             changed = org_style.StyleVars[enum].value1 != var.value1 or org_style.StyleVars[enum].value2 != var.value2
 
                             if changed:
-                                if PyImGui.button(f"{IconsFontAwesome5.ICON_UNDO}##{enum.name}_undo", 30):
+                                if undo_button(f"{IconsFontAwesome5.ICON_UNDO}##{enum.name}_undo", 30):
                                     var.value1 = org_style.StyleVars[enum].value1
                                     var.value2 = org_style.StyleVars[enum].value2
-                                    
+
                             PyImGui.table_next_column()
                             
                         for enum, col in current_style.Colors.items():
@@ -182,9 +235,8 @@ def DrawWindow():
                             changed = col.color_int != org_style.Colors[enum].color_int
 
                             if changed:
-                                if PyImGui.button(f"{IconsFontAwesome5.ICON_UNDO}##{enum.name}_undo", 30):
+                                if undo_button(f"{IconsFontAwesome5.ICON_UNDO}##{enum.name}_undo", 30):
                                     col.color_tuple = org_style.Colors[enum].color_tuple
-                                
                             PyImGui.table_next_column()
 
                         PyImGui.end_table()
