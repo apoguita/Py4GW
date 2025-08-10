@@ -129,10 +129,6 @@ def configure():
                             widget_config.favorites.append(id)
                             widget_config.request_save()
                             
-                        else:
-                            widget_config.favorites.remove(id)
-                            widget_config.request_save()
-                            
                 PyImGui.spacing()
                 PyImGui.separator()
                 PyImGui.spacing()
@@ -150,12 +146,15 @@ def configure():
                             outpost = outposts.get(id)
                             
                             if outpost:
+                                PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
                                 PyImGui.text(f"{i + 1}")
                                 PyImGui.table_next_column()
                                 
+                                PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
                                 PyImGui.text(outpost)
                                 PyImGui.table_next_column()
                                 
+                                PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
                                 PyImGui.text(f"{id}")
                                 PyImGui.table_next_column()
                                 
@@ -195,7 +194,7 @@ def configure():
     config_module.end()
 
 def themed_floating_button(button_rect : tuple[float, float, float, float]):
-    match(ImGui.Theme):
+    match(ImGui.Selected_Theme):
         case ImGui.StyleTheme.Guild_Wars:
             GameTextures.Button.value.draw_in_drawlist(
                 button_rect[0], 
@@ -257,7 +256,7 @@ def themed_button(label, width : float = 0, height: float = 26) -> bool:
     width = remaining_space[0] if width <= 0 else width
     height = remaining_space[1] - 1 if height <= 0 else height
     
-    match(ImGui.Theme):
+    match(ImGui.Selected_Theme):
         case ImGui.StyleTheme.Guild_Wars:
             x,y = PyImGui.get_cursor_screen_pos()
             display_label = label.split("##")[0]
@@ -350,7 +349,7 @@ def DrawWindow():
         window_y = widget_config.button_position[1]
         
         if window_y + window_module.window_size[1] > screen_height:
-            window_y = screen_height - window_module.window_size[1] - (ImGui.Theme is ImGui.StyleTheme.Guild_Wars and 10 or 0)
+            window_y = screen_height - window_module.window_size[1] - (ImGui.Selected_Theme is ImGui.StyleTheme.Guild_Wars and 10 or 0)
             
         if window_x + window_module.window_size[0] > screen_width:
             window_x = widget_config.button_position[0] - window_module.window_size[0] - 10

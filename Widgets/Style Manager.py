@@ -23,8 +23,9 @@ Roadmap for those interested in contributing:
 script_directory = os.path.dirname(os.path.abspath(__file__))
 root_directory = os.path.normpath(os.path.join(script_directory, ".."))
 ini_file_location = os.path.join(root_directory, "Widgets/Config/Style Manager.ini")
-
 ini_handler = IniHandler(ini_file_location)
+
+
 save_throttle_time = 1000
 save_throttle_timer = Timer()
 save_throttle_timer.Start()
@@ -33,35 +34,40 @@ game_throttle_time = 50
 game_throttle_timer = Timer()
 game_throttle_timer.Start()
 
-window_module = ImGui.WindowModule(
-    module_name, 
-    window_name="Style Manager", 
-    window_size=(600, 500),
-    window_flags=PyImGui.WindowFlags.NoFlag,
-    collapse=False,
-    can_close=False
-)
-
 window_x = ini_handler.read_int(module_name +str(" Config"), "x", 100)
 window_y = ini_handler.read_int(module_name +str(" Config"), "y", 100)
+
+window_width = ini_handler.read_int(module_name +str(" Config"), "width", 600)
+window_height = ini_handler.read_int(module_name +str(" Config"), "height", 500)
+
 window_collapsed = ini_handler.read_bool(module_name +str(" Config"), "collapsed", False)
 window_open = ini_handler.read_bool(module_name +str(" Config"), "open", True)
 
-window_module.window_pos = (window_x, window_y)
-window_module.collapse = window_collapsed
-window_module.open = window_open
-selected_theme = ini_handler.read_int(module_name + " Config", "theme", ImGui.StyleTheme.Guild_Wars.value)
-themes = [theme.name.replace("_", " ") for theme in ImGui.StyleTheme]
+window_module = ImGui.WindowModule(
+    module_name, 
+    window_name="Style Manager", 
+    window_size=(window_width, window_height),
+    window_flags=PyImGui.WindowFlags.NoFlag,
+    collapse=window_collapsed,
+    can_close=False
+)
 
-ImGui.set_theme(ImGui.StyleTheme(selected_theme))
-current_style : Style = ImGui.Styles.get(ImGui.Theme, Style())
-org_style : Style = ImGui.Styles.get(ImGui.Theme, Style()).copy()
+window_module.window_pos = (window_x, window_y)
+window_module.open = window_open
+
+py4_gw_ini_handler = IniHandler("Py4GW.ini")
+selected_theme = Style.StyleTheme[py4_gw_ini_handler.read_key("settings", "style_theme", Style.StyleTheme.ImGui.name)]
+themes = [theme.name.replace("_", " ") for theme in Style.StyleTheme]
+
+ImGui.set_theme(Style.StyleTheme(selected_theme))
+current_style : Style = ImGui.Styles.get(ImGui.Selected_Theme, Style())
+org_style : Style = ImGui.Styles.get(ImGui.Selected_Theme, Style()).copy()
 
 def configure():
     window_module.open = True        
 
 def DrawWindow():
-    global window_module, module_name, ini_handler, window_x, window_y, window_collapsed, window_open, current_style, org_style
+    global window_module, module_name, ini_handler, window_x, window_y, window_collapsed, window_open, current_style, org_style, window_width, window_height
     global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
     
     try:                
@@ -75,14 +81,13 @@ def DrawWindow():
             PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 5)
             remaining = PyImGui.get_content_region_avail()
             PyImGui.push_item_width(remaining[0])
-            value = PyImGui.combo("##theme_selector", ImGui.Theme.value, themes)
+            value = PyImGui.combo("##theme_selector", ImGui.Selected_Theme.value, themes)
             
-            if value != ImGui.Theme.value:
-                ImGui.set_theme(ImGui.StyleTheme(value))
-                current_style = ImGui.Styles.get(ImGui.StyleTheme(value), Style())
-                org_style = ImGui.Styles.get(ImGui.StyleTheme(value), Style()).copy()
-                
-                ini_handler.write_key(module_name + " Config", "theme", ImGui.Theme.value)
+            if value != ImGui.Selected_Theme.value:
+                ImGui.set_theme(Style.StyleTheme(value))
+                current_style = ImGui.Styles.get(Style.StyleTheme(value), Style())
+                org_style = ImGui.Styles.get(Style.StyleTheme(value), Style()).copy()
+                py4_gw_ini_handler.write_key("settings", "style_theme", ImGui.Selected_Theme.name)
                 
                 
             PyImGui.spacing()
@@ -102,16 +107,23 @@ def DrawWindow():
                 PyImGui.begin_disabled(not any_changed)                    
                 
                 if PyImGui.button("Save Changes", button_width):
-                    style_file = os.path.join("Py4GWCoreLib", "Styles", f"{ImGui.Theme.name}.json")
-                    current_style.save_to_json(style_file)
+                    current_style.save_to_json(ImGui.Selected_Theme)
                     org_style = current_style.copy()
+                
+
+                PyImGui.end_disabled()
                 
                 PyImGui.same_line(0, 5)
 
                 if PyImGui.button("Reset to Default", button_width):
-                    current_style = ImGui.Styles.get(ImGui.StyleTheme(value), Style())
+                    current_style.delete(ImGui.Selected_Theme)
+                    ImGui.set_theme(ImGui.Selected_Theme)
                     
-                PyImGui.end_disabled()
+                    current_style = Style.load_default_from_json(ImGui.Selected_Theme)
+                    org_style = current_style.copy()
+
+                ImGui.show_tooltip("Delete the current style and replace it with the default style for the theme.")
+
                 PyImGui.spacing()
 
                 if PyImGui.is_rect_visible(50, 50):
@@ -119,7 +131,7 @@ def DrawWindow():
                     item_width = 0
 
                     if PyImGui.begin_table("Style Variables", 3, PyImGui.TableFlags.ScrollY):
-                        PyImGui.table_setup_column("Variable", PyImGui.TableColumnFlags.WidthStretch)
+                        PyImGui.table_setup_column("Variable", PyImGui.TableColumnFlags.WidthFixed, 150)
                         PyImGui.table_setup_column("Value", PyImGui.TableColumnFlags.WidthStretch)
                         PyImGui.table_setup_column("Undo", PyImGui.TableColumnFlags.WidthFixed, 35)
 
@@ -127,12 +139,12 @@ def DrawWindow():
                         PyImGui.table_next_column()
                             
                         for enum, var in current_style.StyleVars.items():
+                            PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
                             PyImGui.text(f"{enum.name}")
                             PyImGui.table_next_column()
 
                             column_width = column_width or PyImGui.get_content_region_avail()[0]
                             item_width = item_width or (column_width - 5) / 2
-                        
                             PyImGui.push_item_width(item_width)
                             var.value1 = PyImGui.input_float(f"##{enum.name}_value1", var.value1)
                             
@@ -154,6 +166,7 @@ def DrawWindow():
                             PyImGui.table_next_column()
                             
                         for enum, col in current_style.Colors.items():
+                            PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
                             PyImGui.text(f"{enum.name}")
                             PyImGui.table_next_column()
 
@@ -187,6 +200,11 @@ def DrawWindow():
                 ini_handler.write_key(module_name + " Config", "x", str(int(window_module.window_pos[0])))
                 ini_handler.write_key(module_name + " Config", "y", str(int(window_module.window_pos[1])))
 
+            if window_width != window_module.window_size[0] or window_height != window_module.window_size[1]:
+                ini_handler.write_key(module_name + " Config", "width", str(int(window_module.window_size[0])))
+                ini_handler.write_key(module_name + " Config", "height", str(int(window_module.window_size[1])))
+                window_width, window_height = window_module.window_size
+
             if window_module.collapsed_status != window_module.collapse:
                 window_module.collapse = window_module.collapsed_status
                 ini_handler.write_key(module_name + " Config", "collapsed", str(window_module.collapse))
@@ -208,7 +226,7 @@ def main():
     
     try:            
         DrawWindow()
-        window_module.open  = True
+        window_module.open  = False
             
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in main: {str(e)}", Py4GW.Console.MessageType.Debug)
