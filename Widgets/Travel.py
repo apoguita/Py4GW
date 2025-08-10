@@ -3,7 +3,9 @@ import Py4GW
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import PyImGui
-from Py4GWCoreLib import ImGui, GameTextures
+from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import GameTextures
+from Py4GWCoreLib import Style
 from Py4GWCoreLib import IconsFontAwesome5
 
 import json
@@ -121,7 +123,7 @@ def configure():
                 PyImGui.push_item_width(300)
                 new_favorite = PyImGui.combo("##NewFavorite", new_favorite, outpost_names)
                 PyImGui.same_line(0, 5)
-                if themed_button("Add Favorite", 150):
+                if ImGui.themed_button("Add Favorite", 150):
                     if new_favorite >= 0 and new_favorite < len(outposts):
                         id = outpost_ids[new_favorite]
                         
@@ -158,7 +160,7 @@ def configure():
                                 PyImGui.text(f"{id}")
                                 PyImGui.table_next_column()
                                 
-                                if themed_button(f"Remove##{id}", 75, 25):
+                                if ImGui.themed_button(f"Remove##{id}", 75, 25):
                                     widget_config.favorites.remove(id)
                                     widget_config.request_save()
                                     
@@ -195,7 +197,7 @@ def configure():
 
 def themed_floating_button(button_rect : tuple[float, float, float, float]):
     match(ImGui.Selected_Theme):
-        case ImGui.StyleTheme.Guild_Wars:
+        case Style.StyleTheme.Guild_Wars:
             GameTextures.Button.value.draw_in_drawlist(
                 button_rect[0], 
                 button_rect[1],
@@ -203,7 +205,7 @@ def themed_floating_button(button_rect : tuple[float, float, float, float]):
                 tint=(255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) else (200, 200, 200, 255),
             )
             
-        case ImGui.StyleTheme.Minimalus:
+        case Style.StyleTheme.Minimalus:
             PyImGui.draw_list_add_rect_filled(
                 button_rect[0] + 1,
                 button_rect[1] + 1,
@@ -227,7 +229,7 @@ def themed_floating_button(button_rect : tuple[float, float, float, float]):
             
             pass
         
-        case ImGui.StyleTheme.ImGui:
+        case Style.StyleTheme.ImGui:
             PyImGui.draw_list_add_rect_filled(
                 button_rect[0] + 1,
                 button_rect[1] + 1,
@@ -250,47 +252,6 @@ def themed_floating_button(button_rect : tuple[float, float, float, float]):
             )
             pass
 
-def themed_button(label, width : float = 0, height: float = 26) -> bool:
-    clicked = False
-    remaining_space = PyImGui.get_content_region_avail()
-    width = remaining_space[0] if width <= 0 else width
-    height = remaining_space[1] - 1 if height <= 0 else height
-    
-    match(ImGui.Selected_Theme):
-        case ImGui.StyleTheme.Guild_Wars:
-            x,y = PyImGui.get_cursor_screen_pos()
-            display_label = label.split("##")[0]
-
-            button_rect = (x, y, width, height)
-            
-            GameTextures.Button.value.draw_in_drawlist(
-                button_rect[0], 
-                button_rect[1],
-                (button_rect[2], button_rect[3]),
-                tint=(255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) else (200, 200, 200, 255),
-            )
-            
-            text_size = PyImGui.calc_text_size(display_label)
-            text_x = button_rect[0] + (button_rect[2] - text_size[0]) / 2
-            text_y = button_rect[1] + (button_rect[3] - text_size[1]) / 2 
-            
-            PyImGui.draw_list_add_text(
-                text_x,
-                text_y,
-                Utils.RGBToColor(255, 255, 255, 255),
-                display_label,
-            )
-            
-            PyImGui.set_cursor_screen_pos(x, y)            
-            clicked = PyImGui.invisible_button(label, width, height)
-            
-        case ImGui.StyleTheme.Minimalus:
-            clicked = PyImGui.button(label, width, height)
-        
-        case ImGui.StyleTheme.ImGui:
-            clicked = PyImGui.button(label, width, height)
-        
-    return clicked
 
 ##TODO: Add on ensure on screen
 def DrawWindow():
@@ -349,7 +310,7 @@ def DrawWindow():
         window_y = widget_config.button_position[1]
         
         if window_y + window_module.window_size[1] > screen_height:
-            window_y = screen_height - window_module.window_size[1] - (ImGui.Selected_Theme is ImGui.StyleTheme.Guild_Wars and 10 or 0)
+            window_y = screen_height - window_module.window_size[1] - (ImGui.Selected_Theme is Style.StyleTheme.Guild_Wars and 10 or 0)
             
         if window_x + window_module.window_size[0] > screen_width:
             window_x = widget_config.button_position[0] - window_module.window_size[0] - 10
@@ -373,7 +334,7 @@ def DrawWindow():
                             
                             if outpost:
                                 PyImGui.table_next_column()
-                                if themed_button(generate_initials(outpost), PyImGui.get_content_region_avail()[0], 25):
+                                if ImGui.themed_button(generate_initials(outpost), PyImGui.get_content_region_avail()[0], 25):
                                     click_select_outpost(io, id, 0)
                             
                                 active = active or PyImGui.is_item_active() or PyImGui.is_item_focused() or PyImGui.is_item_hovered()
