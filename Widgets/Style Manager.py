@@ -63,12 +63,64 @@ ImGui.set_theme(Style.StyleTheme(selected_theme))
 current_style : Style = ImGui.Styles.get(ImGui.Selected_Theme, Style())
 org_style : Style = ImGui.Styles.get(ImGui.Selected_Theme, Style()).copy()
 
-def themed_dropdown():
-    pass
+def themed_combo(label: str, current_item: int, items: list[str]) -> int:
+    index = current_item
+    style = ImGui.Styles.get(ImGui.Selected_Theme, Style())
+    
+    match(ImGui.Selected_Theme):
+        case Style.StyleTheme.Guild_Wars:
+            # PyImGui.push_clip_rect(0, 0, 100, 100, False)
+            # PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0,0,0,0))
+            
+            index = PyImGui.combo(label, current_item, items)
+            
+            # PyImGui.pop_style_color(1)
+            # PyImGui.pop_clip_rect()
+            
+            item_rect_min = PyImGui.get_item_rect_min()
+            item_rect_max = PyImGui.get_item_rect_max()
+            width = item_rect_max[0] - item_rect_min[0] + 2
+            height = item_rect_max[1] - item_rect_min[1] + 2
+            item_rect = (item_rect_min[0] - 1, item_rect_min[1] - 1, width, height)
+            tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(item_rect) else (200, 200, 200, 255)
+
+            GameTextures.Dropdown.value.draw_in_drawlist(
+                item_rect[0],
+                item_rect[1],
+                (width, height),
+                tint
+            )
+
+            
+            text_size = PyImGui.calc_text_size(items[index])
+            text_x = item_rect[0] + 10
+            text_y = item_rect[1] + 2 + (height - text_size[1]) / 2
+
+            PyImGui.push_clip_rect(
+                text_x,
+                text_y,
+                width - 40,
+                height - 4,
+                False
+            )
+
+            PyImGui.draw_list_add_text(
+                text_x,
+                text_y,
+                style.Text.color_int,
+                items[index],
+            )
+
+            PyImGui.pop_clip_rect()
+
+        case _:
+            index = PyImGui.combo(label, current_item, items)
+
+    return index
 
 def configure():
-    window_module.open = True        
-    
+    window_module.open = True      
+  
 def undo_button(label, width : float = 0, height: float = 25) -> bool:
     clicked = False
     remaining_space = PyImGui.get_content_region_avail()
@@ -138,7 +190,7 @@ def DrawWindow():
             PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 5)
             remaining = PyImGui.get_content_region_avail()
             PyImGui.push_item_width(remaining[0])
-            value = PyImGui.combo("##theme_selector", ImGui.Selected_Theme.value, themes)
+            value = themed_combo("##theme_selector", ImGui.Selected_Theme.value, themes)
             
             if value != ImGui.Selected_Theme.value:
                 theme = Style.StyleTheme(value)
