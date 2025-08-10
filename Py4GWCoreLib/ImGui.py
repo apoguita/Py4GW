@@ -1480,7 +1480,16 @@ class ImGui:
                     self.__title_bar_rect = (self.__decorators_left + 10, self.__decorators_top + 2, self.__decorators_width - 10, 26)
                   
                     # Draw the title text
+                    PyImGui.push_clip_rect(
+                        self.__title_bar_rect[0] + 15,
+                        self.__title_bar_rect[1] + 7,
+                        self.__title_bar_rect[2] - 15 - 29,
+                        self.__title_bar_rect[3] - 7,
+                        False
+                    )
                     PyImGui.draw_list_add_text(self.__title_bar_rect[0] + 15, self.__title_bar_rect[1] + 7, Utils.RGBToColor(255,255,255,255), self.window_display_name)
+                    PyImGui.pop_clip_rect()
+                    
                     self.__draw_title_bar_fake(self.__title_bar_rect)
                 else:
                     GameTextures.Window_Frame_Top_NoTitleBar.value.draw_in_drawlist(
@@ -1553,7 +1562,16 @@ class ImGui:
 
                     self.__title_bar_rect = (self.__decorators_left + 10, self.__decorators_top + 2, self.__decorators_width - 10, 26)
                  
+                    PyImGui.push_clip_rect(
+                        self.__title_bar_rect[0] + 15,
+                        self.__title_bar_rect[1] + 7,
+                        self.__title_bar_rect[2] - 15 - 29,
+                        self.__title_bar_rect[3] - 7,
+                        False
+                    )
                     PyImGui.draw_list_add_text(self.__title_bar_rect[0] + 15, self.__title_bar_rect[1] + 7, Utils.RGBToColor(255,255,255,255), self.window_display_name)
+                    PyImGui.pop_clip_rect()
+
                     self.__draw_title_bar_fake(self.__title_bar_rect)
                 else:
                     GameTextures.Window_Frame_Top_NoTitleBar.value.draw_in_drawlist(
@@ -1683,6 +1701,7 @@ class ImGui:
         width = remaining_space[0] if width <= 0 else width
         height = remaining_space[1] - 1 if height <= 0 else height
         PyImGui.begin_disabled(not active)
+        style = ImGui.Styles.get(ImGui.Selected_Theme, Style())
 
         match(ImGui.Selected_Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -1702,14 +1721,24 @@ class ImGui:
                 text_size = PyImGui.calc_text_size(display_label)
                 text_x = button_rect[0] + (button_rect[2] - text_size[0]) / 2
                 text_y = button_rect[1] + (button_rect[3] - text_size[1]) / 2 
+            
+                PyImGui.push_clip_rect(
+                    button_rect[0] + 6,
+                    button_rect[1] + 2,
+                    width - 12,
+                    height - 4,
+                    False
+                )
                 
                 PyImGui.draw_list_add_text(
                     text_x,
                     text_y,
-                    Utils.RGBToColor(150, 150, 150, 255) if not active else Utils.RGBToColor(255, 255, 255, 255),
+                    style.TextDisabled.color_int if not active else style.Text.color_int,
                     display_label,
                 )
-                
+
+                PyImGui.pop_clip_rect()
+
                 PyImGui.set_cursor_screen_pos(x, y)            
                 clicked = PyImGui.invisible_button(label, width, height)
                 
@@ -1747,6 +1776,14 @@ class ImGui:
                 text_size = PyImGui.calc_text_size(display_label)
                 text_x = button_rect[0] + (button_rect[2] - text_size[0]) / 2
                 text_y = button_rect[1] + (button_rect[3] - text_size[1]) / 2 
+                    
+                PyImGui.push_clip_rect(
+                    button_rect[0] + 6,
+                    button_rect[1] + 2,
+                    width - 12,
+                    height - 4,
+                    False
+                )
                 
                 PyImGui.draw_list_add_text(
                     text_x,
@@ -1754,8 +1791,10 @@ class ImGui:
                     Utils.RGBToColor(255, 255, 255, 255),
                     display_label,
                 )
-                
-                PyImGui.set_cursor_screen_pos(x, y)            
+
+                PyImGui.pop_clip_rect()
+
+                PyImGui.set_cursor_screen_pos(x, y)
                 clicked = PyImGui.invisible_button(label, width, height)
                 
             case Style.StyleTheme.Minimalus:
