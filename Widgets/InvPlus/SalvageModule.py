@@ -34,6 +34,8 @@ class SalvageModule:
         self.MODULE_NAME = "Salvage"
         self.inventory_frame = inventory_frame
         self.salvage_checkboxes: Dict[int, bool] = {}
+        self.keep_salvage_kits = 4
+        self.deposit_materials = True
 
     #region DrawSalvBottomStrip
     def draw_salvage_bottom_strip(self):
@@ -102,9 +104,10 @@ class SalvageModule:
         )
         
         if PyImGui.begin("SalvageButtonsWindow", window_flags):
-            if PyImGui.begin_table("SalvageButtonsTable", 2, table_flags):
+            if PyImGui.begin_table("SalvageButtonsTable", 3, table_flags):
                 PyImGui.table_setup_column("Buttons", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("MainButton", PyImGui.TableColumnFlags.WidthFixed, 40)
+                PyImGui.table_setup_column("SalvageOptions", PyImGui.TableColumnFlags.WidthFixed, 150)
 
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
@@ -177,8 +180,14 @@ class SalvageModule:
             PyImGui.table_next_column()
             texture_file = ItemModelTextureMap[ModelID.Salvage_Kit.value]
             if ImGui.ImageButton("##text_unique_name", texture_file, 45, 45):
-                GLOBAL_CACHE.Coroutines.append(SalvageCheckedItems(self.salvage_checkboxes))
+                GLOBAL_CACHE.Coroutines.append(SalvageCheckedItems(self.salvage_checkboxes,
+                                                                   self.keep_salvage_kits, 
+                                                                   self.deposit_materials))
             ImGui.show_tooltip("Salvage selected items.")    
+            
+            PyImGui.table_next_column()
+            self.deposit_materials = PyImGui.checkbox("Deposit Materials", self.deposit_materials)
+            self.keep_salvage_kits = PyImGui.input_int("Keep Kits", self.keep_salvage_kits)
 
             PyImGui.end_table()
                         

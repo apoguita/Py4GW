@@ -1922,10 +1922,11 @@ class Routines:
                 custom_pause_fn: Optional[Callable[[], bool]] = None 
             ):
                 import random
-                start_time = Utils.GetBaseTimestamp()
                 total_points = len(path_points)
 
                 for idx, (target_x, target_y) in enumerate(path_points):
+                    start_time = Utils.GetBaseTimestamp()
+                    
                     if not Routines.Checks.Map.MapValid():
                         ActionQueueManager().ResetAllQueues()
                         return False

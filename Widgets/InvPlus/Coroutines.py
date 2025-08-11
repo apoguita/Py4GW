@@ -3,7 +3,7 @@ import PyItem
 
 from typing import Dict
 
-from Py4GWCoreLib import Inventory
+from Py4GWCoreLib import Inventory, UIManager
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ConsoleLog
@@ -45,8 +45,43 @@ def IdentifyCheckedItems(id_checkboxes: Dict[int, bool]):
     ConsoleLog(MODULE_NAME, f"Identified {identified_items} items.", Py4GW.Console.MessageType.Info)
 
 
+def get_first_full_material_stack():
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = ItemArray.GetItemArray(bags_to_check)
+
+    # Filter items that are materials
+    materials = ItemArray.Filter.ByCondition(
+        item_array,
+        lambda item_id: Item.Type.IsMaterial(item_id)
+    )
+
+    # Further filter for materials with quantity == 250
+    full_stack_materials = ItemArray.Filter.ByCondition(
+        materials,
+        lambda item_id: Item.Properties.GetQuantity(item_id) == 250
+    )
+
+    if not full_stack_materials:
+        return 0  # No full stack material found
+
+    return full_stack_materials[0]  # First one found
+
+def count_stacks_of_model(model_id: int) -> int:
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = ItemArray.GetItemArray(bags_to_check)
+
+    # Filter items by the given model_id
+    matching_items = ItemArray.Filter.ByCondition(
+        item_array,
+        lambda item_id: Item.GetModelID(item_id) == model_id
+    )
+
+    # Return the number of stacks found (full or partial)
+    return len(matching_items)
+
+
 #region SalvageCheckedItems         
-def SalvageCheckedItems(salvage_checkboxes: Dict[int, bool]):
+def SalvageCheckedItems(salvage_checkboxes: Dict[int, bool], keep_salvage_kits: int = 0, deposit_materials: bool = False):
     MODULE_NAME = "Inventory + Salvage Items"
     salvaged_items = 0
     items_to_salvage = list(salvage_checkboxes.items())
@@ -92,8 +127,32 @@ def SalvageCheckedItems(salvage_checkboxes: Dict[int, bool]):
                     if item_instance.quantity < quantity:
                         salvaged_items += 1
                         break
+                    
+            #deposit Full Material Stacks
+            if deposit_materials:
+                first_stack = get_first_full_material_stack()
+                if first_stack:
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(first_stack)
+                    yield from Routines.Yield.wait(75)
 
-            yield from Routines.Yield.wait(50)
+
+            if keep_salvage_kits > 0:
+                MERCHANT_FRAME = 3613855137
+                merchant_frame_id = UIManager.GetFrameIDByHash(MERCHANT_FRAME)
+                merchant_frame_exists = UIManager.FrameExists(merchant_frame_id)
+                if not merchant_frame_exists:
+                    break
+                salvage_kit_model = ModelID.Salvage_Kit.value
+                if count_stacks_of_model(salvage_kit_model) < keep_salvage_kits:
+                    offered_items = GLOBAL_CACHE.Trading.Merchant.GetOfferedItems()
+                    for item in offered_items:
+                        item_model = GLOBAL_CACHE.Item.GetModelID(item)
+                        if item_model == salvage_kit_model:
+                            GLOBAL_CACHE.Trading.Merchant.BuyItem(item,100)
+                            yield from Routines.Yield.wait(75)
+                            break
+
+            yield from Routines.Yield.wait(75)
             # Refresh status for the next iteration
             checked = salvage_checkboxes.get(item_id, False)
 
