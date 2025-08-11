@@ -123,7 +123,7 @@ def configure():
                 PyImGui.push_item_width(300)
                 new_favorite = PyImGui.combo("##NewFavorite", new_favorite, outpost_names)
                 PyImGui.same_line(0, 5)
-                if ImGui.themed_button("Add Favorite", 150):
+                if ImGui.button("Add Favorite", 150):
                     if new_favorite >= 0 and new_favorite < len(outposts):
                         id = outpost_ids[new_favorite]
                         
@@ -160,7 +160,7 @@ def configure():
                                 PyImGui.text(f"{id}")
                                 PyImGui.table_next_column()
                                 
-                                if ImGui.themed_button(f"Remove##{id}", 75, 25):
+                                if ImGui.button(f"Remove##{id}", 75, 25):
                                     widget_config.favorites.remove(id)
                                     widget_config.request_save()
                                     
@@ -334,7 +334,7 @@ def DrawWindow():
                             
                             if outpost:
                                 PyImGui.table_next_column()
-                                if ImGui.themed_button(generate_initials(outpost), PyImGui.get_content_region_avail()[0], 25):
+                                if ImGui.button(generate_initials(outpost), PyImGui.get_content_region_avail()[0], 25):
                                     click_select_outpost(io, id, 0)
                             
                                 active = active or PyImGui.is_item_active() or PyImGui.is_item_focused() or PyImGui.is_item_hovered()
