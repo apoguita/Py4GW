@@ -380,6 +380,36 @@ class FSM_Config:
                 z2 = DXOverlay.FindZ(x2, y2) - 125
                 DXOverlay().DrawLine3D(x1, y1, z1, x2, y2, z2, color, False)
             
+    from typing import List, Tuple
+
+    def chain_paths(self, waypoints: List[Tuple[float, float]], z: float):
+        """
+        Chains multiple (x, y) waypoints using AutoPathing().get_path.
+        Each segment starts at the end of the previous.
+        
+        Parameters:
+            waypoints: A list of 2D (x, y) target points.
+            z: The elevation to use (same for all points).
+        
+        Returns:
+            A full 2D path as List[(x, y)], chained across all waypoints.
+        """
+        if not waypoints or len(waypoints) < 2:
+            return [(waypoints[0][0], waypoints[0][1])] if waypoints else []
+
+        full_path: List[Tuple[float, float, float]] = []
+        start: Tuple[float, float, float] = waypoints[0] + (z,)
+        full_path.append(start)
+
+        for target in waypoints[1:]:
+            end: Tuple[float, float, float] = target + (z,)
+            segment = yield from AutoPathing().get_path(start, end)
+            full_path.extend(segment)
+            start = segment[-1] if segment else end  # fallback in case of empty segment
+
+        yield
+        return [(x, y) for x, y, _ in full_path] 
+
     
 
     #region LOGIC
@@ -555,23 +585,25 @@ class FSM_Config:
         GLOBAL_CACHE.Coroutines.append(autocombat)
 
         try:
-            path_to_mission: List[Tuple[float, float]] = [(6358,-7348),(5444, -7748),(5254, -7879),(4170, -8836),(3059, -9734),(1634, -9598),
-                                                        (92, -8496),(-64, -8182),(840, -7188),(1274, -6695),(1602, -6502),
-                                                        (2447, -5387),(3595, -4592),(4950, -5042),(4269, -4182),(4225, -3439),
-                                                        (4769, -2557),(5270, -2191),(5709, -1887),(6020, -1089),(4906, -250),
-                                                        (3701, 262),(2950, 569),(1923, 1569),(1599, 1776),(770, 1550),
-                                                        (157, 1000),(1098, 1869),(282, 1097),(-418, 346),(-670, -172),
-                                                        (-888, -672),(-1712, -1835),(-1493, -3211),(-2390, -4329),(-2928, -4416),
-                                                        (-3390, -4829),(-3636, -5125),(-4101, -5656),(-4636, -6313),(-5733, -7239),
-                                                        (-7305, -7633),(-7733, -7507),(-7937, -6764),(-8403, -5726),(-9291, -4938),
-                                                        (-9254, -3764),(-8975, -2453),(-8241, -1974),(-8775, -1570),(-8995, -2198),
-                                                        (-8281, -1795),(-7445, -698),(-6990, 663),(-7239, 2019),(-8049, 2389),
-                                                        (-7824, 2133),(-8595, 1960),(-9102, 1900),(-9723, 1561),(-10135, 1537),
-                                                        (-10819, 1943),(-11040, 2313),(-11910, 1552),(-13163, 1223),(-13637, 1226),
-                                                        (-14576, 2748),(-15830, 2409),(-16953, 2447),
-                                                    ]
+            z = float(GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID()))
 
-            if not (yield from self.follow_path(path_to_mission, pause_on_danger=True)):
+            waypoints: list[tuple[float, float]] = [
+                (6358, -7348),     # Start
+                (507, -8910),      # First door
+                (4889, -5043),     # Map tutorial
+                (6216, -1108),     # Corner
+                (2617, 642),       # Past bridge
+                (0, 1137),         # First fight
+                (-7454, -7384),    # Zoo
+                (-9138, -4191),    # First zoo fight
+                (-7109, -25),      # Bridge exit
+                (-7443, 2243),     # Zoo exit
+                (-16924, 2445)     # Minister Cho
+            ]
+
+            full_path = yield from self.chain_paths(waypoints, z)
+   
+            if not (yield from self.follow_path(full_path, pause_on_danger=True)):
                 return
                     
             if not (yield from self.interact_with_agent((-17031, 2448))):
