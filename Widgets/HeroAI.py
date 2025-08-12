@@ -43,6 +43,9 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import Utils
+from Py4GW_widget_manager import get_widget_handler
+from Widgets.CustomBehaviors.custom_behavior_hero_ai import execute_enhanced_custom_heroai_combat
+from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 
 MODULE_NAME = "HeroAI"
 
@@ -50,9 +53,21 @@ FOLLOW_COMBAT_DISTANCE = 25.0  # if body blocked, we get close enough.
 LEADER_FLAG_TOUCH_RANGE_THRESHOLD_VALUE = Range.Touch.value * 1.1
 
 cached_data = CacheData()
+widget_handler = get_widget_handler()
 
 
-def HandleOutOfCombat(cached_data: CacheData):
+# TabType
+class TabType(Enum):
+    party = 1
+    control_panel = 2
+    candidates = 3
+    flagging = 4
+    config = 5
+    debug = 6
+    messaging = 7
+
+
+def handle_out_of_combat(cached_data: CacheData):
     if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
         return False
     if cached_data.data.in_aggro:
@@ -61,7 +76,7 @@ def HandleOutOfCombat(cached_data: CacheData):
     return cached_data.combat_handler.HandleCombat(ooc=True)
 
 
-def HandleCombatFlagging(cached_data):
+def handle_combat_flagging(cached_data):
     # Suspends all activity until HeroAI has made it to the flagged position
     # Still goes into combat as long as its within the combat follow range value of the expected flag
     party_number = cached_data.data.own_party_number
@@ -81,13 +96,13 @@ def HandleCombatFlagging(cached_data):
     return False
 
 
-def HandleCombat(cached_data: CacheData):
+def handle_combat(cached_data: CacheData):
     if not cached_data.data.is_combat_enabled:  # halt operation if combat is disabled
         return False
     if not cached_data.data.in_aggro:
         return False
 
-    combat_flagging_handled = HandleCombatFlagging(cached_data)
+    combat_flagging_handled = handle_combat_flagging(cached_data)
     if combat_flagging_handled:
         return combat_flagging_handled
     return cached_data.combat_handler.HandleCombat(ooc=False)
@@ -96,7 +111,7 @@ def HandleCombat(cached_data: CacheData):
 cached_data.in_looting_routine = False
 
 
-def LootingRoutineActive():
+def looting_routine_active():
     account_email = GLOBAL_CACHE.Player.GetAccountEmail()
     index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
 
@@ -108,14 +123,14 @@ def LootingRoutineActive():
     return True
 
 
-def Loot(cached_data: CacheData):
+def loot(cached_data: CacheData):
     if not cached_data.data.is_looting_enabled:  # halt operation if looting is disabled
         return False
 
     if cached_data.data.in_aggro:
         return False
 
-    if LootingRoutineActive():
+    if looting_routine_active():
         return True
 
     if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1:
@@ -146,8 +161,9 @@ def Loot(cached_data: CacheData):
 following_flag = False
 
 
-def Follow(cached_data: CacheData):
-    global FOLLOW_DISTANCE_ON_COMBAT, following_flag
+def follow(cached_data: CacheData):
+    global FOLLOW_DISTANCE_ON_COMBAT
+    global following_flag
 
     if GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
         cached_data.follow_throttle_timer.Reset()
@@ -214,7 +230,7 @@ def Follow(cached_data: CacheData):
     return True
 
 
-def draw_Targeting_floating_buttons(cached_data: CacheData):
+def draw_targeting_floating_buttons(cached_data: CacheData):
     if not cached_data.option_show_floating_targets:
         return
     if not GLOBAL_CACHE.Map.IsExplorable():
@@ -227,30 +243,21 @@ def draw_Targeting_floating_buttons(cached_data: CacheData):
 
     Overlay().BeginDraw()
     for agent_id in enemy_array:
-        x,y,z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
-        screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
-        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_CROSSHAIRS}",name = agent_id, x = screen_x-12, y = screen_y-12 , width= 25, height= 25):       
-            GLOBAL_CACHE.Player.ChangeTarget (agent_id)
-            GLOBAL_CACHE.Player.Interact (agent_id, True)
+        x, y, z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
+        screen_x, screen_y = Overlay.WorldToScreen(x, y, z + 25)
+        if ImGui.floating_button(
+            f"{IconsFontAwesome5.ICON_CROSSHAIRS}", name=agent_id, x=screen_x - 12, y=screen_y - 12, width=25, height=25
+        ):
+            GLOBAL_CACHE.Player.ChangeTarget(agent_id)
+            GLOBAL_CACHE.Player.Interact(agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
     Overlay().EndDraw()
-
-
-# TabType
-class TabType(Enum):
-    party = 1
-    control_panel = 2
-    candidates = 3
-    flagging = 4
-    config = 5
-    debug = 6
-    messaging = 7
 
 
 selected_tab: TabType = TabType.party
 
 
-def DrawFramedContent(cached_data: CacheData, content_frame_id):
+def draw_framed_content(cached_data: CacheData, content_frame_id):
     global selected_tab
 
     if selected_tab == TabType.party:
@@ -310,7 +317,7 @@ def DrawFramedContent(cached_data: CacheData, content_frame_id):
     PyImGui.pop_style_var(1)
 
 
-def DrawEmbeddedWindow(cached_data: CacheData):
+def draw_embedded_windows(cached_data: CacheData):
     global selected_tab
     parent_frame_id = UIManager.GetFrameIDByHash(PARTY_WINDOW_HASH)
     outpost_content_frame_id = UIManager.GetChildFrameID(PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
@@ -361,18 +368,31 @@ def DrawEmbeddedWindow(cached_data: CacheData):
     PyImGui.end()
 
     ImGui.PopTransparentWindow()
-    DrawFramedContent(cached_data, content_frame_id)
+    draw_framed_content(cached_data, content_frame_id)
 
 
-def UpdateStatus(cached_data: CacheData):
+def update_status(cached_data: CacheData):
     RegisterPlayer(cached_data)
     RegisterHeroes(cached_data)
     UpdatePlayers(cached_data)
     UpdateGameOptions(cached_data)
 
+    # TODO(mark): move this to a more centralized place within HeroAI window
+    # For now to activate custom behavior is through the GUI window
+    # Check if we should override combat behavior with CustomBehaviorsWidget
+    is_custom_behavior_widget_active = widget_handler.is_widget_enabled('HeroAICustomBehaviors')
+    custom_combat_behavior = None
+    if is_custom_behavior_widget_active:
+        CustomBehaviorLoader().initialize_custom_behavior_candidate()
+        custom_combat_behavior = CustomBehaviorLoader().custom_combat_behavior
+
+    is_custom_behavior_override = (
+        is_custom_behavior_widget_active and custom_combat_behavior and custom_combat_behavior.get_is_enabled()
+    )
+
     cached_data.UpdateGameOptions()
 
-    DrawEmbeddedWindow(cached_data)
+    draw_embedded_windows(cached_data)
     if cached_data.ui_state_data.show_classic_controls:
         DrawMainWindow(cached_data)
         DrawControlPanelWindow(cached_data)
@@ -386,7 +406,7 @@ def UpdateStatus(cached_data: CacheData):
 
     DrawFlags(cached_data)
 
-    draw_Targeting_floating_buttons(cached_data)
+    draw_targeting_floating_buttons(cached_data)
 
     if (
         not cached_data.data.player_is_alive
@@ -397,25 +417,36 @@ def UpdateStatus(cached_data: CacheData):
     ):
         return
 
-    if LootingRoutineActive():
+    if looting_routine_active():
         return
 
     cached_data.UdpateCombat()
-    if HandleOutOfCombat(cached_data):
+
+    # This is so that we dont handle OOC skills if is_custom_behavior_override is True
+    if not is_custom_behavior_override and handle_out_of_combat(cached_data):
         return
 
     if cached_data.data.player_is_moving:
         return
 
-    if Loot(cached_data):
+    if loot(cached_data):
         return
 
     if cached_data.follow_throttle_timer.IsExpired():
-        if Follow(cached_data):
+        if follow(cached_data):
             cached_data.follow_throttle_timer.Reset()
             return
 
-    if HandleCombat(cached_data):
+    # This is handling custom behavior over all other combat related code
+    if is_custom_behavior_override and cached_data.data.is_combat_enabled:
+        if handle_combat_flagging(cached_data):
+            return
+
+        execute_enhanced_custom_heroai_combat()
+        # We skip the entirety of the base package HeroAI in favor of custom combat
+        return
+
+    if handle_combat(cached_data):
         cached_data.auto_attack_timer.Reset()
         return
 
@@ -462,7 +493,7 @@ def main():
 
         cached_data.Update()
         if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
-            UpdateStatus(cached_data)
+            update_status(cached_data)
 
     except ImportError as e:
         Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
