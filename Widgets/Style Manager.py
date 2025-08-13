@@ -409,7 +409,7 @@ def main():
     
     try:            
         DrawWindow()
-        window_module.open  = True
+        window_module.open  = False
             
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in main: {str(e)}", Py4GW.Console.MessageType.Debug)
