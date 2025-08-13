@@ -196,7 +196,7 @@ def configure():
     config_module.end()
 
 def themed_floating_button(button_rect : tuple[float, float, float, float]):
-    match(ImGui.Selected_Theme):
+    match(ImGui.get_style().Theme):
         case Style.StyleTheme.Guild_Wars:
             GameTextures.Button.value.draw_in_drawlist(
                 button_rect[0], 
@@ -310,7 +310,7 @@ def DrawWindow():
         window_y = widget_config.button_position[1]
         
         if window_y + window_module.window_size[1] > screen_height:
-            window_y = screen_height - window_module.window_size[1] - (ImGui.Selected_Theme is Style.StyleTheme.Guild_Wars and 10 or 0)
+            window_y = screen_height - window_module.window_size[1] - (ImGui.get_style().Theme is Style.StyleTheme.Guild_Wars and 10 or 0)
             
         if window_x + window_module.window_size[0] > screen_width:
             window_x = widget_config.button_position[0] - window_module.window_size[0] - 10

@@ -61,9 +61,10 @@ py4_gw_ini_handler = IniHandler("Py4GW.ini")
 selected_theme = Style.StyleTheme[py4_gw_ini_handler.read_key("settings", "style_theme", Style.StyleTheme.ImGui.name)]
 themes = [theme.name.replace("_", " ") for theme in Style.StyleTheme]
 
-ImGui.set_theme(Style.StyleTheme(selected_theme))
-current_style : Style = ImGui.Styles.get(ImGui.Selected_Theme, Style())
-org_style : Style = ImGui.Styles.get(ImGui.Selected_Theme, Style()).copy()
+ImGui.reload_theme(Style.StyleTheme(selected_theme))
+ImGui.set_theme(selected_theme)
+# ImGui.Selected_Style : Style = ImGui.Styles.get(ImGui.Selected_Theme, Style())
+org_style : Style = ImGui.Selected_Style.copy()
 
 def configure():
     window_module.open = True      
@@ -74,7 +75,7 @@ def undo_button(label, width : float = 0, height: float = 25) -> bool:
     width = remaining_space[0] if width <= 0 else width
     height = remaining_space[1] - 1 if height <= 0 else height
 
-    match(ImGui.Selected_Theme):
+    match(ImGui.get_style().Theme):
         case Style.StyleTheme.Guild_Wars:
             ImGui.push_font("Regular", 9)
             x,y = PyImGui.get_cursor_screen_pos()
@@ -123,7 +124,7 @@ def undo_button(label, width : float = 0, height: float = 25) -> bool:
     return clicked
 
 def DrawWindow():
-    global window_module, module_name, ini_handler, window_x, window_y, window_collapsed, window_open, current_style, org_style, window_width, window_height
+    global window_module, module_name, ini_handler, window_x, window_y, window_collapsed, window_open, org_style, window_width, window_height
     global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
     
     try:                        
@@ -137,14 +138,15 @@ def DrawWindow():
             PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 5)
             remaining = PyImGui.get_content_region_avail()
             PyImGui.push_item_width(remaining[0])
-            value = ImGui.combo("##theme_selector", ImGui.Selected_Theme.value, themes)
+            value = ImGui.combo("##theme_selector", ImGui.Selected_Style.Theme.value, themes)
             
-            if value != ImGui.Selected_Theme.value:
+            if value != ImGui.Selected_Style.Theme.value:
                 theme = Style.StyleTheme(value)
+                ImGui.reload_theme(theme)
                 ImGui.set_theme(theme)
-                current_style = ImGui.Styles.get(theme, Style())
-                org_style = current_style.copy()
-                py4_gw_ini_handler.write_key("settings", "style_theme", ImGui.Selected_Theme.name)
+                
+                org_style = ImGui.Selected_Style.copy()
+                py4_gw_ini_handler.write_key("settings", "style_theme", ImGui.Selected_Style.Theme.name)
                 
                 
             PyImGui.spacing()
@@ -156,25 +158,25 @@ def DrawWindow():
                     PyImGui.begin_child("Style Customization")
                     
                     
-                    if current_style:
+                    if ImGui.Selected_Style:
                         remaining = PyImGui.get_content_region_avail()
                         button_width = (remaining[0] - 5) / 2
                         
-                        any_changed = any(var != org_style.StyleVars[enum] for enum, var in current_style.StyleVars.items())
-                        any_changed |= any(col != org_style.Colors[enum] for enum, col in current_style.Colors.items())
+                        any_changed = any(var != org_style.StyleVars[enum] for enum, var in ImGui.Selected_Style.StyleVars.items())
+                        any_changed |= any(col != org_style.Colors[enum] for enum, col in ImGui.Selected_Style.Colors.items())
+                        any_changed |= any(col != org_style.CustomColors[enum] for enum, col in ImGui.Selected_Style.CustomColors.items())
                         
                         if ImGui.button("Save Changes", button_width, active=any_changed):
-                            current_style.save_to_json(ImGui.Selected_Theme)
-                            org_style = current_style.copy()
+                            ImGui.Selected_Style.save_to_json()
+                            org_style = ImGui.Selected_Style.copy()
                         
                         PyImGui.same_line(0, 5)
 
                         if ImGui.button("Reset to Default", button_width, active=any_changed):
-                            current_style.delete(ImGui.Selected_Theme)
-                            ImGui.set_theme(ImGui.Selected_Theme)
-                            
-                            current_style = Style.load_default_from_json(ImGui.Selected_Theme)
-                            org_style = current_style.copy()
+                            theme = ImGui.Selected_Style.Theme
+                            ImGui.Selected_Style.delete()
+                            ImGui.reload_theme(theme)
+                            org_style = ImGui.Selected_Style.copy()
 
                         ImGui.show_tooltip("Delete the current style and replace it with the default style for the theme.")
 
@@ -192,42 +194,42 @@ def DrawWindow():
                                 PyImGui.table_next_row()
                                 PyImGui.table_next_column()
                                     
-                                for enum, var in current_style.StyleVars.items():
+                                for enum, var in ImGui.Selected_Style.StyleVars.items():
                                     PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
-                                    PyImGui.text(f"{enum.name}")
+                                    PyImGui.text(f"{enum}")
                                     PyImGui.table_next_column()
 
                                     column_width = column_width or PyImGui.get_content_region_avail()[0]
                                     item_width = item_width or (column_width - 5) / 2
                                     PyImGui.push_item_width(item_width)
-                                    var.value1 = PyImGui.input_float(f"##{enum.name}_value1", var.value1)
+                                    var.value1 = PyImGui.input_float(f"##{enum}_value1", var.value1)
                                     
                                     if var.value2 is not None:
                                         PyImGui.same_line(0, 5)
                                         
                                         PyImGui.push_item_width(item_width)
-                                        var.value2 = PyImGui.input_float(f"##{enum.name}_value2", var.value2)
+                                        var.value2 = PyImGui.input_float(f"##{enum}_value2", var.value2)
                                         
                                     PyImGui.table_next_column()
 
                                     changed = org_style.StyleVars[enum].value1 != var.value1 or org_style.StyleVars[enum].value2 != var.value2
 
                                     if changed:
-                                        if undo_button(f"{IconsFontAwesome5.ICON_UNDO}##{enum.name}_undo", 30):
+                                        if undo_button(f"{IconsFontAwesome5.ICON_UNDO}##{enum}_undo", 30):
                                             var.value1 = org_style.StyleVars[enum].value1
                                             var.value2 = org_style.StyleVars[enum].value2
 
                                     PyImGui.table_next_column()
                                     
-                                for enum, col in current_style.Colors.items():
+                                for enum, col in ImGui.Selected_Style.Colors.items():
                                     PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
-                                    PyImGui.text(f"{enum.name}")
+                                    PyImGui.text(f"{enum}")
                                     PyImGui.table_next_column()
 
                                     column_width = column_width or PyImGui.get_content_region_avail()[0]
 
                                     PyImGui.push_item_width(column_width)
-                                    color_tuple = PyImGui.color_edit4(f"##{enum.name}_color", col.color_tuple)
+                                    color_tuple = PyImGui.color_edit4(f"##{enum}_color", col.color_tuple)
                                     if color_tuple != col.color_tuple:
                                         col.set_tuple_color(color_tuple)    
                                         
@@ -236,8 +238,30 @@ def DrawWindow():
                                     changed = col.color_int != org_style.Colors[enum].color_int
 
                                     if changed:
-                                        if undo_button(f"{IconsFontAwesome5.ICON_UNDO}##{enum.name}_undo", 30):
+                                        if undo_button(f"{IconsFontAwesome5.ICON_UNDO}##{enum}_undo", 30):
                                             col.color_tuple = org_style.Colors[enum].color_tuple
+                                    
+                                    PyImGui.table_next_column()
+
+                                for enum, col in ImGui.Selected_Style.CustomColors.items():
+                                    PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
+                                    PyImGui.text(f"{enum}")
+                                    PyImGui.table_next_column()
+
+                                    column_width = column_width or PyImGui.get_content_region_avail()[0]
+
+                                    PyImGui.push_item_width(column_width)
+                                    color_tuple = PyImGui.color_edit4(f"##{enum}_color", col.color_tuple)
+                                    if color_tuple != col.color_tuple:
+                                        col.set_tuple_color(color_tuple)    
+                                        
+                                    PyImGui.table_next_column()
+
+                                    changed = col.color_int != org_style.CustomColors[enum].color_int
+
+                                    if changed:
+                                        if undo_button(f"{IconsFontAwesome5.ICON_UNDO}##{enum}_undo", 30):
+                                            col.color_tuple = org_style.CustomColors[enum].color_tuple
                                     PyImGui.table_next_column()
 
                                 PyImGui.end_table()
@@ -304,7 +328,29 @@ def DrawWindow():
                             
                             PyImGui.text("Progress Bar")
                             PyImGui.table_next_column()
+
+                            current_style = ImGui.get_style()
                             ImGui.progressbar(0.25, 200, 20, "25 points")
+                            current_style.PlotHistogram.push_color((125, 180, 50, 255))
+                            ImGui.progressbar(0.25, 200, 20, "25 points")
+                            current_style.PlotHistogram.pop_color()
+
+                            ImGui.push_theme(Style.StyleTheme.Minimalus)
+                            minimalus_style = ImGui.get_style()
+                            ImGui.progressbar(0.25, 200, 20, "25 points")
+                            minimalus_style.PlotHistogram.push_color((125, 180, 50, 255))
+                            ImGui.progressbar(0.25, 200, 20, "25 points")
+                            minimalus_style.PlotHistogram.pop_color()
+                            ImGui.pop_theme()
+
+                            ImGui.push_theme(Style.StyleTheme.ImGui)
+                            imgui_style = ImGui.get_style()
+                            ImGui.progressbar(0.25, 200, 20, "25 points")
+                            imgui_style.PlotHistogram.push_color((125, 180, 50, 255))
+                            ImGui.progressbar(0.25, 200, 20, "25 points")
+                            imgui_style.PlotHistogram.pop_color()
+                            ImGui.pop_theme()
+                            
                             PyImGui.table_next_column()
                             
                             PyImGui.text("Hyperlink")
