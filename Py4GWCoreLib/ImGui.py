@@ -590,7 +590,7 @@ class Style:
 
             return (self.img_style_enum == value.img_style_enum and
                     self.value1 == value.value1 and
-                    self.value2 == value.value2)
+                    self.value2 == value.value2)        
 
     class CustomColor:
         def __init__(self, style : "Style", r: int, g: int, b: int, a: int = 255, img_color_enum : PyImGui.ImGuiCol | None = None):
@@ -675,7 +675,8 @@ class Style:
                 "a": self.a
             }
 
-        def from_json(self, img_color_enum: str, data):
+        def from_json(self, data):
+            img_color_enum = data.get("img_color_enum", None)
             self.img_color_enum = getattr(PyImGui.ImGuiCol, img_color_enum) if img_color_enum in PyImGui.ImGuiCol.__members__ else None
             r, g, b, a = data["r"], data["g"], data["b"], data.get("a", 255)
             self.set_rgb_color(r, g, b, a)
@@ -685,7 +686,7 @@ class Style:
             self.style = style
             self.img_color_enum = img_color_enum
             self.set_rgb_color(r, g, b, a)
-            self.pushed_stack = []
+            self.pushed_stack : list[Style.StyleColor] = []
 
         def __eq__(self, other):
             if not isinstance(other, "Style.StyleColor"):
@@ -735,18 +736,19 @@ class Style:
             self.color_int = Utils.RGBToColor(self.r, self.g, self.b, self.a)
 
         def push_color(self, rgba: tuple[int, int, int, int] | None = None):
-            col = Style.StyleColor(self.style, *rgba, self.img_color_enum) if rgba else self.get_current()
+            col = Style.StyleColor(self.style, *rgba, self.img_color_enum) if rgba != None else self.get_current()
             
-            if self.img_color_enum is not None:
-                PyImGui.push_style_color(self.img_color_enum, col.color_tuple)
+            if col.img_color_enum is not None:
+                PyImGui.push_style_color(col.img_color_enum, col.color_tuple)
 
             self.pushed_stack.insert(0, col)
 
         def pop_color(self):
             if self.pushed_stack:
-                color = self.pushed_stack.pop(0)
+                color = self.pushed_stack[0]
+                self.pushed_stack.pop(0)
                 
-                if color.img_color_enum:
+                if color.img_color_enum is not None:
                     PyImGui.pop_style_color(1)
 
         def get_current(self) -> "Style.StyleColor":
@@ -768,7 +770,8 @@ class Style:
                 "a": self.a
             }
 
-        def from_json(self, img_color_enum : str,  data):
+        def from_json(self, data):
+            img_color_enum = data.get("img_color_enum", None)
             self.img_color_enum = getattr(PyImGui.ImGuiCol, img_color_enum) if img_color_enum in PyImGui.ImGuiCol.__members__ else None
             r, g, b, a = data["r"], data["g"], data["b"], data.get("a", 255)
             self.set_rgb_color(r, g, b, a)
@@ -778,19 +781,19 @@ class Style:
         self.Theme : Style.StyleTheme = Style.StyleTheme.ImGui
 
         self.WindowPadding : Style.StyleVar = Style.StyleVar(self, 10, 10, ImGui.ImGuiStyleVar.WindowPadding)
-        self.ChildRounding : Style.StyleVar = Style.StyleVar(self, 0, ImGui.ImGuiStyleVar.ChildRounding)
-        self.TabRounding : Style.StyleVar = Style.StyleVar(self, 4, ImGui.ImGuiStyleVar.TabRounding)
-        self.PopupRounding : Style.StyleVar = Style.StyleVar(self, 4, ImGui.ImGuiStyleVar.PopupRounding)
-        self.WindowRounding : Style.StyleVar = Style.StyleVar(self, 4, ImGui.ImGuiStyleVar.WindowRounding)
+        self.ChildRounding : Style.StyleVar = Style.StyleVar(self, 0, None, ImGui.ImGuiStyleVar.ChildRounding)
+        self.TabRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGui.ImGuiStyleVar.TabRounding)
+        self.PopupRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGui.ImGuiStyleVar.PopupRounding)
+        self.WindowRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGui.ImGuiStyleVar.WindowRounding)
         self.FramePadding : Style.StyleVar = Style.StyleVar(self, 5, 5, ImGui.ImGuiStyleVar.FramePadding)
-        self.FrameRounding : Style.StyleVar = Style.StyleVar(self, 4, ImGui.ImGuiStyleVar.FrameRounding)
+        self.FrameRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGui.ImGuiStyleVar.FrameRounding)
         self.ItemSpacing : Style.StyleVar = Style.StyleVar(self, 10, 6, ImGui.ImGuiStyleVar.ItemSpacing)
         self.ItemInnerSpacing : Style.StyleVar = Style.StyleVar(self, 6, 4, ImGui.ImGuiStyleVar.ItemInnerSpacing)
-        self.IndentSpacing : Style.StyleVar = Style.StyleVar(self, 20, ImGui.ImGuiStyleVar.IndentSpacing)
-        self.ScrollbarSize : Style.StyleVar = Style.StyleVar(self, 20, ImGui.ImGuiStyleVar.ScrollbarSize)
-        self.ScrollbarRounding : Style.StyleVar = Style.StyleVar(self, 9, ImGui.ImGuiStyleVar.ScrollbarRounding)
-        self.GrabMinSize : Style.StyleVar = Style.StyleVar(self, 5, ImGui.ImGuiStyleVar.GrabMinSize)
-        self.GrabRounding : Style.StyleVar = Style.StyleVar(self, 3, ImGui.ImGuiStyleVar.GrabRounding)
+        self.IndentSpacing : Style.StyleVar = Style.StyleVar(self, 20, None, ImGui.ImGuiStyleVar.IndentSpacing)
+        self.ScrollbarSize : Style.StyleVar = Style.StyleVar(self, 20, None, ImGui.ImGuiStyleVar.ScrollbarSize)
+        self.ScrollbarRounding : Style.StyleVar = Style.StyleVar(self, 9, None, ImGui.ImGuiStyleVar.ScrollbarRounding)
+        self.GrabMinSize : Style.StyleVar = Style.StyleVar(self, 5, None, ImGui.ImGuiStyleVar.GrabMinSize)
+        self.GrabRounding : Style.StyleVar = Style.StyleVar(self, 3, None, ImGui.ImGuiStyleVar.GrabRounding)
 
         self.Text = Style.StyleColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text)
         self.TextDisabled = Style.StyleColor(self, 51, 51, 51, 255, PyImGui.ImGuiCol.TextDisabled)
@@ -894,7 +897,7 @@ class Style:
 
     def save_to_json(self):
         style_data = {
-            "Theme": self.Theme,
+            "Theme": self.Theme.name,
             "Colors": {k: c.to_json() for k, c in self.Colors.items()},
             "CustomColors": {k: c.to_json() for k, c in self.CustomColors.items()},
             "StyleVars": {k: v.to_json() for k, v in self.StyleVars.items()}
@@ -928,12 +931,12 @@ class Style:
         for color_name, color_data in style_data.get("Colors", {}).items():
             attribute = getattr(style, color_name)
             if isinstance(attribute, cls.StyleColor):
-                attribute.from_json(color_name, color_data)
+                attribute.from_json(color_data)
                 
         for color_name, color_data in style_data.get("CustomColors", {}).items():
             attribute = getattr(style, color_name)
             if isinstance(attribute, cls.CustomColor):
-                attribute.from_json(color_name, color_data)
+                attribute.from_json(color_data)
 
         for var_name, var_data in style_data.get("StyleVars", {}).items():
             attribute = getattr(style, var_name)
@@ -955,7 +958,6 @@ class Style:
         default_file_path = os.path.join("Styles", f"{theme.name}.default.json")
         return cls.load_from_json(default_file_path)
 
-    
 class ImGui:
     class ImGuiStyleVar(IntEnum):
         Alpha = 0
@@ -2759,7 +2761,7 @@ class ImGui:
     @staticmethod
     def collapsing_header(label: str, flags: int) -> bool:
         style = ImGui.get_style()
-        style.Text.push_color()
+        style.TextCollapsingHeader.push_color()
         style.Header.push_color()
         style.HeaderActive.push_color()
         style.HeaderHovered.push_color()
@@ -2792,7 +2794,7 @@ class ImGui:
             case _:
                 new_open = PyImGui.collapsing_header(label, flags)
 
-        style.Text.pop_color()
+        style.TextCollapsingHeader.pop_color()
         style.Header.pop_color()
         style.HeaderActive.pop_color()
         style.HeaderHovered.pop_color()
@@ -2980,6 +2982,7 @@ class ImGui:
     @staticmethod
     def progressbar(fraction: float, size_arg_x: float, size_arg_y: float, overlay: str = ""):
         style = ImGui.get_style()
+        style.PlotHistogram.push_color()
         
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -3020,7 +3023,7 @@ class ImGui:
                     cursor_rect[0],
                     cursor_rect[1],
                     (cursor_rect[2], cursor_rect[3]),
-                    tint=(200, 200, 200, 150)
+                    tint=(200, 200, 200, 255)
                 )
                 
                 PyImGui.draw_list_add_rect(
@@ -3028,7 +3031,7 @@ class ImGui:
                     item_rect[1],
                     item_rect[0] + item_rect[2],
                     item_rect[1] + item_rect[3],
-                    Utils.RGBToColor(74,74,74,255),
+                    Utils.RGBToColor(96, 92, 87, 255),
                     0,
                     0,
                     2
@@ -3048,7 +3051,31 @@ class ImGui:
 
 
             case _:
+                style.FrameBg.push_color()
+                style.FrameBgActive.push_color()
+                style.FrameBgHovered.push_color()
+                
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
                 PyImGui.progress_bar(fraction, size_arg_x, size_arg_y, overlay)
+                PyImGui.pop_style_color(1)
+                
+                style.FrameBg.pop_color()
+                style.FrameBgActive.pop_color()
+                style.FrameBgHovered.pop_color()
+
+                item_rect_min = PyImGui.get_item_rect_min()
+                item_rect_max = PyImGui.get_item_rect_max()       
+                center = item_rect_min[0] + ((item_rect_max[0] - item_rect_min[0]) / 2), item_rect_min[1] + ((item_rect_max[1] - item_rect_min[1]) / 2)    
+                
+                text_width, text_height = PyImGui.calc_text_size(overlay)
+                PyImGui.set_cursor_screen_pos(center[0] - (text_width / 2), center[1] - (text_height / 2))
+                
+                style.Text.push_color()
+                PyImGui.text(overlay)
+                style.Text.pop_color()
+                
+        style.PlotHistogram.pop_color()
+                
 
     # endregion
     

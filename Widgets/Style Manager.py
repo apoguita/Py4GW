@@ -152,6 +152,7 @@ def DrawWindow():
             PyImGui.spacing()
             PyImGui.separator()
             PyImGui.spacing()
+            any_changed = False
 
             if ImGui.begin_tab_bar("Style Customization"):
                 if ImGui.begin_tab_item("Styling"):
@@ -333,24 +334,7 @@ def DrawWindow():
                             ImGui.progressbar(0.25, 200, 20, "25 points")
                             current_style.PlotHistogram.push_color((125, 180, 50, 255))
                             ImGui.progressbar(0.25, 200, 20, "25 points")
-                            current_style.PlotHistogram.pop_color()
-
-                            ImGui.push_theme(Style.StyleTheme.Minimalus)
-                            minimalus_style = ImGui.get_style()
-                            ImGui.progressbar(0.25, 200, 20, "25 points")
-                            minimalus_style.PlotHistogram.push_color((125, 180, 50, 255))
-                            ImGui.progressbar(0.25, 200, 20, "25 points")
-                            minimalus_style.PlotHistogram.pop_color()
-                            ImGui.pop_theme()
-
-                            ImGui.push_theme(Style.StyleTheme.ImGui)
-                            imgui_style = ImGui.get_style()
-                            ImGui.progressbar(0.25, 200, 20, "25 points")
-                            imgui_style.PlotHistogram.push_color((125, 180, 50, 255))
-                            ImGui.progressbar(0.25, 200, 20, "25 points")
-                            imgui_style.PlotHistogram.pop_color()
-                            ImGui.pop_theme()
-                            
+                            current_style.PlotHistogram.pop_color()                            
                             PyImGui.table_next_column()
                             
                             PyImGui.text("Hyperlink")
