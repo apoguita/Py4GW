@@ -1,0 +1,3819 @@
+Folder PATH listing
+Volume serial number is 6E39-5F2A
+C:.
+|   .gitattributes
+|   .gitignore
+|   2.0 full changelog.txt
+|   accounts.json
+|   AutoLoot.ini
+|   factions_leveler_redux.py
+|   Frame_Tester.py
+|   Hello_World.py
+|   imgui.ini
+|   Patcher.py
+|   project_tree.txt
+|   Py4GW.dll
+|   Py4GW.ini
+|   Py4GWLauncher.spec
+|   Py4GW_Launcher.exe
+|   Py4GW_Launcher.ini
+|   Py4GW_LauncherCompact.py
+|   Py4GW_LauncherCompact.spec
+|   Py4GW_python.pyproj
+|   Py4GW_widget_manager.py
+|   pyproject.toml
+|   pyrightconfig.json
+|   python_icon.ico
+|   python_icon.jpg
+|   readme.txt
+|   requirements.txt
+|   YAVB 1.0 by Apo (Vaettir bot).py
+|   
++---.idea
+|   |   .gitignore
+|   |   misc.xml
+|   |   modules.xml
+|   |   Py4GW_python_files.iml
+|   |   vcs.xml
+|   |   workspace.xml
+|   |   
+|   \---inspectionProfiles
+|           profiles_settings.xml
+|           
++---Addons
+|   |   gMod LICENSE.txt
+|   |   gMod.dll
+|   |   GWToolbox(6.25).dll
+|   |   
+|   \---mods
++---Bots
+|   |   AlcoholProc.py
+|   |   chahbek_village_zm.py
+|   |   cof_bone_farmer.py
+|   |   Farmer Hamnet Bot.py
+|   |   imgui.ini
+|   |   Legendary Guardian.py
+|   |   Proof Of Legend Farmer.py
+|   |   Py4GW - LDoA.py
+|   |   Py4GW.ini
+|   |   Rollerbeetle Racing.py
+|   |   Salvager.py
+|   |   
+|   +---aC_Scripts
+|   |   |   luxon.py
+|   |   |   Outpostrunner v1.0.py
+|   |   |   PyQuishAI.py
+|   |   |   
+|   |   +---aC_api
+|   |   |   |   Blessing_Core.py
+|   |   |   |   Blessing_dialog_helper.py
+|   |   |   |   FollowPathAndAggro.py
+|   |   |   |   shared_state_ctypes.py
+|   |   |   |   stress test shared state.py
+|   |   |   |   Titles.py
+|   |   |   |   Vanquish.py
+|   |   |   |   Verify_Blessing.py
+|   |   |   |   __init__.py
+|   |   |   |   
+|   |   |   \---__pycache__
+|   |   |           Blessing_Core.cpython-313.pyc
+|   |   |           Blessing_dialog_helper.cpython-313.pyc
+|   |   |           Titles.cpython-313.pyc
+|   |   |           Vanquish.cpython-313.pyc
+|   |   |           Verify_Blessing.cpython-313.pyc
+|   |   |           __init__.cpython-313.pyc
+|   |   |           
+|   |   +---OutpostRunner
+|   |   |   |   Build_Manager.py
+|   |   |   |   Build_Manager_Addon.py
+|   |   |   |   FSM.py
+|   |   |   |   FSMHelpers.py
+|   |   |   |   map_loader.py
+|   |   |   |   Overwatch.py
+|   |   |   |   runner_singleton.py
+|   |   |   |   StatsManager.py
+|   |   |   |   
+|   |   |   \---maps
+|   |   |       +---Eye Of The North - Full Tour
+|   |   |       |       _10_Tarnished_To_Rata.py
+|   |   |       |       _1_Eotn_To_Gunnars.py
+|   |   |       |       _2_Gunnars_To_Longeyes.py
+|   |   |       |       _3_Longeyes_To_Doomlore.py
+|   |   |       |       _4_Gunnars_To_Sifhalla.py
+|   |   |       |       _5_Sifhalla_To_Olafstead.py
+|   |   |       |       _6_Olafstead_To_UmbralGrotto.py
+|   |   |       |       _7_Umbral_Grotto_To_Vlox.py
+|   |   |       |       _8_Vlox_To_Gadds.py
+|   |   |       |       _9_Vlox_To_Tarnished.py
+|   |   |       |       
+|   |   |       +---Tyria - Ascalon - East Outposts
+|   |   |       |       _1_AscalonCity_To_Sardelac.py
+|   |   |       |       _2_Sardelac_To_FortRanik.py
+|   |   |       |       _3_FortRanik_To_SerenityTemple.py
+|   |   |       |       _4_SerenityTemple_To_FrontierGate.py
+|   |   |       |       _5_FrontierGate_To_RuinsOfSurmia.py
+|   |   |       |       
+|   |   |       +---Tyria - Ascalon to Lion's Arch
+|   |   |       |       _1_AscalonCity_To_PikenSquare.py
+|   |   |       |       _2_PikenSquare_To_GrendichCourthouse.py
+|   |   |       |       _3_GrendichCourthouse_To_YaksBend.py
+|   |   |       |       _4_YaksBend_To_IceToothCave.py
+|   |   |       |       _5_IceToothCave_To_BeaconsPerch.py
+|   |   |       |       _6_BeaconsPerch_To_GatesOfKryta.py
+|   |   |       |       _7_GatesOfKryta_To_LionsArch.py
+|   |   |       |       _8_GrendichCourthouse_To_NolaniAcademy.py
+|   |   |       |       
+|   |   |       +---Tyria - Beacon's Perch To Droknars Forge
+|   |   |       |       _1_BeaconsPerch_To_DroknarsForge.py
+|   |   |       |       
+|   |   |       +---Tyria - Kryta - West Outposts
+|   |   |       |       _1_LionsArch_To_DAlessioSeaboard.py
+|   |   |       |       _2_DAlessioSeaboard_To_BergenHotsprings.py
+|   |   |       |       _3_BergenHotSprings_To_BeetleTun.py
+|   |   |       |       _4_Beetletun_To_DivinityCoast.py
+|   |   |       |       _5_BergenHotSprings_To_TempleOfTheAges.py
+|   |   |       |       
+|   |   |       \---Tyria - Lion's Arch To Ascalon
+|   |   |               _1_LionsArch_To_GatesOfKryta.py
+|   |   |               _2_GatesOfKryta_To_BeaconsPerch.py
+|   |   |               _3_BeaconsPerch_To_IceToothCave.py
+|   |   |               _4_IceToothCave_To_YaksBend.py
+|   |   |               _5_YaksBend_To_GrendichCourthouse.py
+|   |   |               _6_GrendichCourthouse_To_NolaniAcademy.py
+|   |   |               _7_GrendichCourthouse_To_PikenSquare.py
+|   |   |               _8_PikenSquare_To_AscalonCity.py
+|   |   |               
+|   |   +---PyQuishAI_maps
+|   |   |   +---EOTN_Charr_Homelands
+|   |   |   |       Dalada_Uplands.py
+|   |   |   |       
+|   |   |   +---EOTN_Far_Silverpeaks
+|   |   |   |       Ice_Cliff_Chasms.py
+|   |   |   |       Norrhart_Domains.py
+|   |   |   |       Varajar_Fells.py
+|   |   |   |       
+|   |   |   +---EOTN_Tarnished_Coast
+|   |   |   |       AlcaziaTangle.py
+|   |   |   |       ArborBay.py
+|   |   |   |       MagusStones.py
+|   |   |   |       RivenEarth.py
+|   |   |   |       
+|   |   |   +---EOTN_Unlock_Outposts
+|   |   |   |       _1_Eotn_To_Gunnars.py
+|   |   |   |       _2_Gunnars_To_Longeyes.py
+|   |   |   |       _3_Longeyes_To_Doomlore.py
+|   |   |   |       _4_Gunnars_To_Sifhalla.py
+|   |   |   |       _5_Sifhalla_To_Olafstead.py
+|   |   |   |       _6_Olafstead_To_UmbralGrotto.py
+|   |   |   |       _7_Umbral_Grotto_To_Vlox.py
+|   |   |   |       _8_Vlox_To_Gadds.py
+|   |   |   |       _9_Vlox_To_Tarnished.py
+|   |   |   |       _X_Tarnished_To_Rata.py
+|   |   |   |       
+|   |   |   +---Factions_EchovaldForest
+|   |   |   |       Arborstone.py
+|   |   |   |       DrazachThicket.py
+|   |   |   |       Ferndale.py
+|   |   |   |       MelandrusHope.py
+|   |   |   |       MorostavTrail.py
+|   |   |   |       MourningVeilFalls.py
+|   |   |   |       TheEternalGrove.py
+|   |   |   |       
+|   |   |   +---Factions_KainengCity
+|   |   |   |       BukdekByway.py
+|   |   |   |       NahpuiQuarter.py
+|   |   |   |       PongmeiValley.py
+|   |   |   |       RaisuPalace.py
+|   |   |   |       ShadowsPassage.py
+|   |   |   |       ShenzunTunnels.py
+|   |   |   |       SunjiangDistrict.py
+|   |   |   |       TahnnakiTemple.py
+|   |   |   |       WajjunBazaar.py
+|   |   |   |       XaquangSkyway.py
+|   |   |   |       
+|   |   |   +---Factions_ShingJeaIsland
+|   |   |   |       HaijuLagoon.py
+|   |   |   |       JayaBluffs.py
+|   |   |   |       KinyaProvince.py
+|   |   |   |       MinisterChosEstate.py
+|   |   |   |       PanjiangPeninsula.py
+|   |   |   |       SaoshangTrail.py
+|   |   |   |       SunquaVale.py
+|   |   |   |       ZenDaijun.py
+|   |   |   |       
+|   |   |   +---Factions_TheJadeSea
+|   |   |   |       Archipelagos.py
+|   |   |   |       BoreasSeabed.py
+|   |   |   |       GyalaHatchery.py
+|   |   |   |       MaishangHills.py
+|   |   |   |       MountQinkai.py
+|   |   |   |       RheasCrater.py
+|   |   |   |       SilentSurf.py
+|   |   |   |       UnwakingWaters.py
+|   |   |   |       
+|   |   |   +---NF_Istan
+|   |   |   |       CliffsOfDohjok.py
+|   |   |   |       FahranurTheFirstCity.py
+|   |   |   |       IssnurIsles.py
+|   |   |   |       LahtendaBog.py
+|   |   |   |       MehtaniKeys.py
+|   |   |   |       PlainsofJarin.py
+|   |   |   |       ZehlonReach.py
+|   |   |   |       
+|   |   |   +---NF_Kourna
+|   |   |   |       ArkjokWard.py
+|   |   |   |       BahdokCaverns.py
+|   |   |   |       BarbarousShore.py
+|   |   |   |       DejarinEstate.py
+|   |   |   |       GandaraTheMoonFortress.py
+|   |   |   |       JahaiBluffs.py
+|   |   |   |       MargaCoast.py
+|   |   |   |       SunwardMarches.py
+|   |   |   |       TheFloodplainOfMahnkelon.py
+|   |   |   |       TuraisProcession.py
+|   |   |   |       
+|   |   |   +---NF_Vabbi
+|   |   |   |       ForumHighlands.py
+|   |   |   |       GardenOfSeborhin.py
+|   |   |   |       HoldingsOfChokhin.py
+|   |   |   |       ResplendentMakuun.py
+|   |   |   |       TheHiddenCityOfAhdashim.py
+|   |   |   |       TheMirrorOfLyss.py
+|   |   |   |       VehjinMines.py
+|   |   |   |       VehtendiValley.py
+|   |   |   |       WildernessOfBahdza.py
+|   |   |   |       YatendiCanyons.py
+|   |   |   |       
+|   |   |   +---Proph_Ascalon
+|   |   |   |       RegentValley.py
+|   |   |   |       
+|   |   |   +---Proph_CrystalDesert
+|   |   |   |       DivinersAscent.py
+|   |   |   |       SaltFlats.py
+|   |   |   |       SkywardReach.py
+|   |   |   |       TheAridSea.py
+|   |   |   |       TheScar.py
+|   |   |   |       VultureDrifts.py
+|   |   |   |       
+|   |   |   +---Proph_Kryta
+|   |   |   |       CursedLands.py
+|   |   |   |       ScoundrelsRise.py
+|   |   |   |       TheBlackCurtain.py
+|   |   |   |       TwinSerpentLakes.py
+|   |   |   |       
+|   |   |   +---Proph_Maguuma
+|   |   |   |       DryTop.py
+|   |   |   |       EttinsBack.py
+|   |   |   |       MamnoonLagoon.py
+|   |   |   |       SageLands.py
+|   |   |   |       Silverwood.py
+|   |   |   |       TangleRoot.py
+|   |   |   |       TheFalls.py
+|   |   |   |       
+|   |   |   +---Proph_NorthernShiverpeaks
+|   |   |   |       TravelersVale.py
+|   |   |   |       
+|   |   |   +---Proph_RingOfFireIsland
+|   |   |   |       PerditionRock.py
+|   |   |   |       
+|   |   |   \---Proph_SouthernShiverpeaks
+|   |   |           DeldrimorBowl.py
+|   |   |           DreadnoughtsDrift.py
+|   |   |           GrenthsFootprint.py
+|   |   |           IceFloe.py
+|   |   |           LornarsPass.py
+|   |   |           SnakeDance.py
+|   |   |           SpearheadPeak.py
+|   |   |           TalusChute.py
+|   |   |           WitmansFolly.py
+|   |   |           
+|   |   \---Titlehelper
+|   |       |   ItemSelector.py
+|   |       |   titlehelper_main.py
+|   |       |   
+|   |       \---__pycache__
+|   |               ItemSelector.cpython-313.pyc
+|   |               titlehelper_main.cpython-313.pyc
+|   |               
+|   +---Example Bots
+|   |   |   BorealBot_Async_example.py
+|   |   |   Boreal_Sequential.py
+|   |   |   Boreal_yield.py
+|   |   |   imgui.ini
+|   |   |   Py4GW.ini
+|   |   |   runbot (Sequential).py
+|   |   |   Vaettir Async v2.4.py
+|   |   |   VaettirBot (Sequential).py
+|   |   |   VaettirBot (yield).py
+|   |   |   
+|   |   \---__pycache__
+|   |           BorealBot_Async_example.cpython-313.pyc
+|   |           Boreal_Sequential.cpython-313.pyc
+|   |           Boreal_yield.cpython-313.pyc
+|   |           VaettirBot (Sequential).cpython-313.pyc
+|   |           VaettirBot (yield).cpython-313.pyc
+|   |           VaettirBot 3.0 (Sequential).cpython-313.pyc
+|   |           
+|   +---Nikon Scripts
+|   |   |   BotUtilities.py
+|   |   |   Enemies.py
+|   |   |   imgui.ini
+|   |   |   Kabob_Farm.py
+|   |   |   Mapping.py
+|   |   |   Py4GW.ini
+|   |   |   Salad_Farm.py
+|   |   |   Soup_Farm.py
+|   |   |   WindowUtilites.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           BotUtilities.cpython-313.pyc
+|   |           Items.cpython-313.pyc
+|   |           Kabob_Farm.cpython-313.pyc
+|   |           Mapping.cpython-313.pyc
+|   |           Soup_Farm.cpython-313.pyc
+|   |           WindowUtilites.cpython-313.pyc
+|   |           
+|   \---__pycache__
+|           BorealBot.cpython-313.pyc
+|           cof_bone_farmer.cpython-313.pyc
+|           HeroAI.cpython-313.pyc
+|           Legendary Guardian.cpython-313.pyc
+|           Py4GW - LDoA.cpython-313.pyc
+|           Rollerbeetle Racing.cpython-313.pyc
+|           Salvager.cpython-313.pyc
+|           VaettirBot 2.1.cpython-313.pyc
+|           VaettirBot 2.3.cpython-313.pyc
+|           YAVB 1.0 by Apo (Vaettir bot).cpython-313.pyc
+|           
++---build
+|   +---imgui_window
+|   |   |   Analysis-00.toc
+|   |   |   base_library.zip
+|   |   |   EXE-00.toc
+|   |   |   imgui_window.pkg
+|   |   |   PKG-00.toc
+|   |   |   PYZ-00.pyz
+|   |   |   PYZ-00.toc
+|   |   |   warn-imgui_window.txt
+|   |   |   xref-imgui_window.html
+|   |   |   
+|   |   \---localpycs
+|   |           pyimod01_archive.pyc
+|   |           pyimod02_importers.pyc
+|   |           pyimod03_ctypes.pyc
+|   |           pyimod04_pywin32.pyc
+|   |           struct.pyc
+|   |           
+|   +---laucher_with_delay
+|   |   |   Analysis-00.toc
+|   |   |   base_library.zip
+|   |   |   EXE-00.toc
+|   |   |   laucher_with_delay.pkg
+|   |   |   PKG-00.toc
+|   |   |   PYZ-00.pyz
+|   |   |   PYZ-00.toc
+|   |   |   warn-laucher_with_delay.txt
+|   |   |   xref-laucher_with_delay.html
+|   |   |   
+|   |   \---localpycs
+|   |           pyimod01_archive.pyc
+|   |           pyimod02_importers.pyc
+|   |           pyimod03_ctypes.pyc
+|   |           pyimod04_pywin32.pyc
+|   |           struct.pyc
+|   |           
+|   +---Py4GWLauncher
+|   |   |   Analysis-00.toc
+|   |   |   base_library.zip
+|   |   |   EXE-00.toc
+|   |   |   PKG-00.toc
+|   |   |   Py4GWLauncher.pkg
+|   |   |   PYZ-00.pyz
+|   |   |   PYZ-00.toc
+|   |   |   warn-Py4GWLauncher.txt
+|   |   |   xref-Py4GWLauncher.html
+|   |   |   
+|   |   \---localpycs
+|   |           pyimod01_archive.pyc
+|   |           pyimod02_importers.pyc
+|   |           pyimod03_ctypes.pyc
+|   |           pyimod04_pywin32.pyc
+|   |           struct.pyc
+|   |           
+|   +---Py4GW_LAUNCHER
+|   |   |   Analysis-00.toc
+|   |   |   base_library.zip
+|   |   |   EXE-00.toc
+|   |   |   PKG-00.toc
+|   |   |   Py4GW_Launcher.pkg
+|   |   |   PYZ-00.pyz
+|   |   |   PYZ-00.toc
+|   |   |   warn-Py4GW_Launcher.txt
+|   |   |   xref-Py4GW_Launcher.html
+|   |   |   
+|   |   \---localpycs
+|   |           pyimod01_archive.pyc
+|   |           pyimod02_importers.pyc
+|   |           pyimod03_ctypes.pyc
+|   |           pyimod04_pywin32.pyc
+|   |           struct.pyc
+|   |           
+|   \---Py4GW_LauncherCompact
+|       |   Analysis-00.toc
+|       |   base_library.zip
+|       |   EXE-00.toc
+|       |   PKG-00.toc
+|       |   Py4GW_LauncherCompact.pkg
+|       |   PYZ-00.pyz
+|       |   PYZ-00.toc
+|       |   warn-Py4GW_LauncherCompact.txt
+|       |   xref-Py4GW_LauncherCompact.html
+|       |   
+|       \---localpycs
+|               pyimod01_archive.pyc
+|               pyimod02_importers.pyc
+|               pyimod03_ctypes.pyc
+|               pyimod04_pywin32.pyc
+|               struct.pyc
+|               
++---Config
+|       Blessed_Config.ini
+|       YAVB.ini
+|       
++---DEMO
+|   |   DEMO_PyAgent.py
+|   |   DEMO_PyImGui.py
+|   |   DEMO_PyInventory.py
+|   |   DEMO_PyItem.py
+|   |   DEMO_PyMap.py
+|   |   DEMO_PyMerchant.py
+|   |   DEMO_PyParty.py
+|   |   DEMO_PyPlayer.py
+|   |   DEMO_PySkill.py
+|   |   DEMO_PySkillbar.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           Barebones_Example_module.cpython-312.pyc
+|           BorealDEMO.cpython-312.pyc
+|           BorealYieldDEMO.cpython-312.pyc
+|           Boreal_ChestRun.cpython-312.pyc
+|           DEMO_ImGui_py.cpython-312.pyc
+|           DEMO_PyAgent.cpython-312.pyc
+|           DEMO_PyImGui.cpython-312.pyc
+|           DEMO_PyInventory.cpython-312.pyc
+|           DEMO_PyItem.cpython-312.pyc
+|           DEMO_PyMap.cpython-312.pyc
+|           DEMO_PyMerchant.cpython-312.pyc
+|           DEMO_PyParty.cpython-312.pyc
+|           DEMO_PyPlayer.cpython-312.pyc
+|           DEMO_PySkill.cpython-312.pyc
+|           DEMO_PySkillbar.cpython-312.pyc
+|           headers.cpython-312.pyc
+|           Hello_World.cpython-312.pyc
+|           move_to_target_test.cpython-312.pyc
+|           PingHandler.cpython-312.pyc
+|           Py4GWcorelib.cpython-312.pyc
+|           Py4GW_DEMO.cpython-312.pyc
+|           test.cpython-312.pyc
+|           test_function_contrainer.cpython-312.pyc
+|           
++---dist
+|   |   laucher_with_delay.exe
+|   |   Py4GWLauncher.exe
+|   |   Py4GW_LauncherCompact.exe
+|   |   Py4GW_Launcher_OLD.exe
+|   |   
+|   \---Addons
+|       \---mods
++---docs
+|       rosetta_stone.txt
+|       
++---fonts
+|       Font Awesome 6 Brands-Regular-400.otf
+|       Font Awesome 6 Free-Regular-400.otf
+|       Font Awesome 6 Free-Solid-900.otf
+|       friz-quadrata-std-bold-587034a220f9f.otf
+|       friz-quadrata-std-bold_italic-587033d6d4298.otf
+|       friz-quadrata-std-italic-587033b2c95df.otf
+|       friz-quadrata-std-medium-5870338ec7ef8.otf
+|       
++---Frame Label Listener
+|   |   Frame Label Listener.rar
+|   |   Frame Label Listener.zip
+|   |   
+|   \---Frame Label Listener
+|       |   consts.py
+|       |   process.py
+|       |   trace-framelabel.py
+|       |   
+|       \---__pycache__
+|               process.cpython-313.pyc
+|               
++---HeroAI
+|   |   cache_data.py
+|   |   combat.py
+|   |   constants.py
+|   |   custom_skill.py
+|   |   game_option.py
+|   |   globals.py
+|   |   players.py
+|   |   shared_memory_manager.py
+|   |   targeting.py
+|   |   types.py
+|   |   utils.py
+|   |   windows.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           cache_data.cpython-313.pyc
+|           candidates.cpython-313.pyc
+|           combat.cpython-313.pyc
+|           constants.cpython-313.pyc
+|           custom_skill.cpython-313.pyc
+|           flaging.cpython-313.pyc
+|           game_option.cpython-313.pyc
+|           globals.cpython-313.pyc
+|           players.cpython-313.pyc
+|           shared_memory.cpython-313.pyc
+|           shared_memory_manager.cpython-313.pyc
+|           targeting.cpython-313.pyc
+|           targetting.cpython-313.pyc
+|           types.cpython-313.pyc
+|           utils.cpython-313.pyc
+|           windows.cpython-313.pyc
+|           __init__.cpython-313.pyc
+|           
++---Legacy code and tests
+|   |   a-star-finished.py
+|   |   a-star-optimized.py
+|   |   a-star-portals strict.py
+|   |   a-star-portals.py
+|   |   a-star-trapezoids.py
+|   |   Accept Material Salvaging.py
+|   |   Async Data Tester.py
+|   |   Auto Combat example.py
+|   |   Auto Inv.py
+|   |   autopathing-library test.py
+|   |   Barebones_Example_module.py
+|   |   BorealDEMO.py
+|   |   castskilltest.py
+|   |   Chat Spam.py
+|   |   chat spammer.py
+|   |   chat_capturer.py
+|   |   chat_command.py
+|   |   concile_images.py
+|   |   cupcake_mantainer.py
+|   |   dangerous_models_runtime.py
+|   |   deposit_faction.py
+|   |   drunk level tester.py
+|   |   Dynamical Dialog Tester3.py
+|   |   Factions Leveler.py
+|   |   FakeGwWindow.py
+|   |   file_structure.txt
+|   |   fontawesome_icon_defs.py
+|   |   font_glyphs_output.txt
+|   |   font_glyph_getter.py
+|   |   font_tester.py
+|   |   fsm_test.py
+|   |   generate_texture_map.py
+|   |   Get Bounty.py
+|   |   get_icons.py
+|   |   Global_Cache_tester.py
+|   |   grouped_loot_output.py
+|   |   GW fake window test.py
+|   |   GWNexus.py
+|   |   GWNexus_client.py
+|   |   Hello_World.py
+|   |   icons.json
+|   |   imgui.ini
+|   |   Import_External_Libraries.py
+|   |   Inject.au3
+|   |   Inventory +.py
+|   |   Inventory_search.py
+|   |   io tester.py
+|   |   ItemCompare.py
+|   |   item_model_texture_map.py
+|   |   item_type_tester.py
+|   |   Kill_all_GW_instances.au3
+|   |   logout_options.py
+|   |   LootFilters.py
+|   |   loot_config.json
+|   |   Loot_reader.py
+|   |   missing_icons.py
+|   |   modelids.txt
+|   |   mods.py
+|   |   move_test.py
+|   |   move_to_target_test.py
+|   |   named_pipe_python.py
+|   |   NEW_Py4GW_widget_manager.py
+|   |   new_texture_names.txt
+|   |   Nick Items (powered by HeroAI).py
+|   |   Npc Locator.py
+|   |   OLD_Py4GW_widget_manager.py
+|   |   OutpostRunnerDA.py
+|   |   package tester.rar
+|   |   package_template_tester.py
+|   |   parse_loot_config.py
+|   |   pathing map_diagnostic 001.py
+|   |   pathing map_diagnostic 002.py
+|   |   pathing_maps - Native.py
+|   |   path_planner.py
+|   |   PCons.py
+|   |   PingHandler.py
+|   |   planned_path_tester.py
+|   |   PointLogger.py
+|   |   Profession Unlocker.py
+|   |   Py4GW - LDoA.py.bk
+|   |   Py4GW.ini
+|   |   Py4GW.pyproj
+|   |   Py4GWcorelib.py
+|   |   Py4GW_DEMO.py
+|   |   Py4GW_injection_log.txt
+|   |   quest_tester.py
+|   |   readme.txt
+|   |   Resign on enter Map.py
+|   |   RUN BOT.py
+|   |   runner.py
+|   |   scrape_el_tonics.py
+|   |   scrape_missing_images.py
+|   |   scrape_model_textures.py
+|   |   scrape_skill_descriptions.py
+|   |   Script_Template.py
+|   |   Seiji Auto Exchange.py
+|   |   Sequential_template.py
+|   |   SkillInfo.py
+|   |   structure.txt
+|   |   test.py
+|   |   tester.py
+|   |   TestGenerator.py
+|   |   TestSingleThreadPerformance.py
+|   |   test_function_contrainer.py
+|   |   Texture_tester.py
+|   |   timer_tester.py
+|   |   toggleFog.py
+|   |   traffic_light.py
+|   |   traffic_light_sequential.py
+|   |   useitem_test.py
+|   |   widget_template.py
+|   |   window closer.py
+|   |   WindowManager.py
+|   |   yield counter.py
+|   |   yield_test.py
+|   |   
+|   +---PackageTemplate
+|   |   |   my_lib.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           my_lib.cpython-313.pyc
+|   |           __init__.cpython-313.pyc
+|   |           
+|   +---texture handling scripts
+|   |       flagging mockup.py
+|   |       generate_skill_dict.py
+|   |       get missin skill_ids.py
+|   |       image_scraper.py
+|   |       rename_low_res_icons.py
+|   |       rename_skill_textures.py
+|   |       scrape_missing_skills.py
+|   |       skill_icon_map.py
+|   |       
+|   +---Working Miscelaneous code
+|   |   |   advanced_traffic_light.py
+|   |   |   Boreal_bot_tutorial.py
+|   |   |   called_targets.py
+|   |   |   changelog.txt
+|   |   |   fake_keyboard.py
+|   |   |   follower.py
+|   |   |   GWMapper.py
+|   |   |   heroai_type_test.py
+|   |   |   imgui.ini
+|   |   |   load_lua_script.py
+|   |   |   lua_test.py
+|   |   |   Multilauncher.py
+|   |   |   multithreading.py
+|   |   |   Old_VaettirBot.py
+|   |   |   Onion_client.au3
+|   |   |   Onion_client.py
+|   |   |   Onion_Server.py
+|   |   |   pathing_maps - Native - TESSELATION.py
+|   |   |   pathing_maps.py
+|   |   |   Py4GW.ini
+|   |   |   Py4GW_injector.py
+|   |   |   pyHeroAI_DEMO.py
+|   |   |   quest_handler_test.py
+|   |   |   results_log.py
+|   |   |   salvage.py
+|   |   |   scraper_model_id_list.py
+|   |   |   Script_Template.py
+|   |   |   skill_spam.py
+|   |   |   TCP server.py
+|   |   |   ToC RA (1).py
+|   |   |   travel_cinematic.py
+|   |   |   Tree example.py
+|   |   |   tree.txt
+|   |   |   VaettirBot 1.9.26.py
+|   |   |   VaettirBot.py
+|   |   |   
+|   |   +---LUACoreLib
+|   |   |   |   Agent.lua
+|   |   |   |   AgentArray.lua
+|   |   |   |   Effects.lua
+|   |   |   |   ImGui.lua
+|   |   |   |   Inventory.lua
+|   |   |   |   Item.lua
+|   |   |   |   ItemArray.lua
+|   |   |   |   LUACoreLib.lua
+|   |   |   |   lua_bridge.py
+|   |   |   |   Map.lua
+|   |   |   |   Merchant.lua
+|   |   |   |   Party.lua
+|   |   |   |   Quest.lua
+|   |   |   |   Skill.lua
+|   |   |   |   SkillBar.lua
+|   |   |   |   __init__.py
+|   |   |   |   
+|   |   |   \---__pycache__
+|   |   |           lua_bridge.cpython-313.pyc
+|   |   |           __init__.cpython-313.pyc
+|   |   |           
+|   |   +---lua_scripts
+|   |   |       hello_world.lua
+|   |   |       map_id_tester.lua
+|   |   |       
+|   |   \---__pycache__
+|   |           ItemCompare.cpython-313.pyc
+|   |           Onion_Server.cpython-313.pyc
+|   |           PointLogger.cpython-313.pyc
+|   |           
+|   \---__pycache__
+|           Async Data Tester.cpython-313.pyc
+|           BorealDEMO.cpython-312.pyc
+|           Chat Spam.cpython-313.pyc
+|           chat_command.cpython-313.pyc
+|           Frame_Tester.cpython-313.pyc
+|           Hello_World.cpython-313.pyc
+|           PointLogger.cpython-313.pyc
+|           Py4GWcorelib.cpython-312.pyc
+|           Py4GW_DEMO.cpython-312.pyc
+|           test_function_contrainer.cpython-312.pyc
+|           
++---Packet-UI-Listener
+|       consts.py
+|       msgs.py
+|       process.py
+|       trace-packets.py
+|       trace-uimsgs.py
+|       uimsgs.py
+|       
++---Py4GWCoreLib
+|   |   Agent.py
+|   |   AgentArray.py
+|   |   Camera.py
+|   |   DXOverlay.py
+|   |   Effect.py
+|   |   enums.py
+|   |   frame_aliases.json
+|   |   IconsFontAwesome5.py
+|   |   ImGui.py
+|   |   Inventory.py
+|   |   Item.py
+|   |   ItemArray.py
+|   |   Map.py
+|   |   Merchant.py
+|   |   model_data.py
+|   |   model_id_converter.py
+|   |   Overlay.py
+|   |   Party.py
+|   |   Pathing.py
+|   |   Player.py
+|   |   Py4GWcorelib.py
+|   |   Quest.py
+|   |   readme.txt
+|   |   Routines.py
+|   |   Skill.py
+|   |   Skillbar.py
+|   |   SkillManager.py
+|   |   skill_descriptions.json
+|   |   skill_descriptions.json.bak
+|   |   UIManager.py
+|   |   __init__.py
+|   |   
+|   +---GlobalCache
+|   |   |   AgentArrayCache.py
+|   |   |   AgentCache.py
+|   |   |   CameraCache.py
+|   |   |   EffectCache.py
+|   |   |   GlobalCache.py
+|   |   |   InventoryCache.py
+|   |   |   ItemCache.py
+|   |   |   MapCache.py
+|   |   |   MerchantCache.py
+|   |   |   PartyCache.py
+|   |   |   PlayerCache.py
+|   |   |   QuestCache.py
+|   |   |   SharedMemory.py
+|   |   |   SkillbarCache.py
+|   |   |   SkillCache.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           AgentArrayCache.cpython-313.pyc
+|   |           AgentCache.cpython-313.pyc
+|   |           CameraCache.cpython-313.pyc
+|   |           EffectCache.cpython-313.pyc
+|   |           GlobalCache.cpython-313.pyc
+|   |           InventoryCache.cpython-313.pyc
+|   |           ItemCache.cpython-313.pyc
+|   |           MapCache.cpython-313.pyc
+|   |           MerchantCache.cpython-313.pyc
+|   |           PartyCache.cpython-313.pyc
+|   |           PlayerCache.cpython-313.pyc
+|   |           QuestCache.cpython-313.pyc
+|   |           SharedMemory.cpython-313.pyc
+|   |           SkillbarCache.cpython-313.pyc
+|   |           SkillCache.cpython-313.pyc
+|   |           __init__.cpython-313.pyc
+|   |           
+|   +---routines_src
+|   |   |   Agents.py
+|   |   |   Checks.py
+|   |   |   Movement.py
+|   |   |   Sequential.py
+|   |   |   Targeting.py
+|   |   |   Transition.py
+|   |   |   Yield.py
+|   |   |   
+|   |   \---__pycache__
+|   |           Agents.cpython-313.pyc
+|   |           Checks.cpython-313.pyc
+|   |           Movement.cpython-313.pyc
+|   |           Sequential.cpython-313.pyc
+|   |           Targeting.cpython-313.pyc
+|   |           Transition.cpython-313.pyc
+|   |           Yield.cpython-313.pyc
+|   |           __init__.cpython-313.pyc
+|   |           
+|   \---__pycache__
+|           Agent.cpython-312.pyc
+|           Agent.cpython-313.pyc
+|           AgentArray.cpython-312.pyc
+|           AgentArray.cpython-313.pyc
+|           Camera.cpython-313.pyc
+|           DXOverlay.cpython-313.pyc
+|           Effect.cpython-312.pyc
+|           Effect.cpython-313.pyc
+|           enums.cpython-313.pyc
+|           HeroAI.cpython-312.pyc
+|           IconsFontAwesome5.cpython-312.pyc
+|           IconsFontAwesome5.cpython-313.pyc
+|           IconsFontAwesome6.cpython-312.pyc
+|           ImGui.cpython-312.pyc
+|           ImGui.cpython-313.pyc
+|           Inventory.cpython-312.pyc
+|           Inventory.cpython-313.pyc
+|           Item.cpython-312.pyc
+|           Item.cpython-313.pyc
+|           ItemArray.cpython-312.pyc
+|           ItemArray.cpython-313.pyc
+|           Map.cpython-312.pyc
+|           Map.cpython-313.pyc
+|           Merchant.cpython-312.pyc
+|           Merchant.cpython-313.pyc
+|           model_data.cpython-313.pyc
+|           Overlay.cpython-312.pyc
+|           Overlay.cpython-313.pyc
+|           Party.cpython-312.pyc
+|           Party.cpython-313.pyc
+|           Pathing.cpython-313.pyc
+|           Player.cpython-312.pyc
+|           Player.cpython-313.pyc
+|           Py4GWcorelib.cpython-312.pyc
+|           Py4GWcorelib.cpython-313.pyc
+|           Quest.cpython-312.pyc
+|           Quest.cpython-313.pyc
+|           Routine.cpython-312.pyc
+|           Routines.cpython-313.pyc
+|           Skill.cpython-312.pyc
+|           Skill.cpython-313.pyc
+|           Skillbar.cpython-312.pyc
+|           Skillbar.cpython-313.pyc
+|           SkillManager.cpython-313.pyc
+|           UIManager.cpython-313.pyc
+|           __init__.cpython-312.pyc
+|           __init__.cpython-313.pyc
+|           
++---stubs
+|       ImGui_Py.pyi
+|       Py2DRenderer.pyi
+|       Py4GW.pyi
+|       PyAgent.pyi
+|       PyCamera.pyi
+|       PyEffects.pyi
+|       PyImGui.pyi
+|       PyInventory.pyi
+|       PyItem.pyi
+|       PyKeystroke.pyi
+|       PyMap.pyi
+|       PyMerchant.pyi
+|       PyMissionMap.pyi
+|       PyOverlay.pyi
+|       PyParty.pyi
+|       PyPathing.pyi
+|       PyPlayer.pyi
+|       PyQuest.pyi
+|       PySkill.pyi
+|       PySkillbar.pyi
+|       PyTrading.pyi
+|       PyUIManager.pyi
+|       Readme.txt
+|       
++---Styles
+|       Guild_Wars.default.json
+|       ImGui.default.json
+|       Minimalus.default.json
+|       
++---Textures
+|   |   travel_cursor.png
+|   |   ui_button.png
+|   |   ui_window_frame_atlas_no_titlebar.png
+|   |   
+|   +---Consumables
+|   |   |   Armor_of_Salvation.png
+|   |   |   Birthday_Cupcake.png
+|   |   |   Bowl_of_Skalefin_Soup.png
+|   |   |   Candy_Apple.png
+|   |   |   Candy_Corn.png
+|   |   |   Drake_Kabob.png
+|   |   |   Dwarven_Ale.png
+|   |   |   Essence_of_Celerity.png
+|   |   |   Golden_Egg.png
+|   |   |   Grail_of_Might.png
+|   |   |   Honeycomb.png
+|   |   |   Pahnai_Salad.png
+|   |   |   Rainbow_Candy_Cane.png
+|   |   |   Slice_of_Pumpkin_Pie.png
+|   |   |   War_Supplies.png
+|   |   |   
+|   |   \---Trimmed
+|   |           Armor_of_Salvation.png
+|   |           Birthday_Cupcake.png
+|   |           Bowl_of_Skalefin_Soup.png
+|   |           Candy_Apple.png
+|   |           Candy_Corn.png
+|   |           Drake_Kabob.png
+|   |           Dwarven_Ale.png
+|   |           Essence_of_Celerity.png
+|   |           Golden_Egg.png
+|   |           Grail_of_Might.png
+|   |           Honeycomb.png
+|   |           Pahnai_Salad.png
+|   |           Rainbow_Candy_Cane.png
+|   |           Slice_of_Pumpkin_Pie.png
+|   |           War_Supplies.png
+|   |           
+|   +---Game UI
+|   |   |   close_button.png
+|   |   |   empty_pixel.png
+|   |   |   travel_cursor.png
+|   |   |   ui_bullet_point.png
+|   |   |   ui_button.png
+|   |   |   ui_checkbox.png
+|   |   |   ui_close_button_atlas.png
+|   |   |   ui_collapse_expand.png
+|   |   |   ui_combo.png
+|   |   |   ui_disabled_button.png
+|   |   |   ui_hover_gradient.png
+|   |   |   ui_input_active.png
+|   |   |   ui_input_inactive.png
+|   |   |   ui_primary_button.png
+|   |   |   ui_progress_default.png
+|   |   |   ui_progress_frame.png
+|   |   |   ui_progress_frame_title.png
+|   |   |   ui_progress_highlight.png
+|   |   |   ui_progress_title.png
+|   |   |   ui_progress_xp.png
+|   |   |   ui_scrollgrab.png
+|   |   |   ui_scroll_background.png
+|   |   |   ui_separator.png
+|   |   |   ui_slider_bar.png
+|   |   |   ui_slider_grab.png
+|   |   |   ui_sunken_region.png
+|   |   |   ui_tab_active.png
+|   |   |   ui_tab_bar_frame.png
+|   |   |   ui_tab_inactive.png
+|   |   |   ui_up_down.png
+|   |   |   ui_up_down_arrow_atlas.png
+|   |   |   ui_window_frame_atlas.png
+|   |   |   ui_window_frame_atlas.psd
+|   |   |   ui_window_frame_atlas_no_resize.png
+|   |   |   ui_window_frame_atlas_no_titlebar.png
+|   |   |   ui_window_title_frame_atlas.png
+|   |   |   ui_window_title_frame_atlas.psd
+|   |   |   
+|   |   \---Skill Description
+|   |           activation.png
+|   |           adrenaline.png
+|   |           energy.png
+|   |           overcast.png
+|   |           recharge.png
+|   |           sacrifice.png
+|   |           upkeep.png
+|   |           
+|   +---Item Models
+|   |       missing_modelids_from_enum.txt
+|   |       [0] - File Not found.png
+|   |       [1009] - Moon Shell.png
+|   |       [123456677] - Leather Belt.png
+|   |       [12365478911] - Dark Flame Fang.png
+|   |       [12365478914] - Dredge Manifesto.png
+|   |       [12365478917] - Fibrous Mandragor Root.png
+|   |       [123654789181] - Mandragor Carapace.png
+|   |       [123654789185] - Plague Idol.png
+|   |       [123654789186] - Rinkhal Talon.png
+|   |       [123654789187] - Gruesome Ribcage.png
+|   |       [123654789189] - Searing Burrower Jaw.png
+|   |       [12365478918] - Fledgling Skree Wing.png
+|   |       [123654789191] - Frozen Shell.png
+|   |       [123654789192] - Gargantuan Jawbone.png
+|   |       [123654789193] - Ghostly Remains.png
+|   |       [123654789194] - Gold Crimson Skull Coin.png
+|   |       [123654789195] - Igneous Spider Leg.png
+|   |       [123654789198] - Kuskale Claw.png
+|   |       [12365478919] - Frozen Remnant.png
+|   |       [1236547891] - Dark Claw.png
+|   |       [1236547896911] - Animal Hide.png
+|   |       [123654789691] - Ancient Kappa Shell.png
+|   |       [123654789692] - Ashen Wurm Husk.png
+|   |       [123654789693] - Bleached Shell.png
+|   |       [123654789694] - Blood Drinker Pelt.png
+|   |       [123654789695] - Branch of Juni Berries.png
+|   |       [123654789696] - Bonesnap Shell.png
+|   |       [123654789697] - Bull Trainer Giant Jawbone.png
+|   |       [13785] - Miniature Whiptail Devourer.png
+|   |       [13792] - Miniature Temple Guardian.png
+|   |       [15064] - Totem Axe.jpg
+|   |       [15477] - Bottle of Rice Wine.png
+|   |       [15478] - Festival Prize.png
+|   |       [15479] - Red Bean Cake.png
+|   |       [15528] - Creme Brulee.png
+|   |       [15543] - Scythe Snathe.png
+|   |       [15544] - Spearhead.png
+|   |       [15551] - Focus Core.png
+|   |       [15553] - Scythe Grip.png
+|   |       [15554] - Shield Handle.png
+|   |       [15555] - Spear Grip.png
+|   |       [15556] - Ancient_Elonian_Key.png
+|   |       [15557] - Istani_Key.png
+|   |       [15558] - Vabbian_Key.png
+|   |       [15559] - Kournan_Key.png
+|   |       [15560] - Margonite_Key.png
+|   |       [1577] - Copper Shilling.png
+|   |       [1578] - Gold Doubloon.png
+|   |       [1579] - Silver Bullion Coin.png
+|   |       [1580] - Demonic Relic.png
+|   |       [1581] - Margonite Mask.png
+|   |       [1582] - Kournan Pendant.png
+|   |       [15835] - Wintergreen Axe.jpg
+|   |       [15836] - Wintergreen Bow.jpg
+|   |       [15837] - Transmogrifier Tonic.png
+|   |       [15838] - Wintergreen Daggers.jpg
+|   |       [15839] - Wintergreen Hammer.jpg
+|   |       [1583] - Mummy Wrapping.png
+|   |       [15840] - Wintergreen Wand.jpg
+|   |       [1584] - Sandblasted Lodestone.png
+|   |       [15877] - Wintergreen Scythe.jpg
+|   |       [15878] - Wintergreen Shield.jpg
+|   |       [1587] - Inscribed Shard.png
+|   |       [1588] - Dusty Insect Carapace.png
+|   |       [1590] - Giant Tusk.png
+|   |       [15940] - Jade_Wind_Orb.png
+|   |       [15971] - Wintergreen Spear.jpg
+|   |       [1597] - Insect Appendage.png
+|   |       [1598] - Juvenile Termite Leg.png
+|   |       [1600] - Sentient Root.png
+|   |       [1601] - Sentient Seed.png
+|   |       [1603] - Skale Tooth.png
+|   |       [1604] - Skale Claw.png
+|   |       [1605] - Skeleton Bone.png
+|   |       [1609] - Cobalt Talon.png
+|   |       [1610] - Skree Wing.png
+|   |       [16128] - Wintergreen Staff.jpg
+|   |       [16130] - Wintergreen Sword.jpg
+|   |       [1617] - Insect Carapace.png
+|   |       [1619] - Sentient Lodestone.png
+|   |       [1620] - Immolated Djinn Essence.png
+|   |       [1629] - Roaring Ether Claw.png
+|   |       [1668] - Mandragor Husk.png
+|   |       [1671] - Mandragor Swamproot.png
+|   |       [1675] - Behemoth Hide.png
+|   |       [1681] - Geode.png
+|   |       [1682] - Hunting Minotaur Horn.png
+|   |       [1686] - Mandragor Root.png
+|   |       [17060] - Drake Kabob.png
+|   |       [17061] - Bowl of Skalefin Soup.png
+|   |       [17062] - Pahnai Salad.png
+|   |       [17081] - Battle Commendation.png
+|   |       [17082] - Trade Contract.png
+|   |       [18345] - Victory Token.png
+|   |       [19039] - Refined Jelly.png
+|   |       [19170] - Mandragor Root Cake.png
+|   |       [19171] - Zehtuka's_Jug.png
+|   |       [19172] - Bottle of Juniberry Gin.png
+|   |       [19173] - Bottle of Vabbian Wine.png
+|   |       [19174] - Demonic_Key.png
+|   |       [19182] - Ancient Artifact.png
+|   |       [19183] - Iboga Petal.png
+|   |       [19184] - Skale Fin.png
+|   |       [19185] - Chunk of Drake Flesh.png
+|   |       [19186] - Diamond Djinn Essence.png
+|   |       [19187] - Ruby Djinn Essence.png
+|   |       [19188] - Sapphire Djinn Essence.png
+|   |       [19190] - Ancient Armor Remnant.png
+|   |       [19191] - Stolen Sunspear Armor.png
+|   |       [19192] - Mysterious Armor Piece.png
+|   |       [19193] - Primeval Armor Remnant.png
+|   |       [19195] - Kournan Coin.png
+|   |       [19196] - Inscribed Secret.png
+|   |       [19197] - Book of Secrets.png
+|   |       [19198] - Sentient Spore.png
+|   |       [19199] - Heket Tongue.png
+|   |       [20] - Large_Bag_of_Gold.jpg
+|   |       [21069] - Miniature Varesh.png
+|   |       [211111356] - Silver Crimson Skull Coin.png
+|   |       [21127] - Armbrace of Truth.png
+|   |       [21128] - Margonite Gemstone.png
+|   |       [21129] - Stygian Gemstone.png
+|   |       [21130] - Titan Gemstone.png
+|   |       [21131] - Torment Gemstone.png
+|   |       [21227] - Elixir of Valor.png
+|   |       [21228] - Coffer of Whispers.png
+|   |       [21488] - Wintergreen Candy Cane.png
+|   |       [21489] - Rainbow_Candy_Cane.png
+|   |       [21490] - Yuletide Tonic.png
+|   |       [21491] - Wintersday Gift.png
+|   |       [21492] - Fruitcake.png
+|   |       [21509] - Glob of Frozen Ectoplasm.png
+|   |       [21786] - Elite_Assassin_Tome.png
+|   |       [21787] - Elite_Mesmer_Tome.png
+|   |       [21788] - Elite_Necromancer_Tome.png
+|   |       [21789] - Elite_Elementalist_Tome.png
+|   |       [21790] - Elite_Monk_Tome.png
+|   |       [21791] - Elite_Warrior_Tome.png
+|   |       [21792] - Elite_Ranger_Tome.png
+|   |       [21793] - Elite_Dervish_Tome.png
+|   |       [21794] - Elite_Ritualist_Tome.png
+|   |       [21795] - Elite_Paragon_Tome.png
+|   |       [21796] - Assassin_Tome.png
+|   |       [21797] - Mesmer_Tome.png
+|   |       [21798] - Necromancer_Tome.png
+|   |       [21799] - Elementalist_Tome.png
+|   |       [21800] - Monk_Tome.png
+|   |       [21801] - Warrior_Tome.png
+|   |       [21802] - Ranger_Tome.png
+|   |       [21803] - Dervish_Tome.png
+|   |       [21804] - Ritualist_Tome.png
+|   |       [21805] - Paragon_Tome.png
+|   |       [21809] - Bottle Rocket.png
+|   |       [21810] - Champagne Popper.png
+|   |       [21811] - Red Gift Bag.png
+|   |       [21812] - Sugary Blue Drink.png
+|   |       [21813] - Sparkler.png
+|   |       [21833] - Lunar Token.png
+|   |       [22190] - Shamrock Ale.png
+|   |       [22191] - Four Leaf Clover.png
+|   |       [22192] - Beetle Juice Tonic.png
+|   |       [22196] - Miniature Vizu.png
+|   |       [22269] - Birthday Cupcake.png
+|   |       [22279] - Passage_Scroll_to_the_Deep.png
+|   |       [22280] - Passage_Scroll_to_the_Fissure_of_Woe.png
+|   |       [22644] - Chocolate Bunny.png
+|   |       [2267] - Elemental Sword.jpg
+|   |       [22751] - Lockpick.png
+|   |       [22752] - Golden Egg.png
+|   |       [22754] - Miniature Water Djinn.png
+|   |       [22763] - Miniature Wind Rider.png
+|   |       [22765] - Miniature Aatxe.png
+|   |       [22766] - Miniature Thorn Wolf.png
+|   |       [23242] - Everlasting Transmogrifier Tonic.png
+|   |       [24353] - Diessa Chalice.png
+|   |       [24354] - Golden Rin Relic.png
+|   |       [24355] - Aloe Seed Polymock Piece.png
+|   |       [24356] - Wind Rider Polymock Piece.png
+|   |       [24357] - Earth Elemental Polymock Piece.png
+|   |       [24358] - Fire Elemental Polymock Piece.png
+|   |       [24359] - Fire Imp Polymock Piece.png
+|   |       [24360] - Gaki Polymock Piece.png
+|   |       [24361] - Gargoyle Polymock Piece.png
+|   |       [24363] - Mirage Iboga Polymock Piece.png
+|   |       [24365] - Ice Elemental Polymock Piece.png
+|   |       [24366] - Ice Imp Polymock Piece.png
+|   |       [24367] - Kappa Polymock Piece.png
+|   |       [24369] - Mergoyle Polymock Piece.png
+|   |       [24370] - Mursaat Elementalist Polymock Piece.png
+|   |       [24371] - Ruby Djinn Polymock Piece.png
+|   |       [24372] - Naga Shaman Polymock Piece.png
+|   |       [24373] - Skale Polymock Piece.png
+|   |       [24374] - Stone Rain Polymock Piece.png
+|   |       [24593] - Aged Dwarven Ale.png
+|   |       [24629] - Top_Left_Map_Piece.png
+|   |       [24630] - Top_Right_Map_Piece.png
+|   |       [24631] - Bottom_Left_Map_Piece.png
+|   |       [24632] - Bottom_Right_Map_Piece.png
+|   |       [24859] - Essence of Celerity.png
+|   |       [24860] - Armor of Salvation.png
+|   |       [24861] - Grail Of Might.png
+|   |       [24897] - Brass Knuckles.jpg
+|   |       [2513] - Flask of Firewater.png
+|   |       [2514] - Flame of Balthazar.png
+|   |       [2571] - Celestial Sigil.png
+|   |       [25881] - Perfect Salvage Kit.png
+|   |       [26603] - Master Dungeon Guide.png
+|   |       [26784] - Honeycomb.png
+|   |       [26993] - Arachni%27s Scythe.jpg
+|   |       [27033] - Destroyer Core.png
+|   |       [27034] - Incubus Wing.png
+|   |       [27035] - Saurian Bone.png
+|   |       [27036] - Amphibian Tongue.png
+|   |       [27037] - Weaver Leg.png
+|   |       [27038] - Patch_of_Simian_Fur.png
+|   |       [27039] - Quetzal Crest.png
+|   |       [27040] - Skelk Claw.png
+|   |       [27041] - Sentient Vine.png
+|   |       [27042] - Frigid Mandragor Husk.png
+|   |       [27043] - Modniir_Mane.png
+|   |       [27044] - Stone Summit Emblem.png
+|   |       [27045] - Jotun Pelt.png
+|   |       [27046] - Berserker Horn.png
+|   |       [27047] - Glacial Stone.png
+|   |       [27048] - Frozen Wurm Husk.png
+|   |       [27049] - Mountain Root.png
+|   |       [27050] - Pile_of_Elemental_Dust.png
+|   |       [27052] - Superb_Charr_Carving.png
+|   |       [27053] - Stone Grawl Necklace.png
+|   |       [27054] - Mantid Ungula.png
+|   |       [27055] - Skale Fang.png
+|   |       [27057] - Stone Claw.png
+|   |       [27058] - Lavastrider Appendage.png
+|   |       [27060] - Skelk Fang.png
+|   |       [27061] - Fungal Root.png
+|   |       [27062] - Fleshreaver_Morsel.png
+|   |       [27064] - Dredge_Charm.png
+|   |       [27065] - Golem Runestone.png
+|   |       [27066] - Beetle Egg.png
+|   |       [27067] - Blob of Ooze.png
+|   |       [27069] - Chromatic Scale.png
+|   |       [27070] - Dryder Web.png
+|   |       [27071] - Vaettir Essence.png
+|   |       [27321] - Deldrimor Armor Remnant.png
+|   |       [27322] - Cloth of the Brotherhood.png
+|   |       [27341] - Charr Battle Plan Decoder.png
+|   |       [27563] - Bison Championship Token.png
+|   |       [27583] - Monumental Tapestry.png
+|   |       [27729] - Krait Skin.png
+|   |       [27974] - Undead Bone.png
+|   |       [27976] - Encrypted Charr Battle Plans.png
+|   |       [28431] - Candy Apple.png
+|   |       [28432] - Candy Corn.png
+|   |       [28433] - Pumpkin Cookie.png
+|   |       [28434] - Trick-or-Treat Bag.png
+|   |       [28435] - Hard Apple Cider.png
+|   |       [28436] - Slice_of_Pumpkin_Pie.png
+|   |       [28479] - Night Falls.png
+|   |       [28571] - Zaishen Key.png
+|   |       [28571] - Zaishen_Key.png
+|   |       [29018] - Burol Ironfist%27s Commendation.png
+|   |       [29108] - Imperial Guard Requisition Order.png
+|   |       [29109] - Ministerial Decree.png
+|   |       [29241] - Yuletide_Tonic.png
+|   |       [29436] - Crate of Fireworks.png
+|   |       [29543] - Disco Ball.png
+|   |       [2989] - Identification Kit.png
+|   |       [2991] - Expert Salvage Kit.png
+|   |       [2992] - Salvage_Kit.png
+|   |       [2994] - Red Iris Flower.png
+|   |       [30209] - Tengu Support Flare.png
+|   |       [30212] - Imperial Guard Lockbox.png
+|   |       [30610] - Miniature Abyssal.png
+|   |       [30624] - Abyssal Tonic.png
+|   |       [30625] - Everlasting Abyssal Tonic.png
+|   |       [30626] - Cerebral Tonic.png
+|   |       [30627] - Everlasting Cerebral Tonic.png
+|   |       [30628] - Macabre Tonic.png
+|   |       [30629] - Everlasting Macabre Tonic.png
+|   |       [30630] - Trapdoor Tonic.png
+|   |       [30631] - Everlasting Trapdoor Tonic.png
+|   |       [30632] - Searing Tonic.png
+|   |       [30633] - Everlasting Searing Tonic.png
+|   |       [30634] - Automatonic.png
+|   |       [30636] - Skeletonic Tonic.png
+|   |       [30638] - Boreal Tonic.png
+|   |       [30639] - Everlasting Boreal Tonic.png
+|   |       [30640] - Gelatinous Tonic.png
+|   |       [30641] - Everlasting Gelatinous Tonic.png
+|   |       [30642] - Phantasmal Tonic.png
+|   |       [30643] - Everlasting Phantasmal Tonic.png
+|   |       [30646] - Abominable Tonic.png
+|   |       [30647] - Everlasting Abominable Tonic.png
+|   |       [30648] - Frosty Tonic.png
+|   |       [30693] - Deldrimor Talisman.png
+|   |       [30846] - Automaton Summoning Stone.png
+|   |       [30847] - Igneous Summoning Stone.png
+|   |       [30855] - Bottle of Grog.png
+|   |       [30959] - Chitinous Summoning Stone.png
+|   |       [30961] - Amber Summoning Stone.png
+|   |       [30963] - Demonic Summoning Stone.png
+|   |       [30964] - Gelatinous Summoning Stone.png
+|   |       [30965] - Fossilized Summoning Stone.png
+|   |       [31021] - Mischievous_Tonic.png
+|   |       [31023] - Frosty Summoning Stone.png
+|   |       [31141] - Mysterious Tonic.png
+|   |       [31142] - Cottontail Tonic.png
+|   |       [31143] - Everlasting Cottontail Tonic.png
+|   |       [31144] - Zaishen Tonic.png
+|   |       [31145] - Aged Hunter%27s Ale.png
+|   |       [31148] - Gift of the Traveler.png
+|   |       [31149] - Gift of the Huntsman.png
+|   |       [31151] - Blue Rock Candy.png
+|   |       [31152] - Green Rock Candy.png
+|   |       [31153] - Red Rock Candy.png
+|   |       [31172] - Unseen Tonic.png
+|   |       [31173] - Everlasting Unseen Tonic.png
+|   |       [31202] - Copper Zaishen Coin.png
+|   |       [31203] - Gold Zaishen Coin.png
+|   |       [31204] - Silver Zaishen Coin.png
+|   |       [31221] - Small Equipment Pack.png
+|   |       [31222] - Light Equipment Pack.png
+|   |       [31223] - Large Equipment Pack.png
+|   |       [31224] - Heavy Equipment Pack.png
+|   |       [32518] - Miniature Terrorweb Dryder.png
+|   |       [32519] - Miniature Abomination.png
+|   |       [32557] - Ghastly Summoning Stone.png
+|   |       [32558] - Everlasting Mobstopper.png
+|   |       [32559] - Captured Skeleton.png
+|   |       [3256] - Passage_Scroll_to_Urgoz's_Warren.png
+|   |       [34176] - Celestial Summoning Stone.png
+|   |       [34212] - Paper Wrapped Parcel.png
+|   |       [34387] - Siege Devourer.jpg
+|   |       [34391] - Summit Giant Herder.jpg
+|   |       [34395] - Miniature Ventari.png
+|   |       [34] - Belt Pouch.png
+|   |       [35120] - Royal Gift.png
+|   |       [35121] - War Supplies.png
+|   |       [35123] - Confessor%27s Orders.png
+|   |       [35124] - Krytan Brandy.png
+|   |       [35125] - Krytan Lokum.png
+|   |       [35] - Bag.png
+|   |       [36425] - Everlasting Koss Tonic.png
+|   |       [36426] - Everlasting Dunkoro Tonic.png
+|   |       [36427] - Everlasting Melonni Tonic.png
+|   |       [36428] - Everlasting Acolyte Jin Tonic.png
+|   |       [36429] - Everlasting Acolyte Sousuke Tonic.png
+|   |       [36430] - Everlasting Tahlkora Tonic.png
+|   |       [36431] - Everlasting Zhed Shadowhoof Tonic.png
+|   |       [36434] - Everlasting Goren Tonic.png
+|   |       [36435] - Everlasting Norgu Tonic.png
+|   |       [36436] - Everlasting Morgahn Tonic.png
+|   |       [36437] - Everlasting Razah Tonic.png
+|   |       [36438] - Everlasting Olias Tonic.png
+|   |       [36439] - Everlasting Zenmai Tonic.png
+|   |       [36440] - Everlasting Ogden Stonehealer Tonic.png
+|   |       [36441] - Everlasting Vekk Tonic.png
+|   |       [36442] - Everlasting Gwen Tonic.png
+|   |       [36443] - Everlasting Xandra Tonic.png
+|   |       [36444] - Everlasting Kahmu Tonic.png
+|   |       [36447] - Everlasting Anton Tonic.png
+|   |       [36448] - Everlasting Hayda Tonic.png
+|   |       [36449] - Everlasting Livia Tonic.png
+|   |       [36450] - Everlasting Keiran Thackeray Tonic.png
+|   |       [36451] - Everlasting Miku Tonic.png
+|   |       [36453] - Everlasting Shiro Tonic.png
+|   |       [36455] - Everlasting Jora Tonic.png
+|   |       [36455] - Everlasting Prince Rurik Tonic.png
+|   |       [36456] - Everlasting Margonite Tonic.png
+|   |       [36457] - Everlasting Destroyer Tonic.png
+|   |       [36458] - Everlasting Queen Salma Tonic.png
+|   |       [36460] - Everlasting Slightly Mad King Tonic.png
+|   |       [36461] - Everlasting Kuunavang Tonic.png
+|   |       [36652] - Everlasting Guild Lord Tonic.png
+|   |       [36660] - Everlasting Ghostly Hero Tonic.png
+|   |       [36663] - Everlasting Ghostly Priest Tonic.png
+|   |       [36664] - Everlasting Flame Sentinel Tonic.png
+|   |       [36665] - Champion%27s Zaishen Strongbox.png
+|   |       [36667] - Gladiator%27s Zaishen Strongbox.png
+|   |       [36670] - Demrikov%27s Judgement.jpg
+|   |       [36677] - Envoy Scythe.jpg
+|   |       [36678] - Vetaura%27s Harbinger.jpg
+|   |       [36680] - Torivos%27 Rage.png
+|   |       [36681] - Delicious Cake.png
+|   |       [36682] - Battle Isle Iced Tea.png
+|   |       [36683] - Party Beacon.png
+|   |       [36985] - Ministerial Commendation.png
+|   |       [3746] - Passage_Scroll_to_the_Underworld.png
+|   |       [37765] - Wayfarer%27s Mark.png
+|   |       [37771] - Spooky Tonic.png
+|   |       [37772] - Minutely Mad King Tonic.png
+|   |       [37798] - Birthday Present.png
+|   |       [37810] - Legionnaire Summoning Crystal.png
+|   |       [37843] - Blessing of War.png
+|   |       [4195] - Golden Lantern.png
+|   |       [422] - Spider Leg.png
+|   |       [423] - Charr Carving.png
+|   |       [424] - Icy Lodestone.png
+|   |       [425] - Dull Carapace.png
+|   |       [426] - Gargoyle Skull.png
+|   |       [427] - Worn Belt.png
+|   |       [428] - Unnatural Seed.png
+|   |       [429] - Skale_Fin_(pre-Searing).png
+|   |       [430] - Skeletal Limb.png
+|   |       [431] - Enchanted Lodestone.png
+|   |       [432] - Grawl Necklace.png
+|   |       [433] - Baked Husk.png
+|   |       [434] - Spiked Crest.png
+|   |       [435] - Hardened Hump.png
+|   |       [436] - Mergoyle Skull.png
+|   |       [439] - Glowing Heart.png
+|   |       [440] - Forest Minotaur Horn.png
+|   |       [441] - Shadowy Remnants.png
+|   |       [442] - Abnormal Seed.png
+|   |       [443] - Bog Skale Fin.png
+|   |       [444] - Feathered Caromi Scalp.png
+|   |       [445] - Ivory Troll Tusk.png
+|   |       [446] - Shriveled Eye.png
+|   |       [447] - Dune Burrower Jaw.png
+|   |       [448] - Losaru Mane.png
+|   |       [449] - Bleached Carapace.png
+|   |       [450] - Topaz Crest.png
+|   |       [451] - Encrusted Lodestone.png
+|   |       [452] - Massive Jawbone.png
+|   |       [453] - Iridescent_Griffon_Wing.png
+|   |       [454] - Dessicated Hydra Claw.png
+|   |       [455] - Minotaur Horn.png
+|   |       [457] - Jade Mandible.png
+|   |       [459] - Forgotten Seal.png
+|   |       [460] - White Mantle Emblem.png
+|   |       [461] - White Mantle Badge.png
+|   |       [462] - Mursaat Token.png
+|   |       [463] - Ebon Spider Leg.png
+|   |       [464] - Ancient Eye.png
+|   |       [465] - Behemoth Jaw.png
+|   |       [466] - Maguuma Mane.png
+|   |       [467] - Thorny Carapace.png
+|   |       [468] - Tangled Seed.png
+|   |       [469] - Mossy Mandible.png
+|   |       [471] - Jungle Troll Tusk.png
+|   |       [472] - Obsidian Burrower Jaw.png
+|   |       [473] - Demonic Fang.png
+|   |       [474] - Phantom Residue.png
+|   |       [475] - Gruesome Sternum.png
+|   |       [476] - Demonic Remains.png
+|   |       [477] - Stormy Eye.png
+|   |       [478] - Scar Behemoth Jaw.png
+|   |       [479] - Fetid Carapace.png
+|   |       [480] - Singed Gargoyle Skull.png
+|   |       [482] - Gruesome Ribcage.png
+|   |       [483] - Rawhide Belt.png
+|   |       [484] - Leathery Claw.png
+|   |       [485] - Scorched Seed.png
+|   |       [486] - Scorched Lodestone.png
+|   |       [487] - Ornate Grawl Necklace.png
+|   |       [488] - Shiverpeak Mane.png
+|   |       [489] - Frostfire Fang.png
+|   |       [490] - Icy Hump.png
+|   |       [492] - Huge Jawbone.png
+|   |       [493] - Frosted Griffon Wing.png
+|   |       [494] - Frigid Heart.png
+|   |       [495] - Curved Minotaur Horn.png
+|   |       [496] - Azure Remains.png
+|   |       [497] - Alpine Seed.png
+|   |       [498] - Feathered Avicara Scalp.png
+|   |       [499] - Intricate Grawl Necklace.png
+|   |       [500] - Mountain Troll Tusk.png
+|   |       [502] - Stone Summit Badge.png
+|   |       [503] - Molten Claw.png
+|   |       [504] - Decayed Orr Emblem.png
+|   |       [505] - Igneous Spider Leg.png
+|   |       [506] - Molten Eye.png
+|   |       [508] - Fiery Crest.png
+|   |       [510] - Igneous Hump.png
+|   |       [511] - Unctuous Remains.png
+|   |       [513] - Mahgo Claw.png
+|   |       [514] - Molten Heart.png
+|   |       [518] - Corrosive Spider Leg.png
+|   |       [519] - Umbral Eye.png
+|   |       [520] - Shadowy Crest.png
+|   |       [522] - Dark Remains.png
+|   |       [523] - Gloom Seed.png
+|   |       [525] - Umbral Skeletal Limb.png
+|   |       [526] - Shadowy Husk.png
+|   |       [532] - Enslavement Stone.png
+|   |       [556] - Candy_Cane_Shard.png
+|   |       [5585] - Dwarven Ale.png
+|   |       [5594] - Scroll_of_Hero's_Insight.png
+|   |       [5595] - Scroll of Berserker%27s Insight.png
+|   |       [5611] - Scroll_of_Slayer's_Insight.png
+|   |       [5817] - Equipment Requisition.png
+|   |       [5819] - Monastery Credit.png
+|   |       [5853] - Scroll_of_Adventurer's_Insight.png
+|   |       [5882] - Phantom_Key.png
+|   |       [5899] - Superior_Identification_Kit.png
+|   |       [5900] - Superior Salvage Kit.png
+|   |       [5960] - Elonian_Key.png
+|   |       [5961] - Miner's_Key.png
+|   |       [5962] - Shiverpeak_Key.png
+|   |       [5963] - Darkstone_Key.png
+|   |       [5964] - Krytan_Key.png
+|   |       [5965] - Maguuma_Key.png
+|   |       [5966] - Ascalonian_Key.png
+|   |       [5967] - Steel_Key.png
+|   |       [5971] - Obsidian_Key.png
+|   |       [5975] - Scroll_of_Rampager's_Insight.png
+|   |       [5976] - Scroll_of_Hunter's_Insight.png
+|   |       [6048] - Luxon Totem.png
+|   |       [6049] - Witchs_Brew.png
+|   |       [604] - Kurzick Bauble.png
+|   |       [6068] - Imperial Commendation.png
+|   |       [6069] - Amulet of the Mists.png
+|   |       [6323] - Dagger Tang.png
+|   |       [6331] - Dagger Handle.png
+|   |       [6366] - Spiked Eggnog.png
+|   |       [6367] - Vial of Absinthe.png
+|   |       [6369] - Squash Serum.png
+|   |       [6370] - Peppermint_Candy_Cane.png
+|   |       [6375] - Eggnog.png
+|   |       [6376] - Snowman Summoner.png
+|   |       [6532] - Amber Chunk.png
+|   |       [6533] - Jadeite Shard.png
+|   |       [6534] - Forbidden_Key.png
+|   |       [6535] - Kurzick_Key.png
+|   |       [6536] - Stoneroot_Key.png
+|   |       [6537] - Shing_Jea_Key.png
+|   |       [6538] - Luxon_Key.png
+|   |       [6539] - Deep_Jade_Key.png
+|   |       [6540] - Canthan_Key.png
+|   |       [66665481] - Stolen Supplies.png
+|   |       [70] - Jungle Skale Fin.png
+|   |       [74966338] - Spiny Seed.png
+|   |       [78965412365] - Water Djinn Essence.png
+|   |       [806] - Copper Crimson Skull Coin.png
+|   |       [809] - Jade Bracelet.png
+|   |       [810] - Luxon Pendant.png
+|   |       [811] - Bone_Charm_(trophy).png
+|   |       [813] - Truffle.png
+|   |       [814] - Skull Juju.png
+|   |       [815] - Mantid Pincer.png
+|   |       [816] - Stone Horn.png
+|   |       [817] - Oni Claw.png
+|   |       [818] - Dredge Incisor.png
+|   |       [819] - Dragon Root.png
+|   |       [820] - Stone Carving.png
+|   |       [822] - Warden Horn.png
+|   |       [824] - Pulsating Growth.png
+|   |       [825] - Forgotten Trinket Box.png
+|   |       [826] - Augmented Flesh.png
+|   |       [827] - Putrid Cyst.png
+|   |       [829] - Mantis Pincer.png
+|   |       [831] - Oni Talon.png
+|   |       [832] - Naga Hide.png
+|   |       [833] - Naga Pelt.png
+|   |       [834] - Enchanted Vine.png
+|   |       [835] - Feathered Crest.png
+|   |       [836] - Feathered Scalp.png
+|   |       [837] - Elder Kappa Shell.png
+|   |       [838] - Kappa Hatchling Shell.png
+|   |       [839] - Kappa Shell.png
+|   |       [841] - Black Pearl.png
+|   |       [842] - Rot Wallow Tusk.png
+|   |       [843] - Kraken Eye.png
+|   |       [844] - Azure Crest.png
+|   |       [846] - Kirin Horn.png
+|   |       [847] - Keen Oni Talon.png
+|   |       [848] - Naga Skin.png
+|   |       [849] - Guardian Moss.png
+|   |       [850] - Archaic Kappa Shell.png
+|   |       [851] - Stolen Provisions.png
+|   |       [852] - Soul Stone.png
+|   |       [853] - Vermin Hide.png
+|   |       [854] - Venerable Mantid Pincer.png
+|   |       [855] - Celestial Essence.png
+|   |       [8787899465] - Smoking Remains.png
+|   |       [893] - Axe Haft.png
+|   |       [894] - Bow String.png
+|   |       [895] - Hammer Haft.png
+|   |       [896] - Staff Head.png
+|   |       [897] - Sword Hilt.png
+|   |       [905] - Axe Grip.png
+|   |       [906] - Bow Grip.png
+|   |       [907] - Hammer Grip.png
+|   |       [908] - Staff Wrapping.png
+|   |       [909] - Sword Pommel.png
+|   |       [910] - Hunters Ale.png
+|   |       [921] - Bone.png
+|   |       [922] - Lump_of_Charcoal.png
+|   |       [923] - Monstrous Claw.png
+|   |       [925] - Bolt of Cloth.png
+|   |       [926] - Bolt of Linen.png
+|   |       [927] - Bolt_of_Damask.png
+|   |       [928] - Bolt of Silk.png
+|   |       [929] - Pile_of_Glittering_Dust.png
+|   |       [930] - Glob of Ectoplasm.png
+|   |       [931] - Monstrous Eye.png
+|   |       [932] - Monstrous Fang.png
+|   |       [933] - Feather.png
+|   |       [934] - Plant Fiber.png
+|   |       [935] - Diamond.png
+|   |       [936] - Onyx Gemstone.png
+|   |       [937] - Ruby.png
+|   |       [938] - Sapphire.png
+|   |       [939] - Tempered Glass Vial.png
+|   |       [940] - Tanned Hide Square.png
+|   |       [941] - Fur Square.png
+|   |       [942] - Leather Square.png
+|   |       [943] - Elonian Leather Square.png
+|   |       [944] - Vial of Ink.png
+|   |       [945] - Obsidian Shard.png
+|   |       [946] - Wood Plank.png
+|   |       [948] - Iron Ingot.png
+|   |       [949] - Steel Ingot.png
+|   |       [950] - Deldrimor Steel Ingot.png
+|   |       [951] - Roll_of_Parchment.png
+|   |       [952] - Roll_of_Vellum.png
+|   |       [953] - Scale.png
+|   |       [954] - Chitin Fragment.png
+|   |       [955] - Granite Slab.png
+|   |       [956] - Spiritwood Plank.png
+|   |       [98765432111] - Umbral Shell.png
+|   |       [987654789] - Vampiric Fang.png
+|   |       
+|   +---Profession_Icons
+|   |       [10] - Dervish.png
+|   |       [1] - Warrior.png
+|   |       [2] - Ranger.png
+|   |       [3] - Monk.png
+|   |       [4] - Necromancer.png
+|   |       [5] - Mesmer.png
+|   |       [6] - Elementalist.png
+|   |       [7] - Assassin.png
+|   |       [8] - Ritualist.png
+|   |       [9] - Paragon.png
+|   |       
+|   \---Skill_Icons
+|           [100] - Soul Barbs.jpg
+|           [1014] - Let's Get 'Em!.jpg
+|           [1018] - Critical Eye.jpg
+|           [1019] - Critical Strike.jpg
+|           [101] - Barbs.jpg
+|           [1020] - Blades of Steel.jpg
+|           [1021] - Jungle Strike.jpg
+|           [1022] - Wild Strike.jpg
+|           [1023] - Leaping Mantis Sting.jpg
+|           [1024] - Black Mantis Thrust.jpg
+|           [1025] - Disrupting Stab.jpg
+|           [1026] - Golden Lotus Strike.jpg
+|           [1027] - Critical Defenses.jpg
+|           [1028] - Way of Perfection.jpg
+|           [1029] - Dark Apostasy.jpg
+|           [102] - Shadow Strike.jpg
+|           [1030] - Locust's Fury.jpg
+|           [1031] - Shroud of Distress.jpg
+|           [1032] - Heart of Shadow.jpg
+|           [1033] - Impale.jpg
+|           [1034] - Seeping Wound.jpg
+|           [1035] - Assassin's Promise.jpg
+|           [1036] - Signet of Malice.jpg
+|           [1037] - Dark Escape.jpg
+|           [1038] - Crippling Dagger.jpg
+|           [103] - Price of Failure.jpg
+|           [1040] - Spirit Walk.jpg
+|           [1041] - Unseen Fury.jpg
+|           [1042] - Flashing Blades.jpg
+|           [1043] - Dash.jpg
+|           [1044] - Dark Prison.jpg
+|           [1045] - Palm Strike.jpg
+|           [1048] - Revealed Enchantment.jpg
+|           [1049] - Revealed Hex.jpg
+|           [104] - Death Nova.jpg
+|           [1052] - Accumulated Pain.jpg
+|           [1053] - Psychic Distraction.jpg
+|           [1054] - Ancestor's Visage.jpg
+|           [1055] - Recurring Insecurity.jpg
+|           [1056] - Kitah's Burden.jpg
+|           [1057] - Psychic Instability.jpg
+|           [1059] - Hex Eater Signet.jpg
+|           [105] - Deathly Swarm.jpg
+|           [1061] - Feedback.jpg
+|           [1062] - Arcane Larceny.jpg
+|           [1066] - Spoil Victor.jpg
+|           [1067] - Lifebane Strike.jpg
+|           [1068] - Bitter Chill.jpg
+|           [1069] - Taste of Pain.jpg
+|           [106] - Rotting Flesh.jpg
+|           [1070] - Defile Enchantments.jpg
+|           [1071] - Shivers of Dread.jpg
+|           [1075] - Vampiric Swarm.jpg
+|           [1076] - Blood Drinker.jpg
+|           [1077] - Vampiric Bite.jpg
+|           [1078] - Wallow's Bite.jpg
+|           [1079] - Enfeebling Touch.jpg
+|           [107] - Virulence.jpg
+|           [1081] - Teinai's Wind.jpg
+|           [1082] - Shock Arrow.jpg
+|           [1083] - Unsteady Ground.jpg
+|           [1084] - Sliver Armor.jpg
+|           [1085] - Ash Blast.jpg
+|           [1086] - Dragon's Stomp.jpg
+|           [1088] - Second Wind.jpg
+|           [108] - Suffering.jpg
+|           [1090] - Smoldering Embers.jpg
+|           [1091] - Double Dragon.jpg
+|           [1093] - Teinai's Heat.jpg
+|           [1094] - Breath of Fire.jpg
+|           [1095] - Star Burst.jpg
+|           [1096] - Glyph of Essence.jpg
+|           [1097] - Teinai's Prison.jpg
+|           [1098] - Mirror of Ice.jpg
+|           [1099] - Teinai's Crystals.jpg
+|           [109] - Life Siphon.jpg
+|           [10] - Hex Breaker.jpg
+|           [110] - Unholy Feast.jpg
+|           [1113] - Kirin's Wrath.jpg
+|           [1114] - Spirit Bond.jpg
+|           [1115] - Air of Enchantment.jpg
+|           [1117] - Heaven's Delight.jpg
+|           [1118] - Healing Burst.jpg
+|           [1119] - Karei's Healing Circle.jpg
+|           [111] - Awaken the Blood.jpg
+|           [1120] - Jamei's Gaze.jpg
+|           [1121] - Gift of Health.jpg
+|           [1123] - Life Sheath.jpg
+|           [1126] - Empathic Removal.jpg
+|           [1128] - Resurrection Chant.jpg
+|           [1129] - Word of Censure.jpg
+|           [112] - Desecrate Enchantments.jpg
+|           [1130] - Spear of Light.jpg
+|           [1131] - Stonesoul Strike.jpg
+|           [1133] - Drunken Blow.jpg
+|           [1134] - Leviathan's Sweep.jpg
+|           [1135] - Jaizhenju Strike.jpg
+|           [1136] - Penetrating Chop.jpg
+|           [1137] - Yeti Smash.jpg
+|           [113] - Tainted Flesh.jpg
+|           [1140] - Storm of Swords.jpg
+|           [1141] - You Will Die!.jpg
+|           [1142] - Auspicious Parry.jpg
+|           [1144] - Silverwing Slash.jpg
+|           [1146] - Shove.jpg
+|           [114] - Aura of the Lich.jpg
+|           [115] - Blood Renewal.jpg
+|           [116] - Dark Aura.jpg
+|           [117] - Enfeeble.jpg
+|           [118] - Enfeebling Blood.jpg
+|           [1191] - Sundering Attack.jpg
+|           [1192] - Zojun's Shot.jpg
+|           [1194] - Predatory Bond.jpg
+|           [1195] - Heal as One.jpg
+|           [1196] - Zojun's Haste.jpg
+|           [1197] - Needling Shot.jpg
+|           [1198] - Broad Head Arrow.jpg
+|           [1199] - Glass Arrows.jpg
+|           [119] - Blood is Power.jpg
+|           [11] - Distortion.jpg
+|           [1200] - Archer's Signet.jpg
+|           [1201] - Savage Pounce.jpg
+|           [1202] - Enraged Lunge.jpg
+|           [1203] - Bestial Mauling.jpg
+|           [1205] - Poisonous Bite.jpg
+|           [1206] - Pounce.jpg
+|           [1209] - Bestial Fury.jpg
+|           [120] - Blood of the Master.jpg
+|           [1211] - Viper's Nest.jpg
+|           [1212] - Equinox.jpg
+|           [1213] - Tranquility.jpg
+|           [1215] - Clamor of Souls.jpg
+|           [1217] - Ritual Lord.jpg
+|           [1218] - Cruel Was Daoshen.jpg
+|           [1219] - Protective Was Kaolai.jpg
+|           [121] - Spiteful Spirit.jpg
+|           [1220] - Attuned Was Songkai.jpg
+|           [1221] - Resilient Was Xiko.jpg
+|           [1222] - Lively Was Naomei.jpg
+|           [1223] - Anguished Was Lingwah.jpg
+|           [1224] - Draw Spirit.jpg
+|           [1225] - Channeled Strike.jpg
+|           [1226] - Spirit Boon Strike.jpg
+|           [1227] - Essence Strike.jpg
+|           [1228] - Spirit Siphon.jpg
+|           [1229] - Explosive Growth.jpg
+|           [122] - Malign Intervention.jpg
+|           [1230] - Boon of Creation.jpg
+|           [1231] - Spirit Channeling.jpg
+|           [1232] - Armor of Unfeeling.jpg
+|           [1233] - Soothing Memories.jpg
+|           [1234] - Mend Body and Soul.jpg
+|           [1235] - Dulled Weapon.jpg
+|           [1236] - Binding Chains.jpg
+|           [1237] - Painful Bond.jpg
+|           [1238] - Signet of Creation.jpg
+|           [1239] - Signet of Spirits.jpg
+|           [123] - Insidious Parasite.jpg
+|           [1240] - Soul Twisting.jpg
+|           [1244] - Ghostly Haste.jpg
+|           [1245] - Gaze from Beyond.jpg
+|           [1246] - Ancestors' Rage.jpg
+|           [1247] - Pain.jpg
+|           [1249] - Displacement.jpg
+|           [124] - Spinal Shivers.jpg
+|           [1250] - Preservation.jpg
+|           [1251] - Life.jpg
+|           [1252] - Earthbind.jpg
+|           [1253] - Bloodsong.jpg
+|           [1255] - Wanderlust.jpg
+|           [1257] - Spirit Light Weapon.jpg
+|           [1258] - Brutal Weapon.jpg
+|           [1259] - Guided Weapon.jpg
+|           [125] - Wither.jpg
+|           [1260] - Meekness.jpg
+|           [1261] - Frigid Armor.jpg
+|           [1262] - Healing Ring.jpg
+|           [1263] - Renew Life.jpg
+|           [1264] - Doom.jpg
+|           [1265] - Wielder's Boon.jpg
+|           [1266] - Soothing.jpg
+|           [1267] - Vital Weapon.jpg
+|           [1268] - Weapon of Quickening.jpg
+|           [1269] - Signet of Rage.jpg
+|           [126] - Life Transfer.jpg
+|           [127] - Mark of Subversion.jpg
+|           [128] - Soul Leech.jpg
+|           [129] - Defile Flesh.jpg
+|           [130] - Demonic Flesh.jpg
+|           [131] - Barbed Signet.jpg
+|           [132] - Plague Signet.jpg
+|           [1333] - Extend Conditions.jpg
+|           [1334] - Hypochondria.jpg
+|           [1335] - Wastrel's Demise.jpg
+|           [1336] - Spiritual Pain.jpg
+|           [1337] - Drain Delusions.jpg
+|           [1338] - Persistence of Memory.jpg
+|           [1339] - Symbols of Inspiration.jpg
+|           [133] - Dark Pact.jpg
+|           [1340] - Symbolic Celerity.jpg
+|           [1341] - Frustration.jpg
+|           [1342] - Tease.jpg
+|           [1343] - Ether Phantom.jpg
+|           [1344] - Web of Disruption.jpg
+|           [1345] - Enchanter's Conundrum.jpg
+|           [1346] - Signet of Illusions.jpg
+|           [1347] - Discharge Enchantment.jpg
+|           [1348] - Hex Eater Vortex.jpg
+|           [1349] - Mirror of Disenchantment.jpg
+|           [134] - Order of Pain.jpg
+|           [1350] - Simple Thievery.jpg
+|           [1351] - Animate Shambling Horror.jpg
+|           [1352] - Order of Undeath.jpg
+|           [1353] - Putrid Flesh.jpg
+|           [1354] - Feast for the Dead.jpg
+|           [1355] - Jagged Bones.jpg
+|           [1356] - Contagion.jpg
+|           [1358] - Ulcerous Lungs.jpg
+|           [1359] - Pain of Disenchantment.jpg
+|           [135] - Faintheartedness.jpg
+|           [1360] - Mark of Fury.jpg
+|           [1362] - Corrupt Enchantment.jpg
+|           [1363] - Signet of Sorrow.jpg
+|           [1364] - Signet of Suffering.jpg
+|           [1365] - Signet of Lost Souls.jpg
+|           [1366] - Well of Darkness.jpg
+|           [1367] - Blinding Surge.jpg
+|           [1368] - Chilling Winds.jpg
+|           [1369] - Lightning Bolt.jpg
+|           [136] - Shadow of Fear.jpg
+|           [1370] - Storm Djinn's Haste.jpg
+|           [1371] - Stone Striker.jpg
+|           [1372] - Sandstorm.jpg
+|           [1373] - Stone Sheath.jpg
+|           [1374] - Ebon Hawk.jpg
+|           [1375] - Stoneflesh Aura.jpg
+|           [1376] - Glyph of Restoration.jpg
+|           [1377] - Ether Prism.jpg
+|           [1378] - Master of Magic.jpg
+|           [1379] - Glowing Gaze.jpg
+|           [137] - Rigor Mortis.jpg
+|           [1380] - Savannah Heat.jpg
+|           [1381] - Flame Djinn's Haste.jpg
+|           [1382] - Freezing Gust.jpg
+|           [138] - Dark Bond.jpg
+|           [1390] - Judge's Intervention.jpg
+|           [1391] - Supportive Spirit.jpg
+|           [1392] - Watchful Healing.jpg
+|           [1393] - Healer's Boon.jpg
+|           [1394] - Healer's Covenant.jpg
+|           [1395] - Balthazar's Pendulum.jpg
+|           [1396] - Words of Comfort.jpg
+|           [1397] - Light of Deliverance.jpg
+|           [1398] - Scourge Enchantment.jpg
+|           [1399] - Shield of Absorption.jpg
+|           [139] - Infuse Condition.jpg
+|           [13] - Mantra of Recovery.jpg
+|           [1400] - Reversal of Damage.jpg
+|           [1401] - Mending Touch.jpg
+|           [1402] - Critical Chop.jpg
+|           [1403] - Agonizing Chop.jpg
+|           [1404] - Flail.jpg
+|           [1405] - Charging Strike.jpg
+|           [1406] - Headbutt.jpg
+|           [1407] - Lion's Comfort.jpg
+|           [1408] - Rage of the Ntouka.jpg
+|           [1409] - Mokele Smash.jpg
+|           [140] - Malaise.jpg
+|           [1410] - Overbearing Smash.jpg
+|           [1411] - Signet of Stamina.jpg
+|           [1412] - You're All Alone!.jpg
+|           [1413] - Burst of Aggression.jpg
+|           [1414] - Enraging Charge.jpg
+|           [1415] - Crippling Slash.jpg
+|           [1416] - Barbarous Slice.jpg
+|           [141] - Rend Enchantments.jpg
+|           [142] - Lingering Curse.jpg
+|           [143] - Strip Enchantment.jpg
+|           [144] - Chilblains.jpg
+|           [145] - Signet of Agony.jpg
+|           [1465] - Prepared Shot.jpg
+|           [1466] - Burning Arrow.jpg
+|           [1467] - Arcing Shot.jpg
+|           [1468] - Strike as One.jpg
+|           [1469] - Crossfire.jpg
+|           [146] - Offering of Blood.jpg
+|           [1470] - Barbed Arrows.jpg
+|           [1471] - Scavenger's Focus.jpg
+|           [1472] - Toxicity.jpg
+|           [1473] - Quicksand.jpg
+|           [1474] - Storm's Embrace.jpg
+|           [1475] - Trapper's Speed.jpg
+|           [1476] - Tripwire.jpg
+|           [1478] - Renewing Surge.jpg
+|           [1479] - Offering of Spirit.jpg
+|           [147] - Dark Fury.jpg
+|           [1480] - Spirit's Gift.jpg
+|           [1481] - Death Pact Signet.jpg
+|           [1482] - Reclaim Essence.jpg
+|           [1483] - Banishing Strike.jpg
+|           [1484] - Mystic Sweep.jpg
+|           [1485] - Eremite's Attack.jpg
+|           [1486] - Reap Impurities.jpg
+|           [1487] - Twin Moon Sweep.jpg
+|           [1488] - Victorious Sweep.jpg
+|           [1489] - Irresistible Sweep.jpg
+|           [148] - Order of the Vampire.jpg
+|           [1490] - Pious Assault.jpg
+|           [1491] - Mystic Twister.jpg
+|           [1493] - Grenth's Fingers.jpg
+|           [1495] - Aura of Thorns.jpg
+|           [1496] - Balthazar's Rage.jpg
+|           [1497] - Dust Cloak.jpg
+|           [1498] - Staggering Force.jpg
+|           [1499] - Pious Renewal.jpg
+|           [149] - Plague Sending.jpg
+|           [14] - Mantra of Persistence.jpg
+|           [1500] - Mirage Cloak.jpg
+|           [1502] - Arcane Zeal.jpg
+|           [1503] - Mystic Vigor.jpg
+|           [1504] - Watchful Intervention.jpg
+|           [1505] - Vow of Piety.jpg
+|           [1506] - Vital Boon.jpg
+|           [1507] - Heart of Holy Flame.jpg
+|           [1508] - Extend Enchantments.jpg
+|           [1509] - Faithful Intervention.jpg
+|           [150] - Mark of Pain.jpg
+|           [1510] - Sand Shards.jpg
+|           [1512] - Lyssa's Haste.jpg
+|           [1513] - Guiding Hands.jpg
+|           [1514] - Fleeting Stability.jpg
+|           [1515] - Armor of Sanctity.jpg
+|           [1516] - Mystic Regeneration.jpg
+|           [1517] - Vow of Silence.jpg
+|           [1518] - Avatar of Balthazar.jpg
+|           [1519] - Avatar of Dwayna.jpg
+|           [151] - Feast of Corruption.jpg
+|           [1520] - Avatar of Grenth.jpg
+|           [1521] - Avatar of Lyssa.jpg
+|           [1522] - Avatar of Melandru.jpg
+|           [1523] - Meditation.jpg
+|           [1524] - Eremite's Zeal.jpg
+|           [1525] - Natural Healing.jpg
+|           [1526] - Imbue Health.jpg
+|           [1527] - Mystic Healing.jpg
+|           [1528] - Dwayna's Touch.jpg
+|           [1529] - Pious Restoration.jpg
+|           [152] - Taste of Death.jpg
+|           [1530] - Signet of Pious Light.jpg
+|           [1531] - Intimidating Aura.jpg
+|           [1532] - Mystic Sandstorm.jpg
+|           [1533] - Winds of Disenchantment.jpg
+|           [1534] - Rending Touch.jpg
+|           [1535] - Crippling Sweep.jpg
+|           [1536] - Wounding Strike.jpg
+|           [1537] - Wearying Strike.jpg
+|           [1538] - Lyssa's Assault.jpg
+|           [1539] - Chilling Victory.jpg
+|           [153] - Vampiric Gaze.jpg
+|           [1540] - Conviction.jpg
+|           [1541] - Enchanted Haste.jpg
+|           [1542] - Pious Concentration.jpg
+|           [1543] - Pious Haste.jpg
+|           [1544] - Whirling Charge.jpg
+|           [1545] - Test of Faith.jpg
+|           [1546] - Blazing Spear.jpg
+|           [1547] - Mighty Throw.jpg
+|           [1548] - Cruel Spear.jpg
+|           [1549] - Harrier's Toss.jpg
+|           [154] - Plague Touch.jpg
+|           [1550] - Unblockable Throw.jpg
+|           [1551] - Spear of Lightning.jpg
+|           [1552] - Wearying Spear.jpg
+|           [1553] - Anthem of Fury.jpg
+|           [1554] - Crippling Anthem.jpg
+|           [1555] - Defensive Anthem.jpg
+|           [1556] - Godspeed.jpg
+|           [1557] - Anthem of Flame.jpg
+|           [1558] - Go for the Eyes!.jpg
+|           [1559] - Anthem of Envy.jpg
+|           [155] - Vile Touch.jpg
+|           [1560] - Song of Power.jpg
+|           [1561] - Zealous Anthem.jpg
+|           [1562] - Aria of Zeal.jpg
+|           [1563] - Lyric of Zeal.jpg
+|           [1564] - Ballad of Restoration.jpg
+|           [1565] - Chorus of Restoration.jpg
+|           [1566] - Aria of Restoration.jpg
+|           [1567] - Song of Concentration.jpg
+|           [1568] - Anthem of Guidance.jpg
+|           [1569] - Energizing Chorus.jpg
+|           [156] - Vampiric Touch.jpg
+|           [1570] - Song of Purification.jpg
+|           [1571] - Hexbreaker Aria.jpg
+|           [1572] - Brace Yourself!.jpg
+|           [1573] - Awe.jpg
+|           [1574] - Enduring Harmony.jpg
+|           [1575] - Blazing Finale.jpg
+|           [1576] - Burning Refrain.jpg
+|           [1577] - Finale of Restoration.jpg
+|           [1578] - Mending Refrain.jpg
+|           [1579] - Purifying Finale.jpg
+|           [157] - Blood Ritual.jpg
+|           [1580] - Bladeturn Refrain.jpg
+|           [1581] - Glowing Signet.jpg
+|           [1583] - Leader's Zeal.jpg
+|           [1584] - Leader's Comfort.jpg
+|           [1585] - Signet of Synergy.jpg
+|           [1586] - Angelic Protection.jpg
+|           [1587] - Angelic Bond.jpg
+|           [1588] - Cautery Signet.jpg
+|           [1589] - Stand Your Ground!.jpg
+|           [158] - Touch of Agony.jpg
+|           [1590] - Lead the Way!.jpg
+|           [1591] - Make Haste!.jpg
+|           [1592] - We Shall Return!.jpg
+|           [1593] - Never Give Up!.jpg
+|           [1594] - Help Me!.jpg
+|           [1595] - Fall Back!.jpg
+|           [1596] - Incoming!.jpg
+|           [1597] - They're on Fire!.jpg
+|           [1598] - Never Surrender!.jpg
+|           [1599] - It's Just a Flesh Wound..jpg
+|           [159] - Weaken Armor.jpg
+|           [15] - Mantra of Inscriptions.jpg
+|           [1600] - Barbed Spear.jpg
+|           [1601] - Vicious Attack.jpg
+|           [1602] - Stunning Strike.jpg
+|           [1603] - Merciless Spear.jpg
+|           [1604] - Disrupting Throw.jpg
+|           [1605] - Wild Throw.jpg
+|           [160] - Windborne Speed.jpg
+|           [162] - Gale.jpg
+|           [1633] - Malicious Strike.jpg
+|           [1634] - Shattering Assault.jpg
+|           [1635] - Golden Skull Strike.jpg
+|           [1636] - Black Spider Strike.jpg
+|           [1637] - Golden Fox Strike.jpg
+|           [1638] - Deadly Haste.jpg
+|           [1639] - Assassin's Remedy.jpg
+|           [163] - Whirlwind.jpg
+|           [1640] - Fox's Promise.jpg
+|           [1641] - Feigned Neutrality.jpg
+|           [1642] - Hidden Caltrops.jpg
+|           [1643] - Assault Enchantments.jpg
+|           [1644] - Wastrel's Collapse.jpg
+|           [1645] - Lift Enchantment.jpg
+|           [1646] - Augury of Death.jpg
+|           [1647] - Signet of Toxic Shock.jpg
+|           [1648] - Signet of Twilight.jpg
+|           [1649] - Way of the Assassin.jpg
+|           [164] - Elemental Attunement.jpg
+|           [1650] - Shadow Walk.jpg
+|           [1651] - Death's Retreat.jpg
+|           [1652] - Shadow Prison.jpg
+|           [1653] - Swap.jpg
+|           [1654] - Shadow Meld.jpg
+|           [1655] - Price of Pride.jpg
+|           [1656] - Air of Disenchantment.jpg
+|           [1657] - Signet of Clumsiness.jpg
+|           [1658] - Symbolic Posture.jpg
+|           [1659] - Toxic Chill.jpg
+|           [165] - Armor of Earth.jpg
+|           [1660] - Well of Silence.jpg
+|           [1661] - Glowstone.jpg
+|           [1662] - Mind Blast.jpg
+|           [1663] - Elemental Flame.jpg
+|           [1664] - Invoke Lightning.jpg
+|           [166] - Kinetic Armor.jpg
+|           [167] - Eruption.jpg
+|           [1683] - Pensive Guardian.jpg
+|           [1684] - Scribe's Insight.jpg
+|           [1685] - Holy Haste.jpg
+|           [1686] - Glimmer of Light.jpg
+|           [1687] - Zealous Benediction.jpg
+|           [1688] - Defender's Zeal.jpg
+|           [1689] - Signet of Mystic Wrath.jpg
+|           [168] - Magnetic Aura.jpg
+|           [1690] - Signet of Removal.jpg
+|           [1691] - Dismiss Condition.jpg
+|           [1692] - Divert Hexes.jpg
+|           [1693] - Counterattack.jpg
+|           [1694] - Magehunter Strike.jpg
+|           [1695] - Soldier's Strike.jpg
+|           [1696] - Decapitate.jpg
+|           [1697] - Magehunter's Smash.jpg
+|           [1698] - Soldier's Stance.jpg
+|           [1699] - Soldier's Defense.jpg
+|           [169] - Earth Attunement.jpg
+|           [16] - Mantra of Concentration.jpg
+|           [1700] - Frenzied Defense.jpg
+|           [1701] - Steady Stance.jpg
+|           [1702] - Steelfang Slash.jpg
+|           [170] - Earthquake.jpg
+|           [1719] - Screaming Shot.jpg
+|           [171] - Stoning.jpg
+|           [1720] - Keen Arrow.jpg
+|           [1721] - Rampage as One.jpg
+|           [1722] - Forked Arrow.jpg
+|           [1723] - Disrupting Accuracy.jpg
+|           [1724] - Expert's Dexterity.jpg
+|           [1725] - Roaring Winds.jpg
+|           [1726] - Magebane Shot.jpg
+|           [1727] - Natural Stride.jpg
+|           [1728] - Heket's Rampage.jpg
+|           [1729] - Smoke Trap.jpg
+|           [172] - Stone Daggers.jpg
+|           [1730] - Infuriating Heat.jpg
+|           [1731] - Vocal Was Sogolon.jpg
+|           [1732] - Destructive Was Glaive.jpg
+|           [1733] - Wielder's Strike.jpg
+|           [1734] - Gaze of Fury.jpg
+|           [1736] - Spirit's Strength.jpg
+|           [1737] - Wielder's Zeal.jpg
+|           [1738] - Sight Beyond Sight.jpg
+|           [1739] - Renewing Memories.jpg
+|           [173] - Grasping Earth.jpg
+|           [1740] - Wielder's Remedy.jpg
+|           [1741] - Ghostmirror Light.jpg
+|           [1742] - Signet of Ghostly Might.jpg
+|           [1743] - Signet of Binding.jpg
+|           [1744] - Caretaker's Charge.jpg
+|           [1745] - Anguish.jpg
+|           [1747] - Empowerment.jpg
+|           [1748] - Recovery.jpg
+|           [1749] - Weapon of Fury.jpg
+|           [174] - Aftershock.jpg
+|           [1750] - Xinrae's Weapon.jpg
+|           [1751] - Warmonger's Weapon.jpg
+|           [1752] - Weapon of Remedy.jpg
+|           [1753] - Rending Sweep.jpg
+|           [1754] - Onslaught.jpg
+|           [1755] - Mystic Corruption.jpg
+|           [1756] - Grenth's Grasp.jpg
+|           [1757] - Veil of Thorns.jpg
+|           [1758] - Harrier's Grasp.jpg
+|           [1759] - Vow of Strength.jpg
+|           [175] - Ward Against Elements.jpg
+|           [1760] - Ebon Dust Aura.jpg
+|           [1761] - Zealous Vow.jpg
+|           [1762] - Heart of Fury.jpg
+|           [1763] - Zealous Renewal.jpg
+|           [1764] - Attacker's Insight.jpg
+|           [1765] - Rending Aura.jpg
+|           [1766] - Featherfoot Grace.jpg
+|           [1767] - Reaper's Sweep.jpg
+|           [1768] - Harrier's Haste.jpg
+|           [1769] - Focused Anger.jpg
+|           [176] - Ward Against Melee.jpg
+|           [1770] - Natural Temper.jpg
+|           [1771] - Song of Restoration.jpg
+|           [1772] - Lyric of Purification.jpg
+|           [1773] - Soldier's Fury.jpg
+|           [1774] - Aggressive Refrain.jpg
+|           [1775] - Energizing Finale.jpg
+|           [1776] - Signet of Aggression.jpg
+|           [1777] - Remedy Signet.jpg
+|           [1778] - Signet of Return.jpg
+|           [1779] - Make Your Time!.jpg
+|           [177] - Ward Against Foes.jpg
+|           [1780] - Can't Touch This!.jpg
+|           [1781] - Find Their Weakness!.jpg
+|           [1782] - The Power Is Yours!.jpg
+|           [1783] - Slayer's Spear.jpg
+|           [1784] - Swift Javelin.jpg
+|           [178] - Ether Prodigy.jpg
+|           [179] - Incendiary Bonds.jpg
+|           [17] - Mantra of Resolve.jpg
+|           [180] - Aura of Restoration.jpg
+|           [1814] - Lightbringer's Gaze.jpg
+|           [1815] - Lightbringer Signet.jpg
+|           [1816] - Sunspear Rebirth Signet.jpg
+|           [181] - Ether Renewal.jpg
+|           [182] - Conjure Flame.jpg
+|           [183] - Inferno.jpg
+|           [184] - Fire Attunement.jpg
+|           [185] - Mind Burn.jpg
+|           [186] - Fireball.jpg
+|           [187] - Meteor.jpg
+|           [188] - Flame Burst.jpg
+|           [189] - Rodgort's Invocation.jpg
+|           [18] - Mantra of Signets.jpg
+|           [190] - Mark of Rodgort.jpg
+|           [191] - Immolate.jpg
+|           [192] - Meteor Shower.jpg
+|           [193] - Phoenix.jpg
+|           [1948] - Shadow Sanctuary.jpg
+|           [1949] - Ether Nightmare.jpg
+|           [194] - Flare.jpg
+|           [1950] - Signet of Corruption.jpg
+|           [1951] - Elemental Lord.jpg
+|           [1952] - Selfless Spirit.jpg
+|           [1953] - Triple Shot.jpg
+|           [1954] - Save Yourselves!.jpg
+|           [1955] - Aura of Holy Might.jpg
+|           [1957] - Spear of Fury.jpg
+|           [195] - Lava Font.jpg
+|           [196] - Searing Heat.jpg
+|           [197] - Fire Storm.jpg
+|           [1986] - Vampiric Assault.jpg
+|           [1987] - Lotus Strike.jpg
+|           [1988] - Golden Fang Strike.jpg
+|           [198] - Glyph of Elemental Power.jpg
+|           [1990] - Falling Lotus Strike.jpg
+|           [1991] - Sadist's Signet.jpg
+|           [1992] - Signet of Distraction.jpg
+|           [1993] - Signet of Recall.jpg
+|           [1994] - Power Lock.jpg
+|           [1995] - Waste Not, Want Not.jpg
+|           [1996] - Sum of All Fears.jpg
+|           [1997] - Withering Aura.jpg
+|           [1998] - Cacophony.jpg
+|           [1999] - Winter's Embrace.jpg
+|           [199] - Glyph of Energy.jpg
+|           [19] - Fragility.jpg
+|           [1] - Healing Signet.jpg
+|           [2000] - Earthen Shackles.jpg
+|           [2001] - Ward of Weakness.jpg
+|           [2002] - Glyph of Swiftness.jpg
+|           [2003] - Cure Hex.jpg
+|           [2004] - Smite Condition.jpg
+|           [2005] - Smiter's Boon.jpg
+|           [2006] - Castigation Signet.jpg
+|           [2007] - Purifying Veil.jpg
+|           [2008] - Pulverizing Smash.jpg
+|           [2009] - Keen Chop.jpg
+|           [200] - Glyph of Lesser Energy.jpg
+|           [2010] - Knee Cutter.jpg
+|           [2011] - Grapple.jpg
+|           [2012] - Radiant Scythe.jpg
+|           [2013] - Grenth's Aura.jpg
+|           [2014] - Signet of Pious Restraint.jpg
+|           [2015] - Farmer's Scythe.jpg
+|           [2016] - Energetic Was Lee Sa.jpg
+|           [2017] - Anthem of Weariness.jpg
+|           [2018] - Anthem of Disruption.jpg
+|           [201] - Glyph of Concentration.jpg
+|           [202] - Glyph of Sacrifice.jpg
+|           [203] - Glyph of Renewal.jpg
+|           [204] - Rust.jpg
+|           [2051] - Summon Spirits.jpg
+|           [2052] - Shadow Fang.jpg
+|           [2053] - Calculated Risk.jpg
+|           [2054] - Shrinking Armor.jpg
+|           [2055] - Aneurysm.jpg
+|           [2056] - Wandering Eye.jpg
+|           [2057] - Foul Feast.jpg
+|           [2058] - Putrid Bile.jpg
+|           [2059] - Shell Shock.jpg
+|           [205] - Lightning Surge.jpg
+|           [2060] - Glyph of Immolation.jpg
+|           [2061] - Patient Spirit.jpg
+|           [2062] - Healing Ribbon.jpg
+|           [2063] - Aura of Stability.jpg
+|           [2064] - Spotless Mind.jpg
+|           [2065] - Spotless Soul.jpg
+|           [2066] - Disarm.jpg
+|           [2067] - I Meant to Do That!.jpg
+|           [2068] - Rapid Fire.jpg
+|           [2069] - Sloth Hunter's Shot.jpg
+|           [206] - Armor of Frost.jpg
+|           [2070] - Aura Slicer.jpg
+|           [2071] - Zealous Sweep.jpg
+|           [2072] - Pure Was Li Ming.jpg
+|           [2073] - Weapon of Aggression.jpg
+|           [2074] - Chest Thumper.jpg
+|           [2075] - Hasty Refrain.jpg
+|           [207] - Conjure Frost.jpg
+|           [208] - Water Attunement.jpg
+|           [2091] - Shadow Sanctuary.jpg
+|           [2092] - Ether Nightmare.jpg
+|           [2093] - Signet of Corruption.jpg
+|           [2094] - Elemental Lord.jpg
+|           [2095] - Selfless Spirit.jpg
+|           [2096] - Triple Shot.jpg
+|           [2097] - Save Yourselves!.jpg
+|           [2098] - Aura of Holy Might.jpg
+|           [2099] - Spear of Fury.jpg
+|           [209] - Mind Freeze.jpg
+|           [2100] - Summon Spirits.jpg
+|           [2101] - Critical Agility.jpg
+|           [2102] - Cry of Pain.jpg
+|           [2103] - Necrosis.jpg
+|           [2104] - Intensity.jpg
+|           [2105] - Seed of Life.jpg
+|           [2107] - Whirlwind Attack.jpg
+|           [2108] - Never Rampage Alone.jpg
+|           [2109] - Eternal Aura.jpg
+|           [210] - Ice Prison.jpg
+|           [2110] - Vampirism.jpg
+|           [2112] - There's Nothing to Fear!.jpg
+|           [2116] - Sneak Attack.jpg
+|           [211] - Ice Spikes.jpg
+|           [212] - Frozen Burst.jpg
+|           [2135] - Trampling Ox.jpg
+|           [2136] - Smoke Powder Defense.jpg
+|           [2137] - Confusing Images.jpg
+|           [2138] - Hexer's Vigor.jpg
+|           [2139] - Masochism.jpg
+|           [213] - Shard Storm.jpg
+|           [2140] - Piercing Trap.jpg
+|           [2141] - Companionship.jpg
+|           [2142] - Feral Aggression.jpg
+|           [2143] - Disrupting Shot.jpg
+|           [2144] - Volley.jpg
+|           [2145] - Expert Focus.jpg
+|           [2146] - Pious Fury.jpg
+|           [2147] - Crippling Victory.jpg
+|           [2148] - Sundering Weapon.jpg
+|           [2149] - Weapon of Renewal.jpg
+|           [214] - Ice Spear.jpg
+|           [2150] - Maiming Spear.jpg
+|           [215] - Maelstrom.jpg
+|           [216] - Iron Mist.jpg
+|           [217] - Crystal Wave.jpg
+|           [2186] - Signet of Deadly Corruption.jpg
+|           [2187] - Way of the Master.jpg
+|           [2188] - Defile Defenses.jpg
+|           [2189] - Angorodon's Gaze.jpg
+|           [218] - Obsidian Flesh.jpg
+|           [2190] - Magnetic Surge.jpg
+|           [2191] - Slippery Ground.jpg
+|           [2192] - Glowing Ice.jpg
+|           [2193] - Energy Blast.jpg
+|           [2194] - Distracting Strike.jpg
+|           [2195] - Symbolic Strike.jpg
+|           [2196] - Soldier's Speed.jpg
+|           [2197] - Body Blow.jpg
+|           [2198] - Body Shot.jpg
+|           [2199] - Poison Tip Signet.jpg
+|           [219] - Obsidian Flame.jpg
+|           [21] - Inspired Enchantment.jpg
+|           [2200] - Signet of Mystic Speed.jpg
+|           [2201] - Shield of Force.jpg
+|           [2202] - Mending Grip.jpg
+|           [2203] - Spiritleech Aura.jpg
+|           [2204] - Rejuvenation.jpg
+|           [2205] - Agony.jpg
+|           [2206] - Ghostly Weapon.jpg
+|           [2207] - Inspirational Speech.jpg
+|           [2208] - Burning Shield.jpg
+|           [2209] - Holy Spear.jpg
+|           [220] - Blinding Flash.jpg
+|           [2210] - Spear Swipe.jpg
+|           [2211] - Alkar's Alchemical Acid.jpg
+|           [2212] - Light of Deldrimor.jpg
+|           [2213] - Ear Bite.jpg
+|           [2214] - Low Blow.jpg
+|           [2215] - Brawling Headbutt.jpg
+|           [2216] - Don't Trip!.jpg
+|           [2217] - By Ural's Hammer!.jpg
+|           [2218] - Drunken Master.jpg
+|           [2219] - Great Dwarf Weapon.jpg
+|           [221] - Conjure Lightning.jpg
+|           [2220] - Great Dwarf Armor.jpg
+|           [2221] - Breath of the Great Dwarf.jpg
+|           [2222] - Snow Storm.jpg
+|           [2223] - Black Powder Mine.jpg
+|           [2224] - Summon Mursaat.jpg
+|           [2225] - Summon Ruby Djinn.jpg
+|           [2226] - Summon Ice Imp.jpg
+|           [2227] - Summon Naga Shaman.jpg
+|           [2228] - Deft Strike.jpg
+|           [2229] - Signet of Infection.jpg
+|           [222] - Lightning Strike.jpg
+|           [2230] - Tryptophan Signet.jpg
+|           [2231] - Ebon Battle Standard of Courage.jpg
+|           [2232] - Ebon Battle Standard of Wisdom.jpg
+|           [2233] - Ebon Battle Standard of Honor.jpg
+|           [2234] - Ebon Vanguard Sniper Support.jpg
+|           [2235] - Ebon Vanguard Assassin Support.jpg
+|           [2236] - Well of Ruin.jpg
+|           [2237] - Atrophy.jpg
+|           [2238] - Spear of Redemption.jpg
+|           [223] - Chain Lightning.jpg
+|           [224] - Enervating Charge.jpg
+|           [225] - Air Attunement.jpg
+|           [226] - Mind Shock.jpg
+|           [227] - Glimmering Mark.jpg
+|           [228] - Thunderclap.jpg
+|           [229] - Lightning Orb.jpg
+|           [22] - Inspired Hex.jpg
+|           [230] - Lightning Javelin.jpg
+|           [231] - Shock.jpg
+|           [232] - Lightning Touch.jpg
+|           [233] - Swirling Aura.jpg
+|           [234] - Deep Freeze.jpg
+|           [2353] - Finish Him!.jpg
+|           [2354] - Dodge This!.jpg
+|           [2355] - I Am the Strongest!.jpg
+|           [2356] - I Am Unstoppable!.jpg
+|           [2357] - A Touch of Guile.jpg
+|           [2358] - You Move Like a Dwarf!.jpg
+|           [2359] - You Are All Weaklings!.jpg
+|           [235] - Blurred Vision.jpg
+|           [2360] - Feel No Pain.jpg
+|           [2361] - Club of a Thousand Bears.jpg
+|           [236] - Mist Form.jpg
+|           [2374] - Ursan Blessing.jpg
+|           [2379] - Volfen Blessing.jpg
+|           [237] - Water Trident.jpg
+|           [2384] - Raven Blessing.jpg
+|           [238] - Armor of Mist.jpg
+|           [239] - Ward Against Harm.jpg
+|           [23] - Power Spike.jpg
+|           [240] - Smite.jpg
+|           [2411] - Mindbender.jpg
+|           [2412] - Smooth Criminal.jpg
+|           [2413] - Technobabble.jpg
+|           [2414] - Radiation Field.jpg
+|           [2415] - Asuran Scan.jpg
+|           [2416] - Air of Superiority.jpg
+|           [2417] - Mental Block.jpg
+|           [2418] - Pain Inverter.jpg
+|           [241] - Life Bond.jpg
+|           [2420] - Ebon Escape.jpg
+|           [2421] - Weakness Trap.jpg
+|           [2422] - Winds.jpg
+|           [2423] - Dwarven Stability.jpg
+|           [242] - Balthazar's Spirit.jpg
+|           [243] - Strength of Honor.jpg
+|           [244] - Life Attunement.jpg
+|           [245] - Protective Spirit.jpg
+|           [246] - Divine Intervention.jpg
+|           [247] - Symbol of Wrath.jpg
+|           [248] - Retribution.jpg
+|           [249] - Holy Wrath.jpg
+|           [24] - Power Leak.jpg
+|           [250] - Essence Bond.jpg
+|           [251] - Scourge Healing.jpg
+|           [252] - Banish.jpg
+|           [253] - Scourge Sacrifice.jpg
+|           [254] - Vigorous Spirit.jpg
+|           [255] - Watchful Spirit.jpg
+|           [256] - Blessed Aura.jpg
+|           [257] - Aegis.jpg
+|           [258] - Guardian.jpg
+|           [259] - Shield of Deflection.jpg
+|           [25] - Power Drain.jpg
+|           [260] - Aura of Faith.jpg
+|           [261] - Shield of Regeneration.jpg
+|           [262] - Shield of Judgment.jpg
+|           [263] - Protective Bond.jpg
+|           [264] - Pacifism.jpg
+|           [2657] - Call of Haste (PvP).jpg
+|           [265] - Amity.jpg
+|           [266] - Peace and Harmony.jpg
+|           [267] - Judge's Insight.jpg
+|           [2683] - Castigation Signet (Saul D'Alessio).jpg
+|           [2684] - Unnatural Signet (Saul D'Alessio).jpg
+|           [268] - Unyielding Aura.jpg
+|           [269] - Mark of Protection.jpg
+|           [26] - Empathy.jpg
+|           [270] - Life Barrier.jpg
+|           [271] - Zealot's Fire.jpg
+|           [272] - Balthazar's Aura.jpg
+|           [2734] - Mind Wrack (PvP).jpg
+|           [273] - Spell Breaker.jpg
+|           [274] - Healing Seed.jpg
+|           [275] - Mend Condition.jpg
+|           [276] - Restore Condition.jpg
+|           [277] - Mend Ailment.jpg
+|           [278] - Purge Conditions.jpg
+|           [279] - Divine Healing.jpg
+|           [27] - Shatter Delusions.jpg
+|           [2803] - Mind Freeze (PvP).jpg
+|           [2804] - Mind Shock (PvP).jpg
+|           [2805] - Mist Form (PvP).jpg
+|           [2806] - Ward Against Harm (PvP).jpg
+|           [2807] - Ride the Lightning (PvP).jpg
+|           [2808] - Enraged Smash (PvP).jpg
+|           [2809] - Obsidian Flame (PvP).jpg
+|           [280] - Heal Area.jpg
+|           [281] - Orison of Healing.jpg
+|           [282] - Word of Healing.jpg
+|           [283] - Dwayna's Kiss.jpg
+|           [284] - Divine Boon.jpg
+|           [2857] - Aegis (PvP).jpg
+|           [2858] - Watch Yourself! (PvP).jpg
+|           [2859] - Enfeeble (PvP).jpg
+|           [285] - Healing Hands.jpg
+|           [2860] - Ether Renewal (PvP).jpg
+|           [2861] - Penetrating Attack (PvP).jpg
+|           [2862] - Shadow Form (PvP).jpg
+|           [2863] - Discord (PvP).jpg
+|           [2864] - Sundering Attack (PvP).jpg
+|           [2866] - Flesh of My Flesh (PvP).jpg
+|           [2867] - Ancestors' Rage (PvP).jpg
+|           [2868] - Splinter Weapon (PvP).jpg
+|           [2869] - Assassin's Remedy (PvP).jpg
+|           [286] - Heal Other.jpg
+|           [2871] - Light of Deliverance (PvP).jpg
+|           [2872] - Death Pact Signet (PvP).jpg
+|           [2875] - Harrier's Toss (PvP).jpg
+|           [2876] - Defensive Anthem (PvP).jpg
+|           [2877] - Ballad of Restoration (PvP).jpg
+|           [2878] - Song of Restoration (PvP).jpg
+|           [2879] - Incoming! (PvP).jpg
+|           [287] - Heal Party.jpg
+|           [2880] - Never Surrender! (PvP).jpg
+|           [2883] - For Great Justice! (PvP).jpg
+|           [2884] - Mystic Regeneration (PvP).jpg
+|           [2885] - Enfeebling Blood (PvP).jpg
+|           [2887] - Signet of Judgment (PvP).jpg
+|           [288] - Healing Breeze.jpg
+|           [2891] - Unyielding Aura (PvP).jpg
+|           [2892] - Spirit Bond (PvP).jpg
+|           [2893] - Weapon of Warding (PvP).jpg
+|           [2895] - Smiter's Boon (PvP).jpg
+|           [289] - Vital Blessing.jpg
+|           [28] - Backfire.jpg
+|           [290] - Mending.jpg
+|           [291] - Live Vicariously.jpg
+|           [2925] - Sloth Hunter's Shot (PvP).jpg
+|           [292] - Infuse Health.jpg
+|           [293] - Signet of Devotion.jpg
+|           [294] - Signet of Judgment.jpg
+|           [2959] - Expert's Dexterity (PvP).jpg
+|           [295] - Purge Signet.jpg
+|           [2965] - Signet of Spirits (PvP).jpg
+|           [2966] - Signet of Ghostly Might (PvP).jpg
+|           [2969] - Read the Wind (PvP).jpg
+|           [296] - Bane Signet.jpg
+|           [297] - Blessed Signet.jpg
+|           [298] - Martyr.jpg
+|           [2998] - Fragility (PvP).jpg
+|           [2999] - Strength of Honor (PvP).jpg
+|           [299] - Shielding Hands.jpg
+|           [29] - Blackout.jpg
+|           [2] - Resurrection Signet.jpg
+|           [3002] - Warrior's Endurance (PvP).jpg
+|           [3003] - Armor of Unfeeling (PvP).jpg
+|           [3005] - Union (PvP).jpg
+|           [3006] - Shadowsong (PvP).jpg
+|           [3007] - Pain (PvP).jpg
+|           [3008] - Destruction (PvP).jpg
+|           [3009] - Soothing (PvP).jpg
+|           [300] - Contemplation of Purity.jpg
+|           [3010] - Displacement (PvP).jpg
+|           [3011] - Preservation (PvP).jpg
+|           [3012] - Life (PvP).jpg
+|           [3013] - Recuperation (PvP).jpg
+|           [3014] - Dissonance (PvP).jpg
+|           [3015] - Earthbind (PvP).jpg
+|           [3016] - Shelter (PvP).jpg
+|           [3017] - Disenchantment (PvP).jpg
+|           [3018] - Restoration (PvP).jpg
+|           [3019] - Bloodsong (PvP).jpg
+|           [301] - Remove Hex.jpg
+|           [3020] - Wanderlust (PvP).jpg
+|           [3021] - Savannah Heat (PvP).jpg
+|           [3022] - Gaze of Fury (PvP).jpg
+|           [3023] - Anguish (PvP).jpg
+|           [3024] - Empowerment (PvP).jpg
+|           [3025] - Recovery (PvP).jpg
+|           [3026] - Go for the Eyes! (PvP).jpg
+|           [3027] - Brace Yourself! (PvP).jpg
+|           [3028] - Blazing Finale (PvP).jpg
+|           [3029] - Bladeturn Refrain (PvP).jpg
+|           [302] - Smite Hex.jpg
+|           [3030] - Signet of Return (PvP).jpg
+|           [3031] - Can't Touch This! (PvP).jpg
+|           [3032] - Stand Your Ground! (PvP).jpg
+|           [3033] - We Shall Return! (PvP).jpg
+|           [3034] - Find Their Weakness! (PvP).jpg
+|           [3035] - Never Give Up! (PvP).jpg
+|           [3036] - Help Me! (PvP).jpg
+|           [3037] - Fall Back! (PvP).jpg
+|           [3038] - Agony (PvP).jpg
+|           [3039] - Rejuvenation (PvP).jpg
+|           [303] - Convert Hexes.jpg
+|           [3040] - Anthem of Disruption (PvP).jpg
+|           [3045] - Comfort Animal (PvP).jpg
+|           [3047] - Melandru's Assault (PvP).jpg
+|           [3048] - Shroud of Distress (PvP).jpg
+|           [3049] - Unseen Fury (PvP).jpg
+|           [304] - Light of Dwayna.jpg
+|           [3050] - Predatory Bond (PvP).jpg
+|           [3051] - Enraged Lunge (PvP).jpg
+|           [3053] - Signet of Deadly Corruption (PvP).jpg
+|           [3054] - Masochism (PvP).jpg
+|           [3058] - Unholy Feast (PvP).jpg
+|           [3059] - Signet of Agony (PvP).jpg
+|           [305] - Resurrect.jpg
+|           [3060] - Escape (PvP).jpg
+|           [3061] - Death Blossom (PvP).jpg
+|           [3062] - Finale of Restoration (PvP).jpg
+|           [3063] - Mantra of Resolve (PvP).jpg
+|           [3068] - Charm Animal (Codex).jpg
+|           [306] - Rebirth.jpg
+|           [307] - Reversal of Fortune.jpg
+|           [308] - Succor.jpg
+|           [309] - Holy Veil.jpg
+|           [30] - Diversion.jpg
+|           [310] - Divine Spirit.jpg
+|           [311] - Draw Conditions.jpg
+|           [312] - Holy Strike.jpg
+|           [313] - Healing Touch.jpg
+|           [3141] - Lightning Reflexes (PvP).jpg
+|           [3143] - Renewing Smash (PvP).jpg
+|           [3144] - Heal as One (PvP).jpg
+|           [3145] - Glass Arrows (PvP).jpg
+|           [3147] - Keen Arrow (PvP).jpg
+|           [3148] - Anthem of Envy (PvP).jpg
+|           [3149] - Mending Refrain (PvP).jpg
+|           [314] - Restore Life.jpg
+|           [3151] - Empathy (PvP).jpg
+|           [3152] - Crippling Anguish (PvP).jpg
+|           [3156] - Soldier's Stance (PvP).jpg
+|           [3157] - Destructive Was Glaive (PvP).jpg
+|           [315] - Vengeance.jpg
+|           [316] - To the Limit!.jpg
+|           [3179] - Mantra of Signets (PvP).jpg
+|           [317] - Battle Rage.jpg
+|           [3180] - Shatter Delusions (PvP).jpg
+|           [3181] - Illusionary Weaponry (PvP).jpg
+|           [3183] - Migraine (PvP).jpg
+|           [3184] - Accumulated Pain (PvP).jpg
+|           [3185] - Psychic Instability (PvP).jpg
+|           [3186] - Shared Burden (PvP).jpg
+|           [3187] - Stolen Speed (PvP).jpg
+|           [3188] - Unnatural Signet (PvP).jpg
+|           [3189] - Spiritual Pain (PvP).jpg
+|           [318] - Defy Pain.jpg
+|           [3190] - Frustration (PvP).jpg
+|           [3191] - Mistrust (PvP).jpg
+|           [3192] - Enchanter's Conundrum (PvP).jpg
+|           [3193] - Signet of Clumsiness (PvP).jpg
+|           [3194] - Mirror of Disenchantment (PvP).jpg
+|           [3195] - Wandering Eye (PvP).jpg
+|           [3196] - Calculated Risk (PvP).jpg
+|           [319] - Rush.jpg
+|           [31] - Conjure Phantasm.jpg
+|           [3204] - Defy Pain (PvP).jpg
+|           [320] - Hamstring.jpg
+|           [321] - Wild Blow.jpg
+|           [322] - Power Attack.jpg
+|           [3232] - Heal Party (PvP).jpg
+|           [3233] - Spoil Victor (PvP).jpg
+|           [3234] - Visions of Regret (PvP).jpg
+|           [323] - Desperation Blow.jpg
+|           [324] - Thrill of Victory.jpg
+|           [3251] - Fox Fangs (PvP).jpg
+|           [3252] - Wild Strike (PvP).jpg
+|           [325] - Distracting Blow.jpg
+|           [3263] - Banishing Strike (PvP).jpg
+|           [3264] - Twin Moon Sweep (PvP).jpg
+|           [3265] - Irresistible Sweep (PvP).jpg
+|           [3266] - Pious Assault (PvP).jpg
+|           [3269] - Guiding Hands (PvP).jpg
+|           [326] - Protector's Strike.jpg
+|           [3270] - Avatar of Dwayna (PvP).jpg
+|           [3271] - Avatar of Melandru (PvP).jpg
+|           [3272] - Mystic Healing (PvP).jpg
+|           [3273] - Signet of Pious Restraint (PvP).jpg
+|           [327] - Griffon's Sweep.jpg
+|           [3289] - Fevered Dreams (PvP).jpg
+|           [328] - Pure Strike.jpg
+|           [329] - Skull Crack.jpg
+|           [32] - Illusion of Weakness.jpg
+|           [330] - Cyclone Axe.jpg
+|           [331] - Hammer Bash.jpg
+|           [332] - Bull's Strike.jpg
+|           [333] - I Will Avenge You!.jpg
+|           [3346] - Aura of Thorns (PvP).jpg
+|           [3347] - Dust Cloak (PvP).jpg
+|           [3348] - Lyssa's Haste (PvP).jpg
+|           [334] - Axe Rake.jpg
+|           [335] - Cleave.jpg
+|           [3365] - Onslaught (PvP).jpg
+|           [3366] - Heart of Fury (PvP).jpg
+|           [3367] - Wounding Strike (PvP).jpg
+|           [3368] - Pious Fury (PvP).jpg
+|           [336] - Executioner's Strike.jpg
+|           [3373] - Illusion of Haste (PvP).jpg
+|           [3374] - Illusion of Pain (PvP).jpg
+|           [3375] - Aura of Restoration (PvP).jpg
+|           [337] - Dismember.jpg
+|           [3386] - Web of Disruption (PvP).jpg
+|           [338] - Eviscerate.jpg
+|           [3396] - Lightning Hammer (PvP).jpg
+|           [3397] - Elemental Flame (PvP).jpg
+|           [3398] - Slippery Ground (PvP).jpg
+|           [339] - Penetrating Blow.jpg
+|           [33] - Illusionary Weaponry.jpg
+|           [340] - Disrupting Chop.jpg
+|           [341] - Swift Chop.jpg
+|           [3422] - Time Ward.jpg
+|           [3423] - Soul Taker.jpg
+|           [3424] - Over the Limit.jpg
+|           [3425] - Judgment Strike.jpg
+|           [3426] - Seven Weapons Stance.jpg
+|           [3427] - Together as One!.jpg
+|           [3428] - Shadow Theft.jpg
+|           [3429] - Weapons of Three Forges.jpg
+|           [342] - Axe Twist.jpg
+|           [3430] - Vow of Revolution.jpg
+|           [3431] - Heroic Refrain.jpg
+|           [343] - For Great Justice!.jpg
+|           [344] - Flurry.jpg
+|           [345] - Defensive Stance.jpg
+|           [346] - Frenzy.jpg
+|           [347] - Endure Pain.jpg
+|           [348] - Watch Yourself!.jpg
+|           [349] - Sprint.jpg
+|           [34] - Sympathetic Visage.jpg
+|           [350] - Belly Smash.jpg
+|           [351] - Mighty Blow.jpg
+|           [352] - Crushing Blow.jpg
+|           [353] - Crude Swing.jpg
+|           [354] - Earth Shaker.jpg
+|           [355] - Devastating Hammer.jpg
+|           [356] - Irresistible Blow.jpg
+|           [357] - Counter Blow.jpg
+|           [358] - Backbreaker.jpg
+|           [359] - Heavy Blow.jpg
+|           [35] - Ignorance.jpg
+|           [360] - Staggering Blow.jpg
+|           [361] - Dolyak Signet.jpg
+|           [362] - Warrior's Cunning.jpg
+|           [363] - Shield Bash.jpg
+|           [364] - Charge!.jpg
+|           [365] - Victory Is Mine!.jpg
+|           [366] - Fear Me!.jpg
+|           [367] - Shields Up!.jpg
+|           [368] - I Will Survive!.jpg
+|           [36] - Arcane Conundrum.jpg
+|           [370] - Berserker Stance.jpg
+|           [371] - Balanced Stance.jpg
+|           [372] - Gladiator's Defense.jpg
+|           [373] - Deflect Arrows.jpg
+|           [374] - Warrior's Endurance.jpg
+|           [375] - Dwarven Battle Stance.jpg
+|           [376] - Disciplined Stance.jpg
+|           [377] - Wary Stance.jpg
+|           [378] - Shield Stance.jpg
+|           [379] - Bull's Charge.jpg
+|           [37] - Illusion of Haste.jpg
+|           [380] - Bonetti's Defense.jpg
+|           [381] - Hundred Blades.jpg
+|           [382] - Sever Artery.jpg
+|           [383] - Galrath Slash.jpg
+|           [384] - Gash.jpg
+|           [385] - Final Thrust.jpg
+|           [386] - Seeking Blade.jpg
+|           [387] - Riposte.jpg
+|           [388] - Deadly Riposte.jpg
+|           [389] - Flourish.jpg
+|           [38] - Channeling.jpg
+|           [390] - Savage Slash.jpg
+|           [391] - Hunter's Shot.jpg
+|           [392] - Pin Down.jpg
+|           [393] - Crippling Shot.jpg
+|           [394] - Power Shot.jpg
+|           [395] - Barrage.jpg
+|           [396] - Dual Shot.jpg
+|           [397] - Quick Shot.jpg
+|           [398] - Penetrating Attack.jpg
+|           [399] - Distracting Shot.jpg
+|           [39] - Energy Surge.jpg
+|           [3] - Signet of Capture.jpg
+|           [400] - Precision Shot.jpg
+|           [402] - Determined Shot.jpg
+|           [403] - Called Shot.jpg
+|           [404] - Poison Arrow.jpg
+|           [405] - Oath Shot.jpg
+|           [406] - Debilitating Shot.jpg
+|           [407] - Point Blank Shot.jpg
+|           [408] - Concussion Shot.jpg
+|           [409] - Punishing Shot.jpg
+|           [40] - Ether Feast.jpg
+|           [411] - Charm Animal.jpg
+|           [412] - Call of Protection.jpg
+|           [415] - Call of Haste.jpg
+|           [41] - Ether Lord.jpg
+|           [422] - Revive Animal.jpg
+|           [423] - Symbiotic Bond.jpg
+|           [424] - Throw Dirt.jpg
+|           [425] - Dodge.jpg
+|           [426] - Savage Shot.jpg
+|           [427] - Antidote Signet.jpg
+|           [428] - Incendiary Arrows.jpg
+|           [429] - Melandru's Arrows.jpg
+|           [42] - Energy Burn.jpg
+|           [430] - Marksman's Wager.jpg
+|           [431] - Ignite Arrows.jpg
+|           [432] - Read the Wind.jpg
+|           [433] - Kindle Arrows.jpg
+|           [434] - Choking Gas.jpg
+|           [435] - Apply Poison.jpg
+|           [436] - Comfort Animal.jpg
+|           [437] - Bestial Pounce.jpg
+|           [438] - Maiming Strike.jpg
+|           [439] - Feral Lunge.jpg
+|           [43] - Clumsiness.jpg
+|           [440] - Scavenger Strike.jpg
+|           [441] - Melandru's Assault.jpg
+|           [442] - Ferocious Strike.jpg
+|           [443] - Predator's Pounce.jpg
+|           [444] - Brutal Strike.jpg
+|           [445] - Disrupting Lunge.jpg
+|           [446] - Troll Unguent.jpg
+|           [447] - Otyugh's Cry.jpg
+|           [448] - Escape.jpg
+|           [449] - Practiced Stance.jpg
+|           [44] - Phantom Pain.jpg
+|           [450] - Whirling Defense.jpg
+|           [451] - Melandru's Resilience.jpg
+|           [452] - Dryder's Defenses.jpg
+|           [453] - Lightning Reflexes.jpg
+|           [454] - Tiger's Fury.jpg
+|           [455] - Storm Chaser.jpg
+|           [456] - Serpent's Quickness.jpg
+|           [457] - Dust Trap.jpg
+|           [458] - Barbed Trap.jpg
+|           [459] - Flame Trap.jpg
+|           [45] - Ethereal Burden.jpg
+|           [460] - Healing Spring.jpg
+|           [461] - Spike Trap.jpg
+|           [462] - Winter.jpg
+|           [463] - Winnowing.jpg
+|           [464] - Edge of Extinction.jpg
+|           [465] - Greater Conflagration.jpg
+|           [466] - Conflagration.jpg
+|           [467] - Fertile Season.jpg
+|           [468] - Symbiosis.jpg
+|           [469] - Primal Echoes.jpg
+|           [46] - Guilt.jpg
+|           [470] - Predatory Season.jpg
+|           [471] - Frozen Soil.jpg
+|           [472] - Favorable Winds.jpg
+|           [474] - Energizing Wind.jpg
+|           [475] - Quickening Zephyr.jpg
+|           [476] - Nature's Renewal.jpg
+|           [477] - Muddy Terrain.jpg
+|           [47] - Ineptitude.jpg
+|           [48] - Spirit of Failure.jpg
+|           [49] - Mind Wrack.jpg
+|           [50] - Wastrel's Worry.jpg
+|           [51] - Shame.jpg
+|           [52] - Panic.jpg
+|           [53] - Migraine.jpg
+|           [54] - Crippling Anguish.jpg
+|           [55] - Fevered Dreams.jpg
+|           [56] - Soothing Images.jpg
+|           [570] - Mark of Insecurity.jpg
+|           [571] - Disrupting Dagger.jpg
+|           [572] - Deadly Paradox.jpg
+|           [57] - Cry of Frustration.jpg
+|           [58] - Signet of Midnight.jpg
+|           [59] - Signet of Weariness.jpg
+|           [5] - Power Block.jpg
+|           [61] - Leech Signet.jpg
+|           [62] - Signet of Humility.jpg
+|           [63] - Keystone Signet.jpg
+|           [65] - Arcane Mimicry.jpg
+|           [66] - Spirit Shackles.jpg
+|           [67] - Shatter Hex.jpg
+|           [68] - Drain Enchantment.jpg
+|           [69] - Shatter Enchantment.jpg
+|           [6] - Mantra of Earth.jpg
+|           [72] - Elemental Resistance.jpg
+|           [73] - Physical Resistance.jpg
+|           [74] - Echo.jpg
+|           [75] - Arcane Echo.jpg
+|           [763] - Jaundiced Gaze.jpg
+|           [764] - Wail of Doom.jpg
+|           [766] - Gaze of Contempt.jpg
+|           [769] - Viper's Defense.jpg
+|           [76] - Imagined Burden.jpg
+|           [770] - Return.jpg
+|           [771] - Aura of Displacement.jpg
+|           [772] - Generous Was Tsungrai.jpg
+|           [773] - Mighty Was Vorizun.jpg
+|           [775] - Death Blossom.jpg
+|           [776] - Twisting Fangs.jpg
+|           [777] - Horns of the Ox.jpg
+|           [778] - Falling Spider.jpg
+|           [779] - Black Lotus Strike.jpg
+|           [77] - Chaos Storm.jpg
+|           [780] - Fox Fangs.jpg
+|           [781] - Moebius Strike.jpg
+|           [782] - Jagged Strike.jpg
+|           [783] - Unsuspecting Strike.jpg
+|           [784] - Entangling Asp.jpg
+|           [785] - Mark of Death.jpg
+|           [786] - Iron Palm.jpg
+|           [787] - Resilient Weapon.jpg
+|           [788] - Blind Was Mingson.jpg
+|           [789] - Grasping Was Kuurong.jpg
+|           [78] - Epidemic.jpg
+|           [790] - Vengeful Was Khanhei.jpg
+|           [791] - Flesh of My Flesh.jpg
+|           [792] - Splinter Weapon.jpg
+|           [793] - Weapon of Warding.jpg
+|           [794] - Wailing Weapon.jpg
+|           [795] - Nightmare Weapon.jpg
+|           [799] - Beguiling Haze.jpg
+|           [79] - Energy Drain.jpg
+|           [7] - Mantra of Flame.jpg
+|           [800] - Enduring Toxin.jpg
+|           [801] - Shroud of Silence.jpg
+|           [802] - Expose Defenses.jpg
+|           [803] - Power Leech.jpg
+|           [804] - Arcane Languor.jpg
+|           [805] - Animate Vampiric Horror.jpg
+|           [806] - Cultist's Fervor.jpg
+|           [808] - Reaper's Mark.jpg
+|           [809] - Shatterstone.jpg
+|           [80] - Energy Tap.jpg
+|           [810] - Protector's Defense.jpg
+|           [811] - Run as One.jpg
+|           [812] - Defiant Was Xinrae.jpg
+|           [813] - Lyssa's Aura.jpg
+|           [814] - Shadow Refuge.jpg
+|           [815] - Scorpion Wire.jpg
+|           [816] - Mirrored Stance.jpg
+|           [817] - Discord.jpg
+|           [818] - Well of Weariness.jpg
+|           [819] - Vampiric Spirit.jpg
+|           [81] - Arcane Thievery.jpg
+|           [820] - Depravity.jpg
+|           [821] - Icy Veins.jpg
+|           [822] - Weaken Knees.jpg
+|           [823] - Burning Speed.jpg
+|           [824] - Lava Arrows.jpg
+|           [825] - Bed of Coals.jpg
+|           [826] - Shadow Form.jpg
+|           [827] - Siphon Strength.jpg
+|           [828] - Vile Miasma.jpg
+|           [82] - Mantra of Recall.jpg
+|           [830] - Ray of Judgment.jpg
+|           [831] - Primal Rage.jpg
+|           [832] - Animate Flesh Golem.jpg
+|           [834] - Reckless Haste.jpg
+|           [835] - Blood Bond.jpg
+|           [836] - Ride the Lightning.jpg
+|           [837] - Energy Boon.jpg
+|           [838] - Dwayna's Sorrow.jpg
+|           [839] - Retreat!.jpg
+|           [83] - Animate Bone Horror.jpg
+|           [840] - Poisoned Heart.jpg
+|           [841] - Fetid Ground.jpg
+|           [842] - Arc Lightning.jpg
+|           [843] - Gust.jpg
+|           [844] - Churning Earth.jpg
+|           [845] - Liquid Flame.jpg
+|           [846] - Steam.jpg
+|           [847] - Boon Signet.jpg
+|           [848] - Reverse Hex.jpg
+|           [849] - Lacerating Chop.jpg
+|           [84] - Animate Bone Fiend.jpg
+|           [850] - Fierce Blow.jpg
+|           [851] - Sun and Moon Slash.jpg
+|           [852] - Splinter Shot.jpg
+|           [853] - Melandru's Shot.jpg
+|           [854] - Snare.jpg
+|           [858] - Dancing Daggers.jpg
+|           [859] - Conjure Nightmare.jpg
+|           [85] - Animate Bone Minions.jpg
+|           [860] - Signet of Disruption.jpg
+|           [862] - Ravenous Gaze.jpg
+|           [863] - Order of Apostasy.jpg
+|           [864] - Oppressive Gaze.jpg
+|           [865] - Lightning Hammer.jpg
+|           [866] - Vapor Blade.jpg
+|           [867] - Healing Light.jpg
+|           [869] - Coward!.jpg
+|           [86] - Grenth's Balance.jpg
+|           [870] - Pestilence.jpg
+|           [871] - Shadowsong.jpg
+|           [876] - Signet of Shadows.jpg
+|           [877] - Lyssa's Balance.jpg
+|           [878] - Visions of Regret.jpg
+|           [879] - Illusion of Pain.jpg
+|           [87] - Verata's Gaze.jpg
+|           [880] - Stolen Speed.jpg
+|           [881] - Ether Signet.jpg
+|           [882] - Signet of Disenchantment.jpg
+|           [883] - Vocal Minority.jpg
+|           [884] - Searing Flames.jpg
+|           [885] - Shield Guardian.jpg
+|           [886] - Restful Breeze.jpg
+|           [887] - Signet of Rejuvenation.jpg
+|           [888] - Whirling Axe.jpg
+|           [889] - Forceful Blow.jpg
+|           [88] - Verata's Aura.jpg
+|           [891] - None Shall Pass!.jpg
+|           [892] - Quivering Blade.jpg
+|           [893] - Seeking Arrows.jpg
+|           [898] - Overload.jpg
+|           [899] - Images of Remorse.jpg
+|           [89] - Deathly Chill.jpg
+|           [8] - Mantra of Frost.jpg
+|           [900] - Shared Burden.jpg
+|           [901] - Soul Bind.jpg
+|           [902] - Blood of the Aggressor.jpg
+|           [903] - Icy Prism.jpg
+|           [904] - Furious Axe.jpg
+|           [905] - Auspicious Blow.jpg
+|           [906] - On Your Knees!.jpg
+|           [907] - Dragon Slash.jpg
+|           [908] - Marauder's Shot.jpg
+|           [909] - Focused Shot.jpg
+|           [90] - Verata's Sacrifice.jpg
+|           [910] - Spirit Rift.jpg
+|           [911] - Union.jpg
+|           [913] - Tranquil Was Tanasen.jpg
+|           [914] - Consume Soul.jpg
+|           [915] - Spirit Light.jpg
+|           [916] - Lamentation.jpg
+|           [917] - Rupture Soul.jpg
+|           [918] - Spirit to Flesh.jpg
+|           [919] - Spirit Burn.jpg
+|           [91] - Well of Power.jpg
+|           [920] - Destruction.jpg
+|           [921] - Dissonance.jpg
+|           [923] - Disenchantment.jpg
+|           [925] - Recall.jpg
+|           [926] - Sharpen Daggers.jpg
+|           [927] - Shameful Fear.jpg
+|           [928] - Shadow Shroud.jpg
+|           [929] - Shadow of Haste.jpg
+|           [92] - Well of Blood.jpg
+|           [930] - Auspicious Incantation.jpg
+|           [931] - Power Return.jpg
+|           [932] - Complicate.jpg
+|           [933] - Shatter Storm.jpg
+|           [934] - Unnatural Signet.jpg
+|           [935] - Rising Bile.jpg
+|           [936] - Envenom Enchantments.jpg
+|           [937] - Shockwave.jpg
+|           [938] - Ward of Stability.jpg
+|           [939] - Icy Shackles.jpg
+|           [93] - Well of Suffering.jpg
+|           [941] - Blessed Light.jpg
+|           [942] - Withdraw Hexes.jpg
+|           [943] - Extinguish.jpg
+|           [944] - Signet of Strength.jpg
+|           [946] - Trapper's Focus.jpg
+|           [947] - Brambles.jpg
+|           [948] - Desperate Strike.jpg
+|           [949] - Way of the Fox.jpg
+|           [94] - Well of the Profane.jpg
+|           [950] - Shadowy Burden.jpg
+|           [951] - Siphon Speed.jpg
+|           [952] - Death's Charge.jpg
+|           [953] - Power Flux.jpg
+|           [954] - Expel Hexes.jpg
+|           [955] - Rip Enchantment.jpg
+|           [957] - Spell Shield.jpg
+|           [958] - Healing Whisper.jpg
+|           [959] - Ethereal Light.jpg
+|           [95] - Putrid Explosion.jpg
+|           [960] - Release Enchantments.jpg
+|           [961] - Lacerate.jpg
+|           [962] - Spirit Transfer.jpg
+|           [963] - Restoration.jpg
+|           [964] - Vengeful Weapon.jpg
+|           [96] - Soul Feast.jpg
+|           [973] - Blinding Powder.jpg
+|           [974] - Mantis Touch.jpg
+|           [975] - Exhausting Assault.jpg
+|           [976] - Repeating Strike.jpg
+|           [977] - Way of the Lotus.jpg
+|           [978] - Mark of Instability.jpg
+|           [979] - Mistrust.jpg
+|           [97] - Necrotic Traversal.jpg
+|           [980] - Feast of Souls.jpg
+|           [981] - Recuperation.jpg
+|           [982] - Shelter.jpg
+|           [983] - Weapon of Shadow.jpg
+|           [985] - Caltrops.jpg
+|           [986] - Nine Tail Strike.jpg
+|           [987] - Way of the Empty Palm.jpg
+|           [988] - Temple Strike.jpg
+|           [989] - Golden Phoenix Strike.jpg
+|           [98] - Consume Corpse.jpg
+|           [990] - Expunge Enchantments.jpg
+|           [991] - Deny Hexes.jpg
+|           [992] - Triple Chop.jpg
+|           [993] - Enraged Smash.jpg
+|           [994] - Renewing Smash.jpg
+|           [995] - Tiger Stance.jpg
+|           [996] - Standing Slash.jpg
+|           [997] - Famine.jpg
+|           [99] - Parasitic Bond.jpg
+|           [9] - Mantra of Lightning.jpg
+|           
++---Widgets
+|   |   Action Queue Monitor.py
+|   |   Agent Info.py
+|   |   Blessed.py
+|   |   CanthaDialogSender.py
+|   |   Color Picker.py
+|   |   CombatPrep.py
+|   |   Compass +.py
+|   |   CustomBehaviors.py
+|   |   Dialog Sync.py
+|   |   Drop Unyielding Aura.py
+|   |   Enter character on load.py
+|   |   Environment Upkeeper.py
+|   |   HeroAI.py
+|   |   HeroHelper.py
+|   |   Heroic Refrain.py
+|   |   Icon Explorer.py
+|   |   imgui.ini
+|   |   Instance Timer.py
+|   |   InventoryPlus.py
+|   |   LootManager.py
+|   |   Messaging.py
+|   |   Mission Map +.py
+|   |   NFDialogSender.py
+|   |   Pet Helper.py
+|   |   Polymock.py
+|   |   Profession Unlocker
+|   |   Py4GW_DEMO.py
+|   |   Return to outpost on defeat.py
+|   |   SharedMem Monitor.py
+|   |   Skillbar +.py
+|   |   Skip Cinematics.py
+|   |   Style Manager.py
+|   |   Survival Title Helper.py
+|   |   Switch Character.py
+|   |   TitleHelper.py
+|   |   Titles.py
+|   |   Travel.py
+|   |   Vanquish.py
+|   |   WidgetTemplate.py
+|   |   
+|   +---Config
+|   |   |   Blessed_Config.ini
+|   |   |   cantha_dialog_sender.ini
+|   |   |   combat_prep_window.ini
+|   |   |   Compass +.ini
+|   |   |   formation_hotkey.json
+|   |   |   GetBlessed_window.ini
+|   |   |   HeroHelper.ini
+|   |   |   Heroic_Refrain_window.ini
+|   |   |   InstanceTimer.ini
+|   |   |   loot_config.json
+|   |   |   loot_window.ini
+|   |   |   nightfall_dialog_sender.ini
+|   |   |   PCons.ini
+|   |   |   Skillbar +.ini
+|   |   |   Style Manager.ini
+|   |   |   Survival Title Helper.ini
+|   |   |   titlehelper.ini
+|   |   |   Travel.ini
+|   |   |   Travel.json
+|   |   |   Vanquish.ini
+|   |   |   your_ini_file_name_here.ini
+|   |   |   
+|   |   +---account_config
+|   |   |   |   global_widget_config.ini
+|   |   |   |   
+|   |   |   +---apoguita.16@gmail.com
+|   |   |   |       widgets_meta.ini
+|   |   |   |       
+|   |   |   +---apoguita.4@gmail.com
+|   |   |   |       widgets_meta.ini
+|   |   |   |       
+|   |   |   +---apoguita.5@gmail.com
+|   |   |   |       widgets_meta.ini
+|   |   |   |       
+|   |   |   +---apoguita.7@gmail.com
+|   |   |   |       widgets_meta.ini
+|   |   |   |       
+|   |   |   +---apoguita2@gmail.com
+|   |   |   |       widgets_meta.ini
+|   |   |   |       
+|   |   |   +---apoguita@gmail.com
+|   |   |   |       widgets_meta.ini
+|   |   |   |       
+|   |   |   +---apoguita@hotmail.com
+|   |   |   |       widgets_meta.ini
+|   |   |   |       
+|   |   |   +---quaggancito@gmail.com
+|   |   |   |       widgets_meta.ini
+|   |   |   |       
+|   |   |   \---unknown
+|   |   \---textures
+|   |       \---combat_prep
+|   |               disable_pt_hero_ai.png
+|   |               disable_pt_leader_hero_ai.png
+|   |               disband_formation.png
+|   |               double_backline.png
+|   |               double_backline_triple_row.png
+|   |               enable_pt_hero_ai.png
+|   |               enable_pt_leader_hero_ai.png
+|   |               flag_front.png
+|   |               shouts_combo.png
+|   |               single_backline.png
+|   |               st_sos_combo.png
+|   |               
+|   +---CustomBehaviors
+|   |   |   __init__.py
+|   |   |   
+|   |   +---gui
+|   |   |   |   current_build.py
+|   |   |   |   deamon.py
+|   |   |   |   party.py
+|   |   |   |   skillbars.py
+|   |   |   |   
+|   |   |   \---__pycache__
+|   |   |           current_build.cpython-313.pyc
+|   |   |           deamon.cpython-313.pyc
+|   |   |           party.cpython-313.pyc
+|   |   |           skillbars.cpython-313.pyc
+|   |   |           
+|   |   +---primitives
+|   |   |   |   behavior_state.py
+|   |   |   |   constants.py
+|   |   |   |   custom_behavior_loader.py
+|   |   |   |   
+|   |   |   +---bus
+|   |   |   |   |   event_bus.py
+|   |   |   |   |   event_message.py
+|   |   |   |   |   event_type.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           event_bus.cpython-313.pyc
+|   |   |   |           event_message.cpython-313.pyc
+|   |   |   |           event_type.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---helpers
+|   |   |   |   |   behavior_result.py
+|   |   |   |   |   custom_behavior_helpers.py
+|   |   |   |   |   custom_behavior_helpers_tests.py
+|   |   |   |   |   targeting_order.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           behavior_result.cpython-313.pyc
+|   |   |   |           custom_behavior_helpers.cpython-313.pyc
+|   |   |   |           custom_behavior_helpers_tests.cpython-313.pyc
+|   |   |   |           targeting_order.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---parties
+|   |   |   |   |   custom_behavior_party.py
+|   |   |   |   |   custom_behavior_shared_memory.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           custom_behavior_party.cpython-313.pyc
+|   |   |   |           custom_behavior_shared_memory.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---scores
+|   |   |   |   |   healing_score.py
+|   |   |   |   |   score_definition.py
+|   |   |   |   |   score_per_agent_quantity_definition.py
+|   |   |   |   |   score_per_health_gravity_definition.py
+|   |   |   |   |   score_static_definition.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           healing_score.cpython-313.pyc
+|   |   |   |           score_definition.cpython-313.pyc
+|   |   |   |           score_per_agent_quantity_definition.cpython-313.pyc
+|   |   |   |           score_per_health_gravity_definition.cpython-313.pyc
+|   |   |   |           score_static_definition.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---skillbars
+|   |   |   |   |   custom_behavior_base_utility.py
+|   |   |   |   |   custom_behavior_skillbar_management.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           custom_behavior_base.cpython-313.pyc
+|   |   |   |           custom_behavior_base_utility.cpython-313.pyc
+|   |   |   |           custom_behavior_skillbar_management.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---skills
+|   |   |   |   |   custom_skill.py
+|   |   |   |   |   custom_skill_nature.py
+|   |   |   |   |   custom_skill_utility_base.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           custom_skill.cpython-313.pyc
+|   |   |   |           custom_skill_nature.cpython-313.pyc
+|   |   |   |           custom_skill_utility_base.cpython-313.pyc
+|   |   |   |           
+|   |   |   \---__pycache__
+|   |   |           behavior_state.cpython-313.pyc
+|   |   |           constants.cpython-313.pyc
+|   |   |           custom_behavior_loader.cpython-313.pyc
+|   |   |           
+|   |   +---skillbars
+|   |   |   |   assassin_critical_hit.py
+|   |   |   |   assassin_tank.py
+|   |   |   |   mesmer_esurgery.py
+|   |   |   |   necromancer_bip_restoration.py
+|   |   |   |   paragon_refrain.py
+|   |   |   |   ranger_tao_volley.py
+|   |   |   |   ritualist_sos.py
+|   |   |   |   ritualist_soul_twisting.py
+|   |   |   |   __init__.py
+|   |   |   |   
+|   |   |   \---__pycache__
+|   |   |           assassin_critical_hit.cpython-313.pyc
+|   |   |           mesmer_esurgery.cpython-313.pyc
+|   |   |           necromancer_bip_restoration.cpython-313.pyc
+|   |   |           paragon_refrain.cpython-313.pyc
+|   |   |           ranger_tao_volley.cpython-313.pyc
+|   |   |           ritualist_sos.cpython-313.pyc
+|   |   |           ritualist_soul_twisting.cpython-313.pyc
+|   |   |           __init__.cpython-313.pyc
+|   |   |           
+|   |   +---skills
+|   |   |   +---assassin
+|   |   |   |       deadly_paradox_utility.py
+|   |   |   |       heart_of_shadow_utility.py
+|   |   |   |       shadow_form_utility.py
+|   |   |   |       shroud_of_distress_utility.py
+|   |   |   |       
+|   |   |   +---common
+|   |   |   |   |   auto_attack_utility.py
+|   |   |   |   |   breath_of_the_great_dwarf_utility.py
+|   |   |   |   |   ebon_battle_standard_of_honor_utility.py
+|   |   |   |   |   ebon_battle_standard_of_wisdom_utility.py
+|   |   |   |   |   ebon_vanguard_assassin_support_utility.py
+|   |   |   |   |   great_dwarf_weapon_utility.py
+|   |   |   |   |   i_am_unstoppable_utility.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           auto_attack_utility.cpython-313.pyc
+|   |   |   |           breath_of_the_great_dwarf_utility.cpython-313.pyc
+|   |   |   |           ebon_battle_standard_of_honor_utility.cpython-313.pyc
+|   |   |   |           ebon_battle_standard_of_wisdom_utility.cpython-313.pyc
+|   |   |   |           ebon_vanguard_assassin_support_utility.cpython-313.pyc
+|   |   |   |           great_dwarf_weapon_utility.cpython-313.pyc
+|   |   |   |           i_am_unstoppable_utility.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---generic
+|   |   |   |   |   hero_ai_utility.py
+|   |   |   |   |   keep_self_effect_up_utility.py
+|   |   |   |   |   protective_shout_utility.py
+|   |   |   |   |   protective_spirit_utility.py
+|   |   |   |   |   raw_aoe_attack_utility.py
+|   |   |   |   |   raw_simple_attack_utility.py
+|   |   |   |   |   raw_spirit_utility.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           hero_ai_utility.cpython-313.pyc
+|   |   |   |           keep_self_effect_up_utility.cpython-313.pyc
+|   |   |   |           protective_shout_utility.cpython-313.pyc
+|   |   |   |           protective_spirit_utility.cpython-313.pyc
+|   |   |   |           raw_aoe_attack_utility.cpython-313.pyc
+|   |   |   |           raw_simple_attack_utility.cpython-313.pyc
+|   |   |   |           raw_spirit_utility.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---mesmer
+|   |   |   |   |   arcane_echo_utility.py
+|   |   |   |   |   cry_of_frustration_utility.py
+|   |   |   |   |   cry_of_pain_utility.py
+|   |   |   |   |   drain_enchantment_utility.py
+|   |   |   |   |   mistrust_utility.py
+|   |   |   |   |   power_drain_utility.py
+|   |   |   |   |   shatter_enchantment_utility.py
+|   |   |   |   |   shatter_hex_utility.py
+|   |   |   |   |   unnatural_signet_utility.py
+|   |   |   |   |   wastrels_demise_utility.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           cry_of_frustration_utility.cpython-313.pyc
+|   |   |   |           cry_of_pain_utility.cpython-313.pyc
+|   |   |   |           drain_enchantment_utility.cpython-313.pyc
+|   |   |   |           mistrust_utility.cpython-313.pyc
+|   |   |   |           power_drain_utility.cpython-313.pyc
+|   |   |   |           shatter_enchantment_utility.cpython-313.pyc
+|   |   |   |           shatter_hex_utility.cpython-313.pyc
+|   |   |   |           unnatural_signet_utility.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---monk
+|   |   |   |   |   strength_of_honor_utility.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           strength_of_honor_utility.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---necromancer
+|   |   |   |   |   blood_bond_utility.py
+|   |   |   |   |   blood_is_power_utility.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           blood_bond_utility.cpython-313.pyc
+|   |   |   |           blood_is_power_utility.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---paragon
+|   |   |   |   |   fall_back_utility.py
+|   |   |   |   |   heroic_refrain_utility.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           fall_back_utility.cpython-313.pyc
+|   |   |   |           heroic_refrain_utility.cpython-313.pyc
+|   |   |   |           
+|   |   |   +---ranger
+|   |   |   |   |   distracting_shot_utility.py
+|   |   |   |   |   savage_shot_utility.py
+|   |   |   |   |   together_as_one.py
+|   |   |   |   |   
+|   |   |   |   \---__pycache__
+|   |   |   |           distracting_shot_utility.cpython-313.pyc
+|   |   |   |           savage_shot_utility.cpython-313.pyc
+|   |   |   |           together_as_one.cpython-313.pyc
+|   |   |   |           
+|   |   |   \---ritualist
+|   |   |       |   armor_of_unfeeling_utility.py
+|   |   |       |   gaze_of_fury_utility.py
+|   |   |       |   mend_body_and_soul_utility.py
+|   |   |       |   protective_was_kaolai_utility.py
+|   |   |       |   signet_of_spirits_utility.py
+|   |   |       |   soothing_memories_utility.py
+|   |   |       |   spirit_light_utility.py
+|   |   |       |   summon_spirit_utility.py
+|   |   |       |   
+|   |   |       \---__pycache__
+|   |   |               armor_of_unfeeling_utility.cpython-313.pyc
+|   |   |               gaze_of_fury_utility.cpython-313.pyc
+|   |   |               mend_body_and_soul_utility.cpython-313.pyc
+|   |   |               protective_was_kaolai_utility.cpython-313.pyc
+|   |   |               signet_of_spirits_utility.cpython-313.pyc
+|   |   |               soothing_memories_utility.cpython-313.pyc
+|   |   |               spirit_light_utility.cpython-313.pyc
+|   |   |               summon_spirit_utility.cpython-313.pyc
+|   |   |               
+|   |   +---specifics
+|   |   |   |   example.py
+|   |   |   |   readme.md
+|   |   |   |   
+|   |   |   \---assassin_vaettir_farm
+|   |   |           arcane_echo_vaettir_farm_utility.py
+|   |   |           assassin_vaettir_farm_killing.py
+|   |   |           assassin_vaettir_farm_running.py
+|   |   |           
+|   |   \---__pycache__
+|   |           __init__.cpython-313.pyc
+|   |           
+|   +---Data
+|   |       modelid_drop_data.json
+|   |       Nick_cycles.json
+|   |       rarity_filter_data.json
+|   |       
+|   +---frenkey
+|   |   +---Core
+|   |   |   |   gui.py
+|   |   |   |   utility.py
+|   |   |   |   
+|   |   |   \---__pycache__
+|   |   |           gui.cpython-313.pyc
+|   |   |           utility.cpython-313.pyc
+|   |   |           
+|   |   \---Polymock
+|   |       |   combat.py
+|   |       |   data.py
+|   |       |   gui.py
+|   |       |   state.py
+|   |       |   
+|   |       \---__pycache__
+|   |               combat.cpython-313.pyc
+|   |               data.cpython-313.pyc
+|   |               gui.cpython-313.pyc
+|   |               state.cpython-313.pyc
+|   |               
+|   +---InvPlus
+|   |   |   AutoHandlerModule.py
+|   |   |   ColorizeModule.py
+|   |   |   Coroutines.py
+|   |   |   GUI_Helpers.py
+|   |   |   IdentifyModule.py
+|   |   |   LootModule.py
+|   |   |   MerchantModule.py
+|   |   |   SalvageModule.py
+|   |   |   XunlaiModule.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           AutoHandlerModule.cpython-313.pyc
+|   |           Colorize.cpython-313.pyc
+|   |           ColorizeModule.cpython-313.pyc
+|   |           Coroutines.cpython-313.pyc
+|   |           GUI_Helpers.cpython-313.pyc
+|   |           IdentifyModule.cpython-313.pyc
+|   |           LootModule.cpython-313.pyc
+|   |           MerchantModule.cpython-313.pyc
+|   |           SalvageModule.cpython-313.pyc
+|   |           XunlaiModule.cpython-313.pyc
+|   |           __init__.cpython-313.pyc
+|   |           
+|   +---widget_manager
+|   |   |   config_scope.py
+|   |   |   default_settings.py
+|   |   |   handler.py
+|   |   |   main.py
+|   |   |   settings_io.py
+|   |   |   state.py
+|   |   |   ui_config_sections.py
+|   |   |   ui_embedded_config.py
+|   |   |   ui_floating_menu.py
+|   |   |   ui_old_menu.py
+|   |   |   ui_quickdock.py
+|   |   |   ui_widget_menu.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           config_scope.cpython-313.pyc
+|   |           default_settings.cpython-313.pyc
+|   |           handler.cpython-313.pyc
+|   |           main.cpython-313.pyc
+|   |           settings_io.cpython-313.pyc
+|   |           state.cpython-313.pyc
+|   |           ui_config_sections.cpython-313.pyc
+|   |           ui_embedded_config.cpython-313.pyc
+|   |           ui_floating_menu.cpython-313.pyc
+|   |           ui_old_menu.cpython-313.pyc
+|   |           ui_quickdock.cpython-313.pyc
+|   |           ui_widget_menu.cpython-313.pyc
+|   |           __init__.cpython-313.pyc
+|   |           
+|   \---__pycache__
+|           Accept Material Salvaging.cpython-313.pyc
+|           Action Queue Monitor.cpython-313.pyc
+|           Agent Info.cpython-313.pyc
+|           Blessed.cpython-313.pyc
+|           Blessing_UI.cpython-313.pyc
+|           CanthaDialogSender.cpython-313.pyc
+|           Color Picker.cpython-313.pyc
+|           CombatPrep.cpython-313.pyc
+|           Compass +.cpython-313.pyc
+|           CustomBehaviors.cpython-313.pyc
+|           Dialog Sync.cpython-313.pyc
+|           Drop Unyielding Aura.cpython-313.pyc
+|           Enter character on load.cpython-313.pyc
+|           Environment Upkeeper.cpython-313.pyc
+|           Get Blessed.cpython-313.pyc
+|           Get Bounty.cpython-313.pyc
+|           Global Environment Upkeeper.cpython-313.pyc
+|           HeroAI.cpython-313.pyc
+|           HeroHelper.cpython-313.pyc
+|           Heroic Refrain.cpython-313.pyc
+|           Icon Explorer.cpython-313.pyc
+|           IconsFontAwesome5 Explorer.cpython-313.pyc
+|           Instance Timer.cpython-312.pyc
+|           Instance Timer.cpython-313.pyc
+|           Instance_Timer - Copy.cpython-312.pyc
+|           Instance_Timer.cpython-312.pyc
+|           Inventory +.cpython-313.pyc
+|           Inventory Handler.cpython-313.pyc
+|           Inventory Plus widget.cpython-313.pyc
+|           Inventory Plus.cpython-313.pyc
+|           InventoryPlus.cpython-313.pyc
+|           Loot.cpython-313.pyc
+|           LootManager.cpython-313.pyc
+|           Messaging.cpython-313.pyc
+|           Mission Map +.cpython-313.pyc
+|           mouse_tester.cpython-313.pyc
+|           NFDialogSender.cpython-313.pyc
+|           PCons.cpython-313.pyc
+|           Pet Helper.cpython-313.pyc
+|           PetHelper.cpython-313.pyc
+|           Polymock.cpython-313.pyc
+|           Profession Unlocker.cpython-313.pyc
+|           ProUnlock_ImGui.cpython-313.pyc
+|           Py4GW_DEMO.cpython-313.pyc
+|           Reroll Character.cpython-313.pyc
+|           RerollCharacter.cpython-313.pyc
+|           Resign on enter Map.cpython-313.pyc
+|           Return to outpost on defeat.cpython-312.pyc
+|           Return to outpost on defeat.cpython-313.pyc
+|           SharedMem Monitor.cpython-313.pyc
+|           Skillbar +.cpython-313.pyc
+|           Skip Cinematics.cpython-312.pyc
+|           Skip Cinematics.cpython-313.pyc
+|           Style Manager.cpython-313.pyc
+|           Survival Title Helper.cpython-313.pyc
+|           Switch Character.cpython-313.pyc
+|           test_widget.cpython-312.pyc
+|           TitleHelper.cpython-313.pyc
+|           Titles.cpython-313.pyc
+|           Travel.cpython-313.pyc
+|           Vanquish.cpython-312.pyc
+|           Vanquish.cpython-313.pyc
+|           WidgetTemplate.cpython-313.pyc
+|           
++---YAVB
+|   |   BuildMgr.py
+|   |   FSM.py
+|   |   FSMHelpers.py
+|   |   GUI.py
+|   |   LogConsole.py
+|   |   ProgressTracker.py
+|   |   StatsMgr.py
+|   |   YAVBMain.py
+|   |   __init__.py
+|   |   
+|   +---config
+|   |       YAVB.ini
+|   |       YAVB_config.bak
+|   |       YAVB_taglines.json
+|   |       
+|   +---resources
+|   |       yavb_mascot.png
+|   |       
+|   \---__pycache__
+|           BuildMgr.cpython-313.pyc
+|           FSM.cpython-313.pyc
+|           FSMHelpers.cpython-313.pyc
+|           GUI.cpython-313.pyc
+|           LogConsole.cpython-313.pyc
+|           ProgressTracker.cpython-313.pyc
+|           StatsMgr.cpython-313.pyc
+|           YAVBMain.cpython-313.pyc
+|           __init__.cpython-313.pyc
+|           
+\---__pycache__
+        a-star-finished.cpython-313.pyc
+        a-star-library test.cpython-313.pyc
+        a-star-optimized.cpython-313.pyc
+        a-star-portals strict.cpython-313.pyc
+        a-star-portals.cpython-313.pyc
+        a-star-trapezoids.cpython-313.pyc
+        ActionQueueMonitor.cpython-313.pyc
+        advanced_traffic_light.cpython-312.pyc
+        Agent Info.cpython-313.pyc
+        Async Data Tester.cpython-313.pyc
+        Auto Combat example.cpython-313.pyc
+        Auto ID & Salvager.cpython-313.pyc
+        Auto Inv.cpython-313.pyc
+        autopathing-library test.cpython-313.pyc
+        Barebones_Example_module.cpython-312.pyc
+        Barebones_Example_module.cpython-313.pyc
+        BorealBot.cpython-312.pyc
+        Boreal_bot_tutorial.cpython-312.pyc
+        Boreal_Sequential.cpython-313.pyc
+        called_targets.cpython-312.pyc
+        chahbek_village_zm.cpython-313.pyc
+        Chat Spam.cpython-313.pyc
+        chat spammer.cpython-313.pyc
+        chat_capturer.cpython-313.pyc
+        cof_bone_farmer.cpython-313.pyc
+        Color Picker.cpython-313.pyc
+        compass.cpython-313.pyc
+        cupcake_mantainer.cpython-313.pyc
+        dangerous_models_runtime.cpython-313.pyc
+        Dynamical Dialog Tester3.cpython-313.pyc
+        Factions Leveler.cpython-313.pyc
+        factions_leveler_redux.cpython-313.pyc
+        FakeGwWindow.cpython-313.pyc
+        fake_keyboard.cpython-313.pyc
+        flagging mockup.cpython-313.pyc
+        follower.cpython-312.pyc
+        font_tester.cpython-313.pyc
+        Frame_Tester.cpython-313.pyc
+        Global_Cache.cpython-313.pyc
+        Global_Cache_tester.cpython-313.pyc
+        good_day.cpython-312.pyc
+        GW fake window test.cpython-313.pyc
+        GWMapper.cpython-312.pyc
+        GWMapper.cpython-313.pyc
+        GWNexus.cpython-313.pyc
+        GWNexus_client.cpython-313.pyc
+        Hello_World.cpython-312.pyc
+        Hello_World.cpython-313.pyc
+        HeroAI.cpython-312.pyc
+        HeroAI.cpython-313.pyc
+        HeroAI_test.cpython-312.pyc
+        heroai_type_test.cpython-313.pyc
+        Inv+.cpython-313.pyc
+        Inventory Handler.cpython-313.pyc
+        Inventory Plus.cpython-313.pyc
+        Inventory_Cleaner.cpython-313.pyc
+        Inventory_plus.cpython-313.pyc
+        Inventory_search.cpython-313.pyc
+        ItemCompare.cpython-312.pyc
+        ItemCompare.cpython-313.pyc
+        load_lua_script.cpython-313.pyc
+        logout_options.cpython-313.pyc
+        Loot.cpython-313.pyc
+        lua_bridge.cpython-313.pyc
+        lua_test.cpython-313.pyc
+        Messaging.cpython-313.pyc
+        Mission Map +.cpython-313.pyc
+        Mission Map.cpython-313.pyc
+        mods.cpython-313.pyc
+        mouse_tester.cpython-313.pyc
+        multithreading.cpython-312.pyc
+        NamedPipes.cpython-312.pyc
+        named_pipe_python.cpython-313.pyc
+        old_Onion_Server.cpython-313.pyc
+        Onion_client.cpython-312.pyc
+        Onion_Server.cpython-312.pyc
+        Onion_Server.cpython-313.pyc
+        OutpostRunnerDA.cpython-313.pyc
+        package_template_tester.cpython-313.pyc
+        Patcher.cpython-313.pyc
+        pathing map_diagnostic 002.cpython-313.pyc
+        pathing_maps - Native - TESSELATION.cpython-312.pyc
+        pathing_maps - Native - TESSELATION.cpython-313.pyc
+        pathing_maps - Native.cpython-312.pyc
+        pathing_maps - Native.cpython-313.pyc
+        pathing_maps.cpython-312.pyc
+        pathing_maps.cpython-313.pyc
+        path_planner.cpython-313.pyc
+        PCOns.cpython-313.pyc
+        Pet Helper.cpython-313.pyc
+        planned_path_tester.cpython-313.pyc
+        PointLogger.cpython-312.pyc
+        PointLogger.cpython-313.pyc
+        proof_farm.cpython-313.pyc
+        ProUnlock_ImGui.cpython-313.pyc
+        Py4GW - LDoA (1).cpython-313.pyc
+        Py4GW - LDoA Pet.cpython-313.pyc
+        Py4GW - LDoA.cpython-313.pyc
+        Py4GW - LDoAgui.cpython-313.pyc
+        Py4GW - LDoA_skill_use.cpython-313.pyc
+        Py4GWcorelib.cpython-312.pyc
+        Py4GW_DEMO.cpython-312.pyc
+        Py4GW_DEMO.cpython-313.pyc
+        Py4GW_LauncherCompact.cpython-313.pyc
+        Py4GW_widget_manager.cpython-312.pyc
+        Py4GW_widget_manager.cpython-313.pyc
+        pyHeroAI_DEMO.cpython-312.pyc
+        quest_handler_test.cpython-312.pyc
+        quest_tester.cpython-313.pyc
+        Reroll Character.cpython-313.pyc
+        Reroll.cpython-313.pyc
+        RerollCharacter.cpython-313.pyc
+        runbot.cpython-313.pyc
+        salvage.cpython-312.pyc
+        Salvager.cpython-313.pyc
+        Seiji Auto Exchange.cpython-313.pyc
+        Sequential_coding_example.cpython-313.pyc
+        Sequential_coding_template.cpython-313.pyc
+        Sequential_template.cpython-313.pyc
+        ShowIconsFontAwesome.cpython-313.pyc
+        SkillInfo.cpython-313.pyc
+        skill_icon_map.cpython-313.pyc
+        skill_spam.cpython-312.pyc
+        TCP server.cpython-312.pyc
+        tester.cpython-313.pyc
+        TestGenerator.cpython-313.pyc
+        TestSingleThreadPerformance.cpython-313.pyc
+        test_function_contrainer.cpython-312.pyc
+        Texture_tester.cpython-313.pyc
+        ToC RA (1).cpython-313.pyc
+        traffic_light.cpython-312.pyc
+        traffic_light_sequential.cpython-313.pyc
+        Travel.cpython-313.pyc
+        Tree example.cpython-312.pyc
+        useitem_test.cpython-313.pyc
+        VaettirBot 1.9.25.cpython-313.pyc
+        VaettirBot 1.9.26.cpython-313.pyc
+        VaettirBot 2.0.cpython-313.pyc
+        VaettirBot 2.2.cpython-313.pyc
+        VaettirBot 2.3.cpython-313.pyc
+        VaettirBot 3.0.cpython-313.pyc
+        VaettirBot.cpython-312.pyc
+        VaettirBot.cpython-313.pyc
+        window closer.cpython-313.pyc
+        YAVB 1.0 by Apo (Vaettir bot).cpython-313.pyc
+        yield_test.cpython-313.pyc
+        
