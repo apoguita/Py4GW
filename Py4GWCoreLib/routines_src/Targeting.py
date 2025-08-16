@@ -1,4 +1,16 @@
 
+
+
+import importlib, typing
+
+class _RProxy:
+    def __getattr__(self, name: str):
+        root_pkg = importlib.import_module("Py4GWCoreLib")
+        return getattr(root_pkg.Routines, name)
+
+Routines = _RProxy()
+
+
 #region Targetting
 class Targeting:
     @staticmethod

@@ -3,10 +3,11 @@ import importlib, typing
 
 class _RProxy:
     def __getattr__(self, name: str):
-        pkg = importlib.import_module(typing.cast(str, __package__))
-        return getattr(pkg.Routines, name)
+        root_pkg = importlib.import_module("Py4GWCoreLib")
+        return getattr(root_pkg.Routines, name)
 
 Routines = _RProxy()
+
 
 #region Movement
 class Movement:
