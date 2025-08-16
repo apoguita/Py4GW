@@ -12,10 +12,9 @@ from .Py4GWcorelib import ActionQueueManager
 from .Py4GWcorelib import Console
 from .Py4GWcorelib import ConsoleLog
 from .Py4GWcorelib import *
-from .enums import Range
 from .Routines import Routines
+from .enums import Range
 from .Effect import Effects
-from HeroAI.cache_data import CacheData
 from HeroAI.players import *
 
 SPIRIT_BUFF_MAP = {

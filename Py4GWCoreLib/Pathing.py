@@ -409,7 +409,7 @@ def chaikin_smooth_path(points: List[Tuple[float, float]], iterations: int = 1) 
         points = new_points
     return points
 
-def densify_path2d(points: List[Tuple[float, float]], threshold: float = 1000.0) -> List[Tuple[float, float]]:
+def densify_path2d(points: List[Tuple[float, float]], threshold: float = 750.0) -> List[Tuple[float, float]]:
     if threshold <= 0 or len(points) <= 1:
         return points.copy()
 
@@ -591,6 +591,16 @@ class AutoPathing:
                  smooth_by_chaikin: bool = False,
                  chaikin_iterations: int = 1):
         from . import Routines
+        
+        def _prepend_start(path2d: list[tuple[float, float]], sx: float, sy: float, tol: float = 1.0):
+            if not path2d:
+                path2d.insert(0, (sx, sy))
+                return path2d
+            dx = path2d[0][0] - sx
+            dy = path2d[0][1] - sy
+            if dx*dx + dy*dy > tol*tol:
+                path2d.insert(0, (sx, sy))
+            return path2d
 
         map_id = PyMap.PyMap().map_id.ToInt()
         group_key = self._get_group_key(map_id)
@@ -613,8 +623,9 @@ class AutoPathing:
                 
                 if smooth_by_chaikin:
                     path2d = chaikin_smooth_path(path2d, chaikin_iterations)
-                        
-                path2d = densify_path2d(path2d, 2500.0)  # split long hops into ≤1000
+
+                path2d = _prepend_start(path2d, start[0], start[1])
+                path2d = densify_path2d(path2d)  # split long hops into ≤750
                 return [(x, y, start[2]) for (x, y) in path2d]
             
             elif status == PyPathing.PathStatus.Failed:
@@ -645,9 +656,10 @@ class AutoPathing:
                 
             if smooth_by_chaikin:
                 smoothed = chaikin_smooth_path(smoothed, chaikin_iterations)
-                
-            path2d = densify_path2d(smoothed, 2500.0)  # split long hops into ≤1000
-                
+
+            smoothed = _prepend_start(smoothed, start[0], start[1])
+            path2d = densify_path2d(smoothed)  # split long hops into ≤750
+
             return [(x, y, start[2]) for (x, y) in path2d]
 
         return []
