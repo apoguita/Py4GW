@@ -326,3 +326,10 @@ class Camera:
         Sets the look-at target of the camera.
         """
         Camera.camera_instance().SetLookAtTarget(x, y, z)
+        
+    @staticmethod
+    def SetFog(fog: bool):
+        """
+        Sets the fog state of the camera.
+        """
+        Camera.camera_instance().SetFog(fog)
