@@ -1460,6 +1460,8 @@ class FSM:
         self.paused = False
         self.on_transition = None
         self.on_complete = None
+        self.managed_coroutines = []   # already added for self-managed coroutines
+        self._named_managed = {}       # key -> generator instance
 
     class State:
         def __init__(self, id, name=None, execute_fn=None, exit_condition=None, transition_delay_ms=0, run_once=True, on_enter=None, on_exit=None):
@@ -1627,9 +1629,56 @@ class FSM:
                 return False  # Still running
 
             return True
+        
+        def reset(self):
+            super().reset()
+            from Py4GWCoreLib import GLOBAL_CACHE
+            if self.coroutine_instance and self.coroutine_instance in GLOBAL_CACHE.Coroutines:
+                try:
+                    GLOBAL_CACHE.Coroutines.remove(self.coroutine_instance)
+                except ValueError:
+                    pass
+            self.coroutine_instance = None
   
-        
-        
+    class SelfManagedYieldState(State):
+        def __init__(self, id, fsm, name=None, coroutine_fn=None):
+            super().__init__(id=id, name=name or f"SelfYield-{id}")
+            self._fsm = fsm
+            self.coroutine_fn = coroutine_fn
+            self.coroutine_instance = None
+
+        def execute(self):
+            # Exactly like YieldRoutineState's start, but register into FSM list (not GLOBAL_CACHE)
+            if not self.executed:
+                if self.coroutine_fn:
+                    try:
+                        self.coroutine_instance = self.coroutine_fn()
+                        if self.coroutine_instance:
+                            self._fsm.managed_coroutines.append(self.coroutine_instance)
+                    except Exception as e:
+                        ConsoleLog("FSM", f"Error starting self-managed coroutine for state '{self.name}': {e}", Py4GW.Console.MessageType.Error)
+                self.reset_transition_timer()
+                self.executed = True
+
+        def can_exit(self):
+            # Wait until the coroutine finishes (i.e., is no longer in the FSM list),
+            # and the transition delay (if any) has elapsed.
+            if not self.transition_timer.HasElapsed(self.transition_delay_ms):
+                return False
+            if self.coroutine_instance and self.coroutine_instance in self._fsm.managed_coroutines:
+                return False
+            return True
+
+        def reset(self):
+            super().reset()
+            # If we jump back or reset while the gen is still tracked, detach it
+            if self.coroutine_instance and self.coroutine_instance in self._fsm.managed_coroutines:
+                try:
+                    self._fsm.managed_coroutines.remove(self.coroutine_instance)
+                except ValueError:
+                    pass
+            self.coroutine_instance = None
+
         
         
     def SetLogBehavior(self, log_actions=False):
@@ -1681,6 +1730,20 @@ class FSM:
         self.states.append(step)
         self.state_counter += 1
 
+    def AddSelfManagedYieldStep(self, name, coroutine_fn, transition_delay_ms=0):
+        step = FSM.SelfManagedYieldState(
+            id=self.state_counter,
+            fsm=self,
+            name=name,
+            coroutine_fn=coroutine_fn
+        )
+        step.transition_delay_ms = transition_delay_ms
+        if self.states:
+            self.states[-1].set_next_state(step)
+        self.states.append(step)
+        self.state_counter += 1
+
+
 
     def AddSubroutine(self, name=None, condition_fn=None, sub_fsm=None,
                   on_enter=None, on_exit=None):
@@ -1698,17 +1761,29 @@ class FSM:
             self.states[-1].set_next_state(condition_node)
         self.states.append(condition_node)
         self.state_counter += 1
+            
+    def _cleanup_coroutines(self):
+        """Detach any generators this FSM started, to avoid duplicates on start/reset/stop."""
+        # clear the central list
+        self.managed_coroutines.clear()
+        # clear per-state handles (SelfManagedYieldState only)
+        for s in self.states:
+            if hasattr(FSM, "SelfManagedYieldState") and isinstance(s, FSM.SelfManagedYieldState):
+                s.coroutine_instance = None
+
 
     def start(self):
         """Start the FSM by setting the initial state."""
         if not self.states:
             raise ValueError(f"{self.name}: No states have been added to the FSM.")
+        self._cleanup_coroutines()
         self.current_state = self.states[0]
         self.finished = False
         Py4GW.Console.Log("FSM", f"{self.name}: Starting FSM with initial state: {self.current_state.name}", Py4GW.Console.MessageType.Success)
 
     def stop(self):
         """Stop the FSM and mark it as finished."""
+        self._cleanup_coroutines()
         self.current_state = None
         self.finished = True
 
@@ -1719,6 +1794,7 @@ class FSM:
         """Reset the FSM to the initial state without starting it."""
         if not self.states:
             raise ValueError(f"{self.name}: No states have been added to the FSM.")
+        self._cleanup_coroutines()
         self.current_state = self.states[0]  # Reset to the first state
         self.finished = False
         for state in self.states:
@@ -1870,15 +1946,30 @@ class FSM:
                 ConsoleLog("FSM", f"{self.name}: FSM is paused.", Py4GW.Console.MessageType.Warning)
             return
         
+        if not self.current_state:
+            if self.log_actions:
+                ConsoleLog("FSM", f"{self.name}: FSM has not been started.", Py4GW.Console.MessageType.Warning)
+            return
+        
         if self.finished:
             if self.log_actions:
                 ConsoleLog("FSM", f"{self.name}: FSM has finished.", Py4GW.Console.MessageType.Warning)
             return
         
-        if not self.current_state:
-            if self.log_actions:
-                ConsoleLog("FSM", f"{self.name}: FSM has not been started.", Py4GW.Console.MessageType.Warning)
-            return
+        # Advance self-managed coroutines (same pattern as GLOBAL_CACHE.Coroutines)
+        for routine in self.managed_coroutines[:]:
+            try:
+                next(routine)
+            except StopIteration:
+                self.managed_coroutines.remove(routine)
+            except Exception as e:
+                ConsoleLog("FSM", f"Error in self-managed coroutine: {e}", Py4GW.Console.MessageType.Error)
+                try:
+                    self.managed_coroutines.remove(routine)
+                except ValueError:
+                    pass
+                
+        
 
         if self.log_actions:
             ConsoleLog("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
@@ -1985,7 +2076,98 @@ class FSM:
             if state.name == state_name:
                 return state
         return None
+
+    #Self managed external Coroutine handling
+    # these coroutines are not scheduled in the FSM
+    # we are managing their lifecycle manually
+    # using the automatic yield of the FSM
     
+    def _as_generator(self, obj):
+        """Return a generator from obj (call if callable), or None on failure."""
+        try:
+            gen = obj() if callable(obj) else obj
+            if gen is None:
+                return None
+            # rudimentary generator protocol check
+            if hasattr(gen, "__next__") and hasattr(gen, "send"):
+                return gen
+        except Exception as e:
+            ConsoleLog("FSM", f"{self.name}: Error creating generator: {e}", Py4GW.Console.MessageType.Error)
+        return None
+
+    def _add_managed(self, gen):
+        """Attach generator to FSM-managed list (no duplicates)."""
+        if gen and gen not in self.managed_coroutines:
+            self.managed_coroutines.append(gen)
+            return True
+        return False
+
+    def _remove_managed(self, gen):
+        """Detach generator from FSM-managed list."""
+        try:
+            self.managed_coroutines.remove(gen)
+            return True
+        except ValueError:
+            return False
+
+    def AddManagedCoroutine(self, name: str, routine_or_fn) -> bool:
+        """
+        Attach a generator (or factory) under a required name.
+        - No-ops if the same name is already attached and still managed.
+        """
+        gen = self._as_generator(routine_or_fn)
+        if not gen:
+            return False
+
+        # de-dupe by name
+        existing = self._named_managed.get(name)
+        if existing and existing in self.managed_coroutines:
+            return False  # already attached under this name
+
+        # drop stale mapping if any
+        if existing and existing not in self.managed_coroutines:
+            self._named_managed.pop(name, None)
+
+        if not self._add_managed(gen):
+            return False
+
+        self._named_managed[name] = gen
+        return True
+
+    def RemoveManagedCoroutine(self, name: str) -> bool:
+        """
+        Detach the coroutine registered under 'name'.
+        """
+        gen = self._named_managed.pop(name, None)
+        if not gen:
+            return False
+        return self._remove_managed(gen)
+
+    def RemoveAllManagedCoroutines(self) -> int:
+        n = len(self.managed_coroutines)
+        self.managed_coroutines.clear()
+        self._named_managed.clear()
+        return n
+
+    def HasManagedCoroutine(self, name: str) -> bool:
+        gen = self._named_managed.get(name)
+        return bool(gen and gen in self.managed_coroutines)
+
+    def AdoptGlobalCoroutine(self, routine, remove_from_global: bool = True) -> bool:
+        from . import GLOBAL_CACHE
+        """
+        Move (or copy) a generator from GLOBAL_CACHE.Coroutines into FSM-managed list.
+        """
+        if routine is None:
+            return False
+        if remove_from_global:
+            try:
+                GLOBAL_CACHE.Coroutines.remove(routine)
+            except ValueError:
+                pass
+        return self._add_managed(routine)
+
+
 #endregion
 
 #region MultiThreading
