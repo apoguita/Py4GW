@@ -8,7 +8,6 @@ import pickle
 from .enums import name_to_map_id
 from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
-from Py4GWCoreLib import Utils
 
 PathingMap = PyPathing.PathingMap
 PathingTrapezoid = PyPathing.PathingTrapezoid
@@ -409,36 +408,6 @@ def chaikin_smooth_path(points: List[Tuple[float, float]], iterations: int = 1) 
         points = new_points
     return points
 
-def densify_path2d(points: List[Tuple[float, float]], threshold: float = 750.0) -> List[Tuple[float, float]]:
-    if threshold <= 0 or len(points) <= 1:
-        return points.copy()
-
-    out: List[Tuple[float, float]] = [points[0]]
-    eps = 1e-6
-
-    for i in range(1, len(points)):
-        x0, y0 = out[-1]
-        x1, y1 = points[i]
-
-        # distance between the two points (2D)
-        dist = Utils.Distance((x0, y0), (x1, y1))
-        if dist <= threshold + eps:
-            out.append((x1, y1))
-            continue
-
-        # direction (unit vector)
-        dx, dy = x1 - x0, y1 - y0
-        ux, uy = dx / dist, dy / dist
-
-        s = threshold
-        while s < dist - eps:
-            out.append((x0 + ux * s, y0 + uy * s))  # fixed threshold step
-            s += threshold
-
-        out.append((x1, y1))  # final remainder hop
-
-    return out
-
 
 PATHING_MAP_GROUPS = [
     [
@@ -591,16 +560,6 @@ class AutoPathing:
                  smooth_by_chaikin: bool = False,
                  chaikin_iterations: int = 1):
         from . import Routines
-        
-        def _prepend_start(path2d: list[tuple[float, float]], sx: float, sy: float, tol: float = 1.0):
-            if not path2d:
-                path2d.insert(0, (sx, sy))
-                return path2d
-            dx = path2d[0][0] - sx
-            dy = path2d[0][1] - sy
-            if dx*dx + dy*dy > tol*tol:
-                path2d.insert(0, (sx, sy))
-            return path2d
 
         map_id = PyMap.PyMap().map_id.ToInt()
         group_key = self._get_group_key(map_id)
@@ -623,9 +582,7 @@ class AutoPathing:
                 
                 if smooth_by_chaikin:
                     path2d = chaikin_smooth_path(path2d, chaikin_iterations)
-
-                path2d = _prepend_start(path2d, start[0], start[1])
-                path2d = densify_path2d(path2d)  # split long hops into ≤750
+                
                 return [(x, y, start[2]) for (x, y) in path2d]
             
             elif status == PyPathing.PathStatus.Failed:
@@ -656,11 +613,8 @@ class AutoPathing:
                 
             if smooth_by_chaikin:
                 smoothed = chaikin_smooth_path(smoothed, chaikin_iterations)
-
-            smoothed = _prepend_start(smoothed, start[0], start[1])
-            path2d = densify_path2d(smoothed)  # split long hops into ≤750
-
-            return [(x, y, start[2]) for (x, y) in path2d]
+                
+            return [(x, y, start[2]) for (x, y) in smoothed]
 
         return []
 
