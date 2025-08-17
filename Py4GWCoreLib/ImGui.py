@@ -1602,9 +1602,7 @@ class ImGui:
             
             if is_expanded and self.expanded and self.open and not self.__dragging:
                 self.window_size = PyImGui.get_window_size()
-            
-            
-            ImGui.pop_theme_window_style(self.__current_theme)                    
+                          
             return self.open
         
         def process_window(self):
@@ -1628,6 +1626,8 @@ class ImGui:
                 case Style.StyleTheme.ImGui | Style.StyleTheme.Minimalus:
                     PyImGui.end()
 
+            
+            ImGui.pop_theme_window_style(self.__current_theme)      
             
             """ INI FILE ROUTINES NEED WORK 
             if end_pos[0] != window_module.window_pos[0] or end_pos[1] != window_module.window_pos[1]:
@@ -1991,18 +1991,9 @@ class ImGui:
     #region WIP
     @staticmethod
     def begin_child(id : str, size : tuple[float, float] = (0, 0), border: bool = False, flags: int = PyImGui.WindowFlags.NoFlag) -> bool:
-        style = ImGui.get_style()
-        style.ChildBg.push_color()
-        style.ChildRounding.push_style_var()
-        style.WindowPadding.push_style_var()
-        style.Border.push_color()
-
+        # style = ImGui.get_style()
+        
         open = PyImGui.begin_child(id, size, border, flags)
-
-        style.ChildBg.pop_color()
-        style.ChildRounding.pop_style_var()
-        style.WindowPadding.pop_style_var()
-        style.Border.pop_color()
 
         return open
 
@@ -2023,15 +2014,11 @@ class ImGui:
     @staticmethod
     def begin_tooltip() -> bool:
         style = ImGui.get_style()
-        style.WindowRounding.push_style_var()
-        style.WindowPadding.push_style_var()
-        style.Border.push_color()
+        style.push_style()
 
         open = PyImGui.begin_tooltip()
 
-        style.WindowRounding.pop_style_var()
-        style.WindowPadding.pop_style_var()
-        style.Border.pop_color()
+        style.pop_style()
 
         return open
 
@@ -2045,36 +2032,15 @@ class ImGui:
         
     @staticmethod
     def text(text : str):
-        style = ImGui.get_style()
-        style.Text.push_color()
-        style.TextDisabled.push_color()
-
         PyImGui.text(text)
-
-        style.Text.pop_color()
-        style.TextDisabled.pop_color()
 
     @staticmethod
     def text_disabled(text : str):
-        style = ImGui.get_style()
-        style.Text.push_color()
-        style.TextDisabled.push_color()
-
         PyImGui.text_disabled(text)
-
-        style.Text.pop_color()
-        style.TextDisabled.pop_color()
 
     @staticmethod
     def text_wrapped(text : str):
-        style = ImGui.get_style()
-        style.Text.push_color()
-        style.TextDisabled.push_color()
-
         PyImGui.text_wrapped(text)
-
-        style.Text.pop_color()
-        style.TextDisabled.pop_color()
 
     @staticmethod
     def text_colored(text : str, color: tuple[float, float, float, float]):
@@ -2082,14 +2048,7 @@ class ImGui:
         
     @staticmethod
     def text_unformatted(text : str):
-        style = ImGui.get_style()
-        style.Text.push_color()
-        style.TextDisabled.push_color()
-
         PyImGui.text_unformatted(text)
-
-        style.Text.pop_color()
-        style.TextDisabled.pop_color()
 
     @staticmethod
     def text_scaled(text : str, color: tuple[float, float, float, float], scale: float):
@@ -2097,34 +2056,19 @@ class ImGui:
     
     @staticmethod
     def small_button(label: str):
-        style = ImGui.get_style()
-        style.push_style()
-
         clicked = PyImGui.small_button(label)
-
-        style.pop_style()
 
         return clicked
 
     @staticmethod
     def radio_button(label: str, v: int, button_index: int):
-        style = ImGui.get_style()
-        style.push_style()
-
         value = PyImGui.radio_button(label, v, button_index)
-
-        style.pop_style()
 
         return value
     
     @staticmethod
     def begin_combo(label: str, preview_value: str, flags: PyImGui.ImGuiComboFlags = PyImGui.ImGuiComboFlags.NoFlag):
-        style = ImGui.get_style()
-        style.push_style()
-
         open = PyImGui.begin_combo(label, preview_value, flags)
-
-        style.pop_style()
 
         return open
     
@@ -2134,74 +2078,25 @@ class ImGui:
         
     @staticmethod
     def selectable(label: str, selected: bool, flags: PyImGui.SelectableFlags = PyImGui.SelectableFlags.NoFlag, size: tuple[float, float] = (0.0, 0.0)) -> bool:
-        style = ImGui.get_style()
-        style.push_style()
-
         clicked = PyImGui.selectable(label, selected, flags, size)
-
-        style.pop_style()
 
         return clicked
     
     @staticmethod
     def color_edit3(label: str, color: tuple[float, float, float]) -> tuple[float, float, float]:
-        style = ImGui.get_style()
-        
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.Text.push_color()
-        style.TextDisabled.push_color()
-        style.FrameBg.push_color()
-        style.FrameBgActive.push_color()
-        style.FrameBgHovered.push_color()
-
         color = PyImGui.color_edit3(label, color)
-
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.Text.pop_color()
-        style.TextDisabled.pop_color()
-        style.FrameBg.pop_color()
-        style.FrameBgActive.pop_color()
-        style.FrameBgHovered.pop_color()
 
         return color
     
     @staticmethod
     def color_edit4(label: str, color: tuple[float, float, float, float]) -> tuple[float, float, float, float]:
-        style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.Text.push_color()
-        style.TextDisabled.push_color()
-        style.FrameBg.push_color()
-        style.FrameBgActive.push_color()
-        style.FrameBgHovered.push_color()
-
         color = PyImGui.color_edit4(label, color)
-
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.Text.pop_color()
-        style.TextDisabled.pop_color()
-        style.FrameBg.pop_color()
-        style.FrameBgActive.pop_color()
-        style.FrameBgHovered.pop_color()
 
         return color
     
     @staticmethod
     def begin_menu_bar() -> bool:
-        style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.MenuBarBg.push_color()
-
         opened = PyImGui.begin_menu_bar()
-
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.MenuBarBg.pop_color()
 
         return opened
     
@@ -2211,16 +2106,7 @@ class ImGui:
         
     @staticmethod
     def begin_main_menu_bar() -> bool:
-        style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.MenuBarBg.push_color()
-
         opened = PyImGui.begin_main_menu_bar()
-
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.MenuBarBg.pop_color()
 
         return opened
     
@@ -2230,16 +2116,7 @@ class ImGui:
         
     @staticmethod
     def begin_menu(label: str) -> bool:
-        style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.MenuBarBg.push_color()
-        
         opened = PyImGui.begin_menu(label)
-
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.MenuBarBg.pop_color()
 
         return opened
 
@@ -2249,16 +2126,7 @@ class ImGui:
         
     @staticmethod
     def menu_item(label: str) -> bool:
-        style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.MenuBarBg.push_color()
-
         clicked = PyImGui.menu_item(label)
-
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.MenuBarBg.pop_color()
 
         return clicked
 
@@ -2279,14 +2147,7 @@ class ImGui:
 
     @staticmethod
     def begin_table(id: str, columns: int, flags: int = PyImGui.TableFlags.NoFlag, width: float = 0, height: float = 0) -> bool:
-        style = ImGui.get_style()
-        style.CellPadding.push_style_var()
-        style.Text.push_color()
-
         opened = PyImGui.begin_table(id, columns, flags, width, height)
-
-        style.CellPadding.pop_style_var()
-        style.Text.pop_color()
 
         return opened
 
@@ -2296,14 +2157,12 @@ class ImGui:
         
     @staticmethod
     def tree_node(label: str) -> bool:
-        style = ImGui.get_style()
         opened = PyImGui.tree_node(label)
 
         return opened
 
     @staticmethod
     def tree_node_ex(label: str, flags: int, fmt: str) -> bool:
-        style = ImGui.get_style()
         opened = PyImGui.tree_node_ex(label, flags, fmt)
 
         return opened
@@ -2319,8 +2178,6 @@ class ImGui:
         PyImGui.begin_disabled(not active)
         style = ImGui.get_style()
         style.ButtonPadding.push_style_var()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -2385,8 +2242,6 @@ class ImGui:
                 style.ButtonHovered.pop_color()
                 style.ButtonActive.pop_color()
 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
         style.ButtonPadding.pop_style_var()
         PyImGui.end_disabled()
         
@@ -2400,8 +2255,6 @@ class ImGui:
         style.PrimaryButton.push_color()
         style.PrimaryButtonActive.push_color()
         style.PrimaryButtonHovered.push_color()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -2462,8 +2315,6 @@ class ImGui:
         style.PrimaryButtonActive.pop_color()
         style.PrimaryButtonHovered.pop_color()
         style.ButtonPadding.pop_style_var()
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
         
         PyImGui.end_disabled()
         
@@ -2474,15 +2325,6 @@ class ImGui:
         index = current_item
         style = ImGui.get_style()
         
-        style.ButtonPadding.push_style_var()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.FrameBg.push_color()
-        style.Button.push_color()
-        style.ButtonHovered.push_color()
-        style.ButtonActive.push_color()
-        style.Text.push_color()
-
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
                 # PyImGui.push_clip_rect(0, 0, 100, 100, False)
@@ -2540,25 +2382,12 @@ class ImGui:
             case _:
                 index = PyImGui.combo(label, current_item, items)
 
-        style.ButtonPadding.pop_style_var()
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.FrameBg.pop_color()
-        style.Button.pop_color()
-        style.ButtonHovered.pop_color()
-        style.ButtonActive.pop_color()
-        style.Text.pop_color()
-
         return index
 
     @staticmethod
     def checkbox(label: str, is_checked: bool, active: bool = True) -> bool:
         style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.FrameBg.push_color()
-        style.Text.push_color()
-
+        
         new_value = is_checked
         PyImGui.begin_disabled(not active)
 
@@ -2593,21 +2422,11 @@ class ImGui:
 
         PyImGui.end_disabled()
 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.FrameBg.pop_color()
-        style.Text.pop_color()
-
         return new_value
 
     @staticmethod
     def input_int(label: str, v: int, min_value: int = 0, step_fast: int = 0, flags: int = 0) -> int:
         style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.FrameBg.push_color()
-        style.Text.push_color()
-        style.TextSelectedBg.push_color()
 
         if not min_value and not step_fast and not flags:
             match(style.Theme):
@@ -2720,21 +2539,11 @@ class ImGui:
                 case _:
                     new_value = PyImGui.input_int(label, v, min_value, step_fast, flags)
 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.FrameBg.pop_color()
-        style.Text.pop_color()
-        style.TextSelectedBg.pop_color()
         return new_value
 
     @staticmethod
     def input_float(label: str, v: float) -> float:
         style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.FrameBg.push_color()
-        style.Text.push_color()
-        style.TextSelectedBg.push_color()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -2781,21 +2590,11 @@ class ImGui:
             case _: 
                 new_value = PyImGui.input_float(label, v)
 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.FrameBg.pop_color()
-        style.Text.pop_color()
-        style.TextSelectedBg.pop_color()
         return new_value
 
     @staticmethod
     def input_text(label: str, v: str, flags: int = 0) -> str:
         style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.FrameBg.push_color()
-        style.Text.push_color()
-        style.TextSelectedBg.push_color()
 
         if not flags:    
             match(style.Theme):
@@ -2888,23 +2687,11 @@ class ImGui:
                 case _: 
                     new_value = PyImGui.input_text(label, v, flags)
 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.FrameBg.pop_color()
-        style.Text.pop_color()
-        style.TextSelectedBg.pop_color()
         return new_value
 
     @staticmethod
     def slider_int(label: str, v: int, v_min: int, v_max: int) -> int:
         style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.FrameBg.push_color()
-        style.SliderGrab.push_color()
-        style.SliderGrabActive.push_color()
-        style.Text.push_color()
-        style.TextSelectedBg.push_color()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -2957,25 +2744,11 @@ class ImGui:
             case _:
                 new_value = PyImGui.slider_int(label, v, v_min, v_max)
 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.FrameBg.pop_color()
-        style.SliderGrab.pop_color()
-        style.SliderGrabActive.pop_color()
-        style.Text.pop_color()
-        style.TextSelectedBg.pop_color()
         return new_value
 
     @staticmethod
     def slider_float(label: str, v: float, v_min: float, v_max: float) -> float:
         style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.FrameBg.push_color()
-        style.SliderGrab.push_color()
-        style.SliderGrabActive.push_color()
-        style.Text.push_color()
-        style.TextSelectedBg.push_color()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -3028,13 +2801,6 @@ class ImGui:
             case _:
                 new_value = PyImGui.slider_float(label, v, v_min, v_max)
 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.FrameBg.pop_color()
-        style.SliderGrab.pop_color()
-        style.SliderGrabActive.pop_color()
-        style.Text.pop_color()
-        style.TextSelectedBg.pop_color()
         return new_value
 
     @staticmethod
@@ -3101,12 +2867,6 @@ class ImGui:
     @staticmethod
     def search_field(label: str, text : str, placeholder: str = "Search...", flags : int = PyImGui.InputTextFlags.NoFlag) -> tuple[bool, str]:
         style = ImGui.get_style()
-        style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.FrameBg.push_color()
-        style.Text.push_color()
-        style.TextSelectedBg.push_color()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -3189,18 +2949,11 @@ class ImGui:
                     placeholder,
                 )
                 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.FrameBg.pop_color()
-        style.Text.pop_color()
-        style.TextSelectedBg.pop_color()
         return new_value != text, new_value
 
     @staticmethod
     def bullet_text(text: str):
         style = ImGui.get_style()
-        style.Text.push_color()
-        style.TextDisabled.push_color()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -3223,9 +2976,6 @@ class ImGui:
 
             case _:
                 PyImGui.bullet_text(text)
-
-        style.TextDisabled.pop_color()
-        style.Text.pop_color()
 
     @staticmethod
     def collapsing_header(label: str, flags: int) -> bool:
@@ -3267,11 +3017,6 @@ class ImGui:
     @staticmethod
     def begin_tab_bar(str_id: str) -> bool:
         style = ImGui.get_style()
-        style.TabRounding.push_style_var()
-        style.ItemSpacing.push_style_var()
-        style.Tab.push_color()
-        style.TabActive.push_color()
-        style.TabHovered.push_color()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -3326,12 +3071,6 @@ class ImGui:
             case _:
                 open = PyImGui.begin_tab_bar(str_id)
 
-        style.TabRounding.pop_style_var()
-        style.ItemSpacing.pop_style_var()
-        style.Tab.pop_color()
-        style.TabActive.pop_color()
-        style.TabHovered.pop_color()
-
         return open
                 
     @staticmethod
@@ -3348,11 +3087,6 @@ class ImGui:
     @staticmethod
     def begin_tab_item(label: str, popen: bool | None = None, flags:int = 0) -> bool:
         style = ImGui.get_style()
-        style.TabRounding.push_style_var()
-        style.ItemSpacing.push_style_var()
-        style.Tab.push_color()
-        style.TabActive.push_color()
-        style.TabHovered.push_color()
 
         if popen is None:
             match(style.Theme):
@@ -3447,11 +3181,6 @@ class ImGui:
                 case _:
                     open = PyImGui.begin_tab_item(label, popen, flags)
 
-        style.TabRounding.pop_style_var()
-        style.ItemSpacing.pop_style_var()
-        style.Tab.pop_color()
-        style.TabActive.pop_color()
-        style.TabHovered.pop_color()
         return open
 
     @staticmethod
@@ -3467,12 +3196,6 @@ class ImGui:
     @staticmethod
     def progressbar(fraction: float, size_arg_x: float, size_arg_y: float, overlay: str = ""):
         style = ImGui.get_style()
-        style.FrameRounding.push_style_var()
-        style.FramePadding.push_style_var()
-        style.FrameBg.push_color()
-        style.PlotHistogram.push_color()
-        style.PlotHistogramHovered.push_color()
-        style.Text.push_color()
         
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -3563,13 +3286,6 @@ class ImGui:
                 style.Text.push_color()
                 PyImGui.text(overlay)
                 style.Text.pop_color()
-                
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.FrameBg.pop_color()
-        style.Text.pop_color()
-        style.PlotHistogram.pop_color()
-        style.PlotHistogramHovered.pop_color()
 
     # endregion
     
