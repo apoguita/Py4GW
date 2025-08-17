@@ -43,7 +43,6 @@ window_width = ini_handler.read_int(module_name +str(" Config"), "width", 600)
 window_height = ini_handler.read_int(module_name +str(" Config"), "height", 500)
 
 window_collapsed = ini_handler.read_bool(module_name +str(" Config"), "collapsed", False)
-window_open = ini_handler.read_bool(module_name +str(" Config"), "open", True)
 
 window_module = ImGui.WindowModule(
     module_name, 
@@ -55,7 +54,7 @@ window_module = ImGui.WindowModule(
 )
 
 window_module.window_pos = (window_x, window_y)
-window_module.open = window_open
+window_module.open = False
 
 py4_gw_ini_handler = IniHandler("Py4GW.ini")
 selected_theme = Style.StyleTheme[py4_gw_ini_handler.read_key("settings", "style_theme", Style.StyleTheme.ImGui.name)]
@@ -65,6 +64,9 @@ ImGui.reload_theme(Style.StyleTheme(selected_theme))
 ImGui.set_theme(selected_theme)
 # ImGui.Selected_Style : Style = ImGui.Styles.get(ImGui.Selected_Theme, Style())
 org_style : Style = ImGui.Selected_Style.copy()
+
+##TODO: Fix collapsing UIs that are not gw themed
+##TODO: Remove style pushing on a window level 
 
 def configure():
     window_module.open = True      
@@ -122,7 +124,7 @@ def undo_button(label, width : float = 0, height: float = 25) -> bool:
             clicked = PyImGui.button(label, width, height)
 
     return clicked
-
+  
 def DrawWindow():
     global window_module, module_name, ini_handler, window_x, window_y, window_collapsed, window_open, org_style, window_width, window_height
     global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
@@ -133,7 +135,7 @@ def DrawWindow():
                 
         if window_module.begin():
             PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
-            PyImGui.text("Selected Theme")
+            ImGui.text("Selected Theme")
             PyImGui.same_line(0, 5)
             PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 5)
             remaining = PyImGui.get_content_region_avail()
@@ -150,13 +152,13 @@ def DrawWindow():
                 
                 
             PyImGui.spacing()
-            PyImGui.separator()
+            ImGui.separator()
             PyImGui.spacing()
             any_changed = False
 
             if ImGui.begin_tab_bar("Style Customization"):
                 if ImGui.begin_tab_item("Styling"):
-                    PyImGui.begin_child("Style Customization")
+                    ImGui.begin_child("Style Customization")
                     
                     
                     if ImGui.Selected_Style:
@@ -187,7 +189,7 @@ def DrawWindow():
                             column_width = 0
                             item_width = 0
 
-                            if PyImGui.begin_table("Style Variables", 3, PyImGui.TableFlags.ScrollY):
+                            if ImGui.begin_table("Style Variables", 3, PyImGui.TableFlags.ScrollY):
                                 PyImGui.table_setup_column("Variable", PyImGui.TableColumnFlags.WidthFixed, 150)
                                 PyImGui.table_setup_column("Value", PyImGui.TableColumnFlags.WidthStretch)
                                 PyImGui.table_setup_column("Undo", PyImGui.TableColumnFlags.WidthFixed, 35)
@@ -197,19 +199,19 @@ def DrawWindow():
                                     
                                 for enum, var in ImGui.Selected_Style.StyleVars.items():
                                     PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
-                                    PyImGui.text(f"{enum}")
+                                    ImGui.text(f"{enum}")
                                     PyImGui.table_next_column()
 
                                     column_width = column_width or PyImGui.get_content_region_avail()[0]
                                     item_width = item_width or (column_width - 5) / 2
                                     PyImGui.push_item_width(item_width)
-                                    var.value1 = PyImGui.input_float(f"##{enum}_value1", var.value1)
+                                    var.value1 = ImGui.input_float(f"##{enum}_value1", var.value1)
                                     
                                     if var.value2 is not None:
                                         PyImGui.same_line(0, 5)
                                         
                                         PyImGui.push_item_width(item_width)
-                                        var.value2 = PyImGui.input_float(f"##{enum}_value2", var.value2)
+                                        var.value2 = ImGui.input_float(f"##{enum}_value2", var.value2)
                                         
                                     PyImGui.table_next_column()
 
@@ -224,13 +226,13 @@ def DrawWindow():
                                     
                                 for enum, col in ImGui.Selected_Style.Colors.items():
                                     PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
-                                    PyImGui.text(f"{enum}")
+                                    ImGui.text(f"{enum}")
                                     PyImGui.table_next_column()
 
                                     column_width = column_width or PyImGui.get_content_region_avail()[0]
 
                                     PyImGui.push_item_width(column_width)
-                                    color_tuple = PyImGui.color_edit4(f"##{enum}_color", col.color_tuple)
+                                    color_tuple = ImGui.color_edit4(f"##{enum}_color", col.color_tuple)
                                     if color_tuple != col.color_tuple:
                                         col.set_tuple_color(color_tuple)    
                                         
@@ -246,13 +248,13 @@ def DrawWindow():
 
                                 for enum, col in ImGui.Selected_Style.CustomColors.items():
                                     PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
-                                    PyImGui.text(f"{enum}")
+                                    ImGui.text(f"{enum}")
                                     PyImGui.table_next_column()
 
                                     column_width = column_width or PyImGui.get_content_region_avail()[0]
 
                                     PyImGui.push_item_width(column_width)
-                                    color_tuple = PyImGui.color_edit4(f"##{enum}_color", col.color_tuple)
+                                    color_tuple = ImGui.color_edit4(f"##{enum}_color", col.color_tuple)
                                     if color_tuple != col.color_tuple:
                                         col.set_tuple_color(color_tuple)    
                                         
@@ -265,9 +267,9 @@ def DrawWindow():
                                             col.color_tuple = org_style.CustomColors[enum].color_tuple
                                     PyImGui.table_next_column()
 
-                                PyImGui.end_table()
+                                ImGui.end_table()
 
-                    PyImGui.end_child()
+                    ImGui.end_child()
                     ImGui.end_tab_item()
 
                 if ImGui.begin_tab_item("Control Preview"):
@@ -275,46 +277,46 @@ def DrawWindow():
                         column_width = 0
                         item_width = 0
 
-                        if PyImGui.begin_table("Control Preview", 2, PyImGui.TableFlags.ScrollY):
+                        if ImGui.begin_table("Control Preview", 2, PyImGui.TableFlags.ScrollY):
                             PyImGui.table_setup_column("Control", PyImGui.TableColumnFlags.WidthFixed, 150)
                             PyImGui.table_setup_column("Preview", PyImGui.TableColumnFlags.WidthStretch)
                             
                             PyImGui.table_next_row()
                             PyImGui.table_next_column()
                             
-                            PyImGui.text("Button")
+                            ImGui.text("Button")
                             PyImGui.table_next_column()
                             ImGui.button("Button", 0, 25)
                             PyImGui.same_line(0,5)
                             ImGui.button("Disabled Button", 0, 25, False)
                             PyImGui.table_next_column()
                             
-                            PyImGui.text("Primary Button")
+                            ImGui.text("Primary Button")
                             PyImGui.table_next_column()
                             ImGui.primary_button("Primary Button", 0, 25)
                             PyImGui.same_line(0,5)
                             ImGui.primary_button("Disabled Primary Button", 0, 25, False)
                             PyImGui.table_next_column()
                             
-                            PyImGui.text("Combo")
+                            ImGui.text("Combo")
                             PyImGui.table_next_column()
                             ImGui.combo("Combo", 0, ["Option 1", "Option 2", "Option 3"])
                             PyImGui.table_next_column()
                             
-                            PyImGui.text("Checkbox")
+                            ImGui.text("Checkbox")
                             PyImGui.table_next_column()
                             ImGui.checkbox("##Checkbox 2", False)                                
                             PyImGui.same_line(0, 5)
                             ImGui.checkbox("Checkbox", True)                                
                             PyImGui.table_next_column()
 
-                            PyImGui.text("Slider")
+                            ImGui.text("Slider")
                             PyImGui.table_next_column()
                             ImGui.slider_int("Slider Int", 25, 0, 100)
                             ImGui.slider_float("Slider Float", 0.0, 0.0, 100.0)
                             PyImGui.table_next_column()
                             
-                            PyImGui.text("Input")
+                            ImGui.text("Input")
                             PyImGui.table_next_column()
                             ImGui.input_text("Input Text", "Some Text")
                             ImGui.input_int("Input Int", 150)
@@ -322,14 +324,19 @@ def DrawWindow():
                             ImGui.input_float("Input Float", 150.0)
                             PyImGui.table_next_column()
 
-                            PyImGui.text("Separator")
+                            ImGui.text("Search")
+                            PyImGui.table_next_column()
+                            ImGui.search_field("Search Field", "", "Search...")
+                            PyImGui.table_next_column()
+
+                            ImGui.text("Separator")
                             PyImGui.table_next_column()
                             ImGui.separator()
                             PyImGui.table_next_column()
                             
-                            PyImGui.text("Progress Bar")
+                            ImGui.text("Progress Bar")
                             PyImGui.table_next_column()
-
+                            
                             current_style = ImGui.get_style()
                             ImGui.progressbar(0.25, 200, 20, "25 points")
                             current_style.PlotHistogram.push_color((125, 180, 50, 255))
@@ -337,38 +344,38 @@ def DrawWindow():
                             current_style.PlotHistogram.pop_color()                            
                             PyImGui.table_next_column()
                             
-                            PyImGui.text("Hyperlink")
+                            ImGui.text("Hyperlink")
                             PyImGui.table_next_column()
                             ImGui.hyperlink("Click Me")
                             PyImGui.table_next_column()
 
-                            PyImGui.text("Bullet Text")
+                            ImGui.text("Bullet Text")
                             PyImGui.table_next_column()
                             ImGui.bullet_text("Bullet Text 1")
                             ImGui.bullet_text("Bullet Text 2")
                             PyImGui.table_next_column()
 
-                            PyImGui.text("Collapsing Header")
+                            ImGui.text("Collapsing Header")
                             PyImGui.table_next_column()
                             if ImGui.collapsing_header("Collapsing Header", 0):
-                                PyImGui.text("This is a collapsible header content.")
+                                ImGui.text("This is a collapsible header content.")
                             PyImGui.table_next_column()
                             
-                            PyImGui.text("Tab Bar")
+                            ImGui.text("Tab Bar")
                             PyImGui.table_next_column()
 
                             if ImGui.begin_tab_bar("Tab Bar"):
                                 if ImGui.begin_tab_item("Tab 1"):
-                                    PyImGui.text("Content for Tab 1")
+                                    ImGui.text("Content for Tab 1")
                                     ImGui.end_tab_item()
 
                                 if ImGui.begin_tab_item("Tab 2"):
-                                    PyImGui.text("Content for Tab 2")
+                                    ImGui.text("Content for Tab 2")
                                     ImGui.end_tab_item()
 
                                 ImGui.end_tab_bar()
 
-                            PyImGui.end_table()
+                            ImGui.end_table()
                             
                     ImGui.end_tab_item()                
                 ImGui.end_tab_bar()
@@ -392,16 +399,11 @@ def DrawWindow():
                 window_module.collapse = window_module.collapsed_status
                 ini_handler.write_key(module_name + " Config", "collapsed", str(window_module.collapse))
 
-            if window_open != window_module.open:
-                window_open = window_module.open
-                ini_handler.write_key(module_name + " Config", "open", str(window_module.open))
-                
             save_throttle_timer.Reset()
 
 
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in DrawWindow: {str(e)}", Py4GW.Console.MessageType.Debug)
-
 
 def main():
     """Required main function for the widget"""
@@ -409,7 +411,7 @@ def main():
     
     try:            
         DrawWindow()
-        window_module.open  = True
+        window_module.open  = False
             
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in main: {str(e)}", Py4GW.Console.MessageType.Debug)
