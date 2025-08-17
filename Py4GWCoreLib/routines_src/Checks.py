@@ -12,6 +12,7 @@ class _RProxy:
 Routines = _RProxy()
 
 class Checks:
+#region Player
     class Player:
         @staticmethod
         def CanAct():
@@ -23,7 +24,40 @@ class Checks:
             if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
                 return False
             return True
+        
+        @staticmethod
+        def IsDead():
+            from ..GlobalCache import GLOBAL_CACHE
+            return GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
+        
+#region Party
+    class Party:
+        @staticmethod
+        def IsPartyMemberDead():
+            from ..GlobalCache import GLOBAL_CACHE
+            is_someone_dead = False
+            players = GLOBAL_CACHE.Party.GetPlayers()
+            henchmen = GLOBAL_CACHE.Party.GetHenchmen()
+            heroes = GLOBAL_CACHE.Party.GetHeroes()
+    
+            for player in players:
+                agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+                if GLOBAL_CACHE.Agent.IsDead(agent_id):
+                    is_someone_dead = True
+                    break
+            for henchman in henchmen:
+                if GLOBAL_CACHE.Agent.IsDead(henchman.agent_id):
+                    is_someone_dead = True
+                    break
+                
+            for hero in heroes:
+                if GLOBAL_CACHE.Agent.IsDead(hero.agent_id):
+                    is_someone_dead = True
+                    break
 
+            return is_someone_dead
+            
+#region Map
     class Map:
         @staticmethod
         def MapValid():
@@ -37,13 +71,13 @@ class Checks:
             if  GLOBAL_CACHE.Map.IsInCinematic():
                 return False
             return True
-
+#region Inventory
     class Inventory:
         @staticmethod
         def InventoryAndLockpickCheck():
             from ..GlobalCache import GLOBAL_CACHE
             return GLOBAL_CACHE.Inventory.GetFreeSlotCount() > 0 and GLOBAL_CACHE.Inventory.GetModelCount(22751) > 0 
-
+#region Effects
     class Effects:
         @staticmethod
         def HasBuff(agent_id, skill_id):
@@ -51,7 +85,7 @@ class Checks:
             if GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id):
                 return True
             return False
-
+#region Agents
     class Agents:
         from ..Py4GWcorelib import Range
         @staticmethod
@@ -106,6 +140,7 @@ class Checks:
             owner = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
             return (owner == GLOBAL_CACHE.Player.GetAgentID()) or (owner == 0)
 
+#region Skills
     class Skills:
         @staticmethod
         def HasEnoughEnergy(agent_id, skill_id):

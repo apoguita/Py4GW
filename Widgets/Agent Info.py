@@ -55,6 +55,8 @@ def DrawMainWindow():
             return   
         PyImGui.text(f"ID: {agent.id}")
         PyImGui.text(f"Name: {GLOBAL_CACHE.Agent.GetName(agent.id)}")
+        if PyImGui.button("Target Agent"):
+            GLOBAL_CACHE.Player.ChangeTarget(agent.id)
         PyImGui.separator()
         if PyImGui.collapsing_header(f"Positional Data:"):
             flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.SizingStretchSame | PyImGui.TableFlags.Resizable

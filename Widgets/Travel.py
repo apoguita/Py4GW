@@ -205,7 +205,7 @@ def DrawWindow():
                 window_module.collapse = new_collapsed
                 ini_handler.write_key(module_name + " Config", "collapsed", str(new_collapsed))
                 
-            save_throttle_timer.Reset()
+            #save_throttle_timer.Reset()
 
     except Exception as e:
         is_traveling = False
