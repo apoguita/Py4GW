@@ -13,7 +13,7 @@ from Py4GWCoreLib import IconsFontAwesome5
 import os
 import time
 
-from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Utils
+from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, ThrottledTimer, Utils
 module_name = "Style Manager"
 
 '''
@@ -68,9 +68,15 @@ org_style : Style = ImGui.Selected_Style.copy()
 ##TODO: Fix collapsing UIs that are not gw themed
 ##TODO: Remove style pushing on a window level 
 
+mouse_down_timer = ThrottledTimer(125)
+input_int_value = 150
+input_float_value = 150.0
+input_text_value = "Text"
+search_value = ""
+
 def configure():
     window_module.open = True      
-  
+
 def undo_button(label, width : float = 0, height: float = 25) -> bool:
     clicked = False
     remaining_space = PyImGui.get_content_region_avail()
@@ -128,6 +134,7 @@ def undo_button(label, width : float = 0, height: float = 25) -> bool:
 def DrawWindow():
     global window_module, module_name, ini_handler, window_x, window_y, window_collapsed, window_open, org_style, window_width, window_height
     global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
+    global input_int_value, input_float_value, input_text_value, search_value
     
     try:                        
         if not window_module.open:
@@ -318,15 +325,16 @@ def DrawWindow():
                             
                             ImGui.text("Input")
                             PyImGui.table_next_column()
-                            ImGui.input_text("Input Text", "Some Text")
-                            ImGui.input_int("Input Int", 150)
+                            input_text_value = ImGui.input_text("Input Text", input_text_value)
+                            input_int_value = ImGui.input_int("Input Int##2", input_int_value)
+                            input_int_value = ImGui.input_int("Input Int##3", input_int_value, 0, 10000, 0)
+                            input_float_value = ImGui.input_float("Input Float", input_float_value)
                             
-                            ImGui.input_float("Input Float", 150.0)
                             PyImGui.table_next_column()
 
                             ImGui.text("Search")
                             PyImGui.table_next_column()
-                            ImGui.search_field("Search Field", "", "Search...")
+                            changed, search_value = ImGui.search_field("Search Field", search_value, "Search...")
                             PyImGui.table_next_column()
 
                             ImGui.text("Separator")
@@ -337,12 +345,11 @@ def DrawWindow():
                             ImGui.text("Progress Bar")
                             PyImGui.table_next_column()
                             
-                            width = PyImGui.get_content_region_avail()[0]
                             current_style = ImGui.get_style()
-                            ImGui.progress_bar(0.25, width, 20, "25 points")
+                            ImGui.progress_bar(0.25, 0, 20, "25 points")
                                                       
                             current_style.PlotHistogram.push_color((219, 150, 251, 255))  
-                            ImGui.progress_bar(0.25, width, 20, "25 points")
+                            ImGui.progress_bar(0.25, 0, 20, "25 points")
                             current_style.PlotHistogram.pop_color()                            
                             PyImGui.table_next_column()
                             
