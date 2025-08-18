@@ -2978,7 +2978,7 @@ class ImGui:
                 PyImGui.bullet_text(text)
 
     @staticmethod
-    def collapsing_header(label: str, flags: int) -> bool:
+    def collapsing_header(label: str, flags: int = 0) -> bool:
         style = ImGui.get_style()
         style.TextCollapsingHeader.push_color()
         
@@ -3194,7 +3194,7 @@ class ImGui:
                 PyImGui.end_tab_item()
 
     @staticmethod
-    def progressbar(fraction: float, size_arg_x: float, size_arg_y: float, overlay: str = ""):
+    def progress_bar(fraction: float, size_arg_x: float, size_arg_y: float, overlay: str = ""):
         style = ImGui.get_style()
         
         match(style.Theme):
@@ -3202,8 +3202,6 @@ class ImGui:
                 PyImGui.push_clip_rect(0,0,0,0,False)
                 PyImGui.progress_bar(fraction, size_arg_x, size_arg_y, overlay)
                 PyImGui.pop_clip_rect()
-
-                PyImGui.pop_style_color(6)
                 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()

@@ -337,10 +337,12 @@ def DrawWindow():
                             ImGui.text("Progress Bar")
                             PyImGui.table_next_column()
                             
+                            width = PyImGui.get_content_region_avail()[0]
                             current_style = ImGui.get_style()
-                            ImGui.progressbar(0.25, 200, 20, "25 points")
-                            current_style.PlotHistogram.push_color((125, 180, 50, 255))
-                            ImGui.progressbar(0.25, 200, 20, "25 points")
+                            ImGui.progress_bar(0.25, width, 20, "25 points")
+                                                      
+                            current_style.PlotHistogram.push_color((219, 150, 251, 255))  
+                            ImGui.progress_bar(0.25, width, 20, "25 points")
                             current_style.PlotHistogram.pop_color()                            
                             PyImGui.table_next_column()
                             

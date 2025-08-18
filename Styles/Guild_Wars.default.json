@@ -43,6 +43,13 @@
             "b": 204,
             "a": 255
         },
+        "ChildBg": {
+            "img_color_enum": "ChildBg",
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 0
+        },
         "FrameBg": {
             "img_color_enum": "FrameBg",
             "r": 26,
@@ -94,9 +101,9 @@
         },
         "PlotHistogram": {
             "img_color_enum": "PlotHistogram",
-            "r": 219,
-            "g": 154,
-            "b": 251,
+            "r": 103,
+            "g": 207,
+            "b": 48,
             "a": 255
         },
         "PlotHistogramHovered": {
@@ -299,6 +306,14 @@
         }
     },
     "StyleVars": {
+        "ButtonPadding": {
+            "value1": 8.0,
+            "value2": 4.0
+        },
+        "CellPadding": {
+            "value1": 5.0,
+            "value2": 5.0
+        },
         "ChildRounding": {
             "value1": 0.0
         },
