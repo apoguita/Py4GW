@@ -69,7 +69,12 @@ class Yield:
             yield from Yield.wait(100)
             if log:
                 ConsoleLog("MoveTo", f"Moving to {x}, {y}", Console.MessageType.Info)
-                
+
+        @staticmethod
+        def Resign():
+            GLOBAL_CACHE.Player.SendChatCommand("resign")
+            yield from Yield.wait(250)
+
 #region Movement
     class Movement:
         @staticmethod
@@ -907,8 +912,9 @@ class Yield:
             if summoning_stone_in_bags < 1:
                 GLOBAL_CACHE.Player.SendChatCommand("bonus")
                 yield from Yield.wait(250)
-     
-#region Upkeepers           
+                
+
+#region Upkeepers
     class Upkeepers:
 
         ALCOHOL_ITEMS = [

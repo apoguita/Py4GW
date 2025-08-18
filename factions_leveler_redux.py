@@ -458,16 +458,15 @@ class BottingHelpers:
             
     def auto_combat(self):
         self.parent.config.auto_combat_handler.SetWeaponAttackAftercast()
-        while True:
-            if not (Routines.Checks.Map.MapValid() and 
-                    Routines.Checks.Player.CanAct() and
-                    Map.IsExplorable() and
-                    not self.parent.config.auto_combat_handler.InCastingRoutine()):
-                #ActionQueueManager().ResetQueue("ACTION")
-                yield from Routines.Yield.wait(100)
-            else:
-                self.parent.config.auto_combat_handler.HandleCombat()
-            yield
+
+        if not (Routines.Checks.Map.MapValid() and 
+                Routines.Checks.Player.CanAct() and
+                Map.IsExplorable() and
+                not self.parent.config.auto_combat_handler.InCastingRoutine()):
+            yield from Routines.Yield.wait(100)
+        else:
+            self.parent.config.auto_combat_handler.HandleCombat()
+        yield
 
     def upkeep_auto_combat(self):
         while True:
@@ -770,6 +769,9 @@ class BottingHelpers:
         GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
         yield from Routines.Yield.wait(500)
 
+    def resign(self):
+        yield from Routines.Yield.Player.Resign()
+
 class Botting:
     def __init__(self, bot_name="DefaultBot"):
         self.bot_name = bot_name
@@ -925,6 +927,10 @@ class Botting:
 
     def WasteTimeUntilConditionMet(self, condition: Callable[[], bool], duration: int=1000) -> None:
         self.helpers.waste_time_until_condition_met(condition, duration)
+        
+    def WasteTimeUntilOOC(self) -> None:
+        wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot))
+        self.helpers.waste_time_until_condition_met(wait_condition)
 
     def AddFSMCustomYieldState(self, execute_fn, name: str) -> None:
         self.config.FSM.AddYieldRoutineStep(name=name, coroutine_fn=execute_fn)
@@ -1012,6 +1018,9 @@ class Botting:
 
     def UnflagAllHeroes(self):
         self.helpers.unflag_all_heroes()
+        
+    def Resign(self):
+        self.helpers.resign()
 
 
 
@@ -1108,6 +1117,28 @@ def AddHenchmen():
         HEALER_ID = 5
         GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
         yield from Routines.Yield.wait(250)
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("The Marketplace"):
+        HEALER_ID = 6
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
+        yield from Routines.Yield.wait(250)
+        SPIRIT_ID = 9
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(SPIRIT_ID)
+        yield from Routines.Yield.wait(250)
+        EARTH_ID = 5
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(EARTH_ID)
+        yield from Routines.Yield.wait(250)
+        SHOCK_ID = 1
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(SHOCK_ID)
+        yield from Routines.Yield.wait(250)
+        GRAVE_ID = 4
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(GRAVE_ID)
+        yield from Routines.Yield.wait(250)
+        FIGHTER_ID = 7
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(FIGHTER_ID)
+        yield from Routines.Yield.wait(250)
+        ILLUSION_ID = 3
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(ILLUSION_ID)
+        yield from Routines.Yield.wait(250)
     elif GLOBAL_CACHE.Map.GetMapID() == zen_daijun_map_id:
         FIGHTER_ID = 3
         GLOBAL_CACHE.Party.Henchmen.AddHenchman(FIGHTER_ID)
@@ -1145,7 +1176,7 @@ def ExitMonasteryOverlook(bot: Botting) -> None:
     
 def ExitToCourtyard(bot: Botting) -> None:
     bot.AddHeaderStep("Exit To Courtyard")
-    #PrepareForBattle(bot)
+    PrepareForBattle(bot)
     bot.MoveTo(-3480, 9460)
     bot.WaitForMapLoad(target_map_name="Linnok Courtyard")
     
@@ -1334,8 +1365,7 @@ def WarningTheTenguQuest(bot: Botting):
     CONTINUE_WARNING_THE_TENGU_QUEST = 0x815304
     bot.DialogAt(-1023, 4844, CONTINUE_WARNING_THE_TENGU_QUEST, step_name="Continue Warning the Tengu Quest")
     bot.MoveTo(-5011, 732, "Move to Tengu Killspot")
-    wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot))
-    bot.WasteTimeUntilConditionMet(wait_condition)
+    bot.WasteTimeUntilOOC()
     bot.MoveTo(-983, 4931, "Move back to Tengu NPC")
     TAKE_WARNING_THE_TENGU_REWARD = 0x815307
     bot.DialogAt(-1023, 4844, TAKE_WARNING_THE_TENGU_REWARD, step_name="Take Warning the Tengu Reward")
@@ -1432,7 +1462,33 @@ def ZenDaijunMission(bot: Botting):
     bot.MoveTo(-7851, -1458)
     wait_condition = lambda: (Routines.Checks.Map.MapValid() and (GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor")))
     bot.WasteTimeUntilConditionMet(wait_condition)
-    
+
+def AdvanceToMarketplace(bot: Botting):
+    bot.AddHeaderStep("Advance To Marketplace")
+    bot.MoveTo(17470, 9029)
+    bot.DialogAt(16927, 9004, 0x815D01)  # "I Will Set Sail Immediately"
+    bot.DialogAt(16927, 9004, 0x815D05)  # "a Master burden"
+    #bot.DialogAt(16927, 9004, 0x81)  # book a passage to kaineng
+    bot.DialogAt(16927, 9004, 0x84)  # i am sure
+    bot.WaitForMapLoad(target_map_name="Kaineng Docks")
+    bot.MoveTo(9866, 20041) #headmaster Greico
+    bot.DialogAt(9955, 20033, 0x815D04)  # a masters burden
+    bot.MoveTo(12003, 18529) 
+    bot.WaitForMapLoad(target_map_name="The Marketplace")
+
+def FarmUntilLevel10(bot: Botting):
+    bot.AddHeaderStep("Farm Until Level 10")
+    PrepareForBattle(bot)
+    bot.MoveTo(11360, 15174)
+    bot.WaitForMapLoad(target_map_name="Wajjun Bazaar")
+    bot.MoveTo(6451, 14474)
+    bot.MoveTo(4122, 9766)
+    bot.MoveTo(385, 11297)
+    bot.MoveTo(2251, 15280)
+    bot.MoveTo(1352, 17728)
+    bot.WasteTimeUntilOOC()
+    if bot.config.live_data.Player.get("level") >= 10:
+        bot.config.FSM.jump_to_state_by_name("[H]Farm Until Level 10_25")
 
 def create_bot_routine(bot: Botting) -> None:
     bot.AddHeaderStep("Initial Step")
@@ -1459,6 +1515,8 @@ def create_bot_routine(bot: Botting) -> None:
     GoToZenDaijun(bot)
     PrepareForZenDaijunMission(bot)
     ZenDaijunMission(bot)
+    AdvanceToMarketplace(bot)
+    FarmUntilLevel10(bot)
     bot.AddHeaderStep("Final Step")
     bot.Stop()
 
@@ -1487,6 +1545,7 @@ def main():
             filter_header_steps = PyImGui.checkbox("Show only Header Steps", filter_header_steps)
 
             fsm_steps_all = bot.config.FSM.get_state_names()
+            
 
             # choose source list (original names) based on filter
             if filter_header_steps:
@@ -1496,12 +1555,14 @@ def main():
 
             # display list: clean headers; leave non-headers as-is
             def _clean_header(name: str) -> str:
+                #return name
                 if name.startswith("[H]"):
                     name = re.sub(r'^\[H\]\s*', '', name)              # remove [H] (and optional space)
                     name = re.sub(r'_(?:\[\d+\]|\d+)$', '', name)       # remove _123 or _[123] at end
                 return name
 
             fsm_steps = [_clean_header(s) for s in fsm_steps_original]
+            
 
             if not fsm_steps:
                 PyImGui.text("No steps to show (filter active).")
@@ -1510,6 +1571,15 @@ def main():
                     selected_step = max(0, len(fsm_steps) - 1)
 
                 selected_step = PyImGui.combo("FSM Steps", selected_step, fsm_steps)
+                
+                sel_orig = fsm_steps_original[selected_step]
+                state_num = bot.config.FSM.get_state_number_by_name(sel_orig)
+
+                # display it (handle not-found defensively)
+                if state_num is None or state_num == -1:
+                    PyImGui.text(f"Selected step: {sel_orig}  (step #: N/A)")
+                else:
+                    PyImGui.text(f"Selected step: {sel_orig}  (step #: {state_num})")
 
                 if PyImGui.button("start at Step"):
                     bot.config.fsm_running = True
