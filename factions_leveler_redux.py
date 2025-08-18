@@ -1,4 +1,5 @@
 
+from PyEffects import PyEffects
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, AutoPathing, Py4GW, FSM, ConsoleLog, Color, DXOverlay,
                           UIManager,ModelID, Utils, SkillManager, Map, ConsoleLog
                          )
@@ -59,37 +60,6 @@ STEP_NAMES: Final[tuple[str, ...]] = (
 )
 ALLOWED_STEPS: Final[frozenset[str]] = frozenset(STEP_NAMES)
 
-class GeneralHelpers:
-    @staticmethod
-    def is_party_member_dead():
-        is_someone_dead = False
-        players = GLOBAL_CACHE.Party.GetPlayers()
-        henchmen = GLOBAL_CACHE.Party.GetHenchmen()
-        heroes = GLOBAL_CACHE.Party.GetHeroes()
- 
-        for player in players:
-            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-            if GLOBAL_CACHE.Agent.IsDead(agent_id):
-                is_someone_dead = True
-                break
-        for henchman in henchmen:
-            if GLOBAL_CACHE.Agent.IsDead(henchman.agent_id):
-                is_someone_dead = True
-                break
-            
-        for hero in heroes:
-            if GLOBAL_CACHE.Agent.IsDead(hero.agent_id):
-                is_someone_dead = True
-                break
-
-        return is_someone_dead
-    
-    
-    @staticmethod
-    def is_player_dead():
-        return GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
-
-
 class StepNameCounters:
     def __init__(self, seed: Dict[str, int] | None = None,
                  allowed: Iterable[str] = ALLOWED_STEPS) -> None:
@@ -126,53 +96,190 @@ class StepNameCounters:
         self._counts.clear()
 
 
-class BotProperty:
-    def __init__(self, parent: "BotConfig", name: str, default_value: Any):
-        self.parent = parent            # has FSM and get_counter(name: str) -> int
-        self.name = name                # string key (e.g., "movement_timeout")
-        self._default = default_value
-        self._value = default_value     # committed value
+class Property:
+    """
+    A flexible property system for BotConfig.
+    - Always has an `active` flag.
+    - Can have any number of extra fields (with defaults).
+    - Changes are scheduled through the FSM of the parent BotConfig.
+    """
 
-    # Read current committed value (no FSM)
-    def get(self) -> Any:
-        return self._value
+    def __init__(self, parent: "BotConfig", name: str,
+                 active: bool = True,
+                 extra_fields: Optional[Dict[str, Any]] = None):
+        self.parent = parent
+        self.name = name
 
-    # Internal apply used by scheduled steps
-    def _apply(self, new_value: Any) -> None:
-        self._value = new_value
+        # store defaults and current values
+        self._defaults: Dict[str, Any] = {"active": active}
+        self._values: Dict[str, Any] = {"active": active}
 
-    # Schedule a change; actual write happens when FSM runs the step
-    def set(self, value: Any) -> None:
-        step_name = f"{self.name}_{self.parent.get_counter("PROPERTY")}"
+        if extra_fields:
+            for k, v in extra_fields.items():
+                self._defaults[k] = v
+                self._values[k] = v
+
+    # ---- getters ----
+    def is_active(self) -> bool:
+        return bool(self._values["active"])
+
+    def get(self, field: str = "active") -> Any:
+        return self._values[field]
+
+    # ---- apply immediately (internal) ----
+    def _apply(self, field: str, value: Any) -> None:
+        self._values[field] = value
+
+    # ---- schedule changes through FSM ----
+    def set(self, field: str, value: Any) -> None:
+        step_name = f"{self.name}_{field}_{self.parent.get_counter('PROPERTY')}"
         self.parent.FSM.AddState(
             name=step_name,
-            execute_fn=lambda v=value: self._apply(v),
+            execute_fn=lambda f=field, v=value: self._apply(f, v),
         )
 
-    # Schedule reset to default
-    def reset(self) -> None:
-        step_name = f"{self.name}_RESET_{self.parent.get_counter("PROPERTY")}"
+    def enable(self) -> None:
+        self.set("active", True)
+
+    def disable(self) -> None:
+        self.set("active", False)
+
+    def toggle(self) -> None:
+        self.set("active", not self.is_active())
+
+    def set_active(self, value: bool) -> None:
+        self._apply("active", value)
+
+    # ---- reset ----
+    def reset(self, field: str = "active") -> None:
+        step_name = f"{self.name}_{field}_RESET_{self.parent.get_counter('PROPERTY')}"
+        default_value = self._defaults[field]
         self.parent.FSM.AddState(
             name=step_name,
-            execute_fn=lambda: self._apply(self._default),
+            execute_fn=lambda f=field, v=default_value: self._apply(f, v),
         )
+
+    def reset_all(self) -> None:
+        for f in self._values.keys():
+            self.reset(f)
+
+    # ---- immediate init (bypass FSM, e.g., bootstrapping) ----
+    def init_now(self, **kwargs: Any) -> None:
+        for f, v in kwargs.items():
+            if f not in self._values:
+                raise KeyError(f"Unknown field '{f}' in Property {self.name}")
+            self._apply(f, v)
+
+    # ---- representation ----
+    def __repr__(self) -> str:
+        return f"Property({self.name}, {self._values})"
+    
 
 class LiveData:
-    def __init__(self, parent):
+    def __init__(self, parent: "BotConfig"):
         self.parent = parent
-        self.player_profession_primary:BotProperty = BotProperty(self.parent, "player_profession_primary", "None")
-        self.player_profession_secondary:BotProperty = BotProperty(self.parent, "player_profession_secondary", "None")
-        self.level:BotProperty = BotProperty(self.parent, "level", 1)
-        self.map_current_map_id:BotProperty = BotProperty(self.parent, "map_current_map_id", 0)
-        self.map_max_party_size:BotProperty = BotProperty(self.parent, "map_max_party_size", 0)
+
+        # Player-related live data
+        self.Player = Property(parent, "player",
+                               extra_fields={
+                                   "primary_profession": "None",
+                                   "secondary_profession": "None",
+                                   "level": 1,
+                               })
+
+        # Map-related live data
+        self.Map = Property(parent, "map",
+                            extra_fields={
+                                "current_map_id": 0,
+                                "max_party_size": 0
+                            })
 
     def update(self):
+        # update values directly (bypasses FSM scheduling)
         primary, secondary = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-        self.player_profession_primary._apply(primary)
-        self.player_profession_secondary._apply(secondary)
-        self.level._apply(GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID()))
-        self.map_current_map_id._apply(GLOBAL_CACHE.Map.GetMapID())
-        self.map_max_party_size._apply(GLOBAL_CACHE.Map.GetMaxPartySize())
+        self.Player._apply("primary_profession", primary)
+        self.Player._apply("secondary_profession", secondary)
+        self.Player._apply("level", GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID()))
+
+        self.Map._apply("current_map_id", GLOBAL_CACHE.Map.GetMapID())
+        self.Map._apply("max_party_size", GLOBAL_CACHE.Map.GetMaxPartySize())
+
+
+class ConfigProperties:
+    def __init__(self, parent: "BotConfig"):
+        self.parent = parent
+
+        # simple properties with only one field
+        self.log_actions = Property(parent, "log_actions", active=False)
+        self.halt_on_death = Property(parent, "halt_on_death", active=True)
+        self.pause_on_danger = Property(parent, "pause_on_danger", active=False)
+        self.movement_timeout = Property(parent, "movement_timeout", extra_fields={"value": 15000})
+        self.movement_tolerance = Property(parent, "movement_tolerance", extra_fields={"value": 150})
+        self.draw_path = Property(parent, "draw_path", active=True)
+        self.follow_path_succeeded = Property(parent, "follow_path_succeeded", extra_fields={"value": False})   
+        self.dialog_at_succeeded = Property(parent, "dialog_at_succeeded", extra_fields={"value": False})
+
+        # more properties can be added here
+
+class UpkeepData:
+    def __init__(self, parent: "BotConfig"):
+        self.parent = parent
+
+        self.alcohol = Property(parent,"alcohol", active=False,
+            extra_fields={
+                "target_drunk_level": 2,        # Drunk level to maintain
+                "disable_visual": True         # hide drunk visual effect
+            }
+        )
+
+        self.city_speed = Property(parent,"city_speed", active=False)
+
+        self.morale = Property(parent, "morale",
+            active=False,
+            extra_fields={"target_morale": 110,}
+        )
+
+        self.armor_of_salvation = Property(parent, "armor_of_salvation", active=False)
+        self.essence_of_celerity = Property(parent, "essence_of_celerity", active=False)
+        self.grail_of_might = Property(parent, "grail_of_might", active=False)
+        self.blue_rock_candy = Property(parent, "blue_rock_candy", active=False)
+        self.green_rock_candy = Property(parent, "green_rock_candy", active=False)
+        self.red_rock_candy = Property(parent, "red_rock_candy", active=False)
+        self.birthday_cupcake = Property(parent, "birthday_cupcake", active=False)
+        self.slice_of_pumpkin_pie = Property(parent, "slice_of_pumpkin_pie", active=False)
+        self.bowl_of_skalefin_soup = Property(parent, "bowl_of_skalefin_soup", active=False)
+        self.candy_apple = Property(parent, "candy_apple", active=False)
+        self.candy_corn = Property(parent, "candy_corn", active=False)
+        self.drake_kabob = Property(parent, "drake_kabob", active=False)
+        self.golden_egg = Property(parent, "golden_egg", active=False)
+        self.pahnai_salad = Property(parent, "pahnai_salad", active=False)
+        self.war_supplies = Property(parent, "war_supplies", active=False)
+        self.imp = Property(parent, "imp", active=False)
+        self.auto_combat = Property(parent, "auto_combat", active=False)
+
+    def __repr__(self) -> str:
+        return (
+            f"UpkeepData("
+            f"alcohol={self.alcohol}, "
+            f"city_speed={self.city_speed}, "
+            f"morale={self.morale}, "
+            f"armor_of_salvation={self.armor_of_salvation}, "
+            f"essence_of_celerity={self.essence_of_celerity}, "
+            f"grail_of_might={self.grail_of_might}, "
+            f"blue_rock_candy={self.blue_rock_candy}, "
+            f"green_rock_candy={self.green_rock_candy}, "
+            f"red_rock_candy={self.red_rock_candy}, "
+            f"birthday_cupcake={self.birthday_cupcake}, "
+            f"slice_of_pumpkin_pie={self.slice_of_pumpkin_pie}, "
+            f"bowl_of_skalefin_soup={self.bowl_of_skalefin_soup}, "
+            f"candy_apple={self.candy_apple}, "
+            f"candy_corn={self.candy_corn}, "
+            f"drake_kabob={self.drake_kabob}, "
+            f"golden_egg={self.golden_egg}, "
+            f"pahnai_salad={self.pahnai_salad}, "
+            f"war_supplies={self.war_supplies}, "
+        )
+
 
 class BotConfig:
     def __init__(self, parent: "Botting",  bot_name: str):
@@ -184,35 +291,21 @@ class BotConfig:
         self.auto_combat_handler:SkillManager.Autocombat = SkillManager.Autocombat()
 
         self.counters = StepNameCounters()
-
-        self.pause_on_danger_fn: Callable[[], bool] = lambda: False
-        self._reset_pause_on_danger_fn()
         
         self.path:List[Tuple[float, float]] = []
         self.path_to_draw:List[Tuple[float, float]] = []
         
+        #Overridable functions
+        self.pause_on_danger_fn: Callable[[], bool] = lambda: False
+        self._reset_pause_on_danger_fn()
         self.on_follow_path_failed: Callable[[], bool] = lambda: False
         
         #Properties
-        self.halt_on_death = BotProperty(self, "halt_on_death", True)
-        self.pause_on_danger = BotProperty(self, "pause_on_danger", False)
-        self.movement_timeout = BotProperty(self, "movement_timeout", 15000)
-        self.movement_tolerance = BotProperty(self, "movement_tolerance", 150)
-        self.draw_path = BotProperty(self, "draw_path", True)
-        self.follow_path_succeeded = BotProperty(self, "follow_path_succeeded", False)
-        self.log_actions = BotProperty(self, "log_actions", False)
-        self.dialog_at_succeeded = BotProperty(self, "dialog_at_succeeded", False)
-        # Consumable maintainers (default: disabled) - by aC
-        self.use_alcohol        = BotProperty(self, "use_alcohol", False)
-        self.use_city_speed     = BotProperty(self, "use_city_speed", False)
-        self.use_morale         = BotProperty(self, "use_morale", False)
-        self.use_dp_removal     = BotProperty(self, "use_dp_removal", False)
-        self.use_consets        = BotProperty(self, "use_consets", False)
-        self.use_grail          = BotProperty(self, "use_grail_of_might", False)
-        self.use_salvation      = BotProperty(self, "use_armor_of_salvation", False)
-        self.use_celerity       = BotProperty(self, "use_essence_of_celerity", False)
-
+        self.config_properties = ConfigProperties(self)
         self.live_data = LiveData(self)
+        
+        # Consumable maintainers (default: disabled) - by aC
+        self.upkeep = UpkeepData(self)
 
 
 
@@ -223,11 +316,11 @@ class BotConfig:
         self.pause_on_danger_fn = executable_fn
                
     def _reset_pause_on_danger_fn(self) -> None:
-        self._set_pause_on_danger_fn(lambda: Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot) or GeneralHelpers.is_party_member_dead())
+        self._set_pause_on_danger_fn(lambda: Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot) or Routines.Checks.Party.IsPartyMemberDead())
 
     def _set_on_follow_path_failed(self, on_follow_path_failed: Callable[[], bool]) -> None:
         self.on_follow_path_failed = on_follow_path_failed
-        if self.log_actions:
+        if self.config_properties.log_actions.is_active():
             ConsoleLog(MODULE_NAME, f"Set OnFollowPathFailed to {on_follow_path_failed}", Py4GW.Console.MessageType.Info)
 
     def _update_live_data(self) -> None:
@@ -320,19 +413,19 @@ class BottingHelpers:
         #ConsoleLog(MODULE_NAME, f"Interaction result: {result}", Py4GW.Console.MessageType.Info)
         if not result:
             self.on_unmanaged_fail()
-            self.parent.config.dialog_at_succeeded._apply(False)
+            self.parent.config.config_properties.dialog_at_succeeded._apply("value", False)
             return False
 
         if not self.parent.config.fsm_running:
             yield from Routines.Yield.wait(100)
-            self.parent.config.dialog_at_succeeded._apply(False)
+            self.parent.config.config_properties.dialog_at_succeeded._apply("value", False)
             return False
 
         if dialog_id != 0:
             GLOBAL_CACHE.Player.SendDialog(dialog_id)
             yield from Routines.Yield.wait(500)
 
-        self.parent.config.dialog_at_succeeded._apply(True)
+        self.parent.config.config_properties.dialog_at_succeeded._apply("value", True)
         return True
     
     def _interact_with_gadget(self, coords: Tuple[float, float]):
@@ -341,12 +434,12 @@ class BottingHelpers:
         #ConsoleLog(MODULE_NAME, f"Interaction result: {result}", Py4GW.Console.MessageType.Info)
         if not result:
             self.on_unmanaged_fail()
-            self.parent.config.dialog_at_succeeded._apply(False)
+            self.parent.config.config_properties.dialog_at_succeeded._apply("value", False)
             return False
 
         if not self.parent.config.fsm_running:
             yield from Routines.Yield.wait(100)
-            self.parent.config.dialog_at_succeeded._apply(False)
+            self.parent.config.config_properties.dialog_at_succeeded._apply("value", False)
             return False
 
         return True
@@ -375,383 +468,154 @@ class BottingHelpers:
             else:
                 self.parent.config.auto_combat_handler.HandleCombat()
             yield
-            
-    # --- minimal helpers ---
-    def _alive_explorable(self) -> bool:
-        return (Routines.Checks.Map.MapValid()
-                and Map.IsExplorable()
-                and not GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
 
-    def _use_first(self, model_list) -> bool:
-        for m in model_list:
-            iid = GLOBAL_CACHE.Inventory.GetFirstModelID(m.value)
-            if iid:
-                GLOBAL_CACHE.Inventory.UseItem(iid)
-                return True
-        return False
-
-    # --- item lists ---
-    ALC_3P = [
-        ModelID.Aged_Dwarven_Ale, ModelID.Aged_Hunters_Ale, ModelID.Bottle_Of_Grog,
-        ModelID.Flask_Of_Firewater, ModelID.Keg_Of_Aged_Hunters_Ale,
-        ModelID.Krytan_Brandy, ModelID.Spiked_Eggnog,
-    ]
-    ALC_1P = [
-        ModelID.Bottle_Of_Rice_Wine, ModelID.Eggnog, ModelID.Dwarven_Ale,
-        ModelID.Hard_Apple_Cider, ModelID.Hunters_Ale, ModelID.Bottle_Of_Juniberry_Gin,
-        ModelID.Shamrock_Ale, ModelID.Bottle_Of_Vabbian_Wine, ModelID.Vial_Of_Absinthe,
-        ModelID.Witchs_Brew, ModelID.Zehtukas_Jug,
-    ]
-
-    CITY_10M = [ModelID.Creme_Brulee, ModelID.Jar_Of_Honey, ModelID.Krytan_Lokum]
-    CITY_5M  = [ModelID.Chocolate_Bunny, ModelID.Fruitcake, ModelID.Red_Bean_Cake]
-    CITY_3M  = [ModelID.Mandragor_Root_Cake]
-    CITY_2M  = [ModelID.Delicious_Cake, ModelID.Minitreats_Of_Purity, ModelID.Sugary_Blue_Drink]
-
-    CON_SET = [ModelID.Grail_Of_Might, ModelID.Armor_Of_Salvation, ModelID.Essence_Of_Celerity]
-
-    MORALE_ITEMS = [
-        ModelID.Honeycomb, ModelID.Rainbow_Candy_Cane, ModelID.Elixir_Of_Valor,
-        ModelID.Pumpkin_Cookie, ModelID.Powerstone_Of_Courage, ModelID.Seal_Of_The_Dragon_Empire,
-    ]
-    DP_REMOVAL = [
-        ModelID.Four_Leaf_Clover, ModelID.Oath_Of_Purity, ModelID.Peppermint_Candy_Cane,
-        ModelID.Refined_Jelly, ModelID.Shining_Blade_Ration, ModelID.Wintergreen_Candy_Cane,
-    ]
-            
-    def pop_imp(self):
+    def upkeep_auto_combat(self):
         while True:
-            if ((not Routines.Checks.Map.MapValid())):
-                yield from Routines.Yield.wait(500)
-                continue
-
-            if (not Map.IsExplorable()):
-                yield from Routines.Yield.wait(500)
-                continue
-
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                yield from Routines.Yield.wait(500)
-                continue
-
-            level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-
-            if level >= 20:
-                yield from Routines.Yield.wait(500)
-                continue
-
-            summoning_stone = ModelID.Igneous_Summoning_Stone.value
-            stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(summoning_stone)
-            imp_effect_id = 2886
-            has_effect = GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), imp_effect_id)
-
-            imp_model_id = 513
-            others = GLOBAL_CACHE.Party.GetOthers()
-            cast_imp = True  # Assume we should cast
-
-            for other in others:
-                if GLOBAL_CACHE.Agent.GetModelID(other) == imp_model_id:
-                    if not GLOBAL_CACHE.Agent.IsDead(other):
-                        # Imp is alive — no need to cast
-                        cast_imp = False
-                    break  # Found the imp, no need to keep checking
-
-            if stone_id and not has_effect and cast_imp:
-                GLOBAL_CACHE.Inventory.UseItem(stone_id)
+            if self.parent.config.upkeep.auto_combat.is_active():
+                yield from self.auto_combat()
+            else:
                 yield from Routines.Yield.wait(500)
 
-            yield from Routines.Yield.wait(500)
-
-    def maintain_cupcake(self):
+    def upkeep_armor_of_salvation(self):
         while True:
-            if ((not Routines.Checks.Map.MapValid())):
+            if self.parent.config.upkeep.armor_of_salvation.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_ArmorOfSalvation()
+            else:
                 yield from Routines.Yield.wait(500)
-                continue
 
-            if (not Map.IsExplorable()):
+    def upkeep_essence_of_celerity(self):
+        while True: 
+            if self.parent.config.upkeep.essence_of_celerity.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_EssenceOfCelerity()
+            else:
                 yield from Routines.Yield.wait(500)
-                continue
 
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+    def upkeep_grail_of_might(self):
+        while True:
+            if self.parent.config.upkeep.grail_of_might.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_GrailOfMight()
+            else:
                 yield from Routines.Yield.wait(500)
-                continue
 
-            cupcake__id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Birthday_Cupcake.value)
-            cupcake_effect = GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")
-            
-            if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), cupcake_effect) and cupcake__id:
-                GLOBAL_CACHE.Inventory.UseItem(cupcake__id)
+    def upkeep_green_rock_candy(self):
+        while True:
+            if self.parent.config.upkeep.green_rock_candy.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_GreenRockCandy()
+            else:
                 yield from Routines.Yield.wait(500)
+
+    def upkeep_red_rock_candy(self):
+        while True:
+            if self.parent.config.upkeep.red_rock_candy.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_RedRockCandy()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_blue_rock_candy(self):
+        while True:
+            if self.parent.config.upkeep.blue_rock_candy.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_BlueRockCandy()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_birthday_cupcake(self):
+        while True:
+            if self.parent.config.upkeep.birthday_cupcake.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_BirthdayCupcake()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_slice_of_pumpkin_pie(self):
+        while True:
+            if self.parent.config.upkeep.slice_of_pumpkin_pie.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_SliceOfPumpkinPie()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_bowl_of_skalefin_soup(self):
+        while True:
+            if self.parent.config.upkeep.bowl_of_skalefin_soup.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_BowlOfSkalefinSoup()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_candy_apple(self):
+        while True:
+            if self.parent.config.upkeep.candy_apple.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_CandyApple()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_candy_corn(self):
+        while True:
+            if self.parent.config.upkeep.candy_corn.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_CandyCorn()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_drake_kabob(self):
+        while True:
+            if self.parent.config.upkeep.drake_kabob.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_DrakeKabob()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_golden_egg(self):
+        while True:
+            if self.parent.config.upkeep.golden_egg.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_GoldenEgg()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_pahnai_salad(self):
+        while True:
+            if self.parent.config.upkeep.pahnai_salad.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_PahnaiSalad()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_war_supplies(self):
+        while True:
+            if self.parent.config.upkeep.war_supplies.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_WarSupplies()
+            else:
+                yield from Routines.Yield.wait(500)
+
+    def upkeep_alcohol(self):
+        import PyEffects
+        target_alc_level = 2
+        disable_drunk_effects = False
+        if disable_drunk_effects:
+            PyEffects.PyEffects.ApplyDrunkEffect(0, 0)
+        while True:
+            if self.parent.config.upkeep.alcohol.is_active():
                 
-            yield from Routines.Yield.wait(500)
-            
-    def maintain_honeycomb(self):
-        while True:
-            if not (Routines.Checks.Map.MapValid() and Map.IsExplorable()):
+                yield from Routines.Yield.Upkeepers.Upkeep_Alcohol(target_alc_level, disable_drunk_effects)
+            else:
                 yield from Routines.Yield.wait(500)
-                continue
-            #if not self.parent.config.use_honeycombs.get():
-            #    yield from Routines.Yield.wait(500); continue
 
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+    def upkeep_city_speed(self):
+        while True:
+            if self.parent.config.upkeep.city_speed.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_City_Speed()
+            else:
                 yield from Routines.Yield.wait(500)
-                continue
-            
-            target_morale = 110
-            
-            while True:
-                morale = GLOBAL_CACHE.Player.GetMorale()
-                if morale >= target_morale:
-                    yield from Routines.Yield.wait(500)
-                    break
 
-                honeycomb_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Honeycomb.value)
-                if not honeycomb_id:
-                    yield from Routines.Yield.wait(500)
-                    break
-
-                GLOBAL_CACHE.Inventory.UseItem(honeycomb_id)
+    def upkeep_morale(self):
+        while True:
+            if self.parent.config.upkeep.morale.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_Morale(110)
+            else:
                 yield from Routines.Yield.wait(500)
-                
-            yield from Routines.Yield.wait(500)
-                
-    def maintain_grail(self):
+
+    def upkeep_imp(self):
         while True:
-            if self.parent.config.use_grail.get():
-                if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
-                    yield; continue
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                    yield; continue
+            if self.parent.config.upkeep.imp.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_Imp()
+            else:
+                yield from Routines.Yield.wait(500)
 
-                grail_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Grail_Of_Might.value)
-                grail_effect = GLOBAL_CACHE.Skill.GetID("Grail_Of_Might_skill")  # correct skill name
-                if grail_id and not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), grail_effect):
-                    GLOBAL_CACHE.Inventory.UseItem(grail_id)
-                    yield from Routines.Yield.wait(500)
-            yield from Routines.Yield.wait(500)
-
-
-    def maintain_salvation(self):
-        while True:
-            if self.parent.config.use_salvation.get():
-                if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
-                    yield; continue
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                    yield; continue
-
-                salvation_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Armor_Of_Salvation.value)
-                salvation_effect = GLOBAL_CACHE.Skill.GetID("Armor_Of_Salvation_skill")  # correct skill name
-                if salvation_id and not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), salvation_effect):
-                    GLOBAL_CACHE.Inventory.UseItem(salvation_id)
-                    yield from Routines.Yield.wait(500)
-            yield from Routines.Yield.wait(500)
-
-
-    def maintain_celerity(self):
-        while True:
-            if self.parent.config.use_celerity.get():
-                if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
-                    yield; continue
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                    yield; continue
-
-                celerity_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Essence_Of_Celerity.value)
-                celerity_effect = GLOBAL_CACHE.Skill.GetID("Essence_Of_Celerity_skill")  # correct skill name
-                if celerity_id and not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), celerity_effect):
-                    GLOBAL_CACHE.Inventory.UseItem(celerity_id)
-                    yield from Routines.Yield.wait(500)
-            yield from Routines.Yield.wait(500)
-
-    def maintain_alcohol(self):
-        next_ts = 0.0
-        while True:
-            # flag gate
-            if not self.parent.config.use_alcohol.get():
-                yield from Routines.Yield.wait(250); continue
-
-            if not self._alive_explorable():
-                next_ts = 0.0; yield; continue
-
-            now = time.time()
-            if now < next_ts: yield; continue
-
-            if self._use_first(self.ALC_3P):
-                next_ts = now + 180  # 3 minutes
-                yield from Routines.Yield.wait(300); continue
-            if self._use_first(self.ALC_1P):
-                next_ts = now + 60   # 1 minute
-                yield from Routines.Yield.wait(300); continue
-
-            yield from Routines.Yield.wait(750)
-
-    def maintain_city_speed(self):
-        next_ts = 0.0
-        options = [(self.CITY_10M, 600), (self.CITY_5M, 300), (self.CITY_3M, 180), (self.CITY_2M, 120)]
-        while True:
-            if not self.parent.config.use_city_speed.get():
-                yield from Routines.Yield.wait(250); continue
-
-            # towns/outposts only
-            if not Routines.Checks.Map.MapValid() or Map.IsExplorable():
-                next_ts = 0.0; yield; continue
-
-            now = time.time()
-            if now < next_ts: yield; continue
-
-            used = False
-            for group, cd in options:
-                if self._use_first(group):
-                    next_ts = now + cd
-                    used = True
-                    break
-
-            yield from Routines.Yield.wait(300 if used else 750)
-
-    def maintain_consets(self):
-        next_ts = 0.0
-        while True:
-            if not self.parent.config.use_consets.get():
-                yield from Routines.Yield.wait(250); continue
-
-            if not self._alive_explorable():
-                next_ts = 0.0; yield; continue
-
-            now = time.time()
-            if now < next_ts: yield; continue
-
-            if self._use_first(self.CON_SET):
-                next_ts = now + 1800  # 30 minutes
-                yield from Routines.Yield.wait(300); continue
-
-            yield from Routines.Yield.wait(750)
-
-    def maintain_morale(self, target=110):
-        while True:
-            if not self.parent.config.use_morale.get():
-                yield from Routines.Yield.wait(250); continue
-
-            if not self._alive_explorable():
-                yield; continue
-
-            if GLOBAL_CACHE.Player.GetMorale() >= target:
-                yield; continue
-
-            if self._use_first(self.MORALE_ITEMS):
-                yield from Routines.Yield.wait(500); continue
-
-            yield from Routines.Yield.wait(750)
-
-    def maintain_dp_removal(self, target=100):
-        while True:
-            if not self.parent.config.use_dp_removal.get():
-                yield from Routines.Yield.wait(250); continue
-
-            if not self._alive_explorable():
-                yield; continue
-
-            if GLOBAL_CACHE.Player.GetMorale() >= target:
-                yield; continue
-
-            if self._use_first(self.DP_REMOVAL):
-                yield from Routines.Yield.wait(500); continue
-
-            yield from Routines.Yield.wait(750)         
-            
-    #FSM Maintained Steps
-
-    @_fsm_step("PopImp","IMP_COUNTER")
-    def add_pop_imp(self):
-        self.parent.config.FSM.AddManagedCoroutine("pop_imp", self.pop_imp)
-
-    @_fsm_step("RemovePopImp","IMP_COUNTER")
-    def remove_pop_imp(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("pop_imp")
-
-    @_fsm_step("MaintainCupcake","CUPCAKES_COUNTER")
-    def add_maintain_cupcake(self):
-        self.parent.config.FSM.AddManagedCoroutine("maintain_cupcake", self.maintain_cupcake())
-
-    @_fsm_step("RemoveMaintainCupcake", "CUPCAKES_COUNTER")
-    def remove_maintain_cupcake(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("maintain_cupcake")
-
-    @_fsm_step("MaintainHoneycomb","HONEYCOMBS_COUNTER")
-    def add_maintain_honeycomb(self):
-        self.parent.config.FSM.AddManagedCoroutine("maintain_honeycomb", self.maintain_honeycomb())
-
-    @_fsm_step("RemoveMaintainHoneycomb", "HONEYCOMBS_COUNTER")
-    def remove_maintain_honeycomb(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("maintain_honeycomb")
-
-            
-    @fsm_step("MaintainAlcohol", "ALCOHOL_COUNTER")  # counter key can be new; reused for brevity
-    def add_maintain_alcohol(self):
-        self.parent.config.FSM.AddManagedCoroutine("maintain_alcohol", self.maintain_alcohol())
-
-    @fsm_step("RemoveMaintainAlcohol", "ALCOHOL_COUNTER")
-    def remove_maintain_alcohol(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("maintain_alcohol")
-
-    @fsm_step("MaintainCitySpeed", "CITY_SPEED_COUNTER")
-    def add_maintain_city_speed(self):
-        self.parent.config.FSM.AddManagedCoroutine("maintain_city_speed", self.maintain_city_speed())
-
-    @fsm_step("RemoveMaintainCitySpeed", "CITY_SPEED_COUNTER")
-    def remove_maintain_city_speed(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("maintain_city_speed")
-
-    @fsm_step("MaintainConSets", "CONSETS_COUNTER")
-    def add_maintain_consets(self):
-        self.parent.config.FSM.AddManagedCoroutine("maintain_consets", self.maintain_consets())
-
-    @fsm_step("RemoveMaintainConSets", "CONSETS_COUNTER")
-    def remove_maintain_consets(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("maintain_consets")
-
-    @fsm_step("MaintainGrail", "GRAIL_COUNTER")
-    def add_maintain_grail(self):
-        self.parent.config.FSM.AddManagedCoroutine("maintain_grail", self.maintain_grail())
-
-    @fsm_step("RemoveMaintainGrail", "GRAIL_COUNTER")
-    def remove_maintain_grail(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("maintain_grail")
-
-
-    @fsm_step("MaintainSalvation", "SALVATION_COUNTER")
-    def add_maintain_salvation(self):
-        self.parent.config.FSM.AddManagedCoroutine("maintain_salvation", self.maintain_salvation())
-
-    @fsm_step("RemoveMaintainSalvation", "SALVATION_COUNTER")
-    def remove_maintain_salvation(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("maintain_salvation")
-
-
-    @fsm_step("MaintainCelerity", "CELERITY_COUNTER")
-    def add_maintain_celerity(self):
-        self.parent.config.FSM.AddManagedCoroutine("maintain_celerity", self.maintain_celerity())
-
-    @fsm_step("RemoveMaintainCelerity", "CELERITY_COUNTER")
-    def remove_maintain_celerity(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("maintain_celerity")
-
-    @fsm_step("MaintainMorale", "MORALE_COUNTER")
-    def add_maintain_morale(self):
-        self.parent.config.FSM.AddManagedCoroutine("maintain_morale", self.maintain_morale())
-
-    @fsm_step("RemoveMaintainMorale", "MORALE_COUNTER")
-    def remove_maintain_morale(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("maintain_morale")
-
-    @fsm_step("MaintainDPRemoval", "DP_REMOVAL_COUNTER")
-    def add_maintain_dp_removal(self):
-        self.parent.config.FSM.AddManagedCoroutine("maintain_dp_removal", self.maintain_dp_removal())
-
-    @fsm_step("RemoveMaintainDPRemoval", "DP_REMOVAL_COUNTER")
-    def remove_maintain_dp_removal(self):
-        self.parent.config.FSM.RemoveManagedCoroutine("maintain_dp_removal")
-
-    @fsm_step("ResetMaintainedRoutines", "RESET_MAINTAINED_ROUTINES")
-    def reset_maintained_routines(self):
-        self.parent.config.FSM.RemoveAllManagedCoroutines()
+    #region yield steps
 
     @_yield_step(label="WasteTime", counter_key="WASTE_TIME")
     def waste_time(self, duration: int = 100):
@@ -773,19 +637,19 @@ class BottingHelpers:
     def follow_path(self) -> Generator[Any, Any, bool]:
         
         path = self.parent.config.path
-        exit_condition = lambda: GeneralHelpers.is_player_dead() or self.is_map_loading() if self.parent.config.halt_on_death.get() else self.is_map_loading()
-        pause_condition = self.parent.config.pause_on_danger_fn if self.parent.config.pause_on_danger.get() else None
+        exit_condition = lambda: Routines.Checks.Player.IsDead() or self.is_map_loading() if self.parent.config.config_properties.halt_on_death.is_active() else self.is_map_loading()
+        pause_condition = self.parent.config.pause_on_danger_fn if self.parent.config.config_properties.pause_on_danger.is_active() else None
 
         success_movement = yield from Routines.Yield.Movement.FollowPath(
             path_points=path,
             custom_exit_condition=exit_condition,
-            log=self.parent.config.log_actions.get(),
+            log=self.parent.config.config_properties.log_actions.is_active(),
             custom_pause_fn=pause_condition,
-            timeout=self.parent.config.movement_timeout.get(),
-            tolerance=self.parent.config.movement_tolerance.get(),
+            timeout=self.parent.config.config_properties.movement_timeout.get('value'),
+            tolerance=self.parent.config.config_properties.movement_tolerance.get('value')
         )
 
-        self.parent.config.follow_path_succeeded._apply(success_movement)
+        self.parent.config.config_properties.follow_path_succeeded._apply("value",success_movement)
         if not success_movement:
             if exit_condition:
                 return True
@@ -852,16 +716,6 @@ class BottingHelpers:
         UIManager.FrameClick(cancel_button_frame_id)
         yield from Routines.Yield.wait(1000)
             
-    @_fsm_step("StartAutoCombat", "AUTO_COMBAT")
-    def start_auto_combat(self):
-        autocombat = self.auto_combat()                 # generator
-        GLOBAL_CACHE.Coroutines.append(autocombat)      # register it
-
-    @_fsm_step("StopAutoCombat", "AUTO_COMBAT")
-    def stop_auto_combat(self):
-        autocombat = self.auto_combat()
-        if autocombat in GLOBAL_CACHE.Coroutines:
-            GLOBAL_CACHE.Coroutines.remove(autocombat)
             
     @_yield_step(label="WithdrawItems", counter_key="WITHDRAW_ITEMS")
     def withdraw_items(self, model_id:int, quantity:int) -> Generator[Any, Any, bool]:
@@ -921,19 +775,91 @@ class Botting:
         self.bot_name = bot_name
         self.helpers = BottingHelpers(self)
         self.config = BotConfig(self, bot_name)
-        
+
+    # ---------- internal path resolver ----------
+
+    def _resolve_property_path(self, name: str) -> Tuple["Property", str]:
+        """
+        Resolve a dotted name like:
+          - "config.log_actions.value"
+          - "upkeep.alcohol.active"
+          - "live.Player.level"
+          - "config.movement_timeout"   (defaults to 'value' if present)
+        Returns: (Property_instance, field_name)
+        Raises: AttributeError / KeyError if not found or not a Property.
+        """
+        if not isinstance(name, str) or not name:
+            raise AttributeError("Empty property path")
+
+        parts = name.split(".")
+        # map first segment to the correct container on BotConfig
+        roots = {
+            "upkeep": self.config.upkeep,
+            "live_data": self.config.live_data,
+            "config_properties": self.config.config_properties,
+        }
+
+        # choose root
+        root_key = parts[0]
+        if root_key in roots:
+            obj = roots[root_key]
+            parts = parts[1:]
+        else:
+            # fallback: try direct attr on BotConfig (advanced users)
+            obj = self.config
+
+        # walk attributes until we hit a Property
+        prop = None
+        for i, seg in enumerate(parts):
+            nxt = getattr(obj, seg, None)
+            if nxt is None:
+                raise AttributeError(f"Path segment '{seg}' not found in '{obj}' for '{name}'")
+
+            # if we reach a Property, remaining segment (if any) is the field
+            if isinstance(nxt, Property):
+                prop = nxt
+                remaining = parts[i+1:]
+                if remaining:
+                    field = remaining[0]
+                else:
+                    # choose sensible default field
+                    # prefer 'value' if present, else 'active'
+                    field = "value" if "value" in prop._values else "active"
+                return prop, field
+
+            obj = nxt  # go deeper
+
+        # If we finished the loop with no Property yet, maybe the last obj is a Property
+        if isinstance(obj, Property):
+            prop = obj
+            field = "value" if "value" in prop._values else "active"
+            return prop, field
+
+        raise AttributeError(f"'{name}' did not resolve to a Property")
+
+    # ---------- public API ----------
+
     def SetProperty(self, name: str, value: Any) -> bool:
-        prop = getattr(self.config, name, None)
-        if not isinstance(prop, BotProperty):
+        """
+        Schedule a change via the FSM on the targeted Property field.
+        """
+        try:
+            prop, field = self._resolve_property_path(name)
+            prop.set(field, value)  # schedule
+            return True
+        except Exception:
             return False
-        prop.set(value)  # schedules FSM step; no direct mutation
-        return True
 
     def GetProperty(self, name: str) -> Any | None:
-        prop = getattr(self.config, name, None)
-        if not isinstance(prop, BotProperty):
+        """
+        Read the committed value of a Property field.
+        """
+        try:
+            prop, field = self._resolve_property_path(name)
+            return prop.get(field)
+        except Exception:
             return None
-        return prop.get()
+
     
     def AddHeaderStep(self, step_name: str) -> None:
         self.helpers.insert_header_step(step_name)
@@ -941,14 +867,49 @@ class Botting:
     def Routine(self):
         print("This method should be overridden in the subclass.")
         pass
+    
+    def _start_coroutines(self):
+        # add all upkeep coroutines once
+        H = self.helpers
+
+        self.config.FSM.AddManagedCoroutine("keep_alcohol",        H.upkeep_alcohol())
+        self.config.FSM.AddManagedCoroutine("keep_city_speed",     H.upkeep_city_speed())
+        self.config.FSM.AddManagedCoroutine("keep_morale",         H.upkeep_morale())
+        self.config.FSM.AddManagedCoroutine("keep_armor_salv",     H.upkeep_armor_of_salvation())
+        self.config.FSM.AddManagedCoroutine("keep_celerity",       H.upkeep_essence_of_celerity())
+        self.config.FSM.AddManagedCoroutine("keep_grail",          H.upkeep_grail_of_might())
+        self.config.FSM.AddManagedCoroutine("keep_blue_candy",     H.upkeep_blue_rock_candy())
+        self.config.FSM.AddManagedCoroutine("keep_green_candy",    H.upkeep_green_rock_candy())
+        self.config.FSM.AddManagedCoroutine("keep_red_candy",      H.upkeep_red_rock_candy())
+        self.config.FSM.AddManagedCoroutine("keep_cupcake",        H.upkeep_birthday_cupcake())
+        self.config.FSM.AddManagedCoroutine("keep_pumpkin_pie",    H.upkeep_slice_of_pumpkin_pie())
+        self.config.FSM.AddManagedCoroutine("keep_soup",           H.upkeep_bowl_of_skalefin_soup())
+        self.config.FSM.AddManagedCoroutine("keep_candy_apple",    H.upkeep_candy_apple())
+        self.config.FSM.AddManagedCoroutine("keep_candy_corn",     H.upkeep_candy_corn())
+        self.config.FSM.AddManagedCoroutine("keep_drake_kabob",    H.upkeep_drake_kabob())
+        self.config.FSM.AddManagedCoroutine("keep_golden_egg",     H.upkeep_golden_egg())
+        self.config.FSM.AddManagedCoroutine("keep_pahnai_salad",   H.upkeep_pahnai_salad())
+        self.config.FSM.AddManagedCoroutine("keep_war_supplies",   H.upkeep_war_supplies())
+        self.config.FSM.AddManagedCoroutine("keep_imp",           H.upkeep_imp())
+        self.config.FSM.AddManagedCoroutine("keep_auto_combat",    H.upkeep_auto_combat())
+
 
     def Start(self):
         self.config.FSM.start()
         self.config.fsm_running = True
+        self._start_coroutines()
 
     def Stop(self):
         self.config.fsm_running = False
+        self.config.FSM.RemoveAllManagedCoroutines()
         self.config.FSM.stop()
+
+    def StartAtStep(self, step_name: str) -> None:
+        self.Stop()
+        self.config.fsm_running = True
+        self.config.FSM.reset()
+        self.config.FSM.jump_to_state_by_name(step_name)
+        self._start_coroutines()
 
     def Update(self):
         if not self.config.initialized:
@@ -989,7 +950,7 @@ class Botting:
         self.helpers.follow_path()
         
     def DrawPath(self, color:Color=Color(255, 255, 0, 255)) -> None:
-        if self.config.draw_path:
+        if self.config.config_properties.draw_path.is_active():
             self.helpers.draw_path(color)
 
     def DialogAt(self, x: float, y: float, dialog:int, step_name: str="") -> None:
@@ -1028,60 +989,6 @@ class Botting:
     def EnterChallenge(self, wait_for:int= 4500):
         self.helpers.enter_challenge(wait_for=wait_for)
         
-    def StartAutoCombat(self):
-        self.helpers.start_auto_combat()
-
-    def StopAutoCombat(self):
-        self.helpers.stop_auto_combat()
-
-    def AddPopImpRoutine(self):
-        self.helpers.add_pop_imp()
-
-    def RemovePopImpRoutine(self):
-        self.helpers.remove_pop_imp()
-        
-    def AddMaintainCupcakeRoutine(self):
-        self.helpers.add_maintain_cupcake()
-
-    def RemoveMaintainCupcakeRoutine(self):
-        self.helpers.remove_maintain_cupcake()
-
-    def AddMaintainHoneycombRoutine(self):
-        self.helpers.add_maintain_honeycomb()
-
-    def RemoveMaintainHoneycombRoutine(self):
-        self.helpers.remove_maintain_honeycomb()
-        
-    def AddMaintainAlcoholRoutine(self):        
-        self.helpers.add_maintain_alcohol()
-
-    def RemoveMaintainAlcoholRoutine(self):     
-        self.helpers.remove_maintain_alcohol()
-
-    def AddMaintainCitySpeedRoutine(self):      
-        self.helpers.add_maintain_city_speed()
-
-    def RemoveMaintainCitySpeedRoutine(self):   
-        self.helpers.remove_maintain_city_speed()
-
-    def AddMaintainConSetsRoutine(self):        
-        self.helpers.add_maintain_consets()
-
-    def RemoveMaintainConSetsRoutine(self):     
-        self.helpers.remove_maintain_consets()
-
-    def AddMaintainMoraleRoutine(self):         
-        self.helpers.add_maintain_morale()
-
-    def RemoveMaintainMoraleRoutine(self):      
-        self.helpers.remove_maintain_morale()
-
-    def AddMaintainDPRemovalRoutine(self):      
-        self.helpers.add_maintain_dp_removal()
-
-    def RemoveMaintainDPRemovalRoutine(self):   
-        self.helpers.remove_maintain_dp_removal()
-
     def CancelSkillRewardWindow(self):
         self.helpers.cancel_skill_reward_window()
         
@@ -1106,8 +1013,6 @@ class Botting:
     def UnflagAllHeroes(self):
         self.helpers.unflag_all_heroes()
 
-    def ResetMaintainedRoutines(self):
-        self.helpers.reset_maintained_routines()
 
 
 # ----------------------- BOT CONFIGURATION --------------------------------------------
@@ -1124,34 +1029,31 @@ class BotLocals:
     def __init__(self):
         self.target_cupcake_count = 50
         self.target_honeycomb_count = 100
-        self.use_cupcakes = True
-        self.use_honeycombs = True
 
 bot_locals = BotLocals()
 
 #Helpers
 def ConfigurePacifistEnv(bot: Botting) -> None:
-    bot.ResetMaintainedRoutines
-    bot.SetProperty("pause_on_danger", False)
-    bot.SetProperty("halt_on_death", True)
-    bot.SetProperty("movement_timeout",15000)
+    bot.config.config_properties.pause_on_danger.disable()
+    bot.config.config_properties.halt_on_death.enable()
+    bot.config.config_properties.movement_timeout.set("value", 15000)
     bot.SpawnBonusItems()
+    bot.config.upkeep.auto_combat.disable()
+    bot.config.upkeep.imp.disable()
+    bot.config.upkeep.birthday_cupcake.enable()
+    bot.config.upkeep.morale.disable()
     bot.AddFSMCustomYieldState(withdraw_cupcakes, "Withdraw Cupcakes")
-    bot.AddFSMCustomYieldState(withdraw_honeycombs, "Withdraw Honeycombs")
-    bot.AddMaintainCupcakeRoutine()
-
 
 def ConfigureAggressiveEnv(bot: Botting) -> None:
-    bot.ResetMaintainedRoutines()
-    bot.SetProperty("pause_on_danger", True)
-    bot.SetProperty("halt_on_death", False)
-    bot.SetProperty("movement_timeout",-1)
+    bot.config.config_properties.pause_on_danger.enable()
+    bot.config.config_properties.halt_on_death.disable()
+    bot.config.config_properties.movement_timeout.set("value",-1)
     bot.SpawnBonusItems()
-    bot.StartAutoCombat()
-    bot.AddPopImpRoutine()
-    bot.AddMaintainCupcakeRoutine()
-    bot.AddMaintainHoneycombRoutine()
-    
+    bot.config.upkeep.auto_combat.enable()
+    bot.config.upkeep.imp.enable()
+    bot.config.upkeep.birthday_cupcake.enable()
+    bot.config.upkeep.morale.enable()
+
 def EquipSkillBar(): 
     global bot, bot_locals
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
@@ -1174,7 +1076,7 @@ def EquipSkillBar():
     yield from Routines.Yield.wait(500)
     
 def AddHenchmen():
-    party_size = bot.config.live_data.map_max_party_size.get()
+    party_size = bot.GetProperty("live_data.Map.max_party_size") or 0
     zen_daijun_map_id = 213
     
     if party_size <= 4:
@@ -1250,7 +1152,7 @@ def ExitToCourtyard(bot: Botting) -> None:
 def UnlockSecondaryProfession(bot: Botting) -> None:
     def assign_profession_unlocker_dialog():
         global bot
-        if bot.config.live_data.player_profession_primary.get() == "Assassin":
+        if bot.GetProperty("live_data.Player.primary_profession") == "Assassin":
             yield from bot.helpers._interact_with_agent((-92, 9217),0x813D0E)
         else:
             yield from bot.helpers._interact_with_agent((-92, 9217),0x813D08)
@@ -1279,7 +1181,7 @@ def UnlockXunlaiStorage(bot: Botting) -> None:
 def CraftWeapons(bot: Botting) -> None:
     def craft_and_equip_items():
         MELEE_CLASSES = ["Warrior", "Ranger", "Assassin","None"]
-        if bot.config.live_data.player_profession_primary.get() in MELEE_CLASSES:
+        if bot.GetProperty("live_data.Player.primary_profession") in MELEE_CLASSES:
             yield from bot.helpers._interact_with_agent((-6519, 12335))
             result = yield from Routines.Yield.Items.WithdrawItems(ModelID.Iron_Ingot.value, 5)
             if not result:
@@ -1337,7 +1239,7 @@ def TravelToMinisterCho(bot: Botting) -> None:
 def withdraw_cupcakes():
     global bot_locals
     target_cupcake_count = bot_locals.target_cupcake_count
-    if bot_locals.use_cupcakes:
+    if bot.GetProperty("upkeep.birthday_cupcake.active"):
         model_id = ModelID.Birthday_Cupcake.value
         cupcake_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
         cupcake_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
@@ -1361,7 +1263,7 @@ def withdraw_cupcakes():
 
 def withdraw_honeycombs():
     target_honeycomb_count = bot_locals.target_honeycomb_count
-    if bot_locals.use_honeycombs:
+    if bot.GetProperty("upkeep.morale.active"):
         model_id = ModelID.Honeycomb.value
         honey_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
         honey_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
@@ -1558,7 +1460,7 @@ def create_bot_routine(bot: Botting) -> None:
     PrepareForZenDaijunMission(bot)
     ZenDaijunMission(bot)
     bot.AddHeaderStep("Final Step")
-    bot.ResetMaintainedRoutines()
+    bot.Stop()
 
 
 bot.Routine = create_bot_routine.__get__(bot)
@@ -1614,12 +1516,14 @@ def main():
                     bot.config.FSM.reset()
                     # jump with ORIGINAL name
                     bot.config.FSM.jump_to_state_by_name(fsm_steps_original[selected_step])
+                    bot._start_coroutines()
+
 
                             
             PyImGui.separator()
 
-            bot.config.draw_path._apply(PyImGui.checkbox("Draw Path", bot.config.draw_path.get()))
-            
+            bot.config.config_properties.draw_path.set_active(PyImGui.checkbox("Draw Path", bot.config.config_properties.draw_path.is_active()))
+
             # Segment-by-segment distances
             if bot.config.path and len(bot.config.path) >= 2:
                 if PyImGui.collapsing_header("Path Segments"):

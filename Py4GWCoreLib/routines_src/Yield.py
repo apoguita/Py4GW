@@ -945,88 +945,131 @@ class Yield:
         @staticmethod
         def Upkeep_Imp():
             from .Checks import Checks
-            while True:
-                if ((not Checks.Map.MapValid())):
-                    yield from Yield.wait(500)
-                    continue
-
-                if (not GLOBAL_CACHE.Map.IsExplorable()):
-                    yield from Yield.wait(500)
-                    continue
-
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                    yield from Yield.wait(500)
-                    continue
-
-                level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-
-                if level >= 20:
-                    yield from Yield.wait(500)
-                    continue
-
-                summoning_stone = ModelID.Igneous_Summoning_Stone.value
-                stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(summoning_stone)
-                imp_effect_id = 2886
-                has_effect = GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), imp_effect_id)
-
-                imp_model_id = 513
-                others = GLOBAL_CACHE.Party.GetOthers()
-                cast_imp = True  # Assume we should cast
-
-                for other in others:
-                    if GLOBAL_CACHE.Agent.GetModelID(other) == imp_model_id:
-                        if not GLOBAL_CACHE.Agent.IsDead(other):
-                            # Imp is alive — no need to cast
-                            cast_imp = False
-                        break  # Found the imp, no need to keep checking
-
-                if stone_id and not has_effect and cast_imp:
-                    GLOBAL_CACHE.Inventory.UseItem(stone_id)
-                    yield from Yield.wait(500)
-
+            
+            if ((not Checks.Map.MapValid())):
                 yield from Yield.wait(500)
+                return
+
+            if (not GLOBAL_CACHE.Map.IsExplorable()):
+                yield from Yield.wait(500)
+                return
+
+            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                yield from Yield.wait(500)
+                return
+
+            level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+
+            if level >= 20:
+                yield from Yield.wait(500)
+                return
+
+            summoning_stone = ModelID.Igneous_Summoning_Stone.value
+            stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(summoning_stone)
+            imp_effect_id = 2886
+            has_effect = GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), imp_effect_id)
+
+            imp_model_id = 513
+            others = GLOBAL_CACHE.Party.GetOthers()
+            cast_imp = True  # Assume we should cast
+
+            for other in others:
+                if GLOBAL_CACHE.Agent.GetModelID(other) == imp_model_id:
+                    if not GLOBAL_CACHE.Agent.IsDead(other):
+                        # Imp is alive — no need to cast
+                        cast_imp = False
+                    break  # Found the imp, no need to keep checking
+
+            if stone_id and not has_effect and cast_imp:
+                GLOBAL_CACHE.Inventory.UseItem(stone_id)
+                yield from Yield.wait(500)
+
+            yield from Yield.wait(500)
         
         @staticmethod
         def _upkeep_consumable(model_id:int, effect_name:str):
             from .Checks import Checks
-            while True:
-                if ((not Checks.Map.MapValid())):
-                    yield from Yield.wait(500)
-                    continue
 
-                if (not GLOBAL_CACHE.Map.IsExplorable()):
-                    yield from Yield.wait(500)
-                    continue
-
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                    yield from Yield.wait(500)
-                    continue
-
-                effect_id = GLOBAL_CACHE.Skill.GetID(effect_name)
-                if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), effect_id):
-                    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-                    if item_id:
-                        GLOBAL_CACHE.Inventory.UseItem(item_id)
-                        yield from Yield.wait(500)
-
+            if ((not Checks.Map.MapValid())):
                 yield from Yield.wait(500)
+                return
+
+            if (not GLOBAL_CACHE.Map.IsExplorable()):
+                yield from Yield.wait(500)
+                return
+
+            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                yield from Yield.wait(500)
+                return
+
+            effect_id = GLOBAL_CACHE.Skill.GetID(effect_name)
+            if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), effect_id):
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                if item_id:
+                    GLOBAL_CACHE.Inventory.UseItem(item_id)
+                    yield from Yield.wait(500)
+
+            yield from Yield.wait(500)
      
-                
-        @staticmethod
-        def Upkeep_BirthdayCupcake():
-            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Birthday_Cupcake, "Birthday_Cupcake_skill")
-        
-        @staticmethod
-        def Upkeep_GrailOfMight():
-            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Grail_Of_Might, "Grail_Of_Might_skill")
-            
         @staticmethod
         def Upkeep_ArmorOfSalvation():
-            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Armor_Of_Salvation, "Armor_of_Salvation_skill")
-            
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Armor_Of_Salvation, "Armor_of_Salvation_item_effect")  
+        
         @staticmethod
         def Upkeep_EssenceOfCelerity():
             yield from Yield.Upkeepers._upkeep_consumable(ModelID.Essence_Of_Celerity, "Essence_Of_Celerity_skill")
+            
+        @staticmethod
+        def Upkeep_GrailOfMight():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Grail_Of_Might, "Grail_of_Might_item_effect")
+            
+        @staticmethod
+        def Upkeep_BlueRockCandy():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Blue_Rock_Candy, "Blue_Rock_Candy_Rush")
+
+        @staticmethod
+        def Upkeep_GreenRockCandy():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Green_Rock_Candy, "Green_Rock_Candy_Rush")
+        
+        @staticmethod
+        def Upkeep_RedRockCandy():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Red_Rock_Candy, "Red_Rock_Candy_Rush")
+            
+        @staticmethod
+        def Upkeep_BirthdayCupcake():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Birthday_Cupcake, "Birthday_Cupcake_skill")
+      
+        @staticmethod
+        def Upkeep_SliceOfPumpkinPie():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Slice_Of_Pumpkin_Pie, "Pie_Induced_Ecstasy")
+            
+        @staticmethod
+        def Upkeep_BowlOfSkalefinSoup():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Bowl_Of_Skalefin_Soup, "Skale_Vigor")
+            
+        @staticmethod
+        def Upkeep_CandyApple():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Candy_Apple, "Candy_Apple_skill")
+            
+        @staticmethod
+        def Upkeep_CandyCorn():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Candy_Corn, "Candy_Corn_skill")
+        
+        @staticmethod
+        def Upkeep_DrakeKabob():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Drake_Kabob, "Drake_Skin")
+            
+        @staticmethod
+        def Upkeep_GoldenEgg():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Golden_Egg, "Golden_Egg_skill")
+            
+        @staticmethod
+        def Upkeep_PahnaiSalad():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Pahnai_Salad, "Pahnai_Salad_item_effect")
+            
+        @staticmethod
+        def Upkeep_WarSupplies():
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.War_Supplies, "Well_Supplied")
 
         @staticmethod
         def Upkeep_Morale(target_morale=110):
@@ -1036,36 +1079,35 @@ class Yield:
                 for m in Yield.Upkeepers.MORALE_ITEMS
             ]
 
-            while True:
-                if not (Checks.Map.MapValid() and GLOBAL_CACHE.Map.IsExplorable()):
-                    yield from Yield.wait(500)
-                    continue
-
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                    yield from Yield.wait(500)
-                    continue
-                
-                while True:
-                    morale = GLOBAL_CACHE.Player.GetMorale()
-                    if morale >= target_morale:
-                        yield from Yield.wait(500)
-                        break
-
-                    item_id = 0
-                    for model_id in morale_models:
-                        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-                        if item_id:
-                            break
-                        
-                    if not item_id:
-                        # nothing to use right now
-                        yield from Yield.wait(500)
-                        break
-
-                    GLOBAL_CACHE.Inventory.UseItem(item_id)
-                    yield from Yield.wait(500)
-                    
+            if not (Checks.Map.MapValid() and GLOBAL_CACHE.Map.IsExplorable()):
                 yield from Yield.wait(500)
+                return
+
+            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                yield from Yield.wait(500)
+                return
+
+            while True:
+                morale = GLOBAL_CACHE.Player.GetMorale()
+                if morale >= target_morale:
+                    yield from Yield.wait(500)
+                    break
+
+                item_id = 0
+                for model_id in morale_models:
+                    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                    if item_id:
+                        break
+                    
+                if not item_id:
+                    # nothing to use right now
+                    yield from Yield.wait(500)
+                    break
+
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                yield from Yield.wait(500)
+                
+            yield from Yield.wait(500)
 
         @staticmethod
         def Upkeep_Alcohol(target_alc_level=2, disable_drunk_effects=False):
@@ -1076,39 +1118,39 @@ class Yield:
                 for m in Yield.Upkeepers.ALCOHOL_ITEMS
             ]
 
-            if disable_drunk_effects:
-                PyEffects.PyEffects.ApplyDrunkEffect(0, 0)
+            #if disable_drunk_effects:
+            #    PyEffects.PyEffects.ApplyDrunkEffect(0, 0)
+
+            
+            if not (Checks.Map.MapValid() and GLOBAL_CACHE.Map.IsExplorable()):
+                yield from Yield.wait(500)
+                return
+
+            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                yield from Yield.wait(500)
+                return
 
             while True:
-                if not (Checks.Map.MapValid() and GLOBAL_CACHE.Map.IsExplorable()):
+                drunk_level = PyEffects.PyEffects.GetAlcoholLevel()
+                if drunk_level >= target_alc_level:
                     yield from Yield.wait(500)
-                    continue
+                    break
 
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                    yield from Yield.wait(500)
-                    continue
-                
-                while True:
-                    drunk_level = PyEffects.PyEffects.GetAlcoholLevel()
-                    if drunk_level >= target_alc_level:
-                        yield from Yield.wait(500)
+                item_id = 0
+                for model_id in alcohol_models:
+                    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                    if item_id:
                         break
-
-                    item_id = 0
-                    for model_id in alcohol_models:
-                        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-                        if item_id:
-                            break
-                        
-                    if not item_id:
-                        # nothing to use right now
-                        yield from Yield.wait(500)
-                        break
-
-                    GLOBAL_CACHE.Inventory.UseItem(item_id)
-                    yield from Yield.wait(500)
                     
+                if not item_id:
+                    # nothing to use right now
+                    yield from Yield.wait(500)
+                    break
+
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
                 yield from Yield.wait(500)
+                
+            yield from Yield.wait(500)
                 
         @staticmethod
         def Upkeep_City_Speed():
@@ -1120,35 +1162,35 @@ class Yield:
             player_id = lambda: GLOBAL_CACHE.Player.GetAgentID()
             period_ms: int = 1000
 
-            while True:
-                # basic guards
-                if not Checks.Map.MapValid():
-                    yield from Yield.wait(period_ms)
-                    continue
-                # City speed is for towns/outposts, so skip if explorable
-                if not GLOBAL_CACHE.Map.IsOutpost():
-                    yield from Yield.wait(period_ms)
-                    continue
-                if GLOBAL_CACHE.Agent.IsDead(player_id()):
-                    yield from Yield.wait(period_ms)
-                    continue
 
-                # already have ANY acceptable city-speed effect?
-                if any(GLOBAL_CACHE.Effects.HasEffect(player_id(), eid) for eid in effect_ids):
-                    yield from Yield.wait(period_ms)
-                    continue
-
-                # use first available item by priority
-                used = False
-                for mid in item_models:
-                    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(mid)
-                    if item_id:
-                        GLOBAL_CACHE.Inventory.UseItem(item_id)
-                        yield from Yield.wait(period_ms)
-                        used = True
-                        break
-
-                # short cooldown either way
+            # basic guards
+            if not Checks.Map.MapValid():
                 yield from Yield.wait(period_ms)
+                return
+            # City speed is for towns/outposts, so skip if explorable
+            if not GLOBAL_CACHE.Map.IsOutpost():
+                yield from Yield.wait(period_ms)
+                return
+            if GLOBAL_CACHE.Agent.IsDead(player_id()):
+                yield from Yield.wait(period_ms)
+                return
+
+            # already have ANY acceptable city-speed effect?
+            if any(GLOBAL_CACHE.Effects.HasEffect(player_id(), eid) for eid in effect_ids):
+                yield from Yield.wait(period_ms)
+                return
+
+            # use first available item by priority
+            used = False
+            for mid in item_models:
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(mid)
+                if item_id:
+                    GLOBAL_CACHE.Inventory.UseItem(item_id)
+                    yield from Yield.wait(period_ms)
+                    used = True
+                    break
+
+            # short cooldown either way
+            yield from Yield.wait(period_ms)
 
 #endregion
