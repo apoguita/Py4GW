@@ -6,13 +6,13 @@ _3_bergenhotsprings_to_beetletun_ids = {
 }
 
 # 2) Outpost exit path
-_3_bergenhotsprings_to_beetletun_outpost_path = [
+_3_bergenhotspring_to_beetletun_outpost_path = [
     (15521, -15378),
     (15450, -15050),
 ]
 
 # 3) Segments
-_3_bergenhotsprings_to_beetletun_segments = [
+_3_bergenhotspring_to_beetletun_segments = [
     {
         "map_id": explorable_name_to_id["Nebo Terrace"],
         "path": [
