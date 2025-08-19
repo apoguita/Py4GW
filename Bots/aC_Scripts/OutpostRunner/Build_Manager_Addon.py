@@ -5,15 +5,14 @@ jotun = [6480, 6481, 6482, 6483]
 modniir = [6475, 6476, 6473]
 frozen_elementals = [6478]
 mandragor = [4400, 4930, 4396, 4402, 4932, 4401, 4931, 4307, 4306, 6658, 6657]
-wurms = [1802, 4323, 7326] 
+wurms = [1802, 4323, 7326, 6491, 2547] 
 mountain_pinesoul = [6488]
-skeletons = [7038, 7040]
+skeletons = [7038, 7040, 2740]
 zombie = [7043]
 enchanted = [6862, 1866, 6869]
 quetzal = [6337, 6338, 6339, 6340]
 stone_summit_scout = [2646]
 minotaur = [1797, 2493, 2486]
-<<<<<<< HEAD
 summit_giant = [2657]
 skree = [4678]
 spiders = [2312]
@@ -24,21 +23,14 @@ bison = [6487]
 thumbled_elementalist = [6678]
 charr_axemaster = [6627]
 thundra_giant = [2530] # special case, uses ranged attach but is a warrior
-=======
-summit_giant = [2657, 2530]
->>>>>>> parent of 4aba288 (Outpostrunner Update)
 
 #== variable for scan throttle ==
 scan_throttle_ms = 0.1
-danger_check_cooldown = 5 
-spell_caster_check_cooldown = 5
+danger_check_cooldown = 0.1
+spell_caster_check_cooldown = 1
 #== variables for anti cripple/kd danger check ==
-<<<<<<< HEAD
 cripple_kd_models = set(jotun + modniir + frozen_elementals + mandragor + wurms + mountain_pinesoul + skeletons + zombie + enchanted + quetzal + stone_summit_scout + minotaur + summit_giant + skree + spiders + roots + gouls + azura + thumbled_elementalist + bison + charr_axemaster)
 tundra_giant_ids = set(thundra_giant)
-=======
-cripple_kd_models = set(jotun + modniir + frozen_elementals + mandragor + wurms + mountain_pinesoul + skeletons + zombie + enchanted + quetzal + stone_summit_scout + minotaur + summit_giant)
->>>>>>> parent of 4aba288 (Outpostrunner Update)
 last_cripple_kd_check = 0
 last_cripple_kd_scan_time = 0
 #== variables for spellcaster danger check ==
@@ -79,7 +71,6 @@ def get_cripple_kd_enemies(model_id):
         return "Stone Summit Scout"
     elif model_id in summit_giant:
         return "Summit Giants"
-<<<<<<< HEAD
     elif model_id in skree:
         return "Skree"
     elif model_id in spiders:
@@ -96,14 +87,13 @@ def get_cripple_kd_enemies(model_id):
         return "Bison"
     elif model_id in charr_axemaster:
         return "Charr Axemaster"
-=======
->>>>>>> parent of 4aba288 (Outpostrunner Update)
     return "Unknown"
 
 def CheckCrippleKDanger(x, y):
     """
-    Checks if any dangerous foe (Jotun, Modniir, Frozen Elementals, Mandragor, Wurms)
-    is within 2000 units. If found, logs a warning and starts a 20s cooldown before next check.
+    Checks if any dangerous foe is within the correct range:
+    - Most enemies: 500 units
+    - Special case (Tundra Giant): 2000 units
     """
     global last_cripple_kd_check, last_cripple_kd_scan_time, scan_throttle_ms, danger_check_cooldown
 
@@ -115,16 +105,26 @@ def CheckCrippleKDanger(x, y):
         return
     last_cripple_kd_scan_time = now
 
-    nearby_enemies = Routines.Agents.GetFilteredEnemyArray(x, y, max_distance=500.0)
-    for enemy_id in nearby_enemies:
+    close_enemies = Routines.Agents.GetFilteredEnemyArray(x, y, max_distance=500.0)
+    far_enemies = Routines.Agents.GetFilteredEnemyArray(x, y, max_distance=2000.0)
+
+    for enemy_id in close_enemies:
         model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
         if model_id in cripple_kd_models:
             enemy_category = get_cripple_kd_enemies(model_id)
             Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, f"Cripple/KD danger - {enemy_category} spotted!")
-            #ConsoleLog("Build Manager",f"Cripple/KD danger - {enemy_category} spotted!",Console.MessageType.Debug)
             last_cripple_kd_check = now
-            return True 
+            return True
+
+    for enemy_id in far_enemies:
+        model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
+        if model_id in tundra_giant_ids:
+            enemy_category = get_cripple_kd_enemies(model_id)
+            Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, f"Cripple/KD danger - {enemy_category} spotted!")
+            last_cripple_kd_check = now
+            return True
     return False
+
 
 def CheckSpellcasterDanger(custom_distance=2000):
     """
@@ -135,7 +135,7 @@ def CheckSpellcasterDanger(custom_distance=2000):
     checkdistance = custom_distance
 
     player_pos = GLOBAL_CACHE.Player.GetXY()
-    special_casters = [6481, 6482, 6483, 6634]
+    special_casters = [6481, 6482, 6483, 6634, 4316, 4315, 4317]
 
     now_spellcaster = time.time()
     if now_spellcaster - last_spellcaster_check < spell_caster_check_cooldown:
