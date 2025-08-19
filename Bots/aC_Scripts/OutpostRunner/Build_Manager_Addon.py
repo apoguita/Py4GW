@@ -19,6 +19,8 @@ spiders = [2312]
 roots = [2307]
 gouls = [2732, 2731]
 azura = [2535]
+bison = [6487]
+thumbled_elementalist = [6678]
 thundra_giant = [2530] # special case, uses ranged attach but is a warrior
 
 #== variable for scan throttle ==
@@ -26,7 +28,7 @@ scan_throttle_ms = 0.1
 danger_check_cooldown = 0.1
 spell_caster_check_cooldown = 1
 #== variables for anti cripple/kd danger check ==
-cripple_kd_models = set(jotun + modniir + frozen_elementals + mandragor + wurms + mountain_pinesoul + skeletons + zombie + enchanted + quetzal + stone_summit_scout + minotaur + summit_giant + skree + spiders + roots + gouls + azura)
+cripple_kd_models = set(jotun + modniir + frozen_elementals + mandragor + wurms + mountain_pinesoul + skeletons + zombie + enchanted + quetzal + stone_summit_scout + minotaur + summit_giant + skree + spiders + roots + gouls + azura + thumbled_elementalist + bison)
 tundra_giant_ids = set(thundra_giant)
 last_cripple_kd_check = 0
 last_cripple_kd_scan_time = 0
@@ -78,6 +80,10 @@ def get_cripple_kd_enemies(model_id):
         return "Gouls"
     elif model_id in azura:
         return "Azura"
+    elif model_id in thumbled_elementalist:
+        return "Thumbled Elementalist"
+    elif model_id in bison:
+        return "Bison"
     return "Unknown"
 
 def CheckCrippleKDanger(x, y):
