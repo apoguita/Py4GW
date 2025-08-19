@@ -125,6 +125,15 @@ RUN_NAME_MAP = {
         "_7_harvesttemple_to_unwakingwaters": "7 - Visit the whirlpool's edge",
         "_8_imperialsanctumoutpost_to_raisupalace": "8 - Visit Raisu Palace",
     },
+    "Wayfarers Reverie - The Far North": {
+        "_1_eyeofthenorthoutpost_to_icecliffchasms": "1 - Visit Gwen's Garden",
+        "_2_sifhalla_to_drakkarlake": "2 - Visit Drakkar Lake",
+        "_3_longeyesledge_to_bjoramarches": "3 - Visit the Shrine of the Bear Spirit",
+        "_4_doomloreshrine_to_daladauplands": "4 - Visit the strange ridge in Dalada Uplands",
+        "_5_doomloreshrine_to_sacnothvalley": "5 - Visit the burning forest in Sacnoth Valley",
+        "_6_ratasum_to_rivenearth": "6 - Visit the G.O.L.E.M site",
+        "_8_vloxsfalls_to_arborbay": "8 - Visit Ventari's sanctuary.",
+    },
 }
 
 # 7) Neutral button colors (light gray → slightly brighter on hover → slightly darker on active)
