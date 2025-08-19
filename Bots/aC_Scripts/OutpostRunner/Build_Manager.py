@@ -147,7 +147,7 @@ class OutpostRunnerDA(Build):
         best_target = best_15deg if best_15deg else best_30deg
 
         if not best_target:
-            ConsoleLog("Teleport", "No valid target in 15° or 30° cone -> skip", Console.MessageType.Debug)
+            ConsoleLog("Teleport", "No valid target in 15° or 30° cone → skip", Console.MessageType.Debug)
             return
 
         ex, ey = GLOBAL_CACHE.Agent.GetXY(best_target)
