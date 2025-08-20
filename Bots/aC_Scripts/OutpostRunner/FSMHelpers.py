@@ -42,9 +42,45 @@ class OutpostRunnerFSMHelpers:
         }
 
     def travel_to_outpost(self, outpost_id):
-        """Travel to the required outpost using Yield Travel."""
+        ConsoleLog("OutpostRunnerFSM", f"Initiating safe travel to outpost ID {outpost_id}")
+        if GLOBAL_CACHE.Map.IsExplorable():
+            # === STEP 1: Broadcast resign command to other accounts ===
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            for account in accounts:
+                ConsoleLog("OutpostRunnerFSM", f"Resigning account: {account.AccountEmail}")
+                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0, 0, 0, 0))
+            # === STEP 2: Wait for defeat to trigger Return To Outpost ===
+            timeout = 20
+            start_time = time.time()
+
+            while time.time() - start_time < timeout:
+                if (GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyDefeated()):
+                    GLOBAL_CACHE.Party.ReturnToOutpost()
+                    break
+
+                yield from Routines.Yield.wait(500)
+            else:
+                ConsoleLog("OutpostRunnerFSM", "Resign return timed out. Stopping bot.", Console.MessageType.Error)
+                return
+
+            # === STEP 3: Wait for outpost map to load ===
+            timeout = 20
+            start_time = time.time()
+
+            while time.time() - start_time < timeout:
+                if Routines.Checks.Map.MapValid() and GLOBAL_CACHE.Map.IsOutpost():
+                    ConsoleLog("OutpostRunnerFSM", "Returned to outpost. Proceeding to travel...")
+                    break
+
+                yield from Routines.Yield.wait(500)
+            else:
+                ConsoleLog("OutpostRunnerFSM", "Failed to load outpost. Aborting travel.", Console.MessageType.Error)
+                return
+
+        # === STEP 4: Perform actual outpost travel ===
         ConsoleLog("OutpostRunnerFSM", f"Traveling to outpost ID {outpost_id}")
-        return Routines.Yield.Map.TravelToOutpost(outpost_id)
+        yield from Routines.Yield.Map.TravelToOutpost(outpost_id)
 
     def wait_for_map_load(self, expected_map_id, timeout=15000):
         """Wait until we’re in the expected map."""
