@@ -365,14 +365,6 @@ class GameTextures(Enum):
         hovered = (17, 19),
     )
     
-    UpButton = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_up_down.png"),
-        texture_size = (16, 64),
-        size = (14, 14),
-        normal = (1, 2),
-        active = (33, 2),
-    )
-    
     BulletPoint = MapTexture(
         texture = os.path.join(TEXTURE_FOLDER, "ui_bullet_point.png"),
         texture_size = (16, 16),
@@ -387,39 +379,51 @@ class GameTextures(Enum):
         normal = (0, 0),
     )
 
+    UpButton = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_up_down.png"),
+        texture_size=(64, 16),
+        size=(14, 16),
+        normal=(1, 0)
+    )
+    
     DownButton = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_up_down.png"),
-        texture_size = (16, 64),
-        size = (14, 14),
+        texture = os.path.join("Textures\\Game UI\\", "ui_up_down.png"),
+        texture_size=(64, 16),
+        size=(14, 16),
         normal = (17, 0),
         active = (49, 0),
     )
     
     ScrollGrab_Top = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
+        texture = os.path.join("Textures\\Game UI\\", "ui_scrollgrab.png"),
         texture_size=(16, 16),
-        left=(2, 0, 5, 5),
-        mid=(6, 0, 9, 5),
-        right=(10, 0, 13, 5),   
+        left=(0, 0, 5, 7),
+        mid=(5, 0, 10, 7),
+        right=(10, 0, 16, 7),   
     )
     
-    ScrollGrab_Middle = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
+    ScrollGrab_Middle = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_scrollgrab.png"),
         texture_size=(16, 16),
-        left=(2, 6, 5, 10),
-        mid=(6, 6, 9, 10),
-        right=(10, 6, 13, 10),   
+        size=(16, 2),
+        normal=(0, 7)
+    )
+    
+    Scroll_Bg = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_scroll_background.png"),
+        texture_size=(16, 16),
+        size=(16, 16),
+        normal=(0, 0)
     )
 
     ScrollGrab_Bottom = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
+        texture = os.path.join("Textures\\Game UI\\", "ui_scrollgrab.png"),
         texture_size=(16, 16),
-        left=(2, 11, 5, 16),
-        mid=(6, 11, 9, 16),
-        right=(10, 11, 13, 16),    
-    )
-    
-    
+        left=(0, 9, 5, 16),
+        mid=(5, 9, 10, 16),
+        right=(10, 9, 16, 16),    
+    )                              
+        
     Tab_Frame_Top = SplitTexture(
         texture = os.path.join(TEXTURE_FOLDER, "ui_tab_bar_frame.png"),
         texture_size=(32, 32),
@@ -431,9 +435,9 @@ class GameTextures(Enum):
     Tab_Frame_Body = SplitTexture(
         texture = os.path.join(TEXTURE_FOLDER, "ui_tab_bar_frame.png"),
         texture_size=(32, 32),
-        left=(1, 5, 4, 30),
-        mid=(5, 5, 26, 30),
-        right=(27, 5, 31, 30),   
+        left=(1, 5, 4, 26),
+        mid=(5, 5, 26, 26),
+        right=(27, 5, 31, 26),   
     )
     
     Tab_Active = SplitTexture(
@@ -2186,10 +2190,8 @@ class ImGui:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))
-                
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
                 clicked = PyImGui.button(label, width, height)
-
                 PyImGui.pop_style_color(5)
 
                 item_rect_min = PyImGui.get_item_rect_min()
@@ -2263,10 +2265,8 @@ class ImGui:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))
-                
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
                 clicked = PyImGui.button(label, width, height)
-                PyImGui.pop_style_var(1)
                 PyImGui.pop_style_color(5)
 
                 item_rect_min = PyImGui.get_item_rect_min()
@@ -2729,12 +2729,32 @@ class ImGui:
                     tint=(255, 255, 255, 255),
                 )
 
-                grab_position = (item_rect[0] + 6 + (width - 36) * (new_value - v_min) / (v_max - v_min), item_rect[1] + 3)
+                grab_position = (item_rect[0] + 6 + (width - 36) * (new_value - v_min) / (v_max - v_min), item_rect[1] + 3, item_rect[3] - 6, item_rect[3] - 6)
+                PyImGui.draw_list_add_rect(
+                    grab_position[0] - 1,
+                    grab_position[1] - 1,
+                    grab_position[0] + grab_position[2] + 1,
+                    grab_position[1] + grab_position[3] + 1,
+                    Utils.RGBToColor(0, 0, 0, 170),
+                    0,
+                    0,
+                    1,
+                )
+                PyImGui.draw_list_add_rect(
+                    grab_position[0] - 2,
+                    grab_position[1] - 2,
+                    grab_position[0] + grab_position[2] + 2,
+                    grab_position[1] + grab_position[3] + 2,
+                    Utils.RGBToColor(0, 0, 0, 100),
+                    0,
+                    0,
+                    1,
+                )
+        
                 GameTextures.SliderGrab.value.draw_in_drawlist(
                     grab_position[0],
                     grab_position[1],
-                    (item_rect[3] - 6, item_rect[3] - 6),
-                    tint=(255, 255, 255, 255),
+                    grab_position[2:],
                 )
                 
                 if display_label:
@@ -2786,7 +2806,27 @@ class ImGui:
                     tint=(255, 255, 255, 255),
                 )
 
-                grab_position = (item_rect[0] + 6 + (width - 36) * (new_value - v_min) / (v_max - v_min), item_rect[1] + 3)
+                grab_position = (item_rect[0] + 6 + (width - 36) * (new_value - v_min) / (v_max - v_min), item_rect[1] + 3, item_rect[3] - 6, item_rect[3] - 6)
+                PyImGui.draw_list_add_rect(
+                    grab_position[0] - 1,
+                    grab_position[1] - 1,
+                    grab_position[0] + grab_position[2] + 1,
+                    grab_position[1] + grab_position[3] + 1,
+                    Utils.RGBToColor(0, 0, 0, 170),
+                    0,
+                    0,
+                    1,
+                )
+                PyImGui.draw_list_add_rect(
+                    grab_position[0] - 2,
+                    grab_position[1] - 2,
+                    grab_position[0] + grab_position[2] + 2,
+                    grab_position[1] + grab_position[3] + 2,
+                    Utils.RGBToColor(0, 0, 0, 100),
+                    0,
+                    0,
+                    1,
+                )
                 GameTextures.SliderGrab.value.draw_in_drawlist(
                     grab_position[0],
                     grab_position[1],
@@ -3093,7 +3133,7 @@ class ImGui:
                 PyImGui.pop_clip_rect()
                 
                 
-                PyImGui.indent(5)
+                # PyImGui.indent(5)
 
                 # PyImGui.set_cursor_pos_x(x - 5)
             case _:
@@ -3106,7 +3146,7 @@ class ImGui:
         style = ImGui.get_style()
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
-                PyImGui.unindent(5)
+                # PyImGui.unindent(5)
                 PyImGui.end_tab_bar()
 
             case _:
@@ -3170,6 +3210,11 @@ class ImGui:
                     )
 
                     PyImGui.pop_clip_rect()
+
+                    if open:
+                        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 5, 0)
+                        ImGui.begin_child(f"{label}##_tab_item_content", (0, 0), True, PyImGui.WindowFlags.NoFlag | PyImGui.WindowFlags.NoBackground)
+                        PyImGui.pop_style_var(1)
                     
                 case _:
                     open = PyImGui.begin_tab_item(label)
@@ -3206,6 +3251,10 @@ class ImGui:
                         label,
                     )
 
+                    if open:
+                        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 5, 0)
+                        ImGui.begin_child(f"{label}##_tab_item_content", (0, 0), True, PyImGui.WindowFlags.NoFlag | PyImGui.WindowFlags.NoBackground)
+                        PyImGui.pop_style_var(1)
                 case _:
                     open = PyImGui.begin_tab_item(label, popen, flags)
 
@@ -3216,11 +3265,13 @@ class ImGui:
         style = ImGui.get_style()
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
+                ImGui.end_child()
                 PyImGui.end_tab_item()
 
             case _:
                 PyImGui.end_tab_item()
 
+    
     @staticmethod
     def progress_bar(fraction: float, size_arg_x: float, size_arg_y: float, overlay: str = ""):
         style = ImGui.get_style()
@@ -3240,7 +3291,7 @@ class ImGui:
 
                 progress_rect = (item_rect[0] + 1, item_rect[1] + 1, (width -2) * fraction, height - 2)
                 background_rect = (item_rect[0] + 1, item_rect[1] + 1, width - 2, height - 2)
-                cursor_rect = (item_rect[0] - 2 + (width - 2) * fraction, item_rect[1] + 1, 4, height - 2)
+                cursor_rect = (item_rect[0] - 2 + (width - 2) * fraction, item_rect[1] + 1, 4, height - 2) if fraction > 0 else (item_rect[0] + (width - 2) * fraction, item_rect[1] + 1, 4, height - 2)
 
                 tint = style.PlotHistogram.get_current().rgb_tuple
                 
@@ -3258,12 +3309,13 @@ class ImGui:
                     tint=tint
                 )
                 
-                GameTextures.ProgressBarProgressCursor.value.draw_in_drawlist(
-                    cursor_rect[0],
-                    cursor_rect[1],
-                    (cursor_rect[2], cursor_rect[3]),
-                    tint=(200, 200, 200, 255)
-                )
+                if fraction > 0:
+                    GameTextures.ProgressBarProgressCursor.value.draw_in_drawlist(
+                        cursor_rect[0],
+                        cursor_rect[1],
+                        (cursor_rect[2], cursor_rect[3]),
+                        tint=(200, 200, 200, 255)
+                    )
                 
                 PyImGui.draw_list_add_rect(
                     item_rect[0],

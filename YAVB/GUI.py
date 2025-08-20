@@ -1,5 +1,5 @@
    
-from Py4GWCoreLib import PyImGui, ImGui, Color
+from Py4GWCoreLib import PyImGui, ImGui, Color, Style
 from .LogConsole import LogConsole
 from .StatsMgr import RunStatistics
 from Py4GWCoreLib import Routines
@@ -144,9 +144,9 @@ class YAVB_GUI:
 
                 PyImGui.end_menu_bar()
             
-            
+            style = ImGui.get_style()
             child_width = 300
-            child_height = 280
+            child_height = 280 if style.Theme == Style.StyleTheme.Guild_Wars else 275
             if PyImGui.begin_child("YAVB Child Window",(child_width, child_height), True, PyImGui.WindowFlags.NoFlag):
                 table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH
                 if ImGui.begin_table("YAVBtoptable", 2, table_flags):
@@ -272,10 +272,10 @@ class YAVB_GUI:
                                     ImGui.text(f"State: {self.parent.state}")
                                     ImGui.separator()
                                     ImGui.text("Step Progress")
-                                    ImGui.progress_bar(self.parent.state_percentage, (child_width - 5), 0, f"{self.parent.state_percentage * 100:.2f}%")
+                                    ImGui.progress_bar(self.parent.state_percentage, (child_width), 0, f"{self.parent.state_percentage * 100:.2f}%")
                                     ImGui.separator()
                                     ImGui.text("Overall Progress")
-                                    ImGui.progress_bar(self.parent.overall_progress, (child_width - 5), 0, f"{self.parent.overall_progress * 100:.2f}%")   
+                                    ImGui.progress_bar(self.parent.overall_progress, (child_width), 0, f"{self.parent.overall_progress * 100:.2f}%")   
                                                 
                                     ImGui.end_tab_item()
                                 

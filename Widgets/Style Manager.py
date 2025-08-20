@@ -1,10 +1,14 @@
-from typing import overload
+import math
+from typing import Optional, overload
+from unittest import case
 import Py4GW
 
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import SplitTexture
+from Py4GWCoreLib import MapTexture
 from Py4GWCoreLib import GameTextures
 from Py4GWCoreLib import TextureState
 from Py4GWCoreLib import Style
@@ -74,6 +78,20 @@ input_float_value = 150.0
 input_text_value = "Text"
 search_value = ""
 
+class preview_states:
+    def __init__(self):
+        self.input_int_value = 150
+        self.input_float_value = 150.0
+        self.input_text_value = "Text"
+        self.search_value = ""
+        self.combo = 0
+        self.checkbox = True
+        self.checkbox_2 = False
+        self.slider_int = 25
+        self.slider_float = 33.0
+
+preview = preview_states()
+
 def configure():
     window_module.open = True      
 
@@ -130,11 +148,294 @@ def undo_button(label, width : float = 0, height: float = 25) -> bool:
             clicked = PyImGui.button(label, width, height)
 
     return clicked
-  
+
+Childs : dict[str, tuple[float, float]] = {}
+
+@staticmethod
+def begin_tab_item(label: str, popen: bool | None = None, flags:int = 0) -> bool:
+    style = ImGui.get_style()
+
+    if popen is None:
+        match(style.Theme):
+            case Style.StyleTheme.Guild_Wars:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Tab, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TabActive, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TabHovered, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                open = PyImGui.begin_tab_item(label)
+                PyImGui.pop_style_color(4)
+
+                item_rect_min = PyImGui.get_item_rect_min()
+                item_rect_max = PyImGui.get_item_rect_max()
+                
+                width = item_rect_max[0] - item_rect_min[0] + 12
+                height = item_rect_max[1] - item_rect_min[1] + 3
+                item_rect = (item_rect_min[0] - 4, item_rect_min[1], width, height)
+                
+                PyImGui.push_clip_rect(
+                    item_rect[0],
+                    item_rect[1],
+                    width,
+                    height,
+                    True
+                )
+                
+                (GameTextures.Tab_Active if open else GameTextures.Tab_Inactive).value.draw_in_drawlist(
+                    item_rect[0] + 4,
+                    item_rect[1] + 4,
+                    (item_rect[2] - 8, item_rect[3] - 8),
+                )
+                
+                PyImGui.pop_clip_rect()
+
+                display_label = label.split("##")[0]
+                text_size = PyImGui.calc_text_size(display_label)
+                text_x = item_rect[0] + (item_rect[2] - text_size[0] + 2) / 2
+                text_y = item_rect[1] + (item_rect[3] - text_size[1] + (5 if open else 7)) / 2
+
+                PyImGui.push_clip_rect(
+                    item_rect[0] + 6,
+                    item_rect[1] + 2,
+                    width - 12,
+                    height - 4,
+                    True
+                )
+                
+                PyImGui.draw_list_add_text(
+                    text_x,
+                    text_y,
+                    style.Text.color_int,
+                    display_label,
+                )
+
+                PyImGui.pop_clip_rect()
+
+                if open:
+                    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 5, 0)
+                    begin_child(f"{label}##_tab_item_content", (0, 0), True, PyImGui.WindowFlags.NoFlag | PyImGui.WindowFlags.NoBackground)
+                    PyImGui.pop_style_var(1)
+                
+            case _:
+                open = PyImGui.begin_tab_item(label)
+        
+    else:
+        match(style.Theme):
+            case Style.StyleTheme.Guild_Wars:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Tab, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TabActive, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TabHovered, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                
+                open = PyImGui.begin_tab_item(label, popen, flags)
+
+                PyImGui.pop_style_color(4)
+
+                item_rect_min = PyImGui.get_item_rect_min()
+                item_rect_max = PyImGui.get_item_rect_max()
+                
+                width = item_rect_max[0] - item_rect_min[0]
+                height = item_rect_max[1] - item_rect_min[1]
+                item_rect = (item_rect_min[0], item_rect_min[1], width, height)
+                
+                (GameTextures.Tab_Active if open else GameTextures.Tab_Inactive).value.draw_in_drawlist(
+                    item_rect[0] + 4,
+                    item_rect[1] + 4,
+                    (item_rect[2] - 8, item_rect[3] - 8),
+                )
+
+                PyImGui.draw_list_add_text(
+                    item_rect[0] + 4,
+                    item_rect[1] + 4,
+                    style.Text.color_int,
+                    label,
+                )
+
+                if open:
+                    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 5, 0)
+                    begin_child(f"{label}##_tab_item_content", (0, 0), True, PyImGui.WindowFlags.NoFlag | PyImGui.WindowFlags.NoBackground)
+                    PyImGui.pop_style_var(1)
+            case _:
+                open = PyImGui.begin_tab_item(label, popen, flags)
+
+    return open
+
+@staticmethod
+def end_tab_item():
+    style = ImGui.get_style()
+    match(style.Theme):
+        case Style.StyleTheme.Guild_Wars:
+            end_child()
+            PyImGui.end_tab_item()
+
+        case _:
+            PyImGui.end_tab_item()
+
+@staticmethod
+def begin_child(id : str, size : tuple[float, float] = (0, 0), border: bool = False, flags: int = PyImGui.WindowFlags.NoFlag) -> bool:
+    style = ImGui.get_style()
+    
+    match(style.Theme):
+        case Style.StyleTheme.Guild_Wars:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarBg, (0, 0, 0, 0))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrab, (0, 0, 0, 0))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrabActive, (0, 0, 0, 0))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrabHovered, (0, 0, 0, 0))
+            open = PyImGui.begin_child(id, size, border, flags)
+            PyImGui.pop_style_color(4)
+            
+            forced_scroll_bar = int(int(flags) & int(PyImGui.WindowFlags.AlwaysVerticalScrollbar)) != 0
+
+            draw_vertical_scroll_bar(style.ScrollbarSize.value1, forced_scroll_bar)
+            
+
+        case _:
+            open = PyImGui.begin_child(id, size, border, flags)
+            
+    return open
+
+@staticmethod
+def end_child():
+    PyImGui.end_child()
+    
+@staticmethod 
+def draw_vertical_scroll_bar(scroll_bar_size : float, force_scroll_bar : bool = False):
+    scroll_max_x = PyImGui.get_scroll_max_x()
+    scroll_max_y = PyImGui.get_scroll_max_y()
+    scroll_x = PyImGui.get_scroll_x()
+    scroll_y = PyImGui.get_scroll_y()
+    
+    if force_scroll_bar or scroll_max_y > 0:
+        visible_size_y = PyImGui.get_window_height()
+        content_max_size = PyImGui.get_content_region_max()
+        item_rect_min = PyImGui.get_item_rect_min()
+        item_rect_max = PyImGui.get_item_rect_max()
+        win_pos = PyImGui.get_window_pos()
+        content_max = PyImGui.get_window_content_region_max()
+
+        root_width  = content_max[0] + win_pos[0]
+        root_height = content_max[1] + win_pos[1]
+
+        root_pos = (win_pos[0], win_pos[1])
+        root_size = (root_width - win_pos[0], root_height - win_pos[1])
+        window_clip = (
+            root_pos[0],
+            root_pos[1],
+            root_size[0],
+            root_size[1]
+        )
+        
+        scroll_bar_rect = (item_rect_max[0] - scroll_bar_size, item_rect_min[1], item_rect_max[0], item_rect_min[1] + visible_size_y)
+
+        track_height = visible_size_y
+        thumb_min = 20.0  # example minimum thumb size, depends on ImGui style
+        
+        if scroll_max_y > 0:
+            thumb_height = (visible_size_y * visible_size_y) / (visible_size_y + scroll_max_y)
+            thumb_height = max(thumb_height, thumb_min)
+        else:
+            thumb_height = visible_size_y   # all content fits, thumb covers track
+            
+        # Thumb size (clamped)
+        thumb_height = max(thumb_height, thumb_min)
+
+        # Thumb offset
+        thumb_offset = 0.0
+        if scroll_max_y > 0:
+            thumb_offset = (scroll_y / scroll_max_y) * (track_height - thumb_height)
+            
+        scroll_grab_rect = (scroll_bar_rect[0], scroll_bar_rect[1] + thumb_offset, scroll_bar_rect[2], scroll_bar_rect[1] + thumb_offset + thumb_height)
+
+        PyImGui.push_clip_rect(
+            scroll_bar_rect[0],
+            scroll_bar_rect[1] - 5,
+            scroll_bar_rect[2] + scroll_bar_size,
+            scroll_bar_rect[3] + 5,
+            False)
+        
+        # PyImGui.push_clip_rect(
+        #     window_clip[0],
+        #     window_clip[1],
+        #     window_clip[2],
+        #     window_clip[3],
+        #     False  # intersect with current clip rect (safe, window always bigger than content)
+        # )
+            
+        GameTextures.Scroll_Bg.value.draw_in_drawlist(
+            scroll_bar_rect[0],
+            scroll_bar_rect[1] + 5,
+            (scroll_bar_rect[2] - scroll_bar_rect[0], scroll_bar_rect[3] - scroll_bar_rect[1] - 10),
+        )
+
+        GameTextures.ScrollGrab_Top.value.draw_in_drawlist(
+            scroll_grab_rect[0], 
+            scroll_grab_rect[1], 
+            (scroll_bar_size, 7),
+        )
+        
+        GameTextures.ScrollGrab_Bottom.value.draw_in_drawlist(
+            scroll_grab_rect[0], 
+            scroll_grab_rect[3] - 7, 
+            (scroll_bar_size, 7),
+        )
+
+        px_height = 2
+        mid_height = scroll_grab_rect[3] - scroll_grab_rect[1] - 10
+        for i in range(math.ceil(mid_height / px_height)):
+            GameTextures.ScrollGrab_Middle.value.draw_in_drawlist(
+                scroll_grab_rect[0], 
+                scroll_grab_rect[1] + 5 + (px_height * i), 
+                (scroll_bar_size, px_height),
+            tint=(195, 195, 195, 255)
+            )
+        
+        GameTextures.UpButton.value.draw_in_drawlist(
+            scroll_bar_rect[0] - 1,
+            scroll_bar_rect[1] - 5,
+            (scroll_bar_size, scroll_bar_size),
+        )
+
+        GameTextures.DownButton.value.draw_in_drawlist(
+            scroll_bar_rect[0] - 1,
+            scroll_bar_rect[3] - (scroll_bar_size - 5),
+            (scroll_bar_size, scroll_bar_size),
+        )
+            
+        PyImGui.pop_clip_rect()
+        # ConsoleLog(module_name, f"{id} Scroll Values: X={scroll_x}, Y={scroll_y}, MaxX={scroll_max_x}, MaxY={scroll_max_y}")
+        # ConsoleLog(module_name, f"Draw ScrollRegion {scroll_bar_rect}")
+
+@staticmethod
+def begin_table(id: str, columns: int, flags: int = PyImGui.TableFlags.NoFlag, width: float = 0, height: float = 0) -> bool:
+    style = ImGui.get_style()
+    
+    match(style.Theme):
+        case Style.StyleTheme.Guild_Wars:
+            
+            x,y = PyImGui.get_cursor_screen_pos()
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarBg, (0, 0, 0, 0))
+            # PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrab, (0, 0, 0, 0))
+            # PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrabActive, (0, 0, 0, 0))
+            # PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrabHovered, (0, 0, 0, 0))
+            opened = PyImGui.begin_table(id, columns, flags, width, height)
+            PyImGui.pop_style_color(1)
+                    
+            scroll_bar_size = style.ScrollbarSize.value1
+            draw_vertical_scroll_bar(scroll_bar_size)            
+
+        case _:
+            opened = PyImGui.begin_table(id, columns, flags, width, height)
+
+    
+    return opened
+
+@staticmethod
+def end_table():
+    PyImGui.end_table()
+    
+
 def DrawWindow():
     global window_module, module_name, ini_handler, window_x, window_y, window_collapsed, window_open, org_style, window_width, window_height
     global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
-    global input_int_value, input_float_value, input_text_value, search_value
     
     try:                        
         if not window_module.open:
@@ -164,13 +465,13 @@ def DrawWindow():
             any_changed = False
 
             if ImGui.begin_tab_bar("Style Customization"):
-                if ImGui.begin_tab_item("Styling"):
-                    ImGui.begin_child("Style Customization")
+                if begin_tab_item("Styling"):
+                    begin_child("Style Customization")
                     
                     
                     if ImGui.Selected_Style:
                         remaining = PyImGui.get_content_region_avail()
-                        button_width = (remaining[0] - 5) / 2
+                        button_width = (remaining[0] - 10) / 2
                         
                         any_changed = any(var != org_style.StyleVars[enum] for enum, var in ImGui.Selected_Style.StyleVars.items())
                         any_changed |= any(col != org_style.Colors[enum] for enum, col in ImGui.Selected_Style.Colors.items())
@@ -196,7 +497,7 @@ def DrawWindow():
                             column_width = 0
                             item_width = 0
 
-                            if ImGui.begin_table("Style Variables", 3, PyImGui.TableFlags.ScrollY):
+                            if begin_table("Style Variables", 3, PyImGui.TableFlags.ScrollY):
                                 PyImGui.table_setup_column("Variable", PyImGui.TableColumnFlags.WidthFixed, 150)
                                 PyImGui.table_setup_column("Value", PyImGui.TableColumnFlags.WidthStretch)
                                 PyImGui.table_setup_column("Undo", PyImGui.TableColumnFlags.WidthFixed, 35)
@@ -274,17 +575,20 @@ def DrawWindow():
                                             col.color_tuple = org_style.CustomColors[enum].color_tuple
                                     PyImGui.table_next_column()
 
-                                ImGui.end_table()
+                                end_table()
 
-                    ImGui.end_child()
-                    ImGui.end_tab_item()
+                    end_child()
+                    end_tab_item()
 
+                if ImGui.begin_tab_item("Test Preview"):
+                    ImGui.end_tab_item()       
+                    
                 if ImGui.begin_tab_item("Control Preview"):
                     if PyImGui.is_rect_visible(50, 50):
                         column_width = 0
                         item_width = 0
 
-                        if ImGui.begin_table("Control Preview", 2, PyImGui.TableFlags.ScrollY):
+                        if begin_table("Control Preview", 2, PyImGui.TableFlags.ScrollY):
                             PyImGui.table_setup_column("Control", PyImGui.TableColumnFlags.WidthFixed, 150)
                             PyImGui.table_setup_column("Preview", PyImGui.TableColumnFlags.WidthStretch)
                             
@@ -293,48 +597,50 @@ def DrawWindow():
                             
                             ImGui.text("Button")
                             PyImGui.table_next_column()
-                            ImGui.button("Button", 0, 25)
+                            if ImGui.button("Button", 0, 25):
+                                ConsoleLog(module_name, "Button clicked")
                             PyImGui.same_line(0,5)
                             ImGui.button("Disabled Button", 0, 25, False)
                             PyImGui.table_next_column()
                             
                             ImGui.text("Primary Button")
                             PyImGui.table_next_column()
-                            ImGui.primary_button("Primary Button", 0, 25)
+                            if ImGui.primary_button("Primary Button", 0, 25):
+                                ConsoleLog(module_name, "Primary Button clicked")
                             PyImGui.same_line(0,5)
                             ImGui.primary_button("Disabled Primary Button", 0, 25, False)
                             PyImGui.table_next_column()
                             
                             ImGui.text("Combo")
                             PyImGui.table_next_column()
-                            ImGui.combo("Combo", 0, ["Option 1", "Option 2", "Option 3"])
+                            preview.combo = ImGui.combo("Combo", preview.combo, ["Option 1", "Option 2", "Option 3"])
                             PyImGui.table_next_column()
                             
                             ImGui.text("Checkbox")
                             PyImGui.table_next_column()
-                            ImGui.checkbox("##Checkbox 2", False)                                
+                            preview.checkbox_2 = ImGui.checkbox("##Checkbox 2", preview.checkbox_2)                                
                             PyImGui.same_line(0, 5)
-                            ImGui.checkbox("Checkbox", True)                                
+                            preview.checkbox = ImGui.checkbox("Checkbox", preview.checkbox)                                
                             PyImGui.table_next_column()
 
                             ImGui.text("Slider")
                             PyImGui.table_next_column()
-                            ImGui.slider_int("Slider Int", 25, 0, 100)
-                            ImGui.slider_float("Slider Float", 0.0, 0.0, 100.0)
+                            preview.slider_int = ImGui.slider_int("Slider Int", preview.slider_int, 0, 100)
+                            preview.slider_float = ImGui.slider_float("Slider Float", preview.slider_float, 0.0, 100.0)
                             PyImGui.table_next_column()
                             
                             ImGui.text("Input")
                             PyImGui.table_next_column()
-                            input_text_value = ImGui.input_text("Input Text", input_text_value)
-                            input_int_value = ImGui.input_int("Input Int##2", input_int_value)
-                            input_int_value = ImGui.input_int("Input Int##3", input_int_value, 0, 10000, 0)
-                            input_float_value = ImGui.input_float("Input Float", input_float_value)
-                            
+                            preview.input_text_value = ImGui.input_text("Input Text", preview.input_text_value)
+                            preview.input_int_value = ImGui.input_int("Input Int##2", preview.input_int_value)
+                            preview.input_int_value = ImGui.input_int("Input Int##3", preview.input_int_value, 0, 10000, 0)
+                            preview.input_float_value = ImGui.input_float("Input Float", preview.input_float_value)
+
                             PyImGui.table_next_column()
 
                             ImGui.text("Search")
                             PyImGui.table_next_column()
-                            changed, search_value = ImGui.search_field("Search Field", search_value, "Search...")
+                            changed, preview.search_value = ImGui.search_field("Search Field", preview.search_value, "Search...")
                             PyImGui.table_next_column()
 
                             ImGui.text("Separator")
@@ -355,7 +661,8 @@ def DrawWindow():
                             
                             ImGui.text("Hyperlink")
                             PyImGui.table_next_column()
-                            ImGui.hyperlink("Click Me")
+                            if ImGui.hyperlink("Click Me"):
+                                ConsoleLog(module_name, "Hyperlink clicked")
                             PyImGui.table_next_column()
 
                             ImGui.text("Bullet Text")
@@ -368,6 +675,29 @@ def DrawWindow():
                             PyImGui.table_next_column()
                             if ImGui.collapsing_header("Collapsing Header", 0):
                                 ImGui.text("This is a collapsible header content.")
+                            PyImGui.table_next_column()
+
+                            ImGui.text("Child")
+                            PyImGui.table_next_column()
+                            
+                            if begin_child("Child##1", (0, 100), False, PyImGui.WindowFlags.NoFlag):
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                                ImGui.text("This is a child content.")
+                            end_child()
+                            
                             PyImGui.table_next_column()
                             
                             ImGui.text("Tab Bar")
@@ -384,7 +714,7 @@ def DrawWindow():
 
                                 ImGui.end_tab_bar()
 
-                            ImGui.end_table()
+                            end_table()
                             
                     ImGui.end_tab_item()                
                 ImGui.end_tab_bar()
