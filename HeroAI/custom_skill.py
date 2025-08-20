@@ -7314,6 +7314,7 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsMoving = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
