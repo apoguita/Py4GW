@@ -13,6 +13,9 @@ import re
 
 MODULE_NAME = "sequential bot test"
 
+auto_attack_timer = 0
+auto_attack_threshold = 0
+is_expired = False
 
 from collections import defaultdict
 from typing import Dict, Iterable, Optional, Final
@@ -49,6 +52,7 @@ STEP_NAMES: Final[tuple[str, ...]] = (
     "PAUSE_ON_DANGER",
     "PROPERTY",
     "SALVATION_COUNTER",
+    "SEND_CHAT_MESSAGE",
     "SET_PATH_TO",
     "SPAWN_BONUS",
     "TRAVEL",
@@ -185,6 +189,7 @@ class LiveData:
                                    "primary_profession": "None",
                                    "secondary_profession": "None",
                                    "level": 1,
+                                   'hp': 0
                                })
 
         # Map-related live data
@@ -200,6 +205,7 @@ class LiveData:
         self.Player._apply("primary_profession", primary)
         self.Player._apply("secondary_profession", secondary)
         self.Player._apply("level", GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID()))
+        self.Player._apply("hp", GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()))
 
         self.Map._apply("current_map_id", GLOBAL_CACHE.Map.GetMapID())
         self.Map._apply("max_party_size", GLOBAL_CACHE.Map.GetMaxPartySize())
@@ -220,6 +226,114 @@ class ConfigProperties:
         self.dialog_at_succeeded = Property(parent, "dialog_at_succeeded", extra_fields={"value": False})
 
         # more properties can be added here
+        
+
+# ---------- Base class ----------
+class Event:
+    """
+    Subclass overrides should_trigger() and should_reset().
+    set_callback() assigns a single callback fired once per trigger cycle.
+    run() is the forever-yielding coroutine you give to the FSM.
+    """
+    def __init__(self, parent: "BotConfig", name: str, *,
+                 interval_ms: int = 250,
+                 callback: Optional[Callable[[], None]] = None):
+        self.parent = parent
+        self.name = name
+        self.interval_ms = interval_ms
+        self.callback = callback
+        self.triggered = False  # latched after fire until reset
+
+    def set_callback(self, fn: Optional[Callable[[], None]]) -> None:
+        self.callback = fn
+
+    # ---- subclass hooks ----
+    def should_trigger(self) -> bool:
+        return False
+
+    def should_reset(self) -> bool:
+        return True
+
+    # ---- driver ----
+    def _fire_once(self) -> None:
+        if self.callback:
+            self.callback()
+
+    def run(self):
+        """Forever coroutine: trigger -> fire once -> wait until reset."""
+        from Py4GWCoreLib import Routines  # local import to avoid cycles
+        while True:
+            if not self.triggered:
+                if self.should_trigger():
+                    self.triggered = True
+                    self._fire_once()
+            else:
+                if self.should_reset():
+                    self.triggered = False
+            yield from Routines.Yield.wait(self.interval_ms)
+
+# ---------- Concrete events ----------
+class OnDeathEvent(Event):
+    def should_trigger(self) -> bool:
+        from Py4GWCoreLib import GLOBAL_CACHE  # local import!
+        return GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
+
+    def should_reset(self) -> bool:
+        from Py4GWCoreLib import GLOBAL_CACHE
+        return not GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
+
+class OnPartyDefeated(Event):
+    def should_trigger(self) -> bool:
+        from Py4GWCoreLib import GLOBAL_CACHE  # <- you were missing this import
+        return GLOBAL_CACHE.Party.IsPartyDefeated()
+
+    def should_reset(self) -> bool:
+        from Py4GWCoreLib import GLOBAL_CACHE
+        return not GLOBAL_CACHE.Party.IsPartyDefeated()
+    
+class OnPartyWipe(Event):
+    def should_trigger(self):
+        return Routines.Checks.Party.IsPartyWiped()
+    
+    def should_reset(self):
+        return not Routines.Checks.Party.IsPartyWiped()
+
+# ---------- Container ----------
+class Events:
+    """
+    Holds ready-made event instances and exposes tiny helpers
+    to start/stop them on your FSM.
+    """
+    def __init__(self, parent: "BotConfig"):
+        self.parent = parent
+        self.on_death = OnDeathEvent(parent, "OnDeathEvent", interval_ms=250)
+        self.on_party_defeated = OnPartyDefeated(parent, "OnPartyDefeatedEvent", interval_ms=250)
+        self.on_party_wipe = OnPartyWipe(parent, "OnPartyWipeEvent", interval_ms=250)
+
+    # Optional convenience: set callbacks
+    def set_on_death_callback(self, fn: Callable[[], None]) -> None:
+        self.on_death.set_callback(fn)
+
+    def set_on_party_defeated_callback(self, fn: Callable[[], None]) -> None:
+        self.on_party_defeated.set_callback(fn)
+        
+    def set_on_party_wipe_callback(self, fn: Callable[[], None]) -> None:
+        self.on_party_wipe.set_callback(fn)
+
+    # Start/stop all (names are arbitrary; use your FSM’s dedupe)
+    def start(self) -> None:
+        fsm = self.parent.FSM
+        fsm.AddManagedCoroutine("OnDeathEvent", self.on_death.run())
+        fsm.AddManagedCoroutine("OnPartyDefeatedEvent", self.on_party_defeated.run())
+        fsm.AddManagedCoroutine("OnPartyWipeEvent", self.on_party_wipe.run())
+
+    def stop(self) -> None:
+        fsm = self.parent.FSM
+        fsm.RemoveManagedCoroutine("OnDeathEvent")
+        fsm.RemoveManagedCoroutine("OnPartyDefeatedEvent")
+        fsm.RemoveManagedCoroutine("OnPartyWipeEvent")
+
+
 
 class UpkeepData:
     def __init__(self, parent: "BotConfig"):
@@ -306,6 +420,7 @@ class BotConfig:
         
         # Consumable maintainers (default: disabled) - by aC
         self.upkeep = UpkeepData(self)
+        self.events = Events(self)
 
 
 
@@ -457,6 +572,7 @@ class BottingHelpers:
             overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, color.to_color(), False)
             
     def auto_combat(self):
+        global auto_attack_timer, auto_attack_threshold, is_expired
         self.parent.config.auto_combat_handler.SetWeaponAttackAftercast()
 
         if not (Routines.Checks.Map.MapValid() and 
@@ -466,6 +582,10 @@ class BottingHelpers:
             yield from Routines.Yield.wait(100)
         else:
             self.parent.config.auto_combat_handler.HandleCombat()
+            #control vars
+            auto_attack_timer = self.parent.config.auto_combat_handler.auto_attack_timer.GetTimeElapsed()
+            auto_attack_threshold = self.parent.config.auto_combat_handler.auto_attack_timer.throttle_time
+            is_expired = self.parent.config.auto_combat_handler.auto_attack_timer.IsExpired()
         yield
 
     def upkeep_auto_combat(self):
@@ -769,8 +889,18 @@ class BottingHelpers:
         GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
         yield from Routines.Yield.wait(500)
 
+    @_yield_step(label="Resign", counter_key="SEND_CHAT_MESSAGE")
     def resign(self):
         yield from Routines.Yield.Player.Resign()
+        yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="SendChatMessage", counter_key="SEND_CHAT_MESSAGE")
+    def send_chat_message(self, channel: str, message: str):
+        yield from Routines.Yield.Player.SendChatMessage(channel, message)
+
+    @_yield_step(label="PrintMessageToConsole", counter_key="SEND_CHAT_MESSAGE")
+    def print_message_to_console(self, source:str, message: str):
+        yield from Routines.Yield.Player.PrintMessageToConsole(source, message)
 
 class Botting:
     def __init__(self, bot_name="DefaultBot"):
@@ -894,6 +1024,7 @@ class Botting:
         self.config.FSM.AddManagedCoroutine("keep_war_supplies",   H.upkeep_war_supplies())
         self.config.FSM.AddManagedCoroutine("keep_imp",           H.upkeep_imp())
         self.config.FSM.AddManagedCoroutine("keep_auto_combat",    H.upkeep_auto_combat())
+        self.config.events.start()
 
 
     def Start(self):
@@ -902,9 +1033,9 @@ class Botting:
         self._start_coroutines()
 
     def Stop(self):
-        self.config.fsm_running = False
         self.config.FSM.RemoveAllManagedCoroutines()
         self.config.FSM.stop()
+        self.config.fsm_running = False
 
     def StartAtStep(self, step_name: str) -> None:
         self.Stop()
@@ -1021,7 +1152,12 @@ class Botting:
         
     def Resign(self):
         self.helpers.resign()
-
+        
+    def SendChatMessage(self, channel: str, message: str):
+        self.helpers.send_chat_message(channel, message)
+        
+    def PrintMessageToConsole(self, source: str, message: str):
+        self.helpers.print_message_to_console(source, message)
 
 
 # ----------------------- BOT CONFIGURATION --------------------------------------------
@@ -1079,9 +1215,9 @@ def EquipSkillBar():
     elif profession == "Elementalist":
         yield from Routines.Yield.Skills.LoadSkillbar("OgdToO28FRYcZAAAAAAAAAAA",log=False)
     elif profession == "Ritualist":
-        yield from Routines.Yield.Skills.LoadSkillbar("OAej8JgHpMusvJAAAAAAAAAAAA",log=False)
+        yield from Routines.Yield.Skills.LoadSkillbar("OAej8JgGpNusvJAAAAAAAAAAAA",log=False)
     elif profession == "Assassin":
-        yield from Routines.Yield.Skills.LoadSkillbar("OwBj0NfyoJPsLDAAAAAAAAAA",log=False)
+        yield from Routines.Yield.Skills.LoadSkillbar("OwBj0VfyoJPsLDAAAAAAAAAA",log=False)
     yield from Routines.Yield.wait(500)
     
 def AddHenchmen():
@@ -1143,12 +1279,12 @@ def AddHenchmen():
         FIGHTER_ID = 3
         GLOBAL_CACHE.Party.Henchmen.AddHenchman(FIGHTER_ID)
         yield from Routines.Yield.wait(250)
-        CUTTHROAT_ID = 2
-        GLOBAL_CACHE.Party.Henchmen.AddHenchman(CUTTHROAT_ID)
-        yield from Routines.Yield.wait(250)
         EARTH_ID = 1
         GLOBAL_CACHE.Party.Henchmen.AddHenchman(EARTH_ID)
         yield from Routines.Yield.wait(250)
+        GRAVE_ID = 6
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(GRAVE_ID)
+        yield from Routines.Yield.wait(250) 
         SPIRIT_ID = 8
         GLOBAL_CACHE.Party.Henchmen.AddHenchman(SPIRIT_ID)
         yield from Routines.Yield.wait(250)
@@ -1455,6 +1591,7 @@ def ZenDaijunMission(bot: Botting):
     bot.MoveTo(4508, -1084)
     bot.MoveTo(528, 6271)
     bot.MoveTo(-9833, 7579)
+    #?
     bot.MoveTo(-12983, 2191)
     bot.MoveTo(-12362, -263)
     bot.MoveTo(-9813, -114)
@@ -1462,6 +1599,38 @@ def ZenDaijunMission(bot: Botting):
     bot.MoveTo(-7851, -1458)
     wait_condition = lambda: (Routines.Checks.Map.MapValid() and (GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor")))
     bot.WasteTimeUntilConditionMet(wait_condition)
+
+def jump_to_state(bot: Botting, state_name: str):
+    bot.config.FSM.jump_to_state_by_name(state_name)
+    yield from Routines.Yield.wait(100)
+
+def _FarmUntilLevel10(bot: Botting):
+    level = bot.config.live_data.Player.get("level")
+    if level < 10:
+        ConsoleLog("Farming until Level 10", f"current level: {level}")
+        yield from Routines.Yield.wait(100)
+        zen_daijun_map_id = 213
+        GLOBAL_CACHE.Party.LeaveParty()
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Map.Travel(zen_daijun_map_id)
+        yield from Routines.Yield.wait(1000)
+        
+        wait_of_map_load = yield from Routines.Yield.Map.WaitforMapLoad(zen_daijun_map_id)
+        if not wait_of_map_load:
+            Py4GW.Console.Log(MODULE_NAME, "Map load failed.", Py4GW.Console.MessageType.Error)
+            bot.helpers.on_unmanaged_fail()
+        yield from Routines.Yield.wait(1000)
+
+        state_name = "[H]Prepare for Zen Daijun Mission_22"
+        exec_fn = lambda: jump_to_state(bot, state_name)
+        bot.AddFSMCustomYieldState(exec_fn, f"Jump to {state_name}")
+    else:
+        ConsoleLog("Farming complete", f"current level: {level}")
+        yield from Routines.Yield.wait(100)
+        
+def FarmUntilLevel10(bot: Botting):
+    bot.AddHeaderStep("Farm Until Level 10")
+    bot.AddFSMCustomYieldState(_FarmUntilLevel10,"Farm Until Level 10")
 
 def AdvanceToMarketplace(bot: Botting):
     bot.AddHeaderStep("Advance To Marketplace")
@@ -1475,23 +1644,115 @@ def AdvanceToMarketplace(bot: Botting):
     bot.DialogAt(9955, 20033, 0x815D04)  # a masters burden
     bot.MoveTo(12003, 18529) 
     bot.WaitForMapLoad(target_map_name="The Marketplace")
-
-def FarmUntilLevel10(bot: Botting):
-    bot.AddHeaderStep("Farm Until Level 10")
+    
+def AdvanceToKainengCenter(bot: Botting):
+    bot.AddHeaderStep("Advance To Kaineng Center")
     PrepareForBattle(bot)
-    bot.MoveTo(11360, 15174)
-    bot.WaitForMapLoad(target_map_name="Wajjun Bazaar")
-    bot.MoveTo(6451, 14474)
-    bot.MoveTo(4122, 9766)
-    bot.MoveTo(385, 11297)
-    bot.MoveTo(2251, 15280)
-    bot.MoveTo(1352, 17728)
-    bot.WasteTimeUntilOOC()
-    if bot.config.live_data.Player.get("level") >= 10:
-        bot.config.FSM.jump_to_state_by_name("[H]Farm Until Level 10_25")
+    bot.MoveTo(16640,19882)
+    bot.WaitForMapLoad(target_map_name="Bukdek Byway")
+    bot.MoveTo(-10254,-1759)
+    bot.MoveTo(-10332,1442)
+    bot.MoveTo(-10965,9309)
+    bot.MoveTo(-9467,14207)
+    path_to_kc = [
+        (-8601.28, 17419.64),
+        (-6857.17, 19098.28),
+        (-6706,20388)
+    ]
+    bot.FollowPath(path_to_kc, "Follow Path to Kaineng Center")
+    bot.WasteTime(1000)
+    kc_id = 194
+    bot.WaitForMapLoad(target_map_id=kc_id)
+    
+def AdvanceToEOTN(bot: Botting):
+    bot.AddHeaderStep("Advance To Eye of the North")
+    bot.MoveTo(3742.08, -2087.97)
+    bot.DialogAt(3747.00, -2174.00, 0x833501)  # limitless monetary resources
+    PrepareForBattle(bot)
+    bot.MoveTo(3243, -4911)
+    bot.WaitForMapLoad(target_map_name="Bukdek Byway")
+    bot.MoveTo(-10066.81, 16547.19)
+    bot.DialogAt(-10103.00, 16493.00, 0x84)  # yes
+    tunnels_below_cantha_id = 692
+    bot.WaitForMapLoad(target_map_id=tunnels_below_cantha_id)
+    bot.MoveTo(16738.77, 3046.05)
+    bot.MoveTo(10968.19, 9623.72)
+    bot.MoveTo(3918.55, 10383.79)
+    bot.MoveTo(8435, 14378)
+    bot.MoveTo(10121,14434)
+    bot.WasteTime(3000)    
+    bot.MoveTo(4523.25, 15448.03)
+    bot.MoveTo(-43.80, 18365.45)
+    bot.MoveTo(-10234.92, 16691.96)
+    bot.MoveTo(-17917.68, 18480.57)
+    bot.MoveTo(-18775, 19097)
+    
+
+def on_death(bot: "Botting"):
+    print("I Died")
+
+def on_party_wipe_coroutine(bot: "Botting", target_name: str):
+    GLOBAL_CACHE.Player.SendChatCommand("resign")
+    yield from Routines.Yield.wait(6000)
+    fsm = bot.config.FSM
+    fsm.reset()
+    fsm.jump_to_state_by_name(target_name)
+
+def on_party_wipe(bot: "Botting"):
+    """
+    Clamp-jump to the nearest lower (or equal) waypoint when party is defeated.
+    Uses existing FSM API only:
+      - get_current_state_number()
+      - get_state_name_by_number(step_num)
+      - pause(), jump_to_state_by_name(), resume()
+    Returns True if a jump occurred.
+    """
+    print ("Party Wiped! Jumping to nearest waypoint...")
+    fsm = bot.config.FSM
+    current_step = fsm.get_current_state_number()
+
+    # Your distinct waypoints (as given)
+    ENTER_MINISTER_CHO_MISSION = 72
+    TAKE_WARNING_THE_TENGU_QUEST = 122
+    EXIT_TO_PANJIANG_PENINSULA = 189
+    EXIT_SEITUNG_HARBOR = 252
+    ENTER_ZEN_DAIJUN_MISSION = 279
+    FARM_UNTIL_LEVEL_10 = 336
+
+    waypoints = [
+        ENTER_MINISTER_CHO_MISSION,
+        TAKE_WARNING_THE_TENGU_QUEST,
+        EXIT_TO_PANJIANG_PENINSULA,
+        EXIT_SEITUNG_HARBOR,
+        ENTER_ZEN_DAIJUN_MISSION,
+        FARM_UNTIL_LEVEL_10,
+    ]
+
+    # nearest <= current; if none, bail (or pick the first—your call)
+    lower_or_equal = [w for w in waypoints if w <= current_step]
+    if not lower_or_equal:
+        return   # or: target_step = waypoints[0] to always jump somewhere
+
+    target_step = max(lower_or_equal)
+    target_name = fsm.get_state_name_by_number(target_step)
+    if not target_name:
+        return 
+
+    fsm.pause()
+    fsm.AddManagedCoroutine(f"{fsm.get_state_name_by_number(current_step)}_OPD", on_party_wipe_coroutine(bot, target_name))
+
+
+def InitializeBot(bot: Botting) -> None:
+    bot.AddHeaderStep("Initial Step")
+    # Add any initialization steps here
+    #condition = lambda: on_death(bot)
+    #bot.config.events.on_death.set_callback(condition)
+    condition = lambda: on_party_wipe(bot)
+    bot.config.events.on_party_defeated.set_callback(condition)
+    bot.config.events.on_party_wipe.set_callback(condition)
 
 def create_bot_routine(bot: Botting) -> None:
-    bot.AddHeaderStep("Initial Step")
+    InitializeBot(bot)
     ExitMonasteryOverlook(bot)
     ExitToCourtyard(bot)
     UnlockSecondaryProfession(bot)
@@ -1515,8 +1776,10 @@ def create_bot_routine(bot: Botting) -> None:
     GoToZenDaijun(bot)
     PrepareForZenDaijunMission(bot)
     ZenDaijunMission(bot)
-    AdvanceToMarketplace(bot)
     FarmUntilLevel10(bot)
+    AdvanceToMarketplace(bot)
+    AdvanceToKainengCenter(bot)
+    AdvanceToEOTN(bot)
     bot.AddHeaderStep("Final Step")
     bot.Stop()
 
@@ -1533,7 +1796,28 @@ def main():
         bot.Update()
         
         if PyImGui.begin("PathPlanner Test", PyImGui.WindowFlags.AlwaysAutoResize):
+
+            PyImGui.text("Bot is: " + ("Running" if bot.config.fsm_running else "Stopped"))
+            current_step = bot.config.FSM.get_current_state_number()
+            step_name = bot.config.FSM.get_state_name_by_number(current_step)
+            PyImGui.text(f"Current Step: {current_step} - {step_name}")
             
+            # --- find nearest header at or before current_step ---
+            fsm_steps_all = bot.config.FSM.get_state_names()
+            header_for_current = None
+            for i in range(current_step - 1, -1, -1):   # walk backwards
+                name = fsm_steps_all[i]
+                if name.startswith("[H]"):
+                    # clean the header formatting like you already do
+                    header_for_current = re.sub(r'^\[H\]\s*', '', name)
+                    header_for_current = re.sub(r'_(?:\[\d+\]|\d+)$', '', header_for_current)
+                    break
+
+            if header_for_current:
+                PyImGui.text(f"Current Header: {header_for_current}")
+            else:
+                PyImGui.text("Current Header: (none found)")
+
             if PyImGui.button("Start Botting"):
                 bot.Start()
 
@@ -1588,8 +1872,12 @@ def main():
                     bot.config.FSM.jump_to_state_by_name(fsm_steps_original[selected_step])
                     bot._start_coroutines()
 
+    
+            PyImGui.separator()
+            PyImGui.text(f"auto_attack_timer: {auto_attack_timer}")
+            PyImGui.text(f"auto_attack_threshold: {auto_attack_threshold}")
+            PyImGui.text(f"is_expired: {is_expired}")
 
-                            
             PyImGui.separator()
 
             bot.config.config_properties.draw_path.set_active(PyImGui.checkbox("Draw Path", bot.config.config_properties.draw_path.is_active()))

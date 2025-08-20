@@ -17,6 +17,8 @@ class Checks:
         @staticmethod
         def CanAct():
             from ..GlobalCache import GLOBAL_CACHE
+            if not Checks.Map.MapValid():
+                return False
             if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 return False
             if GLOBAL_CACHE.Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID()):
@@ -35,6 +37,8 @@ class Checks:
         @staticmethod
         def IsPartyMemberDead():
             from ..GlobalCache import GLOBAL_CACHE
+            if not Checks.Map.MapValid():
+                return False
             is_someone_dead = False
             players = GLOBAL_CACHE.Party.GetPlayers()
             henchmen = GLOBAL_CACHE.Party.GetHenchmen()
@@ -56,7 +60,36 @@ class Checks:
                     break
 
             return is_someone_dead
+        
+        @staticmethod
+        def IsPartyWiped():
+            from ..GlobalCache import GLOBAL_CACHE
+            if not Checks.Map.MapValid():
+                return False
+
+            all_dead = True
+            players = GLOBAL_CACHE.Party.GetPlayers()
+            henchmen = GLOBAL_CACHE.Party.GetHenchmen()
+            heroes = GLOBAL_CACHE.Party.GetHeroes()
             
+            for player in players:
+                agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number) 
+                if not GLOBAL_CACHE.Agent.IsDead(agent_id):
+                    all_dead = False
+                    break
+            
+            for henchman in henchmen:
+                if not GLOBAL_CACHE.Agent.IsDead(henchman.agent_id):
+                    all_dead = False
+                    break
+            
+            for hero in heroes:
+                if not GLOBAL_CACHE.Agent.IsDead(hero.agent_id):
+                    all_dead = False
+                    break
+
+            return all_dead
+
 #region Map
     class Map:
         @staticmethod
