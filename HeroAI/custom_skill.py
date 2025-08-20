@@ -7608,7 +7608,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Ancestors_Rage")
         skill.SkillType = SkillType.Skill.value
-        skill.TargetAllegiance = Skilltarget.Ally.value
+        skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
