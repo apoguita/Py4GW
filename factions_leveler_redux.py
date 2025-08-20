@@ -1223,7 +1223,8 @@ def EquipSkillBar():
 def AddHenchmen():
     party_size = bot.GetProperty("live_data.Map.max_party_size") or 0
     zen_daijun_map_id = 213
-    
+    kaineng_map_id = 194
+
     if party_size <= 4:
         HEALER_ID = 1
         GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
@@ -1290,6 +1291,50 @@ def AddHenchmen():
         yield from Routines.Yield.wait(250)
         HEALER_ID = 5
         GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
+        yield from Routines.Yield.wait(250)
+    elif GLOBAL_CACHE.Map.GetMapID() == kaineng_map_id:
+        warr1 = 2
+        warr2 = 10
+        ele = 4
+        ele2 = 8
+        necro = 7
+        monk = 9
+        ritu = 12
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(warr1)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(warr2)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(ele)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(ele2)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(necro)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(monk)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(ritu)
+        yield from Routines.Yield.wait(250)
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Boreal Station"):
+        warr1 = 7
+        warr2 = 9
+        necro =2
+        ele1 = 3
+        ele2 = 4
+        monk1 = 6
+        monk2 = 5
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(warr1)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(warr2)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(necro)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(ele1)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(ele2)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(monk1)
+        yield from Routines.Yield.wait(250)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(monk2)
         yield from Routines.Yield.wait(250)
     else:
         GLOBAL_CACHE.Party.Henchmen.AddHenchman(1)
@@ -1679,14 +1724,35 @@ def AdvanceToEOTN(bot: Botting):
     bot.MoveTo(10968.19, 9623.72)
     bot.MoveTo(3918.55, 10383.79)
     bot.MoveTo(8435, 14378)
-    bot.MoveTo(10121,14434)
-    bot.WasteTime(3000)    
+    bot.MoveTo(10134,16742)
+    bot.WasteTime(3000)
+    ConfigurePacifistEnv(bot)    
     bot.MoveTo(4523.25, 15448.03)
     bot.MoveTo(-43.80, 18365.45)
     bot.MoveTo(-10234.92, 16691.96)
     bot.MoveTo(-17917.68, 18480.57)
     bot.MoveTo(-18775, 19097)
-    
+    bot.WasteTime(3000)
+    bot.WaitForMapLoad(target_map_name="Boreal Station")
+
+def ExitBorealStation(bot: Botting):
+    bot.AddHeaderStep("Exit Boreal Station")
+    PrepareForBattle(bot)
+    bot.MoveTo(4684, -27869)
+    bot.WaitForMapLoad(target_map_name="Ice Cliff Chasms")
+
+def TraverseToEOTNOutpost(bot: Botting):
+    bot.AddHeaderStep("Traverse To Eye of the North Outpost")
+    bot.MoveTo(3579.07, -22007.27)
+    bot.WasteTime(15000)
+    bot.DialogAt(3537.00, -21937.00, 0x839104)
+    bot.MoveTo(3743.31, -15862.36)
+    bot.MoveTo(8267.89, -12334.58)
+    bot.MoveTo(3607.21, -6937.32)
+    bot.MoveTo(2557.23, -275.97)
+    eotn_map_id =642
+    bot.WaitForMapLoad(target_map_id=eotn_map_id)
+
 
 def on_death(bot: "Botting"):
     print("I Died")
@@ -1780,6 +1846,8 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToMarketplace(bot)
     AdvanceToKainengCenter(bot)
     AdvanceToEOTN(bot)
+    ExitBorealStation(bot)
+    TraverseToEOTNOutpost(bot)
     bot.AddHeaderStep("Final Step")
     bot.Stop()
 
