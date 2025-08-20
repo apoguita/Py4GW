@@ -74,6 +74,31 @@ class Yield:
         def Resign():
             GLOBAL_CACHE.Player.SendChatCommand("resign")
             yield from Yield.wait(250)
+            
+        @staticmethod
+        def SendChatMessage(channel:str, message:str, log=False):
+            """
+            Purpose: Send a chat message to the specified channel.
+            Args:
+                channel (str): The channel to send the message to.
+                message (str): The message to send.
+                log (bool) Optional: Whether to log the action. Default is True.
+            Returns: None
+            """
+            
+            GLOBAL_CACHE.Player.SendChat(channel, message)
+            yield from Yield.wait(300)
+            
+        @staticmethod
+        def PrintMessageToConsole(source:str, message: str):
+            """
+            Purpose: Print a message to the console.
+            Args:
+                message (str): The message to print.
+            Returns: None
+            """
+            ConsoleLog(source, message, Console.MessageType.Info)
+            yield from Yield.wait(100)
 
 #region Movement
     class Movement:
@@ -1111,7 +1136,7 @@ class Yield:
                     break
 
                 GLOBAL_CACHE.Inventory.UseItem(item_id)
-                yield from Yield.wait(500)
+                yield from Yield.wait(750)
                 
             yield from Yield.wait(500)
 

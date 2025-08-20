@@ -1462,6 +1462,7 @@ class FSM:
         self.on_complete = None
         self.managed_coroutines = []   # already added for self-managed coroutines
         self._named_managed = {}       # key -> generator instance
+        self.delay_timer = ThrottledTimer()
 
     class State:
         def __init__(self, id, name=None, execute_fn=None, exit_condition=None, transition_delay_ms=0, run_once=True, on_enter=None, on_exit=None):
@@ -1941,10 +1942,6 @@ class FSM:
             return False
 
     def update(self):
-        if self.paused:
-            if self.log_actions:
-                ConsoleLog("FSM", f"{self.name}: FSM is paused.", Py4GW.Console.MessageType.Warning)
-            return
         
         if not self.current_state:
             if self.log_actions:
@@ -1969,6 +1966,10 @@ class FSM:
                 except ValueError:
                     pass
                 
+        if self.paused:
+            if self.log_actions:
+                ConsoleLog("FSM", f"{self.name}: FSM is paused.", Py4GW.Console.MessageType.Warning)
+            return
         
 
         if self.log_actions:
@@ -2047,6 +2048,12 @@ class FSM:
                 return idx + 1
         return 0
     
+    def get_state_name_by_number(self, state_number):
+        """Get the state name by its number (index)."""
+        if 1 <= state_number <= len(self.states):
+            return self.states[state_number - 1].name
+        return None
+
     def get_current_step_name(self):
         """Get the name of the current step (state) in the FSM."""
         if self.current_state is None:

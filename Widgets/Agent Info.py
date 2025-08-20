@@ -64,6 +64,9 @@ def DrawMainWindow():
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
                 PyImGui.text("Position")
+                PyImGui.same_line(0,-1)
+                if PyImGui.button("Copy to Clipboard"):
+                    PyImGui.set_clipboard_text(f"({agent.x:.2f}, {agent.y:.2f})")
                 PyImGui.table_next_column()
                 PyImGui.text(f"X: {agent.x:.2f}")
                 PyImGui.table_next_column()

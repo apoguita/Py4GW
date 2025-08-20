@@ -146,6 +146,7 @@ class SkillManager:
             self.stay_alert_timer = ThrottledTimer(2500)
             self.game_throttle_timer = ThrottledTimer(75)
             weapon_aftercast = self.GetWeaponAttackAftercast()
+            self.weapon_aftercast_initialized = False
             self.auto_attack_timer = ThrottledTimer(weapon_aftercast)
             self.ping_handler = Py4GW.PingHandler()
             self.in_casting_routine = False
@@ -169,8 +170,12 @@ class SkillManager:
                     self.expertise_level = attribute.level
                     
         def SetWeaponAttackAftercast(self):
-            weapon_aftercast = self.GetWeaponAttackAftercast()
-            self.auto_attack_timer = ThrottledTimer(weapon_aftercast)
+            if not self.weapon_aftercast_initialized:
+                weapon_aftercast = self.GetWeaponAttackAftercast()
+                self.auto_attack_timer = ThrottledTimer(weapon_aftercast)
+                self.weapon_aftercast_initialized = True
+            if not Routines.Checks.Map.MapValid():
+                self.weapon_aftercast_initialized = False
 
         def SetAggressiveEnemiesOnly(self, state, log_action=False):
             self.aggressive_enemies_only = state
@@ -361,6 +366,7 @@ class SkillManager:
             if GLOBAL_CACHE.Agent.IsValid(target_id):
                 GLOBAL_CACHE.Player.ChangeTarget(target_id)
                 GLOBAL_CACHE.Player.Interact(target_id, False)
+                
             
         def GetPartyTarget(self):
             party_target = self.GetPartyTargetID()
@@ -1101,51 +1107,48 @@ class SkillManager:
                 
         def GetWeaponAttackAftercast(self):
             """
-            Returns the attack speed of the current weapon.
+            Returns the attack speed of the current weapon in ms (int).
+            Falls back to safe defaults if cache data is invalid.
             """
-            weapon_type,_ = GLOBAL_CACHE.Agent.GetWeaponType(GLOBAL_CACHE.Player.GetAgentID())
-            player = GLOBAL_CACHE.Agent.GetAgentByID(GLOBAL_CACHE.Player.GetAgentID())
-            if player is None:
-                return 0
             
-            attack_speed = player.living_agent.weapon_attack_speed
-            attack_speed_modifier = player.living_agent.attack_speed_modifier if player.living_agent.attack_speed_modifier != 0 else 1.0
-            
+            player_id = GLOBAL_CACHE.Player.GetAgentID()
+            weapon_type, _ = GLOBAL_CACHE.Agent.GetWeaponType(player_id)
+            player = GLOBAL_CACHE.Agent.GetAgentByID(player_id)
+
+            if player is None or not hasattr(player, "living_agent"):
+                return 1750  # default ms if no player
+
+            attack_speed = player.living_agent.weapon_attack_speed or 0
+            attack_speed_modifier = player.living_agent.attack_speed_modifier or 1.0
+            if attack_speed_modifier == 0:
+                attack_speed_modifier = 1.0
+
+            # fallback if cache didn’t give us speed
             if attack_speed == 0:
                 match weapon_type:
-                    case Weapon.Bow.value:
-                        attack_speed = 2.475
-                    case Weapon.Axe.value:
-                        attack_speed = 1.33
-                    case Weapon.Hammer.value:
-                        attack_speed = 1.75
-                    case Weapon.Daggers.value:
-                        attack_speed = 1.33
-                    case Weapon.Scythe.value:
-                        attack_speed = 1.5
-                    case Weapon.Spear.value:
-                        attack_speed = 1.5
-                    case Weapon.Sword.value:
-                        attack_speed = 1.33
-                    case Weapon.Scepter.value:
-                        attack_speed = 1.75
-                    case Weapon.Scepter2.value:
-                        attack_speed = 1.75
-                    case Weapon.Wand.value:
-                        attack_speed = 1.75
-                    case Weapon.Staff1.value:
-                        attack_speed = 1.75
-                    case Weapon.Staff.value:
-                        attack_speed = 1.75
-                    case Weapon.Staff2.value:
-                        attack_speed = 1.75
-                    case Weapon.Staff3.value:
-                        attack_speed = 1.75
-                    case _:
-                        attack_speed = 1.75
+                    case Weapon.Bow.value:       attack_speed = 2.475
+                    case Weapon.Axe.value:       attack_speed = 1.33
+                    case Weapon.Hammer.value:    attack_speed = 1.75
+                    case Weapon.Daggers.value:   attack_speed = 1.33
+                    case Weapon.Scythe.value:    attack_speed = 1.5
+                    case Weapon.Spear.value:     attack_speed = 1.5
+                    case Weapon.Sword.value:     attack_speed = 1.33
+                    case Weapon.Scepter.value:   attack_speed = 1.75
+                    case Weapon.Scepter2.value:  attack_speed = 1.75
+                    case Weapon.Wand.value:      attack_speed = 1.75
+                    case Weapon.Staff1.value:    attack_speed = 1.75
+                    case Weapon.Staff.value:     attack_speed = 1.75
+                    case Weapon.Staff2.value:    attack_speed = 1.75
+                    case Weapon.Staff3.value:    attack_speed = 1.75
+                    case _:                      attack_speed = 1.75  # safe default
+
+            # final clamp just in case nothing worked
+            if attack_speed <= 0:
+                attack_speed = 1.75
 
             return int((attack_speed / attack_speed_modifier) * 1000)
-        
+
+                
         def _HandleCombat(self,ooc=False):
             """
             tries to Execute the next skill in the skill order.
@@ -1194,7 +1197,7 @@ class SkillManager:
             
             skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
             if skill_type == SkillType.Attack.value:
-                self.aftercast += self.GetWeaponAttackAftercast()
+                self.aftercast = self.GetWeaponAttackAftercast()
                 
                 
             self.aftercast += self.ping_handler.GetCurrentPing()
@@ -1215,19 +1218,20 @@ class SkillManager:
                 self.PrioritizeSkills()
                 if not self.InAggro():
                     if self._HandleCombat(ooc=True):
-                        self.auto_attack_timer.Reset()
+                        #self.auto_attack_timer.Reset()
+                        pass
                     return
                    
 
                 if self._HandleCombat(ooc=False):
-                    self.auto_attack_timer.Reset()
+                    #self.auto_attack_timer.Reset()
                     return
                 
                 if self.auto_attack_timer.IsExpired():
                     if (
                         not GLOBAL_CACHE.Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()) and
-                        not GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()) and
-                        not GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())    
+                        not GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()) #and
+                        #not GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())    
                     ):
                         self.ChooseTarget()
 
