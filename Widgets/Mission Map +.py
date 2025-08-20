@@ -219,6 +219,40 @@ def RawGwinchToPixels(gwinch_value: float, zoom:float, zoom_offset:float, scale_
     pixels_per_gwinch = (scale_x * (zoom + zoom_offset)) / GWINCHES
     return gwinch_value * pixels_per_gwinch
 
+def FloatingCoordsStrip(x, y, last_x, last_y, color, width=None, margin=8, label="Cords"):
+    # place just above the bottom edge with a small margin
+    win_x = x + margin
+    win_y = y + 15 - margin
+    PyImGui.set_next_window_pos(win_x, win_y)
+    if width is not None:
+        PyImGui.set_next_window_size(width - (margin * 2), 25)
+
+    flags = (PyImGui.WindowFlags.NoCollapse |
+             PyImGui.WindowFlags.NoTitleBar |
+             PyImGui.WindowFlags.NoScrollbar |
+             PyImGui.WindowFlags.NoMove |
+             PyImGui.WindowFlags.AlwaysAutoResize |
+             PyImGui.WindowFlags.NoBackground)
+
+    # clean, overlay look
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 4.0, 4.0)
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 2.0, 2.0)
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
+    PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0, 0, 0, 0))
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, color.to_tuple())
+
+    if PyImGui.begin("##mm_coords_strip", flags):
+        if PyImGui.button("Copy"):
+            PyImGui.set_clipboard_text(f"{int(last_x)}, {int(last_y)}")
+        if PyImGui.is_item_hovered():
+            ImGui.show_tooltip("Copy the last clicked coordinates.")
+        PyImGui.same_line(0, 6)
+        PyImGui.text(f"{label}: ({int(last_x)}, {int(last_y)})")
+    PyImGui.end()
+
+    PyImGui.pop_style_color(2)
+    PyImGui.pop_style_var(3)
+
 #endregion
 #region MARKERS
 class Shape:
@@ -732,11 +766,23 @@ class MissionMap:
                                                     self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
                                                     self.mission_map_screen_center_x, self.mission_map_screen_center_y)
         
-        click_x, click_y = 0,0 #Map.MissionMap.GetLastClickCoords() #this is a placeholder
-        self.last_click_x, self.last_click_y = RawScreenToRawGamePos(click_x, click_y, self.zoom, self.mega_zoom,
-                                                                self.left_bound, self.top_bound, self.boundaries,
-                                                                self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
-                                                                self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+        # aC  ---
+        io = PyImGui.get_io()
+        mx, my = io.mouse_pos_x, io.mouse_pos_y   # screen coords
+
+        LEFT = 0
+        if PyImGui.is_mouse_clicked(LEFT) and not io.want_capture_mouse:
+            if self.left <= mx <= self.right and self.top <= my <= self.bottom:
+                gx, gy = RawScreenToRawGamePos(
+                    mx, my,
+                    self.zoom, self.mega_zoom,
+                    self.left_bound, self.top_bound, self.boundaries,
+                    self.pan_offset_x, self.pan_offset_y,
+                    self.scale_x, self.scale_y,
+                    self.mission_map_screen_center_x, self.mission_map_screen_center_y
+                )
+                self.last_click_x, self.last_click_y = gx, gy
+        # aC  ---
 
         self.renderer.world_space.set_world_space(True)
         self.mega_zoom_renderer.world_space.set_world_space(True)
@@ -997,6 +1043,16 @@ def main():
         if Map.MissionMap.IsWindowOpen():
             mission_map.update()
             DrawFrame()
+            FloatingCoordsStrip(
+                mission_map.left,
+                mission_map.top,
+                mission_map.last_click_x,
+                mission_map.last_click_y,
+                Color(255, 255, 255, 255),
+                width=mission_map.width,
+                margin=8,
+                label="Cords"
+            )
             if mission_map.zoom >= 3.5:
                     mission_map.mega_zoom = FloatingSlider("Mega Zoom", mission_map.mega_zoom, mission_map.left, mission_map.bottom-27, 0.0, 15.0, Color(255, 255, 255, 255))
             else:

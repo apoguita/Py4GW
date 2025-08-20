@@ -236,7 +236,7 @@ class NavMesh:
                           p1: Tuple[float, float], 
                           p2: Tuple[float, float], 
                           margin: float = 100, 
-                          step_dist: float = 200.0) -> bool:
+                          step_dist: float = 500.0) -> bool:
         
         total_dist = math.dist(p1, p2)
         steps = int(total_dist / step_dist) + 1
@@ -271,7 +271,7 @@ class NavMesh:
     def smooth_path_by_los(self, 
                            path: List[Tuple[float, float]],
                            margin: float = 100,
-                           step_dist: float = 200.0) -> List[Tuple[float, float]]:
+                           step_dist: float = 500.0) -> List[Tuple[float, float]]:
         if len(path) <= 2:
             return path
 
@@ -409,7 +409,7 @@ def chaikin_smooth_path(points: List[Tuple[float, float]], iterations: int = 1) 
         points = new_points
     return points
 
-def densify_path2d(points: List[Tuple[float, float]], threshold: float = 1000.0) -> List[Tuple[float, float]]:
+def densify_path2d(points: List[Tuple[float, float]], threshold: float = 500.0) -> List[Tuple[float, float]]:
     if threshold <= 0 or len(points) <= 1:
         return points.copy()
 
@@ -587,10 +587,20 @@ class AutoPathing:
                  goal: Tuple[float, float, float],
                  smooth_by_los: bool = True,
                  margin: float = 100,
-                 step_dist: float = 200.0,
+                 step_dist: float = 500.0,
                  smooth_by_chaikin: bool = False,
                  chaikin_iterations: int = 1):
         from . import Routines
+        
+        def _prepend_start(path2d: list[tuple[float, float]], sx: float, sy: float, tol: float = 1.0):
+            if not path2d:
+                path2d.insert(0, (sx, sy))
+                return path2d
+            dx = path2d[0][0] - sx
+            dy = path2d[0][1] - sy
+            if dx*dx + dy*dy > tol*tol:
+                path2d.insert(0, (sx, sy))
+            return path2d
 
         map_id = PyMap.PyMap().map_id.ToInt()
         group_key = self._get_group_key(map_id)
@@ -611,10 +621,12 @@ class AutoPathing:
                 raw_path = path_planner.get_path()
                 path2d = [(pt[0], pt[1]) for pt in raw_path]
                 
+                path2d = _prepend_start(path2d, start[0], start[1])
+                
                 if smooth_by_chaikin:
                     path2d = chaikin_smooth_path(path2d, chaikin_iterations)
-                        
-                path2d = densify_path2d(path2d, 2500.0)  # split long hops into ≤1000
+
+                path2d = densify_path2d(path2d)  # split long hops into ≤750
                 return [(x, y, start[2]) for (x, y) in path2d]
             
             elif status == PyPathing.PathStatus.Failed:
@@ -638,6 +650,7 @@ class AutoPathing:
         if success:
             raw_path = astar.get_path()
             yield
+            raw_path = _prepend_start(raw_path, start[0], start[1])
             if smooth_by_los:
                 smoothed = navmesh.smooth_path_by_los(raw_path, margin, step_dist)
             else:
@@ -645,9 +658,9 @@ class AutoPathing:
                 
             if smooth_by_chaikin:
                 smoothed = chaikin_smooth_path(smoothed, chaikin_iterations)
-                
-            path2d = densify_path2d(smoothed, 2500.0)  # split long hops into ≤1000
-                
+
+            path2d = densify_path2d(smoothed)  # split long hops into ≤750
+
             return [(x, y, start[2]) for (x, y) in path2d]
 
         return []
@@ -655,7 +668,7 @@ class AutoPathing:
     def get_path_to(self, x: float, y: float,
                     smooth_by_los: bool = True,
                     margin: float = 100,
-                    step_dist: float = 200.0,
+                    step_dist: float = 500.0,
                     smooth_by_chaikin: bool = False,
                     chaikin_iterations: int = 1):
         import PyPlayer
