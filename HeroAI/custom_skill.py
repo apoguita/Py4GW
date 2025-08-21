@@ -2753,7 +2753,8 @@ class CustomSkillClass:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Aura_of_Faith")
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Ally.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.Healing.value
+        skill.Conditions.LessLife = 0.75
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -7313,6 +7314,7 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsMoving = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -7608,7 +7610,7 @@ class CustomSkillClass:
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Ancestors_Rage")
         skill.SkillType = SkillType.Skill.value
-        skill.TargetAllegiance = Skilltarget.Ally.value
+        skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
