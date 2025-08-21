@@ -7773,6 +7773,7 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.EnergyBuff.value
         skill.Conditions.LessEnergy = 0.5
+        skill.Conditions.RequiresSpiritInEarshot = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
