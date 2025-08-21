@@ -1,3 +1,4 @@
+from enum import Enum
 import math
 from typing import Optional, overload
 from unittest import case
@@ -149,8 +150,6 @@ def undo_button(label, width : float = 0, height: float = 25) -> bool:
 
     return clicked
 
-Childs : dict[str, tuple[float, float]] = {}
-
 @staticmethod
 def begin_tab_item(label: str, popen: bool | None = None, flags:int = 0) -> bool:
     style = ImGui.get_style()
@@ -276,6 +275,12 @@ def begin_child(id : str, size : tuple[float, float] = (0, 0), border: bool = Fa
     
     match(style.Theme):
         case Style.StyleTheme.Guild_Wars:
+            
+            ##get parent window size and screen rect
+            parent_window_size = PyImGui.get_window_size()
+            parent_window_pos = PyImGui.get_window_pos()
+            window_rect = (parent_window_pos[0], parent_window_pos[1], parent_window_pos[0] + parent_window_size[0], parent_window_pos[1] + parent_window_size[1])
+
             PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarBg, (0, 0, 0, 0))
             PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrab, (0, 0, 0, 0))
             PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrabActive, (0, 0, 0, 0))
@@ -283,10 +288,25 @@ def begin_child(id : str, size : tuple[float, float] = (0, 0), border: bool = Fa
             open = PyImGui.begin_child(id, size, border, flags)
             PyImGui.pop_style_color(4)
             
-            forced_scroll_bar = int(int(flags) & int(PyImGui.WindowFlags.AlwaysVerticalScrollbar)) != 0
+            has_vertical_scroll_bar = int(int(flags) & int(PyImGui.WindowFlags.AlwaysVerticalScrollbar)) != 0 or PyImGui.get_scroll_max_y() > 0
+            has_horizontal_scroll_bar = int(int(flags) & int(PyImGui.WindowFlags.AlwaysHorizontalScrollbar)) != 0 or PyImGui.get_scroll_max_x() > 0
 
-            draw_vertical_scroll_bar(style.ScrollbarSize.value1, forced_scroll_bar)
+            vertical_window_rect = (
+                parent_window_pos[0], 
+                parent_window_pos[1],
+                parent_window_pos[0] + parent_window_size[0],
+                parent_window_pos[1] + parent_window_size[1]
+            )
             
+            horizontal_window_rect = (
+                parent_window_pos[0], 
+                parent_window_pos[1],
+                parent_window_pos[0] + parent_window_size[0] - (style.ScrollbarSize.value1 if has_vertical_scroll_bar else 0),
+                parent_window_pos[1] + parent_window_size[1]
+            )
+
+            draw_vertical_scroll_bar(style.ScrollbarSize.value1, has_vertical_scroll_bar, vertical_window_rect)
+            draw_horizontal_scroll_bar(style.ScrollbarSize.value1, has_horizontal_scroll_bar, horizontal_window_rect)
 
         case _:
             open = PyImGui.begin_child(id, size, border, flags)
@@ -296,32 +316,28 @@ def begin_child(id : str, size : tuple[float, float] = (0, 0), border: bool = Fa
 @staticmethod
 def end_child():
     PyImGui.end_child()
-    
-@staticmethod 
-def draw_vertical_scroll_bar(scroll_bar_size : float, force_scroll_bar : bool = False):
+
+@staticmethod
+def draw_vertical_scroll_bar(scroll_bar_size : float, force_scroll_bar : bool = False, window_rect: Optional[tuple[float, float, float, float]] = None):
     scroll_max_x = PyImGui.get_scroll_max_x()
     scroll_max_y = PyImGui.get_scroll_max_y()
     scroll_x = PyImGui.get_scroll_x()
     scroll_y = PyImGui.get_scroll_y()
+
+    parent_window_size = PyImGui.get_window_size()
+    parent_window_pos = PyImGui.get_window_pos()
+    window_rect = window_rect or (parent_window_pos[0], parent_window_pos[1], parent_window_pos[0] + parent_window_size[0], parent_window_pos[1] + parent_window_size[1])
     
     if force_scroll_bar or scroll_max_y > 0:
         visible_size_y = PyImGui.get_window_height()
-        content_max_size = PyImGui.get_content_region_max()
         item_rect_min = PyImGui.get_item_rect_min()
         item_rect_max = PyImGui.get_item_rect_max()
-        win_pos = PyImGui.get_window_pos()
-        content_max = PyImGui.get_window_content_region_max()
 
-        root_width  = content_max[0] + win_pos[0]
-        root_height = content_max[1] + win_pos[1]
-
-        root_pos = (win_pos[0], win_pos[1])
-        root_size = (root_width - win_pos[0], root_height - win_pos[1])
         window_clip = (
-            root_pos[0],
-            root_pos[1],
-            root_size[0],
-            root_size[1]
+            window_rect[0],
+            window_rect[1],
+            window_rect[2] - window_rect[0],
+            window_rect[3] - window_rect[1]
         )
         
         scroll_bar_rect = (item_rect_max[0] - scroll_bar_size, item_rect_min[1], item_rect_max[0], item_rect_min[1] + visible_size_y)
@@ -344,21 +360,14 @@ def draw_vertical_scroll_bar(scroll_bar_size : float, force_scroll_bar : bool = 
             thumb_offset = (scroll_y / scroll_max_y) * (track_height - thumb_height)
             
         scroll_grab_rect = (scroll_bar_rect[0], scroll_bar_rect[1] + thumb_offset, scroll_bar_rect[2], scroll_bar_rect[1] + thumb_offset + thumb_height)
-
-        PyImGui.push_clip_rect(
-            scroll_bar_rect[0],
-            scroll_bar_rect[1] - 5,
-            scroll_bar_rect[2] + scroll_bar_size,
-            scroll_bar_rect[3] + 5,
-            False)
         
-        # PyImGui.push_clip_rect(
-        #     window_clip[0],
-        #     window_clip[1],
-        #     window_clip[2],
-        #     window_clip[3],
-        #     False  # intersect with current clip rect (safe, window always bigger than content)
-        # )
+        PyImGui.push_clip_rect(
+            window_clip[0],
+            window_clip[1] - 5,
+            window_clip[2],
+            window_clip[3] + 10,
+            False  # intersect with current clip rect (safe, window always bigger than content)
+        )
             
         GameTextures.Scroll_Bg.value.draw_in_drawlist(
             scroll_bar_rect[0],
@@ -404,6 +413,142 @@ def draw_vertical_scroll_bar(scroll_bar_size : float, force_scroll_bar : bool = 
         # ConsoleLog(module_name, f"{id} Scroll Values: X={scroll_x}, Y={scroll_y}, MaxX={scroll_max_x}, MaxY={scroll_max_y}")
         # ConsoleLog(module_name, f"Draw ScrollRegion {scroll_bar_rect}")
 
+class GameTextures2(Enum): 
+    RightButton = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_left_right.png"),
+        texture_size=(64, 16),
+        size=(14, 16),
+        normal=(1, 0)
+    )
+    
+    LeftButton = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_left_right.png"),
+        texture_size=(64, 16),
+        size=(14, 16),
+        normal = (17, 0),
+        active = (49, 0),
+    )
+    
+    Horizontal_ScrollGrab_Top = SplitTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scrollgrab.png"),
+        texture_size=(16, 16),
+        left=(0, 0, 5, 7),
+        mid=(5, 0, 10, 7),
+        right=(10, 0, 16, 7),   
+    )
+    
+    Horizontal_ScrollGrab_Middle = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scrollgrab.png"),
+        texture_size=(16, 16),
+        size=(16, 2),
+        normal=(0, 7)
+    )
+
+    Horizontal_ScrollGrab_Bottom = SplitTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scrollgrab.png"),
+        texture_size=(16, 16),
+        left=(0, 9, 5, 16),
+        mid=(5, 9, 10, 16),
+        right=(10, 9, 16, 16),    
+    )   
+    
+    Horizontal_Scroll_Bg = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scroll_background.png"),
+        texture_size=(16, 16),
+        size=(16, 16),
+        normal=(0, 0)
+    )                         
+
+@staticmethod
+def draw_horizontal_scroll_bar(scroll_bar_size: float, force_scroll_bar: bool = False, window_rect: Optional[tuple[float, float, float, float]] = None):
+    scroll_max_x = PyImGui.get_scroll_max_x()
+    scroll_max_y = PyImGui.get_scroll_max_y()
+    scroll_x = PyImGui.get_scroll_x()
+    scroll_y = PyImGui.get_scroll_y()
+
+    parent_window_size = PyImGui.get_window_size()
+    parent_window_pos = PyImGui.get_window_pos()
+    window_rect = window_rect or (parent_window_pos[0], parent_window_pos[1], parent_window_pos[0] + parent_window_size[0], parent_window_pos[1] + parent_window_size[1])
+    
+    if force_scroll_bar or scroll_max_x > 0:
+        visible_size_x = PyImGui.get_window_width()
+        visible_size_y = PyImGui.get_window_height()
+        item_rect_min = PyImGui.get_item_rect_min()
+        item_rect_max = PyImGui.get_item_rect_max()
+
+        window_clip = (
+            window_rect[0],
+            window_rect[1],
+            window_rect[2] - window_rect[0],
+            window_rect[3] - window_rect[1]
+        )
+        
+        scroll_bar_rect = (
+            item_rect_min[0], 
+            item_rect_min[1] + visible_size_y - scroll_bar_size,
+            item_rect_min[0] + visible_size_x - (scroll_bar_size + 10 if scroll_max_y > 0 else 0), 
+            item_rect_min[1] + visible_size_y + scroll_bar_size
+            )
+
+        track_width = scroll_bar_rect[2] - scroll_bar_rect[0]
+        thumb_min = 20.0
+        
+        if scroll_max_x > 0:
+            thumb_width = (visible_size_x * visible_size_x) / (visible_size_x + scroll_max_x)
+            thumb_width = max(thumb_width, thumb_min)
+        else:
+            thumb_width = visible_size_x   # all content fits, thumb covers track
+            
+        # Thumb size (clamped)
+        thumb_width = max(thumb_width, thumb_min)
+        
+        # Thumb offset
+        thumb_offset = 0
+        if scroll_max_x > 0:
+            thumb_offset = (scroll_x / scroll_max_x) * (track_width - thumb_width)
+
+        scroll_grab_rect = (
+            scroll_bar_rect[0] + thumb_offset,
+            scroll_bar_rect[1],
+            thumb_width,
+            scroll_bar_rect[3] - scroll_bar_rect[1]
+        )
+
+        PyImGui.push_clip_rect(
+            window_clip[0],
+            window_clip[1] - 5,
+            window_clip[2],
+            window_clip[3] + 10,
+            False  # intersect with current clip rect (safe, window always bigger than content)
+        )
+            
+        GameTextures2.Horizontal_Scroll_Bg.value.draw_in_drawlist(
+            scroll_bar_rect[0],
+            scroll_bar_rect[1] + 5,
+            (scroll_bar_rect[2] - scroll_bar_rect[0], scroll_bar_rect[3] - scroll_bar_rect[1] - 10),
+        )
+        
+        GameTextures2.Horizontal_ScrollGrab_Top.value.draw_in_drawlist(
+            scroll_grab_rect[0], 
+            scroll_grab_rect[1], 
+            (scroll_grab_rect[2], 7),
+        )
+        
+        GameTextures2.Horizontal_ScrollGrab_Bottom.value.draw_in_drawlist(
+            scroll_grab_rect[0], 
+            scroll_grab_rect[3] - scroll_bar_size, 
+            (scroll_grab_rect[2], 7),
+            tint=(255,0,0,255)
+        )
+        
+        # GameTextures2.Horizontal_ScrollGrab_Middle.value.draw_in_drawlist(
+        #     scroll_grab_rect[0],
+        #     scroll_grab_rect[1],
+        #     (scroll_grab_rect[2], scroll_grab_rect[3])
+        # )
+
+        PyImGui.pop_clip_rect()
+
 @staticmethod
 def begin_table(id: str, columns: int, flags: int = PyImGui.TableFlags.NoFlag, width: float = 0, height: float = 0) -> bool:
     style = ImGui.get_style()
@@ -420,7 +565,8 @@ def begin_table(id: str, columns: int, flags: int = PyImGui.TableFlags.NoFlag, w
             PyImGui.pop_style_color(1)
                     
             scroll_bar_size = style.ScrollbarSize.value1
-            draw_vertical_scroll_bar(scroll_bar_size)            
+            draw_vertical_scroll_bar(scroll_bar_size)
+            draw_horizontal_scroll_bar(scroll_bar_size)            
 
         case _:
             opened = PyImGui.begin_table(id, columns, flags, width, height)
@@ -588,9 +734,10 @@ def DrawWindow():
                         column_width = 0
                         item_width = 0
 
-                        if begin_table("Control Preview", 2, PyImGui.TableFlags.ScrollY):
+                        PyImGui.push_item_width(150)
+                        if begin_table("Control Preview", 2, PyImGui.TableFlags.ScrollX | PyImGui.TableFlags.ScrollY, 250):
                             PyImGui.table_setup_column("Control", PyImGui.TableColumnFlags.WidthFixed, 150)
-                            PyImGui.table_setup_column("Preview", PyImGui.TableColumnFlags.WidthStretch)
+                            PyImGui.table_setup_column("Preview", PyImGui.TableColumnFlags.WidthFixed, 150)
                             
                             PyImGui.table_next_row()
                             PyImGui.table_next_column()
@@ -715,7 +862,7 @@ def DrawWindow():
                                 ImGui.end_tab_bar()
 
                             end_table()
-                            
+                        PyImGui.pop_item_width()
                     ImGui.end_tab_item()                
                 ImGui.end_tab_bar()
                 
