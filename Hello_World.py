@@ -7,14 +7,15 @@ import PyImGui
 
 
 selected_step = 0
-#dialog = 0x85
-dialog = 0x813D0E # unlock secondary asdsasin
+
+#dialog = 0x0000008A #get bow
+dialog = 0x63E #enter quest
 def main():
     global selected_step
 
     if PyImGui.begin("PathPlanner Test", PyImGui.WindowFlags.AlwaysAutoResize):
         
-        if PyImGui.button("Send Dialog"):
+        if PyImGui.button("interact"):
             GLOBAL_CACHE.Player.SendDialog(dialog)
             
 
