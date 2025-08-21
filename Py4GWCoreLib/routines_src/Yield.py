@@ -216,6 +216,17 @@ class Yield:
             if log:
                 ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
             return True
+        
+        @staticmethod
+        def IsSkillIdUsable(skill_id: int):
+            from .Checks import Checks
+
+            if not GLOBAL_CACHE.Map.IsMapReady():
+                return False
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
+            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
+            return enough_energy and skill_ready
 
         @staticmethod
         def CastSkillSlot(slot:int,extra_condition=True, aftercast_delay=0, log=False):
