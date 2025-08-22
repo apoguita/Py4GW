@@ -1,4 +1,5 @@
 import json
+import math
 import os
 from typing import Optional
 from unittest import case
@@ -422,8 +423,59 @@ class GameTextures(Enum):
         left=(0, 9, 5, 16),
         mid=(5, 9, 10, 16),
         right=(10, 9, 16, 16),    
-    )                              
+    )            
+    
+    RightButton = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_left_right.png"),
+        texture_size=(64, 16),
+        size=(14, 16),
+        normal=(1, 0)
+    )
+    
+    LeftButton = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_left_right.png"),
+        texture_size=(64, 16),
+        size=(14, 16),
+        normal = (17, 0),
+        active = (49, 0),
+    )
+    
+    Horizontal_ScrollGrab_Top = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scrollgrab.png"),
+        texture_size=(16, 16),
+        size=(7, 16),
+        normal=(0, 0),
+    )
+    
+    Horizontal_ScrollGrab_Middle = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scrollgrab.png"),
+        texture_size=(16, 16),
+        size=(2, 16),
+        normal=(7, 0)
+    )
+
+    Horizontal_ScrollGrab_Bottom = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scrollgrab.png"),
+        texture_size=(16, 16),
+        size=(7, 16),
+        normal=(9, 0),   
+    )   
+    
+    Horizontal_Scroll_Bg = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scroll_background.png"),
+        texture_size=(16, 16),
+        size=(16, 16),
+        normal=(0, 0)
+    )                         
         
+    CircleButtons = MapTexture(
+        texture = os.path.join("Textures\\Game UI\\", "ui_profession_circle_buttons.png"),
+        texture_size=(256, 128),
+        size=(32, 32),
+        active=(192, 96),
+        normal=(224, 96)
+    )
+    
     Tab_Frame_Top = SplitTexture(
         texture = os.path.join(TEXTURE_FOLDER, "ui_tab_bar_frame.png"),
         texture_size=(32, 32),
@@ -478,8 +530,7 @@ class GameTextures(Enum):
         mid= (7, 0, 26, 16),
         right= (27, 0, 32, 16),
     )
-    
-    
+        
     TitleProgressBarFrame = SplitTexture(
         texture = os.path.join(TEXTURE_FOLDER, "ui_progress_frame_title.png"),
         texture_size=(16, 16),
@@ -1621,8 +1672,7 @@ class ImGui:
             if not self.module_name:
                 return
                         
-            if not self.open:
-                return            
+            ImGui.pop_theme_window_style(self.__current_theme)           
             
             match (self.__current_theme):
                 case Style.StyleTheme.Guild_Wars:      
@@ -1631,8 +1681,7 @@ class ImGui:
                 case Style.StyleTheme.ImGui | Style.StyleTheme.Minimalus:
                     PyImGui.end()
 
-            
-            ImGui.pop_theme_window_style(self.__current_theme)      
+             
             
             """ INI FILE ROUTINES NEED WORK 
             if end_pos[0] != window_module.window_pos[0] or end_pos[1] != window_module.window_pos[1]:
@@ -1995,18 +2044,6 @@ class ImGui:
 
     #region WIP
     @staticmethod
-    def begin_child(id : str, size : tuple[float, float] = (0, 0), border: bool = False, flags: int = PyImGui.WindowFlags.NoFlag) -> bool:
-        # style = ImGui.get_style()
-        
-        open = PyImGui.begin_child(id, size, border, flags)
-
-        return open
-
-    @staticmethod
-    def end_child():
-        PyImGui.end_child()
-
-    @staticmethod
     def begin_popup(id: str, flags: PyImGui.WindowFlags = PyImGui.WindowFlags.NoFlag) -> bool:     
         open = PyImGui.begin_popup(id, PyImGui.WindowFlags(flags))
         
@@ -2018,58 +2055,22 @@ class ImGui:
     
     @staticmethod
     def begin_tooltip() -> bool:
-        style = ImGui.get_style()
-        style.push_style()
+        ImGui.push_theme_window_style()
 
         open = PyImGui.begin_tooltip()
-
-        style.pop_style()
 
         return open
 
     @staticmethod
     def end_tooltip():
+        ImGui.pop_theme_window_style()
         PyImGui.end_tooltip()
 
-    @staticmethod
-    def new_line():
-        PyImGui.new_line()
-        
-    @staticmethod
-    def text(text : str):
-        PyImGui.text(text)
-
-    @staticmethod
-    def text_disabled(text : str):
-        PyImGui.text_disabled(text)
-
-    @staticmethod
-    def text_wrapped(text : str):
-        PyImGui.text_wrapped(text)
-
-    @staticmethod
-    def text_colored(text : str, color: tuple[float, float, float, float]):
-        PyImGui.text_colored(text, color)
-        
-    @staticmethod
-    def text_unformatted(text : str):
-        PyImGui.text_unformatted(text)
-
-    @staticmethod
-    def text_scaled(text : str, color: tuple[float, float, float, float], scale: float):
-        PyImGui.text_scaled(text, color, scale)
-    
     @staticmethod
     def small_button(label: str):
         clicked = PyImGui.small_button(label)
 
         return clicked
-
-    @staticmethod
-    def radio_button(label: str, v: int, button_index: int):
-        value = PyImGui.radio_button(label, v, button_index)
-
-        return value
     
     @staticmethod
     def begin_combo(label: str, preview_value: str, flags: PyImGui.ImGuiComboFlags = PyImGui.ImGuiComboFlags.NoFlag):
@@ -2151,16 +2152,6 @@ class ImGui:
         PyImGui.end_popup_modal()
 
     @staticmethod
-    def begin_table(id: str, columns: int, flags: int = PyImGui.TableFlags.NoFlag, width: float = 0, height: float = 0) -> bool:
-        opened = PyImGui.begin_table(id, columns, flags, width, height)
-
-        return opened
-
-    @staticmethod
-    def end_table():
-        PyImGui.end_table()
-        
-    @staticmethod
     def tree_node(label: str) -> bool:
         opened = PyImGui.tree_node(label)
 
@@ -2178,6 +2169,59 @@ class ImGui:
     
     #endregion WIP
 
+    @staticmethod
+    def new_line():
+        PyImGui.new_line()
+        
+    @staticmethod
+    def text(text : str, font_size : Optional[int] = None, font_style: str = "Regular"):
+        if font_size is not None:
+            ImGui.push_font(font_style, font_size)
+            PyImGui.text(text)
+            ImGui.pop_font()
+        else:
+            PyImGui.text(text)
+
+    @staticmethod
+    def text_disabled(text : str, font_size : Optional[int] = None, font_style: str = "Regular"):
+        if font_size is not None:
+            ImGui.push_font(font_style, font_size)
+            PyImGui.text_disabled(text)
+            ImGui.pop_font()
+        else:
+            PyImGui.text_disabled(text)
+
+    @staticmethod
+    def text_wrapped(text : str, font_size : Optional[int] = None, font_style: str = "Regular"):
+        if font_size is not None:
+            ImGui.push_font(font_style, font_size)
+            PyImGui.text_wrapped(text)
+            ImGui.pop_font()
+        else:
+            PyImGui.text_wrapped(text)
+
+    @staticmethod
+    def text_colored(text : str, color: tuple[float, float, float, float], font_size : Optional[int] = None, font_style: str = "Regular"):
+        if font_size is not None:
+            ImGui.push_font(font_style, font_size)
+            PyImGui.text_colored(text, color)
+            ImGui.pop_font()
+        else:
+            PyImGui.text_colored(text, color)
+
+    @staticmethod
+    def text_unformatted(text : str, font_size : Optional[int] = None, font_style: str = "Regular"):
+        if font_size is not None:
+            ImGui.push_font(font_style, font_size)
+            PyImGui.text_unformatted(text)
+            ImGui.pop_font()
+        else:
+            PyImGui.text_unformatted(text)
+
+    @staticmethod
+    def text_scaled(text : str, color: tuple[float, float, float, float], scale: float):
+        PyImGui.text_scaled(text, color, scale)
+        
     @staticmethod
     def button(label: str, width: float = 0, height: float = 0, active: bool = True) -> bool:
         PyImGui.begin_disabled(not active)
@@ -2437,6 +2481,53 @@ class ImGui:
         PyImGui.end_disabled()
 
         return new_value
+
+    @staticmethod
+    def radio_button(label: str, v: int, button_index: int):
+        style = ImGui.get_style()
+        match style.Theme:
+            case Style.StyleTheme.Guild_Wars:
+                value = PyImGui.radio_button(label, v, button_index)
+
+                item_rect_min = PyImGui.get_item_rect_min()
+                item_rect_max = PyImGui.get_item_rect_max()
+                
+                width = item_rect_max[0] - item_rect_min[0]
+                height = item_rect_max[1] - item_rect_min[1]
+                
+                item_rect = (item_rect_min[0], item_rect_min[1], width, height)
+                active = PyImGui.is_item_active()
+                GameTextures.CircleButtons.value.draw_in_drawlist(
+                    item_rect[0],
+                    item_rect[1],
+                    (item_rect[3], item_rect[3]),
+                    state=TextureState.Active if v == button_index else TextureState.Normal,
+                    tint= (255, 255, 255, 255) if active else (235, 235, 235, 255) if v == button_index else (180, 180, 180, 255)
+                )
+                if button_index == v:
+                    pad = 5
+                    
+                    PyImGui.draw_list_add_circle_filled(
+                        item_rect[0] + (height / 2),
+                        item_rect[1] + (height / 2),
+                        (item_rect[3] - (pad * 2)) / 2.5,
+                        Utils.RGBToColor(207, 191, 143, 180),
+                        int(height / 3)
+                    )
+                    
+                    PyImGui.draw_list_add_circle(
+                        item_rect[0] + (height / 2),
+                        item_rect[1] + (height / 2),
+                        (item_rect[3] - (pad * 2)) / 2.5,
+                        Utils.RGBToColor(0,0,0,180),
+                        int(height / 3),
+                        1
+                    )
+
+            case _:
+                value = PyImGui.radio_button(label, v, button_index)
+
+        return value
 
     @staticmethod
     def input_int(label: str, v: int, min_value: int = 0, step_fast: int = 0, flags: int = 0) -> int:
@@ -3169,15 +3260,16 @@ class ImGui:
                     item_rect_min = PyImGui.get_item_rect_min()
                     item_rect_max = PyImGui.get_item_rect_max()
                     
+                    enlarged_by = 5
                     width = item_rect_max[0] - item_rect_min[0] + 12
                     height = item_rect_max[1] - item_rect_min[1] + 3
-                    item_rect = (item_rect_min[0] - 4, item_rect_min[1], width, height)
+                    item_rect = (item_rect_min[0] - 4, item_rect_min[1] - (enlarged_by if open else 0), width, height + (enlarged_by if open else 0))
                     
                     PyImGui.push_clip_rect(
                         item_rect[0],
                         item_rect[1],
                         width,
-                        height,
+                        item_rect[3],
                         True
                     )
                     
@@ -3271,6 +3363,285 @@ class ImGui:
             case _:
                 PyImGui.end_tab_item()
 
+    @staticmethod
+    def begin_child(id : str, size : tuple[float, float] = (0, 0), border: bool = False, flags: int = PyImGui.WindowFlags.NoFlag) -> bool:
+        style = ImGui.get_style()
+        
+        match(style.Theme):
+            case Style.StyleTheme.Guild_Wars:
+                
+                ##get parent window size and screen rect
+                parent_window_size = PyImGui.get_window_size()
+                parent_window_pos = PyImGui.get_window_pos()
+
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarBg, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrab, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrabActive, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrabHovered, (0, 0, 0, 0))
+                open = PyImGui.begin_child(id, size, border, flags)
+                PyImGui.pop_style_color(4)
+                
+                has_vertical_scroll_bar = int(int(flags) & int(PyImGui.WindowFlags.AlwaysVerticalScrollbar)) != 0 or PyImGui.get_scroll_max_y() > 0
+                has_horizontal_scroll_bar = int(int(flags) & int(PyImGui.WindowFlags.AlwaysHorizontalScrollbar)) != 0 or PyImGui.get_scroll_max_x() > 0
+
+                vertical_window_rect = (
+                    parent_window_pos[0],
+                    parent_window_pos[1],
+                    parent_window_pos[0] + parent_window_size[0] ,
+                    parent_window_pos[1] + parent_window_size[1],
+                )
+                
+                horizontal_window_rect = (
+                    parent_window_pos[0], 
+                    parent_window_pos[1],
+                    parent_window_pos[0] + parent_window_size[0] - (style.ScrollbarSize.value1 if has_vertical_scroll_bar else 0),
+                    parent_window_pos[1] + parent_window_size[1] 
+                )
+
+                ImGui.draw_vertical_scroll_bar(style.ScrollbarSize.value1, has_vertical_scroll_bar, vertical_window_rect, border)
+                ImGui.draw_horizontal_scroll_bar(style.ScrollbarSize.value1, has_horizontal_scroll_bar, horizontal_window_rect, border)
+
+            case _:
+                open = PyImGui.begin_child(id, size, border, flags)
+                
+        return open
+
+    @staticmethod
+    def end_child():
+        PyImGui.end_child()
+
+    @staticmethod
+    def draw_vertical_scroll_bar(scroll_bar_size : float, force_scroll_bar : bool = False, window_rect: Optional[tuple[float, float, float, float]] = None, border_padding: bool = False):
+        scroll_max_y = PyImGui.get_scroll_max_y()
+        scroll_y = PyImGui.get_scroll_y()
+
+        parent_window_size = PyImGui.get_window_size()
+        parent_window_pos = PyImGui.get_window_pos()
+        window_rect = window_rect or (parent_window_pos[0], parent_window_pos[1], parent_window_pos[0] + parent_window_size[0], parent_window_pos[1] + parent_window_size[1])
+        
+        if force_scroll_bar or scroll_max_y > 0:
+            window_padding = ((2), (5) if border_padding else 0, 0)
+            visible_size_y = PyImGui.get_window_height()
+            item_rect_min = PyImGui.get_item_rect_min()
+            item_rect_max = PyImGui.get_item_rect_max()
+
+            window_clip = (
+                window_rect[0],
+                window_rect[1],
+                window_rect[2] - window_rect[0],
+                window_rect[3] - window_rect[1]
+            )
+
+            scroll_bar_rect = (item_rect_max[0] - scroll_bar_size - window_padding[0], item_rect_min[1] + window_padding[1], item_rect_max[0] - window_padding[0], item_rect_min[1] + visible_size_y - window_padding[1])
+
+            track_height = scroll_bar_rect[3] - scroll_bar_rect[1]
+            thumb_min = 20.0  # example minimum thumb size, depends on ImGui style
+            
+            if scroll_max_y > 0:
+                thumb_height = (visible_size_y * visible_size_y) / (visible_size_y + scroll_max_y)
+                thumb_height = max(thumb_height, thumb_min)
+            else:
+                thumb_height = visible_size_y   # all content fits, thumb covers track
+                
+            # Thumb size (clamped)
+            thumb_height = max(thumb_height, thumb_min)
+
+            # Thumb offset
+            thumb_offset = 0.0
+            if scroll_max_y > 0:
+                thumb_offset = (scroll_y / scroll_max_y) * (track_height - thumb_height)
+                
+            scroll_grab_rect = (scroll_bar_rect[0], scroll_bar_rect[1] + thumb_offset, scroll_bar_rect[2], scroll_bar_rect[1] + thumb_offset + thumb_height)
+            
+            PyImGui.push_clip_rect(
+                window_clip[0],
+                window_clip[1] - 5,
+                window_clip[2],
+                window_clip[3] + 10,
+                False  # intersect with current clip rect (safe, window always bigger than content)
+            )
+                
+            GameTextures.Scroll_Bg.value.draw_in_drawlist(
+                scroll_bar_rect[0],
+                scroll_bar_rect[1] + 5,
+                (scroll_bar_rect[2] - scroll_bar_rect[0], scroll_bar_rect[3] - scroll_bar_rect[1] - 10),
+            )
+
+            GameTextures.ScrollGrab_Top.value.draw_in_drawlist(
+                scroll_grab_rect[0], 
+                scroll_grab_rect[1], 
+                (scroll_bar_size, 7),
+            )
+            
+            GameTextures.ScrollGrab_Bottom.value.draw_in_drawlist(
+                scroll_grab_rect[0], 
+                scroll_grab_rect[3] - 7, 
+                (scroll_bar_size, 7),
+            )
+
+            px_height = 2
+            mid_height = scroll_grab_rect[3] - scroll_grab_rect[1] - 10
+            for i in range(math.ceil(mid_height / px_height)):
+                GameTextures.ScrollGrab_Middle.value.draw_in_drawlist(
+                    scroll_grab_rect[0], 
+                    scroll_grab_rect[1] + 5 + (px_height * i), 
+                    (scroll_bar_size, px_height),
+                tint=(195, 195, 195, 255)
+                )
+            
+            GameTextures.UpButton.value.draw_in_drawlist(
+                scroll_bar_rect[0] - 1,
+                scroll_bar_rect[1] - 5,
+                (scroll_bar_size, scroll_bar_size),
+            )
+
+            GameTextures.DownButton.value.draw_in_drawlist(
+                scroll_bar_rect[0] - 1,
+                scroll_bar_rect[3] - (scroll_bar_size - 5),
+                (scroll_bar_size, scroll_bar_size),
+            )
+                
+            PyImGui.pop_clip_rect()
+
+    @staticmethod
+    def draw_horizontal_scroll_bar(scroll_bar_size: float, force_scroll_bar: bool = False, window_rect: Optional[tuple[float, float, float, float]] = None, border_padding: bool = False):
+        scroll_max_x = PyImGui.get_scroll_max_x()
+        scroll_max_y = PyImGui.get_scroll_max_y()
+        scroll_x = PyImGui.get_scroll_x()
+
+        parent_window_size = PyImGui.get_window_size()
+        parent_window_pos = PyImGui.get_window_pos()
+        window_rect = window_rect or (parent_window_pos[0], parent_window_pos[1], parent_window_pos[0] + parent_window_size[0], parent_window_pos[1] + parent_window_size[1])
+        
+        if force_scroll_bar or scroll_max_x > 0:
+            window_padding = ((7), (2) if border_padding else 0, 0)
+            visible_size_x = PyImGui.get_window_width()
+            visible_size_y = PyImGui.get_window_height()
+            
+            item_rect_min = PyImGui.get_item_rect_min()
+
+            window_clip = (
+                window_rect[0],
+                window_rect[1],
+                window_rect[2] - window_rect[0],
+                window_rect[3] - window_rect[1]
+            )
+            
+            scroll_bar_rect = (
+                item_rect_min[0] + window_padding[0], 
+                item_rect_min[1] + visible_size_y - scroll_bar_size + window_padding[1] - window_padding[1],
+                item_rect_min[0] + visible_size_x - (scroll_bar_size + 2 if scroll_max_y > 0 else 0) - window_padding[0], 
+                item_rect_min[1] + visible_size_y - window_padding[1]
+                )
+
+            scroll_bar_rect = (
+                item_rect_min[0] + window_padding[0], 
+                item_rect_min[1] + visible_size_y - scroll_bar_size - window_padding[1],
+                item_rect_min[0] + visible_size_x - 10 - (scroll_bar_size + 2 if scroll_max_y > 0 else 0) - window_padding[0], 
+                item_rect_min[1] + visible_size_y - window_padding[1]
+                )
+            
+            track_width = scroll_bar_rect[2] - scroll_bar_rect[0] + (window_padding[0] * 2)
+            thumb_min = 5.0
+            
+            if scroll_max_x > 0:
+                thumb_width = (track_width * track_width) / (track_width + scroll_max_x)
+                thumb_width = max(thumb_width, thumb_min)
+            else:
+                thumb_width = track_width   # all content fits, thumb covers track
+                
+            # Thumb size (clamped)
+            thumb_width = max(thumb_width, thumb_min)
+            
+            # Thumb offset
+            thumb_offset = 0
+            if scroll_max_x > 0:
+                thumb_offset = (scroll_x / scroll_max_x) * (track_width - thumb_width)
+
+            scroll_grab_rect = (
+                scroll_bar_rect[0] + thumb_offset,
+                scroll_bar_rect[1],
+                thumb_width - 1,
+                scroll_bar_size,
+            )
+
+            PyImGui.push_clip_rect(
+                window_clip[0] - 5 ,
+                window_clip[1] - 5,
+                window_clip[2] + 5,
+                window_clip[3] + 10,
+                False  # intersect with current clip rect (safe, window always bigger than content)
+            )
+            
+                
+            GameTextures.Horizontal_Scroll_Bg.value.draw_in_drawlist(
+                scroll_bar_rect[0] + 3,
+                scroll_bar_rect[1],
+                (scroll_bar_rect[2] - scroll_bar_rect[0] - 5, scroll_bar_rect[3] - scroll_bar_rect[1]),
+            )
+                    
+            GameTextures.Horizontal_ScrollGrab_Middle.value.draw_in_drawlist(
+                scroll_grab_rect[0] + 5, 
+                scroll_grab_rect[1],
+                (scroll_grab_rect[2] - 10, scroll_grab_rect[3]),
+                tint=(195, 195, 195, 255)
+            )
+            
+            GameTextures.Horizontal_ScrollGrab_Top.value.draw_in_drawlist(
+                scroll_grab_rect[0], 
+                scroll_grab_rect[1], 
+                (7, scroll_grab_rect[3]),
+            )
+            
+            GameTextures.Horizontal_ScrollGrab_Bottom.value.draw_in_drawlist(
+                scroll_grab_rect[0] + scroll_grab_rect[2] - 7, 
+                scroll_grab_rect[1], 
+                (7, scroll_grab_rect[3]),
+            )
+
+            
+            GameTextures.LeftButton.value.draw_in_drawlist(
+                scroll_bar_rect[0] - 5, 
+                scroll_bar_rect[1] - 1, 
+                (scroll_bar_size, scroll_bar_size + 1),
+            )
+            
+            GameTextures.RightButton.value.draw_in_drawlist(
+                scroll_bar_rect[2] - 5 + (0 if scroll_max_y > 0 else 1), 
+                scroll_bar_rect[1] - 1, 
+                (scroll_bar_size, scroll_bar_size + 1),
+            )
+
+            PyImGui.pop_clip_rect()
+
+    @staticmethod
+    def begin_table(id: str, columns: int, flags: int = PyImGui.TableFlags.NoFlag, width: float = 0, height: float = 0) -> bool:
+        style = ImGui.get_style()
+        
+        match(style.Theme):
+            case Style.StyleTheme.Guild_Wars:
+                
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarBg, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrab, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrabActive, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrabHovered, (0, 0, 0, 0))
+                opened = PyImGui.begin_table(id, columns, flags, width, height)
+                PyImGui.pop_style_color(4)
+                        
+                scroll_bar_size = style.ScrollbarSize.value1
+                ImGui.draw_vertical_scroll_bar(scroll_bar_size)
+                ImGui.draw_horizontal_scroll_bar(scroll_bar_size)            
+
+            case _:
+                opened = PyImGui.begin_table(id, columns, flags, width, height)
+
+        
+        return opened
+
+    @staticmethod
+    def end_table():
+        PyImGui.end_table()
+        
     
     @staticmethod
     def progress_bar(fraction: float, size_arg_x: float, size_arg_y: float, overlay: str = ""):
