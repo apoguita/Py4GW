@@ -34,6 +34,7 @@ _7_jokanurdiggingsoutpost_to_blacktidedenoutpost_segments = [
             (-25823, -7429),
             (-26008, -9445),
             (-26100, -10440),
+            (-27339, -11124),
         ],
     },
     {
