@@ -2,7 +2,9 @@ from __future__ import annotations
 from typing import List, Tuple
 
 # REMOVE: `Botting` from the runtime import below
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Utils, Botting
+from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Trading, Botting,
+                          AutoPathing)
+
 import PyImGui
 import re
 
@@ -21,7 +23,6 @@ TAKE_GO_TO_TOGO_QUEST = 0x815501
 
 bot = Botting("Factions Leveler")
 
-#region bot_helpers
 class BotLocals:
     def __init__(self):
         self.target_cupcake_count = 50
@@ -29,7 +30,78 @@ class BotLocals:
 
 bot_locals = BotLocals()
 
+#region Routine
+def create_bot_routine(bot: Botting) -> None:
+    InitializeBot(bot)
+    ExitMonasteryOverlook(bot)
+    ExitToCourtyard(bot)
+    UnlockSecondaryProfession(bot)
+    UnlockXunlaiStorage(bot)
+    EquipWeapons(bot)
+    ExitToSunquaVale(bot)
+    TravelToMinisterCho(bot)
+    EnterMinisterChoMission(bot)
+    MinisterChoMission(bot)
+    ConfigurePacifistEnv(bot)
+    TakeWarningTheTenguQuest(bot)
+    WarningTheTenguQuest(bot)
+    ExitToSunquaVale(bot)
+    ExitToTsumeiVillage(bot)
+    ExitToPanjiangPeninsula(bot)
+    TheThreatGrows(bot)
+    ExitToCourtyardAggressive(bot)
+    AdvanceToSaoshangTrail(bot)
+    TraverseSaoshangTrail(bot)
+    TakeRewardAndCraftArmor(bot)
+    ExitSeitungHarbor(bot)
+    GoToZenDaijun(bot)
+    PrepareForZenDaijunMission(bot)
+    ZenDaijunMission(bot)
+    FarmUntilLevel10(bot)
+    AdvanceToMarketplace(bot)
+    AdvanceToKainengCenter(bot)
+    AdvanceToEOTN(bot)
+    ExitBorealStation(bot)
+    TraverseToEOTNOutpost(bot)
+    bot.AddHeaderStep("Final Step")
+    bot.Stop()
+
+
+bot.Routine = create_bot_routine.__get__(bot)
+
+
+
 #Helpers
+
+def InitializeBot(bot: Botting) -> None:
+    bot.AddHeaderStep("Initial Step")
+    # Add any initialization steps here
+    #condition = lambda: on_death(bot)
+    #bot.config.events.on_death.set_callback(condition)
+    condition = lambda: on_party_wipe(bot)
+    bot.config.events.on_party_defeated.set_callback(condition)
+    bot.config.events.on_party_wipe.set_callback(condition)
+    
+def ExitMonasteryOverlook(bot: Botting) -> None:
+    bot.AddHeaderStep("Exit Monastery Overlook")
+    bot.MoveTo(-7011, 5750,"Move to Ludo")
+    LUDO_I_AM_SURE = 0x85
+    bot.DialogAt(-7048,5817,LUDO_I_AM_SURE)
+    bot.WaitForMapLoad(target_map_name="Shing Jea Monastery")
+
+
+def ConfigureAggressiveEnv(bot: Botting) -> None:
+    bot.config.config_properties.pause_on_danger.enable()
+    bot.config.config_properties.halt_on_death.disable()
+    bot.config.config_properties.movement_timeout.set("value",-1)
+    bot.SpawnBonusItems()
+    bot.config.upkeep.auto_combat.enable()
+    bot.config.upkeep.imp.enable()
+    bot.config.upkeep.birthday_cupcake.enable()
+    #bot.PrintMessageToConsole("cupcakes",f"{bot.config.upkeep.birthday_cupcake.is_active()}")
+    bot.config.upkeep.morale.enable()
+    #bot.PrintMessageToConsole("morale",f"{bot.config.upkeep.morale.is_active()}")
+    
 def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.config.config_properties.pause_on_danger.disable()
     bot.config.config_properties.halt_on_death.enable()
@@ -41,39 +113,31 @@ def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.config.upkeep.morale.disable()
     bot.AddFSMCustomYieldState(withdraw_cupcakes, "Withdraw Cupcakes")
 
-def ConfigureAggressiveEnv(bot: Botting) -> None:
-    bot.config.config_properties.pause_on_danger.enable()
-    bot.config.config_properties.halt_on_death.disable()
-    bot.config.config_properties.movement_timeout.set("value",-1)
-    bot.SpawnBonusItems()
-    bot.config.upkeep.auto_combat.enable()
-    bot.config.upkeep.imp.enable()
-    bot.config.upkeep.birthday_cupcake.enable()
-    bot.config.upkeep.morale.enable()
-
+#region SkillBar
 def EquipSkillBar(): 
     global bot, bot_locals
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Warrior":
-        yield from Routines.Yield.Skills.LoadSkillbar("OQcUEvq0jvIClLHAAAAAAAAAAA",log=False)
+        yield from Routines.Yield.Skills.LoadSkillbar("OQITEFskxQxw23AAAAAAAAA",log=False)
     elif profession == "Ranger":
-        yield from Routines.Yield.Skills.LoadSkillbar("OgcUcLs1jvIPsv5yAAAAAAAAAA",log=False)
+        yield from Routines.Yield.Skills.LoadSkillbar("OggjcJZIoMKGfz3EAAAAAAAAAA",log=False)
     elif profession == "Monk":
-        yield from Routines.Yield.Skills.LoadSkillbar("OwcB0lkRuMAAAAAAAAAA",log=False)
+        yield from Routines.Yield.Skills.LoadSkillbar("OwIT4EskxQxo03AAAAAAAAA",log=False)
     elif profession == "Necromancer":
-        yield from Routines.Yield.Skills.LoadSkillbar("OAdTUOj8FxlTDAAAAAAAAAAA",log=False)
+        yield from Routines.Yield.Skills.LoadSkillbar("OAJTYEskxQxw23AAAAAAAAA",log=False)
     elif profession == "Mesmer":
-        yield from Routines.Yield.Skills.LoadSkillbar("OQdTAEx9FRDcZAAAAAAAAAAA",log=False)
+        yield from Routines.Yield.Skills.LoadSkillbar("OQJTAEskxQxw23AAAAAAAAA",log=False)
     elif profession == "Elementalist":
-        yield from Routines.Yield.Skills.LoadSkillbar("OgdToO28FRYcZAAAAAAAAAAA",log=False)
+        yield from Routines.Yield.Skills.LoadSkillbar("OgJTwEskxQx+GAAAAAAAAAA",log=False)
     elif profession == "Ritualist":
-        yield from Routines.Yield.Skills.LoadSkillbar("OAej8JgGpNusvJAAAAAAAAAAAA",log=False)
+        yield from Routines.Yield.Skills.LoadSkillbar("OAKikhgzoYgNfTAAAAAAAAAA",log=False)
     elif profession == "Assassin":
-        yield from Routines.Yield.Skills.LoadSkillbar("OwBj0VfyoJPsLDAAAAAAAAAA",log=False)
+        yield from Routines.Yield.Skills.LoadSkillbar("OwJjkhfyoIKGs5yAAAAAAAAA",log=False)
     yield from Routines.Yield.wait(500)
-    
+
+#region Henchmen
 def AddHenchmen():
-    party_size = bot.GetProperty("live_data.Map.max_party_size") or 0
+    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
     zen_daijun_map_id = 213
     kaineng_map_id = 194
 
@@ -200,14 +264,16 @@ def AddHenchmen():
         GLOBAL_CACHE.Party.Henchmen.AddHenchman(5)
         yield from Routines.Yield.wait(250)
 
-def ExitMonasteryOverlook(bot: Botting) -> None:
-    bot.AddHeaderStep("Exit Monastery Overlook")
-    bot.MoveTo(-7011, 5750,"Move to Ludo")
-    LUDO_I_AM_SURE = 0x85
-    bot.DialogAt(-7048,5817,LUDO_I_AM_SURE)
-    bot.WaitForMapLoad(target_map_name="Shing Jea Monastery")
+
     
 def ExitToCourtyard(bot: Botting) -> None:
+    bot.AddHeaderStep("Exit To Courtyard")
+    ConfigurePacifistEnv(bot)
+    bot.config.upkeep.auto_combat.disable()
+    bot.MoveTo(-3480, 9460)
+    bot.WaitForMapLoad(target_map_name="Linnok Courtyard")
+    
+def ExitToCourtyardAggressive(bot: Botting) -> None:
     bot.AddHeaderStep("Exit To Courtyard")
     PrepareForBattle(bot)
     bot.MoveTo(-3480, 9460)
@@ -216,11 +282,12 @@ def ExitToCourtyard(bot: Botting) -> None:
 def UnlockSecondaryProfession(bot: Botting) -> None:
     def assign_profession_unlocker_dialog():
         global bot
-        if bot.GetProperty("live_data.Player.primary_profession") == "Assassin":
-            yield from bot.helpers._interact_with_agent((-92, 9217),0x813D0E)
+        primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        if primary == "Ranger":
+            yield from bot.helpers._interact_with_agent((-92, 9217),0x813D0A)
         else:
-            yield from bot.helpers._interact_with_agent((-92, 9217),0x813D08)
-        yield from Routines.Yield.wait(250)
+            yield from bot.helpers._interact_with_agent((-92, 9217),0x813D0F)
+        yield from Routines.Yield.wait(500)
 
 
     bot.AddHeaderStep("Unlock Secondary Profession")
@@ -238,14 +305,15 @@ def UnlockSecondaryProfession(bot: Botting) -> None:
 
 def UnlockXunlaiStorage(bot: Botting) -> None:
     bot.AddHeaderStep("Unlock Xunlai Storage")
-    path_to_xunlai: List[Tuple[float, float]] = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3869, 10346),]
+    path_to_xunlai: List[Tuple[float, float]] = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
     bot.FollowPath(path_to_xunlai,"Follow Path to Xunlai")
     bot.DialogAt(-3749, 10367, UNLOCK_STORAGE, step_name="Unlock Xunlai Storage")
     
 def CraftWeapons(bot: Botting) -> None:
     def craft_and_equip_items():
         MELEE_CLASSES = ["Warrior", "Ranger", "Assassin","None"]
-        if bot.GetProperty("live_data.Player.primary_profession") in MELEE_CLASSES:
+        primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        if primary in MELEE_CLASSES:
             yield from bot.helpers._interact_with_agent((-6519, 12335))
             result = yield from Routines.Yield.Items.WithdrawItems(ModelID.Iron_Ingot.value, 5)
             if not result:
@@ -280,10 +348,171 @@ def CraftWeapons(bot: Botting) -> None:
     bot.MoveTo(-6423, 12183, "Move to Weapon Crafter")
     bot.AddFSMCustomYieldState(craft_and_equip_items, "Craft and Equip Items")
 
+def GetArmorMaterialPerProfession(headpiece = False) -> int:
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if primary == "Warrior":
+        return ModelID.Bolt_Of_Cloth.value
+    elif primary == "Ranger":
+        return ModelID.Tanned_Hide_Square.value
+    elif primary == "Monk":
+        if headpiece:
+            return ModelID.Pile_Of_Glittering_Dust.value
+        return ModelID.Bolt_Of_Cloth.value
+    elif primary == "Assassin":
+        return ModelID.Bolt_Of_Cloth.value
+    elif primary == "Mesmer":
+        return ModelID.Bolt_Of_Cloth.value
+    elif primary == "Necromancer":
+        if headpiece:
+            return ModelID.Pile_Of_Glittering_Dust.value
+        return ModelID.Tanned_Hide_Square.value
+    elif primary == "Ritualist":
+        return ModelID.Bolt_Of_Cloth.value
+    elif primary == "Elementalist":
+        if headpiece:
+            return ModelID.Pile_Of_Glittering_Dust.value
+        return ModelID.Bolt_Of_Cloth.value
+    else:
+        return ModelID.Tanned_Hide_Square.value
+    
+def BuyMaterials():
+    for _ in range(5):
+        yield from Routines.Yield.Merchant.BuyMaterial(GetArmorMaterialPerProfession())
+
+    #if GetArmorMaterialPerProfession(headpiece=True) != GetArmorMaterialPerProfession():
+    #    yield from Routines.Yield.Merchant.BuyMaterial(GetArmorMaterialPerProfession(headpiece=True))
+
+
+def GetArmorPiecesByProfession(bot: Botting):
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    HEAD,CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0,0
+
+    if primary == "Warrior":
+        HEAD = 10046 #6 bolts of cloth
+        CHEST = 10164 #18 bolts of cloth
+        GLOVES = 10165 #6 bolts of cloth
+        PANTS = 10166 #12 bolts of cloth
+        BOOTS = 10163 #6 bolts of cloth
+    if primary == "Ranger":
+        HEAD = 10483 #6 tanned hides
+        CHEST = 10613 #18 tanned hides
+        GLOVES = 10614 #6 tanned hides
+        PANTS = 10615 #12 tanned hides
+        BOOTS = 10612 #6 tanned hides
+    if primary == "Monk":
+        HEAD = 9600 #6 piles of glittering dust
+        CHEST = 9619 #18 tanned hides
+        GLOVES = 9620 #6 tanned hides
+        PANTS = 9621 #12 tanned hides
+        BOOTS = 9618 #6 tanned hides
+    if primary == "Assassin":
+        HEAD = 7126 #6 tanned hides
+        CHEST = 7193 #18 tanned hides
+        GLOVES = 7194 #6 tanned hides
+        PANTS = 7195 #12 tanned hides
+        BOOTS = 7192 #6 tanned hides
+    if primary == "Mesmer":
+        HEAD = 7528 #6 bolts of cloth
+        CHEST = 7546 #18 bolts of cloth
+        GLOVES = 7547 #6 bolts of cloth
+        PANTS = 7548 #12 bolts of cloth
+        BOOTS = 7545 #6 bolts of cloth
+    if primary == "Necromancer":
+        HEAD = 8741 #6 piles of glittering dust
+        CHEST = 8757 #18 tanned hides
+        GLOVES = 8758 #6 tanned hides
+        PANTS = 8759 #12 tanned hides
+        BOOTS = 8756 #6 tanned hides
+    if primary == "Ritualist":
+        HEAD = 11203 #6 bolts of cloth
+        CHEST = 11320 #18 bolts of cloth
+        GLOVES = 11321 #6 bolts of cloth
+        PANTS = 11323 #12 bolts of cloth
+        BOOTS = 11319 #6 bolts of cloth
+    if primary == "Elementalist":
+        HEAD = 9183 #6 bolts of cloth
+        CHEST = 9202 #18 bolts of cloth
+        GLOVES = 9203 #6 bolts of cloth
+        PANTS = 9204 #12 bolts of cloth
+        BOOTS = 9201 #6 bolts of cloth
+
+    return HEAD, CHEST, GLOVES, PANTS, BOOTS
+
+def CraftArmor(bot: Botting):
+    HEAD, CHEST, GLOVES, PANTS, BOOTS = GetArmorPiecesByProfession(bot)
+
+    armor_pieces = [
+        (CHEST, [GetArmorMaterialPerProfession()], [18]),
+        (PANTS, [GetArmorMaterialPerProfession()], [12]),
+        (BOOTS,   [GetArmorMaterialPerProfession()], [6]),
+    ]
+
+    for item_id, mats, qtys in armor_pieces:
+        # --- Craft ---
+        result = yield from Routines.Yield.Items.CraftItem(item_id, 200, mats, qtys)
+        if not result:
+            ConsoleLog("CraftArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.on_unmanaged_fail()
+            return False
+
+        # --- Equip ---
+        result = yield from Routines.Yield.Items.EquipItem(item_id)
+        if not result:
+            ConsoleLog("CraftArmor", f"Failed to equip item ({item_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.on_unmanaged_fail()
+            return False
+
+    return True
+    
+
+def CraftRemainingArmor():
+    HEAD, CHEST, GLOVES, PANTS, BOOTS = GetArmorPiecesByProfession(bot)
+
+    armor_pieces = [
+        (HEAD,  [GetArmorMaterialPerProfession(headpiece=True)], [6]),
+        (GLOVES,  [GetArmorMaterialPerProfession()], [6]),
+    ]
+    
+    if GetArmorMaterialPerProfession(headpiece=True) == ModelID.Pile_Of_Glittering_Dust.value:
+        #delete HEAD from the list
+        armor_pieces = [piece for piece in armor_pieces if piece[0] != HEAD]
+
+    item_in_storage = GLOBAL_CACHE.Inventory.GetModelCount(GetArmorMaterialPerProfession())
+    if item_in_storage > 12:
+
+        path = yield from AutoPathing().get_path_to(20508.00, 9497.00)
+        path = path.copy()
+
+        yield from Routines.Yield.Movement.FollowPath(path_points=path)
+        yield from Routines.Yield.Agents.InteractWithAgentXY(20508.00, 9497.00)
+
+        for item_id, mats, qtys in armor_pieces:
+            # --- Craft ---
+            result = yield from Routines.Yield.Items.CraftItem(item_id, 200, mats, qtys)
+            if not result:
+                ConsoleLog("CraftArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
+                bot.helpers.on_unmanaged_fail()
+                return False
+
+            # --- Equip ---
+            result = yield from Routines.Yield.Items.EquipItem(item_id)
+            if not result:
+                ConsoleLog("CraftArmor", f"Failed to equip item ({item_id}).", Py4GW.Console.MessageType.Error)
+                bot.helpers.on_unmanaged_fail()
+                return False
+
+    return True
+    
+
+def EquipWeapons(bot: Botting):
+        bot.SpawnBonusItems()
+        BOW_MODEL_ID = 5831
+        bot.EquipItem(BOW_MODEL_ID)
 
 def ExitToSunquaVale(bot: Botting) -> None:
     bot.AddHeaderStep("Exit To Sunqua Vale")
     ConfigurePacifistEnv(bot)
+    bot.SpawnBonusItems()
     bot.MoveTo(-14961,11453)
     bot.WaitForMapLoad(target_map_name="Sunqua Vale")
 
@@ -303,7 +532,9 @@ def TravelToMinisterCho(bot: Botting) -> None:
 def withdraw_cupcakes():
     global bot_locals
     target_cupcake_count = bot_locals.target_cupcake_count
-    if bot.GetProperty("upkeep.birthday_cupcake.active"):
+    cupcake_active = bot.config.upkeep.birthday_cupcake.is_active()
+    if cupcake_active:
+        print("Cupcake upkeep is active.")
         model_id = ModelID.Birthday_Cupcake.value
         cupcake_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
         cupcake_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
@@ -311,6 +542,7 @@ def withdraw_cupcakes():
         cupcakes_needed = target_cupcake_count - cupcake_in_bags
         if cupcakes_needed > 0 and cupcake_in_storage > 0:
             # First, try to withdraw exactly what we need
+            print(f"Withdrawing {cupcakes_needed} cupcakes from storage.")
             items_withdrawn = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, cupcakes_needed)
             yield from Routines.Yield.wait(250)
 
@@ -322,12 +554,19 @@ def withdraw_cupcakes():
 
                 if not items_withdrawn:
                     Py4GW.Console.Log(MODULE_NAME, "Failed to withdraw cupcakes from storage.", Py4GW.Console.MessageType.Error)
-
+                else:
+                    print(f"Withdrew {items_withdrawn} cupcakes from storage.1")
+            else:
+                print(f"Withdrew {items_withdrawn} cupcakes from storage.2")
+        else:
+            print("No cupcakes needed.")
+    else:
+        print("Cupcake upkeep is not active.")
     yield from Routines.Yield.wait(250)
 
 def withdraw_honeycombs():
     target_honeycomb_count = bot_locals.target_honeycomb_count
-    if bot.GetProperty("upkeep.morale.active"):
+    if bot.config.upkeep.morale.is_active():
         model_id = ModelID.Honeycomb.value
         honey_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
         honey_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
@@ -368,6 +607,7 @@ def MinisterChoMission(bot: Botting) -> None:
     bot.MoveTo(6358, -7348, "Move to Activate Mission")
     bot.MoveTo(507, -8910, "Move to First Door")
     bot.MoveTo(4889, -5043, "Move to Map Tutorial")
+    #bot.MoveTo(4210.95, -3442.79, "Door that gets you stuck :(")
     bot.MoveTo(6216, -1108, "Move to Bridge Corner")
     bot.MoveTo(2617, 642, "Move to Past Bridge")
     bot.MoveTo(0, 1137, "Move to Fight Area")
@@ -422,7 +662,7 @@ def TheThreatGrows(bot: Botting):
     bot.AddHeaderStep("The Threat Grows")
     bot.MoveTo(9700, 7250, "Move to The Threat Grows Killspot")
     SISTER_TAI_MODEL_ID = 3316
-    wait_function = lambda: (not Routines.Checks.Agents.InDanger(aggro_area=Range.Spellcast)) and GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(SISTER_TAI_MODEL_ID))
+    wait_function = lambda: (not Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(SISTER_TAI_MODEL_ID))
     bot.WasteTimeUntilConditionMet(wait_function)
     ConfigurePacifistEnv(bot)
     ACCEPT_REWARD = 0x815407
@@ -439,8 +679,10 @@ def AdvanceToSaoshangTrail(bot: Botting):
     bot.DialogAt(-92, 9217, ACCEPT_TOGO_QUEST, step_name="Accept Togo Quest")
     TAKE_EXIT_QUEST = 0x815601
     bot.DialogAt(-92, 9217, TAKE_EXIT_QUEST, step_name="Take Exit Quest")
+    bot.MoveTo(464.60, 10127.71)
     CONTINUE = 0x80000B
     bot.DialogAt(538, 10125, CONTINUE, step_name="Continue")
+    
     saoshang_trail_map_id = 313
     bot.WaitForMapLoad(target_map_id=saoshang_trail_map_id)
 
@@ -451,10 +693,19 @@ def TraverseSaoshangTrail(bot: Botting):
     bot.MoveTo(16600, 13150)
     bot.WaitForMapLoad(target_map_name="Seitung Harbor")
 
-def TakeRewardAndExitSeitungHarbor(bot: Botting):
-    bot.AddHeaderStep("Take Reward And Exit Seitung Harbor")
+def TakeRewardAndCraftArmor(bot: Botting):
+    bot.AddHeaderStep("Take Reward And Craft Armor")
     TAKE_REWARD = 0x815607
     bot.DialogAt(16368, 12011, TAKE_REWARD)
+    bot.MoveTo(17504.61, 13730.17)
+    bot.InteractNPCAt(17520.00, 13805.00)
+    bot.AddFSMCustomYieldState(BuyMaterials, "Buy Materials")
+    bot.MoveTo(20454.47, 9436.46)
+    bot.InteractNPCAt(20508.00, 9497.00)
+    exec_fn = lambda: CraftArmor(bot)
+    bot.AddFSMCustomYieldState(exec_fn, "Craft Armor")
+
+def ExitSeitungHarbor(bot: Botting):
     PrepareForBattle(bot)
     bot.MoveTo(16777,17540)
     bot.WaitForMapLoad(target_map_name="Jaya Bluffs")
@@ -478,22 +729,21 @@ def PrepareForZenDaijunMission(bot:Botting):
 
 def ZenDaijunMission(bot: Botting):
     bot.AddHeaderStep("Zen Daijun Mission")
-    bot.MoveTo(11903, 11235)
+    bot.MoveTo(11775.22, 11310.60)
     bot.InteractGadgetAt(11665, 11386)
     bot.MoveTo(10549,8070)
     bot.MoveTo(10945,3436)
     bot.MoveTo(7551,3810)
-    bot.MoveTo(5538,1993)
+    bot.MoveTo(4855.66, 1521.21)
     bot.InteractGadgetAt(4754,1451)
     bot.MoveTo(4508, -1084)
     bot.MoveTo(528, 6271)
     bot.MoveTo(-9833, 7579)
-    #?
     bot.MoveTo(-12983, 2191)
     bot.MoveTo(-12362, -263)
     bot.MoveTo(-9813, -114)
-    bot.FlagAllHeroes(-8656, -771)
-    bot.MoveTo(-7851, -1458)
+    bot.FlagAllHeroes(-8222, -1078)
+    bot.MoveTo(-7681.58, -1509.00)
     wait_condition = lambda: (Routines.Checks.Map.MapValid() and (GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor")))
     bot.WasteTimeUntilConditionMet(wait_condition)
 
@@ -502,10 +752,12 @@ def jump_to_state(bot: Botting, state_name: str):
     yield from Routines.Yield.wait(100)
 
 def _FarmUntilLevel10(bot: Botting):
-    level = bot.config.live_data.Player.get("level")
+    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if level < 10:
         ConsoleLog("Farming until Level 10", f"current level: {level}")
         yield from Routines.Yield.wait(100)
+        
+        
         zen_daijun_map_id = 213
         GLOBAL_CACHE.Party.LeaveParty()
         yield from Routines.Yield.wait(250)
@@ -518,7 +770,7 @@ def _FarmUntilLevel10(bot: Botting):
             bot.helpers.on_unmanaged_fail()
         yield from Routines.Yield.wait(1000)
 
-        state_name = "[H]Prepare for Zen Daijun Mission_22"
+        state_name = "[H]Prepare for Zen Daijun Mission_21"
         #exec_fn = lambda: jump_to_state(bot, state_name)
         #bot.AddFSMCustomYieldState(exec_fn, f"Jump to {state_name}")
         fsm = bot.config.FSM
@@ -527,10 +779,14 @@ def _FarmUntilLevel10(bot: Botting):
     else:
         ConsoleLog("Farming complete", f"current level: {level}")
         yield from Routines.Yield.wait(100)
-        
+   
+
+         
 def FarmUntilLevel10(bot: Botting):
     bot.AddHeaderStep("Farm Until Level 10")
-    bot.AddFSMCustomYieldState(_FarmUntilLevel10(bot),"Farm Until Level 10")
+    bot.AddFSMCustomYieldState(CraftRemainingArmor, "Craft Remaining Armor")
+    function_fn = lambda: _FarmUntilLevel10(bot)
+    bot.AddFSMCustomYieldState(function_fn, "Farm Until Level 10")
 
 def AdvanceToMarketplace(bot: Botting):
     bot.AddHeaderStep("Advance To Marketplace")
@@ -587,8 +843,9 @@ def AdvanceToEOTN(bot: Botting):
     bot.MoveTo(-10234.92, 16691.96)
     bot.MoveTo(-17917.68, 18480.57)
     bot.MoveTo(-18775, 19097)
-    bot.WasteTime(3000)
-    bot.WaitForMapLoad(target_map_name="Boreal Station")
+    bot.WasteTime(8000)
+    boreal_station_id = 675
+    bot.WaitForMapLoad(target_map_id=boreal_station_id)
 
 def ExitBorealStation(bot: Botting):
     bot.AddHeaderStep("Exit Boreal Station")
@@ -663,51 +920,12 @@ def on_party_wipe(bot: "Botting"):
     fsm.AddManagedCoroutine(f"{fsm.get_state_name_by_number(current_step)}_OPD", on_party_wipe_coroutine(bot, target_name))
 
 
-def InitializeBot(bot: Botting) -> None:
-    bot.AddHeaderStep("Initial Step")
-    # Add any initialization steps here
-    #condition = lambda: on_death(bot)
-    #bot.config.events.on_death.set_callback(condition)
-    condition = lambda: on_party_wipe(bot)
-    bot.config.events.on_party_defeated.set_callback(condition)
-    bot.config.events.on_party_wipe.set_callback(condition)
 
-def create_bot_routine(bot: Botting) -> None:
-    InitializeBot(bot)
-    ExitMonasteryOverlook(bot)
-    ExitToCourtyard(bot)
-    UnlockSecondaryProfession(bot)
-    UnlockXunlaiStorage(bot)
-    CraftWeapons(bot)
-    ExitToSunquaVale(bot)
-    TravelToMinisterCho(bot)
-    EnterMinisterChoMission(bot)
-    MinisterChoMission(bot)
-    ConfigurePacifistEnv(bot)
-    TakeWarningTheTenguQuest(bot)
-    WarningTheTenguQuest(bot)
-    ExitToSunquaVale(bot)
-    ExitToTsumeiVillage(bot)
-    ExitToPanjiangPeninsula(bot)
-    TheThreatGrows(bot)
-    ExitToCourtyard(bot)
-    AdvanceToSaoshangTrail(bot)
-    TraverseSaoshangTrail(bot)
-    TakeRewardAndExitSeitungHarbor(bot)
-    GoToZenDaijun(bot)
-    PrepareForZenDaijunMission(bot)
-    ZenDaijunMission(bot)
-    FarmUntilLevel10(bot)
-    AdvanceToMarketplace(bot)
-    AdvanceToKainengCenter(bot)
-    AdvanceToEOTN(bot)
-    ExitBorealStation(bot)
-    TraverseToEOTNOutpost(bot)
-    bot.AddHeaderStep("Final Step")
-    bot.Stop()
-
-
-bot.Routine = create_bot_routine.__get__(bot)
+def AttributePointQuest1(bot: Botting):
+    bot.MoveTo(14352.47, 19419.61)
+    bot.DialogAt(14363.00, 19499.00, 0x815A01) # I Like treasure
+    PrepareForBattle(bot)
+    bot.MoveTo(17165, 19930)
 
 
 
@@ -803,23 +1021,12 @@ def main():
 
             PyImGui.separator()
 
-            bot.config.config_properties.draw_path.set_active(PyImGui.checkbox("Draw Path", bot.config.config_properties.draw_path.is_active()))
+            bot.config.config_properties.draw_path._apply("active",PyImGui.checkbox("Draw Path", bot.config.config_properties.draw_path.is_active()))
 
-            # Segment-by-segment distances
-            if bot.config.path and len(bot.config.path) >= 2:
-                if PyImGui.collapsing_header("Path Segments"):
-                    total = 0.0
-                    for i in range(len(bot.config.path) - 1):
-                        p0 = bot.config.path[i][:2]
-                        p1 = bot.config.path[i + 1][:2]
-                        d = Utils.Distance(p0, p1)
-                        total += d
-                        PyImGui.text(f"{i:02d} {bot.config.path[i]} -> {i+1:02d} {bot.config.path[i+1]}  |  d={d:.1f}")
-                    PyImGui.separator()
-                    PyImGui.text(f"Total: {total:.1f}")
-
-
-        PyImGui.end()
+            PyImGui.separator()
+            PyImGui.text(f"Current values:")
+            
+            bot.config.upkeep.auto_combat._apply("active",PyImGui.checkbox("Auto Combat", bot.config.upkeep.auto_combat.is_active()))
 
         bot.DrawPath()
 

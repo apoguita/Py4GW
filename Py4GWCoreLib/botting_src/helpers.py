@@ -151,6 +151,7 @@ class BottingHelpers:
     def upkeep_auto_combat(self):
         from ..Routines import Routines
         while True:
+            #print (f"autocombat is: {self.parent.config.upkeep.auto_combat.is_active()}")
             if self.parent.config.upkeep.auto_combat.is_active():
                 yield from self.auto_combat()
             else:

@@ -93,7 +93,6 @@ class Property:
     A flexible property system for BotConfig.
     - Always has an `active` flag.
     - Can have any number of extra fields (with defaults).
-    - Changes are scheduled through the FSM of the parent BotConfig.
     """
 
     def __init__(self, parent: "BotConfig", name: str,
@@ -107,43 +106,56 @@ class Property:
         self._values: Dict[str, Any] = {"active": active}
 
         if extra_fields:
-            for k, v in extra_fields.items():
-                self._defaults[k] = v
-                self._values[k] = v
-
-    # ---- getters ----
-    def is_active(self) -> bool:
-        return bool(self._values["active"])
-
-    def get(self, field: str = "active") -> Any:
-        return self._values[field]
-
-    # ---- apply immediately (internal) ----
-    def _apply(self, field: str, value: Any) -> None:
+            self._defaults.update(extra_fields)
+            self._values.update(extra_fields)
+            
+    # ---- internal apply ----
+    def _apply(self, field: str, value: Any):
         self._values[field] = value
 
-    # ---- schedule changes through FSM ----
+    # ---- getters/setters ----
+    def get(self, field: str = "active") -> Any:
+        if field not in self._values:
+            raise KeyError(f"Unknown field '{field}' in Property {self.name}")
+        return self._values[field]
+
     def set(self, field: str, value: Any) -> None:
-        step_name = f"{self.name}_{field}_{self.parent.get_counter('PROPERTY')}"
+        if field not in self._values:
+            raise KeyError(f"Unknown field '{field}' in Property {self.name}")
+        step_name = f"{self.name}_{field}_SET_{self.parent.get_counter('PROPERTY')}"
         self.parent.FSM.AddState(
             name=step_name,
             execute_fn=lambda f=field, v=value: self._apply(f, v),
         )
 
+
+    def is_active(self) -> bool:
+        return bool(self._values["active"])
+
     def enable(self) -> None:
-        self.set("active", True)
+        step_name = f"{self.name}_ENABLE_{self.parent.get_counter('PROPERTY')}"
+        self.parent.FSM.AddState(
+            name=step_name,
+            execute_fn=lambda: self._apply("active", True),
+        )
 
     def disable(self) -> None:
-        self.set("active", False)
+        step_name = f"{self.name}_DISABLE_{self.parent.get_counter('PROPERTY')}"
+        self.parent.FSM.AddState(
+            name=step_name,
+            execute_fn=lambda: self._apply("active", False),
+        )
 
-    def toggle(self) -> None:
-        self.set("active", not self.is_active())
+    def set_active(self, active: bool) -> None:
+        step_name = f"{self.name}_ACTIVE_{self.parent.get_counter('PROPERTY')}"
+        self.parent.FSM.AddState(
+            name=step_name,
+            execute_fn=lambda v=active: self._apply("active", v),
+        )
 
-    def set_active(self, value: bool) -> None:
-        self._apply("active", value)
-
-    # ---- reset ----
     def reset(self, field: str = "active") -> None:
+        if field not in self._defaults:
+            raise KeyError(f"Unknown field '{field}' in Property {self.name}")
         step_name = f"{self.name}_{field}_RESET_{self.parent.get_counter('PROPERTY')}"
         default_value = self._defaults[field]
         self.parent.FSM.AddState(
@@ -152,53 +164,16 @@ class Property:
         )
 
     def reset_all(self) -> None:
-        for f in self._values.keys():
+        for f, v in self._defaults.items():
             self.reset(f)
 
-    # ---- immediate init (bypass FSM, e.g., bootstrapping) ----
-    def init_now(self, **kwargs: Any) -> None:
-        for f, v in kwargs.items():
-            if f not in self._values:
-                raise KeyError(f"Unknown field '{f}' in Property {self.name}")
-            self._apply(f, v)
 
     # ---- representation ----
     def __repr__(self) -> str:
         return f"Property({self.name}, {self._values})"
-    
-    
-class LiveData:
-    def __init__(self, parent: "BotConfig"):
-        self.parent = parent
 
-        # Player-related live data
-        self.Player = Property(parent, "player",
-                               extra_fields={
-                                   "primary_profession": "None",
-                                   "secondary_profession": "None",
-                                   "level": 1,
-                                   'hp': 0
-                               })
 
-        # Map-related live data
-        self.Map = Property(parent, "map",
-                            extra_fields={
-                                "current_map_id": 0,
-                                "max_party_size": 0
-                            })
 
-    def update(self):
-        from ..GlobalCache import GLOBAL_CACHE
-        # update values directly (bypasses FSM scheduling)
-        primary, secondary = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-        self.Player._apply("primary_profession", primary)
-        self.Player._apply("secondary_profession", secondary)
-        self.Player._apply("level", GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID()))
-        self.Player._apply("hp", GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()))
-
-        self.Map._apply("current_map_id", GLOBAL_CACHE.Map.GetMapID())
-        self.Map._apply("max_party_size", GLOBAL_CACHE.Map.GetMaxPartySize())
-        
 class ConfigProperties:
     def __init__(self, parent: "BotConfig"):
         self.parent = parent
