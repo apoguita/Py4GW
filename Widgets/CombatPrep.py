@@ -64,6 +64,7 @@ SHOUTS_BRAIN_TEXT = IconsFontAwesome5.ICON_BRAIN + "##Shouts"
 SHOUTS_BUTTON_ID = "##ShoutsPrepButton"
 TOGGLE_PARTY_LEADER_BUTTON_ID = '##TogglePartyLeaderHeroAI'
 TOGGLE_PARTY_MEMBERS_BUTTON_ID = '##TogglePartyHeroAI'
+TOGGLE_PARTY_MEMBERS_BRAIN_TEXT = IconsFontAwesome5.ICON_BRAIN + "##TogglePartyHeroAI"
 TOGGLE_PARTY_MEMBERS_COOLDOWN_MS = 20000
 TOGGLE_PARTY_MEMBERS_TOOL_TIP_TEXT = "Enables Auto triggering every 20 seconds to prevent Rits and Paragon from lagging"
 TIMESTAMP = "timestamp"
@@ -613,7 +614,7 @@ class CombatPrep:
                     ImGui.show_tooltip(SHOUTS_TOOL_TIP_TEXT)
                 if col_index == 8:
                     auto_toggle_party_members_hero_ai_follow_enabled[VALUE] = ImGui.toggle_button(
-                        SHOUTS_BRAIN_TEXT,
+                        TOGGLE_PARTY_MEMBERS_BRAIN_TEXT,
                         auto_toggle_party_members_hero_ai_follow_enabled[VALUE],
                         icon_size + icon_size * 0.15,
                         icon_size / 1.75,
@@ -732,7 +733,7 @@ class CombatPrep:
                 else ENABLE_PARTY_MEMBERS_TOOL_TIP_TEXT
             )
             auto_toggle_party_members_hero_ai_follow_enabled[VALUE] = ImGui.toggle_button(
-                SHOUTS_BRAIN_TEXT,
+                TOGGLE_PARTY_MEMBERS_BRAIN_TEXT,
                 auto_toggle_party_members_hero_ai_follow_enabled[VALUE],
                 icon_size + icon_size * 0.15,
                 icon_size / 1.75,
