@@ -990,7 +990,7 @@ class SkillManager:
 
             if v_target is None or v_target == 0:
                 self.in_casting_routine = False
-                print("No valid target found for skill slot", slot)
+                #print("No valid target found for skill slot", slot)
                 return False, 0
 
             if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):

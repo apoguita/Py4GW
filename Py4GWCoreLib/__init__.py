@@ -55,10 +55,16 @@ from .Routines import *
 from .SkillManager import *
 from .GlobalCache import GLOBAL_CACHE
 from .Pathing import AutoPathing
+from .Botting import BottingClass as Botting
 
 traceback = traceback
 math = math
 Enum = Enum
+time = time
+sleep = sleep
+inspect = inspect
+dataclass = dataclass
+field = field
 
 Py4Gw = Py4GW
 PyImGui = PyImGui
@@ -82,6 +88,8 @@ PyCamera = PyCamera
 Py2DRenderer = Py2DRenderer
 GLOBAL_CACHE = GLOBAL_CACHE
 AutoPathing = AutoPathing
+
+
 
 #redirect print output to Py4GW Console
 class Py4GWLogger:
