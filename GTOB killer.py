@@ -7,48 +7,46 @@ selected_step = 0
 #dialog = 0x0000008A #get bow
 #dialog = 0x63E #enter quest
 
-WARRIOR = 0x813D0B
-RANGER = 0x813D0F
-MONK = 0x813D0D
-NECROMANCER = 0x813D0C
-MESMER = 0x813D0E
-ELEMENTALIST = 0x813D09
-ASSASSIN = 0x813D08
-RITUALIST = 0x813D0A
+bot = Botting("GTOB Killer")
+def Routine(bot: Botting) -> None:
+    bot.MoveTo(-6062, -2688,"Exit Outpost")
+    bot.WaitForMapLoad(target_map_name="Isle of the Nameless")
+    bot.MoveTo(24.22, 662.37, "Master Of Healing")
+    bot.WasteTimeUntilOOC()
+    bot.MoveTo(3531.49, 3936.87, "Master Of Hexes")
+    bot.WasteTimeUntilOOC()
+    bot.MoveTo(1832.22, 9710.28, "Master Of Enchantments")
+    bot.WasteTimeUntilOOC()
+    bot.MoveTo(5870.76, 8822.76, "Master Of Axes")
+    bot.WasteTimeUntilOOC()
+    bot.MoveTo(8603.14, 6247.41, "Master Of Hammers")
+    bot.WasteTimeUntilOOC()
+    bot.MoveTo(6527.84, 1637.41, "Master Of Lighting")
+    bot.WasteTimeUntilOOC()
+    bot.MoveTo(7873.69, -1941.89, "Master Of Energy Denial")
+    bot.WasteTimeUntilOOC()
+    bot.MoveTo(3354.89, -7001.23, "Master Of Interrupts")
+    bot.WasteTimeUntilOOC()
+    bot.MoveTo(3071.38, -2879.04, "Master Of Spirits")
+    bot.WasteTimeUntilOOC()
+    bot.PrintMessageToConsole("GTOB Killer", "Finished routine")
+
+bot.Routine = Routine.__get__(bot)
+
 
 
 def main():
     global selected_step
     
+    bot.Update()
 
     if PyImGui.begin("PathPlanner Test", PyImGui.WindowFlags.AlwaysAutoResize):
         
-        if PyImGui.button("Proceed to Shing Jea"):
-            GLOBAL_CACHE.Player.SendDialog(0x85)
+        if PyImGui.button("start bot"):
+            bot.Start()
 
-        if PyImGui.button("Unlock Warrior Secondary"):
-            GLOBAL_CACHE.Player.SendDialog(WARRIOR)
-
-        if PyImGui.button("Unlock Ranger Secondary"):
-            GLOBAL_CACHE.Player.SendDialog(RANGER)
-
-        if PyImGui.button("Unlock Monk Secondary"):
-            GLOBAL_CACHE.Player.SendDialog(MONK)
-
-        if PyImGui.button("Unlock Necromancer Secondary"):
-            GLOBAL_CACHE.Player.SendDialog(NECROMANCER)
-
-        if PyImGui.button("Unlock Mesmer Secondary"):
-            GLOBAL_CACHE.Player.SendDialog(MESMER)
-
-        if PyImGui.button("Unlock Elementalist Secondary"):
-            GLOBAL_CACHE.Player.SendDialog(ELEMENTALIST)
-
-        if PyImGui.button("Unlock Assassin Secondary"):
-            GLOBAL_CACHE.Player.SendDialog(ASSASSIN)
-
-        if PyImGui.button("Unlock Ritualist Secondary"):
-            GLOBAL_CACHE.Player.SendDialog(RITUALIST)
+        if PyImGui.button("stop bot"):
+            bot.Stop()
 
     PyImGui.end()
 
