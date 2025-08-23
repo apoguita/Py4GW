@@ -236,7 +236,7 @@ class NavMesh:
                           p1: Tuple[float, float], 
                           p2: Tuple[float, float], 
                           margin: float = 100, 
-                          step_dist: float = 500.0) -> bool:
+                          step_dist: float = 200.0) -> bool:
         
         total_dist = math.dist(p1, p2)
         steps = int(total_dist / step_dist) + 1
@@ -271,7 +271,7 @@ class NavMesh:
     def smooth_path_by_los(self, 
                            path: List[Tuple[float, float]],
                            margin: float = 100,
-                           step_dist: float = 500.0) -> List[Tuple[float, float]]:
+                           step_dist: float = 200.0) -> List[Tuple[float, float]]:
         if len(path) <= 2:
             return path
 
@@ -587,7 +587,7 @@ class AutoPathing:
                  goal: Tuple[float, float, float],
                  smooth_by_los: bool = True,
                  margin: float = 100,
-                 step_dist: float = 500.0,
+                 step_dist: float = 200.0,
                  smooth_by_chaikin: bool = False,
                  chaikin_iterations: int = 1):
         from . import Routines
@@ -668,7 +668,7 @@ class AutoPathing:
     def get_path_to(self, x: float, y: float,
                     smooth_by_los: bool = True,
                     margin: float = 100,
-                    step_dist: float = 500.0,
+                    step_dist: float = 200.0,
                     smooth_by_chaikin: bool = False,
                     chaikin_iterations: int = 1):
         import PyPlayer

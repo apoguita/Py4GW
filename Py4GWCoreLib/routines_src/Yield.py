@@ -139,12 +139,16 @@ class Yield:
                         ActionQueueManager().ResetAllQueues()
                         return False
                     
+                    if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+                        yield from Yield.wait(750)
+                        continue
+                    
                     if custom_pause_fn:
                         while custom_pause_fn():
                             if log:
                                 ConsoleLog("FollowPath", "Custom pause condition active, pausing movement...", Console.MessageType.Debug)
                             start_time = Utils.GetBaseTimestamp()  # Reset timeout timer
-                            yield from Yield.wait(500)
+                            yield from Yield.wait(750)
                     
 
                     current_time = Utils.GetBaseTimestamp()
@@ -669,6 +673,63 @@ class Yield:
             
             if log:
                 ConsoleLog("BuySalvageKits", f"Bought {kits_to_buy} Salvage Kits.", Console.MessageType.Info)
+                
+        @staticmethod
+        def BuyMaterial(model_id: int):
+            MODULE_NAME = "Inventory + Buy Material"
+
+            def _is_material_trader():
+                merchant_models = [
+                    GLOBAL_CACHE.Item.GetModelID(item_id)
+                    for item_id in GLOBAL_CACHE.Trading.Trader.GetOfferedItems()
+                ]
+                return ModelID.Wood_Plank.value in merchant_models
+
+            def _get_minimum_quantity():
+                return 10 if _is_material_trader() else 1
+
+            required_quantity = _get_minimum_quantity()
+            merchant_item_list = GLOBAL_CACHE.Trading.Trader.GetOfferedItems()
+
+            # resolve merchant item ID from model_id
+            item_id = None
+            for candidate in merchant_item_list:
+                if GLOBAL_CACHE.Item.GetModelID(candidate) == model_id:
+                    item_id = candidate
+                    break
+
+            if item_id is None:
+                ConsoleLog(MODULE_NAME, f"Model {model_id} not sold here.", Console.MessageType.Warning)
+                return False
+
+            # Request a single quote
+            GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
+
+            while True:
+                yield from Yield.wait(50)
+                cost = GLOBAL_CACHE.Trading.Trader.GetQuotedValue()
+                if cost >= 0:
+                    break
+
+            if cost == 0:
+                ConsoleLog(MODULE_NAME, f"Item {item_id} has no price.", Console.MessageType.Warning)
+                return False
+
+            # Perform a single buy transaction
+            GLOBAL_CACHE.Trading.Trader.BuyItem(item_id, cost)
+
+            while True:
+                yield from Yield.wait(50)
+                if GLOBAL_CACHE.Trading.IsTransactionComplete():
+                    break
+
+            ConsoleLog(
+                MODULE_NAME,
+                f"Bought {required_quantity} units of model {model_id} for {cost} gold.",
+                Console.MessageType.Success
+            )
+            return True
+
 
 #region Items
     class Items:

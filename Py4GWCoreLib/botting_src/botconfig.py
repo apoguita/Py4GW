@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     
 from ..SkillManager import SkillManager
 from ..Py4GWcorelib import FSM
-from .property import StepNameCounters, LiveData, UpkeepData, ConfigProperties
+from .property import StepNameCounters, UpkeepData, ConfigProperties
 from .event import Events
     
 
@@ -35,7 +35,6 @@ class BotConfig:
         
         #Properties
         self.config_properties = ConfigProperties(self)
-        self.live_data = LiveData(self)
         
         # Consumable maintainers (default: disabled) - by aC
         self.upkeep = UpkeepData(self)
@@ -61,8 +60,6 @@ class BotConfig:
         if self.config_properties.log_actions.is_active():
             ConsoleLog("OnFollowPathFailed", f"Set OnFollowPathFailed to {on_follow_path_failed}", Py4GW.Console.MessageType.Info)
 
-    def _update_live_data(self) -> None:
-        self.live_data.update()
 
     #FSM HELPERS
     def set_pause_on_danger_fn(self, pause_on_combat_fn: Callable[[], bool]) -> None:
@@ -81,6 +78,3 @@ class BotConfig:
     def reset_on_follow_path_failed(self) -> None:
         self.set_on_follow_path_failed(lambda: self.parent.helpers.default_on_unmanaged_fail())
 
-    def update_live_data(self) -> None:
-        self.FSM.AddState(name=f"UpdatePlayerData_{self.get_counter("UPDATE_PLAYER_DATA")}",
-                          execute_fn=lambda:self._update_live_data(),)

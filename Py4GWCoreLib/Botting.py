@@ -12,91 +12,6 @@ class BottingClass:
         self.bot_name = bot_name
         self.helpers = BottingHelpers(self)
         self.config = BotConfig(self, bot_name)
-
-    # ---------- internal path resolver ----------
-
-    def _resolve_property_path(self, name: str) -> Tuple["Property", str]:
-        """
-        Resolve a dotted name like:
-          - "config.log_actions.value"
-          - "upkeep.alcohol.active"
-          - "live.Player.level"
-          - "config.movement_timeout"   (defaults to 'value' if present)
-        Returns: (Property_instance, field_name)
-        Raises: AttributeError / KeyError if not found or not a Property.
-        """
-        if not isinstance(name, str) or not name:
-            raise AttributeError("Empty property path")
-
-        parts = name.split(".")
-        # map first segment to the correct container on BotConfig
-        roots = {
-            "upkeep": self.config.upkeep,
-            "live_data": self.config.live_data,
-            "config_properties": self.config.config_properties,
-        }
-
-        # choose root
-        root_key = parts[0]
-        if root_key in roots:
-            obj = roots[root_key]
-            parts = parts[1:]
-        else:
-            # fallback: try direct attr on BotConfig (advanced users)
-            obj = self.config
-
-        # walk attributes until we hit a Property
-        prop = None
-        for i, seg in enumerate(parts):
-            nxt = getattr(obj, seg, None)
-            if nxt is None:
-                raise AttributeError(f"Path segment '{seg}' not found in '{obj}' for '{name}'")
-
-            # if we reach a Property, remaining segment (if any) is the field
-            if isinstance(nxt, Property):
-                prop = nxt
-                remaining = parts[i+1:]
-                if remaining:
-                    field = remaining[0]
-                else:
-                    # choose sensible default field
-                    # prefer 'value' if present, else 'active'
-                    field = "value" if "value" in prop._values else "active"
-                return prop, field
-
-            obj = nxt  # go deeper
-
-        # If we finished the loop with no Property yet, maybe the last obj is a Property
-        if isinstance(obj, Property):
-            prop = obj
-            field = "value" if "value" in prop._values else "active"
-            return prop, field
-
-        raise AttributeError(f"'{name}' did not resolve to a Property")
-
-    # ---------- public API ----------
-
-    def SetProperty(self, name: str, value: Any) -> bool:
-        """
-        Schedule a change via the FSM on the targeted Property field.
-        """
-        try:
-            prop, field = self._resolve_property_path(name)
-            prop.set(field, value)  # schedule
-            return True
-        except Exception:
-            return False
-
-    def GetProperty(self, name: str) -> Any | None:
-        """
-        Read the committed value of a Property field.
-        """
-        try:
-            prop, field = self._resolve_property_path(name)
-            return prop.get(field)
-        except Exception:
-            return None
-
     
     def AddHeaderStep(self, step_name: str) -> None:
         self.helpers.insert_header_step(step_name)
@@ -154,7 +69,6 @@ class BottingClass:
             self.Routine()
             self.config.initialized = True
         if self.config.fsm_running:
-            self.config._update_live_data()
             self.config.FSM.update()
             
 
