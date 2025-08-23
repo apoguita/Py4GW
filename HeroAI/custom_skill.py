@@ -2671,9 +2671,8 @@ class CustomSkillClass:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Signet_of_Rejuvenation")
         skill.SkillType = SkillType.Signet.value
         skill.TargetAllegiance = Skilltarget.Ally.value
-        skill.Nature = SkillNature.Buff.value
-        skill.Conditions.OutOfCombat = False
-        skill.Conditions.LessLife = 0.86
+        skill.SkillType = SkillType.Signet.value
+        skill.Conditions.LessLife = 0.8
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
