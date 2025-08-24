@@ -2529,6 +2529,7 @@ class ImGui:
 
         return value
 
+
     @staticmethod
     def input_int(label: str, v: int, min_value: int = 0, step_fast: int = 0, flags: int = 0) -> int:
         style = ImGui.get_style()
@@ -2550,24 +2551,25 @@ class ImGui:
                     new_value = PyImGui.input_int(label + "##2", v, min_value, step_fast, flags)
                     PyImGui.pop_clip_rect()
                     PyImGui.pop_style_color(1)
-
+                    
                     display_label = label.split("##")[0]
+                    display_label = display_label or " "
                     label_size = PyImGui.calc_text_size(display_label)
 
                     item_rect_min = PyImGui.get_item_rect_min()
                     item_rect_max = PyImGui.get_item_rect_max()
                     height = item_rect_max[1] - item_rect_min[1]
 
-                    label_rect = (item_rect_max[0] - (label_size[0] if label_size[0] > 0 else 0), item_rect_min[1] + ((height - label_size[1]) / 2) + 2, label_size[0], label_size[1])
-                    button_size = height - 10
-                    button_padding = (4, (height - button_size) / 2)
+                    label_rect = (item_rect_max[0] - (label_size[0] if label_size[0] > 0 else 0), item_rect_min[1] + ((height - label_size[1]) / 2), label_size[0], label_size[1])
+                    button_size = height - 8
+                    button_padding = (4, (height - button_size) / 2 - 1)
                     increase_rect = (label_rect[0] - button_padding[0] - button_size - 2, item_rect_min[1] + button_padding[1], button_size, button_size)
                     decrease_rect = (increase_rect[0] - button_size - button_padding[0], increase_rect[1], button_size, button_size)
 
                     width = item_rect_max[0] - item_rect_min[0] - (label_size[0] + 8 if label_size[0] > 0 else 0)
                     item_rect = (item_rect_min[0], item_rect_min[1], width, height - 4)
                     
-                    inputfield_size = (width - (button_size *1) - (style.ItemInnerSpacing.value1 * 3), item_rect[3])
+                    inputfield_size = (width - (button_size * 1) - (style.ItemInnerSpacing.value1 * 3), item_rect[3])
                     
                     # (GameTextures.Input_Active if PyImGui.is_item_focused() else GameTextures.Input_Inactive).value.draw_in_drawlist(
                     (GameTextures.Input_Inactive).value.draw_in_drawlist(
@@ -2580,19 +2582,25 @@ class ImGui:
                     if PyImGui.is_rect_visible(width, height):
                         PyImGui.set_item_allow_overlap()
                         
-                    PyImGui.push_clip_rect(item_rect[0], item_rect[1], inputfield_size[0], inputfield_size[1] - 2, True)
-                    PyImGui.set_cursor_screen_pos(x, y)
-                    PyImGui.push_item_width(inputfield_size[0])
-                    new_value = PyImGui.input_int(label, new_value, min_value, step_fast, flags)
-                    PyImGui.pop_item_width()
-                    PyImGui.pop_clip_rect()
-                    PyImGui.pop_style_color(6)
-
+                        
                     PyImGui.set_cursor_screen_pos(decrease_rect[0], decrease_rect[1])
                     PyImGui.invisible_button(f"{label}##decrease", decrease_rect[2], decrease_rect[3])
                     
                     if PyImGui.is_item_clicked(0):
                         new_value -= 1
+                                        
+                    PyImGui.set_cursor_screen_pos(increase_rect[0], increase_rect[1])
+                    PyImGui.invisible_button(f"{label}##increase", increase_rect[2], increase_rect[3])
+
+                    if PyImGui.is_item_clicked(0):
+                        new_value += 1
+
+                    PyImGui.push_clip_rect(item_rect[0], item_rect[1], inputfield_size[0] - 0, inputfield_size[1] - 2, True)
+                    PyImGui.set_cursor_screen_pos(x, y)
+                    new_value = PyImGui.input_int(label, new_value, min_value, step_fast, flags)
+                    PyImGui.pop_clip_rect()
+                    PyImGui.pop_style_color(6)
+
                     
                     GameTextures.Collapse.value.draw_in_drawlist(
                         decrease_rect[0],
@@ -2602,12 +2610,6 @@ class ImGui:
                         tint=(255, 255, 255, 255),
                     )
                     
-                    PyImGui.set_cursor_screen_pos(increase_rect[0], increase_rect[1])
-                    PyImGui.invisible_button(f"{label}##increase", increase_rect[2], increase_rect[3])
-
-                    if PyImGui.is_item_clicked(0):
-                        new_value += 1
-
                     GameTextures.Expand.value.draw_in_drawlist(
                         increase_rect[0],
                         increase_rect[1] + 1,
@@ -2622,6 +2624,7 @@ class ImGui:
                         style.Text.get_current().color_int,
                         display_label,                    
                     )
+                    
                 case _:
                     new_value = PyImGui.input_int(label, v)
                     
@@ -2676,7 +2679,7 @@ class ImGui:
                     new_value = PyImGui.input_int(label, v, min_value, step_fast, flags)
 
         return new_value
-
+    
     @staticmethod
     def input_text(label: str, v: str, flags: int = 0) -> str:
         style = ImGui.get_style()
