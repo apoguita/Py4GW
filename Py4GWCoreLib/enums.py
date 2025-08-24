@@ -24,6 +24,7 @@ class SharedCommandType(IntEnum):
     LeaveParty = 18
     PressKey = 19
     LootEx = 20  # privately Handled Command, by Frenkey
+    DonateToGuild = 21
 
 
 class CombatPrepSkillsType(IntEnum):
