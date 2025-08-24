@@ -300,10 +300,7 @@ def DrawWindow():
 
                     ImGui.end_child()
                     ImGui.end_tab_item()
-
-                if ImGui.begin_tab_item("Test Preview"):
-                    ImGui.end_tab_item()       
-                    
+ 
                 if ImGui.begin_tab_item("Control Preview"):
                     if PyImGui.is_rect_visible(50, 50):
                         column_width = 0

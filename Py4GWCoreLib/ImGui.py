@@ -381,14 +381,14 @@ class GameTextures(Enum):
     )
 
     UpButton = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_up_down.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_up_down.png"),
         texture_size=(64, 16),
         size=(14, 16),
         normal=(1, 0)
     )
     
     DownButton = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_up_down.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_up_down.png"),
         texture_size=(64, 16),
         size=(14, 16),
         normal = (17, 0),
@@ -396,7 +396,7 @@ class GameTextures(Enum):
     )
     
     ScrollGrab_Top = SplitTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_scrollgrab.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
         texture_size=(16, 16),
         left=(0, 0, 5, 7),
         mid=(5, 0, 10, 7),
@@ -404,21 +404,21 @@ class GameTextures(Enum):
     )
     
     ScrollGrab_Middle = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_scrollgrab.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
         texture_size=(16, 16),
         size=(16, 2),
         normal=(0, 7)
     )
     
     Scroll_Bg = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_scroll_background.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scroll_background.png"),
         texture_size=(16, 16),
         size=(16, 16),
         normal=(0, 0)
     )
 
     ScrollGrab_Bottom = SplitTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_scrollgrab.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
         texture_size=(16, 16),
         left=(0, 9, 5, 16),
         mid=(5, 9, 10, 16),
@@ -426,14 +426,14 @@ class GameTextures(Enum):
     )            
     
     RightButton = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_left_right.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_left_right.png"),
         texture_size=(64, 16),
         size=(14, 16),
         normal=(1, 0)
     )
     
     LeftButton = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_left_right.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_left_right.png"),
         texture_size=(64, 16),
         size=(14, 16),
         normal = (17, 0),
@@ -441,35 +441,35 @@ class GameTextures(Enum):
     )
     
     Horizontal_ScrollGrab_Top = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scrollgrab.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scrollgrab.png"),
         texture_size=(16, 16),
         size=(7, 16),
         normal=(0, 0),
     )
     
     Horizontal_ScrollGrab_Middle = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scrollgrab.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scrollgrab.png"),
         texture_size=(16, 16),
         size=(2, 16),
         normal=(7, 0)
     )
 
     Horizontal_ScrollGrab_Bottom = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scrollgrab.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scrollgrab.png"),
         texture_size=(16, 16),
         size=(7, 16),
         normal=(9, 0),   
     )   
     
     Horizontal_Scroll_Bg = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_horizontal_scroll_background.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scroll_background.png"),
         texture_size=(16, 16),
         size=(16, 16),
         normal=(0, 0)
     )                         
         
     CircleButtons = MapTexture(
-        texture = os.path.join("Textures\\Game UI\\", "ui_profession_circle_buttons.png"),
+        texture = os.path.join(TEXTURE_FOLDER, "ui_profession_circle_buttons.png"),
         texture_size=(256, 128),
         size=(32, 32),
         active=(192, 96),
@@ -3304,7 +3304,7 @@ class ImGui:
                     PyImGui.pop_clip_rect()
 
                     if open:
-                        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 5, 0)
+                        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 5, 1)
                         ImGui.begin_child(f"{label}##_tab_item_content", (0, 0), True, PyImGui.WindowFlags.NoFlag | PyImGui.WindowFlags.NoBackground)
                         PyImGui.pop_style_var(1)
                     
@@ -3365,6 +3365,8 @@ class ImGui:
 
     @staticmethod
     def begin_child(id : str, size : tuple[float, float] = (0, 0), border: bool = False, flags: int = PyImGui.WindowFlags.NoFlag) -> bool:
+        return PyImGui.begin_child(id, size, border, flags)
+        
         style = ImGui.get_style()
         
         match(style.Theme):
@@ -3380,26 +3382,32 @@ class ImGui:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ScrollbarGrabHovered, (0, 0, 0, 0))
                 open = PyImGui.begin_child(id, size, border, flags)
                 PyImGui.pop_style_color(4)
-                
-                has_vertical_scroll_bar = int(int(flags) & int(PyImGui.WindowFlags.AlwaysVerticalScrollbar)) != 0 or PyImGui.get_scroll_max_y() > 0
-                has_horizontal_scroll_bar = int(int(flags) & int(PyImGui.WindowFlags.AlwaysHorizontalScrollbar)) != 0 or PyImGui.get_scroll_max_x() > 0
 
-                vertical_window_rect = (
-                    parent_window_pos[0],
-                    parent_window_pos[1],
-                    parent_window_pos[0] + parent_window_size[0] ,
-                    parent_window_pos[1] + parent_window_size[1],
-                )
+                no_scroll_bar = int(int(flags) & int(PyImGui.WindowFlags.NoScrollbar)) != 0
                 
-                horizontal_window_rect = (
-                    parent_window_pos[0], 
-                    parent_window_pos[1],
-                    parent_window_pos[0] + parent_window_size[0] - (style.ScrollbarSize.value1 if has_vertical_scroll_bar else 0),
-                    parent_window_pos[1] + parent_window_size[1] 
-                )
+                if not no_scroll_bar:
+                    has_horizontal_scroll_bar = Utils.HasFlag(flags, PyImGui.WindowFlags.HorizontalScrollbar)
+                    force_vertical_scroll_bar = Utils.HasFlag(flags, PyImGui.WindowFlags.AlwaysVerticalScrollbar) or PyImGui.get_scroll_max_y() > 1
+                    force_horizontal_scroll_bar = Utils.HasFlag(flags, PyImGui.WindowFlags.AlwaysHorizontalScrollbar) or (has_horizontal_scroll_bar and PyImGui.get_scroll_max_x() > 1)
 
-                ImGui.draw_vertical_scroll_bar(style.ScrollbarSize.value1, has_vertical_scroll_bar, vertical_window_rect, border)
-                ImGui.draw_horizontal_scroll_bar(style.ScrollbarSize.value1, has_horizontal_scroll_bar, horizontal_window_rect, border)
+                    vertical_window_rect = (
+                        parent_window_pos[0],
+                        parent_window_pos[1],
+                        parent_window_pos[0] + parent_window_size[0] ,
+                        parent_window_pos[1] + parent_window_size[1],
+                    )
+                    
+                    horizontal_window_rect = (
+                        parent_window_pos[0], 
+                        parent_window_pos[1],
+                        parent_window_pos[0] + parent_window_size[0] - (style.ScrollbarSize.value1 if force_vertical_scroll_bar else 0),
+                        parent_window_pos[1] + parent_window_size[1] 
+                    )
+
+                    ImGui.draw_vertical_scroll_bar(style.ScrollbarSize.value1, force_vertical_scroll_bar, vertical_window_rect, border)
+                    
+                    if force_horizontal_scroll_bar:
+                        ImGui.draw_horizontal_scroll_bar(style.ScrollbarSize.value1, force_horizontal_scroll_bar, horizontal_window_rect, border)
 
             case _:
                 open = PyImGui.begin_child(id, size, border, flags)
@@ -3616,6 +3624,8 @@ class ImGui:
 
     @staticmethod
     def begin_table(id: str, columns: int, flags: int = PyImGui.TableFlags.NoFlag, width: float = 0, height: float = 0) -> bool:
+        return PyImGui.begin_table(id, columns, flags, width, height)
+    
         style = ImGui.get_style()
         
         match(style.Theme):
