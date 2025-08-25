@@ -1,3 +1,4 @@
+from email.mime import message
 import time
 from datetime import datetime
 from datetime import timezone
@@ -14,6 +15,7 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
+from Py4GWCoreLib import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 
 cached_data = CacheData()
@@ -469,10 +471,124 @@ def PressKey(index, message):
         "PressKey message processed and finished.",
         Console.MessageType.Info,
     )
+# endregion
+# region DonateToGuild
+def DonateToGuild(index, message):
+    from Py4GWCoreLib import Player
 
+    MODULE = MODULE_NAME
+    LUXON, KURZICK = 1, 2
+    CHUNK = 5000
+    TITLE_MAX = 10_000_000
+
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    # --- Guards: must be valid map + in HZH or Cavalon ---
+    if not Routines.Checks.Map.MapValid():
+        ConsoleLog(MODULE, "Map is not valid, cannot donate.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    allowed_outposts = {77, 193}  # House zu Heltzer, Cavalon
+    if GLOBAL_CACHE.Map.GetMapID() not in allowed_outposts:
+        ConsoleLog(MODULE, "Team is not in either House zu Heltzer or Cavalon, can't continue.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    # --- Param: faction ---
+    try:
+        faction = int(message.Params[0])
+    except Exception:
+        ConsoleLog(MODULE, "Invalid faction ID.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    if faction == LUXON:
+        npc_pos  = (9074, -1124)   # Cavalon
+        get_unspent = lambda: Player.player_instance().current_luxon
+        get_total   = lambda: Player.player_instance().total_earned_luxon
+    elif faction == KURZICK:
+        npc_pos  = (5408, 1494)    # House zu Heltzer
+        get_unspent = lambda: Player.player_instance().current_kurzick
+        get_total   = lambda: Player.player_instance().total_earned_kurzick
+    else:
+        ConsoleLog(MODULE, "Unknown faction ID.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    # --- Move to NPC (AutoPathing -> FollowPath) ---
+    try:
+        px, py = GLOBAL_CACHE.Player.GetXY()
+        z      = GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+        path3d = yield from AutoPathing().get_path((px, py, z), (npc_pos[0], npc_pos[1], z),smooth_by_los=True, margin=100.0, step_dist=500.0)
+    except Exception as e:
+        ConsoleLog(MODULE, f"AutoPathing failed: {e}", Console.MessageType.Warning)
+        path3d = []
+
+    path2d = [(x, y) for (x, y, *_ ) in path3d] if path3d else [npc_pos]
+    follow_ok = yield from Routines.Yield.Movement.FollowPath(path2d)
+    if not follow_ok:
+        ConsoleLog(MODULE, "Failed to follow path to NPC.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    x, y = npc_pos
+    # --- Target + interact to open dialog ---
+    yield from Routines.Yield.wait(400)
+    yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+    yield from Routines.Yield.wait(400)
+
+    # --- Compute chunks after we’re definitely at the NPC ---
+    unspent_before = get_unspent()
+    chunks = unspent_before // CHUNK
+    if chunks <= 0:
+        ConsoleLog(MODULE, "Not enough points to donate or swap.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    # --- Branch: donate if title not maxed, else swap for mats ---
+    if get_total() < TITLE_MAX:
+        # Donation: requires NPC dialog to be open; verify each step
+        done = 0
+        for _ in range(chunks):
+            if not UIManager.IsNPCDialogVisible():
+                # Re-open dialog if it closed between iterations
+                yield from Routines.Yield.Player.InteractTarget()
+                yield from Routines.Yield.wait(250)
+                if not UIManager.IsNPCDialogVisible():
+                    break
+            Player.DepositFaction(faction)
+            done += 1
+            yield from Routines.Yield.wait(250)
+
+        # Verify actual deposited by measuring unspent delta
+        unspent_after = get_unspent()
+        deposited = max(0, (unspent_before - unspent_after) // CHUNK) * CHUNK
+        if deposited > 0:
+            ConsoleLog(MODULE, f"Deposited {deposited} points.", Console.MessageType.Info)
+        else:
+            ConsoleLog(MODULE, "Tried to deposit, but no points were deducted (is the NPC dialog open?).", Console.MessageType.Warning)
+
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    # Swap branch (title maxed): one item per 5k
+    swapped = 0
+    while swapped < chunks:
+        if not UIManager.IsNPCDialogVisible():
+            yield from Routines.Yield.Player.InteractTarget()
+            yield from Routines.Yield.wait(250)
+            if not UIManager.IsNPCDialogVisible():
+                break
+        UIManager.ClickDialogButton(1)  # exchange
+        yield from Routines.Yield.wait(250)
+        UIManager.ClickDialogButton(2)  # confirm
+        yield from Routines.Yield.wait(300)
+        swapped += 1
+
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE, f"Swapped {swapped * CHUNK} points for rare mats.", Console.MessageType.Info)
 
 # endregion
-
 
 # region PickUpLoot
 def PickUpLoot(index, message):
@@ -826,6 +942,8 @@ def ProcessMessages():
         case SharedCommandType.LootEx:
             # privately Handled Command, by Frenkey
             pass
+        case SharedCommandType.DonateToGuild:
+            GLOBAL_CACHE.Coroutines.append(DonateToGuild(index, message))
         case _:
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
             pass
