@@ -7728,6 +7728,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequiresSpiritInEarshot = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
