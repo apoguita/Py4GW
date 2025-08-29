@@ -1,25 +1,34 @@
   
-from typing import Any, Tuple, Callable, List
+from email.mime import message
+from typing import Any, Tuple, Callable, List, Iterable, Dict
 
 from .botting_src.helpers import BottingHelpers
 from .botting_src.botconfig import BotConfig
 from .botting_src.property import Property
-from .Py4GWcorelib import Color
+from .Py4GWcorelib import Color, ActionQueueManager
 
 
 class BottingClass:
     def __init__(self, bot_name="DefaultBot"):
+        #internal configuration
         self.bot_name = bot_name
         self.helpers = BottingHelpers(self)
         self.config = BotConfig(self, bot_name)
-    
-    def AddHeaderStep(self, step_name: str) -> None:
-        self.helpers.insert_header_step(step_name)
+        
+        #exposed Helpers
+        self.States = BottingClass._STATES(self)
+        self.UI = BottingClass._UI(self)
+        self.Items = BottingClass._ITEMS(self)
+        self.Dialogs = BottingClass._DIALOGS(self)
+        self.Wait = BottingClass._WAIT(self)
+        self.Movement = BottingClass._MOVEMENT(self)
+        self.Map = BottingClass._MAP(self)
+        self.Interact = BottingClass._INTERACT(self)
+        self.Party = BottingClass._PARTY(self)
+        self.Events = BottingClass._EVENTS(self)
+        self.Properties = BottingClass._PROPERTIES(self)
 
-    def Routine(self):
-        print("This method should be overridden in the subclass.")
-        pass
-    
+    #region internal Helpers
     def _start_coroutines(self):
         # add all upkeep coroutines once
         H = self.helpers
@@ -42,11 +51,24 @@ class BottingClass:
         self.config.FSM.AddManagedCoroutine("keep_golden_egg",     H.upkeep_golden_egg())
         self.config.FSM.AddManagedCoroutine("keep_pahnai_salad",   H.upkeep_pahnai_salad())
         self.config.FSM.AddManagedCoroutine("keep_war_supplies",   H.upkeep_war_supplies())
-        self.config.FSM.AddManagedCoroutine("keep_imp",           H.upkeep_imp())
+        self.config.FSM.AddManagedCoroutine("keep_imp",            H.upkeep_imp())
         self.config.FSM.AddManagedCoroutine("keep_auto_combat",    H.upkeep_auto_combat())
         self.config.events.start()
-
-
+      
+    #region Routines  
+    def Routine(self):
+        print("This method should be overridden in the subclass.")
+        pass
+    
+    def SetMainRoutine(self, routine: Callable) -> None:
+        """
+        This method Overrides the main routine for the bot.
+        """
+        try:
+            self.Routine = routine.__get__(self, self.__class__)
+        except AttributeError:
+            self.Routine = routine
+    
     def Start(self):
         self.config.FSM.start()
         self.config.fsm_running = True
@@ -70,114 +92,357 @@ class BottingClass:
             self.config.initialized = True
         if self.config.fsm_running:
             self.config.FSM.update()
+  
+    #region DIALOGS
+    class _DIALOGS:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+
+        def DialogAt(self, x: float, y: float, dialog:int, step_name: str="") -> None:
+            if step_name == "":
+                step_name = f"DialogAt_{self.parent.config.get_counter('DIALOG_AT')}"
+
+            #disable combat to prevent interference
+            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
+            self.parent.config.upkeep.auto_combat.set_now("active", False)
+            ActionQueueManager().ResetAllQueues()
+
+            self.parent.helpers.interact_with_agent((x, y), dialog_id=dialog)
+
+            #re-enable combat
+            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
+
+        def DialogWithModel(self, model_id: int, dialog:int, step_name: str="") -> None:
+            if step_name == "":
+                step_name = f"DialogWithModel_{self.parent.config.get_counter('DIALOG_AT')}"
+
+            #disable combat to prevent interference
+            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
+            self.parent.config.upkeep.auto_combat.set_now("active", False)
+            ActionQueueManager().ResetAllQueues()
             
+            self.parent.helpers.interact_with_model(model_id=model_id, dialog_id=dialog)
 
-    def WasteTime(self, duration: int= 100) -> None:
-        self.helpers.waste_time(duration)
+            #re-enable combat
+            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
 
-    def WasteTimeUntilConditionMet(self, condition: Callable[[], bool], duration: int=1000) -> None:
-        self.helpers.waste_time_until_condition_met(condition, duration)
-        
-    def WasteTimeUntilOOC(self) -> None:
-        from .Routines import Routines
-        from .Py4GWcorelib import Range
-        wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot))
-        self.helpers.waste_time_until_condition_met(wait_condition)
+    #region EVENTS
+    class _EVENTS:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
 
-    def AddFSMCustomYieldState(self, execute_fn, name: str) -> None:
-        self.config.FSM.AddYieldRoutineStep(name=name, coroutine_fn=execute_fn)
+        def OnDeathCallback(self, callback: Callable[[], None]) -> None:
+            self.parent.config.events.on_death.set_callback(callback)
 
-    def Travel(self, target_map_id: int = 0, target_map_name: str = "") -> None:
-        from .GlobalCache import GLOBAL_CACHE
-        if target_map_name:
-            target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+        def OnPartyWipeCallback(self, callback: Callable[[], None]) -> None:
+            self.parent.config.events.on_party_wipe.set_callback(callback)
 
-        self.helpers.travel(target_map_id)
+        def OnPartyDefeatedCallback(self, callback: Callable[[], None]) -> None:
+            self.parent.config.events.on_party_defeated.set_callback(callback)
 
-    def MoveTo(self, x:float, y:float, step_name: str=""):
-        if step_name == "":
-            step_name = f"MoveTo_{self.config.get_counter('MOVE_TO')}"
+    #region INTERACT
+    class _INTERACT:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
 
-        self.helpers.get_path_to(x, y)
-        self.helpers.follow_path()
+        def InteractNPCAt(self, x: float, y: float, step_name: str="") -> None:
+            if step_name == "":
+                step_name = f"InteractAt_{self.parent.config.get_counter('INTERACT_AT')}"
 
-    def FollowPath(self, path: List[Tuple[float, float]], step_name: str="") -> None:
-        if step_name == "":
-            step_name = f"FollowPath_{self.config.get_counter('FOLLOW_PATH')}"
-
-        self.helpers.set_path_to(path)
-        self.helpers.follow_path()
-        
-    def DrawPath(self, color:Color=Color(255, 255, 0, 255)) -> None:
-        if self.config.config_properties.draw_path.is_active():
-            self.helpers.draw_path(color)
-
-    def DialogAt(self, x: float, y: float, dialog:int, step_name: str="") -> None:
-        if step_name == "":
-            step_name = f"DialogAt_{self.config.get_counter('DIALOG_AT')}"
-
-        self.helpers.interact_with_agent((x, y), dialog_id=dialog)
-        
-    def DialogWithModel(self, model_id: int, dialog:int, step_name: str="") -> None:
-        if step_name == "":
-            step_name = f"DialogWithModel_{self.config.get_counter('DIALOG_AT')}"
-
-        self.helpers.interact_with_model(model_id=model_id, dialog_id=dialog)
-
-    def InteractNPCAt(self, x: float, y: float, step_name: str="") -> None:
-        if step_name == "":
-            step_name = f"InteractAt_{self.config.get_counter('INTERACT_AT')}"
-
-        self.helpers.interact_with_agent((x, y))
-
-    def InteractGadgetAt(self, x: float, y: float, step_name: str="") -> None:
-        if step_name == "":
-            step_name = f"InteractGadgetAt_{self.config.get_counter('INTERACT_GADGET_AT')}"
-
-        self.helpers.interact_with_gadget((x, y))
-
-    def InteractWithModel(self, model_id: int) -> None:
-        self.helpers.interact_with_model(model_id=model_id)
-
-    def WaitForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
-        from Py4GWCoreLib import GLOBAL_CACHE
-        if target_map_name:
-            target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+            #disable combat to prevent interference
+            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
+            self.parent.config.upkeep.auto_combat.set_now("active", False)
+            ActionQueueManager().ResetAllQueues()
             
-        self.helpers.wait_for_map_load(target_map_id)
+            self.parent.helpers.interact_with_agent((x, y))
+            #re-enable combat
+            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
 
-    def EnterChallenge(self, wait_for:int= 4500):
-        self.helpers.enter_challenge(wait_for=wait_for)
-        
-    def CancelSkillRewardWindow(self):
-        self.helpers.cancel_skill_reward_window()
-        
-    def WithdrawItems(self, model_id:int, quantity:int):
-        self.helpers.withdraw_items(model_id, quantity)
+        def InteractGadgetAt(self, x: float, y: float, step_name: str="") -> None:
+            if step_name == "":
+                step_name = f"InteractGadgetAt_{self.parent.config.get_counter('INTERACT_GADGET_AT')}"
 
-    def CraftItem(self, model_id: int, value: int, trade_items_models: list[int], quantity_list: list[int]):
-        self.helpers.craft_item(model_id, value, trade_items_models, quantity_list)
+            #disable combat to prevent interference
+            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
+            self.parent.config.upkeep.auto_combat.set_now("active", False)
+            ActionQueueManager().ResetAllQueues()
+            
+            self.parent.helpers.interact_with_gadget((x, y))
 
-    def EquipItem(self, model_id: int):
-        self.helpers.equip_item(model_id)
-        
-    def LeaveParty(self):
-        self.helpers.leave_party()
-        
-    def SpawnBonusItems(self):
-        self.helpers.spawn_bonus_items()
-        
-    def FlagAllHeroes(self, x: float, y: float):
-        self.helpers.flag_all_heroes(x, y)
+            #re-enable combat
+            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
 
-    def UnflagAllHeroes(self):
-        self.helpers.unflag_all_heroes()
+        def InteractItemAt(self, x: float, y: float, step_name: str="") -> None:
+            if step_name == "":
+                step_name = f"InteractWithItem_{self.parent.config.get_counter('INTERACT_WITH_ITEM')}"
+
+            
+            #disable combat to prevent interference
+            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
+            self.parent.config.upkeep.auto_combat.set_now("active", False)
+            ActionQueueManager().ResetAllQueues()
+            
+            self.parent.helpers.interact_with_item((x, y))
+            #re-enable combat
+            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
+
+        def InteractWithModel(self, model_id: int, step_name: str="") -> None:
+            if step_name == "":
+                step_name = f"InteractWithModel_{self.parent.config.get_counter('INTERACT_WITH_MODEL')}"
+
+            #disable combat to prevent interference
+            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
+            self.parent.config.upkeep.auto_combat.set_now("active", False)
+            ActionQueueManager().ResetAllQueues()
+            
+            self.parent.helpers.interact_with_model(model_id=model_id)
+
+            #re-enable combat
+            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
+
+    #region ITEMS
+    class _ITEMS:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+            self.Restock = BottingClass._ITEMS._RESTOCK(parent)
+
+        def Craft(self, model_id: int, value: int, trade_items_models: list[int], quantity_list: list[int]):
+            self.parent.helpers.craft_item(model_id, value, trade_items_models, quantity_list)
+            
+        def Withdraw(self, model_id:int, quantity:int):
+            self.parent.helpers.withdraw_items(model_id, quantity)
+
+        def Equip(self, model_id: int):
+            self.parent.helpers.equip_item(model_id)
+            
+        def SpawnBonusItems(self):
+            self.parent.helpers.spawn_bonus_items()
         
-    def Resign(self):
-        self.helpers.resign()
+        class _RESTOCK:
+            def __init__(self, parent: "BottingClass"):
+                self.parent = parent
+
+            def BirthdayCupcake(self):
+                self.parent.helpers.restock_birthday_cupcake()
+
+            def Honeycomb(self):
+                self.parent.helpers.restock_honeycomb()
+
+
+    #region MAP
+    class _MAP:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+
+        def Travel(self, target_map_id: int = 0, target_map_name: str = "") -> None:
+            from .GlobalCache import GLOBAL_CACHE
+            if target_map_name:
+                target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+
+            self.parent.helpers.travel(target_map_id)
+            self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
+            
+        def EnterChallenge(self, delay:int= 4500, target_map_id: int = 0, target_map_name: str = "") -> None:
+            self.parent.helpers.enter_challenge(wait_for=delay)
+            self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
+
+    
+            
+    #region MOVEMENT
+    class _MOVEMENT:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+            
+        def MoveTo(self, x:float, y:float, step_name: str=""):
+            if step_name == "":
+                step_name = f"MoveTo_{self.parent.config.get_counter('MOVE_TO')}"
+
+            self.parent.helpers.get_path_to(x, y)
+            self.parent.helpers.follow_path()
+
+        def FollowPath(self, path: List[Tuple[float, float]], step_name: str="") -> None:
+            if step_name == "":
+                step_name = f"FollowPath_{self.parent.config.get_counter('FOLLOW_PATH')}"
+
+            self.parent.helpers.set_path_to(path)
+            self.parent.helpers.follow_path()
+
+        def FollowPathAndDialog(self, path: List[Tuple[float, float]], dialog_id: int, step_name: str="") -> None:
+            self.FollowPath(path, step_name=step_name)
+            last_point = path[-1]
+            self.parent.Dialogs.DialogAt(*last_point, dialog_id, step_name=step_name+"_DIALOGAT")
+
+        def MoveAndDialog(self, x: float, y: float, dialog_id: int, step_name: str="") -> None:
+            self.MoveTo(x, y, step_name=step_name)
+            self.parent.Dialogs.DialogAt(x, y, dialog_id, step_name=step_name+"_DIALOGAT")
+
+        def MoveAndInteractNPC(self, x: float, y: float, step_name: str="") -> None:
+            self.MoveTo(x, y, step_name=step_name)
+            self.parent.Interact.InteractNPCAt(x, y, step_name=step_name+"_INTERACT")
+
+        def MoveAndInteractGadget(self, x: float, y: float, step_name: str="") -> None:
+            self.MoveTo(x, y, step_name=step_name)
+            self.parent.Interact.InteractGadgetAt(x, y, step_name=step_name+"_INTERACT")
+            
+        def MoveAndInteractItem(self, x: float, y: float, step_name: str="") -> None:
+            self.MoveTo(x, y, step_name=step_name)
+            self.parent.Interact.InteractItemAt(x, y, step_name=step_name+"_INTERACT")
+
+        def MoveAndExitMap(self, x: float, y: float, target_map_id: int = 0, target_map_name: str = "", step_name: str="") -> None:
+            self.MoveTo(x, y, step_name=step_name)
+            self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
+
+        def FollowPathAndExitMap(self, path: List[Tuple[float, float]], target_map_id: int = 0, target_map_name: str = "", step_name: str="") -> None:
+            self.FollowPath(path, step_name=step_name)
+            self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
+
+    #region PROPERTIES
+    class _PROPERTIES:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+
+        def get(self, name: str, field: str = "active") -> Any:
+            return self._resolve(name).get(field)
+
+        def set(self, name: str, value: Any, field: str = "value") -> None:
+            self._resolve(name).set(field, value)
+
+        def is_active(self, name: str) -> bool:
+            return self._resolve(name).is_active()
+
+        def enable(self, name: str) -> None:
+            self._resolve(name).enable()
+
+        def disable(self, name: str) -> None:
+            self._resolve(name).disable()
+
+        def set_active(self, name: str, active: bool) -> None:
+            self._resolve(name).set_active(active)
+
+        def reset(self, name: str, field: str = "active") -> None:
+            self._resolve(name).reset(field)
+
+        def reset_all(self, name: str) -> None:
+            self._resolve(name).reset_all()
+            
+        def direct_apply(self, name: str, field: str, value: Any) -> None:
+            """
+            Immediate, no-FSM write.
+            Directly calls Property._apply(field, value).
+            Use with care: this bypasses FSM AddState.
+            """
+            self._resolve(name)._apply(field, value)
+
+        # --- Internal resolver ---
+        def _resolve(self, name: str):
+            # Check config_properties first
+            if hasattr(self.parent.config.config_properties, name):
+                return getattr(self.parent.config.config_properties, name)
+            # Then upkeep
+            if hasattr(self.parent.config.upkeep, name):
+                return getattr(self.parent.config.upkeep, name)
+            raise AttributeError(f"No property named {name!r}")
         
-    def SendChatMessage(self, channel: str, message: str):
-        self.helpers.send_chat_message(channel, message)
-        
-    def PrintMessageToConsole(self, source: str, message: str):
-        self.helpers.print_message_to_console(source, message)
+        def exists(self, name: str) -> bool:
+            try:
+                self._resolve(name)
+                return True
+            except AttributeError:
+                return False
+
+        # Introspection (useful for tooling/validation)
+        def fields(self, name: str) -> Iterable[str]:
+            prop = self._resolve(name)
+            return list(prop._values.keys())  # read-only exposure
+
+        def values(self, name: str) -> Dict[str, Any]:
+            prop = self._resolve(name)
+            return dict(prop._values)  # snapshot
+
+        def defaults(self, name: str) -> Dict[str, Any]:
+            prop = self._resolve(name)
+            return dict(prop._defaults)  # snapshot
+
+    #region PARTY
+    class _PARTY:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+
+        def LeaveParty(self):
+            self.parent.helpers.leave_party()
+
+        def FlagAllHeroes(self, x: float, y: float):
+            self.parent.helpers.flag_all_heroes(x, y)
+
+        def UnflagAllHeroes(self):
+            self.parent.helpers.unflag_all_heroes()
+            
+        def Resign(self):
+            self.parent.helpers.resign()
+
+
+    #region STATES
+    class _STATES:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+
+        def AddFSMCustomYieldState(self, execute_fn, name: str) -> None:
+            self.parent.config.FSM.AddYieldRoutineStep(name=name, coroutine_fn=execute_fn)
+
+        def AddHeaderStep(self, step_name: str) -> None:
+            self.parent.helpers.insert_header_step(step_name)
+            
+    #region UI
+    class _UI:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+
+        def CancelSkillRewardWindow(self):
+            self.parent.helpers.cancel_skill_reward_window()
+            
+        def DrawPath(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
+            if self.parent.config.config_properties.draw_path.is_active():
+                self.parent.helpers.draw_path(color, use_occlusion, snap_to_ground_segments, floor_offset)
+                
+        def SendChatMessage(self, channel: str, message: str):
+            self.parent.helpers.send_chat_message(channel, message)
+
+        def PrintMessageToConsole(self, source: str, message: str):
+            self.parent.helpers.print_message_to_console(source, message)
+
+    #region WAIT
+    class _WAIT:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+
+        def WasteTime(self, duration: int= 100) -> None:
+            self.parent.helpers.waste_time(duration)
+
+        def WasteTimeUntilConditionMet(self, condition: Callable[[], bool], duration: int=1000) -> None:
+            self.parent.helpers.waste_time_until_condition_met(condition, duration)
+            
+        def WasteTimeUntilOOC(self) -> None:
+            from .Routines import Routines
+            from .Py4GWcorelib import Range
+            wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot))
+            self.parent.helpers.waste_time_until_condition_met(wait_condition)
+            
+        def ForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
+            from Py4GWCoreLib import GLOBAL_CACHE
+            if target_map_name:
+                target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+
+            self.parent.helpers.wait_for_map_load(target_map_id)
+            
+        def ForMapChange(self, target_map_id: int = 0, target_map_name: str = "") -> None:
+            from .Routines import Routines
+            from .GlobalCache import GLOBAL_CACHE
+            if target_map_name:
+                target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+                
+            wait_condition = lambda: (
+                Routines.Checks.Map.MapValid() and 
+                GLOBAL_CACHE.Map.GetMapID() == target_map_id
+            )
+    
+            self.WasteTimeUntilConditionMet(wait_condition, duration=3000)

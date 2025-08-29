@@ -468,6 +468,13 @@ class Yield:
             nearest_gadget = Agents.GetNearestGadgetXY(x,y, distance)
             if nearest_gadget != 0:
                 yield from Yield.Agents.ChangeTarget(nearest_gadget)
+                
+        @staticmethod
+        def TargetNearestItemXY(x,y,distance):
+            from .Agents import Agents
+            nearest_item = Agents.GetNearestItemXY(x,y, distance)
+            if nearest_item != 0:
+                yield from Yield.Agents.ChangeTarget(nearest_item)
 
         @staticmethod
         def TargetNearestEnemy(distance):
@@ -608,6 +615,48 @@ class Yield:
             # 4) Small settle
             yield from Yield.wait(500)
             return True
+        
+        @staticmethod
+        def InteractWithItemXY(x: float, y: float, tolerance: float = 200.0, timeout_ms: int = 15000):
+            
+            from ..Py4GWcorelib import ConsoleLog, Utils
+            # 1) Aim at the nearest item around (x, y)
+            yield from Yield.Agents.TargetNearestItemXY(x, y, 100)
+            target_id = GLOBAL_CACHE.Player.GetTargetID()
+            if not target_id:
+                ConsoleLog("InteractWithItemXY", "No target after targeting.")
+                return False
+
+            # 2) Interact once — the game will auto-move to the target
+            yield from Yield.Player.InteractTarget()
+
+            # 3) Wait until we’re inside the threshold (or timeout), re-issuing every 1000 ms
+            elapsed = 0
+            since_reissue = 0
+            step = 100  # ms
+            while elapsed < timeout_ms:
+                px, py = GLOBAL_CACHE.Player.GetXY()
+                tx, ty = GLOBAL_CACHE.Agent.GetXY(target_id)
+                if Utils.Distance((px, py), (tx, ty)) <= tolerance:
+                    break
+
+                if since_reissue >= 1000:
+                    yield from Yield.Agents.TargetNearestItemXY(x, y, 100)
+                    yield from Yield.Player.InteractTarget()
+                    since_reissue = 0
+
+                yield from Yield.wait(step)
+                elapsed += step
+                since_reissue += step
+
+            if elapsed >= timeout_ms:
+                ConsoleLog("InteractWithAgentXY", "TIMEOUT waiting to reach target range.")
+                return False
+
+            # 4) Small settle
+            yield from Yield.wait(500)
+            return True
+
 
 
 #region Merchant      
@@ -955,6 +1004,42 @@ class Yield:
 
             return True
         
+        @staticmethod
+        def RestockItems(model_id: int, desired_quantity: int) -> Generator[Any, Any, bool]:
+            """
+            Ensure we have `desired_quantity` of `model_id` in bags by withdrawing from storage.
+            - Try exact need first.
+            - If that fails, try withdrawing as much as possible (fallback = min(need, in_storage)).
+            - Return True iff final bag count >= desired_quantity.
+            """
+
+            # Current bag count
+            in_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
+            if in_bags >= desired_quantity:
+                return True
+
+            need = desired_quantity - in_bags
+            in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+
+            if need <= 0 or in_storage <= 0:
+                return False  # nothing needed or nothing in storage
+
+            # 1) Try to withdraw exactly what's needed
+            ok = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, need)
+            yield from Yield.wait(250)
+
+            # 2) If that failed, try fallback: as much as possible from storage
+            if not ok:
+                fallback_amount = min(need, in_storage)
+                if fallback_amount > 0:
+                    ok = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, fallback_amount)
+                    yield from Yield.wait(250)
+
+            # Re-check final bag count to determine success
+            final_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
+            return final_bags >= desired_quantity
+
+
         @staticmethod
         def CraftItem(output_model_id: int, 
                        count: int,

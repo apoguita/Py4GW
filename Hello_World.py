@@ -1,52 +1,34 @@
-
 from Py4GWCoreLib import *
+import PyMap, PyImGui
 
+MODULE_NAME = "Pmap tester"
 
-selected_step = 0
-
-#dialog = 0x0000008A #get bow
-#dialog = 0x63E #enter quest
-
-bot = Botting("GTOB Killer")
-def Routine(bot: Botting) -> None:
-    bot.MoveTo(-6062, -2688,"Exit Outpost")
-    bot.WaitForMapLoad(target_map_name="Isle of the Nameless")
-    bot.MoveTo(24.22, 662.37, "Master Of Healing")
-    bot.WasteTimeUntilOOC()
-    bot.MoveTo(3531.49, 3936.87, "Master Of Hexes")
-    bot.WasteTimeUntilOOC()
-    bot.MoveTo(1832.22, 9710.28, "Master Of Enchantments")
-    bot.WasteTimeUntilOOC()
-    bot.MoveTo(5870.76, 8822.76, "Master Of Axes")
-    bot.WasteTimeUntilOOC()
-    bot.MoveTo(8603.14, 6247.41, "Master Of Hammers")
-    bot.WasteTimeUntilOOC()
-    bot.MoveTo(6527.84, 1637.41, "Master Of Lighting")
-    bot.WasteTimeUntilOOC()
-    bot.MoveTo(7873.69, -1941.89, "Master Of Energy Denial")
-    bot.WasteTimeUntilOOC()
-    bot.MoveTo(3354.89, -7001.23, "Master Of Interrupts")
-    bot.WasteTimeUntilOOC()
-    bot.MoveTo(3071.38, -2879.04, "Master Of Spirits")
-    bot.WasteTimeUntilOOC()
-    bot.PrintMessageToConsole("GTOB Killer", "Finished routine")
-
-bot.Routine = Routine.__get__(bot)
-
+# Cache: map_id -> list of pathing maps
+pathing_maps_cache: dict[int, list] = {}
+current_map_id: int = 0
 
 
 def main():
-    global selected_step
-    
-    bot.Update()
+    global pathing_maps_cache, current_map_id
 
-    if PyImGui.begin("PathPlanner Test", PyImGui.WindowFlags.AlwaysAutoResize):
-        
-        if PyImGui.button("start bot"):
-            bot.Start()
+    if PyImGui.begin("Pmap Tester", PyImGui.WindowFlags.AlwaysAutoResize):
+        # Show current map ID
+        current_map_id = PyMap.PyMap().map_id.ToInt()
+        PyImGui.text(f"Current Map ID: {current_map_id}")
 
-        if PyImGui.button("stop bot"):
-            bot.Stop()
+        # Button to fetch pmaps
+        if PyImGui.button("Fetch Pathing Maps"):
+            pmaps = PyPathing.get_pathing_maps()
+            pathing_maps_cache[current_map_id] = pmaps
+            ConsoleLog(MODULE_NAME, f"Fetched {len(pmaps)} pmaps for map {current_map_id}")
+
+        # If we already cached pmaps, show info
+        if current_map_id in pathing_maps_cache:
+            pmaps = pathing_maps_cache[current_map_id]
+            PyImGui.text(f"Cached {len(pmaps)} pmaps for this map")
+
+            for i, pmap in enumerate(pmaps):
+                PyImGui.text(f"  Index {i}: zplane={pmap.zplane}, traps={len(pmap.trapezoids)}, portals={len(pmap.portals)}")
 
     PyImGui.end()
 
