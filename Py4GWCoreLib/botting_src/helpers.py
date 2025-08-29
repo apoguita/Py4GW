@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from ..Botting import BottingClass  # for type checkers only
 
 from functools import wraps
+from ..Py4GWcorelib import ModelID
 
 # Internal decorator factory (class-scope function)
 def _yield_step(label: str,counter_key: str):
@@ -55,16 +56,14 @@ class BottingHelpers:
         return False
     
     def on_unmanaged_fail(self) -> bool:
-        from ..Py4GWcorelib import ConsoleLog
-        import Py4GW
-        ConsoleLog("On Unmanaged Fail", "there was an unmanaged failure, stopping bot.", Py4GW.Console.MessageType.Warning)
+        from ..Py4GWcorelib import ConsoleLog, Console
+        ConsoleLog("On Unmanaged Fail", "there was an unmanaged failure, stopping bot.", Console.MessageType.Error)
         self.parent.Stop()
         return True
         
     def default_on_unmanaged_fail(self) -> bool:
-        from ..Py4GWcorelib import ConsoleLog
-        import Py4GW
-        ConsoleLog("On Unmanaged Fail", "there was an unmanaged failure, stopping bot.", Py4GW.Console.MessageType.Warning)
+        from ..Py4GWcorelib import ConsoleLog, Console
+        ConsoleLog("On Unmanaged Fail", "there was an unmanaged failure, stopping bot.", Console.MessageType.Error)
         self.parent.Stop()
         return True
 
@@ -80,28 +79,42 @@ class BottingHelpers:
         from ..Routines import Routines
         from ..GlobalCache import GLOBAL_CACHE
         #ConsoleLog(MODULE_NAME, f"Interacting with agent at {coords} with dialog_id {dialog_id}", Py4GW.Console.MessageType.Info)
+        while True:
+            if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+                yield from Routines.Yield.wait(500)
+                break
+            else:
+                break
+
         result = yield from Routines.Yield.Agents.InteractWithAgentXY(*coords)
         #ConsoleLog(MODULE_NAME, f"Interaction result: {result}", Py4GW.Console.MessageType.Info)
         if not result:
             self.on_unmanaged_fail()
-            self.parent.config.config_properties.dialog_at_succeeded._apply("value", False)
+            self.parent.config.config_properties.dialog_at_succeeded.set_now("value", False)
             return False
 
         if not self.parent.config.fsm_running:
             yield from Routines.Yield.wait(100)
-            self.parent.config.config_properties.dialog_at_succeeded._apply("value", False)
+            self.parent.config.config_properties.dialog_at_succeeded.set_now("value", False)
             return False
 
         if dialog_id != 0:
             GLOBAL_CACHE.Player.SendDialog(dialog_id)
             yield from Routines.Yield.wait(500)
 
-        self.parent.config.config_properties.dialog_at_succeeded._apply("value", True)
+        self.parent.config.config_properties.dialog_at_succeeded.set_now("value", True)
         return True
     
     def _interact_with_gadget(self, coords: Tuple[float, float]):
         from ..Routines import Routines
+        from ..GlobalCache import GLOBAL_CACHE
         #ConsoleLog(MODULE_NAME, f"Interacting with gadget at {coords}", Py4GW.Console.MessageType.Info)
+        while True:
+            if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+                yield from Routines.Yield.wait(500)
+                break
+            else:
+                break
         result = yield from Routines.Yield.Agents.InteractWithGadgetXY(*coords)
         #ConsoleLog(MODULE_NAME, f"Interaction result: {result}", Py4GW.Console.MessageType.Info)
         if not result:
@@ -116,8 +129,32 @@ class BottingHelpers:
 
         return True
     
-    def draw_path(self, color:Color=Color(255, 255, 0, 255)) -> None:
+    def _interact_with_item(self, coords: Tuple[float, float]):
+        from ..Routines import Routines
+        from ..GlobalCache import GLOBAL_CACHE
+        while True:
+            if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+                yield from Routines.Yield.wait(500)
+                break
+            else:
+                break
+        result = yield from Routines.Yield.Agents.InteractWithItemXY(*coords)
+        if not result:
+            self.on_unmanaged_fail()
+            self.parent.config.config_properties.dialog_at_succeeded._apply("value", False)
+            return False
+
+        if not self.parent.config.fsm_running:
+            yield from Routines.Yield.wait(100)
+            self.parent.config.config_properties.dialog_at_succeeded._apply("value", False)
+            return False
+
+        return True
+
+    def draw_path(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
         from ..DXOverlay import DXOverlay
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Pathing import AutoPathing
         overlay = DXOverlay()
 
         path = self.parent.config.path_to_draw
@@ -125,10 +162,10 @@ class BottingHelpers:
         for i in range(len(path) - 1):
             x1, y1 = path[i]
             x2, y2 = path[i + 1]
-            z1 = DXOverlay.FindZ(x1, y1) - 125
-            z2 = DXOverlay.FindZ(x2, y2) - 125
-            overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, color.to_color(), False)
-            
+            z1 = DXOverlay.FindZ(x1, y1)
+            z2 = DXOverlay.FindZ(x2, y2)
+            DXOverlay().DrawLine3D(x1, y1, z1, x2, y2, z2, color.to_color(), use_occlusion, snap_to_ground_segments, floor_offset)
+
     def auto_combat(self):
         from ..Routines import Routines
         from ..GlobalCache import GLOBAL_CACHE
@@ -156,8 +193,18 @@ class BottingHelpers:
                 yield from self.auto_combat()
             else:
                 yield from Routines.Yield.wait(500)
+                
+    def restock_item(self, model_id: int, desired_quantity: int) -> Generator[Any, Any, bool]:
+        from ..Routines import Routines
+        from ..Py4GWcorelib import ConsoleLog
+        result = yield from Routines.Yield.Items.RestockItems(model_id, desired_quantity)
+        if not result:
+            yield
+            return False
+        yield
+        return True
 
-    def upkeep_armor_of_salvation(self):
+    def upkeep_armor_of_salvation(self):    
         from ..Routines import Routines
         while True:
             if self.parent.config.upkeep.armor_of_salvation.is_active():
@@ -302,7 +349,11 @@ class BottingHelpers:
     def upkeep_morale(self):
         from ..Routines import Routines
         while True:
-            if self.parent.config.upkeep.morale.is_active():
+            if self.parent.config.upkeep.honeycomb.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_Morale(110)
+            elif (self.parent.config.upkeep.four_leaf_clover.is_active()):
+                yield from Routines.Yield.Upkeepers.Upkeep_Morale(100)
+            elif self.parent.config.upkeep.morale.is_active():
                 yield from Routines.Yield.Upkeepers.Upkeep_Morale(110)
             else:
                 yield from Routines.Yield.wait(500)
@@ -314,7 +365,7 @@ class BottingHelpers:
                 yield from Routines.Yield.Upkeepers.Upkeep_Imp()
             else:
                 yield from Routines.Yield.wait(500)
-
+                
     #region yield steps
 
     @_yield_step(label="WasteTime", counter_key="WASTE_TIME")
@@ -353,7 +404,7 @@ class BottingHelpers:
             tolerance=self.parent.config.config_properties.movement_tolerance.get('value')
         )
 
-        self.parent.config.config_properties.follow_path_succeeded._apply("value",success_movement)
+        self.parent.config.config_properties.follow_path_succeeded.set_now("value",success_movement)
         if not success_movement:
             if exit_condition:
                 return True
@@ -385,6 +436,10 @@ class BottingHelpers:
     @_yield_step(label="InteractWithGadget", counter_key="DIALOG_AT")
     def interact_with_gadget(self, coords: Tuple[float, float]) -> Generator[Any, Any, bool]:
         return (yield from self._interact_with_gadget(coords))
+
+    @_yield_step(label="InteractWithItem", counter_key="DIALOG_AT")
+    def interact_with_item(self, coords: Tuple[float, float]) -> Generator[Any, Any, bool]:
+        return (yield from self._interact_with_item(coords))
 
     @_yield_step(label="InteractWithModel", counter_key="DIALOG_AT")
     def interact_with_model(self, model_id: int, dialog_id: int=0) -> Generator[Any, Any, bool]:
@@ -462,6 +517,7 @@ class BottingHelpers:
 
         return True
 
+
     @_yield_step(label="EquipItem", counter_key="EQUIP_ITEM")
     def equip_item(self, model_id: int):
         from ..Routines import Routines
@@ -516,3 +572,16 @@ class BottingHelpers:
     def print_message_to_console(self, source:str, message: str):
         from ..Routines import Routines
         yield from Routines.Yield.Player.PrintMessageToConsole(source, message)
+     
+    @_yield_step(label="RestockBirthdayCupcake", counter_key="RESTOCK_BIRTHDAY_CUPCAKE")   
+    def restock_birthday_cupcake (self):
+        if self.parent.config.upkeep.birthday_cupcake.is_active():
+            qty = self.parent.config.upkeep.birthday_cupcake.get("restock_quantity")
+            yield from self.parent.helpers.restock_item(ModelID.Birthday_Cupcake.value, qty)
+
+    @_yield_step(label="RestockHoneycomb", counter_key="RESTOCK_HONEYCOMB")
+    def restock_honeycomb(self):
+        if (self.parent.config.upkeep.honeycomb.is_active() or
+            self.parent.config.upkeep.morale.is_active()):
+            qty = self.parent.config.upkeep.honeycomb.get("restock_quantity")
+            yield from self.parent.helpers.restock_item(ModelID.Honeycomb.value, qty)

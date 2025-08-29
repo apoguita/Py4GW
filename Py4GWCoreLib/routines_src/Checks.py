@@ -32,6 +32,11 @@ class Checks:
             from ..GlobalCache import GLOBAL_CACHE
             return GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
         
+        @staticmethod
+        def IsCasting():
+            from ..GlobalCache import GLOBAL_CACHE
+            return GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
+
 #region Party
     class Party:
         @staticmethod

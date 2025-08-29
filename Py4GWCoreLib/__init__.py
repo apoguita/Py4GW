@@ -82,7 +82,6 @@ PyEffects = PyEffects
 PyPathing = PyPathing
 PyOverlay = PyOverlay
 PyQuest = PyQuest
-PyPathing = PyPathing
 PyUIManager = PyUIManager
 PyCamera = PyCamera
 Py2DRenderer = Py2DRenderer

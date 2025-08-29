@@ -35,6 +35,18 @@ class Agents:
         return 0    
                 
     @staticmethod
+    def GetNearestItemXY(x,y, distance):
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        scan_pos = (x,y)
+        item_array = GLOBAL_CACHE.AgentArray.GetItemArray()
+        item_array = AgentArray.Filter.ByDistance(item_array,scan_pos, distance)
+        item_array = AgentArray.Sort.ByDistance(item_array, scan_pos)
+        if len(item_array) > 0:
+            return item_array[0]
+        return 0  
+    
+    @staticmethod
     def GetNearestNPC(distance:float = 4500.0):
         from ..GlobalCache import GLOBAL_CACHE
         player_pos = GLOBAL_CACHE.Player.GetXY()

@@ -113,6 +113,13 @@ class Property:
     def _apply(self, field: str, value: Any):
         self._values[field] = value
 
+    def get_now(self, field: str = "active") -> Any:
+        self.get(field)
+    
+    def set_now(self, field: str, value: Any) -> None:
+        self._apply(field, value)
+  
+
     # ---- getters/setters ----
     def get(self, field: str = "active") -> Any:
         if field not in self._values:
@@ -176,6 +183,7 @@ class Property:
 
 class ConfigProperties:
     def __init__(self, parent: "BotConfig"):
+        from ..Py4GWcorelib import Color
         self.parent = parent
 
         # simple properties with only one field
@@ -185,7 +193,13 @@ class ConfigProperties:
         self.movement_timeout = Property(parent, "movement_timeout", extra_fields={"value": 15000})
         self.movement_tolerance = Property(parent, "movement_tolerance", extra_fields={"value": 150})
         self.draw_path = Property(parent, "draw_path", active=True)
-        self.follow_path_succeeded = Property(parent, "follow_path_succeeded", extra_fields={"value": False})   
+        self.use_occlusion = Property(parent, "use_occlusion", active=True)
+        self.snap_to_ground = Property(parent, "snap_to_ground", active=True)
+        self.snap_to_ground_segments = Property(parent, "snap_to_ground_segments", extra_fields={"value": 8})
+        self.floor_offset = Property(parent, "floor_offset", extra_fields={"value": 20})
+        self.follow_path_color = Property(parent, "follow_path_color", extra_fields={"value": Color(255,255,255,255)})
+
+        self.follow_path_succeeded = Property(parent, "follow_path_succeeded", extra_fields={"value": False})
         self.dialog_at_succeeded = Property(parent, "dialog_at_succeeded", extra_fields={"value": False})
 
         # more properties can be added here
@@ -208,21 +222,58 @@ class UpkeepData:
             extra_fields={"target_morale": 110,}
         )
 
-        self.armor_of_salvation = Property(parent, "armor_of_salvation", active=False)
-        self.essence_of_celerity = Property(parent, "essence_of_celerity", active=False)
-        self.grail_of_might = Property(parent, "grail_of_might", active=False)
-        self.blue_rock_candy = Property(parent, "blue_rock_candy", active=False)
-        self.green_rock_candy = Property(parent, "green_rock_candy", active=False)
-        self.red_rock_candy = Property(parent, "red_rock_candy", active=False)
-        self.birthday_cupcake = Property(parent, "birthday_cupcake", active=False)
-        self.slice_of_pumpkin_pie = Property(parent, "slice_of_pumpkin_pie", active=False)
-        self.bowl_of_skalefin_soup = Property(parent, "bowl_of_skalefin_soup", active=False)
-        self.candy_apple = Property(parent, "candy_apple", active=False)
-        self.candy_corn = Property(parent, "candy_corn", active=False)
-        self.drake_kabob = Property(parent, "drake_kabob", active=False)
-        self.golden_egg = Property(parent, "golden_egg", active=False)
-        self.pahnai_salad = Property(parent, "pahnai_salad", active=False)
-        self.war_supplies = Property(parent, "war_supplies", active=False)
+        self.armor_of_salvation = Property(parent, "armor_of_salvation", active=False,
+                                           extra_fields={"restock_quantity": 0,}
+        )
+        self.essence_of_celerity = Property(parent, "essence_of_celerity", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.grail_of_might = Property(parent, "grail_of_might", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.blue_rock_candy = Property(parent, "blue_rock_candy", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.green_rock_candy = Property(parent, "green_rock_candy", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.red_rock_candy = Property(parent, "red_rock_candy", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.birthday_cupcake = Property(parent, "birthday_cupcake", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.slice_of_pumpkin_pie = Property(parent, "slice_of_pumpkin_pie", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.bowl_of_skalefin_soup = Property(parent, "bowl_of_skalefin_soup", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.candy_apple = Property(parent, "candy_apple", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.candy_corn = Property(parent, "candy_corn", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.drake_kabob = Property(parent, "drake_kabob", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.golden_egg = Property(parent, "golden_egg", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.pahnai_salad = Property(parent, "pahnai_salad", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.war_supplies = Property(parent, "war_supplies", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.honeycomb = Property(parent, "honeycomb", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        self.four_leaf_clover = Property(parent, "four_leaf_clover", active=False,
+            extra_fields={"restock_quantity": 0,}
+        )
+        
         self.imp = Property(parent, "imp", active=False)
         self.auto_combat = Property(parent, "auto_combat", active=False)
 

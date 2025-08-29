@@ -35,8 +35,7 @@ class BotConfig:
         
         #Properties
         self.config_properties = ConfigProperties(self)
-        
-        # Consumable maintainers (default: disabled) - by aC
+
         self.upkeep = UpkeepData(self)
         self.events = Events(self)
 
@@ -51,7 +50,7 @@ class BotConfig:
     def _reset_pause_on_danger_fn(self) -> None:
         from ..Routines import Checks  # local import to avoid cycles
         from ..Py4GWcorelib import Range
-        self._set_pause_on_danger_fn(lambda: Checks.Agents.InDanger(aggro_area=Range.Earshot) or Checks.Party.IsPartyMemberDead())
+        self._set_pause_on_danger_fn(lambda: Checks.Agents.InDanger(aggro_area=Range.Earshot) or Checks.Party.IsPartyMemberDead() or Checks.Player.IsCasting())
 
     def _set_on_follow_path_failed(self, on_follow_path_failed: Callable[[], bool]) -> None:
         from ..Py4GWcorelib import ConsoleLog
