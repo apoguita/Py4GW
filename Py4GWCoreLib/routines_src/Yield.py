@@ -224,7 +224,6 @@ class Yield:
         @staticmethod
         def IsSkillIdUsable(skill_id: int):
             from .Checks import Checks
-
             if not GLOBAL_CACHE.Map.IsMapReady():
                 return False
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
