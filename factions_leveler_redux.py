@@ -25,6 +25,7 @@ def create_bot_routine(bot: Botting) -> None:
     TravelToMinisterCho(bot) #revisited
     EnterMinisterChoMission(bot) #revisited
     MinisterChoMission(bot) #revisited
+    AttributePointQuest1(bot) #revisited
     TakeWarningTheTenguQuest(bot) #revisited
     WarningTheTenguQuest(bot) #revisited
     ExitToSunquaVale(bot) #revisited
@@ -57,11 +58,15 @@ def on_death(bot: "Botting"):
     print("I Died")
 
 def on_party_wipe_coroutine(bot: "Botting", target_name: str):
+    # optional but typical for wipe flow:
     GLOBAL_CACHE.Player.SendChatCommand("resign")
     yield from Routines.Yield.wait(6000)
+
     fsm = bot.config.FSM
-    fsm.reset()
-    fsm.jump_to_state_by_name(target_name)
+    fsm.jump_to_state_by_name(target_name)  # jump while still paused
+    fsm.resume()                            # <— important: unpause so next tick runs the target state
+    yield                                    # keep coroutine semantics
+
 
 def on_party_wipe(bot: "Botting"):
     """
@@ -475,6 +480,25 @@ def MinisterChoMission(bot: Botting) -> None:
     bot.Interact.InteractNPCAt(-17031, 2448) #"Interact with Minister Cho"
     bot.Wait.ForMapChange(target_map_name="Ran Musu Gardens")
     
+def AttributePointQuest1(bot: Botting):
+    bot.States.AddHeaderStep("Attribute Point Quest 1")
+    bot.Movement.MoveAndDialog(14363.00, 19499.00, 0x815A01)  # I Like treasure
+    PrepareForBattle(bot)
+    path = [(13713.27, 18504.61),(14576.15, 17817.62),(15824.60, 18817.90)]
+    bot.Movement.FollowPath(path)
+    map_id = 245
+    bot.Movement.MoveAndExitMap(17005, 19787, target_map_id=map_id)
+    bot.Movement.MoveTo(-17979.38, -493.08)
+    GUARD_ID= 3042
+    bot.Dialogs.DialogWithModel(GUARD_ID, 0x815A04)
+    exit_function = lambda: (
+        not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
+        GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(GUARD_ID))
+    )
+    bot.Movement.FollowModelID(GUARD_ID, follow_range=(Range.Earshot.value /2), exit_condition=exit_function)
+    bot.Dialogs.DialogWithModel(GUARD_ID, 0x815A07)
+    bot.Map.Travel(target_map_name="Ran Musu Gardens")
+    
 def TakeWarningTheTenguQuest(bot: Botting):
     bot.States.AddHeaderStep("Take Warning the Tengu Quest")
     bot.Movement.MoveAndDialog(15846, 19013, 0x815301, step_name="Take Warning the Tengu Quest")
@@ -645,9 +669,6 @@ def TraverseToEOTNOutpost(bot: Botting):
 
 #region NOT FIXED-----------------------------------------------------------------
     
-def AttributePointQuest1(bot: Botting):
-    bot.Movement.MoveTo(14352.47, 19419.61)
-    bot.Dialogs.DialogAt(14363.00, 19499.00, 0x815A01) # I Like treasure
 
 
 selected_step = 0

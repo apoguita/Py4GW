@@ -2,7 +2,9 @@ from __future__ import annotations
 from typing import Tuple, Any
 
 
-from typing import Any, Generator, TYPE_CHECKING, List, Callable
+from typing import Any, Generator, TYPE_CHECKING, List, Callable, Optional
+
+from Py4GWCoreLib.Pathing import AutoPathing
 
 if TYPE_CHECKING:
     from .helpers import BottingHelpers  # for type checkers only
@@ -150,6 +152,52 @@ class BottingHelpers:
             return False
 
         return True
+
+    def _follow_model_id(
+        self,
+        model_id: int,
+        follow_range: float,
+        exit_condition: Optional[Callable[[], bool]],
+    ) -> Generator[Any, Any, bool]:
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Routines import Routines
+        from ..Py4GWcorelib import Utils
+
+        # default exit if none provided
+        if exit_condition is None:
+            exit_condition = lambda: False
+
+        result: bool = True  # assume success unless we bail due to invalid map
+
+        while True:
+            if exit_condition():
+                result = True
+                break
+
+            if not Routines.Checks.Map.MapValid():
+                result = False
+                break
+
+            agent = Routines.Agents.GetAgentIDByModelID(model_id=model_id)
+            agent_pos = GLOBAL_CACHE.Agent.GetXY(agent)
+            distance = Utils.Distance(agent_pos, GLOBAL_CACHE.Player.GetXY())
+
+            if distance > follow_range:
+                path = yield from AutoPathing().get_path_to(*agent_pos)
+                self.parent.config.path = path.copy()
+                self.parent.config.path_to_draw = path.copy()
+                yield from Routines.Yield.Movement.FollowPath(
+                    path_points=path,
+                    timeout=self.parent.config.config_properties.movement_timeout.get('value'),
+                    tolerance=self.parent.config.config_properties.movement_tolerance.get('value'),
+                )
+
+            yield from Routines.Yield.wait(500)
+
+        # keep coroutine semantics consistent
+        yield
+        return result
+
 
     def draw_path(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
         from ..DXOverlay import DXOverlay
@@ -448,6 +496,10 @@ class BottingHelpers:
         agent_id = Routines.Agents.GetAgentIDByModelID(model_id)
         x,y = GLOBAL_CACHE.Agent.GetXY(agent_id)
         return (yield from self._interact_with_agent((x, y), dialog_id))
+
+    @_yield_step(label="FollowModelID", counter_key="FOLLOW_MODEL_ID")
+    def follow_model_id(self, model_id, follow_range, exit_condition: Optional[Callable[[], bool]]=lambda:False) -> Generator[Any, Any, bool]:
+        return (yield from self._follow_model_id(model_id, follow_range, exit_condition))
 
     @_yield_step(label="WaitForMapLoad", counter_key="WAIT_FOR_MAP_LOAD")
     def wait_for_map_load(self, target_map_id):

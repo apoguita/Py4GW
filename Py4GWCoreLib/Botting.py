@@ -1,12 +1,34 @@
   
 from email.mime import message
-from typing import Any, Tuple, Callable, List, Iterable, Dict
+from typing import Any, Tuple, Callable, List, Iterable, Dict, Optional
 
 from .botting_src.helpers import BottingHelpers
 from .botting_src.botconfig import BotConfig
 from .botting_src.property import Property
 from .Py4GWcorelib import Color, ActionQueueManager
+from functools import wraps
 
+def _yield_step(label: str, counter_key: str):
+    def deco(coro_method):
+        @wraps(coro_method)
+        def wrapper(self, *args, **kwargs):
+            # Resolve the owner that actually has .config/.FSM
+            owner = self
+            if not hasattr(owner, "config"):
+                owner = getattr(self, "parent", None)
+            if owner is None or not hasattr(owner, "config"):
+                raise RuntimeError(
+                    f"{coro_method.__qualname__}: cannot resolve bot owner with .config"
+                )
+
+            step_name = f"{label}_{owner.config.get_counter(counter_key)}"
+            owner.config.FSM.AddSelfManagedYieldStep(
+                name=step_name,
+                coroutine_fn=lambda: coro_method(self, *args, **kwargs)
+            )
+            # Return immediately; FSM runs the coroutine later
+        return wrapper
+    return deco
 
 class BottingClass:
     def __init__(self, bot_name="DefaultBot"):
@@ -97,34 +119,44 @@ class BottingClass:
     class _DIALOGS:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self.combat_status = False
+
+        @_yield_step("DisableAutoCombat","AUTO_DISABLE_AUTO_COMBAT")
+        def _disable_auto_combat(self):
+            self.combat_status = self.parent.config.upkeep.auto_combat.is_active()
+            self.parent.config.upkeep.auto_combat.set_now("active", False)
+            ActionQueueManager().ResetAllQueues()
+            yield
+
+        @_yield_step("RestoreAutoCombat","AUTO_RESTORE_AUTO_COMBAT")
+        def _restore_auto_combat(self):
+            self.parent.config.upkeep.auto_combat.set_now("active", self.combat_status)
+            yield
+
 
         def DialogAt(self, x: float, y: float, dialog:int, step_name: str="") -> None:
             if step_name == "":
                 step_name = f"DialogAt_{self.parent.config.get_counter('DIALOG_AT')}"
 
             #disable combat to prevent interference
-            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
-            self.parent.config.upkeep.auto_combat.set_now("active", False)
-            ActionQueueManager().ResetAllQueues()
+            self._disable_auto_combat()
 
             self.parent.helpers.interact_with_agent((x, y), dialog_id=dialog)
 
             #re-enable combat
-            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
+            self._restore_auto_combat()
 
         def DialogWithModel(self, model_id: int, dialog:int, step_name: str="") -> None:
             if step_name == "":
                 step_name = f"DialogWithModel_{self.parent.config.get_counter('DIALOG_AT')}"
 
             #disable combat to prevent interference
-            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
-            self.parent.config.upkeep.auto_combat.set_now("active", False)
-            ActionQueueManager().ResetAllQueues()
-            
+            self._disable_auto_combat()
+
             self.parent.helpers.interact_with_model(model_id=model_id, dialog_id=dialog)
 
             #re-enable combat
-            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
+            self._restore_auto_combat()
 
     #region EVENTS
     class _EVENTS:
@@ -144,33 +176,42 @@ class BottingClass:
     class _INTERACT:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self.combat_status = False
+
+        @_yield_step("DisableAutoCombat","AUTO_DISABLE_AUTO_COMBAT")
+        def _disable_auto_combat(self):
+            self.combat_status = self.parent.config.upkeep.auto_combat.is_active()
+            self.parent.config.upkeep.auto_combat.set_now("active", False)
+            ActionQueueManager().ResetAllQueues()
+            yield
+
+        @_yield_step("RestoreAutoCombat","AUTO_RESTORE_AUTO_COMBAT")
+        def _restore_auto_combat(self):
+            self.parent.config.upkeep.auto_combat.set_now("active", self.combat_status)
+            yield
 
         def InteractNPCAt(self, x: float, y: float, step_name: str="") -> None:
             if step_name == "":
                 step_name = f"InteractAt_{self.parent.config.get_counter('INTERACT_AT')}"
 
             #disable combat to prevent interference
-            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
-            self.parent.config.upkeep.auto_combat.set_now("active", False)
-            ActionQueueManager().ResetAllQueues()
+            self._disable_auto_combat()
             
             self.parent.helpers.interact_with_agent((x, y))
             #re-enable combat
-            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
+            self._restore_auto_combat()
 
         def InteractGadgetAt(self, x: float, y: float, step_name: str="") -> None:
             if step_name == "":
                 step_name = f"InteractGadgetAt_{self.parent.config.get_counter('INTERACT_GADGET_AT')}"
 
             #disable combat to prevent interference
-            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
-            self.parent.config.upkeep.auto_combat.set_now("active", False)
-            ActionQueueManager().ResetAllQueues()
-            
+            self._disable_auto_combat()
+
             self.parent.helpers.interact_with_gadget((x, y))
 
             #re-enable combat
-            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
+            self._restore_auto_combat()
 
         def InteractItemAt(self, x: float, y: float, step_name: str="") -> None:
             if step_name == "":
@@ -178,27 +219,23 @@ class BottingClass:
 
             
             #disable combat to prevent interference
-            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
-            self.parent.config.upkeep.auto_combat.set_now("active", False)
-            ActionQueueManager().ResetAllQueues()
-            
+            self._disable_auto_combat()
+
             self.parent.helpers.interact_with_item((x, y))
             #re-enable combat
-            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
+            self._restore_auto_combat()
 
         def InteractWithModel(self, model_id: int, step_name: str="") -> None:
             if step_name == "":
                 step_name = f"InteractWithModel_{self.parent.config.get_counter('INTERACT_WITH_MODEL')}"
 
             #disable combat to prevent interference
-            current_auto_combat = self.parent.config.upkeep.auto_combat.is_active()
-            self.parent.config.upkeep.auto_combat.set_now("active", False)
-            ActionQueueManager().ResetAllQueues()
-            
+            self._disable_auto_combat()
+
             self.parent.helpers.interact_with_model(model_id=model_id)
 
             #re-enable combat
-            self.parent.config.upkeep.auto_combat.set_now("active", current_auto_combat)
+            self._restore_auto_combat()
 
     #region ITEMS
     class _ITEMS:
@@ -266,6 +303,9 @@ class BottingClass:
 
             self.parent.helpers.set_path_to(path)
             self.parent.helpers.follow_path()
+
+        def FollowModelID(self, model_id: int, follow_range: float, exit_condition: Optional[Callable[[], bool]] = lambda:False) -> None:
+            self.parent.helpers.follow_model_id(model_id, follow_range, exit_condition)
 
         def FollowPathAndDialog(self, path: List[Tuple[float, float]], dialog_id: int, step_name: str="") -> None:
             self.FollowPath(path, step_name=step_name)
