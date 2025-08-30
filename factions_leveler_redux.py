@@ -391,7 +391,7 @@ def _FarmUntilLevel10(bot: Botting):
             bot.helpers.on_unmanaged_fail()
         yield from Routines.Yield.wait(1000)
 
-        state_name = "[H]Enter Zen Daijun Mission_21"
+        state_name = "[H]Enter Zen Daijun Mission_22"
         fsm = bot.config.FSM
         fsm.jump_to_state_by_name(state_name)
     else:
@@ -594,6 +594,13 @@ def ZenDaijunMission(bot: Botting):
     bot.Movement.MoveTo(4508, -1084)
     bot.Movement.MoveTo(528, 6271)
     bot.Movement.MoveTo(-9833, 7579)
+    
+    bot.Movement.MoveTo(-5057.49, 3021.30)
+    bot.Interact.InteractGadgetAt(-4862.00, 3005.00)
+    #bot.Movement.MoveTo(-4862.00, 3005.00)
+    #bot.Movement.MoveTo(-14091.28, 6242.51)
+    
+    
     bot.Movement.MoveTo(-12983, 2191)
     bot.Movement.MoveTo(-12362, -263)
     bot.Movement.MoveTo(-9813, -114)
