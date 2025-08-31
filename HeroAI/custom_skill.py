@@ -2999,7 +2999,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.LessLife = 0.85
+        skill.Conditions.LessLife = 0.7
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
@@ -7728,6 +7728,7 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequiresSpiritInEarshot = True
         self.skill_data[skill.SkillID] = skill
 
         skill = self.CustomSkill()
