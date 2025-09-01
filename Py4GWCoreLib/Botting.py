@@ -303,6 +303,20 @@ class BottingClass:
 
             self.parent.helpers.set_path_to(path)
             self.parent.helpers.follow_path()
+            
+        def FollowAutoPath(self, points: List[Tuple[float, float]], step_name: str = "") -> None:
+            """
+            For each (x, y) target point, compute an autopath and follow it.
+            Input format matches FollowPath, but each point is autpathed independently.
+            """
+            if step_name == "":
+                step_name = f"FollowAutoPath_{self.parent.config.get_counter('FOLLOW_AUTOPATH')}"
+
+            for x, y in points:
+                self.parent.helpers.get_path_to(x, y)   # autopath to this target
+                self.parent.helpers.follow_path()       # then execute the path
+
+
 
         def FollowModelID(self, model_id: int, follow_range: float, exit_condition: Optional[Callable[[], bool]] = lambda:False) -> None:
             self.parent.helpers.follow_model_id(model_id, follow_range, exit_condition)
@@ -474,7 +488,8 @@ class BottingClass:
 
             self.parent.helpers.wait_for_map_load(target_map_id)
             
-        def ForMapChange(self, target_map_id: int = 0, target_map_name: str = "") -> None:
+        def ForMapTransition(self, target_map_id: int = 0, target_map_name: str = "") -> None:
+            """Waits until all action finishes in current map and game sends you to a new one"""
             from .Routines import Routines
             from .GlobalCache import GLOBAL_CACHE
             if target_map_name:

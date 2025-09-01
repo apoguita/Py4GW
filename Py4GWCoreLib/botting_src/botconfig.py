@@ -21,6 +21,9 @@ class BotConfig:
         self.initialized:bool = False
         self.FSM = FSM(bot_name)
         self.fsm_running:bool = False
+        self.fsm_paused:bool = False
+        self.state_description: str = "Idle"
+        self.state_percentage: float = 0.0
         self.auto_combat_handler:SkillManager.Autocombat = SkillManager.Autocombat()
 
         self.counters = StepNameCounters()

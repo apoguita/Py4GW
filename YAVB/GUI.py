@@ -339,7 +339,7 @@ class YAVB_GUI:
 
                                     PyImGui.end_tab_item()
                                     
-                                    
+                                PyImGui.end_tab_bar()   
                             PyImGui.end_table()
                         
                 PyImGui.end_child()

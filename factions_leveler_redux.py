@@ -2,8 +2,8 @@ from __future__ import annotations
 from typing import List, Tuple
 
 # REMOVE: `Botting` from the runtime import below
-from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Color, Botting,
-                          AutoPathing)
+from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Console, ModelID, Color, Botting,
+                          AutoPathing, ImGui,IconsFontAwesome5)
 
 import PyImGui
 import re
@@ -40,7 +40,10 @@ def create_bot_routine(bot: Botting) -> None:
     GoToZenDaijun(bot) #revisited
     EnterZenDaijunMission(bot) #revisited
     ZenDaijunMission(bot) #revisited
-    FarmUntilLevel10(bot) #revisited
+    CraftRemainingArmorFSM(bot)
+    # AttributePointQuest2(bot)
+    #ZenDaijunMission(bot) #revisited
+    FarmUntilLevel10(bot)
     AdvanceToMarketplace(bot) #revisited
     AdvanceToKainengCenter(bot) #revisited
     AdvanceToEOTN(bot) #revisited
@@ -466,19 +469,22 @@ def EnterMinisterChoMission(bot: Botting):
 
 def MinisterChoMission(bot: Botting) -> None:
     bot.States.AddHeaderStep("Minister Cho Mission")
-    bot.Movement.MoveTo(6358, -7348, "Move to Activate Mission")
-    bot.Movement.MoveTo(507, -8910, "Move to First Door")
-    bot.Movement.MoveTo(4889, -5043, "Move to Map Tutorial")
-    bot.Movement.MoveTo(6216, -1108, "Move to Bridge Corner")
-    bot.Movement.MoveTo(2617, 642, "Move to Past Bridge")
-    bot.Movement.MoveTo(0, 1137, "Move to Fight Area")
-    bot.Movement.MoveTo(-7454, -7384, "Move to Zoo Entrance")
-    bot.Movement.MoveTo(-9138, -4191, "Move to First Zoo Fight")
-    bot.Movement.MoveTo(-7109, -25, "Move to Bridge Waypoint")
-    bot.Movement.MoveTo(-7443, 2243, "Move to Zoo Exit")
-    bot.Movement.MoveTo(-16924, 2445, "Move to Final Destination")
+    auto_path_list:List[Tuple[float, float]] = [
+            (6358, -7348),   # Move to Activate Mission
+            (507, -8910),    # Move to First Door
+            (4889, -5043),   # Move to Map Tutorial
+            (6216, -1108),   # Move to Bridge Corner
+            (2617, 642),     # Move to Past Bridge
+            (0, 1137),       # Move to Fight Area
+            (-7454, -7384),  # Move to Zoo Entrance
+            (-9138, -4191),  # Move to First Zoo Fight
+            (-7109, -25),    # Move to Bridge Waypoint
+            (-7443, 2243),   # Move to Zoo Exit
+            (-16924, 2445),  # Move to Final Destination
+    ]
+    bot.Movement.FollowAutoPath(auto_path_list)
     bot.Interact.InteractNPCAt(-17031, 2448) #"Interact with Minister Cho"
-    bot.Wait.ForMapChange(target_map_name="Ran Musu Gardens")
+    bot.Wait.ForMapTransition(target_map_name="Ran Musu Gardens")
     
 def AttributePointQuest1(bot: Botting):
     bot.States.AddHeaderStep("Attribute Point Quest 1")
@@ -586,31 +592,114 @@ def ZenDaijunMission(bot: Botting):
     bot.States.AddHeaderStep("Zen Daijun Mission")
     bot.Movement.MoveTo(11775.22, 11310.60)
     bot.Interact.InteractGadgetAt(11665, 11386)
-    bot.Movement.MoveTo(10549,8070)
-    bot.Movement.MoveTo(10945,3436)
-    bot.Movement.MoveTo(7551,3810)
-    bot.Movement.MoveTo(4855.66, 1521.21)
+    auto_path_list:List[Tuple[float, float]] = [(10549,8070),(10945,3436),(7551,3810),(4855.66, 1521.21)]
+    bot.Movement.FollowAutoPath(auto_path_list)
     bot.Interact.InteractGadgetAt(4754,1451)
-    bot.Movement.MoveTo(4508, -1084)
-    bot.Movement.MoveTo(528, 6271)
-    bot.Movement.MoveTo(-9833, 7579)
-    
-    bot.Movement.MoveTo(-5057.49, 3021.30)
+    auto_path_list:List[Tuple[float, float]] = [(4508, -1084),(528, 6271),(-9833, 7579),(-5057.49, 3021.30)]
+    bot.Movement.FollowAutoPath(auto_path_list)
     bot.Interact.InteractGadgetAt(-4862.00, 3005.00)
-    #bot.Movement.MoveTo(-4862.00, 3005.00)
-    #bot.Movement.MoveTo(-14091.28, 6242.51)
-    
-    
-    bot.Movement.MoveTo(-12983, 2191)
-    bot.Movement.MoveTo(-12362, -263)
-    bot.Movement.MoveTo(-9813, -114)
+    auto_path_list:List[Tuple[float, float]] = [(-12983, 2191),(-12362, -263),(-9813, -114)]
+    bot.Movement.FollowAutoPath(auto_path_list)
     bot.Party.FlagAllHeroes(-8222, -1078)
     bot.Movement.MoveTo(-7681.58, -1509.00)
-    bot.Wait.ForMapChange(target_map_name="Seitung Harbor")
+    bot.Wait.ForMapTransition(target_map_name="Seitung Harbor")
+
+def CraftRemainingArmorFSM(bot: Botting):
+    bot.States.AddHeaderStep("Craft Remaining Armor")
+    bot.States.AddFSMCustomYieldState(CraftRemainingArmor, "Craft Remaining Armor")
+
+def AttributePointQuest2(bot: Botting):
+    bot.States.AddHeaderStep("Attribute Point Quest 2")
+    bot.Movement.MoveTo(19698.33, 7504.35)
+    bot.Interact.InteractGadgetAt(19642.00, 7386.00)
+    bot.Wait.WasteTime(5000)
+    bot.Dialogs.DialogWithModel(3958,0x815C01) #Take Quest from Zunraa
+    PrepareForBattle(bot)
+    bot.Dialogs.DialogAt(20350.00, 9087.00, 0x80000B)
+    bot.Wait.ForMapLoad(target_map_id=246)  # zen_daijun_map_id
+    auto_path_list:List[Tuple[float, float]] = [
+    (-13959.50, 6375.26),
+    (-12126.78, 367.31),
+    (-9972.85, 4141.29),
+    (-9331.86, 7932.66),
+    (-6353.09, 9385.63),
+    (247.80, 12070.21),
+    (-8180.59, 12189.97),
+    (-9540.45, 7760.86),
+    (-5038.08, 2977.42)]
+    bot.Movement.FollowAutoPath(auto_path_list)
+    bot.Interact.InteractGadgetAt(-4862.00, 3005.00)
+    bot.Movement.MoveTo(-9643.93, 7759.69)
+    bot.Wait.WasteTime(10000)
+    path =[(-6970.97, 9666.69)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    path = [(-8259.22, 9363.07)]
+    bot.Wait.WasteTime(5000)
+    bot.Movement.MoveTo(-8655.04, -769.98)
+    bot.Wait.WasteTime(5000)
+    path = [(-6744.75, -1842.97)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    path = [(-7720.80, -905.19)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    auto_path_list:List[Tuple[float, float]] = [
+    (-5016.76, -8800.93),
+    (3268.68, -6118.96),
+    (3808.16, -830.31),
+    (536.95, 2452.17),
+    (599.18, 12088.79),
+    (5509.49, 1978.54),
+    (11313.49, 3755.03),
+    (11313.49, 3755.03),
+    (11313.49, 3755.03),
+    (15029.96, 10187.60),
+    (14062.33, 13088.72),
+    (11775.22, 11310.60)]
+    bot.Movement.FollowAutoPath(auto_path_list)
+    bot.Interact.InteractGadgetAt(11665, 11386)
+    path = [(13041.15, 9314.60)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    path = [(12496.67, 11726.33)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    bot.Movement.MoveTo(10754.91, 3489.10)
+    path = [(7285.64, 6332.29)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    path = [(9274.08, 5492.15)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    path =[(8419.98, 6390.66)]
+    bot.Movement.FollowPath(path)
+    bot.Movement.MoveTo(4855.66, 1521.21)
+    bot.Interact.InteractGadgetAt(4754,1451)
+    bot.Movement.MoveTo(2958.13, 6410.57)
+    path = [(2683.69, 8036.28)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    bot.Movement.MoveTo(3366.55, -5996.11)
+    bot.Wait.WasteTime(10000)
+    path =[(1866.87, -5454.60)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    path= [(3322.93, -5703.29)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    path =[(1855.78, -5376.80)]
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    bot.Movement.MoveTo(-11296.89, -5229.18)
+    bot.Interact.InteractGadgetAt(-11344.00, -5432.00)
+    bot.Movement.MoveTo(-7157.24, -1685.22)
+    bot.Dialogs.DialogWithModel(3958,0x815C07) #Complete Quest from Zunraa
+    bot.Map.Travel(target_map_name="Seitung Harbor")
     
+
 def FarmUntilLevel10(bot: Botting):
     bot.States.AddHeaderStep("Farm Until Level 10")
-    bot.States.AddFSMCustomYieldState(CraftRemainingArmor, "Craft Remaining Armor")
     function_fn = lambda: _FarmUntilLevel10(bot)
     bot.States.AddFSMCustomYieldState(function_fn, "Farm Until Level 10")
 
@@ -672,111 +761,405 @@ def TraverseToEOTNOutpost(bot: Botting):
     bot.Movement.MoveTo(8267.89, -12334.58)
     bot.Movement.MoveTo(3607.21, -6937.32)
     bot.Movement.MoveAndExitMap(2557.23, -275.97, target_map_id=642) #eotn_outpost_id
-
-
-#region NOT FIXED-----------------------------------------------------------------
     
 
 
+#region MAIN
 selected_step = 0
 filter_header_steps = True
+main_child_dimensions = (350, 275)
+iconwidth = 96
+_FSM_SELECTED_NAME_ORIG: str | None = None   # selection persists across frames
+_FSM_FILTER_START: int = 0
+_FSM_FILTER_END: int = 0
+
+def _clean_header(name: str) -> str:
+    if name.startswith("[H]"):
+        name = re.sub(r'^\[H\]\s*', '', name)
+        name = re.sub(r'_(?:\[\d+\]|\d+)$', '', name)
+    return name
+
+def _get_fsm_sections(bot: Botting):
+    """
+    -> List[dict] with:
+      header_idx:int, header_name_orig:str, header_name_clean:str,
+      children: List[Tuple[int, str]]  # (step_index, original_name)
+    Groups steps under the nearest preceding [H] header.
+    """
+    steps = bot.config.FSM.get_state_names()
+    sections = []
+    current = None
+
+    for i, name in enumerate(steps):
+        if name.startswith("[H]"):
+            if current is not None:
+                sections.append(current)
+            current = {
+                "header_idx": i,
+                "header_name_orig": name,
+                "header_name_clean": _clean_header(name),
+                "children": []
+            }
+        else:
+            if current is None:
+                current = {
+                    "header_idx": -1,
+                    "header_name_orig": "[H] (No Header)",
+                    "header_name_clean": "(No Header)",
+                    "children": []
+                }
+            current["children"].append((i, name))
+
+    if current is not None:
+        sections.append(current)
+    return sections
+
+def _draw_step_range_inputs(bot: Botting):
+    """
+    Renders InputInt for [start_step, end_step], clamps to valid bounds.
+    Updates globals _FSM_FILTER_START/_FSM_FILTER_END.
+    Uses the correct input_int signature returning a single int.
+    """
+    global _FSM_FILTER_START, _FSM_FILTER_END
+    steps = bot.config.FSM.get_state_names()
+    last_index = max(0, len(steps) - 1)
+
+    # initialize end to last step on first run
+    if _FSM_FILTER_END == 0 and last_index > 0:
+        _FSM_FILTER_END = last_index
+
+    # input_int returns an int; we clamp after reading
+    _FSM_FILTER_START = PyImGui.input_int("Start Step", _FSM_FILTER_START)
+    _FSM_FILTER_END   = PyImGui.input_int("End Step",   _FSM_FILTER_END)
+
+    # clamp & order
+    _FSM_FILTER_START = max(0, min(_FSM_FILTER_START, last_index))
+    _FSM_FILTER_END   = max(0, min(_FSM_FILTER_END,   last_index))
+    if _FSM_FILTER_START > _FSM_FILTER_END:
+        _FSM_FILTER_START, _FSM_FILTER_END = _FSM_FILTER_END, _FSM_FILTER_START
+
+    PyImGui.same_line(0,-1)
+    if PyImGui.button("Reset Range"):
+        _FSM_FILTER_START = 0
+        _FSM_FILTER_END   = last_index
+
+    PyImGui.text(f"Showing steps [{_FSM_FILTER_START} … {_FSM_FILTER_END}] of 0…{last_index}")
+
+
+
+def draw_fsm_tree_selector_ranged(bot: Botting, child_size: Tuple[float, float]=(350, 250)) -> str | None:
+    """
+    Scrollable child window with a header-grouped tree,
+    filtered to only show steps in [_FSM_FILTER_START, _FSM_FILTER_END].
+    Returns selected ORIGINAL name or None.
+    """
+    global _FSM_SELECTED_NAME_ORIG, _FSM_FILTER_START, _FSM_FILTER_END
+
+    # filter inputs
+    _draw_step_range_inputs(bot)
+    PyImGui.separator()
+
+    sections = _get_fsm_sections(bot)
+    NOFLAG = PyImGui.SelectableFlags.NoFlag
+    SIZE: Tuple[float, float] = (0.0, 0.0)
+
+    PyImGui.begin_child("fsm_tree_ranged_child", child_size, True, 0)
+
+    any_drawn = False
+    for sec in sections:
+        # header/children within range?
+        header_in_range = (sec["header_idx"] >= 0 and _FSM_FILTER_START <= sec["header_idx"] <= _FSM_FILTER_END)
+        children_in_range = [(idx, nm) for (idx, nm) in sec["children"] if _FSM_FILTER_START <= idx <= _FSM_FILTER_END]
+
+        if not header_in_range and not children_in_range:
+            continue
+
+        any_drawn = True
+        header_idx_label = sec["header_idx"] if sec["header_idx"] >= 0 else "—"
+        parent_label = f"[{header_idx_label}] {sec['header_name_clean']}##hdr_{header_idx_label}"
+
+        if PyImGui.tree_node(parent_label):
+            # header selectable
+            header_label = f"(Header) {sec['header_name_clean']}##sel_hdr_{header_idx_label}"
+            is_header_sel = (_FSM_SELECTED_NAME_ORIG == sec["header_name_orig"])
+            if PyImGui.selectable(header_label, is_header_sel, NOFLAG, SIZE):
+                _FSM_SELECTED_NAME_ORIG = sec["header_name_orig"]
+
+            # children (in range)
+            for idx, name_orig in children_in_range:
+                label = f"[{idx}] {name_orig}##sel_step_{idx}"
+                is_sel = (_FSM_SELECTED_NAME_ORIG == name_orig)
+                if PyImGui.selectable(label, is_sel, NOFLAG, SIZE):
+                    _FSM_SELECTED_NAME_ORIG = name_orig
+
+            PyImGui.tree_pop()
+
+    if not any_drawn:
+        PyImGui.text("No steps in selected range.")
+
+    PyImGui.end_child()
+    return _FSM_SELECTED_NAME_ORIG
+
+def draw_fsm_jump_button(bot: Botting) -> None:
+    global _FSM_SELECTED_NAME_ORIG
+    if _FSM_SELECTED_NAME_ORIG:
+        sel_num = bot.config.FSM.get_state_number_by_name(_FSM_SELECTED_NAME_ORIG)
+        PyImGui.text(f"Selected: {_FSM_SELECTED_NAME_ORIG}  (#{sel_num if sel_num is not None else 'N/A'})")
+    else:
+        PyImGui.text("Selected: (none)")
+
+    if PyImGui.button("Jump to Selected") and _FSM_SELECTED_NAME_ORIG:
+        bot.config.fsm_running = True
+        bot.config.FSM.reset()
+        bot.config.FSM.jump_to_state_by_name(_FSM_SELECTED_NAME_ORIG)  # ORIGINAL name
+        bot._start_coroutines()
+
+
+def _draw_texture():
+    global iconwidth
+    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+
+    path = "factions_leveler_art.png"
+    size = (float(iconwidth), float(iconwidth))
+    tint = (255, 255, 255, 255)
+    border_col = (0, 0, 0, 0)  # <- ints, not normalized floats
+
+    if level <= 3:
+        ImGui.DrawTextureExtended(texture_path=path, size=size,
+                                  uv0=(0.0, 0.0),   uv1=(0.25, 1.0),
+                                  tint=tint, border_color=border_col)
+    elif level <= 5:
+        ImGui.DrawTextureExtended(texture_path=path, size=size,
+                                  uv0=(0.25, 0.0), uv1=(0.5, 1.0),
+                                  tint=tint, border_color=border_col)
+    elif level <= 7:
+        ImGui.DrawTextureExtended(texture_path=path, size=size,
+                                  uv0=(0.5, 0.0),  uv1=(0.75, 1.0),
+                                  tint=tint, border_color=border_col)
+    else:
+        ImGui.DrawTextureExtended(texture_path=path, size=size,
+                                  uv0=(0.75, 0.0), uv1=(1.0, 1.0),
+                                  tint=tint, border_color=border_col)
 
 
 def main():
-    global selected_step, filter_header_steps
+    global MODULE_NAME, selected_step, filter_header_steps, bot
+    global _FSM_SELECTED_NAME_ORIG, main_child_dimensions
     try:
         bot.Update()
         
-        if PyImGui.begin("PathPlanner Test", PyImGui.WindowFlags.AlwaysAutoResize):
+        # Find current header
+        fsm_steps_all = bot.config.FSM.get_state_names()
+        total_steps = len(fsm_steps_all)
+        current_step = bot.config.FSM.get_current_state_number()
+        current_header_step = 0
+        step_name = bot.config.FSM.get_state_name_by_number(current_step)
+        header_for_current = None
+        for i in range(current_step, -1, -1):
+            name = fsm_steps_all[i]
+            if name.startswith("[H]"):
+                header_for_current = re.sub(r'^\[H\]\s*', '', name)
+                header_for_current = re.sub(r'_(?:\[\d+\]|\d+)$', '', header_for_current)
+                current_header_step = i
+                break
+        
+        if PyImGui.begin(MODULE_NAME, PyImGui.WindowFlags.AlwaysAutoResize):
+            if PyImGui.begin_tab_bar(MODULE_NAME + "_tabs"):
+                if PyImGui.begin_tab_item("Main"):
+                    if PyImGui.begin_child(f"{bot.config.bot_name} - Main", main_child_dimensions, True, PyImGui.WindowFlags.NoFlag):
+                        if PyImGui.begin_table("bot_header_table", 2, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH):
+                            PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, iconwidth)
+                            PyImGui.table_setup_column("titles", PyImGui.TableColumnFlags.WidthFixed, main_child_dimensions[0] - iconwidth)
+                            PyImGui.table_next_row()
+                            PyImGui.table_set_column_index(0)
+                            _draw_texture()
+                            PyImGui.table_set_column_index(1)
+                            
+                            PyImGui.dummy(0,3)
+                            ImGui.push_font("Regular", 22)
+                            PyImGui.push_style_color(PyImGui.ImGuiCol.Text, Color(255, 255, 0, 255).to_tuple_normalized())
+                            PyImGui.text(f"{bot.config.bot_name}")
+                            PyImGui.pop_style_color(1)
+                            ImGui.pop_font()
+                    
+                            ImGui.push_font("Bold", 18)
+                            PyImGui.text(f"[{current_header_step}] {header_for_current or 'Not started'}")
+                            ImGui.pop_font()
+                            PyImGui.text(f"Step: {current_step}/{max(total_steps-1,0)} - {step_name}")
+                            PyImGui.text(f"Status: {bot.config.state_description}")
+  
+                            PyImGui.end_table()
+   
+                        
+                        icon = IconsFontAwesome5.ICON_CIRCLE
+                        if bot.config.fsm_running and not bot.config.FSM.paused:
+                            icon = IconsFontAwesome5.ICON_PAUSE_CIRCLE
+                        if bot.config.fsm_running and bot.config.FSM.paused:
+                            icon = IconsFontAwesome5.ICON_PLAY_CIRCLE
+                        if not bot.config.fsm_running:
+                            icon = IconsFontAwesome5.ICON_PLAY_CIRCLE
+                            
+                        if PyImGui.button(icon +  "##Playbutton"):
+                            if  bot.config.fsm_running:
+                                if bot.config.fsm_paused:
+                                    bot.config.FSM.resume()
+                                    bot.config.fsm_paused = False
+                                    ConsoleLog(MODULE_NAME,"Script resumed", Console.MessageType.Info)
+                                    bot.config.state_description = "Running"
+                                else:
+                                    bot.config.FSM.pause()
+                                    bot.config.fsm_paused = True
+                                    ConsoleLog(MODULE_NAME,"Script paused", Console.MessageType.Info)
+                                    bot.config.state_description = "Paused"
+                            else:
+                                bot.config.fsm_running = True
+                                bot.config.fsm_paused = False
 
-            PyImGui.text("Bot is: " + ("Running" if bot.config.fsm_running else "Stopped"))
-            current_step = bot.config.FSM.get_current_state_number()
-            step_name = bot.config.FSM.get_state_name_by_number(current_step)
-            PyImGui.text(f"Current Step: {current_step} - {step_name}")
-            
-            # --- find nearest header at or before current_step ---
-            fsm_steps_all = bot.config.FSM.get_state_names()
-            header_for_current = None
-            for i in range(current_step - 1, -1, -1):   # walk backwards
-                name = fsm_steps_all[i]
-                if name.startswith("[H]"):
-                    # clean the header formatting like you already do
-                    header_for_current = re.sub(r'^\[H\]\s*', '', name)
-                    header_for_current = re.sub(r'_(?:\[\d+\]|\d+)$', '', header_for_current)
-                    break
+                                ConsoleLog(MODULE_NAME,"Script started", Console.MessageType.Info)
+                                bot.config.state_description = "Running"
 
-            if header_for_current:
-                PyImGui.text(f"Current Header: {header_for_current}")
-            else:
-                PyImGui.text("Current Header: (none found)")
+                                bot.config.FSM.restart()
 
-            if PyImGui.button("Start Botting"):
-                bot.Start()
+                        PyImGui.same_line(0,-1)
+                                            
+                        #change button to grey if script is not running
+                        if not bot.config.fsm_running:
+                            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, Color(50, 50, 50, 255).to_tuple_normalized())
+                            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, Color(70, 70, 70, 255).to_tuple_normalized())
+                            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, Color(90, 90, 90, 255).to_tuple_normalized())
+                            PyImGui.push_style_color(PyImGui.ImGuiCol.Text, Color(70, 70, 70, 255).to_tuple_normalized())
 
-            if PyImGui.button("Stop Botting"):
-                bot.Stop()
+                        if PyImGui.button(IconsFontAwesome5.ICON_STOP_CIRCLE + "##Stopbutton"):
+                            if bot.config.fsm_running:
+                                bot.config.fsm_running = False
+                                bot.config.fsm_paused = False
+                                ConsoleLog(MODULE_NAME, "Script Stopped", Console.MessageType.Info)
+                                bot.config.state_description = "Idle"
+                                bot.config.FSM.stop()
+
+                                GLOBAL_CACHE.Coroutines.clear()  # Clear all coroutines
+                                
+                        if not bot.config.fsm_running:
+                            PyImGui.pop_style_color(4)
+                            
+                        if total_steps > 1:
+                            fraction = current_step / float(total_steps - 1)
+                        else:
+                            fraction = 0.0
+                            
+                        PyImGui.text("Overall Progress")
+                        PyImGui.push_item_width(main_child_dimensions[0] - 10)
+                        PyImGui.progress_bar(fraction, (main_child_dimensions[0] - 10), 0, f"{fraction * 100:.2f}%")
+                        PyImGui.pop_item_width()
+                        
+                        PyImGui.separator()
+                        PyImGui.text("Step Progress")
+                        PyImGui.push_item_width(main_child_dimensions[0] - 10)
+                        PyImGui.progress_bar(bot.config.state_percentage, (main_child_dimensions[0] - 10), 0, f"{bot.config.state_percentage * 100:.2f}%")
+                        PyImGui.pop_item_width()
+                            
+                        PyImGui.end_child()
+                    PyImGui.end_tab_item()
                 
-            PyImGui.separator()
-            
-            filter_header_steps = PyImGui.checkbox("Show only Header Steps", filter_header_steps)
+                if PyImGui.begin_tab_item("Navigation"):        
+                    PyImGui.text("Jump to step (filtered by step index):")
+                    draw_fsm_jump_button(bot)
+                    PyImGui.separator()
+                    selected_name = draw_fsm_tree_selector_ranged(bot, child_size=main_child_dimensions)
+                    PyImGui.end_tab_item()
 
-            fsm_steps_all = bot.config.FSM.get_state_names()
-            
+                if PyImGui.begin_tab_item("Statistics"):
+                    PyImGui.text("Bot is: " + ("Running" if bot.config.fsm_running else "Stopped"))
+                    current_step = bot.config.FSM.get_current_state_number()
+                    step_name = bot.config.FSM.get_state_name_by_number(current_step)
+                    PyImGui.text(f"Current Step: {current_step} - {step_name}")
+                    
+                    # --- find nearest header at or before current_step ---
+                    fsm_steps_all = bot.config.FSM.get_state_names()
+                    header_for_current = None
+                    for i in range(current_step - 1, -1, -1):   # walk backwards
+                        name = fsm_steps_all[i]
+                        if name.startswith("[H]"):
+                            # clean the header formatting like you already do
+                            header_for_current = re.sub(r'^\[H\]\s*', '', name)
+                            header_for_current = re.sub(r'_(?:\[\d+\]|\d+)$', '', header_for_current)
+                            break
 
-            # choose source list (original names) based on filter
-            if filter_header_steps:
-                fsm_steps_original = [s for s in fsm_steps_all if s.startswith("[H]")]
-            else:
-                fsm_steps_original = fsm_steps_all
+                    if header_for_current:
+                        PyImGui.text(f"Current Header: {header_for_current}")
+                    else:
+                        PyImGui.text("Current Header: (none found)")
 
-            # display list: clean headers; leave non-headers as-is
-            def _clean_header(name: str) -> str:
-                #return name
-                if name.startswith("[H]"):
-                    name = re.sub(r'^\[H\]\s*', '', name)              # remove [H] (and optional space)
-                    name = re.sub(r'_(?:\[\d+\]|\d+)$', '', name)       # remove _123 or _[123] at end
-                return name
+                    if PyImGui.button("Start Botting"):
+                        bot.Start()
 
-            fsm_steps = [_clean_header(s) for s in fsm_steps_original]
-            
+                    if PyImGui.button("Stop Botting"):
+                        bot.Stop()
+                        
+                    PyImGui.separator()
+                    
+                    filter_header_steps = PyImGui.checkbox("Show only Header Steps", filter_header_steps)
 
-            if not fsm_steps:
-                PyImGui.text("No steps to show (filter active).")
-            else:
-                if selected_step >= len(fsm_steps):
-                    selected_step = max(0, len(fsm_steps) - 1)
+                    fsm_steps_all = bot.config.FSM.get_state_names()
+                    
 
-                selected_step = PyImGui.combo("FSM Steps", selected_step, fsm_steps)
-                
-                sel_orig = fsm_steps_original[selected_step]
-                state_num = bot.config.FSM.get_state_number_by_name(sel_orig)
+                    # choose source list (original names) based on filter
+                    if filter_header_steps:
+                        fsm_steps_original = [s for s in fsm_steps_all if s.startswith("[H]")]
+                    else:
+                        fsm_steps_original = fsm_steps_all
 
-                # display it (handle not-found defensively)
-                if state_num is None or state_num == -1:
-                    PyImGui.text(f"Selected step: {sel_orig}  (step #: N/A)")
-                else:
-                    PyImGui.text(f"Selected step: {sel_orig}  (step #: {state_num})")
+                    # display list: clean headers; leave non-headers as-is
+                    def _clean_header(name: str) -> str:
+                        #return name
+                        if name.startswith("[H]"):
+                            name = re.sub(r'^\[H\]\s*', '', name)              # remove [H] (and optional space)
+                            name = re.sub(r'_(?:\[\d+\]|\d+)$', '', name)       # remove _123 or _[123] at end
+                        return name
 
-                if PyImGui.button("start at Step"):
-                    bot.config.fsm_running = True
-                    bot.config.FSM.reset()
-                    # jump with ORIGINAL name
-                    bot.config.FSM.jump_to_state_by_name(fsm_steps_original[selected_step])
-                    bot._start_coroutines()
+                    fsm_steps = [_clean_header(s) for s in fsm_steps_original]
+                    
 
+                    if not fsm_steps:
+                        PyImGui.text("No steps to show (filter active).")
+                    else:
+                        if selected_step >= len(fsm_steps):
+                            selected_step = max(0, len(fsm_steps) - 1)
 
-            PyImGui.separator()
+                        selected_step = PyImGui.combo("FSM Steps", selected_step, fsm_steps)
+                        
+                        sel_orig = fsm_steps_original[selected_step]
+                        state_num = bot.config.FSM.get_state_number_by_name(sel_orig)
 
-            bot.config.config_properties.draw_path.set_now("active",PyImGui.checkbox("Draw Path", bot.config.config_properties.draw_path.is_active()))
-            bot.config.config_properties.use_occlusion.set_now("active",PyImGui.checkbox("Use Occlusion", bot.config.config_properties.use_occlusion.is_active()))
-            bot.config.config_properties.snap_to_ground_segments.set_now("value", PyImGui.slider_int("Snap to Ground Segments", bot.config.config_properties.snap_to_ground_segments.get("value"), 1, 32))
-            bot.config.config_properties.floor_offset.set_now("value", PyImGui.slider_float("Floor Offset", bot.config.config_properties.floor_offset.get("value"), -10.0, 50.0))
+                        # display it (handle not-found defensively)
+                        if state_num is None or state_num == -1:
+                            PyImGui.text(f"Selected step: {sel_orig}  (step #: N/A)")
+                        else:
+                            PyImGui.text(f"Selected step: {sel_orig}  (step #: {state_num})")
 
-            PyImGui.separator()
-            PyImGui.text(f"Current values:")
-            
-            bot.config.upkeep.auto_combat.set_now("active",PyImGui.checkbox("Auto Combat", bot.config.upkeep.auto_combat.is_active()))
+                        if PyImGui.button("start at Step"):
+                            bot.config.fsm_running = True
+                            bot.config.FSM.reset()
+                            # jump with ORIGINAL name
+                            bot.config.FSM.jump_to_state_by_name(fsm_steps_original[selected_step])
+                            bot._start_coroutines()
+                            
+                    PyImGui.end_tab_item()
+                    
+                if PyImGui.begin_tab_item("Configuration"):
+                    bot.config.config_properties.draw_path.set_now("active",PyImGui.checkbox("Draw Path", bot.config.config_properties.draw_path.is_active()))
+                    bot.config.config_properties.use_occlusion.set_now("active",PyImGui.checkbox("Use Occlusion", bot.config.config_properties.use_occlusion.is_active()))
+                    bot.config.config_properties.snap_to_ground_segments.set_now("value", PyImGui.slider_int("Snap to Ground Segments", bot.config.config_properties.snap_to_ground_segments.get("value"), 1, 32))
+                    bot.config.config_properties.floor_offset.set_now("value", PyImGui.slider_float("Floor Offset", bot.config.config_properties.floor_offset.get("value"), -10.0, 50.0))
 
+                    PyImGui.separator()
+                    PyImGui.text(f"Current values:")
+                    
+                    bot.config.upkeep.auto_combat.set_now("active",PyImGui.checkbox("Auto Combat", bot.config.upkeep.auto_combat.is_active()))
+                    PyImGui.end_tab_item()
+                PyImGui.end_tab_bar()
+
+        PyImGui.end()
         bot.UI.DrawPath(bot.config.config_properties.follow_path_color.get("value"), bot.config.config_properties.use_occlusion.is_active(), bot.config.config_properties.snap_to_ground_segments.get("value"), bot.config.config_properties.floor_offset.get("value"))
 
     except Exception as e:
