@@ -1,12 +1,12 @@
 from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
 
 # 1) IDs
-_12_auroragladeoutpost_to_maguumastade_ids = {
+_7_auroragladeoutpost_to_maguumastade_ids = {
     "outpost_id": 12,
 }
 
 # 2) Outpost exit path
-_12_auroragladeoutpost_to_maguumastade_outpost_path = [
+_7_auroragladeoutpost_to_maguumastade_outpost_path = [
     (-18575, 4226),
     (-19074, 3265),
     (-19532, 2341),
@@ -21,7 +21,7 @@ _12_auroragladeoutpost_to_maguumastade_outpost_path = [
 ]
 
 # 3) Segments
-_12_auroragladeoutpost_to_maguumastade_segments = [
+_7_auroragladeoutpost_to_maguumastade_segments = [
     {
         "map_id": 44,
         "path": [
