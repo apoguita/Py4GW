@@ -1,19 +1,19 @@
 from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
 
 # 1) IDs
-_6_templeoftheages_to_thewilds_ids = {
+_1_templeoftheages_to_thewilds_ids = {
     "outpost_id": 138,
 }
 
 # 2) Outpost exit path
-_6_templeoftheages_to_thewilds_outpost_path = [
+_1_templeoftheages_to_thewilds_outpost_path = [
     (-4908, 17096),
     (-5198, 16120),
     (-5483, 15161),
 ]
 
 # 3) Segments
-_6_templeoftheages_to_thewilds_segments = [
+_1_templeoftheages_to_thewilds_segments = [
     {
         "map_id": 18,
         "path": [
