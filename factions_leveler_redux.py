@@ -11,7 +11,9 @@ import re
 MODULE_NAME = "Factions Leveler"
 
 # ----------------------- BOT CONFIGURATION --------------------------------------------
-bot = Botting("Factions Leveler")
+bot = Botting("Factions Leveler",
+              upkeep_birthday_cupcake_restock=50,
+              upkeep_honeycomb_restock=100)
 
 #region MainRoutine
 def create_bot_routine(bot: Botting) -> None:
@@ -41,9 +43,7 @@ def create_bot_routine(bot: Botting) -> None:
     EnterZenDaijunMission(bot) #revisited
     ZenDaijunMission(bot) #revisited
     CraftRemainingArmorFSM(bot)
-    # AttributePointQuest2(bot)
-    #ZenDaijunMission(bot) #revisited
-    FarmUntilLevel10(bot)
+    AttributePointQuest2(bot)
     AdvanceToMarketplace(bot) #revisited
     AdvanceToKainengCenter(bot) #revisited
     AdvanceToEOTN(bot) #revisited
@@ -130,13 +130,11 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.enable("pause_on_danger")
     bot.Properties.disable("halt_on_death")
     bot.Properties.set("movement_timeout",value=-1)
-    bot.Properties.set("birthday_cupcake", field="restock_quantity", value=50)
-    bot.Properties.set("honeycomb", field="restock_quantity", value=100)
-    bot.Items.SpawnBonusItems()
     bot.Properties.enable("auto_combat")
     bot.Properties.enable("imp")
     bot.Properties.enable("birthday_cupcake")
     bot.Properties.enable("morale")
+    bot.Items.SpawnBonusItems()
     
 def EquipSkillBar(): 
     global bot
@@ -146,7 +144,7 @@ def EquipSkillBar():
 
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Warrior":
-        yield from _load_skillbar("OQITEFskxQxw23AAAAAAAAA")
+        yield from _load_skillbar("OQITEH8kzQxw23AAAAAAAAA")
     elif profession == "Ranger":
         yield from _load_skillbar("OggjcJZIoMKGfz3EAAAAAAAAAA")
     elif profession == "Monk":
@@ -407,9 +405,6 @@ def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_party_wipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
     bot.Events.OnPartyDefeatedCallback(condition)
-    bot.Properties.set("birthday_cupcake", field="restock_quantity", value=50)
-    bot.Properties.set("honeycomb", field="restock_quantity", value=100)
-
 
 def ExitMonasteryOverlook(bot: Botting) -> None:
     bot.States.AddHeaderStep("Exit Monastery Overlook")
@@ -458,12 +453,13 @@ def ExitToSunquaVale(bot: Botting) -> None:
 def TravelToMinisterCho(bot: Botting) -> None:
     bot.States.AddHeaderStep("Travel To Minister Cho")
     bot.Movement.MoveAndDialog(6637, 16147, 0x80000B, step_name="Talk to Guardman Zui")
-    bot.Wait.WasteTime(5000)
+    bot.Wait.WasteTime(7000)
     bot.Wait.ForMapLoad(target_map_id=214) #minister_cho_map_id
     bot.Movement.MoveAndDialog(7884, -10029, 0x813E07, step_name="Accept Minister Cho Reward")
     
 def EnterMinisterChoMission(bot: Botting):
     bot.States.AddHeaderStep("Enter Minister Cho Mission")
+    bot.Wait.WasteTime(2000)
     PrepareForBattle(bot)
     bot.Map.EnterChallenge(delay=4500, target_map_id=214) #minister_cho_map_id
 
@@ -501,7 +497,7 @@ def AttributePointQuest1(bot: Botting):
         not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
         GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(GUARD_ID))
     )
-    bot.Movement.FollowModelID(GUARD_ID, follow_range=(Range.Earshot.value /2), exit_condition=exit_function)
+    bot.Movement.FollowModelID(GUARD_ID, follow_range=(Range.Area.value), exit_condition=exit_function)
     bot.Dialogs.DialogWithModel(GUARD_ID, 0x815A07)
     bot.Map.Travel(target_map_name="Ran Musu Gardens")
     
@@ -618,69 +614,90 @@ def AttributePointQuest2(bot: Botting):
     bot.Dialogs.DialogAt(20350.00, 9087.00, 0x80000B)
     bot.Wait.ForMapLoad(target_map_id=246)  # zen_daijun_map_id
     auto_path_list:List[Tuple[float, float]] = [
-    (-13959.50, 6375.26),
-    (-12126.78, 367.31),
-    (-9972.85, 4141.29),
-    (-9331.86, 7932.66),
-    (-6353.09, 9385.63),
-    (247.80, 12070.21),
-    (-8180.59, 12189.97),
-    (-9540.45, 7760.86),
-    (-5038.08, 2977.42)]
+    (-13959.50, 6375.26), #half the temple
+    (-14567.47, 1775.31), #side of road
+    (-12310.05, 2417.60), #across road
+    (-12071.83, 294.29),  #bridge and patrol
+    (-9972.85, 4141.29), #miasma passtrough
+    (-9331.86, 7932.66), #in front of bridge
+    (-6353.09, 9385.63), #past he miasma on way to waterfall
+    (247.80, 12070.21), #waterfall
+    (-8180.59, 12189.97), #back to kill patrols
+    (-9540.45, 7760.86), #in front of bridge 2
+    (-5038.08, 2977.42)] #to shrine
     bot.Movement.FollowAutoPath(auto_path_list)
     bot.Interact.InteractGadgetAt(-4862.00, 3005.00)
-    bot.Movement.MoveTo(-9643.93, 7759.69)
+    bot.Movement.MoveTo(-9643.93, 7759.69) #front of bridge 3
+    bot.Wait.WasteTime(5000)
+
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    path =[(-8294.21, 10061.62)] #position zunraa
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    path = [(-6473.26, 8771.21)] #clear miasma
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    path =[(-6365.32, 10234.20)] #position zunraa2
+    bot.Movement.FollowPath(path)
+    bot.Wait.WasteTime(5000)
+    
+    bot.Movement.MoveTo(-8655.04, -769.98) # to next Miasma on temple
+    bot.Wait.WasteTime(5000)
+    path = [(-6744.75, -1842.97)] #clear half the miasma 
+    bot.Movement.FollowPath(path)
     bot.Wait.WasteTime(10000)
-    path =[(-6970.97, 9666.69)]
+    path = [(-7720.80, -905.19)] #finish miasma
     bot.Movement.FollowPath(path)
     bot.Wait.WasteTime(5000)
-    path = [(-8259.22, 9363.07)]
-    bot.Wait.WasteTime(5000)
-    bot.Movement.MoveTo(-8655.04, -769.98)
-    bot.Wait.WasteTime(5000)
-    path = [(-6744.75, -1842.97)]
-    bot.Movement.FollowPath(path)
-    bot.Wait.WasteTime(5000)
-    path = [(-7720.80, -905.19)]
-    bot.Movement.FollowPath(path)
-    bot.Wait.WasteTime(5000)
+    
+    
     auto_path_list:List[Tuple[float, float]] = [
-    (-5016.76, -8800.93),
-    (3268.68, -6118.96),
-    (3808.16, -830.31),
-    (536.95, 2452.17),
-    (599.18, 12088.79),
-    (5509.49, 1978.54),
-    (11313.49, 3755.03),
-    (11313.49, 3755.03),
-    (11313.49, 3755.03),
-    (15029.96, 10187.60),
-    (14062.33, 13088.72),
-    (11775.22, 11310.60)]
+    (-5016.76, -8800.93), #half the map
+    (3268.68, -6118.96), #passtrough miasma
+    (3808.16, -830.31), #back of bell
+    (536.95, 2452.17), #yard
+    (599.18, 12088.79), #waterfall
+    (3605.82, 2336.79), #patrol kill
+    (5509.49, 1978.54), #bell
+    (11313.49, 3755.03), #side path (90)
+    (12442.71, 8301.94), #middle aggro
+    (8133.23, 7540.54), #enemies on the side
+    (15029.96, 10187.60), #enemies on the loop
+    (14062.33, 13088.72), #corner
+    (11775.22, 11310.60)] #Zunraa
     bot.Movement.FollowAutoPath(auto_path_list)
     bot.Interact.InteractGadgetAt(11665, 11386)
-    path = [(13041.15, 9314.60)]
+    path = [(12954.96, 9288.47)] #miasma
+    bot.Movement.FollowPath(path) 
+    bot.Wait.WasteTime(5000)
+
+    path = [(12507.05, 11450.91)] #finish miasma
     bot.Movement.FollowPath(path)
     bot.Wait.WasteTime(5000)
-    path = [(12496.67, 11726.33)]
+    
+    bot.Movement.MoveTo(7709.06, 4550.47) #past bridge trough miasma
+    bot.Wait.WasteTime(5000)
+    
+    path = [(9334.25, 5746.98)] #1/3 miasma
     bot.Movement.FollowPath(path)
     bot.Wait.WasteTime(5000)
-    bot.Movement.MoveTo(10754.91, 3489.10)
-    path = [(7285.64, 6332.29)]
+    
+    path = [(7554.94, 6159.84)] #2/3 miasma
     bot.Movement.FollowPath(path)
     bot.Wait.WasteTime(5000)
-    path = [(9274.08, 5492.15)]
+    
+    path =[(9242.30, 6127.45)] #finish miasma
     bot.Movement.FollowPath(path)
     bot.Wait.WasteTime(5000)
-    path =[(8419.98, 6390.66)]
-    bot.Movement.FollowPath(path)
+    
     bot.Movement.MoveTo(4855.66, 1521.21)
     bot.Interact.InteractGadgetAt(4754,1451)
     bot.Movement.MoveTo(2958.13, 6410.57)
-    path = [(2683.69, 8036.28)]
+    path = [(2683.69, 8036.28)] #clear miasma
     bot.Movement.FollowPath(path)
     bot.Wait.WasteTime(5000)
-    bot.Movement.MoveTo(3366.55, -5996.11)
+    bot.Movement.MoveTo(3366.55, -5996.11) #to the other miasma at the middle
     bot.Wait.WasteTime(10000)
     path =[(1866.87, -5454.60)]
     bot.Movement.FollowPath(path)
@@ -694,7 +711,12 @@ def AttributePointQuest2(bot: Botting):
     bot.Movement.MoveTo(-11296.89, -5229.18)
     bot.Interact.InteractGadgetAt(-11344.00, -5432.00)
     bot.Movement.MoveTo(-7157.24, -1685.22)
-    bot.Dialogs.DialogWithModel(3958,0x815C07) #Complete Quest from Zunraa
+    ZUNRAA_MODEL_ID = 3958
+    wait_function = lambda: (
+        not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)))
+    bot.Wait.WasteTimeUntilConditionMet(wait_function)
+    
+    bot.Dialogs.DialogWithModel(ZUNRAA_MODEL_ID,0x815C07) #Complete Quest from Zunraa
     bot.Map.Travel(target_map_name="Seitung Harbor")
     
 

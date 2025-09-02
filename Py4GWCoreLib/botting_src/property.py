@@ -182,22 +182,36 @@ class Property:
 
 
 class ConfigProperties:
-    def __init__(self, parent: "BotConfig"):
+    def __init__(self, parent: "BotConfig",
+                 log_actions: bool = False,
+                 halt_on_death: bool = True,
+                 pause_on_danger: bool = False,
+                 movement_timeout: int = 15000,
+                 movement_tolerance: int = 150,
+                 draw_path: bool = True,
+                 use_occlusion: bool = True,
+                 snap_to_ground: bool = True,
+                 snap_to_ground_segments: int = 8,
+                 floor_offset: int = 20,
+                 follow_path_color: Any = None
+                 ):
         from ..Py4GWcorelib import Color
         self.parent = parent
 
+        if follow_path_color is None:
+            follow_path_color = Color(255,255,255,255)
         # simple properties with only one field
-        self.log_actions = Property(parent, "log_actions", active=False)
-        self.halt_on_death = Property(parent, "halt_on_death", active=True)
-        self.pause_on_danger = Property(parent, "pause_on_danger", active=False)
-        self.movement_timeout = Property(parent, "movement_timeout", extra_fields={"value": 15000})
-        self.movement_tolerance = Property(parent, "movement_tolerance", extra_fields={"value": 150})
-        self.draw_path = Property(parent, "draw_path", active=True)
-        self.use_occlusion = Property(parent, "use_occlusion", active=True)
-        self.snap_to_ground = Property(parent, "snap_to_ground", active=True)
-        self.snap_to_ground_segments = Property(parent, "snap_to_ground_segments", extra_fields={"value": 8})
-        self.floor_offset = Property(parent, "floor_offset", extra_fields={"value": 20})
-        self.follow_path_color = Property(parent, "follow_path_color", extra_fields={"value": Color(255,255,255,255)})
+        self.log_actions = Property(parent, "log_actions", active=log_actions)
+        self.halt_on_death = Property(parent, "halt_on_death", active=halt_on_death)
+        self.pause_on_danger = Property(parent, "pause_on_danger", active=pause_on_danger)
+        self.movement_timeout = Property(parent, "movement_timeout", extra_fields={"value": movement_timeout})
+        self.movement_tolerance = Property(parent, "movement_tolerance", extra_fields={"value": movement_tolerance})
+        self.draw_path = Property(parent, "draw_path", active=draw_path)
+        self.use_occlusion = Property(parent, "use_occlusion", active=use_occlusion)
+        self.snap_to_ground = Property(parent, "snap_to_ground", active=snap_to_ground)
+        self.snap_to_ground_segments = Property(parent, "snap_to_ground_segments", extra_fields={"value": snap_to_ground_segments})
+        self.floor_offset = Property(parent, "floor_offset", extra_fields={"value": floor_offset})
+        self.follow_path_color = Property(parent, "follow_path_color", extra_fields={"value": follow_path_color})
 
         self.follow_path_succeeded = Property(parent, "follow_path_succeeded", extra_fields={"value": False})
         self.dialog_at_succeeded = Property(parent, "dialog_at_succeeded", extra_fields={"value": False})
@@ -205,77 +219,120 @@ class ConfigProperties:
         # more properties can be added here
         
 class UpkeepData:
-    def __init__(self, parent: "BotConfig"):
+    def __init__(self, parent: "BotConfig",
+                 alcohol_active: bool = False,
+                 alcohol_target_drunk_level: int = 2,
+                 alcohol_disable_visual: bool = True,
+                 armor_of_salvation_active: bool = False,
+                 armor_of_salvation_restock: int = 0,
+                 auto_combat_active: bool = False,
+                 birthday_cupcake_active: bool = False,
+                 birthday_cupcake_restock: int = 0,
+                 blue_rock_candy_active: bool = False,
+                 blue_rock_candy_restock: int = 0,
+                 bowl_of_skalefin_soup_active: bool = False,
+                 bowl_of_skalefin_soup_restock: int = 0,
+                 candy_apple_active: bool = False,
+                 candy_apple_restock: int = 0,
+                 candy_corn_active: bool = False,
+                 candy_corn_restock: int = 0,
+                 city_speed_active: bool = False,
+                 drake_kabob_active: bool = False,
+                 drake_kabob_restock: int = 0,
+                 essence_of_celerity_active: bool = False,
+                 essence_of_celerity_restock: int = 0,
+                 four_leaf_clover_active: bool = False,
+                 four_leaf_clover_restock: int = 0,
+                 golden_egg_active: bool = False,
+                 golden_egg_restock: int = 0,
+                 grail_of_might_active: bool = False,
+                 grail_of_might_restock: int = 0,
+                 green_rock_candy_active: bool = False,
+                 green_rock_candy_restock: int = 0,
+                 honeycomb_active: bool = False,
+                 honeycomb_restock: int = 0,
+                 imp_active: bool = False,
+                 morale_active:bool = False,
+                 morale_target_level: int = 110,
+                 pahnai_salad_active: bool = False,
+                 pahnai_salad_restock: int = 0,
+                 red_rock_candy_active: bool = False,
+                 red_rock_candy_restock: int = 0,
+                 slice_of_pumpkin_pie_active: bool = False,
+                 slice_of_pumpkin_pie_restock: int = 0,
+                 war_supplies_active: bool = False,
+                 war_supplies_restock: int = 0
+                 ):
         self.parent = parent
 
-        self.alcohol = Property(parent,"alcohol", active=False,
+        self.alcohol = Property(parent,"alcohol", active=alcohol_active,
             extra_fields={
-                "target_drunk_level": 2,        # Drunk level to maintain
-                "disable_visual": True         # hide drunk visual effect
+                "target_drunk_level": alcohol_target_drunk_level,        # Drunk level to maintain
+                "disable_visual": alcohol_disable_visual         # hide drunk visual effect
             }
         )
 
-        self.city_speed = Property(parent,"city_speed", active=False)
+        self.city_speed = Property(parent,"city_speed", active=city_speed_active)
 
         self.morale = Property(parent, "morale",
-            active=False,
-            extra_fields={"target_morale": 110,}
+            active=morale_active,
+            extra_fields={"target_morale": morale_target_level,}
         )
 
-        self.armor_of_salvation = Property(parent, "armor_of_salvation", active=False,
-                                           extra_fields={"restock_quantity": 0,}
+        self.armor_of_salvation = Property(parent, "armor_of_salvation", active=armor_of_salvation_active,
+                                           extra_fields={"restock_quantity": armor_of_salvation_restock,}
         )
-        self.essence_of_celerity = Property(parent, "essence_of_celerity", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.essence_of_celerity = Property(parent, "essence_of_celerity", active=essence_of_celerity_active,
+            extra_fields={"restock_quantity": essence_of_celerity_restock,}
         )
-        self.grail_of_might = Property(parent, "grail_of_might", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.grail_of_might = Property(parent, "grail_of_might", active=grail_of_might_active,
+            extra_fields={"restock_quantity": grail_of_might_restock,}
         )
-        self.blue_rock_candy = Property(parent, "blue_rock_candy", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.blue_rock_candy = Property(parent, "blue_rock_candy", active=blue_rock_candy_active,
+            extra_fields={"restock_quantity": blue_rock_candy_restock,}
         )
-        self.green_rock_candy = Property(parent, "green_rock_candy", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.green_rock_candy = Property(parent, "green_rock_candy", active=green_rock_candy_active,
+            extra_fields={"restock_quantity": green_rock_candy_restock,}
         )
-        self.red_rock_candy = Property(parent, "red_rock_candy", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.red_rock_candy = Property(parent, "red_rock_candy", active=red_rock_candy_active,
+            extra_fields={"restock_quantity": red_rock_candy_restock,}
         )
-        self.birthday_cupcake = Property(parent, "birthday_cupcake", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.birthday_cupcake = Property(parent, "birthday_cupcake", active=birthday_cupcake_active,
+            extra_fields={"restock_quantity": birthday_cupcake_restock,}
         )
-        self.slice_of_pumpkin_pie = Property(parent, "slice_of_pumpkin_pie", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.slice_of_pumpkin_pie = Property(parent, "slice_of_pumpkin_pie", active=slice_of_pumpkin_pie_active,
+            extra_fields={"restock_quantity": slice_of_pumpkin_pie_restock,}
         )
-        self.bowl_of_skalefin_soup = Property(parent, "bowl_of_skalefin_soup", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.bowl_of_skalefin_soup = Property(parent, "bowl_of_skalefin_soup", active=bowl_of_skalefin_soup_active,
+            extra_fields={"restock_quantity": bowl_of_skalefin_soup_restock,}
         )
-        self.candy_apple = Property(parent, "candy_apple", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.candy_apple = Property(parent, "candy_apple", active=candy_apple_active,
+            extra_fields={"restock_quantity": candy_apple_restock,}
         )
-        self.candy_corn = Property(parent, "candy_corn", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.candy_corn = Property(parent, "candy_corn", active=candy_corn_active,
+            extra_fields={"restock_quantity": candy_corn_restock,}
         )
-        self.drake_kabob = Property(parent, "drake_kabob", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.drake_kabob = Property(parent, "drake_kabob", active=drake_kabob_active,
+            extra_fields={"restock_quantity": drake_kabob_restock,}
         )
-        self.golden_egg = Property(parent, "golden_egg", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.golden_egg = Property(parent, "golden_egg", active=golden_egg_active,
+            extra_fields={"restock_quantity": golden_egg_restock,}
         )
-        self.pahnai_salad = Property(parent, "pahnai_salad", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.pahnai_salad = Property(parent, "pahnai_salad", active=pahnai_salad_active,
+            extra_fields={"restock_quantity": pahnai_salad_restock,}
         )
-        self.war_supplies = Property(parent, "war_supplies", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.war_supplies = Property(parent, "war_supplies", active=war_supplies_active,
+            extra_fields={"restock_quantity": war_supplies_restock,}
         )
-        self.honeycomb = Property(parent, "honeycomb", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.honeycomb = Property(parent, "honeycomb", active=honeycomb_active,
+            extra_fields={"restock_quantity": honeycomb_restock,}
         )
-        self.four_leaf_clover = Property(parent, "four_leaf_clover", active=False,
-            extra_fields={"restock_quantity": 0,}
+        self.four_leaf_clover = Property(parent, "four_leaf_clover", active=four_leaf_clover_active,
+            extra_fields={"restock_quantity": four_leaf_clover_restock,}
         )
-        
-        self.imp = Property(parent, "imp", active=False)
-        self.auto_combat = Property(parent, "auto_combat", active=False)
+
+        self.imp = Property(parent, "imp", active=imp_active)
+        self.auto_combat = Property(parent, "auto_combat", active=auto_combat_active)
 
     def __repr__(self) -> str:
         return (

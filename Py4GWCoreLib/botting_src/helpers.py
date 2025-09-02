@@ -180,10 +180,11 @@ class BottingHelpers:
 
             agent = Routines.Agents.GetAgentIDByModelID(model_id=model_id)
             agent_pos = GLOBAL_CACHE.Agent.GetXY(agent)
-            distance = Utils.Distance(agent_pos, GLOBAL_CACHE.Player.GetXY())
+            player_pos = GLOBAL_CACHE.Player.GetXY()
+            distance = Utils.Distance(agent_pos, player_pos)
 
             if distance > follow_range:
-                path = yield from AutoPathing().get_path_to(*agent_pos)
+                path = [player_pos, agent_pos]
                 self.parent.config.path = path.copy()
                 self.parent.config.path_to_draw = path.copy()
                 yield from Routines.Yield.Movement.FollowPath(
