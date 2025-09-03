@@ -6,10 +6,12 @@ from unittest import case
 import Py4GW
 import PyImGui
 from enum import Enum, IntEnum
+
+
 from .Overlay import Overlay
-from Py4GWCoreLib.Py4GWcorelib import Color, ColorPalette
+from Py4GWCoreLib.Py4GWcorelib import Color, ColorPalette, ConsoleLog, IniHandler
 from Py4GWCoreLib.enums import get_texture_for_model, ImguiFonts
-from Py4GWCoreLib import Utils
+from Py4GWCoreLib import IconsFontAwesome5, Utils
 
 from enum import IntEnum
 
@@ -1194,8 +1196,6 @@ class ImGui:
 
         return v
     
-    
-    
     @staticmethod
     def image_toggle_button(label: str, texture_path: str, v: bool, width=0, height=0) -> bool:
         """
@@ -1330,7 +1330,6 @@ class ImGui:
 
         return new_state
 
-    
     @staticmethod
     def floating_checkbox(caption, state,  x, y, width = 18, height = 18 , color: Color = Color(255, 255, 255, 255)):
         # Set the position and size of the floating button
@@ -1436,7 +1435,6 @@ class ImGui:
         scale = pixel_size / largest_size
         PyImGui.push_font_scaled(font_enum.value, scale)
         _last_font_scaled = True
-        
 
     @staticmethod
     def pop_font():
@@ -1510,16 +1508,49 @@ class ImGui:
             PyImGui.text_wrapped(text_content + "\n" + Py4GW.Console.GetCredits())
             PyImGui.end_child()
 
-
-
     class WindowModule:
-        def __init__(self, module_name="", window_name="", window_size=(100,100), window_pos=(0,0), window_flags=PyImGui.WindowFlags.NoFlag, collapse= False):
+        _windows : dict[str, 'ImGui.WindowModule'] = {}
+        
+        def __init__(self, module_name="", window_name="", window_size=(100,100), window_pos=(0,0), window_flags=PyImGui.WindowFlags.NoFlag, collapse= False, can_close=False, forced_theme : Style.StyleTheme | None = None):
             self.module_name = module_name
             if not self.module_name:
                 return
+            
+            self.can_close = can_close
+            self.can_resize = True  # Default to True, can be set to False later
             self.window_name = window_name if window_name else module_name
-            self.window_size = window_size
+            ## Remove everything after '##'
+            self.window_display_name = self.window_name.split("##")[0]
+            self.window_size : tuple[float, float] = window_size
+            self.window_name_size : tuple[float, float] = PyImGui.calc_text_size(self.window_display_name)
+            
+            self.__decorated_window_min_size = (self.window_name_size[0] + 40, 32.0) # Internal use only
+            self.__decorators_left = window_pos[0] - 15 # Internal use only
+            self.__decorators_top = window_pos[1] - (26) # Internal use only
+            
+            self.__decorators_right = self.__decorators_left + window_size[0] + 30 # Internal use only
+            self.__decorators_bottom = self.__decorators_top + window_size[1] + 14 + (26) # Internal use only
+            
+            self.__decorators_width = self.__decorators_right - self.__decorators_left # Internal use only
+            self.__decorators_height = self.__decorators_bottom - self.__decorators_top # Internal use only
+            
+            self.__close_button_rect = (self.__decorators_right - 29, self.__decorators_top + 9, 11, 11) # Internal use only
+            self.__title_bar_rect = (self.__decorators_left + 5, self.__decorators_top + 2, self.__decorators_width - 10, 26) # Internal use only
+            
+            self.__resize = False # Internal use only
+            self.__set_focus = False # Internal use only
+
+            self.__dragging = False # Internal use only
+            self.__drag_started = False # Internal use only
+
+            self.theme : Style.StyleTheme | None = forced_theme
+            self.__current_theme = self.theme if self.theme is not None else ImGui.get_style().Theme # Internal use only
+            
+            self.open = True  # Default to open
             self.collapse = collapse
+            self.expanded = not collapse  # Default to expanded if not collapsed
+            self.open = True  # Default to open
+            
             if window_pos == (0,0):
                 overlay = Overlay()
                 screen_width, screen_height = overlay.GetDisplaySize().x, overlay.GetDisplaySize().y
@@ -1527,23 +1558,27 @@ class ImGui:
                 self.window_pos = (screen_width / 2 - window_size[0] / 2, screen_height / 2 - window_size[1] / 2)
             else:
                 self.window_pos = window_pos
+                
+            self.end_pos = window_pos  # Initialize end_pos to window_pos
             self.window_flags = window_flags
             self.first_run = True
 
             #debug variables
             self.collapsed_status = True
             self.tracking_position = self.window_pos
+            ImGui.WindowModule._windows[self.window_name] = self
 
         def initialize(self):
             if not self.module_name:
                 return
+            
             if self.first_run:
                 PyImGui.set_next_window_size(self.window_size[0], self.window_size[1])     
                 PyImGui.set_next_window_pos(self.window_pos[0], self.window_pos[1])
                 PyImGui.set_next_window_collapsed(self.collapse, 0)
                 self.first_run = False
 
-        def begin(self):
+        def begin(self) -> bool:
             if not self.module_name:
                 return False
                         
@@ -1629,6 +1664,7 @@ class ImGui:
         def process_window(self):
             if not self.module_name:
                 return
+            
             self.collapsed_status = PyImGui.is_window_collapsed()
             self.end_pos = PyImGui.get_window_pos()
 
@@ -1655,6 +1691,271 @@ class ImGui:
             if new_collapsed != window_module.collapse:
                 ini_handler.write_key(module_name + " Config", "collapsed", str(new_collapsed))
             """
+        
+        def get_theme(self) -> "Style.StyleTheme":
+            """
+            Returns the current theme of the ImGui module.
+            """
+
+            theme = self.theme if self.theme else ImGui.get_style().Theme
+
+            return theme
+             
+        def __draw_decorations(self):                  
+            has_title_bar = (int(self.window_flags) & int(PyImGui.WindowFlags.NoTitleBar)) == 0
+            
+            if self.expanded and self.open:
+                window_pos = PyImGui.get_window_pos()
+                window_size = PyImGui.get_window_size()            
+                                                    
+                self.__decorators_left = window_pos[0] - 15
+                self.__decorators_top = window_pos[1] - (26 if has_title_bar else 5)
+                
+                self.__decorators_right = self.__decorators_left + window_size[0] + 30
+                self.__decorators_bottom = self.__decorators_top + window_size[1] + 14 + (26 if has_title_bar else 5)
+                
+                self.__decorators_width = self.__decorators_right - self.__decorators_left
+                self.__decorators_height = self.__decorators_bottom - self.__decorators_top
+                self.__close_button_rect = (self.__decorators_right - 29, self.__decorators_top + 9, 11, 11)
+
+                PyImGui.push_clip_rect(self.__decorators_left, self.__decorators_top, self.__decorators_width, self.__decorators_height, False)   
+                state = TextureState.Normal
+                                
+                if ImGui.is_mouse_in_rect(self.__close_button_rect) and ((int(self.window_flags) & int(PyImGui.WindowFlags.NoMouseInputs)) == 0):
+                    if PyImGui.is_mouse_down(0):
+                        state = TextureState.Active
+                        open = False
+                    else:
+                        state = TextureState.Hovered
+                                        
+                # Draw the background
+                has_background = not self.window_flags or ((int(self.window_flags) & int(PyImGui.WindowFlags.NoBackground)) == 0)                
+                if has_background:
+                    GameTextures.Empty_Pixel.value.draw_in_drawlist(
+                        x=self.__decorators_left + 15,
+                        y=self.__decorators_top + 5,
+                        size=(self.__decorators_width - 30, self.__decorators_height - 15),
+                        tint=(0,0,0,215)
+                    )
+
+                if self.can_resize:
+                    GameTextures.Window_Frame_Bottom.value.draw_in_drawlist(
+                        x=self.__decorators_left + 5,
+                        y=self.__decorators_bottom - 57,
+                        size=(self.__decorators_width - 10, 60)
+                    )
+                else:
+                    GameTextures.Window_Frame_Bottom_No_Resize.value.draw_in_drawlist(
+                        x=self.__decorators_left + 5,
+                        y=self.__decorators_bottom - 57,
+                        size=(self.__decorators_width - 10, 60)
+                    )
+                
+                GameTextures.Window_Frame_Center.value.draw_in_drawlist(
+                    x=self.__decorators_left + 5,
+                    y=self.__decorators_top + (26 if has_title_bar else 11) + 35,
+                    size=(self.__decorators_width - 10, self.__decorators_height - 35 - 60)
+                )
+                
+                
+                if has_title_bar:      
+                    GameTextures.Window_Frame_Top.value.draw_in_drawlist(
+                        x=self.__decorators_left + 5,
+                        y=self.__decorators_top + 26,
+                        size=(self.__decorators_width - 10, 35)
+                    )
+                                                                
+                    GameTextures.Title_Bar.value.draw_in_drawlist(
+                        x=self.__decorators_left + 5,
+                        y=self.__decorators_top,
+                        size=(self.__decorators_width - 10, 26)
+                    )
+                
+                    if self.can_close:
+                        GameTextures.Empty_Pixel.value.draw_in_drawlist(
+                            x=self.__close_button_rect[0] - 1,
+                            y=self.__close_button_rect[1] - 1,
+                            size=(self.__close_button_rect[2] + 2, self.__close_button_rect[3] + 2),
+                            tint=(0,0,0,255)
+                        )
+                    
+                        GameTextures.Close_Button.value.draw_in_drawlist(
+                            x=self.__close_button_rect[0],
+                            y=self.__close_button_rect[1],
+                            size=self.__close_button_rect[2:],
+                            state=state
+                        )
+                        
+                    self.__title_bar_rect = (self.__decorators_left + 10, self.__decorators_top + 2, self.__decorators_width - 10, 26)
+                  
+                    # Draw the title text
+                    PyImGui.push_clip_rect(
+                        self.__title_bar_rect[0] + 15,
+                        self.__title_bar_rect[1] + 7,
+                        self.__title_bar_rect[2] - 15 - 29,
+                        self.__title_bar_rect[3] - 7,
+                        False
+                    )
+                    PyImGui.draw_list_add_text(self.__title_bar_rect[0] + 15, self.__title_bar_rect[1] + 7, Utils.RGBToColor(255,255,255,255), self.window_display_name)
+                    PyImGui.pop_clip_rect()
+                    
+                    self.__draw_title_bar_fake(self.__title_bar_rect)
+                else:
+                    GameTextures.Window_Frame_Top_NoTitleBar.value.draw_in_drawlist(
+                        x=self.__decorators_left + 5,
+                        y=self.__decorators_top,
+                        size=(self.__decorators_width - 10, 50)
+                    )
+
+            else:
+                window_pos = PyImGui.get_window_pos()
+                
+                self.__decorators_left = window_pos[0] - 15
+                self.__decorators_top = window_pos[1] - (26)
+
+                self.__decorators_right = self.__decorators_left + self.__decorated_window_min_size[0] + 30
+                self.__decorators_bottom = window_pos[1]
+
+                self.__decorators_width = self.__decorators_right - self.__decorators_left
+                self.__decorators_height = self.__decorators_bottom - self.__decorators_top
+                self.__close_button_rect = (self.__decorators_right - 29, self.__decorators_top + 9, 11, 11)
+
+                PyImGui.set_window_size(1, 1, PyImGui.ImGuiCond.Always)
+    
+                state = TextureState.Normal
+
+                if ImGui.is_mouse_in_rect(self.__close_button_rect): 
+                    if PyImGui.is_mouse_down(0):         
+                        state = TextureState.Active
+                    else:
+                        state = TextureState.Hovered
+
+                PyImGui.push_clip_rect(self.__decorators_left, self.__decorators_top + 5, self.__decorators_width, self.__decorators_height , False)
+                GameTextures.Empty_Pixel.value.draw_in_drawlist(
+                    x=self.__decorators_left + 15,
+                    y=self.__decorators_top,
+                    size=(self.__decorators_width - 30, 14),
+                    tint=(0,0,0,215)
+                )
+                
+                # PyImGui.push_clip_rect(self.__decorators_left, self.__decorators_top, self.__decorators_width - 15, self.__decorators_height + 30, False)   
+                GameTextures.Window_Frame_Bottom_No_Resize.value.draw_in_drawlist(
+                    x=self.__decorators_left + 2,
+                    y=self.__decorators_top - 12 + 8,
+                    size=(self.__decorators_width - 5 , 40)
+                )
+
+                PyImGui.push_clip_rect(self.__decorators_left, self.__decorators_top, self.__decorators_width, self.__decorators_height + 30, False)
+
+                if has_title_bar:
+                    GameTextures.Title_Bar.value.draw_in_drawlist(
+                        x=self.__decorators_left + 5,
+                        y=self.__decorators_top,
+                        size=(self.__decorators_width - 10, 26)
+                    )
+
+                    if self.can_close:
+                        GameTextures.Empty_Pixel.value.draw_in_drawlist(
+                            x=self.__close_button_rect[0] - 1,
+                            y=self.__close_button_rect[1] - 1,
+                            size=(self.__close_button_rect[2] + 2, self.__close_button_rect[3] + 2),
+                            tint=(0,0,0,255)
+                        )
+                        
+                        GameTextures.Close_Button.value.draw_in_drawlist(
+                            x=self.__close_button_rect[0],
+                            y=self.__close_button_rect[1],
+                            size=(self.__close_button_rect[2:]),
+                            state=state
+                        )
+
+                    self.__title_bar_rect = (self.__decorators_left + 10, self.__decorators_top + 2, self.__decorators_width - 10, 26)
+                 
+                    PyImGui.push_clip_rect(
+                        self.__title_bar_rect[0] + 15,
+                        self.__title_bar_rect[1] + 7,
+                        self.__title_bar_rect[2] - 15 - 29,
+                        self.__title_bar_rect[3] - 7,
+                        False
+                    )
+                    PyImGui.draw_list_add_text(self.__title_bar_rect[0] + 15, self.__title_bar_rect[1] + 7, Utils.RGBToColor(255,255,255,255), self.window_display_name)
+                    PyImGui.pop_clip_rect()
+
+                    self.__draw_title_bar_fake(self.__title_bar_rect)
+                else:
+                    GameTextures.Window_Frame_Top_NoTitleBar.value.draw_in_drawlist(
+                        x=self.__decorators_left + 5,
+                        y=self.__decorators_top + 11,
+                        size=(self.__decorators_width - 10, 50)
+                    )
+
+            PyImGui.pop_clip_rect()
+            
+        def __draw_title_bar_fake(self, __title_bar_rect):            
+            can_interact = (int(self.window_flags) & int(PyImGui.WindowFlags.NoMouseInputs)) == 0
+            
+            PyImGui.set_next_window_pos(__title_bar_rect[0], __title_bar_rect[1])
+            PyImGui.set_next_window_size(__title_bar_rect[2], __title_bar_rect[3])
+
+            flags = (
+                    PyImGui.WindowFlags.NoCollapse |
+                    PyImGui.WindowFlags.NoTitleBar |
+                    PyImGui.WindowFlags.NoScrollbar |
+                    PyImGui.WindowFlags.NoScrollWithMouse |
+                    PyImGui.WindowFlags.AlwaysAutoResize 
+                    | PyImGui.WindowFlags.NoBackground
+                )
+            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, -1, -0)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0, 1, 0, 0.0))  # Fully transparent
+            PyImGui.begin(f"{self.window_name}##titlebar_fake", flags)
+            PyImGui.invisible_button("##titlebar_dragging_area_1", __title_bar_rect[2] - (30 if self.can_close else 0), __title_bar_rect[3])
+            self.__dragging = (PyImGui.is_item_active() or self.__dragging) and can_interact
+                        
+            if PyImGui.is_item_focused():
+                self.__set_focus = True
+                
+            PyImGui.set_cursor_screen_pos(self.__close_button_rect[0] + self.__close_button_rect[2], self.__close_button_rect[1] + self.__close_button_rect[3])
+            PyImGui.invisible_button("##titlebar_dragging_area_2", 15, __title_bar_rect[3])
+            self.__dragging = (PyImGui.is_item_active() or self.__dragging) and can_interact
+                    
+            if PyImGui.is_item_focused():
+                self.__set_focus = True
+                
+            # Handle Double Click to Expand/Collapse
+            if PyImGui.is_mouse_double_clicked(0) and self.__set_focus:
+                can_collapse = (int(self.window_flags) & int(PyImGui.WindowFlags.NoCollapse)) == 0                
+                if can_collapse and can_interact:
+                    self.expanded = not self.expanded
+                    
+                    if self.expanded:
+                        self.__resize = True
+
+            if self.can_close:
+                PyImGui.set_cursor_screen_pos(self.__close_button_rect[0], self.__close_button_rect[1])
+                if PyImGui.invisible_button(f"##Close", self.__close_button_rect[2] + 1, self.__close_button_rect[3] + 1) and can_interact:
+                    self.open = False
+                    self.__set_focus = False
+                    
+                    
+            PyImGui.end()
+            PyImGui.pop_style_color(1)
+            PyImGui.pop_style_var(1)
+                                
+            # Handle dragging
+            if self.__dragging:   
+                can_drag = (int(self.window_flags) & int(PyImGui.WindowFlags.NoMove)) == 0
+        
+                if can_drag:
+                    if self.__drag_started:                    
+                        delta = PyImGui.get_mouse_drag_delta(0, 0.0)
+                        new_window_pos = (__title_bar_rect[0] + 5 + delta[0], __title_bar_rect[1] + __title_bar_rect[3] - 2 + delta[1])
+                        PyImGui.reset_mouse_drag_delta(0)
+                        PyImGui.set_window_pos(new_window_pos[0], new_window_pos[1], PyImGui.ImGuiCond.Always)
+                    else:
+                        self.__drag_started = True
+                else:
+                    self.__dragging = False
+                    self.__drag_started = False
        
     @staticmethod     
     def PushTransparentWindow():
