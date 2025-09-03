@@ -5,9 +5,13 @@ import PyMap
 import math
 import heapq
 import pickle
+from collections import Counter
+
+from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from .enums import name_to_map_id
 from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
+from Py4GWCoreLib import Utils, Overlay
 
 PathingMap = PyPathing.PathingMap
 PathingTrapezoid = PyPathing.PathingTrapezoid
@@ -27,6 +31,7 @@ class Portal:
         self.a = a
         self.b = b
         
+#region NavMesh
 class NavMesh:
     def __init__(self, pathing_maps, map_id: int, GRID_SIZE:float = 1000):
         self.map_id = map_id
@@ -38,24 +43,20 @@ class NavMesh:
         self.layer_portals: Dict[int, List[PathingPortal]] = {}
         self.spatial_grid: Dict[Tuple[float, float], List[PathingTrapezoid]] = {}
 
-
-
-
-
-        # Index data
-        for layer in pathing_maps:
-            z = layer.zplane
+        # Index data — use index, not pmap.zplane
+        for i, layer in enumerate(pathing_maps):
+            plane_index = i  # actual plane ID
             traps = layer.trapezoids
-            self.layer_portals[z] = layer.portals
 
+            self.layer_portals[plane_index] = layer.portals
             self.trapezoids.update({t.id: t for t in traps})
-            self.trap_id_to_layer.update({t.id: z for t in traps})
+            self.trap_id_to_layer.update({t.id: plane_index for t in traps})
 
         self.create_all_local_portals()
         self.create_all_cross_layer_portals()
         self._populate_spatial_grid()
 
-        
+    
     def get_adjacent_side(self, a: PathingTrapezoid, b: PathingTrapezoid) -> Optional[str]:
         if abs(a.YB - b.YT) < 1.0: return 'bottom_top'
         if abs(a.YT - b.YB) < 1.0: return 'top_bottom'
@@ -203,17 +204,32 @@ class NavMesh:
     def get_neighbors(self, t_id: int) -> List[int]:
         return self.portal_graph.get(t_id, [])
     
-    def find_trapezoid_id_by_coord(self, point:  Tuple[float, float]) -> Optional[int]:
+    def find_trapezoid_id_by_coord(self, point: Tuple[float, float]) -> Optional[int]:
         x, y = point
+
+        # 1. Normal trapezoids (floor & standard geometry)
         for t in self.trapezoids.values():
-            if y > t.YT or y < t.YB:
-                continue
-            ratio = (y - t.YB) / (t.YT - t.YB) if t.YT != t.YB else 0
-            left_x = t.XBL + (t.XTL - t.XBL) * ratio
-            right_x = t.XBR + (t.XTR - t.XBR) * ratio
-            if left_x <= x <= right_x:
-                return t.id
+            if t.YB <= y <= t.YT:
+                ratio = (y - t.YB) / (t.YT - t.YB) if t.YT != t.YB else 0
+                left_x = t.XBL + (t.XTL - t.XBL) * ratio
+                right_x = t.XBR + (t.XTR - t.XBR) * ratio
+                if left_x <= x <= right_x:
+                    return t.id
+
+        # 2. Cross-layer portals (bridge, stairs, elevated geometry)
+        for portal in self.portals:
+            for trap in (portal.a.m_t, portal.b.m_t):
+                if trap.YB <= y <= trap.YT:
+                    ratio = (y - trap.YB) / (trap.YT - trap.YB) if trap.YT != trap.YB else 0
+                    left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
+                    right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
+                    if left_x <= x <= right_x:
+                        return trap.id
+
+        # 3. Nothing found
         return None
+
+
     
     def _populate_spatial_grid(self):
         for trap in self.trapezoids.values():
@@ -330,7 +346,10 @@ class NavMesh:
 
         Py4GW.Console.Log("NavMesh", f"Loaded NavMesh for map {map_id} with {len(nav.portals)} portals and {len(nav.trapezoids)} trapezoids.", Py4GW.Console.MessageType.Info)
         return nav
+    
+    
 
+#region AStar
 
 class AStarNode:
     def __init__(self, node_id, g, f, parent=None):
@@ -407,6 +426,36 @@ def chaikin_smooth_path(points: List[Tuple[float, float]], iterations: int = 1) 
         new_points.append(points[-1])
         points = new_points
     return points
+
+def densify_path2d(points: List[Tuple[float, float]], threshold: float = 500.0) -> List[Tuple[float, float]]:
+    if threshold <= 0 or len(points) <= 1:
+        return points.copy()
+
+    out: List[Tuple[float, float]] = [points[0]]
+    eps = 1e-6
+
+    for i in range(1, len(points)):
+        x0, y0 = out[-1]
+        x1, y1 = points[i]
+
+        # distance between the two points (2D)
+        dist = Utils.Distance((x0, y0), (x1, y1))
+        if dist <= threshold + eps:
+            out.append((x1, y1))
+            continue
+
+        # direction (unit vector)
+        dx, dy = x1 - x0, y1 - y0
+        ux, uy = dx / dist, dy / dist
+
+        s = threshold
+        while s < dist - eps:
+            out.append((x0 + ux * s, y0 + uy * s))  # fixed threshold step
+            s += threshold
+
+        out.append((x1, y1))  # final remainder hop
+
+    return out
 
 
 PATHING_MAP_GROUPS = [
@@ -560,6 +609,16 @@ class AutoPathing:
                  smooth_by_chaikin: bool = False,
                  chaikin_iterations: int = 1):
         from . import Routines
+        
+        def _prepend_start(path2d: list[tuple[float, float]], sx: float, sy: float, tol: float = 1.0):
+            if not path2d:
+                path2d.insert(0, (sx, sy))
+                return path2d
+            dx = path2d[0][0] - sx
+            dy = path2d[0][1] - sy
+            if dx*dx + dy*dy > tol*tol:
+                path2d.insert(0, (sx, sy))
+            return path2d
 
         map_id = PyMap.PyMap().map_id.ToInt()
         group_key = self._get_group_key(map_id)
@@ -580,9 +639,12 @@ class AutoPathing:
                 raw_path = path_planner.get_path()
                 path2d = [(pt[0], pt[1]) for pt in raw_path]
                 
+                path2d = _prepend_start(path2d, start[0], start[1])
+                
                 if smooth_by_chaikin:
                     path2d = chaikin_smooth_path(path2d, chaikin_iterations)
-                
+
+                path2d = densify_path2d(path2d)  # split long hops into ≤750
                 return [(x, y, start[2]) for (x, y) in path2d]
             
             elif status == PyPathing.PathStatus.Failed:
@@ -606,6 +668,7 @@ class AutoPathing:
         if success:
             raw_path = astar.get_path()
             yield
+            raw_path = _prepend_start(raw_path, start[0], start[1])
             if smooth_by_los:
                 smoothed = navmesh.smooth_path_by_los(raw_path, margin, step_dist)
             else:
@@ -613,8 +676,10 @@ class AutoPathing:
                 
             if smooth_by_chaikin:
                 smoothed = chaikin_smooth_path(smoothed, chaikin_iterations)
-                
-            return [(x, y, start[2]) for (x, y) in smoothed]
+
+            path2d = densify_path2d(smoothed)  # split long hops into ≤750
+
+            return [(x, y, start[2]) for (x, y) in path2d]
 
         return []
 
@@ -645,5 +710,4 @@ class AutoPathing:
                                         chaikin_iterations=chaikin_iterations)
         return [(x, y) for (x, y, _) in path]
 
-    
 

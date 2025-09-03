@@ -19,7 +19,10 @@ class DXOverlay:
             
         def ResetStencilMask(self):
             self.renderer.ResetStencilMask()
-        
+
+        def SaveGeometryToFile(self, filename: str, min_x: float, min_y: float, max_x: float, max_y: float) -> int:
+            return self.renderer.SaveGeometryToFile(filename, min_x, min_y, max_x, max_y)
+
         @staticmethod
         def WorldToScreen(x,y,z=0.0):
             if z == 0.0:
@@ -29,26 +32,26 @@ class DXOverlay:
             return screen_pos.x, screen_pos.y
             
         @staticmethod
-        def FindZ (x, y, z=0):
+        def FindZ (x:float = 0.0, y:float = 0.0, z:int = 0) -> float:
             """Find The altitude of the ground at the given x,y coordinates based on Pathing Maps"""
             return PyOverlay.Overlay().FindZ(x, y, z)
-    
+
         def DrawLine(self, _from_x, _from_y, _to_x, _to_y, color, thickness = 1):
             _from = PyOverlay.Point2D(int(_from_x), int(_from_y))
             _to = PyOverlay.Point2D(int(_to_x), int(_to_y))
             self.renderer.DrawLine(_from, _to, color, thickness)
-            
-        def DrawLine3D(self, _from_x, _from_y, _from_z, _to_x, _to_y, _to_z, color, use_occlusion = True):
+
+        def DrawLine3D(self, _from_x, _from_y, _from_z, _to_x, _to_y, _to_z, color, use_occlusion = True, snap_to_ground_segments = 1, floor_offset = 0.0):
             if _from_z == 0:
                 _from_z = DXOverlay.FindZ(_from_x, _from_y)
             if _to_z == 0:
                 _to_z = DXOverlay.FindZ(_to_x, _to_y)
-                
-            _from = PyOverlay.Point3D(_from_x, _from_y, _from_z+100)
-            _to = PyOverlay.Point3D(_to_x, _to_y, _to_z+100)
-            
-            self.renderer.DrawLine3D(_from, _to, color, use_occlusion)
-            
+
+            _from = PyOverlay.Point3D(_from_x, _from_y, _from_z-floor_offset)
+            _to = PyOverlay.Point3D(_to_x, _to_y, _to_z-floor_offset)
+
+            self.renderer.DrawLine3D(_from, _to, color, use_occlusion, snap_to_ground_segments, floor_offset)
+
         def DrawTriangle(self, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, color, thickness = 1.0):
             p1 = PyOverlay.Point2D(int(p1_x), int(p1_y))
             p2 = PyOverlay.Point2D(int(p2_x), int(p2_y))
@@ -60,8 +63,8 @@ class DXOverlay:
             p2 = PyOverlay.Point2D(int(p2_x), int(p2_y))
             p3 = PyOverlay.Point2D(int(p3_x), int(p3_y))
             self.renderer.DrawTriangleFilled(p1, p2, p3, color)
-            
-        def DrawTriangle3D(self, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, color, use_occlusion = True):
+
+        def DrawTriangle3D(self, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, color, use_occlusion = True, snap_to_ground_segments = 1, floor_offset = 0.0):
             if p1_z == 0:
                 p1_z = DXOverlay.FindZ(p1_x, p1_y)
             if p2_z == 0:
@@ -69,13 +72,13 @@ class DXOverlay:
             if p3_z == 0:
                 p3_z = DXOverlay.FindZ(p3_x, p3_y)
                 
-            p1 = PyOverlay.Point3D(p1_x, p1_y, p1_z+100)
-            p2 = PyOverlay.Point3D(p2_x, p2_y, p2_z+100)
-            p3 = PyOverlay.Point3D(p3_x, p3_y, p3_z+100)
-            
-            self.renderer.DrawTriangle3D(p1, p2, p3, color, use_occlusion)
-            
-        def DrawTriangleFilled3D(self, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, color, use_occlusion = True):
+            p1 = PyOverlay.Point3D(p1_x, p1_y, p1_z-floor_offset)
+            p2 = PyOverlay.Point3D(p2_x, p2_y, p2_z-floor_offset)
+            p3 = PyOverlay.Point3D(p3_x, p3_y, p3_z-floor_offset)
+
+            self.renderer.DrawTriangle3D(p1, p2, p3, color, use_occlusion, snap_to_ground_segments, floor_offset)
+
+        def DrawTriangleFilled3D(self, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, color, use_occlusion = True, snap_to_ground_segments = 1, floor_offset = 0.0):
             if p1_z == 0:
                 p1_z = DXOverlay.FindZ(p1_x, p1_y)
             if p2_z == 0:
@@ -83,12 +86,12 @@ class DXOverlay:
             if p3_z == 0:
                 p3_z = DXOverlay.FindZ(p3_x, p3_y)
                 
-            p1 = PyOverlay.Point3D(p1_x, p1_y, p1_z+100)
-            p2 = PyOverlay.Point3D(p2_x, p2_y, p2_z+100)
-            p3 = PyOverlay.Point3D(p3_x, p3_y, p3_z+100)
-            
-            self.renderer.DrawTriangleFilled3D(p1, p2, p3, color, use_occlusion)
-            
+            p1 = PyOverlay.Point3D(p1_x, p1_y, p1_z-floor_offset)
+            p2 = PyOverlay.Point3D(p2_x, p2_y, p2_z-floor_offset)
+            p3 = PyOverlay.Point3D(p3_x, p3_y, p3_z-floor_offset)
+
+            self.renderer.DrawTriangleFilled3D(p1, p2, p3, color, use_occlusion, snap_to_ground_segments, floor_offset)
+
         def DrawQuad(self, p1_x, p1_y, p2_x, p2_y, p3_x, p3_y, p4_x, p4_y, color, thickness = 1):
             p1 = PyOverlay.Point2D(int(p1_x), int(p1_y))
             p2 = PyOverlay.Point2D(int(p2_x), int(p2_y))
@@ -102,8 +105,8 @@ class DXOverlay:
             p3 = PyOverlay.Point2D(int(p3_x), int(p3_y))
             p4 = PyOverlay.Point2D(int(p4_x), int(p4_y))
             self.renderer.DrawQuadFilled(p1, p2, p3, p4, color)
-            
-        def DrawQuad3D(self, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, p4_x, p4_y, p4_z, color, use_occlusion = True):
+
+        def DrawQuad3D(self, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, p4_x, p4_y, p4_z, color, use_occlusion = True, snap_to_ground_segments = 1, floor_offset = 0.0):
             if p1_z == 0:
                 p1_z = DXOverlay.FindZ(p1_x, p1_y)
             if p2_z == 0:
@@ -112,15 +115,15 @@ class DXOverlay:
                 p3_z = DXOverlay.FindZ(p3_x, p3_y)
             if p4_z == 0:
                 p4_z = DXOverlay.FindZ(p4_x, p4_y)
-                
-            p1 = PyOverlay.Point3D(p1_x, p1_y, p1_z+100)
-            p2 = PyOverlay.Point3D(p2_x, p2_y, p2_z+100)
-            p3 = PyOverlay.Point3D(p3_x, p3_y, p3_z+100)
-            p4 = PyOverlay.Point3D(p4_x, p4_y, p4_z+100)
-            
-            self.renderer.DrawQuad3D(p1, p2, p3, p4, color, use_occlusion)
-            
-        def DrawQuadFilled3D(self, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, p4_x, p4_y, p4_z, color, use_occlusion = True):
+
+            p1 = PyOverlay.Point3D(p1_x, p1_y, p1_z-floor_offset)
+            p2 = PyOverlay.Point3D(p2_x, p2_y, p2_z-floor_offset)
+            p3 = PyOverlay.Point3D(p3_x, p3_y, p3_z-floor_offset)
+            p4 = PyOverlay.Point3D(p4_x, p4_y, p4_z-floor_offset)
+
+            self.renderer.DrawQuad3D(p1, p2, p3, p4, color, use_occlusion, snap_to_ground_segments, floor_offset)
+
+        def DrawQuadFilled3D(self, p1_x, p1_y, p1_z, p2_x, p2_y, p2_z, p3_x, p3_y, p3_z, p4_x, p4_y, p4_z, color, use_occlusion = True, snap_to_ground_segments = 1, floor_offset = 0.0):
             if p1_z == 0:
                 p1_z = DXOverlay.FindZ(p1_x, p1_y)
             if p2_z == 0:
@@ -129,13 +132,13 @@ class DXOverlay:
                 p3_z = DXOverlay.FindZ(p3_x, p3_y)
             if p4_z == 0:
                 p4_z = DXOverlay.FindZ(p4_x, p4_y)
-                
-            p1 = PyOverlay.Point3D(p1_x, p1_y, p1_z+100)
-            p2 = PyOverlay.Point3D(p2_x, p2_y, p2_z+100)
-            p3 = PyOverlay.Point3D(p3_x, p3_y, p3_z+100)
-            p4 = PyOverlay.Point3D(p4_x, p4_y, p4_z+100)
-            
-            self.renderer.DrawQuadFilled3D(p1, p2, p3, p4, color, use_occlusion)
+
+            p1 = PyOverlay.Point3D(p1_x, p1_y, p1_z-floor_offset)
+            p2 = PyOverlay.Point3D(p2_x, p2_y, p2_z-floor_offset)
+            p3 = PyOverlay.Point3D(p3_x, p3_y, p3_z-floor_offset)
+            p4 = PyOverlay.Point3D(p4_x, p4_y, p4_z-floor_offset)
+
+            self.renderer.DrawQuadFilled3D(p1, p2, p3, p4, color, use_occlusion, snap_to_ground_segments, floor_offset)
             
         def DrawPoly(self, center_x, center_y, radius, color, segments = 32, thickness = 1):
             center = PyOverlay.Point2D(int(center_x), int(center_y))
@@ -145,20 +148,20 @@ class DXOverlay:
             center = PyOverlay.Point2D(int(center_x), int(center_y))
             self.renderer.DrawPolyFilled(center, radius, color, segments)
             
-        def DrawPoly3D(self, center_x, center_y, center_z, radius, color, segments = 32, use_occlusion = True):
+        def DrawPoly3D(self, center_x, center_y, center_z, radius, color, segments = 32, use_occlusion = True, snap_to_ground_segments = 1, floor_offset = 0.0):
             if center_z == 0:
-                center_z = DXOverlay.FindZ(center_x, center_y)
-                
+                center_z = DXOverlay.FindZ(center_x, center_y) - floor_offset
+
             center = PyOverlay.Point3D(center_x, center_y, center_z+100)
-            self.renderer.DrawPoly3D(center, radius, color, segments, use_occlusion)
-            
-        def DrawPolyFilled3D(self, center_x, center_y, center_z, radius, color, segments = 32, use_occlusion = True):
+            self.renderer.DrawPoly3D(center, radius, color, segments, use_occlusion, snap_to_ground_segments, floor_offset)
+
+        def DrawPolyFilled3D(self, center_x, center_y, center_z, radius, color, segments = 32, use_occlusion = True, snap_to_ground_segments = 1, floor_offset = 0.0):
             if center_z == 0:
-                center_z = DXOverlay.FindZ(center_x, center_y)
-                
+                center_z = DXOverlay.FindZ(center_x, center_y) - floor_offset
+
             center = PyOverlay.Point3D(center_x, center_y, center_z+100)
-            self.renderer.DrawPolyFilled3D(center, radius, color, segments, use_occlusion)
-            
+            self.renderer.DrawPolyFilled3D(center, radius, color, segments, use_occlusion, snap_to_ground_segments, floor_offset)
+
         def DrawCubeOutline(self, center_x, center_y, center_z, size, color, use_occlusion = True):
             if center_z == 0:
                 center_z = DXOverlay.FindZ(center_x, center_y)

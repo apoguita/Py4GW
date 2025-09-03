@@ -789,3 +789,72 @@ def collapsing_header(label: str, flags: int) -> bool: ...
 def dummy(width:int, height:int) -> None: ...
 
 
+# pyimgui_style.pyi
+# StyleConfig <-> ImGui::GetStyle() sync
+
+from typing import Tuple
+
+Vec2 = Tuple[float, float]
+RGBA = Tuple[float, float, float, float]
+
+class StyleConfig:
+    def __init__(self) -> None: ...
+    def Pull(self) -> None: ...
+    def Push(self) -> None: ...
+    def Reset(self) -> None: ...
+
+    # Scalars
+    Alpha: float
+    DisabledAlpha: float
+    WindowRounding: float
+    WindowBorderSize: float
+    ChildRounding: float
+    ChildBorderSize: float
+    PopupRounding: float
+    PopupBorderSize: float
+    FrameRounding: float
+    FrameBorderSize: float
+    IndentSpacing: float
+    ColumnsMinSpacing: float
+    ScrollbarSize: float
+    ScrollbarRounding: float
+    GrabMinSize: float
+    GrabRounding: float
+    LogSliderDeadzone: float
+    TabRounding: float
+    TabBorderSize: float
+    TabMinWidthForCloseButton: float
+    SeparatorTextBorderSize: float
+    MouseCursorScale: float
+    CurveTessellationTol: float
+    CircleTessellationMaxError: float
+
+    # Vec2-like arrays (as tuples)
+    WindowPadding: Vec2
+    WindowMinSize: Vec2
+    WindowTitleAlign: Vec2
+    FramePadding: Vec2
+    ItemSpacing: Vec2
+    ItemInnerSpacing: Vec2
+    CellPadding: Vec2
+    TouchExtraPadding: Vec2
+    ButtonTextAlign: Vec2
+    SelectableTextAlign: Vec2
+    SeparatorTextAlign: Vec2
+    SeparatorTextPadding: Vec2
+    DisplayWindowPadding: Vec2
+    DisplaySafeAreaPadding: Vec2
+
+    # Bools
+    AntiAliasedLines: bool
+    AntiAliasedLinesUseTex: bool
+    AntiAliasedFill: bool
+
+    # Enums as ints
+    WindowMenuButtonPosition: int
+    ColorButtonPosition: int
+
+    # Color helpers (RGBA floats 0..1, no scaling performed)
+    #idx is ImGuiCol_ enum value
+    def get_color(self, ImGuiCol_val: int) -> RGBA: ...
+    def set_color(self, ImGuiCol_val: int, r: float, g: float, b: float, a: float) -> None: ...

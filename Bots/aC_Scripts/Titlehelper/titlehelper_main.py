@@ -93,15 +93,15 @@ class TitleHelper:
     def run(self):
         while True:
             if not Routines.Checks.Map.MapValid():
-                yield from Routines.Yield.wait(1000)
+                yield from Routines.Yield.wait(50)
                 continue
 
             if not self.use_all:
-                yield from Routines.Yield.wait(1000)
+                yield from Routines.Yield.wait(50)
                 continue
 
             if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                yield from Routines.Yield.wait(1000)
+                yield from Routines.Yield.wait(50)
                 continue
 
             did_something = False
@@ -126,7 +126,7 @@ class TitleHelper:
             else:
                 self.party_empty = True
 
-            yield from Routines.Yield.wait(500 if did_something else 2000)
+            yield from Routines.Yield.wait(50 if did_something else 100)
 
 def draw_title_helper_window(helper: TitleHelper):
     PyImGui.push_style_color(PyImGui.ImGuiCol.Text,(0.6, 0.9, 1.0, 1.0)) 
