@@ -2,11 +2,13 @@ from typing import List, Any, Generator, Callable, override
 import time
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
+from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
+from Widgets.CustomBehaviors.skills.common.breath_of_the_great_dwarf_utility import BreathOfTheGreatDwarfUtility
 from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_honor_utility import EbonBattleStandardOfHonorUtility
 from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
 from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
@@ -26,7 +28,6 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
     def __init__(self):
         super().__init__()
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
-        self.auto_attack: CustomSkillUtilityBase = AutoAttackUtility(current_build=in_game_build)
 
         # core
         self.together_as_one_utility: CustomSkillUtilityBase = TogetherAsOneUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(95))
@@ -34,7 +35,7 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.savage_shot_utility: CustomSkillUtilityBase = SavageShotUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(91))
         self.distracting_shot_utility: CustomSkillUtilityBase = DistractingShotUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(92))
         
-        self.volley_utility: CustomSkillUtilityBase = RawAoeAttackUtility(skill=CustomSkill("Volley"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 65 if enemy_qte >= 3 else 49 if enemy_qte <= 2 else 25))
+        self.volley_utility: CustomSkillUtilityBase = RawAoeAttackUtility(skill=CustomSkill("Volley"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 70 if enemy_qte >= 3 else 65 if enemy_qte <= 2 else 25))
 
         #optional
         self.never_rampage_alone_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Never_Rampage_Alone"), current_build=in_game_build, score_definition=ScoreStaticDefinition(80), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
@@ -46,19 +47,7 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(current_build=in_game_build)
-    
-
-    @property
-    @override
-    def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
-        return [
-            self.auto_attack,
-        ]
-
-    @property
-    @override
-    def complete_build_with_generic_skills(self) -> bool:
-        return True
+        self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
     
     @property
     @override
@@ -73,6 +62,7 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.ebon_vanguard_assassin_support,
             self.triple_shot_utility,
             self.sundering_attack_utility,
+            self.breath_of_the_great_dwarf_utility
         ]
 
     @property

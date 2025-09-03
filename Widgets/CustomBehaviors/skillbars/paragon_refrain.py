@@ -20,7 +20,6 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
     def __init__(self):
         super().__init__()
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
-        self.auto_attack: CustomSkillUtilityBase = AutoAttackUtility(current_build=in_game_build)
 
         #core
         self.heroic_refrain_utility: CustomSkillUtilityBase = HeroicRefrainUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
@@ -36,19 +35,6 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(score_definition= ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(current_build=in_game_build)
-    
-
-    @property
-    @override
-    def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
-        return [
-            self.auto_attack,
-        ]
-
-    @property
-    @override
-    def complete_build_with_generic_skills(self) -> bool:
-        return True
     
     @property
     @override

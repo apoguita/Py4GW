@@ -81,12 +81,16 @@ class MendBodyAndSoulUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
-        lowest_target: custom_behavior_helpers.SortableAgentData | None = self._get_lowest_hp_target()
-        if lowest_target is None: return BehaviorResult.ACTION_SKIPPED
-        
         second_target: custom_behavior_helpers.SortableAgentData | None = self._get_melee_blind_or_crippled_if_exist()
-        if second_target is None: return BehaviorResult.ACTION_SKIPPED
+        if second_target is not None: 
+            result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=second_target.agent_id)
+            return result 
 
-        final_target_id: int = lowest_target.agent_id if second_target is None else second_target.agent_id
-        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=final_target_id)
-        return result 
+        lowest_target: custom_behavior_helpers.SortableAgentData | None = self._get_lowest_hp_target()
+        if lowest_target is not None: 
+            result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=lowest_target.agent_id)
+            return result 
+
+        # todo improve as we don't take care of healing lowest < 0.4
+
+        return BehaviorResult.ACTION_SKIPPED

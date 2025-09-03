@@ -50,8 +50,6 @@ class SummonSpiritUtility(CustomSkillUtilityBase):
         condition=lambda agent_id: True
        )
 
-       for spirit in spirits:
-        print(f"spirit: {spirit.agent_id} - {spirit.hp}")
 
        # if distance > Spirit, we summon spirit
        if current_state is BehaviorState.FAR_FROM_AGGRO:

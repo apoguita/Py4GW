@@ -1,29 +1,39 @@
 from abc import abstractmethod
+from ast import Raise
 from collections.abc import Generator
 from typing import Any
 
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import Routines
+from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
+from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_nature import CustomSkillNature
 from Widgets.CustomBehaviors.primitives.scores.score_definition import ScoreDefinition
 from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class CustomSkillUtilityBase:
     def __init__(self, skill: CustomSkill,
-                 in_game_build: list[CustomSkill],
-                 score_definition:ScoreDefinition,
-                 mana_required_to_cast:float=0,
-                 allowed_states:list[BehaviorState]=[BehaviorState.IN_AGGRO]):
+                in_game_build: list[CustomSkill],
+                score_definition:ScoreDefinition,
+                mana_required_to_cast:float=0,
+                allowed_states:list[BehaviorState]=[BehaviorState.IN_AGGRO],
+                utility_skill_typology: UtilitySkillTypology = UtilitySkillTypology.COMBAT
+                ):
+
         self.custom_skill: CustomSkill = skill
+        self.utility_skill_typology: UtilitySkillTypology = utility_skill_typology
         self.in_game_build: list[CustomSkill] = in_game_build
         self.allowed_states: list[BehaviorState] | None = allowed_states
         self.mana_required_to_cast: float = mana_required_to_cast
+        self.is_enabled:bool = True
 
     @abstractmethod
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -43,11 +53,19 @@ class CustomSkillUtilityBase:
         pass
 
     def evaluate(self, current_state: BehaviorState, previously_attempted_skills:list[CustomSkill]) -> float | None:
-        # return self.custom_skill.skill_id
+        # print(f'Evaluating {self.custom_skill.skill_name}')
+        if not self.is_enabled: return None
         if not self.are_common_pre_checks_valid(current_state): return None
+        if self.utility_skill_typology == UtilitySkillTypology.COMBAT and not CustomBehaviorParty().get_party_is_combat_enabled(): return None
+        if self.utility_skill_typology == UtilitySkillTypology.FOLLOWING and not CustomBehaviorParty().get_party_is_following_enabled(): return None
+        if self.utility_skill_typology == UtilitySkillTypology.LOOTING and not CustomBehaviorParty().get_party_is_looting_enabled(): return None
+        if self.utility_skill_typology == UtilitySkillTypology.CHESTING and not CustomBehaviorParty().get_party_is_chesting_enabled(): return None
+        if self.utility_skill_typology != UtilitySkillTypology.BOTTING and current_state == BehaviorState.IDLE: Raise("only botting_utility_skill_typology can perform stuff in IDLE")
+
         score:float | None = self._evaluate(current_state, previously_attempted_skills)
         if score is None: return None
         if score < 0 and score > 100: raise Exception(f"{self.custom_skill.skill_name} : score must be between 0 and 100, calculated {score}.")
+        
         return score
 
     def execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
@@ -75,4 +93,13 @@ class CustomSkillUtilityBase:
         This method is used to display the debug UI for the skill.
         Can be overridden by the skill itself to display additional information.
         """
+        pass
+
+    @abstractmethod
+    def get_buff_configuration(self) -> BuffConfigurationPerProfession | None:
+        '''
+        This method is used to get the buff configuration for the skill.
+        Can be overridden by the skill itself to return the buff configuration.
+        If the skill does not use buffs, return None.
+        '''
         pass

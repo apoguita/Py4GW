@@ -1,4 +1,4 @@
-from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
+from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 
 
@@ -14,3 +14,5 @@ def deamon():
         CustomBehaviorLoader().custom_combat_behavior.act()
 
     ActionQueueManager().ProcessQueue("ACTION")
+
+

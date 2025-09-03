@@ -14,7 +14,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 class ShatterEnchantmentUtility(CustomSkillUtilityBase):
     def __init__(self, 
         current_build: list[CustomSkill], 
-        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(10),
+        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(11),
         mana_required_to_cast: int = 20,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
         ) -> None:
