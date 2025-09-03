@@ -47,7 +47,7 @@ class MoveToPartyMemberIfDeadUtility(CustomSkillUtilityBase):
             if GLOBAL_CACHE.Agent.IsDead(agent_id): 
                 agent_id_position: tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(agent_id)
                 player_agent_id_position: tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID())
-                if Utils.Distance(player_agent_id_position , agent_id_position) < 1500: #todo constant
+                if Utils.Distance(player_agent_id_position , agent_id_position) < 2500: #todo constant
                     return agent_id
         return None
 

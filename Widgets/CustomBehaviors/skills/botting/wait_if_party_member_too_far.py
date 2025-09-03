@@ -16,8 +16,7 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import Uti
 class WaitIfPartyMemberTooFarUtility(CustomSkillUtilityBase):
     def __init__(
             self, 
-            current_build: list[CustomSkill], 
-            allowed_states: list[BehaviorState]
+            current_build: list[CustomSkill]
         ) -> None:
         
         super().__init__(

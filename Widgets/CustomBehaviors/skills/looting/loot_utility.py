@@ -34,7 +34,7 @@ class LootUtility(CustomSkillUtilityBase):
             utility_skill_typology=UtilitySkillTypology.LOOTING)
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.LOOT.value)
-        self.throttle_timer = ThrottledTimer(1000)
+        self.throttle_timer = ThrottledTimer(1_000)
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -53,12 +53,12 @@ class LootUtility(CustomSkillUtilityBase):
 
         if custom_behavior_helpers.Targets.is_party_leader_in_aggro(): 
             return None
-        #     maybe it's more than, is someone in group in aggro ; how not an issue for heroAI
 
-        #        if LootingRoutineActive():
-        # return
+        if custom_behavior_helpers.Targets.is_party_in_aggro(): 
+            return None
 
-        # return None
+        if self.IsLootingRoutineActive():
+            return None
 
         loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
         if len(loot_array) == 0: return None
