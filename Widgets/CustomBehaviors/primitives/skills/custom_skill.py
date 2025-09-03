@@ -14,27 +14,13 @@ class CustomSkill:
         self.skill_nature:CustomSkillNature = CustomSkillNature(nature_value)
         self.skill_slot:int = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.skill_id) if self.skill_id != 0 else 0
 
-    def get_texture(self) -> str:
-
-        current_path = pathlib.Path.cwd()
-        # path is c:\git\py4gw if launched from widget-manager
-        # path is c:\git\py4gw\Widgets if the root python file is called manually by the console
+    def get_texture(self, py4gw_root_directory, project_root) -> str:
 
         texture_file = ''
         if self.skill_id is not None and self.skill_id > 0:
-
-            prefix = ""
-            if "Widgets" in str(current_path):
-                prefix = "..\\"
-
-            texture_file = prefix + GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(self.skill_id)
+            texture_file = py4gw_root_directory + GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(self.skill_id)
         else:
-
-            prefix = ""
-            if "Widgets" not in str(current_path):
-                prefix = "Widgets\\"
-
-            texture_file = prefix + f"CustomBehaviors\\gui\\textures\\{self.skill_name}.png"
+            texture_file = project_root + f"\\gui\\textures\\{self.skill_name}.png"
 
         return texture_file
 

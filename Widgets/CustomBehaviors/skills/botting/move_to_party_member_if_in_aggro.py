@@ -1,7 +1,7 @@
 from typing import Any, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
-from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
+from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -36,7 +36,10 @@ class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
         for player in players:
             agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
             if custom_behavior_helpers.Targets.is_party_member_in_aggro(agent_id):
-                return agent_id
+                agent_id_position: tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(agent_id)
+                player_agent_id_position: tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID())
+                if Utils.Distance(player_agent_id_position , agent_id_position) < 2500: #todo constant
+                    return agent_id
         return None
         
     @override
@@ -50,6 +53,7 @@ class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
         if not self.throttle_timer.IsExpired(): return None
 
         agent_id_in_aggro = self._get_first_party_member_in_aggro()
+
         if agent_id_in_aggro is None: return None
         if agent_id_in_aggro == GLOBAL_CACHE.Player.GetAgentID(): return None
         
@@ -57,5 +61,9 @@ class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
+        agent_id_dead = self._get_first_party_member_in_aggro()
+        agent_id_position: tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(agent_id_dead)
+        ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.Move, agent_id_position)
+        self.throttle_timer.Reset()
         yield
-        return BehaviorResult.ACTION_SKIPPED
+        return BehaviorResult.ACTION_PERFORMED

@@ -284,7 +284,7 @@ class CustomBehaviorBaseUtility():
                 # in some case, when dead we want to wait for REZ, but after X, we resign.
                 return BehaviorState.IDLE
 
-            if custom_behavior_helpers.Targets.is_party_in_combat():
+            if custom_behavior_helpers.Targets.is_party_in_aggro():
                 return BehaviorState.IN_AGGRO
 
             if custom_behavior_helpers.Targets.is_player_in_aggro():

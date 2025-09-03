@@ -445,7 +445,14 @@ class Targets:
         return False
 
     @staticmethod
-    def is_party_in_combat() -> bool:
+    def is_party_in_aggro() -> bool:
+
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        for player in players:
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            if Targets.is_party_member_in_aggro(agent_id):
+                return agent_id
+
         # todo to implement
         return False
 

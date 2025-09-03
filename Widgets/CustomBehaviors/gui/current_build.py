@@ -17,6 +17,9 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import Uti
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
 
 shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
+script_directory = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+py4gw_root_directory = project_root + f"\\..\\..\\"
 WITH_DETAIL = False
 
 @staticmethod
@@ -90,14 +93,9 @@ def render():
                     return f"{IconsFontAwesome5.ICON_GAMEPAD} "
                 return ""
 
-            current_path = pathlib.Path.cwd()
-            prefix = ""
-            if "Widgets" not in str(current_path):
-                prefix = "Widgets\\"
-
+    
             score_text = f"{score[1]:06.2f}" if score[1] is not None else "Ø"
-            texture_file = prefix + GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(score[0].custom_skill.skill_id)
-            texture_file = score[0].custom_skill.get_texture()
+            texture_file = score[0].custom_skill.get_texture(py4gw_root_directory, project_root)
             
             PyImGui.table_next_row()
             PyImGui.table_next_column()
@@ -139,7 +137,7 @@ def render():
                 PyImGui.pop_style_var(1)
                 PyImGui.pop_style_color(1)
                 PyImGui.same_line(10, 0)
-                ImGui.DrawTexture(prefix + f"CustomBehaviors\\gui\\textures\\x.png", 20, 20)
+                ImGui.DrawTexture(project_root + f"\\gui\\textures\\x.png", 20, 20)
 
             # ImGui.DrawTexture(texture_file, 50, 50)
             PyImGui.table_next_column()
@@ -165,12 +163,7 @@ def render():
                         PyImGui.same_line(0, 5)
 
                         buff_configuration_per_profession = buff_configuration.get_by_profession(profession)
-
-                        prefix_root_folder = ""
-                        if "Widgets" in str(current_path):
-                            prefix_root_folder = "..\\"
-
-                        texture_path =  prefix_root_folder + f"Textures\\Profession_Icons\\[{profession.value}] - {profession.name}.png"
+                        texture_path =  py4gw_root_directory + f"Textures\\Profession_Icons\\[{profession.value}] - {profession.name}.png"
                         icon_size = 26
 
                         if buff_configuration_per_profession.is_activated:
