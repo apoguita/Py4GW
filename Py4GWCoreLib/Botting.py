@@ -396,8 +396,16 @@ class BottingClass:
             self.parent.helpers.enter_challenge(wait_for=delay)
             self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
 
-    
+        def TravelGH(self):
+            from .GlobalCache import GLOBAL_CACHE
+            self.parent.helpers.travel_to_gh()
+            self.parent.Wait.WasteTime(8000)
             
+        def LeaveGH(self):
+            self.parent.helpers.leave_gh()
+            self.parent.Wait.WasteTime(8000)
+
+
     #region MOVEMENT
     class _MOVEMENT:
         def __init__(self, parent: "BottingClass"):
