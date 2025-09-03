@@ -436,6 +436,20 @@ class BottingHelpers:
         from ..GlobalCache import GLOBAL_CACHE
         GLOBAL_CACHE.Map.Travel(target_map_id)
         yield from Routines.Yield.wait(1000)
+       
+    @_yield_step(label="TravelToGH", counter_key="TRAVEL") 
+    def travel_to_gh(self):
+        from ..Routines import Routines
+        from ..GlobalCache import GLOBAL_CACHE
+        GLOBAL_CACHE.Map.TravelGH()
+        yield from Routines.Yield.wait(1000)
+
+    @_yield_step(label="LeaveGH", counter_key="TRAVEL")
+    def leave_gh(self):
+        from ..Routines import Routines
+        from ..GlobalCache import GLOBAL_CACHE
+        GLOBAL_CACHE.Map.LeaveGH()
+        yield from Routines.Yield.wait(1000)
 
     @_yield_step(label="FollowPath", counter_key="FOLLOW_PATH")
     def follow_path(self) -> Generator[Any, Any, bool]:
