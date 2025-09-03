@@ -555,6 +555,25 @@ class BottingClass:
         def Resign(self):
             self.parent.helpers.resign()
 
+        def AddHenchman(self, henchman_id: int):
+            self.parent.helpers.add_henchman(henchman_id)
+            
+        def AddHero(self, hero_id: int):
+            self.parent.helpers.add_hero(hero_id)
+
+        def InvitePlayer(self, player_name: str):
+            self.parent.helpers.invite_player(player_name)
+
+        def KickHenchman(self, henchman_id: int):
+            self.parent.helpers.kick_henchman(henchman_id)
+
+        def KickHero(self, hero_id: int):
+            self.parent.helpers.kick_hero(hero_id)
+
+        def KickPlayer(self, player_name: str):
+            self.parent.helpers.kick_player(player_name)
+            
+        
 
     #region STATES
     class _STATES:
