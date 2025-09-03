@@ -1,18 +1,18 @@
 from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
 
 # 1) IDs
-_9_quarrelfalls_to_bloodstonefenoutpost_ids = {
+_4_quarrelfalls_to_bloodstonefenoutpost_ids = {
     "outpost_id": 142,
 }
 
 # 2) Outpost exit path
-_9_quarrelfalls_to_bloodstonefenoutpost_outpost_path = [
+_4_quarrelfalls_to_bloodstonefenoutpost_outpost_path = [
         (1789, -2633),
         (2050, -2206),
 ]
 
 # 3) Segments
-_9_quarrelfalls_to_bloodstonefenoutpost_segments = [
+_4_quarrelfalls_to_bloodstonefenoutpost_segments = [
     {
         "map_id": 43,
         "path": [
