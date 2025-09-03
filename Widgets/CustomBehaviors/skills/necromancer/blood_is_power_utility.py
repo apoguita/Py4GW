@@ -8,6 +8,7 @@ from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
+from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -34,9 +35,21 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
         self.sacrifice_life_limit_percent: float = sacrifice_life_limit_percent
         self.sacrifice_life_limit_absolute: float = sacrifice_life_limit_absolute
         self.required_target_mana_lower_than_percent: float = required_target_mana_lower_than_percent
+        self.buff_configuration: BuffConfigurationPerProfession = BuffConfigurationPerProfession(self.custom_skill, BuffConfigurationPerProfession.BUFF_CONFIGURATION_CASTERS)
 
     def _get_target(self) -> int | None:
-        allowed_classes = [Profession.Mesmer.value, Profession.Ritualist.value]
+ 
+        target_new: int | None = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
+                within_range=Range.Spellcast,
+                condition=lambda agent_id:
+                    agent_id != GLOBAL_CACHE.Player.GetAgentID() and
+                    custom_behavior_helpers.Resources.get_energy_percent_in_party(agent_id) < self.required_target_mana_lower_than_percent and
+                    self.buff_configuration.get_agent_id_predicate()(agent_id),
+                sort_key=(TargetingOrder.ENERGY_ASC, TargetingOrder.DISTANCE_ASC),
+                range_to_count_enemies=None,
+                range_to_count_allies=None)
+
+        allowed_classes = [Profession.Mesmer.value, Profession.Ritualist.value, Profession.Ranger.value]
         allowed_agent_names = ["to_be_implemented"]
         from HeroAI.utils import CheckForEffect
     
@@ -75,3 +88,7 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
         if target is None: return BehaviorResult.ACTION_SKIPPED
         result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target)
         return result
+
+    @override
+    def get_buff_configuration(self) -> BuffConfigurationPerProfession | None:
+        return self.buff_configuration

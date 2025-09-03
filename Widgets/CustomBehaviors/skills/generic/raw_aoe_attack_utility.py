@@ -14,7 +14,7 @@ class RawAoeAttackUtility(CustomSkillUtilityBase):
     def __init__(self, 
     skill: CustomSkill, 
     current_build: list[CustomSkill], 
-    score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 65 if enemy_qte >= 3 else 50 if enemy_qte <= 2 else 25),
+    score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 66 if enemy_qte >= 3 else 51 if enemy_qte <= 2 else 26),
     mana_required_to_cast: int = 12,
     allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
     ) -> None:

@@ -7,6 +7,7 @@ from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
+from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -27,14 +28,14 @@ class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
         
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition
+        self.buff_configuration: BuffConfigurationPerProfession = BuffConfigurationPerProfession(self.custom_skill, BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
 
     def _get_agent_array(self) -> list[int]:
-        allowed_classes = [Profession.Assassin.value, Profession.Ranger.value, Profession.Paragon.value]
-        allowed_agent_names = ["to_be_implemented"]
+
         agent_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
         agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: agent_id != GLOBAL_CACHE.Player.GetAgentID())
-        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: GLOBAL_CACHE.Agent.GetProfessionIDs(agent_id)[0] in allowed_classes)
+        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: self.buff_configuration.get_agent_id_predicate()(agent_id))
         agent_array = AgentArray.Filter.ByDistance(agent_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
         return [agent_id for agent_id in agent_array]
 
@@ -48,7 +49,7 @@ class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
             # if self.DEBUG: print("EbonBattleStandardOfHonorUtility: moving to a better place (gravity center).")
             return None # it doesn't worth moving, we are too far
 
-        if gravity_center.agent_covered_count >= 2: return self.score_definition.get_score(gravity_center.agent_covered_count)
+        if gravity_center.agent_covered_count >= 1: return self.score_definition.get_score(gravity_center.agent_covered_count)
         return None
 
     @override
@@ -71,3 +72,7 @@ class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
             
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
         return result 
+    
+    @override
+    def get_buff_configuration(self) -> BuffConfigurationPerProfession | None:
+        return self.buff_configuration

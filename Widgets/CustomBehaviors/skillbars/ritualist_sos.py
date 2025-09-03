@@ -34,7 +34,6 @@ class RitualistSos_UtilitySkillBar(CustomBehaviorBaseUtility):
     def __init__(self):
         super().__init__()
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
-        self.auto_attack: CustomSkillUtilityBase = AutoAttackUtility(current_build=in_game_build)
 
         # core
         self.signet_of_spirits_utility: CustomSkillUtilityBase = SignetOfSpiritsUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(92))
@@ -54,19 +53,6 @@ class RitualistSos_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(current_build=in_game_build)
-    
-
-    @property
-    @override
-    def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
-        return [
-            self.auto_attack,
-        ]
-
-    @property
-    @override
-    def complete_build_with_generic_skills(self) -> bool:
-        return True
     
     @property
     @override

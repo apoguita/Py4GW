@@ -50,6 +50,7 @@ class SpiritLightUtility(CustomSkillUtilityBase):
             return self.score_definition.get_score(HealingScore.MEMBER_DAMAGED)
         if targets[0].hp < 0.40:
             return self.score_definition.get_score(HealingScore.MEMBER_DAMAGED_EMERGENCY)
+        return None
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
