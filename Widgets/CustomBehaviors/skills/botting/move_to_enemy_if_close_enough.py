@@ -37,7 +37,7 @@ class MoveToEnemyIfCloseEnoughUtility(CustomSkillUtilityBase):
         if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_aggressive_id): 
             return enemy_aggressive_id
 
-        enemy_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 400, aggressive_only=False)
+        enemy_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 300, aggressive_only=False)
         if enemy_id is not None and enemy_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_id): 
             return enemy_id
 

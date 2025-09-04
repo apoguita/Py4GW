@@ -41,6 +41,8 @@ class WaitIfPartyMemberManaTooLowUtility(CustomSkillUtilityBase):
         players = GLOBAL_CACHE.Party.GetPlayers()
         for player in players:
             agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            if GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.7:
+                return self.score_definition.get_score()
             if custom_behavior_helpers.Resources.get_energy_percent_in_party(agent_id) < self.mana_limit:
                 return self.score_definition.get_score()
 

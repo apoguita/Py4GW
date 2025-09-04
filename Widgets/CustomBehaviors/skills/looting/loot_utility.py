@@ -35,6 +35,9 @@ class LootUtility(CustomSkillUtilityBase):
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.LOOT.value)
         self.throttle_timer = ThrottledTimer(1_000)
+        self.__loot_cooldown_timer = ThrottledTimer(60_000)
+        self.__loot_cooldown_active = False
+        self.__loot_timeout_ms = 15_000
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -47,6 +50,13 @@ class LootUtility(CustomSkillUtilityBase):
         
         if not self.throttle_timer.IsExpired():
             return None
+
+        # Respect cooldown to avoid getting stuck in repeated loot attempts
+        if self.__loot_cooldown_active:
+            if self.__loot_cooldown_timer.IsExpired():
+                self.__loot_cooldown_active = False
+            else:
+                return None
 
         if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1: 
             return None
@@ -75,16 +85,24 @@ class LootUtility(CustomSkillUtilityBase):
 
         account_email = GLOBAL_CACHE.Player.GetAccountEmail()
         self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+        if self_account is not None:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                self_account.AccountEmail,
+                self_account.AccountEmail,
+                SharedCommandType.PickUpLoot,
+                (0, 0, 0, 0),
+            )
+        else:
+            return BehaviorResult.ACTION_SKIPPED
 
-        GLOBAL_CACHE.ShMem.SendMessage(
-            self_account.AccountEmail,
-            self_account.AccountEmail,
-            SharedCommandType.PickUpLoot,
-            (0, 0, 0, 0),
-        )
-
-        while(self.IsLootingRoutineActive()):
-            print('looting_routine_is_active')
+        # Wait until looting ends or timeout elapses
+        start_time = time.time()
+        while self.IsLootingRoutineActive():
+            if (time.time() - start_time) * 1000 >= self.__loot_timeout_ms:
+                # Timeout reached: trigger cooldown to avoid being stuck
+                self.__loot_cooldown_active = True
+                self.__loot_cooldown_timer.Reset()
+                return BehaviorResult.ACTION_SKIPPED
             yield from custom_behavior_helpers.Helpers.wait_for(200)
 
         # i don't know why but that stuff is not working
