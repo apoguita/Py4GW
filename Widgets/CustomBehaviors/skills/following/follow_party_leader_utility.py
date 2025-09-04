@@ -91,7 +91,7 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
 
         if current_state == BehaviorState.IN_AGGRO:
             # should not be possible, but anyway, we want to escape that position asap
-            max_distance_to_party_leader = Range.Spellcast.value * 0.6
+            max_distance_to_party_leader = Range.Spellcast.value * 0.5
         else:
             # not need to move closer
             max_distance_to_party_leader = 200

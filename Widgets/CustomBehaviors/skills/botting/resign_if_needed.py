@@ -34,7 +34,8 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BOTTING.value)
         self.__is_resign_asked = False
-        self.throttle_timer = ThrottledTimer(60_000)
+        self.death_timer_timer = ThrottledTimer(60_000)
+        self.__death_timer_started = False
 
         EVENT_BUS.subscribe(EventType.PLAYER_CRITICAL_STUCK, self.player_critical_stuck)
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
@@ -44,7 +45,8 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
 
     def map_changed(self, message: EventMessage):
         self.__is_resign_asked = False
-        self.throttle_timer.Reset()
+        self.death_timer_timer.Reset()
+        self.__death_timer_started = False
 
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -59,11 +61,17 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
             return self.score_definition.get_score()
 
         if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()): 
-            if not self.throttle_timer.IsExpired():
+            if not self.__death_timer_started:
+                self.death_timer_timer.Reset()
+                self.__death_timer_started = True
+                return None
+            if self.death_timer_timer.IsExpired():
                 return self.score_definition.get_score()
             return None
-            
-        self.throttle_timer.Reset()
+        
+        # Player is alive again; clear any pending death timer
+        self.__death_timer_started = False
+        self.death_timer_timer.Reset()
 
         return None
 

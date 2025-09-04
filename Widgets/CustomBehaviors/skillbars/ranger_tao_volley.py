@@ -70,5 +70,4 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
             self.together_as_one_utility.custom_skill,
-            self.volley_utility.custom_skill,
         ]
