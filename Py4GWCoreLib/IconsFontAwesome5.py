@@ -1838,4 +1838,4 @@ class IconsFontAwesome5:
     
     UNKNOWN_F8E5 = '\uf8e5'
     
-    
+    ALL_ICONS = {v for k, v in vars().items() if isinstance(v, str) and len(k) > 6}

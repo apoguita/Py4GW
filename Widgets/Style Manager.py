@@ -1,13 +1,14 @@
 from enum import Enum
 import math
+from pathlib import Path
 from typing import Optional, overload
 from unittest import case
 import Py4GW
+import PyImGui
 
 from Py4GWCoreLib import IniHandler
-from Py4GWCoreLib import Timer
-from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import Timer
 from Py4GWCoreLib import SplitTexture
 from Py4GWCoreLib import MapTexture
 from Py4GWCoreLib import GameTextures
@@ -60,6 +61,7 @@ window_module = ImGui.WindowModule(
 
 window_module.window_pos = (window_x, window_y)
 window_module.open = False
+control_compare = False
 
 py4_gw_ini_handler = IniHandler("Py4GW.ini")
 selected_theme = Style.StyleTheme[py4_gw_ini_handler.read_key("settings", "style_theme", Style.StyleTheme.ImGui.name)]
@@ -86,6 +88,8 @@ class preview_states:
         self.input_text_value = "Text"
         self.search_value = ""
         self.combo = 0
+        self.objective_1 = True
+        self.objective_2 = False
         self.checkbox = True
         self.checkbox_2 = False
         self.radio_button = 0
@@ -93,6 +97,8 @@ class preview_states:
         self.slider_float = 33.0
 
 preview = preview_states()
+style = PyImGui.StyleConfig()
+TEXTURE_FOLDER = "Textures\\Game UI\\"
 
 class GameTextures2(Enum):
     pass
@@ -154,8 +160,399 @@ def undo_button(label, width : float = 0, height: float = 25) -> bool:
 
     return clicked
 
+#region ImGui
+class ImGuiDev: # endregion
+    pass
+    
+#endregion
+
+
+def DrawControlCompare():    
+    if ImGui.begin_with_close("Control Compare", True, PyImGui.WindowFlags.NoFlag):
+        if PyImGui.is_rect_visible(50, 50):
+
+            PyImGui.push_item_width(150)            
+            style = ImGui.get_style()
+            
+            if ImGui.begin_table("Control Preview", 4, PyImGui.TableFlags.ScrollX):
+                PyImGui.table_setup_column("ControlName", PyImGui.TableColumnFlags.WidthFixed, 150)
+                PyImGui.table_setup_column("PyImgui", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column("ImGui", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column("ImGui Style Pushed", PyImGui.TableColumnFlags.WidthStretch)
+                
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                
+                ImGui.text("Button")
+                PyImGui.table_next_column()
+                if PyImGui.button("Button", 0, 25):
+                    ConsoleLog(module_name, "Button clicked")
+                PyImGui.table_next_column()
+                
+                if ImGui.button("Button", 0, 25):
+                    ConsoleLog(module_name, "Button clicked")
+                PyImGui.table_next_column()  
+                
+                style.push_style()              
+                if ImGui.button("Button", 0, 25):
+                    ConsoleLog(module_name, "Button clicked")
+                style.pop_style()
+                PyImGui.table_next_column()
+                
+                ImGui.text("Small Button")
+                PyImGui.table_next_column()
+                if PyImGui.small_button("Small Button"):
+                    ConsoleLog(module_name, "Small Button clicked")
+                PyImGui.table_next_column()
+                
+                if ImGui.small_button("Small Button"):
+                    ConsoleLog(module_name, "Button clicked")
+                PyImGui.table_next_column()
+                
+                style.push_style()    
+                if ImGui.small_button("Small Button"):
+                    ConsoleLog(module_name, "Button clicked")
+                style.pop_style()
+                PyImGui.table_next_column()
+                
+                ImGui.text("Icon Button")
+                PyImGui.table_next_column()
+                
+                if PyImGui.button(IconsFontAwesome5.ICON_SYNC + " With Text" + "##0"):
+                    ConsoleLog(module_name, "Button clicked")
+                                
+                PyImGui.same_line(0, 5)
+                if PyImGui.button(IconsFontAwesome5.ICON_ALIGN_JUSTIFY + "##0"):
+                    ConsoleLog(module_name, "Button clicked")
+                
+                PyImGui.same_line(0, 5)
+                if PyImGui.button(IconsFontAwesome5.ICON_GAUGE_SIMPLE + "##0"):
+                    ConsoleLog(module_name, "Button clicked")
+                
+                PyImGui.same_line(0, 5)
+                if PyImGui.button(IconsFontAwesome5.ICON_LANDMARK_DOME + "##0"):
+                    ConsoleLog(module_name, "Button clicked")
+                    
+                PyImGui.table_next_column()
+                
+                if ImGui.icon_button(IconsFontAwesome5.ICON_SYNC + " With Text" + "##1"):
+                    ConsoleLog(module_name, "Button clicked")
+                                
+                PyImGui.same_line(0, 5)
+                if ImGui.icon_button(IconsFontAwesome5.ICON_ALIGN_JUSTIFY + "##1"):
+                    ConsoleLog(module_name, "Button clicked")
+                
+                PyImGui.same_line(0, 5)
+                if ImGui.icon_button(IconsFontAwesome5.ICON_GAUGE_SIMPLE + "##1"):
+                    ConsoleLog(module_name, "Button clicked")
+                
+                PyImGui.same_line(0, 5)
+                if ImGui.icon_button(IconsFontAwesome5.ICON_LANDMARK_DOME + "##1"):
+                    ConsoleLog(module_name, "Button clicked")
+                PyImGui.table_next_column()
+                
+                style.push_style()    
+                if ImGui.icon_button(IconsFontAwesome5.ICON_SYNC + " With Text" + "##1"):
+                    ConsoleLog(module_name, "Button clicked")
+                                
+                PyImGui.same_line(0, 5)
+                if ImGui.icon_button(IconsFontAwesome5.ICON_ALIGN_JUSTIFY + "##1"):
+                    ConsoleLog(module_name, "Button clicked")
+                
+                PyImGui.same_line(0, 5)
+                if ImGui.icon_button(IconsFontAwesome5.ICON_GAUGE_SIMPLE + "##1"):
+                    ConsoleLog(module_name, "Button clicked")
+                
+                PyImGui.same_line(0, 5)
+                if ImGui.icon_button(IconsFontAwesome5.ICON_LANDMARK_DOME + "##1"):
+                    ConsoleLog(module_name, "Button clicked")           
+                style.pop_style()
+                PyImGui.table_next_column()
+                                            
+                ImGui.text("Combo")
+                PyImGui.table_next_column()
+                preview.combo = PyImGui.combo("Combo##1", preview.combo, ["Option 1", "Option 2", "Option 3"])
+                PyImGui.table_next_column()
+                preview.combo = ImGui.combo("Combo##2", preview.combo, ["Option 1", "Option 2", "Option 3"])
+                PyImGui.table_next_column()
+                style.push_style()    
+                preview.combo = ImGui.combo("Combo##3", preview.combo, ["Option 1", "Option 2", "Option 3"])
+                PyImGui.table_next_column()
+                style.pop_style()
+                
+                ImGui.text("Checkbox")
+                PyImGui.table_next_column()
+                preview.checkbox_2 = PyImGui.checkbox("##Checkbox 2", preview.checkbox_2)                                
+                PyImGui.same_line(0, 5)
+                preview.checkbox = PyImGui.checkbox("Checkbox", preview.checkbox)                                
+                PyImGui.table_next_column()
+                
+                preview.checkbox_2 = ImGui.checkbox("##Checkbox 2", preview.checkbox_2)                                
+                PyImGui.same_line(0, 5)
+                preview.checkbox = ImGui.checkbox("Checkbox", preview.checkbox)                                
+                PyImGui.table_next_column()
+                
+                style.push_style()    
+                preview.checkbox_2 = ImGui.checkbox("##Checkbox 2", preview.checkbox_2)                                
+                PyImGui.same_line(0, 5)
+                preview.checkbox = ImGui.checkbox("Checkbox", preview.checkbox)                                
+                PyImGui.table_next_column()
+                style.pop_style()
+                
+                ImGui.text("Radio Button")
+                PyImGui.table_next_column()
+                preview.radio_button = PyImGui.radio_button("Option 1##Radio Button 1", preview.radio_button, 0)                                
+                preview.radio_button = PyImGui.radio_button("Option 2##Radio Button 2", preview.radio_button, 1)                                
+                preview.radio_button = PyImGui.radio_button("Option 3##Radio Button 3", preview.radio_button, 2)                                
+                PyImGui.table_next_column()
+                preview.radio_button = ImGui.radio_button("Option 1##Radio Button 1", preview.radio_button, 0)                                
+                preview.radio_button = ImGui.radio_button("Option 2##Radio Button 2", preview.radio_button, 1)                                
+                preview.radio_button = ImGui.radio_button("Option 3##Radio Button 3", preview.radio_button, 2)                                
+                PyImGui.table_next_column()
+                
+                style.push_style()    
+                preview.radio_button = ImGui.radio_button("Option 1##Radio Button 1", preview.radio_button, 0)                                
+                preview.radio_button = ImGui.radio_button("Option 2##Radio Button 2", preview.radio_button, 1)                                
+                preview.radio_button = ImGui.radio_button("Option 3##Radio Button 3", preview.radio_button, 2)                                
+                PyImGui.table_next_column()
+                style.pop_style()
+
+                ImGui.text("Slider")
+                PyImGui.table_next_column()
+                preview.slider_int = PyImGui.slider_int("Slider Int", preview.slider_int, 0, 100)
+                preview.slider_float = PyImGui.slider_float("Slider Float", preview.slider_float, 0.0, 100.0)
+                PyImGui.table_next_column()
+                preview.slider_int = ImGui.slider_int("Slider Int", preview.slider_int, 0, 100)
+                preview.slider_float = ImGui.slider_float("Slider Float", preview.slider_float, 0.0, 100.0)
+                PyImGui.table_next_column()
+                
+                style.push_style()    
+                preview.slider_int = ImGui.slider_int("Slider Int", preview.slider_int, 0, 100)
+                preview.slider_float = ImGui.slider_float("Slider Float", preview.slider_float, 0.0, 100.0)
+                PyImGui.table_next_column()
+                style.pop_style()
+                
+                ImGui.text("Input")
+                PyImGui.table_next_column()
+                preview.input_text_value = PyImGui.input_text("Input Text", preview.input_text_value)
+                preview.input_int_value = PyImGui.input_int("Input Int##2", preview.input_int_value)
+                preview.input_int_value = PyImGui.input_int("Input Int##3", preview.input_int_value, 0, 10000, 0)
+                preview.input_float_value = PyImGui.input_float("Input Float", preview.input_float_value)
+
+                PyImGui.table_next_column()
+                preview.input_text_value = ImGui.input_text("Input Text", preview.input_text_value)
+                preview.input_int_value = ImGui.input_int("Input Int##2", preview.input_int_value)
+                preview.input_int_value = ImGui.input_int("Input Int##3", preview.input_int_value, 0, 10000, 0)
+                preview.input_float_value = ImGui.input_float("Input Float", preview.input_float_value)
+
+                style.push_style()    
+                PyImGui.table_next_column()
+                preview.input_text_value = ImGui.input_text("Input Text", preview.input_text_value)
+                preview.input_int_value = ImGui.input_int("Input Int##2", preview.input_int_value)
+                preview.input_int_value = ImGui.input_int("Input Int##3", preview.input_int_value, 0, 10000, 0)
+                preview.input_float_value = ImGui.input_float("Input Float", preview.input_float_value)
+                style.pop_style()
+
+                PyImGui.table_next_column()
+
+                ImGui.text("Separator")
+                PyImGui.table_next_column()
+                PyImGui.separator()
+                PyImGui.table_next_column()
+                ImGui.separator()
+                PyImGui.table_next_column()
+                style.push_style()    
+                ImGui.separator()
+                PyImGui.table_next_column()
+                style.pop_style()
+                
+                ImGui.text("Progress Bar")
+                PyImGui.table_next_column()
+                
+                current_style = ImGui.get_style()
+                PyImGui.progress_bar(0.25, 0, 20, "25 points")
+                                            
+                current_style.PlotHistogram.push_color((219, 150, 251, 255))  
+                PyImGui.progress_bar(0.25, 0, 20, "25 points")
+                current_style.PlotHistogram.pop_color()                            
+                PyImGui.table_next_column()
+                
+                current_style = ImGui.get_style()
+                ImGui.progress_bar(0.25, 0, 20, "25 points")
+                                            
+                current_style.PlotHistogram.push_color((219, 150, 251, 255))  
+                ImGui.progress_bar(0.25, 0, 20, "25 points")
+                current_style.PlotHistogram.pop_color()                            
+                PyImGui.table_next_column()
+                
+                current_style = ImGui.get_style()
+                style.push_style()    
+                ImGui.progress_bar(0.25, 0, 20, "25 points")
+                                            
+                current_style.PlotHistogram.push_color((219, 150, 251, 255))  
+                ImGui.progress_bar(0.25, 0, 20, "25 points")
+                current_style.PlotHistogram.pop_color()                            
+                PyImGui.table_next_column()
+                style.pop_style()
+
+                ImGui.text("Bullet Text")
+                PyImGui.table_next_column()
+                PyImGui.bullet_text("Bullet Text 1")
+                PyImGui.bullet_text("Bullet Text 2")
+                PyImGui.table_next_column()
+
+                ImGui.bullet_text("Bullet Text 1")
+                ImGui.bullet_text("Bullet Text 2")
+                PyImGui.table_next_column()
+
+                style.push_style()    
+                ImGui.bullet_text("Bullet Text 1")
+                ImGui.bullet_text("Bullet Text 2")
+                PyImGui.table_next_column()
+                style.pop_style()
+
+                ImGui.text("Objective Text")
+                PyImGui.table_next_column()
+                
+                preview.objective_1 = ImGui.objective_text("Objective 1", preview.objective_1)
+                preview.objective_2 = ImGui.objective_text("Objective 2", preview.objective_2)                
+                PyImGui.table_next_column()
+                
+                preview.objective_1 = ImGui.objective_text("Objective 1", preview.objective_1)
+                preview.objective_2 = ImGui.objective_text("Objective 2", preview.objective_2)
+                PyImGui.table_next_column()
+
+                style.push_style()    
+                preview.objective_1 = ImGui.objective_text("Objective 1", preview.objective_1)
+                preview.objective_2 = ImGui.objective_text("Objective 2", preview.objective_2)
+                PyImGui.table_next_column()
+                style.pop_style()
+
+                ImGui.text("Tree Nodes")
+                PyImGui.table_next_column()
+                if PyImGui.tree_node("Tree Node 1"):
+                    if PyImGui.tree_node("Tree Node 1.1"):
+                        PyImGui.text("This is a tree node content.")
+                        PyImGui.tree_pop()
+                        
+                    PyImGui.tree_pop()
+                        
+                PyImGui.table_next_column()                            
+                
+                if ImGui.tree_node("Tree Node 1##1"):
+                    if ImGui.tree_node("Tree Node 1.1##1"):
+                        ImGui.text("This is a tree node content.")
+                        ImGui.tree_pop()
+                        
+                    ImGui.tree_pop()
+                PyImGui.table_next_column()                         
+                
+                style.push_style()    
+                if ImGui.tree_node("Tree Node 1##2"):
+                    if ImGui.tree_node("Tree Node 1.1##2"):
+                        ImGui.text("This is a tree node content.")
+                        ImGui.tree_pop()
+                        
+                    PyImGui.tree_pop()
+                PyImGui.table_next_column()
+                style.pop_style()
+
+                ImGui.text("Collapsing Header")
+                PyImGui.table_next_column()
+                if PyImGui.collapsing_header("Collapsing Header", 0):
+                    PyImGui.text("This is a collapsible header content.")
+                PyImGui.table_next_column()                            
+                
+                if ImGui.collapsing_header("Collapsing Header##1", 0):
+                    ImGui.text("This is a collapsible header content.")
+                PyImGui.table_next_column()                         
+                
+                style.push_style()    
+                if ImGui.collapsing_header("Collapsing Header##2", 0):
+                    ImGui.text("This is a collapsible header content.")
+                PyImGui.table_next_column()
+                style.pop_style()
+
+                ImGui.text("Child")
+                PyImGui.table_next_column()
+                
+                if PyImGui.begin_child("Child##1PyImGui", (0, 68), True, PyImGui.WindowFlags.AlwaysHorizontalScrollbar):
+                    PyImGui.text("This is a child content.")
+                    PyImGui.text("This is a child content.")
+                    PyImGui.text("This is a child content.")
+                    PyImGui.text("This is a child content.")
+                    PyImGui.text("This is a child content.")
+                PyImGui.end_child()
+                
+                PyImGui.table_next_column()
+                
+                if ImGui.begin_child("Child##1", (0, 68), True, PyImGui.WindowFlags.AlwaysHorizontalScrollbar):
+                    ImGui.text("This is a child content.")
+                    ImGui.text("This is a child content.")
+                    ImGui.text("This is a child content.")
+                    ImGui.text("This is a child content.")
+                    ImGui.text("This is a child content.")
+                ImGui.end_child()
+                PyImGui.table_next_column()
+                
+                style.push_style()    
+                if ImGui.begin_child("Child##2", (0, 68), True, PyImGui.WindowFlags.AlwaysHorizontalScrollbar):
+                    ImGui.text("This is a child content.")
+                    ImGui.text("This is a child content.")
+                    ImGui.text("This is a child content.")
+                    ImGui.text("This is a child content.")
+                    ImGui.text("This is a child content.")
+                ImGui.end_child()
+                style.pop_style()
+                
+                PyImGui.table_next_column()
+                
+                ImGui.text("Tab Bar")
+                PyImGui.table_next_column()
+
+                if PyImGui.begin_tab_bar("Tab Bar PyImGui"):
+                    if PyImGui.begin_tab_item("Tab 1"):
+                        PyImGui.text("Content for Tab 1")
+                        PyImGui.end_tab_item()
+
+                    if PyImGui.begin_tab_item("Tab 2"):
+                        PyImGui.text("Content for Tab 2")
+                        PyImGui.end_tab_item()
+
+                    PyImGui.end_tab_bar()
+                PyImGui.table_next_column()
+
+                if ImGui.begin_tab_bar("Tab Bar"):
+                    if ImGui.begin_tab_item("Tab 1"):
+                        ImGui.text("Content for Tab 1")
+                        ImGui.end_tab_item()
+
+                    if ImGui.begin_tab_item("Tab 2"):
+                        ImGui.text("Content for Tab 2")
+                        ImGui.end_tab_item()
+
+                    ImGui.end_tab_bar()
+                PyImGui.table_next_column()
+                
+                style.push_style()    
+                if ImGui.begin_tab_bar("Tab Bar#2"):
+                    if ImGui.begin_tab_item("Tab 1"):
+                        ImGui.text("Content for Tab 1")
+                        ImGui.end_tab_item()
+
+                    if ImGui.begin_tab_item("Tab 2"):
+                        ImGui.text("Content for Tab 2")
+                        ImGui.end_tab_item()
+
+                    ImGui.end_tab_bar()
+                style.pop_style()
+
+                ImGui.end_table()
+            PyImGui.pop_item_width()
+    ImGui.end()
+
 def DrawWindow():
-    global window_module, module_name, ini_handler, window_x, window_y, window_collapsed, window_open, org_style, window_width, window_height
+    global window_module, module_name, ini_handler, window_x, window_y, window_collapsed, control_compare, org_style, window_width, window_height
     global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
     
     try:                        
@@ -168,7 +565,7 @@ def DrawWindow():
             PyImGui.same_line(0, 5)
             PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 5)
             remaining = PyImGui.get_content_region_avail()
-            PyImGui.push_item_width(remaining[0])
+            PyImGui.push_item_width(remaining[0] - 30)
             value = ImGui.combo("##theme_selector", ImGui.Selected_Style.Theme.value, themes)
             
             if value != ImGui.Selected_Style.Theme.value:
@@ -178,6 +575,11 @@ def DrawWindow():
                 
                 org_style = ImGui.Selected_Style.copy()
                 py4_gw_ini_handler.write_key("settings", "style_theme", ImGui.Selected_Style.Theme.name)
+            
+            PyImGui.same_line(0, 5)
+            PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 5)
+            control_compare = ImGui.checkbox("##show_control_compare", control_compare)
+            ImGui.show_tooltip("Show Control Compare window\nThis is used for control development and testing")
                 
                 
             PyImGui.spacing()
@@ -200,6 +602,7 @@ def DrawWindow():
                         
                         if ImGui.button("Save Changes", button_width, active=any_changed):
                             ImGui.Selected_Style.save_to_json()
+                            ImGui.Selected_Style.apply_to_style_config()
                             org_style = ImGui.Selected_Style.copy()
                         
                         PyImGui.same_line(0, 5)
@@ -299,6 +702,10 @@ def DrawWindow():
                                 ImGui.end_table()
 
                     ImGui.end_child()
+                    
+                    if control_compare:
+                        DrawControlCompare()
+                        
                     ImGui.end_tab_item()
  
                 if ImGui.begin_tab_item("Control Preview"):
@@ -432,7 +839,8 @@ def DrawWindow():
 
                             ImGui.end_table()
                         PyImGui.pop_item_width()
-                    ImGui.end_tab_item()                
+                    ImGui.end_tab_item()
+                                   
                 ImGui.end_tab_bar()
                 
             window_module.process_window()
@@ -466,7 +874,7 @@ def main():
     
     try:            
         DrawWindow()
-        window_module.open  = False
+        window_module.open = False
             
     except Exception as e:
         Py4GW.Console.Log(module_name, f"Error in main: {str(e)}", Py4GW.Console.MessageType.Debug)
