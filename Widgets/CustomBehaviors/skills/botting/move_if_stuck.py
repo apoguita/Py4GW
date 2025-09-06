@@ -59,6 +59,5 @@ class MoveIfStuckUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-        
         yield
         return BehaviorResult.ACTION_SKIPPED

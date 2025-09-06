@@ -20,6 +20,7 @@ from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utilit
 from Widgets.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
 from Widgets.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
 from Widgets.CustomBehaviors.skills.deamon.stuck_detection import StuckDetectionUtility
+from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
 from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Widgets.CustomBehaviors.skills.generic.protective_shout_utility import ProtectiveShoutUtility
 from Widgets.CustomBehaviors.skills.looting.open_near_chest_utility import OpenNearChestUtility
@@ -45,11 +46,14 @@ class AssassinTank_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.critical_agility_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Critical_Agility"), current_build=in_game_build, score_definition=ScoreStaticDefinition(50), mana_required_to_cast=10, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
         self.critical_eye_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Critical_Eye"), current_build=in_game_build, score_definition=ScoreStaticDefinition(80), allowed_states=[BehaviorState.IN_AGGRO])
 
+        self.jagged_strike_utility: CustomSkillUtilityBase = HeroAiUtility(skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=10)
+        self.fox_fangs_utility: CustomSkillUtilityBase = HeroAiUtility(skill=CustomSkill("Fox_Fangs"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=10)
+        self.death_blossom_utility: CustomSkillUtilityBase = HeroAiUtility(skill=CustomSkill("Death_Blossom"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=10)
+
+
         #common
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(45))
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(score_definition=ScoreStaticDefinition(40), current_build=in_game_build, mana_required_to_cast=24)
-
-        # self.inject_additionnal_utility_skills(MoveToEnemyIfCloseEnoughUtility(self.in_game_build))
 
     @property
     @override
@@ -66,6 +70,9 @@ class AssassinTank_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.silver_armor_utility,
             self.disrupting_dagger_utility,
             self.critical_eye_utility,
+            self.jagged_strike_utility,
+            self.fox_fangs_utility,
+            self.death_blossom_utility,
         ]
 
     @property

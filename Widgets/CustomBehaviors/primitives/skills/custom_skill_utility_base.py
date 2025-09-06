@@ -17,6 +17,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_nature import CustomSkillNature
 from Widgets.CustomBehaviors.primitives.scores.score_definition import ScoreDefinition
 from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class CustomSkillUtilityBase:
@@ -25,7 +26,8 @@ class CustomSkillUtilityBase:
                 score_definition:ScoreDefinition,
                 mana_required_to_cast:float=0,
                 allowed_states:list[BehaviorState]=[BehaviorState.IN_AGGRO],
-                utility_skill_typology: UtilitySkillTypology = UtilitySkillTypology.COMBAT
+                utility_skill_typology: UtilitySkillTypology = UtilitySkillTypology.COMBAT,
+                execution_strategy = UtilitySkillExecutionStrategy.EXECUTE_THROUGH_THE_END
                 ):
 
         self.custom_skill: CustomSkill = skill
@@ -34,6 +36,7 @@ class CustomSkillUtilityBase:
         self.allowed_states: list[BehaviorState] | None = allowed_states
         self.mana_required_to_cast: float = mana_required_to_cast
         self.is_enabled:bool = True
+        self.execution_strategy:UtilitySkillExecutionStrategy = execution_strategy
 
     @abstractmethod
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
