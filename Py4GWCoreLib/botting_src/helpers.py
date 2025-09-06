@@ -153,6 +153,31 @@ class BottingHelpers:
 
         return True
 
+    def _target_model(self, model_id:int):
+        from ..Routines import Routines
+        from ..GlobalCache import GLOBAL_CACHE
+        agent_id = Routines.Agents.GetAgentIDByModelID(model_id)
+        if agent_id == 0:
+            self.on_unmanaged_fail()
+            return False
+        yield from Routines.Yield.Agents.ChangeTarget(agent_id)
+        return True
+    
+    def _load_skillbar(self, skill_template: str):
+        from ..Routines import Routines
+        yield from Routines.Yield.Skills.LoadSkillbar(skill_template, log=False)
+        yield from Routines.Yield.wait(500)
+    
+    def _cast_skill_id(self, skill_id:int):
+        from ..Routines import Routines
+        yield from Routines.Yield.Skills.CastSkillID(skill_id)
+        return True
+        
+    def _cast_skill_slot(self, slot:int):
+        from ..Routines import Routines
+        yield from Routines.Yield.Skills.CastSkillSlot(slot)
+        return True
+
     def _follow_model_id(
         self,
         model_id: int,
@@ -511,6 +536,22 @@ class BottingHelpers:
         agent_id = Routines.Agents.GetAgentIDByModelID(model_id)
         x,y = GLOBAL_CACHE.Agent.GetXY(agent_id)
         return (yield from self._interact_with_agent((x, y), dialog_id))
+    
+    @_yield_step(label="TargetModelID", counter_key="TARGET_MODEL_ID")
+    def target_model_id(self, model_id: int) -> Generator[Any, Any, bool]:
+        return (yield from self._target_model(model_id))
+    
+    @_yield_step(label="LoadSkillbar", counter_key="LOAD_SKILLBAR")
+    def load_skillbar(self, skill_template: str) -> Generator[Any, Any, None]:
+        return (yield from self._load_skillbar(skill_template))
+
+    @_yield_step(label="CastSkillID", counter_key="CAST_SKILL_ID")
+    def cast_skill_id(self, skill_id: int) -> Generator[Any, Any, bool]:
+        return (yield from self._cast_skill_id(skill_id))
+    
+    @_yield_step(label="CastSkillSlot", counter_key="CAST_SKILL_SLOT")
+    def cast_skill_slot(self, slot: int) -> Generator[Any, Any, bool]:
+        return (yield from self._cast_skill_slot(slot))
 
     @_yield_step(label="FollowModelID", counter_key="FOLLOW_MODEL_ID")
     def follow_model_id(self, model_id, follow_range, exit_condition: Optional[Callable[[], bool]]=lambda:False) -> Generator[Any, Any, bool]:

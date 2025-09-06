@@ -2,11 +2,13 @@
 from email.mime import message
 from typing import Any, Tuple, Callable, List, Iterable, Dict, Optional
 
+
 from .botting_src.helpers import BottingHelpers
 from .botting_src.botconfig import BotConfig
 from .botting_src.property import Property
 from .Py4GWcorelib import Color, ActionQueueManager
 from functools import wraps
+import PyImGui
 
 def _yield_step(label: str, counter_key: str):
     def deco(coro_method):
@@ -157,6 +159,8 @@ class BottingClass:
         self.Party = BottingClass._PARTY(self)
         self.Events = BottingClass._EVENTS(self)
         self.Properties = BottingClass._PROPERTIES(self)
+        self.Targeting = BottingClass._TARGETING(self)
+        self.SkillBar = BottingClass._SKILLBAR(self)
 
     #region internal Helpers
     def _start_coroutines(self):
@@ -202,7 +206,6 @@ class BottingClass:
     def Start(self):
         self.config.FSM.start()
         self.config.fsm_running = True
-        self._start_coroutines()
 
     def Stop(self):
         self.config.FSM.RemoveAllManagedCoroutines()
@@ -214,18 +217,16 @@ class BottingClass:
         self.config.fsm_running = True
         self.config.FSM.reset()
         self.config.FSM.jump_to_state_by_name(step_name)
-        self._start_coroutines()
 
     def Update(self):
-        if self.config.fsm_paused and self.config.fsm_running:
-            self.config.state_description = "Paused"
-        else:
+        if self.config.fsm_running:
             self.config.state_description = "Running" if self.config.fsm_running else "Stopped"
 
         if not self.config.initialized:
             self.Routine()
             self.config.initialized = True
         if self.config.fsm_running:
+            self._start_coroutines()
             self.config.FSM.update()
   
     #region DIALOGS
@@ -572,7 +573,20 @@ class BottingClass:
 
         def KickPlayer(self, player_name: str):
             self.parent.helpers.kick_player(player_name)
+    #region SKILLBAR
+    class _SKILLBAR:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
             
+        def LoadSkillBar(self, skill_template: str):
+            self.parent.helpers.load_skillbar(skill_template)
+            
+        def UseSkill(self, skill_id:int):
+            self.parent.helpers.cast_skill_id(skill_id)
+            
+        def UseSkillSlot(self, slot_index:int):
+            self.parent.helpers.cast_skill_slot(slot_index)
+
         
 
     #region STATES
@@ -586,10 +600,22 @@ class BottingClass:
         def AddHeaderStep(self, step_name: str) -> None:
             self.parent.helpers.insert_header_step(step_name)
             
+    #region TARGETING
+    class _TARGETING:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+            
+        def TargetModel(self, model_id:int):
+            self.parent.helpers.target_model_id(model_id)
+            
     #region UI
     class _UI:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self.draw_texture_fn: Optional[Callable[[], None]] = None
+            self._FSM_SELECTED_NAME_ORIG: str | None = None   # selection persists across frames
+            self._FSM_FILTER_START: int = 0
+            self._FSM_FILTER_END: int = 0
 
         def CancelSkillRewardWindow(self):
             self.parent.helpers.cancel_skill_reward_window()
@@ -603,6 +629,389 @@ class BottingClass:
 
         def PrintMessageToConsole(self, source: str, message: str):
             self.parent.helpers.print_message_to_console(source, message)
+            
+        def _find_current_header_step(self):
+            import re
+            # Find current header
+            fsm_steps_all = self.parent.config.FSM.get_state_names()
+            total_steps = len(fsm_steps_all)
+            current_step = self.parent.config.FSM.get_current_state_number()
+            current_header_step = 0
+            step_name = self.parent.config.FSM.get_state_name_by_number(current_step)
+            header_for_current = None
+            for i in range(current_step, -1, -1):
+                name = fsm_steps_all[i]
+                if name.startswith("[H]"):
+                    header_for_current = re.sub(r'^\[H\]\s*', '', name)
+                    header_for_current = re.sub(r'_(?:\[\d+\]|\d+)$', '', header_for_current)
+                    current_header_step = i
+                    break
+
+            return current_header_step, header_for_current, current_step, total_steps, step_name
+        
+        def _draw_texture(self, texture_path:str, size:Tuple[int,int]=(96,96), tint:Color=Color(255,255,255,255), border_col:Color=Color(0,0,0,0)):
+            from .ImGui import ImGui
+            from .enums import ItemModelTextureMap
+            if self.draw_texture_fn is not None:
+                self.draw_texture_fn()
+                return
+            
+            if not texture_path:
+                texture_path = ItemModelTextureMap.get(0, "")
+            
+            ImGui.DrawTextureExtended(texture_path=texture_path, size=size,
+                                  uv0=(0.0, 0.0),   uv1=(0.25, 1.0),
+                                  tint=tint.to_tuple_normalized(), border_color=border_col.to_tuple_normalized())
+            
+        def override_draw_texture(self, draw_fn: Optional[Callable[[], None]] = None) -> None:
+            """
+            Override the texture drawing function.
+            If draw_fn is None, resets to default drawing behavior.
+            """
+            self.draw_texture_fn = draw_fn
+            
+        def _draw_fsm_jump_button(self) -> None:
+            if self._FSM_SELECTED_NAME_ORIG:
+                sel_num = self.parent.config.FSM.get_state_number_by_name(self._FSM_SELECTED_NAME_ORIG)
+                PyImGui.text(f"Selected: {self._FSM_SELECTED_NAME_ORIG}  (#{sel_num-1 if sel_num is not None else 'N/A'})")
+            else:
+                PyImGui.text("Selected: (none)")
+
+            if PyImGui.button("Jump to Selected") and self._FSM_SELECTED_NAME_ORIG:
+                self.parent.config.fsm_running = True
+                self.parent.config.FSM.reset()
+                self.parent.config.FSM.jump_to_state_by_name(self._FSM_SELECTED_NAME_ORIG)  # ORIGINAL name
+                
+        def _draw_step_range_inputs(self):
+            """
+            Renders InputInt for [start_step, end_step], clamps to valid bounds.
+            Updates globals _FSM_FILTER_START/_FSM_FILTER_END.
+            Uses the correct input_int signature returning a single int.
+            """
+            steps = self.parent.config.FSM.get_state_names()
+            last_index = max(0, len(steps) - 1)
+
+            # initialize end to last step on first run
+            if self._FSM_FILTER_END == 0 and last_index > 0:
+                self._FSM_FILTER_END = last_index
+
+            # input_int returns an int; we clamp after reading
+            self._FSM_FILTER_START = PyImGui.input_int("Start Step", self._FSM_FILTER_START)
+            self._FSM_FILTER_END   = PyImGui.input_int("End Step",   self._FSM_FILTER_END)
+
+            # clamp & order
+            self._FSM_FILTER_START = max(0, min(self._FSM_FILTER_START, last_index))
+            self._FSM_FILTER_END   = max(0, min(self._FSM_FILTER_END,   last_index))
+            if self._FSM_FILTER_START > self._FSM_FILTER_END:
+                self._FSM_FILTER_START, self._FSM_FILTER_END = self._FSM_FILTER_END, self._FSM_FILTER_START
+
+            PyImGui.same_line(0,-1)
+            if PyImGui.button("Reset Range"):
+                self._FSM_FILTER_START = 0
+                self._FSM_FILTER_END   = last_index
+
+            PyImGui.text(f"Showing steps [{self._FSM_FILTER_START} … {self._FSM_FILTER_END}] of 0…{last_index}")
+
+
+        def _get_fsm_sections(self):
+            """
+            -> List[dict] with:
+            header_idx:int, header_name_orig:str, header_name_clean:str,
+            children: List[Tuple[int, str]]  # (step_index, original_name)
+            Groups steps under the nearest preceding [H] header.
+            """
+            def _clean_header(name: str) -> str:
+                import re
+                if name.startswith("[H]"):
+                    name = re.sub(r'^\[H\]\s*', '', name)
+                    name = re.sub(r'_(?:\[\d+\]|\d+)$', '', name)
+                return name
+
+            steps = self.parent.config.FSM.get_state_names()
+            sections = []
+            current = None
+
+            for i, name in enumerate(steps):
+                if name.startswith("[H]"):
+                    if current is not None:
+                        sections.append(current)
+                    current = {
+                        "header_idx": i,
+                        "header_name_orig": name,
+                        "header_name_clean": _clean_header(name),
+                        "children": []
+                    }
+                else:
+                    if current is None:
+                        current = {
+                            "header_idx": -1,
+                            "header_name_orig": "[H] (No Header)",
+                            "header_name_clean": "(No Header)",
+                            "children": []
+                        }
+                    current["children"].append((i, name))
+
+            if current is not None:
+                sections.append(current)
+            return sections
+        
+        def draw_fsm_tree_selector_ranged(self, child_size: Tuple[float, float]=(350, 250)) -> str | None:
+            """
+            Scrollable child window with a header-grouped tree,
+            filtered to only show steps in [_FSM_FILTER_START, _FSM_FILTER_END].
+            Returns selected ORIGINAL name or None.
+            """
+
+            # filter inputs
+            self._draw_step_range_inputs()
+            PyImGui.separator()
+
+            sections = self._get_fsm_sections()
+            NOFLAG = PyImGui.SelectableFlags.NoFlag
+            SIZE: Tuple[float, float] = (0.0, 0.0)
+
+            PyImGui.begin_child("fsm_tree_ranged_child", child_size, True, 0)
+
+            any_drawn = False
+            for sec in sections:
+                # header/children within range?
+                header_in_range = (sec["header_idx"] >= 0 and self._FSM_FILTER_START <= sec["header_idx"] <= self._FSM_FILTER_END)
+                children_in_range = [(idx, nm) for (idx, nm) in sec["children"] if self._FSM_FILTER_START <= idx <= self._FSM_FILTER_END]
+
+                if not header_in_range and not children_in_range:
+                    continue
+
+                any_drawn = True
+                header_idx_label = sec["header_idx"] if sec["header_idx"] >= 0 else "—"
+                parent_label = f"[{header_idx_label}] {sec['header_name_clean']}##hdr_{header_idx_label}"
+
+                if PyImGui.tree_node(parent_label):
+                    # header selectable
+                    header_label = f"(Header) {sec['header_name_clean']}##sel_hdr_{header_idx_label}"
+                    is_header_sel = (self._FSM_SELECTED_NAME_ORIG == sec["header_name_orig"])
+                    if PyImGui.selectable(header_label, is_header_sel, NOFLAG, SIZE):
+                        self._FSM_SELECTED_NAME_ORIG = sec["header_name_orig"]
+
+                    # children (in range)
+                    for idx, name_orig in children_in_range:
+                        label = f"[{idx}] {name_orig}##sel_step_{idx}"
+                        is_sel = (self._FSM_SELECTED_NAME_ORIG == name_orig)
+                        if PyImGui.selectable(label, is_sel, NOFLAG, SIZE):
+                            self._FSM_SELECTED_NAME_ORIG = name_orig
+
+                    PyImGui.tree_pop()
+
+            if not any_drawn:
+                PyImGui.text("No steps in selected range.")
+
+            PyImGui.end_child()
+            return self._FSM_SELECTED_NAME_ORIG
+
+
+        def draw_window(self, main_child_dimensions: Tuple[int, int]  = (350, 275), icon_path:str = "",iconwidth: int = 96):
+            from .ImGui import ImGui
+            from .IconsFontAwesome5 import IconsFontAwesome5
+            from .Py4GWcorelib import ConsoleLog, Console
+            from .GlobalCache import GLOBAL_CACHE
+            
+            current_header_step, header_for_current , current_step, total_steps, step_name = self._find_current_header_step()
+            if PyImGui.begin(self.parent.config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
+                if PyImGui.begin_tab_bar(self.parent.config.bot_name + "_tabs"):
+                    if PyImGui.begin_tab_item("Main"):
+                        if PyImGui.begin_child(f"{self.parent.config.bot_name} - Main", main_child_dimensions, True, PyImGui.WindowFlags.NoFlag):
+                            if PyImGui.begin_table("bot_header_table", 2, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH):
+                                PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, iconwidth)
+                                PyImGui.table_setup_column("titles", PyImGui.TableColumnFlags.WidthFixed, main_child_dimensions[0] - iconwidth)
+                                PyImGui.table_next_row()
+                                PyImGui.table_set_column_index(0)
+                                self._draw_texture(texture_path=icon_path, size=(iconwidth, iconwidth))
+                                PyImGui.table_set_column_index(1)
+                                
+                                PyImGui.dummy(0,3)
+                                ImGui.push_font("Regular", 22)
+                                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, Color(255, 255, 0, 255).to_tuple_normalized())
+                                PyImGui.text(f"{self.parent.config.bot_name}")
+                                PyImGui.pop_style_color(1)
+                                ImGui.pop_font()
+                        
+                                ImGui.push_font("Bold", 18)
+                                PyImGui.text(f"[{current_header_step}] {header_for_current or 'Not started'}")
+                                ImGui.pop_font()
+                                PyImGui.text(f"Step: {current_step}/{max(total_steps-1,0)} - {step_name}")
+                                PyImGui.text(f"Status: {self.parent.config.state_description}")
+    
+                                PyImGui.end_table()
+    
+                            
+                            # --- Single toggle button: Play ↔ Stop ---
+                            icon = IconsFontAwesome5.ICON_STOP_CIRCLE if self.parent.config.fsm_running else IconsFontAwesome5.ICON_PLAY_CIRCLE
+                            legend = "  Stop" if self.parent.config.fsm_running else "  Start"
+                            if PyImGui.button(icon + legend + "##BotToggle"):
+                                if self.parent.config.fsm_running:
+                                    # Stop
+                                    self.parent.config.fsm_running = False
+                                    ConsoleLog(self.parent.config.bot_name, "Script stopped", Console.MessageType.Info)
+                                    self.parent.config.state_description = "Idle"
+                                    self.parent.config.FSM.stop()
+                                    GLOBAL_CACHE.Coroutines.clear()
+                                else:
+                                    # Start
+                                    self.parent.config.fsm_running = True
+                                    ConsoleLog(self.parent.config.bot_name, "Script started", Console.MessageType.Info)
+                                    self.parent.config.state_description = "Running"
+                                    self.parent.config.FSM.restart()
+
+
+                                
+                            if total_steps > 1:
+                                fraction = current_step / float(total_steps - 1)
+                            else:
+                                fraction = 0.0
+                                
+                            PyImGui.text("Overall Progress")
+                            PyImGui.push_item_width(main_child_dimensions[0] - 10)
+                            PyImGui.progress_bar(fraction, (main_child_dimensions[0] - 10), 0, f"{fraction * 100:.2f}%")
+                            PyImGui.pop_item_width()
+                            
+                            PyImGui.separator()
+                            PyImGui.text("Step Progress")
+                            PyImGui.push_item_width(main_child_dimensions[0] - 10)
+                            PyImGui.progress_bar(self.parent.config.state_percentage, (main_child_dimensions[0] - 10), 0, f"{self.parent.config.state_percentage * 100:.2f}%")
+                            PyImGui.pop_item_width()
+                                
+                            PyImGui.end_child()
+                        PyImGui.end_tab_item()
+                    
+                    if PyImGui.begin_tab_item("Navigation"):        
+                        PyImGui.text("Jump to step (filtered by step index):")
+                        self._draw_fsm_jump_button()
+                        PyImGui.separator()
+                        selected_name = self.draw_fsm_tree_selector_ranged(child_size=main_child_dimensions)
+                        PyImGui.end_tab_item()
+
+                    if PyImGui.begin_tab_item("Settings"):
+                        PyImGui.text("Bot Settings")
+                        use_birthday_cupcake = self.parent.Properties.get("birthday_cupcake", "active")
+                        bc_restock_qty = self.parent.Properties.get("birthday_cupcake", "restock_quantity")
+
+                        use_honeycomb = self.parent.Properties.get("honeycomb", "active")
+                        hc_restock_qty = self.parent.Properties.get("honeycomb", "restock_quantity")
+
+                        use_birthday_cupcake = PyImGui.checkbox("Use Birthday Cupcake", use_birthday_cupcake)
+                        bc_restock_qty = PyImGui.input_int("Birthday Cupcake Restock Quantity", bc_restock_qty)
+
+                        use_honeycomb = PyImGui.checkbox("Use Honeycomb", use_honeycomb)
+                        hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
+
+                        self.parent.Properties.direct_apply("birthday_cupcake", "active", use_birthday_cupcake)
+                        self.parent.Properties.direct_apply("birthday_cupcake", "restock_quantity", bc_restock_qty)
+                        self.parent.Properties.direct_apply("honeycomb", "active", use_honeycomb)
+                        self.parent.Properties.direct_apply("honeycomb", "restock_quantity", hc_restock_qty)
+
+                        PyImGui.end_tab_item()
+
+                    if PyImGui.begin_tab_item("Debug"):
+                        if PyImGui.collapsing_header("Map Navigation"):
+                            self.parent.config.config_properties.draw_path.set_now("active",PyImGui.checkbox("Draw Path", self.parent.config.config_properties.draw_path.is_active()))
+                            self.parent.config.config_properties.use_occlusion.set_now("active",PyImGui.checkbox("Use Occlusion", self.parent.config.config_properties.use_occlusion.is_active()))
+                            self.parent.config.config_properties.snap_to_ground_segments.set_now("value", PyImGui.slider_int("Snap to Ground Segments", self.parent.config.config_properties.snap_to_ground_segments.get("value"), 1, 32))
+                            self.parent.config.config_properties.floor_offset.set_now("value", PyImGui.slider_float("Floor Offset", self.parent.config.config_properties.floor_offset.get("value"), -10.0, 50.0))
+
+                        if PyImGui.collapsing_header("Properties"):
+                            def debug_text(self, prop_name:str, key:str):
+                                from .Py4GWcorelib import Utils
+                                value = self.parent.Properties.get(prop_name, key)
+                                if isinstance(value, bool):
+                                    color = Utils.TrueFalseColor(value)
+                                else:
+                                    color = (255, 255, 255, 255)
+                                PyImGui.text_colored(f"{prop_name} - {key}: {value}", color)
+
+                            debug_text(self, "log_actions", "active")
+                            debug_text(self, "halt_on_death", "active")
+                            debug_text(self, "pause_on_danger", "active")
+                            debug_text(self, "movement_timeout", "value")
+                            debug_text(self, "movement_tolerance", "value")
+                            debug_text(self, "draw_path", "active")
+                            debug_text(self, "use_occlusion", "active")
+                            debug_text(self, "snap_to_ground", "active")
+                            debug_text(self, "snap_to_ground_segments", "value")
+                            debug_text(self, "floor_offset", "value")
+                            debug_text(self, "follow_path_color", "value")
+                            PyImGui.separator()
+                            debug_text(self, "follow_path_succeeded", "value")
+                            debug_text(self, "dialog_at_succeeded", "value")
+
+                        
+                        if PyImGui.collapsing_header("UpkeepData"):
+                            def render_upkeep_data(parent):
+                                # ---- your exact accessor, unchanged ----
+                                def debug_text(self, prop_name: str, key: str):
+                                    from .Py4GWcorelib import Utils
+                                    value = self.parent.Properties.get(prop_name, key)
+                                    if isinstance(value, bool):
+                                        color = Utils.TrueFalseColor(value)
+                                    else:
+                                        color = (255, 255, 255, 255)
+                                    PyImGui.text_colored(f"{prop_name} - {key}: {value}", color)
+
+                                # Most items: ("active", "restock_quantity")
+                                DEFAULT_KEYS = ("active", "restock_quantity")
+
+                                # Compact spec: either "prop" (uses DEFAULT_KEYS) or ("prop", (<custom keys>))
+                                ITEMS = [
+                                    ("alcohol", ("active", "target_drunk_level", "disable_visual")),
+                                    "armor_of_salvation",
+                                    ("auto_combat", ("active",)),
+                                    "birthday_cupcake",
+                                    "blue_rock_candy",
+                                    "bowl_of_skalefin_soup",
+                                    "candy_apple",
+                                    "candy_corn",
+                                    ("city_speed", ("active",)),
+                                    "drake_kabob",
+                                    "essence_of_celerity",
+                                    "four_leaf_clover",
+                                    "golden_egg",
+                                    "grail_of_might",
+                                    "green_rock_candy",
+                                    "honeycomb",
+                                    ("imp", ("active",)),
+                                    ("morale", ("active", "target_morale")),
+                                    "pahnai_salad",
+                                    "red_rock_candy",
+                                    "slice_of_pumpkin_pie",
+                                    "war_supplies",
+                                ]
+
+                                if not PyImGui.collapsing_header("UpkeepData"):
+                                    return
+
+                                for item in ITEMS:
+                                    if isinstance(item, str):
+                                        prop, keys = item, DEFAULT_KEYS
+                                    else:
+                                        prop, keys = item
+
+                                    if PyImGui.tree_node(prop):
+                                        PyImGui.push_id(prop)  # avoid ID collisions for the same key labels
+                                        for key in keys:
+                                            debug_text(parent, prop, key)
+                                        PyImGui.pop_id()
+                                        PyImGui.tree_pop()
+
+                            render_upkeep_data(self)
+
+                        PyImGui.end_tab_item()
+                    PyImGui.end_tab_bar()
+
+            PyImGui.end()
+            self.parent.UI.DrawPath(
+                self.parent.config.config_properties.follow_path_color.get("value"), 
+                self.parent.config.config_properties.use_occlusion.is_active(), 
+                self.parent.config.config_properties.snap_to_ground_segments.get("value"), 
+                self.parent.config.config_properties.floor_offset.get("value"))
+
 
     #region WAIT
     class _WAIT:

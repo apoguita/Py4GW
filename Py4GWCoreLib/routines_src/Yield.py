@@ -219,6 +219,8 @@ class Yield:
             GLOBAL_CACHE.SkillBar.UseSkill(GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id), aftercast_delay=aftercast_delay)
             if log:
                 ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
+            
+            yield
             return True
         
         @staticmethod
@@ -247,6 +249,8 @@ class Yield:
             GLOBAL_CACHE.SkillBar.UseSkill(slot, aftercast_delay=aftercast_delay)
             if log:
                 ConsoleLog("CastSkillSlot", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
+            
+            yield
             return True
       
 #region Map      
