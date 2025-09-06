@@ -3,8 +3,10 @@ from Py4GWCoreLib import Routines, Range, GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
+from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.scores.healing_score import HealingScore
 from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
+from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -34,8 +36,24 @@ class BreathOfTheGreatDwarfUtility(CustomSkillUtilityBase):
         if first_member_damaged is not None:
             return self.score_definition.get_score(HealingScore.MEMBER_DAMAGED_EMERGENCY)
 
-        if custom_behavior_helpers.Heals.is_party_damaged(within_range=Range.Spirit, min_allies_count=3, less_health_than_percent=0.6):
+        if custom_behavior_helpers.Heals.is_party_damaged(within_range=Range.Spirit, min_allies_count=3, less_health_than_percent=0.75):
             return self.score_definition.get_score(HealingScore.PARTY_DAMAGE)
+
+        # more than X allies burning
+
+        burning_skill_id:int = GLOBAL_CACHE.Skill.GetID("Burning")
+
+        from HeroAI.utils import CheckForEffect
+
+        allies = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority(
+            within_range=Range.Spirit,
+            condition= lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.85 
+                and custom_behavior_helpers.Heals.is_ally_under_specific_effect(agent_id, burning_skill_id),
+            sort_key= (TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
+            range_to_count_enemies=None,
+            range_to_count_allies=None)
+
+        if len(allies) > 1: return self.score_definition.get_score(HealingScore.PARTY_DAMAGE)
 
         return None
 

@@ -6,6 +6,7 @@ from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
+from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -26,14 +27,11 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
                 
         self.score_definition: ScoreStaticDefinition = score_definition
+        self.buff_configuration: BuffConfigurationPerProfession = BuffConfigurationPerProfession(self.custom_skill, BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
 
 
     def _get_target(self) -> int | None:
         
-        allowed_classes = [Profession.Assassin.value, Profession.Ranger.value]
-        allowed_agent_names = ["to_be_implemented"]
-        # todo add custom classes there. 
-        # todo pet
         from HeroAI.utils import CheckForEffect
 
         # Check if we have a valid target
@@ -41,8 +39,7 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
                 within_range=Range.Spellcast,
                 condition=lambda agent_id: 
                     agent_id != GLOBAL_CACHE.Player.GetAgentID() and 
-                    GLOBAL_CACHE.Agent.GetProfessionIDs(agent_id)[0] in allowed_classes and 
-                    not CheckForEffect(agent_id, self.custom_skill.skill_id),
+                    self.buff_configuration.get_agent_id_predicate()(agent_id),
                 sort_key=(TargetingOrder.DISTANCE_DESC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=None,
                 range_to_count_allies=None)
@@ -63,3 +60,7 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
         if target is None: return BehaviorResult.ACTION_SKIPPED
         result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target)
         return result 
+
+    @override
+    def get_buff_configuration(self) -> BuffConfigurationPerProfession | None:
+        return self.buff_configuration

@@ -34,7 +34,7 @@ class MendBodyAndSoulUtility(CustomSkillUtilityBase):
     def _get_lowest_hp_target(self) -> custom_behavior_helpers.SortableAgentData | None:
 
             targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-                within_range=Range.Spellcast,
+                within_range=Range.Spirit,
                 condition=lambda agent_id: True,
                 sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
             return targets[0] if len(targets) > 0 else None
@@ -81,12 +81,16 @@ class MendBodyAndSoulUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
-        lowest_target: custom_behavior_helpers.SortableAgentData | None = self._get_lowest_hp_target()
-        if lowest_target is None: return BehaviorResult.ACTION_SKIPPED
-        
         second_target: custom_behavior_helpers.SortableAgentData | None = self._get_melee_blind_or_crippled_if_exist()
-        if second_target is None: return BehaviorResult.ACTION_SKIPPED
+        if second_target is not None: 
+            result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=second_target.agent_id)
+            return result 
 
-        final_target_id: int = lowest_target.agent_id if second_target is None else second_target.agent_id
-        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=final_target_id)
-        return result 
+        lowest_target: custom_behavior_helpers.SortableAgentData | None = self._get_lowest_hp_target()
+        if lowest_target is not None: 
+            result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=lowest_target.agent_id)
+            return result 
+
+        # todo improve as we don't take care of healing lowest < 0.4
+
+        return BehaviorResult.ACTION_SKIPPED

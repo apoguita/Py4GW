@@ -9,6 +9,7 @@ from HeroAI.cache_data import CacheData
 from HeroAI.windows import skill_slot
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
+from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 
@@ -203,6 +204,7 @@ class Resources:
             within_range: Range,
             associated_to_skill: Optional[CustomSkill] = None,
             condition: Optional[Callable[[int], bool]] = None) -> bool:
+
         spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
         spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), within_range.value)
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
@@ -405,13 +407,14 @@ class Targets:
 
     @staticmethod
     def is_player_close_to_combat() -> bool:
-        enemy_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 250, aggressive_only=False)
+        enemy_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 350, aggressive_only=False)
         if enemy_id is not None and enemy_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_id): return True
         return False
 
     @staticmethod
     def is_player_in_aggro() -> bool:
-        enemy_aggressive_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 250, aggressive_only=True)
+        
+        enemy_aggressive_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 400, aggressive_only=True)
         if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_aggressive_id): return True
 
         enemy_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value, aggressive_only=False)
@@ -420,8 +423,37 @@ class Targets:
         return False
 
     @staticmethod
-    def is_party_in_combat() -> bool:
-        # todo to implement through shared_memory
+    def is_party_member_in_aggro(agent_id:int) -> bool:
+        
+        agent_pos:tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(agent_id)
+
+        enemy_aggressive_ids = Routines.Agents.GetFilteredEnemyArray(agent_pos[0], agent_pos[1], Range.Spellcast.value + 300, aggressive_only=True)
+        enemy_aggressive_id = Utils.GetFirstFromArray(enemy_aggressive_ids)
+        if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_aggressive_id): return True
+
+        enemy_ids = Routines.Agents.GetFilteredEnemyArray(agent_pos[0], agent_pos[1], Range.Spellcast.value, aggressive_only=False)
+        enemy_id = Utils.GetFirstFromArray(enemy_ids)
+        if enemy_id is not None and enemy_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_id): return True
+
+        return False
+
+    @staticmethod
+    def is_party_leader_in_aggro() -> bool:
+        
+        party_leader_id:int = GLOBAL_CACHE.Party.GetPartyLeaderID()
+        if Targets.is_party_member_in_aggro(party_leader_id): return True
+        return False
+
+    @staticmethod
+    def is_party_in_aggro() -> bool:
+
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        for player in players:
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            if Targets.is_party_member_in_aggro(agent_id):
+                return agent_id
+
+        # todo to implement
         return False
 
     @staticmethod
@@ -569,6 +601,8 @@ class Targets:
         if len(allies) == 0: return None
         return allies[0]
 
+    # enemy 
+
     @staticmethod
     def get_first_or_default_from_enemy_ordered_by_priority(
             within_range: Range,
@@ -689,6 +723,20 @@ class Targets:
         return tuple(entry.agent_id for entry in data)
 
 class Heals:
+
+    @staticmethod
+    def is_ally_under_specific_effect(agent_id: int, skill_id: int) -> bool:
+        from HeroAI.utils import CheckForEffect
+
+        if agent_id == GLOBAL_CACHE.Player.GetAgentID() :
+            # if target is the player, check if the player has the effect
+            has_buff: bool = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), skill_id)
+            return has_buff
+        else:
+            # else check if the party target has the effect
+            # not sure pet are in heroAI...
+            has_effect: bool = CheckForEffect(agent_id, skill_id)
+            return has_effect
 
     @staticmethod
     def is_party_damaged(within_range:Range, min_allies_count:int, less_health_than_percent:float) -> bool:

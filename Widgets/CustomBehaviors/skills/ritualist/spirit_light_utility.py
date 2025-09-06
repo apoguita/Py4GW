@@ -32,7 +32,7 @@ class SpiritLightUtility(CustomSkillUtilityBase):
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-            within_range=Range.Spellcast,
+            within_range=Range.Spirit,
             condition=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.9,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
         return targets
@@ -50,6 +50,7 @@ class SpiritLightUtility(CustomSkillUtilityBase):
             return self.score_definition.get_score(HealingScore.MEMBER_DAMAGED)
         if targets[0].hp < 0.40:
             return self.score_definition.get_score(HealingScore.MEMBER_DAMAGED_EMERGENCY)
+        return None
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
