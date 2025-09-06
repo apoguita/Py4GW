@@ -47,7 +47,7 @@ class Build:
     def LoadSkillBar(self):
         yield from Routines.Yield.Skills.LoadSkillbar(self.template_code, log=False)
 
-    def ProcessSkillCasting(self):
+    def ProcessSkillCasting2(self):
         raise NotImplementedError
     
     def ValidateBuild(self):
@@ -166,7 +166,7 @@ class OutpostRunnerDA(Build):
             overlay.EndDraw()
 
         yield from Routines.Yield.Agents.ChangeTarget(best_target)
-        if Routines.Yield.Skills.CastSkillID(self.deaths_charge, log=False, aftercast_delay=1000):
+        if (yield from Routines.Yield.Skills.CastSkillID(self.deaths_charge, aftercast_delay=1000)):
             yield from Routines.Yield.wait(1000)
 
 
@@ -208,13 +208,13 @@ class OutpostRunnerDA(Build):
                     # Force combo in one go
                     aftercast = 200
                     GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-                    if Routines.Yield.Skills.CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox),log=False,aftercast_delay=aftercast):
+                    if (yield from Routines.Yield.Skills.CastSkillID(self.deadly_paradox, aftercast_delay=aftercast)):
                         yield from Routines.Yield.wait(aftercast)
 
                     # Immediately follow with Shadow Form
                     aftercast = 1950
                     GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-                    if Routines.Yield.Skills.CastSkillID(self.shadow_form, log=False, aftercast_delay=aftercast):
+                    if (yield from Routines.Yield.Skills.CastSkillID(self.shadow_form, aftercast_delay=aftercast)):
                         yield from Routines.Yield.wait(aftercast)
                         continue  
 
@@ -224,14 +224,14 @@ class OutpostRunnerDA(Build):
             if hp < 0.60 and not has_shroud:
                 aftercast = 1950 #SF cast 1000 + 750aftercast + assuming 200ms for something else
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-                if Routines.Yield.Skills.CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=aftercast):
+                if (yield from Routines.Yield.Skills.CastSkillID(self.shroud_of_distress, aftercast_delay=aftercast)):
                     yield from Routines.Yield.wait(aftercast)
                     continue #nothing else to do this loop
 
             # === 4. MAINTAIN RUNNING STANCES ===
             if not has_dwarven and Routines.Checks.Skills.IsSkillIDReady(self.dwarven_stability):
                 aftercast = 350 #1/4 sec + 100ms for something else
-                if Routines.Yield.Skills.CastSkillID(self.dwarven_stability, log =False, aftercast_delay=aftercast):
+                if (yield from Routines.Yield.Skills.CastSkillID(self.dwarven_stability, aftercast_delay=aftercast)):
                     yield from Routines.Yield.wait(aftercast)
                     continue #nothing else to do this loop
 
@@ -240,11 +240,11 @@ class OutpostRunnerDA(Build):
             if not has_pious and both_ready:
                 # Zealous Renewal → Pious Haste combo
                 aftercast = 200 #its instant but we need time
-                if Routines.Yield.Skills.CastSkillID(self.zealous_renewal, log =False, aftercast_delay=aftercast):
+                if (yield from Routines.Yield.Skills.CastSkillID(self.zealous_renewal, aftercast_delay=aftercast)):
                     yield from Routines.Yield.wait(aftercast)
                 # Immediately follow with Pious Haste
                 aftercast = 200 #its instant but we need time
-                if Routines.Yield.Skills.CastSkillID(self.pious_haste, log =False, aftercast_delay=aftercast):
+                if (yield from Routines.Yield.Skills.CastSkillID(self.pious_haste, aftercast_delay=aftercast)):
                     yield from Routines.Yield.wait(aftercast)
                     continue
             # === 5. SMART ANTI CRIPPLE AND KD ===
@@ -253,8 +253,8 @@ class OutpostRunnerDA(Build):
                 player_pos = GLOBAL_CACHE.Player.GetXY()
                 px, py = player_pos[0], player_pos[1]
                 if CheckCrippleKDanger(px, py):
-                    aftercast = 200 
-                    if Routines.Yield.Skills.CastSkillID(self.i_am_unstoppable, log=False, aftercast_delay=aftercast):
+                    aftercast = 200
+                    if (yield from Routines.Yield.Skills.CastSkillID(self.i_am_unstoppable, aftercast_delay=aftercast)):
                         yield from Routines.Yield.wait(aftercast)
                         continue
             # === 6. SMART ANTI Bodyblock ===
