@@ -369,10 +369,17 @@ def draw_ui():
 
                     ConsoleLog("OutpostRunner",f"Added all runs from region {selected_region}",Console.MessageType.Debug)
 
+                PyImGui.same_line(0, 5)
+                if selected_chain:
+                    if PyImGui.button("Clear"):
+                        selected_chain.clear()
+                        runner_fsm.map_chain = []
+                        ConsoleLog("OutpostRunner", "Cleared runs chain", Console.MessageType.Debug)
+
             PyImGui.separator()
 
-            PyImGui.text("Current Chain:")
             if selected_chain:
+                PyImGui.text("Current Chain:")
                 for idx, run in enumerate(sorted(selected_chain, key=lambda r: r.order)):
                     PyImGui.text(run.display)
                     PyImGui.same_line(0, 0)

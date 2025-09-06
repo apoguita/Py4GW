@@ -1,9 +1,5 @@
 import math
-from Py4GWCoreLib import Profession
-from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import Routines, DXOverlay
-from Py4GWCoreLib import ConsoleLog, Console
-from Py4GWCoreLib import Overlay, Player, GLOBAL_CACHE, Routines
+from Py4GWCoreLib import ConsoleLog, Console, Overlay, Player, GLOBAL_CACHE, Profession, Routines, DXOverlay
 from OutpostRunner.Build_Manager_Addon import CheckCrippleKDanger, CheckSpellcasterDanger, BodyBlockDetection
 dx = DXOverlay()
 ShowDXoverlay = False
@@ -252,7 +248,7 @@ class OutpostRunnerDA(Build):
                 player_id = GLOBAL_CACHE.Player.GetAgentID()
                 player_pos = GLOBAL_CACHE.Player.GetXY()
                 px, py = player_pos[0], player_pos[1]
-                if CheckCrippleKDanger(px, py):
+                if GLOBAL_CACHE.Agent.IsCrippled(player_id) or CheckCrippleKDanger(px, py):
                     aftercast = 200
                     if (yield from Routines.Yield.Skills.CastSkillID(self.i_am_unstoppable, aftercast_delay=aftercast)):
                         yield from Routines.Yield.wait(aftercast)
