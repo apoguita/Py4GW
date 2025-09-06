@@ -50,5 +50,5 @@ class WaitIfPartyMemberManaTooLowUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-        yield Routines.Yield.wait(3000) # we stuck the flow. (not yield from)
+        yield from Routines.Yield.wait(300) # we stuck the flow. (not yield from)
         return BehaviorResult.ACTION_PERFORMED

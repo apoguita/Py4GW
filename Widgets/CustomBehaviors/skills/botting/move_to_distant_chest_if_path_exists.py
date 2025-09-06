@@ -1,8 +1,6 @@
 from turtle import position
 from typing import Any, Callable, Generator, override
 
-from Bots.aC_Scripts.aC_api.Verify_Blessing import me
-from Bots.oasix_nicky.components import helpers
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Utils
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
@@ -93,6 +91,7 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
         zplane = GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
         path3d = yield from AutoPathing().get_path((player_position[0], player_position[1], zplane), (chest_position[0], chest_position[1], zplane),smooth_by_los=True, margin=100.0, step_dist=300.0)
         path_flatten:list[tuple[float, float]] = [(px, py) for (px, py, pz) in path3d]
+
         print(f"path found {path3d}")
 
         if(self._get_path_distance(path_flatten) > 2000):
