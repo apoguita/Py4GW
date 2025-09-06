@@ -2,6 +2,7 @@ from asyncio import wait_for
 import math
 import time
 from collections.abc import Generator
+from functools import reduce
 from typing import Any, Callable, List, Optional, Tuple
 from dataclasses import dataclass
 
@@ -750,6 +751,17 @@ class Heals:
 
         if len(allies) < min_allies_count: return False
         return True
+
+    @staticmethod
+    def party_average_health(within_range:Range) -> float:
+        allies = Targets.get_all_possible_allies_ordered_by_priority(
+            within_range=within_range,
+            condition= lambda agent_id: True,
+            sort_key= (TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
+        )
+        result = reduce(lambda acc, ally: acc + GLOBAL_CACHE.Agent.GetHealth(ally), allies, 0) / len(allies)
+        print(f"Party average health: {result}")
+        return result
 
     @staticmethod
     def get_first_member_damaged(within_range: Range, less_health_than_percent: float, exclude_player:bool, condition: Optional[Callable[[int], bool]] = None) -> int | None:

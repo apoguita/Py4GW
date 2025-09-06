@@ -64,8 +64,8 @@ class CustomSkillUtilityBase:
 
         score:float | None = self._evaluate(current_state, previously_attempted_skills)
         if score is None: return None
-        if score < 0 and score > 100: raise Exception(f"{self.custom_skill.skill_name} : score must be between 0 and 100, calculated {score}.")
-        
+        if 0 > score > 100: raise Exception(f"{self.custom_skill.skill_name} : score must be between 0 and 100, calculated {score}.")
+
         return score
 
     def execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
