@@ -1,14 +1,12 @@
-from typing import List, Any, Generator, Callable, override
+from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.scores.healing_score import HealingScore
-from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
-from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -30,7 +28,8 @@ class SpiritLightUtility(CustomSkillUtilityBase):
                 
         self.score_definition: ScorePerHealthGravityDefinition = score_definition
 
-    def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
+    @staticmethod
+    def _get_targets() -> list[custom_behavior_helpers.SortableAgentData]:
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spirit,
             condition=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.9,
