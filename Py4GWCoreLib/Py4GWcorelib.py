@@ -2122,14 +2122,14 @@ class FSM:
         Attach a generator (or factory) under a required name.
         - No-ops if the same name is already attached and still managed.
         """
-        gen = self._as_generator(routine_or_fn)
-        if not gen:
-            return False
-
         # de-dupe by name
         existing = self._named_managed.get(name)
         if existing and existing in self.managed_coroutines:
             return False  # already attached under this name
+        
+        gen = self._as_generator(routine_or_fn)
+        if not gen:
+            return False
 
         # drop stale mapping if any
         if existing and existing not in self.managed_coroutines:
