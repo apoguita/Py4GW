@@ -1,5 +1,5 @@
-from typing import List, Any, Generator, Callable, override
-import time
+from typing import override
+
 from Py4GWCoreLib.enums import SpiritModelID
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
@@ -30,11 +30,12 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
 
         # core skills
         self.soul_twisting_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Soul_Twisting"), current_build=in_game_build, score_definition=ScoreStaticDefinition(95), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
-        self.boon_of_creation_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Boon_of_Creation"), current_build=in_game_build, score_definition=ScoreStaticDefinition(85), renew_before_expiration_in_milliseconds=1800, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
+        self.boon_of_creation_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Boon_of_Creation"), current_build=in_game_build, score_definition=ScoreStaticDefinition(85), renew_before_expiration_in_milliseconds=1800, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
         self.shelter_utility: CustomSkillUtilityBase = ProtectiveSpiritUtility(skill=CustomSkill("Shelter"), current_build=in_game_build, score_definition=ScoreStaticDefinition(66), owned_spirit_model_id=SpiritModelID.SHELTER)
         self.union_utility: CustomSkillUtilityBase = ProtectiveSpiritUtility(skill=CustomSkill("Union"), current_build=in_game_build, score_definition=ScoreStaticDefinition(65), owned_spirit_model_id=SpiritModelID.UNION)
         self.displacement_utility: CustomSkillUtilityBase = ProtectiveSpiritUtility(skill=CustomSkill("Displacement"), current_build=in_game_build, score_definition=ScoreStaticDefinition(64), owned_spirit_model_id=SpiritModelID.DISPLACEMENT)
-        self.summon_spirit_utility: CustomSkillUtilityBase = SummonSpiritUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(95))
+        self.summon_spirit_kurzick: CustomSkillUtilityBase = SummonSpiritUtility(skill=CustomSkill("Summon_Spirits_kurzick"), current_build=in_game_build, score_definition=ScoreStaticDefinition(95))
+        self.summon_spirit_luxon: CustomSkillUtilityBase = SummonSpiritUtility(skill=CustomSkill("Summon_Spirits_luxon"), current_build=in_game_build, score_definition=ScoreStaticDefinition(95))
         self.armor_of_unfeeling_utility: CustomSkillUtilityBase = ArmorOfUnfeelingUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(80))
 
         # optional
@@ -48,6 +49,7 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(score_definition= ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(current_build=in_game_build)
+        self.spirits_gift_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Spirits_Gift"), current_build=in_game_build, score_definition=ScoreStaticDefinition(75), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
     
     @property
     @override
@@ -63,7 +65,8 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.shelter_utility,
             self.union_utility,
             self.displacement_utility,
-            self.summon_spirit_utility,
+            self.summon_spirit_kurzick,
+            self.summon_spirit_luxon,
             self.armor_of_unfeeling_utility,
             self.breath_of_the_great_dwarf_utility,
             self.flesh_of_my_flesh_utility,
@@ -73,6 +76,7 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.i_am_unstopabble,
             self.fall_back_utility,
             self.great_dwarf_weapon_utility,
+            self.spirits_gift_utility,
         ]
 
     @property
@@ -82,5 +86,4 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.soul_twisting_utility.custom_skill,
             self.shelter_utility.custom_skill,
             self.union_utility.custom_skill,
-            self.summon_spirit_utility.custom_skill,
         ]

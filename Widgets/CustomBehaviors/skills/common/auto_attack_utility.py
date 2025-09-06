@@ -42,6 +42,8 @@ class AutoAttackUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
+        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            return None
 
         if self.allowed_states is not None and current_state not in self.allowed_states:
             return None
