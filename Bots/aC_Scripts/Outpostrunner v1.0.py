@@ -49,11 +49,11 @@ RUN_NAME_MAP = {
         "_1_AscalonCity_To_PikenSquare": "1 - Ascalon City -> Piken Square",
         "_2_PikenSquare_To_GrendichCourthouse": "2 - Piken Square -> Grendich Court House",
         "_3_GrendichCourthouse_To_YaksBend": "3 - Grendich Court House -> Yak's Bend",
-        "_4_YaksBend_To_IceToothCave": "4 - Yak's Bend -> Ice Tooth Cave",
-        "_5_IceToothCave_To_BeaconsPerch": "5 - IceTooth Cave -> Beacon's Perch",
-        "_6_BeaconsPerch_To_GatesOfKryta": "6 - Beacons Perch -> Gates Of Kryta",
-        "_7_GatesOfKryta_To_LionsArch": "7 - Gates Of Kryta -> Lion's Arch",
-
+        "_4_YaksBend_To_BorlisPass": "4 - Yak's Bend -> Borlis Pass",
+        "_5_YaksBend_To_IceToothCave": "5 - Yak's Bend -> Ice Tooth Cave",
+        "_6_IceToothCave_To_BeaconsPerch": "6 - IceTooth Cave -> Beacon's Perch",
+        "_7_BeaconsPerch_To_GatesOfKryta": "7 - Beacons Perch -> Gates Of Kryta",
+        "_8_GatesOfKryta_To_LionsArch": "8 - Gates Of Kryta -> Lion's Arch",
     },
     "Tyria - Beacon's Perch To Droknars Forge": {
         "_1_BeaconsPerch_To_CampRankor": "1 - Beacons Perch -> Camp Rankor",
