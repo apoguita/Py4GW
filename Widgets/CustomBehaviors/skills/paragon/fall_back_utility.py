@@ -8,7 +8,7 @@ from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
-from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
+from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -31,24 +31,21 @@ class FallBackUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
+        has_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
+        is_moving = GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
         
-        if self._check_before_fallback(): return self.score_definition.get_score()
+        if not has_buff and is_moving: return self.score_definition.get_score()
         return None
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
-        result: BehaviorResult = yield from custom_behavior_helpers.Helpers.wait_for_condition_before_execution(
-            milliseconds=random.randint(500, 1500), # just to avoid the collision between accounts (until we have a global lock mecanism)
-            action=lambda: custom_behavior_helpers.Actions.cast_skill(self.custom_skill), 
-            condition_check= lambda: self._check_before_fallback())
+        lock_key = f"Fall_Back_utility"
 
+        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key) == False:
+            yield
+            return BehaviorResult.ACTION_SKIPPED
+
+        result:BehaviorResult = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
+        CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
         return result 
-
-    def _check_before_fallback(self) -> bool:
-        has_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
-        is_moving = GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
-
-        return not has_buff and is_moving
-
-
