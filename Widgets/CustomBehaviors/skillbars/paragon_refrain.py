@@ -1,5 +1,5 @@
-from typing import List, Any, Generator, Callable, override
-import time
+from typing import override
+
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -14,6 +14,8 @@ from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import K
 from Widgets.CustomBehaviors.skills.generic.protective_shout_utility import ProtectiveShoutUtility
 from Widgets.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Widgets.CustomBehaviors.skills.paragon.heroic_refrain_utility import HeroicRefrainUtility
+from Widgets.CustomBehaviors.skills.warrior.protectors_defense_utility import ProtectorsDefenseUtility
+
 
 class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
 
@@ -28,6 +30,7 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         #optional
         self.theres_nothing_to_fear: CustomSkillUtilityBase = ProtectiveShoutUtility(skill=CustomSkill("Theres_Nothing_to_Fear"), current_build=in_game_build, allies_health_less_than_percent=0.9, allies_quantity_required=1,score_definition= ScoreStaticDefinition(90), allowed_states=[BehaviorState.IN_AGGRO])
         self.save_yourselves_luxon: CustomSkillUtilityBase = ProtectiveShoutUtility(skill=CustomSkill("Save_Yourselves_luxon"), current_build=in_game_build, allies_health_less_than_percent=0.7, allies_quantity_required=1,score_definition=ScoreStaticDefinition(89), allowed_states=[BehaviorState.IN_AGGRO])
+        self.save_yourselves_kurzick: CustomSkillUtilityBase = ProtectiveShoutUtility(skill=CustomSkill("Save_Yourselves_kurzick"), current_build=in_game_build, allies_health_less_than_percent=0.7, allies_quantity_required=1,score_definition=ScoreStaticDefinition(89), allowed_states=[BehaviorState.IN_AGGRO])
         self.never_surrender: CustomSkillUtilityBase = ProtectiveShoutUtility(skill=CustomSkill("Never_Surrender"), current_build=in_game_build, allies_health_less_than_percent=0.7,allies_quantity_required=2,score_definition=ScoreStaticDefinition(88), allowed_states=[BehaviorState.IN_AGGRO])
 
         #common
@@ -35,6 +38,7 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(score_definition= ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(current_build=in_game_build)
+        self.protectors_defense_utility: CustomSkillUtilityBase = ProtectorsDefenseUtility(current_build=in_game_build,score_definition=ScoreStaticDefinition(60))
     
     @property
     @override
@@ -44,12 +48,14 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.theyre_on_fire_utility,
             self.theres_nothing_to_fear,
             self.save_yourselves_luxon,
+            self.save_yourselves_kurzick,
             self.never_surrender,
 
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
             self.i_am_unstopabble,
             self.fall_back_utility,
+            self.protectors_defense_utility,
         ]
 
     @property
