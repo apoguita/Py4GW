@@ -1052,7 +1052,60 @@ class Style:
         default_file_path = os.path.join("Styles", f"{theme.name}.default.json")
         return cls.load_from_json(default_file_path)
 
-class ImGui:   
+class ImGui:           
+    class ImGuiIniReader:
+        class ImGuiWindowConfig:
+            def __init__(self, pos=(0.0, 0.0), size=(0.0, 0.0), collapsed=False):
+                self.pos = pos              # tuple[float, float]
+                self.size = size            # tuple[float, float]
+                self.collapsed = collapsed  # bool
+
+            def __repr__(self):
+                return f"ImGuiWindowConfig(pos={self.pos}, size={self.size}, collapsed={self.collapsed})"
+            
+        def __init__(self):
+            self.path = Path("imgui.ini")
+            self.windows: dict[str, "ImGui.ImGuiIniReader.ImGuiWindowConfig"] = {}
+            self._parse()
+
+        def _parse(self):
+            current_window = None
+            current_data = {}
+
+            with open(self.path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith(";"):
+                        continue
+
+                    # section header: [Window][WindowName]
+                    if line.startswith("[Window]"):
+                        # save last window before starting new
+                        if current_window and current_data:
+                            self._store_window(current_window, current_data)
+                            current_data = {}
+
+                        start = line.find("][") + 2
+                        end = line.rfind("]")
+                        current_window = line[start:end]
+
+                    elif "=" in line and current_window:
+                        key, value = line.split("=", 1)
+                        current_data[key.strip()] = value.strip()
+
+                # save last one
+                if current_window and current_data:
+                    self._store_window(current_window, current_data)
+
+        def _store_window(self, name: str, data: dict[str, str]):
+            pos = tuple(map(float, data.get("Pos", "0,0").split(",")))
+            size = tuple(map(float, data.get("Size", "0,0").split(",")))
+            collapsed = data.get("Collapsed", "0") == "1"
+
+            self.windows[name] = ImGui.ImGuiIniReader.ImGuiWindowConfig(pos, size, collapsed)
+
+        def get(self, window: str) -> "ImGui.ImGuiIniReader.ImGuiWindowConfig | None":
+            return self.windows.get(window)
     
     class ImGuiStyleVar(IntEnum):
         Alpha = 0
@@ -2070,64 +2123,6 @@ class ImGui:
 
         ImGui.Styles[theme].pop_style()
 
-    class ImGuiIniReader:
-        class ImGuiWindowConfig:
-            def __init__(self, pos=(0.0, 0.0), size=(0.0, 0.0), collapsed=False):
-                self.pos = pos              # tuple[float, float]
-                self.size = size            # tuple[float, float]
-                self.collapsed = collapsed  # bool
-
-            def __repr__(self):
-                return f"ImGuiWindowConfig(pos={self.pos}, size={self.size}, collapsed={self.collapsed})"
-            
-        def __init__(self, path: str | Path):
-            self.path = Path(path)
-            self.windows: dict[str, "ImGui.ImGuiIniReader.ImGuiWindowConfig"] = {}
-            self._parse()
-
-        def _parse(self):
-            current_window = None
-            current_data = {}
-
-            with open(self.path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith(";"):
-                        continue
-
-                    # section header: [Window][WindowName]
-                    if line.startswith("[Window]"):
-                        # save last window before starting new
-                        if current_window and current_data:
-                            self._store_window(current_window, current_data)
-                            current_data = {}
-
-                        start = line.find("][") + 2
-                        end = line.rfind("]")
-                        current_window = line[start:end]
-
-                    elif "=" in line and current_window:
-                        key, value = line.split("=", 1)
-                        current_data[key.strip()] = value.strip()
-
-                # save last one
-                if current_window and current_data:
-                    self._store_window(current_window, current_data)
-
-        def _store_window(self, name: str, data: dict[str, str]):
-            pos = tuple(map(float, data.get("Pos", "0,0").split(",")))
-            size = tuple(map(float, data.get("Size", "0,0").split(",")))
-            collapsed = data.get("Collapsed", "0") == "1"
-
-            self.windows[name] = ImGui.ImGuiIniReader.ImGuiWindowConfig(pos, size, collapsed)
-
-        def get(self, window: str) -> "ImGui.ImGuiIniReader.ImGuiWindowConfig | None":
-            return self.windows.get(window)
-
-        
-    ini_reader = ImGuiIniReader
-    __ImGuiWindows : dict[str, WindowModule] = {}
-    
     #region WIP
     @staticmethod
     def begin_popup(id: str, flags: PyImGui.WindowFlags = PyImGui.WindowFlags.NoFlag) -> bool:     
@@ -2250,16 +2245,16 @@ class ImGui:
         style = ImGui.get_style()
         
         style.push_style()
-        if name not in ImGui.__ImGuiWindows:
-            ImGui.__ImGuiWindows[name] = ImGui.WindowModule(name, window_flags=flags)
-            
-            ImGui.ini_reader = ImGui.ImGuiIniReader("imgui.ini") if not isinstance(ImGui.ini_reader, ImGui.ImGuiIniReader) else ImGui.ini_reader
-            window = ImGui.ini_reader.get(name)            
-            ImGui.__ImGuiWindows[name].window_pos = window.pos if window else (100.0, 100.0)            
-            ImGui.__ImGuiWindows[name].window_size = window.size if window else (800.0, 600.0)
-            ImGui.__ImGuiWindows[name].collapse = window.collapsed if window else False
-            
-        open = ImGui.__ImGuiWindows[name].begin(p_open, flags)       
+        if name not in ImGui.WindowModule._windows:
+            ImGui.WindowModule._windows[name] = ImGui.WindowModule(name, window_flags=flags)
+
+            imgui_ini_reader = ImGui.ImGuiIniReader()
+            window = imgui_ini_reader.get(name)
+            ImGui.WindowModule._windows[name].window_pos = window.pos if window else (100.0, 100.0)
+            ImGui.WindowModule._windows[name].window_size = window.size if window else (800.0, 600.0)
+            ImGui.WindowModule._windows[name].collapse = window.collapsed if window else False
+
+        open = ImGui.WindowModule._windows[name].begin(p_open, flags)
         style.pop_style()
         
         return open
@@ -2269,17 +2264,17 @@ class ImGui:
         style = ImGui.get_style()
 
         style.push_style()
-        if name not in ImGui.__ImGuiWindows:
-            ImGui.__ImGuiWindows[name] = ImGui.WindowModule(name, window_flags=flags)
-            
-            ImGui.ini_reader = ImGui.ImGuiIniReader("imgui.ini") if not isinstance(ImGui.ini_reader, ImGui.ImGuiIniReader) else ImGui.ini_reader
-            window = ImGui.ini_reader.get(name)            
-            ImGui.__ImGuiWindows[name].window_pos = window.pos if window else (100.0, 100.0)            
-            ImGui.__ImGuiWindows[name].window_size = window.size if window else (800.0, 600.0)
-            ImGui.__ImGuiWindows[name].collapse = window.collapsed if window else False
+        if name not in ImGui.WindowModule._windows:
+            ImGui.WindowModule._windows[name] = ImGui.WindowModule(name, window_flags=flags)
 
-        ImGui.__ImGuiWindows[name].can_close = True
-        open = ImGui.__ImGuiWindows[name].begin(p_open, flags)    
+            imgui_ini_reader = ImGui.ImGuiIniReader()
+            window = imgui_ini_reader.get(name)
+            ImGui.WindowModule._windows[name].window_pos = window.pos if window else (100.0, 100.0)
+            ImGui.WindowModule._windows[name].window_size = window.size if window else (800.0, 600.0)
+            ImGui.WindowModule._windows[name].collapse = window.collapsed if window else False
+
+        ImGui.WindowModule._windows[name].can_close = True
+        open = ImGui.WindowModule._windows[name].begin(p_open, flags)
         style.pop_style()
         
         return open
@@ -3741,7 +3736,6 @@ class ImGui:
     @staticmethod
     def end_tab_bar():
         PyImGui.end_tab_bar()
-
 
     @staticmethod
     def begin_tab_item(label: str, popen: bool | None = None, flags:int = 0) -> bool:
