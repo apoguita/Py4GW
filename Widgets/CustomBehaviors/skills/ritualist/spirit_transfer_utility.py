@@ -52,4 +52,4 @@ class SpiritTransferUtility(CustomSkillUtilityBase):
         if len(targets) == 0: return BehaviorResult.ACTION_SKIPPED
         target = targets[0]
         result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target.agent_id)
-        return result 
+        return result

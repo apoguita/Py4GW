@@ -47,19 +47,12 @@ class SummonSpiritUtility(CustomSkillUtilityBase):
             condition=lambda agent_id: True
         )
 
-        # if distance > Spirit, we summon spirit
-        if current_state is BehaviorState.FAR_FROM_AGGRO:
-            for spirit in spirits:
-                if spirit.distance_from_player > Range.Compass.value * 0.75:
-                    return self.score_definition.get_score()
-
-        if current_state is BehaviorState.CLOSE_TO_AGGRO or current_state is BehaviorState.IN_AGGRO:
-            for spirit in spirits:
-                if spirit.distance_from_player > Range.Area.value:
-                    return self.score_definition.get_score()
-
-        # if any spirit has life lower than < x, we summon spirit
         for spirit in spirits:
+            if current_state is BehaviorState.FAR_FROM_AGGRO and spirit.distance_from_player > Range.Compass.value * 0.75:
+                return self.score_definition.get_score()
+            if current_state is BehaviorState.CLOSE_TO_AGGRO or current_state is BehaviorState.IN_AGGRO and spirit.distance_from_player > Range.Area.value:
+                return self.score_definition.get_score()
+            # if any spirit has life lower than < x, we summon spirit
             if spirit.hp < 0.9:
                 return self.score_definition.get_score()
 

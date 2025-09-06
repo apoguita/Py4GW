@@ -759,9 +759,7 @@ class Heals:
             condition= lambda agent_id: True,
             sort_key= (TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
         )
-        result = reduce(lambda acc, ally: acc + GLOBAL_CACHE.Agent.GetHealth(ally), allies, 0) / len(allies)
-        print(f"Party average health: {result}")
-        return result
+        return reduce(lambda acc, ally: acc + GLOBAL_CACHE.Agent.GetHealth(ally), allies, 0) / len(allies)
 
     @staticmethod
     def get_first_member_damaged(within_range: Range, less_health_than_percent: float, exclude_player:bool, condition: Optional[Callable[[int], bool]] = None) -> int | None:
