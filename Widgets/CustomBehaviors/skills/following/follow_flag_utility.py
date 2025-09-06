@@ -43,9 +43,6 @@ class FollowFlagUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        if not self.throttle_timer.IsExpired():
-            return None
-        
         if self.allowed_states is not None and current_state not in self.allowed_states:
             return None
 
@@ -71,6 +68,10 @@ class FollowFlagUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
+        if not self.throttle_timer.IsExpired():
+            yield
+            return BehaviorResult.ACTION_SKIPPED
+
         party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
         cached_data = CacheData()
         all_player_struct:list[PlayerStruct] = cached_data.HeroAI_vars.all_player_struct
@@ -81,5 +82,4 @@ class FollowFlagUtility(CustomSkillUtilityBase):
         ActionQueueManager().ResetQueue("ACTION")
         GLOBAL_CACHE.Player.Move(position[0], position[1])
         self.throttle_timer.Reset()
-        yield
         return BehaviorResult.ACTION_PERFORMED

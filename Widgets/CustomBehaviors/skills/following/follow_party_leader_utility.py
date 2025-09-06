@@ -52,9 +52,6 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        if not self.throttle_timer.IsExpired():
-            return None
-        
         if self.allowed_states is not None and current_state not in self.allowed_states:
             return None
 
@@ -131,6 +128,10 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
+
+        if not self.throttle_timer.IsExpired():
+            yield
+            return BehaviorResult.ACTION_SKIPPED
 
         position:tuple[float, float] = self._get_position_near_leader(state)
 
