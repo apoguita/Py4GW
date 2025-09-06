@@ -21,7 +21,6 @@ from Widgets.CustomBehaviors.skills.ritualist.gaze_of_fury_utility import GazeOf
 from Widgets.CustomBehaviors.skills.ritualist.signet_of_spirits_utility import SignetOfSpiritsUtility
 from Widgets.CustomBehaviors.skills.ritualist.summon_spirit_utility import SummonSpiritUtility
 
-
 class RitualistSos_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     def __init__(self):
