@@ -11,25 +11,26 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 
 class ShatterHexUtility(CustomSkillUtilityBase):
-    def __init__(self, 
-        current_build: list[CustomSkill], 
-        score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 95 if enemy_qte >= 2 else 20),
-        mana_required_to_cast: int = 15,
-        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
-        ) -> None:
+    def __init__(self,
+                 current_build: list[CustomSkill],
+                 score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 95 if enemy_qte >= 2 else 20),
+                 mana_required_to_cast: int = 15,
+                 allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
+                 ) -> None:
 
         super().__init__(
-            skill=CustomSkill("Shatter_Hex"), 
-            in_game_build=current_build, 
+            skill=CustomSkill("Shatter_Hex"),
+            in_game_build=current_build,
             score_definition=score_definition,
-            mana_required_to_cast=mana_required_to_cast, 
+            mana_required_to_cast=mana_required_to_cast,
             allowed_states=allowed_states)
-                
+
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
-        
-        allies: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
+
+        allies: list[
+            custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast,
             condition=lambda agent_id: GLOBAL_CACHE.Agent.IsHexed(agent_id),
             sort_key=(TargetingOrder.ENEMIES_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.HP_ASC),
@@ -43,15 +44,7 @@ class ShatterHexUtility(CustomSkillUtilityBase):
 
         allies = self._get_targets()
         if len(allies) == 0: return 0
-
-        if allies[0].enemy_quantity_within_range > 0:
-            return self.score_definition.get_score(allies[0].enemy_quantity_within_range)
-
-        # clean hexes when we are out of aggro
-        if current_state == BehaviorState.FAR_FROM_AGGRO:
-            return 100
-
-        return None
+        return self.score_definition.get_score(allies[0].enemy_quantity_within_range)
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
