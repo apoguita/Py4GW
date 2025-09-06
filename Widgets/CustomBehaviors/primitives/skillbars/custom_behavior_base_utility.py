@@ -11,8 +11,11 @@ from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_skillbar_management import CustomBehaviorSkillbarManagement
+from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
+from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
 from Widgets.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
 from Widgets.CustomBehaviors.skills.deamon.stuck_detection import StuckDetectionUtility
@@ -45,6 +48,8 @@ class CustomBehaviorBaseUtility():
         self.__memoized_state : BehaviorState = BehaviorState.IDLE
         
         self.__injected_additional_utility_skills : list[CustomSkillUtilityBase] = list[CustomSkillUtilityBase]()
+
+        self.is_executing_utility_skills = False # used to know if we are executing utility skills, any external bot can use it as condition to run / pause.
 
     def inject_additionnal_utility_skills(self, skill:CustomSkillUtilityBase):
         for injected_skill in self.__injected_additional_utility_skills:
@@ -257,8 +262,6 @@ class CustomBehaviorBaseUtility():
 
         # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
 
-        final_state:BehaviorState = self.get_final_state()
-
         try:
             next(self._generator_handle)
         except StopIteration:
@@ -331,7 +334,9 @@ class CustomBehaviorBaseUtility():
     # HANDLING 
 
     def _handle(self) -> Generator[Any | None, Any | None, None]:
-        
+
+        # if no aftercast, there is no reason to continue once the score is no more the highest.
+        # so lets declare it.
         while True:
             highest_score: tuple[CustomSkillUtilityBase, float | None] = self.get_highest_score()
 
@@ -339,6 +344,39 @@ class CustomBehaviorBaseUtility():
                 yield
                 continue
 
-            # Try to execute the highest scoring utility
-            yield from highest_score[0].execute(self.get_final_state())
+            should_run_through_then_end = highest_score[0].execution_strategy == UtilitySkillExecutionStrategy.EXECUTE_THROUGH_THE_END
+            self.is_executing_utility_skills = True
+
+            if should_run_through_then_end:
+                # either we want to run through to the end.
+                yield from self.__execute_until_the_end(highest_score[0])
+            else:
+                # either we prefer to stop if we are not the highest anymore.
+                yield from self.__execute_until_condition(highest_score[0])
+
             self.__previously_attempted_skills.append(highest_score[0].custom_skill)
+            self.is_executing_utility_skills = False
+
+    def __execute_until_the_end(self, utility: CustomSkillUtilityBase) -> Generator[Any | None, Any | None, BehaviorResult]:
+        state: BehaviorState = self.get_final_state()
+        result: BehaviorResult = yield from utility.execute(state)
+        return result
+
+    def __execute_until_condition(self, new_highest_score: CustomSkillUtilityBase) -> Generator[Any | None, Any | None, BehaviorResult]:
+        state: BehaviorState = self.get_final_state()
+        utility_generator = new_highest_score.execute(state)
+        
+        # manually iterate through the utility's generator to check priority between yields
+        while True:
+            # if we lost priority, stop early
+            current_highest = self.get_highest_score()
+            if current_highest[0].custom_skill.skill_name != new_highest_score.custom_skill.skill_name or current_highest[1] is None:
+                return BehaviorResult.ACTION_SKIPPED
+
+            try:
+                # get the next step from the utility
+                result = next(utility_generator)
+                yield result  # yield the utility's result back to the caller
+            except StopIteration as e:
+                # utility completed, return its final result
+                return e.value if hasattr(e, 'value') and e.value is not None else BehaviorResult.ACTION_PERFORMED
