@@ -320,28 +320,20 @@ class GameTextures(Enum):
         normal=(7, 7)
     )
     
-    Button = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_button.png"),
+    ButtonFrame = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_button_frame.png"),
         texture_size=(32, 32),
-        left=(2, 4, 7, 28),
-        mid=(8, 4, 24, 28),
-        right=(24, 4, 30, 28),   
+        left=(2, 4, 7, 25),
+        mid=(8, 4, 24, 25),
+        right=(24, 4, 30, 25),   
     )
     
-    DisabledButton = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_disabled_button.png"),
+    ButtonBackground = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_button_background.png"),
         texture_size=(32, 32),
-        left=(2, 4, 7, 28),
-        mid=(8, 4, 24, 28),
-        right=(24, 4, 30, 28),   
-    )
-    
-    PrimaryButton = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_primary_button.png"),
-        texture_size=(32, 32),
-        left=(2, 4, 7, 28),
-        mid=(8, 4, 24, 28),
-        right=(24, 4, 30, 28),   
+        left=(2, 4, 7, 25),
+        mid=(8, 4, 24, 25),
+        right=(24, 4, 30, 25),   
     )
     
     Combo = SplitTexture(
@@ -921,8 +913,21 @@ class Style:
         self.PrimaryButton = Style.CustomColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button)
         self.PrimaryButtonHovered = Style.CustomColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered)
         self.PrimaryButtonActive = Style.CustomColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive)
+        
+        self.DangerButton = Style.CustomColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button)
+        self.DangerButtonHovered = Style.CustomColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered)
+        self.DangerButtonActive = Style.CustomColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive)
+        
+        self.ToggleButtonEnabled = Style.CustomColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button)
+        self.ToggleButtonEnabledHovered = Style.CustomColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered)
+        self.ToggleButtonEnabledActive = Style.CustomColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive)
+        
+        self.ToggleButtonDisabled = Style.CustomColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button)
+        self.ToggleButtonDisabledHovered = Style.CustomColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered)
+        self.ToggleButtonDisabledActive = Style.CustomColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive)
 
         self.TextCollapsingHeader = Style.CustomColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text)
+        self.TextTreeNode = Style.CustomColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text)
         self.TextObjectiveCompleted = Style.CustomColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text)
         self.Hyperlink = Style.CustomColor(self, 102, 187, 238, 255, PyImGui.ImGuiCol.Text)
 
@@ -1052,6 +1057,11 @@ class Style:
         default_file_path = os.path.join("Styles", f"{theme.name}.default.json")
         return cls.load_from_json(default_file_path)
 
+class ControlAppearance(Enum):
+    Default = 0
+    Primary = 1
+    Danger = 2
+    
 class ImGui:           
     class ImGuiIniReader:
         class ImGuiWindowConfig:
@@ -1252,67 +1262,6 @@ class ImGui:
         PyImGui.pop_style_color(3)
         
         return clicked
-
-    @staticmethod
-    def toggle_button(label: str, v: bool, width=0, height =0) -> bool:
-        """
-        Purpose: Create a toggle button that changes its state and color based on the current state.
-        Args:
-            label (str): The label of the button.
-            v (bool): The current toggle state (True for on, False for off).
-        Returns: bool: The new state of the button after being clicked.
-        """
-        clicked = False
-
-        if v:
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.153, 0.318, 0.929, 1.0))  # On color
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.6, 0.6, 0.9, 1.0))  # Hover color
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.6, 0.6, 0.6, 1.0))
-            if width != 0 and height != 0:
-                clicked = PyImGui.button(label, width, height)
-            else:
-                clicked = PyImGui.button(label)
-            PyImGui.pop_style_color(3)
-        else:
-            if width != 0 and height != 0:
-                clicked = PyImGui.button(label, width, height)
-            else:
-                clicked = PyImGui.button(label)
-
-        if clicked:
-            v = not v
-
-        return v
-    
-    @staticmethod
-    def image_toggle_button(label: str, texture_path: str, v: bool, width=0, height=0) -> bool:
-        """
-        Purpose: Create a toggle button that displays an image and changes its state when clicked.
-        Args:
-            label (str): The label of the button.
-            texture_path (str): The path to the image texture.
-            v (bool): The current toggle state (True for on, False for off).
-        Returns: bool: The new state of the button after being clicked.
-        """
-        clicked = False
-
-        if v:
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, Color(156, 156, 230, 255).to_tuple_normalized())  # On color
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, Color(156, 156, 230, 255).to_tuple_normalized())  # Hover color
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, Color(156, 156, 156, 255).to_tuple_normalized())
-            if width != 0 and height != 0:
-                clicked = ImGui.ImageButton(label, texture_path, width, height)      
-            else:
-                clicked = ImGui.ImageButton(label, texture_path)
-            PyImGui.pop_style_color(3)
-        else:
-            if width != 0 and height != 0:
-                clicked = ImGui.ImageButton(label, texture_path, width, height)
-            else:
-                clicked = ImGui.ImageButton(label, texture_path) 
-        if clicked:
-            v = not v
-        return v
 
     @staticmethod
     def floating_button(caption, x, y, width = 18, height = 18 , color: Color = Color(255, 255, 255, 255), name = ""):
@@ -2337,8 +2286,8 @@ class ImGui:
         PyImGui.text_scaled(text, color, scale)
         
     @staticmethod
-    def small_button(label: str, active: bool = True) -> bool:
-        PyImGui.begin_disabled(not active)
+    def small_button(label: str, enabled: bool = True, appearance: ControlAppearance = ControlAppearance.Default) -> bool:
+        PyImGui.begin_disabled(not enabled)
         style = ImGui.get_style()
         style.ButtonPadding.push_style_var()
         style.FrameRounding.push_style_var()
@@ -2363,18 +2312,37 @@ class ImGui:
                 display_label = label.split("##")[0]
 
                 button_rect = (x, y, width, height)
-                tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and active else (200, 200, 200, 255)
+                match (appearance):
+                    case ControlAppearance.Primary:
+                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
 
-                (GameTextures.Button if active else GameTextures.DisabledButton).value.draw_in_drawlist(
+                    case ControlAppearance.Danger:
+                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+
+                    case _:
+                        tint = ((style.ButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.Button.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                                
+                GameTextures.ButtonBackground.value.draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
                     tint=tint,
                 )
                 
+                frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
+                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                    button_rect[0], 
+                    button_rect[1],
+                    (button_rect[2], button_rect[3]),
+                    tint=frame_tint,
+                )
+                
+                font_size = int(PyImGui.get_text_line_height()) - 1
+                
+                ImGui.push_font("Regular", font_size)
                 text_size = PyImGui.calc_text_size(display_label)
                 text_x = button_rect[0] + (button_rect[2] - text_size[0]) / 2
-                text_y = button_rect[1] + (button_rect[3] - text_size[1]) / 2 
+                text_y = button_rect[1] + (button_rect[3] - text_size[1]) / 2 + 1
             
                 PyImGui.push_clip_rect(
                     button_rect[0] + 6,
@@ -2387,14 +2355,46 @@ class ImGui:
                 PyImGui.draw_list_add_text(
                     text_x,
                     text_y,
-                    style.TextDisabled.get_current().color_int if not active else style.Text.get_current().color_int,
+                    style.TextDisabled.get_current().color_int if not enabled else style.Text.get_current().color_int,
                     display_label,
                 )
+                ImGui.pop_font()
 
                 PyImGui.pop_clip_rect()
                 
             case _:
+                button_colors = [
+                    style.Button.get_current(),
+                    style.ButtonHovered.get_current(),
+                    style.ButtonActive.get_current(),
+                ]
+                
+                match (appearance):
+                    case ControlAppearance.Primary:
+                        button_colors = [
+                            style.PrimaryButton.get_current(),
+                            style.PrimaryButtonHovered.get_current(),
+                            style.PrimaryButtonActive.get_current(),
+                        ]
+
+                    case ControlAppearance.Danger:
+                        button_colors = [
+                            style.DangerButton.get_current(),
+                            style.DangerButtonHovered.get_current(),
+                            style.DangerButtonActive.get_current(),
+                        ]
+
+                if enabled:
+                    button_colors[0].push_color()
+                    button_colors[1].push_color()
+                    button_colors[2].push_color()                    
+                
                 clicked = PyImGui.small_button(label)
+                
+                if enabled:
+                    button_colors[2].pop_color()
+                    button_colors[1].pop_color()
+                    button_colors[0].pop_color()
 
         style.ButtonPadding.pop_style_var()
         style.FrameRounding.pop_style_var()
@@ -2403,7 +2403,7 @@ class ImGui:
         return clicked
    
     @staticmethod
-    def icon_button(label: str, width: float = 0, height: float = 0, active: bool = True) -> bool:
+    def icon_button(label: str, width: float = 0, height: float = 0, enabled: bool = True, appearance: ControlAppearance = ControlAppearance.Default) -> bool:
         def group_text_with_icons(text: str):
             """
             Splits the string into groups of (is_icon, run_string).
@@ -2433,7 +2433,7 @@ class ImGui:
 
             return groups
 
-        PyImGui.begin_disabled(not active)
+        PyImGui.begin_disabled(not enabled)
         style = ImGui.get_style()
         style.ButtonPadding.push_style_var()
         style.FrameRounding.push_style_var()
@@ -2458,10 +2458,9 @@ class ImGui:
                 display_label = label.split("##")[0]
 
                 button_rect = (x, y, width, height)
-                tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and active else (200, 200, 200, 255)
                 
                 default_font_size = int(PyImGui.get_text_line_height())
-                fontawesome_font_size = int(height * 0.4)
+                fontawesome_font_size = int(height * 0.42)
                 
                 groups = group_text_with_icons(display_label)
                 font_awesome_string = "".join([run for is_icon, run in groups if is_icon])
@@ -2476,13 +2475,31 @@ class ImGui:
                 total_text_size = (text_size[0] + font_awesome_text_size[0], max(text_size[1], font_awesome_text_size[1]))
 
                 text_x = button_rect[0] + (button_rect[2] - total_text_size[0]) / 2
-                text_y = button_rect[1] + (button_rect[3] - total_text_size[1]) / 2 
+                text_y = button_rect[1] + (button_rect[3] - total_text_size[1]) / 2
+                
+                match (appearance):
+                    case ControlAppearance.Primary:
+                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
 
-                (GameTextures.Button if active else GameTextures.DisabledButton).value.draw_in_drawlist(
+                    case ControlAppearance.Danger:
+                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+
+                    case _:
+                        tint = ((style.ButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.Button.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                                
+                GameTextures.ButtonBackground.value.draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
                     tint=tint,
+                )
+                
+                frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
+                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                    button_rect[0], 
+                    button_rect[1],
+                    (button_rect[2], button_rect[3]),
+                    tint=frame_tint,
                 )
                 
                 PyImGui.push_clip_rect(
@@ -2502,12 +2519,12 @@ class ImGui:
                         ImGui.push_font("Regular", default_font_size)
                     
                     text_size = PyImGui.calc_text_size(run)    
-                    vertical_padding = 1 if is_icon else 0                
+                    vertical_padding = 0 if is_icon else 1                
                                     
                     PyImGui.draw_list_add_text(
                         text_x + offset[0],
                         text_y + vertical_padding,
-                        style.TextDisabled.get_current().color_int if not active else style.Text.get_current().color_int,
+                        style.TextDisabled.get_current().color_int if not enabled else style.Text.get_current().color_int,
                         run,
                     )
                     
@@ -2518,7 +2535,37 @@ class ImGui:
                 PyImGui.pop_clip_rect()
                 
             case _:
+                button_colors = [
+                    style.Button.get_current(),
+                    style.ButtonHovered.get_current(),
+                    style.ButtonActive.get_current(),
+                ]
+                
+                match (appearance):
+                    case ControlAppearance.Primary:
+                        button_colors = [
+                            style.PrimaryButton.get_current(),
+                            style.PrimaryButtonHovered.get_current(),
+                            style.PrimaryButtonActive.get_current(),
+                        ]
+
+                    case ControlAppearance.Danger:
+                        button_colors = [
+                            style.DangerButton.get_current(),
+                            style.DangerButtonHovered.get_current(),
+                            style.DangerButtonActive.get_current(),
+                        ]
+
+                if enabled:
+                    button_colors[0].push_color()
+                    button_colors[1].push_color()
+                    button_colors[2].push_color()
+                
                 clicked = PyImGui.button(label, width, height)
+
+                button_colors[0].pop_color()
+                button_colors[1].pop_color()
+                button_colors[2].pop_color()
 
         style.ButtonPadding.pop_style_var()
         style.FrameRounding.pop_style_var()
@@ -2527,8 +2574,8 @@ class ImGui:
         return clicked
     
     @staticmethod
-    def button(label: str, width: float = 0, height: float = 0, active: bool = True) -> bool:
-        PyImGui.begin_disabled(not active)
+    def button(label: str, width: float = 0, height: float = 0, enabled: bool = True, appearance: ControlAppearance = ControlAppearance.Default) -> bool:
+        PyImGui.begin_disabled(not enabled)
         style = ImGui.get_style()
         style.ButtonPadding.push_style_var()
         style.FrameRounding.push_style_var()
@@ -2553,18 +2600,34 @@ class ImGui:
                 display_label = label.split("##")[0]
 
                 button_rect = (x, y, width, height)
-                tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and active else (200, 200, 200, 255)
+                match (appearance):
+                    case ControlAppearance.Primary:
+                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
 
-                (GameTextures.Button if active else GameTextures.DisabledButton).value.draw_in_drawlist(
+                    case ControlAppearance.Danger:
+                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+
+                    case _:
+                        tint = ((style.ButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.Button.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                                
+                GameTextures.ButtonBackground.value.draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
                     tint=tint,
                 )
                 
+                frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
+                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                    button_rect[0], 
+                    button_rect[1],
+                    (button_rect[2], button_rect[3]),
+                    tint=frame_tint,
+                )
+                
                 text_size = PyImGui.calc_text_size(display_label)
                 text_x = button_rect[0] + (button_rect[2] - text_size[0]) / 2
-                text_y = button_rect[1] + (button_rect[3] - text_size[1]) / 2 
+                text_y = button_rect[1] + (button_rect[3] - text_size[1]) / 2 + 1
             
                 PyImGui.push_clip_rect(
                     button_rect[0] + 6,
@@ -2577,31 +2640,58 @@ class ImGui:
                 PyImGui.draw_list_add_text(
                     text_x,
                     text_y,
-                    style.TextDisabled.get_current().color_int if not active else style.Text.get_current().color_int,
+                    style.TextDisabled.get_current().color_int if not enabled else style.Text.get_current().color_int,
                     display_label,
                 )
 
                 PyImGui.pop_clip_rect()
                 
             case _:
+                button_colors = [
+                    style.Button.get_current(),
+                    style.ButtonHovered.get_current(),
+                    style.ButtonActive.get_current(),
+                ]
+                
+                match (appearance):
+                    case ControlAppearance.Primary:
+                        button_colors = [
+                            style.PrimaryButton.get_current(),
+                            style.PrimaryButtonHovered.get_current(),
+                            style.PrimaryButtonActive.get_current(),
+                        ]
+
+                    case ControlAppearance.Danger:
+                        button_colors = [
+                            style.DangerButton.get_current(),
+                            style.DangerButtonHovered.get_current(),
+                            style.DangerButtonActive.get_current(),
+                        ]
+
+                if enabled:
+                    button_colors[0].push_color()
+                    button_colors[1].push_color()
+                    button_colors[2].push_color()
+                    
                 clicked = PyImGui.button(label, width, height)
+                
+                if enabled:
+                    button_colors[0].pop_color()
+                    button_colors[1].pop_color()
+                    button_colors[2].pop_color()
 
         style.ButtonPadding.pop_style_var()
         style.FrameRounding.pop_style_var()
         PyImGui.end_disabled()
         
         return clicked
-
+    
     @staticmethod
-    def primary_button(label: str, width: float = 0, height: float = 0, active: bool = True) -> bool:
-        PyImGui.begin_disabled(not active)
+    def toggle_button(label: str, v: bool, width=0, height =0, enabled:bool=True) -> bool:
+        PyImGui.begin_disabled(not enabled)
         style = ImGui.get_style()
         style.ButtonPadding.push_style_var()
         style.FrameRounding.push_style_var()
-        
-        style.PrimaryButton.push_color()
-        style.PrimaryButtonActive.push_color()
-        style.PrimaryButtonHovered.push_color()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -2623,13 +2713,37 @@ class ImGui:
                 display_label = label.split("##")[0]
 
                 button_rect = (x, y, width, height)
-                tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and active else (200, 200, 200, 255)
+                
+                if not v:
+                    style.Text.push_color((180, 180, 180, 200))
+                
+                text_color = style.TextDisabled.get_current().color_int if not enabled else style.Text.get_current().color_int
+                
+                button_colors = [
+                    style.ToggleButtonEnabled.get_current(),
+                    style.ToggleButtonEnabledHovered.get_current(),
+                    style.ToggleButtonEnabledActive.get_current(),
+                ] if v else [
+                    style.ToggleButtonDisabled.get_current(),
+                    style.ToggleButtonDisabledHovered.get_current(),
+                    style.ToggleButtonDisabledActive.get_current(),
+                ]
 
-                (GameTextures.PrimaryButton if active else GameTextures.DisabledButton).value.draw_in_drawlist(
+                tint = ((button_colors[2].get_current().rgb_tuple if PyImGui.is_item_active() else button_colors[1].get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else button_colors[0].get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+
+                GameTextures.ButtonBackground.value.draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
                     tint=tint,
+                )
+                
+                frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
+                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                    button_rect[0], 
+                    button_rect[1],
+                    (button_rect[2], button_rect[3]),
+                    tint=frame_tint,
                 )
                 
                 text_size = PyImGui.calc_text_size(display_label)
@@ -2647,26 +2761,317 @@ class ImGui:
                 PyImGui.draw_list_add_text(
                     text_x,
                     text_y,
-                    style.TextDisabled.color_int if not active else style.Text.color_int,
+                    text_color,
                     display_label,
                 )
 
                 PyImGui.pop_clip_rect()
+                style.Text.pop_color()
                 
             case _:                
+                button_colors = [
+                    style.ToggleButtonEnabled.get_current(),
+                    style.ToggleButtonEnabledHovered.get_current(),
+                    style.ToggleButtonEnabledActive.get_current(),
+                ] if v else [
+                    style.ToggleButtonDisabled.get_current(),
+                    style.ToggleButtonDisabledHovered.get_current(),
+                    style.ToggleButtonDisabledActive.get_current(),
+                ]
+                
+                if enabled:
+                    button_colors[0].push_color()
+                    button_colors[1].push_color()
+                    button_colors[2].push_color()
+                
                 clicked = PyImGui.button(label, width, height)
+                
+                if enabled:
+                    button_colors[0].pop_color()
+                    button_colors[1].pop_color()
+                    button_colors[2].pop_color()
 
-        style.PrimaryButton.pop_color()
-        style.PrimaryButtonActive.pop_color()
-        style.PrimaryButtonHovered.pop_color()
-        
-        style.FrameRounding.pop_style_var()
         style.ButtonPadding.pop_style_var()
+        style.FrameRounding.pop_style_var()
+        PyImGui.end_disabled()
         
+        if clicked:
+            v = not v
+        
+        return v
+    
+    @staticmethod
+    def image_button(label: str, texture_path: str, width=0, height=0, enabled:bool=True, appearance: ControlAppearance = ControlAppearance.Default) -> bool:
+        
+        PyImGui.begin_disabled(not enabled)
+        style = ImGui.get_style()
+        style.ButtonPadding.push_style_var(4, 4)
+        style.FrameRounding.push_style_var()
+
+        match(style.Theme):
+            case Style.StyleTheme.Guild_Wars:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
+                clicked = PyImGui.button("##" + label, width, height)
+                PyImGui.pop_style_color(5)
+
+                item_rect_min = PyImGui.get_item_rect_min()
+                item_rect_max = PyImGui.get_item_rect_max()
+                
+                width = item_rect_max[0] - item_rect_min[0]
+                height = item_rect_max[1] - item_rect_min[1]
+
+                x,y = item_rect_min
+                display_label = label.split("##")[0]
+
+                button_rect = (x, y, width, height)
+                match (appearance):
+                    case ControlAppearance.Primary:
+                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+
+                    case ControlAppearance.Danger:
+                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+
+                    case _:
+                        tint = ((style.ButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.Button.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                              
+
+                GameTextures.ButtonBackground.value.draw_in_drawlist(
+                    button_rect[0], 
+                    button_rect[1],
+                    (button_rect[2], button_rect[3]),
+                    tint=tint,
+                )
+                
+
+                texture_pos = (button_rect[0] + style.ButtonPadding.get_current().value1 + 1, button_rect[1] + (style.ButtonPadding.get_current().value2 or 0))
+                texture_size = (width - (style.ButtonPadding.get_current().value1 * 2), height - ((style.ButtonPadding.get_current().value2 or 0) * 2))
+                texture_tint = (255, 255, 255, 255) if enabled else (255, 255, 255, 155)
+                ImGui.DrawTextureInDrawList(
+                    texture_pos,
+                    texture_size,
+                    texture_path,
+                    tint=texture_tint
+                )
+                                
+                frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
+                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                    button_rect[0], 
+                    button_rect[1],
+                    (button_rect[2], button_rect[3]),
+                    tint=frame_tint,
+                )
+                PyImGui.push_clip_rect(
+                    button_rect[0] + 6,
+                    button_rect[1] + 2,
+                    width - 12,
+                    height - 4,
+                    True
+                )
+                
+
+                PyImGui.pop_clip_rect()
+                
+            case _:
+                button_colors = [
+                    style.Button.get_current(),
+                    style.ButtonHovered.get_current(),
+                    style.ButtonActive.get_current(),
+                ]
+                
+                match (appearance):
+                    case ControlAppearance.Primary:
+                        button_colors = [
+                            style.PrimaryButton.get_current(),
+                            style.PrimaryButtonHovered.get_current(),
+                            style.PrimaryButtonActive.get_current(),
+                        ]
+
+                    case ControlAppearance.Danger:
+                        button_colors = [
+                            style.DangerButton.get_current(),
+                            style.DangerButtonHovered.get_current(),
+                            style.DangerButtonActive.get_current(),
+                        ]
+
+                if enabled:
+                    button_colors[0].push_color()
+                    button_colors[1].push_color()
+                    button_colors[2].push_color()
+                
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))
+
+                clicked = PyImGui.button(label, width, height)
+                PyImGui.pop_style_color(2)
+                
+                item_rect_min = PyImGui.get_item_rect_min()
+                item_rect_max = PyImGui.get_item_rect_max()
+                
+                width = item_rect_max[0] - item_rect_min[0] + 2
+                height = item_rect_max[1] - item_rect_min[1] + 2
+
+                x,y = item_rect_min
+                button_rect = (x, y, width, height)
+                
+                texture_pos = (button_rect[0] + style.ButtonPadding.get_current().value1, button_rect[1] + (style.ButtonPadding.get_current().value2 or 0))
+                texture_size = (width - (style.ButtonPadding.get_current().value1 * 2), height - ((style.ButtonPadding.get_current().value2 or 0) * 2))
+                texture_tint = (255, 255, 255, 255) if enabled else (255, 255, 255, 155)
+                ImGui.DrawTextureInDrawList(
+                    texture_pos,
+                    texture_size,
+                    texture_path,
+                    tint=texture_tint
+                )
+                
+                if enabled:
+                    button_colors[0].pop_color()
+                    button_colors[1].pop_color()
+                    button_colors[2].pop_color()
+
+        style.ButtonPadding.pop_style_var()
+        style.FrameRounding.pop_style_var()
         PyImGui.end_disabled()
         
         return clicked
+    
+    @staticmethod
+    def image_toggle_button(label: str, texture_path: str, v: bool, width=0, height=0, enabled:bool=True) -> bool:
+        PyImGui.begin_disabled(not enabled)
+        style = ImGui.get_style()
+        style.ButtonPadding.push_style_var(4, 4)
+        style.FrameRounding.push_style_var()
 
+        match(style.Theme):
+            case Style.StyleTheme.Guild_Wars:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
+                clicked = PyImGui.button("##" + label, width, height)
+                PyImGui.pop_style_color(5)
+
+                item_rect_min = PyImGui.get_item_rect_min()
+                item_rect_max = PyImGui.get_item_rect_max()
+                
+                width = item_rect_max[0] - item_rect_min[0]
+                height = item_rect_max[1] - item_rect_min[1]
+
+                x,y = item_rect_min
+                display_label = label.split("##")[0]
+
+                button_rect = (x, y, width, height)
+                
+                button_colors = [
+                    style.ToggleButtonEnabled.get_current(),
+                    style.ToggleButtonEnabledHovered.get_current(),
+                    style.ToggleButtonEnabledActive.get_current(),
+                ] if v else [
+                    style.ToggleButtonDisabled.get_current(),
+                    style.ToggleButtonDisabledHovered.get_current(),
+                    style.ToggleButtonDisabledActive.get_current(),
+                ]
+
+                tint = ((button_colors[2].get_current().rgb_tuple if PyImGui.is_item_active() else button_colors[1].get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else button_colors[0].get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+
+
+                GameTextures.ButtonBackground.value.draw_in_drawlist(
+                    button_rect[0], 
+                    button_rect[1],
+                    (button_rect[2], button_rect[3]),
+                    tint=tint,
+                )
+                
+
+                texture_pos = (button_rect[0] + style.ButtonPadding.get_current().value1 + 1, button_rect[1] + (style.ButtonPadding.get_current().value2 or 0))
+                texture_size = (width - (style.ButtonPadding.get_current().value1 * 2), height - ((style.ButtonPadding.get_current().value2 or 0) * 2))
+                texture_tint = (255, 255, 255, (255 if enabled else 155)) if v else (128, 128, 128, (255 if enabled else 155))
+                
+                ImGui.DrawTextureInDrawList(
+                    texture_pos,
+                    texture_size,
+                    texture_path,
+                    tint=texture_tint
+                )
+                                
+                frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
+                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                    button_rect[0], 
+                    button_rect[1],
+                    (button_rect[2], button_rect[3]),
+                    tint=frame_tint,
+                )
+                PyImGui.push_clip_rect(
+                    button_rect[0] + 6,
+                    button_rect[1] + 2,
+                    width - 12,
+                    height - 4,
+                    True
+                )
+                
+
+                PyImGui.pop_clip_rect()
+                
+            case _:
+                button_colors = [
+                    style.ToggleButtonEnabled.get_current(),
+                    style.ToggleButtonEnabledHovered.get_current(),
+                    style.ToggleButtonEnabledActive.get_current(),
+                ] if v else [
+                    style.ToggleButtonDisabled.get_current(),
+                    style.ToggleButtonDisabledHovered.get_current(),
+                    style.ToggleButtonDisabledActive.get_current(),
+                ]
+                                
+                if enabled:
+                    button_colors[0].push_color()
+                    button_colors[1].push_color()
+                    button_colors[2].push_color()
+                    
+                
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))
+
+                clicked = PyImGui.button(label, width, height)
+                PyImGui.pop_style_color(2)
+                
+                item_rect_min = PyImGui.get_item_rect_min()
+                item_rect_max = PyImGui.get_item_rect_max()
+                
+                width = item_rect_max[0] - item_rect_min[0] + 2
+                height = item_rect_max[1] - item_rect_min[1] + 2
+
+                x,y = item_rect_min
+                button_rect = (x, y, width, height)
+                
+                texture_pos = (button_rect[0] + style.ButtonPadding.get_current().value1, button_rect[1] + (style.ButtonPadding.get_current().value2 or 0))
+                texture_size = (width - (style.ButtonPadding.get_current().value1 * 2), height - ((style.ButtonPadding.get_current().value2 or 0) * 2))
+                texture_tint = (255, 255, 255, (255 if enabled else 155)) if v else (128, 128, 128, (255 if enabled else 155))
+                ImGui.DrawTextureInDrawList(
+                    texture_pos,
+                    texture_size,
+                    texture_path,
+                    tint=texture_tint
+                )
+                    
+                if enabled:
+                    button_colors[0].pop_color()
+                    button_colors[1].pop_color()
+                    button_colors[2].pop_color()
+
+        style.ButtonPadding.pop_style_var()
+        style.FrameRounding.pop_style_var()
+        PyImGui.end_disabled()
+            
+        if clicked:
+            v = not v
+        
+        return v
+    
     @staticmethod
     def combo(label: str, current_item: int, items: list[str]) -> int:
         index = current_item
@@ -2739,14 +3144,14 @@ class ImGui:
         return index
 
     @staticmethod
-    def checkbox(label: str, is_checked: bool, active: bool = True) -> bool:
+    def checkbox(label: str, is_checked: bool, enabled: bool = True) -> bool:
         style = ImGui.get_style()
         style.FrameRounding.push_style_var()
         style.FramePadding.push_style_var()
         style.ItemInnerSpacing.push_style_var()
 
         new_value = is_checked
-        PyImGui.begin_disabled(not active)
+        PyImGui.begin_disabled(not enabled)
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -2769,7 +3174,7 @@ class ImGui:
                 line_height = PyImGui.get_text_line_height()
                 text_rect = (item_rect[0] + checkbox_rect[2] + 2 + style.ItemInnerSpacing.value1, item_rect[1] + (((item_rect_max[1] - item_rect_min[1]) - line_height) / 2), width - checkbox_rect[2] - 4, item_rect[3])
 
-                state = TextureState.Disabled if not active else TextureState.Active if PyImGui.is_item_active() else TextureState.Normal
+                state = TextureState.Disabled if not enabled else TextureState.Active if PyImGui.is_item_active() else TextureState.Normal
 
                 (GameTextures.CheckBox_Checked if is_checked else GameTextures.CheckBox_Unchecked).value.draw_in_drawlist(
                     checkbox_rect[0],
@@ -3563,7 +3968,6 @@ class ImGui:
                 style.TextObjectiveCompleted.color_int,
                 1,
             )
-        if completed:
             style.TextObjectiveCompleted.pop_color()
             
         style.FramePadding.pop_style_var()
@@ -3638,7 +4042,7 @@ class ImGui:
         style = ImGui.get_style()
         style.FrameRounding.push_style_var()
         style.FramePadding.push_style_var()
-        style.TextCollapsingHeader.push_color()
+        style.TextTreeNode.push_color()
         
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars:
@@ -3673,7 +4077,7 @@ class ImGui:
                 PyImGui.draw_list_add_text(
                     item_rect[0] + item_rect[2] + style.ItemInnerSpacing.value1 - 2,
                     item_rect_min[1] + ((height - line_height) / 2),
-                    style.TextCollapsingHeader.color_int,
+                    style.TextTreeNode.color_int,
                     display_label
                 )
                 
@@ -3683,7 +4087,7 @@ class ImGui:
             case _:
                 new_open = PyImGui.tree_node(label)
 
-        style.TextCollapsingHeader.pop_color()
+        style.TextTreeNode.pop_color()
         style.FramePadding.pop_style_var()
         style.FrameRounding.pop_style_var()
 

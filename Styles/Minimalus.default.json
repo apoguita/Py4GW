@@ -1,5 +1,5 @@
 {
-    "Theme" : "Minimalus",
+    "Theme": "Minimalus",
     "Colors": {
         "Border": {
             "img_color_enum": "Border",
@@ -42,6 +42,13 @@
             "g": 204,
             "b": 204,
             "a": 255
+        },
+        "ChildBg": {
+            "img_color_enum": "ChildBg",
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 0
         },
         "FrameBg": {
             "img_color_enum": "FrameBg",
@@ -262,29 +269,128 @@
         }
     },
     "CustomColors": {
+        "DangerButton": {
+            "img_color_enum": "Button",
+            "r": 153,
+            "g": 19,
+            "b": 0,
+            "a": 160
+        },
+        "DangerButtonActive": {
+            "img_color_enum": "ButtonActive",
+            "r": 204,
+            "g": 26,
+            "b": 0,
+            "a": 180
+        },
+        "DangerButtonHovered": {
+            "img_color_enum": "ButtonHovered",
+            "r": 230,
+            "g": 29,
+            "b": 0,
+            "a": 200
+        },
+        "Hyperlink": {
+            "img_color_enum": "Text",
+            "r": 102,
+            "g": 187,
+            "b": 238,
+            "a": 255
+        },
         "PrimaryButton": {
-            "color_target": "PrimaryButton",
+            "img_color_enum": "Button",
             "r": 26,
             "g": 116,
             "b": 33,
-            "a": 255
+            "a": 160
         },
         "PrimaryButtonActive": {
-            "color_target": "PrimaryButtonActive",
+            "img_color_enum": "ButtonActive",
             "r": 33,
             "g": 147,
             "b": 42,
-            "a": 255
+            "a": 180
         },
         "PrimaryButtonHovered": {
-            "color_target": "PrimaryButtonHovered",
+            "img_color_enum": "ButtonHovered",
             "r": 36,
             "g": 166,
             "b": 46,
+            "a": 200
+        },
+        "TextCollapsingHeader": {
+            "img_color_enum": "Text",
+            "r": 204,
+            "g": 204,
+            "b": 204,
             "a": 255
+        },
+        "TextObjectiveCompleted": {
+            "img_color_enum": "Text",
+            "r": 95,
+            "g": 93,
+            "b": 93,
+            "a": 255
+        },
+        "TextTreeNode": {
+            "img_color_enum": "Text",
+            "r": 204,
+            "g": 204,
+            "b": 204,
+            "a": 255
+        },
+        "ToggleButtonDisabled": {
+            "img_color_enum": "Button",
+            "r": 153,
+            "g": 19,
+            "b": 0,
+            "a": 160
+        },
+        "ToggleButtonDisabledActive": {
+            "img_color_enum": "ButtonActive",
+            "r": 204,
+            "g": 26,
+            "b": 0,
+            "a": 180
+        },
+        "ToggleButtonDisabledHovered": {
+            "img_color_enum": "ButtonHovered",
+            "r": 230,
+            "g": 29,
+            "b": 0,
+            "a": 200
+        },
+        "ToggleButtonEnabled": {
+            "img_color_enum": "Button",
+            "r": 26,
+            "g": 116,
+            "b": 33,
+            "a": 160
+        },
+        "ToggleButtonEnabledActive": {
+            "img_color_enum": "ButtonActive",
+            "r": 33,
+            "g": 147,
+            "b": 42,
+            "a": 180
+        },
+        "ToggleButtonEnabledHovered": {
+            "img_color_enum": "ButtonHovered",
+            "r": 36,
+            "g": 166,
+            "b": 46,
+            "a": 200
         }
     },
     "StyleVars": {
+        "ButtonPadding": {
+            "value1": 5.0,
+            "value2": 5.0
+        },
+        "CellPadding": {
+            "value1": 5.0,
+            "value2": 5.0
+        },
         "ChildRounding": {
             "value1": 0.0
         },
