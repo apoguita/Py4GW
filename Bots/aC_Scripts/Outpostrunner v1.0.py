@@ -87,6 +87,14 @@ RUN_NAME_MAP = {
         "_7_auroragladeoutpost_to_maguumastade": "7 - Aurora Glade -> Maguuma Stade",
         "_8_maguumastade_to_hengeofdenravi": "8 - Maguuma Stade -> Henge of Denravi",
     },
+    "Tyria - Desert Outposts": {
+        "_1_auguryrock_to_destinysgorge": "1 - Augury Rock -> Destiny's Gorge",
+        "_2_destinysgorge_to_thirstyriver": "2 - Destiny's Gorge -> Thirsty River",
+        "_3_destinysgorge_to_elonareach": "3 - Destiny's Gorge -> Elona Reach",
+        "_4_elonareach_to_seekerspassage": "4 - Elona Reach -> Seeker's Passage",
+        "_5_auguryrock_to_heroesaudience": "5 - Augury Rock -> Heroes Audience",
+        "_6_heroesaudience_to_dunesofdespair": "6 - Heroes Audience -> Dunes of Despair",
+    },
     "NF - Istan island": {
         "_1_kamadanjewelofistan_to_sunspeargreathall": "1 - Kamadan -> Sunspear Greathall",
         "_2_sunspeargreathall_to_theastralarium": "2 - Sunspear Greathall -> The Astralarium",
@@ -673,7 +681,7 @@ def render_path_ui():
     x, y = GLOBAL_CACHE.Player.GetXY()
     PyImGui.text(f"Player Pos: ({int(x)}, {int(y)})")
     if PyImGui.button("Copy position"):
-        PyImGui.set_clipboard_text(f"{int(x)}, {int(y)})")
+        PyImGui.set_clipboard_text(f"({int(x)}, {int(y)}),")
 
     # Facing vector from heading
     heading = GLOBAL_CACHE.Agent.GetRotationAngle(Player.GetAgentID())
@@ -685,7 +693,7 @@ def render_path_ui():
 
     PyImGui.text(f"Facing Point (+500): ({projected_x}, {projected_y})")
     if PyImGui.button("Copy Portal point"):
-        PyImGui.set_clipboard_text(f"{projected_x}, {projected_y}")
+        PyImGui.set_clipboard_text(f"({projected_x}, {projected_y}),")
 
     
     PyImGui.end()
