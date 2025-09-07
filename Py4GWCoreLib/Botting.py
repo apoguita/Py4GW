@@ -632,22 +632,53 @@ class BottingClass:
             
         def _find_current_header_step(self):
             import re
-            # Find current header
-            fsm_steps_all = self.parent.config.FSM.get_state_names()
-            total_steps = len(fsm_steps_all)
-            current_step = self.parent.config.FSM.get_current_state_number()
-            current_header_step = 0
-            step_name = self.parent.config.FSM.get_state_name_by_number(current_step)
-            header_for_current = None
-            for i in range(current_step, -1, -1):
-                name = fsm_steps_all[i]
-                if name.startswith("[H]"):
-                    header_for_current = re.sub(r'^\[H\]\s*', '', name)
-                    header_for_current = re.sub(r'_(?:\[\d+\]|\d+)$', '', header_for_current)
-                    current_header_step = i
-                    break
 
-            return current_header_step, header_for_current, current_step, total_steps, step_name
+            steps = self.parent.config.FSM.get_state_names()
+            total_steps = len(steps)
+
+            # Raw current index as reported by the FSM (may be None or out-of-bounds at "end")
+            raw_current = self.parent.config.FSM.get_current_state_number()
+
+            # Normalize and detect "finished"
+            if total_steps == 0:
+                # No steps at all
+                current_idx = -1
+                finished = True
+                step_name = None
+                search_from = -1
+            else:
+                if raw_current is None:
+                    finished = True
+                    current_idx = total_steps - 1           # clamp to last valid index for display
+                elif raw_current < 0:
+                    finished = False
+                    current_idx = 0                         # clamp up
+                elif raw_current >= total_steps:
+                    finished = True
+                    current_idx = total_steps - 1           # clamp down
+                else:
+                    finished = False
+                    current_idx = raw_current
+
+                step_name = None if finished else self.parent.config.FSM.get_state_name_by_number(current_idx)
+                search_from = current_idx if current_idx >= 0 else -1
+
+            # Find nearest preceding [H] header up to the display index (or last if empty/finished)
+            header_for_current = None
+            current_header_step = -1
+            if total_steps > 0 and search_from >= 0:
+                for i in range(search_from, -1, -1):
+                    name = steps[i]
+                    if name.startswith("[H]"):
+                        # strip "[H]" and trailing index suffixes "_[n]" or "_n"
+                        name_clean = re.sub(r'^\[H\]\s*', '', name)
+                        name_clean = re.sub(r'_(?:\[\d+\]|\d+)$', '', name_clean)
+                        header_for_current = name_clean
+                        current_header_step = i
+                        break
+
+            return current_header_step, header_for_current, current_idx, total_steps, step_name, finished
+
         
         def _draw_texture(self, texture_path:str, size:Tuple[int,int]=(96,96), tint:Color=Color(255,255,255,255), border_col:Color=Color(0,0,0,0)):
             from .ImGui import ImGui
@@ -673,33 +704,32 @@ class BottingClass:
         def _draw_fsm_jump_button(self) -> None:
             if self._FSM_SELECTED_NAME_ORIG:
                 sel_num = self.parent.config.FSM.get_state_number_by_name(self._FSM_SELECTED_NAME_ORIG)
-                PyImGui.text(f"Selected: {self._FSM_SELECTED_NAME_ORIG}  (#{sel_num-1 if sel_num is not None else 'N/A'})")
+                sel_str = f"{sel_num-1}" if isinstance(sel_num, int) else "N/A"
+                PyImGui.text(f"Selected: {self._FSM_SELECTED_NAME_ORIG}  (#{sel_str})")
             else:
                 PyImGui.text("Selected: (none)")
 
             if PyImGui.button("Jump to Selected") and self._FSM_SELECTED_NAME_ORIG:
                 self.parent.config.fsm_running = True
                 self.parent.config.FSM.reset()
-                self.parent.config.FSM.jump_to_state_by_name(self._FSM_SELECTED_NAME_ORIG)  # ORIGINAL name
+                self.parent.config.FSM.jump_to_state_by_name(self._FSM_SELECTED_NAME_ORIG)
+
                 
         def _draw_step_range_inputs(self):
-            """
-            Renders InputInt for [start_step, end_step], clamps to valid bounds.
-            Updates globals _FSM_FILTER_START/_FSM_FILTER_END.
-            Uses the correct input_int signature returning a single int.
-            """
             steps = self.parent.config.FSM.get_state_names()
-            last_index = max(0, len(steps) - 1)
+            if not steps:
+                self._FSM_FILTER_START = 0
+                self._FSM_FILTER_END = 0
+                PyImGui.text("No steps.")
+                return
 
-            # initialize end to last step on first run
+            last_index = len(steps) - 1
             if self._FSM_FILTER_END == 0 and last_index > 0:
                 self._FSM_FILTER_END = last_index
 
-            # input_int returns an int; we clamp after reading
             self._FSM_FILTER_START = PyImGui.input_int("Start Step", self._FSM_FILTER_START)
             self._FSM_FILTER_END   = PyImGui.input_int("End Step",   self._FSM_FILTER_END)
 
-            # clamp & order
             self._FSM_FILTER_START = max(0, min(self._FSM_FILTER_START, last_index))
             self._FSM_FILTER_END   = max(0, min(self._FSM_FILTER_END,   last_index))
             if self._FSM_FILTER_START > self._FSM_FILTER_END:
@@ -711,6 +741,7 @@ class BottingClass:
                 self._FSM_FILTER_END   = last_index
 
             PyImGui.text(f"Showing steps [{self._FSM_FILTER_START} … {self._FSM_FILTER_END}] of 0…{last_index}")
+
 
 
         def _get_fsm_sections(self):
@@ -814,7 +845,7 @@ class BottingClass:
             from .Py4GWcorelib import ConsoleLog, Console
             from .GlobalCache import GLOBAL_CACHE
             
-            current_header_step, header_for_current , current_step, total_steps, step_name = self._find_current_header_step()
+            current_header_step, header_for_current , current_step, total_steps, step_name, finished = self._find_current_header_step()
             if PyImGui.begin(self.parent.config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
                 if PyImGui.begin_tab_bar(self.parent.config.bot_name + "_tabs"):
                     if PyImGui.begin_tab_item("Main"):
@@ -835,9 +866,20 @@ class BottingClass:
                                 ImGui.pop_font()
                         
                                 ImGui.push_font("Bold", 18)
-                                PyImGui.text(f"[{current_header_step}] {header_for_current or 'Not started'}")
+                                PyImGui.text(f"[{max(current_header_step, 0)}] {header_for_current or 'Not started'}")
                                 ImGui.pop_font()
-                                PyImGui.text(f"Step: {current_step}/{max(total_steps-1,0)} - {step_name}")
+                                if total_steps <= 0:
+                                    PyImGui.text("Step: —/— - (No steps)")
+                                else:
+                                    # When finished we show the last index and mark it as Finished
+                                    if finished:
+                                        PyImGui.text(f"Step: {total_steps-1}/{total_steps-1} - (Finished)")
+                                    else:
+                                        PyImGui.text(f"Step: {current_step}/{max(total_steps-1, 0)} - {step_name or '(…?)'}")
+
+                                # Status line
+                                if not self.parent.config.fsm_running and finished:
+                                    self.parent.config.state_description = "Finished"
                                 PyImGui.text(f"Status: {self.parent.config.state_description}")
     
                                 PyImGui.end_table()
@@ -864,9 +906,13 @@ class BottingClass:
 
                                 
                             if total_steps > 1:
-                                fraction = current_step / float(total_steps - 1)
+                                fraction = (total_steps - 1) and (current_step / float(total_steps - 1)) or 0.0
                             else:
-                                fraction = 0.0
+                                fraction = 1.0 if finished and total_steps == 1 else 0.0
+                            if finished and total_steps > 0:
+                                fraction = 1.0
+                            fraction = max(0.0, min(1.0, fraction))
+
                                 
                             PyImGui.text("Overall Progress")
                             PyImGui.push_item_width(main_child_dimensions[0] - 10)

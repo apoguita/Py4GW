@@ -53,19 +53,33 @@ class Agents:
         return Agents.GetNearestNPCXY(player_pos[0], player_pos[1], distance)
     
     @staticmethod
-    def GetAgentIDByModelID(model_id:int):
+    def GetAgentIDByModelID(model_id: int) -> int:
         """
-        Purpose: Get the agent ID by model ID.
+        Purpose: Get the closest agent ID with the given model ID (closest to the player).
         Args:
             model_id (int): The model ID of the agent.
-        Returns: int: The agent ID or 0 if not found.
+        Returns:
+            int: The closest matching agent ID, or 0 if none found.
         """
         from ..GlobalCache import GLOBAL_CACHE
+        from ..Py4GWcorelib import Utils
+
         agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+        px, py = GLOBAL_CACHE.Player.GetXY()
+
+        best_id = 0
+        best_dist = float("inf")
+
         for agent_id in agent_ids:
             if GLOBAL_CACHE.Agent.GetModelID(agent_id) == model_id:
-                return agent_id
-        return 0
+                ax, ay = GLOBAL_CACHE.Agent.GetXY(agent_id)
+                d = Utils.Distance((px, py), (ax, ay))
+                if d < best_dist:
+                    best_dist = d
+                    best_id = agent_id
+
+        return best_id
+
         
     @staticmethod
     def GetFilteredEnemyArray(x, y, max_distance=4500.0, aggressive_only = False):

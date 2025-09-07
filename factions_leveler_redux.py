@@ -81,17 +81,17 @@ def on_party_wipe(bot: "Botting"):
     current_step = fsm.get_current_state_number()
 
     # Your distinct waypoints (as given)
-    ENTER_MINISTER_CHO_MISSION = 70
-    FIRST_ATTRIBUTE_MISSION = 114
-    TAKE_WARNING_THE_TENGU_QUEST = 149
-    EXIT_TO_PANJIANG_PENINSULA = 226
-    ADVANCE_SHAOSHANG_TRAIL = 264
-    RESTART_FROM_SEITUNG_HARBOR = 323
-    ENTER_ZEN_DAIJUN_MISSION = 350
-    SECOND_ATTRIBUTE_MISSION = 406
-    ADVANCE_TO_KAINENG_CENTER = 582
-    ADVANCE_TO_EOTN = 610
-    EXIT_BOREAL_STATION = 674
+    ENTER_MINISTER_CHO_MISSION = 82
+    FIRST_ATTRIBUTE_MISSION = 126
+    TAKE_WARNING_THE_TENGU_QUEST = 161
+    EXIT_TO_PANJIANG_PENINSULA = 238
+    ADVANCE_SHAOSHANG_TRAIL = 276
+    RESTART_FROM_SEITUNG_HARBOR = 335
+    ENTER_ZEN_DAIJUN_MISSION = 362
+    SECOND_ATTRIBUTE_MISSION = 418
+    ADVANCE_TO_KAINENG_CENTER = 635
+    ADVANCE_TO_EOTN = 663
+    EXIT_BOREAL_STATION = 727
 
     waypoints = [
         ENTER_MINISTER_CHO_MISSION,
@@ -146,8 +146,26 @@ def EquipSkillBar():
     global bot
 
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Warrior":
-        yield from bot.helpers._load_skillbar("OQISYxcGKG2+GAAAA0WA")
+        if level <= 3: #10 attribute points available
+            yield from bot.helpers._load_skillbar("OQIRkpQxw23AAAAg2CA")
+        elif level <= 4: #15 attribute points available
+            yield from bot.helpers._load_skillbar("OQIRkrQxw23AAAAg2CA")
+        elif level <= 5: #20 attribute points available
+            yield from bot.helpers._load_skillbar("OQIUEDrgjcFKG2+GAAAA0WAA")
+        elif level <= 6: #25 attribute points available
+            yield from bot.helpers._load_skillbar("OQITEDsktQxw23AAAAg2CAA")
+        elif level <= 7: #45 attribute points available (including 15 attribute points from quests)
+            yield from bot.helpers._load_skillbar("OQIUED7gjMGKG2+GAAAA0WAA")
+        elif level <= 8: #50 attribute points available
+            yield from bot.helpers._load_skillbar("OQITYDckzQxw23AAAAg2CAA")
+        elif level <= 9: #55 attribute points available
+            yield from bot.helpers._load_skillbar("OQITYHckzQxw23AAAAg2CAA")
+        elif level <= 10: #55 attribute points available
+            yield from bot.helpers._load_skillbar("OQIUEDLhjcGKG2+GAAAA0WAA")
+        else: #20 attribute points available
+            yield from bot.helpers._load_skillbar("OQISYxcGKG2+GAAAA0WA")
     elif profession == "Ranger":
         yield from bot.helpers._load_skillbar("OggjYZZIYMKG1pvBAAAAA0GBAA")
     elif profession == "Monk":
@@ -475,7 +493,7 @@ def CapturePet(bot: Botting) -> None:
     bot.Movement.MoveTo(13970.94, -13085.83)
     bot.Targeting.TargetModel(2954) #Tiger
     bot.SkillBar.UseSkill(411) #Capture Pet
-    bot.Wait.WasteTime(20000)
+    bot.Wait.WasteTime(22000)
     
     if primary == "Ranger":
         RqangerGetSkills(bot)
@@ -562,7 +580,7 @@ def ExitToPanjiangPeninsula(bot: Botting):
 
 def TheThreatGrows(bot: Botting):
     bot.States.AddHeaderStep("The Threat Grows")
-    bot.Movement.MoveTo(9700, 7250, "Move to The Threat Grows Killspot")
+    bot.Movement.MoveTo(9793.73, 7470.04, "Move to The Threat Grows Killspot")
     SISTER_TAI_MODEL_ID = 3316
     wait_function = lambda: (
         not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
@@ -762,9 +780,10 @@ def AttributePointQuest2(bot: Botting):
     enable_combat_and_wait(5000)
     bot.Properties.enable("auto_combat")
     
-    bot.Movement.MoveTo(-11296.89, -5229.18)
-    bot.Interact.InteractGadgetAt(-11344.00, -5432.00)
-    bot.Movement.MoveTo(-7157.24, -1685.22)
+    #bot.Movement.MoveTo(-11296.89, -5229.18)
+    #bot.Interact.InteractGadgetAt(-11344.00, -5432.00)
+    bot.Movement.MoveTo(-8655.04, -769.98)
+    bot.Movement.MoveTo(-7453.22, -1483.71)
     wait_function = lambda: (
         not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)))
     bot.Wait.WasteTimeUntilConditionMet(wait_function)
