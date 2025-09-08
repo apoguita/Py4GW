@@ -865,7 +865,7 @@ def _draw_texture():
     global iconwidth
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
 
-    path = "factions_leveler_art.png"
+    path = "Widgets\\Config\\textures\\factions_leveler_art.png"
     size = (float(iconwidth), float(iconwidth))
     tint = (255, 255, 255, 255)
     border_col = (0, 0, 0, 0)  # <- ints, not normalized floats
@@ -888,9 +888,65 @@ def _draw_texture():
                                   tint=tint, border_color=border_col)
 
 
-bot.SetMainRoutine(create_bot_routine)
-bot.UI.override_draw_texture(_draw_texture)
+def _draw_settings(bot: Botting):
+    import PyImGui
+    PyImGui.text("Bot Settings")
+    use_birthday_cupcake = bot.Properties.Get("birthday_cupcake", "active")
+    bc_restock_qty = bot.Properties.Get("birthday_cupcake", "restock_quantity")
 
+    use_honeycomb = bot.Properties.Get("honeycomb", "active")
+    hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
+
+    use_birthday_cupcake = PyImGui.checkbox("Use Birthday Cupcake", use_birthday_cupcake)
+    bc_restock_qty = PyImGui.input_int("Birthday Cupcake Restock Quantity", bc_restock_qty)
+
+    use_honeycomb = PyImGui.checkbox("Use Honeycomb", use_honeycomb)
+    hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
+
+    bot.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
+    bot.Properties.ApplyNow("birthday_cupcake", "restock_quantity", bc_restock_qty)
+    bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
+    bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
+    
+def _draw_help():
+    import PyImGui
+
+    PyImGui.text("Bot Help")
+    PyImGui.separator()
+
+    PyImGui.text_wrapped("This bot will take your character from FACTIONS from level 1 to 10 by skipping most of the starter zone.")
+    PyImGui.text_wrapped("It only completes the quests needed to hit level 10 as quickly as possible.")
+    PyImGui.text_wrapped("It includes both Attribute Point Quests.")
+
+    PyImGui.separator()
+    PyImGui.text_wrapped("Because of the rushed nature of the run, you'll be fighting enemies that are much more stronger than you and your party.")
+    PyImGui.text_colored("Tip: Use Birthday Cupcakes and Honeycombs to boost your survivability!", (255, 200, 0, 255))
+
+    PyImGui.separator()
+    PyImGui.text_wrapped("This script is completely standalone — no other bots are required.")
+    PyImGui.text_wrapped("Make sure your Hero AI is turned OFF before you start.")
+
+    PyImGui.separator()
+    PyImGui.text_wrapped("Looting is disabled: the bot will NOT pick up any items.")
+    PyImGui.text_wrapped("The entire focus is leveling speed.")
+
+    PyImGui.separator()
+    PyImGui.text_wrapped("You can restart the bot at any time - whether after an error or resuming from a previous session.")
+    PyImGui.text_wrapped("Just be sure you are standing in the correct map before restarting at the matching step.")
+
+
+
+bot.SetMainRoutine(create_bot_routine)
+bot.UI.override_draw_texture(lambda: _draw_texture())
+bot.UI.override_draw_config(lambda: _draw_settings(bot))
+bot.UI.override_draw_help(lambda: _draw_help())
+
+
+def configure():
+    global bot
+    bot.UI.draw_configure_window()
+    
+    
 def main():
     global bot
 

@@ -679,6 +679,9 @@ class BottingClass:
             self._config = parent.config
             self._helpers = parent.helpers
             self.draw_texture_fn: Optional[Callable[[], None]] = None
+            self.draw_config_fn: Optional[Callable[[], None]] = None
+            self.draw_help_fn: Optional[Callable[[], None]] = None
+            
             self._FSM_SELECTED_NAME_ORIG: str | None = None   # selection persists across frames
             self._FSM_FILTER_START: int = 0
             self._FSM_FILTER_END: int = 0
@@ -778,6 +781,20 @@ class BottingClass:
             If draw_fn is None, resets to default drawing behavior.
             """
             self.draw_texture_fn = draw_fn
+            
+        def override_draw_config(self, draw_fn: Optional[Callable[[], None]] = None) -> None:
+            """
+            Override the config drawing function.
+            If draw_fn is None, resets to default drawing behavior.
+            """
+            self.draw_config_fn = draw_fn
+            
+        def override_draw_help(self, draw_fn: Optional[Callable[[], None]] = None) -> None:
+            """
+            Override the help drawing function.
+            If draw_fn is None, resets to default drawing behavior.
+            """
+            self.draw_help_fn = draw_fn
             
         def _draw_fsm_jump_button(self) -> None:
             if self._FSM_SELECTED_NAME_ORIG:
@@ -1001,24 +1018,35 @@ class BottingClass:
             PyImGui.pop_item_width()
 
         def _draw_settings_child(self):
+            if self.draw_config_fn:
+                self.draw_config_fn()
+                return 
+            
             PyImGui.text("Bot Settings")
-            use_birthday_cupcake = self.parent.Properties.Get("birthday_cupcake", "active")
-            bc_restock_qty = self.parent.Properties.Get("birthday_cupcake", "restock_quantity")
+            PyImGui.separator()
+            PyImGui.text("override this function to provide custom settings")
+            PyImGui.text("use bot.Override_settings to set a custom settings function")
+            PyImGui.separator()
 
-            use_honeycomb = self.parent.Properties.Get("honeycomb", "active")
-            hc_restock_qty = self.parent.Properties.Get("honeycomb", "restock_quantity")
+        def _draw_help_child(self):
+            if self.draw_help_fn:
+                self.draw_help_fn()
+                return
+            
+            PyImGui.text("Bot Help")
+            PyImGui.separator()
+            PyImGui.text("override this function to provide custom help info")
+            PyImGui.text("use bot.Override_help to set a custom help function")
+            PyImGui.separator()
+          
+        def draw_configure_window(self):
+            from .ImGui import ImGui
+            from .IconsFontAwesome5 import IconsFontAwesome5
 
-            use_birthday_cupcake = PyImGui.checkbox("Use Birthday Cupcake", use_birthday_cupcake)
-            bc_restock_qty = PyImGui.input_int("Birthday Cupcake Restock Quantity", bc_restock_qty)
-
-            use_honeycomb = PyImGui.checkbox("Use Honeycomb", use_honeycomb)
-            hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
-
-            self.parent.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
-            self.parent.Properties.ApplyNow("birthday_cupcake", "restock_quantity", bc_restock_qty)
-            self.parent.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
-            self.parent.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
-
+            if PyImGui.begin("Bot Configuration", PyImGui.WindowFlags.AlwaysAutoResize):
+                self._draw_settings_child()    
+                PyImGui.end()  
+            
         def draw_window(self, main_child_dimensions: Tuple[int, int]  = (350, 275), icon_path:str = "",iconwidth: int = 96):
 
             if PyImGui.begin(self._config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
@@ -1038,6 +1066,10 @@ class BottingClass:
 
                     if PyImGui.begin_tab_item("Settings"):
                         self._draw_settings_child()
+                        PyImGui.end_tab_item()
+                        
+                    if PyImGui.begin_tab_item("Help"):
+                        self._draw_help_child()
                         PyImGui.end_tab_item()
 
                     if PyImGui.begin_tab_item("Debug"):
