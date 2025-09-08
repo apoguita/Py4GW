@@ -45,6 +45,9 @@ class SpiritLightUtility(CustomSkillUtilityBase):
         is_spirit_exist:bool = custom_behavior_helpers.Resources.is_spirit_exist(within_range=Range.Earshot)
         # todo we could move close to it
 
+        if not is_spirit_exist and not custom_behavior_helpers.Resources.player_can_sacrifice_health(17):
+            return None
+
         if targets[0].hp < 0.85 and is_spirit_exist:
             return self.score_definition.get_score(HealingScore.MEMBER_DAMAGED)
         if targets[0].hp < 0.40:
