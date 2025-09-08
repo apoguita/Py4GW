@@ -3,7 +3,7 @@ from Py4GWCoreLib import *
 
 jotun = [6480, 6481, 6482, 6483]
 modniir = [6475, 6476, 6473]
-frozen_elementals = [6478]
+elementals = [6478, 331]
 mandragor = [4400, 4930, 4396, 4402, 4932, 4401, 4931, 4307, 4306, 6658, 6657]
 wurms = [1802, 4323, 7326, 6491, 2547] 
 mountain_pinesoul = [6488]
@@ -23,13 +23,14 @@ bison = [6487]
 thumbled_elementalist = [6678]
 charr_axemaster = [6627]
 thundra_giant = [2530] # special case, uses ranged attach but is a warrior
+hydra = [1796, 2438]
 
 #== variable for scan throttle ==
 scan_throttle_ms = 0.1
 danger_check_cooldown = 0.1
 spell_caster_check_cooldown = 1
 #== variables for anti cripple/kd danger check ==
-cripple_kd_models = set(jotun + modniir + frozen_elementals + mandragor + wurms + mountain_pinesoul + skeletons + zombie + enchanted + quetzal + stone_summit_scout + minotaur + summit_giant + skree + spiders + roots + gouls + azura + thumbled_elementalist + bison + charr_axemaster)
+cripple_kd_models = set(jotun + modniir + elementals + mandragor + wurms + mountain_pinesoul + skeletons + zombie + enchanted + quetzal + stone_summit_scout + minotaur + summit_giant + skree + spiders + roots + gouls + azura + thumbled_elementalist + bison + charr_axemaster)
 tundra_giant_ids = set(thundra_giant)
 last_cripple_kd_check = 0
 last_cripple_kd_scan_time = 0
@@ -40,53 +41,36 @@ last_scan_time_spellcaster = 0
 prev_pos = None
 last_move_time = time.time()
 
-# Initialize FSM runner
+CATEGORY_TABLE = (
+    (jotun, "Jotun"),
+    (modniir, "Modniir"),
+    (elementals, "Elemental"),
+    (mandragor, "Mandragor"),
+    (wurms, "Wurm"),
+    (mountain_pinesoul, "Mountain Pinesouls"),
+    (enchanted, "Enchanted sword or axe"),
+    (skeletons, "Skeletons"),
+    (zombie, "Zombie Brute"),
+    (quetzal, "Quetzal Stark"),
+    (minotaur, "Minotuar"),
+    (stone_summit_scout, "Stone Summit Scout"),
+    (summit_giant, "Summit Giants"),
+    (skree, "Skree"),
+    (spiders, "Spiders"),
+    (roots, "Roots"),
+    (gouls, "Gouls"),
+    (azura, "Azura"),
+    (bison, "Thumbled Elementalist"),
+    (thumbled_elementalist, "Bison"),
+    (charr_axemaster, "Charr Axemaster"),
+    (thundra_giant, "Tundra Giant"), # special case, uses ranged attach but is a warrior
+    (hydra, "Hydra")
+)
 
-
-def get_cripple_kd_enemies(model_id):
-    """Return the category name based on which list contains the model_id."""
-    if model_id in jotun:
-        return "Jotun"
-    elif model_id in modniir:
-        return "Modniir"
-    elif model_id in frozen_elementals:
-        return "Frozen Elemental"
-    elif model_id in mandragor:
-        return "Mandragor"
-    elif model_id in wurms:
-        return "Wurm"
-    elif model_id in mountain_pinesoul:
-        return "Mountain Pinesouls"
-    elif model_id in enchanted:
-        return "Enchanted sword or axe"
-    elif model_id in skeletons:
-        return "Skeletons"
-    elif model_id in zombie:
-        return "Zombie Brute"
-    elif model_id in quetzal:
-        return "Quetzal Stark"
-    elif model_id in minotaur:
-        return "Minotuar"
-    elif model_id in stone_summit_scout:
-        return "Stone Summit Scout"
-    elif model_id in summit_giant:
-        return "Summit Giants"
-    elif model_id in skree:
-        return "Skree"
-    elif model_id in spiders:
-        return "Spiders"
-    elif model_id in roots:
-        return "Roots"
-    elif model_id in gouls:
-        return "Gouls"
-    elif model_id in azura:
-        return "Azura"
-    elif model_id in thumbled_elementalist:
-        return "Thumbled Elementalist"
-    elif model_id in bison:
-        return "Bison"
-    elif model_id in charr_axemaster:
-        return "Charr Axemaster"
+def EnemyCategoryFromModelID(model_id):
+    for category, name in CATEGORY_TABLE:
+        if model_id in category:
+            return name
     return "Unknown"
 
 def CheckCrippleKDanger(x, y):
@@ -111,7 +95,7 @@ def CheckCrippleKDanger(x, y):
     for enemy_id in close_enemies:
         model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
         if model_id in cripple_kd_models:
-            enemy_category = get_cripple_kd_enemies(model_id)
+            enemy_category = EnemyCategoryFromModelID(model_id)
             Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, f"Cripple/KD danger - {enemy_category} spotted!")
             last_cripple_kd_check = now
             return True
@@ -119,7 +103,7 @@ def CheckCrippleKDanger(x, y):
     for enemy_id in far_enemies:
         model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
         if model_id in tundra_giant_ids:
-            enemy_category = get_cripple_kd_enemies(model_id)
+            enemy_category = EnemyCategoryFromModelID(model_id)
             Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, f"Cripple/KD danger - {enemy_category} spotted!")
             last_cripple_kd_check = now
             return True

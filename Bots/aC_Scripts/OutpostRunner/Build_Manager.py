@@ -1,9 +1,5 @@
 import math
-from Py4GWCoreLib import Profession
-from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import Routines, DXOverlay
-from Py4GWCoreLib import ConsoleLog, Console
-from Py4GWCoreLib import Overlay, Player, GLOBAL_CACHE, Routines
+from Py4GWCoreLib import ConsoleLog, Console, Overlay, Player, GLOBAL_CACHE, Profession, Routines, DXOverlay
 from OutpostRunner.Build_Manager_Addon import CheckCrippleKDanger, CheckSpellcasterDanger, BodyBlockDetection
 dx = DXOverlay()
 ShowDXoverlay = False
@@ -169,7 +165,26 @@ class OutpostRunnerDA(Build):
         if (yield from Routines.Yield.Skills.CastSkillID(self.deaths_charge, aftercast_delay=1000)):
             yield from Routines.Yield.wait(1000)
 
+    @staticmethod
+    def CanUsePiousHaste(self):
+        player_id = GLOBAL_CACHE.Player.GetAgentID()
+        if Routines.Checks.Effects.HasBuff(player_id, self.pious_haste) or not Routines.Checks.Skills.IsSkillIDReady(self.pious_haste):
+            return False
 
+        #dont cast pious if we're about to cast shadow form
+        if Routines.Checks.Effects.HasBuff(player_id, self.shadow_form) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_id, self.shadow_form) <= 3000:
+            return False
+
+        #castable if we already have zealous renewal
+        if Routines.Checks.Effects.HasBuff(player_id, self.zealous_renewal):
+            return True
+
+        #cast if we have enough energy
+        if Routines.Checks.Skills.IsSkillIDReady(self.zealous_renewal):
+            max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(player_id)
+            return GLOBAL_CACHE.Agent.GetEnergy(player_id) * max_energy > 10
+
+        return False
 
     def ProcessSkillCasting(self, fsm_helpers):
         while True:
@@ -191,7 +206,6 @@ class OutpostRunnerDA(Build):
             shadow_time = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_id, self.shadow_form) if has_shadow_form else 0
             has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_id, self.deadly_paradox)
             has_shroud = Routines.Checks.Effects.HasBuff(player_id, self.shroud_of_distress)
-            has_pious = Routines.Checks.Effects.HasBuff(player_id, self.pious_haste)
             has_dwarven = Routines.Checks.Effects.HasBuff(player_id, self.dwarven_stability)
             has_iau = Routines.Checks.Effects.HasBuff(player_id, self.i_am_unstoppable)
             hp = GLOBAL_CACHE.Agent.GetHealth(player_id)
@@ -235,32 +249,32 @@ class OutpostRunnerDA(Build):
                     yield from Routines.Yield.wait(aftercast)
                     continue #nothing else to do this loop
 
-            both_ready = Routines.Checks.Skills.IsSkillIDReady(self.zealous_renewal) and Routines.Checks.Skills.IsSkillIDReady(self.pious_haste)
-
-            if not has_pious and both_ready:
+            if self.CanUsePiousHaste(self):
                 # Zealous Renewal → Pious Haste combo
-                aftercast = 200 #its instant but we need time
+                aftercast = 200 #it's instant but we need time
                 if (yield from Routines.Yield.Skills.CastSkillID(self.zealous_renewal, aftercast_delay=aftercast)):
                     yield from Routines.Yield.wait(aftercast)
                 # Immediately follow with Pious Haste
-                aftercast = 200 #its instant but we need time
+                aftercast = 200 #it's instant but we need time
                 if (yield from Routines.Yield.Skills.CastSkillID(self.pious_haste, aftercast_delay=aftercast)):
                     yield from Routines.Yield.wait(aftercast)
                     continue
+
             # === 5. SMART ANTI CRIPPLE AND KD ===
             if not has_iau:
                 player_id = GLOBAL_CACHE.Player.GetAgentID()
                 player_pos = GLOBAL_CACHE.Player.GetXY()
                 px, py = player_pos[0], player_pos[1]
-                if CheckCrippleKDanger(px, py):
+                if GLOBAL_CACHE.Agent.IsCrippled(player_id) or CheckCrippleKDanger(px, py):
                     aftercast = 200
                     if (yield from Routines.Yield.Skills.CastSkillID(self.i_am_unstoppable, aftercast_delay=aftercast)):
                         yield from Routines.Yield.wait(aftercast)
                         continue
+
             # === 6. SMART ANTI Bodyblock ===
             if not FREESTYLE_MODE:  
                 if BodyBlockDetection(seconds=1.0):
                     yield from self.DeathsChargeToBestEnemie(fsm_helpers)
-            
+
             # === IDLE WAIT ===
             yield from Routines.Yield.wait(150)
