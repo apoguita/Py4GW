@@ -68,7 +68,7 @@ class SplitTexture:
         w, h = size
         return x0 / w, y0 / h, x1 / w, y1 / h
 
-    def draw_in_drawlist(self, x: float, y: float, size: tuple[float, float], tint=(255, 255, 255, 255)):
+    def draw_in_drawlist(self, x: float, y: float, size: tuple[float, float], tint=(255, 255, 255, 255), state: TextureState = TextureState.Normal):
         # Draw left part
         ImGui.DrawTextureInDrawList(
             pos=(x, y),
@@ -338,6 +338,27 @@ class GameTextures(Enum):
     
     Combo = SplitTexture(
         texture = os.path.join(TEXTURE_FOLDER, "ui_combo.png"),
+        texture_size=(128, 32),
+        left=(1, 4, 14, 27),
+        mid=(15, 4, 92, 27),
+        right=(93, 4, 126, 27),   
+    )
+    Combo_Arrow = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_combo_arrow.png"),
+        texture_size=(128, 32),
+        left=(1, 4, 14, 27),
+        mid=(15, 4, 92, 27),
+        right=(93, 4, 126, 27),   
+    )
+    Combo_Background = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_combo_background.png"),
+        texture_size=(128, 32),
+        left=(1, 4, 14, 27),
+        mid=(15, 4, 92, 27),
+        right=(93, 4, 126, 27),   
+    )
+    Combo_Frame = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_combo_frame.png"),
         texture_size=(128, 32),
         left=(1, 4, 14, 27),
         mid=(15, 4, 92, 27),
@@ -909,7 +930,7 @@ class Style:
         self.PlotHistogram = Style.StyleColor(self, 102, 99, 96, 160, PyImGui.ImGuiCol.PlotHistogram)
         self.PlotHistogramHovered = Style.StyleColor(self, 64, 255, 0, 255, PyImGui.ImGuiCol.PlotHistogramHovered)
         # self.ModalWindowDarkening = Style.StyleColor(self, 255, 250, 242, 186, PyImGui.ImGuiCol.ModalWindowDarkening)
-
+        
         self.PrimaryButton = Style.CustomColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button)
         self.PrimaryButtonHovered = Style.CustomColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered)
         self.PrimaryButtonActive = Style.CustomColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive)
@@ -930,10 +951,28 @@ class Style:
         self.TextTreeNode = Style.CustomColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text)
         self.TextObjectiveCompleted = Style.CustomColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text)
         self.Hyperlink = Style.CustomColor(self, 102, 187, 238, 255, PyImGui.ImGuiCol.Text)
+        
+        self.ComboTextureBackground = Style.CustomColor(self, 26, 23, 30, 255)
+        self.ComboTextureBackgroundHovered = Style.CustomColor(self, 61, 59, 74, 255)
+        self.ComboTextureBackgroundActive = Style.CustomColor(self, 143, 143, 148, 255)
+
+        self.ButtonTextureBackground = Style.CustomColor(self, 26, 23, 30, 255)
+        self.ButtonTextureBackgroundHovered = Style.CustomColor(self, 61, 59, 74, 255)
+        self.ButtonTextureBackgroundActive = Style.CustomColor(self, 143, 143, 148, 255)
+        self.ButtonTextureBackgroundDisabled = Style.CustomColor(self, 143, 143, 148, 255)
 
         attributes = {name: getattr(self, name) for name in dir(self)}
         self.Colors : dict[str, Style.StyleColor] = {name: attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleColor)}
-        self.CustomColors : dict[str, Style.CustomColor] = {name: attributes[name] for name in attributes if isinstance(attributes[name], Style.CustomColor)}
+        self.TextureColors : dict[str, Style.CustomColor] = {
+            "ComboTextureBackground" : self.ComboTextureBackground,
+            "ComboTextureBackgroundHovered" : self.ComboTextureBackgroundHovered,
+            "ComboTextureBackgroundActive" : self.ComboTextureBackgroundActive,
+            "ButtonTextureBackground" : self.ButtonTextureBackground,
+            "ButtonTextureBackgroundHovered" : self.ButtonTextureBackgroundHovered,
+            "ButtonTextureBackgroundActive" : self.ButtonTextureBackgroundActive,
+            "ButtonTextureBackgroundDisabled" : self.ButtonTextureBackgroundDisabled,
+        }
+        self.CustomColors : dict[str, Style.CustomColor] = {name: attributes[name] for name in attributes if isinstance(attributes[name], Style.CustomColor) and name not in self.TextureColors}
         self.StyleVars : dict[str, Style.StyleVar] = {name: attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleVar)}
         
     def copy(self):
@@ -951,6 +990,11 @@ class Style:
             if isinstance(attribute, Style.CustomColor):
                 attribute.set_rgb_color(c.r, c.g, c.b, c.a)
 
+        for color_name, c in self.TextureColors.items():
+            attribute = getattr(style, color_name)
+            if isinstance(attribute, Style.CustomColor):
+                attribute.set_rgb_color(c.r, c.g, c.b, c.a)
+                
         for var_name, v in self.StyleVars.items():
             attribute = getattr(style, var_name)
             if isinstance(attribute, Style.StyleVar):
@@ -994,6 +1038,7 @@ class Style:
             "Theme": self.Theme.name,
             "Colors": {k: c.to_json() for k, c in self.Colors.items()},
             "CustomColors": {k: c.to_json() for k, c in self.CustomColors.items()},
+            "TextureColors": {k: c.to_json() for k, c in self.TextureColors.items()},
             "StyleVars": {k: v.to_json() for k, v in self.StyleVars.items()}
         }
 
@@ -1039,6 +1084,11 @@ class Style:
             if isinstance(attribute, cls.CustomColor):
                 attribute.from_json(color_data)
 
+        for color_name, color_data in style_data.get("TextureColors", {}).items():
+            attribute = getattr(style, color_name)
+            if isinstance(attribute, cls.CustomColor):
+                attribute.from_json(color_data)
+                
         for var_name, var_data in style_data.get("StyleVars", {}).items():
             attribute = getattr(style, var_name)
             if isinstance(attribute, cls.StyleVar):
@@ -3084,7 +3134,7 @@ class ImGui:
                     (width, height),
                     tint
                 )
-
+                
                 
                 text_size = PyImGui.calc_text_size(items[index])
                 text_x = item_rect[0] + 10
