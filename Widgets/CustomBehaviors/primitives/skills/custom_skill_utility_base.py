@@ -72,7 +72,7 @@ class CustomSkillUtilityBase:
         return score
 
     def execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
-        print(f"Executing {self.custom_skill.skill_name}")
+        if DEBUG: print(f"Executing {self.custom_skill.skill_name}")
         gen:Generator[Any | None, Any | None, BehaviorResult] = self._execute(state)
         result:BehaviorResult = yield from gen
         return result

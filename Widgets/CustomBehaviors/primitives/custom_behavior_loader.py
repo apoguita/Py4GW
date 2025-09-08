@@ -114,8 +114,7 @@ class CustomBehaviorLoader:
                     subclasses.append(obj)
                     break
 
-        if DEBUG:
-            print(f"Total subclasses found: {len(subclasses)}")
+        if DEBUG: print(f"Total subclasses found: {len(subclasses)}")
 
         return subclasses
 
@@ -129,9 +128,9 @@ class CustomBehaviorLoader:
             instance: CustomBehaviorBaseUtility = subclass()
 
             build_size = len(instance.skills_required_in_behavior)
-            print(f"build_size: {build_size}")
+            if DEBUG: print(f"build_size: {build_size}")
             matching_count = instance.count_matches_between_custom_behavior_and_in_game_build()
-            print(f"matching_count: {matching_count}")
+            if DEBUG: print(f"matching_count: {matching_count}")
             
             if matching_count == build_size:
                 if DEBUG: print(f"Found custom behavior: {subclass.__name__} (defined in {subclass.__module__})")
