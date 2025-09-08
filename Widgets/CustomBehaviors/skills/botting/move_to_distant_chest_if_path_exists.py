@@ -1,4 +1,3 @@
-from turtle import position
 from typing import Any, Callable, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Utils
@@ -18,6 +17,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 import time
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
+from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
@@ -32,7 +32,8 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
             in_game_build=current_build, 
             score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value), 
             allowed_states=allowed_states,
-            utility_skill_typology=UtilitySkillTypology.BOTTING)
+            utility_skill_typology=UtilitySkillTypology.BOTTING,
+            execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BOTTING.value)
         self.throttle_timer = ThrottledTimer(5_000)
@@ -94,7 +95,7 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
 
         print(f"path found {path3d}")
 
-        if(self._get_path_distance(path_flatten) > 2000):
+        if(self._get_path_distance(path_flatten) > 2500):
             print(f"path too long... we don't want to move so far.")
             # todo we must give that chest another chance. but with a throttle
             self.throttle_timer.Reset()
