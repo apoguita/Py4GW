@@ -1,22 +1,18 @@
-from asyncio import wait_for
-import math
 import time
 from collections.abc import Generator
-from functools import reduce
-from typing import Any, Callable, List, Optional, Tuple
 from dataclasses import dataclass
+from functools import reduce
+from typing import Any, Callable, Optional, Tuple
 
 from HeroAI.cache_data import CacheData
-from HeroAI.windows import skill_slot
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
-from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
+from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
 cached_data = CacheData()
 
-from Py4GWCoreLib import GLOBAL_CACHE, Overlay, SkillBar, ActionQueueManager, Routines, ConsoleLog, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
+from Py4GWCoreLib import GLOBAL_CACHE, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
 from Widgets.CustomBehaviors.primitives.constants import DEBUG
 
 LOG_TO_CONSOLE:bool = True
@@ -189,16 +185,28 @@ class Resources:
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         current_heath_percent = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
         heath_max = GLOBAL_CACHE.Agent.GetMaxHealth(player_agent_id)
-        current_heath = current_heath_percent * heath_max
-        return current_heath
+        return current_heath_percent * heath_max
 
     @staticmethod
     def get_player_absolute_energy() -> float:
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         current_energy_percent = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id)
         energy_max = GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
-        current_energy = current_energy_percent * energy_max
-        return current_energy
+        return current_energy_percent * energy_max
+
+    @staticmethod
+    def player_can_sacrifice_health(
+        percentage_to_sacrifice: int,
+        min_health_percent_left = 0.3,
+        min_health_absolute_left = 175,
+    ) -> bool:
+        player_max_health = GLOBAL_CACHE.Agent.GetMaxHealth(GLOBAL_CACHE.Player.GetAgentID())
+        amount_we_will_sacrifice = player_max_health * percentage_to_sacrifice / 100
+        player_current_health = Resources.get_player_absolute_health()
+        health_after_sacrifice = player_current_health - amount_we_will_sacrifice
+
+        return (health_after_sacrifice > min_health_absolute_left
+                and health_after_sacrifice / player_max_health > min_health_percent_left)
 
     @staticmethod
     def is_spirit_exist(
@@ -255,15 +263,15 @@ class Actions:
         if target_id is None:
             target_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value)
 
-        if GLOBAL_CACHE.Agent.IsValid(target_id):
-            ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.ChangeTarget, target_id)
-            ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.Interact, target_id, False)
-            # GLOBAL_CACHE.Player.ChangeTarget(target_id)
+        if not GLOBAL_CACHE.Agent.IsValid(target_id):
+            return None
 
-            yield from Helpers.wait_for(100)
-            return BehaviorResult.ACTION_PERFORMED
-        # else:
-        # print(f"auto_attack target is not valid {target_id}")
+        ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.ChangeTarget, target_id)
+        ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.Interact, target_id, False)
+        # GLOBAL_CACHE.Player.ChangeTarget(target_id)
+
+        yield from Helpers.wait_for(100)
+        return BehaviorResult.ACTION_PERFORMED
 
     @staticmethod
     def cast_skill_to_lambda(skill: CustomSkill, select_target: Optional[Callable[[], int]]) -> Generator[Any, Any, BehaviorResult]:
