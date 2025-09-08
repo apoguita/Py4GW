@@ -184,6 +184,23 @@ class InventoryCache:
                     total_quantity += item.quantity
 
         return total_quantity
+    
+    def GetModelCountInEquipped(self, model_id: int) -> int:
+        """
+        Count items with the given model_id in the Equipped Items bag (bag id 22).
+        """
+        EQUIPPED_BAG_ID = Bag_enum.Equipped_Items.value  # Bag ID for Equipped Items
+        if model_id <= 0:
+            return 0
+
+        bags = self._raw_item_cache.get_bags([EQUIPPED_BAG_ID]) or []
+        total = 0
+        for bag in bags:
+            for item in bag.GetItems():
+                if item.model_id == model_id:
+                    total += int(getattr(item, "quantity", 1) or 1)
+        return total
+        return self.GetModelCountInBag(model_id, EQUIPPED_BAG_ID)
 
     def GetFirstIDKit(self) -> int:
         """
