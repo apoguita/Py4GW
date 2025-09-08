@@ -146,7 +146,7 @@ class RawItemCache:
         bag_instance.GetContext()
         return bag_instance
     
-    def get_bags(self, bag_list: List[int]):
+    def get_bags(self, bag_list: List[int]) -> List[PyInventory.Bag]:
         """
         Returns a list of Bag instances for the given bag enums.
         """

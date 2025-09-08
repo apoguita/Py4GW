@@ -733,6 +733,16 @@ class BottingHelpers:
             from ..Routines import Routines
             yield from Routines.Yield.Player.Resign()
             yield from Routines.Yield.wait(500)
+            
+        @_yield_step(label="SetHardMode", counter_key="SET_HARD_MODE")
+        def set_hard_mode(self, is_hard_mode: bool):
+            from ..GlobalCache import GLOBAL_CACHE
+            from ..Routines import Routines
+            if not is_hard_mode:
+                GLOBAL_CACHE.Party.SetNormalMode()
+            else:
+                GLOBAL_CACHE.Party.SetHardMode()
+            yield from Routines.Yield.wait(500)
 
     #region RESTOCK
     class _Restock:

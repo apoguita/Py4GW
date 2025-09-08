@@ -579,6 +579,9 @@ class BottingClass:
 
         def Resign(self):
             self._helpers.Party.resign()
+            
+        def SetHardMode(self, hard_mode: bool):
+            self._helpers.Party.set_hard_mode(hard_mode)
 
         def AddHenchman(self, henchman_id: int):
             self._helpers.Party.add_henchman(henchman_id)
