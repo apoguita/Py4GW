@@ -39,7 +39,7 @@ def render():
         # PyImGui.same_line(0, 10)
         PyImGui.text(f"Selected template : {CustomBehaviorLoader().custom_combat_behavior.__class__.__name__}")
         if CustomBehaviorLoader().custom_combat_behavior is not None:
-            PyImGui.text(f"IsExecutingUtilitySkills:{CustomBehaviorLoader().custom_combat_behavior.is_executing_utility_skills}")
+            PyImGui.text(f"IsExecutingUtilitySkills:{CustomBehaviorLoader().custom_combat_behavior.is_executing_utility_skills()}")
             PyImGui.text(f"Account state:{CustomBehaviorLoader().custom_combat_behavior.get_state()}")
             PyImGui.text(f"Final state:{CustomBehaviorLoader().custom_combat_behavior.get_final_state()}")
 
@@ -80,110 +80,99 @@ def render():
         PyImGui.same_line(0, -1)
         WITH_DETAIL = PyImGui.checkbox("with detail", WITH_DETAIL)
 
-        scores: list[tuple[CustomSkillUtilityBase, float | None]] = instance.get_all_scores()
-        if PyImGui.begin_table("skill", 2, int(PyImGui.TableFlags.SizingStretchProp)):
-            PyImGui.table_setup_column("A")
-            PyImGui.table_setup_column("B")
-            # PyImGui.table_headers_row()
+        if PyImGui.begin_child("x", size=(400, 600),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+            scores: list[tuple[CustomSkillUtilityBase, float | None]] = instance.get_all_scores()
+            if PyImGui.begin_table("skill", 2, int(PyImGui.TableFlags.SizingStretchProp)):
+                PyImGui.table_setup_column("A")
+                PyImGui.table_setup_column("B")
+                # PyImGui.table_headers_row()
 
-        for score in scores:
-            
-            def label_generic_utility(utility: CustomSkillUtilityBase) -> str:
-                if utility.__class__.__name__ == "HeroAiUtility":
-                    return f"{IconsFontAwesome5.ICON_GAMEPAD} "
-                return ""
-
-    
-            score_text = f"{score[1]:06.2f}" if score[1] is not None else "Ø"
-            texture_file = score[0].custom_skill.get_texture(py4gw_root_directory, project_root)
-            
-            PyImGui.table_next_row()
-            PyImGui.table_next_column()
-
-            if score[0].is_enabled and CustomBehaviorParty().get_typology_is_enabled(score[0].utility_skill_typology) and CustomBehaviorParty().get_party_is_enabled():
-                if score[0].utility_skill_typology == UtilitySkillTypology.FOLLOWING:
-                    PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.FOLLOWING_COLOR)
-                elif score[0].utility_skill_typology == UtilitySkillTypology.COMBAT:
-                    PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.COMBAT_COLOR)
-                elif score[0].utility_skill_typology == UtilitySkillTypology.BOTTING:
-                    PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.BOTTING_COLOR)
-                elif score[0].utility_skill_typology == UtilitySkillTypology.LOOTING:
-                    PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.LOOTING_COLOR)
-                elif score[0].utility_skill_typology == UtilitySkillTypology.CHESTING:
-                    PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.CHESTING_COLOR)
-                elif score[0].utility_skill_typology == UtilitySkillTypology.DEAMON:
-                    PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.DEAMON_COLOR)
-                else:
-                    PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 0)
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 255, 255, 200)))
-                    
-                if ImGui.ImageButton(f"{score[0].custom_skill.skill_name}", texture_file, 35, 35):
-                    score[0].is_enabled = False
-                    
-                PyImGui.pop_style_var(1)
-                PyImGui.pop_style_color(1)
+            for score in scores:
                 
-            else:
-                PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
-                if ImGui.ImageButton(f"{score[0].custom_skill.skill_name}", texture_file, 35,35):
-                    score[0].is_enabled = True
-                PyImGui.pop_style_var(1)
-                PyImGui.pop_style_color(1)
-                PyImGui.same_line(10, 0)
-                ImGui.DrawTexture(project_root + f"\\gui\\textures\\x.png", 20, 20)
+                def label_generic_utility(utility: CustomSkillUtilityBase) -> str:
+                    if utility.__class__.__name__ == "HeroAiUtility":
+                        return f"HeroAI: "
+                    return ""
 
-            # ImGui.DrawTexture(texture_file, 50, 50)
-            PyImGui.table_next_column()
-            
-            skill : CustomSkillUtilityBase = score[0]
-            PyImGui.text(f"{skill.custom_skill.skill_name} - Slot:{skill.custom_skill.skill_slot}")
-            
-            PyImGui.bullet_text("score")
-            PyImGui.same_line(0, -1)
-            PyImGui.text_colored(f"{label_generic_utility(skill)}{score_text}", Color(0, 255, 0, 255).to_tuple_normalized())
+        
+                score_text = f"{score[1]:06.2f}" if score[1] is not None else "Ø"
+                texture_file = score[0].custom_skill.get_texture(py4gw_root_directory, project_root)
+                
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
 
-            if WITH_DETAIL:
-                PyImGui.bullet_text("required ressource")
+                if score[0].is_enabled and CustomBehaviorParty().get_typology_is_enabled(score[0].utility_skill_typology) and instance.get_final_is_enabled():
+
+                    color = UtilitySkillTypologyColor.get_color_from_typology(score[0].utility_skill_typology)
+                    PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, color)
+
+                    if ImGui.ImageButton(f"{score[0].custom_skill.skill_name}", texture_file, 35, 35):
+                        score[0].is_enabled = False
+                        
+                    PyImGui.pop_style_var(1)
+                    PyImGui.pop_style_color(1)
+                    
+                else:
+                    PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
+                    if ImGui.ImageButton(f"{score[0].custom_skill.skill_name}", texture_file, 35,35):
+                        score[0].is_enabled = True
+                    PyImGui.pop_style_var(1)
+                    PyImGui.pop_style_color(1)
+                    PyImGui.same_line(10, 0)
+                    ImGui.DrawTexture(project_root + f"\\gui\\textures\\x.png", 20, 20)
+
+                # ImGui.DrawTexture(texture_file, 50, 50)
+                PyImGui.table_next_column()
+                
+                skill : CustomSkillUtilityBase = score[0]
+                slot_text = f"| slot {skill.custom_skill.skill_slot}" if skill.custom_skill.skill_slot > 0 else ""
+                id_text = f"| id {skill.custom_skill.skill_id}" if skill.custom_skill.skill_id > 0 else ""
+                PyImGui.text(f"{skill.custom_skill.skill_name} {id_text} {slot_text}")
+                
+                PyImGui.bullet_text("score")
                 PyImGui.same_line(0, -1)
-                PyImGui.text_colored(f"{skill.mana_required_to_cast}",  Utils.RGBToNormal(27, 126, 246, 255))
-                PyImGui.bullet_text(f"allowed in : {[x.name for x in skill.allowed_states]}")
-                PyImGui.bullet_text(f"pre_check : {skill.are_common_pre_checks_valid(instance.get_final_state())}")
+                PyImGui.text_colored(f"{label_generic_utility(skill)}{score_text}", UtilitySkillTypologyColor.get_color_from_typology(score[0].utility_skill_typology))
 
-                buff_configuration: BuffConfigurationPerProfession | None = skill.get_buff_configuration()
-                if buff_configuration is not None:
-                    PyImGui.bullet_text(f"Buff configuration : ")
-                    for profession in BuffConfigurationPerProfession.ALL_PROFESSIONS:
-                        PyImGui.same_line(0, 5)
+                if WITH_DETAIL:
+                    PyImGui.bullet_text("required ressource")
+                    PyImGui.same_line(0, -1)
+                    PyImGui.text_colored(f"{skill.mana_required_to_cast}",  Utils.RGBToNormal(27, 126, 246, 255))
+                    PyImGui.bullet_text(f"allowed in : {[x.name for x in skill.allowed_states]}")
+                    PyImGui.bullet_text(f"pre_check : {skill.are_common_pre_checks_valid(instance.get_final_state())}")
+                    PyImGui.bullet_text(f"Slot:{skill.custom_skill.skill_slot}")
 
-                        buff_configuration_per_profession = buff_configuration.get_by_profession(profession)
-                        texture_path =  py4gw_root_directory + f"Textures\\Profession_Icons\\[{profession.value}] - {profession.name}.png"
-                        icon_size = 26
+                    buff_configuration: BuffConfigurationPerProfession | None = skill.get_buff_configuration()
+                    if buff_configuration is not None:
+                        PyImGui.bullet_text(f"Buff configuration : ")
+                        for profession in BuffConfigurationPerProfession.ALL_PROFESSIONS:
+                            
+                            buff_configuration_per_profession = buff_configuration.get_by_profession(profession)
+                            texture_path =  py4gw_root_directory + f"Textures\\Profession_Icons\\[{profession.value}] - {profession.name}.png"
+                            icon_size = 26
 
-                        if buff_configuration_per_profession.is_activated:
-                            PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)  # 1px border
-                            PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(3, 244, 60, 255)))
-                            if ImGui.ImageButton(f"deactivate_{skill.custom_skill.skill_id}_{profession.name}", texture_path, icon_size, icon_size):
-                                buff_configuration_per_profession.is_activated = False
-                            ImGui.show_tooltip(f"Deactivate buff for {profession.name}")    
-                            PyImGui.pop_style_var(1)
-                            PyImGui.pop_style_color(1)
-                        else:
-                            if ImGui.ImageButton(f"activate_{skill.custom_skill.skill_id}_{profession.name}", texture_path, icon_size, icon_size):
-                                buff_configuration_per_profession.is_activated = True
-                            ImGui.show_tooltip(f"Activate buff for {profession.name}")
+                            if buff_configuration_per_profession.is_activated:
+                                PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)  # 1px border
+                                PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(3, 244, 60, 255)))
+                                if ImGui.ImageButton(f"deactivate_{skill.custom_skill.skill_id}_{profession.name}", texture_path, icon_size, icon_size):
+                                    buff_configuration_per_profession.is_activated = False
+                                ImGui.show_tooltip(f"Deactivate buff for {profession.name}")    
+                                PyImGui.pop_style_var(1)
+                                PyImGui.pop_style_color(1)
+                            else:
+                                if ImGui.ImageButton(f"activate_{skill.custom_skill.skill_id}_{profession.name}", texture_path, icon_size, icon_size):
+                                    buff_configuration_per_profession.is_activated = True
+                                ImGui.show_tooltip(f"Activate buff for {profession.name}")
+                            PyImGui.same_line(0, 5)
 
-                skill.customized_debug_ui(instance.get_final_state())
+                    skill.customized_debug_ui(instance.get_final_state())
 
-            PyImGui.table_next_row()
+                PyImGui.table_next_row()
 
-        PyImGui.end_table()
+            PyImGui.end_table()
+            PyImGui.end_child()
+
 
 
 
