@@ -49,6 +49,8 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
                 range_to_count_enemies=None,
                 range_to_count_allies=None)
 
+        return target_new
+
         allowed_classes = [Profession.Mesmer.value, Profession.Ritualist.value, Profession.Ranger.value]
         allowed_agent_names = ["to_be_implemented"]
         from HeroAI.utils import CheckForEffect

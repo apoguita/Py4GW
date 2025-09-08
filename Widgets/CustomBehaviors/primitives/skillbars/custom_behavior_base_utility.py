@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from collections import deque
 from typing import List, Generator, Any, override
+import time
 
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
@@ -15,6 +16,7 @@ from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorR
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
+from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
 from Widgets.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
@@ -41,6 +43,7 @@ class CustomBehaviorBaseUtility():
         self.__previously_attempted_skills: deque[CustomSkill] = deque(maxlen=40)
         self.skillbar_management: CustomBehaviorSkillbarManagement = CustomBehaviorSkillbarManagement()
         self.__final_skills_list: list[CustomSkillUtilityBase] | None = None
+        self.skill_execution_history: deque[UtilitySkillExecutionHistory] = deque(maxlen=30)
 
         self.in_game_build: list[CustomSkill] = list(self.skillbar_management.get_in_game_build().values())
 
@@ -48,8 +51,6 @@ class CustomBehaviorBaseUtility():
         self.__memoized_state : BehaviorState = BehaviorState.IDLE
         
         self.__injected_additional_utility_skills : list[CustomSkillUtilityBase] = list[CustomSkillUtilityBase]()
-
-        self.is_executing_utility_skills = False # used to know if we are executing utility skills, any external bot can use it as condition to run / pause.
 
     def inject_additionnal_utility_skills(self, skill:CustomSkillUtilityBase):
         for injected_skill in self.__injected_additional_utility_skills:
@@ -82,6 +83,23 @@ class CustomBehaviorBaseUtility():
         party_forced_state:bool = CustomBehaviorParty().get_party_is_enabled()
         final_is_enabled:bool = party_forced_state and self.__is_enabled
         return final_is_enabled
+
+    def is_executing_utility_skills(self) -> bool:
+        '''
+        used to know if we are executing utility skills, any external bot can use it as condition to run / pause.
+        '''
+
+        highest_score: tuple[CustomSkillUtilityBase, float | None] = self.get_highest_score()
+
+        if highest_score[1] is not None: 
+            # any skill with positive evaluation are a condition to stop an external script
+            return True
+
+        if self.get_final_state() == BehaviorState.IN_AGGRO:
+            # in_aggro, even if nothing is done, we must stop  an external script
+            return True
+
+        return False
 
     # abstract/overridable
 
@@ -231,8 +249,9 @@ class CustomBehaviorBaseUtility():
     throttler = ThrottledTimer(70)
 
     def act(self):
-        if not self.get_final_is_enabled(): return
+        if not self.throttler.IsExpired(): return
         if not Routines.Checks.Map.MapValid(): return
+        if not self.get_final_is_enabled(): return
 
         # if (
         # not cached_data.data.player_is_alive
@@ -241,7 +260,6 @@ class CustomBehaviorBaseUtility():
         # or cached_data.combat_handler.InCastingRoutine()
         # or cached_data.data.player_is_casting
 
-        if not self.throttler.IsExpired(): return
         self.throttler.Reset()
         self.timer.Reset()
 
@@ -283,18 +301,16 @@ class CustomBehaviorBaseUtility():
                 return BehaviorState.IDLE
 
             if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                # EVENT_BUS.publish(EventType.PLAYER_CRITICAL_STUCK)
-                # in some case, when dead we want to wait for REZ, but after X, we resign.
                 return BehaviorState.IDLE
-
-            if custom_behavior_helpers.Targets.is_party_in_aggro():
-                return BehaviorState.IN_AGGRO
 
             if custom_behavior_helpers.Targets.is_player_in_aggro():
                 return BehaviorState.IN_AGGRO
 
+            if custom_behavior_helpers.Targets.is_party_in_aggro():
+                return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies
+
             if custom_behavior_helpers.Targets.is_party_leader_in_aggro():
-                return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO
+                return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies
 
             if custom_behavior_helpers.Targets.is_player_close_to_combat():
                 return BehaviorState.CLOSE_TO_AGGRO
@@ -345,17 +361,34 @@ class CustomBehaviorBaseUtility():
                 continue
 
             should_run_through_then_end = highest_score[0].execution_strategy == UtilitySkillExecutionStrategy.EXECUTE_THROUGH_THE_END
-            self.is_executing_utility_skills = True
+            result:BehaviorResult
+            started_at: float = time.time()
+            current_score: float | None = highest_score[1]
+            # append placeholder entry at start and keep reference
+            history_entry = UtilitySkillExecutionHistory(
+                skill=highest_score[0],
+                score=current_score,
+                result=None,
+                started_at=started_at,
+                ended_at=None,
+            )
+            self.skill_execution_history.append(history_entry)
 
             if should_run_through_then_end:
                 # either we want to run through to the end.
-                yield from self.__execute_until_the_end(highest_score[0])
+                result = yield from self.__execute_until_the_end(highest_score[0])
             else:
                 # either we prefer to stop if we are not the highest anymore.
-                yield from self.__execute_until_condition(highest_score[0])
+                result = yield from self.__execute_until_condition(highest_score[0])
 
+            ended_at: float = time.time()
+            # update the referenced entry
+            history_entry.result = result
+            history_entry.ended_at = ended_at
             self.__previously_attempted_skills.append(highest_score[0].custom_skill)
-            self.is_executing_utility_skills = False
+
+
+            yield  # ← yield control back to the main execution flow
 
     def __execute_until_the_end(self, utility: CustomSkillUtilityBase) -> Generator[Any | None, Any | None, BehaviorResult]:
         state: BehaviorState = self.get_final_state()
@@ -371,6 +404,7 @@ class CustomBehaviorBaseUtility():
             # if we lost priority, stop early
             current_highest = self.get_highest_score()
             if current_highest[0].custom_skill.skill_name != new_highest_score.custom_skill.skill_name or current_highest[1] is None:
+                yield # required to avoid death-loop
                 return BehaviorResult.ACTION_SKIPPED
 
             try:
