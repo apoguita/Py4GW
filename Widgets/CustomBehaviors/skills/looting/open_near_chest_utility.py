@@ -63,7 +63,6 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         chest_agent_id = Routines.Agents.GetNearestChest(700)
         if chest_agent_id in self.opened_chest_agent_ids: return None
         if chest_agent_id is None or chest_agent_id == 0: return None
-
         return self.score_definition.get_score()
 
     @override
@@ -103,12 +102,19 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         # Use try-finally to ensure lock is always released
         try:
             print(f"open_near_chest_utility_ LOCK AQUIRED")
+            yield from Yield.wait(1000) # we must wait until the chest closing animation is finalized
             ActionQueueManager().ResetAllQueues()
             yield from Yield.Player.InteractAgent(chest_agent_id)
             yield from Yield.wait(1000)
             GLOBAL_CACHE.Player.SendDialog(2)
             yield from Yield.wait(1000)
             print("CHEST_OPENED")
+            # Only mark chest as opened and publish the event upon successful interaction
+            print(f"RELEASE Lock key {lock_key}")
+            print(f"self.opened_chest_agent_ids {self.opened_chest_agent_ids}")
+            self.opened_chest_agent_ids.add(chest_agent_id)
+            EVENT_BUS.publish(EventType.CHEST_OPENED, chest_agent_id)
+            CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
             return BehaviorResult.ACTION_PERFORMED
 
         except Exception as e:
@@ -119,12 +125,8 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
             return BehaviorResult.ACTION_SKIPPED
         finally:
             # Always release the lock, even if an exception occurs
-            print(f"RELEASE Lock key {lock_key}")
-            print(f"self.opened_chest_agent_ids {self.opened_chest_agent_ids}")
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
-            self.opened_chest_agent_ids.add(chest_agent_id)
-            EVENT_BUS.publish(EventType.CHEST_OPENED, chest_agent_id)
-
+            pass
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:

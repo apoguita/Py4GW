@@ -123,6 +123,22 @@ class SharedLockManager:
             mem.LockEntries[idx].Key = ""
             mem.LockEntries[idx].AcquiredAt = 0
 
+    def is_lock_taken(self, key: str) -> bool:
+        if key is None or key == "":
+            return False
+        self.__dedupe_locks()
+        mem = self.__get_struct()
+        now_s = int(time.time())
+        for i in range(MAX_LOCKS):
+            if mem.LockEntries[i].Key == key and mem.LockEntries[i].AcquiredAt != 0:
+                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt)
+                if entry.is_expired(now_s):
+                    mem.LockEntries[i].Key = ""
+                    mem.LockEntries[i].AcquiredAt = 0
+                    return False
+                return True
+        return False
+
     def wait_aquire_lock(self, key: str, timeout_seconds: int = 20) -> Generator[None, None, bool]:
         if timeout_seconds is None or timeout_seconds < 0:
             timeout_seconds = 20

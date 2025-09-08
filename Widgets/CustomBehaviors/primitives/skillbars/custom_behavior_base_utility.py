@@ -400,17 +400,24 @@ class CustomBehaviorBaseUtility():
         utility_generator = new_highest_score.execute(state)
         
         # manually iterate through the utility's generator to check priority between yields
-        while True:
-            # if we lost priority, stop early
-            current_highest = self.get_highest_score()
-            if current_highest[0].custom_skill.skill_name != new_highest_score.custom_skill.skill_name or current_highest[1] is None:
-                yield # required to avoid death-loop
-                return BehaviorResult.ACTION_SKIPPED
+        try:
+            while True:
+                # if we lost priority, stop early
+                current_highest = self.get_highest_score()
+                if current_highest[0].custom_skill.skill_name != new_highest_score.custom_skill.skill_name or current_highest[1] is None:
+                    yield # required to avoid death-loop
+                    return BehaviorResult.ACTION_SKIPPED
 
+                try:
+                    # get the next step from the utility
+                    result = next(utility_generator)
+                    yield result  # yield the utility's result back to the caller
+                except StopIteration as e:
+                    # utility completed, return its final result
+                    return e.value if hasattr(e, 'value') and e.value is not None else BehaviorResult.ACTION_PERFORMED
+        finally:
+            # Ensure the underlying generator is closed to trigger its finally blocks (e.g., lock release)
             try:
-                # get the next step from the utility
-                result = next(utility_generator)
-                yield result  # yield the utility's result back to the caller
-            except StopIteration as e:
-                # utility completed, return its final result
-                return e.value if hasattr(e, 'value') and e.value is not None else BehaviorResult.ACTION_PERFORMED
+                utility_generator.close()
+            except Exception:
+                pass
