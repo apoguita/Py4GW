@@ -41,12 +41,7 @@ class OutpostRunnerFSMHelpers:
             "ids":              data["ids"],
         }
 
-    @staticmethod
-    def travel_to_outpost(outpost_id):
-        if GLOBAL_CACHE.Map.GetMapID() == outpost_id:
-            ConsoleLog("OutpostRunnerFSM", "Already at outpost. Skipping travel.", Console.MessageType.Info)
-            return
-
+    def travel_to_outpost(self, outpost_id):
         ConsoleLog("OutpostRunnerFSM", f"Initiating safe travel to outpost ID {outpost_id}")
         if GLOBAL_CACHE.Map.IsExplorable():
             # === STEP 1: Broadcast resign command to other accounts ===

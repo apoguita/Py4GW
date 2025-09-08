@@ -183,6 +183,5 @@ class OutpostRunnerFSM:
         ConsoleLog("OutpostRunnerFSM", "Run completed successfully.", Console.MessageType.Info)
         if self.chain_stats:
             self.chain_stats.finish_chain()
-        self.map_chain = []
         self.overwatch.stop()
         self.helpers.restore_cached_widgets()
