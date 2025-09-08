@@ -402,6 +402,10 @@ class BottingClass:
             from .GlobalCache import GLOBAL_CACHE
             if target_map_name:
                 target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+                
+            current_map_id = GLOBAL_CACHE.Map.GetMapID()
+            if current_map_id == target_map_id:
+                return
 
             self._helpers.Map.travel(target_map_id)
             self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
@@ -761,7 +765,7 @@ class BottingClass:
             return current_header_step, header_for_current, current_idx, total_steps, step_name, finished
 
         
-        def _draw_texture(self, texture_path:str, size:Tuple[int,int]=(96,96), tint:Color=Color(255,255,255,255), border_col:Color=Color(0,0,0,0)):
+        def _draw_texture(self, texture_path:str, size:Tuple[float,float]=(96.0,96.0), tint:Color=Color(255,255,255,255), border_col:Color=Color(0,0,0,0)):
             from .ImGui import ImGui
             from .enums import ItemModelTextureMap
             if self.draw_texture_fn is not None:
@@ -772,8 +776,8 @@ class BottingClass:
                 texture_path = ItemModelTextureMap.get(0, "")
             
             ImGui.DrawTextureExtended(texture_path=texture_path, size=size,
-                                  uv0=(0.0, 0.0),   uv1=(0.25, 1.0),
-                                  tint=tint.to_tuple_normalized(), border_color=border_col.to_tuple_normalized())
+                                  uv0=(0.0, 0.0),   uv1=(1.0, 1.0),
+                                  tint=tint.to_tuple(), border_color=border_col.to_tuple())
             
         def override_draw_texture(self, draw_fn: Optional[Callable[[], None]] = None) -> None:
             """
