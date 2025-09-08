@@ -25,7 +25,7 @@ from Widgets.CustomBehaviors.skills.following.follow_flag_utility import FollowF
 from Widgets.CustomBehaviors.skills.following.follow_party_leader_utility import FollowPartyLeaderUtility
 from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.skills.looting.loot_utility import LootUtility
 from Widgets.CustomBehaviors.skills.looting.open_near_chest_utility import OpenNearChestUtility
 
@@ -214,7 +214,7 @@ class CustomBehaviorBaseUtility():
             if skill.custom_skill.skill_id != 0: #meaning it's an autonomous skill
                 skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill.custom_skill.skill_slot)
                 if skill_id != skill.custom_skill.skill_id:
-                    if DEBUG: print(f"Slot {skill.custom_skill.skill_slot} doesn't match skill {skill.custom_skill.skill_id}, the behavior must be refreshed.")
+                    if constants.DEBUG: print(f"Slot {skill.custom_skill.skill_slot} doesn't match skill {skill.custom_skill.skill_id}, the behavior must be refreshed.")
                     return False
 
         # two case
@@ -223,7 +223,7 @@ class CustomBehaviorBaseUtility():
             # check if all ingame skills are in the behavior.
             for skill_id in in_game_build.keys():
                 if skill_id not in [item.custom_skill.skill_id for item in utility_build_full]:
-                    if DEBUG: print(f"{skill_id} from in-game build doesn't exist in the behavior, the behavior must be refreshed.")
+                    if constants.DEBUG: print(f"{skill_id} from in-game build doesn't exist in the behavior, the behavior must be refreshed.")
                     return False
 
         if not is_completed:
@@ -231,14 +231,14 @@ class CustomBehaviorBaseUtility():
             for skill in utility_build_full:
                 if skill.custom_skill.skill_id == 0: continue
                 if skill.custom_skill.skill_id not in in_game_build.keys():
-                    if DEBUG: print(f"{skill.custom_skill.skill_id} that is present in the behavior is not part of the in-game build, the behavior must be refreshed.")
+                    if constants.DEBUG: print(f"{skill.custom_skill.skill_id} that is present in the behavior is not part of the in-game build, the behavior must be refreshed.")
                     return False
 
             #  2/ check if we added a new ingame skill that should be part of the behavior.
             for skill_id in in_game_build.keys():
                 if skill_id not in [item.custom_skill.skill_id for item in utility_build_full]:
                     if skill_id in [item.custom_skill.skill_id for item in self.skills_allowed_in_behavior]:
-                        if DEBUG: print(f"{skill_id} should be present in the behavior, the behavior must be refreshed.")
+                        if constants.DEBUG: print(f"{skill_id} should be present in the behavior, the behavior must be refreshed.")
                         return False
 
         return True

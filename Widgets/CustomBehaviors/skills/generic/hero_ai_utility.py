@@ -11,9 +11,6 @@ from Widgets.CustomBehaviors.primitives.scores.score_static_definition import Sc
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
-
-
 class HeroAiUtility(CustomSkillUtilityBase):
 
     def __init__(

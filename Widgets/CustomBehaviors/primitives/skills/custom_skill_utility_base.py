@@ -16,7 +16,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_nature import CustomSkillNature
 from Widgets.CustomBehaviors.primitives.scores.score_definition import ScoreDefinition
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
@@ -72,7 +72,7 @@ class CustomSkillUtilityBase:
         return score
 
     def execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
-        if DEBUG: print(f"Executing {self.custom_skill.skill_name}")
+        if constants.DEBUG: print(f"Executing {self.custom_skill.skill_name}")
         gen:Generator[Any | None, Any | None, BehaviorResult] = self._execute(state)
         result:BehaviorResult = yield from gen
         return result

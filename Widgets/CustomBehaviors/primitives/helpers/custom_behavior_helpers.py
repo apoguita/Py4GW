@@ -13,7 +13,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 cached_data = CacheData()
 
 from Py4GWCoreLib import GLOBAL_CACHE, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives import constants
 
 LOG_TO_CONSOLE:bool = True
 MODULE_NAME = "Custom Combat Behavior Helpers"
@@ -71,7 +71,7 @@ class Helpers:
         activation_time = GLOBAL_CACHE.Skill.Data.GetActivation(skill_casted.skill_id) * 1000
         aftercast = GLOBAL_CACHE.Skill.Data.GetAftercast(skill_casted.skill_id) * 1000
         delay = activation_time if activation_time > aftercast else aftercast
-        print(f"{skill_casted.skill_name} let's wait for aftercast :{delay}ms | activation_time:{activation_time} | aftercast:{aftercast}")
+        if constants.DEBUG: print(f"{skill_casted.skill_name} let's wait for aftercast :{delay}ms | activation_time:{activation_time} | aftercast:{aftercast}")
 
         yield from Helpers.wait_for(delay + 200)  # 200ms more to really avoid double-cast
 
@@ -82,7 +82,7 @@ class Helpers:
         while (time.time() - start_time) < milliseconds / 1000:
             action_result: BehaviorResult = yield from action()
             if action_result == BehaviorResult.ACTION_PERFORMED:
-                print(f"wait_for_or_until_completion has reached completion : {milliseconds}ms")
+                if constants.DEBUG: print(f"wait_for_or_until_completion has reached completion : {milliseconds}ms")
                 return BehaviorResult.ACTION_PERFORMED
             yield 'wait'  # Pause and allow resumption while waiting
         return BehaviorResult.ACTION_SKIPPED
@@ -106,7 +106,7 @@ class Helpers:
             
             yield from Helpers.wait_for(100)
 
-        print(f"wait_for_condition_before_execution has reached completion : {milliseconds}ms")
+        if constants.DEBUG: print(f"wait_for_condition_before_execution has reached completion : {milliseconds}ms")
         action_result: BehaviorResult = yield from action()
         return action_result
 
@@ -295,7 +295,7 @@ class Actions:
 
         if target_agent_id is not None: Routines.Sequential.Agents.ChangeTarget(target_agent_id)
         Routines.Sequential.Skills.CastSkillSlot(skill.skill_slot)
-        if DEBUG: print(f"cast_skill_to_target {skill.skill_name} to {target_agent_id}")
+        if constants.DEBUG: print(f"cast_skill_to_target {skill.skill_name} to {target_agent_id}")
         yield from Helpers.delay_aftercast(skill)
         return BehaviorResult.ACTION_PERFORMED
 
@@ -340,7 +340,7 @@ class Actions:
         Routines.Sequential.Skills.CastSkillID(skill.skill_id)
         # option2
         # ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, skill_slot, target_agent_id)
-        if DEBUG: print(f"cast_skill_to_target {skill.skill_name} to {target_agent_id}")
+        if constants.DEBUG: print(f"cast_skill_to_target {skill.skill_name} to {target_agent_id}")
         yield from Helpers.delay_aftercast(skill)
         return BehaviorResult.ACTION_PERFORMED
 
@@ -358,7 +358,7 @@ class Actions:
         buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), skill.skill_id) if has_buff else 0
         if not has_buff or buff_time_remaining <= time_before_expire:
             ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, skill.skill_slot, 0)
-            if DEBUG: print(f"cast_effect_before_expiration {skill.skill_name}")
+            if constants.DEBUG: print(f"cast_effect_before_expiration {skill.skill_name}")
             yield from Helpers.delay_aftercast(skill)
             return BehaviorResult.ACTION_PERFORMED
 
