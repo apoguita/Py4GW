@@ -29,6 +29,8 @@ from Widgets.CustomBehaviors.gui.current_build import render as current_build_re
 from Widgets.CustomBehaviors.gui.party import render as party
 from Widgets.CustomBehaviors.gui.debug_skillbars import render as debug_skilbars
 from Widgets.CustomBehaviors.gui.debug_execution import render as debug_execution
+from Widgets.CustomBehaviors.gui.debug_sharedlocks import render as debug_sharedlocks
+from Widgets.CustomBehaviors.gui.debug_eventbus import render as debug_eventbus
 from Widgets.CustomBehaviors.gui.deamon import deamon as deamon
 
 party_forced_state_combo = 0
@@ -56,13 +58,30 @@ def gui():
             current_build_render()
             PyImGui.end_tab_item()
 
-        if PyImGui.begin_tab_item("debug_execution"):
-            debug_execution()
-            PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("debug"):
+                
+                PyImGui.begin_tab_bar("debug_tab_bar")
+                
+                if PyImGui.begin_tab_item("debug_execution"):
+                    debug_execution()
+                    PyImGui.end_tab_item()
 
-        if PyImGui.begin_tab_item("debug_skillbars"):
-            debug_skilbars()
-            PyImGui.end_tab_item()
+                if PyImGui.begin_tab_item("debug_sharedlock"):
+                    debug_sharedlocks()
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item("debug_eventbus"):
+                    debug_eventbus()
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item("debug_loader"):
+                    PyImGui.text(f"History (newest on top) : ")
+                    debug_skilbars()
+                    PyImGui.end_tab_item()
+
+                PyImGui.end_tab_bar()
+
+
 
         PyImGui.end_tab_bar()
     PyImGui.end()
