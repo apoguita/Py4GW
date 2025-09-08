@@ -27,7 +27,8 @@ from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBeha
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.gui.current_build import render as current_build_render
 from Widgets.CustomBehaviors.gui.party import render as party
-from Widgets.CustomBehaviors.gui.skillbars import render as all_templates_render
+from Widgets.CustomBehaviors.gui.debug_skillbars import render as debug_skilbars
+from Widgets.CustomBehaviors.gui.debug_execution import render as debug_execution
 from Widgets.CustomBehaviors.gui.deamon import deamon as deamon
 
 party_forced_state_combo = 0
@@ -40,30 +41,30 @@ def gui():
     # PyImGui.set_next_window_size(460, 800)
 
     global party_forced_state_combo
-
-    # window_module = ImGui.WindowModule("qzd", window_name="MQVQ Bot", window_size=(300, 500), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
-    # PyImGui.set_next_window_size(*window_module.window_size)     
-    # PyImGui.set_next_window_pos(*window_module.window_pos)
-
-    PyImGui.begin("Custom behaviors", PyImGui.WindowFlags.AlwaysAutoResize)
+    
+    window_module = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors", window_size=(0, 0), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
-    PyImGui.begin_tab_bar("current_build")
+    if PyImGui.begin(window_module.window_name, window_module.window_flags):
+        PyImGui.begin_tab_bar("current_build")
 
-    if PyImGui.begin_tab_item("party"):
-        party()
-        PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("party"):
+            party()
+            PyImGui.end_tab_item()
 
-    if PyImGui.begin_tab_item("current_build"):
-        current_build_render()
-        PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("current_build"):
+            current_build_render()
+            PyImGui.end_tab_item()
 
-    if PyImGui.begin_tab_item("debug_templates"):
-        all_templates_render()
-        PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("debug_execution"):
+            debug_execution()
+            PyImGui.end_tab_item()
 
-    PyImGui.end_tab_bar()
+        if PyImGui.begin_tab_item("debug_skillbars"):
+            debug_skilbars()
+            PyImGui.end_tab_item()
 
+        PyImGui.end_tab_bar()
     PyImGui.end()
     return
 

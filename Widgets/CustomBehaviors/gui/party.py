@@ -1,3 +1,4 @@
+import os
 import pathlib
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
@@ -8,25 +9,23 @@ from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import Cus
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
 
+script_directory = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+py4gw_root_directory = project_root + f"\\..\\..\\"
 
 @staticmethod
 def render():
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
-    current_path = pathlib.Path.cwd()
-    prefix = ""
-    if "Widgets" not in str(current_path):
-        prefix = "Widgets\\"
-
     if shared_data.is_enabled:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(62, 139, 95, 200)))
-        if ImGui.ImageButton(f"disable everything", prefix + f"CustomBehaviors\\gui\\textures\\all.png", 40, 40):
+        if ImGui.ImageButton(f"disable everything", project_root + f"\\gui\\textures\\all.png", 40, 40):
             CustomBehaviorParty().set_party_is_enabled(False)
         ImGui.show_tooltip("disable everything")
     else:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
-        if ImGui.ImageButton(f"enable everything", prefix + f"CustomBehaviors\\gui\\textures\\all.png", 40, 40):
+        if ImGui.ImageButton(f"enable everything", project_root + f"\\gui\\textures\\all.png", 40, 40):
             CustomBehaviorParty().set_party_is_enabled(True)
         ImGui.show_tooltip("enable everything")
     PyImGui.pop_style_var(1)
@@ -37,13 +36,13 @@ def render():
     if shared_data.is_combat_enabled:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.COMBAT_COLOR)
-        if ImGui.ImageButton(f"disable combat", prefix + f"CustomBehaviors\\gui\\textures\\combat.png", 40, 40):
+        if ImGui.ImageButton(f"disable combat", project_root + f"\\gui\\textures\\combat.png", 40, 40):
             CustomBehaviorParty().set_party_is_combat_enabled(False)
         ImGui.show_tooltip("disable combat")
     else:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
-        if ImGui.ImageButton(f"enable combat", prefix + f"CustomBehaviors\\gui\\textures\\combat.png", 40, 40):
+        if ImGui.ImageButton(f"enable combat", project_root + f"\\gui\\textures\\combat.png", 40, 40):
             CustomBehaviorParty().set_party_is_combat_enabled(True)
         ImGui.show_tooltip("enable combat")
     PyImGui.pop_style_var(1)
@@ -54,13 +53,13 @@ def render():
     if shared_data.is_following_enabled:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.FOLLOWING_COLOR)
-        if ImGui.ImageButton(f"disable following", prefix + f"CustomBehaviors\\gui\\textures\\following.png", 40, 40):
+        if ImGui.ImageButton(f"disable following", project_root + f"\\gui\\textures\\following.png", 40, 40):
             CustomBehaviorParty().set_party_is_following_enabled(False)
         ImGui.show_tooltip("disable following")
     else:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
-        if ImGui.ImageButton(f"enable following", prefix + f"CustomBehaviors\\gui\\textures\\following.png", 40, 40):
+        if ImGui.ImageButton(f"enable following", project_root + f"\\gui\\textures\\following.png", 40, 40):
             CustomBehaviorParty().set_party_is_following_enabled(True)
         ImGui.show_tooltip("enable following")
     PyImGui.pop_style_var(1)
@@ -71,13 +70,13 @@ def render():
     if shared_data.is_looting_enabled:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.LOOTING_COLOR)
-        if ImGui.ImageButton(f"disable looting", prefix + f"CustomBehaviors\\gui\\textures\\loot.png", 40, 40):
+        if ImGui.ImageButton(f"disable looting", project_root + f"\\gui\\textures\\loot.png", 40, 40):
             CustomBehaviorParty().set_party_is_looting_enabled(False)
         ImGui.show_tooltip("disable looting")
     else:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
-        if ImGui.ImageButton(f"enable looting", prefix + f"CustomBehaviors\\gui\\textures\\loot.png", 40, 40):
+        if ImGui.ImageButton(f"enable looting", project_root + f"\\gui\\textures\\loot.png", 40, 40):
             CustomBehaviorParty().set_party_is_looting_enabled(True)
         ImGui.show_tooltip("enable looting")
     PyImGui.pop_style_var(1)
@@ -88,13 +87,13 @@ def render():
     if shared_data.is_chesting_enabled:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.CHESTING_COLOR)
-        if ImGui.ImageButton(f"disable chesting", prefix + f"CustomBehaviors\\gui\\textures\\chesting.png", 40, 40):
+        if ImGui.ImageButton(f"disable chesting", project_root + f"\\gui\\textures\\chesting.png", 40, 40):
             CustomBehaviorParty().set_party_is_chesting_enabled(False)
         ImGui.show_tooltip("disable chesting")
     else:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
-        if ImGui.ImageButton(f"enable chesting", prefix + f"CustomBehaviors\\gui\\textures\\chesting.png", 40, 40):
+        if ImGui.ImageButton(f"enable chesting", project_root + f"\\gui\\textures\\chesting.png", 40, 40):
             CustomBehaviorParty().set_party_is_chesting_enabled(True)
         ImGui.show_tooltip("enable chesting")
     PyImGui.pop_style_var(1)

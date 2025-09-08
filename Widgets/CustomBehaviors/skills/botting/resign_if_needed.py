@@ -15,7 +15,6 @@ from Widgets.CustomBehaviors.primitives.scores.score_definition import ScoreDefi
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
-import time
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
@@ -29,13 +28,14 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
             skill=CustomSkill("resign_if_needed"), 
             in_game_build=current_build, 
             score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value), 
-            allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO, BehaviorState.IDLE],
+            allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
             utility_skill_typology=UtilitySkillTypology.BOTTING)
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BOTTING.value)
         self.__is_resign_asked = False
-        self.death_timer_timer = ThrottledTimer(60_000)
+        self.death_timer_timer = ThrottledTimer(120_000)
         self.__death_timer_started = False
+        self.resign_timeout_timer = ThrottledTimer(15_000)  # 15 second timeout for resignation process
 
         EVENT_BUS.subscribe(EventType.PLAYER_CRITICAL_STUCK, self.player_critical_stuck)
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
@@ -47,6 +47,7 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
         self.__is_resign_asked = False
         self.death_timer_timer.Reset()
         self.__death_timer_started = False
+        self.resign_timeout_timer.Reset()
 
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -54,6 +55,9 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
+
+        # either PLAYER_CRITICAL_STUCK
+        # either player is dead for > 120s
 
         if not GLOBAL_CACHE.Map.IsExplorable(): return None
 
@@ -77,29 +81,28 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-        CustomBehaviorParty._instance.set_party_forced_state(BehaviorState.IDLE)
-        yield from Routines.Yield.wait(3_000) # wait all accounts to really stop
-
+        # Reset the timeout timer when starting execution
+        self.resign_timeout_timer.Reset()
+        
         loop_counter = 0
+        
         while not GLOBAL_CACHE.Party.IsPartyDefeated():
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
             for account in accounts:
                 print("Resigning account: " + account.AccountEmail)
                 GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))
-
             yield from Routines.Yield.wait(8_000)
+            
             loop_counter += 1
             if loop_counter > 4:
-                print("Loop counter Resign is too high, the script is stuck")
+                print("Loop counter Resign is too high, the script is stuck...")
+                break
 
         print("Party is defeated")
-        loop_counter = 0
 
-        timeout = 15.0
-        start_time = time.time()
-
-        while time.time() - start_time < timeout:
+        # Wait for resignation to complete using ThrottledTimer
+        while not self.resign_timeout_timer.IsExpired():
             is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
             is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
             is_explorable = GLOBAL_CACHE.Map.IsExplorable()
@@ -116,6 +119,6 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
         else:
             print(f"Something failed, i am not able to recover - stopping bot.")
 
-        CustomBehaviorParty._instance.set_party_forced_state(None)
         self.__is_resign_asked = False
+        yield
         return BehaviorResult.ACTION_PERFORMED
