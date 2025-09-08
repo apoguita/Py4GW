@@ -45,11 +45,8 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToEOTN(bot) #revisited
     ExitBorealStation(bot) #revisited
     TraverseToEOTNOutpost(bot)
-    bot.States.AddHeaderStep("Final Step")
+    bot.States.AddHeader("Final Step")
     bot.Stop()
-
-#Override the main routine for the bot
-bot.SetMainRoutine(create_bot_routine)
 
 
 #region EVENTS
@@ -122,24 +119,24 @@ def on_party_wipe(bot: "Botting"):
 
 #region Helpers
 def ConfigurePacifistEnv(bot: Botting) -> None:
-    bot.Properties.disable("pause_on_danger")
-    bot.Properties.enable("halt_on_death")
-    bot.Properties.set("movement_timeout",value=15000)
+    bot.Properties.Disable("pause_on_danger")
+    bot.Properties.Enable("halt_on_death")
+    bot.Properties.Set("movement_timeout",value=15000)
     bot.Items.SpawnBonusItems()
-    bot.Properties.disable("auto_combat")
-    bot.Properties.disable("imp")
-    bot.Properties.enable("birthday_cupcake")
-    bot.Properties.disable("honeycomb")
+    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("imp")
+    bot.Properties.Enable("birthday_cupcake")
+    bot.Properties.Disable("honeycomb")
     bot.Items.Restock.BirthdayCupcake()
     
 def ConfigureAggressiveEnv(bot: Botting) -> None:
-    bot.Properties.enable("pause_on_danger")
-    bot.Properties.disable("halt_on_death")
-    bot.Properties.set("movement_timeout",value=-1)
-    bot.Properties.enable("auto_combat")
-    bot.Properties.enable("imp")
-    bot.Properties.enable("birthday_cupcake")
-    bot.Properties.enable("honeycomb")
+    bot.Properties.Enable("pause_on_danger")
+    bot.Properties.Disable("halt_on_death")
+    bot.Properties.Set("movement_timeout",value=-1)
+    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("imp")
+    bot.Properties.Enable("birthday_cupcake")
+    bot.Properties.Enable("honeycomb")
     bot.Items.SpawnBonusItems()
     
 def EquipSkillBar(): 
@@ -149,60 +146,60 @@ def EquipSkillBar():
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Warrior":
         if level <= 3: #10 attribute points available
-            yield from bot.helpers._load_skillbar("OQIRkpQxw23AAAAg2CA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OQIRkpQxw23AAAAg2CA")
         elif level <= 4: #15 attribute points available
-            yield from bot.helpers._load_skillbar("OQIRkrQxw23AAAAg2CA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OQIRkrQxw23AAAAg2CA")
         elif level <= 5: #20 attribute points available
-            yield from bot.helpers._load_skillbar("OQIUEDrgjcFKG2+GAAAA0WAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OQIUEDrgjcFKG2+GAAAA0WAA")
         elif level <= 6: #25 attribute points available
-            yield from bot.helpers._load_skillbar("OQITEDsktQxw23AAAAg2CAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OQITEDsktQxw23AAAAg2CAA")
         elif level <= 7: #45 attribute points available (including 15 attribute points from quests)
-            yield from bot.helpers._load_skillbar("OQIUED7gjMGKG2+GAAAA0WAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OQIUED7gjMGKG2+GAAAA0WAA")
         elif level <= 8: #50 attribute points available
-            yield from bot.helpers._load_skillbar("OQITYDckzQxw23AAAAg2CAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OQITYDckzQxw23AAAAg2CAA")
         elif level <= 9: #55 attribute points available
-            yield from bot.helpers._load_skillbar("OQITYHckzQxw23AAAAg2CAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OQITYHckzQxw23AAAAg2CAA")
         elif level <= 10: #55 attribute points available
-            yield from bot.helpers._load_skillbar("OQIUEDLhjcGKG2+GAAAA0WAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OQIUEDLhjcGKG2+GAAAA0WAA")
         else: #20 attribute points available
-            yield from bot.helpers._load_skillbar("OQISYxcGKG2+GAAAA0WA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OQISYxcGKG2+GAAAA0WA")
     elif profession == "Ranger":
-        yield from bot.helpers._load_skillbar("OggjYZZIYMKG1pvBAAAAA0GBAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OggjYZZIYMKG1pvBAAAAA0GBAA")
     elif profession == "Monk":
-        yield from bot.helpers._load_skillbar("OwISYxcGKG2o03AAA0WA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OwISYxcGKG2o03AAA0WA")
     elif profession == "Necromancer":
-        yield from bot.helpers._load_skillbar("OAJTYJckzQxw23AAAAg2CAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OAJTYJckzQxw23AAAAg2CAA")
     elif profession == "Mesmer":
-        yield from bot.helpers._load_skillbar("OQJTYJckzQxw23AAAAg2CAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OQJTYJckzQxw23AAAAg2CAA")
     elif profession == "Elementalist":
-        yield from bot.helpers._load_skillbar("OgJUwCLhjcGKG2+GAAAA0WAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OgJUwCLhjcGKG2+GAAAA0WAA")
     elif profession == "Ritualist":
-        yield from bot.helpers._load_skillbar("OAKkYRYRWCGjiB24b+mAAAAtRAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OAKkYRYRWCGjiB24b+mAAAAtRAA")
     elif profession == "Assassin":
-        yield from bot.helpers._load_skillbar("OwJkYRZ5XMGiiBbuMAAAAAtJAA")
-        
+        yield from Routines.Yield.Skills.LoadSkillbar("OwJkYRZ5XMGiiBbuMAAAAAtJAA")
+
 
 def EquipCaptureSkillBar(): 
     global bot
 
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Warrior":
-        yield from bot.helpers._load_skillbar("OQIAEbGAAAAAAAAAAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OQIAEbGAAAAAAAAAAA")
     elif profession == "Ranger":
-        yield from bot.helpers._load_skillbar("OgAAEbGAAAAAAAAAAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OgAAEbGAAAAAAAAAAA")
     elif profession == "Monk":
-        yield from bot.helpers._load_skillbar("OwIAEbGAAAAAAAAAAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OwIAEbGAAAAAAAAAAA")
     elif profession == "Necromancer":
-        yield from bot.helpers._load_skillbar("OAJAEbGAAAAAAAAAAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OAJAEbGAAAAAAAAAAA")
     elif profession == "Mesmer":
-        yield from bot.helpers._load_skillbar("OQJAEbGAAAAAAAAAAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OQJAEbGAAAAAAAAAAA")
     elif profession == "Elementalist":
-        yield from bot.helpers._load_skillbar("OgJAEbGAAAAAAAAAAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OgJAEbGAAAAAAAAAAA")
     elif profession == "Ritualist":
-        yield from bot.helpers._load_skillbar("OAKkYRYRWCGxmBAAAAAAAAAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OAKkYRYRWCGxmBAAAAAAAAAA")
     elif profession == "Assassin":
-        yield from bot.helpers._load_skillbar("OwJkYRZ5XMGxmBAAAAAAAAAA")
-        
+        yield from Routines.Yield.Skills.LoadSkillbar("OwJkYRZ5XMGxmBAAAAAAAAAA")
+
 
 
 
@@ -263,9 +260,9 @@ def AddHenchmen():
 
 def PrepareForBattle(bot: Botting):
     ConfigureAggressiveEnv(bot)
-    bot.States.AddFSMCustomYieldState(EquipSkillBar, "Equip Skill Bar")
+    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
-    bot.States.AddFSMCustomYieldState(AddHenchmen, "Add Henchmen")
+    bot.States.AddCustomState(AddHenchmen, "Add Henchmen")
     bot.Items.Restock.BirthdayCupcake()
     bot.Items.Restock.Honeycomb()
   
@@ -370,14 +367,14 @@ def CraftArmor(bot: Botting):
         result = yield from Routines.Yield.Items.CraftItem(item_id, 200, mats, qtys)
         if not result:
             ConsoleLog("CraftArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
-            bot.helpers.on_unmanaged_fail()
+            bot.helpers.Events.on_unmanaged_fail()
             return False
 
         # --- Equip ---
         result = yield from Routines.Yield.Items.EquipItem(item_id)
         if not result:
             ConsoleLog("CraftArmor", f"Failed to equip item ({item_id}).", Py4GW.Console.MessageType.Error)
-            bot.helpers.on_unmanaged_fail()
+            bot.helpers.Events.on_unmanaged_fail()
             return False
         yield
     return True
@@ -408,14 +405,14 @@ def CraftRemainingArmor():
             result = yield from Routines.Yield.Items.CraftItem(item_id, 200, mats, qtys)
             if not result:
                 ConsoleLog("CraftArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
-                bot.helpers.on_unmanaged_fail()
+                bot.helpers.Events.on_unmanaged_fail()
                 return False
 
             # --- Equip ---
             result = yield from Routines.Yield.Items.EquipItem(item_id)
             if not result:
                 ConsoleLog("CraftArmor", f"Failed to equip item ({item_id}).", Py4GW.Console.MessageType.Error)
-                bot.helpers.on_unmanaged_fail()
+                bot.helpers.Events.on_unmanaged_fail()
                 return False
 
     return True
@@ -423,77 +420,77 @@ def CraftRemainingArmor():
 
 #region Routines
 def InitializeBot(bot: Botting) -> None:
-    bot.States.AddHeaderStep("Initial Step")
+    bot.States.AddHeader("Initial Step")
     condition = lambda: on_party_wipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
     bot.Events.OnPartyDefeatedCallback(condition)
 
 def ExitMonasteryOverlook(bot: Botting) -> None:
-    bot.States.AddHeaderStep("Exit Monastery Overlook")
-    bot.Movement.MoveAndDialog(-7048,5817,0x85) #Move to Ludo I_AM_SURE = 0x85
+    bot.States.AddHeader("Exit Monastery Overlook")
+    bot.Move.XYAndDialog(-7048,5817,0x85) #Move to Ludo I_AM_SURE = 0x85
     bot.Wait.ForMapLoad(target_map_name="Shing Jea Monastery")
     
 def ExitToCourtyard(bot: Botting) -> None:
-    bot.States.AddHeaderStep("Exit To Courtyard")
+    bot.States.AddHeader("Exit To Courtyard")
     ConfigurePacifistEnv(bot)
-    bot.Movement.MoveAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
+    bot.Move.XYAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
     
 def UnlockSecondaryProfession(bot: Botting) -> None:
     def assign_profession_unlocker_dialog():
         global bot
         primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         if primary == "Ranger":
-            yield from bot.helpers._interact_with_agent((-92, 9217),0x813D0A)
+            yield from bot.helpers.Interact._with_agent((-92, 9217),0x813D0A)
         else:
-            yield from bot.helpers._interact_with_agent((-92, 9217),0x813D0F)
+            yield from bot.helpers.Interact._with_agent((-92, 9217),0x813D0F)
         yield from Routines.Yield.wait(500)
 
-    bot.States.AddHeaderStep("Unlock Secondary Profession")
-    bot.Movement.MoveTo(-159, 9174)
-    bot.States.AddFSMCustomYieldState(assign_profession_unlocker_dialog, "Update Secondary Profession Dialog")
+    bot.States.AddHeader("Unlock Secondary Profession")
+    bot.Move.XY(-159, 9174)
+    bot.States.AddCustomState(assign_profession_unlocker_dialog, "Update Secondary Profession Dialog")
     bot.UI.CancelSkillRewardWindow()
     bot.UI.CancelSkillRewardWindow()
-    bot.Dialogs.DialogAt(-92, 9217,  0x813D07) #TAKE_SECONDARY_REWARD
-    bot.Dialogs.DialogAt(-92, 9217,  0x813E01) #TAKE_MINISTER_CHO_QUEST
+    bot.Dialogs.AtXY(-92, 9217,  0x813D07) #TAKE_SECONDARY_REWARD
+    bot.Dialogs.AtXY(-92, 9217,  0x813E01) #TAKE_MINISTER_CHO_QUEST
     #ExitCourtyard
-    bot.Movement.MoveAndExitMap(-3762, 9471, target_map_name="Shing Jea Monastery")
+    bot.Move.XYAndExitMap(-3762, 9471, target_map_name="Shing Jea Monastery")
 
 def UnlockXunlaiStorage(bot: Botting) -> None:
-    bot.States.AddHeaderStep("Unlock Xunlai Storage")
+    bot.States.AddHeader("Unlock Xunlai Storage")
     path_to_xunlai: List[Tuple[float, float]] = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
-    bot.Movement.FollowPathAndDialog(path_to_xunlai, 0x84) #UNLOCK_XUNLAI_STORAGE
+    bot.Move.FollowPathAndDialog(path_to_xunlai, 0x84) #UNLOCK_XUNLAI_STORAGE
 
 def EquipWeapons(bot: Botting):
     bot.Items.SpawnBonusItems()
     bot.Items.Equip(5831) #BOW
     
 def ExitToSunquaVale(bot: Botting) -> None:
-    bot.States.AddHeaderStep("Exit To Sunqua Vale")
+    bot.States.AddHeader("Exit To Sunqua Vale")
     ConfigurePacifistEnv(bot)
-    bot.Movement.MoveAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     
 def RangerCapturePet(bot: Botting) -> None:
-    bot.Movement.MoveAndDialog(-7782.00, 6687.00,0x810403) #Locate Sujun
-    bot.Dialogs.DialogAt(-7782.00, 6687.00,0x810401) #Accept Quest
+    bot.Move.XYAndDialog(-7782.00, 6687.00,0x810403) #Locate Sujun
+    bot.Dialogs.AtXY(-7782.00, 6687.00,0x810401) #Accept Quest
     bot.UI.CancelSkillRewardWindow()
       
 def RqangerGetSkills(bot: Botting) -> None:
-    bot.Movement.MoveAndDialog(5103.00, -4769.00,0x810407) #accept reward
-    bot.Dialogs.DialogAt(5103.00, -4769.00,0x811401) #of course i will help
+    bot.Move.XYAndDialog(5103.00, -4769.00,0x810407) #accept reward
+    bot.Dialogs.AtXY(5103.00, -4769.00,0x811401) #of course i will help
 
 def CapturePet(bot: Botting) -> None:
-    bot.States.AddHeaderStep("Capture Pet")
+    bot.States.AddHeader("Capture Pet")
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary == "Ranger":
         RangerCapturePet(bot)
      
-    bot.States.AddFSMCustomYieldState(EquipCaptureSkillBar, "Equip Capture Skill Bar")
-    bot.Movement.MoveAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    bot.States.AddCustomState(EquipCaptureSkillBar, "Equip Capture Skill Bar")
+    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
 
-    bot.Movement.MoveTo(13970.94, -13085.83)
-    bot.Targeting.TargetModel(2954) #Tiger
+    bot.Move.XY(13970.94, -13085.83)
+    bot.Target.Model(2954) #Tiger
     bot.SkillBar.UseSkill(411) #Capture Pet
-    bot.Wait.WasteTime(22000)
+    bot.Wait.ForTime(22000)
     
     if primary == "Ranger":
         RqangerGetSkills(bot)
@@ -501,20 +498,20 @@ def CapturePet(bot: Botting) -> None:
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     
 def TravelToMinisterCho(bot: Botting) -> None:
-    bot.States.AddHeaderStep("Travel To Minister Cho")
-    bot.Movement.MoveAndDialog(6637, 16147, 0x80000B, step_name="Talk to Guardman Zui")
-    bot.Wait.WasteTime(7000)
+    bot.States.AddHeader("Travel To Minister Cho")
+    bot.Move.XYAndDialog(6637, 16147, 0x80000B, step_name="Talk to Guardman Zui")
+    bot.Wait.ForTime(7000)
     bot.Wait.ForMapLoad(target_map_id=214) #minister_cho_map_id
-    bot.Movement.MoveAndDialog(7884, -10029, 0x813E07, step_name="Accept Minister Cho Reward")
+    bot.Move.XYAndDialog(7884, -10029, 0x813E07, step_name="Accept Minister Cho Reward")
     
 def EnterMinisterChoMission(bot: Botting):
-    bot.States.AddHeaderStep("Enter Minister Cho Mission")
-    bot.Wait.WasteTime(2000)
+    bot.States.AddHeader("Enter Minister Cho Mission")
+    bot.Wait.ForTime(2000)
     PrepareForBattle(bot)
     bot.Map.EnterChallenge(delay=4500, target_map_id=214) #minister_cho_map_id
 
 def MinisterChoMission(bot: Botting) -> None:
-    bot.States.AddHeaderStep("Minister Cho Mission")
+    bot.States.AddHeader("Minister Cho Mission")
     auto_path_list:List[Tuple[float, float]] = [
             (6358, -7348),   # Move to Activate Mission
             (507, -8910),    # Move to First Door
@@ -528,148 +525,148 @@ def MinisterChoMission(bot: Botting) -> None:
             (-7443, 2243),   # Move to Zoo Exit
             (-16924, 2445),  # Move to Final Destination
     ]
-    bot.Movement.FollowAutoPath(auto_path_list)
-    bot.Interact.InteractNPCAt(-17031, 2448) #"Interact with Minister Cho"
-    bot.Wait.ForMapTransition(target_map_name="Ran Musu Gardens")
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Interact.WithNpcAtXY(-17031, 2448) #"Interact with Minister Cho"
+    bot.Wait.ForMapToChange(target_map_name="Ran Musu Gardens")
     
 def AttributePointQuest1(bot: Botting):
-    bot.States.AddHeaderStep("Attribute Point Quest 1")
-    bot.Movement.MoveAndDialog(14363.00, 19499.00, 0x815A01)  # I Like treasure
+    bot.States.AddHeader("Attribute Point Quest 1")
+    bot.Move.XYAndDialog(14363.00, 19499.00, 0x815A01)  # I Like treasure
     PrepareForBattle(bot)
     path = [(13713.27, 18504.61),(14576.15, 17817.62),(15824.60, 18817.90)]
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     map_id = 245
-    bot.Movement.MoveAndExitMap(17005, 19787, target_map_id=map_id)
-    bot.Movement.MoveTo(-17979.38, -493.08)
+    bot.Move.XYAndExitMap(17005, 19787, target_map_id=map_id)
+    bot.Move.XY(-17979.38, -493.08)
     GUARD_ID= 3042
-    bot.Dialogs.DialogWithModel(GUARD_ID, 0x815A04)
+    bot.Dialogs.WithModel(GUARD_ID, 0x815A04)
     exit_function = lambda: (
         not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
         GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(GUARD_ID))
     )
-    bot.Movement.FollowModelID(GUARD_ID, follow_range=(Range.Area.value), exit_condition=exit_function)
-    bot.Dialogs.DialogWithModel(GUARD_ID, 0x815A07)
+    bot.Move.FollowModel(GUARD_ID, follow_range=(Range.Area.value), exit_condition=exit_function)
+    bot.Dialogs.WithModel(GUARD_ID, 0x815A07)
     bot.Map.Travel(target_map_name="Ran Musu Gardens")
     
 def TakeWarningTheTenguQuest(bot: Botting):
-    bot.States.AddHeaderStep("Take Warning the Tengu Quest")
-    bot.Movement.MoveAndDialog(15846, 19013, 0x815301, step_name="Take Warning the Tengu Quest")
+    bot.States.AddHeader("Take Warning the Tengu Quest")
+    bot.Move.XYAndDialog(15846, 19013, 0x815301, step_name="Take Warning the Tengu Quest")
     PrepareForBattle(bot)
     ConfigurePacifistEnv(bot)
-    bot.Movement.MoveAndExitMap(14730, 15176, target_map_name="Kinya Province")
+    bot.Move.XYAndExitMap(14730, 15176, target_map_name="Kinya Province")
     
 def WarningTheTenguQuest(bot: Botting):
-    bot.States.AddHeaderStep("Warning The Tengu Quest")
-    bot.Movement.MoveTo(1429, 12768, "Move to Tengu Part2")
+    bot.States.AddHeader("Warning The Tengu Quest")
+    bot.Move.XY(1429, 12768, "Move to Tengu Part2")
     ConfigureAggressiveEnv(bot)
-    bot.Movement.MoveAndDialog(-1023, 4844, 0x815304, step_name="Continue Warning the Tengu Quest")
-    bot.Movement.MoveTo(-5011, 732, "Move to Tengu Killspot")
-    bot.Wait.WasteTimeUntilOOC()
-    bot.Movement.MoveAndDialog(-1023, 4844, 0x815307, step_name="Take Warning the Tengu Reward")
-    bot.Dialogs.DialogAt(-1023, 4844, 0x815401, step_name="Take The Threat Grows Quest")
+    bot.Move.XYAndDialog(-1023, 4844, 0x815304, step_name="Continue Warning the Tengu Quest")
+    bot.Move.XY(-5011, 732, "Move to Tengu Killspot")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XYAndDialog(-1023, 4844, 0x815307, step_name="Take Warning the Tengu Reward")
+    bot.Dialogs.AtXY(-1023, 4844, 0x815401, step_name="Take The Threat Grows Quest")
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
 
 def ExitToTsumeiVillage(bot: Botting):
-    bot.States.AddHeaderStep("Exit To Tsumei Village")
-    bot.Movement.MoveAndExitMap(-4900, -13900, target_map_name="Tsumei Village")
+    bot.States.AddHeader("Exit To Tsumei Village")
+    bot.Move.XYAndExitMap(-4900, -13900, target_map_name="Tsumei Village")
     
 def ExitToPanjiangPeninsula(bot: Botting):
-    bot.States.AddHeaderStep("Exit To Panjiang Peninsula")
+    bot.States.AddHeader("Exit To Panjiang Peninsula")
     PrepareForBattle(bot)
-    bot.Movement.MoveAndExitMap(-11600,-17400, target_map_name="Panjiang Peninsula")
+    bot.Move.XYAndExitMap(-11600,-17400, target_map_name="Panjiang Peninsula")
 
 def TheThreatGrows(bot: Botting):
-    bot.States.AddHeaderStep("The Threat Grows")
-    bot.Movement.MoveTo(9793.73, 7470.04, "Move to The Threat Grows Killspot")
+    bot.States.AddHeader("The Threat Grows")
+    bot.Move.XY(9793.73, 7470.04, "Move to The Threat Grows Killspot")
     SISTER_TAI_MODEL_ID = 3316
     wait_function = lambda: (
         not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
         GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(SISTER_TAI_MODEL_ID))
     )
-    bot.Wait.WasteTimeUntilConditionMet(wait_function)
+    bot.Wait.UntilCondition(wait_function)
     ConfigurePacifistEnv(bot)
-    bot.Dialogs.DialogWithModel(SISTER_TAI_MODEL_ID, 0x815407, step_name="Accept The Threat Grows Reward")
-    bot.Dialogs.DialogWithModel(SISTER_TAI_MODEL_ID, 0x815501, step_name="Take Go to Togo Quest")
+    bot.Dialogs.WithModel(SISTER_TAI_MODEL_ID, 0x815407, step_name="Accept The Threat Grows Reward")
+    bot.Dialogs.WithModel(SISTER_TAI_MODEL_ID, 0x815501, step_name="Take Go to Togo Quest")
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     
 def ExitToCourtyardAggressive(bot: Botting) -> None:
-    bot.States.AddHeaderStep("Exit To Courtyard")
+    bot.States.AddHeader("Exit To Courtyard")
     PrepareForBattle(bot)
-    bot.Movement.MoveAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
+    bot.Move.XYAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
     
 def AdvanceToSaoshangTrail(bot: Botting):
-    bot.States.AddHeaderStep("Advance To Saoshang Trail")
-    bot.Movement.MoveAndDialog(-92, 9217, 0x815507, step_name="Move to Togo 002")
-    bot.Dialogs.DialogAt(-92, 9217, 0x815601, step_name="Take Exit Quest")
-    bot.Movement.MoveAndDialog(538, 10125, 0x80000B, step_name="Continue")
+    bot.States.AddHeader("Advance To Saoshang Trail")
+    bot.Move.XYAndDialog(-92, 9217, 0x815507, step_name="Move to Togo 002")
+    bot.Dialogs.AtXY(-92, 9217, 0x815601, step_name="Take Exit Quest")
+    bot.Move.XYAndDialog(538, 10125, 0x80000B, step_name="Continue")
     bot.Wait.ForMapLoad(target_map_id=313) #saoshang_trail_map_id
     
 def TraverseSaoshangTrail(bot: Botting):
-    bot.States.AddHeaderStep("Traverse Saoshang Trail")
-    bot.Movement.MoveAndDialog(1254, 10875, 0x815604) # Continue
-    bot.Movement.MoveAndExitMap(16600, 13150, target_map_name="Seitung Harbor")
+    bot.States.AddHeader("Traverse Saoshang Trail")
+    bot.Move.XYAndDialog(1254, 10875, 0x815604) # Continue
+    bot.Move.XYAndExitMap(16600, 13150, target_map_name="Seitung Harbor")
     
 def TakeRewardAndCraftArmor(bot: Botting):
-    bot.States.AddHeaderStep("Take Reward And Craft Armor")
-    bot.Movement.MoveAndDialog(16368, 12011, 0x815607) #TAKE_REWARD
-    bot.Movement.MoveAndInteractNPC(17520.00, 13805.00)
-    bot.States.AddFSMCustomYieldState(BuyMaterials, "Buy Materials")
-    bot.Movement.MoveAndInteractNPC(20508.00, 9497.00)
+    bot.States.AddHeader("Take Reward And Craft Armor")
+    bot.Move.XYAndDialog(16368, 12011, 0x815607) #TAKE_REWARD
+    bot.Move.XYAndInteractNPC(17520.00, 13805.00)
+    bot.States.AddCustomState(BuyMaterials, "Buy Materials")
+    bot.Move.XYAndInteractNPC(20508.00, 9497.00)
     exec_fn = lambda: CraftArmor(bot)
-    bot.States.AddFSMCustomYieldState(exec_fn, "Craft Armor")
+    bot.States.AddCustomState(exec_fn, "Craft Armor")
     
 def ExitSeitungHarbor(bot: Botting):
     PrepareForBattle(bot)
-    bot.Movement.MoveAndExitMap(16777, 17540, target_map_name="Jaya Bluffs")
+    bot.Move.XYAndExitMap(16777, 17540, target_map_name="Jaya Bluffs")
     
 def GoToZenDaijun(bot: Botting):
-    bot.States.AddHeaderStep("Go To Zen Daijun")
-    bot.Movement.MoveAndExitMap(23616, 1587, target_map_name="Haiju Lagoon")
-    bot.Movement.MoveAndDialog(16489, -22213, 0x80000B) # CONTINUE
-    bot.Wait.WasteTime(6000)
+    bot.States.AddHeader("Go To Zen Daijun")
+    bot.Move.XYAndExitMap(23616, 1587, target_map_name="Haiju Lagoon")
+    bot.Move.XYAndDialog(16489, -22213, 0x80000B) # CONTINUE
+    bot.Wait.ForTime(6000)
     bot.Wait.ForMapLoad(target_map_id=213) #zen_daijun_map_id
     
 def EnterZenDaijunMission(bot:Botting):
-    bot.States.AddHeaderStep("Enter Zen Daijun Mission")
+    bot.States.AddHeader("Enter Zen Daijun Mission")
     PrepareForBattle(bot)
     bot.Map.EnterChallenge(6000, target_map_id=213) #zen_daijun_map_id
     
 def ZenDaijunMission(bot: Botting):
-    bot.States.AddHeaderStep("Zen Daijun Mission")
-    bot.Movement.MoveTo(11775.22, 11310.60)
-    bot.Interact.InteractGadgetAt(11665, 11386)
+    bot.States.AddHeader("Zen Daijun Mission")
+    bot.Move.XY(11775.22, 11310.60)
+    bot.Interact.WithGadgetAtXY(11665, 11386)
     auto_path_list:List[Tuple[float, float]] = [(10549,8070),(10945,3436),(7551,3810),(4855.66, 1521.21)]
-    bot.Movement.FollowAutoPath(auto_path_list)
-    bot.Interact.InteractGadgetAt(4754,1451)
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Interact.WithGadgetAtXY(4754,1451)
     auto_path_list:List[Tuple[float, float]] = [(4508, -1084),(528, 6271),(-9833, 7579),(-5057.49, 3021.30)]
-    bot.Movement.FollowAutoPath(auto_path_list)
-    bot.Interact.InteractGadgetAt(-4862.00, 3005.00)
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Interact.WithGadgetAtXY(-4862.00, 3005.00)
     auto_path_list:List[Tuple[float, float]] = [(-12983, 2191),(-12362, -263),(-9813, -114)]
-    bot.Movement.FollowAutoPath(auto_path_list)
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Party.FlagAllHeroes(-8222, -1078)
-    bot.Movement.MoveTo(-7681.58, -1509.00)
-    bot.Wait.ForMapTransition(target_map_name="Seitung Harbor")
+    bot.Move.XY(-7681.58, -1509.00)
+    bot.Wait.ForMapToChange(target_map_name="Seitung Harbor")
 
 def CraftRemainingArmorFSM(bot: Botting):
-    bot.States.AddHeaderStep("Craft Remaining Armor")
-    bot.States.AddFSMCustomYieldState(CraftRemainingArmor, "Craft Remaining Armor")
+    bot.States.AddHeader("Craft Remaining Armor")
+    bot.States.AddCustomState(CraftRemainingArmor, "Craft Remaining Armor")
 
 def AttributePointQuest2(bot: Botting):
     def enable_combat_and_wait(ms:int):
         global bot
-        bot.Properties.enable("auto_combat")
-        bot.Wait.WasteTime(ms)
-        bot.Properties.disable("auto_combat")
+        bot.Properties.Enable("auto_combat")
+        bot.Wait.ForTime(ms)
+        bot.Properties.Disable("auto_combat")
         
         
         
-    bot.States.AddHeaderStep("Attribute Point Quest 2")
-    bot.Movement.MoveTo(19698.33, 7504.35)
-    bot.Interact.InteractGadgetAt(19642.00, 7386.00)
-    bot.Wait.WasteTime(5000)
-    bot.Dialogs.DialogWithModel(3958,0x815C01) #Take Quest from Zunraa
+    bot.States.AddHeader("Attribute Point Quest 2")
+    bot.Move.XY(19698.33, 7504.35)
+    bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
+    bot.Wait.ForTime(5000)
+    bot.Dialogs.WithModel(3958,0x815C01) #Take Quest from Zunraa
     PrepareForBattle(bot)
-    bot.Dialogs.DialogAt(20350.00, 9087.00, 0x80000B)
+    bot.Dialogs.AtXY(20350.00, 9087.00, 0x80000B)
     bot.Wait.ForMapLoad(target_map_id=246)  # zen_daijun_map_id
     auto_path_list:List[Tuple[float, float]] = [
     (-13959.50, 6375.26), #half the temple
@@ -683,36 +680,36 @@ def AttributePointQuest2(bot: Botting):
     (-8180.59, 12189.97), #back to kill patrols
     (-9540.45, 7760.86), #in front of bridge 2
     (-5038.08, 2977.42)] #to shrine
-    bot.Movement.FollowAutoPath(auto_path_list)
-    bot.Interact.InteractGadgetAt(-4862.00, 3005.00)
-    bot.Movement.MoveTo(-9643.93, 7759.69) #front of bridge 3
-    bot.Wait.WasteTime(5000)
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Interact.WithGadgetAtXY(-4862.00, 3005.00)
+    bot.Move.XY(-9643.93, 7759.69) #front of bridge 3
+    bot.Wait.ForTime(5000)
 
-    bot.Properties.disable("auto_combat")
+    bot.Properties.Disable("auto_combat")
     player_pos = GLOBAL_CACHE.Player.GetXY()
     path =[(-8294.21, 10061.62)] #position zunraa
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     player_pos = GLOBAL_CACHE.Player.GetXY()
     path = [(-6473.26, 8771.21)] #clear miasma
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     path =[(-6365.32, 10234.20)] #position zunraa2
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.enable("auto_combat")
+    bot.Properties.Enable("auto_combat")
     
-    bot.Movement.MoveTo(-8655.04, -769.98) # to next Miasma on temple
-    bot.Wait.WasteTime(5000)
-    bot.Properties.disable("auto_combat")
+    bot.Move.XY(-8655.04, -769.98) # to next Miasma on temple
+    bot.Wait.ForTime(5000)
+    bot.Properties.Disable("auto_combat")
     
     path = [(-6744.75, -1842.97)] #clear half the miasma 
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(10000)
     path = [(-7720.80, -905.19)] #finish miasma
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.enable("auto_combat")
+    bot.Properties.Enable("auto_combat")
     
     auto_path_list:List[Tuple[float, float]] = [
     (-5016.76, -8800.93), #half the map
@@ -728,132 +725,132 @@ def AttributePointQuest2(bot: Botting):
     (15029.96, 10187.60), #enemies on the loop
     (14062.33, 13088.72), #corner
     (11775.22, 11310.60)] #Zunraa
-    bot.Movement.FollowAutoPath(auto_path_list)
-    bot.Interact.InteractGadgetAt(11665, 11386)
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Interact.WithGadgetAtXY(11665, 11386)
     
-    bot.Properties.disable("auto_combat")
+    bot.Properties.Disable("auto_combat")
     path = [(12954.96, 9288.47)] #miasma
-    bot.Movement.FollowPath(path) 
+    bot.Move.FollowPath(path) 
     enable_combat_and_wait(5000)
 
     path = [(12507.05, 11450.91)] #finish miasma
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.enable("auto_combat")
+    bot.Properties.Enable("auto_combat")
     
-    bot.Movement.MoveTo(7709.06, 4550.47) #past bridge trough miasma
-    bot.Wait.WasteTime(5000)
+    bot.Move.XY(7709.06, 4550.47) #past bridge trough miasma
+    bot.Wait.ForTime(5000)
     
-    bot.Properties.disable("auto_combat")
+    bot.Properties.Disable("auto_combat")
     path = [(9334.25, 5746.98)] #1/3 miasma
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     
     path = [(7554.94, 6159.84)] #2/3 miasma
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
 
     path =[(9242.30, 6127.45)] #finish miasma
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.enable("auto_combat")
+    bot.Properties.Enable("auto_combat")
     
-    bot.Movement.MoveTo(4855.66, 1521.21)
-    bot.Interact.InteractGadgetAt(4754,1451)
-    bot.Movement.MoveTo(2958.13, 6410.57)
+    bot.Move.XY(4855.66, 1521.21)
+    bot.Interact.WithGadgetAtXY(4754,1451)
+    bot.Move.XY(2958.13, 6410.57)
     
-    bot.Properties.disable("auto_combat")
+    bot.Properties.Disable("auto_combat")
     path = [(2683.69, 8036.28)] #clear miasma
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(8000)
-    bot.Movement.MoveTo(3366.55, -5996.11) #to the other miasma at the middle
+    bot.Move.XY(3366.55, -5996.11) #to the other miasma at the middle
     
     enable_combat_and_wait(10000)
     path =[(1866.87, -5454.60)]
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     path= [(3322.93, -5703.29)]
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     path =[(1855.78, -5376.80)]
-    bot.Movement.FollowPath(path)
+    bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.enable("auto_combat")
+    bot.Properties.Enable("auto_combat")
     
     #bot.Movement.MoveTo(-11296.89, -5229.18)
     #bot.Interact.InteractGadgetAt(-11344.00, -5432.00)
-    bot.Movement.MoveTo(-8655.04, -769.98)
-    bot.Movement.MoveTo(-7453.22, -1483.71)
+    bot.Move.XY(-8655.04, -769.98)
+    bot.Move.XY(-7453.22, -1483.71)
     wait_function = lambda: (
         not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)))
-    bot.Wait.WasteTimeUntilConditionMet(wait_function)
+    bot.Wait.UntilCondition(wait_function)
     
     bot.Map.Travel(target_map_name="Seitung Harbor")
-    bot.Movement.MoveTo(19698.33, 7504.35)
-    bot.Interact.InteractGadgetAt(19642.00, 7386.00)
-    bot.Wait.WasteTime(5000)
+    bot.Move.XY(19698.33, 7504.35)
+    bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
+    bot.Wait.ForTime(5000)
     ZUNRAA_MODEL_ID = 3958
-    bot.Dialogs.DialogWithModel(ZUNRAA_MODEL_ID,0x815C07) #Complete Quest from Zunraa
+    bot.Dialogs.WithModel(ZUNRAA_MODEL_ID,0x815C07) #Complete Quest from Zunraa
     
 
 def AdvanceToMarketplace(bot: Botting):
-    bot.States.AddHeaderStep("Advance To Marketplace")
-    bot.Movement.MoveAndDialog(16927, 9004, 0x815D01)  # "I Will Set Sail Immediately"
-    bot.Dialogs.DialogAt(16927, 9004, 0x815D05)  # "a Master burden"
-    bot.Dialogs.DialogAt(16927, 9004, 0x84)  # i am sure
+    bot.States.AddHeader("Advance To Marketplace")
+    bot.Move.XYAndDialog(16927, 9004, 0x815D01)  # "I Will Set Sail Immediately"
+    bot.Dialogs.AtXY(16927, 9004, 0x815D05)  # "a Master burden"
+    bot.Dialogs.AtXY(16927, 9004, 0x84)  # i am sure
     bot.Wait.ForMapLoad(target_map_name="Kaineng Docks")
-    bot.Movement.MoveAndDialog(9955, 20033, 0x815D04)  # a masters burden
-    bot.Movement.MoveAndExitMap(12003, 18529, target_map_name="The Marketplace")
+    bot.Move.XYAndDialog(9955, 20033, 0x815D04)  # a masters burden
+    bot.Move.XYAndExitMap(12003, 18529, target_map_name="The Marketplace")
 
 def AdvanceToKainengCenter(bot: Botting):
-    bot.States.AddHeaderStep("Advance To Kaineng Center")
+    bot.States.AddHeader("Advance To Kaineng Center")
     PrepareForBattle(bot)
-    bot.Movement.MoveAndExitMap(16640,19882, target_map_name="Bukdek Byway")
-    bot.Movement.MoveTo(-10254,-1759)
-    bot.Movement.MoveTo(-10332,1442)
-    bot.Movement.MoveTo(-10965,9309)
-    bot.Movement.MoveTo(-9467,14207)
+    bot.Move.XYAndExitMap(16640,19882, target_map_name="Bukdek Byway")
+    bot.Move.XY(-10254,-1759)
+    bot.Move.XY(-10332,1442)
+    bot.Move.XY(-10965,9309)
+    bot.Move.XY(-9467,14207)
     path_to_kc = [(-8601.28, 17419.64),(-6857.17, 19098.28),(-6706,20388)]
-    bot.Movement.FollowPathAndExitMap(path_to_kc, target_map_id=194) #Kaineng Center
+    bot.Move.FollowPathAndExitMap(path_to_kc, target_map_id=194) #Kaineng Center
     
 def AdvanceToEOTN(bot: Botting):
-    bot.States.AddHeaderStep("Advance To Eye of the North")
-    bot.Movement.MoveTo(3444.90, -1728.31)
-    bot.Movement.MoveAndDialog(3747.00, -2174.00, 0x833501)  # limitless monetary resources
-    bot.Movement.MoveTo(3444.90, -1728.31)
+    bot.States.AddHeader("Advance To Eye of the North")
+    bot.Move.XY(3444.90, -1728.31)
+    bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)  # limitless monetary resources
+    bot.Move.XY(3444.90, -1728.31)
     PrepareForBattle(bot)
-    bot.Movement.MoveAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
-    bot.Movement.MoveAndDialog(-10103.00, 16493.00, 0x84)  # yes
+    bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
+    bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)  # yes
     bot.Wait.ForMapLoad(target_map_id=692)  # tunnels_below_cantha_id
-    bot.Movement.MoveTo(16738.77, 3046.05)
-    bot.Movement.MoveTo(10968.19, 9623.72)
-    bot.Movement.MoveTo(3918.55, 10383.79)
-    bot.Movement.MoveTo(8435, 14378)
-    bot.Movement.MoveTo(10134,16742)
-    bot.Wait.WasteTime(3000)
+    bot.Move.XY(16738.77, 3046.05)
+    bot.Move.XY(10968.19, 9623.72)
+    bot.Move.XY(3918.55, 10383.79)
+    bot.Move.XY(8435, 14378)
+    bot.Move.XY(10134,16742)
+    bot.Wait.ForTime(3000)
     ConfigurePacifistEnv(bot)    
-    bot.Movement.MoveTo(4523.25, 15448.03)
-    bot.Movement.MoveTo(-43.80, 18365.45)
-    bot.Movement.MoveTo(-10234.92, 16691.96)
-    bot.Movement.MoveTo(-17917.68, 18480.57)
-    bot.Movement.MoveTo(-18775, 19097)
-    bot.Wait.WasteTime(8000)
+    bot.Move.XY(4523.25, 15448.03)
+    bot.Move.XY(-43.80, 18365.45)
+    bot.Move.XY(-10234.92, 16691.96)
+    bot.Move.XY(-17917.68, 18480.57)
+    bot.Move.XY(-18775, 19097)
+    bot.Wait.ForTime(8000)
     bot.Wait.ForMapLoad(target_map_id=675)  # boreal_station_id
 
 def ExitBorealStation(bot: Botting):
-    bot.States.AddHeaderStep("Exit Boreal Station")
+    bot.States.AddHeader("Exit Boreal Station")
     PrepareForBattle(bot)
-    bot.Movement.MoveAndExitMap(4684, -27869, target_map_name="Ice Cliff Chasms")
+    bot.Move.XYAndExitMap(4684, -27869, target_map_name="Ice Cliff Chasms")
     
 def TraverseToEOTNOutpost(bot: Botting):
-    bot.States.AddHeaderStep("Traverse To Eye of the North Outpost")
-    bot.Movement.MoveTo(3579.07, -22007.27)
-    bot.Wait.WasteTime(15000)
-    bot.Dialogs.DialogAt(3537.00, -21937.00, 0x839104)
-    bot.Movement.MoveTo(3743.31, -15862.36)
-    bot.Movement.MoveTo(8267.89, -12334.58)
-    bot.Movement.MoveTo(3607.21, -6937.32)
-    bot.Movement.MoveAndExitMap(2557.23, -275.97, target_map_id=642) #eotn_outpost_id
+    bot.States.AddHeader("Traverse To Eye of the North Outpost")
+    bot.Move.XY(3579.07, -22007.27)
+    bot.Wait.ForTime(15000)
+    bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
+    bot.Move.XY(3743.31, -15862.36)
+    bot.Move.XY(8267.89, -12334.58)
+    bot.Move.XY(3607.21, -6937.32)
+    bot.Move.XYAndExitMap(2557.23, -275.97, target_map_id=642) #eotn_outpost_id
     
 
 
@@ -891,6 +888,7 @@ def _draw_texture():
                                   tint=tint, border_color=border_col)
 
 
+bot.SetMainRoutine(create_bot_routine)
 bot.UI.override_draw_texture(_draw_texture)
 
 def main():

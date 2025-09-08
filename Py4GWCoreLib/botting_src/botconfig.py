@@ -186,5 +186,5 @@ class BotConfig:
                           execute_fn=lambda:self._set_on_follow_path_failed(on_follow_path_failed),)
 
     def reset_on_follow_path_failed(self) -> None:
-        self.set_on_follow_path_failed(lambda: self.parent.helpers.default_on_unmanaged_fail())
+        self.set_on_follow_path_failed(lambda: self.parent.helpers.Events.default_on_unmanaged_fail())
 
