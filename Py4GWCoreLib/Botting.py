@@ -90,7 +90,7 @@ class BottingClass:
                  upkeep_war_supplies_restock: int = 0):
         #internal configuration
         self.bot_name = bot_name
-        self.helpers = BottingHelpers(self)
+        
         self.config = BotConfig(self, bot_name,
                                 config_log_actions=config_log_actions,
                                 config_halt_on_death=config_halt_on_death,
@@ -147,25 +147,26 @@ class BottingClass:
                                 upkeep_war_supplies_active=upkeep_war_supplies_active,
                                 upkeep_war_supplies_restock=upkeep_war_supplies_restock)
 
+        self.helpers = BottingHelpers(self)
         #exposed Helpers
         self.States = BottingClass._STATES(self)
         self.UI = BottingClass._UI(self)
         self.Items = BottingClass._ITEMS(self)
         self.Dialogs = BottingClass._DIALOGS(self)
         self.Wait = BottingClass._WAIT(self)
-        self.Movement = BottingClass._MOVEMENT(self)
+        self.Move = BottingClass._MOVE(self)
         self.Map = BottingClass._MAP(self)
         self.Interact = BottingClass._INTERACT(self)
         self.Party = BottingClass._PARTY(self)
         self.Events = BottingClass._EVENTS(self)
         self.Properties = BottingClass._PROPERTIES(self)
-        self.Targeting = BottingClass._TARGETING(self)
+        self.Target = BottingClass._TARGET(self)
         self.SkillBar = BottingClass._SKILLBAR(self)
 
     #region internal Helpers
     def _start_coroutines(self):
         # add all upkeep coroutines once
-        H = self.helpers
+        H = self.helpers.Upkeepers
 
         self.config.FSM.AddManagedCoroutine("keep_alcohol",        H.upkeep_alcohol())
         self.config.FSM.AddManagedCoroutine("keep_city_speed",     H.upkeep_city_speed())
@@ -233,41 +234,43 @@ class BottingClass:
     class _DIALOGS:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
             self.combat_status = False
 
         @_yield_step("DisableAutoCombat","AUTO_DISABLE_AUTO_COMBAT")
         def _disable_auto_combat(self):
-            self.combat_status = self.parent.config.upkeep.auto_combat.is_active()
-            self.parent.config.upkeep.auto_combat.set_now("active", False)
+            self.combat_status = self._config.upkeep.auto_combat.is_active()
+            self._config.upkeep.auto_combat.set_now("active", False)
             ActionQueueManager().ResetAllQueues()
             yield
 
         @_yield_step("RestoreAutoCombat","AUTO_RESTORE_AUTO_COMBAT")
         def _restore_auto_combat(self):
-            self.parent.config.upkeep.auto_combat.set_now("active", self.combat_status)
+            self._config.upkeep.auto_combat.set_now("active", self.combat_status)
             yield
 
 
-        def DialogAt(self, x: float, y: float, dialog:int, step_name: str="") -> None:
+        def AtXY(self, x: float, y: float, dialog:int, step_name: str="") -> None:
             if step_name == "":
-                step_name = f"DialogAt_{self.parent.config.get_counter('DIALOG_AT')}"
+                step_name = f"DialogAt_{self._config.get_counter('DIALOG_AT')}"
 
             #disable combat to prevent interference
             self._disable_auto_combat()
 
-            self.parent.helpers.interact_with_agent((x, y), dialog_id=dialog)
+            self._helpers.Interact.with_npc_at_xy((x, y), dialog_id=dialog)
 
             #re-enable combat
             self._restore_auto_combat()
 
-        def DialogWithModel(self, model_id: int, dialog:int, step_name: str="") -> None:
+        def WithModel(self, model_id: int, dialog:int, step_name: str="") -> None:
             if step_name == "":
-                step_name = f"DialogWithModel_{self.parent.config.get_counter('DIALOG_AT')}"
+                step_name = f"DialogWithModel_{self._config.get_counter('DIALOG_AT')}"
 
             #disable combat to prevent interference
             self._disable_auto_combat()
 
-            self.parent.helpers.interact_with_model(model_id=model_id, dialog_id=dialog)
+            self._helpers.Interact.with_model(model_id=model_id, dialog_id=dialog)
 
             #re-enable combat
             self._restore_auto_combat()
@@ -276,77 +279,81 @@ class BottingClass:
     class _EVENTS:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
 
         def OnDeathCallback(self, callback: Callable[[], None]) -> None:
-            self.parent.config.events.on_death.set_callback(callback)
+            self._config.events.on_death.set_callback(callback)
 
         def OnPartyWipeCallback(self, callback: Callable[[], None]) -> None:
-            self.parent.config.events.on_party_wipe.set_callback(callback)
+            self._config.events.on_party_wipe.set_callback(callback)
 
         def OnPartyDefeatedCallback(self, callback: Callable[[], None]) -> None:
-            self.parent.config.events.on_party_defeated.set_callback(callback)
+            self._config.events.on_party_defeated.set_callback(callback)
 
     #region INTERACT
     class _INTERACT:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
             self.combat_status = False
 
         @_yield_step("DisableAutoCombat","AUTO_DISABLE_AUTO_COMBAT")
         def _disable_auto_combat(self):
-            self.combat_status = self.parent.config.upkeep.auto_combat.is_active()
-            self.parent.config.upkeep.auto_combat.set_now("active", False)
+            self.combat_status = self._config.upkeep.auto_combat.is_active()
+            self._config.upkeep.auto_combat.set_now("active", False)
             ActionQueueManager().ResetAllQueues()
             yield
 
         @_yield_step("RestoreAutoCombat","AUTO_RESTORE_AUTO_COMBAT")
         def _restore_auto_combat(self):
-            self.parent.config.upkeep.auto_combat.set_now("active", self.combat_status)
+            self._config.upkeep.auto_combat.set_now("active", self.combat_status)
             yield
 
-        def InteractNPCAt(self, x: float, y: float, step_name: str="") -> None:
+        def WithNpcAtXY(self, x: float, y: float, step_name: str="") -> None:
             if step_name == "":
-                step_name = f"InteractAt_{self.parent.config.get_counter('INTERACT_AT')}"
+                step_name = f"InteractAt_{self._config.get_counter('INTERACT_AT')}"
 
             #disable combat to prevent interference
             self._disable_auto_combat()
             
-            self.parent.helpers.interact_with_agent((x, y))
+            self._helpers.Interact.with_npc_at_xy((x, y))
             #re-enable combat
             self._restore_auto_combat()
 
-        def InteractGadgetAt(self, x: float, y: float, step_name: str="") -> None:
+        def WithGadgetAtXY(self, x: float, y: float, step_name: str="") -> None:
             if step_name == "":
-                step_name = f"InteractGadgetAt_{self.parent.config.get_counter('INTERACT_GADGET_AT')}"
+                step_name = f"InteractGadgetAt_{self._config.get_counter('INTERACT_GADGET_AT')}"
 
             #disable combat to prevent interference
             self._disable_auto_combat()
 
-            self.parent.helpers.interact_with_gadget((x, y))
+            self._helpers.Interact.with_gadget_at_xy((x, y))
 
             #re-enable combat
             self._restore_auto_combat()
 
-        def InteractItemAt(self, x: float, y: float, step_name: str="") -> None:
+        def WithItemAtXY(self, x: float, y: float, step_name: str="") -> None:
             if step_name == "":
-                step_name = f"InteractWithItem_{self.parent.config.get_counter('INTERACT_WITH_ITEM')}"
+                step_name = f"InteractWithItem_{self._config.get_counter('INTERACT_WITH_ITEM')}"
 
             
             #disable combat to prevent interference
             self._disable_auto_combat()
 
-            self.parent.helpers.interact_with_item((x, y))
+            self._helpers.Interact.with_item_at_xy((x, y))
             #re-enable combat
             self._restore_auto_combat()
 
-        def InteractWithModel(self, model_id: int, step_name: str="") -> None:
+        def WithModel(self, model_id: int, step_name: str="") -> None:
             if step_name == "":
-                step_name = f"InteractWithModel_{self.parent.config.get_counter('INTERACT_WITH_MODEL')}"
+                step_name = f"InteractWithModel_{self._config.get_counter('INTERACT_WITH_MODEL')}"
 
             #disable combat to prevent interference
             self._disable_auto_combat()
 
-            self.parent.helpers.interact_with_model(model_id=model_id)
+            self._helpers.Interact.with_model(model_id=model_id)
 
             #re-enable combat
             self._restore_auto_combat()
@@ -355,153 +362,164 @@ class BottingClass:
     class _ITEMS:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
             self.Restock = BottingClass._ITEMS._RESTOCK(parent)
 
         def Craft(self, model_id: int, value: int, trade_items_models: list[int], quantity_list: list[int]):
-            self.parent.helpers.craft_item(model_id, value, trade_items_models, quantity_list)
+            self._helpers.Items.craft(model_id, value, trade_items_models, quantity_list)
             
         def Withdraw(self, model_id:int, quantity:int):
-            self.parent.helpers.withdraw_items(model_id, quantity)
+            self._helpers.Items.withdraw(model_id, quantity)
 
         def Equip(self, model_id: int):
-            self.parent.helpers.equip_item(model_id)
-            
+            self._helpers.Items.equip(model_id)
+
         def SpawnBonusItems(self):
-            self.parent.helpers.spawn_bonus_items()
+            self._helpers.Items.spawn_bonus_items()
         
         class _RESTOCK:
             def __init__(self, parent: "BottingClass"):
                 self.parent = parent
+                self._config = parent.config
+                self._helpers = parent.helpers
 
             def BirthdayCupcake(self):
-                self.parent.helpers.restock_birthday_cupcake()
+                self._helpers.Restock.restock_birthday_cupcake()
 
             def Honeycomb(self):
-                self.parent.helpers.restock_honeycomb()
+                self._helpers.Restock.restock_honeycomb()
 
 
     #region MAP
     class _MAP:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
 
         def Travel(self, target_map_id: int = 0, target_map_name: str = "") -> None:
             from .GlobalCache import GLOBAL_CACHE
             if target_map_name:
                 target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
 
-            self.parent.helpers.travel(target_map_id)
+            self._helpers.Map.travel(target_map_id)
             self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
             
         def EnterChallenge(self, delay:int= 4500, target_map_id: int = 0, target_map_name: str = "") -> None:
-            self.parent.helpers.enter_challenge(wait_for=delay)
+            self._helpers.Map.enter_challenge(wait_for=delay)
             self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
 
         def TravelGH(self):
-            from .GlobalCache import GLOBAL_CACHE
-            self.parent.helpers.travel_to_gh()
-            self.parent.Wait.WasteTime(8000)
+            self._helpers.Map.travel_to_gh(wait_time=8000)
             
         def LeaveGH(self):
-            self.parent.helpers.leave_gh()
-            self.parent.Wait.WasteTime(8000)
+            self._helpers.Map.leave_gh(wait_time=8000)
 
 
-    #region MOVEMENT
-    class _MOVEMENT:
+    #region MOVE
+    class _MOVE:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
             
-        def MoveTo(self, x:float, y:float, step_name: str=""):
+        def XY(self, x:float, y:float, step_name: str=""):
+            """Uses autopath to move to (x, y)"""
             if step_name == "":
-                step_name = f"MoveTo_{self.parent.config.get_counter('MOVE_TO')}"
+                step_name = f"MoveTo_{self._config.get_counter('MOVE_TO')}"
 
-            self.parent.helpers.get_path_to(x, y)
-            self.parent.helpers.follow_path()
+            self._helpers.Move.get_path_to(x, y)
+            self._helpers.Move.follow_path()
+            
+        def XYAndDialog(self, x: float, y: float, dialog_id: int, step_name: str="") -> None:
+            self.XY(x, y, step_name=step_name)
+            self.parent.Dialogs.AtXY(x, y, dialog_id, step_name=step_name+"_DIALOGAT")
+
+        def XYAndInteractNPC(self, x: float, y: float, step_name: str="") -> None:
+            self.XY(x, y, step_name=step_name)
+            self.parent.Interact.WithNpcAtXY(x, y, step_name=step_name+"_INTERACT")
+
+        def XYAndInteractGadget(self, x: float, y: float, step_name: str="") -> None:
+            self.XY(x, y, step_name=step_name)
+            self.parent.Interact.WithGadgetAtXY(x, y, step_name=step_name+"_INTERACT")
+            
+        def XYAndInteractItem(self, x: float, y: float, step_name: str="") -> None:
+            self.XY(x, y, step_name=step_name)
+            self.parent.Interact.WithItemAtXY(x, y, step_name=step_name+"_INTERACT")
+
+        def XYAndExitMap(self, x: float, y: float, target_map_id: int = 0, target_map_name: str = "", step_name: str="") -> None:
+            self.XY(x, y, step_name=step_name)
+            self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
+
 
         def FollowPath(self, path: List[Tuple[float, float]], step_name: str="") -> None:
+            """ follow a predefined path of (x, y) points.
+            """
             if step_name == "":
-                step_name = f"FollowPath_{self.parent.config.get_counter('FOLLOW_PATH')}"
+                step_name = f"FollowPath_{self._config.get_counter('FOLLOW_PATH')}"
 
-            self.parent.helpers.set_path_to(path)
-            self.parent.helpers.follow_path()
+            self._helpers.Move.set_path_to(path)
+            self._helpers.Move.follow_path()
             
+        def FollowPathAndDialog(self, path: List[Tuple[float, float]], dialog_id: int, step_name: str="") -> None:
+            self.FollowPath(path, step_name=step_name)
+            last_point = path[-1]
+            self.parent.Dialogs.AtXY(*last_point, dialog_id, step_name=step_name+"_DIALOGAT")
+            
+        def FollowPathAndExitMap(self, path: List[Tuple[float, float]], target_map_id: int = 0, target_map_name: str = "", step_name: str="") -> None:
+            self.FollowPath(path, step_name=step_name)
+            self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
+
         def FollowAutoPath(self, points: List[Tuple[float, float]], step_name: str = "") -> None:
             """
             For each (x, y) target point, compute an autopath and follow it.
             Input format matches FollowPath, but each point is autpathed independently.
             """
             if step_name == "":
-                step_name = f"FollowAutoPath_{self.parent.config.get_counter('FOLLOW_AUTOPATH')}"
+                step_name = f"FollowAutoPath_{self._config.get_counter('FOLLOW_AUTOPATH')}"
 
             for x, y in points:
-                self.parent.helpers.get_path_to(x, y)   # autopath to this target
-                self.parent.helpers.follow_path()       # then execute the path
+                self._helpers.Move.get_path_to(x, y)   # autopath to this target
+                self._helpers.Move.follow_path()       # then execute the path
 
+        def FollowModel(self, model_id: int, follow_range: float, exit_condition: Optional[Callable[[], bool]] = lambda:False) -> None:
+            self._helpers.Move.follow_model(model_id, follow_range, exit_condition)
 
-
-        def FollowModelID(self, model_id: int, follow_range: float, exit_condition: Optional[Callable[[], bool]] = lambda:False) -> None:
-            self.parent.helpers.follow_model_id(model_id, follow_range, exit_condition)
-
-        def FollowPathAndDialog(self, path: List[Tuple[float, float]], dialog_id: int, step_name: str="") -> None:
-            self.FollowPath(path, step_name=step_name)
-            last_point = path[-1]
-            self.parent.Dialogs.DialogAt(*last_point, dialog_id, step_name=step_name+"_DIALOGAT")
-
-        def MoveAndDialog(self, x: float, y: float, dialog_id: int, step_name: str="") -> None:
-            self.MoveTo(x, y, step_name=step_name)
-            self.parent.Dialogs.DialogAt(x, y, dialog_id, step_name=step_name+"_DIALOGAT")
-
-        def MoveAndInteractNPC(self, x: float, y: float, step_name: str="") -> None:
-            self.MoveTo(x, y, step_name=step_name)
-            self.parent.Interact.InteractNPCAt(x, y, step_name=step_name+"_INTERACT")
-
-        def MoveAndInteractGadget(self, x: float, y: float, step_name: str="") -> None:
-            self.MoveTo(x, y, step_name=step_name)
-            self.parent.Interact.InteractGadgetAt(x, y, step_name=step_name+"_INTERACT")
-            
-        def MoveAndInteractItem(self, x: float, y: float, step_name: str="") -> None:
-            self.MoveTo(x, y, step_name=step_name)
-            self.parent.Interact.InteractItemAt(x, y, step_name=step_name+"_INTERACT")
-
-        def MoveAndExitMap(self, x: float, y: float, target_map_id: int = 0, target_map_name: str = "", step_name: str="") -> None:
-            self.MoveTo(x, y, step_name=step_name)
-            self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
-
-        def FollowPathAndExitMap(self, path: List[Tuple[float, float]], target_map_id: int = 0, target_map_name: str = "", step_name: str="") -> None:
-            self.FollowPath(path, step_name=step_name)
-            self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
+        
 
     #region PROPERTIES
     class _PROPERTIES:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
 
-        def get(self, name: str, field: str = "active") -> Any:
+        def Get(self, name: str, field: str = "active") -> Any:
             return self._resolve(name).get(field)
 
-        def set(self, name: str, value: Any, field: str = "value") -> None:
+        def Set(self, name: str, value: Any, field: str = "value") -> None:
             self._resolve(name).set(field, value)
 
-        def is_active(self, name: str) -> bool:
+        def IsActive(self, name: str) -> bool:
             return self._resolve(name).is_active()
 
-        def enable(self, name: str) -> None:
+        def Enable(self, name: str) -> None:
             self._resolve(name).enable()
 
-        def disable(self, name: str) -> None:
+        def Disable(self, name: str) -> None:
             self._resolve(name).disable()
 
-        def set_active(self, name: str, active: bool) -> None:
+        def SetActive(self, name: str, active: bool) -> None:
             self._resolve(name).set_active(active)
 
-        def reset(self, name: str, field: str = "active") -> None:
+        def ResetTodefault(self, name: str, field: str = "active") -> None:
             self._resolve(name).reset(field)
 
-        def reset_all(self, name: str) -> None:
+        def ResetAll(self, name: str) -> None:
             self._resolve(name).reset_all()
             
-        def direct_apply(self, name: str, field: str, value: Any) -> None:
+        def ApplyNow(self, name: str, field: str, value: Any) -> None:
             """
             Immediate, no-FSM write.
             Directly calls Property._apply(field, value).
@@ -512,11 +530,11 @@ class BottingClass:
         # --- Internal resolver ---
         def _resolve(self, name: str):
             # Check config_properties first
-            if hasattr(self.parent.config.config_properties, name):
-                return getattr(self.parent.config.config_properties, name)
+            if hasattr(self._config.config_properties, name):
+                return getattr(self._config.config_properties, name)
             # Then upkeep
-            if hasattr(self.parent.config.upkeep, name):
-                return getattr(self.parent.config.upkeep, name)
+            if hasattr(self._config.upkeep, name):
+                return getattr(self._config.upkeep, name)
             raise AttributeError(f"No property named {name!r}")
         
         def exists(self, name: str) -> bool:
@@ -543,101 +561,161 @@ class BottingClass:
     class _PARTY:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
 
         def LeaveParty(self):
-            self.parent.helpers.leave_party()
+            self._helpers.Party.leave_party()
 
         def FlagAllHeroes(self, x: float, y: float):
-            self.parent.helpers.flag_all_heroes(x, y)
+            self._helpers.Party.flag_all_heroes(x, y)
 
         def UnflagAllHeroes(self):
-            self.parent.helpers.unflag_all_heroes()
-            
+            self._helpers.Party.unflag_all_heroes()
+
         def Resign(self):
-            self.parent.helpers.resign()
+            self._helpers.Party.resign()
 
         def AddHenchman(self, henchman_id: int):
-            self.parent.helpers.add_henchman(henchman_id)
+            self._helpers.Party.add_henchman(henchman_id)
             
         def AddHero(self, hero_id: int):
-            self.parent.helpers.add_hero(hero_id)
+            self._helpers.Party.add_hero(hero_id)
 
         def InvitePlayer(self, player_name: str):
-            self.parent.helpers.invite_player(player_name)
+            self._helpers.Party.invite_player(player_name)
 
         def KickHenchman(self, henchman_id: int):
-            self.parent.helpers.kick_henchman(henchman_id)
+            self._helpers.Party.kick_henchman(henchman_id)
 
         def KickHero(self, hero_id: int):
-            self.parent.helpers.kick_hero(hero_id)
+            self._helpers.Party.kick_hero(hero_id)
 
         def KickPlayer(self, player_name: str):
-            self.parent.helpers.kick_player(player_name)
+            self._helpers.Party.kick_player(player_name)
     #region SKILLBAR
     class _SKILLBAR:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
             
         def LoadSkillBar(self, skill_template: str):
-            self.parent.helpers.load_skillbar(skill_template)
-            
-        def UseSkill(self, skill_id:int):
-            self.parent.helpers.cast_skill_id(skill_id)
-            
-        def UseSkillSlot(self, slot_index:int):
-            self.parent.helpers.cast_skill_slot(slot_index)
+            self._helpers.Skills.load_skillbar(skill_template)
 
-        
+        def UseSkill(self, skill_id:int):
+            self._helpers.Skills.cast_skill_id(skill_id)
+
+        def UseSkillSlot(self, slot_index:int):
+            self._helpers.Skills.cast_skill_slot(slot_index)
 
     #region STATES
     class _STATES:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
 
-        def AddFSMCustomYieldState(self, execute_fn, name: str) -> None:
-            self.parent.config.FSM.AddYieldRoutineStep(name=name, coroutine_fn=execute_fn)
+        def AddCustomState(self, execute_fn, name: str) -> None:
+            self._config.FSM.AddYieldRoutineStep(name=name, coroutine_fn=execute_fn)
 
-        def AddHeaderStep(self, step_name: str) -> None:
-            self.parent.helpers.insert_header_step(step_name)
+        def AddHeader(self, step_name: str) -> None:
+            self._helpers.States.insert_header_step(step_name)
             
-    #region TARGETING
-    class _TARGETING:
+    #region TARGET
+    class _TARGET:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
             
-        def TargetModel(self, model_id:int):
-            self.parent.helpers.target_model_id(model_id)
+        def Model(self, model_id:int):
+            self._helpers.Target.model(model_id)
+
+    #region WAIT
+    class _WAIT:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
+
+        def ForTime(self, duration: int= 100) -> None:
+            self._helpers.Wait.for_time(duration)
+
+        def UntilCondition(self, condition: Callable[[], bool], duration: int=1000) -> None:
+            self._helpers.Wait.until_condition(condition, duration)
+
+        def UntilOutOfCombat(self) -> None:
+            from .Routines import Routines
+            from .Py4GWcorelib import Range
+            wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot))
+            self._helpers.Wait.until_condition(wait_condition)
+            
+        def ForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
+            from Py4GWCoreLib import GLOBAL_CACHE
+            if target_map_name:
+                target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+
+            self._helpers.Wait.for_map_load(target_map_id)
+            
+        def ForMapToChange(self, target_map_id: int = 0, target_map_name: str = "") -> None:
+            """Waits until all action finishes in current map and game sends you to a new one"""
+            from .Routines import Routines
+            from .GlobalCache import GLOBAL_CACHE
+            if target_map_name:
+                target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+                
+            wait_condition = lambda: (
+                Routines.Checks.Map.MapValid() and 
+                GLOBAL_CACHE.Map.GetMapID() == target_map_id
+            )
+    
+            self.UntilCondition(wait_condition, duration=3000)
             
     #region UI
     class _UI:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
             self.draw_texture_fn: Optional[Callable[[], None]] = None
             self._FSM_SELECTED_NAME_ORIG: str | None = None   # selection persists across frames
             self._FSM_FILTER_START: int = 0
             self._FSM_FILTER_END: int = 0
 
         def CancelSkillRewardWindow(self):
-            self.parent.helpers.cancel_skill_reward_window()
+            self._helpers.UI.cancel_skill_reward_window()
+            
+        def _draw_path(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
+            from .DXOverlay import DXOverlay
+            path = self._config.path_to_draw
+
+            for i in range(len(path) - 1):
+                x1, y1 = path[i]
+                x2, y2 = path[i + 1]
+                z1 = DXOverlay.FindZ(x1, y1)
+                z2 = DXOverlay.FindZ(x2, y2)
+                DXOverlay().DrawLine3D(x1, y1, z1, x2, y2, z2, color.to_color(), use_occlusion, snap_to_ground_segments, floor_offset)
+
             
         def DrawPath(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
-            if self.parent.config.config_properties.draw_path.is_active():
-                self.parent.helpers.draw_path(color, use_occlusion, snap_to_ground_segments, floor_offset)
-                
+            if self._config.config_properties.draw_path.is_active():
+                self._draw_path(color, use_occlusion, snap_to_ground_segments, floor_offset)
+
         def SendChatMessage(self, channel: str, message: str):
-            self.parent.helpers.send_chat_message(channel, message)
+            self._helpers.UI.send_chat_message(channel, message)
 
         def PrintMessageToConsole(self, source: str, message: str):
-            self.parent.helpers.print_message_to_console(source, message)
+            self._helpers.UI.print_message_to_console(source, message)
             
         def _find_current_header_step(self):
             import re
 
-            steps = self.parent.config.FSM.get_state_names()
+            steps = self._config.FSM.get_state_names()
             total_steps = len(steps)
 
             # Raw current index as reported by the FSM (may be None or out-of-bounds at "end")
-            raw_current = self.parent.config.FSM.get_current_state_number()
+            raw_current = self._config.FSM.get_current_state_number()
 
             # Normalize and detect "finished"
             if total_steps == 0:
@@ -660,7 +738,7 @@ class BottingClass:
                     finished = False
                     current_idx = raw_current
 
-                step_name = None if finished else self.parent.config.FSM.get_state_name_by_number(current_idx)
+                step_name = None if finished else self._config.FSM.get_state_name_by_number(current_idx)
                 search_from = current_idx if current_idx >= 0 else -1
 
             # Find nearest preceding [H] header up to the display index (or last if empty/finished)
@@ -703,20 +781,20 @@ class BottingClass:
             
         def _draw_fsm_jump_button(self) -> None:
             if self._FSM_SELECTED_NAME_ORIG:
-                sel_num = self.parent.config.FSM.get_state_number_by_name(self._FSM_SELECTED_NAME_ORIG)
+                sel_num = self._config.FSM.get_state_number_by_name(self._FSM_SELECTED_NAME_ORIG)
                 sel_str = f"{sel_num-1}" if isinstance(sel_num, int) else "N/A"
                 PyImGui.text(f"Selected: {self._FSM_SELECTED_NAME_ORIG}  (#{sel_str})")
             else:
                 PyImGui.text("Selected: (none)")
 
             if PyImGui.button("Jump to Selected") and self._FSM_SELECTED_NAME_ORIG:
-                self.parent.config.fsm_running = True
-                self.parent.config.FSM.reset()
-                self.parent.config.FSM.jump_to_state_by_name(self._FSM_SELECTED_NAME_ORIG)
+                self._config.fsm_running = True
+                self._config.FSM.reset()
+                self._config.FSM.jump_to_state_by_name(self._FSM_SELECTED_NAME_ORIG)
 
                 
         def _draw_step_range_inputs(self):
-            steps = self.parent.config.FSM.get_state_names()
+            steps = self._config.FSM.get_state_names()
             if not steps:
                 self._FSM_FILTER_START = 0
                 self._FSM_FILTER_END = 0
@@ -758,7 +836,7 @@ class BottingClass:
                     name = re.sub(r'_(?:\[\d+\]|\d+)$', '', name)
                 return name
 
-            steps = self.parent.config.FSM.get_state_names()
+            steps = self._config.FSM.get_state_names()
             sections = []
             current = None
 
@@ -838,93 +916,116 @@ class BottingClass:
             PyImGui.end_child()
             return self._FSM_SELECTED_NAME_ORIG
 
-
-        def draw_window(self, main_child_dimensions: Tuple[int, int]  = (350, 275), icon_path:str = "",iconwidth: int = 96):
+        def _draw_main_child (self, main_child_dimensions: Tuple[int, int]  = (350, 275), 
+                              icon_path:str = "",
+                              iconwidth: int = 96) -> None:
             from .ImGui import ImGui
             from .IconsFontAwesome5 import IconsFontAwesome5
             from .Py4GWcorelib import ConsoleLog, Console
             from .GlobalCache import GLOBAL_CACHE
             
             current_header_step, header_for_current , current_step, total_steps, step_name, finished = self._find_current_header_step()
-            if PyImGui.begin(self.parent.config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
-                if PyImGui.begin_tab_bar(self.parent.config.bot_name + "_tabs"):
+            if PyImGui.begin_table("bot_header_table", 2, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH):
+                PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, iconwidth)
+                PyImGui.table_setup_column("titles", PyImGui.TableColumnFlags.WidthFixed, main_child_dimensions[0] - iconwidth)
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                self._draw_texture(texture_path=icon_path, size=(iconwidth, iconwidth))
+                PyImGui.table_set_column_index(1)
+                
+                PyImGui.dummy(0,3)
+                ImGui.push_font("Regular", 22)
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, Color(255, 255, 0, 255).to_tuple_normalized())
+                PyImGui.text(f"{self._config.bot_name}")
+                PyImGui.pop_style_color(1)
+                ImGui.pop_font()
+        
+                ImGui.push_font("Bold", 18)
+                PyImGui.text(f"[{max(current_header_step, 0)}] {header_for_current or 'Not started'}")
+                ImGui.pop_font()
+                if total_steps <= 0:
+                    PyImGui.text("Step: —/— - (No steps)")
+                else:
+                    # When finished we show the last index and mark it as Finished
+                    if finished:
+                        PyImGui.text(f"Step: {total_steps-1}/{total_steps-1} - (Finished)")
+                    else:
+                        PyImGui.text(f"Step: {current_step}/{max(total_steps-1, 0)} - {step_name or '(…?)'}")
+
+                # Status line
+                if not self._config.fsm_running and finished:
+                    self._config.state_description = "Finished"
+                PyImGui.text(f"Status: {self._config.state_description}")
+
+                PyImGui.end_table()
+
+            
+            # --- Single toggle button: Play ↔ Stop ---
+            icon = IconsFontAwesome5.ICON_STOP_CIRCLE if self._config.fsm_running else IconsFontAwesome5.ICON_PLAY_CIRCLE
+            legend = "  Stop" if self._config.fsm_running else "  Start"
+            if PyImGui.button(icon + legend + "##BotToggle"):
+                if self._config.fsm_running:
+                    # Stop
+                    self._config.fsm_running = False
+                    ConsoleLog(self._config.bot_name, "Script stopped", Console.MessageType.Info)
+                    self._config.state_description = "Idle"
+                    self._config.FSM.stop()
+                    GLOBAL_CACHE.Coroutines.clear()
+                else:
+                    # Start
+                    self._config.fsm_running = True
+                    ConsoleLog(self._config.bot_name, "Script started", Console.MessageType.Info)
+                    self._config.state_description = "Running"
+                    self._config.FSM.restart()
+
+
+                
+            if total_steps > 1:
+                fraction = (total_steps - 1) and (current_step / float(total_steps - 1)) or 0.0
+            else:
+                fraction = 1.0 if finished and total_steps == 1 else 0.0
+            if finished and total_steps > 0:
+                fraction = 1.0
+            fraction = max(0.0, min(1.0, fraction))
+
+                
+            PyImGui.text("Overall Progress")
+            PyImGui.push_item_width(main_child_dimensions[0] - 10)
+            PyImGui.progress_bar(fraction, (main_child_dimensions[0] - 10), 0, f"{fraction * 100:.2f}%")
+            PyImGui.pop_item_width()
+            
+            PyImGui.separator()
+            PyImGui.text("Step Progress")
+            PyImGui.push_item_width(main_child_dimensions[0] - 10)
+            PyImGui.progress_bar(self._config.state_percentage, (main_child_dimensions[0] - 10), 0, f"{self._config.state_percentage * 100:.2f}%")
+            PyImGui.pop_item_width()
+
+        def _draw_settings_child(self):
+            PyImGui.text("Bot Settings")
+            use_birthday_cupcake = self.parent.Properties.Get("birthday_cupcake", "active")
+            bc_restock_qty = self.parent.Properties.Get("birthday_cupcake", "restock_quantity")
+
+            use_honeycomb = self.parent.Properties.Get("honeycomb", "active")
+            hc_restock_qty = self.parent.Properties.Get("honeycomb", "restock_quantity")
+
+            use_birthday_cupcake = PyImGui.checkbox("Use Birthday Cupcake", use_birthday_cupcake)
+            bc_restock_qty = PyImGui.input_int("Birthday Cupcake Restock Quantity", bc_restock_qty)
+
+            use_honeycomb = PyImGui.checkbox("Use Honeycomb", use_honeycomb)
+            hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
+
+            self.parent.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
+            self.parent.Properties.ApplyNow("birthday_cupcake", "restock_quantity", bc_restock_qty)
+            self.parent.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
+            self.parent.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
+
+        def draw_window(self, main_child_dimensions: Tuple[int, int]  = (350, 275), icon_path:str = "",iconwidth: int = 96):
+
+            if PyImGui.begin(self._config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
+                if PyImGui.begin_tab_bar(self._config.bot_name + "_tabs"):
                     if PyImGui.begin_tab_item("Main"):
-                        if PyImGui.begin_child(f"{self.parent.config.bot_name} - Main", main_child_dimensions, True, PyImGui.WindowFlags.NoFlag):
-                            if PyImGui.begin_table("bot_header_table", 2, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH):
-                                PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, iconwidth)
-                                PyImGui.table_setup_column("titles", PyImGui.TableColumnFlags.WidthFixed, main_child_dimensions[0] - iconwidth)
-                                PyImGui.table_next_row()
-                                PyImGui.table_set_column_index(0)
-                                self._draw_texture(texture_path=icon_path, size=(iconwidth, iconwidth))
-                                PyImGui.table_set_column_index(1)
-                                
-                                PyImGui.dummy(0,3)
-                                ImGui.push_font("Regular", 22)
-                                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, Color(255, 255, 0, 255).to_tuple_normalized())
-                                PyImGui.text(f"{self.parent.config.bot_name}")
-                                PyImGui.pop_style_color(1)
-                                ImGui.pop_font()
-                        
-                                ImGui.push_font("Bold", 18)
-                                PyImGui.text(f"[{max(current_header_step, 0)}] {header_for_current or 'Not started'}")
-                                ImGui.pop_font()
-                                if total_steps <= 0:
-                                    PyImGui.text("Step: —/— - (No steps)")
-                                else:
-                                    # When finished we show the last index and mark it as Finished
-                                    if finished:
-                                        PyImGui.text(f"Step: {total_steps-1}/{total_steps-1} - (Finished)")
-                                    else:
-                                        PyImGui.text(f"Step: {current_step}/{max(total_steps-1, 0)} - {step_name or '(…?)'}")
-
-                                # Status line
-                                if not self.parent.config.fsm_running and finished:
-                                    self.parent.config.state_description = "Finished"
-                                PyImGui.text(f"Status: {self.parent.config.state_description}")
-    
-                                PyImGui.end_table()
-    
-                            
-                            # --- Single toggle button: Play ↔ Stop ---
-                            icon = IconsFontAwesome5.ICON_STOP_CIRCLE if self.parent.config.fsm_running else IconsFontAwesome5.ICON_PLAY_CIRCLE
-                            legend = "  Stop" if self.parent.config.fsm_running else "  Start"
-                            if PyImGui.button(icon + legend + "##BotToggle"):
-                                if self.parent.config.fsm_running:
-                                    # Stop
-                                    self.parent.config.fsm_running = False
-                                    ConsoleLog(self.parent.config.bot_name, "Script stopped", Console.MessageType.Info)
-                                    self.parent.config.state_description = "Idle"
-                                    self.parent.config.FSM.stop()
-                                    GLOBAL_CACHE.Coroutines.clear()
-                                else:
-                                    # Start
-                                    self.parent.config.fsm_running = True
-                                    ConsoleLog(self.parent.config.bot_name, "Script started", Console.MessageType.Info)
-                                    self.parent.config.state_description = "Running"
-                                    self.parent.config.FSM.restart()
-
-
-                                
-                            if total_steps > 1:
-                                fraction = (total_steps - 1) and (current_step / float(total_steps - 1)) or 0.0
-                            else:
-                                fraction = 1.0 if finished and total_steps == 1 else 0.0
-                            if finished and total_steps > 0:
-                                fraction = 1.0
-                            fraction = max(0.0, min(1.0, fraction))
-
-                                
-                            PyImGui.text("Overall Progress")
-                            PyImGui.push_item_width(main_child_dimensions[0] - 10)
-                            PyImGui.progress_bar(fraction, (main_child_dimensions[0] - 10), 0, f"{fraction * 100:.2f}%")
-                            PyImGui.pop_item_width()
-                            
-                            PyImGui.separator()
-                            PyImGui.text("Step Progress")
-                            PyImGui.push_item_width(main_child_dimensions[0] - 10)
-                            PyImGui.progress_bar(self.parent.config.state_percentage, (main_child_dimensions[0] - 10), 0, f"{self.parent.config.state_percentage * 100:.2f}%")
-                            PyImGui.pop_item_width()
-                                
+                        if PyImGui.begin_child(f"{self._config.bot_name} - Main", main_child_dimensions, True, PyImGui.WindowFlags.NoFlag):
+                            self._draw_main_child(main_child_dimensions, icon_path, iconwidth)
                             PyImGui.end_child()
                         PyImGui.end_tab_item()
                     
@@ -936,32 +1037,15 @@ class BottingClass:
                         PyImGui.end_tab_item()
 
                     if PyImGui.begin_tab_item("Settings"):
-                        PyImGui.text("Bot Settings")
-                        use_birthday_cupcake = self.parent.Properties.get("birthday_cupcake", "active")
-                        bc_restock_qty = self.parent.Properties.get("birthday_cupcake", "restock_quantity")
-
-                        use_honeycomb = self.parent.Properties.get("honeycomb", "active")
-                        hc_restock_qty = self.parent.Properties.get("honeycomb", "restock_quantity")
-
-                        use_birthday_cupcake = PyImGui.checkbox("Use Birthday Cupcake", use_birthday_cupcake)
-                        bc_restock_qty = PyImGui.input_int("Birthday Cupcake Restock Quantity", bc_restock_qty)
-
-                        use_honeycomb = PyImGui.checkbox("Use Honeycomb", use_honeycomb)
-                        hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
-
-                        self.parent.Properties.direct_apply("birthday_cupcake", "active", use_birthday_cupcake)
-                        self.parent.Properties.direct_apply("birthday_cupcake", "restock_quantity", bc_restock_qty)
-                        self.parent.Properties.direct_apply("honeycomb", "active", use_honeycomb)
-                        self.parent.Properties.direct_apply("honeycomb", "restock_quantity", hc_restock_qty)
-
+                        self._draw_settings_child()
                         PyImGui.end_tab_item()
 
                     if PyImGui.begin_tab_item("Debug"):
                         if PyImGui.collapsing_header("Map Navigation"):
-                            self.parent.config.config_properties.draw_path.set_now("active",PyImGui.checkbox("Draw Path", self.parent.config.config_properties.draw_path.is_active()))
-                            self.parent.config.config_properties.use_occlusion.set_now("active",PyImGui.checkbox("Use Occlusion", self.parent.config.config_properties.use_occlusion.is_active()))
-                            self.parent.config.config_properties.snap_to_ground_segments.set_now("value", PyImGui.slider_int("Snap to Ground Segments", self.parent.config.config_properties.snap_to_ground_segments.get("value"), 1, 32))
-                            self.parent.config.config_properties.floor_offset.set_now("value", PyImGui.slider_float("Floor Offset", self.parent.config.config_properties.floor_offset.get("value"), -10.0, 50.0))
+                            self._config.config_properties.draw_path.set_now("active",PyImGui.checkbox("Draw Path", self._config.config_properties.draw_path.is_active()))
+                            self._config.config_properties.use_occlusion.set_now("active",PyImGui.checkbox("Use Occlusion", self._config.config_properties.use_occlusion.is_active()))
+                            self._config.config_properties.snap_to_ground_segments.set_now("value", PyImGui.slider_int("Snap to Ground Segments", self._config.config_properties.snap_to_ground_segments.get("value"), 1, 32))
+                            self._config.config_properties.floor_offset.set_now("value", PyImGui.slider_float("Floor Offset", self._config.config_properties.floor_offset.get("value"), -10.0, 50.0))
 
                         if PyImGui.collapsing_header("Properties"):
                             def debug_text(self, prop_name:str, key:str):
@@ -1053,46 +1137,9 @@ class BottingClass:
 
             PyImGui.end()
             self.parent.UI.DrawPath(
-                self.parent.config.config_properties.follow_path_color.get("value"), 
-                self.parent.config.config_properties.use_occlusion.is_active(), 
-                self.parent.config.config_properties.snap_to_ground_segments.get("value"), 
-                self.parent.config.config_properties.floor_offset.get("value"))
+                self._config.config_properties.follow_path_color.get("value"), 
+                self._config.config_properties.use_occlusion.is_active(), 
+                self._config.config_properties.snap_to_ground_segments.get("value"), 
+                self._config.config_properties.floor_offset.get("value"))
 
 
-    #region WAIT
-    class _WAIT:
-        def __init__(self, parent: "BottingClass"):
-            self.parent = parent
-
-        def WasteTime(self, duration: int= 100) -> None:
-            self.parent.helpers.waste_time(duration)
-
-        def WasteTimeUntilConditionMet(self, condition: Callable[[], bool], duration: int=1000) -> None:
-            self.parent.helpers.waste_time_until_condition_met(condition, duration)
-            
-        def WasteTimeUntilOOC(self) -> None:
-            from .Routines import Routines
-            from .Py4GWcorelib import Range
-            wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot))
-            self.parent.helpers.waste_time_until_condition_met(wait_condition)
-            
-        def ForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
-            from Py4GWCoreLib import GLOBAL_CACHE
-            if target_map_name:
-                target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
-
-            self.parent.helpers.wait_for_map_load(target_map_id)
-            
-        def ForMapTransition(self, target_map_id: int = 0, target_map_name: str = "") -> None:
-            """Waits until all action finishes in current map and game sends you to a new one"""
-            from .Routines import Routines
-            from .GlobalCache import GLOBAL_CACHE
-            if target_map_name:
-                target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
-                
-            wait_condition = lambda: (
-                Routines.Checks.Map.MapValid() and 
-                GLOBAL_CACHE.Map.GetMapID() == target_map_id
-            )
-    
-            self.WasteTimeUntilConditionMet(wait_condition, duration=3000)
