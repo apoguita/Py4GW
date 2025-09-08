@@ -1,18 +1,18 @@
 from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
 
 # 1) IDs
-_5_yaksbend_to_icetoothcave_ids = {
+_4_yaksbend_to_icetoothcave_ids = {
     "outpost_id": outpost_name_to_id["Yaks Bend"],
 }
 
 # 2) Outpost exit path (inside Yak's Bend)
-_5_yaksbend_to_icetoothcave_outpost_path = [
+_4_yaksbend_to_icetoothcave_outpost_path = [
     (9295, 4145),
     (9280, 4050),
 ]
 
 # 3) Segments 
-_5_yaksbend_to_icetoothcave_segments = [
+_4_yaksbend_to_icetoothcave_segments = [
     {
         "map_id": explorable_name_to_id["Traveler's Vale"],
         "path": [
