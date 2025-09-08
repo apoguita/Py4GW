@@ -71,13 +71,7 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        heath_max = GLOBAL_CACHE.Agent.GetMaxHealth(GLOBAL_CACHE.Player.GetAgentID())
-        amount_we_can_sacrifice = heath_max * 0.33
-        player_health_absolute = custom_behavior_helpers.Resources.get_player_absolute_health()
-        player_health_percent = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
-        
-        # Check if we have enough health to sacrifice
-        if (player_health_absolute - amount_we_can_sacrifice < self.sacrifice_life_limit_absolute) or (player_health_absolute - amount_we_can_sacrifice) / heath_max <= self.sacrifice_life_limit_percent:
+        if not custom_behavior_helpers.Resources.player_can_sacrifice_health(33, self.sacrifice_life_limit_percent, self.sacrifice_life_limit_absolute):
             return None
 
         if self._get_target() is None: return None
