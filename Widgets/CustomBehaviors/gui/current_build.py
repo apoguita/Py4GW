@@ -12,7 +12,7 @@ from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory im
 from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
 
@@ -33,7 +33,7 @@ def render():
             CustomBehaviorLoader().refresh_custom_behavior_candidate()
         return
 
-    if DEBUG:
+    if constants.DEBUG:
         # PyImGui.same_line(0, 10)
         PyImGui.text(f"HasLoaded : {CustomBehaviorLoader()._has_loaded}")
         # PyImGui.same_line(0, 10)
