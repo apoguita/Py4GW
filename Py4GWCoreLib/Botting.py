@@ -190,6 +190,10 @@ class BottingClass:
         self.config.FSM.AddManagedCoroutine("keep_auto_combat",    H.upkeep_auto_combat())
         self.config.events.start()
       
+        if self.States.coroutines:
+            for name, routine_or_fn in list(self.States.coroutines.items()):
+                self.config.FSM.AddManagedCoroutine(name, routine_or_fn)
+            
     #region Routines  
     def Routine(self):
         print("This method should be overridden in the subclass.")
@@ -634,15 +638,31 @@ class BottingClass:
             self.parent = parent
             self._config = parent.config
             self._helpers = parent.helpers
+            self.coroutines: Dict[str, Callable[[], Any]] = {}   # queued, name -> factory or generator
 
         def AddCustomState(self, execute_fn, name: str) -> None:
             self._config.FSM.AddYieldRoutineStep(name=name, coroutine_fn=execute_fn)
 
         def AddHeader(self, step_name: str) -> None:
             self._helpers.States.insert_header_step(step_name)
-            
+                
         def JumpToStepName(self, step_name: str) -> None:
             self._helpers.States.jump_to_step_name(step_name)
+
+        def AddManagedCoroutine(self, name: str, coroutine_fn: Callable[[], Any]) -> None:
+            """Queue a managed coroutine to be attached when the FSM is running."""
+            # de-dupe against both queued and already-managed
+            if name in self.coroutines or self._config.FSM.HasManagedCoroutine(name):
+                return
+            self.coroutines[name] = coroutine_fn
+
+        # (optional) helpers
+        def RemoveManagedCoroutine(self, name: str) -> None:
+            self.coroutines.pop(name, None)
+
+        def HasQueuedCoroutine(self, name: str) -> bool:
+            return name in self.coroutines
+
             
     #region TARGET
     class _TARGET:
