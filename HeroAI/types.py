@@ -99,10 +99,12 @@ class Skilltarget (IntEnum):
     EnemyEnchanted = 30
     EnemyMoving = 31
     EnemyKnockedDown = 32
-    
-    
-    
-   
+    EnemyBleeding = 33
+    EnemyPoisoned = 34
+    EnemyCrippled = 35
+
+
+
 class SkillNature (Enum):
     Offensive = 0
     Enchantment_Removal = 1

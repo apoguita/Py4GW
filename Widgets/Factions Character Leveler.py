@@ -118,11 +118,19 @@ def on_party_wipe(bot: "Botting"):
     fsm.AddManagedCoroutine(f"{fsm.get_state_name_by_number(current_step)}_OPD", on_party_wipe_coroutine(bot, target_name))
 
 #region Helpers
+def SpawnBonusItems(bot: Botting) -> None:
+    if ((not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Bonus_Nevermore_Flatbow.value)) or
+        (not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Igneous_Summoning_Stone.value))):
+        bot.Items.SpawnBonusItems()
+        bot.Items.DestroyBonusItems()
+    
 def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Properties.Disable("pause_on_danger")
     bot.Properties.Enable("halt_on_death")
     bot.Properties.Set("movement_timeout",value=15000)
-    bot.Items.SpawnBonusItems()
+    
+    SpawnBonusItems(bot)
+
     bot.Properties.Disable("auto_combat")
     bot.Properties.Disable("imp")
     bot.Properties.Enable("birthday_cupcake")
@@ -137,7 +145,8 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.Enable("imp")
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Enable("honeycomb")
-    bot.Items.SpawnBonusItems()
+    SpawnBonusItems(bot)
+
     
 def EquipSkillBar(): 
     global bot
@@ -162,7 +171,7 @@ def EquipSkillBar():
         elif level <= 10: #55 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OQIUEDLhjcGKG2+GAAAA0WAA")
         else: #20 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQISYxcGKG2+GAAAA0WA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OQITYN8kzQxw23AAAAg2CAA")
     elif profession == "Ranger":
         yield from Routines.Yield.Skills.LoadSkillbar("OggjYZZIYMKG1pvBAAAAA0GBAA")
     elif profession == "Monk":
@@ -461,8 +470,9 @@ def UnlockXunlaiStorage(bot: Botting) -> None:
     bot.Move.FollowPathAndDialog(path_to_xunlai, 0x84) #UNLOCK_XUNLAI_STORAGE
 
 def EquipWeapons(bot: Botting):
-    bot.Items.SpawnBonusItems()
-    bot.Items.Equip(5831) #BOW
+    SpawnBonusItems(bot)
+    bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
+    
     
 def ExitToSunquaVale(bot: Botting) -> None:
     bot.States.AddHeader("Exit To Sunqua Vale")

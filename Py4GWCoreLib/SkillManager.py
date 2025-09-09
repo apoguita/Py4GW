@@ -412,7 +412,10 @@ class SkillManager:
                 GetEnemyDegenHexed,
                 GetEnemyEnchanted,
                 GetEnemyMoving,
-                GetEnemyKnockedDown
+                GetEnemyKnockedDown,
+                GetEnemyBleeding,
+                GetEnemyCrippled,
+                GetEnemyPoisoned,
             )
             
             v_target = 0
@@ -465,6 +468,18 @@ class SkillManager:
                     v_target = nearest_enemy
             elif target_allegiance == Skilltarget.EnemyConditioned:
                 v_target = GetEnemyConditioned(self.get_combat_distance())
+                if v_target == 0 and not targeting_strict:
+                    v_target = nearest_enemy
+            elif target_allegiance == Skilltarget.EnemyBleeding:
+                v_target = GetEnemyBleeding(self.get_combat_distance())
+                if v_target == 0 and not targeting_strict:
+                    v_target = nearest_enemy
+            elif target_allegiance == Skilltarget.EnemyCrippled:
+                v_target = GetEnemyCrippled(self.get_combat_distance())
+                if v_target == 0 and not targeting_strict:
+                    v_target = nearest_enemy
+            elif target_allegiance == Skilltarget.EnemyPoisoned:
+                v_target = GetEnemyPoisoned(self.get_combat_distance())
                 if v_target == 0 and not targeting_strict:
                     v_target = nearest_enemy
             elif target_allegiance == Skilltarget.EnemyHexed:

@@ -115,6 +115,39 @@ class Checks:
         def InventoryAndLockpickCheck():
             from ..GlobalCache import GLOBAL_CACHE
             return GLOBAL_CACHE.Inventory.GetFreeSlotCount() > 0 and GLOBAL_CACHE.Inventory.GetModelCount(22751) > 0 
+        
+        @staticmethod
+        def IsModelInInventory(model_id: int):
+            from ..GlobalCache import GLOBAL_CACHE
+            return GLOBAL_CACHE.Inventory.GetModelCount(model_id) > 0
+        
+        @staticmethod
+        def IsItemInInventory(item_id: int):
+            from ..GlobalCache import GLOBAL_CACHE
+            return GLOBAL_CACHE.Inventory.GetItemCount(item_id) > 0
+        
+        @staticmethod
+        def IsModelEquipped(model_id: int):
+            from ..GlobalCache import GLOBAL_CACHE
+            return GLOBAL_CACHE.Inventory.GetModelCountInEquipped(model_id) > 0
+        
+        @staticmethod
+        def IsModelInBank(model_id: int):
+            from ..GlobalCache import GLOBAL_CACHE
+            return GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id) > 0
+        
+        @staticmethod
+        def IsModelInInventoryOrBank(model_id: int):
+            from ..GlobalCache import GLOBAL_CACHE
+            return (GLOBAL_CACHE.Inventory.GetModelCount(model_id) + GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)) > 0
+        
+        @staticmethod
+        def IsModelInInventoryOrEquipped(model_id: int):
+            from ..GlobalCache import GLOBAL_CACHE
+            return (GLOBAL_CACHE.Inventory.GetModelCount(model_id) + GLOBAL_CACHE.Inventory.GetModelCountInEquipped(model_id)) > 0
+        
+        
+        
 #region Effects
     class Effects:
         @staticmethod

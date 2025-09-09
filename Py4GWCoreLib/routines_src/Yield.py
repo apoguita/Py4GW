@@ -256,15 +256,16 @@ class Yield:
 #region Map      
     class Map:  
         @staticmethod
-        def SetHardMode(log=False):
+        def SetHardMode(hard_mode=True, log=False):
             """
             Purpose: Set the map to hard mode.
             Args: None
             Returns: None
             """
-            
-
-            GLOBAL_CACHE.Party.SetHardMode()
+            if not hard_mode:
+                GLOBAL_CACHE.Party.SetNormalMode()
+            else:
+                GLOBAL_CACHE.Party.SetHardMode()
             yield from Yield.wait(500)
             ConsoleLog("SetHardMode", "Hard mode set.", Console.MessageType.Info, log=log)
 
@@ -1093,11 +1094,19 @@ class Yield:
             return True
         
         @staticmethod
+        def DestroyItem(model_id: int) -> Generator[Any, Any, bool]:
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+            if item_id:
+                GLOBAL_CACHE.Inventory.DestroyItem(item_id)
+                yield from Yield.wait(500)
+            else:
+                return False
+            return True
+
+        @staticmethod
         def SpawnBonusItems():
-            summoning_stone_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Igneous_Summoning_Stone.value)
-            if summoning_stone_in_bags < 1:
-                GLOBAL_CACHE.Player.SendChatCommand("bonus")
-                yield from Yield.wait(250)
+            GLOBAL_CACHE.Player.SendChatCommand("bonus")
+            yield from Yield.wait(250)
                 
 
 #region Upkeepers

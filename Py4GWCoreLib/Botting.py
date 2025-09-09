@@ -360,6 +360,7 @@ class BottingClass:
 
     #region ITEMS
     class _ITEMS:
+        from .enums import ModelID
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
             self._config = parent.config
@@ -374,9 +375,20 @@ class BottingClass:
 
         def Equip(self, model_id: int):
             self._helpers.Items.equip(model_id)
+            
+        def Destroy(self, model_id: int):
+            self._helpers.Items.destroy(model_id)
+            
+        def DestroyBonusItems(self, 
+                              exclude_list: List[int] = [ModelID.Igneous_Summoning_Stone.value, 
+                                                         ModelID.Bonus_Nevermore_Flatbow.value]):
+            self._helpers.Items.destroy_bonus_items(exclude_list)
 
         def SpawnBonusItems(self):
             self._helpers.Items.spawn_bonus_items()
+        
+    
+        
         
         class _RESTOCK:
             def __init__(self, parent: "BottingClass"):
@@ -629,6 +641,9 @@ class BottingClass:
         def AddHeader(self, step_name: str) -> None:
             self._helpers.States.insert_header_step(step_name)
             
+        def JumpToStepName(self, step_name: str) -> None:
+            self._helpers.States.jump_to_step_name(step_name)
+            
     #region TARGET
     class _TARGET:
         def __init__(self, parent: "BottingClass"):
@@ -656,6 +671,12 @@ class BottingClass:
             from .Routines import Routines
             from .Py4GWcorelib import Range
             wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot))
+            self._helpers.Wait.until_condition(wait_condition)
+            
+        def UntilOnCombat(self) -> None:
+            from .Routines import Routines
+            from .Py4GWcorelib import Range
+            wait_condition = lambda: (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit))
             self._helpers.Wait.until_condition(wait_condition)
             
         def ForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
