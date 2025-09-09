@@ -10287,7 +10287,6 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyBleeding.value
         skill.Nature = SkillNature.Interrupt.value
-        skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
         
         skill = self.CustomSkill()
