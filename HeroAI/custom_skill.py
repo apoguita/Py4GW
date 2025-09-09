@@ -108,7 +108,7 @@ class CustomSkillClass:
     def load_skills(self):
         """Populate skill data using hardcoded definitions."""
 
-        # WARRIOR STRENGTH
+        #region WARRIOR_STRENGTH
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("I_Meant_to_Do_That")
@@ -390,7 +390,7 @@ class CustomSkillClass:
         skill.Conditions.LessEnergy = 0.75
         self.skill_data[skill.SkillID] = skill
 
-        # WARRIOR AXE MASTERY
+        #region WARRIOR_AXE_MASTERY
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Agonizing_Chop")
@@ -531,7 +531,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # WARRIOR HAMMER MASTERY
+        #region WARRIOR_HAMMER_MASTERY
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Auspicious_Blow")
@@ -696,7 +696,7 @@ class CustomSkillClass:
         skill.Conditions.HasCondition = True
         self.skill_data[skill.SkillID] = skill
 
-        # WARRIOR SWORDSMANSHIP
+        #region WARRIOR_SWORDSMANSHIP
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Barbarous_Slice")
@@ -838,7 +838,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # WARRIOR TACTICS
+        #region WARRIOR_TACTICS
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Charge")
@@ -1062,7 +1062,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # WARRIOR NO ATTRIBUTE
+        #region WARRIOR_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Coward")
@@ -1162,7 +1162,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # RANGER EXPERTISE
+        #region RANGER_EXPERTISE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Archers_Signet")
@@ -1302,7 +1302,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # RANGER BEAST MASTERY
+        #region RANGER_BEAST_MASTERY
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Bestial_Fury")
@@ -1605,7 +1605,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # RANGER MARKSMANSHIP
+        #region RANGER_MARKSMANSHIP
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Arcing_Shot")
@@ -1853,7 +1853,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # RANGER WILDERNESS SURVIVAL
+        #region RANGER_WILDERNESS_SURVIVAL
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Apply_Poison")
@@ -2144,7 +2144,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # RANGER NO ATTRIBUTE
+        #region RANGER_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Antidote_Signet")
@@ -2197,7 +2197,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # MONK DIVINE FAVOR
+        #region MONK_DIVINE_FAVOR
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Blessed_Aura")
@@ -3018,7 +3018,7 @@ class CustomSkillClass:
         skill.Conditions.LessLife = 0.5
         self.skill_data[skill.SkillID] = skill
 
-        # SMITHING PRAYERS
+        #region MONK_SMITHING_PRAYERS
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Balthazars_Aura")
@@ -3249,7 +3249,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # MONK NO ATTRIBUTE
+        #region MONK_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Empathic_Removal")
@@ -3356,7 +3356,7 @@ class CustomSkillClass:
         skill.Conditions.IsAlive = False
         self.skill_data[skill.SkillID] = skill
 
-        # NECROMANCER SOUL REAPING
+        #region NECROMANCER_SOUL_REAPING
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Angorodons_Gaze")
@@ -3426,7 +3426,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # NECROMANCER BLOOD MAGIC
+        #region NECROMANCER_BLOOD_MAGIC
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Awaken_the_Blood")
@@ -3737,7 +3737,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # NECROMANCER CURSES
+        #region NECROMANCER_CURSES
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Atrophy")
@@ -4099,7 +4099,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # NECROMANCER DEATH MAGIC
+        #region NECROMANCER_DEATH_MAGIC
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Animate_Bone_Fiend")
@@ -4428,7 +4428,7 @@ class CustomSkillClass:
         skill.Conditions.TargetingStrict = True
         self.skill_data[skill.SkillID] = skill
 
-        # NECROMANCER NO ATTRIBUTE
+        #region NECROMANCER_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Gaze_of_Contempt")
@@ -4526,7 +4526,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # MESMER DOMINATION
+        #region MESMER_DOMINATION
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Aneurysm")
@@ -4833,7 +4833,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # MESMER ILLUSION MAGIC
+        #region MESMER_ILLUSION_MAGIC
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Accumulated_Pain")
@@ -5078,7 +5078,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # MESMER INSPIRATION MAGIC
+        #region MESMER_INSPIRATION_MAGIC
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Auspicious_Incantation")
@@ -5396,7 +5396,7 @@ class CustomSkillClass:
         skill.Conditions.UniqueProperty = True
         self.skill_data[skill.SkillID] = skill
 
-        # MESMER NO ATTRIBUTE
+        #region MESMER_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Arcane_Echo")
@@ -5492,7 +5492,7 @@ class CustomSkillClass:
         skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
 
-        # ELEMENTALIST ENERGY STORAGE
+        #region ELEMENTALIST_ENERGY_STORAGE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Aura_of_Restoration")
@@ -5576,7 +5576,7 @@ class CustomSkillClass:
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
-        # ELEMENTALIST AIR MAGIC
+        #region ELEMENTALIST_AIR_MAGIC
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Air_Attunement")
@@ -5795,7 +5795,7 @@ class CustomSkillClass:
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
-        # ELEMENTALIST EARTH MAGIC
+        #region ELEMENTALIST_EARTH_MAGIC
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Aftershock")
@@ -6049,7 +6049,7 @@ class CustomSkillClass:
         skill.Conditions.EnemiesInRangeArea = Range.Area.value
         self.skill_data[skill.SkillID] = skill
 
-        # ELEMENTALIST FIRE MAGIC
+        #region ELEMENTALIST_FIRE_MAGIC
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Bed_of_Coals")
@@ -6288,7 +6288,7 @@ class CustomSkillClass:
         skill.Conditions.EnemiesInRangeArea = Range.Area.value
         self.skill_data[skill.SkillID] = skill
 
-        # ELEMENTALIST WATER MAGIC
+        #region ELEMENTALIST_WATER_MAGIC
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Armor_of_Frost")
@@ -6510,7 +6510,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # ELEMENTALIST NO ATTRIBUTE
+        #region ELEMENTALIST_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Glyph_of_Concentration")
@@ -6554,7 +6554,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # ASSASSIN CRITICAL STRIKES
+        #region ASSASSIN_CRITICAL_STRIKES
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Assassins_Remedy")
@@ -6686,7 +6686,7 @@ class CustomSkillClass:
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
-        # ASSASSIN DAGGER MASTERY
+        #region ASSASSIN_DAGGER_MASTERY
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Black_Mantis_Thrust")
@@ -6901,7 +6901,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # ASSASSIN DEADLY ARTS
+        #region ASSASSIN_DEADLY_ARTS
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Assassins_Promise")
@@ -7118,7 +7118,7 @@ class CustomSkillClass:
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
-        # ASSASSIN SHADOW ARTS
+        #region ASSASSIN_SHADOW_ARTS
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Beguiling_Haze")
@@ -7290,7 +7290,7 @@ class CustomSkillClass:
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
-        # ASSASSIN NO ATTRIBUTE
+        #region ASSASSIN_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Assault_Enchantments")
@@ -7396,7 +7396,7 @@ class CustomSkillClass:
         skill.Conditions.IsCasting = False
         self.skill_data[skill.SkillID] = skill
 
-        # RITUALIST SPAWNING POWER
+        #region RITUALIST_SPAWNING_POWER
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Anguished_Was_Lingwah")
@@ -7596,7 +7596,7 @@ class CustomSkillClass:
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
-        # RITUALIST CHANNELLING MAGIC
+        #region RITUALIST_CHANNELLING_MAGIC
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Agony")
@@ -7817,7 +7817,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # RITUALIST COMMUNING
+        #region RITUALIST_COMMUNING
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Anguish")
@@ -7987,7 +7987,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # RITUALIST RESTORATION MAGIC
+        #region RITUALIST_RESTORATION_MAGIC
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Blind_Was_Mingson")
@@ -8247,7 +8247,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # RITUALIST NO ATTRIBUTE
+        #region RITUALIST_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Draw_Spirit")
@@ -8256,7 +8256,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Neutral.value
         self.skill_data[skill.SkillID] = skill
 
-        # PARAGON LEADERSHIP
+        #region PARAGON_LEADERSHIP
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Lead_the_Way")
@@ -8430,7 +8430,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # PARAGON COMMAND
+        #region PARAGON_COMMAND
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Brace_Yourself")
@@ -8581,7 +8581,7 @@ class CustomSkillClass:
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
-        # PARAGON MOTIVATION
+        #region PARAGON_MOTIVATION
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Its_Just_a_Flesh_Wound")
@@ -8735,7 +8735,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # PARAGON SPEAR MASTERY
+        #region PARAGON_SPEAR_MASTERY
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Barbed_Spear")
@@ -8871,7 +8871,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # PARAGON NO ATTRIBUTE
+        #region PARAGON_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Cautery_Signet")
@@ -8910,7 +8910,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # DERVISH MYSTICISM
+        #region DERVISH_MYSTICISM
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Arcane_Zeal")
@@ -9117,7 +9117,7 @@ class CustomSkillClass:
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
-        # DERVISH EARTH PRAYERS
+        #region DERVISH_EARTH_PRAYERS
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Armor_of_Sanctity")
@@ -9250,7 +9250,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # DERVISH SCYTHE MASTERY
+        #region DERVISH_SCYTHE_MASTERY
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Chilling_Victory")
@@ -9372,7 +9372,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # DERVISH WIND PRAYERS
+        #region DERVISH_WIND_PRAYERS
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Attackers_Insight")
@@ -9527,7 +9527,7 @@ class CustomSkillClass:
         skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
 
-        # DERVISH NO ATTRIBUTE
+        #region DERVISH_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Enchanted_Haste")
@@ -9536,7 +9536,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # CORE NO ATTRIBUTE
+        #region CORE_NO_ATTRIBUTE
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Resurrection_Signet")
@@ -9546,7 +9546,7 @@ class CustomSkillClass:
         skill.Conditions.IsAlive = False
         self.skill_data[skill.SkillID] = skill
 
-        # PVE-ONLY ANNIVERSARY
+        #region PVE_ONLY_ANNIVERSARY
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Together_as_one")
@@ -9625,7 +9625,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # PVE-ONLY KURZICK-LUXON
+        #region PVE_ONLY_KURZICK_LUXON
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Save_Yourselves_kurzick")
@@ -9776,7 +9776,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # PVE-ONLY SUNSPEAR
+        #region PVE_ONLY_SUNSPEAR
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Theres_Nothing_to_Fear")
@@ -9865,7 +9865,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # PVE-ONLY LIGHTBRINGER
+        #region PVE_ONLY_LIGHTBRINGER
         # Lightbringer Skills
 
         skill = self.CustomSkill()
@@ -9882,7 +9882,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # PvE-Only Asura Skills
+        #region PvE_Only_Asura_Skills
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Air_of_Superiority")
@@ -9970,7 +9970,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # PvE-Only Deldrimor Skills
+        #region PvE_Only_Deldrimor_Skills
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("By_Urals_Hammer")
@@ -10077,7 +10077,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Offensive.value
         self.skill_data[skill.SkillID] = skill
 
-        # PVE-ONLY EBON VANGUARD
+        #region PVE_ONLY_EBON_VANGUARD
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Deft_Strike")
         skill.SkillType = SkillType.Attack.value
@@ -10180,7 +10180,7 @@ class CustomSkillClass:
         skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill
 
-        # PVE-ONLY NORN
+        #region PVE_ONLY_NORN
 
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Dodge_This")
@@ -10265,4 +10265,47 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Form.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
+        self.skill_data[skill.SkillID] = skill
+        
+        #region PVE_ONLY_KEIRANS_EOTN
+        skill = self.CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Keirans_Sniper_Shot_Hearts_of_the_North")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.EnemyHexed.value
+        skill.Nature = SkillNature.CustomA.value
+        self.skill_data[skill.SkillID] = skill
+        
+        skill = self.CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Gravestone_Marker")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.Nature = SkillNature.Offensive.value
+        self.skill_data[skill.SkillID] = skill
+
+        skill = self.CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Terminal_Velocity")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.EnemyBleeding.value
+        skill.Nature = SkillNature.OffensiveB.value
+        self.skill_data[skill.SkillID] = skill
+        
+        skill = self.CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Rain_of_Arrows")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.Nature = SkillNature.OffensiveA.value
+        self.skill_data[skill.SkillID] = skill
+        
+        skill = self.CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.Nature = SkillNature.CustomJ.value
+        self.skill_data[skill.SkillID] = skill
+        
+        skill = self.CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
+        skill.SkillType = SkillType.Skill.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.Buff.value
         self.skill_data[skill.SkillID] = skill

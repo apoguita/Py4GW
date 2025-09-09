@@ -194,6 +194,27 @@ def GetEnemyConditioned(max_distance=4500.0, aggressive_only = False):
     enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
     return Utils.GetFirstFromArray(enemy_array)
 
+def GetEnemyBleeding(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsBleeding(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyPoisoned(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsPoisoned(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+    
+def GetEnemyCrippled(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsCrippled(agent_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)
+
 def GetEnemyHexed(max_distance=4500.0, aggressive_only = False):
     player_pos = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)

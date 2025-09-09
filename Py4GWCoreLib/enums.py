@@ -2178,6 +2178,15 @@ class ModelID(IntEnum):
     Bone = 921
     Bone_Charm = 811
     Bone_Dragon_Mini = 13783
+
+    Bonus_Luminescent_Scepter = 6508
+    Bonus_Nevermore_Flatbow = 5831
+    Bonus_Rhinos_Charge = 6060
+    Bonus_Serrated_Shield = 6514
+    Bonus_Soul_Shrieker = 6515
+    Bonus_Tigers_Roar = 6036
+    Bonus_Wolfs_Favor = 6058 
+    
     Book_Of_Secrets = 19197
     Boreal_Tonic = 30638
     Bottle_Of_Grog = 30855

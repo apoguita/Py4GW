@@ -4,7 +4,7 @@ from typing import Tuple, Any
 
 from typing import Any, Generator, TYPE_CHECKING, List, Callable, Optional
 
-from Py4GWCoreLib.Pathing import AutoPathing
+from Py4GWCoreLib import ConsoleLog, Console    
 
 if TYPE_CHECKING:
     from .helpers import BottingHelpers  # for type checkers only
@@ -76,7 +76,14 @@ class BottingHelpers:
                 name=header_name,
                 coroutine_fn=lambda: Routines.Yield.wait(100)
             )
-        
+            
+        @_yield_step(label="JumpToStepName", counter_key="JUMP_TO_STEP_NAME")
+        def jump_to_step_name(self, step_name: str) -> Generator[Any, Any, None]:
+            self._config.FSM.pause()
+            self._config.FSM.jump_to_state_by_name(step_name)
+            self._config.FSM.resume()
+            yield
+
     #region EVENTS
     class _Events:
         def __init__(self, parent: "BottingHelpers"):
@@ -653,6 +660,48 @@ class BottingHelpers:
 
             return True
         
+            
+        @_yield_step(label="DestroyItem", counter_key="DESTROY_ITEM")
+        def destroy(self, model_id: int) -> Generator[Any, Any, bool]:
+            from ..Routines import Routines
+            from ..Py4GWcorelib import ConsoleLog
+            import Py4GW
+            result = yield from Routines.Yield.Items.DestroyItem(model_id)
+            if not result:
+                ConsoleLog("DestroyItem", f"Failed to destroy item ({model_id}).", Py4GW.Console.MessageType.Error)
+                self._Events.on_unmanaged_fail()
+                return False
+
+            return True
+        
+        @_yield_step(label="DestroyBonusItems", counter_key="DESTROY_BONUS_ITEMS")
+        def destroy_bonus_items(self, 
+                                exclude_list: List[int] = [ModelID.Igneous_Summoning_Stone.value, 
+                                                           ModelID.Bonus_Nevermore_Flatbow.value]
+                                ) -> Generator[Any, Any, None]:
+            from ..Routines import Routines
+            bonus_items = [ModelID.Bonus_Luminescent_Scepter.value,
+                           ModelID.Bonus_Nevermore_Flatbow.value,
+                           ModelID.Bonus_Rhinos_Charge.value,
+                           ModelID.Bonus_Serrated_Shield.value,
+                           ModelID.Bonus_Soul_Shrieker.value,
+                           ModelID.Bonus_Tigers_Roar.value,
+                           ModelID.Bonus_Wolfs_Favor.value,
+                           ModelID.Igneous_Summoning_Stone.value
+                           ]
+            
+            #remove excluded items from the list
+            for model in exclude_list:
+                if model in bonus_items:
+                    bonus_items.remove(model)
+
+            for model in bonus_items:
+                ConsoleLog("DestroyBonusItems", f"Destroying bonus item ({model}).", Console.MessageType.Info, log=False)
+                result = yield from Routines.Yield.Items.DestroyItem(model)
+            
+
+           
+        
         @_yield_step(label="SpawnBonusItems", counter_key="SPAWN_BONUS")
         def spawn_bonus_items(self):
             from ..Routines import Routines
@@ -736,13 +785,8 @@ class BottingHelpers:
             
         @_yield_step(label="SetHardMode", counter_key="SET_HARD_MODE")
         def set_hard_mode(self, is_hard_mode: bool):
-            from ..GlobalCache import GLOBAL_CACHE
             from ..Routines import Routines
-            if not is_hard_mode:
-                GLOBAL_CACHE.Party.SetNormalMode()
-            else:
-                GLOBAL_CACHE.Party.SetHardMode()
-            yield from Routines.Yield.wait(500)
+            yield from Routines.Yield.Map.SetHardMode(is_hard_mode)
 
     #region RESTOCK
     class _Restock:

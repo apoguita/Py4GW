@@ -161,7 +161,7 @@ class BotConfig:
     def _reset_pause_on_danger_fn(self) -> None:
         from ..Routines import Checks  # local import to avoid cycles
         from ..Py4GWcorelib import Range
-        self._set_pause_on_danger_fn(lambda: Checks.Agents.InDanger(aggro_area=Range.Earshot) or Checks.Party.IsPartyMemberDead() or Checks.Player.IsCasting())
+        self._set_pause_on_danger_fn(lambda: Checks.Agents.InDanger(aggro_area=Range.Earshot) or Checks.Party.IsPartyMemberDead() or Checks.Skills.InCastingProcess())
 
     def _set_on_follow_path_failed(self, on_follow_path_failed: Callable[[], bool]) -> None:
         from ..Py4GWcorelib import ConsoleLog
