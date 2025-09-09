@@ -2,6 +2,7 @@ import os
 from collections import deque
 from datetime import datetime
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
+from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import SharedLockHistory, SharedLockManager
@@ -15,6 +16,7 @@ py4gw_root_directory = project_root + f"\\..\\..\\"
 @staticmethod
 def render():
     
+    PyImGui.text(f"Current user : {GLOBAL_CACHE.Player.GetAccountEmail()} | {GLOBAL_CACHE.Player.GetName()}")
     PyImGui.text(f"History (newest on top) : ")
     if PyImGui.begin_child("x", size=(400, 600),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
 
@@ -38,10 +40,8 @@ def render():
                 ImGui.DrawTexture(texture_file, 30, 30)
                 PyImGui.table_next_column()
 
-                ImGui.push_font("Bold", 16)
-                PyImGui.text(result.key)
-                ImGui.pop_font()
-
+                PyImGui.text(f"{result.key} | ")
+                PyImGui.same_line(0.0, 0.0)
                 time_started_at = datetime.fromtimestamp(result.acquired_at or 0)
                 time_started_at_formatted = f"{time_started_at:%H:%M:%S}:{int(time_started_at.microsecond/1000):03d}"
                 PyImGui.text(f"started_at: {time_started_at_formatted}")

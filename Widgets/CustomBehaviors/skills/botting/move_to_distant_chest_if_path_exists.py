@@ -30,12 +30,12 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
         super().__init__(
             skill=CustomSkill("move_to_distant_chest_if_path_exists"), 
             in_game_build=current_build, 
-            score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value), 
+            score_definition=ScoreStaticDefinition(CommonScore.LOOT.value - 0.0002), # this cannont pass before my own loot
             allowed_states=allowed_states,
             utility_skill_typology=UtilitySkillTypology.BOTTING,
             execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
-        self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BOTTING.value)
+        self.score_definition: ScoreStaticDefinition =ScoreStaticDefinition(CommonScore.LOOT.value - 0.0002)
         self.throttle_timer = ThrottledTimer(5_000)
         self.opened_chest_agent_ids: set[int] = set()
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.area_changed)

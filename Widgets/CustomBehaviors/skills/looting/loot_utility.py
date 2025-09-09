@@ -24,7 +24,9 @@ class LootUtility(CustomSkillUtilityBase):
     def __init__(
             self, 
             current_build: list[CustomSkill], 
-            allowed_states: list[BehaviorState] = [BehaviorState.FAR_FROM_AGGRO]
+            allowed_states: list[BehaviorState] = [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO] 
+            # CLOSE_TO_AGGRO is required to avoid infinite-loop, if when approching an item to loot, player is aggroing.
+            # otherwise once approching enemies, player will infinitely loop between loot & follow_party_leader
         ) -> None:
         
         super().__init__(
