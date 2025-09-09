@@ -10310,5 +10310,5 @@ class CustomSkillClass:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.CustomA.value
         skill.Conditions.IsOutOfCombat = True
-        skill.Conditions.LessLife = 0.9
+        skill.Conditions.LessLife = 0.98
         self.skill_data[skill.SkillID] = skill

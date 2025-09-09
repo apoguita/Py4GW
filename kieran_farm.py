@@ -18,71 +18,44 @@ def create_bot_routine(bot: Botting) -> None:
 
 def _call_dangerous_targets(bot: Botting):
     MODULE = "Check Dangerous Targets"
-    dangerous_models = {
-        8207,  # adherent
-        8341,  # zealot
-        8097,  # peacekeeper
-        8235,  # devotee
-        8200,  # savant
-        8227,  # scout
-    }
-
+    D = {8207, 8341, 8097, 8235, 8200, 8227}  # adherent, zealot, peacekeeper, devotee, savant, scout
     ConsoleLog(MODULE, "Coroutine started.")
+    
+    wait = Routines.Yield.wait
+    A, P, M = GLOBAL_CACHE.Agent, GLOBAL_CACHE.Party, GLOBAL_CACHE.Map
+
 
     while True:
         try:
-            # Guards
-            if not Routines.Checks.Map.MapValid():
-                yield from Routines.Yield.wait(1000)
-                continue
+            if not (Routines.Checks.Map.MapValid() and M.IsExplorable() and P.IsPartyLoaded()):
+                yield from wait(1000); continue
 
-            if not GLOBAL_CACHE.Map.IsExplorable():
-                yield from Routines.Yield.wait(1000)
-                continue
-
-            if not GLOBAL_CACHE.Party.IsPartyLoaded():
-                yield from Routines.Yield.wait(1000)
-                continue
-
-            players = GLOBAL_CACHE.Party.GetPlayers()
-            if not players:
-                yield from Routines.Yield.wait(1000)
-                continue
+            players = P.GetPlayers()
+            if not players or players[0].called_target_id != 0:
+                yield from wait(1000); continue
 
             target = players[0].called_target_id
 
-            # If player 0 already called something, don't override.
             if target != 0:
                 yield from Routines.Yield.wait(1000)
                 continue
 
             # Need to call a dangerous target
             px, py = GLOBAL_CACHE.Player.GetXY()
-            enemies = Routines.Agents.GetFilteredEnemyArray(
-                px, py, max_distance=Range.Spellcast.value, aggressive_only=False
-            )
+            enemies = Routines.Agents.GetFilteredEnemyArray(px, py, max_distance=Range.Spellcast.value, aggressive_only=False)
 
-            for enemy in enemies:
-                if not GLOBAL_CACHE.Agent.IsValid(enemy):
-                    continue
-                if not GLOBAL_CACHE.Agent.IsAlive(enemy):
-                    continue
+            tgt = next((e for e in enemies
+                        if A.IsValid(e) and A.IsAlive(e) and A.GetModelID(e) in D), None)
 
-                enemy_model = GLOBAL_CACHE.Agent.GetModelID(enemy)
-                if enemy_model in dangerous_models:
-                    GLOBAL_CACHE.Player.ChangeTarget(enemy)
-                    GLOBAL_CACHE.Player.Interact(enemy, True)
-                    ActionQueueManager().AddAction(
-                        "ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value]
-                    )
-                    break
-
-            yield from Routines.Yield.wait(1000)
-
+            if tgt:
+                GLOBAL_CACHE.Player.ChangeTarget(tgt)
+                GLOBAL_CACHE.Player.Interact(tgt, True)
+                ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+                ConsoleLog(MODULE, "Called dangerous target.", log=False)
+            yield from wait(1000)
         except Exception as e:
-            # Never die silently
             ConsoleLog(MODULE, f"Error: {e!r}. Recovering in 1s.")
-            yield from Routines.Yield.wait(1000)
+            yield from wait(1000)
 
 
 def _on_death(bot: "Botting"):
@@ -108,8 +81,6 @@ def InitializeBot(bot: Botting) -> None:
     bot.Events.OnDeathCallback(condition)
     bot.States.AddManagedCoroutine("DangerousTargets", lambda: _call_dangerous_targets(bot))
     
-    
-
 def GoToEOTN(bot: Botting) -> None:
     bot.States.AddHeader("Go to EOTN")
     bot.Map.Travel(target_map_id=642) #eye of the north outpost
@@ -169,14 +140,13 @@ def AuspiciousBeginnings(bot: Botting) -> None:
     
     bot.Move.XY(-2860.21, -12198.37, step_name="To middle")
     bot.Wait.ForTime(5000)
-    bot.Move.XY(-6832.97, -12470.33, step_name="To safe spot 4")
+    #bot.Move.XY(-6832.97, -12470.33, step_name="To safe spot 4")
     
     bot.Move.XY(-15858.25, -8840.35, step_name="To End of Path")
     bot.Wait.ForMapToChange(target_map_id=646)
     _DisableCombat(bot)
     bot.States.JumpToStepName("[H]Acquire Kieran's Bow_4")
     
-
 
 bot.SetMainRoutine(create_bot_routine)
 
