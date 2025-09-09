@@ -10286,7 +10286,8 @@ class CustomSkillClass:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Terminal_Velocity")
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyBleeding.value
-        skill.Nature = SkillNature.OffensiveB.value
+        skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsCasting = True
         self.skill_data[skill.SkillID] = skill
         
         skill = self.CustomSkill()
@@ -10301,11 +10302,13 @@ class CustomSkillClass:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.CustomJ.value
+        skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill
         
         skill = self.CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.CustomA.value
+        skill.Conditions.IsOutOfCombat = True
         self.skill_data[skill.SkillID] = skill

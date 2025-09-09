@@ -64,6 +64,7 @@ def AuspiciousBeginnings(bot: Botting) -> None:
     bot.Move.XY(11864.74, -4899.19)
     bot.Wait.UntilOnCombat()
     bot.Move.XY(3335.54, -7033.35, step_name="To first Movable Patrol")
+    bot.Move.XY(-3451.91, -8736.23, step_name="To Second Movable Patrol")
     bot.Move.XY(-15858.25, -8840.35, step_name="To End of Path")
     bot.Wait.ForMapToChange(target_map_id=646)
     _DisableCombat(bot)
