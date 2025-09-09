@@ -17,7 +17,6 @@ py4gw_root_directory = project_root + f"\\..\\..\\"
 @staticmethod
 def render():
     constants.DEBUG = PyImGui.checkbox("with debugging logs", constants.DEBUG)
-    PyImGui.text(f"{constants.DEBUG}")
 
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
     if shared_data.is_enabled:

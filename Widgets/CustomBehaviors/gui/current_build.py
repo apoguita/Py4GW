@@ -40,16 +40,19 @@ def render():
         PyImGui.text(f"Selected template : {CustomBehaviorLoader().custom_combat_behavior.__class__.__name__}")
         if CustomBehaviorLoader().custom_combat_behavior is not None:
             PyImGui.text(f"IsExecutingUtilitySkills:{CustomBehaviorLoader().custom_combat_behavior.is_executing_utility_skills()}")
-            PyImGui.text(f"Account state:{CustomBehaviorLoader().custom_combat_behavior.get_state()}")
-            PyImGui.text(f"Final state:{CustomBehaviorLoader().custom_combat_behavior.get_final_state()}")
-
-        if CustomBehaviorLoader().custom_combat_behavior.get_is_enabled():
-            if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES} Disable"):
-                CustomBehaviorLoader().custom_combat_behavior.disable()
-        else:
-            if PyImGui.button(f"{IconsFontAwesome5.ICON_CHECK} Enable"):
-                CustomBehaviorLoader().custom_combat_behavior.enable()
         pass
+
+    if CustomBehaviorLoader().custom_combat_behavior is not None:
+        PyImGui.text(f"Account state:{CustomBehaviorLoader().custom_combat_behavior.get_state()}")
+        PyImGui.text(f"Final state:{CustomBehaviorLoader().custom_combat_behavior.get_final_state()}")
+
+    if CustomBehaviorLoader().custom_combat_behavior.get_is_enabled():
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES} Disable"):
+            CustomBehaviorLoader().custom_combat_behavior.disable()
+    else:
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_CHECK} Enable"):
+            CustomBehaviorLoader().custom_combat_behavior.enable()
+    pass
     
     # if current_build is not None and type(current_build).mro()[1].__name__ != CustomBehaviorBaseUtility.__name__:
     #     PyImGui.separator()
@@ -95,7 +98,7 @@ def render():
                     return ""
 
         
-                score_text = f"{score[1]:06.2f}" if score[1] is not None else "Ø"
+                score_text = f"{score[1]:06.4f}" if score[1] is not None else "Ø"
                 texture_file = score[0].custom_skill.get_texture(py4gw_root_directory, project_root)
                 
                 PyImGui.table_next_row()
