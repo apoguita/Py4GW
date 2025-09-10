@@ -418,10 +418,6 @@ class BottingClass:
             from .GlobalCache import GLOBAL_CACHE
             if target_map_name:
                 target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
-                
-            current_map_id = GLOBAL_CACHE.Map.GetMapID()
-            if current_map_id == target_map_id:
-                return
 
             self._helpers.Map.travel(target_map_id)
             self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)

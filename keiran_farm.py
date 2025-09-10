@@ -96,20 +96,20 @@ def AuspiciousBeginnings(bot: Botting) -> None:
     bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
     bot.Move.XY(11864.74, -4899.19)
     bot.Wait.UntilOnCombat()
+    
     bot.Move.XY(8655.57, -8782.28, step_name="To corner")
     bot.Move.XY(4518.81, -9504.34, step_name="To safe spot 0")
-    bot.Wait.ForTime(5000)
-    bot.Move.XY(3554.11, -10627.49, step_name="To 0.5")
-    
-    bot.Move.XY(3173.55, -12144.88, step_name="To safe spot 1")
-    
-    bot.Move.XY(869.17, -13687.34, step_name="To safe spot 2")
-    bot.Move.XY(130.81, -13343.52, step_name="To safe spot 3")
-    bot.Wait.ForTime(5000)
+    #bot.Wait.ForTime(5000)
+    bot.Move.XY(1925.19, -10595.87, step_name="To patrol")
+    bot.Move.XY(-1342.30, -11490.80, step_name="To patrol 2")
     
     bot.Move.XY(-2860.21, -12198.37, step_name="To middle")
-    bot.Wait.ForTime(5000)
-    bot.Move.XY(-4500.21, -12811.61, step_name="To safe spot 4")
+    bot.Move.XY(-5109.05, -12717.40, step_name="To patrol 3")
+    bot.Move.XY(-6868.76, -12248.82, step_name="To patrol 4")
+
+
+    
+    #bot.Move.XY(-4500.21, -12811.61, step_name="To safe spot 4")
 
     bot.Move.XY(-15858.25, -8840.35, step_name="To End of Path")
     bot.Wait.ForMapToChange(target_map_id=646)

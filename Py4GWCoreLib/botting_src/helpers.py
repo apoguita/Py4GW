@@ -556,12 +556,20 @@ class BottingHelpers:
             self._config = parent._config
             self._Events = parent.Events      
     
-        @_yield_step(label="Travel", counter_key="TRAVEL")
-        def travel(self, target_map_id):
+        def _travel(self, target_map_id):
             from ..Routines import Routines
             from ..GlobalCache import GLOBAL_CACHE
+            
+            current_map_id = GLOBAL_CACHE.Map.GetMapID()
+            if current_map_id == target_map_id:
+                return
+            
             GLOBAL_CACHE.Map.Travel(target_map_id)
             yield from Routines.Yield.wait(1000)
+            
+        @_yield_step(label="Travel", counter_key="TRAVEL")
+        def travel(self, target_map_id):
+            yield from self._travel(target_map_id)
         
         @_yield_step(label="TravelToGH", counter_key="TRAVEL") 
         def travel_to_gh(self, wait_time:int= 1000):
@@ -604,16 +612,18 @@ class BottingHelpers:
                 yield from Routines.Yield.wait(duration)
                 if condition():
                     break
-                
-        @_yield_step(label="WaitForMapLoad", counter_key="WAIT_FOR_MAP_LOAD")
-        def for_map_load(self, target_map_id):
+        
+        def _for_map_load(self, target_map_id):
             from ..Routines import Routines
             import Py4GW
             wait_of_map_load = yield from Routines.Yield.Map.WaitforMapLoad(target_map_id)
             if not wait_of_map_load:
                 Py4GW.Console.Log("Wait for map load", "Map load failed.", Py4GW.Console.MessageType.Error)
                 self._Events.on_unmanaged_fail()
-            yield from Routines.Yield.wait(1000)
+                        
+        @_yield_step(label="WaitForMapLoad", counter_key="WAIT_FOR_MAP_LOAD")
+        def for_map_load(self, target_map_id):
+            yield from self._for_map_load(target_map_id)
 
     
     #region ITEMS
