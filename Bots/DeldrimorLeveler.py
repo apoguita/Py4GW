@@ -23,7 +23,7 @@ def ReturnToOutpost():
         yield from Routines.Yield.wait(4000)
 
 
-bot = Botting("Asura Leveler")
+bot = Botting("Deldrimor Leveler")
 
 
 def Routine(bot: Botting) -> None:
