@@ -157,6 +157,7 @@ class CombatClass:
         self.heal_as_one = GLOBAL_CACHE.Skill.GetID("Heal_as_One")
         self.heroic_refrain = GLOBAL_CACHE.Skill.GetID("Heroic_Refrain")
         self.natures_blessing = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
+        self.relentless_assault = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
         
     def Update(self, cached_data):
         self.in_aggro = cached_data.in_aggro
@@ -632,7 +633,7 @@ class CombatClass:
                 self.skills[slot].skill_id == self.resilient_weapon
                 ):
                 return GLOBAL_CACHE.Agent.IsHexed(vTarget) or GLOBAL_CACHE.Agent.IsConditioned(vTarget)
-
+            
             if (self.skills[slot].skill_id == self.gaze_from_beyond or
                 self.skills[slot].skill_id == self.spirit_burn or
                 self.skills[slot].skill_id == self.signet_of_ghostly_might
@@ -654,6 +655,11 @@ class CombatClass:
 
                 nearest_NPC_life = GLOBAL_CACHE.Agent.GetHealth(nearest_npc) < Conditions.LessLife
                 return player_life or nearest_NPC_life
+            
+            if (self.skills[slot].skill_id == self.relentless_assault
+                ):
+                return GLOBAL_CACHE.Agent.IsHexed(GLOBAL_CACHE.Player.GetAgentID()) or GLOBAL_CACHE.Agent.IsConditioned(GLOBAL_CACHE.Player.GetAgentID())
+
 
             return True  # if no unique property is configured, return True for all UniqueProperty
         

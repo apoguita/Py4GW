@@ -754,8 +754,9 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Terminal_Velocity")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.EnemyBleeding.value
-        skill.Nature = SkillNature.OffensiveA.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
+        skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
         
         skill = CustomSkill()
@@ -769,15 +770,15 @@ class PVESkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
-        skill.Nature = SkillNature.CustomJ.value
-        skill.Conditions.IsOutOfCombat = True
+        skill.Nature = SkillNature.Healing.value
+        skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
         
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.CustomA.value
+        skill.Nature = SkillNature.Healing.value
         skill.Conditions.IsOutOfCombat = True
         skill.Conditions.LessLife = 0.9
         skill.Conditions.UniqueProperty = True

@@ -342,7 +342,7 @@ class Yield:
                 log (bool) Optional: Whether to log the action. Default is True.
             Returns: None
             """
-            yield from Yield.wait(1000)
+            #yield from Yield.wait(1000)
             start_time = Utils.GetBaseTimestamp()
             waiting_for_map_load = True
             while waiting_for_map_load:

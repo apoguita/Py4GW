@@ -120,6 +120,7 @@ class SkillIDS:
         self.heal_as_one = GLOBAL_CACHE.Skill.GetID("Heal_as_One")
         self.heroic_refrain = GLOBAL_CACHE.Skill.GetID("Heroic_Refrain")
         self.natures_blessing = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
+        self.relentless_assault = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
 
 
 
@@ -694,6 +695,10 @@ class SkillManager:
 
                     nearest_NPC_life = GLOBAL_CACHE.Agent.GetHealth(nearest_npc) < Conditions.LessLife
                     return player_life or nearest_NPC_life
+
+                if (self.skills[slot].skill_id == self.skill_id.relentless_assault):
+                    return GLOBAL_CACHE.Agent.IsHexed(GLOBAL_CACHE.Player.GetAgentID()) or GLOBAL_CACHE.Agent.IsConditioned(GLOBAL_CACHE.Player.GetAgentID())
+
 
                 return True  # if no unique property is configured, return True for all UniqueProperty
 
