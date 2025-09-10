@@ -15,7 +15,6 @@ cached_data = CacheData()
 from Py4GWCoreLib import GLOBAL_CACHE, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
 from Widgets.CustomBehaviors.primitives import constants
 
-LOG_TO_CONSOLE:bool = True
 MODULE_NAME = "Custom Combat Behavior Helpers"
 
 @dataclass
@@ -372,7 +371,7 @@ class Targets:
         '''
         find position that will cover max allies within range
         '''
-        OVERLAY_DEBUG = True
+        OVERLAY_DEBUG = constants.DEBUG
         player_x, player_y, player_z = GLOBAL_CACHE.Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID()) #cached_data.data.player_xyz # needs to be live
         if OVERLAY_DEBUG: Overlay().BeginDraw()
         

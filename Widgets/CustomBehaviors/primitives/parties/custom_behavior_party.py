@@ -38,6 +38,8 @@ class CustomBehaviorParty:
             return self.get_party_is_following_enabled()
         if skill_typology == UtilitySkillTypology.LOOTING :
             return self.get_party_is_looting_enabled()
+        if skill_typology == UtilitySkillTypology.BLESSING :
+            return self.get_party_is_blessing_enabled()
         return True
 
     #---
@@ -54,6 +56,7 @@ class CustomBehaviorParty:
             shared_data.is_looting_enabled, 
             shared_data.is_chesting_enabled, 
             shared_data.is_following_enabled, 
+            shared_data.is_blessing_enabled, 
             shared_data.party_target_id, 
             shared_data.party_forced_state)
 
@@ -71,6 +74,7 @@ class CustomBehaviorParty:
             shared_data.is_looting_enabled, 
             shared_data.is_chesting_enabled, 
             shared_data.is_following_enabled, 
+            shared_data.is_blessing_enabled, 
             shared_data.party_target_id,
             shared_data.party_forced_state)
 
@@ -88,6 +92,7 @@ class CustomBehaviorParty:
             is_looting_enabled, 
             shared_data.is_chesting_enabled, 
             shared_data.is_following_enabled, 
+            shared_data.is_blessing_enabled, 
             shared_data.party_target_id,
             shared_data.party_forced_state)
 
@@ -105,6 +110,7 @@ class CustomBehaviorParty:
             shared_data.is_looting_enabled, 
             is_chesting_enabled, 
             shared_data.is_following_enabled, 
+            shared_data.is_blessing_enabled, 
             shared_data.party_target_id,
             shared_data.party_forced_state)
 
@@ -122,6 +128,43 @@ class CustomBehaviorParty:
             shared_data.is_looting_enabled, 
             shared_data.is_chesting_enabled, 
             is_following_enabled, 
+            shared_data.is_blessing_enabled, 
+            shared_data.party_target_id,
+            shared_data.party_forced_state)
+
+    #---
+
+    def get_party_is_blessing_enabled(self) -> bool:
+        shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
+        return shared_data.is_blessing_enabled
+
+    def set_party_is_blessing_enabled(self, is_blessing_enabled: bool):
+        shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
+        CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
+            shared_data.is_enabled, 
+            shared_data.is_combat_enabled, 
+            shared_data.is_looting_enabled, 
+            shared_data.is_chesting_enabled, 
+            shared_data.is_following_enabled, 
+            is_blessing_enabled, 
+            shared_data.party_target_id,
+            shared_data.party_forced_state)
+
+    #---
+
+    def get_party_is_xxx_enabled(self) -> bool:
+        shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
+        return shared_data.is_following_enabled
+
+    def set_party_is_following_enabled(self, is_following_enabled: bool):
+        shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
+        CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
+            shared_data.is_enabled, 
+            shared_data.is_combat_enabled, 
+            shared_data.is_looting_enabled, 
+            shared_data.is_chesting_enabled, 
+            is_following_enabled, 
+            shared_data.is_blessing_enabled, 
             shared_data.party_target_id,
             shared_data.party_forced_state)
 
@@ -140,6 +183,7 @@ class CustomBehaviorParty:
             shared_data.is_looting_enabled, 
             shared_data.is_chesting_enabled, 
             shared_data.is_following_enabled,
+            shared_data.is_blessing_enabled, 
             shared_data.party_target_id,
             state.value if state is not None else None)
 
@@ -157,5 +201,6 @@ class CustomBehaviorParty:
             shared_data.is_looting_enabled, 
             shared_data.is_chesting_enabled, 
             shared_data.is_following_enabled,
+            shared_data.is_blessing_enabled, 
             target,
             shared_data.party_forced_state)

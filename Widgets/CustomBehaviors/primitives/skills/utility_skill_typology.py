@@ -7,5 +7,6 @@ class UtilitySkillTypology(Enum):
     FOLLOWING = 3
     BOTTING = 4
     CHESTING = 5
+    BLESSING = 6
     
     DEAMON = 10
