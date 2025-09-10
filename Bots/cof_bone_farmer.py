@@ -65,7 +65,7 @@ class BotVariables:
         sort_list     = []
 
     class Opts:
-        debug: bool             = True
+        debug: bool             = False
         build_type: str         = 'mb'
 
     class Loot:
@@ -179,7 +179,7 @@ class Build:
 
 class Combat:
     def LoadSkillBar(self,template):
-        SkillBar.LoadSkillTemplate(template)
+        GLOBAL_CACHE.SkillBar.LoadSkillTemplate(template)
 
     def ChangeWeaponSet(self,set):
         global bot_vars
@@ -200,34 +200,25 @@ class Combat:
         global bot_vars
 
         if bot_vars.opts.debug:
-            name = Skill.GetName(SkillBar.GetSkillIDBySlot(skill_slot)).replace('_',' ')
+            name = GLOBAL_CACHE.Skill.GetName(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)).replace('_',' ')
             Debug(f'Casting "{name}" in slot [{skill_slot}].')
-        key = None
-        if   skill_slot == 1: key = Key.One.value
-        elif skill_slot == 2: key = Key.Two.value
-        elif skill_slot == 3: key = Key.Three.value
-        elif skill_slot == 4: key = Key.Four.value
-        elif skill_slot == 5: key = Key.Five.value
-        elif skill_slot == 6: key = Key.Six.value
-        elif skill_slot == 7: key = Key.Seven.value
-        elif skill_slot == 8: key = Key.Eight.value
-
-        Keystroke.PressAndRelease(key)
+        Routines.Yield.Skills.CastSkillSlot(skill_slot, log =False, aftercast_delay=200)
+        
 
     def CanCast(self):
-        player_agent_id = Player.GetAgentID()
+        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
 
-        if (Agent.IsCasting(player_agent_id) 
-            or Agent.GetCastingSkill(player_agent_id) != 0
-            or Agent.IsKnockedDown(player_agent_id)
-            or Agent.IsDead(player_agent_id)
-            or SkillBar.GetCasting() != 0):
+        if (GLOBAL_CACHE.Agent.IsCasting(player_agent_id) 
+            or GLOBAL_CACHE.Agent.GetCastingSkill(player_agent_id) != 0
+            or GLOBAL_CACHE.Agent.IsKnockedDown(player_agent_id)
+            or GLOBAL_CACHE.Agent.IsDead(player_agent_id)
+            or GLOBAL_CACHE.SkillBar.GetCasting() != 0):
             return False
         return True
 
     def GetEnergyAgentCost(self,skill_slot):
-        skill_id = SkillBar.GetSkillIDBySlot(skill_slot)
-        cost = Skill.skill_instance(skill_id).energy_cost
+        skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)
+        cost = GLOBAL_CACHE.Skill._get_skill_instance(skill_id).energy_cost
 
         if cost == 11:
             cost = 15    # True cost is 15
@@ -238,33 +229,33 @@ class Combat:
         return cost
 
     def HasEnoughAdrenaline(self,skill_slot):
-        skill_id = SkillBar.GetSkillIDBySlot(skill_slot)
+        skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)
 
-        return SkillBar.GetSkillData(skill_slot).adrenaline_a >= Skill.Data.GetAdrenaline(skill_id)
+        return GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot).adrenaline_a >= Skill.Data.GetAdrenaline(skill_id)
 
     def GetEnergy(self):
-        player_agent_id = Player.GetAgentID()
-        energy = Agent.GetEnergy(player_agent_id)
-        max_energy = Agent.GetMaxEnergy(player_agent_id)
+        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id)
+        max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
         energy_points = int(energy * max_energy)
 
         return energy_points
 
     def HasEnoughEnergy(self,skill_slot):
-        player_agent_id = Player.GetAgentID()
-        energy = Agent.GetEnergy(player_agent_id)
-        max_energy = Agent.GetMaxEnergy(player_agent_id)
+        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id)
+        max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
         energy_points = int(energy * max_energy)
 
         return self.GetEnergyAgentCost(skill_slot) <= energy_points
     
     def IsRecharged(self,skill_slot):
-        skill = SkillBar.GetSkillData(skill_slot)
+        skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
         recharge = skill.recharge
         return recharge == 0
     
     def HasBuff(self,agent_id, skill_slot):
-        skill_id = SkillBar.GetSkillIDBySlot(skill_slot)
+        skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)
 
         if Effects.BuffExists(agent_id, skill_id) or Effects.EffectExists(agent_id, skill_id):
             return True
@@ -283,10 +274,10 @@ class Combat:
         return 0
     
     def GetAftercast(self,skill_slot):
-        skill_id = SkillBar.GetSkillIDBySlot(skill_slot)
+        skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)
 
-        activation = Skill.Data.GetActivation(skill_id)
-        aftercast = Skill.Data.GetAftercast(skill_id)    
+        activation = GLOBAL_CACHE.Skill.Data.GetActivation(skill_id)
+        aftercast = GLOBAL_CACHE.Skill.Data.GetAftercast(skill_id)    
         return max(activation*1000 + aftercast*750 + Py4GW.PingHandler().GetCurrentPing() + 50,500)
 
 class ProcessInventory:
@@ -574,7 +565,7 @@ class Loot:
             item_array_salv = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Item.Usage.IsSalvageable(Agent.GetItemAgent(agent_id).item_id))
 
         item_array = list(set(item_array_model + item_array_salv))  
-        item_array = AgentArray.Sort.ByDistance(item_array,Player.GetXY())
+        item_array = AgentArray.Sort.ByDistance(item_array,GLOBAL_CACHE.Player.GetXY())
 
         return item_array
 
@@ -584,7 +575,7 @@ class Loot:
         if ActionIsPending():
             return False
 
-        if Agent.IsDead(Player.GetAgentID()):
+        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             return True
         
         if not bot_vars.inv.log:
@@ -604,8 +595,8 @@ class Loot:
         current_target = Player.GetTargetID()
         if current_target != bot_vars.inv.item_id:
             if bot_vars.opts.debug:
-                if Agent.IsNameReady(bot_vars.inv.item_id):
-                    name = f'"{Agent.GetName(bot_vars.inv.item_id)}" - '
+                if GLOBAL_CACHE.Agent.IsNameReady(bot_vars.inv.item_id):
+                    name = f'"{GLOBAL_CACHE.Agent.GetName(bot_vars.inv.item_id)}" - '
                 else:
                     name = ''
                 Debug(f'Changing target to {name}AgentID [{bot_vars.inv.item_id}].')
@@ -616,8 +607,8 @@ class Loot:
             return False
         
         if bot_vars.opts.debug:
-            if Agent.IsNameReady(bot_vars.inv.item_id):
-                name = f'"{Agent.GetName(bot_vars.inv.item_id)}" - '
+            if GLOBAL_CACHE.Agent.IsNameReady(bot_vars.inv.item_id):
+                name = f'"{GLOBAL_CACHE.Agent.GetName(bot_vars.inv.item_id)}" - '
             else:
                 name = ''
             Debug(f'Picking up {name}AgentID [{bot_vars.inv.item_id}].')
@@ -695,27 +686,23 @@ def Travel(outpost_id):
     if bot_vars.opts.debug:
         Debug(f'Travelling to outpost ID [{outpost_id}].')
 
-    if Map.IsMapReady():
-        if not Map.IsOutpost() or (Map.GetMapID() != outpost_id):
-            Map.Travel(outpost_id)
+    if GLOBAL_CACHE.Map.IsMapReady():
+        if not GLOBAL_CACHE.Map.IsOutpost() or (GLOBAL_CACHE.Map.GetMapID() != outpost_id):
+            GLOBAL_CACHE.Map.Travel(outpost_id)
             return
 
 def ArrivedOutpost(map_id):
-    if Map.IsMapReady() and Map.GetMapID() == map_id and Map.IsOutpost() and Party.IsPartyLoaded():
+    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Map.GetMapID() == map_id and GLOBAL_CACHE.Map.IsOutpost() and GLOBAL_CACHE.Party.IsPartyLoaded():
         return True
     return False
 
 def ArrivedExplorable(map_id):
-    if Map.IsMapReady() and Map.GetMapID() == map_id and Map.IsExplorable() and Party.IsPartyLoaded():
+    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Map.GetMapID() == map_id and GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded():
         return True
     return False
 
 def FollowPath(path_handler,follow_handler):
     return Routines.Movement.FollowPath(path_handler,follow_handler)
-
-# def FollowPath(path_handler,follow_handler,run_func=None):
-#     if run_func(): return
-#     return Routines.Movement.FollowPath(path_handler,follow_handler)  
 
 def PathFinished(path_handler,follow_handler):
     return Routines.Movement.IsFollowPathFinished(path_handler, follow_handler)
@@ -723,12 +710,12 @@ def PathFinished(path_handler,follow_handler):
 def RequestEnemyNames():
     enemy_array = AgentArray.GetEnemyArray()
     for enemy in enemy_array:
-        Agent.RequestName(enemy)
+        GLOBAL_CACHE.Agent.RequestName(enemy)
 
 def RequestItemNames():
     item_array = AgentArray.GetItemArray()
     for item in item_array:
-        Agent.RequestName(item)
+        GLOBAL_CACHE.Agent.RequestName(item)
 
 def RequestInventoryNames():
     bags_to_check = ItemArray.CreateBagList(1,2,3,4)
@@ -772,10 +759,10 @@ def CheckRequirements():
     error_msgs = []
 
     # check attributes (for runes)
-    attribute_checks = {'Scythe Mastery' : 11,
-                        'Wind Prayers'   : 15,
-                        'Mysticism'      : 11}
-    for attribute in Agent.GetAttributes(Player.GetAgentID()):
+    attribute_checks = {'Scythe Mastery' : 14,
+                        'Wind Prayers'   : 11,
+                        'Mysticism'      : 12}
+    for attribute in GLOBAL_CACHE.Agent.GetAttributes(Player.GetAgentID()):
         if attribute.GetName() in attribute_checks:
             if attribute_checks[attribute.GetName()] != attribute.level:
                 error_msgs.append(f'\tAttribute "{attribute.GetName()}" differs from requirement of {attribute_checks[attribute.GetName()]}.')
@@ -783,7 +770,7 @@ def CheckRequirements():
 
     # check skills
     for i in range(1,9):
-        skill_instance = PySkill.Skill(SkillBar.GetSkillIDBySlot(i))
+        skill_instance = GLOBAL_CACHE.Skill._get_skill_instance(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(i))
         if skill_instance.id.id == 0:
             error_msgs.append(f'\tSkill slot [{i}] is empty.')
             error = True
@@ -798,7 +785,7 @@ def CheckRequirements():
             Debug('Requirments check passed.', msg_type = 'Success')
 
 def InteractNPC():
-    if not Agent.IsMoving(Player.GetAgentID()):
+    if not GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
         Keystroke.PressAndRelease(Key.Space.value)
 
     if UIManager.IsNPCDialogVisible():
@@ -883,8 +870,8 @@ def KillRotation():
         return
 
     # target
-    target_id = Player.GetTargetID()
-    if target_id == 0 or Agent.GetAllegiance(target_id)[0] != 3 or Agent.IsDead(target_id):
+    target_id = GLOBAL_CACHE.Player.GetTargetID()
+    if target_id == 0 or GLOBAL_CACHE.Agent.GetAllegiance(target_id)[0] != 3 or GLOBAL_CACHE.Agent.IsDead(target_id):
 
         enemy_array = AgentArray.GetEnemyArray()
         enemy_array = AgentArray.Filter.ByAttribute(enemy_array,'IsAlive')
@@ -894,15 +881,15 @@ def KillRotation():
         close_array = AgentArray.Filter.ByDistance(enemy_array,(-15706,-9035), 100)
         new_target = 0
 
-        if Utils.Distance(Agent.GetXY(target_id),(-15706,-9035)) > 100 and close_array and close_array[0]:
+        if Utils.Distance(GLOBAL_CACHE.Agent.GetXY(target_id),(-15706,-9035)) > 100 and close_array and close_array[0]:
             new_target = close_array[0]
         elif enemy_array and enemy_array[0]:
             new_target = enemy_array[0]
 
         if new_target:
             if bot_vars.opts.debug:
-                if Agent.IsNameReady(Player.GetTargetID()):
-                    name = f'"{Agent.GetName(Player.GetTargetID())}" - '
+                if GLOBAL_CACHE.Agent.IsNameReady(Player.GetTargetID()):
+                    name = f'"{GLOBAL_CACHE.Agent.GetName(Player.GetTargetID())}" - '
                 else:
                     name = ''
                 Debug(f'Changing target to {name}AgentID [{new_target}].')
@@ -912,10 +899,10 @@ def KillRotation():
             return
 
     # attack
-    if not Agent.IsAttacking(Player.GetAgentID()):
+    if not GLOBAL_CACHE.Agent.IsAttacking(Player.GetAgentID()):
         if bot_vars.opts.debug:
-            if Agent.IsNameReady(Player.GetTargetID()):
-                name = f'"{Agent.GetName(Player.GetTargetID())}" - '
+            if GLOBAL_CACHE.Agent.IsNameReady(Player.GetTargetID()):
+                name = f'"{GLOBAL_CACHE.Agent.GetName(Player.GetTargetID())}" - '
             else:
                 name = ''
             Debug(f'Attacking {name}AgentID [{Player.GetTargetID()}].')
@@ -933,7 +920,7 @@ def KillRotation():
 
 def HandleSkillbar():
     global bot_vars
-    if Map.IsMapReady() and not Map.IsMapLoading() and Map.IsExplorable() and Party.IsPartyLoaded():
+    if GLOBAL_CACHE.Map.IsMapReady() and not GLOBAL_CACHE.Map.IsMapLoading() and GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded():
         if bot_vars.fsm.get_current_step_name() == 'waiting for enemies':
             WaitRotation()
         elif bot_vars.fsm.get_current_step_name() == 'killing enemies':
@@ -941,9 +928,9 @@ def HandleSkillbar():
 
 def HandleStuck():
     global bot_vars
-    if Map.IsMapReady() and not Map.IsMapLoading() and Map.IsExplorable() and Party.IsPartyLoaded():
+    if GLOBAL_CACHE.Map.IsMapReady() and not GLOBAL_CACHE.Map.IsMapLoading() and GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded():
         if bot_vars.fsm.get_current_step_name() == 'going to kill spot':
-            if not Agent.IsMoving(Player.GetAgentID()):
+            if not GLOBAL_CACHE.Agent.IsMoving(Player.GetAgentID()):
                 if not bot_vars.timers.stuck.IsRunning():
                     bot_vars.timers.stuck.Start()
                     return
@@ -959,10 +946,10 @@ def HandleStuck():
 def WaitForSettle(range,count,timeout = 6000):
     global bot_vars 
 
-    if Agent.IsDead(Player.GetAgentID()):
+    if GLOBAL_CACHE.Agent.IsDead(Player.GetAgentID()):
         return True
     
-    if Agent.GetHealth(Player.GetAgentID()) < 0.5:
+    if GLOBAL_CACHE.Agent.GetHealth(Player.GetAgentID()) < 0.5:
         return True
     
     if not bot_vars.timers.settle.IsRunning():
@@ -987,7 +974,7 @@ def WaitForSettle(range,count,timeout = 6000):
 def WaitForKill():
     global bot_vars
 
-    if Agent.IsDead(Player.GetAgentID()):
+    if GLOBAL_CACHE.Agent.IsDead(Player.GetAgentID()):
         bot_vars.gui.stats.fails += 1
         return True
 
@@ -997,7 +984,7 @@ def WaitForKill():
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
     enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), 600)
 
-    if not enemy_array or (len(enemy_array) < 2 and enemy_array[0] and Agent.GetHealth(enemy_array[0]) > 0.4):
+    if not enemy_array or (len(enemy_array) < 2 and enemy_array[0] and GLOBAL_CACHE.Agent.GetHealth(enemy_array[0]) > 0.4):
         bot_vars.gui.stats.runs += 1
         lap_time = bot_vars.timers.lap.GetElapsedTime()
         bot_vars.timers.lap_times.append(lap_time)
@@ -1013,9 +1000,9 @@ fsm_setup_states = [
     ('mapping to outpost'    , dict(execute_fn=lambda:Travel(bot_vars.map.starting),exit_condition=lambda:ArrivedOutpost(bot_vars.map.starting),transition_delay_ms=1000)),
     ('loading skillbar'      , dict(execute_fn=lambda:combat.LoadSkillBar(build.GetTemplate(bot_vars.opts.build_type)),transition_delay_ms=1000)),
     ('checking requirements' , dict(execute_fn=lambda:CheckRequirements())),
-    ('setting nm'            , dict(execute_fn=lambda:Party.SetNormalMode(),transition_delay_ms=1000)),
+    ('setting nm'            , dict(execute_fn=lambda:GLOBAL_CACHE.Party.SetNormalMode(),transition_delay_ms=1000)),
     ('going to npc'          , dict(execute_fn=lambda:FollowPath(bot_vars.path.npc,bot_vars.move),exit_condition=lambda:PathFinished(bot_vars.path.npc,bot_vars.move),run_once=False)),
-    ('targetting npc'        , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.V.value),transition_delay_ms=200)),
+    ('targetting npc'        , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.B.value),transition_delay_ms=200)),
     ('talking to npc'        , dict(run_once=False,exit_condition=lambda:InteractNPC())),
     ('talking more'          , dict(execute_fn=lambda:Player.SendDialog(0x832105),transition_delay_ms=1000)),
     ('entering dungeon'      , dict(execute_fn=lambda:Player.SendDialog(0x88),exit_condition=lambda:ArrivedExplorable(bot_vars.map.dungeon))),
@@ -1025,7 +1012,7 @@ fsm_setup_states = [
 
 fsm_inventory_states = [
     ('requesting names'      , dict(execute_fn=lambda:RequestInventoryNames())),
-    ('targetting merchant'   , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.V.value),transition_delay_ms=200)),
+    ('targetting merchant'   , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.B.value),transition_delay_ms=200)),
     ('talking to merchant'   , dict(run_once=False,exit_condition=lambda:InteractNPC())),
     ('trading'               , dict(execute_fn=lambda:Player.SendDialog(0x7F),transition_delay_ms=1000)),
     ('IDing items'           , dict(exit_condition=lambda:inventory.IDInventory())),
@@ -1038,7 +1025,7 @@ fsm_inventory_states = [
 fsm_farm_states = [
     ('lapping'               , dict(execute_fn=lambda:StartLapTimer())),
     ('equipping staff'       , dict(execute_fn=lambda:combat.ChangeWeaponSet(Build.staff),transition_delay_ms=1000)),
-    ('targetting npc'        , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.V.value),transition_delay_ms=200)),
+    ('targetting npc'        , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.B.value),transition_delay_ms=200)),
     ('talking to npc'        , dict(run_once=False,exit_condition=lambda:InteractNPC())),
     ('talking more'          , dict(execute_fn=lambda:Player.SendDialog(0x832105),transition_delay_ms=1000)),
     ('entering dungeon'      , dict(execute_fn=lambda:Player.SendDialog(0x88),exit_condition=lambda:ArrivedExplorable(560))),
@@ -1047,11 +1034,11 @@ fsm_farm_states = [
     ('prepping skills'       , dict(execute_fn=lambda:PrepSkills(),exit_condition=lambda:PrepSkills(),run_once=False)),
     ('going to kill spot'    , dict(execute_fn=lambda:FollowPath(bot_vars.path.kill,bot_vars.exact_move),exit_condition=lambda:PathFinished(bot_vars.path.kill,bot_vars.exact_move),run_once=False)),
     ('waiting for enemies'   , dict(exit_condition=lambda:WaitForSettle(200,3))),
-    ('equipping scythe'      , dict(execute_fn=lambda:combat.ChangeWeaponSet(build.scythe),exit_condition=lambda:Agent.GetWeaponType(Player.GetAgentID())[1]=='Scythe',run_once=False)),
+    ('equipping scythe'      , dict(execute_fn=lambda:combat.ChangeWeaponSet(build.scythe),exit_condition=lambda:GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[1]=='Scythe',run_once=False)),
     ('killing enemies'       , dict(exit_condition=lambda:WaitForKill())),
     ('looting items'         , dict(exit_condition=lambda:loot.Loot())),
-    ('resigning'             , dict(execute_fn=lambda:Player.SendChatCommand('resign'),exit_condition=lambda:Party.IsPartyDefeated(),transition_delay_ms=1000)),
-    ('returning'             , dict(execute_fn=lambda:Party.ReturnToOutpost(),exit_condition=lambda:ArrivedOutpost(bot_vars.map.starting),transition_delay_ms=200)),
+    ('resigning'             , dict(execute_fn=lambda:Player.SendChatCommand('resign'),exit_condition=lambda:GLOBAL_CACHE.Party.IsPartyDefeated(),transition_delay_ms=1000)),
+    ('returning'             , dict(execute_fn=lambda:GLOBAL_CACHE.Party.ReturnToOutpost(),exit_condition=lambda:ArrivedOutpost(bot_vars.map.starting),transition_delay_ms=200)),
     ('resetting loop'        , dict(execute_fn=lambda:ResetVariables()))
 ]
 
@@ -1384,7 +1371,7 @@ def main():
 
     try:
         # only run when everything is loaded
-        if not Map.IsMapReady() or not Party.IsPartyLoaded(): return
+        if not GLOBAL_CACHE.Map.IsMapReady() or not GLOBAL_CACHE.Party.IsPartyLoaded(): return
 
         # draw gui
         Draw().Run()
