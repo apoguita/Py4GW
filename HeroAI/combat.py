@@ -156,6 +156,7 @@ class CombatClass:
         self.comfort_animal = GLOBAL_CACHE.Skill.GetID("Comfort_Animal")
         self.heal_as_one = GLOBAL_CACHE.Skill.GetID("Heal_as_One")
         self.heroic_refrain = GLOBAL_CACHE.Skill.GetID("Heroic_Refrain")
+        self.natures_blessing = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         
     def Update(self, cached_data):
         self.in_aggro = cached_data.in_aggro
@@ -645,8 +646,17 @@ class CombatClass:
                 dead = GLOBAL_CACHE.Agent.IsDead(vTarget)
                 return LessLife or dead
                 
+            if (self.skills[slot].skill_id == self.natures_blessing):
+                player_life = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < Conditions.LessLife
+                nearest_npc = Routines.Agents.GetNearestNPC(Range.Spirit.value)
+                if nearest_npc == 0:
+                    return player_life
+
+                nearest_NPC_life = GLOBAL_CACHE.Agent.GetHealth(nearest_npc) < Conditions.LessLife
+                return player_life or nearest_NPC_life
 
             return True  # if no unique property is configured, return True for all UniqueProperty
+        
 
         feature_count += (1 if Conditions.IsAlive else 0)
         feature_count += (1 if Conditions.HasCondition else 0)
