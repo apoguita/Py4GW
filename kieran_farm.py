@@ -16,48 +16,6 @@ def create_bot_routine(bot: Botting) -> None:
     EnterQuest(bot)
     AuspiciousBeginnings(bot)
 
-def _call_dangerous_targets(bot: Botting):
-    MODULE = "Check Dangerous Targets"
-    D = {8207, 8341, 8097, 8235, 8200, 8227}  # adherent, zealot, peacekeeper, devotee, savant, scout
-    ConsoleLog(MODULE, "Coroutine started.")
-    
-    wait = Routines.Yield.wait
-    A, P, M = GLOBAL_CACHE.Agent, GLOBAL_CACHE.Party, GLOBAL_CACHE.Map
-
-
-    while True:
-        try:
-            if not (Routines.Checks.Map.MapValid() and M.IsExplorable() and P.IsPartyLoaded()):
-                yield from wait(1000); continue
-
-            players = P.GetPlayers()
-            if not players or players[0].called_target_id != 0:
-                yield from wait(1000); continue
-
-            target = players[0].called_target_id
-
-            if target != 0:
-                yield from Routines.Yield.wait(1000)
-                continue
-
-            # Need to call a dangerous target
-            px, py = GLOBAL_CACHE.Player.GetXY()
-            enemies = Routines.Agents.GetFilteredEnemyArray(px, py, max_distance=Range.Spellcast.value, aggressive_only=False)
-
-            tgt = next((e for e in enemies
-                        if A.IsValid(e) and A.IsAlive(e) and A.GetModelID(e) in D), None)
-
-            if tgt:
-                GLOBAL_CACHE.Player.ChangeTarget(tgt)
-                GLOBAL_CACHE.Player.Interact(tgt, True)
-                ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
-                ConsoleLog(MODULE, "Called dangerous target.", log=False)
-            yield from wait(1000)
-        except Exception as e:
-            ConsoleLog(MODULE, f"Error: {e!r}. Recovering in 1s.")
-            yield from wait(1000)
-
-
 def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
     bot.Properties.ApplyNow("halt_on_death","active", True)
@@ -79,7 +37,6 @@ def on_death(bot: "Botting"):
 def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
-    bot.States.AddManagedCoroutine("DangerousTargets", lambda: _call_dangerous_targets(bot))
     
 def GoToEOTN(bot: Botting) -> None:
     bot.States.AddHeader("Go to EOTN")
@@ -87,10 +44,15 @@ def GoToEOTN(bot: Botting) -> None:
       
 def GetBonusBow(bot: Botting):
     bot.States.AddHeader("Check for Bonus Bow")
-    if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Bonus_Nevermore_Flatbow.value): #Bonus Bow
-        bot.Items.SpawnBonusItems()
-        bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
-        bot.Items.DestroyBonusItems()  
+
+    def _get_bonus_bow(bot: Botting):
+        if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Bonus_Nevermore_Flatbow.value):
+            yield from bot.helpers.Items._spawn_bonus_items()
+            yield from bot.helpers.Items._equip(ModelID.Bonus_Nevermore_Flatbow.value)
+        yield from bot.helpers.Items._destroy_bonus_items(exclude_list=[ModelID.Bonus_Nevermore_Flatbow.value])
+
+    bot.States.AddCustomState(lambda: _get_bonus_bow(bot), "GetBonusBow")
+    
 
 def ExitToHOM(bot: Botting) -> None:
     bot.States.AddHeader("Exit to HOM")
@@ -99,11 +61,19 @@ def ExitToHOM(bot: Botting) -> None:
 def AcquireKieransBow(bot: Botting) -> None:
     KIERANS_BOW = 35829
     bot.States.AddHeader("Acquire Kieran's Bow")
-    if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(KIERANS_BOW): #Kierans
-        bot.Move.XYAndDialog(-6583.00, 6672.00, 0x0000008A) #take bow with gwen
-        
-    if not Routines.Checks.Inventory.IsModelEquipped(KIERANS_BOW):
-        bot.Items.Equip(KIERANS_BOW)
+
+    def _acquire_keirans_bow(bot: Botting):
+        if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(KIERANS_BOW):
+            # Direct coroutine: interact with Gwen to take the bow
+            yield from bot.helpers.Move._get_path_to(-6583.00, 6672.00)
+            yield from bot.helpers.Move._follow_path()
+            yield from bot.helpers.Interact._with_agent((-6583.00, 6672.00), dialog_id=0x0000008A)
+
+        if not Routines.Checks.Inventory.IsModelEquipped(KIERANS_BOW):
+            yield from bot.helpers.Items._equip(KIERANS_BOW)
+
+    bot.States.AddCustomState(lambda: _acquire_keirans_bow(bot), "AcquireKieransBow")
+
         
 def EnterQuest(bot: Botting) -> None:
     bot.States.AddHeader("Enter Quest")
@@ -131,7 +101,7 @@ def AuspiciousBeginnings(bot: Botting) -> None:
     bot.Move.XY(8655.57, -8782.28, step_name="To corner")
     bot.Move.XY(4518.81, -9504.34, step_name="To safe spot 0")
     bot.Wait.ForTime(5000)
-    bot.Move.XY(2501.02, -10844.87, step_name="To patrol")
+    #bot.Move.XY(2501.02, -10844.87, step_name="To patrol")
     bot.Move.XY(3173.55, -12144.88, step_name="To safe spot 1")
     
     bot.Move.XY(869.17, -13687.34, step_name="To safe spot 2")
@@ -140,7 +110,7 @@ def AuspiciousBeginnings(bot: Botting) -> None:
     
     bot.Move.XY(-2860.21, -12198.37, step_name="To middle")
     bot.Wait.ForTime(5000)
-    #bot.Move.XY(-6832.97, -12470.33, step_name="To safe spot 4")
+    bot.Move.XY(-4500.21, -12811.61, step_name="To safe spot 4")
     
     bot.Move.XY(-15858.25, -8840.35, step_name="To End of Path")
     bot.Wait.ForMapToChange(target_map_id=646)
@@ -152,7 +122,7 @@ bot.SetMainRoutine(create_bot_routine)
 
 def main():
     bot.Update()
-    bot.UI.draw_window()
+    bot.UI.draw_window(icon_path="Keiran_art.png")
 
 
 if __name__ == "__main__":
