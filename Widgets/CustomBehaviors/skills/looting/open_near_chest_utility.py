@@ -41,7 +41,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
             utility_skill_typology=UtilitySkillTypology.CHESTING,
             execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
-        self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.LOOT.value)
+        self.score_definition: ScoreStaticDefinition =ScoreStaticDefinition(CommonScore.LOOT.value + 0.001)
         self.opened_chest_agent_ids: set[int] = set()
         self.throttle_timer = ThrottledTimer(1000)
 
@@ -63,14 +63,13 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         chest_agent_id = Routines.Agents.GetNearestChest(700)
         if chest_agent_id in self.opened_chest_agent_ids: return None
         if chest_agent_id is None or chest_agent_id == 0: return None
-
         return self.score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
         if not self.throttle_timer.IsExpired():
-            print(f"open_near_chest_utility_ IsExpired")
+            # print(f"open_near_chest_utility_ IsExpired")
             yield
             return BehaviorResult.ACTION_SKIPPED
 
@@ -81,7 +80,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
             yield
             return BehaviorResult.ACTION_SKIPPED
 
-        print(f"open_near_chest_utility_ STARTING")
+        # print(f"open_near_chest_utility_ STARTING")
 
         chest_x, chest_y = GLOBAL_CACHE.Agent.GetXY(chest_agent_id)
         lock_key = f"open_near_chest_utility_{chest_agent_id}"
@@ -91,40 +90,43 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
             timeout=10_000)
 
         if result == False:
-            print(f"open_near_chest_utility_ FAIL FollowPath")
+            # print(f"open_near_chest_utility_ FAIL FollowPath")
             yield
             return BehaviorResult.ACTION_SKIPPED
 
         if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key) == False:
-            print(f"open_near_chest_utility_ FAIL try_aquire_lock")
+            # print(f"open_near_chest_utility_ FAIL try_aquire_lock")
             yield
             return BehaviorResult.ACTION_SKIPPED
 
         # Use try-finally to ensure lock is always released
         try:
-            print(f"open_near_chest_utility_ LOCK AQUIRED")
+            # print(f"open_near_chest_utility_ LOCK AQUIRED")
+            yield from Yield.wait(1000) # we must wait until the chest closing animation is finalized
             ActionQueueManager().ResetAllQueues()
             yield from Yield.Player.InteractAgent(chest_agent_id)
             yield from Yield.wait(1000)
             GLOBAL_CACHE.Player.SendDialog(2)
             yield from Yield.wait(1000)
-            print("CHEST_OPENED")
+            # print("CHEST_OPENED")
+            # Only mark chest as opened and publish the event upon successful interaction
+            # print(f"RELEASE Lock key {lock_key}")
+            # print(f"self.opened_chest_agent_ids {self.opened_chest_agent_ids}")
+            self.opened_chest_agent_ids.add(chest_agent_id)
+            EVENT_BUS.publish(EventType.CHEST_OPENED, chest_agent_id)
+            CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
             return BehaviorResult.ACTION_PERFORMED
 
         except Exception as e:
-            print(f"ERROR in OpenNearChestUtility._execute: {type(e).__name__}: {e}")
-            print(f"Lock key: {lock_key}, Chest agent ID: {chest_agent_id}")
+            # print(f"ERROR in OpenNearChestUtility._execute: {type(e).__name__}: {e}")
+            # print(f"Lock key: {lock_key}, Chest agent ID: {chest_agent_id}")
             import traceback
             traceback.print_exc()
             return BehaviorResult.ACTION_SKIPPED
         finally:
             # Always release the lock, even if an exception occurs
-            print(f"RELEASE Lock key {lock_key}")
-            print(f"self.opened_chest_agent_ids {self.opened_chest_agent_ids}")
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
-            self.opened_chest_agent_ids.add(chest_agent_id)
-            EVENT_BUS.publish(EventType.CHEST_OPENED, chest_agent_id)
-
+            pass
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:

@@ -5,6 +5,7 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import Utils
 from Py4GWCoreLib.enums import SharedCommandType
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
@@ -15,6 +16,8 @@ py4gw_root_directory = project_root + f"\\..\\..\\"
 
 @staticmethod
 def render():
+    constants.DEBUG = PyImGui.checkbox("with debugging logs", constants.DEBUG)
+
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
     if shared_data.is_enabled:
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)

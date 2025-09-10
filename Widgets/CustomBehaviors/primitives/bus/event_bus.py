@@ -3,7 +3,7 @@ from collections import defaultdict
 import threading
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives import constants
 
 
 class EventBus:
@@ -44,7 +44,7 @@ class EventBus:
             True if subscription was successful, False otherwise
         """
         if not isinstance(event_type, EventType) or not callback:
-            if DEBUG:
+            if constants.DEBUG:
                 print(f"Invalid subscription parameters: event_type={event_type}, callback={callback}")
             return False
         
@@ -73,7 +73,7 @@ class EventBus:
             True if unsubscription was successful, False otherwise
         """
         if not isinstance(event_type, EventType):
-            if DEBUG:
+            if constants.DEBUG:
                 print(f"Invalid event type: {event_type}")
             return False
         
@@ -111,7 +111,7 @@ class EventBus:
             True if publishing was successful, False otherwise
         """
         if not isinstance(event_type, EventType):
-            if DEBUG:
+            if constants.DEBUG:
                 print(f"Invalid event type from publisher '{publisher_name}': {event_type}")
             return False
         
@@ -138,7 +138,7 @@ class EventBus:
                 success_count += 1
             except Exception as e:
                 subscriber_name = subscriber_names[i] if i < len(subscriber_names) else "Unknown"
-                if DEBUG:
+                if constants.DEBUG:
                     print(f"Error in subscriber '{subscriber_name}' for event '{event_type.name}': {e}")
         
         if self._debug_mode and subscribers:
@@ -180,7 +180,7 @@ class EventBus:
                     print(f"Cleared all event subscribers")
             else:
                 if not isinstance(event_type, EventType):
-                    if DEBUG:
+                    if constants.DEBUG:
                         print(f"Invalid event type: {event_type}")
                     return
                 if event_type in self._subscribers:
@@ -205,7 +205,7 @@ class EventBus:
                 history = self._message_history.copy()
             else:
                 if not isinstance(event_type, EventType):
-                    if DEBUG:
+                    if constants.DEBUG:
                         print(f"Invalid event type: {event_type}")
                     return []
                 history = [msg for msg in self._message_history if msg.type == event_type]
@@ -238,13 +238,13 @@ class EventBus:
     def set_debug_mode(self, enabled: bool):
         """Enable or disable debug logging."""
         self._debug_mode = enabled
-        if DEBUG:
+        if constants.DEBUG:
             print(f"Debug mode {'enabled' if enabled else 'disabled'}")
     
     def set_max_history_size(self, size: int):
         """Set the maximum number of messages to keep in history."""
         if size < 0:
-            if DEBUG:
+            if constants.DEBUG:
                 print(f"Invalid history size: {size}")
             return
         
@@ -254,7 +254,7 @@ class EventBus:
             while len(self._message_history) > self._max_history_size:
                 self._message_history.pop(0)
         
-        if DEBUG:
+        if constants.DEBUG:
             print(f"Max history size set to {size}")
 
 

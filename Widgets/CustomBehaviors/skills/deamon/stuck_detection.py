@@ -11,6 +11,7 @@ from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Widgets.CustomBehaviors.primitives.scores.score_definition import ScoreDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
