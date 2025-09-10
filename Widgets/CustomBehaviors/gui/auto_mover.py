@@ -2,6 +2,7 @@ from typing import Any, Callable, Generator
 from Py4GWCoreLib import IconsFontAwesome5, PyImGui, Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader, MatchResult
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
@@ -106,7 +107,7 @@ def move_to(target_position: tuple[float, float]) -> Generator[Any, None, Any]:
             path_points= path2d, 
             custom_exit_condition=lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()), # todo change to party is dead.
             tolerance=150, 
-            log=True, 
+            log=constants.DEBUG, 
             timeout=-1, 
             progress_callback=on_progress,
             custom_pause_fn=custom_pause_fn)

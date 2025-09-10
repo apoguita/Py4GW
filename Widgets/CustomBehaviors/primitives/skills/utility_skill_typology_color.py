@@ -9,7 +9,8 @@ class UtilitySkillTypologyColor:
     FOLLOWING_COLOR = Utils.ColorToTuple(Utils.RGBToColor(62, 139, 95, 200))
     BOTTING_COLOR = Utils.ColorToTuple(Utils.RGBToColor(131, 90, 146, 200))
     CHESTING_COLOR = Utils.ColorToTuple(Utils.RGBToColor(229, 226, 160, 200))
-    DEAMON_COLOR = Utils.ColorToTuple(Utils.RGBToColor(150, 150, 150, 200))
+    DAEMON_COLOR = Utils.ColorToTuple(Utils.RGBToColor(150, 150, 150, 200))
+    BLESSING_COLOR = Utils.ColorToTuple(Utils.RGBToColor(255, 143, 62, 200))
 
     @staticmethod
     def get_color_from_typology(utility_skill_typology:UtilitySkillTypology) -> tuple[float, float, float, float]:
@@ -20,10 +21,12 @@ class UtilitySkillTypologyColor:
         if utility_skill_typology == UtilitySkillTypology.COMBAT:
             return UtilitySkillTypologyColor.COMBAT_COLOR
         if utility_skill_typology == UtilitySkillTypology.DEAMON:
-            return UtilitySkillTypologyColor.DEAMON_COLOR
+            return UtilitySkillTypologyColor.DAEMON_COLOR
         if utility_skill_typology == UtilitySkillTypology.FOLLOWING:
             return UtilitySkillTypologyColor.FOLLOWING_COLOR
         if utility_skill_typology == UtilitySkillTypology.LOOTING:
             return UtilitySkillTypologyColor.LOOTING_COLOR
+        if utility_skill_typology == UtilitySkillTypology.BLESSING:
+            return UtilitySkillTypologyColor.BLESSING_COLOR
             
         return Utils.ColorToTuple(Utils.RGBToColor(255, 255, 255, 200))
