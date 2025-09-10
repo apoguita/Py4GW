@@ -3,7 +3,7 @@ from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBeha
 
 
 @staticmethod
-def deamon():
+def daemon():
     CustomBehaviorLoader().initialize_custom_behavior_candidate()
 
     if CustomBehaviorLoader().custom_combat_behavior is not None:
