@@ -8,13 +8,15 @@ from threading import Lock
 from typing import Generator
 
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import (
     SharedLockEntry,
     SharedLockEntryStruct,
+    SharedLockHistoryStruct,
     SharedLockManager,
     MAX_LOCKS,
     MAX_LOCK_KEY_LEN,
+    MAX_LOCK_HISTORY,
 )
 
 
@@ -29,6 +31,8 @@ class CustomBehaviorWidgetStruct(Structure):
         ("PartyTargetId", c_uint),
         ("PartyForcedState", c_uint),
         ("LockEntries", SharedLockEntryStruct * MAX_LOCKS),
+        ("LockHistoryEntries", SharedLockHistoryStruct * MAX_LOCK_HISTORY),
+        ("LockHistoryIdx", c_uint),
     ]
 
 class CustomBehaviorWidgetData:
@@ -94,6 +98,16 @@ class CustomBehaviorWidgetMemoryManager:
         for i in range(MAX_LOCKS):
             mem.LockEntries[i].Key = ""
             mem.LockEntries[i].AcquiredAt = 0
+            if hasattr(mem.LockEntries[i], "ReleasedAt"):
+                mem.LockEntries[i].ReleasedAt = 0
+            if hasattr(mem.LockEntries[i], "SenderEmail"):
+                mem.LockEntries[i].SenderEmail = ""
+        mem.LockHistoryIdx = 0
+        for i in range(MAX_LOCK_HISTORY):
+            mem.LockHistoryEntries[i].Key = ""
+            mem.LockHistoryEntries[i].SenderEmail = ""
+            mem.LockHistoryEntries[i].AcquiredAt = 0
+            mem.LockHistoryEntries[i].ReleasedAt = 0
 
     def GetCustomBehaviorWidgetData(self) -> CustomBehaviorWidgetData:
         mem = self._get_struct()
@@ -122,5 +136,5 @@ class CustomBehaviorWidgetMemoryManager:
         mem.PartyForcedState = party_forced_state if party_forced_state is not None else 0
 
     # --- Backwards-compatible delegates to shared_lock ---
-    def GetSharedLockManager(self):
+    def GetSharedLockManager(self) -> SharedLockManager:
         return self.__shared_lock

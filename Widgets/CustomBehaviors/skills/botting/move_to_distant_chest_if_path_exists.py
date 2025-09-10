@@ -1,4 +1,3 @@
-from turtle import position
 from typing import Any, Callable, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Utils
@@ -18,6 +17,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 import time
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
+from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
@@ -30,11 +30,12 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
         super().__init__(
             skill=CustomSkill("move_to_distant_chest_if_path_exists"), 
             in_game_build=current_build, 
-            score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value), 
+            score_definition=ScoreStaticDefinition(CommonScore.LOOT.value - 0.0002), # this cannont pass before my own loot
             allowed_states=allowed_states,
-            utility_skill_typology=UtilitySkillTypology.BOTTING)
+            utility_skill_typology=UtilitySkillTypology.BOTTING,
+            execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
-        self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BOTTING.value)
+        self.score_definition: ScoreStaticDefinition =ScoreStaticDefinition(CommonScore.LOOT.value - 0.0002)
         self.throttle_timer = ThrottledTimer(5_000)
         self.opened_chest_agent_ids: set[int] = set()
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.area_changed)
@@ -94,7 +95,7 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
 
         print(f"path found {path3d}")
 
-        if(self._get_path_distance(path_flatten) > 2000):
+        if(self._get_path_distance(path_flatten) > 2500):
             print(f"path too long... we don't want to move so far.")
             # todo we must give that chest another chance. but with a throttle
             self.throttle_timer.Reset()

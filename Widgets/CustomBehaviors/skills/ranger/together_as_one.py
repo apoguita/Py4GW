@@ -9,7 +9,7 @@ from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definiti
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives import constants
 
 
 class TogetherAsOneUtility(CustomSkillUtilityBase):
@@ -48,7 +48,7 @@ class TogetherAsOneUtility(CustomSkillUtilityBase):
             gravity_center: custom_behavior_helpers.GravityCenter | None = custom_behavior_helpers.Targets.find_optimal_gravity_center(Range.Area, agent_ids=agent_ids)
             if gravity_center is not None:
                 if gravity_center.distance_from_player < Range.Area.value: # else it doesn't worth moving, we are too far
-                    if DEBUG: print("TogetherAsOneUtility: moving to a better place (gravity center).")
+                    if constants.DEBUG: print("TogetherAsOneUtility: moving to a better place (gravity center).")
                     exit_condition: Callable[[], bool] = lambda: False
                     tolerance: float = 30
                     path_points: list[tuple[float, float]] = [gravity_center.coordinates]

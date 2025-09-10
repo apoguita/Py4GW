@@ -4,7 +4,7 @@ import pkgutil
 from typing import Generator, Any, List
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.skillbars import hero_ai_fallback
 
@@ -90,7 +90,7 @@ class CustomBehaviorLoader:
                 try:
                     # Dynamically import the module
                     module = importlib.import_module(module_name)
-                    if DEBUG: print(f"Loaded module: {module.__name__}")
+                    if constants.DEBUG: print(f"Loaded module: {module.__name__}")
                     loaded_modules.append(module)
                 except ImportError as e:
                     print(f"Failed to import module {module_name}: {e}")
@@ -100,7 +100,7 @@ class CustomBehaviorLoader:
         subclasses = []
         modules = __load_all_modules_in_folder(package_name)
 
-        if DEBUG:
+        if constants.DEBUG:
             print(f"\nSearching for subclasses of {base_class.__name__}")
             for module in modules:
                 print(f"Module: {module.__name__}")
@@ -110,12 +110,11 @@ class CustomBehaviorLoader:
             for name, obj in inspect.getmembers(module):
                 
                 if("_UtilitySkillBar" in name):
-                    if DEBUG: print(f"Found subclass: {obj.__name__}")
+                    if constants.DEBUG: print(f"Found subclass: {obj.__name__}")
                     subclasses.append(obj)
                     break
 
-        if DEBUG:
-            print(f"Total subclasses found: {len(subclasses)}")
+        if constants.DEBUG: print(f"Total subclasses found: {len(subclasses)}")
 
         return subclasses
 
@@ -125,21 +124,21 @@ class CustomBehaviorLoader:
         matches: List[MatchResult] = []
 
         for subclass in subclasses:
-            if DEBUG: print(f"Checking subclass: {subclass.__name__} (defined in {subclass.__module__})")
+            if constants.DEBUG: print(f"Checking subclass: {subclass.__name__} (defined in {subclass.__module__})")
             instance: CustomBehaviorBaseUtility = subclass()
 
             build_size = len(instance.skills_required_in_behavior)
-            print(f"build_size: {build_size}")
+            if constants.DEBUG: print(f"build_size: {build_size}")
             matching_count = instance.count_matches_between_custom_behavior_and_in_game_build()
-            print(f"matching_count: {matching_count}")
+            if constants.DEBUG: print(f"matching_count: {matching_count}")
             
             if matching_count == build_size:
-                if DEBUG: print(f"Found custom behavior: {subclass.__name__} (defined in {subclass.__module__})")
+                if constants.DEBUG: print(f"Found custom behavior: {subclass.__name__} (defined in {subclass.__module__})")
                 # matches.append((matching_count,instance, True))
                 is_matched_with_current_build = True if matching_count > 0 else False
                 matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=is_matched_with_current_build))
             else:
-                if DEBUG: print(f"{subclass.__name__} (defined in {subclass.__module__} - Custom behavior does not match in-game build.")
+                if constants.DEBUG: print(f"{subclass.__name__} (defined in {subclass.__module__} - Custom behavior does not match in-game build.")
                 matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=False))
 
 
@@ -162,14 +161,14 @@ class CustomBehaviorLoader:
         result: CustomBehaviorBaseUtility | None = __behaviors_candidates[0].instance if len(__behaviors_candidates) > 0 else None
 
         party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
-        if DEBUG: print(f"party_number: {party_number}")
+        if constants.DEBUG: print(f"party_number: {party_number}")
 
         if result is not None:
-            if DEBUG: print(f"custom behavior instance affected")
+            if constants.DEBUG: print(f"custom behavior instance affected")
             self.custom_combat_behavior = result
             self.custom_combat_behavior.enable()
         else:
-            if DEBUG: print(f"no custom behavior found, fallback to hero_ai_fallback")
+            if constants.DEBUG: print(f"no custom behavior found, fallback to hero_ai_fallback")
             self.custom_combat_behavior = hero_ai_fallback.HeroAiFallback_UtilitySkillBar()
             self.custom_combat_behavior.enable()
 

@@ -12,7 +12,7 @@ from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory im
 from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
 
@@ -33,23 +33,26 @@ def render():
             CustomBehaviorLoader().refresh_custom_behavior_candidate()
         return
 
-    if DEBUG:
+    if constants.DEBUG:
         # PyImGui.same_line(0, 10)
         PyImGui.text(f"HasLoaded : {CustomBehaviorLoader()._has_loaded}")
         # PyImGui.same_line(0, 10)
         PyImGui.text(f"Selected template : {CustomBehaviorLoader().custom_combat_behavior.__class__.__name__}")
         if CustomBehaviorLoader().custom_combat_behavior is not None:
             PyImGui.text(f"IsExecutingUtilitySkills:{CustomBehaviorLoader().custom_combat_behavior.is_executing_utility_skills()}")
-            PyImGui.text(f"Account state:{CustomBehaviorLoader().custom_combat_behavior.get_state()}")
-            PyImGui.text(f"Final state:{CustomBehaviorLoader().custom_combat_behavior.get_final_state()}")
-
-        if CustomBehaviorLoader().custom_combat_behavior.get_is_enabled():
-            if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES} Disable"):
-                CustomBehaviorLoader().custom_combat_behavior.disable()
-        else:
-            if PyImGui.button(f"{IconsFontAwesome5.ICON_CHECK} Enable"):
-                CustomBehaviorLoader().custom_combat_behavior.enable()
         pass
+
+    if CustomBehaviorLoader().custom_combat_behavior is not None:
+        PyImGui.text(f"Account state:{CustomBehaviorLoader().custom_combat_behavior.get_state()}")
+        PyImGui.text(f"Final state:{CustomBehaviorLoader().custom_combat_behavior.get_final_state()}")
+
+    if CustomBehaviorLoader().custom_combat_behavior.get_is_enabled():
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES} Disable"):
+            CustomBehaviorLoader().custom_combat_behavior.disable()
+    else:
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_CHECK} Enable"):
+            CustomBehaviorLoader().custom_combat_behavior.enable()
+    pass
     
     # if current_build is not None and type(current_build).mro()[1].__name__ != CustomBehaviorBaseUtility.__name__:
     #     PyImGui.separator()
@@ -95,7 +98,7 @@ def render():
                     return ""
 
         
-                score_text = f"{score[1]:06.2f}" if score[1] is not None else "Ø"
+                score_text = f"{score[1]:06.4f}" if score[1] is not None else "Ø"
                 texture_file = score[0].custom_skill.get_texture(py4gw_root_directory, project_root)
                 
                 PyImGui.table_next_row()

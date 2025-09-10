@@ -5,7 +5,7 @@ from typing import Generator, Any, List
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
-from Widgets.CustomBehaviors.primitives.constants import DEBUG
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import SharedLockManager
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology

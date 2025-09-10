@@ -1,7 +1,7 @@
 from typing import Any, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
-from Py4GWCoreLib.Py4GWcorelib import LootConfig
+from Py4GWCoreLib.Py4GWcorelib import LootConfig, ThrottledTimer
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -18,18 +18,18 @@ class WaitIfPartyMemberNeedsToLootUtility(CustomSkillUtilityBase):
     def __init__(
             self, 
             current_build: list[CustomSkill], 
-            mana_limit: float = 0.5,
         ) -> None:
         
         super().__init__(
             skill=CustomSkill("wait_if_party_member_needs_to_loot"), 
             in_game_build=current_build, 
-            score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value + 0.0090), 
+            score_definition=ScoreStaticDefinition(CommonScore.LOOT.value - 0.0001), # this cannot pass before my own loot
             allowed_states= [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
             utility_skill_typology=UtilitySkillTypology.BOTTING)
 
-        self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BOTTING.value)
-        self.mana_limit = mana_limit
+        self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.LOOT.value - 0.0001)
+        self._timeout = ThrottledTimer(30_000)
+        self._cooldown_after_timeout = ThrottledTimer(15_000)
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -40,11 +40,13 @@ class WaitIfPartyMemberNeedsToLootUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True, allow_unasigned_loot=True)
+        # we choose a bigger range on purpose, allies are not exactly at our position.
+        loot_array = LootConfig().GetfilteredLootArray(Range.Spellcast.value, multibox_loot=True, allow_unasigned_loot=True)
         if len(loot_array) > 1:
             return self.score_definition.get_score()
+        
 
-        #todo timeout
+        # todo timeout + cooldown
 
         return None
 
