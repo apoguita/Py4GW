@@ -1002,7 +1002,7 @@ fsm_setup_states = [
     ('checking requirements' , dict(execute_fn=lambda:CheckRequirements())),
     ('setting nm'            , dict(execute_fn=lambda:GLOBAL_CACHE.Party.SetNormalMode(),transition_delay_ms=1000)),
     ('going to npc'          , dict(execute_fn=lambda:FollowPath(bot_vars.path.npc,bot_vars.move),exit_condition=lambda:PathFinished(bot_vars.path.npc,bot_vars.move),run_once=False)),
-    ('targetting npc'        , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.B.value),transition_delay_ms=200)),
+    ('targetting npc'        , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.V.value),transition_delay_ms=200)),
     ('talking to npc'        , dict(run_once=False,exit_condition=lambda:InteractNPC())),
     ('talking more'          , dict(execute_fn=lambda:Player.SendDialog(0x832105),transition_delay_ms=1000)),
     ('entering dungeon'      , dict(execute_fn=lambda:Player.SendDialog(0x88),exit_condition=lambda:ArrivedExplorable(bot_vars.map.dungeon))),
@@ -1012,7 +1012,7 @@ fsm_setup_states = [
 
 fsm_inventory_states = [
     ('requesting names'      , dict(execute_fn=lambda:RequestInventoryNames())),
-    ('targetting merchant'   , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.B.value),transition_delay_ms=200)),
+    ('targetting merchant'   , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.V.value),transition_delay_ms=200)),
     ('talking to merchant'   , dict(run_once=False,exit_condition=lambda:InteractNPC())),
     ('trading'               , dict(execute_fn=lambda:Player.SendDialog(0x7F),transition_delay_ms=1000)),
     ('IDing items'           , dict(exit_condition=lambda:inventory.IDInventory())),
@@ -1025,7 +1025,7 @@ fsm_inventory_states = [
 fsm_farm_states = [
     ('lapping'               , dict(execute_fn=lambda:StartLapTimer())),
     ('equipping staff'       , dict(execute_fn=lambda:combat.ChangeWeaponSet(Build.staff),transition_delay_ms=1000)),
-    ('targetting npc'        , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.B.value),transition_delay_ms=200)),
+    ('targetting npc'        , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.V.value),transition_delay_ms=200)),
     ('talking to npc'        , dict(run_once=False,exit_condition=lambda:InteractNPC())),
     ('talking more'          , dict(execute_fn=lambda:Player.SendDialog(0x832105),transition_delay_ms=1000)),
     ('entering dungeon'      , dict(execute_fn=lambda:Player.SendDialog(0x88),exit_condition=lambda:ArrivedExplorable(560))),
