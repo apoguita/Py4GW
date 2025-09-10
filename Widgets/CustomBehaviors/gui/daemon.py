@@ -1,4 +1,5 @@
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig
+from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import AutoMover
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 
 
@@ -12,6 +13,8 @@ def daemon():
 
     if CustomBehaviorLoader().custom_combat_behavior is not None:
         CustomBehaviorLoader().custom_combat_behavior.act()
+
+    AutoMover().act()
 
     ActionQueueManager().ProcessQueue("ACTION")
 
