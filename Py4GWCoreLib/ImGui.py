@@ -26,569 +26,7 @@ from enum import IntEnum
 
 
 TEXTURE_FOLDER = "Textures\\Game UI\\"
-
-class TextureState(IntEnum):
-    Normal = 0
-    Hovered = 1
-    Active = 2
-    Disabled = 3
-
-class SplitTexture:
-    """
-    Represents a texture that is split into left, mid, and right parts.
-    Used for drawing scalable UI elements with sliced borders.
-    """
-
-    def __init__(
-        self,
-        texture: str,
-        texture_size: tuple[float, float],
-        mid: tuple[float, float, float, float] | None = None,
-        left: tuple[float, float, float, float] | None = None,
-        right: tuple[float, float, float, float] | None = None,
-    ):
-        self.texture = texture
-        self.width, self.height = texture_size
-
-        self.left = left
-        self.left_width = (left[2] - left[0]) if left else 0
-        self.left_offset = self._calc_uv(left, texture_size) if left else (0, 0, 0, 0)
-
-        self.mid = mid
-        self.mid_width = (mid[2] - mid[0]) if mid else 0
-        self.mid_offset = self._calc_uv(mid, texture_size) if mid else (0, 0, 0, 0)
-
-        self.right = right
-        self.right_width = (right[2] - right[0]) if right else 0
-        self.right_offset = self._calc_uv(right, texture_size) if right else (0, 0, 0, 0)
-
-    @staticmethod
-    def _calc_uv(region: tuple[float, float, float, float], size: tuple[float, float]) -> tuple[float, float, float, float]:
-        x0, y0, x1, y1 = region
-        w, h = size
-        return x0 / w, y0 / h, x1 / w, y1 / h
-
-    def draw_in_drawlist(self, x: float, y: float, size: tuple[float, float], tint=(255, 255, 255, 255), state: TextureState = TextureState.Normal):
-        # Draw left part
-        ImGui.DrawTextureInDrawList(
-            pos=(x, y),
-            size=(self.left_width, size[1]),
-            texture_path=self.texture,
-            uv0=self.left_offset[:2],
-            uv1=self.left_offset[2:],
-            tint=tint
-        )
-
-        # Draw mid part
-        mid_x = x + self.left_width
-        mid_width = size[0] - self.left_width - self.right_width
-        ImGui.DrawTextureInDrawList(
-            pos=(mid_x, y),
-            size=(mid_width, size[1]),
-            texture_path=self.texture,
-            uv0=self.mid_offset[:2],
-            uv1=self.mid_offset[2:],
-            tint=tint
-        )
-
-        # Draw right part
-        right_x = x + size[0] - self.right_width
-        ImGui.DrawTextureInDrawList(
-            pos=(right_x, y),
-            size=(self.right_width, size[1]),
-            texture_path=self.texture,
-            uv0=self.right_offset[:2],
-            uv1=self.right_offset[2:],
-            tint=tint
-        )
-
-    def draw_in_background_drawlist(self, x: float, y: float, size: tuple[float, float], tint=(255, 255, 255, 255), overlay_name : str = ""):        
-        Overlay().BeginDraw(overlay_name)
-        
-        # Draw left part
-        Overlay().DrawTexturedRectExtended((x, y), (self.left_width, size[1]), self.texture, self.left_offset[:2], self.left_offset[2:], tint)
-        
-        # Draw mid part
-        mid_x = x + self.left_width
-        mid_width = size[0] - self.left_width - self.right_width
-        Overlay().DrawTexturedRectExtended((mid_x, y), (mid_width, size[1]), self.texture, self.mid_offset[:2], self.mid_offset[2:], tint)
-
-        # Draw right part
-        right_x = x + size[0] - self.right_width
-        Overlay().DrawTexturedRectExtended((right_x, y), (self.right_width, size[1]), self.texture, self.right_offset[:2], self.right_offset[2:], tint)
-
-
-        Overlay().EndDraw()
-
-class MapTexture:
-    """
-    Represents a UI element with multiple states (Normal, Hovered, etc.)
-    mapped to different regions of a texture atlas.
-    """
-
-    def __init__(
-        self,
-        texture: str,
-        texture_size: tuple[float, float],
-        size: tuple[float, float],
-        normal: tuple[float, float] = (0, 0),
-        hovered: tuple[float, float] | None = None,
-        active: tuple[float, float] | None = None,
-        disabled: tuple[float, float] | None = None,
-    ):
-        self.texture = texture
-        self.texture_size = texture_size
-        self.size = size
-        self.width, self.height = size
-
-        self.normal_offset = self._make_uv(normal)
-        self.hovered_offset = self._make_uv(hovered) if hovered else (0, 0, 1, 1)
-        self.active_offset = self._make_uv(active) if active else (0, 0, 1, 1)
-        self.disabled_offset = self._make_uv(disabled) if disabled else (0, 0, 1, 1)
-
-    def _make_uv(self, pos: tuple[float, float]) -> tuple[float, float, float, float]:
-        x, y = pos
-        w, h = self.texture_size
-        sx, sy = self.size
-        return x / w, y / h, (x + sx) / w, (y + sy) / h
-
-    def get_uv(self, state: TextureState) -> tuple[float, float, float, float]:
-        match state:
-            case TextureState.Normal: return self.normal_offset
-            case TextureState.Hovered: return self.hovered_offset
-            case TextureState.Active: return self.active_offset
-            case TextureState.Disabled: return self.disabled_offset
-        return self.normal_offset  # Fallback in case of unexpected state
-
-    def draw_in_drawlist(
-        self,
-        x: float,
-        y: float,
-        size: tuple[float, float],
-        state: TextureState = TextureState.Normal,
-        tint=(255, 255, 255, 255)
-    ):
-        uv = self.get_uv(state)
-        ImGui.DrawTextureInDrawList(
-            pos=(x, y),
-            size=size,
-            texture_path=self.texture,
-            uv0=uv[:2],
-            uv1=uv[2:],
-            tint=tint,
-        )
-
-    def draw_in_background_drawlist(
-        self,
-        x: float,
-        y: float,
-        size: tuple[float, float],
-        state: TextureState = TextureState.Normal,
-        tint=(255, 255, 255, 255),
-        overlay_name: str = ""
-    ):
-        uv = self.get_uv(state)
-        Overlay().BeginDraw(overlay_name)
-
-        Overlay().DrawTexturedRectExtended((x, y), size, self.texture, uv[:2], uv[2:], tint)
-
-        Overlay().EndDraw()
-
-class GameTextures(Enum):    
-    Empty_Pixel = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "empty_pixel.png"),
-        texture_size = (1, 1),
-        size = (1, 1),
-        normal=(0, 0)
-    )
-
-    Quest_Objective_Bullet_Point = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_quest_objective_bullet_point.png"),
-        texture_size = (32, 16),
-        size = (13, 13),
-        normal=(0, 0),
-        active=(13, 0),
-    )
-    
-    Down_Arrows = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_up_down_arrow_atlas.png"),
-        texture_size = (128, 64),
-        size = (32, 32),
-        normal=(0, 0),
-        hovered=(32, 0),
-        active=(64, 0),
-        disabled=(96, 0),
-    )
-    
-    Up_Arrows = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_up_down_arrow_atlas.png"),
-        texture_size = (128, 64),
-        size = (32, 32),
-        normal=(0, 32),
-        hovered=(32, 32),
-        active=(64, 32),
-        disabled=(96, 32),
-    )
-    
-    Close_Button = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_close_button_atlas.png"),
-        texture_size = (64, 16),
-        size = (12, 12),
-        normal=(1, 1),
-        hovered=(17, 1),
-        active=(33, 1),
-    )
-    
-    CheckBox_Unchecked = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_checkbox.png"),
-        texture_size = (128, 32),
-        size = (17, 17),
-        normal=(2, 2),
-        active=(23, 2),
-        disabled=(107, 2),
-    )
-    
-    CheckBox_Checked = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_checkbox.png"),
-        texture_size = (128, 32),
-        size = (17, 18),
-        normal=(44, 1),
-        active=(65, 1),
-        disabled=(86, 1),
-    )
-    
-    Title_Bar = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_title_frame_atlas.png"),
-        texture_size=(128, 32),
-        left=(0, 6, 18, 32),
-        mid=(19, 6, 109, 32),
-        right=(110, 6, 128, 32)
-    )
-
-    Window_Frame_Top = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas.png"),
-        texture_size=(128, 128),
-        left=(0, 0, 18, 40),
-        right=(110, 0, 128, 40),
-        mid=(19, 0, 109, 40)
-    )
-    
-    Window_Frame_Center = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas.png"),
-        texture_size=(128, 128),
-        left=(0, 40, 18, 68),
-        mid=(19, 40, 109, 68),
-        right=(110, 40, 128, 68),
-    )
-    
-    Window_Frame_Bottom = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas.png"),
-        texture_size=(128, 128),
-        left=(0, 68, 18, 128),
-        mid=(19, 68, 77, 128),
-        right=(78, 68, 128, 128),
-    )
-
-    Window_Frame_Top_NoTitleBar = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas_no_titlebar.png"),
-        texture_size=(128, 128),
-        left=(0, 0, 18, 51),
-        right=(110, 0, 128, 51),
-        mid=(19, 0, 109, 51)
-    )
-    
-    Window_Frame_Bottom_No_Resize = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas_no_resize.png"),
-        texture_size=(128, 128),
-        left=(0, 68, 18, 128),
-        mid=(19, 68, 77, 128),
-        right=(78, 68, 128, 128),
-    )
-        
-    SliderBar = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_slider_bar.png"),
-        texture_size=(32, 16),
-        left=(0, 0, 7, 16),
-        mid=(8, 0, 24, 16),
-        right=(25, 0, 32, 16),   
-    )
-    
-    SliderGrab = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_slider_grab.png"),
-        texture_size=(32, 32),
-        size=(18, 18),
-        normal=(7, 7)
-    )
-    
-    ButtonFrame = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_button_frame.png"),
-        texture_size=(32, 32),
-        left=(2, 4, 7, 25),
-        mid=(8, 4, 24, 25),
-        right=(24, 4, 30, 25),   
-    )
-    
-    ButtonBackground = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_button_background.png"),
-        texture_size=(32, 32),
-        left=(2, 4, 7, 25),
-        mid=(8, 4, 24, 25),
-        right=(24, 4, 30, 25),   
-    )
-    
-    Combo = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_combo.png"),
-        texture_size=(128, 32),
-        left=(1, 4, 14, 27),
-        mid=(15, 4, 92, 27),
-        right=(93, 4, 126, 27),   
-    )
-    Combo_Arrow = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_combo_arrow.png"),
-        texture_size=(128, 32),
-        left=(1, 4, 14, 27),
-        mid=(15, 4, 92, 27),
-        right=(93, 4, 126, 27),   
-    )
-    Combo_Background = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_combo_background.png"),
-        texture_size=(128, 32),
-        left=(1, 4, 14, 27),
-        mid=(15, 4, 92, 27),
-        right=(93, 4, 126, 27),   
-    )
-    Combo_Frame = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_combo_frame.png"),
-        texture_size=(128, 32),
-        left=(1, 4, 14, 27),
-        mid=(15, 4, 92, 27),
-        right=(93, 4, 126, 27),   
-    )
-
-    Separator = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_separator.png"),
-        texture_size = (32, 4),
-        size = (32, 4),
-        normal = (0, 0),
-    )
-    
-    Expand = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_collapse_expand.png"),
-        texture_size = (32, 32),
-        size = (12, 12),
-        normal = (1, 3),
-        hovered = (17, 3),
-    )
-    
-    Collapse = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_collapse_expand.png"),
-        texture_size = (32, 32),
-        size = (12, 12),
-        normal = (1, 19),
-        hovered = (17, 19),
-    )
-    
-    BulletPoint = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_bullet_point.png"),
-        texture_size = (16, 16),
-        size = (16, 16),
-        normal = (0, 0),
-    )
-    
-    HoverGradient = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_hover_gradient.png"),
-        texture_size = (32, 32),
-        size = (32, 32),
-        normal = (0, 0),
-    )
-
-    UpButton = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_up_down.png"),
-        texture_size=(64, 16),
-        size=(14, 16),
-        normal=(1, 0)
-    )
-    
-    DownButton = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_up_down.png"),
-        texture_size=(64, 16),
-        size=(14, 16),
-        normal = (17, 0),
-        active = (49, 0),
-    )
-    
-    ScrollGrab_Top = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
-        texture_size=(16, 16),
-        left=(0, 0, 5, 7),
-        mid=(5, 0, 10, 7),
-        right=(10, 0, 16, 7),   
-    )
-    
-    ScrollGrab_Middle = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
-        texture_size=(16, 16),
-        size=(16, 2),
-        normal=(0, 7)
-    )
-    
-    Scroll_Bg = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_scroll_background.png"),
-        texture_size=(16, 16),
-        size=(16, 16),
-        normal=(0, 0)
-    )
-
-    ScrollGrab_Bottom = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
-        texture_size=(16, 16),
-        left=(0, 9, 5, 16),
-        mid=(5, 9, 10, 16),
-        right=(10, 9, 16, 16),    
-    )            
-    
-    RightButton = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_left_right.png"),
-        texture_size=(64, 16),
-        size=(14, 16),
-        normal=(1, 0)
-    )
-    
-    LeftButton = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_left_right.png"),
-        texture_size=(64, 16),
-        size=(14, 16),
-        normal = (17, 0),
-        active = (49, 0),
-    )
-    
-    Horizontal_ScrollGrab_Top = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scrollgrab.png"),
-        texture_size=(16, 16),
-        size=(7, 16),
-        normal=(0, 0),
-    )
-    
-    Horizontal_ScrollGrab_Middle = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scrollgrab.png"),
-        texture_size=(16, 16),
-        size=(2, 16),
-        normal=(7, 0)
-    )
-
-    Horizontal_ScrollGrab_Bottom = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scrollgrab.png"),
-        texture_size=(16, 16),
-        size=(7, 16),
-        normal=(9, 0),   
-    )   
-    
-    Horizontal_Scroll_Bg = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scroll_background.png"),
-        texture_size=(16, 16),
-        size=(16, 16),
-        normal=(0, 0)
-    )                         
-        
-    CircleButtons = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_profession_circle_buttons.png"),
-        texture_size=(256, 128),
-        size=(32, 32),
-        active=(192, 96),
-        normal=(224, 96)
-    )
-    
-    Tab_Frame_Top = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_bar_frame.png"),
-        texture_size=(32, 32),
-        left=(1, 1, 4, 5),
-        mid=(5, 1, 26, 5),
-        right=(27, 1, 31, 5),   
-    )
-    
-    Tab_Frame_Body = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_bar_frame.png"),
-        texture_size=(32, 32),
-        left=(1, 5, 4, 26),
-        mid=(5, 5, 26, 26),
-        right=(27, 5, 31, 26),   
-    )
-    
-    Tab_Active = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_active.png"),
-        texture_size=(32, 32),
-        left=(2, 1, 8, 32),
-        mid=(9, 1, 23, 32),
-        right=(24, 1, 30, 32),   
-    )
-    
-    Tab_Inactive = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_inactive.png"),
-        texture_size=(32, 32),
-        left=(2, 6, 8, 32),
-        mid=(9, 6, 23, 32),
-        right=(24, 6, 30, 32),   
-    )
-    
-    TravelCursor = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "travel_cursor.png"),
-        texture_size=(32, 32),
-        size=(32, 32),
-        normal=(0, 0)
-    )
-
-    Input_Inactive = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_input_inactive.png"),
-        texture_size=(32, 16),
-        left= (1, 1, 6, 15),
-        mid= (7, 1, 26, 15),
-        right= (27, 1, 31, 15),
-    )
-
-    Input_Active = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_input_active.png"),
-        texture_size=(32, 16),
-        left= (1, 1, 6, 15),
-        mid= (7, 1, 26, 15),
-        right= (27, 1, 31, 15),
-    )
-        
-    TitleProgressBarFrame = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_frame_title.png"),
-        texture_size=(16, 16),
-        left= (1, 1, 2, 14),
-        mid= (3, 1, 12, 14),
-        right= (13, 1, 14, 14),
-    )
-    
-    ProgressBarFrame = SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_frame.png"),
-        texture_size=(16, 16),
-        left= (1, 1, 2, 14),
-        mid= (3, 1, 12, 14),
-        right= (13, 1, 14, 14),
-    )
-    
-    ProgressBarProgressCursor = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_highlight.png"),
-        texture_size=(16, 16),
-        size= (16, 16),
-        normal = (0, 0)
-    )
-    
-    ProgressBarProgress = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_default.png"),
-        texture_size=(16, 16),
-        size=(6, 16),
-        normal= (0, 0),
-    )
-    
-    ProgressBarBackground = MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_default.png"),
-        texture_size=(16, 16),
-        size=(6, 16),
-        normal= (6, 0),
-    )
+MINIMALUS_FOLDER = "Textures\\Themes\\Minimalus\\"
 
 class Style:    
     pyimgui_style = PyImGui.StyleConfig()
@@ -1109,6 +547,834 @@ class Style:
         default_file_path = os.path.join("Styles", f"{theme.name}.default.json")
         return cls.load_from_json(default_file_path)
 
+class TextureState(IntEnum):
+    Normal = 0
+    Hovered = 1
+    Active = 2
+    Disabled = 3
+
+class SplitTexture:
+    """
+    Represents a texture that is split into left, mid, and right parts.
+    Used for drawing scalable UI elements with sliced borders.
+    """
+
+    def __init__(
+        self,
+        texture: str,
+        texture_size: tuple[float, float],
+        mid: tuple[float, float, float, float] | None = None,
+        left: tuple[float, float, float, float] | None = None,
+        right: tuple[float, float, float, float] | None = None,
+    ):
+        self.texture = texture
+        self.width, self.height = texture_size
+
+        self.left = left
+        self.left_width = (left[2] - left[0]) if left else 0
+        self.left_offset = self._calc_uv(left, texture_size) if left else (0, 0, 0, 0)
+
+        self.mid = mid
+        self.mid_width = (mid[2] - mid[0]) if mid else 0
+        self.mid_offset = self._calc_uv(mid, texture_size) if mid else (0, 0, 0, 0)
+
+        self.right = right
+        self.right_width = (right[2] - right[0]) if right else 0
+        self.right_offset = self._calc_uv(right, texture_size) if right else (0, 0, 0, 0)
+
+    @staticmethod
+    def _calc_uv(region: tuple[float, float, float, float], size: tuple[float, float]) -> tuple[float, float, float, float]:
+        x0, y0, x1, y1 = region
+        w, h = size
+        return x0 / w, y0 / h, x1 / w, y1 / h
+
+    def draw_in_drawlist(self, x: float, y: float, size: tuple[float, float], tint=(255, 255, 255, 255), state: TextureState = TextureState.Normal):
+        # Draw left part
+        ImGui.DrawTextureInDrawList(
+            pos=(x, y),
+            size=(self.left_width, size[1]),
+            texture_path=self.texture,
+            uv0=self.left_offset[:2],
+            uv1=self.left_offset[2:],
+            tint=tint
+        )
+
+        # Draw mid part
+        mid_x = x + self.left_width
+        mid_width = size[0] - self.left_width - self.right_width
+        ImGui.DrawTextureInDrawList(
+            pos=(mid_x, y),
+            size=(mid_width, size[1]),
+            texture_path=self.texture,
+            uv0=self.mid_offset[:2],
+            uv1=self.mid_offset[2:],
+            tint=tint
+        )
+
+        # Draw right part
+        right_x = x + size[0] - self.right_width
+        ImGui.DrawTextureInDrawList(
+            pos=(right_x, y),
+            size=(self.right_width, size[1]),
+            texture_path=self.texture,
+            uv0=self.right_offset[:2],
+            uv1=self.right_offset[2:],
+            tint=tint
+        )
+
+    def draw_in_background_drawlist(self, x: float, y: float, size: tuple[float, float], tint=(255, 255, 255, 255), overlay_name : str = ""):        
+        Overlay().BeginDraw(overlay_name)
+        
+        # Draw left part
+        Overlay().DrawTexturedRectExtended((x, y), (self.left_width, size[1]), self.texture, self.left_offset[:2], self.left_offset[2:], tint)
+        
+        # Draw mid part
+        mid_x = x + self.left_width
+        mid_width = size[0] - self.left_width - self.right_width
+        Overlay().DrawTexturedRectExtended((mid_x, y), (mid_width, size[1]), self.texture, self.mid_offset[:2], self.mid_offset[2:], tint)
+
+        # Draw right part
+        right_x = x + size[0] - self.right_width
+        Overlay().DrawTexturedRectExtended((right_x, y), (self.right_width, size[1]), self.texture, self.right_offset[:2], self.right_offset[2:], tint)
+
+
+        Overlay().EndDraw()
+
+class MapTexture:
+    """
+    Represents a UI element with multiple states (Normal, Hovered, etc.)
+    mapped to different regions of a texture atlas.
+    """
+
+    def __init__(
+        self,
+        texture: str,
+        texture_size: tuple[float, float],
+        size: tuple[float, float],
+        normal: tuple[float, float] = (0, 0),
+        hovered: tuple[float, float] | None = None,
+        active: tuple[float, float] | None = None,
+        disabled: tuple[float, float] | None = None,
+    ):
+        self.texture = texture
+        self.texture_size = texture_size
+        self.size = size
+        self.width, self.height = size
+
+        self.normal_offset = self._make_uv(normal)
+        self.hovered_offset = self._make_uv(hovered) if hovered else (0, 0, 1, 1)
+        self.active_offset = self._make_uv(active) if active else (0, 0, 1, 1)
+        self.disabled_offset = self._make_uv(disabled) if disabled else (0, 0, 1, 1)
+
+    def _make_uv(self, pos: tuple[float, float]) -> tuple[float, float, float, float]:
+        x, y = pos
+        w, h = self.texture_size
+        sx, sy = self.size
+        return x / w, y / h, (x + sx) / w, (y + sy) / h
+
+    def get_uv(self, state: TextureState) -> tuple[float, float, float, float]:
+        match state:
+            case TextureState.Normal: return self.normal_offset
+            case TextureState.Hovered: return self.hovered_offset
+            case TextureState.Active: return self.active_offset
+            case TextureState.Disabled: return self.disabled_offset
+        return self.normal_offset  # Fallback in case of unexpected state
+
+    def draw_in_drawlist(
+        self,
+        x: float,
+        y: float,
+        size: tuple[float, float],
+        state: TextureState = TextureState.Normal,
+        tint=(255, 255, 255, 255)
+    ):
+        uv = self.get_uv(state)
+        ImGui.DrawTextureInDrawList(
+            pos=(x, y),
+            size=size,
+            texture_path=self.texture,
+            uv0=uv[:2],
+            uv1=uv[2:],
+            tint=tint,
+        )
+
+    def draw_in_background_drawlist(
+        self,
+        x: float,
+        y: float,
+        size: tuple[float, float],
+        state: TextureState = TextureState.Normal,
+        tint=(255, 255, 255, 255),
+        overlay_name: str = ""
+    ):
+        uv = self.get_uv(state)
+        Overlay().BeginDraw(overlay_name)
+
+        Overlay().DrawTexturedRectExtended((x, y), size, self.texture, uv[:2], uv[2:], tint)
+
+        Overlay().EndDraw()
+
+class ThemeTexture:
+    PlaceHolderTexture = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "placeholder.png"),
+        texture_size = (1, 1),
+        size = (1, 1),
+        normal=(0, 0)
+    )
+    
+    def __init__(
+        self,
+        *args: tuple[Style.StyleTheme, SplitTexture | MapTexture],
+    ):
+        self.textures: dict[Style.StyleTheme, SplitTexture | MapTexture] = {}
+
+        for theme, texture in args:
+            self.textures[theme] = texture
+
+    def get_texture(self, theme: Style.StyleTheme | None = None) -> SplitTexture | MapTexture:
+        theme = theme or ImGui.get_style().Theme
+        return self.textures.get(theme, ThemeTexture.PlaceHolderTexture)
+
+class ThemeTextures(Enum):  
+    Empty_Pixel = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "empty_pixel.png"),
+        texture_size = (1, 1),
+        size = (1, 1),
+        normal=(0, 0)
+    )
+    
+    TravelCursor = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "travel_cursor.png"),
+        texture_size=(32, 32),
+        size=(32, 32),
+        normal=(0, 0)
+    )
+
+    ScrollGrab_Top = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
+        texture_size=(16, 16),
+        left=(0, 0, 5, 7),
+        mid=(5, 0, 10, 7),
+        right=(10, 0, 16, 7),   
+    )
+    
+    ScrollGrab_Middle = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
+        texture_size=(16, 16),
+        size=(16, 2),
+        normal=(0, 7)
+    )
+    
+    Scroll_Bg = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scroll_background.png"),
+        texture_size=(16, 16),
+        size=(16, 16),
+        normal=(0, 0)
+    )
+
+    ScrollGrab_Bottom = SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_scrollgrab.png"),
+        texture_size=(16, 16),
+        left=(0, 9, 5, 16),
+        mid=(5, 9, 10, 16),
+        right=(10, 9, 16, 16),    
+    )            
+    
+    RightButton = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_left_right.png"),
+        texture_size=(64, 16),
+        size=(14, 16),
+        normal=(1, 0)
+    )
+    
+    LeftButton = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_left_right.png"),
+        texture_size=(64, 16),
+        size=(14, 16),
+        normal = (17, 0),
+        active = (49, 0),
+    )
+    
+    Horizontal_ScrollGrab_Top = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scrollgrab.png"),
+        texture_size=(16, 16),
+        size=(7, 16),
+        normal=(0, 0),
+    )
+    
+    Horizontal_ScrollGrab_Middle = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scrollgrab.png"),
+        texture_size=(16, 16),
+        size=(2, 16),
+        normal=(7, 0)
+    )
+
+    Horizontal_ScrollGrab_Bottom = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scrollgrab.png"),
+        texture_size=(16, 16),
+        size=(7, 16),
+        normal=(9, 0),   
+    )   
+    
+    Horizontal_Scroll_Bg = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_horizontal_scroll_background.png"),
+        texture_size=(16, 16),
+        size=(16, 16),
+        normal=(0, 0)
+    )                         
+    
+    CircleButtons = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_profession_circle_buttons.png"),
+        texture_size=(256, 128),
+        size=(32, 32),
+        active=(192, 96),
+        normal=(224, 96)
+    )
+    
+    UpButton = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_up_down.png"),
+        texture_size=(64, 16),
+        size=(14, 16),
+        normal=(1, 0)
+    )
+    
+    DownButton = MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_up_down.png"),
+        texture_size=(64, 16),
+        size=(14, 16),
+        normal = (17, 0),
+        active = (49, 0),
+    )
+    
+    
+        
+    Combo_Arrow = ThemeTexture(
+        (Style.StyleTheme.Minimalus, SplitTexture(
+            texture=os.path.join(MINIMALUS_FOLDER, "ui_combo_arrow.png"),
+            texture_size=(128, 32),
+            left=(4, 4, 14, 27),
+            mid=(15, 4, 92, 27),
+            right=(93, 4, 123, 27)
+        )),
+
+        (Style.StyleTheme.Guild_Wars, SplitTexture(
+            texture=os.path.join(TEXTURE_FOLDER, "ui_combo_arrow.png"),
+            texture_size=(128, 32),
+            left=(1, 4, 14, 27),
+            mid=(15, 4, 92, 27),
+            right=(93, 4, 126, 27),
+        ))
+    )
+    
+    Combo_Background = ThemeTexture(
+        (Style.StyleTheme.Minimalus, SplitTexture(
+            texture=os.path.join(MINIMALUS_FOLDER, "ui_combo_background.png"),
+            texture_size=(128, 32),
+            left=(4, 4, 14, 27),
+            mid=(15, 4, 92, 27),
+            right=(93, 4, 124, 27)
+        )),
+
+        (Style.StyleTheme.Guild_Wars, SplitTexture(
+            texture=os.path.join(
+                TEXTURE_FOLDER, "ui_combo_background.png"),
+            texture_size=(128, 32),
+            left=(1, 4, 14, 27),
+            mid=(15, 4, 92, 27),
+            right=(93, 4, 126, 27),
+        ))
+    )
+
+    Combo_Frame = ThemeTexture(
+        (Style.StyleTheme.Minimalus, SplitTexture(
+            texture=os.path.join(MINIMALUS_FOLDER, "ui_combo_frame.png"),
+            texture_size=(128, 32),
+            left=(4, 4, 14, 27),
+            mid=(15, 4, 92, 27),
+            right=(93, 4, 124, 27),
+        )),
+        
+        (Style.StyleTheme.Guild_Wars, SplitTexture(
+            texture=os.path.join(TEXTURE_FOLDER, "ui_combo_frame.png"),
+            texture_size=(128, 32),
+            left=(1, 4, 14, 27),
+            mid=(15, 4, 92, 27),
+            right=(93, 4, 126, 27),
+        ))
+    )
+    
+    Button_Frame = ThemeTexture(
+        (Style.StyleTheme.Minimalus, SplitTexture(
+            texture=os.path.join(MINIMALUS_FOLDER, "ui_button_frame.png"),
+            texture_size=(32, 32),
+            left=(6, 4, 7, 25),
+            mid=(8, 4, 24, 25),
+            right=(25, 4, 26, 25), 
+        )),
+
+        (Style.StyleTheme.Guild_Wars, SplitTexture(
+            texture=os.path.join(TEXTURE_FOLDER, "ui_button_frame.png"),
+            texture_size=(32, 32),
+            left=(2, 4, 7, 25),
+            mid=(8, 4, 24, 25),
+            right=(24, 4, 30, 25), 
+        ))
+    )
+    
+    Button_Background = ThemeTexture(
+        (Style.StyleTheme.Minimalus, SplitTexture(
+            texture=os.path.join(MINIMALUS_FOLDER, "ui_button_background.png"),
+            texture_size=(32, 32),
+            left=(6, 4, 7, 25),
+            mid=(8, 4, 24, 25),
+            right=(25, 4, 26, 25), 
+        )),
+
+        (Style.StyleTheme.Guild_Wars, SplitTexture(
+            texture=os.path.join(TEXTURE_FOLDER, "ui_button_background.png"),
+            texture_size=(32, 32),
+            left=(2, 4, 7, 25),
+            mid=(8, 4, 24, 25),
+            right=(24, 4, 30, 25), 
+        ))
+    )
+
+    CheckBox_Unchecked = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_checkbox.png"),
+        texture_size = (128, 32),
+        size = (17, 17),
+        normal=(2, 2),
+        active=(23, 2),
+        disabled=(107, 2),
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_checkbox.png"),
+        texture_size = (128, 32),
+        size = (17, 17),
+        normal=(2, 2),
+        active=(23, 2),
+        disabled=(107, 2),
+    )),
+    )
+    
+    CheckBox_Checked = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_checkbox.png"),
+        texture_size = (128, 32),
+        size = (17, 18),
+        normal=(44, 1),
+        active=(65, 1),
+        disabled=(86, 1),
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_checkbox.png"),
+        texture_size = (128, 32),
+        size = (17, 18),
+        normal=(44, 1),
+        active=(65, 1),
+        disabled=(86, 1),
+    )),
+    )
+    
+    SliderBar = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_slider_bar.png"),
+        texture_size=(32, 16),
+        left=(0, 0, 7, 16),
+        mid=(8, 0, 24, 16),
+        right=(25, 0, 32, 16),   
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_slider_bar.png"),
+        texture_size=(32, 16),
+        left=(0, 0, 7, 16),
+        mid=(8, 0, 24, 16),
+        right=(25, 0, 32, 16),   
+    )),
+    )
+    
+    SliderGrab = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_slider_grab.png"),
+        texture_size=(32, 32),
+        size=(18, 18),
+        normal=(7, 7)
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_slider_grab.png"),
+        texture_size=(32, 32),
+        size=(18, 18),
+        normal=(7, 7)
+    )),
+    )
+    
+    Input_Inactive = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_input_inactive.png"),
+        texture_size=(32, 16),
+        left= (1, 0, 6, 16),
+        mid= (7, 0, 26, 16),
+        right= (27, 0, 31, 16),
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_input_inactive.png"),
+        texture_size=(32, 16),
+        left= (1, 0, 6, 16),
+        mid= (7, 0, 26, 16),
+        right= (27, 0, 31, 16),
+    )),
+    )
+    
+    Input_Active = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_input_active.png"),
+        texture_size=(32, 16),
+        left= (1, 1, 6, 15),
+        mid= (7, 1, 26, 15),
+        right= (27, 1, 31, 15),
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_input_active.png"),
+        texture_size=(32, 16),
+        left= (1, 1, 6, 15),
+        mid= (7, 1, 26, 15),
+        right= (27, 1, 31, 15),
+    )),
+    )
+    
+    Expand = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_collapse_expand.png"),
+        texture_size = (32, 32),
+        size = (13, 12),
+        normal = (0, 3),
+        hovered = (16, 3),
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_collapse_expand.png"),
+        texture_size = (32, 32),
+        size = (12, 12),
+        normal = (1, 3),
+        hovered = (17, 3),
+    )),
+    )
+    
+    Collapse = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_collapse_expand.png"),
+        texture_size = (32, 32),
+        size = (13, 12),
+        normal = (0, 19),
+        hovered = (16, 19),
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_collapse_expand.png"),
+        texture_size = (32, 32),
+        size = (12, 12),
+        normal = (1, 19),
+        hovered = (17, 19),
+    )),
+    )        
+    
+    Tab_Frame_Top = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_tab_bar_frame.png"),
+        texture_size=(32, 32),
+        left=(1, 1, 4, 5),
+        mid=(5, 1, 26, 5),
+        right=(27, 1, 31, 5),   
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_bar_frame.png"),
+        texture_size=(32, 32),
+        left=(1, 1, 4, 5),
+        mid=(5, 1, 26, 5),
+        right=(27, 1, 31, 5),   
+    )),
+    )
+    
+    Tab_Frame_Body = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_tab_bar_frame.png"),
+        texture_size=(32, 32),
+        left=(1, 5, 4, 26),
+        mid=(5, 5, 26, 26),
+        right=(27, 5, 31, 26), 
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_bar_frame.png"),
+        texture_size=(32, 32),
+        left=(1, 5, 4, 26),
+        mid=(5, 5, 26, 26),
+        right=(27, 5, 31, 26),  
+    )),
+    )
+    
+    Tab_Active = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_tab_active.png"),
+        texture_size=(32, 32),
+        left=(2, 1, 8, 32),
+        mid=(9, 1, 23, 32),
+        right=(24, 1, 30, 32),   
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_active.png"),
+        texture_size=(32, 32),
+        left=(2, 1, 8, 32),
+        mid=(9, 1, 23, 32),
+        right=(24, 1, 30, 32),   
+    )),
+    )
+    
+    Tab_Inactive = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_tab_inactive.png"),
+        texture_size=(32, 32),
+        left=(2, 6, 8, 32),
+        mid=(9, 6, 23, 32),
+        right=(24, 6, 30, 32),   
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_inactive.png"),
+        texture_size=(32, 32),
+        left=(2, 6, 8, 32),
+        mid=(9, 6, 23, 32),
+        right=(24, 6, 30, 32),    
+    )),
+    )
+    
+    Quest_Objective_Bullet_Point = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_quest_objective_bullet_point.png"),
+        texture_size = (32, 16),
+        size = (13, 13),
+        normal=(0, 0),
+        active=(13, 0),
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_quest_objective_bullet_point.png"),
+        texture_size = (32, 16),
+        size = (13, 13),
+        normal=(0, 0),
+        active=(13, 0),
+    )),
+    )
+    
+    Close_Button = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_close_button_atlas.png"),
+        texture_size = (64, 16),
+        size = (12, 12),
+        normal=(1, 1),
+        hovered=(17, 1),
+        active=(33, 1),
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_close_button_atlas.png"),
+        texture_size = (64, 16),
+        size = (12, 12),
+        normal=(1, 1),
+        hovered=(17, 1),
+        active=(33, 1),
+    )),
+    )
+    
+    Title_Bar = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_title_frame_atlas.png"),
+        texture_size=(128, 32),
+        left=(0, 6, 18, 32),
+        mid=(19, 6, 109, 32),
+        right=(110, 6, 128, 32)
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_window_title_frame_atlas.png"),
+        texture_size=(128, 32),
+        left=(0, 6, 18, 32),
+        mid=(19, 6, 109, 32),
+        right=(110, 6, 128, 32)
+    )),
+    )
+    
+    Window_Frame_Top = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_frame_atlas.png"),
+        texture_size=(128, 128),
+        left=(0, 0, 18, 40),
+        right=(110, 0, 128, 40),
+        mid=(19, 0, 109, 40)
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas.png"),
+        texture_size=(128, 128),
+        left=(0, 0, 18, 40),
+        right=(110, 0, 128, 40),
+        mid=(19, 0, 109, 40)
+    )),
+    )
+    
+    Window_Frame_Center = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_frame_atlas.png"),
+        texture_size=(128, 128),
+        left=(0, 40, 18, 68),
+        mid=(19, 40, 109, 68),
+        right=(110, 40, 128, 68),
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas.png"),
+        texture_size=(128, 128),
+        left=(0, 40, 18, 68),
+        mid=(19, 40, 109, 68),
+        right=(110, 40, 128, 68),
+    )),
+    )
+    
+    Window_Frame_Bottom = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_frame_atlas.png"),
+        texture_size=(128, 128),
+        left=(0, 68, 18, 128),
+        mid=(19, 68, 77, 128),
+        right=(78, 68, 128, 128),
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas.png"),
+        texture_size=(128, 128),
+        left=(0, 68, 18, 128),
+        mid=(19, 68, 77, 128),
+        right=(78, 68, 128, 128),
+    )),
+    )
+    
+    Window_Frame_Top_NoTitleBar = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_frame_atlas_no_titlebar.png"),
+        texture_size=(128, 128),
+        left=(0, 0, 18, 51),
+        right=(110, 0, 128, 51),
+        mid=(19, 0, 109, 51)
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas_no_titlebar.png"),
+        texture_size=(128, 128),
+        left=(0, 0, 18, 51),
+        right=(110, 0, 128, 51),
+        mid=(19, 0, 109, 51)
+    )),
+    )
+    
+    Window_Frame_Bottom_No_Resize = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_frame_atlas_no_resize.png"),
+        texture_size=(128, 128),
+        left=(0, 68, 18, 128),
+        mid=(19, 68, 77, 128),
+        right=(78, 68, 128, 128),
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas_no_resize.png"),
+        texture_size=(128, 128),
+        left=(0, 68, 18, 128),
+        mid=(19, 68, 77, 128),
+        right=(78, 68, 128, 128),
+    )),
+    )
+    
+    Separator = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_separator.png"),
+        texture_size = (32, 4),
+        size = (32, 4),
+        normal = (0, 0),
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_separator.png"),
+        texture_size = (32, 4),
+        size = (32, 4),
+        normal = (0, 0),
+    )),
+    )
+    
+    ProgressBarFrame = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_frame.png"),
+        texture_size=(16, 16),
+        left= (1, 1, 2, 14),
+        mid= (3, 1, 12, 14),
+        right= (13, 1, 14, 14),
+    )),
+    (Style.StyleTheme.Guild_Wars,  SplitTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_frame.png"),
+        texture_size=(16, 16),
+        left= (1, 1, 2, 14),
+        mid= (3, 1, 12, 14),
+        right= (13, 1, 14, 14),
+    )),
+    )
+    
+    ProgressBarProgressCursor = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_highlight.png"),
+        texture_size=(16, 16),
+        size= (16, 16),
+        normal = (0, 0)
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_highlight.png"),
+        texture_size=(16, 16),
+        size= (16, 16),
+        normal = (0, 0)
+    )),
+    )
+    
+    ProgressBarProgress = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_default.png"),
+        texture_size=(16, 16),
+        size=(6, 16),
+        normal= (0, 0),
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_default.png"),
+        texture_size=(16, 16),
+        size=(6, 16),
+        normal= (0, 0),
+    )),
+    )
+    
+    ProgressBarBackground = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_default.png"),
+        texture_size=(16, 16),
+        size=(6, 16),
+        normal= (6, 0),
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_default.png"),
+        texture_size=(16, 16),
+        size=(6, 16),
+        normal= (6, 0),
+    )),
+    )   
+    
+    BulletPoint = ThemeTexture(
+    (Style.StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_bullet_point.png"),
+        texture_size = (16, 16),
+        size = (16, 16),
+        normal = (0, 0),
+    )),
+    (Style.StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_bullet_point.png"),
+        texture_size = (16, 16),
+        size = (16, 16),
+        normal = (0, 0),
+    )),
+    )   
+    
 class ControlAppearance(Enum):
     Default = 0
     Primary = 1
@@ -1210,6 +1476,16 @@ class ImGui:
         NoReorder                     = 1 << 5   ## Disable reordering this tab or having another tab cross over this tab
         Leading                       = 1 << 6   ## Enforce the tab position to the left of the tab bar (after the tab list popup button)
         Trailing                      = 1 << 7   ## Enforce the tab position to the right of the tab bar (before the scrolling buttons)
+
+    @staticmethod
+    def push_style_color(idx: int, col: tuple[float, float, float, float]):
+        PyImGui.push_style_color(idx, col)
+        pass
+    
+    @staticmethod
+    def pop_style_color(count: int = 1):
+        PyImGui.pop_style_color(count)
+        pass
 
     @staticmethod
     def is_mouse_in_rect(rect: tuple[float, float, float, float]) -> bool:
@@ -1703,7 +1979,7 @@ class ImGui:
                                     PyImGui.set_next_window_size((self.window_size[0], self.window_size[1]), PyImGui.ImGuiCond.Always)            
                                 self.__resize = False
                         
-                    # PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0, 0, 0, 0.85))
+                    # ImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0, 0, 0, 0.85))
                         
                     if not is_expanded:
                         # Remove PyImGui.WindowFlags.MenuBar and PyImGui.WindowFlags.AlwaysAutoResize from internal_flags when not expanded
@@ -1716,7 +1992,7 @@ class ImGui:
                         
                     _, open = PyImGui.begin_with_close(name = self.window_name, p_open=self.open, flags=internal_flags)
 
-                    # PyImGui.pop_style_color(1)
+                    # ImGui.pop_style_color(1)
                                             
                     self.open = open               
                                     
@@ -1812,7 +2088,7 @@ class ImGui:
                 # Draw the background
                 has_background = not self.window_flags or ((int(self.window_flags) & int(PyImGui.WindowFlags.NoBackground)) == 0)                
                 if has_background:
-                    GameTextures.Empty_Pixel.value.draw_in_drawlist(
+                    ThemeTextures.Empty_Pixel.value.draw_in_drawlist(
                         x=self.__decorators_left + 15,
                         y=self.__decorators_top + 5,
                         size=(self.__decorators_width - 30, self.__decorators_height - 15),
@@ -1820,19 +2096,19 @@ class ImGui:
                     )
 
                 if self.can_resize:
-                    GameTextures.Window_Frame_Bottom.value.draw_in_drawlist(
+                    ThemeTextures.Window_Frame_Bottom.value.get_texture().draw_in_drawlist(
                         x=self.__decorators_left + 5,
                         y=self.__decorators_bottom - 57,
                         size=(self.__decorators_width - 10, 60)
                     )
                 else:
-                    GameTextures.Window_Frame_Bottom_No_Resize.value.draw_in_drawlist(
+                    ThemeTextures.Window_Frame_Bottom_No_Resize.value.get_texture().draw_in_drawlist(
                         x=self.__decorators_left + 5,
                         y=self.__decorators_bottom - 57,
                         size=(self.__decorators_width - 10, 60)
                     )
-                
-                GameTextures.Window_Frame_Center.value.draw_in_drawlist(
+
+                ThemeTextures.Window_Frame_Center.value.get_texture().draw_in_drawlist(
                     x=self.__decorators_left + 5,
                     y=self.__decorators_top + (26 if has_title_bar else 11) + 35,
                     size=(self.__decorators_width - 10, self.__decorators_height - 35 - 60)
@@ -1840,27 +2116,27 @@ class ImGui:
                 
                 
                 if has_title_bar:      
-                    GameTextures.Window_Frame_Top.value.draw_in_drawlist(
+                    ThemeTextures.Window_Frame_Top.value.get_texture().draw_in_drawlist(
                         x=self.__decorators_left + 5,
                         y=self.__decorators_top + 26,
                         size=(self.__decorators_width - 10, 35)
                     )
-                                                                
-                    GameTextures.Title_Bar.value.draw_in_drawlist(
+
+                    ThemeTextures.Title_Bar.value.get_texture().draw_in_drawlist(
                         x=self.__decorators_left + 5,
                         y=self.__decorators_top,
                         size=(self.__decorators_width - 10, 26)
                     )
                 
                     if self.can_close:
-                        GameTextures.Empty_Pixel.value.draw_in_drawlist(
+                        ThemeTextures.Empty_Pixel.value.draw_in_drawlist(
                             x=self.__close_button_rect[0] - 1,
                             y=self.__close_button_rect[1] - 1,
                             size=(self.__close_button_rect[2] + 2, self.__close_button_rect[3] + 2),
                             tint=(0,0,0,255)
                         )
-                    
-                        GameTextures.Close_Button.value.draw_in_drawlist(
+
+                        ThemeTextures.Close_Button.value.get_texture().draw_in_drawlist(
                             x=self.__close_button_rect[0],
                             y=self.__close_button_rect[1],
                             size=self.__close_button_rect[2:],
@@ -1882,7 +2158,7 @@ class ImGui:
                     
                     self.__draw_title_bar_fake(self.__title_bar_rect)
                 else:
-                    GameTextures.Window_Frame_Top_NoTitleBar.value.draw_in_drawlist(
+                    ThemeTextures.Window_Frame_Top_NoTitleBar.value.get_texture().draw_in_drawlist(
                         x=self.__decorators_left + 5,
                         y=self.__decorators_top,
                         size=(self.__decorators_width - 10, 50)
@@ -1912,7 +2188,7 @@ class ImGui:
                         state = TextureState.Hovered
 
                 PyImGui.push_clip_rect(self.__decorators_left, self.__decorators_top + 5, self.__decorators_width, self.__decorators_height , False)
-                GameTextures.Empty_Pixel.value.draw_in_drawlist(
+                ThemeTextures.Empty_Pixel.value.draw_in_drawlist(
                     x=self.__decorators_left + 15,
                     y=self.__decorators_top,
                     size=(self.__decorators_width - 30, 14),
@@ -1920,7 +2196,7 @@ class ImGui:
                 )
                 
                 # PyImGui.push_clip_rect(self.__decorators_left, self.__decorators_top, self.__decorators_width - 15, self.__decorators_height + 30, False)   
-                GameTextures.Window_Frame_Bottom_No_Resize.value.draw_in_drawlist(
+                ThemeTextures.Window_Frame_Bottom_No_Resize.value.get_texture().draw_in_drawlist(
                     x=self.__decorators_left + 2,
                     y=self.__decorators_top - 12 + 8,
                     size=(self.__decorators_width - 5 , 40)
@@ -1929,21 +2205,21 @@ class ImGui:
                 PyImGui.push_clip_rect(self.__decorators_left, self.__decorators_top, self.__decorators_width, self.__decorators_height + 30, False)
 
                 if has_title_bar:
-                    GameTextures.Title_Bar.value.draw_in_drawlist(
+                    ThemeTextures.Title_Bar.value.get_texture().draw_in_drawlist(
                         x=self.__decorators_left + 5,
                         y=self.__decorators_top,
                         size=(self.__decorators_width - 10, 26)
                     )
 
                     if self.can_close:
-                        GameTextures.Empty_Pixel.value.draw_in_drawlist(
+                        ThemeTextures.Empty_Pixel.value.draw_in_drawlist(
                             x=self.__close_button_rect[0] - 1,
                             y=self.__close_button_rect[1] - 1,
                             size=(self.__close_button_rect[2] + 2, self.__close_button_rect[3] + 2),
                             tint=(0,0,0,255)
                         )
-                        
-                        GameTextures.Close_Button.value.draw_in_drawlist(
+
+                        ThemeTextures.Close_Button.value.get_texture().draw_in_drawlist(
                             x=self.__close_button_rect[0],
                             y=self.__close_button_rect[1],
                             size=(self.__close_button_rect[2:]),
@@ -1964,7 +2240,7 @@ class ImGui:
 
                     self.__draw_title_bar_fake(self.__title_bar_rect)
                 else:
-                    GameTextures.Window_Frame_Top_NoTitleBar.value.draw_in_drawlist(
+                    ThemeTextures.Window_Frame_Top_NoTitleBar.value.get_texture().draw_in_drawlist(
                         x=self.__decorators_left + 5,
                         y=self.__decorators_top + 11,
                         size=(self.__decorators_width - 10, 50)
@@ -1987,7 +2263,7 @@ class ImGui:
                     | PyImGui.WindowFlags.NoBackground
                 )
             PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, -1, -0)
-            PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0, 1, 0, 0.0))  # Fully transparent
+            ImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0, 1, 0, 0.0))  # Fully transparent
             PyImGui.begin(f"{self.window_name}##titlebar_fake", flags)
             PyImGui.invisible_button("##titlebar_dragging_area_1", __title_bar_rect[2] - (30 if self.can_close else 0), __title_bar_rect[3])
             self.__dragging = (PyImGui.is_item_active() or self.__dragging) and can_interact
@@ -2019,7 +2295,7 @@ class ImGui:
                     
                     
             PyImGui.end()
-            PyImGui.pop_style_color(1)
+            ImGui.pop_style_color(1)
             PyImGui.pop_style_var(1)
                                 
             # Handle dragging
@@ -2037,7 +2313,7 @@ class ImGui:
                 else:
                     self.__dragging = False
                     self.__drag_started = False
-       
+         
     @staticmethod     
     def PushTransparentWindow():
         PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
@@ -2346,14 +2622,14 @@ class ImGui:
         style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
                 clicked = PyImGui.small_button(label)
-                PyImGui.pop_style_color(5)
+                ImGui.pop_style_color(5)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -2367,15 +2643,15 @@ class ImGui:
                 button_rect = (x, y, width, height)
                 match (appearance):
                     case ControlAppearance.Primary:
-                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
 
                     case ControlAppearance.Danger:
-                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
 
                     case _:
-                        tint = ((style.ButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.Button.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.ButtonTextureBackgroundActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonTextureBackgroundHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.ButtonTextureBackground.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
                                 
-                GameTextures.ButtonBackground.value.draw_in_drawlist(
+                ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -2383,7 +2659,7 @@ class ImGui:
                 )
                 
                 frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
-                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -2486,14 +2762,14 @@ class ImGui:
         style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
                 clicked = PyImGui.button(label, width, height)
-                PyImGui.pop_style_color(5)
+                ImGui.pop_style_color(5)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -2526,15 +2802,15 @@ class ImGui:
                 
                 match (appearance):
                     case ControlAppearance.Primary:
-                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
 
                     case ControlAppearance.Danger:
-                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
 
                     case _:
-                        tint = ((style.ButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.Button.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.ButtonTextureBackgroundActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonTextureBackgroundHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.ButtonTextureBackground.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
                                 
-                GameTextures.ButtonBackground.value.draw_in_drawlist(
+                ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -2542,7 +2818,7 @@ class ImGui:
                 )
                 
                 frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
-                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -2622,14 +2898,14 @@ class ImGui:
         style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
                 clicked = PyImGui.button(label, width, height)
-                PyImGui.pop_style_color(5)
+                ImGui.pop_style_color(5)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -2643,15 +2919,15 @@ class ImGui:
                 button_rect = (x, y, width, height)
                 match (appearance):
                     case ControlAppearance.Primary:
-                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
 
                     case ControlAppearance.Danger:
-                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
 
                     case _:
-                        tint = ((style.ButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.Button.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.ButtonTextureBackgroundActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonTextureBackgroundHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.ButtonTextureBackground.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
                                 
-                GameTextures.ButtonBackground.value.draw_in_drawlist(
+                ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -2659,7 +2935,7 @@ class ImGui:
                 )
                 
                 frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
-                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -2730,14 +3006,14 @@ class ImGui:
         style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
                 clicked = PyImGui.button(label, width, height)
-                PyImGui.pop_style_color(5)
+                ImGui.pop_style_color(5)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -2765,9 +3041,9 @@ class ImGui:
                     style.ToggleButtonDisabledActive.get_current(),
                 ]
 
-                tint = ((button_colors[2].get_current().rgb_tuple if PyImGui.is_item_active() else button_colors[1].get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else button_colors[0].get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
-
-                GameTextures.ButtonBackground.value.draw_in_drawlist(
+                tint = ((button_colors[2].get_current().rgb_tuple if PyImGui.is_item_active() else button_colors[1].get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else button_colors[0].get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
+                                                
+                ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -2775,7 +3051,7 @@ class ImGui:
                 )
                 
                 frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
-                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -2843,14 +3119,14 @@ class ImGui:
         style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
                 clicked = PyImGui.button("##image_button " + label, width, height)
-                PyImGui.pop_style_color(5)
+                ImGui.pop_style_color(5)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -2864,16 +3140,16 @@ class ImGui:
                 button_rect = (x, y, width, height)
                 match (appearance):
                     case ControlAppearance.Primary:
-                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.PrimaryButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.PrimaryButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.PrimaryButton.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
 
                     case ControlAppearance.Danger:
-                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                        tint = ((style.DangerButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.DangerButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.DangerButton.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
 
                     case _:
-                        tint = ((style.ButtonActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.Button.get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
-                              
+                        tint = ((style.ButtonTextureBackgroundActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ButtonTextureBackgroundHovered.get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else style.ButtonTextureBackground.get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
 
-                GameTextures.ButtonBackground.value.draw_in_drawlist(
+
+                ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -2892,7 +3168,7 @@ class ImGui:
                 )
                                 
                 frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
-                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -2930,10 +3206,10 @@ class ImGui:
                     for button_color in button_colors:
                         button_color.push_color()
                 
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))
                 clicked = PyImGui.button("##image_button " + label, width, height)
-                PyImGui.pop_style_color(2)
+                ImGui.pop_style_color(2)
                 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -2972,14 +3248,14 @@ class ImGui:
         style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
                 clicked = PyImGui.button("##image_toggle_button " + label, width, height)
-                PyImGui.pop_style_color(5)
+                ImGui.pop_style_color(5)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -3002,10 +3278,10 @@ class ImGui:
                     style.ToggleButtonDisabledActive.get_current(),
                 ]
 
-                tint = ((button_colors[2].get_current().rgb_tuple if PyImGui.is_item_active() else button_colors[1].get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else button_colors[0].get_current().rgb_tuple) if enabled else (64, 64, 64, 255)
+                tint = ((button_colors[2].get_current().rgb_tuple if PyImGui.is_item_active() else button_colors[1].get_current().rgb_tuple) if ImGui.is_mouse_in_rect(button_rect) else button_colors[0].get_current().rgb_tuple) if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
 
 
-                GameTextures.ButtonBackground.value.draw_in_drawlist(
+                ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -3025,7 +3301,7 @@ class ImGui:
                 )
                                 
                 frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) and enabled else (200, 200, 200, 255)
-                GameTextures.ButtonFrame.value.draw_in_drawlist(
+                ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
                     button_rect[0], 
                     button_rect[1],
                     (button_rect[2], button_rect[3]),
@@ -3058,10 +3334,10 @@ class ImGui:
                         button_color.push_color()
                     
                 
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))
                 clicked = PyImGui.button("##image_toggle_button " + label, width, height)
-                PyImGui.pop_style_color(2)
+                ImGui.pop_style_color(2)
                 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -3102,40 +3378,62 @@ class ImGui:
         style.FrameRounding.get_current().push_style_var()
         style.FramePadding.get_current().push_style_var()
         style.ItemInnerSpacing.get_current().push_style_var()
-        
+
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
-                # PyImGui.push_clip_rect(0, 0, 100, 100, False)
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0,0,0,0))
-                
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                ImGui.push_style_color(
+                    PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                ImGui.push_style_color(
+                    PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(
+                    PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
+                ImGui.push_style_color(
+                    PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
+                ImGui.push_style_color(
+                    PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
+
                 index = PyImGui.combo(label, current_item, items)
                 display_label = label.split("##")[0]
                 label_size = PyImGui.calc_text_size(display_label)
 
-                PyImGui.pop_style_color(6)
-                # PyImGui.pop_clip_rect()
+                ImGui.pop_style_color(6)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
-                
-                width = item_rect_max[0] - item_rect_min[0] + 2 - (label_size[0] + 10 if label_size[0] > 0 else 0)
-                height = item_rect_max[1] - item_rect_min[1] + 2
-                item_rect = (item_rect_min[0] - 1, item_rect_min[1] - 1, width, height)
-                tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(item_rect) else (200, 200, 200, 255)
 
-                GameTextures.Combo.value.draw_in_drawlist(
+                width = item_rect_max[0] - item_rect_min[0] - \
+                    (label_size[0] + 10 if label_size[0] > 0 else 0)
+                height = item_rect_max[1] - item_rect_min[1]
+                item_rect = (item_rect_min[0], item_rect_min[1], width, height)
+
+                tint = ((style.ComboTextureBackgroundActive.get_current().rgb_tuple if PyImGui.is_item_active() else style.ComboTextureBackgroundHovered.get_current(
+                ).rgb_tuple) if ImGui.is_mouse_in_rect(item_rect) else style.ComboTextureBackground.get_current().rgb_tuple) if True else (64, 64, 64, 255)
+
+                frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(
+                    item_rect) and True else (200, 200, 200, 255)
+
+                ThemeTextures.Combo_Background.value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1],
                     (width, height),
-                    tint
+                    tint=tint
                 )
-                
-                
+
+                ThemeTextures.Combo_Arrow.value.get_texture().draw_in_drawlist(
+                    item_rect[0],
+                    item_rect[1],
+                    (width, height),
+                    tint=style.Text.get_current().rgb_tuple
+                )
+
+                ThemeTextures.Combo_Frame.value.get_texture().draw_in_drawlist(
+                    item_rect[0],
+                    item_rect[1],
+                    (width, height),
+                    tint=frame_tint
+                )
+
                 text_size = PyImGui.calc_text_size(items[index])
                 text_x = item_rect[0] + 10
                 text_y = item_rect[1] + 2 + (height - text_size[1]) / 2
@@ -3156,14 +3454,14 @@ class ImGui:
                 )
 
                 PyImGui.pop_clip_rect()
-                
+
             case _:
                 index = PyImGui.combo(label, current_item, items)
 
         style.FrameRounding.pop_style_var()
         style.FramePadding.pop_style_var()
         style.ItemInnerSpacing.pop_style_var()
-        
+
         return index
 
     @staticmethod
@@ -3177,14 +3475,14 @@ class ImGui:
         PyImGui.begin_disabled(not enabled)
 
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0,0,0,0))
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.CheckMark, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0,0,0,0))
                 new_value = PyImGui.checkbox(label, is_checked)
-                PyImGui.pop_style_color(5)
+                ImGui.pop_style_color(5)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -3193,18 +3491,18 @@ class ImGui:
                 width = item_rect_max[0] - item_rect_min[0]
                 height = item_rect_max[1] - item_rect_min[1] - (padding * 2)
                 item_rect = (item_rect_min[0], item_rect_min[1], width, height)
-                checkbox_rect = (item_rect_min[0] + padding, item_rect_min[1] + padding, height, height)
+                checkbox_rect = (item_rect_min[0] + padding, item_rect_min[1] + (padding if style.Theme == Style.StyleTheme.Guild_Wars else 2), height, height)
                 line_height = PyImGui.get_text_line_height()
                 text_rect = (item_rect[0] + checkbox_rect[2] + 2 + style.ItemInnerSpacing.value1, item_rect[1] + (((item_rect_max[1] - item_rect_min[1]) - line_height) / 2), width - checkbox_rect[2] - 4, item_rect[3])
 
                 state = TextureState.Disabled if not enabled else TextureState.Active if PyImGui.is_item_active() else TextureState.Normal
 
-                (GameTextures.CheckBox_Checked if is_checked else GameTextures.CheckBox_Unchecked).value.draw_in_drawlist(
+                (ThemeTextures.CheckBox_Checked if is_checked else ThemeTextures.CheckBox_Unchecked).value.get_texture().draw_in_drawlist(
                     checkbox_rect[0],
                     checkbox_rect[1],
                     (checkbox_rect[2], checkbox_rect[3]),
-                    state,
                     tint=(255, 255, 255, 255),
+                    state=state,
                 )
 
                 display_label = label.split("##")[0]
@@ -3245,7 +3543,7 @@ class ImGui:
                 
                 item_rect = (item_rect_min[0], item_rect_min[1], width, height)
                 active = PyImGui.is_item_active()
-                GameTextures.CircleButtons.value.draw_in_drawlist(
+                ThemeTextures.CircleButtons.value.draw_in_drawlist(
                     item_rect[0],
                     item_rect[1],
                     (item_rect[3], item_rect[3]),
@@ -3255,7 +3553,7 @@ class ImGui:
                 if button_index == v:
                     pad = 5
                     
-                    GameTextures.Quest_Objective_Bullet_Point.value.draw_in_drawlist(
+                    ThemeTextures.Quest_Objective_Bullet_Point.value.get_texture().draw_in_drawlist(
                     item_rect[0] + (height / 4),
                     item_rect[1] + (height / 4),
                     (int(height / 2), int(height / 2)),
@@ -3302,21 +3600,21 @@ class ImGui:
         
         if not min_value and not step_fast and not flags:
             match(style.Theme):
-                case Style.StyleTheme.Guild_Wars:
+                case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                     x,y = PyImGui.get_cursor_screen_pos()
                     
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
                     
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
                     PyImGui.push_clip_rect(0, 0, 0, 0, False)
                     new_value = PyImGui.input_int(label + "##2", v, min_value, step_fast, flags)
                     PyImGui.pop_clip_rect()
-                    PyImGui.pop_style_color(1)
+                    ImGui.pop_style_color(1)
                     
                     display_label = label.split("##")[0]
                     display_label = display_label or " "
@@ -3337,8 +3635,8 @@ class ImGui:
 
                     inputfield_size = ((decrease_rect[0] - current_inner_spacing.value1) - item_rect_min[0] , item_rect[3])
 
-                    # (GameTextures.Input_Active if PyImGui.is_item_focused() else GameTextures.Input_Inactive).value.draw_in_drawlist(
-                    (GameTextures.Input_Inactive).value.draw_in_drawlist(
+                    # (ThemeTextures.Input_Active if PyImGui.is_item_focused() else ThemeTextures.Input_Inactive).value.draw_in_drawlist(
+                    (ThemeTextures.Input_Inactive).value.get_texture().draw_in_drawlist(
                         item_rect[0],
                         item_rect[1],
                         inputfield_size,
@@ -3363,19 +3661,18 @@ class ImGui:
 
                     PyImGui.set_cursor_screen_pos(x, y)
                     new_value = PyImGui.input_int(label, new_value, min_value, step_fast, flags)
-                    PyImGui.pop_style_color(6)
+                    ImGui.pop_style_color(6)
 
                     
                     draw_pad = 3
-                    GameTextures.Collapse.value.draw_in_drawlist(
+                    ThemeTextures.Collapse.value.get_texture().draw_in_drawlist(
                         decrease_rect[0] + draw_pad,
                         decrease_rect[1] + draw_pad + 1,
                         (button_size - draw_pad*2, button_size - draw_pad*2),
                         state=TextureState.Hovered if ImGui.is_mouse_in_rect(decrease_rect) else TextureState.Normal,
                         tint=(255, 255, 255, 255),
                     )
-                    
-                    GameTextures.Expand.value.draw_in_drawlist(
+                    ThemeTextures.Expand.value.get_texture().draw_in_drawlist(
                         increase_rect[0] + draw_pad,
                         increase_rect[1] + draw_pad + 1,
                         (button_size - draw_pad*2, button_size - draw_pad*2),
@@ -3388,19 +3685,19 @@ class ImGui:
                     
         else:
             match(style.Theme):
-                case Style.StyleTheme.Guild_Wars:
+                case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                     x,y = PyImGui.get_cursor_screen_pos()
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
                     PyImGui.push_clip_rect(0, 0, 0, 0, False)
                     new_value = PyImGui.input_int(label + "##2", v, min_value, step_fast, flags)
                     PyImGui.pop_clip_rect()
-                    PyImGui.pop_style_color(1)
+                    ImGui.pop_style_color(1)
 
                     item_rect_min = PyImGui.get_item_rect_min()
                     item_rect_max = PyImGui.get_item_rect_max()
@@ -3416,8 +3713,8 @@ class ImGui:
                     
                     inputfield_size = ((label_rect[0] - current_inner_spacing.value1) - item_rect_min[0] , item_rect[3])
                     
-                    # (GameTextures.Input_Active if PyImGui.is_item_focused() else GameTextures.Input_Inactive).value.draw_in_drawlist(
-                    (GameTextures.Input_Inactive).value.draw_in_drawlist(
+                    # (ThemeTextures.Input_Active if PyImGui.is_item_focused() else ThemeTextures.Input_Inactive).value.draw_in_drawlist(
+                    (ThemeTextures.Input_Inactive).value.get_texture().draw_in_drawlist(
                         item_rect[0],
                         item_rect[1],
                         (inputfield_size[0] + 1, inputfield_size[1]),
@@ -3431,7 +3728,7 @@ class ImGui:
                     new_value = PyImGui.input_int(label, new_value, min_value, step_fast, flags)
                     PyImGui.pop_item_width()
                     PyImGui.pop_clip_rect()
-                    PyImGui.pop_style_color(6)
+                    ImGui.pop_style_color(6)
 
                 case _:
                     new_value = PyImGui.input_int(label, v, min_value, step_fast, flags)
@@ -3456,19 +3753,19 @@ class ImGui:
         current_inner_spacing.push_style_var()
 
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                 x,y = PyImGui.get_cursor_screen_pos()
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
                 PyImGui.push_clip_rect(0, 0, 0, 0, False)
                 new_value = PyImGui.input_text(label + "##2", v, flags)
                 PyImGui.pop_clip_rect()
-                PyImGui.pop_style_color(1)
+                ImGui.pop_style_color(1)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -3484,8 +3781,8 @@ class ImGui:
                 
                 inputfield_size = ((label_rect[0] - current_inner_spacing.value1) - item_rect_min[0] , item_rect[3])
                 
-                # (GameTextures.Input_Active if PyImGui.is_item_focused() else GameTextures.Input_Inactive).value.draw_in_drawlist(
-                (GameTextures.Input_Inactive).value.draw_in_drawlist(
+                # (ThemeTextures.Input_Active if PyImGui.is_item_focused() else ThemeTextures.Input_Inactive).value.draw_in_drawlist(
+                (ThemeTextures.Input_Inactive).value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1],
                     (inputfield_size[0] + 1, inputfield_size[1]),
@@ -3499,7 +3796,7 @@ class ImGui:
                 new_value = PyImGui.input_text(label, new_value, flags)
                 PyImGui.pop_item_width()
                 PyImGui.pop_clip_rect()
-                PyImGui.pop_style_color(6)
+                ImGui.pop_style_color(6)
 
             case _: 
                 new_value = PyImGui.input_text(label, v, flags)
@@ -3523,19 +3820,19 @@ class ImGui:
         current_inner_spacing.push_style_var()
         
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                 x,y = PyImGui.get_cursor_screen_pos()
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
                 PyImGui.push_clip_rect(0, 0, 0, 0, False)
                 new_value = PyImGui.input_float(label + "##2", v)
                 PyImGui.pop_clip_rect()
-                PyImGui.pop_style_color(1)
+                ImGui.pop_style_color(1)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -3551,8 +3848,8 @@ class ImGui:
                 
                 inputfield_size = ((label_rect[0] - current_inner_spacing.value1) - item_rect_min[0] , item_rect[3])
                 
-                # (GameTextures.Input_Active if PyImGui.is_item_focused() else GameTextures.Input_Inactive).value.draw_in_drawlist(
-                (GameTextures.Input_Inactive).value.draw_in_drawlist(
+                # (ThemeTextures.Input_Active if PyImGui.is_item_focused() else ThemeTextures.Input_Inactive).value.draw_in_drawlist(
+                (ThemeTextures.Input_Inactive).value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1],
                     (inputfield_size[0] + 1, inputfield_size[1]),
@@ -3566,7 +3863,7 @@ class ImGui:
                 new_value = PyImGui.input_float(label, new_value)
                 PyImGui.pop_item_width()
                 PyImGui.pop_clip_rect()
-                PyImGui.pop_style_color(6)
+                ImGui.pop_style_color(6)
 
             case _: 
                 new_value = PyImGui.input_float(label, v)
@@ -3590,20 +3887,20 @@ class ImGui:
         style.ItemSpacing.get_current().push_style_var()          
         
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                 pad = style.FramePadding.get_current()
                 grab_width = (pad.value2 or 0) + 18 - 5
                 
                 PyImGui.push_style_var(ImGui.ImGuiStyleVar.GrabMinSize, grab_width)
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0,0,0,0))
                 new_value = PyImGui.slider_int(label, v, v_min, v_max)
 
-                PyImGui.pop_style_color(6)
+                ImGui.pop_style_color(6)
 
                 display_label = label.split("##")[0]
                 label_size = PyImGui.calc_text_size(display_label)
@@ -3615,7 +3912,7 @@ class ImGui:
                 height = item_rect_max[1] - item_rect_min[1]
                 item_rect = (item_rect_min[0], item_rect_min[1], width, height)
 
-                GameTextures.SliderBar.value.draw_in_drawlist(
+                ThemeTextures.SliderBar.value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1] + 4,
                     (item_rect[2], item_rect[3] - 8),
@@ -3647,7 +3944,7 @@ class ImGui:
                     1,
                 )
         
-                GameTextures.SliderGrab.value.draw_in_drawlist(
+                ThemeTextures.SliderGrab.value.get_texture().draw_in_drawlist(
                     grab_rect[0],
                     grab_rect[1],
                     grab_rect[2:],
@@ -3688,20 +3985,20 @@ class ImGui:
         style.ItemSpacing.get_current().push_style_var()          
         
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                 pad = style.FramePadding.get_current()
                 grab_width = (pad.value2 or 0) + 18 - 5
                 
                 PyImGui.push_style_var(ImGui.ImGuiStyleVar.GrabMinSize, grab_width)
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0,0,0,0))
                 new_value = PyImGui.slider_float(label, v, v_min, v_max)
 
-                PyImGui.pop_style_color(6)
+                ImGui.pop_style_color(6)
 
                 display_label = label.split("##")[0]
                 label_size = PyImGui.calc_text_size(display_label)
@@ -3713,7 +4010,7 @@ class ImGui:
                 height = item_rect_max[1] - item_rect_min[1]
                 item_rect = (item_rect_min[0], item_rect_min[1], width, height)
 
-                GameTextures.SliderBar.value.draw_in_drawlist(
+                ThemeTextures.SliderBar.value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1] + 4,
                     (item_rect[2], item_rect[3] - 8),
@@ -3745,7 +4042,7 @@ class ImGui:
                     1,
                 )
         
-                GameTextures.SliderGrab.value.draw_in_drawlist(
+                ThemeTextures.SliderGrab.value.get_texture().draw_in_drawlist(
                     grab_rect[0],
                     grab_rect[1],
                     grab_rect[2:],
@@ -3792,7 +4089,7 @@ class ImGui:
                 height = item_rect_max[1] - item_rect_min[1]
                 item_rect = (item_rect_min[0], item_rect_min[1], width, height)
 
-                GameTextures.Separator.value.draw_in_drawlist(
+                ThemeTextures.Separator.value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1],
                     (item_rect[2], item_rect[3]),
@@ -3808,11 +4105,11 @@ class ImGui:
         style.Hyperlink.get_current().push_color()
         
         PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0, 0)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0,))
-        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0,))
-        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0,))
+        ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0,))
+        ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0,))
+        ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0,))
         clicked = PyImGui.button(text)
-        PyImGui.pop_style_color(3)
+        ImGui.pop_style_color(3)
         PyImGui.pop_style_var(1)
 
         item_rect_min = PyImGui.get_item_rect_min()
@@ -3847,19 +4144,19 @@ class ImGui:
         current_inner_spacing.push_style_var()
 
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                 x,y = PyImGui.get_cursor_screen_pos()
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
                 PyImGui.push_clip_rect(0, 0, 0, 0, False)
                 new_value = PyImGui.input_text(label + "##2", text, flags)
                 PyImGui.pop_clip_rect()
-                PyImGui.pop_style_color(1)
+                ImGui.pop_style_color(1)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -3875,8 +4172,8 @@ class ImGui:
                 
                 inputfield_size = ((label_rect[0] - current_inner_spacing.value1) - item_rect_min[0] , item_rect[3])
 
-                # (GameTextures.Input_Active if PyImGui.is_item_focused() else GameTextures.Input_Inactive).value.draw_in_drawlist(
-                (GameTextures.Input_Inactive).value.draw_in_drawlist(
+                # (ThemeTextures.Input_Active if PyImGui.is_item_focused() else ThemeTextures.Input_Inactive).value.draw_in_drawlist(
+                (ThemeTextures.Input_Inactive).value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1],
                     (inputfield_size[0] + 1, inputfield_size[1]),
@@ -3890,7 +4187,7 @@ class ImGui:
                 new_value = PyImGui.input_text(label, new_value, flags)
                 PyImGui.pop_item_width()
                 PyImGui.pop_clip_rect()
-                PyImGui.pop_style_color(6)
+                ImGui.pop_style_color(6)
 
             case _: 
                 new_value = PyImGui.input_text(label, text, flags)
@@ -3943,7 +4240,7 @@ class ImGui:
         frame_padding.push_style_var()
         
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                 height = PyImGui.get_text_line_height()
                 text_size = PyImGui.calc_text_size(text)
                 cursor = PyImGui.get_cursor_screen_pos()
@@ -3955,7 +4252,7 @@ class ImGui:
                 item_rect_min = PyImGui.get_item_rect_min()
                 
                 item_rect = (item_rect_min[0] + frame_padding.value1, item_rect_min[1] -2, height, height)
-                GameTextures.BulletPoint.value.draw_in_drawlist(
+                ThemeTextures.BulletPoint.value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1],
                     (item_rect[2], item_rect[3]),
@@ -3978,7 +4275,7 @@ class ImGui:
         height = PyImGui.get_text_line_height()
         
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                 text_size = PyImGui.calc_text_size(text)
                 cursor = PyImGui.get_cursor_screen_pos()
 
@@ -3991,7 +4288,7 @@ class ImGui:
 
                 item_rect = (item_rect_min[0] + frame_padding.value1, item_rect_min[1] -2, height, height)
                 
-                GameTextures.Quest_Objective_Bullet_Point.value.draw_in_drawlist(
+                ThemeTextures.Quest_Objective_Bullet_Point.value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1],
                     (item_rect[2], item_rect[3]),
@@ -4035,13 +4332,16 @@ class ImGui:
         frame_padding.push_style_var()
         
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Header, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderHovered, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderActive, (0,0,0,0))
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                ImGui.push_style_color(PyImGui.ImGuiCol.Header, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.HeaderHovered, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.HeaderActive, (0,0,0,0))
+                
+                PyImGui.push_clip_rect(PyImGui.get_cursor_screen_pos()[0]+ 20, PyImGui.get_cursor_screen_pos()[1], 1000, 1000, True)
                 new_open = PyImGui.collapsing_header(label, flags)
-
-                PyImGui.pop_style_color(3)
+                PyImGui.pop_clip_rect()
+                
+                ImGui.pop_style_color(3)
                 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -4050,7 +4350,7 @@ class ImGui:
                 padding = ((item_rect_max[1] - item_rect_min[1]) - height) / 2                
                 item_rect = (item_rect_min[0] + frame_padding.value1, item_rect_min[1] + padding, height, height)
 
-                (GameTextures.Collapse if new_open else GameTextures.Expand).value.draw_in_drawlist(
+                (ThemeTextures.Collapse if new_open else ThemeTextures.Expand).value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1],
                     (item_rect[2], item_rect[3]),
@@ -4076,13 +4376,15 @@ class ImGui:
         frame_padding.push_style_var()
         
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Header, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderHovered, (0,0,0,0))
-                PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderActive, (0,0,0,0))
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                ImGui.push_style_color(PyImGui.ImGuiCol.Header, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.HeaderHovered, (0,0,0,0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.HeaderActive, (0,0,0,0))
+                PyImGui.push_clip_rect(PyImGui.get_cursor_screen_pos()[0]+ 20, PyImGui.get_cursor_screen_pos()[1], 1000, 1000, True)
                 new_open = PyImGui.tree_node(label)
+                PyImGui.pop_clip_rect()
 
-                PyImGui.pop_style_color(3)
+                ImGui.pop_style_color(3)
                 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()
@@ -4091,7 +4393,7 @@ class ImGui:
                 padding = ((item_rect_max[1] - item_rect_min[1]) - height) / 2                
                 item_rect = (item_rect_min[0] + frame_padding.value1, item_rect_min[1] + padding, height, height)
 
-                (GameTextures.Collapse if new_open else GameTextures.Expand).value.draw_in_drawlist(
+                (ThemeTextures.Collapse if new_open else ThemeTextures.Expand).value.get_texture().draw_in_drawlist(
                     item_rect[0],
                     item_rect[1],
                     (item_rect[2], item_rect[3]),
@@ -4118,7 +4420,7 @@ class ImGui:
         style.TabRounding.get_current().push_style_var()
 
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:                
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:                
                 PyImGui.push_clip_rect(0,0,0,0,False)
                 open = PyImGui.begin_tab_bar(str_id)
                 PyImGui.pop_clip_rect()
@@ -4130,18 +4432,17 @@ class ImGui:
                 
                 PyImGui.push_clip_rect(item_rect[0] - 3, item_rect[1]-2, item_rect[2] + 6, item_rect[3] + 4, False)
                 
-                GameTextures.Tab_Frame_Top.value.draw_in_drawlist(
-                    item_rect[0] - 3,
+                ThemeTextures.Tab_Frame_Top.value.get_texture().draw_in_drawlist(
+                    item_rect[0] - (3 if style.Theme == Style.StyleTheme.Guild_Wars else 3),
                     item_rect[1],
-                    (item_rect[2] + 6,
+                    (item_rect[2] + (6 if style.Theme == Style.StyleTheme.Guild_Wars else 6),
                     4),
                 )
                 
-                GameTextures.Tab_Frame_Body.value.draw_in_drawlist(
-                    item_rect[0] - 3,
+                ThemeTextures.Tab_Frame_Body.value.get_texture().draw_in_drawlist(
+                    item_rect[0] - (3 if style.Theme == Style.StyleTheme.Guild_Wars else 3),
                     item_rect[1] + 4,
-                    (item_rect[2] + 
-                     6,
+                    (item_rect[2] + (6 if style.Theme == Style.StyleTheme.Guild_Wars else 6),
                     item_rect[3] - 4),
                 )
                 
@@ -4163,13 +4464,13 @@ class ImGui:
         
         if popen is None:
             match(style.Theme):
-                case Style.StyleTheme.Guild_Wars:
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Tab, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.TabActive, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.TabHovered, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
+                    ImGui.push_style_color(PyImGui.ImGuiCol.Tab, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.TabActive, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.TabHovered, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
                     open = PyImGui.begin_tab_item(label)
-                    PyImGui.pop_style_color(4)
+                    ImGui.pop_style_color(4)
 
                     item_rect_min = PyImGui.get_item_rect_min()
                     item_rect_max = PyImGui.get_item_rect_max()
@@ -4187,7 +4488,7 @@ class ImGui:
                         True
                     )
                     
-                    (GameTextures.Tab_Active if open else GameTextures.Tab_Inactive).value.draw_in_drawlist(
+                    (ThemeTextures.Tab_Active if open else ThemeTextures.Tab_Inactive).value.get_texture().draw_in_drawlist(
                         item_rect[0] + 4,
                         item_rect[1] + 4,
                         (item_rect[2] - 8, item_rect[3] - 8),
@@ -4223,14 +4524,14 @@ class ImGui:
         else:
             match(style.Theme):
                 case Style.StyleTheme.Guild_Wars:
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Tab, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.TabActive, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.TabHovered, (0, 0, 0, 0))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.Tab, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.TabActive, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.TabHovered, (0, 0, 0, 0))
+                    ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
                     
                     open = PyImGui.begin_tab_item(label, popen, flags)
 
-                    PyImGui.pop_style_color(4)
+                    ImGui.pop_style_color(4)
 
                     item_rect_min = PyImGui.get_item_rect_min()
                     item_rect_max = PyImGui.get_item_rect_max()
@@ -4239,7 +4540,7 @@ class ImGui:
                     height = item_rect_max[1] - item_rect_min[1]
                     item_rect = (item_rect_min[0], item_rect_min[1], width, height)
                     
-                    (GameTextures.Tab_Active if open else GameTextures.Tab_Inactive).value.draw_in_drawlist(
+                    (ThemeTextures.Tab_Active if open else ThemeTextures.Tab_Inactive).value.get_texture().draw_in_drawlist(
                         item_rect[0] + 4,
                         item_rect[1] + 4,
                         (item_rect[2] - 8, item_rect[3] - 8),
@@ -4330,19 +4631,19 @@ class ImGui:
                 False  # intersect with current clip rect (safe, window always bigger than content)
             )
                 
-            GameTextures.Scroll_Bg.value.draw_in_drawlist(
+            ThemeTextures.Scroll_Bg.value.draw_in_drawlist(
                 scroll_bar_rect[0],
                 scroll_bar_rect[1] + 5,
                 (scroll_bar_rect[2] - scroll_bar_rect[0], scroll_bar_rect[3] - scroll_bar_rect[1] - 10),
             )
 
-            GameTextures.ScrollGrab_Top.value.draw_in_drawlist(
+            ThemeTextures.ScrollGrab_Top.value.draw_in_drawlist(
                 scroll_grab_rect[0], 
                 scroll_grab_rect[1], 
                 (scroll_bar_size, 7),
             )
             
-            GameTextures.ScrollGrab_Bottom.value.draw_in_drawlist(
+            ThemeTextures.ScrollGrab_Bottom.value.draw_in_drawlist(
                 scroll_grab_rect[0], 
                 scroll_grab_rect[3] - 7, 
                 (scroll_bar_size, 7),
@@ -4351,20 +4652,20 @@ class ImGui:
             px_height = 2
             mid_height = scroll_grab_rect[3] - scroll_grab_rect[1] - 10
             for i in range(math.ceil(mid_height / px_height)):
-                GameTextures.ScrollGrab_Middle.value.draw_in_drawlist(
+                ThemeTextures.ScrollGrab_Middle.value.draw_in_drawlist(
                     scroll_grab_rect[0], 
                     scroll_grab_rect[1] + 5 + (px_height * i), 
                     (scroll_bar_size, px_height),
                 tint=(195, 195, 195, 255)
                 )
             
-            GameTextures.UpButton.value.draw_in_drawlist(
+            ThemeTextures.UpButton.value.draw_in_drawlist(
                 scroll_bar_rect[0] - 1,
                 scroll_bar_rect[1] - 5,
                 (scroll_bar_size, scroll_bar_size),
             )
 
-            GameTextures.DownButton.value.draw_in_drawlist(
+            ThemeTextures.DownButton.value.draw_in_drawlist(
                 scroll_bar_rect[0] - 1,
                 scroll_bar_rect[3] - (scroll_bar_size - 5),
                 (scroll_bar_size, scroll_bar_size),
@@ -4443,39 +4744,39 @@ class ImGui:
             )
             
                 
-            GameTextures.Horizontal_Scroll_Bg.value.draw_in_drawlist(
+            ThemeTextures.Horizontal_Scroll_Bg.value.draw_in_drawlist(
                 scroll_bar_rect[0] + 3,
                 scroll_bar_rect[1],
                 (scroll_bar_rect[2] - scroll_bar_rect[0] - 5, scroll_bar_rect[3] - scroll_bar_rect[1]),
             )
                     
-            GameTextures.Horizontal_ScrollGrab_Middle.value.draw_in_drawlist(
+            ThemeTextures.Horizontal_ScrollGrab_Middle.value.draw_in_drawlist(
                 scroll_grab_rect[0] + 5, 
                 scroll_grab_rect[1],
                 (scroll_grab_rect[2] - 10, scroll_grab_rect[3]),
                 tint=(195, 195, 195, 255)
             )
             
-            GameTextures.Horizontal_ScrollGrab_Top.value.draw_in_drawlist(
+            ThemeTextures.Horizontal_ScrollGrab_Top.value.draw_in_drawlist(
                 scroll_grab_rect[0], 
                 scroll_grab_rect[1], 
                 (7, scroll_grab_rect[3]),
             )
             
-            GameTextures.Horizontal_ScrollGrab_Bottom.value.draw_in_drawlist(
+            ThemeTextures.Horizontal_ScrollGrab_Bottom.value.draw_in_drawlist(
                 scroll_grab_rect[0] + scroll_grab_rect[2] - 7, 
                 scroll_grab_rect[1], 
                 (7, scroll_grab_rect[3]),
             )
 
             
-            GameTextures.LeftButton.value.draw_in_drawlist(
+            ThemeTextures.LeftButton.value.draw_in_drawlist(
                 scroll_bar_rect[0] - 5, 
                 scroll_bar_rect[1] - 1, 
                 (scroll_bar_size, scroll_bar_size + 1),
             )
             
-            GameTextures.RightButton.value.draw_in_drawlist(
+            ThemeTextures.RightButton.value.draw_in_drawlist(
                 scroll_bar_rect[2] - 5 + (0 if scroll_max_y > 0 else 1), 
                 scroll_bar_rect[1] - 1, 
                 (scroll_bar_size, scroll_bar_size + 1),
@@ -4508,7 +4809,7 @@ class ImGui:
         style.ItemSpacing.get_current().push_style_var()
         
         match(style.Theme):
-            case Style.StyleTheme.Guild_Wars:
+            case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                 PyImGui.push_clip_rect(0,0,0,0,False)
                 PyImGui.progress_bar(fraction, size_arg_x, size_arg_y, overlay)
                 PyImGui.pop_clip_rect()
@@ -4526,14 +4827,14 @@ class ImGui:
 
                 tint = style.PlotHistogram.get_current().rgb_tuple
                 
-                GameTextures.ProgressBarBackground.value.draw_in_drawlist(
+                ThemeTextures.ProgressBarBackground.value.get_texture().draw_in_drawlist(
                     background_rect[0],
                     background_rect[1],
                     (background_rect[2], background_rect[3]),
                     tint=tint
                 )
                 
-                GameTextures.ProgressBarProgress.value.draw_in_drawlist(
+                ThemeTextures.ProgressBarProgress.value.get_texture().draw_in_drawlist(
                     progress_rect[0],
                     progress_rect[1],
                     (progress_rect[2], progress_rect[3]),
@@ -4541,7 +4842,7 @@ class ImGui:
                 )
                 
                 if fraction > 0:
-                    GameTextures.ProgressBarProgressCursor.value.draw_in_drawlist(
+                    ThemeTextures.ProgressBarProgressCursor.value.get_texture().draw_in_drawlist(
                         cursor_rect[0],
                         cursor_rect[1],
                         (cursor_rect[2], cursor_rect[3]),
@@ -4573,9 +4874,9 @@ class ImGui:
 
 
             case _:                
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
                 PyImGui.progress_bar(fraction, size_arg_x, size_arg_y, overlay)
-                PyImGui.pop_style_color(1)
+                ImGui.pop_style_color(1)
 
                 item_rect_min = PyImGui.get_item_rect_min()
                 item_rect_max = PyImGui.get_item_rect_max()       

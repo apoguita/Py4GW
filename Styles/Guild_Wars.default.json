@@ -278,33 +278,12 @@
         },
         "DangerButtonActive": {
             "img_color_enum": "ButtonActive",
-            "r": 217,
-            "g": 28,
-            "b": 3,
-            "a": 255
-        },
-        "DangerButtonHovered": {
-            "img_color_enum": "ButtonHovered",
-            "r": 166,
-            "g": 21,
-            "b": 2,
-            "a": 255
-        },
-        "ToggleButtonDisabled": {
-            "img_color_enum": "Button",
-            "r": 115,
-            "g": 15,
+            "r": 102,
+            "g": 13,
             "b": 1,
             "a": 255
         },
-        "ToggleButtonDisabledActive": {
-            "img_color_enum": "ButtonActive",
-            "r": 217,
-            "g": 28,
-            "b": 3,
-            "a": 255
-        },
-        "ToggleButtonDisabledHovered": {
+        "DangerButtonHovered": {
             "img_color_enum": "ButtonHovered",
             "r": 166,
             "g": 21,
@@ -327,33 +306,12 @@
         },
         "PrimaryButtonActive": {
             "img_color_enum": "ButtonActive",
-            "r": 23,
-            "g": 194,
-            "b": 65,
+            "r": 8,
+            "g": 66,
+            "b": 22,
             "a": 255
         },
         "PrimaryButtonHovered": {
-            "img_color_enum": "ButtonHovered",
-            "r": 17,
-            "g": 143,
-            "b": 48,
-            "a": 255
-        },
-        "ToggleButtonEnabled": {
-            "img_color_enum": "Button",
-            "r": 11,
-            "g": 93,
-            "b": 31,
-            "a": 255
-        },
-        "ToggleButtonEnabledActive": {
-            "img_color_enum": "ButtonActive",
-            "r": 23,
-            "g": 194,
-            "b": 65,
-            "a": 255
-        },
-        "ToggleButtonEnabledHovered": {
             "img_color_enum": "ButtonHovered",
             "r": 17,
             "g": 143,
@@ -379,6 +337,99 @@
             "r": 207,
             "g": 191,
             "b": 143,
+            "a": 255
+        },
+        "ToggleButtonDisabled": {
+            "img_color_enum": "Button",
+            "r": 115,
+            "g": 15,
+            "b": 1,
+            "a": 255
+        },
+        "ToggleButtonDisabledActive": {
+            "img_color_enum": "ButtonActive",
+            "r": 217,
+            "g": 28,
+            "b": 3,
+            "a": 255
+        },
+        "ToggleButtonDisabledHovered": {
+            "img_color_enum": "ButtonHovered",
+            "r": 166,
+            "g": 21,
+            "b": 2,
+            "a": 255
+        },
+        "ToggleButtonEnabled": {
+            "img_color_enum": "Button",
+            "r": 11,
+            "g": 93,
+            "b": 31,
+            "a": 255
+        },
+        "ToggleButtonEnabledActive": {
+            "img_color_enum": "ButtonActive",
+            "r": 23,
+            "g": 194,
+            "b": 65,
+            "a": 255
+        },
+        "ToggleButtonEnabledHovered": {
+            "img_color_enum": "ButtonHovered",
+            "r": 17,
+            "g": 143,
+            "b": 48,
+            "a": 255
+        }
+    },
+    "TextureColors": {
+        "ComboTextureBackground": {
+            "img_color_enum": null,
+            "r": 71,
+            "g": 106,
+            "b": 150,
+            "a": 255
+        },
+        "ComboTextureBackgroundHovered": {
+            "img_color_enum": null,
+            "r": 96,
+            "g": 143,
+            "b": 201,
+            "a": 255
+        },
+        "ComboTextureBackgroundActive": {
+            "img_color_enum": null,
+            "r": 120,
+            "g": 179,
+            "b": 252,
+            "a": 255
+        },
+        "ButtonTextureBackground": {
+            "img_color_enum": null,
+            "r": 47,
+            "g": 70,
+            "b": 98,
+            "a": 255
+        },
+        "ButtonTextureBackgroundHovered": {
+            "img_color_enum": null,
+            "r": 83,
+            "g": 126,
+            "b": 179,
+            "a": 255
+        },
+        "ButtonTextureBackgroundActive": {
+            "img_color_enum": null,
+            "r": 34,
+            "g": 51,
+            "b": 71,
+            "a": 255
+        },
+        "ButtonTextureBackgroundDisabled": {
+            "img_color_enum": null,
+            "r": 64,
+            "g": 64,
+            "b": 64,
             "a": 255
         }
     },
