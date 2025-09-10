@@ -31,7 +31,8 @@ from Widgets.CustomBehaviors.gui.debug_skillbars import render as debug_skilbars
 from Widgets.CustomBehaviors.gui.debug_execution import render as debug_execution
 from Widgets.CustomBehaviors.gui.debug_sharedlocks import render as debug_sharedlocks
 from Widgets.CustomBehaviors.gui.debug_eventbus import render as debug_eventbus
-from Widgets.CustomBehaviors.gui.deamon import deamon as deamon
+from Widgets.CustomBehaviors.gui.auto_mover import render as auto_mover
+from Widgets.CustomBehaviors.gui.daemon import daemon as daemon
 
 party_forced_state_combo = 0
 DEBUG = True
@@ -48,7 +49,7 @@ def gui():
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
-        PyImGui.begin_tab_bar("current_build")
+        PyImGui.begin_tab_bar("tabs")
 
         if PyImGui.begin_tab_item("party"):
             party()
@@ -56,6 +57,10 @@ def gui():
 
         if PyImGui.begin_tab_item("current_build"):
             current_build_render()
+            PyImGui.end_tab_item()
+
+        if PyImGui.begin_tab_item("auto_mover"):
+            auto_mover()
             PyImGui.end_tab_item()
 
         if PyImGui.begin_tab_item("debug"):
@@ -93,7 +98,7 @@ def main():
         return
 
     gui()
-    deamon()
+    daemon()
     
 
 def configure():
