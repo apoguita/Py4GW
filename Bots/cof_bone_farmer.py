@@ -759,9 +759,9 @@ def CheckRequirements():
     error_msgs = []
 
     # check attributes (for runes)
-    attribute_checks = {'Scythe Mastery' : 14,
-                        'Wind Prayers'   : 11,
-                        'Mysticism'      : 12}
+    attribute_checks = {'Scythe Mastery' : 11,
+                        'Wind Prayers'   : 15,
+                        'Mysticism'      : 11}
     for attribute in GLOBAL_CACHE.Agent.GetAttributes(Player.GetAgentID()):
         if attribute.GetName() in attribute_checks:
             if attribute_checks[attribute.GetName()] != attribute.level:
