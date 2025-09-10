@@ -49,11 +49,11 @@ RUN_NAME_MAP = {
         "_1_AscalonCity_To_PikenSquare": "1 - Ascalon City -> Piken Square",
         "_2_PikenSquare_To_GrendichCourthouse": "2 - Piken Square -> Grendich Court House",
         "_3_GrendichCourthouse_To_YaksBend": "3 - Grendich Court House -> Yak's Bend",
-        "_4_YaksBend_To_IceToothCave": "4 - Yak's Bend -> Ice Tooth Cave",
-        "_5_IceToothCave_To_BeaconsPerch": "5 - IceTooth Cave -> Beacon's Perch",
-        "_6_BeaconsPerch_To_GatesOfKryta": "6 - Beacons Perch -> Gates Of Kryta",
-        "_7_GatesOfKryta_To_LionsArch": "7 - Gates Of Kryta -> Lion's Arch",
-
+        "_4_YaksBend_To_BorlisPass": "4 - Yak's Bend -> Borlis Pass",
+        "_5_YaksBend_To_IceToothCave": "5 - Yak's Bend -> Ice Tooth Cave",
+        "_6_IceToothCave_To_BeaconsPerch": "6 - IceTooth Cave -> Beacon's Perch",
+        "_7_BeaconsPerch_To_GatesOfKryta": "7 - Beacons Perch -> Gates Of Kryta",
+        "_8_GatesOfKryta_To_LionsArch": "8 - Gates Of Kryta -> Lion's Arch",
     },
     "Tyria - Beacon's Perch To Droknars Forge": {
         "_1_BeaconsPerch_To_CampRankor": "1 - Beacons Perch -> Camp Rankor",
@@ -86,6 +86,14 @@ RUN_NAME_MAP = {
         "_6_ventarisrefuge_to_auroragladeoutpost": "6 - Ventari's Refuge -> Aurora Glade",
         "_7_auroragladeoutpost_to_maguumastade": "7 - Aurora Glade -> Maguuma Stade",
         "_8_maguumastade_to_hengeofdenravi": "8 - Maguuma Stade -> Henge of Denravi",
+    },
+    "Tyria - Desert Outposts": {
+        "_1_auguryrock_to_destinysgorge": "1 - Augury Rock -> Destiny's Gorge",
+        "_2_destinysgorge_to_thirstyriver": "2 - Destiny's Gorge -> Thirsty River",
+        "_3_destinysgorge_to_elonareach": "3 - Destiny's Gorge -> Elona Reach",
+        "_4_elonareach_to_seekerspassage": "4 - Elona Reach -> Seeker's Passage",
+        "_5_auguryrock_to_heroesaudience": "5 - Augury Rock -> Heroes Audience",
+        "_6_heroesaudience_to_dunesofdespair": "6 - Heroes Audience -> Dunes of Despair",
     },
     "NF - Istan island": {
         "_1_kamadanjewelofistan_to_sunspeargreathall": "1 - Kamadan -> Sunspear Greathall",
@@ -369,10 +377,17 @@ def draw_ui():
 
                     ConsoleLog("OutpostRunner",f"Added all runs from region {selected_region}",Console.MessageType.Debug)
 
+                PyImGui.same_line(0, 5)
+                if selected_chain:
+                    if PyImGui.button("Clear"):
+                        selected_chain.clear()
+                        runner_fsm.map_chain = []
+                        ConsoleLog("OutpostRunner", "Cleared runs chain", Console.MessageType.Debug)
+
             PyImGui.separator()
 
-            PyImGui.text("Current Chain:")
             if selected_chain:
+                PyImGui.text("Current Chain:")
                 for idx, run in enumerate(sorted(selected_chain, key=lambda r: r.order)):
                     PyImGui.text(run.display)
                     PyImGui.same_line(0, 0)
@@ -666,7 +681,7 @@ def render_path_ui():
     x, y = GLOBAL_CACHE.Player.GetXY()
     PyImGui.text(f"Player Pos: ({int(x)}, {int(y)})")
     if PyImGui.button("Copy position"):
-        PyImGui.set_clipboard_text(f"{int(x)}, {int(y)})")
+        PyImGui.set_clipboard_text(f"({int(x)}, {int(y)}),")
 
     # Facing vector from heading
     heading = GLOBAL_CACHE.Agent.GetRotationAngle(Player.GetAgentID())
@@ -678,7 +693,7 @@ def render_path_ui():
 
     PyImGui.text(f"Facing Point (+500): ({projected_x}, {projected_y})")
     if PyImGui.button("Copy Portal point"):
-        PyImGui.set_clipboard_text(f"{projected_x}, {projected_y}")
+        PyImGui.set_clipboard_text(f"({projected_x}, {projected_y}),")
 
     
     PyImGui.end()
