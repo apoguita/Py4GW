@@ -1218,7 +1218,7 @@ class Yield:
         
         @staticmethod
         def Upkeep_EssenceOfCelerity():
-            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Essence_Of_Celerity, "Essence_Of_Celerity_skill")
+            yield from Yield.Upkeepers._upkeep_consumable(ModelID.Essence_Of_Celerity, "Essence_of_Celerity_item_effect")
             
         @staticmethod
         def Upkeep_GrailOfMight():
