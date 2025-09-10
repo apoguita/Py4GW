@@ -116,15 +116,25 @@ class ShadowFormAssassinVaettir(Build):
     def SetStuckCounter(self, stuck_counter: int):
         self.stuck_counter = stuck_counter
         
+    def _CastSkillID(self, skill_id:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
+        result = yield from Routines.Yield.Skills.CastSkillID(skill_id, extra_condition=extra_condition, log=log, aftercast_delay=aftercast_delay)
+        return result
+    
+    def _CastSkillSlot(self, slot:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
+        result = yield from Routines.Yield.Skills.CastSkillSlot(slot, extra_condition=extra_condition, log=log, aftercast_delay=aftercast_delay)
+        return result
+        
     def DefensiveActions(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id,self.shadow_form)
+        shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id,self.shadow_form) if has_shadow_form else 0
         has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
-        if Routines.Yield.Skills.IsSkillIdUsable(self.shadow_form):
-            if Routines.Yield.Skills.CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=100):
+        if shadow_form_buff_time_remaining <= 5000:
+            if (yield from self._CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=100)):
                 ConsoleLog(self.build_name, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=False)
                 yield from Routines.Yield.wait(100)
-                
-            if Routines.Yield.Skills.CastSkillID(self.shadow_form, log=False, aftercast_delay=1750):
+
+            if (yield from self._CastSkillID(self.shadow_form, log=False, aftercast_delay=1750)):
                 ConsoleLog(self.build_name, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=False)
                 yield from Routines.Yield.wait(1750)
                 
@@ -133,7 +143,7 @@ class ShadowFormAssassinVaettir(Build):
         if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
             ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
             # ** Cast Shroud of Distress **
-            if Routines.Yield.Skills.CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1750):
+            if (yield from self._CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1750)):
                 yield from Routines.Yield.wait(1750)
                 
     def vector_angle(self, a: Tuple[float, float], b: Tuple[float, float]) -> float:
@@ -178,7 +188,7 @@ class ShadowFormAssassinVaettir(Build):
         else:
             yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
 
-        if Routines.Yield.Skills.CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350):
+        if (yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)):
             yield from Routines.Yield.wait(350)
             
             
@@ -217,17 +227,22 @@ class ShadowFormAssassinVaettir(Build):
                 return
 
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id,self.shadow_form)
-            shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id,self.shadow_form) if has_shadow_form else 0
             if Routines.Checks.Agents.InDanger(Range.Spellcast):
+                has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id,self.shadow_form)
+                shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id,self.shadow_form) if has_shadow_form else 0
                 has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
-                if Routines.Yield.Skills.IsSkillIdUsable(self.shadow_form):
+                if self.in_killing_routine:
+                    time_remaining = 5000 #4000
+                else:
+                    time_remaining = 5000 #3500
+                    
+                if shadow_form_buff_time_remaining <= time_remaining:
                     GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-                    if Routines.Yield.Skills.CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=200):
+                    if (yield from self._CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=200)):
                         ConsoleLog(self.build_name, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=False)
                         yield from Routines.Yield.wait(200)
-                    GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")   
-                    if Routines.Yield.Skills.CastSkillID(self.shadow_form, log=False, aftercast_delay=1950):
+                    GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
+                    if (yield from self._CastSkillID(self.shadow_form, log=False, aftercast_delay=1950)):
                         ConsoleLog(self.build_name, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=False)
                         yield from Routines.Yield.wait(1950)
                         continue
@@ -237,7 +252,7 @@ class ShadowFormAssassinVaettir(Build):
                 ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
                 # ** Cast Shroud of Distress **
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-                if Routines.Yield.Skills.CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1950):
+                if (yield from self._CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1950)):
                     yield from Routines.Yield.wait(1950)
                     continue
                         
@@ -245,11 +260,11 @@ class ShadowFormAssassinVaettir(Build):
             if not has_channeling:
                 ConsoleLog(self.build_name, "Casting Channeling.", Py4GW.Console.MessageType.Info, log=False)
                 # ** Cast Channeling **
-                if Routines.Yield.Skills.CastSkillID(self.channeling, log =False, aftercast_delay=1850):
+                if (yield from self._CastSkillID(self.channeling, log =False, aftercast_delay=1850)):
                     yield from Routines.Yield.wait(1850)
                     continue
-                        
-            if Routines.Yield.Skills.CastSkillID(self.way_of_perfection, log=False, aftercast_delay=1000):
+
+            if (yield from self._CastSkillID(self.way_of_perfection, log=False, aftercast_delay=1000)):
                 ConsoleLog(self.build_name, "Casting Way of Perfection.", Py4GW.Console.MessageType.Info, log=False)
                 yield from Routines.Yield.wait(1000)
                 continue
@@ -289,31 +304,31 @@ class ShadowFormAssassinVaettir(Build):
                     else:
                         yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
 
-                    if Routines.Yield.Skills.CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350):
+                    if (yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)):
                         yield from Routines.Yield.wait(350)
                         continue
                         
-            if self.in_killing_routine and has_shadow_form and has_shroud_of_distress and has_channeling:
+            if self.in_killing_routine:
                 both_ready = Routines.Checks.Skills.IsSkillSlotReady(self.wastrels_demise_slot) and Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot)
                 target = GetNotHexedEnemy()
-                if target and shadow_form_buff_time_remaining >= 4000:
+                if target:
                     GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                     GLOBAL_CACHE.Player.ChangeTarget(target)
-                    if Routines.Yield.Skills.CastSkillSlot(self.arcane_echo_slot, extra_condition=both_ready, log=False, aftercast_delay=2850):
+                    if (yield from self._CastSkillSlot(self.arcane_echo_slot, extra_condition=both_ready, log=False, aftercast_delay=2850)):
                         GLOBAL_CACHE.Player.Interact(target,False)
                         ConsoleLog(self.build_name, "Casting Arcane Echo.", Py4GW.Console.MessageType.Info, log=False)
                         yield from Routines.Yield.wait(2850)
                     else:
-                        if Routines.Yield.Skills.CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=1000):
+                        if (yield from self._CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=1000)):
                             GLOBAL_CACHE.Player.Interact(target,False)
                             ConsoleLog(self.build_name, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=False)
                             yield from Routines.Yield.wait(1000)
                 
                 target = GetNotHexedEnemy()  
-                if target and not Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot): 
+                if target: 
                     GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                     GLOBAL_CACHE.Player.ChangeTarget(target)
-                    if Routines.Yield.Skills.CastSkillSlot(self.wastrels_demise_slot, log=False, aftercast_delay=1000):
+                    if (yield from self._CastSkillSlot(self.wastrels_demise_slot, log=False, aftercast_delay=1000)):
                         GLOBAL_CACHE.Player.Interact(target,False)
                         yield from Routines.Yield.wait(1000)
 
@@ -373,15 +388,23 @@ class ShadowFormMesmerVaettir(Build):
     def SetStuckCounter(self, stuck_counter: int):
         self.stuck_counter = stuck_counter
         
+    def _CastSkillID(self, skill_id:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
+        result = yield from Routines.Yield.Skills.CastSkillID(skill_id, extra_condition=extra_condition, log=log, aftercast_delay=aftercast_delay)
+        return result
+    
+    def _CastSkillSlot(self, slot:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
+        result = yield from Routines.Yield.Skills.CastSkillSlot(slot, extra_condition=extra_condition, log=log, aftercast_delay=aftercast_delay)
+        return result
+        
     def DefensiveActions(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
         if Routines.Yield.Skills.IsSkillIdUsable(self.shadow_form):
-            if Routines.Yield.Skills.CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=100):
+            if (yield from self._CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=100)):
                 ConsoleLog(self.build_name, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=False)
                 yield from Routines.Yield.wait(100)
-                
-            if Routines.Yield.Skills.CastSkillID(self.shadow_form, log=False, aftercast_delay=1750):
+
+            if (yield from self._CastSkillID(self.shadow_form, log=False, aftercast_delay=1750)):
                 ConsoleLog(self.build_name, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=False)
                 yield from Routines.Yield.wait(1750)
                 
@@ -390,7 +413,7 @@ class ShadowFormMesmerVaettir(Build):
         if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
             ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
             # ** Cast Shroud of Distress **
-            if Routines.Yield.Skills.CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1750):
+            if (yield from self._CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1750)):
                 yield from Routines.Yield.wait(1750)
                 
     def vector_angle(self, a: Tuple[float, float], b: Tuple[float, float]) -> float:
@@ -435,7 +458,7 @@ class ShadowFormMesmerVaettir(Build):
         else:
             yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
 
-        if Routines.Yield.Skills.CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350):
+        if (yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)):
             yield from Routines.Yield.wait(350)
             
             
@@ -481,11 +504,11 @@ class ShadowFormMesmerVaettir(Build):
                     
                 if Routines.Yield.Skills.IsSkillIdUsable(self.shadow_form):
                     GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-                    if Routines.Yield.Skills.CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=200):
+                    if (yield from self._CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=200)):
                         ConsoleLog(self.build_name, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=False)
                         yield from Routines.Yield.wait(200)
                     GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")   
-                    if Routines.Yield.Skills.CastSkillID(self.shadow_form, log=False, aftercast_delay=1950):
+                    if (yield from self._CastSkillID(self.shadow_form, log=False, aftercast_delay=1950)):
                         ConsoleLog(self.build_name, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=False)
                         yield from Routines.Yield.wait(1950)
                         continue
@@ -496,7 +519,7 @@ class ShadowFormMesmerVaettir(Build):
                 ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
                 # ** Cast Shroud of Distress **
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-                if Routines.Yield.Skills.CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1950):
+                if (yield from self._CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1950)):
                     yield from Routines.Yield.wait(1950)
                     continue
                         
@@ -504,11 +527,11 @@ class ShadowFormMesmerVaettir(Build):
             if not has_mantra_of_earth:
                 ConsoleLog(self.build_name, "Casting Mantra Of Earth.", Py4GW.Console.MessageType.Info, log=False)
                 # ** Cast mantra of earth **
-                if Routines.Yield.Skills.CastSkillID(self.mantra_of_earth, log =False, aftercast_delay=200):
+                if (yield from self._CastSkillID(self.mantra_of_earth, log =False, aftercast_delay=200)):
                     yield from Routines.Yield.wait(200)
                     continue
-                        
-            if Routines.Yield.Skills.CastSkillID(self.way_of_perfection, log=False, aftercast_delay=1000):
+
+            if (yield from self._CastSkillID(self.way_of_perfection, log=False, aftercast_delay=1000)):
                 ConsoleLog(self.build_name, "Casting Way of Perfection.", Py4GW.Console.MessageType.Info, log=False)
                 yield from Routines.Yield.wait(1000)
                 continue
@@ -546,7 +569,7 @@ class ShadowFormMesmerVaettir(Build):
                     else:
                         yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
 
-                    if Routines.Yield.Skills.CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350):
+                    if (yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)):
                         yield from Routines.Yield.wait(350)
                         continue
 
@@ -556,12 +579,12 @@ class ShadowFormMesmerVaettir(Build):
                 if target and shadow_form_buff_time_remaining >= 4000:
                     GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                     GLOBAL_CACHE.Player.ChangeTarget(target)
-                    if Routines.Yield.Skills.CastSkillSlot(self.arcane_echo_slot, extra_condition=both_ready, log=False, aftercast_delay=2050):
+                    if (yield from self._CastSkillSlot(self.arcane_echo_slot, extra_condition=both_ready, log=False, aftercast_delay=2050)):
                         GLOBAL_CACHE.Player.Interact(target,False)
                         ConsoleLog(self.build_name, "Casting Arcane Echo.", Py4GW.Console.MessageType.Info, log=False)
                         yield from Routines.Yield.wait(2050)
                     else:
-                        if Routines.Yield.Skills.CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=1000):
+                        if (yield from self._CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=1000)):
                             GLOBAL_CACHE.Player.Interact(target,False)
                             ConsoleLog(self.build_name, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=False)
                             yield from Routines.Yield.wait(1000)
@@ -570,7 +593,7 @@ class ShadowFormMesmerVaettir(Build):
                 if target and not Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot): 
                     GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                     GLOBAL_CACHE.Player.ChangeTarget(target)
-                    if Routines.Yield.Skills.CastSkillSlot(self.wastrels_demise_slot, log=False, aftercast_delay=1000):
+                    if (yield from self._CastSkillSlot(self.wastrels_demise_slot, log=False, aftercast_delay=1000)):
                         GLOBAL_CACHE.Player.Interact(target,False)
                         yield from Routines.Yield.wait(1000)
 

@@ -6,6 +6,7 @@ from HeroAI.cache_data import CacheData
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
+from Widgets.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -14,12 +15,12 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 class HeroAiUtility(CustomSkillUtilityBase):
 
     def __init__(
-        self,
-        skill: CustomSkill,
-        current_build: list[CustomSkill],
-        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(5),
-        mana_required_to_cast: int = 0,
-    ) -> None:
+            self, 
+            skill: CustomSkill, 
+            current_build: list[CustomSkill], 
+            score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.GENERIC_SKILL_HERO_AI.value), 
+            mana_required_to_cast: int = 0
+        ) -> None:
 
         super().__init__(
             skill=skill,
@@ -67,11 +68,8 @@ class HeroAiUtility(CustomSkillUtilityBase):
 
         is_ready_to_cast, target_agent_id = cached_data.combat_handler.IsReadyToCast(order)
 
-        if not is_ready_to_cast:
-            return None
-        score = (
-            8 - order
-        ) + self.score_definition.get_score()  # we do 8 - order + because we want to prioritize the skills that are not in the build based on heroAI
+        if not is_ready_to_cast: return None
+        score = self.score_definition.get_score() + ((8 - order) * 0.01) # we do +0.xx only because we want to prioritize the skills that are not in the build based on heroAI
         return score
 
     @override

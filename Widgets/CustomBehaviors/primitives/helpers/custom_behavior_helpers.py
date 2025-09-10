@@ -1,20 +1,18 @@
-from asyncio import wait_for
-import math
 import time
 from collections.abc import Generator
-from typing import Any, Callable, List, Optional, Tuple
 from dataclasses import dataclass
+from functools import reduce
+from typing import Any, Callable, Optional, Tuple
 
 from HeroAI.cache_data import CacheData
-from HeroAI.windows import skill_slot
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
-from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
+from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
 cached_data = CacheData()
 
-from Py4GWCoreLib import GLOBAL_CACHE, Overlay, SkillBar, ActionQueueManager, Routines, ConsoleLog, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
+from Py4GWCoreLib import GLOBAL_CACHE, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
 from Widgets.CustomBehaviors.primitives.constants import DEBUG
 
 LOG_TO_CONSOLE:bool = True
@@ -187,22 +185,35 @@ class Resources:
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         current_heath_percent = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
         heath_max = GLOBAL_CACHE.Agent.GetMaxHealth(player_agent_id)
-        current_heath = current_heath_percent * heath_max
-        return current_heath
+        return current_heath_percent * heath_max
 
     @staticmethod
     def get_player_absolute_energy() -> float:
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         current_energy_percent = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id)
         energy_max = GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
-        current_energy = current_energy_percent * energy_max
-        return current_energy
+        return current_energy_percent * energy_max
+
+    @staticmethod
+    def player_can_sacrifice_health(
+        percentage_to_sacrifice: int,
+        min_health_percent_left = 0.3,
+        min_health_absolute_left = 175,
+    ) -> bool:
+        player_max_health = GLOBAL_CACHE.Agent.GetMaxHealth(GLOBAL_CACHE.Player.GetAgentID())
+        amount_we_will_sacrifice = player_max_health * percentage_to_sacrifice / 100
+        player_current_health = Resources.get_player_absolute_health()
+        health_after_sacrifice = player_current_health - amount_we_will_sacrifice
+
+        return (health_after_sacrifice > min_health_absolute_left
+                and health_after_sacrifice / player_max_health > min_health_percent_left)
 
     @staticmethod
     def is_spirit_exist(
             within_range: Range,
             associated_to_skill: Optional[CustomSkill] = None,
             condition: Optional[Callable[[int], bool]] = None) -> bool:
+
         spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
         spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), within_range.value)
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
@@ -252,15 +263,15 @@ class Actions:
         if target_id is None:
             target_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value)
 
-        if GLOBAL_CACHE.Agent.IsValid(target_id):
-            ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.ChangeTarget, target_id)
-            ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.Interact, target_id, False)
-            # GLOBAL_CACHE.Player.ChangeTarget(target_id)
+        if not GLOBAL_CACHE.Agent.IsValid(target_id):
+            return None
 
-            yield from Helpers.wait_for(100)
-            return BehaviorResult.ACTION_PERFORMED
-        # else:
-        # print(f"auto_attack target is not valid {target_id}")
+        ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.ChangeTarget, target_id)
+        ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.Interact, target_id, False)
+        # GLOBAL_CACHE.Player.ChangeTarget(target_id)
+
+        yield from Helpers.wait_for(100)
+        return BehaviorResult.ACTION_PERFORMED
 
     @staticmethod
     def cast_skill_to_lambda(skill: CustomSkill, select_target: Optional[Callable[[], int]]) -> Generator[Any, Any, BehaviorResult]:
@@ -405,13 +416,14 @@ class Targets:
 
     @staticmethod
     def is_player_close_to_combat() -> bool:
-        enemy_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 250, aggressive_only=False)
+        enemy_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 350, aggressive_only=False)
         if enemy_id is not None and enemy_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_id): return True
         return False
 
     @staticmethod
     def is_player_in_aggro() -> bool:
-        enemy_aggressive_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 250, aggressive_only=True)
+        
+        enemy_aggressive_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 400, aggressive_only=True)
         if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_aggressive_id): return True
 
         enemy_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value, aggressive_only=False)
@@ -420,8 +432,37 @@ class Targets:
         return False
 
     @staticmethod
-    def is_party_in_combat() -> bool:
-        # todo to implement through shared_memory
+    def is_party_member_in_aggro(agent_id:int) -> bool:
+        
+        agent_pos:tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(agent_id)
+
+        enemy_aggressive_ids = Routines.Agents.GetFilteredEnemyArray(agent_pos[0], agent_pos[1], Range.Spellcast.value + 300, aggressive_only=True)
+        enemy_aggressive_id = Utils.GetFirstFromArray(enemy_aggressive_ids)
+        if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_aggressive_id): return True
+
+        enemy_ids = Routines.Agents.GetFilteredEnemyArray(agent_pos[0], agent_pos[1], Range.Spellcast.value, aggressive_only=False)
+        enemy_id = Utils.GetFirstFromArray(enemy_ids)
+        if enemy_id is not None and enemy_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_id): return True
+
+        return False
+
+    @staticmethod
+    def is_party_leader_in_aggro() -> bool:
+        
+        party_leader_id:int = GLOBAL_CACHE.Party.GetPartyLeaderID()
+        if Targets.is_party_member_in_aggro(party_leader_id): return True
+        return False
+
+    @staticmethod
+    def is_party_in_aggro() -> bool:
+
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        for player in players:
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            if Targets.is_party_member_in_aggro(agent_id):
+                return agent_id
+
+        # todo to implement
         return False
 
     @staticmethod
@@ -569,6 +610,8 @@ class Targets:
         if len(allies) == 0: return None
         return allies[0]
 
+    # enemy 
+
     @staticmethod
     def get_first_or_default_from_enemy_ordered_by_priority(
             within_range: Range,
@@ -691,6 +734,20 @@ class Targets:
 class Heals:
 
     @staticmethod
+    def is_ally_under_specific_effect(agent_id: int, skill_id: int) -> bool:
+        from HeroAI.utils import CheckForEffect
+
+        if agent_id == GLOBAL_CACHE.Player.GetAgentID() :
+            # if target is the player, check if the player has the effect
+            has_buff: bool = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), skill_id)
+            return has_buff
+        else:
+            # else check if the party target has the effect
+            # not sure pet are in heroAI...
+            has_effect: bool = CheckForEffect(agent_id, skill_id)
+            return has_effect
+
+    @staticmethod
     def is_party_damaged(within_range:Range, min_allies_count:int, less_health_than_percent:float) -> bool:
 
         allies = Targets.get_all_possible_allies_ordered_by_priority(
@@ -702,6 +759,15 @@ class Heals:
 
         if len(allies) < min_allies_count: return False
         return True
+
+    @staticmethod
+    def party_average_health(within_range:Range) -> float:
+        allies = Targets.get_all_possible_allies_ordered_by_priority(
+            within_range=within_range,
+            condition= lambda agent_id: True,
+            sort_key= (TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
+        )
+        return reduce(lambda acc, ally: acc + GLOBAL_CACHE.Agent.GetHealth(ally), allies, 0) / len(allies)
 
     @staticmethod
     def get_first_member_damaged(within_range: Range, less_health_than_percent: float, exclude_player:bool, condition: Optional[Callable[[int], bool]] = None) -> int | None:

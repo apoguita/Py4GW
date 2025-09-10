@@ -1,17 +1,14 @@
 from typing import override
 
-from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import (
-    ScorePerAgentQuantityDefinition,
-)
+from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
+from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
+from Widgets.CustomBehaviors.skills.common.breath_of_the_great_dwarf_utility import BreathOfTheGreatDwarfUtility
 from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
-from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import (
-    EbonVanguardAssassinSupportUtility,
-)
+from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
 from Widgets.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
 from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
 from Widgets.CustomBehaviors.skills.generic.raw_aoe_attack_utility import RawAoeAttackUtility
@@ -26,12 +23,11 @@ from Widgets.CustomBehaviors.skills.mesmer.unnatural_signet_utility import Unnat
 from Widgets.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 
 
-class MesmerESurgerUtilitySkillBar(CustomBehaviorBaseUtility):
+class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     def __init__(self):
         super().__init__()
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
-        self.auto_attack: CustomSkillUtilityBase = AutoAttackUtility(current_build=in_game_build)
 
         # interrupt
         self.cry_of_pain_utility: CustomSkillUtilityBase = CryOfPainUtility(
@@ -97,25 +93,11 @@ class MesmerESurgerUtilitySkillBar(CustomBehaviorBaseUtility):
         )
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(current_build=in_game_build)
 
-        # common
-        self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(
-            score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15
-        )
-        self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(
-            score_definition=ScorePerAgentQuantityDefinition(
-                lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40
-            ),
-            current_build=in_game_build,
-            mana_required_to_cast=18,
-        )
-        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(
-            current_build=in_game_build, score_definition=ScoreStaticDefinition(99)
-        )
-
-    @property
-    @override
-    def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
-        return [self.auto_attack]
+        #common
+        self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
+        self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(score_definition= ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
+        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
+        self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
 
     @property
     @override
@@ -139,6 +121,7 @@ class MesmerESurgerUtilitySkillBar(CustomBehaviorBaseUtility):
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
             self.i_am_unstopabble,
+            self.breath_of_the_great_dwarf_utility
         ]
 
     @property

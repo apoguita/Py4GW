@@ -1,6 +1,4 @@
-from typing import Any
-from typing import Generator
-from typing import override
+from typing import Any, Generator, override
 
 from Py4GWCoreLib import Range
 from Py4GWCoreLib.enums import SpiritModelID
@@ -12,7 +10,6 @@ from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorR
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-
 
 class SignetOfSpiritsUtility(CustomSkillUtilityBase):
     def __init__(

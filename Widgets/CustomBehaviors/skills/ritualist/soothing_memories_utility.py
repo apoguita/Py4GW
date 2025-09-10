@@ -1,17 +1,12 @@
-from typing import Any
-from typing import Generator
-from typing import override
+from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import Range
+from Py4GWCoreLib import GLOBAL_CACHE, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.scores.healing_score import HealingScore
-from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import (
-    ScorePerHealthGravityDefinition,
-)
+from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -42,12 +37,10 @@ class SoothingMemoriesUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        targets: list[custom_behavior_helpers.SortableAgentData] = (
-            custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-                within_range=Range.Spellcast,
-                condition=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.9,
-                sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
-            )
+        targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
+            within_range=Range.Spirit,
+            condition=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.9,
+            sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC)
         )
 
         if len(targets) == 0:
@@ -64,7 +57,7 @@ class SoothingMemoriesUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
-            within_range=Range.Spellcast,
+            within_range=Range.Spirit,
             condition=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.95,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
         )

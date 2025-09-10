@@ -7,6 +7,7 @@ from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Routines
 from Widgets.CustomBehaviors.primitives.constants import DEBUG
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
+from Widgets.CustomBehaviors.skillbars import hero_ai_fallback
 
 
 class MatchResult:
@@ -205,9 +206,9 @@ class CustomBehaviorLoader:
             self.custom_combat_behavior = result
             self.custom_combat_behavior.enable()
         else:
-            if DEBUG:
-                print("no custom behavior found")
-            self.custom_combat_behavior = None
+            if DEBUG: print(f"no custom behavior found, fallback to hero_ai_fallback")
+            self.custom_combat_behavior = hero_ai_fallback.HeroAiFallback_UtilitySkillBar()
+            self.custom_combat_behavior.enable()
 
         self._has_loaded = True
 

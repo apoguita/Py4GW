@@ -1,9 +1,6 @@
-from typing import Any
-from typing import Generator
-from typing import override
+from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import Range
+from Py4GWCoreLib import GLOBAL_CACHE, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -14,10 +11,9 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 
 class ShatterEnchantmentUtility(CustomSkillUtilityBase):
-    def __init__(
-        self,
-        current_build: list[CustomSkill],
-        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(10),
+    def __init__(self, 
+        current_build: list[CustomSkill], 
+        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(11),
         mana_required_to_cast: int = 20,
         allowed_states: list[BehaviorState] = [
             BehaviorState.IN_AGGRO,

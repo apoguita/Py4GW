@@ -8,6 +8,7 @@ class HealingScore(Enum):
     # Party-wide damage conditions
     PARTY_DAMAGE_EMERGENCY = 80.0  # Critical party-wide damage
     PARTY_DAMAGE = 60.0            # Significant party-wide damage
+    PARTY_HEALTHY = 10.0           # Party is healthy
     
     # Individual member damage conditions
     MEMBER_DAMAGED_EMERGENCY = 70.0  # Critical damage to a party member

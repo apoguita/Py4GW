@@ -1,6 +1,4 @@
-from typing import Any
-from typing import Generator
-from typing import override
+from typing import Any, Generator, override
 
 from Py4GWCoreLib import Range
 from Py4GWCoreLib.enums import SpiritModelID
@@ -14,16 +12,17 @@ from Widgets.CustomBehaviors.primitives.scores.score_static_definition import Sc
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
-
 class SummonSpiritUtility(CustomSkillUtilityBase):
-    def __init__(self, current_build: list[CustomSkill], score_definition: ScoreStaticDefinition) -> None:
+    def __init__(self,
+                 skill: CustomSkill,
+                 current_build: list[CustomSkill],
+                 score_definition: ScoreStaticDefinition) -> None:
 
         super().__init__(
-            skill=CustomSkill("Summon_Spirits_luxon"),
+            skill=skill,
             in_game_build=current_build,
             score_definition=score_definition,
-            allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO],
-        )
+            allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
 
         self.score_definition: ScoreStaticDefinition = score_definition
         self.owned_spirits: list[SpiritModelID] = []
@@ -32,9 +31,8 @@ class SummonSpiritUtility(CustomSkillUtilityBase):
 
     def on_spirit_created(self, message: EventMessage):
 
-        spirit_model_id = message.data
-        if not spirit_model_id:
-            return
+        spirit_model_id: SpiritModelID = message.data
+        if spirit_model_id is None: return
 
         if spirit_model_id not in self.owned_spirits:
             self.owned_spirits.append(spirit_model_id)
@@ -43,24 +41,18 @@ class SummonSpiritUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
         # we check life & distance of owned spirits
-
         spirits: list[custom_behavior_helpers.SpiritAgentData] = custom_behavior_helpers.Targets.get_all_spirits_raw(
-            within_range=Range.Compass, spirit_model_ids=self.owned_spirits, condition=lambda agent_id: True
+            within_range=Range.Compass,
+            spirit_model_ids=self.owned_spirits,
+            condition=lambda agent_id: True
         )
 
-        # if distance > Spirit, we summon spirit
-        if current_state is BehaviorState.FAR_FROM_AGGRO:
-            for spirit in spirits:
-                if spirit.distance_from_player > Range.Compass.value * 0.75:
-                    return self.score_definition.get_score()
-
-        if current_state is BehaviorState.CLOSE_TO_AGGRO or current_state is BehaviorState.IN_AGGRO:
-            for spirit in spirits:
-                if spirit.distance_from_player > Range.Area.value:
-                    return self.score_definition.get_score()
-
-        # if any spirit has life lower than < x, we summon spirit
         for spirit in spirits:
+            if current_state is BehaviorState.FAR_FROM_AGGRO and spirit.distance_from_player > Range.Compass.value * 0.75:
+                return self.score_definition.get_score()
+            if current_state is BehaviorState.CLOSE_TO_AGGRO or current_state is BehaviorState.IN_AGGRO and spirit.distance_from_player > Range.Area.value:
+                return self.score_definition.get_score()
+            # if any spirit has life lower than < x, we summon spirit
             if spirit.hp < 0.9:
                 return self.score_definition.get_score()
 

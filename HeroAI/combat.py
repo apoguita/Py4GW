@@ -5,6 +5,7 @@ from .custom_skill import CustomSkillClass
 from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyInjured, GetEnemyConditioned
 from .targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, GetEnemyMoving, GetEnemyKnockedDown
+from .targeting import GetEnemyBleeding, GetEnemyPoisoned, GetEnemyCrippled
 from .types import SkillNature, Skilltarget, SkillType
 from .constants import MAX_NUM_PLAYERS
 from typing import Optional
@@ -425,6 +426,18 @@ class CombatClass:
                 v_target = nearest_enemy
         elif target_allegiance == Skilltarget.EnemyConditioned:
             v_target = GetEnemyConditioned(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyBleeding:
+            v_target = GetEnemyBleeding(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyPoisoned:
+            v_target = GetEnemyPoisoned(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyCrippled:
+            v_target = GetEnemyCrippled(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
                 v_target = nearest_enemy
         elif target_allegiance == Skilltarget.EnemyHexed:
