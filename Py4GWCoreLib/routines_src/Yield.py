@@ -285,10 +285,10 @@ class Yield:
                 ConsoleLog("TravelToOutpost", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
                 GLOBAL_CACHE.Map.Travel(outpost_id)
                 yield from Yield.wait(3000)
-                waititng_for_map_load = True
-                while waititng_for_map_load:
+                waiting_for_map_load = True
+                while waiting_for_map_load:
                     if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.GetMapID() == outpost_id:
-                        waititng_for_map_load = False
+                        waiting_for_map_load = False
                         break
                     delta = Utils.GetBaseTimestamp() - start_time
                     if delta > timeout and timeout > 0:
@@ -308,7 +308,7 @@ class Yield:
                 outpost_id (int): The ID of the outpost to travel to.
                 region (int): The region ID to travel to.
                 district (int): The district ID to travel to.
-                laguage (int): The language ID to travel to. Default is 0.
+                language (int): The language ID to travel to. Default is 0.
                 log (bool) Optional: Whether to log the action. Default is True.
             Returns: None
             """
@@ -319,10 +319,10 @@ class Yield:
                 ConsoleLog("TravelToRegion", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
                 GLOBAL_CACHE.Map.TravelToRegion(outpost_id, region, district, language)
                 yield from Yield.wait(2000)
-                waititng_for_map_load = True
-                while waititng_for_map_load:
+                waiting_for_map_load = True
+                while waiting_for_map_load:
                     if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.GetMapID() == outpost_id:
-                        waititng_for_map_load = False
+                        waiting_for_map_load = False
                         break
                     yield from Yield.wait(1000)
                 yield from Yield.wait(1000)
@@ -344,8 +344,8 @@ class Yield:
             """
             yield from Yield.wait(1000)
             start_time = Utils.GetBaseTimestamp()
-            waititng_for_map_load = True
-            while waititng_for_map_load:
+            waiting_for_map_load = True
+            while waiting_for_map_load:
                 if not Checks.Map.MapValid():
                     yield from Yield.wait(1000)
                     ConsoleLog("WaitforMapLoad", "Map not valid, waiting...", log=log)
@@ -368,7 +368,7 @@ class Yield:
                     ConsoleLog("WaitforMapLoad", f"Waiting for map load {map_id} (current: {current_map})", log=log)
                     continue
             
-                waititng_for_map_load = False
+                waiting_for_map_load = False
 
             
             ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)}", log=log)
