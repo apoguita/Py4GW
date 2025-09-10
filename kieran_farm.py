@@ -4,9 +4,7 @@ import PyMap, PyImGui
 from typing import List, Tuple
 
 bot = Botting("Kieran Farm Bot")
-
-
-        
+     
 def create_bot_routine(bot: Botting) -> None:
     InitializeBot(bot)
     GoToEOTN(bot)
@@ -101,7 +99,8 @@ def AuspiciousBeginnings(bot: Botting) -> None:
     bot.Move.XY(8655.57, -8782.28, step_name="To corner")
     bot.Move.XY(4518.81, -9504.34, step_name="To safe spot 0")
     bot.Wait.ForTime(5000)
-    #bot.Move.XY(2501.02, -10844.87, step_name="To patrol")
+    bot.Move.XY(3554.11, -10627.49, step_name="To 0.5")
+    
     bot.Move.XY(3173.55, -12144.88, step_name="To safe spot 1")
     
     bot.Move.XY(869.17, -13687.34, step_name="To safe spot 2")
@@ -111,7 +110,7 @@ def AuspiciousBeginnings(bot: Botting) -> None:
     bot.Move.XY(-2860.21, -12198.37, step_name="To middle")
     bot.Wait.ForTime(5000)
     bot.Move.XY(-4500.21, -12811.61, step_name="To safe spot 4")
-    
+
     bot.Move.XY(-15858.25, -8840.35, step_name="To End of Path")
     bot.Wait.ForMapToChange(target_map_id=646)
     _DisableCombat(bot)
