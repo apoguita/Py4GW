@@ -1,4 +1,4 @@
-from .BuildMgr import ShadowFormAssassinVaettir, ShadowFormMesmerVaettir
+from Py4GWCoreLib.Builds import ShadowFormAssassinVaettir, ShadowFormMesmerVaettir
 from .LogConsole import LogConsole
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Routines
