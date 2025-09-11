@@ -3,7 +3,8 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
 
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 
-bot = Botting("Kieran Farm Bot")
+bot = Botting("Kieran Farm Bot",
+              custom_build=KeiranThackerayEOTN())
      
 def create_bot_routine(bot: Botting) -> None:
     InitializeBot(bot)
@@ -36,6 +37,7 @@ def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
     bot.OverrideBuild(KeiranThackerayEOTN())
+
     
 def GoToEOTN(bot: Botting) -> None:
     bot.States.AddHeader("Go to EOTN")

@@ -187,6 +187,12 @@ def GetEnemyInjured(max_distance=4500.0, aggressive_only = False):
     enemy_array = AgentArray.Sort.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id))
     return Utils.GetFirstFromArray(enemy_array)
 
+def GetEnemyHealthy(max_distance=4500.0, aggressive_only = False):
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Sort.ByCondition(enemy_array, lambda agent_id: -GLOBAL_CACHE.Agent.GetHealth(agent_id))
+    return Utils.GetFirstFromArray(enemy_array)
+
 def GetEnemyConditioned(max_distance=4500.0, aggressive_only = False):
     player_pos = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)

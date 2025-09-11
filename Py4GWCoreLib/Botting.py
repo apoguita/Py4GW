@@ -87,7 +87,8 @@ class BottingClass:
                  upkeep_slice_of_pumpkin_pie_active: bool = False,
                  upkeep_slice_of_pumpkin_pie_restock: int = 0,
                  upkeep_war_supplies_active: bool = False,
-                 upkeep_war_supplies_restock: int = 0):
+                 upkeep_war_supplies_restock: int = 0, 
+                 custom_build: Optional[BuildMgr] = None):
         #internal configuration
         self.bot_name = bot_name
         
