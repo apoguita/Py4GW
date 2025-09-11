@@ -249,10 +249,14 @@ class CustomBehaviorBaseUtility():
     # orchestration
 
     timer = Timer()
-    throttler = ThrottledTimer(70)
+    throttler = ThrottledTimer(50)
+    compute_throttler = ThrottledTimer(250)
+    execute_throttler = ThrottledTimer(80)
 
     def act(self):
         if not self.throttler.IsExpired(): return
+        self.throttler.Reset()
+        
         if not Routines.Checks.Map.MapValid(): return
         if not self.get_final_is_enabled(): return
 
@@ -262,9 +266,6 @@ class CustomBehaviorBaseUtility():
         # or cached_data.data.player_is_knocked_down
         # or cached_data.combat_handler.InCastingRoutine()
         # or cached_data.data.player_is_casting
-
-        self.throttler.Reset()
-        self.timer.Reset()
 
         if not self.is_custom_behavior_match_in_game_build(): 
             print("Custom behavior doesn't match in game build, you are not allowed to perform behavior.act().")
@@ -278,22 +279,38 @@ class CustomBehaviorBaseUtility():
                 hero_ai_options.Following = False
                 hero_ai_options.Looting = False
 
-        self.__fetch_and_memoized_state()
-        self.__fetch_and_memoized_all_scores()
+        # it is interesting to compute score less often, as the execution :
+        # - if we are executing with EXECUTE_THROUGH_THE_END, most of the time it take more than 300/400 ms with the aftercast.
+        # - if we are executing with STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST, we don't need huge responsiveness
 
-        # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
+        if self.compute_throttler.IsExpired():
+            
+            self.compute_throttler.Reset()
+            self.timer.Reset()
+            self.__fetch_and_memoized_state()
+            self.__fetch_and_memoized_all_scores()
+            # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
 
-        try:
-            next(self._generator_handle)
-        except StopIteration:
-            print(f"act is not expected to StopIteration.")
-        except Exception as e:
-            print(f"act is not expected to exit : {e}")
+        if self.execute_throttler.IsExpired():
+            self.execute_throttler.Reset()
+            self.timer.Reset()
+            try:
+                next(self._generator_handle)
+            except StopIteration:
+                print(f"act is not expected to StopIteration.")
+            except Exception as e:
+                print(f"act is not expected to exit : {e}")
+            # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
 
     # STATES
     
     def __fetch_and_memoized_state(self):
+
         def compute_state() -> BehaviorState:
+            timer = Timer()
+            timer.Reset()
+            # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
+
             if self.get_final_is_enabled() == False:
                 return BehaviorState.IDLE
 
@@ -310,7 +327,7 @@ class CustomBehaviorBaseUtility():
                 return BehaviorState.IN_AGGRO
 
             if custom_behavior_helpers.Targets.is_party_in_aggro():
-                return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies
+                 return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies
 
             if custom_behavior_helpers.Targets.is_party_leader_in_aggro():
                 return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies

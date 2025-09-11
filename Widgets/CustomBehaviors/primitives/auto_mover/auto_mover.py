@@ -39,6 +39,7 @@ class AutoMover:
             try:
                 next(self.generator)
             except StopIteration:
+                if constants.DEBUG: print(f"AutoMover finalized StopIteration.")
                 generator = None
 
     def define_destination(self, target_position: tuple[float, float]) -> Generator[Any, None, Any]:
@@ -76,4 +77,5 @@ class AutoMover:
 
     def on_progress(self, progress: float) -> None:
         self.movement_progress = round(progress * 100, 1)
+        if constants.DEBUG: print(f"AutoMover progress {self.movement_progress}")
 

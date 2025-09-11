@@ -144,6 +144,20 @@ def render():
                 print(f"SendMessage {account_email} to {account.AccountEmail}")
                 GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.TravelToMap, (self_account.MapID, self_account.MapRegion, self_account.MapDistrict, 0))
 
+
+    if GLOBAL_CACHE.Map.IsOutpost():
+        PyImGui.separator()
+
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_PLANE_DEPARTURE} LeaveParty"):
+            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            for account in accounts:
+                if account.AccountEmail == account_email:
+                    continue
+                print(f"SendMessage {account_email} to {account.AccountEmail}")
+                GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.LeaveParty, ())
+
     PyImGui.separator()
 
     PyImGui.text(f"PartyForcedState={CustomBehaviorParty().get_party_forced_state()}")
