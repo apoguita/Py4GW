@@ -778,8 +778,24 @@ class PVESkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Healing.value
+        skill.Nature = SkillNature.CustomA.value
         skill.Conditions.IsOutOfCombat = True
-        skill.Conditions.LessLife = 0.9
+        skill.Conditions.LessLife = 0.98
         skill.Conditions.UniqueProperty = True
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Find_Their_Weakness_Thackeray")
+        skill.SkillType = SkillType.Skill.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsOutOfCombat = True
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Theres_Nothing_to_Fear_Thackeray")
+        skill.SkillType = SkillType.Skill.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill

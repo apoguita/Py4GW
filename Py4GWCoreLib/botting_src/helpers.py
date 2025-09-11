@@ -600,10 +600,13 @@ class BottingHelpers:
             self._config = parent._config
             self._Events = parent.Events
                  
-        @_yield_step(label="WasteTime", counter_key="WASTE_TIME")
-        def for_time(self, duration: int = 100):
+        def _for_time(self, duration: int = 100):
             from ..Routines import Routines
             yield from Routines.Yield.wait(duration)
+            
+        @_yield_step(label="WasteTime", counter_key="WASTE_TIME")
+        def for_time(self, duration: int = 100):
+            yield from self._for_time(duration)
 
         @_yield_step(label="WasteTimeUntilConditionMet", counter_key="WASTE_TIME")
         def until_condition(self, condition: Callable[[], bool], duration: int=1000):
