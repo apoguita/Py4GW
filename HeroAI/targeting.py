@@ -249,3 +249,11 @@ def GetEnemyKnockedDown(max_distance=4500.0, aggressive_only = False):
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsKnockedDown(agent_id))
     enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
     return Utils.GetFirstFromArray(enemy_array)
+
+def GetEnemyWithEffect(effect_skill_id, max_distance=4500.0, aggressive_only = False):
+
+    player_pos = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Routines.Checks.Agents.HasEffect(agent_id, effect_skill_id))
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+    return Utils.GetFirstFromArray(enemy_array)

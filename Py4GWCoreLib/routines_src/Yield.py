@@ -220,11 +220,12 @@ class Yield:
             if log:
                 ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
             
-            yield
+            if aftercast_delay > 0:
+                yield from Yield.wait(aftercast_delay)
             return True
         
         @staticmethod
-        def IsSkillIdUsable(skill_id: int):
+        def IsSkillIDUsable(skill_id: int):
             from .Checks import Checks
 
             if not GLOBAL_CACHE.Map.IsMapReady():
@@ -232,6 +233,7 @@ class Yield:
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
             enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
             skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
+            yield
             return enough_energy and skill_ready
 
         @staticmethod
@@ -250,7 +252,7 @@ class Yield:
             if log:
                 ConsoleLog("CastSkillSlot", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
             
-            yield
+            yield from Yield.wait(aftercast_delay)
             return True
       
 #region Map      
@@ -435,8 +437,7 @@ class Yield:
 
         @staticmethod
         def ChangeTarget(agent_id):
-            if agent_id != 0:
-                
+            if agent_id != 0: 
                 GLOBAL_CACHE.Player.ChangeTarget(agent_id)
                 yield from Yield.wait(250)   
                 

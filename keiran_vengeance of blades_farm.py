@@ -1,9 +1,14 @@
-from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui, ActionQueueManager, Keystroke, Key)
-import PyMap, PyImGui
-from typing import List, Tuple
+from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, ModelID, Botting,
+                          ActionQueueManager)
+
+from Py4GWCoreLib.Builds import KeiranThackerayEOTN
+
+
 
 bot = Botting("Vengeance of Blades Farm")
+
+
+
 
 def create_bot_routine(bot: Botting) -> None:
     InitializeBot(bot)
@@ -35,6 +40,7 @@ def on_death(bot: "Botting"):
 def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
+    bot.OverrideBuild(KeiranThackerayEOTN())
     
 def GoToEOTN(bot: Botting) -> None:
     bot.States.AddHeader("Go to EOTN")

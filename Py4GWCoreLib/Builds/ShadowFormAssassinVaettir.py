@@ -74,7 +74,7 @@ class ShadowFormAssassinVaettir(BuildMgr):
     def DefensiveActions(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
-        if Routines.Yield.Skills.IsSkillIdUsable(self.shadow_form):
+        if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_form)):
             if (yield from self._CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=100)):
                 ConsoleLog(self.build_name, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=False)
                 yield from Routines.Yield.wait(100)
@@ -176,7 +176,7 @@ class ShadowFormAssassinVaettir(BuildMgr):
             shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id,self.shadow_form) if has_shadow_form else 0
             if Routines.Checks.Agents.InDanger(Range.Spellcast):
                 has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
-                if Routines.Yield.Skills.IsSkillIdUsable(self.shadow_form):
+                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_form)):
                     GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                     if (yield from self._CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=200)):
                         ConsoleLog(self.build_name, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=False)

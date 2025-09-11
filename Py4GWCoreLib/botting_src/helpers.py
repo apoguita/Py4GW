@@ -359,31 +359,12 @@ class BottingHelpers:
             self.parent = parent.parent
             self._config = parent._config
         
-        def _auto_combat(self):
-            from ..Routines import Routines
-            from ..GlobalCache import GLOBAL_CACHE
-            global auto_attack_timer, auto_attack_threshold, is_expired
-            self._config.auto_combat_handler.SetWeaponAttackAftercast()
-
-            if not (Routines.Checks.Map.MapValid() and 
-                    Routines.Checks.Player.CanAct() and
-                    GLOBAL_CACHE.Map.IsExplorable() and
-                    not self._config.auto_combat_handler.InCastingRoutine()):
-                yield from Routines.Yield.wait(100)
-            else:
-                self._config.auto_combat_handler.HandleCombat()
-                #control vars
-                auto_attack_timer = self._config.auto_combat_handler.auto_attack_timer.GetTimeElapsed()
-                auto_attack_threshold = self._config.auto_combat_handler.auto_attack_timer.throttle_time
-                is_expired = self._config.auto_combat_handler.auto_attack_timer.IsExpired()
-            yield
-
         def upkeep_auto_combat(self):
             from ..Routines import Routines
             while True:
                 #print (f"autocombat is: {self._config.upkeep.auto_combat.is_active()}")
                 if self._config.upkeep.auto_combat.is_active():
-                    yield from self._auto_combat()
+                    yield from self._config.build_handler.ProcessSkillCasting()
                 else:
                     yield from Routines.Yield.wait(500)       
 
