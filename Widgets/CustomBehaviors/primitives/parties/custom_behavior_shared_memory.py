@@ -73,16 +73,14 @@ class CustomBehaviorWidgetMemoryManager:
             try:
                 self.shm = shared_memory.SharedMemory(name=self.shm_name)
                 if DEBUG: print(f"Shared memory area '{self.shm_name}' attached.")
+                # we keep current.
             except FileNotFoundError:
                 self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
                 if DEBUG: print(f"Shared memory area '{self.shm_name}' created.")
+                self.__reset_all_data()  # Initialize all player data
 
             # Attach the shared memory structure
-            # self.game_struct = AllAccounts.from_buffer(self.shm.buf)
-            self.__reset_all_data()  # Initialize all player data
-
             self.__shared_lock = SharedLockManager(self._get_struct)
-
             self._initialized = True
 
     def _get_struct(self) -> CustomBehaviorWidgetStruct:
@@ -96,7 +94,7 @@ class CustomBehaviorWidgetMemoryManager:
         mem.IsCombatEnabled = True
         mem.IsFollowingEnabled = True
         mem.IsLootingEnabled = True
-        mem.IsChestingEnabled = True
+        mem.IsChestingEnabled = False # we deactivate chesting by-default.
         mem.IsBlessingEnabled = True
         
         for i in range(MAX_LOCKS):

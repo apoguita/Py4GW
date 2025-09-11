@@ -26,7 +26,8 @@ generator:Generator[Any, None, Any] | None = None
 def render():
     global generator, coords_input_buffer  # Tell Python we're referring to the global one
 
-    PyImGui.text(f"auto-moving from map coords [U] - copy paste coordinate from [MissionMap+ - Widget]")
+    PyImGui.text(f"auto-moving from map coords [U]")
+    PyImGui.text(f"copy paste coordinate from [MissionMap+ - Widget]")
     PyImGui.separator()
 
     if not GLOBAL_CACHE.Party.IsPartyLeader():

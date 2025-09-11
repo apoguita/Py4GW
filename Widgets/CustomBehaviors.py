@@ -2,6 +2,7 @@
 import pathlib
 import sys
 from Py4GWCoreLib.Py4GWcorelib import LootConfig, Utils
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
@@ -35,7 +36,6 @@ from Widgets.CustomBehaviors.gui.auto_mover import render as auto_mover
 from Widgets.CustomBehaviors.gui.daemon import daemon as daemon
 
 party_forced_state_combo = 0
-DEBUG = True
 current_path = pathlib.Path.cwd()
 print(f"current_path is : {current_path}")
 
@@ -93,7 +93,6 @@ def gui():
     return
 
 def main():
-
     if not Routines.Checks.Map.MapValid():
         return
 

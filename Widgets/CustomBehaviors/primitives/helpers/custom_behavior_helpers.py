@@ -454,6 +454,9 @@ class Targets:
 
     @staticmethod
     def is_party_in_aggro() -> bool:
+        
+        # doing such thing for whole party is too costly
+        return False
 
         players = GLOBAL_CACHE.Party.GetPlayers()
         for player in players:
