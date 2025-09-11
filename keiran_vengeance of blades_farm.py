@@ -1,13 +1,13 @@
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, ModelID, Botting,
                           ActionQueueManager)
 
+
+
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 
 
-
-bot = Botting("Vengeance of Blades Farm")
-
-
+bot = Botting("Vengeance of Blades Farm",
+              custom_build=KeiranThackerayEOTN())
 
 
 def create_bot_routine(bot: Botting) -> None:
@@ -86,6 +86,7 @@ def EnterQuest(bot: Botting) -> None:
 
 def VengeanceOfBlades(bot: Botting) -> None:
     def _EnableCombat(bot: Botting) -> None:
+        bot.OverrideBuild(KeiranThackerayEOTN())
         bot.Properties.Enable("pause_on_danger")
         bot.Properties.Disable("halt_on_death")
         bot.Properties.Set("movement_timeout",value=-1)

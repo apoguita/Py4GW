@@ -16,14 +16,13 @@ class Checks:
     class Player:
         @staticmethod
         def CanAct():
-            from ..GlobalCache import GLOBAL_CACHE
             if not Checks.Map.MapValid():
                 return False
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Checks.Player.IsDead():
                 return False
-            if GLOBAL_CACHE.Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID()):
+            if Checks.Player.IsKnockedDown():
                 return False
-            if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+            if Checks.Player.IsCasting():
                 return False
             return True
         
@@ -36,6 +35,11 @@ class Checks:
         def IsCasting():
             from ..GlobalCache import GLOBAL_CACHE
             return GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
+        
+        @staticmethod
+        def IsKnockedDown():
+            from ..GlobalCache import GLOBAL_CACHE
+            return GLOBAL_CACHE.Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
 
 #region Party
     class Party:
@@ -99,16 +103,61 @@ class Checks:
     class Map:
         @staticmethod
         def MapValid():
-            from ..GlobalCache import GLOBAL_CACHE
-            if  GLOBAL_CACHE.Map.IsMapLoading():
+            import PyMap
+            import PyParty
+            current_map = PyMap.PyMap()
+
+            if  current_map.instance_type.GetName() == "Loading":
                 return False
-            if not  GLOBAL_CACHE.Map.IsMapReady():
+            if not current_map.is_map_ready:
                 return False
-            if not  GLOBAL_CACHE.Party.IsPartyLoaded():
+            party = PyParty.PyParty()
+            if not party.is_party_loaded:
                 return False
-            if  GLOBAL_CACHE.Map.IsInCinematic():
+            if  current_map.is_in_cinematic:
                 return False
             return True
+        
+        @staticmethod
+        def IsExplorable():
+            from ..GlobalCache import GLOBAL_CACHE
+            if not Checks.Map.MapValid():
+                return False
+            return GLOBAL_CACHE.Map.IsExplorable()
+        
+        @staticmethod
+        def IsOutpost():
+            from ..GlobalCache import GLOBAL_CACHE
+            if not Checks.Map.MapValid():
+                return False
+            return GLOBAL_CACHE.Map.IsOutpost()
+        
+        @staticmethod
+        def IsLoading():
+            import PyMap
+            if not Checks.Map.MapValid():
+                return True
+            current_map = PyMap.PyMap()
+            if  current_map.instance_type.GetName() == "Loading":
+                return True
+            return False
+        
+        @staticmethod
+        def IsMapReady():
+            import PyMap
+            if not Checks.Map.MapValid():
+                return False
+            current_map = PyMap.PyMap()
+            return current_map.is_map_ready
+        
+        @staticmethod
+        def IsInCinematic():
+            import PyMap
+            if not Checks.Map.MapValid():
+                return False
+            current_map = PyMap.PyMap()
+            return current_map.is_in_cinematic
+        
 #region Inventory
     class Inventory:
         @staticmethod
@@ -164,7 +213,12 @@ class Checks:
             from ..AgentArray import AgentArray
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import Utils
+            if not Checks.Map.MapValid():
+                return False
+            
             enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+            if len(enemy_array) == 0:
+                return False
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), GLOBAL_CACHE.Agent.GetXY(agent_id)) <= aggro_area.value)
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id)
@@ -302,26 +356,31 @@ class Checks:
         @staticmethod
         def IsSkillIDReady(skill_id):
             from ..GlobalCache import GLOBAL_CACHE
-            skill = GLOBAL_CACHE.SkillBar.GetSkillData(GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id))
-            recharge = skill.recharge
-            return recharge == 0
+            slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+            return Checks.Skills.IsSkillSlotReady(slot)
+
 
         @staticmethod
         def IsSkillSlotReady(skill_slot):
             from ..GlobalCache import GLOBAL_CACHE
+            if skill_slot <= 0 or skill_slot > 8:
+                return False
             skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
             return skill.recharge == 0
         
         @staticmethod    
         def CanCast():
+            if not Checks.Map.MapValid():
+                return False
+            
             from ..GlobalCache import GLOBAL_CACHE
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
 
             if (
-                GLOBAL_CACHE.Agent.IsCasting(player_agent_id) 
-                or GLOBAL_CACHE.Agent.IsKnockedDown(player_agent_id)
-                or GLOBAL_CACHE.Agent.IsDead(player_agent_id)
-                or GLOBAL_CACHE.SkillBar.GetCasting() != 0
+                Checks.Player.IsCasting() or
+                Checks.Player.IsDead() or
+                Checks.Player.IsKnockedDown() or
+                GLOBAL_CACHE.SkillBar.GetCasting() != 0
             ):
                 return False
             return True
