@@ -71,7 +71,8 @@ class BotConfig:
                  upkeep_slice_of_pumpkin_pie_active: bool = False,
                  upkeep_slice_of_pumpkin_pie_restock: int = 0,
                  upkeep_war_supplies_active: bool = False,
-                 upkeep_war_supplies_restock: int = 0
+                 upkeep_war_supplies_restock: int = 0,
+                 custom_build: Optional[BuildMgr] = None
                  ):
         self.parent:"BottingClass" = parent
         self.bot_name:str = bot_name
@@ -81,7 +82,10 @@ class BotConfig:
         self.state_description: str = "Idle"
         self.state_percentage: float = 0.0
         #self.build_handler:SkillManager.Autocombat = SkillManager.Autocombat()
-        self.build_handler:BuildMgr = AutoCombat()
+        if custom_build is not None:
+            self.build_handler:BuildMgr = custom_build
+        else:
+            self.build_handler:BuildMgr = AutoCombat()
 
         self.counters = StepNameCounters()
         
