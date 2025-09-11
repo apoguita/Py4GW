@@ -847,18 +847,15 @@ def BjoraMarchesSkillCasting():
     has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id,deadly_paradox)
     if shadow_form_buff_time_remaining <= 3500: #about to expire, recast
         #** Cast Deadly Paradox **
-        if Routines.Yield.Skills.CastSkillID(deadly_paradox,extra_condition=(not has_deadly_paradox), log=log_to_console, aftercast_delay=100):           
-            yield from Routines.Yield.wait(100)   
+        yield from Routines.Yield.Skills.CastSkillID(deadly_paradox,extra_condition=(not has_deadly_paradox), log=log_to_console, aftercast_delay=100)
         # ** Cast Shadow Form **
-        if Routines.Yield.Skills.CastSkillID(shadow_form, log=log_to_console, aftercast_delay=1250):
-            yield from Routines.Yield.wait(1250)
+        yield from Routines.Yield.Skills.CastSkillID(shadow_form, log=log_to_console, aftercast_delay=1250)
         return 
         
     #if were hurt, we need to cast shroud of distress 
     if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
         # ** Cast Shroud of Distress **
-        if Routines.Yield.Skills.CastSkillID(shroud_of_distress, log=log_to_console, aftercast_delay=1250):
-            yield from Routines.Yield.wait(1250)
+        if (yield from Routines.Yield.Skills.CastSkillID(shroud_of_distress, log=log_to_console, aftercast_delay=1250)):
             return
 
     #if we have an enemy behind us, we can escape with Heart of Shadow
@@ -866,8 +863,7 @@ def BjoraMarchesSkillCasting():
     if nearest_enemy:
         # ** Cast Heart of Shadow **
         is_enemy_behind = Routines.Checks.Agents.IsEnemyBehind(player_agent_id)
-        if Routines.Yield.Skills.CastSkillID(heart_of_shadow, extra_condition=is_enemy_behind, log=log_to_console, aftercast_delay=350):
-            yield from Routines.Yield.wait(350)
+        if (yield from Routines.Yield.Skills.CastSkillID(heart_of_shadow, extra_condition=is_enemy_behind, log=log_to_console, aftercast_delay=350)):
             return     
     yield
             
@@ -898,22 +894,16 @@ def JagaMoraineSkillCasting():
         has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id,deadly_paradox)
         if shadow_form_buff_time_remaining <= 3500: #about to expire, recast
             #** Cast Deadly Paradox **
-            if Routines.Yield.Skills.CastSkillID(deadly_paradox,extra_condition=(not has_deadly_paradox), log=log_to_console, aftercast_delay=100):
-                ConsoleLog(MODULE_NAME, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                yield from Routines.Yield.wait(100)
-            
+            yield from Routines.Yield.Skills.CastSkillID(deadly_paradox,extra_condition=(not has_deadly_paradox), log=log_to_console, aftercast_delay=100)
             # ** Cast Shadow Form **
-            if Routines.Yield.Skills.CastSkillID(shadow_form, log=log_to_console, aftercast_delay=1250):
-                ConsoleLog(MODULE_NAME, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                yield from Routines.Yield.wait(1250)
+            yield from Routines.Yield.Skills.CastSkillID(shadow_form, log=log_to_console, aftercast_delay=1250)
             return
                 
     #if were hurt, we need to cast shroud of distress 
     if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
         ConsoleLog(MODULE_NAME, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=log_to_console)
         # ** Cast Shroud of Distress **
-        if Routines.Yield.Skills.CastSkillID(shroud_of_distress, log =log_to_console, aftercast_delay=1250):
-            yield from Routines.Yield.wait(1250)
+        if (yield from Routines.Yield.Skills.CastSkillID(shroud_of_distress, log =log_to_console, aftercast_delay=1250)):
             return
          
     #need to keep Channeling up
@@ -921,15 +911,13 @@ def JagaMoraineSkillCasting():
     if not has_channeling:
         ConsoleLog(MODULE_NAME, "Casting Channeling.", Py4GW.Console.MessageType.Info, log=log_to_console)
         # ** Cast Channeling **
-        if Routines.Yield.Skills.CastSkillID(channeling, log =log_to_console, aftercast_delay=1250):
-            yield from Routines.Yield.wait(1250)
+        if (yield from Routines.Yield.Skills.CastSkillID(channeling, log =log_to_console, aftercast_delay=1250)):
             return
             
     #Keep way of perfection up on recharge
     # ** Cast Way of Perfection **
-    if Routines.Yield.Skills.CastSkillID(way_of_perfection, log=log_to_console, aftercast_delay=350):
+    if (yield from Routines.Yield.Skills.CastSkillID(way_of_perfection, log=log_to_console, aftercast_delay=350)):
         ConsoleLog(MODULE_NAME, "Casting Way of Perfection.", Py4GW.Console.MessageType.Info, log=log_to_console)
-        yield from Routines.Yield.wait(350)
         return
         
     # ** Heart of Shadow to Stay Alive or to get out of stuck**
@@ -940,8 +928,7 @@ def JagaMoraineSkillCasting():
             else:
                 yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
 
-            if Routines.Yield.Skills.CastSkillID(heart_of_shadow, log=log_to_console, aftercast_delay=350):
-                yield from Routines.Yield.wait(350)
+            if (yield from Routines.Yield.Skills.CastSkillID(heart_of_shadow, log=log_to_console, aftercast_delay=350)):
                 return
                 
     # ** Killing Routine **
@@ -952,19 +939,16 @@ def JagaMoraineSkillCasting():
         target = GetNotHexedEnemy()  
         if target:
             Routines.Yield.Agents.ChangeTarget(target)
-            if Routines.Yield.Skills.CastSkillSlot(arcane_echo_slot, extra_condition=both_ready, log=log_to_console, aftercast_delay=2000):
+            if (yield from Routines.Yield.Skills.CastSkillSlot(arcane_echo_slot, extra_condition=both_ready, log=log_to_console, aftercast_delay=2000)):
                 ConsoleLog(MODULE_NAME, "Casting Arcane Echo.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                yield from Routines.Yield.wait(2000)
             else:
-                if Routines.Yield.Skills.CastSkillSlot(arcane_echo_slot, log=log_to_console, aftercast_delay=350):
+                if (yield from Routines.Yield.Skills.CastSkillSlot(arcane_echo_slot, log=log_to_console, aftercast_delay=350)):
                     ConsoleLog(MODULE_NAME, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                    yield from Routines.Yield.wait(350)
                     return
         target = GetNotHexedEnemy()  
         if target: 
             Routines.Yield.Agents.ChangeTarget(target)
-            if Routines.Yield.Skills.CastSkillSlot(wastrels_demise_slot, log=log_to_console, aftercast_delay=350):
-                yield from Routines.Yield.wait(350)
+            if (yield from Routines.Yield.Skills.CastSkillSlot(wastrels_demise_slot, log=log_to_console, aftercast_delay=350)):
                 return
     yield
 

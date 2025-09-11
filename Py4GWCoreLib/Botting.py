@@ -5,7 +5,7 @@ from typing import Any, Tuple, Callable, List, Iterable, Dict, Optional
 
 from .botting_src.helpers import BottingHelpers
 from .botting_src.botconfig import BotConfig
-from .botting_src.property import Property
+from .BuildMgr import BuildMgr
 from .Py4GWcorelib import Color, ActionQueueManager
 from functools import wraps
 import PyImGui
@@ -233,6 +233,9 @@ class BottingClass:
         if self.config.fsm_running:
             self._start_coroutines()
             self.config.FSM.update()
+            
+    def OverrideBuild(self, build: BuildMgr) -> None:
+        self.config.build_handler = build
   
     #region DIALOGS
     class _DIALOGS:

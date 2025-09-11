@@ -210,6 +210,20 @@ class Checks:
             from ..GlobalCache import GLOBAL_CACHE
             owner = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
             return (owner == GLOBAL_CACHE.Player.GetAgentID()) or (owner == 0)
+        
+        @staticmethod
+        def HasEffect(agent_id, skill_id, exact_weapon_spell=False):
+            from ..GlobalCache import GLOBAL_CACHE
+            from ..Skill import Skill
+            from ..Agent import Agent
+            result = GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
+
+            if not result and not exact_weapon_spell:
+                skilltype, _ = Skill.GetType(skill_id)
+                if skilltype == 25: #SkillType.WeaponSpell.value:
+                    result = Agent.IsWeaponSpelled(agent_id)
+
+            return result
 
 #region Skills
     class Skills:

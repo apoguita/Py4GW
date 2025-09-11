@@ -1,7 +1,7 @@
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui, ActionQueueManager, Keystroke, Key)
-import PyMap, PyImGui
-from typing import List, Tuple
+
+from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 
 bot = Botting("Kieran Farm Bot")
      
@@ -35,6 +35,7 @@ def on_death(bot: "Botting"):
 def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
+    bot.OverrideBuild(KeiranThackerayEOTN())
     
 def GoToEOTN(bot: Botting) -> None:
     bot.States.AddHeader("Go to EOTN")

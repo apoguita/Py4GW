@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     
 from ..SkillManager import SkillManager
 from ..Py4GWcorelib import FSM
+from ..BuildMgr import BuildMgr
+from ..Builds import AutoCombat
 from .property import StepNameCounters, UpkeepData, ConfigProperties
 from .event import Events
     
@@ -78,7 +80,8 @@ class BotConfig:
         self.fsm_running:bool = False
         self.state_description: str = "Idle"
         self.state_percentage: float = 0.0
-        self.auto_combat_handler:SkillManager.Autocombat = SkillManager.Autocombat()
+        #self.build_handler:SkillManager.Autocombat = SkillManager.Autocombat()
+        self.build_handler:BuildMgr = AutoCombat()
 
         self.counters = StepNameCounters()
         
