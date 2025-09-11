@@ -102,6 +102,23 @@ def render():
     PyImGui.pop_style_var(1)
     PyImGui.pop_style_color(1)
 
+    PyImGui.same_line(0, 10)
+
+    if shared_data.is_blessing_enabled:
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.BLESSING_COLOR)
+        if ImGui.ImageButton(f"disable blessing", project_root + f"\\gui\\textures\\blessing.png", 40, 40):
+            CustomBehaviorParty().set_party_is_blessing_enabled(False)
+        ImGui.show_tooltip("disable blessing")
+    else:
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
+        if ImGui.ImageButton(f"enable blessing", project_root + f"\\gui\\textures\\blessing.png", 40, 40):
+            CustomBehaviorParty().set_party_is_blessing_enabled(True)
+        ImGui.show_tooltip("enable blessing")
+    PyImGui.pop_style_var(1)
+    PyImGui.pop_style_color(1)
+
     PyImGui.separator()
 
     if shared_data.party_target_id is None:

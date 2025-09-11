@@ -37,12 +37,12 @@ def render():
         # PyImGui.same_line(0, 10)
         PyImGui.text(f"HasLoaded : {CustomBehaviorLoader()._has_loaded}")
         # PyImGui.same_line(0, 10)
-        PyImGui.text(f"Selected template : {CustomBehaviorLoader().custom_combat_behavior.__class__.__name__}")
         if CustomBehaviorLoader().custom_combat_behavior is not None:
             PyImGui.text(f"IsExecutingUtilitySkills:{CustomBehaviorLoader().custom_combat_behavior.is_executing_utility_skills()}")
         pass
 
     if CustomBehaviorLoader().custom_combat_behavior is not None:
+        PyImGui.text(f"Selected template : {CustomBehaviorLoader().custom_combat_behavior.__class__.__name__}")
         PyImGui.text(f"Account state:{CustomBehaviorLoader().custom_combat_behavior.get_state()}")
         PyImGui.text(f"Final state:{CustomBehaviorLoader().custom_combat_behavior.get_final_state()}")
 

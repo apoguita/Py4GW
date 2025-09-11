@@ -18,6 +18,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
+from Widgets.CustomBehaviors.skills.blessing.take_near_blessing import TakeNearBlessingUtility
 from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
 from Widgets.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
 from Widgets.CustomBehaviors.skills.deamon.stuck_detection import StuckDetectionUtility
@@ -125,6 +126,8 @@ class CustomBehaviorBaseUtility():
 
             FollowPartyLeaderUtility(current_build=self.in_game_build),
             FollowFlagUtility(current_build=self.in_game_build),
+
+            TakeNearBlessingUtility(current_build=self.in_game_build),
             
             LootUtility(current_build=self.in_game_build),
             OpenNearChestUtility(self.in_game_build),
