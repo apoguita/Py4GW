@@ -526,15 +526,47 @@ class _FSM_Helpers:
             self._parent.LogMessage("Waiting for Left Aggro Ball", "Waiting for enemies to ball up.", LogConsole.LogSeverity.INFO)
             self._parent.SetCurrentStep("Wait for Left Aggro Ball", 0.05)
             self._parent.in_waiting_routine = True
-            for i in range(150):
+
+            player_id = GLOBAL_CACHE.Player.GetAgentID()
+            start_time = 0
+
+            while start_time < 150:  # 150 * 100ms = 15 seconds
+                # Wait 100 ms
                 yield from Routines.Yield.wait(100)
-                self._parent.AdvanceProgress((i + 1) / 150.0)
+                start_time += 1
+                self._parent.AdvanceProgress(start_time / 150.0)
+
+                # Get current player position
+                player_pos = GLOBAL_CACHE.Player.GetXY()
+                px, py = player_pos[0], player_pos[1]
+
+                # Get nearby enemies
+                enemies_ids = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Earshot.value)
+
+                # Check if ALL enemies are within Adjacent range
+                all_in_adjacent = True
+                for enemy_id in enemies_ids:
+                    enemy = GLOBAL_CACHE.Agent.GetAgent(enemy_id)
+                    if enemy is None:
+                        continue
+                    ex, ey = enemy.x, enemy.y
+                    dx, dy = ex - px, ey - py
+                    dist_sq = dx * dx + dy * dy
+                    if dist_sq > (Range.Adjacent.value ** 2):
+                        all_in_adjacent = False
+                        break
+
+                if all_in_adjacent:
+                    break  # exit early if all enemies are balled up
+
             self._parent.in_waiting_routine = False
-            
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+
+            # Death check
+            if GLOBAL_CACHE.Agent.IsDead(player_id):
                 self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                 yield from self._reset_execution()
-                
+
+            # Resume build
             build = self._parent.build or ShadowFormAssassinVaettir()
             yield from build.CastHeartOfShadow()
                 
@@ -558,15 +590,43 @@ class _FSM_Helpers:
             self._parent.LogMessage("Waiting for Right Aggro Ball", "Waiting for enemies to ball up.", LogConsole.LogSeverity.INFO)
             self._parent.SetCurrentStep("Wait for Right Aggro Ball", 0.05)
             self._parent.in_waiting_routine = True
-            for i in range(150):
+
+            player_id = GLOBAL_CACHE.Player.GetAgentID()
+            elapsed = 0
+
+            while elapsed < 150:  # 150 * 100ms = 15s max
                 yield from Routines.Yield.wait(100)
-                self._parent.AdvanceProgress((i + 1) / 150.0)
+                elapsed += 1
+                self._parent.AdvanceProgress(elapsed / 150.0)
+
+                # Get player position
+                px, py = GLOBAL_CACHE.Player.GetXY()
+
+                # Get enemies within earshot
+                enemies_ids = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Earshot.value)
+
+                # Check if all enemies are within Adjacent range
+                all_in_adjacent = True
+                for enemy_id in enemies_ids:
+                    enemy = GLOBAL_CACHE.Agent.GetAgent(enemy_id)
+                    if enemy is None:
+                        continue
+                    dx, dy = enemy.x - px, enemy.y - py
+                    if dx * dx + dy * dy > (Range.Adjacent.value ** 2):
+                        all_in_adjacent = False
+                        break
+
+                if all_in_adjacent:
+                    break  # Exit early if enemies are balled up
+
             self._parent.in_waiting_routine = False
-            
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+
+            # Death check
+            if GLOBAL_CACHE.Agent.IsDead(player_id):
                 self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                 yield from self._reset_execution()
-                
+
+            # Resume build
             build = self._parent.build or ShadowFormAssassinVaettir()
             yield from build.CastHeartOfShadow()
                 
