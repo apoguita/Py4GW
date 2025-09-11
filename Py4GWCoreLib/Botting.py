@@ -672,6 +672,7 @@ class BottingClass:
 
     #region WAIT
     class _WAIT:
+        from .Py4GWcorelib import Range
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
             self._config = parent.config
@@ -683,16 +684,15 @@ class BottingClass:
         def UntilCondition(self, condition: Callable[[], bool], duration: int=1000) -> None:
             self._helpers.Wait.until_condition(condition, duration)
 
-        def UntilOutOfCombat(self) -> None:
+        def UntilOutOfCombat(self, range: Range = Range.Earshot) -> None:
             from .Routines import Routines
-            from .Py4GWcorelib import Range
-            wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot))
+            wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=range))
             self._helpers.Wait.until_condition(wait_condition)
             
-        def UntilOnCombat(self) -> None:
+        def UntilOnCombat(self, range: Range = Range.Earshot) -> None:
             from .Routines import Routines
             from .Py4GWcorelib import Range
-            wait_condition = lambda: (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit))
+            wait_condition = lambda: (Routines.Checks.Agents.InDanger(aggro_area=range))
             self._helpers.Wait.until_condition(wait_condition)
             
         def ForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:

@@ -3,8 +3,8 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
 import PyMap, PyImGui
 from typing import List, Tuple
 
-bot = Botting("Kieran Farm Bot")
-     
+bot = Botting("Vengeance of Blades Farm")
+
 def create_bot_routine(bot: Botting) -> None:
     InitializeBot(bot)
     GoToEOTN(bot)
@@ -12,7 +12,7 @@ def create_bot_routine(bot: Botting) -> None:
     ExitToHOM(bot)
     AcquireKieransBow(bot)
     EnterQuest(bot)
-    AuspiciousBeginnings(bot)
+    VengeanceOfBlades(bot)
 
 def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
@@ -75,10 +75,10 @@ def AcquireKieransBow(bot: Botting) -> None:
         
 def EnterQuest(bot: Botting) -> None:
     bot.States.AddHeader("Enter Quest")
-    bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63E) #enter quest with gwen
-    bot.Wait.ForMapLoad(849)
-    
-def AuspiciousBeginnings(bot: Botting) -> None:
+    bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63F) #enter quest with scrying pool
+    bot.Wait.ForMapLoad(848)
+
+def VengeanceOfBlades(bot: Botting) -> None:
     def _EnableCombat(bot: Botting) -> None:
         bot.Properties.Enable("pause_on_danger")
         bot.Properties.Disable("halt_on_death")
@@ -91,30 +91,37 @@ def AuspiciousBeginnings(bot: Botting) -> None:
         bot.Properties.Set("movement_timeout",value=15000)
         bot.Properties.Disable("auto_combat")
         
-    bot.States.AddHeader("Auspicious Beginnings")
+        
+    bot.States.AddHeader("Vengeance of Blades Farm")
     _EnableCombat(bot)
     bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
-    bot.Move.XY(11864.74, -4899.19)
-    bot.Wait.UntilOnCombat(Range.Spirit)
-    
-    bot.Move.XY(8655.57, -8782.28, step_name="To corner")
-    bot.Move.XY(4518.81, -9504.34, step_name="To safe spot 0")
-    #bot.Wait.ForTime(5000)
-    bot.Move.XY(1925.19, -10595.87, step_name="To patrol")
-    bot.Move.XY(-1342.30, -11490.80, step_name="To patrol 2")
-    
-    bot.Move.XY(-2860.21, -12198.37, step_name="To middle")
-    bot.Move.XY(-5109.05, -12717.40, step_name="To patrol 3")
-    bot.Move.XY(-6868.76, -12248.82, step_name="To patrol 4")
+    bot.Wait.ForTime(25000)  #wait for the dialog to end
 
+    #front of the quest
+    bot.Properties.Disable("pause_on_danger")
+    bot.Move.XY(15361.70, 3539.00)
+    bot.Move.XY(15614.51, 2566.24)
+    bot.Wait.UntilOutOfCombat()
+    bot.Properties.Enable("pause_on_danger")
+    bot.Move.XY(11663.13, 3917.35)
+    bot.Move.XY(13880.35, 6271.86)
+    
+    bot.Move.XY(9532.97, 7396.32) #forest corner
+    
+    bot.Move.XY(7924.48, 4460.73) #tree evade
+    bot.Move.XY(7077.30, -182.58) #tree patrol
+    bot.Move.XY(6208.84, 4139.12) #evade tree 2
+    bot.Move.XY(2740.14, 2118.45)
+    bot.Move.XY(-6420.64, -2680.36)
+    bot.Move.XY(-17341.90, -307.75)
+    bot.Move.XY(-21701.85, 768.69)
+    
 
     
-    #bot.Move.XY(-4500.21, -12811.61, step_name="To safe spot 4")
-
-    bot.Move.XY(-15858.25, -8840.35, step_name="To End of Path")
+    
     bot.Wait.ForMapToChange(target_map_id=646)
     _DisableCombat(bot)
-    bot.States.JumpToStepName("[H]Acquire Kieran's Bow_4")
+    bot.States.JumpToStepName("[H]Acquire Kieran's Bow_4") 
     
 
 bot.SetMainRoutine(create_bot_routine)
