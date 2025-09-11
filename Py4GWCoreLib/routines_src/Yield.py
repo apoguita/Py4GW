@@ -206,16 +206,21 @@ class Yield:
         @staticmethod    
         def CastSkillID (skill_id:int,extra_condition=True, aftercast_delay=0,  log=False):
             from .Checks import Checks
-            
-
-            if not GLOBAL_CACHE.Map.IsMapReady():
+            if not Checks.Map.IsExplorable():
                 return False
+
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
             enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
             skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
             
             if not(enough_energy and skill_ready and extra_condition):
+                yield
                 return False
+            slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+            if slot <= 0 or slot > 8:
+                yield
+                return False
+            
             GLOBAL_CACHE.SkillBar.UseSkill(GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id), aftercast_delay=aftercast_delay)
             if log:
                 ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
@@ -227,9 +232,9 @@ class Yield:
         @staticmethod
         def IsSkillIDUsable(skill_id: int):
             from .Checks import Checks
-
-            if not GLOBAL_CACHE.Map.IsMapReady():
+            if not Checks.Map.IsExplorable():
                 return False
+
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
             enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
             skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
@@ -239,15 +244,22 @@ class Yield:
         @staticmethod
         def CastSkillSlot(slot:int,extra_condition=True, aftercast_delay=0, log=False):
             from .Checks import Checks
+            if not Checks.Map.IsExplorable():
+                return False
             
-
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            if slot <= 0 or slot > 8:
+                yield
+                return False
+            
             skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
             enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
-            skill_ready = Checks.Skills.IsSkillSlotReady(slot)
+            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
             
             if not(enough_energy and skill_ready and extra_condition):
+                yield
                 return False
+
             GLOBAL_CACHE.SkillBar.UseSkill(slot, aftercast_delay=aftercast_delay)
             if log:
                 ConsoleLog("CastSkillSlot", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)

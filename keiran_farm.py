@@ -3,6 +3,7 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
 
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 
+
 bot = Botting("Kieran Farm Bot",
               custom_build=KeiranThackerayEOTN())
      
@@ -83,6 +84,7 @@ def EnterQuest(bot: Botting) -> None:
     
 def AuspiciousBeginnings(bot: Botting) -> None:
     def _EnableCombat(bot: Botting) -> None:
+        bot.OverrideBuild(KeiranThackerayEOTN())
         bot.Properties.Enable("pause_on_danger")
         bot.Properties.Disable("halt_on_death")
         bot.Properties.Set("movement_timeout",value=-1)

@@ -168,6 +168,7 @@ class AgentArray:
 
         @staticmethod
         def ByDistance(agent_array, pos, descending=False):
+            from .GlobalCache import GLOBAL_CACHE
             """
             Sorts agents by their distance to a given (x, y) position.
             sorted_agents_by_distance = Sort.ByDistance(agent_array, (100, 200))
@@ -177,7 +178,7 @@ class AgentArray:
             return AgentArray.Sort.ByCondition(
                 agent_array,
                 condition_func=lambda agent_id: Utils.Distance(
-                    Agent.GetXY(agent_id),
+                    GLOBAL_CACHE.Agent.GetXY(agent_id),
                     (pos[0], pos[1])
                 ),
                 reverse=descending
@@ -185,6 +186,7 @@ class AgentArray:
 
         @staticmethod
         def ByHealth(agent_array, descending=False):
+            from .GlobalCache import GLOBAL_CACHE
             """
             Sorts agents by their health (HP).
             sorted_agents_by_health_desc = Sort.ByHealth(agent_array, descending=True)
@@ -193,7 +195,7 @@ class AgentArray:
                 return []
             return AgentArray.Sort.ByCondition(
                 agent_array,
-                condition_func=lambda agent_id: Agent.GetHealth(agent_id),
+                condition_func=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id),
                 reverse=descending
             )
 
@@ -238,6 +240,7 @@ class AgentArray:
 
         @staticmethod
         def ByDistance(agent_array, pos, max_distance, negate=False):
+            from .GlobalCache import GLOBAL_CACHE
             """
             Filters agents based on their distance from a given position.
             agents_within_range = AgentArray.Filter.ByDistance(agent_array, (100, 200), 500)
@@ -245,7 +248,7 @@ class AgentArray:
             if agent_array is None:
                 return []
             def distance_filter(agent_id):
-                agent_x, agent_y = Agent.GetXY(agent_id)
+                agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(agent_id)
                 distance = Utils.Distance((agent_x, agent_y), (pos[0], pos[1]))
                 return (distance > max_distance) if negate else (distance <= max_distance)
 
@@ -255,6 +258,7 @@ class AgentArray:
     class Routines:
         @staticmethod
         def DetectLargestAgentCluster(agent_array, cluster_radius):
+            from .GlobalCache import GLOBAL_CACHE
             """
             Detects the largest cluster of agents based on proximity and returns the center of mass (XY) of the cluster
             and the closest agent ID to the center of mass.
@@ -275,8 +279,8 @@ class AgentArray:
             ungrouped_agents = set(agent_array)
 
             def is_in_radius(agent1, agent2):
-                x1, y1 = Agent.GetXY(agent1)
-                x2, y2 = Agent.GetXY(agent2)
+                x1, y1 = GLOBAL_CACHE.Agent.GetXY(agent1)
+                x2, y2 = GLOBAL_CACHE.Agent.GetXY(agent2)
                 distance_sq = (x1 - x2) ** 2 + (y1 - y2) ** 2
                 return distance_sq <= cluster_radius ** 2
 
@@ -299,7 +303,7 @@ class AgentArray:
             # Compute the center of mass (average position) of the largest cluster
             total_x = total_y = 0
             for agent_id in largest_cluster:
-                agent_x, agent_y = Agent.GetXY(agent_id)
+                agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(agent_id)
                 total_x += agent_x
                 total_y += agent_y
 
@@ -309,7 +313,7 @@ class AgentArray:
 
             # Find the agent closest to the center of mass
             def distance_to_center(agent_id):
-                agent_x, agent_y = Agent.GetXY(agent_id)
+                agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(agent_id)
                 #return (agent_x - center_of_mass_x) ** 2 + (agent_y - center_of_mass_y) ** 2  # Squared distance
                 return Utils.Distance((agent_x, agent_y), center_of_mass)
 
