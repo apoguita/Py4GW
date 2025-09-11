@@ -11,8 +11,10 @@ from Py4GWCoreLib import AutoInventoryHandler
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib.Builds import ShadowFormAssassinVaettir, ShadowFormMesmerVaettir
 
-from .BuildMgr import ShadowFormAssassinVaettir, ShadowFormMesmerVaettir
+
+
 from .ProgressTracker import ProgressTracker
 from .LogConsole import LogConsole
 from .StatsMgr import RunStatistics

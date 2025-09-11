@@ -55,6 +55,7 @@ from .Routines import *
 from .SkillManager import *
 from .GlobalCache import GLOBAL_CACHE
 from .Pathing import AutoPathing
+from .BuildMgr import BuildMgr
 from .Botting import BottingClass as Botting
 
 traceback = traceback
@@ -87,6 +88,8 @@ PyCamera = PyCamera
 Py2DRenderer = Py2DRenderer
 GLOBAL_CACHE = GLOBAL_CACHE
 AutoPathing = AutoPathing
+
+
 
 
 
