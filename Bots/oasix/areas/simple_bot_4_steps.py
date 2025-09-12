@@ -11,6 +11,8 @@ from Py4GWCoreLib.Py4GWcorelib import LootConfig
 from Py4GWCoreLib.enums import Range, SharedCommandType
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
+from Widgets.CustomBehaviors.primitives.helpers.custom_behavior_helpers import Helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
@@ -131,7 +133,7 @@ class SimpleBot4Steps:
 
         movement_generator = Routines.Yield.Movement.FollowPath(
                 path_points=self.explorable_area_coords, 
-                custom_exit_condition=lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()), # todo change to party is dead.
+                custom_exit_condition=lambda: self.__is_party_defeated(), # todo change to party is dead.
                 tolerance=150, 
                 log=True, 
                 timeout=-1, 
@@ -142,10 +144,24 @@ class SimpleBot4Steps:
         yield from Routines.Yield.wait(20_000) # we wait until last enemy die
         return True
 
+    
+    @staticmethod
+    def __is_party_defeated() -> bool:
+        
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        count = 0
+        for player in players:
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            if GLOBAL_CACHE.Agent.IsDead(agent_id):
+                count += 1
+            
+        if count > 5: return True
+        return False
+
     def __wait_being_back_to_outpost(self) -> Generator[Any, None, bool]:
 
-        CustomBehaviorParty._instance.set_party_forced_state(BehaviorState.IDLE)
-        yield from Routines.Yield.wait(5_000)
+        # CustomBehaviorParty._instance.set_party_forced_state(BehaviorState.IDLE)
+        # yield from Routines.Yield.wait(5_000)
 
         loop_counter = 0
         while not GLOBAL_CACHE.Party.IsPartyDefeated():
@@ -192,6 +208,6 @@ class SimpleBot4Steps:
         #     if loop_counter > 4:
         #         print("Loop counter ReturnToOutpost is too high, the script is stuck")
 
-        CustomBehaviorParty._instance.set_party_forced_state(None)
+        # CustomBehaviorParty._instance.set_party_forced_state(None)
         print("__wait_being_back_to_outpost finalized")
         return True

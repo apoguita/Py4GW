@@ -20,9 +20,8 @@ class BlessingNpc(Enum):
     Luxon_Priest                = (1947, 3641)
     Beacons_of_Droknar          = (5865,)
     Ascalonian_Refugees         = (1986, 1987, 6044, 6045)
-    Asuran_Krewe                = (6755, 6756)
+    Asuran_Krewe                = (6755, 6756, 6775) # 6775 can cause issue as shared with many other azura npc...
     Norn_Hunters                = (6374, 6380)
-    Experiment_Krewe_Member     = (6775)
 
     def __init__(self, *mids: int):
         self.model_ids = mids
