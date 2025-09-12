@@ -211,6 +211,10 @@ def ConsoleLog(sender, message, message_type:int=0 , log: bool = True):
 class Utils:
     from typing import Tuple
     @staticmethod
+    def HasFlag(flags: int, flag: int) -> bool:
+        return (int(flags) & int(flag)) == int(flag)
+
+    @staticmethod
     def Distance(pos1, pos2):
         """
         Purpose: Calculate the distance between two positions.

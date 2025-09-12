@@ -1,5 +1,6 @@
 from enum import Enum
 from enum import IntEnum
+import PySkill
 
 
 class SharedCommandType(IntEnum):
@@ -791,9 +792,8 @@ class ChatChannel(IntEnum):
 
 
 # endregion
+
 # region UIManager
-
-
 class UIMessage(IntEnum):
     kNone = 0x0
     kInitFrame = 0x9
@@ -2993,6 +2993,61 @@ class SpiritModelID(IntEnum):
     FURY = 5722
     VAMPIRISM = 5723
     WINDS = 2884
+
+SPIRIT_BUFF_MAP = {
+    SpiritModelID.FROZEN_SOIL: PySkill.Skill("Frozen_Soil").id.id,
+    SpiritModelID.LIFE: PySkill.Skill("Life").id.id,
+    SpiritModelID.BLOODSONG: PySkill.Skill("Bloodsong").id.id,
+    SpiritModelID.ANGER: PySkill.Skill("Signet_of_Spirits").id.id,
+    SpiritModelID.HATE: PySkill.Skill("Signet_of_Spirits").id.id,
+    SpiritModelID.SUFFERING: PySkill.Skill("Signet_of_Spirits").id.id,
+    SpiritModelID.ANGUISH: PySkill.Skill("Anguish").id.id,
+    SpiritModelID.DISENCHANTMENT: PySkill.Skill("Disenchantment").id.id,
+    SpiritModelID.DISSONANCE: PySkill.Skill("Dissonance").id.id,
+    SpiritModelID.PAIN: PySkill.Skill("Pain").id.id,
+    SpiritModelID.SHADOWSONG: PySkill.Skill("Shadowsong").id.id,
+    SpiritModelID.WANDERLUST: PySkill.Skill("Wanderlust").id.id,
+    SpiritModelID.VAMPIRISM: PySkill.Skill("Vampirism").id.id,
+    SpiritModelID.AGONY: PySkill.Skill("Agony").id.id,
+    SpiritModelID.DISPLACEMENT: PySkill.Skill("Displacement").id.id,
+    SpiritModelID.EARTHBIND: PySkill.Skill("Earthbind").id.id,
+    SpiritModelID.EMPOWERMENT: PySkill.Skill("Empowerment").id.id,
+    SpiritModelID.PRESERVATION: PySkill.Skill("Preservation").id.id,
+    SpiritModelID.RECOVERY: PySkill.Skill("Recovery").id.id,
+    SpiritModelID.RECUPERATION: PySkill.Skill("Recuperation").id.id,
+    SpiritModelID.REJUVENATION: PySkill.Skill("Rejuvenation").id.id,
+    SpiritModelID.SHELTER: PySkill.Skill("Shelter").id.id,
+    SpiritModelID.SOOTHING: PySkill.Skill("Soothing").id.id,
+    SpiritModelID.UNION: PySkill.Skill("Union").id.id,
+    SpiritModelID.DESTRUCTION: PySkill.Skill("Destruction").id.id,
+    SpiritModelID.RESTORATION: PySkill.Skill("Restoration").id.id,
+    SpiritModelID.WINDS: PySkill.Skill("Winds").id.id,
+    SpiritModelID.BRAMBLES: PySkill.Skill("Brambles").id.id,
+    SpiritModelID.CONFLAGRATION: PySkill.Skill("Conflagration").id.id,
+    SpiritModelID.ENERGIZING_WIND: PySkill.Skill("Energizing_Wind").id.id,
+    SpiritModelID.EQUINOX: PySkill.Skill("Equinox").id.id,
+    SpiritModelID.EDGE_OF_EXTINCTION: PySkill.Skill("Edge_of_Extinction").id.id,
+    SpiritModelID.FAMINE: PySkill.Skill("Famine").id.id,
+    SpiritModelID.FAVORABLE_WINDS: PySkill.Skill("Favorable_Winds").id.id,
+    SpiritModelID.FERTILE_SEASON: PySkill.Skill("Fertile_Season").id.id,
+    SpiritModelID.GREATER_CONFLAGRATION: PySkill.Skill("Greater_Conflagration").id.id,
+    SpiritModelID.INFURIATING_HEAT: PySkill.Skill("Infuriating_Heat").id.id,
+    SpiritModelID.LACERATE: PySkill.Skill("Lacerate").id.id,
+    SpiritModelID.MUDDY_TERRAIN: PySkill.Skill("Muddy_Terrain").id.id,
+    SpiritModelID.NATURES_RENEWAL: PySkill.Skill("Natures_Renewal").id.id,
+    SpiritModelID.PESTILENCE: PySkill.Skill("Pestilence").id.id,
+    SpiritModelID.PREDATORY_SEASON: PySkill.Skill("Predatory_Season").id.id,
+    SpiritModelID.PRIMAL_ECHOES: PySkill.Skill("Primal_Echoes").id.id,
+    SpiritModelID.QUICKENING_ZEPHYR: PySkill.Skill("Quickening_Zephyr").id.id,
+    SpiritModelID.QUICKSAND: PySkill.Skill("Quicksand").id.id,
+    SpiritModelID.ROARING_WINDS: PySkill.Skill("Roaring_Winds").id.id,
+    SpiritModelID.SYMBIOSIS: PySkill.Skill("Symbiosis").id.id,
+    SpiritModelID.TOXICITY: PySkill.Skill("Toxicity").id.id,
+    SpiritModelID.TRANQUILITY: PySkill.Skill("Tranquility").id.id,
+    SpiritModelID.WINTER: PySkill.Skill("Winter").id.id,
+    SpiritModelID.WINNOWING: PySkill.Skill("Winnowing").id.id,
+}   
+
 
 
 # region Menagerie
