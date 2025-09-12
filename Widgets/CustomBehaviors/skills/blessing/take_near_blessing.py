@@ -2,7 +2,8 @@ from typing import Any, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Pathing import AutoPathing
-from Py4GWCoreLib.Py4GWcorelib import Utils
+from Py4GWCoreLib.Py4GWcorelib import Keystroke, Utils
+from Py4GWCoreLib.enums import Key
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
@@ -119,22 +120,27 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
 
         # BLESSING PHASE
         
-        npc_dialog_visible = yield from blessing_helper.wait_npc_dialog_visible(timeout_ms=1_500)
+        npc_dialog_visible = yield from blessing_helper.wait_npc_dialog_visible(timeout_ms=3_500)
         if not npc_dialog_visible:
             if constants.DEBUG: print("npc_dialog_visible FALSE")
-            # todo cooldown
+            # we don't need cooldown, let's just ignore that NPC
+            Keystroke.PressAndRelease(Key.Escape.value)
             yield
+            self.agent_ids_already_interracted.add(agent_id)
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
             return BehaviorResult.ACTION_SKIPPED
 
-        result = yield from blessing_helper.run_dialog_sequences(timeout_ms=1_000)
+        result = yield from blessing_helper.run_dialog_sequences(timeout_ms=5_000)
         if not result:
             if constants.DEBUG: print("run_dialog_sequences FALSE.")
-            # not sure we want verify, we do nothing basically
+            Keystroke.PressAndRelease(Key.Escape.value)
+            yield
+            self.agent_ids_already_interracted.add(agent_id)
+            CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
+            return BehaviorResult.ACTION_SKIPPED
 
         self.agent_ids_already_interracted.add(agent_id)
         CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
-
         yield from Routines.Yield.wait(300)
         return BehaviorResult.ACTION_PERFORMED
 

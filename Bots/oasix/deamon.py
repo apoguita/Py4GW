@@ -2,6 +2,7 @@ import sys
 
 import PyImGui
 
+from Bots.oasix.areas.azura_reputation import AzuraReputation
 from Bots.oasix.areas.planter_fiber import PlantFiber
 from Bots.oasix.areas.simple_bot_4_steps import SimpleBot4Steps
 from Py4GWCoreLib import Routines
@@ -13,7 +14,7 @@ from Py4GWCoreLib.enums import Range
 for module_name in list(sys.modules.keys()):
     if module_name not in ("sys", "importlib", "cache_data"):
         try:
-            if "oasix_nicky" in module_name.lower():
+            if "oasix" in module_name.lower():
                 print(f"Reloading module: {module_name}")
                 del sys.modules[module_name]
                 # importlib.reload(module_name)
@@ -24,7 +25,7 @@ for module_name in list(sys.modules.keys()):
 from typing import Any, List
 from HeroAI.cache_data import CacheData
 
-bot:SimpleBot4Steps = PlantFiber()
+bot:SimpleBot4Steps = AzuraReputation()
 generator = bot.act()
 
 def main():

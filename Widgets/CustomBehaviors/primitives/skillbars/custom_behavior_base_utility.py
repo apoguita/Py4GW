@@ -288,8 +288,10 @@ class CustomBehaviorBaseUtility():
             self.compute_throttler.Reset()
             self.timer.Reset()
             self.__fetch_and_memoized_state()
+            # print(f"performance-audit-frame-durationA:{self.timer.GetElapsedTime()}")
+
             self.__fetch_and_memoized_all_scores()
-            # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
+            # print(f"performance-audit-frame-durationB:{self.timer.GetElapsedTime()}")
 
         if self.execute_throttler.IsExpired():
             self.execute_throttler.Reset()
@@ -309,7 +311,6 @@ class CustomBehaviorBaseUtility():
         def compute_state() -> BehaviorState:
             timer = Timer()
             timer.Reset()
-            # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
 
             if self.get_final_is_enabled() == False:
                 return BehaviorState.IDLE
@@ -326,8 +327,8 @@ class CustomBehaviorBaseUtility():
             if custom_behavior_helpers.Targets.is_player_in_aggro():
                 return BehaviorState.IN_AGGRO
 
-            if custom_behavior_helpers.Targets.is_party_in_aggro():
-                 return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies
+            # if custom_behavior_helpers.Targets.is_party_in_aggro():
+            #      return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies
 
             if custom_behavior_helpers.Targets.is_party_leader_in_aggro():
                 return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies
@@ -343,6 +344,10 @@ class CustomBehaviorBaseUtility():
     # SCORES 
 
     def __fetch_and_memoized_all_scores(self):
+        timer = Timer()
+        timer.Reset()
+        # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
+
         # print('Evaluate all utilities')
         # Evaluate all utilities
         utilities: list[CustomSkillUtilityBase] = self.get_skills_final_list()
@@ -351,6 +356,7 @@ class CustomBehaviorBaseUtility():
         
         utility_scores: list[tuple[CustomSkillUtilityBase, float | None]] = []
         current_state: BehaviorState = self.get_final_state()
+
         for utility in utilities:
             score = utility.evaluate(current_state, list(self.__previously_attempted_skills))
             utility_scores.append((utility, score))
