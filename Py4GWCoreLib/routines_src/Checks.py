@@ -205,6 +205,11 @@ class Checks:
             if GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id):
                 return True
             return False
+        
+        @staticmethod
+        def HasEffect(agent_id, skill_id, exact_weapon_spell=False):
+            return Checks.Agents.HasEffect(agent_id, skill_id, exact_weapon_spell)
+        
 #region Agents
     class Agents:
         from ..Py4GWcorelib import Range

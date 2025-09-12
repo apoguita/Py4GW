@@ -1,6 +1,7 @@
 import Py4GW
-from Py4GWCoreLib import GLOBAL_CACHE, SpiritModelID, Timer, Routines, Range, Allegiance, AgentArray
+from Py4GWCoreLib import GLOBAL_CACHE, SpiritModelID, ThrottledTimer, Routines, Range, Allegiance, AgentArray
 from Py4GWCoreLib import Weapon
+from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP
 from .custom_skill import CustomSkillClass
 from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyInjured, GetEnemyConditioned
@@ -10,106 +11,8 @@ from .types import SkillNature, Skilltarget, SkillType
 from .constants import MAX_NUM_PLAYERS
 from typing import Optional
 
-
-MAX_SKILLS = 8
-custom_skill_data_handler = CustomSkillClass()
-
-SPIRIT_BUFF_MAP = {
-    SpiritModelID.FROZEN_SOIL: GLOBAL_CACHE.Skill.GetID("Frozen_Soil"),
-    SpiritModelID.LIFE: GLOBAL_CACHE.Skill.GetID("Life"),
-    SpiritModelID.BLOODSONG: GLOBAL_CACHE.Skill.GetID("Bloodsong"),
-    SpiritModelID.ANGER: GLOBAL_CACHE.Skill.GetID("Signet_of_Spirits"),
-    SpiritModelID.HATE: GLOBAL_CACHE.Skill.GetID("Signet_of_Spirits"),
-    SpiritModelID.SUFFERING: GLOBAL_CACHE.Skill.GetID("Signet_of_Spirits"),
-    SpiritModelID.ANGUISH: GLOBAL_CACHE.Skill.GetID("Anguish"),
-    SpiritModelID.DISENCHANTMENT: GLOBAL_CACHE.Skill.GetID("Disenchantment"),
-    SpiritModelID.DISSONANCE: GLOBAL_CACHE.Skill.GetID("Dissonance"),
-    SpiritModelID.PAIN: GLOBAL_CACHE.Skill.GetID("Pain"),
-    SpiritModelID.SHADOWSONG: GLOBAL_CACHE.Skill.GetID("Shadowsong"),
-    SpiritModelID.WANDERLUST: GLOBAL_CACHE.Skill.GetID("Wanderlust"),
-    SpiritModelID.VAMPIRISM: GLOBAL_CACHE.Skill.GetID("Vampirism"),
-    SpiritModelID.AGONY: GLOBAL_CACHE.Skill.GetID("Agony"),
-    SpiritModelID.DISPLACEMENT: GLOBAL_CACHE.Skill.GetID("Displacement"),
-    SpiritModelID.EARTHBIND: GLOBAL_CACHE.Skill.GetID("Earthbind"),
-    SpiritModelID.EMPOWERMENT: GLOBAL_CACHE.Skill.GetID("Empowerment"),
-    SpiritModelID.PRESERVATION: GLOBAL_CACHE.Skill.GetID("Preservation"),
-    SpiritModelID.RECOVERY: GLOBAL_CACHE.Skill.GetID("Recovery"),
-    SpiritModelID.RECUPERATION: GLOBAL_CACHE.Skill.GetID("Recuperation"),
-    SpiritModelID.REJUVENATION: GLOBAL_CACHE.Skill.GetID("Rejuvenation"),
-    SpiritModelID.SHELTER: GLOBAL_CACHE.Skill.GetID("Shelter"),
-    SpiritModelID.SOOTHING: GLOBAL_CACHE.Skill.GetID("Soothing"),
-    SpiritModelID.UNION: GLOBAL_CACHE.Skill.GetID("Union"),
-    SpiritModelID.DESTRUCTION: GLOBAL_CACHE.Skill.GetID("Destruction"),
-    SpiritModelID.RESTORATION: GLOBAL_CACHE.Skill.GetID("Restoration"),
-    SpiritModelID.WINDS: GLOBAL_CACHE.Skill.GetID("Winds"),
-    SpiritModelID.BRAMBLES: GLOBAL_CACHE.Skill.GetID("Brambles"),
-    SpiritModelID.CONFLAGRATION: GLOBAL_CACHE.Skill.GetID("Conflagration"),
-    SpiritModelID.ENERGIZING_WIND: GLOBAL_CACHE.Skill.GetID("Energizing_Wind"),
-    SpiritModelID.EQUINOX: GLOBAL_CACHE.Skill.GetID("Equinox"),
-    SpiritModelID.EDGE_OF_EXTINCTION: GLOBAL_CACHE.Skill.GetID("Edge_of_Extinction"),
-    SpiritModelID.FAMINE: GLOBAL_CACHE.Skill.GetID("Famine"),
-    SpiritModelID.FAVORABLE_WINDS: GLOBAL_CACHE.Skill.GetID("Favorable_Winds"),
-    SpiritModelID.FERTILE_SEASON: GLOBAL_CACHE.Skill.GetID("Fertile_Season"),
-    SpiritModelID.GREATER_CONFLAGRATION: GLOBAL_CACHE.Skill.GetID("Greater_Conflagration"),
-    SpiritModelID.INFURIATING_HEAT: GLOBAL_CACHE.Skill.GetID("Infuriating_Heat"),
-    SpiritModelID.LACERATE: GLOBAL_CACHE.Skill.GetID("Lacerate"),
-    SpiritModelID.MUDDY_TERRAIN: GLOBAL_CACHE.Skill.GetID("Muddy_Terrain"),
-    SpiritModelID.NATURES_RENEWAL: GLOBAL_CACHE.Skill.GetID("Natures_Renewal"),
-    SpiritModelID.PESTILENCE: GLOBAL_CACHE.Skill.GetID("Pestilence"),
-    SpiritModelID.PREDATORY_SEASON: GLOBAL_CACHE.Skill.GetID("Predatory_Season"),
-    SpiritModelID.PRIMAL_ECHOES: GLOBAL_CACHE.Skill.GetID("Primal_Echoes"),
-    SpiritModelID.QUICKENING_ZEPHYR: GLOBAL_CACHE.Skill.GetID("Quickening_Zephyr"),
-    SpiritModelID.QUICKSAND: GLOBAL_CACHE.Skill.GetID("Quicksand"),
-    SpiritModelID.ROARING_WINDS: GLOBAL_CACHE.Skill.GetID("Roaring_Winds"),
-    SpiritModelID.SYMBIOSIS: GLOBAL_CACHE.Skill.GetID("Symbiosis"),
-    SpiritModelID.TOXICITY: GLOBAL_CACHE.Skill.GetID("Toxicity"),
-    SpiritModelID.TRANQUILITY: GLOBAL_CACHE.Skill.GetID("Tranquility"),
-    SpiritModelID.WINTER: GLOBAL_CACHE.Skill.GetID("Winter"),
-    SpiritModelID.WINNOWING: GLOBAL_CACHE.Skill.GetID("Winnowing"),
-}
-
-class CombatClass:
-    global MAX_SKILLS, custom_skill_data_handler
-
-    class SkillData:
-        def __init__(self, slot):
-            self.skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)  # slot is 1 based
-            self.skillbar_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)  # Fetch additional data from the skill bar
-            self.custom_skill_data = custom_skill_data_handler.get_skill(self.skill_id)  # Retrieve custom skill data
-
+class UniqueSkills:
     def __init__(self):
-        import HeroAI.shared_memory_manager as shared_memory_manager
-        """
-        Initializes the CombatClass with an empty skill set and order.
-        """
-        self.skills = []
-        self.skill_order = [0] * MAX_SKILLS
-        self.skill_pointer = 0
-        self.in_casting_routine = False
-        self.aftercast = 0
-        self.aftercast_timer = Timer()
-        self.aftercast_timer.Start()
-        self.ping_handler = Py4GW.PingHandler()
-        self.oldCalledTarget = 0
-        self.shared_memory_handler = shared_memory_manager.SharedMemoryManager()
-        
-        self.in_aggro = False
-        self.is_targeting_enabled = False
-        self.is_combat_enabled = False
-        self.is_skill_enabled = []
-        self.fast_casting_exists = False
-        self.fast_casting_level = 0
-        self.expertise_exists = False
-        self.expertise_level = 0
-        
-        self.nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
-        self.lowest_ally = TargetLowestAlly()
-        self.lowest_ally_energy = TargetLowestAllyEnergy()
-        self.nearest_npc = Routines.Agents.GetNearestNPC(Range.Spellcast.value)
-        self.nearest_spirit = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
-        self.lowest_minion = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
-        self.nearest_corpse = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
-        
         self.energy_drain = GLOBAL_CACHE.Skill.GetID("Energy_Drain") 
         self.energy_tap = GLOBAL_CACHE.Skill.GetID("Energy_Tap")
         self.ether_lord = GLOBAL_CACHE.Skill.GetID("Ether_Lord")
@@ -158,26 +61,18 @@ class CombatClass:
         self.heroic_refrain = GLOBAL_CACHE.Skill.GetID("Heroic_Refrain")
         self.natures_blessing = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         self.relentless_assault = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
-        
-    def Update(self, cached_data):
-        self.in_aggro = cached_data.in_aggro
-        self.is_targeting_enabled = cached_data.is_targeting_enabled
-        self.is_combat_enabled = cached_data.is_combat_enabled
-        self.is_skill_enabled = cached_data.is_skill_enabled
-        self.fast_casting_exists = cached_data.fast_casting_exists
-        self.fast_casting_level = cached_data.fast_casting_level
-        self.expertise_exists = cached_data.expertise_exists
-        self.expertise_level = cached_data.expertise_level
-        
 
-    def PrioritizeSkills(self):
+MAX_SKILLS = 8
+custom_skill_data_handler = CustomSkillClass()
+
+def _PrioritizeSkills(Skill_Data, Skill_Order):
         """
         Create a priority-based skill execution order.
         """
         #initialize skillbar
         original_skills = []
         for i in range(MAX_SKILLS):
-            original_skills.append(self.SkillData(i+1))
+            original_skills.append(Skill_Data(i+1))
 
         # Initialize the pointer and tracking list
         ptr = 0
@@ -219,7 +114,7 @@ class CombatClass:
             for i in range(MAX_SKILLS):
                 skill = original_skills[i]
                 if not ptr_chk[i] and skill.custom_skill_data.Nature == priority.value:
-                    self.skill_order[ptr] = i
+                    Skill_Order[ptr] = i
                     ptr_chk[i] = True
                     ptr += 1
                     ordered_skills.append(skill)
@@ -252,7 +147,7 @@ class CombatClass:
             for i in range(MAX_SKILLS):
                 skill = original_skills[i]
                 if not ptr_chk[i] and skill.custom_skill_data.SkillType == skill_type.value:
-                    self.skill_order[ptr] = i
+                    Skill_Order[ptr] = i
                     ptr_chk[i] = True
                     ptr += 1
                     ordered_skills.append(skill)
@@ -263,7 +158,7 @@ class CombatClass:
             for i in range(MAX_SKILLS):
                 skill = original_skills[i]
                 if not ptr_chk[i] and GLOBAL_CACHE.Skill.Data.GetCombo(skill.skill_id) == combo:
-                    self.skill_order[ptr] = i
+                    Skill_Order[ptr] = i
                     ptr_chk[i] = True
                     ptr += 1
                     ordered_skills.append(skill)
@@ -271,21 +166,107 @@ class CombatClass:
         # Fill in remaining unprioritized skills
         for i in range(MAX_SKILLS):
             if not ptr_chk[i]:
-                self.skill_order[ptr] = i
+                Skill_Order[ptr] = i
                 ptr_chk[i] = True
                 ptr += 1
                 ordered_skills.append(original_skills[i])
         
-        self.skills = ordered_skills
+        return ordered_skills
+    
+def _IsSkillReady(slot, skill_order, skills, is_skill_enabled):
+        original_index = skill_order[slot]
+        if skills[slot].skill_id == 0:
+            return False
+        if skills[slot].skillbar_data.recharge != 0:
+            return False
+        return is_skill_enabled[original_index]
+
+def _InCastingRoutine(aftercast_timer, in_casting_routine):
+        if aftercast_timer.IsExpired():
+                in_casting_routine = False
+                aftercast_timer.Reset()
+
+        return in_casting_routine
+    
+def _GetPartyTarget():
+    party_target = Routines.Party.GetPartyTargetID()
+    if party_target != 0:
+        current_target = GLOBAL_CACHE.Player.GetTargetID()
+        if current_target != party_target:
+            if GLOBAL_CACHE.Agent.IsLiving(party_target):
+                _, alliegeance = GLOBAL_CACHE.Agent.GetAllegiance(party_target)
+                if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet':
+                    Routines.Targeting.SafeChangeTarget(party_target)
+                    return party_target
+    return 0
+
+
+class CombatClass:
+    global MAX_SKILLS, custom_skill_data_handler
+
+    class SkillData:
+        def __init__(self, slot):
+            self.skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)  # slot is 1 based
+            self.skillbar_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)  # Fetch additional data from the skill bar
+            self.custom_skill_data = custom_skill_data_handler.get_skill(self.skill_id)  # Retrieve custom skill data
+
+    def __init__(self):
+        import HeroAI.shared_memory_manager as shared_memory_manager
+        """
+        Initializes the CombatClass with an empty skill set and order.
+        """
+        self.skills = []
+        self.skill_order = [0] * MAX_SKILLS
+        self.skill_pointer = 0
+        self.in_casting_routine = False
+        self.aftercast = 0
+        self.aftercast_timer = ThrottledTimer()
+        self.aftercast_timer.Start()
+        self.ping_handler = Py4GW.PingHandler()
+        self.oldCalledTarget = 0
+        self.shared_memory_handler = shared_memory_manager.SharedMemoryManager()
         
+        self.in_aggro = False
+        self.is_targeting_enabled = False
+        self.is_combat_enabled = False
+        self.is_skill_enabled = []
+        self.fast_casting_exists = False
+        self.fast_casting_level = 0
+        self.expertise_exists = False
+        self.expertise_level = 0
         
+        self.nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+        self.lowest_ally = TargetLowestAlly()
+        self.lowest_ally_energy = TargetLowestAllyEnergy()
+        self.nearest_npc = Routines.Agents.GetNearestNPC(Range.Spellcast.value)
+        self.nearest_spirit = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
+        self.lowest_minion = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
+        self.nearest_corpse = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
+        
+        self.unique_skills = UniqueSkills()
+        
+    def Update(self, cached_data):
+        self.in_aggro = cached_data.in_aggro
+        self.is_targeting_enabled = cached_data.is_targeting_enabled
+        self.is_combat_enabled = cached_data.is_combat_enabled
+        self.is_skill_enabled = cached_data.is_skill_enabled
+        self.fast_casting_exists = cached_data.fast_casting_exists
+        self.fast_casting_level = cached_data.fast_casting_level
+        self.expertise_exists = cached_data.expertise_exists
+        self.expertise_level = cached_data.expertise_level
+        
+    def PrioritizeSkills(self):
+        """
+        Create a priority-based skill execution order.
+        """
+        self.skills = _PrioritizeSkills(self.SkillData, self.skill_order)
+
     def GetSkills(self):
         """
         Retrieve the prioritized skill set.
         """
         return self.skills
         
-
     def GetOrderedSkill(self, index:int)-> Optional[SkillData]:
         """
         Retrieve the skill at the given index in the prioritized order.
@@ -319,56 +300,31 @@ class CombatClass:
         return 1.0 #default return full energy to prevent issues
 
     def IsSkillReady(self, slot):
-        original_index = self.skill_order[slot] 
-        
-        if self.skills[slot].skill_id == 0:
-            return False
-
-        if self.skills[slot].skillbar_data.recharge != 0:
-            return False
-        
-        return self.is_skill_enabled[original_index]
+        return _IsSkillReady(slot, self.skill_order, self.skills, self.is_skill_enabled)
         
     def InCastingRoutine(self):
-        if self.aftercast_timer.HasElapsed(self.aftercast):
-            self.in_casting_routine = False
-            self.aftercast_timer.Reset()
-
-        return self.in_casting_routine
+        return _InCastingRoutine(self.aftercast_timer, self.in_casting_routine)
  
     def GetPartyTargetID(self):
-        if not GLOBAL_CACHE.Party.IsPartyLoaded():
-            return 0
+        return Routines.Party.GetPartyTargetID()
 
-        players = GLOBAL_CACHE.Party.GetPlayers()
-        target = players[0].called_target_id
-
-        if GLOBAL_CACHE.Agent.IsValid(target):
-            return target  
-        
-        return 0 
 
     def SafeChangeTarget(self, target_id):
-        if GLOBAL_CACHE.Agent.IsValid(target_id):
-            GLOBAL_CACHE.Player.ChangeTarget(target_id)
+        Routines.Targeting.SafeChangeTarget(target_id)
             
     def SafeInteract(self, target_id):
-        if GLOBAL_CACHE.Agent.IsValid(target_id):
-            GLOBAL_CACHE.Player.ChangeTarget(target_id)
-            GLOBAL_CACHE.Player.Interact(target_id, False)
+        Routines.Agents.SafeInteract(target_id)
 
 
     def GetPartyTarget(self):
-        party_target = self.GetPartyTargetID()
-        if self.is_targeting_enabled and party_target != 0:
-            current_target = GLOBAL_CACHE.Player.GetTargetID()
-            if current_target != party_target:
-                if GLOBAL_CACHE.Agent.IsLiving(party_target):
-                    _, alliegeance = GLOBAL_CACHE.Agent.GetAllegiance(party_target)
-                    if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
-                        self.SafeChangeTarget(party_target)
-                        return party_target
-        return 0
+        if not self.is_combat_enabled:
+            return 0
+
+        if not self.is_targeting_enabled:
+            return 0
+        
+        return _GetPartyTarget()
+
 
     def get_combat_distance(self):
         return Range.Spellcast.value if self.in_aggro else Range.Earshot.value
@@ -386,8 +342,8 @@ class CombatClass:
         nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         lowest_ally = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
 
-        if self.skills[slot].skill_id == self.heroic_refrain:
-            if not self.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), self.heroic_refrain):
+        if self.skills[slot].skill_id == self.unique_skills.heroic_refrain:
+            if not self.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), self.unique_skills.heroic_refrain):
                 return GLOBAL_CACHE.Player.GetAgentID()
 
         if target_allegiance == Skilltarget.Enemy:
@@ -560,94 +516,94 @@ class CombatClass:
 
         if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
             """ check all UniqueProperty skills """
-            if (self.skills[slot].skill_id == self.energy_drain or 
-                self.skills[slot].skill_id == self.energy_tap or
-                self.skills[slot].skill_id == self.ether_lord 
+            if (self.skills[slot].skill_id == self.unique_skills.energy_drain or
+                self.skills[slot].skill_id == self.unique_skills.energy_tap or
+                self.skills[slot].skill_id == self.unique_skills.ether_lord
                 ):
                 return self.GetEnergyValues(GLOBAL_CACHE.Player.GetAgentID()) < Conditions.LessEnergy
-        
-            if (self.skills[slot].skill_id == self.essence_strike):
+
+            if (self.skills[slot].skill_id == self.unique_skills.essence_strike):
                 energy = self.GetEnergyValues(GLOBAL_CACHE.Player.GetAgentID()) < Conditions.LessEnergy
                 return energy and (Routines.Agents.GetNearestSpirit(Range.Spellcast.value) != 0)
 
-            if (self.skills[slot].skill_id == self.glowing_signet):
+            if (self.skills[slot].skill_id == self.unique_skills.glowing_signet):
                 energy= self.GetEnergyValues(GLOBAL_CACHE.Player.GetAgentID()) < Conditions.LessEnergy
-                return energy and self.HasEffect(vTarget, self.burning)
+                return energy and self.HasEffect(vTarget, self.unique_skills.burning)
 
-            if (self.skills[slot].skill_id == self.clamor_of_souls):
+            if (self.skills[slot].skill_id == self.unique_skills.clamor_of_souls):
                 energy = self.GetEnergyValues(GLOBAL_CACHE.Player.GetAgentID()) < Conditions.LessEnergy
                 weapon_type, _ = GLOBAL_CACHE.Agent.GetWeaponType(GLOBAL_CACHE.Player.GetAgentID())
                 return energy and weapon_type == 0
 
-            if (self.skills[slot].skill_id == self.waste_not_want_not):
+            if (self.skills[slot].skill_id == self.unique_skills.waste_not_want_not):
                 energy= self.GetEnergyValues(GLOBAL_CACHE.Player.GetAgentID()) < Conditions.LessEnergy
                 return energy and not GLOBAL_CACHE.Agent.IsCasting(vTarget) and not GLOBAL_CACHE.Agent.IsAttacking(vTarget)
 
-            if (self.skills[slot].skill_id == self.mend_body_and_soul):
+            if (self.skills[slot].skill_id == self.unique_skills.mend_body_and_soul):
                 spirits_exist = Routines.Agents.GetNearestSpirit(Range.Earshot.value)
                 life = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < Conditions.LessLife
                 return life or (spirits_exist and GLOBAL_CACHE.Agent.IsConditioned(vTarget))
 
-            if (self.skills[slot].skill_id == self.grenths_balance):
+            if (self.skills[slot].skill_id == self.unique_skills.grenths_balance):
                 life = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < Conditions.LessLife
                 return life and GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < GLOBAL_CACHE.Agent.GetHealth(vTarget)
 
-            if (self.skills[slot].skill_id == self.deaths_retreat):
+            if (self.skills[slot].skill_id == self.unique_skills.deaths_retreat):
                 return GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < GLOBAL_CACHE.Agent.GetHealth(vTarget)
 
-            if (self.skills[slot].skill_id == self.plague_sending or
-                self.skills[slot].skill_id == self.plague_signet or
-                self.skills[slot].skill_id == self.plague_touch
+            if (self.skills[slot].skill_id == self.unique_skills.plague_sending or
+                self.skills[slot].skill_id == self.unique_skills.plague_signet or
+                self.skills[slot].skill_id == self.unique_skills.plague_touch
                 ):
                 return GLOBAL_CACHE.Agent.IsConditioned(GLOBAL_CACHE.Player.GetAgentID())
 
-            if (self.skills[slot].skill_id == self.golden_fang_strike or
-                self.skills[slot].skill_id == self.golden_fox_strike or
-                self.skills[slot].skill_id == self.golden_lotus_strike or
-                self.skills[slot].skill_id == self.golden_phoenix_strike or
-                self.skills[slot].skill_id == self.golden_skull_strike
+            if (self.skills[slot].skill_id == self.unique_skills.golden_fang_strike or
+                self.skills[slot].skill_id == self.unique_skills.golden_fox_strike or
+                self.skills[slot].skill_id == self.unique_skills.golden_lotus_strike or
+                self.skills[slot].skill_id == self.unique_skills.golden_phoenix_strike or
+                self.skills[slot].skill_id == self.unique_skills.golden_skull_strike
                 ):
                 return GLOBAL_CACHE.Agent.IsEnchanted(GLOBAL_CACHE.Player.GetAgentID())
 
-            if (self.skills[slot].skill_id == self.brutal_weapon):
+            if (self.skills[slot].skill_id == self.unique_skills.brutal_weapon):
                 return not GLOBAL_CACHE.Agent.IsEnchanted(GLOBAL_CACHE.Player.GetAgentID())
 
-            if (self.skills[slot].skill_id == self.signet_of_removal):
+            if (self.skills[slot].skill_id == self.unique_skills.signet_of_removal):
                 return not GLOBAL_CACHE.Agent.IsEnchanted(vTarget) and GLOBAL_CACHE.Agent.IsConditioned(vTarget)
 
-            if (self.skills[slot].skill_id == self.dwaynas_kiss or
-                self.skills[slot].skill_id == self.unnatural_signet or
-                self.skills[slot].skill_id == self.toxic_chill
+            if (self.skills[slot].skill_id == self.unique_skills.dwaynas_kiss or
+                self.skills[slot].skill_id == self.unique_skills.unnatural_signet or
+                self.skills[slot].skill_id == self.unique_skills.toxic_chill
                 ):
                 return GLOBAL_CACHE.Agent.IsHexed(vTarget) or GLOBAL_CACHE.Agent.IsEnchanted(vTarget)
 
-            if (self.skills[slot].skill_id == self.discord):
+            if (self.skills[slot].skill_id == self.unique_skills.discord):
                 return (GLOBAL_CACHE.Agent.IsHexed(vTarget) and GLOBAL_CACHE.Agent.IsConditioned(vTarget)) or (GLOBAL_CACHE.Agent.IsEnchanted(vTarget))
 
-            if (self.skills[slot].skill_id == self.empathic_removal or
-                self.skills[slot].skill_id == self.iron_palm or
-                self.skills[slot].skill_id == self.melandrus_resilience or
-                self.skills[slot].skill_id == self.necrosis or
-                self.skills[slot].skill_id == self.peace_and_harmony or
-                self.skills[slot].skill_id == self.purge_signet or
-                self.skills[slot].skill_id == self.resilient_weapon
+            if (self.skills[slot].skill_id == self.unique_skills.empathic_removal or
+                self.skills[slot].skill_id == self.unique_skills.iron_palm or
+                self.skills[slot].skill_id == self.unique_skills.melandrus_resilience or
+                self.skills[slot].skill_id == self.unique_skills.necrosis or
+                self.skills[slot].skill_id == self.unique_skills.peace_and_harmony or
+                self.skills[slot].skill_id == self.unique_skills.purge_signet or
+                self.skills[slot].skill_id == self.unique_skills.resilient_weapon
                 ):
                 return GLOBAL_CACHE.Agent.IsHexed(vTarget) or GLOBAL_CACHE.Agent.IsConditioned(vTarget)
-            
-            if (self.skills[slot].skill_id == self.gaze_from_beyond or
-                self.skills[slot].skill_id == self.spirit_burn or
-                self.skills[slot].skill_id == self.signet_of_ghostly_might
+
+            if (self.skills[slot].skill_id == self.unique_skills.gaze_from_beyond or
+                self.skills[slot].skill_id == self.unique_skills.spirit_burn or
+                self.skills[slot].skill_id == self.unique_skills.signet_of_ghostly_might
                 ):
                 return True if Routines.Agents.GetNearestSpirit(Range.Spellcast.value) != 0 else False
-            
-            if (self.skills[slot].skill_id == self.comfort_animal or
-                self.skills[slot].skill_id == self.heal_as_one
+
+            if (self.skills[slot].skill_id == self.unique_skills.comfort_animal or
+                self.skills[slot].skill_id == self.unique_skills.heal_as_one
                 ):
                 LessLife = GLOBAL_CACHE.Agent.GetHealth(vTarget) < Conditions.LessLife
                 dead = GLOBAL_CACHE.Agent.IsDead(vTarget)
                 return LessLife or dead
-                
-            if (self.skills[slot].skill_id == self.natures_blessing):
+
+            if (self.skills[slot].skill_id == self.unique_skills.natures_blessing):
                 player_life = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < Conditions.LessLife
                 nearest_npc = Routines.Agents.GetNearestNPC(Range.Spirit.value)
                 if nearest_npc == 0:
@@ -655,8 +611,8 @@ class CombatClass:
 
                 nearest_NPC_life = GLOBAL_CACHE.Agent.GetHealth(nearest_npc) < Conditions.LessLife
                 return player_life or nearest_NPC_life
-            
-            if (self.skills[slot].skill_id == self.relentless_assault
+
+            if (self.skills[slot].skill_id == self.unique_skills.relentless_assault
                 ):
                 return GLOBAL_CACHE.Agent.IsHexed(GLOBAL_CACHE.Player.GetAgentID()) or GLOBAL_CACHE.Agent.IsConditioned(GLOBAL_CACHE.Player.GetAgentID())
 
@@ -703,16 +659,16 @@ class CombatClass:
 
         is_conditioned = GLOBAL_CACHE.Agent.IsConditioned(vTarget)
         is_bleeding = GLOBAL_CACHE.Agent.IsBleeding(vTarget)
-        is_blind = self.HasEffect(vTarget, self.blind)
-        is_burning = self.HasEffect(vTarget, self.burning)
-        is_cracked_armor = self.HasEffect(vTarget, self.cracked_armor)
+        is_blind = self.HasEffect(vTarget, self.unique_skills.blind)
+        is_burning = self.HasEffect(vTarget, self.unique_skills.burning)
+        is_cracked_armor = self.HasEffect(vTarget, self.unique_skills.cracked_armor)
         is_crippled = GLOBAL_CACHE.Agent.IsCrippled(vTarget)
-        is_dazed = self.HasEffect(vTarget, self.dazed)
-        is_deep_wound = self.HasEffect(vTarget, self.deep_wound)
-        is_disease = self.HasEffect(vTarget, self.disease)
+        is_dazed = self.HasEffect(vTarget, self.unique_skills.dazed)
+        is_deep_wound = self.HasEffect(vTarget, self.unique_skills.deep_wound)
+        is_disease = self.HasEffect(vTarget, self.unique_skills.disease)
         is_poison = GLOBAL_CACHE.Agent.IsPoisoned(vTarget)
-        is_weakness = self.HasEffect(vTarget, self.weakness)
-        
+        is_weakness = self.HasEffect(vTarget, self.unique_skills.weakness)
+
         if Conditions.HasCondition:
             if (is_conditioned or 
                 is_bleeding or 

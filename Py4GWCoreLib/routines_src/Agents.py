@@ -477,15 +477,13 @@ class Agents:
     
     @staticmethod
     def GetPartyTargetID():
+        from .Party import Party
+        return Party.GetPartyTargetID()
+    
+    @staticmethod
+    def SafeInteract(target_id):
         from ..GlobalCache import GLOBAL_CACHE
-        if not GLOBAL_CACHE.Party.IsPartyLoaded():
-            return 0
-
-        players = GLOBAL_CACHE.Party.GetPlayers()
-        target = players[0].called_target_id
-
-        if target is None or target == 0:
-            return 0
-        else:
-            return target
+        if GLOBAL_CACHE.Agent.IsValid(target_id):
+            GLOBAL_CACHE.Player.ChangeTarget(target_id)
+            GLOBAL_CACHE.Player.Interact(target_id, False)
 
