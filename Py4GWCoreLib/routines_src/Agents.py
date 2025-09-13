@@ -107,7 +107,7 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
 
         player_pos = GLOBAL_CACHE.Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
         return Utils.GetFirstFromArray(enemy_array)
     
@@ -118,7 +118,7 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
 
         player_pos = GLOBAL_CACHE.Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsCaster(agent_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
         return Utils.GetFirstFromArray(enemy_array)
@@ -130,7 +130,7 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
 
         player_pos = GLOBAL_CACHE.Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsMartial(agent_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
         return Utils.GetFirstFromArray(enemy_array)   
@@ -142,7 +142,7 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
 
         player_pos = GLOBAL_CACHE.Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsMelee(agent_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
         return Utils.GetFirstFromArray(enemy_array)
@@ -154,7 +154,7 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
 
         player_pos = GLOBAL_CACHE.Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsRanged(agent_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
         return Utils.GetFirstFromArray(enemy_array)
