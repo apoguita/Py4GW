@@ -1,7 +1,7 @@
 
 import pathlib
 import sys
-from Py4GWCoreLib.Py4GWcorelib import LootConfig, Utils
+from Py4GWCoreLib.Py4GWcorelib import LootConfig, ThrottledTimer, Utils
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
@@ -34,6 +34,7 @@ from Widgets.CustomBehaviors.gui.debug_sharedlocks import render as debug_shared
 from Widgets.CustomBehaviors.gui.debug_eventbus import render as debug_eventbus
 from Widgets.CustomBehaviors.gui.auto_mover import render as auto_mover
 from Widgets.CustomBehaviors.gui.daemon import daemon as daemon
+from Widgets.CustomBehaviors.gui.botting import render as botting
 
 party_forced_state_combo = 0
 current_path = pathlib.Path.cwd()
@@ -61,6 +62,10 @@ def gui():
 
         if PyImGui.begin_tab_item("auto_mover"):
             auto_mover()
+            PyImGui.end_tab_item()
+
+        if PyImGui.begin_tab_item("botting"):
+            botting()
             PyImGui.end_tab_item()
 
         if PyImGui.begin_tab_item("debug"):
@@ -92,13 +97,27 @@ def gui():
     PyImGui.end()
     return
 
+previous_map_status = False
+map_change_throttler = ThrottledTimer(250)
+
 def main():
+    global previous_map_status
+
+    if Routines.Checks.Map.MapValid() and previous_map_status == False:
+        map_change_throttler.Reset()
+        if constants.DEBUG: print("map changed detected - we will throttle.")
+
+    previous_map_status = Routines.Checks.Map.MapValid()
+    
     if not Routines.Checks.Map.MapValid():
         return
-
-    gui()
-    daemon()
     
+    if not map_change_throttler.IsExpired():
+        if constants.DEBUG: print("map changed - throttling.")
+
+    if map_change_throttler.IsExpired():
+        gui()
+        daemon()
 
 def configure():
     # gui()
