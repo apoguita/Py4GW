@@ -164,6 +164,8 @@ class ShadowFormAssassinVaettir(BuildMgr):
                 return
 
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id,self.shadow_form)
+            shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id,self.shadow_form) if has_shadow_form else 0
             if Routines.Checks.Agents.InDanger(Range.Spellcast):
                 has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
                 if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_form)):
