@@ -314,6 +314,20 @@ class BottingClass:
             ActionQueueManager().ResetAllQueues()
             yield
 
+        @_yield_step("GetBlessing", "INTERACT_GET_BLESSING")
+        def GetBlessing(self, step_name: str = ""):
+            if step_name == "":
+                step_name = f"GetBlessing_{self._config.get_counter('INTERACT_GET_BLESSING')}"
+
+            self._disable_auto_combat()
+
+            from Widgets.Blessed import Get_Blessed  # same import as before
+            Get_Blessed()  # starts the BlessingRunner (as in Blessed.py -> same as pushing the button in the widget)  
+
+            self._restore_auto_combat()
+
+            yield # we have to make helpers generators for them to work with botting class
+
         @_yield_step("RestoreAutoCombat","AUTO_RESTORE_AUTO_COMBAT")
         def _restore_auto_combat(self):
             self._config.upkeep.auto_combat.set_now("active", self.combat_status)
