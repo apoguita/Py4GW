@@ -19,8 +19,7 @@ class UI:
             cls.combat = combat.Combat()
             cls.widget_state = state.WidgetState()
             cls.expanded = False
-            cls.gui_open = True        
-            cls.item_textures_path = "Textures\\Item Models\\"
+            cls.gui_open = True
         
         return cls._instance
                     
@@ -100,11 +99,11 @@ class UI:
                                         
                         PyImGui.table_next_column()                    
                         name = self.widget_state.quest.counter_pieces[i].value.name if i < len(self.widget_state.quest.counter_pieces) else "None"
-                        
-                        if os.path.exists(os.path.join(self.item_textures_path, self.widget_state.quest.counter_pieces[i].value.item_texture)):
+
+                        if self.widget_state.quest.counter_pieces[i].value.item_model_id != 0:
                             ImGui.DrawTexture(
-                                os.path.join(self.item_textures_path, self.widget_state.quest.counter_pieces[i].value.item_texture), 
-                                20, 20, 
+                                get_texture_for_model(self.widget_state.quest.counter_pieces[i].value.item_model_id),
+                                20, 20,
                             )
                         else:
                             PyImGui.dummy(20, 20)

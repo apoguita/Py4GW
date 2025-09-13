@@ -16,8 +16,7 @@ from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Trading
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib import ConsoleLog
-from Py4GWCoreLib.enums import ItemModelTextureMap
-from Widgets.InvPlus.GUI_Helpers import (TabIcon, 
+from Widgets.InvPlus.GUI_Helpers import (TabIcon,
                                          Frame,
                                             floating_game_button,   
                                             game_button,
