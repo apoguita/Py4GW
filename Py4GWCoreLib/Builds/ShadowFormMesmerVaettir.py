@@ -205,7 +205,7 @@ class ShadowFormMesmerVaettir(BuildMgr):
 
             if not self.in_killing_routine:
                 if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.35 or self.stuck_counter > 0:
-                    center_point1 = (10980, -21532)d
+                    center_point1 = (10980, -21532)
                     center_point2 = (11461, -17282)
                     player_pos = GLOBAL_CACHE.Player.GetXY()
                     
