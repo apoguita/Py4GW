@@ -12,8 +12,7 @@ from Py4GWCoreLib import IconsFontAwesome5
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib.enums import ItemModelTextureMap
-from Widgets.InvPlus.GUI_Helpers import (TabIcon, 
+from Widgets.InvPlus.GUI_Helpers import (TabIcon,
                                          Frame,
                                             floating_game_button,   
                                             game_button,

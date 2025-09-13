@@ -3,7 +3,7 @@ import PyImGui
 from typing import Dict
 
 
-from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import ImGui, get_texture_for_model
 from Py4GWCoreLib import ColorPalette
 from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import Item
@@ -12,10 +12,9 @@ from Py4GWCoreLib import IconsFontAwesome5
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib.enums import ItemModelTextureMap
-from Widgets.InvPlus.GUI_Helpers import (TabIcon, 
+from Widgets.InvPlus.GUI_Helpers import (TabIcon,
                                          Frame,
-                                            floating_game_button,   
+                                            floating_game_button,
                                             game_button,
                                             game_toggle_button,
                                             _get_parent_hash,
@@ -26,17 +25,17 @@ from Widgets.InvPlus.GUI_Helpers import (TabIcon,
                                             _get_floating_button_color,
                                             INVENTORY_FRAME_HASH,
                                             XUNLAI_VAULT_FRAME_HASH
-                            )         
+                            )
 from Widgets.InvPlus.Coroutines import IdentifyCheckedItems
 
-class IdentifyModule:   
+class IdentifyModule:
     def __init__(self, inventory_frame: Frame):
         self.MODULE_NAME = "Identify"
         self.inventory_frame = inventory_frame
         self.id_checkboxes: Dict[int, bool] = {}
 
     #region IdentifyStrip
-    
+
     #region DrawIDBottomStrip
     def draw_id_bottom_strip(self):
         def _tick_checkboxes(rarity:str, tick_state:bool):
@@ -64,17 +63,17 @@ class IdentifyModule:
                         self.id_checkboxes[item_id] = tick_state
                     elif rarity == "Green" and Item.Rarity.IsGreen(item_id):
                         self.id_checkboxes[item_id] = tick_state
-                        
+
             # Remove checkbox states that are set to False
             for item_id in list(self.id_checkboxes):
                 if not self.id_checkboxes[item_id]:
                     del self.id_checkboxes[item_id]
-            
+
         x = self.inventory_frame.left +5
         y = self.inventory_frame.bottom
         width = self.inventory_frame.width
         height = 57
-        
+
         PyImGui.set_next_window_pos(x, y)
         PyImGui.set_next_window_size(0, height)
 
@@ -85,15 +84,15 @@ class IdentifyModule:
             PyImGui.WindowFlags.NoScrollWithMouse |
             PyImGui.WindowFlags.AlwaysAutoResize
         )
-        
+
         PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 5, 5)
         PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0, 0)
-        
+
         table_flags = (
             PyImGui.TableFlags.BordersInnerV |
             PyImGui.TableFlags.NoPadOuterX
         )
-        
+
         if PyImGui.begin("IDButtonsWindow", window_flags):
             if PyImGui.begin_table("IDButtonsTable", 2, table_flags):
                 PyImGui.table_setup_column("Buttons", PyImGui.TableColumnFlags.WidthStretch)
@@ -101,63 +100,63 @@ class IdentifyModule:
 
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
-                
+
                 if game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##IDAllButton","Select All", width=20, height=20, color=ColorPalette.GetColor("GW_Disabled")):
                     _tick_checkboxes("All", True)
-                        
-                        
+
+
                 PyImGui.same_line(0,3)
                 PyImGui.text("|")
                 PyImGui.same_line(0,3)
-                
+
                 if game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##IDWhitesButton","Select All Whites", width=20, height=20, color=ColorPalette.GetColor("GW_White")):
                     _tick_checkboxes("White", True)
-                            
+
                 PyImGui.same_line(0,3)
                 if game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##IDBluesButton","Select All Blues", width=20, height=20, color=ColorPalette.GetColor("GW_Blue")):
                     _tick_checkboxes("Blue", True)
-                            
+
                 PyImGui.same_line(0,3)
                 if game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##IDPurplesButton","Select All Purples", width=20, height=20, color=ColorPalette.GetColor("GW_Purple")):
                     _tick_checkboxes("Purple", True)
-                            
+
                 PyImGui.same_line(0,3)
                 if game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##IDGoldsButton","Select All Golds", width=20, height=20, color=ColorPalette.GetColor("GW_Gold")):
                     _tick_checkboxes("Gold", True)
-                            
+
                 PyImGui.same_line(0,3)
                 if game_button(IconsFontAwesome5.ICON_CHECK_SQUARE,"##IDGreensButton","Select All Greens", width=20, height=20, color=ColorPalette.GetColor("GW_Green")):
-                    _tick_checkboxes("Green", True)           
-                            
+                    _tick_checkboxes("Green", True)
+
                 #next row of buttons
                 if game_button(IconsFontAwesome5.ICON_SQUARE,"##IDClearAllButton","Clear All", width=20, height=20, color=ColorPalette.GetColor("GW_Disabled")):
-                    _tick_checkboxes("All", False) 
-                            
+                    _tick_checkboxes("All", False)
+
                 PyImGui.same_line(0,3)
                 PyImGui.text("|")
                 PyImGui.same_line(0,3)
-                
+
                 if game_button(IconsFontAwesome5.ICON_SQUARE,"##IDClearWhitesButton","Clear Whites", width=20, height=20, color=ColorPalette.GetColor("GW_White")):
                     _tick_checkboxes("White", False)
-                    
+
                 PyImGui.same_line(0,3)
                 if game_button(IconsFontAwesome5.ICON_SQUARE,"##IDClearBluesButton","Clear Blues", width=20, height=20, color=ColorPalette.GetColor("GW_Blue")):
                     _tick_checkboxes("Blue", False)
-                    
+
                 PyImGui.same_line(0,3)
                 if game_button(IconsFontAwesome5.ICON_SQUARE,"##IDClearPurplesButton","Clear Purples", width=20, height=20, color=ColorPalette.GetColor("GW_Purple")):
                     _tick_checkboxes("Purple", False)
-                    
+
                 PyImGui.same_line(0,3)
                 if game_button(IconsFontAwesome5.ICON_SQUARE,"##IDClearGoldsButton","Clear Golds", width=20, height=20, color=ColorPalette.GetColor("GW_Gold")):
                     _tick_checkboxes("Gold", False)
                 PyImGui.same_line(0,3)
-                
+
                 if game_button(IconsFontAwesome5.ICON_SQUARE,"##IDClearGreensButton","Clear Greens", width=20, height=20, color=ColorPalette.GetColor("GW_Green")):
                     _tick_checkboxes("Green", False)
-                    
+
             PyImGui.table_next_column()
-            texture_file = ItemModelTextureMap[ModelID.Superior_Identification_Kit.value]
+            texture_file = get_texture_for_model(ModelID.Superior_Identification_Kit)
             if ImGui.ImageButton("##text_unique_name", texture_file, 45, 45):
                 GLOBAL_CACHE.Coroutines.append(IdentifyCheckedItems(self.id_checkboxes))
             ImGui.show_tooltip("Identify selected items.")    

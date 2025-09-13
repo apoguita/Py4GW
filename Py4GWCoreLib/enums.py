@@ -37,7 +37,6 @@ from .enums_src.Region_enums import (
     ServerRegionName,
 )
 from .enums_src.Texture_enums import (
-    ItemModelTextureMap,
     ProfessionTextureMap,
     SkillTextureMap,
     get_texture_for_model,

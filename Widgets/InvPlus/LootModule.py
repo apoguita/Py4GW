@@ -1,14 +1,13 @@
 import Py4GW
 import PyImGui
 
-from Py4GWCoreLib import ColorPalette
+from Py4GWCoreLib import ColorPalette, get_texture_for_model
 from Py4GWCoreLib import IconsFontAwesome5
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import LootConfig
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import Utils
-from Py4GWCoreLib.enums import ItemModelTextureMap
 from Widgets.InvPlus.GUI_Helpers import (Frame, game_toggle_button, _get_parent_hash)
 
 #region LootGroups
@@ -614,7 +613,7 @@ class LootModule:
                                 if PyImGui.begin_table(f"##table_{group_name}_{subgroup}", 3, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg):
                                     col = 0
                                     for item_model_id in items:
-                                        item_texture = ItemModelTextureMap.get(item_model_id, ItemModelTextureMap[0])
+                                        item_texture = get_texture_for_model(item_model_id)
                                         enum_entry = ModelID(item_model_id)
                                         enum_name = ' '.join(word.capitalize() for word in enum_entry.name.split('_'))
 
