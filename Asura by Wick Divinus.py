@@ -7,13 +7,20 @@ def Routine(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout",value=-1)
-    bot.Properties.Enable("auto_combat")
+    #bot.Properties.Enable("auto_combat")
     
+    bot.States.AddHeader("Travel to Ratasum")
+    bot.Map.Travel(target_map_id=640) #Ratasum outpost
     bot.Party.SetHardMode(True)
     bot.States.AddHeader("EXIT OUTPOST HEADER")
+    bot.UI.PrintMessageToConsole("Debug", "Added header: EXIT OUTPOST HEADER")
     bot.Move.XY(-6062, -2688,"Exit Outpost")
     bot.Wait.ForMapLoad(target_map_name="Magus Stones")
-    bot.Move.XYAndDialog(14796, 13170,0x84)
+    bot.Move.XY(15013, 13111)
+    bot.Wait.ForTime(2000)
+    bot.Interact.GetBlessing()
+    bot.Wait.ForTime(6000)
+    #bot.Move.XYAndDialog(14796, 13170,0x84)
     bot.Move.XY(16722, 11774, "Moving")
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(17383, 8685, "Moving")
@@ -194,7 +201,7 @@ def Routine(bot: Botting) -> None:
     bot.Wait.UntilOutOfCombat()
     bot.Party.Resign()
     bot.UI.PrintMessageToConsole("Asura farm", "Finished routine")
-    bot.States.JumpToStepName("[H]EXIT OUTPOST HEADER_1")
+    bot.States.JumpToStepName("EXIT OUTPOST HEADER")
     
 bot.SetMainRoutine(Routine)
 
