@@ -2045,7 +2045,7 @@ class ModelID(IntEnum):
     )
     Dark_Claw = 1236547891  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Dark_Flame_Fang = 12365478911  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Dregde_Manifesto = 12365478914  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Dredge_Manifesto = 12365478914  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Fibrous_Mandragor_Root = (
         12365478917  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     )
@@ -2069,7 +2069,7 @@ class ModelID(IntEnum):
     Mandragor_Carapace = (
         123654789181  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     )
-    Plauge_Idol = 123654789185  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    Plague_Idol = 123654789185  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Rinkhal_Talon = 123654789186  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Searing_Ribcage = 123654789187  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Searing_Burrower_Jaw = (
@@ -2081,20 +2081,6 @@ class ModelID(IntEnum):
     Smoking_Remains = 8787899465  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Spiny_Seed = 74966338  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Stolen_Supplies = 66665481  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Shadowy_Remnants = 441
-    Ivory_Troll_Tusk = 445
-    Lavastrider_Appendage = 27058
-    Blessing_Of_War = 37843
-    Diamond_Djinn_Essence = 19186
-    Elder_Kappa_Shell = 837
-    Enchanted_Vine = 834
-    Diessa_Chalice = 24353
-    Dregde_Charm = 27064
-    Kappa_Shell = 839
-    Naga_Hide = 832
-    Oni_Claw = 817
-    Oni_Taloon = 831
-    Copper_Chrimson_Skull_Coin = 806
     Aatxe_Mini = 22765
     Abnormal_Seed = 442
     Abominable_Tonic = 30646
@@ -2113,17 +2099,18 @@ class ModelID(IntEnum):
     Ancient_Elonian_Key = 15556
     Ancient_Eye = 464
     Arachnis_Scythe = 26993
+    Arcane_Crystal_Shard = 24634
     Archaic_Kappa_Shell = 850
+    Arctic_Summon = 30962
     Armbrace_Of_Truth = 21127
     Armor_Of_Salvation = 24860
-    Artic_Summon = 30962
     Ascalonian_Key = 5966
     Assassin_Elite_Tome = 21786
     Assassin_Tome = 21796
     Asura_Mini = 22189
     Augmented_Flesh = 826
-    Autmatonic_Tonic = 30634
     Automaton_Summon = 30846
+    Automatonic_Tonic = 30634
     Axe_Grip = 905
     Axe_Haft = 893
     Azure_Crest = 844
@@ -2159,7 +2146,6 @@ class ModelID(IntEnum):
     Behemoth_Jaw = 465
     Belt_Pouch = 34
     Berserker_Horn = 27046
-    Scroll_Of_Berserkers_Insight = 5595
     Birthday_Cupcake = 22269
     Birthday_Present = 37798
     Bison_Championship_Token = 27563
@@ -2167,6 +2153,7 @@ class ModelID(IntEnum):
     Black_Moa_Chick_Mini = 25499
     Black_Pearl = 841
     Bleached_Carapace = 449
+    Blessing_Of_War = 37843
     Blob_Of_Ooze = 27067
     Blue_Rock_Candy = 31151
     Bog_Skale_Fin = 443
@@ -2178,15 +2165,13 @@ class ModelID(IntEnum):
     Bone = 921
     Bone_Charm = 811
     Bone_Dragon_Mini = 13783
-
     Bonus_Luminescent_Scepter = 6508
     Bonus_Nevermore_Flatbow = 5831
     Bonus_Rhinos_Charge = 6060
     Bonus_Serrated_Shield = 6514
     Bonus_Soul_Shrieker = 6515
     Bonus_Tigers_Roar = 6036
-    Bonus_Wolfs_Favor = 6058 
-    
+    Bonus_Wolfs_Favor = 6058
     Book_Of_Secrets = 19197
     Boreal_Tonic = 30638
     Bottle_Of_Grog = 30855
@@ -2203,6 +2188,7 @@ class ModelID(IntEnum):
     Burning_Titan_Mini = 13793
     Burol_Ironfists_Commendation = 29018
     Candy_Apple = 28431
+    Candy_Cane_Shard = 556
     Candy_Corn = 28432
     Candysmith_Marley_Mini = 34397
     Canthan_Key = 6540
@@ -2225,7 +2211,6 @@ class ModelID(IntEnum):
     Cc_Inspiration = 1064
     Cc_Protection = 1879
     Cc_Restoration = 1884
-    Candy_Cane_Shard = 556
     Cc_Smiting = 1880
     Cc_Soul_Reaping = 1752
     Cc_Spawning = 1883
@@ -2266,13 +2251,14 @@ class ModelID(IntEnum):
     Confessor_Dorian_Mini = 35132
     Confessor_Isaiah_Mini = 35131
     Confessors_Orders = 35123
+    Copper_Crimson_Skull_Coin = 806
     Copper_Shilling = 1577
     Copper_Zaishen_Coin = 31202
     Corrosive_Spider_Leg = 518
     Cottontail_Tonic = 31142
     Crate_Of_Fireworks = 29436
     Creme_Brulee = 15528
-    Curved_Mintaur_Horn = 495
+    Curved_Minotaur_Horn = 495
     Dagger_Handle = 6331
     Dagger_Tang = 6323
     Dagnar_Stonepate_Mini = 32527
@@ -2281,8 +2267,8 @@ class ModelID(IntEnum):
     Decayed_Orr_Emblem = 504
     Deep_Jade_Key = 6539
     Deldrimor_Armor_Remnant = 27321
-    Deldrimor_Talisman = 30693
     Deldrimor_Steel_Ingot = 950
+    Deldrimor_Talisman = 30693
     Delicious_Cake = 36681
     Demonic_Fang = 473
     Demonic_Key = 19174
@@ -2297,12 +2283,15 @@ class ModelID(IntEnum):
     Destroyer_Core = 27033
     Destroyer_Of_Flesh_Mini = 22250
     Dhuum_Mini = 32822
-    Disco_Ball = 29543
     Diamond = 935
+    Diamond_Djinn_Essence = 19186
+    Diessa_Chalice = 24353
+    Disco_Ball = 29543
     Dragon_Mask = 15481
     Dragon_Root = 819
     Drake_Kabob = 17060
     Dredge_Brute_Mini = 32517
+    Dredge_Charm = 27064
     Dredge_Incisor = 818
     Droknars_Key = 26724
     Dryder_Web = 27070
@@ -2375,6 +2364,7 @@ class ModelID(IntEnum):
     El_Yuletide_Tonic = 29241
     El_Zenmai_Tonic = 36439
     El_Zhed_Shadowhoof_Tonic = 36431
+    Elder_Kappa_Shell = 837
     Elemental_Sword = 2267
     Elementalist_Elite_Tome = 21789
     Elementalist_Tome = 21799
@@ -2383,6 +2373,7 @@ class ModelID(IntEnum):
     Elonian_Key = 5960
     Elonian_Leather_Square = 943
     Enchanted_Lodestone = 431
+    Enchanted_Vine = 834
     Encrusted_Lodestone = 451
     Encrypted_Charr_Battle_Plans = 27976
     Enslavement_Stone = 532
@@ -2392,6 +2383,7 @@ class ModelID(IntEnum):
     Evennia_Mini = 35128
     Everlasting_Mobstopper = 32558
     Expert_Salvage_Kit = 2991
+    Exquisite_Surmia_Carving = 24352
     Eye_Of_Janthir_Mini = 32529
     Feather = 933
     Feathered_Avicara_Scalp = 498
@@ -2487,6 +2479,7 @@ class ModelID(IntEnum):
     Gwen_Mini = 22753
     Hammer_Grip = 907
     Hammer_Haft = 895
+    Hammer_of_Kathandrax = 22374
     Hard_Apple_Cider = 28435
     Hardened_Hump = 435
     Harpy_Ranger_Mini = 22761
@@ -2494,7 +2487,6 @@ class ModelID(IntEnum):
     Heket_Tongue = 19199
     Heket_Warrior_Mini = 22760
     Heleynes_Insight = 36676
-    Scroll_Of_Heros_Insight = 5594
     Heros_Handbook = 26899
     Heros_Zaishen_Strongbox = 36666
     Herring_Mini_Black_Moa_Chick_Incubator = 26502
@@ -2503,7 +2495,6 @@ class ModelID(IntEnum):
     Huge_Jawbone = 492
     Hunk_Of_Fresh_Meat = 15583
     Hunters_Ale = 910
-    Scroll_Of_Hunters_Insight = 5976
     Hunting_Minotaur_Horn = 1682
     Hydra_Mini = 13787
     Iboga_Petal = 19183
@@ -2535,6 +2526,7 @@ class ModelID(IntEnum):
     Iron_Ingot = 948
     Irukandji_Mini = 30613
     Istani_Key = 15557
+    Ivory_Troll_Tusk = 445
     Jade_Armor_Mini = 13788
     Jade_Bracelet = 809
     Jade_Mandible = 457
@@ -2550,6 +2542,7 @@ class ModelID(IntEnum):
     Jungle_Troll_Tusk = 471
     Juvenile_Termite_Leg = 1598
     Kappa_Hatchling_Shell = 838
+    Kappa_Shell = 839
     Keen_Oni_Claw = 817
     Keen_Oni_Talon = 847
     Keg_Of_Aged_Hunters_Ale = 31146
@@ -2576,6 +2569,7 @@ class ModelID(IntEnum):
     Kuunavang_Mini = 12389
     Kveldulf_Mini = 32522
     Large_Equipment_Pack = 31223
+    Lavastrider_Appendage = 27058
     Leather_Square = 942
     Leathery_Claw = 484
     Legionnaire_Summoning_Crystal = 37810
@@ -2647,10 +2641,10 @@ class ModelID(IntEnum):
     Monastery_Credit = 5819
     Monk_Elite_Tome = 21790
     Monk_Tome = 21800
-    Monumental_Tapestry = 27583
     Monstrous_Claw = 923
     Monstrous_Eye = 931
     Monstrous_Fang = 932
+    Monumental_Tapestry = 27583
     Moon_Shell = 1009
     Mossy_Mandible = 469
     Mountain_Root = 27049
@@ -2663,6 +2657,7 @@ class ModelID(IntEnum):
     Mysterious_Summon = 31155
     Mysterious_Tonic = 31141
     Mystical_Summon = 30960
+    Naga_Hide = 832
     Naga_Pelt = 833
     Naga_Raincaller_Mini = 15515
     Naga_Skin = 848
@@ -2676,7 +2671,9 @@ class ModelID(IntEnum):
     Obsidian_Burrower_Jaw = 472
     Obsidian_Key = 5971
     Obsidian_Shard = 945
+    Oni_Claw = 817
     Oni_Mini = 15516
+    Oni_Talon = 831
     Onyx_Gemstone = 936
     Oola_Mini = 34396
     Ooze_Mini = 30618
@@ -2725,6 +2722,7 @@ class ModelID(IntEnum):
     Primeval_Armor_Remnant = 19193
     Prince_Rurik_Mini = 13790
     Princess_Salma_Mini = 35130
+    Prismatic_Gelatinous_Material = 22375
     Proof_Of_Legend = 37841
     Pulsating_Growth = 824
     Pumpkin_Cookie = 28433
@@ -2732,7 +2730,6 @@ class ModelID(IntEnum):
     Quetzal_Crest = 27039
     Quetzal_Sly_Mini = 32523
     Rainbow_Candy_Cane = 21489
-    Scroll_Of_Rampagers_Insight = 5975
     Ranger_Elite_Tome = 21792
     Ranger_Tome = 21802
     Raptor_Mini = 30619
@@ -2767,8 +2764,13 @@ class ModelID(IntEnum):
     Scorched_Seed = 485
     Scourge_Manta_Mini = 34394
     Scroll_Of_Adventurers_Insight = 5853
+    Scroll_Of_Berserkers_Insight = 5595
+    Scroll_Of_Heros_Insight = 5594
+    Scroll_Of_Hunters_Insight = 5976
+    Scroll_Of_Rampagers_Insight = 5975
     Scroll_Of_Resurrection = 26501
     Scroll_Of_The_Lightbringer = 21233
+    Scroll_of_Slayers_Insight = 5611
     Scythe_Grip = 15553
     Scythe_Snathe = 15543
     Seal_Of_The_Dragon_Empire = 30211
@@ -2782,9 +2784,11 @@ class ModelID(IntEnum):
     Shadowy_Crest = 520
     Shadowy_Husk = 526
     Shadowy_Remnant = 441
+    Shadowy_Remnants = 441
     Shamrock_Ale = 22190
     Shard_Wolf_Mini = 34389
     Shield_Handle = 15554
+    Shimmering_Essence = 24633
     Shing_Jea_Key = 6537
     Shining_Blade_Ration = 35127
     Shining_Blade_Summon = 35126
@@ -2811,7 +2815,6 @@ class ModelID(IntEnum):
     Skelk_Fang = 27060
     Skree_Wing = 1610
     Skull_Juju = 814
-    Scroll_of_Slayers_Insight = 5611
     Slice_Of_Pumpkin_Pie = 28436
     Small_Equipment_Pack = 31221
     Smite_Crawler_Mini = 32556
@@ -2820,6 +2823,7 @@ class ModelID(IntEnum):
     Sparkler = 21813
     Spear_Grip = 15555
     Spearhead = 15544
+    Spectral_Crystal = 24635
     Spider_Leg = 422
     Spiked_Crest = 434
     Spiked_Eggnog = 6366
@@ -2845,9 +2849,9 @@ class ModelID(IntEnum):
     Stygian_Gemstone = 21129
     Sugary_Blue_Drink = 21812
     Summit_Giant_Herder = 34391
+    Superb_Charr_Carving = 27052
     Superior_Identification_Kit = 5899
     Superior_Salvage_Kit = 5900
-    Superb_Charr_Carving = 27052
     Sword_Hilt = 897
     Sword_Pommel = 909
     Tangled_Seed = 468
@@ -2863,10 +2867,10 @@ class ModelID(IntEnum):
     Torivos_Rage = 36680
     Torment_Gemstone = 21131
     Totem_Axe = 15064
-    Trick_Or_Treat_Bag = 28434
     Trade_Contract = 17082
     Transmogrifier_Tonic = 15837
     Trapdoor_Tonic = 30630
+    Trick_Or_Treat_Bag = 28434
     Truffle = 813
     Umbral_Eye = 519
     Umbral_Skeletal_Limb = 525
@@ -3046,7 +3050,7 @@ SPIRIT_BUFF_MAP = {
     SpiritModelID.TRANQUILITY: PySkill.Skill("Tranquility").id.id,
     SpiritModelID.WINTER: PySkill.Skill("Winter").id.id,
     SpiritModelID.WINNOWING: PySkill.Skill("Winnowing").id.id,
-}   
+}
 
 
 
@@ -3587,7 +3591,7 @@ class PetModelID(IntEnum):
 #region ItemModelTextures
 def get_texture_for_model(model_id: int) -> str:
     """
-    Get the texture path for a given model_id. 
+    Get the texture path for a given model_id.
     If not found, returns a fallback image path like '2992 not found.jpg'.
     """
     if model_id in ItemModelTextureMap:
@@ -3877,11 +3881,11 @@ ItemModelTextureMap = {
     15553: ITEM_MODEL_TEXTURE_PATH + "[15553] - Scythe Grip.png",
     15554: ITEM_MODEL_TEXTURE_PATH + "[15554] - Shield Handle.png",
     15555: ITEM_MODEL_TEXTURE_PATH + "[15555] - Spear Grip.png",
-    15556: ITEM_MODEL_TEXTURE_PATH + "[15556] - Ancient_Elonian_Key.png",				
-    15557: ITEM_MODEL_TEXTURE_PATH + "[15557] - Istani_Key.png",				
-    15558: ITEM_MODEL_TEXTURE_PATH + "[15558] - Vabbian_Key.png",				
-    15559: ITEM_MODEL_TEXTURE_PATH + "[15559] - Kournan_Key.png",				
-    15560: ITEM_MODEL_TEXTURE_PATH + "[15560] - Margonite_Key.png",				
+    15556: ITEM_MODEL_TEXTURE_PATH + "[15556] - Ancient_Elonian_Key.png",
+    15557: ITEM_MODEL_TEXTURE_PATH + "[15557] - Istani_Key.png",
+    15558: ITEM_MODEL_TEXTURE_PATH + "[15558] - Vabbian_Key.png",
+    15559: ITEM_MODEL_TEXTURE_PATH + "[15559] - Kournan_Key.png",
+    15560: ITEM_MODEL_TEXTURE_PATH + "[15560] - Margonite_Key.png",
     15835: ITEM_MODEL_TEXTURE_PATH + "[15835] - Wintergreen Axe.jpg",
     15836: ITEM_MODEL_TEXTURE_PATH + "[15836] - Wintergreen Bow.jpg",
     15837: ITEM_MODEL_TEXTURE_PATH + "[15837] - Transmogrifier Tonic.png",
@@ -3890,7 +3894,7 @@ ItemModelTextureMap = {
     15840: ITEM_MODEL_TEXTURE_PATH + "[15840] - Wintergreen Wand.jpg",
     15877: ITEM_MODEL_TEXTURE_PATH + "[15877] - Wintergreen Scythe.jpg",
     15878: ITEM_MODEL_TEXTURE_PATH + "[15878] - Wintergreen Shield.jpg",
-    15940: ITEM_MODEL_TEXTURE_PATH + "[15940] - Jade_Wind_Orb.png",																									
+    15940: ITEM_MODEL_TEXTURE_PATH + "[15940] - Jade_Wind_Orb.png",
     15971: ITEM_MODEL_TEXTURE_PATH + "[15971] - Wintergreen Spear.jpg",
     16128: ITEM_MODEL_TEXTURE_PATH + "[16128] - Wintergreen Staff.jpg",
     16130: ITEM_MODEL_TEXTURE_PATH + "[16130] - Wintergreen Sword.jpg",
@@ -3969,6 +3973,8 @@ ItemModelTextureMap = {
     22269: ITEM_MODEL_TEXTURE_PATH + "[22269] - Birthday Cupcake.png",
     22279: ITEM_MODEL_TEXTURE_PATH + "[22279] - Passage_Scroll_to_the_Deep.png",
     22280: ITEM_MODEL_TEXTURE_PATH + "[22280] - Passage_Scroll_to_the_Fissure_of_Woe.png",
+    22374: ITEM_MODEL_TEXTURE_PATH + "[22374] - Hammer_of_Kathandrax.png",
+    22375: ITEM_MODEL_TEXTURE_PATH + "[22375] - Prismatic_Gelatinous_Material.png",
     22644: ITEM_MODEL_TEXTURE_PATH + "[22644] - Chocolate Bunny.png",
     22751: ITEM_MODEL_TEXTURE_PATH + "[22751] - Lockpick.png",
     22752: ITEM_MODEL_TEXTURE_PATH + "[22752] - Golden Egg.png",
@@ -3977,6 +3983,7 @@ ItemModelTextureMap = {
     22765: ITEM_MODEL_TEXTURE_PATH + "[22765] - Miniature Aatxe.png",
     22766: ITEM_MODEL_TEXTURE_PATH + "[22766] - Miniature Thorn Wolf.png",
     23242: ITEM_MODEL_TEXTURE_PATH + "[23242] - Everlasting Transmogrifier Tonic.png",
+    24352: ITEM_MODEL_TEXTURE_PATH + "[24352] - Exquisite_Surmia_Carving.png",
     24353: ITEM_MODEL_TEXTURE_PATH + "[24353] - Diessa Chalice.png",
     24354: ITEM_MODEL_TEXTURE_PATH + "[24354] - Golden Rin Relic.png",
     24593: ITEM_MODEL_TEXTURE_PATH + "[24593] - Aged Dwarven Ale.png",
@@ -3984,6 +3991,9 @@ ItemModelTextureMap = {
     24630: ITEM_MODEL_TEXTURE_PATH + "[24630] - Top_Right_Map_Piece.png",
     24631: ITEM_MODEL_TEXTURE_PATH + "[24631] - Bottom_Left_Map_Piece.png",
     24632: ITEM_MODEL_TEXTURE_PATH + "[24632] - Bottom_Right_Map_Piece.png",
+    24633: ITEM_MODEL_TEXTURE_PATH + "[24633] - Shimmering_Essence.png",
+    24634: ITEM_MODEL_TEXTURE_PATH + "[24634] - Arcane_Crystal_Shard.png",
+    24635: ITEM_MODEL_TEXTURE_PATH + "[24635] - Spectral_Crystal.png",
     24859: ITEM_MODEL_TEXTURE_PATH + "[24859] - Essence of Celerity.png",
     24860: ITEM_MODEL_TEXTURE_PATH + "[24860] - Armor of Salvation.png",
     24861: ITEM_MODEL_TEXTURE_PATH + "[24861] - Grail Of Might.png",

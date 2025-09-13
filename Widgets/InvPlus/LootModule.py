@@ -1,41 +1,15 @@
-
-import PyImGui
 import Py4GW
-from typing import Dict
+import PyImGui
 
-
-from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import ColorPalette
-from Py4GWCoreLib import ItemArray
-from Py4GWCoreLib import Item
-from Py4GWCoreLib import Bags
 from Py4GWCoreLib import IconsFontAwesome5
+from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import LootConfig
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import UIManager
-from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import AutoInventoryHandler
-from Py4GWCoreLib import LootConfig
 from Py4GWCoreLib import Utils
-from Py4GWCoreLib import ConsoleLog
-from Py4GWCoreLib import Routines
-from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib.enums import ItemModelTextureMap
-from Py4GWCoreLib.enums import WindowID
-from Widgets.InvPlus.GUI_Helpers import (TabIcon, 
-                                         Frame,
-                                            floating_game_button,   
-                                            game_button,
-                                            game_toggle_button,
-                                            _get_parent_hash,
-                                            _get_offsets,
-                                            _get_frame_color,
-                                            _get_frame_outline_color,
-                                            _get_checkbox_color,
-                                            _get_floating_button_color,
-                                            INVENTORY_FRAME_HASH,
-                                            XUNLAI_VAULT_FRAME_HASH
-                            )         
-from Widgets.InvPlus.Coroutines import IdentifyCheckedItems
+from Widgets.InvPlus.GUI_Helpers import (Frame, game_toggle_button, _get_parent_hash)
 
 #region LootGroups
 LootGroups = {
@@ -260,10 +234,10 @@ LootGroups = {
             ModelID.Chromatic_Scale,
             ModelID.Chunk_Of_Drake_Flesh,
             ModelID.Cobalt_Talon,
-            ModelID.Copper_Chrimson_Skull_Coin,
+            ModelID.Copper_Crimson_Skull_Coin,
             ModelID.Copper_Shilling,
             ModelID.Corrosive_Spider_Leg,
-            ModelID.Curved_Mintaur_Horn,
+            ModelID.Curved_Minotaur_Horn,
         ],
         "D": [
             ModelID.Dark_Claw,
@@ -278,9 +252,9 @@ LootGroups = {
             ModelID.Diamond_Djinn_Essence,
             ModelID.Diessa_Chalice,
             ModelID.Dragon_Root,
-            ModelID.Dregde_Charm,
+            ModelID.Dredge_Charm,
             ModelID.Dredge_Incisor,
-            ModelID.Dregde_Manifesto,
+            ModelID.Dredge_Manifesto,
             ModelID.Dryder_Web,
             ModelID.Dull_Carapace,
             ModelID.Dune_Burrower_Jaw,
@@ -416,14 +390,14 @@ LootGroups = {
         "O": [
             ModelID.Obsidian_Burrower_Jaw,
             ModelID.Oni_Claw,
-            ModelID.Oni_Taloon,
+            ModelID.Oni_Talon,
             ModelID.Ornate_Grawl_Necklace,
         ],
         "P": [
             ModelID.Patch_of_Simian_Fur,
             ModelID.Phantom_Residue,
             ModelID.Pile_Of_Elemental_Dust,
-            ModelID.Plauge_Idol,
+            ModelID.Plague_Idol,
             ModelID.Pulsating_Growth,
             ModelID.Putrid_Cyst,
         ],
@@ -535,6 +509,14 @@ LootGroups = {
             ModelID.Map_Piece_Bottom_Right,
             ModelID.Map_Piece_Top_Left,
             ModelID.Map_Piece_Top_Right,
+        ],
+        "Dungeon quest items": [
+            ModelID.Spectral_Crystal,
+            ModelID.Shimmering_Essence,
+            ModelID.Arcane_Crystal_Shard,
+            ModelID.Exquisite_Surmia_Carving,
+            ModelID.Hammer_of_Kathandrax,
+            ModelID.Prismatic_Gelatinous_Material,
         ],
     },
 }
