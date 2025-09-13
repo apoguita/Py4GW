@@ -373,5 +373,11 @@
   {"name": "Map Piece (Bottom-Left)", "model_id": "ModelID.Map_Piece_Bottom_Left", "group": "Quest Items", "subgroup": "Map Pieces", "drop_info": "Dropped by data to be added"},
   {"name": "Map Piece (Bottom-Right)", "model_id": "ModelID.Map_Piece_Bottom_Right", "group": "Quest Items", "subgroup": "Map Pieces", "drop_info": "Dropped by data to be added"},
   {"name": "Map Piece (Top-Left)", "model_id": "ModelID.Map_Piece_Top_Left", "group": "Quest Items", "subgroup": "Map Pieces", "drop_info": "Dropped by data to be added"},
-  {"name": "Map Piece (Top-Right)", "model_id": "ModelID.Map_Piece_Top_Right", "group": "Quest Items", "subgroup": "Map Pieces", "drop_info": "Dropped by data to be added"}
+  {"name": "Map Piece (Top-Right)", "model_id": "ModelID.Map_Piece_Top_Right", "group": "Quest Items", "subgroup": "Map Pieces", "drop_info": "Dropped by data to be added"},
+  {"name": "Spectral Crystal (Bloodstone Cave)", "model_id": "ModelID.Spectral_Crystal", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Dropped by Eldritch Ettin"},
+  {"name": "Shimmering Essence (Bloodstone Cave)", "model_id": "ModelID.Shimmering_Essence", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Dropped by Paranoia Ettin"},
+  {"name": "Arcane Crystal Shard (Bloodstone Cave)", "model_id": "ModelID.Arcane_Crystal_Shard", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Dropped by Crystal Ettin"},
+  {"name": "Exquisite Surmia Carving (Cathedral of Flames)", "model_id": "ModelID.Exquisite_Surmia_Carving", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Found in Murakai's Chest"},
+  {"name": "Hammer of Kathandrax (Catacombs of Kathandrax)", "model_id": "ModelID.Hammer_of_Kathandrax", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Found in the Chest of Kathandrax"},
+  {"name": "Prismatic Gelatinous Material (Ooze Pit)", "model_id": "ModelID.Prismatic_Gelatinous_Material", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Found in the Prismatic Chest"}
 ]

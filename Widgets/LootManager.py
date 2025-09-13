@@ -1,11 +1,8 @@
-import os
-import json
-import time
-from Py4GWCoreLib import *
-
 import tkinter as tk
-from tkinter import filedialog
 from datetime import datetime, timedelta
+from tkinter import filedialog
+
+from Py4GWCoreLib import *
 
 # Use hidden root for file dialogs
 tk_root = tk.Tk()
