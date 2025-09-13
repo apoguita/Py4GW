@@ -1,7 +1,7 @@
 from HeroAI.custom_skill import CustomSkillClass
 from HeroAI.types import SkillType,SkillNature, Skilltarget
 from HeroAI.combat import (UniqueSkills, _PrioritizeSkills, _IsSkillReady,
-    _InCastingRoutine, _GetPartyTarget
+    _InCastingRoutine, _GetPartyTarget, _GetAppropiateTarget
                            
 )
 from .Agent import Agent
@@ -164,138 +164,20 @@ class SkillManager:
             return Range.Spellcast.value if self.InAggro() else Range.Earshot.value
         
         def GetAppropiateTarget(self, slot):
+            return _GetAppropiateTarget(
+                self.skills,
+                self.unique_skills,
+                self.HasEffect,
+                self.GetPartyTarget,
+                multibox=False,
+                slot=slot,
+                is_targeting_enabled=True,
+                is_combat_enabled=True,
+                combat_distance=self.get_combat_distance(),
+        )
+                
+                
  
-            v_target = 0
-
-            targeting_strict = self.skills[slot].custom_skill_data.Conditions.TargetingStrict
-            target_allegiance = self.skills[slot].custom_skill_data.TargetAllegiance
-            
-            nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
-            lowest_ally = Routines.Targeting.TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
-
-            if self.skills[slot].skill_id == self.unique_skills.heroic_refrain:
-                if not self.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), self.unique_skills.heroic_refrain):
-                    return GLOBAL_CACHE.Player.GetAgentID()
-
-            if target_allegiance == Skilltarget.Enemy:
-                v_target = self.GetPartyTarget()
-                if v_target == 0:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyCaster:
-                v_target = Routines.Agents.GetNearestEnemyCaster(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target =nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyMartial:
-                v_target = Routines.Agents.GetNearestEnemyMartial(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyMartialMelee:
-                v_target = Routines.Agents.GetNearestEnemyMelee(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyClustered:
-                v_target = Routines.Targeting.TargetClusteredEnemy(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyAttacking:
-                v_target = Routines.Targeting.GetEnemyAttacking(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyCasting:
-                v_target = Routines.Targeting.GetEnemyCasting(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy          
-            elif target_allegiance == Skilltarget.EnemyCastingSpell:
-                v_target = Routines.Targeting.GetEnemyCastingSpell(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyInjured:
-                v_target = Routines.Targeting.GetEnemyInjured(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyConditioned:
-                v_target = Routines.Targeting.GetEnemyConditioned(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyBleeding:
-                v_target = Routines.Targeting.GetEnemyBleeding(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyCrippled:
-                v_target = Routines.Targeting.GetEnemyCrippled(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyPoisoned:
-                v_target = Routines.Targeting.GetEnemyPoisoned(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyHexed:
-                v_target = Routines.Targeting.GetEnemyHexed(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyDegenHexed:
-                v_target = Routines.Targeting.GetEnemyDegenHexed(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyEnchanted:
-                v_target = Routines.Targeting.GetEnemyEnchanted(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyMoving:
-                v_target = Routines.Targeting.GetEnemyMoving(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.EnemyKnockedDown:
-                v_target = Routines.Targeting.GetEnemyKnockedDown(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy           
-            elif target_allegiance == Skilltarget.AllyMartialRanged:
-                v_target = Routines.Agents.GetNearestEnemyRanged(self.get_combat_distance())
-                if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy
-            elif target_allegiance == Skilltarget.Ally:
-                v_target = lowest_ally
-            elif target_allegiance == Skilltarget.AllyCaster:
-                v_target = Routines.Targeting.TargetLowestAllyCaster(filter_skill_id=self.skills[slot].skill_id)
-                if v_target == 0 and not targeting_strict:
-                    v_target = lowest_ally
-            elif target_allegiance == Skilltarget.AllyMartial:
-                v_target = Routines.Targeting.TargetLowestAllyMartial(filter_skill_id=self.skills[slot].skill_id)
-                if v_target == 0 and not targeting_strict:
-                    v_target = lowest_ally
-            elif target_allegiance == Skilltarget.AllyMartialMelee:
-                v_target = Routines.Targeting.TargetLowestAllyMelee(filter_skill_id=self.skills[slot].skill_id)
-                if v_target == 0 and not targeting_strict:
-                    v_target = lowest_ally
-            elif target_allegiance == Skilltarget.AllyMartialRanged:
-                v_target = Routines.Targeting.TargetLowestAllyRanged(filter_skill_id=self.skills[slot].skill_id)
-                if v_target == 0 and not targeting_strict:
-                    v_target = lowest_ally
-            elif target_allegiance == Skilltarget.OtherAlly:
-                if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff.value:
-                    v_target = Routines.Targeting.TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
-                    #print("Energy Buff Target: ", RawAgentArray().get_name(v_target))
-                else:
-                    v_target = Routines.Targeting.TargetLowestAlly(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
-            elif target_allegiance == Skilltarget.Self:
-                v_target = GLOBAL_CACHE.Player.GetAgentID()
-            elif target_allegiance == Skilltarget.Pet:
-                v_target = GLOBAL_CACHE.Party.Pets.GetPetID(GLOBAL_CACHE.Player.GetAgentID())
-            elif target_allegiance == Skilltarget.DeadAlly:
-                v_target = Routines.Agents.GetDeadAlly(Range.Spellcast.value)
-            elif target_allegiance == Skilltarget.Spirit:
-                v_target = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
-            elif target_allegiance == Skilltarget.Minion:
-                v_target = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
-            elif target_allegiance == Skilltarget.Corpse:
-                v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
-            else:
-                v_target = self.GetPartyTarget()
-                if v_target == 0:
-                    v_target = nearest_enemy
-            return v_target
-
-  
         def IsPartyMember(self, agent_id):
             return Routines.Party.IsPartyMember(agent_id)
         
