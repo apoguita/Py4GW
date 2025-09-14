@@ -4,33 +4,8 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import Range
-from Py4GWCoreLib import AutoPathing
 from .AutoCombat import AutoCombat
 
-from HeroAI.targeting import (
-                TargetLowestAlly, 
-                TargetLowestAllyCaster, 
-                TargetLowestAllyMartial, 
-                TargetLowestAllyMelee, 
-                TargetLowestAllyRanged, 
-                TargetLowestAllyEnergy,
-                TargetClusteredEnemy,
-                GetEnemyAttacking,
-                GetEnemyCasting,
-                GetEnemyCastingSpell,
-                GetEnemyInjured,
-                GetEnemyHealthy,
-                GetEnemyConditioned,
-                GetEnemyHexed,
-                GetEnemyDegenHexed,
-                GetEnemyEnchanted,
-                GetEnemyMoving,
-                GetEnemyKnockedDown,
-                GetEnemyBleeding,
-                GetEnemyCrippled,
-                GetEnemyPoisoned,
-                GetEnemyWithEffect,
-            )
 
 class KeiranThackerayEOTN(BuildMgr):
     def __init__(self):
@@ -42,6 +17,10 @@ class KeiranThackerayEOTN(BuildMgr):
         self.terminal_velocity = GLOBAL_CACHE.Skill.GetID("Terminal_Velocity")
         self.gravestone_marker = GLOBAL_CACHE.Skill.GetID("Gravestone_Marker")
         self.rain_of_arrows = GLOBAL_CACHE.Skill.GetID("Rain_of_Arrows")
+        self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(1, False)
+        self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(3, False)
+        self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(5, False)
+        self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(6, False)
         
     def ProcessSkillCasting(self):
         def _CastSkill(target, skill_id, aftercast=750):
@@ -80,22 +59,22 @@ class KeiranThackerayEOTN(BuildMgr):
             
         if Routines.Checks.Agents.InDanger():
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.keiran_sniper_shot)):
-                hexed_enemy = GetEnemyHexed(Range.Earshot.value)
+                hexed_enemy = Routines.Targeting.GetEnemyHexed(Range.Earshot.value)
                 if hexed_enemy != 0:
                     yield from _CastSkill(hexed_enemy, self.keiran_sniper_shot, aftercast)
                     return
 
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.relentless_assaunlt)):
                 if GLOBAL_CACHE.Agent.IsHexed(GLOBAL_CACHE.Player.GetAgentID()) or GLOBAL_CACHE.Agent.IsConditioned(GLOBAL_CACHE.Player.GetAgentID()):
-                    enemy = GetEnemyInjured(Range.Earshot.value)
+                    enemy = Routines.Targeting.GetEnemyInjured(Range.Earshot.value)
                     if enemy != 0:
                         yield from _CastSkill(enemy, self.relentless_assaunlt, aftercast)
                         return
                     
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.terminal_velocity)):
-                casting_enemy = GetEnemyCasting(Range.Earshot.value)
-                bleeding_enemy = GetEnemyBleeding(Range.Earshot.value)
-                
+                casting_enemy = Routines.Targeting.GetEnemyCasting(Range.Earshot.value)
+                bleeding_enemy = Routines.Targeting.GetEnemyBleeding(Range.Earshot.value)
+
                 #if Routines.Checks.Agents.HasEffect(bleeding_enemy,skill_id=GLOBAL_CACHE.Skill.GetID("Deep_Wound")):
                 #    bleeding_enemy = 0  # ignore deep wound bleeding enemies
                 
@@ -103,13 +82,7 @@ class KeiranThackerayEOTN(BuildMgr):
                 if target_enemy != 0:
                     yield from _CastSkill(target_enemy, self.terminal_velocity, aftercast)
                     return
-                
-            """if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.gravestone_marker)):
-                injured_enemy = GetEnemyInjured(Range.Earshot.value)
-                if injured_enemy != 0:
-                    yield from _CastSkill(injured_enemy, self.gravestone_marker, aftercast)
-                    return"""
-                
+
 
            
         yield from self.auto_combat_handler.ProcessSkillCasting()

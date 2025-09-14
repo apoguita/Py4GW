@@ -635,6 +635,15 @@ class Py4GWSharedMemoryManager:
                 if buff == effect_id:
                     return True
         return False
+    
+    def GetAllAccountHeroAIOptions(self) -> list[HeroAIOptionStruct]:
+        """Get HeroAI options for all accounts."""
+        options = []
+        for i in range(self.max_num_players):
+            player = self.GetStruct().AccountData[i]
+            if player.IsSlotActive and player.IsAccount:
+                options.append(self.GetStruct().HeroAIOptions[i])
+        return options
         
     def GetHeroAIOptions(self, account_email: str) -> HeroAIOptionStruct | None:
         """Get HeroAI options for the account with the given email."""

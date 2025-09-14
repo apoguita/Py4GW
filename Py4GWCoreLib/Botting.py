@@ -1,5 +1,4 @@
-  
-from email.mime import message
+
 from typing import Any, Tuple, Callable, List, Iterable, Dict, Optional
 
 
@@ -7,6 +6,8 @@ from .botting_src.helpers import BottingHelpers
 from .botting_src.botconfig import BotConfig
 from .BuildMgr import BuildMgr
 from .Py4GWcorelib import Color, ActionQueueManager
+from .Py4GWcorelib import ModelID
+from .GlobalCache import GLOBAL_CACHE
 from functools import wraps
 import PyImGui
 
@@ -146,7 +147,8 @@ class BottingClass:
                                 upkeep_slice_of_pumpkin_pie_active=upkeep_slice_of_pumpkin_pie_active,
                                 upkeep_slice_of_pumpkin_pie_restock=upkeep_slice_of_pumpkin_pie_restock,
                                 upkeep_war_supplies_active=upkeep_war_supplies_active,
-                                upkeep_war_supplies_restock=upkeep_war_supplies_restock)
+                                upkeep_war_supplies_restock=upkeep_war_supplies_restock,
+                                custom_build=custom_build)
 
         self.helpers = BottingHelpers(self)
         #exposed Helpers
@@ -590,6 +592,9 @@ class BottingClass:
         def defaults(self, name: str) -> Dict[str, Any]:
             prop = self._resolve(name)
             return dict(prop._defaults)  # snapshot
+        
+        def SetActiveSkills(self, active: bool) -> None:
+            self._config.build_handler
 
     #region PARTY
     class _PARTY:
@@ -1236,4 +1241,39 @@ class BottingClass:
                 self._config.config_properties.snap_to_ground_segments.get("value"), 
                 self._config.config_properties.floor_offset.get("value"))
 
+    #region Multibox
+    class _Multibox:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
+            
+        def ResignParty(self):
+            self._helpers.Multibox.resign_party()
+            
+        def PixelStack(self):
+            self._helpers.Multibox.pixel_stack()
+            
+        def InteractWithTarget(self):
+            self._helpers.Multibox.interact_with_target()
+            
+        def UseEssenceOfCelerity(self):
+            self._helpers.Multibox.use_consumable((ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0))
+            
+        def UseGrailOfMight(self):
+            self._helpers.Multibox.use_consumable((ModelID.Grail_Of_Might.value, GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect"), 0, 0))
+            
+        def UseArmorOfSalvation(self):
+            self._helpers.Multibox.use_consumable((ModelID.Armor_Of_Salvation.value, GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect"), 0, 0))
+            
+        def UsePConSet(self):
+            self.UseEssenceOfCelerity()
+            self.UseGrailOfMight()
+            self.UseArmorOfSalvation()
 
+        def UseConsumable(self, item_id, skill_id):
+            self._helpers.Multibox.use_consumable((item_id, skill_id, 0, 0))
+
+
+
+    #endregion
