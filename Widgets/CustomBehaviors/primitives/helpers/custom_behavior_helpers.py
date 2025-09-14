@@ -4,13 +4,11 @@ from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Callable, Optional, Tuple
 
-from HeroAI.cache_data import CacheData
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
-cached_data = CacheData()
 
 from Py4GWCoreLib import GLOBAL_CACHE, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
 from Widgets.CustomBehaviors.primitives import constants
@@ -307,8 +305,9 @@ class Actions:
         return (yield from Actions.cast_skill_to_lambda(skill, select_target=None))
 
     @staticmethod
-    def cast_skill_generic(skill: CustomSkill) -> Generator[Any, Any, BehaviorResult]:
-
+    def cast_skill_generic_heroai(skill: CustomSkill) -> Generator[Any, Any, BehaviorResult]:
+        from HeroAI.cache_data import CacheData
+        cached_data = CacheData()
         if cached_data.combat_handler is None: print("combat_handler is None")
         if cached_data.combat_handler.skills is None:
             try:

@@ -3,7 +3,6 @@ import importlib
 import pkgutil
 from typing import Generator, Any, List
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.skillbars import hero_ai_fallback

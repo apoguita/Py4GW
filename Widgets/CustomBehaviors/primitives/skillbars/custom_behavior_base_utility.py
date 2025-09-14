@@ -3,7 +3,6 @@ from collections import deque
 from typing import List, Generator, Any, override
 import time
 
-from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -60,7 +59,7 @@ class CustomBehaviorBaseUtility():
         self.__injected_additional_utility_skills.append(skill)
         self.__final_skills_list = None
 
-    def clear_additionnal_utility_skills(self, skill:CustomSkillUtilityBase):
+    def clear_additionnal_utility_skills(self):
         self.__injected_additional_utility_skills.clear()
         self.__final_skills_list = None
 

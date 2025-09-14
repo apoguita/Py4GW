@@ -38,6 +38,8 @@ class FollowFlagUtility(CustomSkillUtilityBase):
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
+        if current_state is BehaviorState.IDLE: return False
+        if self.allowed_states is not None and current_state not in self.allowed_states: return False
         return True
 
     @override

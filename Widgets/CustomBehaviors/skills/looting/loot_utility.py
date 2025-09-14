@@ -2,7 +2,6 @@ import math
 from tkinter.constants import N
 from typing import Any, Generator, override
 
-from HeroAI.cache_data import CacheData
 from HeroAI.types import PlayerStruct
 from Py4GWCoreLib import GLOBAL_CACHE, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
@@ -85,10 +84,10 @@ class LootUtility(CustomSkillUtilityBase):
             if len(loot_array) == 0: break
             item_id = loot_array.pop(0)
             if item_id is None or item_id == 0: 
-                yield from Routines.Yield.wait(100)
+                yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
             if not GLOBAL_CACHE.Agent.IsValid(item_id): 
-                yield from Routines.Yield.wait(100)
+                yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
 
             pos = GLOBAL_CACHE.Agent.GetXY(item_id)
@@ -96,10 +95,11 @@ class LootUtility(CustomSkillUtilityBase):
             if not follow_success:
                 print("Failed to follow path to loot item, halting.")
                 LootConfig().AddItemIDToBlacklist(item_id)
-                yield from Routines.Yield.wait(100)
+                yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
-
-            yield from Routines.Yield.Player.InteractAgent(item_id)
+            
+            GLOBAL_CACHE.Player.Interact(item_id, call_target=False)
+            yield from custom_behavior_helpers.Helpers.wait_for(100)
 
             pickup_timer = ThrottledTimer(3_000)
             while not pickup_timer.IsExpired():
@@ -109,7 +109,7 @@ class LootUtility(CustomSkillUtilityBase):
                 if pickup_timer.IsExpired():
                     LootConfig().AddItemIDToBlacklist(item_id)
                     break
-                yield from Routines.Yield.wait(100)
+                yield from custom_behavior_helpers.Helpers.wait_for(100)
 
-        yield from Routines.Yield.wait(100)
+        yield from custom_behavior_helpers.Helpers.wait_for(100)
         return BehaviorResult.ACTION_PERFORMED

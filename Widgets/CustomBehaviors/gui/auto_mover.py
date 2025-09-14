@@ -1,5 +1,5 @@
 from typing import Any, Callable, Generator
-from Py4GWCoreLib import IconsFontAwesome5, PyImGui, Routines
+from Py4GWCoreLib import IconsFontAwesome5, PyImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
 from Widgets.CustomBehaviors.primitives import constants
@@ -72,7 +72,7 @@ def render():
         PyImGui.text(f"Running {auto_mover.movement_progress}%")
         if PyImGui.button("STOP"):
             generator = None
-            auto_mover.generator = None
+            auto_mover.stop()
     
     if generator is not None:
         try:

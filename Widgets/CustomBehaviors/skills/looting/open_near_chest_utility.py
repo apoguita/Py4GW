@@ -4,11 +4,8 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from HeroAI.cache_data import CacheData
-from HeroAI.types import PlayerStruct
 from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Inventory, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
-from Py4GWCoreLib.routines_src.Yield import Yield
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
@@ -102,12 +99,12 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         # Use try-finally to ensure lock is always released
         try:
             # print(f"open_near_chest_utility_ LOCK AQUIRED")
-            yield from Yield.wait(1000) # we must wait until the chest closing animation is finalized
+            yield from custom_behavior_helpers.Helpers.wait_for(1000) # we must wait until the chest closing animation is finalized
             ActionQueueManager().ResetAllQueues()
-            yield from Yield.Player.InteractAgent(chest_agent_id)
-            yield from Yield.wait(1000)
+            GLOBAL_CACHE.Player.Interact(chest_agent_id, call_target=False)
+            yield from custom_behavior_helpers.Helpers.wait_for(1000)
             GLOBAL_CACHE.Player.SendDialog(2)
-            yield from Yield.wait(1000)
+            yield from custom_behavior_helpers.Helpers.wait_for(1000)
             # print("CHEST_OPENED")
             # Only mark chest as opened and publish the event upon successful interaction
             # print(f"RELEASE Lock key {lock_key}")

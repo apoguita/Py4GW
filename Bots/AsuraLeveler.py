@@ -65,7 +65,6 @@ def Routine(bot: Botting) -> None:
         bot.Party.Resign()
         bot.States.AddCustomState(ReturnToOutpost, "Return to Outpost")
 
-
 bot.Routine = Routine.__get__(bot)
 
 

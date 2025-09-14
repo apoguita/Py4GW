@@ -17,13 +17,16 @@ def render():
         PyImGui.text(f"feature restricted to party leader.")
         return
 
-    names = [m.name for m in members]
-    cur_index = members.index(the_index)
-    new_index = PyImGui.combo("qzdqzd", cur_index, names)
-    the_index = members[new_index]
+    PyImGui.text(f"WIP")
+    
 
-    if PyImGui.button("PLAY"):
-        pass
+    # names = [m.name for m in members]
+    # cur_index = members.index(the_index)
+    # new_index = PyImGui.combo("qzdqzd", cur_index, names)
+    # the_index = members[new_index]
+
+    # if PyImGui.button("PLAY"):
+    #     pass
 
 
     

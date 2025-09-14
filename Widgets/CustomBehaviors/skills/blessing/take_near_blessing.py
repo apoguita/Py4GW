@@ -114,7 +114,8 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
             yield
             return BehaviorResult.ACTION_SKIPPED
 
-        yield from Routines.Yield.Agents.InteractAgent(agent_id)
+        GLOBAL_CACHE.Player.Interact(agent_id, call_target=False)
+        yield from custom_behavior_helpers.Helpers.wait_for(1000)
 
         # -------------------------------------------------------------------------------------------------
 
@@ -141,6 +142,6 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
 
         self.agent_ids_already_interracted.add(agent_id)
         CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
-        yield from Routines.Yield.wait(300)
+        yield from custom_behavior_helpers.Helpers.wait_for(300)
         return BehaviorResult.ACTION_PERFORMED
 

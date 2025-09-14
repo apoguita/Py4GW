@@ -20,7 +20,7 @@ class UtilitySkillTypologyColor:
             return UtilitySkillTypologyColor.CHESTING_COLOR
         if utility_skill_typology == UtilitySkillTypology.COMBAT:
             return UtilitySkillTypologyColor.COMBAT_COLOR
-        if utility_skill_typology == UtilitySkillTypology.DEAMON:
+        if utility_skill_typology == UtilitySkillTypology.DAEMON:
             return UtilitySkillTypologyColor.DAEMON_COLOR
         if utility_skill_typology == UtilitySkillTypology.FOLLOWING:
             return UtilitySkillTypologyColor.FOLLOWING_COLOR

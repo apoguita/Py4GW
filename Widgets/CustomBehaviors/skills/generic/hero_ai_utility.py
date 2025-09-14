@@ -1,6 +1,5 @@
 from typing import List, Any, Generator, Callable, override
 
-from HeroAI.cache_data import CacheData
 from HeroAI.combat import CombatClass
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -33,7 +32,7 @@ class HeroAiUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        #it complexifies the code, but it's worth it
+        from HeroAI.cache_data import CacheData
         cached_data: CacheData = CacheData()
 
         if cached_data.combat_handler is None: print("combat_handler is None")
@@ -67,5 +66,5 @@ class HeroAiUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-        result = yield from custom_behavior_helpers.Actions.cast_skill_generic(self.custom_skill)
+        result = yield from custom_behavior_helpers.Actions.cast_skill_generic_heroai(self.custom_skill)
         return result

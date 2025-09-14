@@ -20,7 +20,7 @@ class BottingAbstract():
     def __init__(self):
         self._generator = self._act()
         instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
-        if instance is None: raise("CustomBehavior widget is required.")
+        if instance is None: raise Exception("CustomBehavior widget is required.")
 
         # some are not finalized
         # instance.inject_additionnal_utility_skills(ResignIfNeededUtility(instance.in_game_build))
@@ -61,5 +61,5 @@ class BottingAbstract():
 
     def stop(self):
         instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
-        if instance is None: raise("CustomBehavior widget is required.")
+        if instance is None: raise Exception("CustomBehavior widget is required.")
         instance.clear_additionnal_utility_skills()

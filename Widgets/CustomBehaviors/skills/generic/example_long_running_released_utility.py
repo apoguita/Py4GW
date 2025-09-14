@@ -26,13 +26,15 @@ class ExampleLongRunningReleasedUtility(CustomSkillUtilityBase):
             in_game_build=current_build, 
             score_definition=ScoreStaticDefinition(99.991), 
             allowed_states=[BehaviorState.IDLE, BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
-            utility_skill_typology=UtilitySkillTypology.DEAMON,
+            utility_skill_typology=UtilitySkillTypology.DAEMON,
             execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(99.991)
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
+        if current_state is BehaviorState.IDLE: return False
+        if self.allowed_states is not None and current_state not in self.allowed_states: return False
         return True
         
     @override
