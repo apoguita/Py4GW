@@ -910,7 +910,7 @@ def smart_bip():
     thresholds = {
         "Warrior": (25, 0.70), "Ranger": (25, 0.60), "Monk": (30, 0.50),
         "Necromancer": (30, 0.50), "Mesmer": (30, 0.50), "Elementalist": (40, 0.40),
-        "Assassin": (25, 0.60), "Ritualist": (30, 0.50), "Paragon": (25, 0.60),
+        "Assassin": (25, 0.60), "Ritualist": (30, 0.50), "Paragon": (25, 0.70),
         "Dervish": (25, 0.50),
     }
 
