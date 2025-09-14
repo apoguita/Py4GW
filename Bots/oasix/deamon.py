@@ -22,9 +22,6 @@ for module_name in list(sys.modules.keys()):
         except Exception as e:
             print(f"Error reloading module {module_name}: {e}")
 
-from typing import Any, List
-from HeroAI.cache_data import CacheData
-
 bot:SimpleBot4Steps = AzuraReputation()
 generator = bot.act()
 

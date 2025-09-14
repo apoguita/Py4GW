@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Range
 from Py4GWCoreLib.Py4GWcorelib import LootConfig, ThrottledTimer
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -73,7 +73,7 @@ class WaitIfPartyMemberNeedsToLootUtility(CustomSkillUtilityBase):
             loot_array = LootConfig().GetfilteredLootArray(Range.Spellcast.value, multibox_loot=True, allow_unasigned_loot=True)
             if len(loot_array) <= 1:  # No more loot for party members
                 break
-            yield from Routines.Yield.wait(300)
+            yield from custom_behavior_helpers.Helpers.wait_for(300)
 
         # Start cooldown period after timeout
         self._cooldown_after_timeout.Reset()

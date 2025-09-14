@@ -79,3 +79,10 @@ class AutoMover:
         self.movement_progress = round(progress * 100, 1)
         if constants.DEBUG: print(f"AutoMover progress {self.movement_progress}")
 
+    def stop(self):
+        self.generator = None
+        instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
+        if instance is None: return
+        instance.clear_additionnal_utility_skills()
+
+

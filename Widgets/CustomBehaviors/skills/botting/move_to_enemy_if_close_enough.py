@@ -71,6 +71,7 @@ class MoveToEnemyIfCloseEnoughUtility(CustomSkillUtilityBase):
 
         ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.ChangeTarget, enemy_id)
         ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.Interact, enemy_id, False)
-        yield from Routines.Yield.wait(5_000)
+        yield from custom_behavior_helpers.Helpers.wait_for(5_000)
+
         self.throttle_timer.Reset()
         return BehaviorResult.ACTION_PERFORMED

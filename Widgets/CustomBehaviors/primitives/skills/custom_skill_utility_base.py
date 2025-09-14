@@ -1,9 +1,7 @@
 from abc import abstractmethod
-from ast import Raise
 from collections.abc import Generator
 from typing import Any
 
-from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -64,7 +62,10 @@ class CustomSkillUtilityBase:
         if self.utility_skill_typology == UtilitySkillTypology.LOOTING and not CustomBehaviorParty().get_party_is_looting_enabled(): return None
         if self.utility_skill_typology == UtilitySkillTypology.CHESTING and not CustomBehaviorParty().get_party_is_chesting_enabled(): return None
         if self.utility_skill_typology == UtilitySkillTypology.BLESSING and not CustomBehaviorParty().get_party_is_blessing_enabled(): return None
-        if self.utility_skill_typology != UtilitySkillTypology.BOTTING and current_state == BehaviorState.IDLE: Raise("only botting_utility_skill_typology can perform stuff in IDLE")
+        if current_state == BehaviorState.IDLE:
+            if self.utility_skill_typology != UtilitySkillTypology.BOTTING and self.utility_skill_typology != UtilitySkillTypology.DAEMON: 
+                print(self.utility_skill_typology)
+                raise Exception("only botting & daemon utility_skill_typology can perform stuff in IDLE")
 
         score:float | None = self._evaluate(current_state, previously_attempted_skills)
         if score is None: return None
