@@ -47,7 +47,7 @@ def DrawPrioritizedSkills(cached_data:CacheData):
     PyImGui.text(f"skill pointer: : {cached_data.combat_handler.skill_pointer}")
     in_casting_routine = cached_data.combat_handler.InCastingRoutine()
     PyImGui.text_colored(f"InCastingRoutine: {in_casting_routine}",TrueFalseColor(not in_casting_routine))
-    PyImGui.text(f"aftercast_timer: {cached_data.combat_handler.aftercast_timer.GetElapsedTime()}")
+    PyImGui.text(f"aftercast_timer: {cached_data.combat_handler.aftercast_timer.GetTimeElapsed()}")
 
     if PyImGui.begin_tab_bar("OrderedSkills"):
         skills = cached_data.combat_handler.GetSkills()
