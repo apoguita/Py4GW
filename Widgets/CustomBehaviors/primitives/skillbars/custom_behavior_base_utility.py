@@ -60,6 +60,10 @@ class CustomBehaviorBaseUtility():
         self.__injected_additional_utility_skills.append(skill)
         self.__final_skills_list = None
 
+    def clear_additionnal_utility_skills(self, skill:CustomSkillUtilityBase):
+        self.__injected_additional_utility_skills.clear()
+        self.__final_skills_list = None
+
     def enable(self):
         self.__is_enabled = True
 
