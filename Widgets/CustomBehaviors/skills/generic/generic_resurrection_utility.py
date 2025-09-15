@@ -1,6 +1,6 @@
 from typing import List, Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -30,10 +30,11 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
 
     def _get_target(self) -> int | None:
         """Find the first dead ally within spellcast range, ordered by distance (closest first)"""
-        return custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
-            within_range=Range.Spellcast,
-            condition=lambda agent_id: not GLOBAL_CACHE.Agent.IsAlive(agent_id),  # Target dead allies only
-            sort_key=(TargetingOrder.DISTANCE_ASC, ))
+        allies: list[int] = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        allies = AgentArray.Filter.ByCondition(allies, lambda agent_id: not GLOBAL_CACHE.Agent.IsAlive(agent_id))
+        allies = AgentArray.Filter.ByDistance(allies, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
+        if len(allies) == 0: return None
+        return allies[0]
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
