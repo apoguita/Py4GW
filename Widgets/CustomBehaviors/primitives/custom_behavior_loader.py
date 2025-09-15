@@ -3,7 +3,6 @@ import importlib
 import pkgutil
 from typing import Generator, Any, List
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.skillbars import hero_ai_fallback
@@ -151,17 +150,11 @@ class CustomBehaviorLoader:
     def initialize_custom_behavior_candidate(self):
 
         if self._has_loaded:
-            return
-
-        if not Routines.Checks.Map.MapValid():
-            return
+            return False
 
         self.__behaviors_found = self.__find_and_order_custom_behaviors()
         __behaviors_candidates = [behavior for behavior in self.__behaviors_found if behavior.is_matched_with_current_build]
         result: CustomBehaviorBaseUtility | None = __behaviors_candidates[0].instance if len(__behaviors_candidates) > 0 else None
-
-        party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
-        if constants.DEBUG: print(f"party_number: {party_number}")
 
         if result is not None:
             if constants.DEBUG: print(f"custom behavior instance affected")
@@ -173,6 +166,7 @@ class CustomBehaviorLoader:
             self.custom_combat_behavior.enable()
 
         self._has_loaded = True
+        return True
 
     def refresh_custom_behavior_candidate(self):
         #load all and refresh

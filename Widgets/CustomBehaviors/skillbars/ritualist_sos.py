@@ -13,6 +13,7 @@ from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_honor_utility
 from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
 from Widgets.CustomBehaviors.skills.common.great_dwarf_weapon_utility import GreatDwarfWeaponUtility
 from Widgets.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
+from Widgets.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
 from Widgets.CustomBehaviors.skills.generic.raw_aoe_attack_utility import RawAoeAttackUtility
 from Widgets.CustomBehaviors.skills.generic.raw_spirit_utility import RawSpiritUtility
 from Widgets.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
@@ -40,6 +41,7 @@ class RitualistSos_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.armor_of_unfeeling_utility: CustomSkillUtilityBase = ArmorOfUnfeelingUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(35))
         self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(0))
         self.great_dwarf_weapon_utility: CustomSkillUtilityBase = GreatDwarfWeaponUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(30))
+        self.flesh_of_my_flesh_utility: CustomSkillUtilityBase = GenericResurrectionUtility(skill=CustomSkill("Flesh_of_My_Flesh"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
 
         #common
         self.ebon_battle_standard_of_honor_utility: CustomSkillUtilityBase = EbonBattleStandardOfHonorUtility(score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 68 if enemy_qte >= 3 else 50 if enemy_qte <= 2 else 25), current_build=in_game_build,  mana_required_to_cast=15)
@@ -65,6 +67,7 @@ class RitualistSos_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.ebon_vanguard_assassin_support,
             self.i_am_unstopabble,
             self.fall_back_utility,
+            self.flesh_of_my_flesh_utility
         ]
 
     @property

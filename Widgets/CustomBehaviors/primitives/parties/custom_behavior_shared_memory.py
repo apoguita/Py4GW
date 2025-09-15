@@ -29,6 +29,7 @@ class CustomBehaviorWidgetStruct(Structure):
         ("IsLootingEnabled", c_bool),
         ("IsChestingEnabled", c_bool),
         ("IsBlessingEnabled", c_bool),
+        ("IsInventoryEnabled", c_bool),
         ("PartyTargetId", c_uint),
         ("PartyForcedState", c_uint),
         ("LockEntries", SharedLockEntryStruct * MAX_LOCKS),
@@ -37,13 +38,14 @@ class CustomBehaviorWidgetStruct(Structure):
     ]
 
 class CustomBehaviorWidgetData:
-    def __init__(self, is_enabled: bool, is_combat_enabled:bool, is_looting_enabled:bool, is_chesting_enabled:bool, is_following_enabled:bool, is_blessing_enabled:bool, party_target_id: int | None, party_forced_state: int | None):
+    def __init__(self, is_enabled: bool, is_combat_enabled:bool, is_looting_enabled:bool, is_chesting_enabled:bool, is_following_enabled:bool, is_blessing_enabled:bool,is_inventory_enabled:bool, party_target_id: int | None, party_forced_state: int | None):
         self.is_enabled: bool = is_enabled
         self.is_combat_enabled: bool = is_combat_enabled
         self.is_looting_enabled: bool = is_looting_enabled
         self.is_chesting_enabled: bool = is_chesting_enabled
         self.is_following_enabled: bool = is_following_enabled
         self.is_blessing_enabled: bool = is_blessing_enabled
+        self.is_inventory_enabled: bool = is_inventory_enabled
         self.party_target_id: int | None = party_target_id
         self.party_forced_state: int | None = party_forced_state
 
@@ -73,16 +75,14 @@ class CustomBehaviorWidgetMemoryManager:
             try:
                 self.shm = shared_memory.SharedMemory(name=self.shm_name)
                 if DEBUG: print(f"Shared memory area '{self.shm_name}' attached.")
+                # we keep current.
             except FileNotFoundError:
                 self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
                 if DEBUG: print(f"Shared memory area '{self.shm_name}' created.")
+                self.__reset_all_data()  # Initialize all player data
 
             # Attach the shared memory structure
-            # self.game_struct = AllAccounts.from_buffer(self.shm.buf)
-            self.__reset_all_data()  # Initialize all player data
-
             self.__shared_lock = SharedLockManager(self._get_struct)
-
             self._initialized = True
 
     def _get_struct(self) -> CustomBehaviorWidgetStruct:
@@ -96,8 +96,9 @@ class CustomBehaviorWidgetMemoryManager:
         mem.IsCombatEnabled = True
         mem.IsFollowingEnabled = True
         mem.IsLootingEnabled = True
-        mem.IsChestingEnabled = True
+        mem.IsChestingEnabled = False # we deactivate chesting by-default.
         mem.IsBlessingEnabled = True
+        mem.IsInventoryEnabled = False # we deactivate invoentory by-default.
         
         for i in range(MAX_LOCKS):
             mem.LockEntries[i].Key = ""
@@ -121,6 +122,7 @@ class CustomBehaviorWidgetMemoryManager:
             is_chesting_enabled= mem.IsChestingEnabled if hasattr(mem, "IsChestingEnabled") else True,
             is_following_enabled= mem.IsFollowingEnabled if hasattr(mem, "IsFollowingEnabled") else True,
             is_blessing_enabled= mem.IsBlessingEnabled if hasattr(mem, "IsBlessingEnabled") else True,
+            is_inventory_enabled= mem.IsInventoryEnabled if hasattr(mem, "IsInventoryEnabled") else True,
             is_combat_enabled= mem.IsCombatEnabled if hasattr(mem, "IsCombatEnabled") else True,
             party_target_id= mem.PartyTargetId if hasattr(mem, "PartyTargetId") and mem.PartyTargetId != 0 else None,
             party_forced_state= mem.PartyForcedState if hasattr(mem, "PartyForcedState") and mem.PartyForcedState != 0 else None
@@ -129,7 +131,7 @@ class CustomBehaviorWidgetMemoryManager:
 
         return result
 
-    def SetCustomBehaviorWidgetData(self, is_enabled:bool, is_combat_enabled:bool, is_looting_enabled:bool, is_chesting_enabled:bool, is_following_enabled:bool, is_blessing_enabled:bool,party_target_id:int|None, party_forced_state:int|None):
+    def SetCustomBehaviorWidgetData(self, is_enabled:bool, is_combat_enabled:bool, is_looting_enabled:bool, is_chesting_enabled:bool, is_following_enabled:bool, is_blessing_enabled:bool, is_inventory_enabled:bool, party_target_id:int|None, party_forced_state:int|None):
         # print(f"SetCustomBehaviorWidgetData: {is_enabled}, {party_target_id}, {party_forced_state}")
         mem = self._get_struct()
         mem.IsEnabled = is_enabled
@@ -137,6 +139,7 @@ class CustomBehaviorWidgetMemoryManager:
         mem.IsChestingEnabled = is_chesting_enabled
         mem.IsFollowingEnabled = is_following_enabled
         mem.IsBlessingEnabled = is_blessing_enabled
+        mem.IsInventoryEnabled = is_inventory_enabled
         mem.IsCombatEnabled = is_combat_enabled
         mem.PartyTargetId = party_target_id if party_target_id is not None else 0
         mem.PartyForcedState = party_forced_state if party_forced_state is not None else 0

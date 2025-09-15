@@ -6,7 +6,6 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from HeroAI.cache_data import CacheData
 from HeroAI.types import PlayerStruct
 from Py4GWCoreLib import GLOBAL_CACHE, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
@@ -47,6 +46,8 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
+        if current_state is BehaviorState.IDLE: return False
+        if self.allowed_states is not None and current_state not in self.allowed_states: return False
         return True
 
     @override
@@ -59,6 +60,7 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
             return None
 
         party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
+        from HeroAI.cache_data import CacheData
         cached_data = CacheData()
         all_player_struct:list[PlayerStruct] = cached_data.HeroAI_vars.all_player_struct
         if all_player_struct[party_number].IsFlagged: return None

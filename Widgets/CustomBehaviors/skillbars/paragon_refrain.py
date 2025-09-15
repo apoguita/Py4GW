@@ -10,6 +10,7 @@ from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttack
 from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
 from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
 from Widgets.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
+from Widgets.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
 from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
 from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Widgets.CustomBehaviors.skills.generic.protective_shout_utility import ProtectiveShoutUtility
@@ -44,6 +45,8 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(current_build=in_game_build)
         self.protectors_defense_utility: CustomSkillUtilityBase = ProtectorsDefenseUtility(current_build=in_game_build,score_definition=ScoreStaticDefinition(60))
+        self.signet_of_return_utility: CustomSkillUtilityBase = GenericResurrectionUtility(skill=CustomSkill("Signet_of_Return"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
+
     
     @property
     @override
@@ -65,6 +68,7 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.i_am_unstopabble,
             self.fall_back_utility,
             self.protectors_defense_utility,
+            self.signet_of_return_utility,
 
             self.jagged_strike_utility,
             self.fox_fangs_utility,

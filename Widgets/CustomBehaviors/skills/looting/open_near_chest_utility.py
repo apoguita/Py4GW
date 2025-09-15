@@ -4,11 +4,9 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from HeroAI.cache_data import CacheData
-from HeroAI.types import PlayerStruct
 from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Inventory, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
-from Py4GWCoreLib.routines_src.Yield import Yield
+from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
@@ -43,7 +41,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
 
         self.score_definition: ScoreStaticDefinition =ScoreStaticDefinition(CommonScore.LOOT.value + 0.001)
         self.opened_chest_agent_ids: set[int] = set()
-        self.throttle_timer = ThrottledTimer(1000)
+        self.cooldown_execution = ThrottledTimer(1000)
 
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
 
@@ -59,7 +57,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1: return None #"No free slots in inventory, halting."
-        if GLOBAL_CACHE.Inventory.GetModelCount(22751) < 1: return None #"No lockpicks in inventory, halting."
+        if GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Lockpick.value) < 1: return None #"No lockpicks in inventory, halting."
         chest_agent_id = Routines.Agents.GetNearestChest(700)
         if chest_agent_id in self.opened_chest_agent_ids: return None
         if chest_agent_id is None or chest_agent_id == 0: return None
@@ -68,12 +66,11 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
-        if not self.throttle_timer.IsExpired():
-            # print(f"open_near_chest_utility_ IsExpired")
+        if not self.cooldown_execution.IsExpired():
             yield
             return BehaviorResult.ACTION_SKIPPED
 
-        self.throttle_timer.Reset()
+        self.cooldown_execution.Reset()
 
         chest_agent_id = Routines.Agents.GetNearestChest(700)
         if chest_agent_id is None or chest_agent_id == 0: 
@@ -102,12 +99,12 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         # Use try-finally to ensure lock is always released
         try:
             # print(f"open_near_chest_utility_ LOCK AQUIRED")
-            yield from Yield.wait(1000) # we must wait until the chest closing animation is finalized
+            yield from custom_behavior_helpers.Helpers.wait_for(1000) # we must wait until the chest closing animation is finalized
             ActionQueueManager().ResetAllQueues()
-            yield from Yield.Player.InteractAgent(chest_agent_id)
-            yield from Yield.wait(1000)
+            GLOBAL_CACHE.Player.Interact(chest_agent_id, call_target=False)
+            yield from custom_behavior_helpers.Helpers.wait_for(1000)
             GLOBAL_CACHE.Player.SendDialog(2)
-            yield from Yield.wait(1000)
+            yield from custom_behavior_helpers.Helpers.wait_for(1000)
             # print("CHEST_OPENED")
             # Only mark chest as opened and publish the event upon successful interaction
             # print(f"RELEASE Lock key {lock_key}")

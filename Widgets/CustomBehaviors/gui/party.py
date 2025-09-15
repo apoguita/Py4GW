@@ -119,7 +119,26 @@ def render():
     PyImGui.pop_style_var(1)
     PyImGui.pop_style_color(1)
 
+    PyImGui.same_line(0, 10)
+
+    if shared_data.is_inventory_enabled:
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.INVENTORY_COLOR)
+        if ImGui.ImageButton(f"disable inventory management", project_root + f"\\gui\\textures\\inventory.png", 40, 40):
+            CustomBehaviorParty().set_party_is_inventory_enabled(False)
+        ImGui.show_tooltip("disable inventory management")
+    else:
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
+        if ImGui.ImageButton(f"enable inventory management", project_root + f"\\gui\\textures\\inventory.png", 40, 40):
+            CustomBehaviorParty().set_party_is_inventory_enabled(True)
+        ImGui.show_tooltip("enable inventory management")
+    PyImGui.pop_style_var(1)
+    PyImGui.pop_style_color(1)
+
     PyImGui.separator()
+
+
 
     if shared_data.party_target_id is None:
         if PyImGui.button(f"{IconsFontAwesome5.ICON_CROSSHAIRS} SetPartyCustomTarget"):
@@ -143,6 +162,20 @@ def render():
                     continue
                 print(f"SendMessage {account_email} to {account.AccountEmail}")
                 GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.TravelToMap, (self_account.MapID, self_account.MapRegion, self_account.MapDistrict, 0))
+
+
+    if GLOBAL_CACHE.Map.IsOutpost():
+        PyImGui.separator()
+
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_PLANE_DEPARTURE} LeaveParty"):
+            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            for account in accounts:
+                if account.AccountEmail == account_email:
+                    continue
+                print(f"SendMessage {account_email} to {account.AccountEmail}")
+                GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.LeaveParty, ())
 
     PyImGui.separator()
 

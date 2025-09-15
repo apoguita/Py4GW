@@ -1,5 +1,5 @@
 from typing import Any, Callable, Generator
-from Py4GWCoreLib import IconsFontAwesome5, PyImGui, Routines
+from Py4GWCoreLib import IconsFontAwesome5, PyImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
 from Widgets.CustomBehaviors.primitives import constants
@@ -26,7 +26,8 @@ generator:Generator[Any, None, Any] | None = None
 def render():
     global generator, coords_input_buffer  # Tell Python we're referring to the global one
 
-    PyImGui.text(f"auto-moving from map coords [U] - copy paste coordinate from [MissionMap+ - Widget]")
+    PyImGui.text(f"auto-moving from map coords [U]")
+    PyImGui.text(f"copy paste coordinate from [MissionMap+ - Widget]")
     PyImGui.separator()
 
     if not GLOBAL_CACHE.Party.IsPartyLeader():
@@ -71,7 +72,7 @@ def render():
         PyImGui.text(f"Running {auto_mover.movement_progress}%")
         if PyImGui.button("STOP"):
             generator = None
-            auto_mover.generator = None
+            auto_mover.stop()
     
     if generator is not None:
         try:

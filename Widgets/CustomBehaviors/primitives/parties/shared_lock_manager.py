@@ -320,3 +320,19 @@ class SharedLockManager:
                     result.append(entry)
         return result
 
+    def is_any_lock_taken(self) -> bool:
+        """Check if any lock is currently active (not expired)."""
+        self.__dedupe_locks()
+        mem = self.__get_struct()
+        now_s = int(time.time())
+        for i in range(MAX_LOCKS):
+            if mem.LockEntries[i].Key != "" and mem.LockEntries[i].AcquiredAt != 0:
+                entry = SharedLockEntry(
+                    mem.LockEntries[i].Key,
+                    mem.LockEntries[i].AcquiredAt,
+                    mem.LockEntries[i].SenderEmail,
+                )
+                if not entry.is_expired(now_s):
+                    return True
+        return False
+

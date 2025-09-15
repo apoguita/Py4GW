@@ -32,7 +32,7 @@ class StuckDetectionUtility(CustomSkillUtilityBase):
             in_game_build=current_build, 
             score_definition=ScoreStaticDefinition(CommonScore.DEAMON.value), 
             allowed_states=[BehaviorState.IDLE, BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
-            utility_skill_typology=UtilitySkillTypology.DEAMON)
+            utility_skill_typology=UtilitySkillTypology.DAEMON)
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BOTTING.value)
         self.__previous_player_position : tuple[float, float] = (0, 0)

@@ -9,4 +9,6 @@ class UtilitySkillTypology(Enum):
     CHESTING = 5
     BLESSING = 6
     
-    DEAMON = 10
+    DAEMON = 10
+
+    INVENTORY = 11
