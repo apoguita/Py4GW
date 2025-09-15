@@ -144,7 +144,7 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
                     tolerance=150, 
                     log=constants.DEBUG, 
                     timeout=10_000, 
-                    progress_callback=lambda progress: print(f"FollowPath take_near_blessing: progress: {progress}" if constants.DEBUG else None),
+                    progress_callback=lambda progress: print(f"FollowPath take_near_blessing: progress: {progress}") if constants.DEBUG else None,
                     custom_pause_fn=lambda: False)
 
     @override
