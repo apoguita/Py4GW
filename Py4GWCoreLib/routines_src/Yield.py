@@ -1138,7 +1138,7 @@ class Yield:
         CITY_SPEED_ITEMS = [ModelID.Creme_Brulee, ModelID.Jar_Of_Honey, ModelID.Krytan_Lokum,
                             ModelID.Chocolate_Bunny, ModelID.Fruitcake, ModelID.Red_Bean_Cake,
                             ModelID.Mandragor_Root_Cake,
-                            ModelID.Delicious_Cake, ModelID.Minitreats_Of_Purity, 
+                            ModelID.Delicious_Cake, ModelID.Minitreat_Of_Purity,
                             ModelID.Sugary_Blue_Drink]
         
         CITY_SPEED_EFFECTS = [1860, #Sugar_Rush_short, // 1 minute

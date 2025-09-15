@@ -19,11 +19,6 @@ ICON_MODEL = {
 }
 # === Paths and Constants ===
 
-def _texture_path(model_id):
-    base_path = os.path.abspath(os.path.join(os.getcwd(), '..', '..'))
-    texture_name = f"[{model_id.value}] - {model_id.name.replace('_', ' ')}.png"
-    return os.path.join(base_path, "Textures", "Item Models", texture_name)
-
 def draw_consumables_selector_window():
     global show_consumables_selector
 
@@ -44,7 +39,7 @@ def draw_consumables_selector_window():
     for i, (key, model_id, tip) in enumerate(items):
         PyImGui.push_id(key)
         selected = consumable_state[key]
-        new_selected = ImGui.image_toggle_button(key, _texture_path(model_id), selected, 40, 40)
+        new_selected = ImGui.image_toggle_button(key, get_texture_for_model(model_id), selected, 40, 40)
         consumable_state[key] = new_selected
 
         # optional: show a hover tooltip since we removed labels

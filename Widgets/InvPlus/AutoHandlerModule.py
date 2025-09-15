@@ -18,7 +18,6 @@ from Py4GWCoreLib import Utils
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
-from Py4GWCoreLib.enums import ItemModelTextureMap
 from Py4GWCoreLib.enums import WindowID
 from Widgets.InvPlus.GUI_Helpers import (TabIcon, 
                                          Frame,

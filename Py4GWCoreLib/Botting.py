@@ -1,7 +1,6 @@
 
 from typing import Any, Tuple, Callable, List, Iterable, Dict, Optional
 
-
 from .botting_src.helpers import BottingHelpers
 from .botting_src.botconfig import BotConfig
 from .BuildMgr import BuildMgr
@@ -88,11 +87,11 @@ class BottingClass:
                  upkeep_slice_of_pumpkin_pie_active: bool = False,
                  upkeep_slice_of_pumpkin_pie_restock: int = 0,
                  upkeep_war_supplies_active: bool = False,
-                 upkeep_war_supplies_restock: int = 0, 
+                 upkeep_war_supplies_restock: int = 0,
                  custom_build: Optional[BuildMgr] = None):
         #internal configuration
         self.bot_name = bot_name
-        
+
         self.config = BotConfig(self, bot_name,
                                 config_log_actions=config_log_actions,
                                 config_halt_on_death=config_halt_on_death,
@@ -192,16 +191,16 @@ class BottingClass:
         self.config.FSM.AddManagedCoroutine("keep_imp",            H.upkeep_imp())
         self.config.FSM.AddManagedCoroutine("keep_auto_combat",    H.upkeep_auto_combat())
         self.config.events.start()
-      
+
         if self.States.coroutines:
             for name, routine_or_fn in list(self.States.coroutines.items()):
                 self.config.FSM.AddManagedCoroutine(name, routine_or_fn)
-            
-    #region Routines  
+
+    #region Routines
     def Routine(self):
         print("This method should be overridden in the subclass.")
         pass
-    
+
     def SetMainRoutine(self, routine: Callable) -> None:
         """
         This method Overrides the main routine for the bot.
@@ -210,7 +209,7 @@ class BottingClass:
             self.Routine = routine.__get__(self, self.__class__)
         except AttributeError:
             self.Routine = routine
-    
+
     def Start(self):
         self.config.FSM.start()
         self.config.fsm_running = True
@@ -236,10 +235,10 @@ class BottingClass:
         if self.config.fsm_running:
             self._start_coroutines()
             self.config.FSM.update()
-            
+
     def OverrideBuild(self, build: BuildMgr) -> None:
         self.config.build_handler = build
-  
+
     #region DIALOGS
     class _DIALOGS:
         def __init__(self, parent: "BottingClass"):
@@ -324,7 +323,7 @@ class BottingClass:
             self._disable_auto_combat()
 
             from Widgets.Blessed import Get_Blessed  # same import as before
-            Get_Blessed()  # starts the BlessingRunner (as in Blessed.py -> same as pushing the button in the widget)  
+            Get_Blessed()  # starts the BlessingRunner (as in Blessed.py -> same as pushing the button in the widget)
 
             self._restore_auto_combat()
 
@@ -341,7 +340,7 @@ class BottingClass:
 
             #disable combat to prevent interference
             self._disable_auto_combat()
-            
+
             self._helpers.Interact.with_npc_at_xy((x, y))
             #re-enable combat
             self._restore_auto_combat()
@@ -362,7 +361,7 @@ class BottingClass:
             if step_name == "":
                 step_name = f"InteractWithItem_{self._config.get_counter('INTERACT_WITH_ITEM')}"
 
-            
+
             #disable combat to prevent interference
             self._disable_auto_combat()
 
@@ -393,27 +392,27 @@ class BottingClass:
 
         def Craft(self, model_id: int, value: int, trade_items_models: list[int], quantity_list: list[int]):
             self._helpers.Items.craft(model_id, value, trade_items_models, quantity_list)
-            
+
         def Withdraw(self, model_id:int, quantity:int):
             self._helpers.Items.withdraw(model_id, quantity)
 
         def Equip(self, model_id: int):
             self._helpers.Items.equip(model_id)
-            
+
         def Destroy(self, model_id: int):
             self._helpers.Items.destroy(model_id)
-            
-        def DestroyBonusItems(self, 
-                              exclude_list: List[int] = [ModelID.Igneous_Summoning_Stone.value, 
+
+        def DestroyBonusItems(self,
+                              exclude_list: List[int] = [ModelID.Igneous_Summoning_Stone.value,
                                                          ModelID.Bonus_Nevermore_Flatbow.value]):
             self._helpers.Items.destroy_bonus_items(exclude_list)
 
         def SpawnBonusItems(self):
             self._helpers.Items.spawn_bonus_items()
-        
-    
-        
-        
+
+
+
+
         class _RESTOCK:
             def __init__(self, parent: "BottingClass"):
                 self.parent = parent
@@ -441,14 +440,14 @@ class BottingClass:
 
             self._helpers.Map.travel(target_map_id)
             self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
-            
+
         def EnterChallenge(self, delay:int= 4500, target_map_id: int = 0, target_map_name: str = "") -> None:
             self._helpers.Map.enter_challenge(wait_for=delay)
             self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
 
         def TravelGH(self):
             self._helpers.Map.travel_to_gh(wait_time=8000)
-            
+
         def LeaveGH(self):
             self._helpers.Map.leave_gh(wait_time=8000)
 
@@ -459,7 +458,7 @@ class BottingClass:
             self.parent = parent
             self._config = parent.config
             self._helpers = parent.helpers
-            
+
         def XY(self, x:float, y:float, step_name: str=""):
             """Uses autopath to move to (x, y)"""
             if step_name == "":
@@ -467,7 +466,7 @@ class BottingClass:
 
             self._helpers.Move.get_path_to(x, y)
             self._helpers.Move.follow_path()
-            
+
         def XYAndDialog(self, x: float, y: float, dialog_id: int, step_name: str="") -> None:
             self.XY(x, y, step_name=step_name)
             self.parent.Dialogs.AtXY(x, y, dialog_id, step_name=step_name+"_DIALOGAT")
@@ -479,7 +478,7 @@ class BottingClass:
         def XYAndInteractGadget(self, x: float, y: float, step_name: str="") -> None:
             self.XY(x, y, step_name=step_name)
             self.parent.Interact.WithGadgetAtXY(x, y, step_name=step_name+"_INTERACT")
-            
+
         def XYAndInteractItem(self, x: float, y: float, step_name: str="") -> None:
             self.XY(x, y, step_name=step_name)
             self.parent.Interact.WithItemAtXY(x, y, step_name=step_name+"_INTERACT")
@@ -497,12 +496,12 @@ class BottingClass:
 
             self._helpers.Move.set_path_to(path)
             self._helpers.Move.follow_path()
-            
+
         def FollowPathAndDialog(self, path: List[Tuple[float, float]], dialog_id: int, step_name: str="") -> None:
             self.FollowPath(path, step_name=step_name)
             last_point = path[-1]
             self.parent.Dialogs.AtXY(*last_point, dialog_id, step_name=step_name+"_DIALOGAT")
-            
+
         def FollowPathAndExitMap(self, path: List[Tuple[float, float]], target_map_id: int = 0, target_map_name: str = "", step_name: str="") -> None:
             self.FollowPath(path, step_name=step_name)
             self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
@@ -522,7 +521,7 @@ class BottingClass:
         def FollowModel(self, model_id: int, follow_range: float, exit_condition: Optional[Callable[[], bool]] = lambda:False) -> None:
             self._helpers.Move.follow_model(model_id, follow_range, exit_condition)
 
-        
+
 
     #region PROPERTIES
     class _PROPERTIES:
@@ -554,7 +553,7 @@ class BottingClass:
 
         def ResetAll(self, name: str) -> None:
             self._resolve(name).reset_all()
-            
+
         def ApplyNow(self, name: str, field: str, value: Any) -> None:
             """
             Immediate, no-FSM write.
@@ -572,7 +571,7 @@ class BottingClass:
             if hasattr(self._config.upkeep, name):
                 return getattr(self._config.upkeep, name)
             raise AttributeError(f"No property named {name!r}")
-        
+
         def exists(self, name: str) -> bool:
             try:
                 self._resolve(name)
@@ -614,13 +613,13 @@ class BottingClass:
 
         def Resign(self):
             self._helpers.Party.resign()
-            
+
         def SetHardMode(self, hard_mode: bool):
             self._helpers.Party.set_hard_mode(hard_mode)
 
         def AddHenchman(self, henchman_id: int):
             self._helpers.Party.add_henchman(henchman_id)
-            
+
         def AddHero(self, hero_id: int):
             self._helpers.Party.add_hero(hero_id)
 
@@ -641,7 +640,7 @@ class BottingClass:
             self.parent = parent
             self._config = parent.config
             self._helpers = parent.helpers
-            
+
         def LoadSkillBar(self, skill_template: str):
             self._helpers.Skills.load_skillbar(skill_template)
 
@@ -664,7 +663,7 @@ class BottingClass:
 
         def AddHeader(self, step_name: str) -> None:
             self._helpers.States.insert_header_step(step_name)
-                
+
         def JumpToStepName(self, step_name: str) -> None:
             self._helpers.States.jump_to_step_name(step_name)
 
@@ -682,14 +681,14 @@ class BottingClass:
         def HasQueuedCoroutine(self, name: str) -> bool:
             return name in self.coroutines
 
-            
+
     #region TARGET
     class _TARGET:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
             self._config = parent.config
             self._helpers = parent.helpers
-            
+
         def Model(self, model_id:int):
             self._helpers.Target.model(model_id)
 
@@ -711,34 +710,34 @@ class BottingClass:
             from .Routines import Routines
             wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=range))
             self._helpers.Wait.until_condition(wait_condition)
-            
+
         def UntilOnCombat(self, range: Range = Range.Earshot) -> None:
             from .Routines import Routines
             from .Py4GWcorelib import Range
             wait_condition = lambda: (Routines.Checks.Agents.InDanger(aggro_area=range))
             self._helpers.Wait.until_condition(wait_condition)
-            
+
         def ForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
             from Py4GWCoreLib import GLOBAL_CACHE
             if target_map_name:
                 target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
 
             self._helpers.Wait.for_map_load(target_map_id)
-            
+
         def ForMapToChange(self, target_map_id: int = 0, target_map_name: str = "") -> None:
             """Waits until all action finishes in current map and game sends you to a new one"""
             from .Routines import Routines
             from .GlobalCache import GLOBAL_CACHE
             if target_map_name:
                 target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
-                
+
             wait_condition = lambda: (
-                Routines.Checks.Map.MapValid() and 
+                Routines.Checks.Map.MapValid() and
                 GLOBAL_CACHE.Map.GetMapID() == target_map_id
             )
-    
+
             self.UntilCondition(wait_condition, duration=3000)
-            
+
     #region UI
     class _UI:
         def __init__(self, parent: "BottingClass"):
@@ -748,14 +747,14 @@ class BottingClass:
             self.draw_texture_fn: Optional[Callable[[], None]] = None
             self.draw_config_fn: Optional[Callable[[], None]] = None
             self.draw_help_fn: Optional[Callable[[], None]] = None
-            
+
             self._FSM_SELECTED_NAME_ORIG: str | None = None   # selection persists across frames
             self._FSM_FILTER_START: int = 0
             self._FSM_FILTER_END: int = 0
 
         def CancelSkillRewardWindow(self):
             self._helpers.UI.cancel_skill_reward_window()
-            
+
         def _draw_path(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
             from .DXOverlay import DXOverlay
             path = self._config.path_to_draw
@@ -767,7 +766,7 @@ class BottingClass:
                 z2 = DXOverlay.FindZ(x2, y2)
                 DXOverlay().DrawLine3D(x1, y1, z1, x2, y2, z2, color.to_color(), use_occlusion, snap_to_ground_segments, floor_offset)
 
-            
+
         def DrawPath(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
             if self._config.config_properties.draw_path.is_active():
                 self._draw_path(color, use_occlusion, snap_to_ground_segments, floor_offset)
@@ -777,7 +776,7 @@ class BottingClass:
 
         def PrintMessageToConsole(self, source: str, message: str):
             self._helpers.UI.print_message_to_console(source, message)
-            
+
         def _find_current_header_step(self):
             import re
 
@@ -827,16 +826,16 @@ class BottingClass:
 
             return current_header_step, header_for_current, current_idx, total_steps, step_name, finished
 
-        
+
         def _draw_texture(self, texture_path:str, size:Tuple[float,float]=(96.0,96.0), tint:Color=Color(255,255,255,255), border_col:Color=Color(0,0,0,0)):
             from .ImGui import ImGui
-            from .enums import ItemModelTextureMap
+            from .enums import get_texture_for_model
             if self.draw_texture_fn is not None:
                 self.draw_texture_fn()
                 return
-            
+
             if not texture_path:
-                texture_path = ItemModelTextureMap.get(0, "")
+                texture_path = get_texture_for_model(0)
             
             ImGui.DrawTextureExtended(texture_path=texture_path, size=size,
                                   uv0=(0.0, 0.0),   uv1=(1.0, 1.0),
