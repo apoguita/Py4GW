@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from ..Botting import BottingClass  # for type checkers only
 
 from functools import wraps
-from ..Py4GWcorelib import ModelID
 
 from .helpers_src.decorators import _yield_step, _fsm_step
 from .helpers_src.States import _States

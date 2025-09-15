@@ -1,5 +1,4 @@
 
-import importlib, typing
 from typing import Tuple
 
 import importlib
@@ -219,7 +218,8 @@ class Checks:
         
 #region Agents
     class Agents:
-        from ..Py4GWcorelib import Range
+        from ..enums_src.GameData_enums import Range
+
         @staticmethod
         def InDanger(aggro_area=Range.Earshot, aggressive_only = False):
             from ..AgentArray import AgentArray

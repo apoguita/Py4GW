@@ -7,7 +7,8 @@ if TYPE_CHECKING:
 from .decorators import _yield_step, _fsm_step
 from typing import Any, Generator, TYPE_CHECKING, Tuple, List, Optional, Callable
 
-from ...Py4GWcorelib import ModelID, ConsoleLog, Console
+from ...Py4GWcorelib import ConsoleLog, Console
+from ...enums_src.Model_enums import ModelID
 
 #region ITEMS
 class _Items:

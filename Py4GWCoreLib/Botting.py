@@ -5,7 +5,7 @@ from .botting_src.helpers import BottingHelpers
 from .botting_src.botconfig import BotConfig
 from .BuildMgr import BuildMgr
 from .Py4GWcorelib import Color, ActionQueueManager
-from .Py4GWcorelib import ModelID
+from .enums import ModelID
 from .GlobalCache import GLOBAL_CACHE
 from functools import wraps
 import PyImGui
@@ -694,7 +694,7 @@ class BottingClass:
 
     #region WAIT
     class _WAIT:
-        from .Py4GWcorelib import Range
+        from .enums import Range
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
             self._config = parent.config
@@ -713,7 +713,6 @@ class BottingClass:
 
         def UntilOnCombat(self, range: Range = Range.Earshot) -> None:
             from .Routines import Routines
-            from .Py4GWcorelib import Range
             wait_condition = lambda: (Routines.Checks.Agents.InDanger(aggro_area=range))
             self._helpers.Wait.until_condition(wait_condition)
 
