@@ -478,7 +478,7 @@ def get_full_texture_path(skill_id: int) -> str:
     """Resolve a skill ID to a full absolute texture path."""
     relative_path = GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id)
     if not relative_path:
-        return None
+        return ""
     texture_path = os.path.join(PY4GW_ROOT, relative_path)
     return os.path.normpath(texture_path)
 
