@@ -10,7 +10,7 @@ If not found, returns a fallback image path like '2992 not found.jpg'.
 """
 def get_texture_for_model(model_id: int|ModelID) -> str:
     # when an external script is loaded the cwd changes, we need to load from this file's directory instead'
-    basepath = os.path.dirname(__file__) + "\\..\\" + ITEM_MODEL_TEXTURE_PATH
+    basepath = os.path.dirname(__file__) + "\\..\\..\\" + ITEM_MODEL_TEXTURE_PATH
     if isinstance(model_id, int):
         model_id = ModelID(model_id)
 
