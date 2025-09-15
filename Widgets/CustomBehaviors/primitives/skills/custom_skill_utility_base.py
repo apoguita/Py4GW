@@ -63,7 +63,9 @@ class CustomSkillUtilityBase:
         if self.utility_skill_typology == UtilitySkillTypology.CHESTING and not CustomBehaviorParty().get_party_is_chesting_enabled(): return None
         if self.utility_skill_typology == UtilitySkillTypology.BLESSING and not CustomBehaviorParty().get_party_is_blessing_enabled(): return None
         if current_state == BehaviorState.IDLE:
-            if self.utility_skill_typology != UtilitySkillTypology.BOTTING and self.utility_skill_typology != UtilitySkillTypology.DAEMON: 
+            if (self.utility_skill_typology != UtilitySkillTypology.BOTTING 
+                and self.utility_skill_typology != UtilitySkillTypology.DAEMON 
+                and self.utility_skill_typology != UtilitySkillTypology.INVENTORY): 
                 print(self.utility_skill_typology)
                 raise Exception("only botting & daemon utility_skill_typology can perform stuff in IDLE")
 
