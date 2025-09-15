@@ -86,7 +86,7 @@ def main():
             return
 
         cached_data.Update()
-        if cached_data.data.is_map_ready and cached_data.data.is_party_loaded:
+        if Routines.Checks.Map.IsMapReady() and Routines.Checks.Party.IsPartyLoaded():
             draw_widget(cached_data)
 
     except ImportError as e:

@@ -1480,7 +1480,7 @@ def ShowPlayerWindow():
                 ImGui.table("PlayerData info", headers, data)
                                 
                 if PyImGui.button("Deposit Faction"):
-                    GLOBAL_CACHE.Player.DepositFaction(FactionAllegiance.Kurzick.value)
+                    GLOBAL_CACHE.Player.DepositFaction(FactionAllegiance.Kurzick.value) 
                     
             if PyImGui.collapsing_header("Titles"):
                 current_title = GLOBAL_CACHE.Player.GetActiveTitleID()
