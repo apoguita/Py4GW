@@ -154,9 +154,9 @@ class SkillManager:
         
         def InAggro(self):
             if self.stay_alert_timer.IsExpired():
-                in_danger = Routines.Checks.Agents.InDanger(Range.Earshot, self.aggressive_enemies_only)
+                in_danger = Routines.Checks.Agents.InAggro(Range.Earshot.value, self.aggressive_enemies_only)
             else:
-                in_danger = Routines.Checks.Agents.InDanger(Range.Spellcast, self.aggressive_enemies_only)
+                in_danger = Routines.Checks.Agents.InAggro(Range.Spellcast.value, self.aggressive_enemies_only)
                 
             if in_danger:
                 self.stay_alert_timer.Reset()

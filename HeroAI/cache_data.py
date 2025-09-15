@@ -6,7 +6,7 @@ from .combat import CombatClass
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Timer, ThrottledTimer
 from Py4GWCoreLib import Range, Utils, ConsoleLog
-from Py4GWCoreLib import AgentArray, Weapon
+from Py4GWCoreLib import AgentArray, Weapon, Routines
 
 @dataclass
 class GameData:
@@ -142,7 +142,7 @@ class CacheData:
             self.stay_alert_timer = Timer()
             self.stay_alert_timer.Start()
             self.aftercast_timer = Timer()
-            self.data = GameData()
+            self.data: GameData = GameData()
             self.auto_attack_timer = Timer()
             self.auto_attack_timer.Start()
             self.auto_attack_time =  self.GetWeaponAttackAftercast()
@@ -161,14 +161,8 @@ class CacheData:
         self.data.reset()   
         
     def InAggro(self, enemy_array, aggro_range = Range.Earshot.value):
-        distance = aggro_range
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), GLOBAL_CACHE.Agent.GetXY(agent_id)) <= distance)
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id)
-        enemy_array = AgentArray.Sort.ByDistance(enemy_array, GLOBAL_CACHE.Player.GetXY())
-        if len(enemy_array) > 0:
-            return True
-        return False
+        return Routines.Checks.Agents.InAggro(aggro_range)
+        
         
     def UpdateGameOptions(self):
         #control status vars
@@ -179,17 +173,7 @@ class CacheData:
         self.data.is_combat_enabled = self.HeroAI_vars.all_game_option_struct[GLOBAL_CACHE.Party.GetOwnPartyNumber()].Combat
         for i in range(NUMBER_OF_SKILLS):
             self.data.is_skill_enabled[i] = self.HeroAI_vars.all_game_option_struct[GLOBAL_CACHE.Party.GetOwnPartyNumber()].Skills[i].Active
-
-        if GLOBAL_CACHE.Map.IsMapLoading():
-            return
-        
-        if not GLOBAL_CACHE.Party.IsPartyLoaded():
-            return
-        
-        party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
-        if party_number > 0:
-            return 
-        
+  
         
     def UdpateCombat(self):
         self.combat_handler.Update(self.data)

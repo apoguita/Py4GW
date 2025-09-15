@@ -1,13 +1,14 @@
+import random
 from Py4GWCoreLib import *
 import time
 
 wait_time = 0
-times_to_retry_delay = 5
+times_to_retry_delay = 10
 delay_retries = 0
 
 
 
-map_to_travel = 445  # rollerbeetle map
+map_to_travel = 253
 travel_coroutine = None  # active coroutine
 
 loading_start_time = 0.0
@@ -29,33 +30,36 @@ def wait_for_map_load():
         if Map.IsMapLoading():
             yield from Routines.Yield.wait(1)
 
-        if Map.IsOutpost():
+        if Map.IsOutpost() or (Map.IsExplorable() and Map.GetMapID() == 280):
             map_id = Map.GetMapID()
 
-            if map_id == 81:  # Ascalon City
+            if map_id == 81 or map_id == 544 or map_id == 248 or map_id == 280:
                 traveled_to_795 = False
                 yield from Routines.Yield.wait(500) #time to wait on ascalon city
                 Map.Travel(map_to_travel)
                 yield from Routines.Yield.wait(500) #time to wait for the map start loading
 
             elif not traveled_to_795 and map_id == map_to_travel:  # Mallyx
-                if not Map.IsMapLoading():
-                    sleep(0.3)
-                    yield from Routines.Yield.wait(wait_time)
-                    Map.TravelToDistrict(map_id=795, district_number=2)
+                # Retry N times with 0 delay
+                while not Map.IsMapLoading() and delay_retries < times_to_retry_delay:
+                    yield from Routines.Yield.wait(0)  # zero delay between retries
+
+                    district_number = random.randint(2, 10)
+                    Map.TravelToDistrict(map_id=795, district_number=district_number)
+          
                     delay_retries += 1
-                    ConsoleLog("retry",
-                        f"Attempt {delay_retries}/{times_to_retry_delay} at wait {wait_time} ms"
+                    ConsoleLog(
+                        "retry",
+                        f"Attempt {delay_retries}/{times_to_retry_delay} with no delay"
                     )
                     traveled_to_795 = True
 
-                    # 🔑 If we’ve exhausted retries, bump delay and reset counter
-                    if delay_retries >= times_to_retry_delay:
-                        wait_time += 1
-                        delay_retries = 0
-                        ConsoleLog("retry", f"Retries exhausted, increasing wait_time to {wait_time} ms")
+                if delay_retries >= times_to_retry_delay:
+                    ConsoleLog("retry", f"Max retries ({times_to_retry_delay}) reached")
+
                 else:
                     ConsoleLog("travel", f"Too late, map is loading again")
+
 
         if stop:
             stop = False

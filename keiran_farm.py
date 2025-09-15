@@ -1,5 +1,4 @@
-from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui, ActionQueueManager, Keystroke, Key)
+from Py4GWCoreLib import (Routines, Range,ModelID, Botting,ActionQueueManager)
 
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 
@@ -37,7 +36,6 @@ def on_death(bot: "Botting"):
 def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
-    bot.OverrideBuild(KeiranThackerayEOTN())
 
     
 def GoToEOTN(bot: Botting) -> None:
