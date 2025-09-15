@@ -19,14 +19,9 @@ from .types import (
     GameStruct,
 )
 
-#last_hour = int(time.time() // 3600 * 3600)
 def get_base_timestamp():
     return int((time.time() % 3600) * 1000)
-    """
-    global last_hour
-    now = time.time()
-    return int((now - last_hour) * 1000)  # Delta from last hour in milliseconds
-    """
+
 
 
 class SharedMemoryManager:

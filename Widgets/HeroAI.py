@@ -268,7 +268,7 @@ def DrawFramedContent(cached_data: CacheData, content_frame_id):
     PyImGui.set_next_window_size(width, height)
 
     def control_panel_case(cached_data):
-        own_party_number = cached_data.data.own_party_number
+        own_party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
         hero_ai_vars = cached_data.HeroAI_vars
         if own_party_number == 0:
             # leader control panel

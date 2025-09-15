@@ -233,6 +233,25 @@ class Checks:
                 return True
             return False
         
+        @staticmethod
+        def InAggro(aggro_area=Range.Earshot.value, aggressive_only = False):
+            from ..AgentArray import AgentArray
+            from ..GlobalCache import GLOBAL_CACHE
+            from ..Py4GWcorelib import Utils
+            if not Checks.Map.MapValid():
+                return False
+            
+            enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+            if len(enemy_array) == 0:
+                return False
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), GLOBAL_CACHE.Agent.GetXY(agent_id)) <= aggro_area)
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id)
+            if aggressive_only:
+                enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAggressive(agent_id))
+            if len(enemy_array) > 0:
+                return True
+            return False
         
 
         @staticmethod
