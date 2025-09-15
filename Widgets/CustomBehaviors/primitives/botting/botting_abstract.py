@@ -19,22 +19,10 @@ from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_too_far import 
 class BottingAbstract():
 
     def __init__(self):
-        self._generator = self._act()
+        self.__generator = self._act()
+        self.__initialized = False
         instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: raise Exception("CustomBehavior widget is required.")
-
-        # some are not finalized
-        # instance.inject_additionnal_utility_skills(ResignIfNeededUtility(instance.in_game_build))
-        # instance.inject_additionnal_utility_skills(MoveToDistantChestIfPathExistsUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveIfStuckUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfInAggroUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToEnemyIfCloseEnoughUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfDeadUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberManaTooLowUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.in_game_build))
 
     @property
     @abstractmethod
@@ -53,9 +41,28 @@ class BottingAbstract():
         '''
         pass
 
+    def __initialize(self):
+        instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
+        if instance is None: raise Exception("CustomBehavior widget is required.")
+        # some are not finalized
+        # instance.inject_additionnal_utility_skills(ResignIfNeededUtility(instance.in_game_build))
+        # instance.inject_additionnal_utility_skills(MoveToDistantChestIfPathExistsUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(MoveIfStuckUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfInAggroUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(MoveToEnemyIfCloseEnoughUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfDeadUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfPartyMemberManaTooLowUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.in_game_build))
+
     def act(self):
+        if not self.__initialized:
+            self.__initialize()
+            self.__initialized = True
         try:
-            next(self._generator)
+            next(self.__generator)
         except StopIteration:
             print(f"Bot is finished.")
         except Exception as e:

@@ -100,7 +100,7 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
             lock_aquired = yield from CustomBehaviorParty().get_shared_lock_manager().wait_aquire_lock(lock_key, timeout_seconds=30)
             if not lock_aquired:
                 # todo cooldown
-                print(f"Fail acquiring lock {lock_key}.")
+                if constants.DEBUG:print(f"Fail acquiring lock {lock_key}.")
                 yield
                 return BehaviorResult.ACTION_SKIPPED
 
