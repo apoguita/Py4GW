@@ -1,8 +1,11 @@
 from typing import Any, Generator, override
 
+import PyImGui
+
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Pathing import AutoPathing
-from Py4GWCoreLib.Py4GWcorelib import Utils
+from Py4GWCoreLib.Py4GWcorelib import Keystroke, Utils
+from Py4GWCoreLib.enums import Key
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
@@ -34,7 +37,7 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
             score_definition=ScoreStaticDefinition(CommonScore.BLESSING.value), 
             allowed_states= [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
             utility_skill_typology=UtilitySkillTypology.BLESSING,
-            execution_strategy = UtilitySkillExecutionStrategy.EXECUTE_THROUGH_THE_END)
+            execution_strategy = UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BLESSING.value)
         self.mana_limit = mana_limit
@@ -89,7 +92,46 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
             return BehaviorResult.ACTION_SKIPPED
 
         agent_id:int = blessing_npc[1]
+        yield from self.move_to_npc(agent_id)
 
+        lock_key = f"take_near_blessing_{agent_id}"
+
+        try:
+            lock_aquired = yield from CustomBehaviorParty().get_shared_lock_manager().wait_aquire_lock(lock_key, timeout_seconds=30)
+            if not lock_aquired:
+                # todo cooldown
+                print(f"Fail acquiring lock {lock_key}.")
+                yield
+                return BehaviorResult.ACTION_SKIPPED
+
+            GLOBAL_CACHE.Player.Interact(agent_id, call_target=False)
+            yield from custom_behavior_helpers.Helpers.wait_for(1000)
+
+            result:bool = yield from self.run_dialog_sequence(agent_id)
+            # we don't care about the result, we have interracted, we bypass now
+            self.agent_ids_already_interracted.add(agent_id)
+            return BehaviorResult.ACTION_PERFORMED
+        finally:
+            Keystroke.PressAndRelease(Key.Escape.value)
+            CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
+    
+    def run_dialog_sequence(self, agent_id:int) -> Generator[None, None, bool]:
+        npc_dialog_visible = yield from blessing_helper.wait_npc_dialog_visible(timeout_ms=3_500)
+        if not npc_dialog_visible:
+            if constants.DEBUG: print("npc_dialog_visible FALSE")
+            # we don't need cooldown, let's just ignore that NPC
+            Keystroke.PressAndRelease(Key.Escape.value)
+            return False
+
+        result = yield from blessing_helper.run_dialog_sequences(timeout_ms=3_500)
+        if not result:
+            if constants.DEBUG: print("run_dialog_sequences FALSE.")
+            Keystroke.PressAndRelease(Key.Escape.value)
+            return False
+
+        return True
+
+    def move_to_npc(self, agent_id:int) -> Generator[None, None, None]:
         target_position : tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(agent_id)
 
         if Utils.Distance(target_position, GLOBAL_CACHE.Player.GetXY()) > 150:
@@ -105,36 +147,7 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
                     progress_callback=lambda progress: print(f"FollowPath take_near_blessing: progress: {progress}" if constants.DEBUG else None),
                     custom_pause_fn=lambda: False)
 
-        lock_key = f"take_near_blessing_{agent_id}"
-        lock_aquired = yield from CustomBehaviorParty().get_shared_lock_manager().wait_aquire_lock(lock_key, timeout_seconds=30)
-
-        if not lock_aquired:
-            # todo cooldown
-            yield
-            return BehaviorResult.ACTION_SKIPPED
-
-        yield from Routines.Yield.Agents.InteractAgent(agent_id)
-
-        # -------------------------------------------------------------------------------------------------
-
-        # BLESSING PHASE
-        
-        npc_dialog_visible = yield from blessing_helper.wait_npc_dialog_visible(timeout_ms=1_500)
-        if not npc_dialog_visible:
-            if constants.DEBUG: print("npc_dialog_visible FALSE")
-            # todo cooldown
-            yield
-            CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
-            return BehaviorResult.ACTION_SKIPPED
-
-        result = yield from blessing_helper.run_dialog_sequences(timeout_ms=1_000)
-        if not result:
-            if constants.DEBUG: print("run_dialog_sequences FALSE.")
-            # not sure we want verify, we do nothing basically
-
-        self.agent_ids_already_interracted.add(agent_id)
-        CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
-
-        yield from Routines.Yield.wait(300)
-        return BehaviorResult.ACTION_PERFORMED
-
+    @override
+    def customized_debug_ui(self, current_state: BehaviorState) -> None:
+        PyImGui.bullet_text(f"agent_ids_already_interracted : {self.agent_ids_already_interracted}")
+        return

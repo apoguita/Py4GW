@@ -52,5 +52,5 @@ class WaitIfPartyMemberTooFarUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-        yield from Routines.Yield.wait(300) # we stuck the flow. (not yield from)
+        yield from custom_behavior_helpers.Helpers.wait_for(300) # we stuck the flow. (not yield from)
         return BehaviorResult.ACTION_PERFORMED

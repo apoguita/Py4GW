@@ -3,7 +3,6 @@ from collections import deque
 from typing import List, Generator, Any, override
 import time
 
-from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -27,6 +26,7 @@ from Widgets.CustomBehaviors.skills.following.follow_party_leader_utility import
 from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.skills.inventory.merchant_refill_if_needed_utility import MerchantRefillIfNeededUtility
 from Widgets.CustomBehaviors.skills.looting.loot_utility import LootUtility
 from Widgets.CustomBehaviors.skills.looting.open_near_chest_utility import OpenNearChestUtility
 
@@ -58,6 +58,10 @@ class CustomBehaviorBaseUtility():
             if injected_skill.custom_skill.skill_name == skill.custom_skill.skill_name:
                 return
         self.__injected_additional_utility_skills.append(skill)
+        self.__final_skills_list = None
+
+    def clear_additionnal_utility_skills(self):
+        self.__injected_additional_utility_skills.clear()
         self.__final_skills_list = None
 
     def enable(self):
@@ -134,6 +138,8 @@ class CustomBehaviorBaseUtility():
 
             MapChangedUtility(self.in_game_build),
             StuckDetectionUtility(self.in_game_build),
+
+            MerchantRefillIfNeededUtility(self.in_game_build),
         ]
 
     @property
@@ -249,10 +255,14 @@ class CustomBehaviorBaseUtility():
     # orchestration
 
     timer = Timer()
-    throttler = ThrottledTimer(70)
+    throttler = ThrottledTimer(50)
+    compute_throttler = ThrottledTimer(250)
+    execute_throttler = ThrottledTimer(80)
 
     def act(self):
         if not self.throttler.IsExpired(): return
+        self.throttler.Reset()
+        
         if not Routines.Checks.Map.MapValid(): return
         if not self.get_final_is_enabled(): return
 
@@ -262,9 +272,6 @@ class CustomBehaviorBaseUtility():
         # or cached_data.data.player_is_knocked_down
         # or cached_data.combat_handler.InCastingRoutine()
         # or cached_data.data.player_is_casting
-
-        self.throttler.Reset()
-        self.timer.Reset()
 
         if not self.is_custom_behavior_match_in_game_build(): 
             print("Custom behavior doesn't match in game build, you are not allowed to perform behavior.act().")
@@ -278,22 +285,39 @@ class CustomBehaviorBaseUtility():
                 hero_ai_options.Following = False
                 hero_ai_options.Looting = False
 
-        self.__fetch_and_memoized_state()
-        self.__fetch_and_memoized_all_scores()
+        # it is interesting to compute score less often, as the execution :
+        # - if we are executing with EXECUTE_THROUGH_THE_END, most of the time it take more than 300/400 ms with the aftercast.
+        # - if we are executing with STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST, we don't need huge responsiveness
 
-        # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
+        if self.compute_throttler.IsExpired():
+            
+            self.compute_throttler.Reset()
+            self.timer.Reset()
+            self.__fetch_and_memoized_state()
+            # print(f"performance-audit-frame-durationA:{self.timer.GetElapsedTime()}")
 
-        try:
-            next(self._generator_handle)
-        except StopIteration:
-            print(f"act is not expected to StopIteration.")
-        except Exception as e:
-            print(f"act is not expected to exit : {e}")
+            self.__fetch_and_memoized_all_scores()
+            # print(f"performance-audit-frame-durationB:{self.timer.GetElapsedTime()}")
+
+        if self.execute_throttler.IsExpired():
+            self.execute_throttler.Reset()
+            self.timer.Reset()
+            try:
+                next(self._generator_handle)
+            except StopIteration:
+                print(f"act is not expected to StopIteration.")
+            except Exception as e:
+                print(f"act is not expected to exit : {e}")
+            # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
 
     # STATES
     
     def __fetch_and_memoized_state(self):
+
         def compute_state() -> BehaviorState:
+            timer = Timer()
+            timer.Reset()
+
             if self.get_final_is_enabled() == False:
                 return BehaviorState.IDLE
 
@@ -309,8 +333,8 @@ class CustomBehaviorBaseUtility():
             if custom_behavior_helpers.Targets.is_player_in_aggro():
                 return BehaviorState.IN_AGGRO
 
-            if custom_behavior_helpers.Targets.is_party_in_aggro():
-                return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies
+            # if custom_behavior_helpers.Targets.is_party_in_aggro():
+            #      return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies
 
             if custom_behavior_helpers.Targets.is_party_leader_in_aggro():
                 return BehaviorState.CLOSE_TO_AGGRO # no need to be IN_AGGRO, and we want to keep moving to the enemies
@@ -326,6 +350,10 @@ class CustomBehaviorBaseUtility():
     # SCORES 
 
     def __fetch_and_memoized_all_scores(self):
+        timer = Timer()
+        timer.Reset()
+        # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
+
         # print('Evaluate all utilities')
         # Evaluate all utilities
         utilities: list[CustomSkillUtilityBase] = self.get_skills_final_list()
@@ -334,6 +362,7 @@ class CustomBehaviorBaseUtility():
         
         utility_scores: list[tuple[CustomSkillUtilityBase, float | None]] = []
         current_state: BehaviorState = self.get_final_state()
+
         for utility in utilities:
             score = utility.evaluate(current_state, list(self.__previously_attempted_skills))
             utility_scores.append((utility, score))

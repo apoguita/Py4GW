@@ -92,7 +92,7 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
             for account in accounts:
                 print("Resigning account: " + account.AccountEmail)
                 GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))
-            yield from Routines.Yield.wait(8_000)
+            yield from custom_behavior_helpers.Helpers.wait_for(8_000)
             
             loop_counter += 1
             if loop_counter > 4:
@@ -115,7 +115,8 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
                 self.__is_resign_asked = False
                 return BehaviorResult.ACTION_PERFORMED
 
-            yield from Routines.Yield.wait(500)
+            yield from custom_behavior_helpers.Helpers.wait_for(500)
+
         else:
             print(f"Something failed, i am not able to recover - stopping bot.")
 
