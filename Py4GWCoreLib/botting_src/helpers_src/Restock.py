@@ -5,9 +5,10 @@ if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingHelpers
     
 from .decorators import _yield_step, _fsm_step
-from typing import Any, Generator, TYPE_CHECKING, Tuple, List, Optional, Callable
+from typing import Any, Generator, TYPE_CHECKING
 
-from ...Py4GWcorelib import ModelID
+from ...enums_src.Model_enums import ModelID
+
 #region RESTOCK
 class _Restock:
     def __init__(self, parent: "BottingHelpers"):

@@ -1,6 +1,8 @@
 from typing import List, Tuple, Callable, Optional, Generator, Any
 from ..GlobalCache import GLOBAL_CACHE
-from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager, ModelID
+from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager
+
+from ..enums_src.Model_enums import ModelID
 
 
 import importlib, typing
@@ -520,7 +522,9 @@ class Yield:
             """Target and interact with chest and items."""
             from .Agents import Agents
             
-            from ..Py4GWcorelib import LootConfig, Utils, Range
+            from ..Py4GWcorelib import LootConfig, Utils
+            from ..enums_src.GameData_enums import Range
+
             nearest_chest = Agents.GetNearestChest(2500)
             chest_x, chest_y = GLOBAL_CACHE.Agent.GetXY(nearest_chest)
 

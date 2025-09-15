@@ -221,7 +221,7 @@ class SkillManager:
                 slot,
                 self.GetAppropiateTarget(slot),
                 self.skills,
-                self.GetEnergyValues,
+                self.GetEnergyValues(GLOBAL_CACHE.Player.GetAgentID()),
                 self.expertise_exists,
                 self.expertise_level,
                 self.AreCastConditionsMet,

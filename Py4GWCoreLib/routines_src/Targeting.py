@@ -10,9 +10,7 @@ class _RProxy:
 
 Routines = _RProxy()
 
-from ..Py4GWcorelib import Range
-
-
+from ..enums_src.GameData_enums import Range
 
 #region Targetting
 class Targeting:
