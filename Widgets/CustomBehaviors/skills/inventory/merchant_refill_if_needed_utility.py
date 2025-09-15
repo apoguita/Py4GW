@@ -131,7 +131,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
                     tolerance=150, 
                     log=constants.DEBUG, 
                     timeout=10_000, 
-                    progress_callback=lambda progress: print(f"FollowPath merchant_refill_if_needed_utility: progress: {progress}" if constants.DEBUG else None),
+                    progress_callback=lambda progress: print(f"FollowPath merchant_refill_if_needed_utility: progress: {progress}") if constants.DEBUG else None,
                     custom_pause_fn=lambda: False)
 
         if constants.DEBUG: print(f"Merchant reached.")

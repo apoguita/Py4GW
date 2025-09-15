@@ -67,7 +67,6 @@ class CustomSkillUtilityBase:
             if (self.utility_skill_typology != UtilitySkillTypology.BOTTING 
                 and self.utility_skill_typology != UtilitySkillTypology.DAEMON 
                 and self.utility_skill_typology != UtilitySkillTypology.INVENTORY): 
-                print(self.utility_skill_typology)
                 raise Exception("only botting & daemon utility_skill_typology can perform stuff in IDLE")
 
         score:float | None = self._evaluate(current_state, previously_attempted_skills)
