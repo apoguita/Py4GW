@@ -116,7 +116,6 @@ __all__ = [
     "ServerRegionName",
 
     # Texture_enums
-    "ItemModelTextureMap",
     "ProfessionTextureMap",
     "SkillTextureMap",
     "get_texture_for_model",
