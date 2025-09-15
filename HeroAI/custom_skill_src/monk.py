@@ -1032,7 +1032,7 @@ class MonkSkills:
         skill.TargetAllegiance = Skilltarget.AllyMartialMelee.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.TargetingStrict = True
-        skill.Conditions.IsOutOfCombat = True
+        #skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
