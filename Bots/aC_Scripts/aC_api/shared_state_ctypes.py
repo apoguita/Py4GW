@@ -63,7 +63,7 @@ class SharedState:
     _instance = None
     _SHM_SIZE = ctypes.sizeof(SharedData)
 
-    def __new__(cls, name: str = "mywidgets_sync", *, lock_dir: str = None):
+    def __new__(cls, name: str = "mywidgets_sync", *, lock_dir: str = ""):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._init(name, lock_dir)
