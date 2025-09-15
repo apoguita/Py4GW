@@ -97,7 +97,6 @@ def render():
                         return f"HeroAI: "
                     return ""
 
-        
                 score_text = f"{score[1]:06.4f}" if score[1] is not None else "Ø"
                 texture_file = score[0].custom_skill.get_texture(py4gw_root_directory, project_root)
                 
