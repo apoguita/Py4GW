@@ -168,6 +168,4 @@ class SkillType (Enum):
     Chant = 27
     EchoRefrain = 28
     Disguise = 29
-
-
-
+    

@@ -13,7 +13,7 @@ import math
 
 def DrawBuffWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
-    if not cached_data.data.is_explorable:
+    if not GLOBAL_CACHE.Map.IsExplorable():
         return
 
     for index in range(MAX_NUM_PLAYERS):
@@ -86,18 +86,13 @@ def DrawPrioritizedSkills(cached_data:CacheData):
                     is_ready_to_cast, v_target = cached_data.combat_handler.IsReadyToCast(skill_slot)
 
                     self_id = GLOBAL_CACHE.Player.GetAgentID()
-                    nearest_enemy = cached_data.data.nearest_enemy
-                    nearest_ally = cached_data.data.lowest_ally
-                    nearest_spirit = cached_data.data.nearest_spirit
-                    nearest_minion = cached_data.data.lowest_minion
-                    nearest_corpse = cached_data.data.nearest_corpse
-                    pet_id = cached_data.data.pet_id
+
+                    pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(GLOBAL_CACHE.Player.GetAgentID())
 
                     headers = ["Self", "Nearest Enemy", "Nearest Ally", "Nearest Item", "Nearest Spirit", "Nearest Minion", "Nearest Corpse", "Pet"]
 
                     data = [
-                        (self_id, nearest_enemy, nearest_ally,
-                         nearest_spirit, nearest_minion, nearest_corpse, pet_id)
+                        (self_id, pet_id)
                     ]
 
                     ImGui.table("Target Debug Table", headers, data)
@@ -115,23 +110,23 @@ def DrawPrioritizedSkills(cached_data:CacheData):
                     
                     PyImGui.text_colored(f"IsReadyToCast: {is_ready_to_cast}", TrueFalseColor(is_ready_to_cast))
                     if PyImGui.tree_node(f"IsReadyToCast: {is_ready_to_cast}"): 
-                        is_casting = cached_data.data.player_is_casting
-                        casting_skill = cached_data.data.player_casting_skill
-                        skillbar_casting = cached_data.data.player_skillbar_casting
+                        is_casting = GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
+                        casting_skill = GLOBAL_CACHE.Agent.GetCastingSkill(GLOBAL_CACHE.Player.GetAgentID())
+                        skillbar_casting = GLOBAL_CACHE.SkillBar.GetCasting()
                         skillbar_recharge = cached_data.combat_handler.skills[skill_slot].skillbar_data.recharge
                         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
                         current_energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id) * GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
                         ordered_skill = cached_data.combat_handler.GetOrderedSkill(skill_slot)
                         if ordered_skill:                        
                             energy_cost = GLOBAL_CACHE.Skill.Data.GetEnergyCost(ordered_skill.skill_id)
-                            current_hp = cached_data.data.player_hp
+                            current_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
                             target_hp = ordered_skill.custom_skill_data.Conditions.SacrificeHealth
                             health_cost = GLOBAL_CACHE.Skill.Data.GetHealthCost(ordered_skill.skill_id)
 
                             adrenaline_required = GLOBAL_CACHE.Skill.Data.GetAdrenaline(ordered_skill.skill_id)
                             adrenaline_a = ordered_skill.skillbar_data.adrenaline_a
-                        
-                            current_overcast = cached_data.data.player_overcast
+
+                            current_overcast = GLOBAL_CACHE.Agent.GetOvercast(GLOBAL_CACHE.Player.GetAgentID())
                             overcast_target = ordered_skill.custom_skill_data.Conditions.Overcast
                             skill_overcast = GLOBAL_CACHE.Skill.Data.GetOvercast(ordered_skill.skill_id)
 
@@ -184,7 +179,7 @@ def DrawFlags(cached_data:CacheData):
             return
 
         if PyImGui.is_mouse_clicked(0) and not one_time_set_flag:
-            if capture_hero_index > 0 and capture_hero_index <= cached_data.data.party_hero_count:
+            if capture_hero_index > 0 and capture_hero_index <= GLOBAL_CACHE.Party.GetHeroCount():
                 if not capture_flag_all:   
                     agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(capture_hero_index)
                     GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
@@ -194,11 +189,11 @@ def DrawFlags(cached_data:CacheData):
                     hero_ai_index = 0
                     GLOBAL_CACHE.Party.Heroes.FlagAllHeroes(x, y)
                 else:
-                    hero_ai_index = capture_hero_index - cached_data.data.party_hero_count
+                    hero_ai_index = capture_hero_index - GLOBAL_CACHE.Party.GetHeroCount()
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "IsFlagged", True)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosX", x)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosY", y)
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", cached_data.data.party_leader_rotation_angle)
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID()))
                 
                 one_time_set_flag = True
 
@@ -230,7 +225,7 @@ def DrawFlags(cached_data:CacheData):
 def DrawFlaggingWindow(cached_data:CacheData):
     global HeroFlags, AllFlag, capture_flag_all, capture_hero_flag, capture_hero_index, one_time_set_flag
     global CLearFlags
-    party_size = cached_data.data.party_size
+    party_size = GLOBAL_CACHE.Party.GetPartySize()
     if party_size == 1:
         PyImGui.text("No Follower or Heroes to Flag.")
         return
@@ -340,12 +335,12 @@ slot_to_write = 0
 def DrawPlayersDebug(cached_data:CacheData):
     global MAX_NUM_PLAYERS, slot_to_write
 
-    own_party_number = cached_data.data.own_party_number
+    own_party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
     PyImGui.text(f"Own Party Number: {own_party_number}")
     slot_to_write = PyImGui.input_int("Slot to write", slot_to_write)
 
     if PyImGui.button("Submit"):
-        self_id = cached_data.data.player_agent_id
+        self_id = GLOBAL_CACHE.Player.GetAgentID()
 
         cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "PlayerID", self_id)
         player_id = GLOBAL_CACHE.Player.GetAgentID()
@@ -384,7 +379,7 @@ def DrawHeroesDebug(cached_data:CacheData):
     headers = ["Slot", "agent_id", "owner_player_id", "hero_id", "hero_name"]
     data = []
 
-    heroes = cached_data.data.heroes
+    heroes = GLOBAL_CACHE.Party.GetHeroes()
     for index, hero in enumerate(heroes):
         data.append((
             index,  # Slot index
@@ -401,7 +396,7 @@ def DrawGameOptionsDebug(cached_data:CacheData):
 
     data = []
     PyImGui.text("Remote Control Variables")
-    PyImGui.text(f"own_party_number: {cached_data.data.own_party_number}")
+    PyImGui.text(f"own_party_number: {GLOBAL_CACHE.Party.GetOwnPartyNumber()}")
     headers = ["Control", "Following", "Avoidance", "Looting", "Targeting", "Combat"]
     headers += [f"Skill {j + 1}" for j in range(NUMBER_OF_SKILLS)]
     row = [
@@ -463,7 +458,7 @@ def DrawFlagDebug(cached_data:CacheData):
     PyImGui.text_colored("Having GetMouseWorldPos active will crash your client on map change",(1, 0.5, 0.05, 1))
     mouse_x, mouse_y = Overlay().GetMouseCoords()
     PyImGui.text(f"Mouse Coords: {mouse_x}, {mouse_y}")
-    PyImGui.text(f"Player Position: {cached_data.data.player_xyz}")
+    PyImGui.text(f"Player Position: {GLOBAL_CACHE.Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID())}")
     draw_fake_flag = PyImGui.checkbox("Draw Fake Flag", draw_fake_flag)
 
     if draw_fake_flag:
@@ -490,10 +485,9 @@ def DrawFollowDebug(cached_data:CacheData):
     show_distance_on_followers = PyImGui.checkbox("Show Distance on Followers", show_distance_on_followers)
     PyImGui.separator()
     PyImGui.text(f"InAggro: {cached_data.data.in_aggro}")
-    PyImGui.text(f"IsMelee: {GLOBAL_CACHE.Agent.IsMelee(cached_data.data.player_agent_id)}")
-    PyImGui.text(f"Nearest Enemy: {cached_data.data.nearest_enemy}")
+    PyImGui.text(f"IsMelee: {GLOBAL_CACHE.Agent.IsMelee(GLOBAL_CACHE.Player.GetAgentID())}")
     PyImGui.text(f"stay_alert_timer: {cached_data.stay_alert_timer.GetElapsedTime()}")
-    PyImGui.text(f"Leader Rotation Angle: {cached_data.data.party_leader_rotation_angle}")
+    PyImGui.text(f"Leader Rotation Angle: {GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())}")
     PyImGui.text(f"old_leader_rotation_angle: {cached_data.data.old_angle}")
     PyImGui.text(f"Angle_changed: {cached_data.data.angle_changed}")
 
@@ -527,7 +521,7 @@ def DrawFollowDebug(cached_data:CacheData):
             if cached_data.HeroAI_vars.all_player_struct[i].IsActive:
                 Overlay().BeginDraw()
                 player_id = cached_data.HeroAI_vars.all_player_struct[i].PlayerID
-                if player_id == cached_data.data.player_agent_id:
+                if player_id == GLOBAL_CACHE.Player.GetAgentID():
                     continue
                 target_x, target_y, target_z = GLOBAL_CACHE.Agent.GetXYZ(player_id)
                 Overlay().DrawPoly3D(target_x, target_y, target_z, radius=72, color=Utils.RGBToColor(255, 255, 255, 128),numsegments=segments,thickness=2.0)
@@ -812,7 +806,7 @@ def DrawDebugWindow(cached_data:CacheData):
     if PyImGui.collapsing_header("Heroes Debug"):
         DrawHeroesDebug(cached_data)
 
-    if cached_data.data.is_explorable:
+    if GLOBAL_CACHE.Map.IsExplorable():
         if PyImGui.collapsing_header("Follow Debug"):
             DrawFollowDebug(cached_data)
         if PyImGui.collapsing_header("Flag Debug"):
@@ -830,10 +824,10 @@ def DrawMultiboxTools(cached_data:CacheData):
     cached_data.HeroAI_windows.tools_window.initialize()
 
     if cached_data.HeroAI_windows.tools_window.begin():
-        if cached_data.data.is_outpost and cached_data.data.player_agent_id == cached_data.data.party_leader_id:
+        if GLOBAL_CACHE.Map.IsOutpost() and GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
             if PyImGui.collapsing_header("Party Setup",PyImGui.TreeNodeFlags.DefaultOpen):
                 DrawCandidateWindow(cached_data)
-        if cached_data.data.is_explorable and cached_data.data.player_agent_id == cached_data.data.party_leader_id:
+        if GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
             if PyImGui.collapsing_header("Flagging"):
                 DrawFlaggingWindow(cached_data)
 
@@ -993,7 +987,7 @@ def DrawPanelButtons(source_game_option):
     return game_option
 
 def DrawMainWindow(cached_data:CacheData):
-    own_party_number = cached_data.data.own_party_number
+    own_party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
     game_option = GameOptionStruct()
     original_game_option = cached_data.HeroAI_vars.all_game_option_struct[own_party_number]
      
@@ -1014,7 +1008,7 @@ def DrawMainWindow(cached_data:CacheData):
 
 def DrawControlPanelWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
-    own_party_number = cached_data.data.own_party_number
+    own_party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
     game_option = GameOptionStruct()     
     if own_party_number != 0:
         return
