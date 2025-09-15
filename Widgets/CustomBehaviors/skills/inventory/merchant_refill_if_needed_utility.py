@@ -1,3 +1,4 @@
+import random
 from typing import Any, Generator, override
 
 import PyImGui
@@ -49,12 +50,18 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
         if not GLOBAL_CACHE.Map.IsOutpost(): return False
         return True
 
+    def _is_merchant_agent(self, agent_id: int) -> bool:
+        """Check if the agent is a merchant by checking for merchant tags in multiple languages."""
+        merchant_tags = ['[Merchant]', '[Marchand]', 'Kauffrau']
+        agent_name = GLOBAL_CACHE.Agent.GetName(agent_id)
+        return any(merchant_tag in agent_name for merchant_tag in merchant_tags)
+
     def _get_target(self) -> int | None:
         
         agent_ids = GLOBAL_CACHE.AgentArray.GetNPCMinipetArray()
         agent_ids = AgentArray.Filter.ByDistance(agent_ids, GLOBAL_CACHE.Player.GetXY(), Range.Compass.value)
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id))
-        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: '[Merchant]' in GLOBAL_CACHE.Agent.GetName(agent_id)) # works only with english :/ 
+        agent_ids = AgentArray.Filter.ByCondition(agent_ids, self._is_merchant_agent)
         if len(agent_ids) == 0: return None
         return agent_ids[0]
         
@@ -88,6 +95,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
             return BehaviorResult.ACTION_SKIPPED
 
         lock_key = f"merchant_refill_if_needed_utility_{GLOBAL_CACHE.Player.GetAgentID()}" # on key per player, and we wait no one is locking.
+        yield from custom_behavior_helpers.Helpers.wait_for(random.randint(1_000, 5_000))
 
         try:
             lock_aquired = yield from CustomBehaviorParty().get_shared_lock_manager().wait_aquire_lock(lock_key, timeout_seconds=30)
