@@ -47,9 +47,6 @@ class GameData:
         #Player data
         self.player_agent_id = 0 
         self.login_number = 0
-        self.energy_regen = 0
-        self.max_energy = 0
-        self.energy = 0
         self.player_xy = (0.0, 0.0)
         self.player_xyz = (0.0, 0.0, 0.0)
         self.player_is_casting = False
@@ -130,9 +127,6 @@ class GameData:
         #Player data
         self.player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         self.player_login_number = GLOBAL_CACHE.Agent.GetLoginNumber(self.player_agent_id)
-        self.player_energy_regen = GLOBAL_CACHE.Agent.GetEnergyRegen(self.player_agent_id)
-        self.player_max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(self.player_agent_id)
-        self.player_energy = GLOBAL_CACHE.Agent.GetEnergy(self.player_agent_id)
         self.player_xy = GLOBAL_CACHE.Agent.GetXY(self.player_agent_id)
         self.player_xyz = GLOBAL_CACHE.Agent.GetXYZ(self.player_agent_id)
         self.player_is_casting = GLOBAL_CACHE.Agent.IsCasting(self.player_agent_id)

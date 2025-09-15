@@ -1151,5 +1151,8 @@
     "3613855137,0,0,6": "Collector.Exchange",
     "1532320307": "Merchant Buy Button",
     "792099697": "Equip Skill Window",
-    "1725534410": "Equip Skill Window.Equip Now"
+    "1725534410": "Equip Skill Window.Equip Now",
+    "140452905,12,4": "No Leave your party button",
+    "140452905,12,6": "Yes Leave your party Button",
+    "140452905,12": "Leave your party Dialog"
 }
