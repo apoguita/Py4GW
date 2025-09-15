@@ -1,4 +1,3 @@
-from enum import Enum
 from enum import IntEnum
 import PySkill
 
@@ -1262,7 +1261,7 @@ class ModelID(IntEnum):
     Minister_Reiko_Mini = 30224
     Ministerial_Commendation = 36985
     Ministerial_Decree = 29109
-    Minitreats_Of_Purity = 30208
+    Minitreat_Of_Purity = 30208
     Minotaur_Horn = 455
     Minutely_Mad_King_Tonic = 37772
     Mischievious_Tonic = 31020
@@ -1334,23 +1333,23 @@ class ModelID(IntEnum):
     Pile_Of_Glittering_Dust = 929
     Plant_Fiber = 934
     Polar_Bear_Mini = 21439
-    Polymock_Aloe_Seed = 24355
-    Polymock_Earth_Elemental = 24357
-    Polymock_Fire_Elemental = 24358
-    Polymock_Fire_Imp = 24359
-    Polymock_Gaki = 24360
-    Polymock_Gargoyle = 24361
-    Polymock_Ice_Elemental = 24365
-    Polymock_Ice_Imp = 24366
-    Polymock_Kappa = 24367
-    Polymock_Mergoyle = 24369
-    Polymock_Mirage_Iboga = 24363
-    Polymock_Mursaat_Elementalist = 24370
-    Polymock_Naga_Shaman = 24372
-    Polymock_Ruby_Djinn = 24371
-    Polymock_Skale = 24373
-    Polymock_Stone_Rain = 24374
-    Polymock_Wind_Rider = 24356
+    Aloe_Seed_Polymock_Piece = 24355
+    Earth_Elemental_Polymock_Piece = 24357
+    Fire_Elemental_Polymock_Piece = 24358
+    Fire_Imp_Polymock_Piece = 24359
+    Gaki_Polymock_Piece = 24360
+    Gargoyle_Polymock_Piece = 24361
+    Ice_Elemental_Polymock_Piece = 24365
+    Ice_Imp_Polymock_Piece = 24366
+    Kappa_Polymock_Piece = 24367
+    Mergoyle_Polymock_Piece = 24369
+    Mirage_Iboga_Polymock_Piece = 24363
+    Mursaat_Elementalist_Polymock_Piece = 24370
+    Naga_Shaman_Polymock_Piece = 24372
+    Ruby_Djinn_Polymock_Piece = 24371
+    Skale_Polymock_Piece = 24373
+    Stone_Rain_Polymock_Piece = 24374
+    Wind_Rider_Polymock_Piece = 24356
     Powerstone_Of_Courage = 24862
     Primeval_Armor_Remnant = 19193
     Prince_Rurik_Mini = 13790
