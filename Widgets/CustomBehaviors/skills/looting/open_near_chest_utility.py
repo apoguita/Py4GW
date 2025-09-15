@@ -6,6 +6,7 @@ import PyImGui
 
 from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Inventory, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
+from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
@@ -40,7 +41,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
 
         self.score_definition: ScoreStaticDefinition =ScoreStaticDefinition(CommonScore.LOOT.value + 0.001)
         self.opened_chest_agent_ids: set[int] = set()
-        self.throttle_timer = ThrottledTimer(1000)
+        self.cooldown_execution = ThrottledTimer(1000)
 
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
 
@@ -56,7 +57,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1: return None #"No free slots in inventory, halting."
-        if GLOBAL_CACHE.Inventory.GetModelCount(22751) < 1: return None #"No lockpicks in inventory, halting."
+        if GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Lockpick.value) < 1: return None #"No lockpicks in inventory, halting."
         chest_agent_id = Routines.Agents.GetNearestChest(700)
         if chest_agent_id in self.opened_chest_agent_ids: return None
         if chest_agent_id is None or chest_agent_id == 0: return None
@@ -65,12 +66,11 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
-        if not self.throttle_timer.IsExpired():
-            # print(f"open_near_chest_utility_ IsExpired")
+        if not self.cooldown_execution.IsExpired():
             yield
             return BehaviorResult.ACTION_SKIPPED
 
-        self.throttle_timer.Reset()
+        self.cooldown_execution.Reset()
 
         chest_agent_id = Routines.Agents.GetNearestChest(700)
         if chest_agent_id is None or chest_agent_id == 0: 

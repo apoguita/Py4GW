@@ -13,6 +13,7 @@ from Widgets.CustomBehaviors.skills.botting.move_to_party_member_if_dead import 
 from Widgets.CustomBehaviors.skills.botting.move_to_party_member_if_in_aggro import MoveToPartyMemberIfInAggroUtility
 from Widgets.CustomBehaviors.skills.botting.resign_if_needed import ResignIfNeededUtility
 from Widgets.CustomBehaviors.skills.botting.wait_if_in_aggro import WaitIfInAggroUtility
+from Widgets.CustomBehaviors.skills.botting.wait_if_lock_taken import WaitIfLockTakenUtility
 from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_mana_too_low import WaitIfPartyMemberManaTooLowUtility
 from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_needs_to_loot import WaitIfPartyMemberNeedsToLootUtility
 from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
@@ -57,6 +58,7 @@ class AutoMover:
         instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.in_game_build))
         instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.in_game_build))
         instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.in_game_build))
 
         path3d = yield from AutoPathing().get_path_to(target_position[0], target_position[1], smooth_by_los=True, margin=100.0, step_dist=300.0)
         path2d:list[tuple[float, float]]  = [(x, y) for (x, y, *_ ) in path3d]
@@ -72,7 +74,7 @@ class AutoMover:
                 progress_callback=self.on_progress,
                 custom_pause_fn=custom_pause_fn)
 
-        print("move generator set")
+        if constants.DEBUG: print("move generator set")
         self.generator = move_generator
 
     def on_progress(self, progress: float) -> None:

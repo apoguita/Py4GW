@@ -26,6 +26,7 @@ from Widgets.CustomBehaviors.skills.following.follow_party_leader_utility import
 from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.skills.inventory.merchant_refill_if_needed_utility import MerchantRefillIfNeededUtility
 from Widgets.CustomBehaviors.skills.looting.loot_utility import LootUtility
 from Widgets.CustomBehaviors.skills.looting.open_near_chest_utility import OpenNearChestUtility
 
@@ -137,6 +138,8 @@ class CustomBehaviorBaseUtility():
 
             MapChangedUtility(self.in_game_build),
             StuckDetectionUtility(self.in_game_build),
+
+            MerchantRefillIfNeededUtility(self.in_game_build),
         ]
 
     @property

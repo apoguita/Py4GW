@@ -10,3 +10,5 @@ class UtilitySkillTypology(Enum):
     BLESSING = 6
     
     DAEMON = 10
+
+    INVENTORY = 11

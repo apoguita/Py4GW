@@ -11,6 +11,7 @@ from Widgets.CustomBehaviors.skills.botting.move_to_party_member_if_dead import 
 from Widgets.CustomBehaviors.skills.botting.move_to_party_member_if_in_aggro import MoveToPartyMemberIfInAggroUtility
 from Widgets.CustomBehaviors.skills.botting.resign_if_needed import ResignIfNeededUtility
 from Widgets.CustomBehaviors.skills.botting.wait_if_in_aggro import WaitIfInAggroUtility
+from Widgets.CustomBehaviors.skills.botting.wait_if_lock_taken import WaitIfLockTakenUtility
 from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_mana_too_low import WaitIfPartyMemberManaTooLowUtility
 from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_needs_to_loot import WaitIfPartyMemberNeedsToLootUtility
 from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
@@ -33,6 +34,7 @@ class BottingAbstract():
         instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.in_game_build))
         instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.in_game_build))
         instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.in_game_build))
 
     @property
     @abstractmethod
