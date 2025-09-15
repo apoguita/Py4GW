@@ -93,14 +93,14 @@ def configure():
         end_pos = PyImGui.get_window_pos()
     PyImGui.end()
     
-    if end_pos[0] != config_module.window_pos[0] or end_pos[1] != config_module.window_pos[1]:
+    """if end_pos[0] != config_module.window_pos[0] or end_pos[1] != config_module.window_pos[1]:
         config_module.window_pos = (int(end_pos[0]), int(end_pos[1]))
         ini_handler.write_key(module_name + " Config", "config_x", str(int(end_pos[0])))
         ini_handler.write_key(module_name + " Config", "config_y", str(int(end_pos[1])))
 
     if new_collapsed != config_module.collapse:
         config_module.collapse = new_collapsed
-        ini_handler.write_key(module_name + " Config", "config_collapsed", str(new_collapsed))
+        ini_handler.write_key(module_name + " Config", "config_collapsed", str(new_collapsed))"""
         
 
 def DrawWindow():
@@ -195,7 +195,7 @@ def DrawWindow():
         #PyImGui.end()
         ImGui.gw_window.end(window_module.window_name)
 
-        if save_throttle_timer.HasElapsed(save_throttle_time):
+        """if save_throttle_timer.HasElapsed(save_throttle_time):
             if end_pos[0] != window_module.window_pos[0] or end_pos[1] != window_module.window_pos[1]:
                 window_module.window_pos = (int(end_pos[0]), int(end_pos[1]))
                 ini_handler.write_key(module_name + " Config", "x", str(int(end_pos[0])))
@@ -203,7 +203,7 @@ def DrawWindow():
 
             if new_collapsed != window_module.collapse:
                 window_module.collapse = new_collapsed
-                ini_handler.write_key(module_name + " Config", "collapsed", str(new_collapsed))
+                ini_handler.write_key(module_name + " Config", "collapsed", str(new_collapsed))"""
                 
             #save_throttle_timer.Reset()
 

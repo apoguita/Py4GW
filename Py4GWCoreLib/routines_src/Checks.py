@@ -98,6 +98,13 @@ class Checks:
                     break
 
             return all_dead
+        
+        @staticmethod
+        def IsPartyLoaded():
+            from ..GlobalCache import GLOBAL_CACHE
+            if not Checks.Map.MapValid():
+                return False
+            return GLOBAL_CACHE.Party.IsPartyLoaded()
 
 #region Map
     class Map:
