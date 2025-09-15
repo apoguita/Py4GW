@@ -205,7 +205,7 @@ class SkillManager:
                 self.skills, 
                 self.unique_skills, 
                 self.HasEffect, 
-                self.GetEnergyValues,
+                self.GetEnergyValues(GLOBAL_CACHE.Player.GetAgentID()),
                 self.IsPartyMember,
                 self.GetAgentBuffList(GLOBAL_CACHE.Player.GetAgentID()),
                 self.GetAgentBuffList(vTarget)

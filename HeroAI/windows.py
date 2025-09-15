@@ -47,7 +47,7 @@ def DrawPrioritizedSkills(cached_data:CacheData):
     PyImGui.text(f"skill pointer: : {cached_data.combat_handler.skill_pointer}")
     in_casting_routine = cached_data.combat_handler.InCastingRoutine()
     PyImGui.text_colored(f"InCastingRoutine: {in_casting_routine}",TrueFalseColor(not in_casting_routine))
-    PyImGui.text(f"aftercast_timer: {cached_data.combat_handler.aftercast_timer.GetTimeElapsed()}")
+    PyImGui.text(f"aftercast_timer: {cached_data.combat_handler.aftercast_timer.GetElapsedTime()}")
 
     if PyImGui.begin_tab_bar("OrderedSkills"):
         skills = cached_data.combat_handler.GetSkills()
@@ -119,7 +119,8 @@ def DrawPrioritizedSkills(cached_data:CacheData):
                         casting_skill = cached_data.data.player_casting_skill
                         skillbar_casting = cached_data.data.player_skillbar_casting
                         skillbar_recharge = cached_data.combat_handler.skills[skill_slot].skillbar_data.recharge
-                        current_energy = cached_data.data.energy * cached_data.data.max_energy
+                        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+                        current_energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id) * GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
                         ordered_skill = cached_data.combat_handler.GetOrderedSkill(skill_slot)
                         if ordered_skill:                        
                             energy_cost = GLOBAL_CACHE.Skill.Data.GetEnergyCost(ordered_skill.skill_id)
@@ -347,8 +348,9 @@ def DrawPlayersDebug(cached_data:CacheData):
         self_id = cached_data.data.player_agent_id
 
         cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "PlayerID", self_id)
-        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy_Regen", cached_data.data.energy_regen)
-        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy", cached_data.data.energy)
+        player_id = GLOBAL_CACHE.Player.GetAgentID()
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy_Regen", GLOBAL_CACHE.Agent.GetEnergyRegen(player_id))
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy", GLOBAL_CACHE.Agent.GetEnergy(player_id))
         cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsActive", True)
         cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsHero", False)
         cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsFlagged", False)
