@@ -5,23 +5,23 @@ from .cache_data import CacheData
 
 def RegisterPlayer(cached_data:CacheData):
     """Register the current player to the shared memory."""
-    if cached_data.data.own_party_number == -1:
+    if GLOBAL_CACHE.Party.GetOwnPartyNumber() == -1:
         return False
-    player_id = GLOBAL_CACHE.Player.GetAgentID()
-    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(cached_data.data.own_party_number, "PlayerID", player_id)
-    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(cached_data.data.own_party_number, "Energy_Regen", GLOBAL_CACHE.Agent.GetEnergyRegen(player_id))
-    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(cached_data.data.own_party_number, "Energy", GLOBAL_CACHE.Agent.GetEnergy(player_id))
-    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(cached_data.data.own_party_number, "IsActive", True)
-    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(cached_data.data.own_party_number, "IsHero", False)
 
-    cached_data.HeroAI_vars.shared_memory_handler.register_buffs(cached_data.data.player_agent_id)
+    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "PlayerID", GLOBAL_CACHE.Player.GetAgentID())
+    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "Energy_Regen", GLOBAL_CACHE.Agent.GetEnergyRegen(GLOBAL_CACHE.Player.GetAgentID()))
+    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "Energy", GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID()))
+    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "IsActive", True)
+    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "IsHero", False)
+
+    cached_data.HeroAI_vars.shared_memory_handler.register_buffs(GLOBAL_CACHE.Player.GetAgentID())
 
 
 def RegisterHeroes(cached_data:CacheData):
-    for index, hero in enumerate(cached_data.data.heroes):
-        hero_party_number =cached_data.data.party_player_count + index
+    for index, hero in enumerate(GLOBAL_CACHE.Party.GetHeroes()):
+        hero_party_number = GLOBAL_CACHE.Party.GetPlayerCount() + index
         agent_id = hero.agent_id
-        if hero.owner_player_id == cached_data.data.player_login_number: 
+        if hero.owner_player_id == GLOBAL_CACHE.Agent.GetLoginNumber(GLOBAL_CACHE.Player.GetAgentID()): 
             cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "PlayerID", agent_id)
             cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "Energy_Regen", GLOBAL_CACHE.Agent.GetEnergyRegen(agent_id))
             cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "Energy", GLOBAL_CACHE.Agent.GetEnergy(agent_id))
@@ -30,7 +30,7 @@ def RegisterHeroes(cached_data:CacheData):
 
             cached_data.HeroAI_vars.shared_memory_handler.register_buffs(agent_id)
         
-    pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(cached_data.data.player_agent_id)
+    pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(GLOBAL_CACHE.Player.GetAgentID())
     if pet_id != 0:
         cached_data.HeroAI_vars.shared_memory_handler.register_buffs(pet_id)
 

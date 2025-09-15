@@ -9,7 +9,7 @@ def UpdateGameOptions(cache_data:CacheData):
     """Update the player list from shared memory."""
     global GAME_OPTION_MODULE_NAME, MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
     try:
-        own_party_number = cache_data.data.own_party_number
+        own_party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
 
         if own_party_number == 0:
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
