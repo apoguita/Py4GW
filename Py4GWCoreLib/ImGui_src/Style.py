@@ -3,7 +3,7 @@ import json
 import os
 from enum import IntEnum
 from.types import ImGuiStyleVar
-from ..Py4GWcorelib import Utils
+from ..Py4GWcorelib import Utils, Color
 
 class Style:    
     pyimgui_style = PyImGui.StyleConfig()
@@ -14,7 +14,7 @@ class Style:
         Minimalus = 2
 
     class StyleVar:
-        def __init__(self, style : "Style", value1: float, value2: float | None = None, img_style_enum : "ImGuiStyleVar|None" = None):
+        def __init__(self, style: "Style", value1: float, value2: float | None = None, img_style_enum: "ImGuiStyleVar|None" = None):
             self.style = style
             self.img_style_enum: ImGuiStyleVar | None = img_style_enum
             self.value1: float = value1
@@ -40,17 +40,11 @@ class Style:
         def pop_style_var(self):
             if self.pushed_stack:
                 self.pushed_stack.pop(0)
-
             if self.img_style_enum:
                 PyImGui.pop_style_var(1)
 
         def to_json(self):
-            return {
-                "value1": self.value1,
-                "value2": self.value2
-            } if self.value2 is not None else {
-                "value1": self.value1
-            }
+            return {"value1": self.value1, "value2": self.value2} if self.value2 is not None else {"value1": self.value1}
 
         def from_json(self, img_style_enum: str, data):
             # self.img_style_enum = getattr(ImGuiStyleVar, img_style_enum) if img_style_enum in ImGuiStyleVar.__members__ else None
@@ -61,215 +55,87 @@ class Style:
             return self.pushed_stack[0] if self.pushed_stack else self
 
         def copy(self):
-            return Style.StyleVar(
-                style=self.style,
-                value1=self.value1,
-                value2=self.value2,
-                img_style_enum=self.img_style_enum
-            )
+            return Style.StyleVar(self.style, self.value1, self.value2, self.img_style_enum)
 
-        def __hash__(self):
-            return hash((self.img_style_enum, self.value1, self.value2))
-
-        def __ne__(self, value):
-            if not isinstance(value, Style.StyleVar):
-                return True
-
-            return (self.img_style_enum != value.img_style_enum or
-                    self.value1 != value.value1 or
-                    self.value2 != value.value2)
-
-        def __eq__(self, value):
-            if not isinstance(value, Style.StyleVar):
-                return False
-
-            return (self.img_style_enum == value.img_style_enum and
-                    self.value1 == value.value1 and
-                    self.value2 == value.value2)        
+        def __hash__(self): return hash((self.img_style_enum, self.value1, self.value2))
+        def __eq__(self, value): return isinstance(value, Style.StyleVar) and (self.img_style_enum, self.value1, self.value2) == (value.img_style_enum, value.value1, value.value2)
+        def __ne__(self, value): return not self.__eq__(value)        
 
     class CustomColor:
-        def __init__(self, style : "Style", r: int, g: int, b: int, a: int = 255, img_color_enum : PyImGui.ImGuiCol | None = None):
+        def __init__(self, style: "Style", r: int, g: int, b: int, a: int = 255, img_color_enum: PyImGui.ImGuiCol | None = None):
             self.style = style
-            self.set_rgb_color(r, g, b, a)
+            self.color: Color = Color(r, g, b, a)
             self.img_color_enum = img_color_enum
-            self.pushed_stack = []
+            self.pushed_stack: list[Style.CustomColor] = []
 
-        def __hash__(self):
-            return hash((self.r, self.g, self.b, self.a))
-
-        def __eq__(self, other):
-            if not isinstance(other, Style.CustomColor):
-                return False
-
-            return (self.r == other.r and
-                    self.g == other.g and
-                    self.b == other.b and
-                    self.a == other.a)        
-
-        def __ne__(self, value):
-            if not isinstance(value, Style.CustomColor):
-                return True
-
-            return (self.r != value.r or
-                    self.g != value.g or
-                    self.b != value.b or
-                    self.a != value.a)
+        def __hash__(self): return hash((self.img_color_enum, self.color))
+        def __eq__(self, other): return isinstance(other, Style.CustomColor) and self.color == other.color
+        def __ne__(self, other): return not self.__eq__(other)
 
         def set_rgb_color(self, r: int, g: int, b: int, a: int = 255):
-            self.r = r
-            self.g = g
-            self.b = b
-            self.a = a
-
-            self.rgb_tuple = (r, g, b, a)
-            self.color_tuple = r / 255.0, g / 255.0, b / 255.0, a / 255.0  # Convert to RGBA float
-            self.color_int = Utils.RGBToColor(r, g, b, a)
+            self.color = Color(r, g, b, a)
 
         def set_tuple_color(self, color: tuple[float, float, float, float]):
-            #convert from color tuple
-            self.r = int(color[0] * 255)
-            self.g = int(color[1] * 255)
-            self.b = int(color[2] * 255)
-            self.a = int(color[3] * 255)
+            self.color = Color.from_tuple(color)
 
-            self.rgb_tuple = (self.r, self.g, self.b, self.a)
-            self.color_tuple = color
-            self.color_int = Utils.RGBToColor(self.r, self.g, self.b, self.a)
+        def push_color(self, rgba: tuple[int, int, int, int] | None = None):
+            col = Style.CustomColor(self.style, *rgba, self.img_color_enum) if rgba else self.get_current()
+            if self.img_color_enum is not None:
+                PyImGui.push_style_color(self.img_color_enum, col.color.color_tuple)
+            self.pushed_stack.insert(0, col)
+
+        def pop_color(self):
+            if self.pushed_stack:
+                col = self.pushed_stack.pop(0)
+                if col.img_color_enum:
+                    PyImGui.pop_style_color(1)
+
+        def get_current(self): return self.pushed_stack[0] if self.pushed_stack else self
+
+        def to_json(self):
+            return {"img_color_enum": self.img_color_enum.name if self.img_color_enum else None, **dict(zip("rgba", self.color.to_tuple()))}
+
+        def from_json(self, data):
+            img_color_enum = data.get("img_color_enum", None)
+            self.img_color_enum = getattr(PyImGui.ImGuiCol, img_color_enum) if img_color_enum in PyImGui.ImGuiCol.__members__ else None
+            self.color = Color(data["r"], data["g"], data["b"], data.get("a", 255))
+
+
+    class StyleColor:
+        def __init__(self, style: "Style", r: int, g: int, b: int, a: int = 255, img_color_enum: PyImGui.ImGuiCol | None = None):
+            self.style = style
+            self.img_color_enum = img_color_enum
+            self.color: Color = Color(r, g, b, a)
+            self.pushed_stack: list[Style.StyleColor] = []
+
+        def __hash__(self): return hash((self.img_color_enum, self.color))
+        def __eq__(self, other): return isinstance(other, Style.StyleColor) and self.color == other.color and self.img_color_enum == other.img_color_enum
+        def __ne__(self, other): return not self.__eq__(other)
+
+        def set_rgb_color(self, r: int, g: int, b: int, a: int = 255): self.color = Color(r, g, b, a)
+        def set_tuple_color(self, color: tuple[float, float, float, float]): self.color = Color.from_tuple(color)
 
         def push_color(self, rgba: tuple[int, int, int, int] | None = None):
             col = Style.StyleColor(self.style, *rgba, self.img_color_enum) if rgba else self.get_current()
-
-            if self.img_color_enum is not None:
-                PyImGui.push_style_color(self.img_color_enum, col.color_tuple)
-
-            self.pushed_stack.insert(0, col)
-
-        def pop_color(self):
-            if self.pushed_stack:
-                color = self.pushed_stack.pop(0)
-
-                if color.img_color_enum:
-                    PyImGui.pop_style_color(1)
-
-        def get_current(self) -> "Style.CustomColor":
-            """
-            Method to use for manual drawing.\n
-            Returns the current Style.CustomColor from the pushed stack if available, otherwise returns self.
-            Returns:
-                Style.CustomColor: The first Style.CustomColor in the pushed_stack if it exists, otherwise self.
-            """
-
-            return self.pushed_stack[0] if self.pushed_stack else self
-
-        def to_json(self):
-            return {
-                "img_color_enum": self.img_color_enum.name if self.img_color_enum else None,
-                "r": self.r,
-                "g": self.g,
-                "b": self.b,
-                "a": self.a
-            }
-
-        def from_json(self, data):
-            img_color_enum = data.get("img_color_enum", None)
-            self.img_color_enum = getattr(PyImGui.ImGuiCol, img_color_enum) if img_color_enum in PyImGui.ImGuiCol.__members__ else None
-            r, g, b, a = data["r"], data["g"], data["b"], data.get("a", 255)
-            self.set_rgb_color(r, g, b, a)
-
-    class StyleColor:
-        def __init__(self, style : "Style", r: int, g: int, b: int, a: int = 255, img_color_enum : PyImGui.ImGuiCol | None = None):
-            self.style = style
-            self.img_color_enum = img_color_enum
-            self.set_rgb_color(r, g, b, a)
-            self.pushed_stack : list[Style.StyleColor] = []
-
-        def __eq__(self, other):
-            if not isinstance(other, "Style.StyleColor"):
-                return False
-
-            return (
-                self.img_color_enum == other.img_color_enum and
-                self.r == other.r and
-                self.g == other.g and
-                self.b == other.b and
-                self.a == other.a
-            )
-
-        def __hash__(self):
-            # Use an immutable tuple of all values used in equality
-            return hash((self.img_color_enum, self.r, self.g, self.b, self.a))      
-
-        def __ne__(self, value):
-            if not isinstance(value, Style.StyleColor):
-                return True
-
-            return (self.img_color_enum != value.img_color_enum or
-                    self.r != value.r or
-                    self.g != value.g or
-                    self.b != value.b or
-                    self.a != value.a)
-
-        def set_rgb_color(self, r: int, g: int, b: int, a: int = 255):
-            self.r = r
-            self.g = g
-            self.b = b
-            self.a = a
-
-            self.rgb_tuple = (r, g, b, a)
-            self.color_tuple = r / 255.0, g / 255.0, b / 255.0, a / 255.0  # Convert to RGBA float
-            self.color_int = Utils.RGBToColor(r, g, b, a)
-
-        def set_tuple_color(self, color: tuple[float, float, float, float]):
-            #convert from color tuple
-            self.r = int(color[0] * 255)
-            self.g = int(color[1] * 255)
-            self.b = int(color[2] * 255)
-            self.a = int(color[3] * 255)
-
-            self.rgb_tuple = (self.r, self.g, self.b, self.a)
-            self.color_tuple = color
-            self.color_int = Utils.RGBToColor(self.r, self.g, self.b, self.a)
-
-        def push_color(self, rgba: tuple[int, int, int, int] | None = None):
-            col = Style.StyleColor(self.style, *rgba, self.img_color_enum) if rgba != None else self.get_current()
-
             if col.img_color_enum is not None:
-                PyImGui.push_style_color(col.img_color_enum, col.color_tuple)
-
+                PyImGui.push_style_color(col.img_color_enum, col.color.color_tuple)
             self.pushed_stack.insert(0, col)
 
         def pop_color(self):
             if self.pushed_stack:
-                color = self.pushed_stack[0]
-                self.pushed_stack.pop(0)
-
-                if color.img_color_enum is not None:
+                col = self.pushed_stack.pop(0)
+                if col.img_color_enum:
                     PyImGui.pop_style_color(1)
 
-        def get_current(self) -> "Style.StyleColor":
-            """
-            Method to use for manual drawing.\n
-            Returns the current Style.StyleColor from the pushed stack if available, otherwise returns self.
-            Returns:
-                Style.StyleColor: The first Style.StyleColor in the pushed_stack if it exists, otherwise self.
-            """
-
-            return self.pushed_stack[0] if self.pushed_stack else self
+        def get_current(self): return self.pushed_stack[0] if self.pushed_stack else self
 
         def to_json(self):
-            return {
-                "img_color_enum": self.img_color_enum.name if self.img_color_enum else None,
-                "r": self.r,
-                "g": self.g,
-                "b": self.b,
-                "a": self.a
-            }
+            return {"img_color_enum": self.img_color_enum.name if self.img_color_enum else None, **dict(zip("rgba", self.color.to_tuple()))}
 
         def from_json(self, data):
             img_color_enum = data.get("img_color_enum", None)
             self.img_color_enum = getattr(PyImGui.ImGuiCol, img_color_enum) if img_color_enum in PyImGui.ImGuiCol.__members__ else None
-            r, g, b, a = data["r"], data["g"], data["b"], data.get("a", 255)
-            self.set_rgb_color(r, g, b, a)
+            self.color = Color(data["r"], data["g"], data["b"], data.get("a", 255))
 
     def __init__(self):
         # Set the default style as base so we can push it and cover all
@@ -392,60 +258,52 @@ class Style:
 
     def copy(self):
         style = Style()
-
         style.Theme = self.Theme
 
-        for color_name, c in self.Colors.items():
-            attribute = getattr(style, color_name)
-            if isinstance(attribute, Style.StyleColor):
-                attribute.set_rgb_color(c.r, c.g, c.b, c.a)
+        for name, c in self.Colors.items():
+            attr = getattr(style, name)
+            if isinstance(attr, Style.StyleColor):
+                attr.color = Color(*c.color.to_tuple())
 
-        for color_name, c in self.CustomColors.items():
-            attribute = getattr(style, color_name)
-            if isinstance(attribute, Style.CustomColor):
-                attribute.set_rgb_color(c.r, c.g, c.b, c.a)
+        for name, c in self.CustomColors.items():
+            attr = getattr(style, name)
+            if isinstance(attr, Style.CustomColor):
+                attr.color = Color(*c.color.to_tuple())
 
-        for color_name, c in self.TextureColors.items():
-            attribute = getattr(style, color_name)
-            if isinstance(attribute, Style.CustomColor):
-                attribute.set_rgb_color(c.r, c.g, c.b, c.a)
+        for name, c in self.TextureColors.items():
+            attr = getattr(style, name)
+            if isinstance(attr, Style.CustomColor):
+                attr.color = Color(*c.color.to_tuple())
 
-        for var_name, v in self.StyleVars.items():
-            attribute = getattr(style, var_name)
-            if isinstance(attribute, Style.StyleVar):
-                attribute.value1 = v.value1
-                attribute.value2 = v.value2
+        for name, v in self.StyleVars.items():
+            attr = getattr(style, name)
+            if isinstance(attr, Style.StyleVar):
+                attr.value1, attr.value2 = v.value1, v.value2
 
         return style
 
     def push_style(self):
         for var in self.Colors.values():
             var.push_color()
-
         for var in self.StyleVars.values():
             var.push_style_var()
-
         pass
 
     def pop_style(self):
         for var in self.Colors.values():
             var.pop_color()
-
         for var in self.StyleVars.values():
             var.pop_style_var()
-
         pass
 
     def push_style_vars(self):
         for var in self.StyleVars.values():
             var.push_style_var()
-
         pass
 
     def pop_style_vars(self):
         for var in self.StyleVars.values():
             var.pop_style_var()
-
         pass
 
     def save_to_json(self):
@@ -462,24 +320,20 @@ class Style:
 
     def delete(self) -> bool:
         file_path = os.path.join("Styles", f"{self.Theme.name}.json")
-
         if os.path.exists(file_path):
             os.remove(file_path)
             return True
-
         return False
 
-    def apply_to_style_config(self):                
-        for _, attribute in self.Colors.items():                
+    def apply_to_style_config(self):
+        for _, attribute in self.Colors.items():
             if attribute.img_color_enum:
-                self.pyimgui_style.set_color(attribute.img_color_enum, *attribute.color_tuple)
-
+                self.pyimgui_style.set_color(attribute.img_color_enum, *attribute.color.to_tuple_normalized())
         self.pyimgui_style.Push()
 
     @classmethod
-    def load_from_json(cls, path : str) -> 'Style':
+    def load_from_json(cls, path: str) -> "Style":
         style = cls()
-
         if not os.path.exists(path):
             return style
 
@@ -512,14 +366,43 @@ class Style:
         return style
 
     @classmethod
-    def load_theme(cls, theme : StyleTheme) -> 'Style':
+    def load_theme(cls, theme: StyleTheme) -> "Style":
         file_path = os.path.join("Styles", f"{theme.name}.json")
         default_file_path = os.path.join("Styles", f"{theme.name}.default.json")
         path = file_path if os.path.exists(file_path) else default_file_path
-
         return cls.load_from_json(path)
 
     @classmethod
-    def load_default_theme(cls, theme : StyleTheme) -> 'Style':
+    def load_default_theme(cls, theme: StyleTheme) -> "Style":
         default_file_path = os.path.join("Styles", f"{theme.name}.default.json")
         return cls.load_from_json(default_file_path)
+
+    def preview(self):
+        """Temporarily apply this Style into ImGui's live StyleConfig (not permanent)."""
+        if not hasattr(self, "pyimgui_style"):
+            self.pyimgui_style = PyImGui.StyleConfig()
+
+        # Sync baseline from global
+        self.pyimgui_style.Pull()
+
+        # Apply Colors
+        for _, attr in self.Colors.items():
+            if attr.img_color_enum and isinstance(attr.color, Color):
+                self.pyimgui_style.set_color(attr.img_color_enum, *attr.color.to_tuple())
+
+        # Apply CustomColors
+        for _, attr in self.CustomColors.items():
+            if attr.img_color_enum and isinstance(attr.color, Color):
+                self.pyimgui_style.set_color(attr.img_color_enum, *attr.color.to_tuple())
+
+        # Apply TextureColors
+        for _, attr in self.TextureColors.items():
+            if attr.img_color_enum and isinstance(attr.color, Color):
+                self.pyimgui_style.set_color(attr.img_color_enum, *attr.color.to_tuple())
+
+        # StyleVars are handled separately if needed (scalars/vec2s already live in StyleConfig)
+
+    def apply_permanently(self):
+        """Commit current preview to ImGui's global StyleConfig (persistent)."""
+        if hasattr(self, "pyimgui_style"):
+            self.pyimgui_style.Push()

@@ -284,6 +284,8 @@ class ImGuiCol(IntEnum):
     NavWindowingHighlight = 50
     NavWindowingDimBg = 51
     ModalWindowDimBg = 52
+
+ImGuiCol_COUNT = 53
     
 class ImGuiCond(IntEnum):
     _None = 0
