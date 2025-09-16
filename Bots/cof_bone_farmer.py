@@ -2,34 +2,37 @@
 from Py4GWCoreLib import *
 from random import randint
 from datetime import datetime
+
 # endregion
+
 
 # region classes
 class Path:
-    npc    = [(-19085, 17960)]
+    npc = [(-19085, 17960)]
     rezone = [(-19665, -8045)]
-    prep   = [(-16623, -8989)]
-    kill   = [(-15525, -8923), (-15737,-9093)]
+    prep = [(-16623, -8989)]
+    kill = [(-15525, -8923), (-15737, -9093)]
+
 
 class BotVariables:
-    bot_started: bool  = False
-    do_setup: bool     = True
-    action_queue       = ActionQueue()
-    fsm                = FSM('Bone Farmer')
-    fsm_setup          = FSM('Setup')
-    fsm_inv            = FSM('Inventory')
-    move               = Routines.Movement.FollowXY()
-    exact_move         = Routines.Movement.FollowXY(tolerance=5)
-    
+    bot_started: bool = False
+    do_setup: bool = True
+    action_queue = ActionQueue()
+    fsm = FSM('Bone Farmer')
+    fsm_setup = FSM('Setup')
+    fsm_inv = FSM('Inventory')
+    move = Routines.Movement.FollowXY()
+    exact_move = Routines.Movement.FollowXY(tolerance=5)
+
     class Maps:
         starting: int = 648
-        dungeon: int  = 560
+        dungeon: int = 560
 
     class Path:
-        npc    = Routines.Movement.PathHandler(Path.npc)
+        npc = Routines.Movement.PathHandler(Path.npc)
         rezone = Routines.Movement.PathHandler(Path.rezone)
-        prep   = Routines.Movement.PathHandler(Path.prep)
-        kill   = Routines.Movement.PathHandler(Path.kill)
+        prep = Routines.Movement.PathHandler(Path.prep)
+        kill = Routines.Movement.PathHandler(Path.kill)
 
         def reset(self):
             self.npc.reset()
@@ -39,90 +42,94 @@ class BotVariables:
 
     class Timers:
         throttle: Timer = Timer()
-        total: Timer    = Timer()
-        lap: Timer      = Timer()
-        action: Timer   = Timer()
-        settle: Timer   = Timer()
-        stuck: Timer    = Timer()
+        total: Timer = Timer()
+        lap: Timer = Timer()
+        action: Timer = Timer()
+        settle: Timer = Timer()
+        stuck: Timer = Timer()
 
         lap_times: list = []
         throttle.Start()
 
         class Checks:
             throttle: float = 200
-            action: float   = 0
-            stuck: float    = 2000
+            action: float = 0
+            stuck: float = 2000
 
         checks = Checks()
 
     class Inv:
-        empty_slots   = 5
-        item_id       = 0
+        empty_slots = 5
+        item_id = 0
         item_quantity = 0
-        log           = {}
-        process       = False
+        log = {}
+        process = False
         sort_position = 0
-        sort_list     = []
+        sort_list = []
 
     class Opts:
-        debug: bool             = False
-        build_type: str         = 'mb'
+        debug: bool = False
+        build_type: str = 'iau'
 
     class Loot:
         salvageables: bool = True
-        coins: bool        = True
-        picks: bool        = True
-        dust: bool         = True
-        chalices: bool     = True
-        relics: bool       = True
+        coins: bool = True
+        picks: bool = True
+        dust: bool = True
+        chalices: bool = True
+        relics: bool = True
 
     class Gui:
-        window_module = ImGui.WindowModule('Bone Farmer',window_name='CoF Bone Farm',window_pos=(234,802),
-                                           window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
-        window_pos: tuple[float,float]    = (0,0)
-        window_size: tuple[float,float]   = (0,0)
-        settings_pos: tuple[int,int]  = (0,0)
-        settings_size: tuple[int,int] = (0,0)
+        window_module = ImGui.WindowModule(
+            'Bone Farmer',
+            window_name='CoF Bone Farm',
+            window_pos=(234, 802),
+            window_flags=PyImGui.WindowFlags.AlwaysAutoResize,
+        )
+        window_pos: tuple[float, float] = (0, 0)
+        window_size: tuple[float, float] = (0, 0)
+        settings_pos: tuple[int, int] = (0, 0)
+        settings_size: tuple[int, int] = (0, 0)
 
         class Stats:
-            time: str          = datetime.now().strftime('%H:%M:%S')
-            status: str        = 'waiting for input'
-            runs: int          = 0
-            fails: int         = 0
-            avg_time: float    = 0
-            bone: int          = 0
+            time: str = datetime.now().strftime('%H:%M:%S')
+            status: str = 'waiting for input'
+            runs: int = 0
+            fails: int = 0
+            avg_time: float = 0
+            bone: int = 0
             bone_per_hour: int = 0
             starting_bone: int = Inventory.GetModelCount(921)
-            total_bone: int    = Inventory.GetModelCount(921)
-            gold_coins: int    = 0
-            lockpicks: int     = 0
-            dust: int          = 0
-            iron: int          = 0
-            chalices: int      = 0
-            relics: int        = 0
+            total_bone: int = Inventory.GetModelCount(921)
+            gold_coins: int = 0
+            lockpicks: int = 0
+            dust: int = 0
+            iron: int = 0
+            chalices: int = 0
+            relics: int = 0
 
         class Opts:
-            show_settings: bool        = False
-            condense_tables: bool      = False
-            color_rows: bool           = True
-            show_all: bool             = False
+            show_settings: bool = False
+            condense_tables: bool = False
+            color_rows: bool = True
+            show_all: bool = False
 
             class Rows:
-                runs: bool        = True
-                fails: bool       = True
-                pace: bool        = True
-                lap_time: bool    = False
-                total_time: bool  = True
-                bones: bool       = True
-                bones_hr: bool    = False
+                runs: bool = True
+                fails: bool = True
+                pace: bool = True
+                lap_time: bool = False
+                total_time: bool = True
+                bones: bool = True
+                bones_hr: bool = False
                 start_bones: bool = False
                 total_bones: bool = False
-                coins: bool       = False
-                picks: bool       = False
-                dust: bool        = False
-                iron: bool        = False
-                chalices: bool    = False
-                relics: bool      = False
+                coins: bool = False
+                picks: bool = False
+                dust: bool = False
+                iron: bool = False
+                chalices: bool = False
+                relics: bool = False
 
                 def GetRows(self) -> list:
                     return [
@@ -140,95 +147,105 @@ class BotVariables:
                         self.dust,
                         self.iron,
                         self.chalices,
-                        self.relics
+                        self.relics,
                     ]
-            
+
             rows = Rows()
-        
+
         stats = Stats()
         opts = Opts()
-                
-    map    = Maps()
-    path   = Path()
+
+    map = Maps()
+    path = Path()
     timers = Timers()
-    inv    = Inv()
-    opts   = Opts()
-    loot   = Loot()
-    gui    = Gui()
-    
+    inv = Inv()
+    opts = Opts()
+    loot = Loot()
+    gui = Gui()
+
+
 class Build:
     # template
-    def GetTemplate(self,type):
+    def GetTemplate(self, type):
         if type == 'iau':
             return 'OgCjwqpq6SYiihdftXjhOXhX0k'
         elif type == 'mb':
             return 'OgCjkqqLrSYiihdftXjhOXhXxlA'
+
     # weapon slots
-    scythe   = 1
-    staff    = 2
+    scythe = 1
+    staff = 2
     # skills
-    soms     = 1
-    pf       = 2
-    ga       = 3
-    vos      = 4
-    cv       = 5
-    ri       = 6
-    vop      = 7
-    iau      = 8
-    mb       = 8
+    soms = 1
+    pf = 2
+    ga = 3
+    vos = 4
+    cv = 5
+    ri = 6
+    vop = 7
+    iau = 8
+    mb = 8
+
 
 class Combat:
-    def LoadSkillBar(self,template):
+    def LoadSkillBar(self, template):
         GLOBAL_CACHE.SkillBar.LoadSkillTemplate(template)
 
-    def ChangeWeaponSet(self,set):
+    def ChangeWeaponSet(self, set):
         global bot_vars
 
-        if ActionIsPending(): return
+        if ActionIsPending():
+            return
 
         if bot_vars.opts.debug:
             Debug(f'Equipping weapon set [{set}].')
 
-        if   set == 1: Keystroke.PressAndRelease(Key.F1.value)
-        elif set == 2: Keystroke.PressAndRelease(Key.F2.value)
-        elif set == 3: Keystroke.PressAndRelease(Key.F3.value)
-        elif set == 4: Keystroke.PressAndRelease(Key.F4.value)
+        if set == 1:
+            Keystroke.PressAndRelease(Key.F1.value)
+        elif set == 2:
+            Keystroke.PressAndRelease(Key.F2.value)
+        elif set == 3:
+            Keystroke.PressAndRelease(Key.F3.value)
+        elif set == 4:
+            Keystroke.PressAndRelease(Key.F4.value)
 
         SetPendingAction(300)
 
-    def CastSkill(self,skill_slot):
+    def CastSkill(self, skill_slot, aftercast_delay=200):
         global bot_vars
 
         if bot_vars.opts.debug:
-            name = GLOBAL_CACHE.Skill.GetName(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)).replace('_',' ')
+            name = GLOBAL_CACHE.Skill.GetName(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)).replace('_', ' ')
             Debug(f'Casting "{name}" in slot [{skill_slot}].')
-        Routines.Yield.Skills.CastSkillSlot(skill_slot, log =False, aftercast_delay=200)
-        
+
+        yield from Routines.Yield.Skills.CastSkillSlot(skill_slot, aftercast_delay=aftercast_delay)
 
     def CanCast(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
 
-        if (GLOBAL_CACHE.Agent.IsCasting(player_agent_id) 
+        if (
+            GLOBAL_CACHE.Agent.IsCasting(player_agent_id)
             or GLOBAL_CACHE.Agent.GetCastingSkill(player_agent_id) != 0
             or GLOBAL_CACHE.Agent.IsKnockedDown(player_agent_id)
             or GLOBAL_CACHE.Agent.IsDead(player_agent_id)
-            or GLOBAL_CACHE.SkillBar.GetCasting() != 0):
+            or GLOBAL_CACHE.SkillBar.GetCasting() != 0
+        ):
             return False
         return True
 
-    def GetEnergyAgentCost(self,skill_slot):
+    def GetEnergyAgentCost(self, skill_slot):
         skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)
         cost = GLOBAL_CACHE.Skill._get_skill_instance(skill_id).energy_cost
 
         if cost == 11:
-            cost = 15    # True cost is 15
+            cost = 15  # True cost is 15
         elif cost == 12:
-            cost = 25    # True cost is 25
+            cost = 25  # True cost is 25
 
         cost = max(0, cost)
         return cost
 
-    def HasEnoughAdrenaline(self,skill_slot):
+    def HasEnoughAdrenaline(self, skill_slot):
         skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)
 
         return GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot).adrenaline_a >= Skill.Data.GetAdrenaline(skill_id)
@@ -241,44 +258,45 @@ class Combat:
 
         return energy_points
 
-    def HasEnoughEnergy(self,skill_slot):
+    def HasEnoughEnergy(self, skill_slot):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id)
         max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
         energy_points = int(energy * max_energy)
 
         return self.GetEnergyAgentCost(skill_slot) <= energy_points
-    
-    def IsRecharged(self,skill_slot):
+
+    def IsRecharged(self, skill_slot):
         skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
         recharge = skill.recharge
         return recharge == 0
-    
-    def HasBuff(self,agent_id, skill_slot):
+
+    def HasBuff(self, agent_id, skill_slot):
         skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)
 
         if Effects.BuffExists(agent_id, skill_id) or Effects.EffectExists(agent_id, skill_id):
             return True
         return False
-    
-    def CheckBuffs(self,buff_list):
+
+    def CheckBuffs(self, buff_list):
         for buff in buff_list:
-            if not self.HasBuff(Player.GetAgentID(),buff):
+            if not self.HasBuff(Player.GetAgentID(), buff):
                 return False
         return True
-    
-    def EffectTimeRemaining(self,skill_id):
+
+    def EffectTimeRemaining(self, skill_id):
         for effect in Effects.GetEffects(Player.GetAgentID()):
             if effect.skill_id == skill_id:
                 return effect.time_remaining
         return 0
-    
-    def GetAftercast(self,skill_slot):
+
+    def GetAftercast(self, skill_slot):
         skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)
 
         activation = GLOBAL_CACHE.Skill.Data.GetActivation(skill_id)
-        aftercast = GLOBAL_CACHE.Skill.Data.GetAftercast(skill_id)    
-        return max(activation*1000 + aftercast*750 + Py4GW.PingHandler().GetCurrentPing() + 50,500)
+        aftercast = GLOBAL_CACHE.Skill.Data.GetAftercast(skill_id)
+        return max(activation * 1000 + aftercast * 750 + Py4GW.PingHandler().GetCurrentPing() + 50, 500)
+
 
 class ProcessInventory:
     def CheckSlots(self):
@@ -288,11 +306,11 @@ class ProcessInventory:
             return False
         else:
             if not bot_vars.inv.log:
-                bot_vars.inv.log = Loot().LogInventory([921,929,948])
+                bot_vars.inv.log = Loot().LogInventory([921, 929, 948])
 
             return True
 
-    def BuyItem(self,model_id):
+    def BuyItem(self, model_id):
         item_array = Trading.Merchant.GetOfferedItems()
         for item in item_array:
             if Item.GetModelID(item) == model_id:
@@ -301,7 +319,7 @@ class ProcessInventory:
                 if bot_vars.opts.debug:
                     Debug(f'Buying ItemID [{item}] for [{value}] gold.')
 
-                Trading.Merchant.BuyItem(item,value)
+                Trading.Merchant.BuyItem(item, value)
                 break
 
     def IDInventory(self):
@@ -315,21 +333,23 @@ class ProcessInventory:
             self.BuyItem(2989)
             SetPendingAction(150)
             return False
-    
+
         item_id = Inventory.GetFirstUnidentifiedItem()
         if not item_id:
             if bot_vars.opts.debug:
-                Debug(f'Idenfity loop complete.')
+                Debug('Idenfity loop complete.')
             bot_vars.inv.item_id = 0
             return True
-        
+
         if item_id == bot_vars.inv.item_id:
             return False
-        
+
         bot_vars.inv.item_id = item_id
         if bot_vars.opts.debug:
             bag, slot = Inventory.FindItemBagAndSlot(bot_vars.inv.item_id)
-            Debug(f'Idenfiying "{Item.GetName(bot_vars.inv.item_id)}" - ItemID [{bot_vars.inv.item_id}] in slot [{bag},{slot}].')
+            Debug(
+                f'Idenfiying "{Item.GetName(bot_vars.inv.item_id)}" - ItemID [{bot_vars.inv.item_id}] in slot [{bag},{slot}].'
+            )
         PyInventory.PyInventory().IdentifyItem(kit_id, bot_vars.inv.item_id)
 
         return False
@@ -345,32 +365,36 @@ class ProcessInventory:
             self.BuyItem(2992)
             SetPendingAction(150)
             return
-        
+
         item_id = Inventory.GetFirstSalvageableItem()
         if item_id == 0:
             if bot_vars.opts.debug:
-                Debug(f'Salvage loop complete.')
+                Debug('Salvage loop complete.')
             bot_vars.inv.item_id = 0
             return True
-        
+
         if item_id == bot_vars.inv.item_id:
             if Item.Rarity.IsPurple(bot_vars.inv.item_id) or Item.Rarity.IsGold(bot_vars.inv.item_id):
                 Inventory.AcceptSalvageMaterialsWindow()
             return False
-        
+
         bot_vars.inv.item_id = item_id
         if bot_vars.opts.debug:
-           bag, slot = Inventory.FindItemBagAndSlot(bot_vars.inv.item_id)
-           Debug(f'Salvaging "{Item.GetName(bot_vars.inv.item_id)}" - ItemID [{bot_vars.inv.item_id}] in slot [{bag},{slot}].')
+            bag, slot = Inventory.FindItemBagAndSlot(bot_vars.inv.item_id)
+            Debug(
+                f'Salvaging "{Item.GetName(bot_vars.inv.item_id)}" - ItemID [{bot_vars.inv.item_id}] in slot [{bag},{slot}].'
+            )
         PyInventory.PyInventory().Salvage(kit_id, bot_vars.inv.item_id)
 
         return False
 
     def GetSellList(self):
-        banned_ids = [921,929,933,948,2989,2992,22751]
-        bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+        banned_ids = [921, 929, 933, 948, 2989, 2992, 22751]
+        bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
         item_array = ItemArray.GetItemArray(bags_to_check)
-        item_array = ItemArray.Filter.ByCondition(item_array, lambda item_id: Item.GetModelID(item_id) not in banned_ids)
+        item_array = ItemArray.Filter.ByCondition(
+            item_array, lambda item_id: Item.GetModelID(item_id) not in banned_ids
+        )
         item_array = ItemArray.Filter.ByCondition(item_array, lambda item_id: Item.Properties.GetValue(item_id) > 0)
         return item_array
 
@@ -391,7 +415,7 @@ class ProcessInventory:
         value = Item.Properties.GetValue(bot_vars.inv.item_id)
         cost = quantity * value
         Trading.Merchant.SellItem(bot_vars.inv.item_id, cost)
-        SetPendingAction(randint(300,600))
+        SetPendingAction(randint(300, 600))
 
     def SellLoop(self):
         global bot_vars
@@ -402,61 +426,73 @@ class ProcessInventory:
             if Inventory.GetItemCount(bot_vars.inv.item_id) == 0:
                 bot_vars.fsm_inv.jump_to_state_by_name('selling items')
         else:
-            current_inventory = Loot().LogInventory([921,929,948])
-            new_inventory = {key: current_inventory[key] - bot_vars.inv.log[key] for key in set(bot_vars.inv.log) & set(current_inventory)}
+            current_inventory = Loot().LogInventory([921, 929, 948])
+            new_inventory = {
+                key: current_inventory[key] - bot_vars.inv.log[key]
+                for key in set(bot_vars.inv.log) & set(current_inventory)
+            }
 
             bot_vars.gui.stats.gold_coins += new_inventory['gold']
-            bot_vars.gui.stats.bone       += new_inventory[921]
-            bot_vars.gui.stats.dust       += new_inventory[929]
-            bot_vars.gui.stats.iron       += new_inventory[948]
+            bot_vars.gui.stats.bone += new_inventory[921]
+            bot_vars.gui.stats.dust += new_inventory[929]
+            bot_vars.gui.stats.iron += new_inventory[948]
 
             if bot_vars.timers.total.GetElapsedTime() == 0:
                 bot_vars.gui.stats.bone_per_hour = 0
             else:
-                bot_vars.gui.stats.bone_per_hour = int(bot_vars.gui.stats.bone*3600000/bot_vars.timers.total.GetElapsedTime())
+                bot_vars.gui.stats.bone_per_hour = int(
+                    bot_vars.gui.stats.bone * 3600000 / bot_vars.timers.total.GetElapsedTime()
+                )
             bot_vars.gui.stats.total_bone = Inventory.GetModelCount(921)
             bot_vars.inv.log = {}
 
             if bot_vars.opts.debug:
                 Debug('Sell loop complete.')
 
-                Debug('Loot from inventory processing:',            msg_type = 'Notice')
-                Debug(f'      Gold coins: {new_inventory['gold']}', msg_type = 'Notice')
-                Debug(f'      Bone: {new_inventory[921]}',          msg_type = 'Notice')
-                Debug(f'      Dust: {new_inventory[929]}',          msg_type = 'Notice')
-                Debug(f'      Iron: {new_inventory[948]}',          msg_type = 'Notice')
+                Debug('Loot from inventory processing:', msg_type='Notice')
+                Debug(f'      Gold coins: {new_inventory['gold']}', msg_type='Notice')
+                Debug(f'      Bone: {new_inventory[921]}', msg_type='Notice')
+                Debug(f'      Dust: {new_inventory[929]}', msg_type='Notice')
+                Debug(f'      Iron: {new_inventory[948]}', msg_type='Notice')
 
             return True
-    
+
         return False
-                
+
     def SortCalculate(self):
         global bot_vars
-        sort_algo = [('type_id'  , 29),  # kits
-                     ('type_id'  , 18),  # 
-                     ('type_id'  , 9),   # 
-                     ('type_id'  , 30),  # 
-                     ('model_id' , 921), #
-                     ('model_id' , 929), #
-                     ('model_id' , 933), #
-                     ('model_id' , 948)] # iron
+        sort_algo = [
+            ('type_id', 29),  # kits
+            ('type_id', 18),  #
+            ('type_id', 9),  #
+            ('type_id', 30),  #
+            ('model_id', 921),  #
+            ('model_id', 929),  #
+            ('model_id', 933),  #
+            ('model_id', 948),
+        ]  # iron
 
-        bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+        bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
         item_array = ItemArray.GetItemArray(bags_to_check)
         bot_vars.inv.sort_list = []
         for sorting_type in sort_algo:
             if sorting_type[0] == 'type_id':
-                items = ItemArray.Filter.ByCondition(item_array, lambda item_id: Item.GetItemType(item_id)[0] == sorting_type[1])
+                items = ItemArray.Filter.ByCondition(
+                    item_array, lambda item_id: Item.GetItemType(item_id)[0] == sorting_type[1]
+                )
                 bot_vars.inv.sort_list.extend(items)
             elif sorting_type[0] == 'model_id':
-                items = ItemArray.Filter.ByCondition(item_array, lambda item_id: Item.GetModelID(item_id) == sorting_type[1])
+                items = ItemArray.Filter.ByCondition(
+                    item_array, lambda item_id: Item.GetModelID(item_id) == sorting_type[1]
+                )
                 bot_vars.inv.sort_list.extend(items)
         bot_vars.inv.sort_position = 0
-            
+
     def SortItem(self):
         global bot_vars
 
-        if ActionIsPending(): return False
+        if ActionIsPending():
+            return False
 
         if not bot_vars.inv.sort_list:
             return
@@ -478,14 +514,16 @@ class ProcessInventory:
         item_bag, item_slot = Inventory.FindItemBagAndSlot(item_id)
         if item_bag != sort_bag or item_slot != sort_slot:
             if bot_vars.opts.debug:
-                Debug(f'Sorting "{Item.GetName(bot_vars.inv.item_id)}" - ItemID [{item_id}] in slot [{item_bag},{item_slot}] to slot [{sort_bag},{sort_slot}].')
+                Debug(
+                    f'Sorting "{Item.GetName(bot_vars.inv.item_id)}" - ItemID [{item_id}] in slot [{item_bag},{item_slot}] to slot [{sort_bag},{sort_slot}].'
+                )
 
             Inventory.MoveItem(item_id, sort_bag, sort_slot, Item.Properties.GetQuantity(item_id))
-            SetPendingAction(randint(300,500))
+            SetPendingAction(randint(300, 500))
 
         bot_vars.inv.sort_list = bot_vars.inv.sort_list[1:]
         bot_vars.inv.sort_position += 1
-        
+
         return
 
     def SortLoop(self):
@@ -495,7 +533,7 @@ class ProcessInventory:
             bot_vars.fsm_inv.jump_to_state_by_name('sorting items')
         else:
             if bot_vars.opts.debug:
-                Debug(f'Sort loop complete.')
+                Debug('Sort loop complete.')
 
             if bot_vars.inv.process:
                 ResetVariables()
@@ -505,33 +543,36 @@ class ProcessInventory:
                 bot_vars.inv.process = False
 
             return True
-        
+
         return False
 
+
 class Loot:
-    def LogInventory(self,item_ids):
+    def LogInventory(self, item_ids):
         counts = {}
         counts['gold'] = Inventory.GetGoldOnCharacter()
-        salvageables = ItemArray.GetItemArray(ItemArray.CreateBagList(1,2,3,4))
+        salvageables = ItemArray.GetItemArray(ItemArray.CreateBagList(1, 2, 3, 4))
         salvageables = ItemArray.Filter.ByCondition(salvageables, lambda item_id: Item.Usage.IsSalvageable(item_id))
         counts['salv'] = len(salvageables)
         for item_id in item_ids:
             counts[item_id] = Inventory.GetModelCount(item_id)
 
         return counts
-    
+
     def LogLoot(self):
-        curr_inv = self.LogInventory([921,929,22751,24353,24354])
-        new_inv  = {key: curr_inv[key] - bot_vars.inv.log[key] for key in set(bot_vars.inv.log) & set(curr_inv)}
+        curr_inv = self.LogInventory([921, 929, 22751, 24353, 24354])
+        new_inv = {key: curr_inv[key] - bot_vars.inv.log[key] for key in set(bot_vars.inv.log) & set(curr_inv)}
 
-        bot_vars.gui.stats.bone       += new_inv[921]
+        bot_vars.gui.stats.bone += new_inv[921]
         bot_vars.gui.stats.gold_coins += new_inv['gold']
-        bot_vars.gui.stats.lockpicks  += new_inv[22751]
-        bot_vars.gui.stats.dust       += new_inv[929]
-        bot_vars.gui.stats.chalices   += new_inv[24353]
-        bot_vars.gui.stats.relics     += new_inv[24354]
+        bot_vars.gui.stats.lockpicks += new_inv[22751]
+        bot_vars.gui.stats.dust += new_inv[929]
+        bot_vars.gui.stats.chalices += new_inv[24353]
+        bot_vars.gui.stats.relics += new_inv[24354]
 
-        bot_vars.gui.stats.bone_per_hour = int(bot_vars.gui.stats.bone*3600000/bot_vars.timers.total.GetElapsedTime())
+        bot_vars.gui.stats.bone_per_hour = int(
+            bot_vars.gui.stats.bone * 3600000 / bot_vars.timers.total.GetElapsedTime()
+        )
         bot_vars.gui.stats.total_bone = Inventory.GetModelCount(921)
         bot_vars.inv.log = {}
         bot_vars.inv.item_id = 0
@@ -539,33 +580,65 @@ class Loot:
         if bot_vars.opts.debug:
             Debug('Loot loop complete.')
 
-            Debug('Loot from current lap:',                   msg_type = 'Notice')
-            Debug(f'      Gold coins: {new_inv['gold']}',       msg_type = 'Notice')
-            Debug(f'      Lockpicks: {new_inv[22751]}',         msg_type = 'Notice')
-            Debug(f'      Diessa Chalices: {new_inv[24353]}',   msg_type = 'Notice')
-            Debug(f'      Golden Rin Relics: {new_inv[24354]}', msg_type = 'Notice')
-            Debug(f'      Salvageables: {new_inv['salv']}',     msg_type = 'Notice')
-            Debug(f'      Bone: {new_inv[921]}',                msg_type = 'Notice')
-            Debug(f'      Dust: {new_inv[929]}',                msg_type = 'Notice')
+            Debug('Loot from current lap:', msg_type='Notice')
+            Debug(f'      Gold coins: {new_inv['gold']}', msg_type='Notice')
+            Debug(f'      Lockpicks: {new_inv[22751]}', msg_type='Notice')
+            Debug(f'      Diessa Chalices: {new_inv[24353]}', msg_type='Notice')
+            Debug(f'      Golden Rin Relics: {new_inv[24354]}', msg_type='Notice')
+            Debug(f'      Salvageables: {new_inv['salv']}', msg_type='Notice')
+            Debug(f'      Bone: {new_inv[921]}', msg_type='Notice')
+            Debug(f'      Dust: {new_inv[929]}', msg_type='Notice')
 
     def GetLootList(self):
+        ALCOHOL_MODEL_IDS = [
+            ModelID.Bottle_Of_Rice_Wine,
+            ModelID.Eggnog,
+            ModelID.Dwarven_Ale,
+            ModelID.Hard_Apple_Cider,
+            ModelID.Hunters_Ale,
+            ModelID.Bottle_Of_Juniberry_Gin,
+            ModelID.Shamrock_Ale,
+            ModelID.Bottle_Of_Vabbian_Wine,
+            ModelID.Vial_Of_Absinthe,
+            ModelID.Witchs_Brew,
+            ModelID.Zehtukas_Jug,
+            ModelID.Aged_Dwarven_Ale,
+            ModelID.Aged_Hunters_Ale,
+            ModelID.Bottle_Of_Grog,
+            ModelID.Flask_Of_Firewater,
+            ModelID.Keg_Of_Aged_Hunters_Ale,
+            ModelID.Krytan_Brandy,
+            ModelID.Spiked_Eggnog,
+            ModelID.Battle_Isle_Iced_Tea,
+        ]
         agent_array = AgentArray.GetItemArray()
 
-        valid_model_ids = [921] # bones
-        if bot_vars.loot.coins:    valid_model_ids.append(2511)
-        if bot_vars.loot.picks:    valid_model_ids.append(22751)
-        if bot_vars.loot.dust:     valid_model_ids.append(929)
-        if bot_vars.loot.chalices: valid_model_ids.append(24353)
-        if bot_vars.loot.relics:   valid_model_ids.append(24354)
+        valid_model_ids = [921]  # bones
+        if bot_vars.loot.coins:
+            valid_model_ids.append(2511)
+        if bot_vars.loot.picks:
+            valid_model_ids.append(22751)
+        if bot_vars.loot.dust:
+            valid_model_ids.append(929)
+        if bot_vars.loot.chalices:
+            valid_model_ids.append(24353)
+        if bot_vars.loot.relics:
+            valid_model_ids.append(24354)
 
-        item_array_model = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Item.GetModelID(Agent.GetItemAgent(agent_id).item_id) in valid_model_ids)
+        valid_model_ids = valid_model_ids + ALCOHOL_MODEL_IDS
+
+        item_array_model = AgentArray.Filter.ByCondition(
+            agent_array, lambda agent_id: Item.GetModelID(Agent.GetItemAgent(agent_id).item_id) in valid_model_ids
+        )
 
         item_array_salv = []
         if bot_vars.loot.salvageables:
-            item_array_salv = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Item.Usage.IsSalvageable(Agent.GetItemAgent(agent_id).item_id))
+            item_array_salv = AgentArray.Filter.ByCondition(
+                agent_array, lambda agent_id: Item.Usage.IsSalvageable(Agent.GetItemAgent(agent_id).item_id)
+            )
 
-        item_array = list(set(item_array_model + item_array_salv))  
-        item_array = AgentArray.Sort.ByDistance(item_array,GLOBAL_CACHE.Player.GetXY())
+        item_array = list(set(item_array_model + item_array_salv))
+        item_array = AgentArray.Sort.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY())
 
         return item_array
 
@@ -577,9 +650,9 @@ class Loot:
 
         if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             return True
-        
+
         if not bot_vars.inv.log:
-            bot_vars.inv.log = self.LogInventory([921,929,22751,24353,24354])
+            bot_vars.inv.log = self.LogInventory([921, 929, 22751, 24353, 24354])
 
         item_array = self.GetLootList()
         if not item_array:
@@ -602,10 +675,10 @@ class Loot:
                 Debug(f'Changing target to {name}AgentID [{bot_vars.inv.item_id}].')
 
             Player.ChangeTarget(bot_vars.inv.item_id)
-            SetPendingAction(randint(100,150))
+            SetPendingAction(randint(100, 150))
 
             return False
-        
+
         if bot_vars.opts.debug:
             if GLOBAL_CACHE.Agent.IsNameReady(bot_vars.inv.item_id):
                 name = f'"{GLOBAL_CACHE.Agent.GetName(bot_vars.inv.item_id)}" - '
@@ -614,30 +687,41 @@ class Loot:
             Debug(f'Picking up {name}AgentID [{bot_vars.inv.item_id}].')
 
         Keystroke.PressAndRelease(Key.Space.value)
-        SetPendingAction(randint(400,700))
+        SetPendingAction(randint(400, 700))
 
         return False
+
+
 # endregion
 
 # region globals
-bot_vars  = BotVariables()
-build     = Build()
-combat    = Combat()
+bot_vars = BotVariables()
+build = Build()
+combat = Combat()
 inventory = ProcessInventory()
-loot      = Loot()
+loot = Loot()
 # endregion
 
+
 # region helper functions
-def Debug(message, title = 'Log', msg_type = 'Debug'):
+def Debug(message, title='Log', msg_type='Debug'):
     py4gw_msg_type = Py4GW.Console.MessageType.Debug
-    if msg_type == 'Debug':         py4gw_msg_type = Py4GW.Console.MessageType.Debug
-    elif msg_type == 'Error':       py4gw_msg_type = Py4GW.Console.MessageType.Error
-    elif msg_type == 'Info':        py4gw_msg_type = Py4GW.Console.MessageType.Info
-    elif msg_type == 'Notice':      py4gw_msg_type = Py4GW.Console.MessageType.Notice
-    elif msg_type == 'Performance': py4gw_msg_type = Py4GW.Console.MessageType.Performance
-    elif msg_type == 'Success':     py4gw_msg_type = Py4GW.Console.MessageType.Success
-    elif msg_type == 'Warning':     py4gw_msg_type = Py4GW.Console.MessageType.Warning
+    if msg_type == 'Debug':
+        py4gw_msg_type = Py4GW.Console.MessageType.Debug
+    elif msg_type == 'Error':
+        py4gw_msg_type = Py4GW.Console.MessageType.Error
+    elif msg_type == 'Info':
+        py4gw_msg_type = Py4GW.Console.MessageType.Info
+    elif msg_type == 'Notice':
+        py4gw_msg_type = Py4GW.Console.MessageType.Notice
+    elif msg_type == 'Performance':
+        py4gw_msg_type = Py4GW.Console.MessageType.Performance
+    elif msg_type == 'Success':
+        py4gw_msg_type = Py4GW.Console.MessageType.Success
+    elif msg_type == 'Warning':
+        py4gw_msg_type = Py4GW.Console.MessageType.Warning
     Py4GW.Console.Log(title, str(message), py4gw_msg_type)
+
 
 def StartBot():
     global bot_vars
@@ -648,6 +732,7 @@ def StartBot():
     if bot_vars.opts.debug:
         Debug('Starting script.')
 
+
 def StopBot():
     global bot_vars
     bot_vars.bot_started = False
@@ -657,12 +742,14 @@ def StopBot():
     if bot_vars.opts.debug:
         Debug('Stopping script.')
 
+
 def StartLapTimer():
     global bot_vars
     bot_vars.timers.lap.Start()
 
     if bot_vars.opts.debug:
         Debug('Starting lap timer.')
+
 
 def ActionIsPending():
     global bot_vars
@@ -675,10 +762,12 @@ def ActionIsPending():
         return False
     return True
 
+
 def SetPendingAction(time: float = 1000):
     global bot_vars
     bot_vars.timers.checks.action = time
     bot_vars.timers.action.Reset()
+
 
 def Travel(outpost_id):
     global bot_vars
@@ -691,36 +780,54 @@ def Travel(outpost_id):
             GLOBAL_CACHE.Map.Travel(outpost_id)
             return
 
+
 def ArrivedOutpost(map_id):
-    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Map.GetMapID() == map_id and GLOBAL_CACHE.Map.IsOutpost() and GLOBAL_CACHE.Party.IsPartyLoaded():
+    if (
+        GLOBAL_CACHE.Map.IsMapReady()
+        and GLOBAL_CACHE.Map.GetMapID() == map_id
+        and GLOBAL_CACHE.Map.IsOutpost()
+        and GLOBAL_CACHE.Party.IsPartyLoaded()
+    ):
         return True
     return False
+
 
 def ArrivedExplorable(map_id):
-    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Map.GetMapID() == map_id and GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded():
+    if (
+        GLOBAL_CACHE.Map.IsMapReady()
+        and GLOBAL_CACHE.Map.GetMapID() == map_id
+        and GLOBAL_CACHE.Map.IsExplorable()
+        and GLOBAL_CACHE.Party.IsPartyLoaded()
+    ):
         return True
     return False
 
-def FollowPath(path_handler,follow_handler):
-    return Routines.Movement.FollowPath(path_handler,follow_handler)
 
-def PathFinished(path_handler,follow_handler):
+def FollowPath(path_handler, follow_handler):
+    return Routines.Movement.FollowPath(path_handler, follow_handler)
+
+
+def PathFinished(path_handler, follow_handler):
     return Routines.Movement.IsFollowPathFinished(path_handler, follow_handler)
+
 
 def RequestEnemyNames():
     enemy_array = AgentArray.GetEnemyArray()
     for enemy in enemy_array:
         GLOBAL_CACHE.Agent.RequestName(enemy)
 
+
 def RequestItemNames():
     item_array = AgentArray.GetItemArray()
     for item in item_array:
         GLOBAL_CACHE.Agent.RequestName(item)
 
+
 def RequestInventoryNames():
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
     for item in ItemArray.GetItemArray(bags_to_check):
         Item.RequestName(item)
+
 
 def ResetVariables():
     global bot_vars
@@ -736,7 +843,10 @@ def ResetVariables():
 
     if bot_vars.opts.debug:
         Debug('Resetting script variables.')
+
+
 # endregion
+
 
 # region farming functions
 def DoSetup():
@@ -749,8 +859,9 @@ def DoSetup():
             Debug('Starting setup.')
 
         return True
-    
+
     return False
+
 
 def CheckRequirements():
     global bot_vars
@@ -758,18 +869,8 @@ def CheckRequirements():
     error = False
     error_msgs = []
 
-    # check attributes (for runes)
-    attribute_checks = {'Scythe Mastery' : 11,
-                        'Wind Prayers'   : 15,
-                        'Mysticism'      : 11}
-    for attribute in GLOBAL_CACHE.Agent.GetAttributes(Player.GetAgentID()):
-        if attribute.GetName() in attribute_checks:
-            if attribute_checks[attribute.GetName()] != attribute.level:
-                error_msgs.append(f'\tAttribute "{attribute.GetName()}" differs from requirement of {attribute_checks[attribute.GetName()]}.')
-                error = True
-
     # check skills
-    for i in range(1,9):
+    for i in range(1, 9):
         skill_instance = GLOBAL_CACHE.Skill._get_skill_instance(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(i))
         if skill_instance.id.id == 0:
             error_msgs.append(f'\tSkill slot [{i}] is empty.')
@@ -777,27 +878,42 @@ def CheckRequirements():
 
     # display errors
     if error:
-        Debug('Requirments check failed.', msg_type = 'Error')
+        Debug('Requirments check failed.', msg_type='Error')
         for msg in error_msgs:
-            Debug(msg, msg_type = 'Error')
+            Debug(msg, msg_type='Error')
     else:
         if bot_vars.opts.debug:
-            Debug('Requirments check passed.', msg_type = 'Success')
+            Debug('Requirments check passed.', msg_type='Success')
 
-def InteractNPC():
-    if not GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
-        Keystroke.PressAndRelease(Key.Space.value)
 
-    if UIManager.IsNPCDialogVisible():
-        return True
-    
-    return False
+def _dialog_run_to_end(gen):
+    result = None
+    try:
+        while True:
+            result = next(gen)
+    except StopIteration as e:
+        return e.value if e.value is not None else result
+
+
+def InteractNPCWithDialog(x, y, dialog_id):
+    result = _dialog_run_to_end(Routines.Yield.Agents.InteractWithAgentXY(x, y))
+    if not result:
+        return False
+
+    if dialog_id != 0:
+        GLOBAL_CACHE.Player.SendDialog(dialog_id)
+        _dialog_run_to_end(Routines.Yield.wait(500))
+
+    return True
+
 
 def PrepSkills():
     global bot_vars
-    if not combat.CanCast(): return
-    if ActionIsPending():    return
-    
+    if not combat.CanCast():
+        return
+    if ActionIsPending():
+        return
+
     spells = []
     if bot_vars.opts.build_type == 'iau':
         spells = [build.vop, build.ga, build.vos]
@@ -806,67 +922,79 @@ def PrepSkills():
 
     for spell in spells:
         if combat.IsRecharged(spell):
-            combat.CastSkill(spell)
-            SetPendingAction(combat.GetAftercast(spell))
+            next(combat.CastSkill(spell))
             return False
-        
+
     if combat.CheckBuffs(spells):
         return True
 
+
 def UseVoS():
-    global bot_vars 
-    
-    if (combat.IsRecharged(Build.pf) and combat.IsRecharged(Build.ga) and combat.IsRecharged(Build.vos) and combat.GetEnergy() >= 15):
+    global bot_vars
+
+    if (
+        combat.IsRecharged(Build.pf)
+        and combat.IsRecharged(Build.ga)
+        and combat.IsRecharged(Build.vos)
+        and combat.GetEnergy() >= 15
+    ):
         if bot_vars.opts.debug:
             Debug('Queuing VoS cast.')
 
-        bot_vars.action_queue.add_action(combat.CastSkill, Build.pf)
-        bot_vars.action_queue.add_action(combat.CastSkill, Build.ga)
-        bot_vars.action_queue.add_action(combat.CastSkill, Build.vos)
+        for spell in [Build.pf, Build.ga, Build.vos]:
+            next(combat.CastSkill(spell, aftercast_delay=100))
         SetPendingAction(1000)
         return True
     return False
 
+
 def CheckVos():
-    global bot_vars 
+    global bot_vars
 
     if not combat.CheckBuffs([Build.vos]) and bot_vars.action_queue.is_empty():
         if combat.IsRecharged(Build.pf):
-            bot_vars.action_queue.add_action(combat.CastSkill, Build.pf)
+            next(combat.CastSkill(Build.pf, aftercast_delay=50))
         if combat.IsRecharged(Build.ga):
-            bot_vars.action_queue.add_action(combat.CastSkill, Build.ga)
+            next(combat.CastSkill(Build.ga, aftercast_delay=50))
         if combat.IsRecharged(Build.vos):
-            bot_vars.action_queue.add_action(combat.CastSkill, Build.vos)
+            next(combat.CastSkill(Build.vos, aftercast_delay=50))
         SetPendingAction(1000)
         return True
     return False
 
+
 def WaitRotation():
-    if ActionIsPending(): return
-    if UseVoS():          return
+    if ActionIsPending():
+        return
+    if UseVoS():
+        return
 
     if combat.IsRecharged(build.soms):
-        combat.CastSkill(build.soms)
-        SetPendingAction(combat.GetAftercast(build.soms))
+        next(combat.CastSkill(build.soms))
         return
+
 
 def KillRotation():
     global bot_vars
-    if ActionIsPending():                       return
-    if UseVoS():                                return
-    if CheckVos():                              return
-    if combat.EffectTimeRemaining(1517) < 1500: return
-    if not combat.CanCast():                    return
+    if ActionIsPending():
+        return
+    if UseVoS():
+        return
+    if CheckVos():
+        return
+    if combat.EffectTimeRemaining(1517) < 1500:
+        return
+    if not combat.CanCast():
+        return
 
     # maintain signet of mystic speed
     if not combat.CheckBuffs([build.soms]) and combat.IsRecharged(build.soms):
-        combat.CastSkill(build.soms)
-        SetPendingAction(combat.GetAftercast(build.soms))
+        next(combat.CastSkill(build.soms))
         return
-    
+
     # maintain iau (if equipped)
     if bot_vars.opts.build_type == 'iau' and combat.IsRecharged(build.iau):
-        combat.CastSkill(build.iau)
+        next(combat.CastSkill(build.iau, aftercast_delay=50))
         return
 
     # target
@@ -874,14 +1002,18 @@ def KillRotation():
     if target_id == 0 or GLOBAL_CACHE.Agent.GetAllegiance(target_id)[0] != 3 or GLOBAL_CACHE.Agent.IsDead(target_id):
 
         enemy_array = AgentArray.GetEnemyArray()
-        enemy_array = AgentArray.Filter.ByAttribute(enemy_array,'IsAlive')
-        enemy_array = AgentArray.Sort.ByDistance(enemy_array,(-15706,-9035))
+        enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, (-15706, -9035))
 
-        enemy_array = AgentArray.Filter.ByDistance(enemy_array,(-15706,-9035), 600)
-        close_array = AgentArray.Filter.ByDistance(enemy_array,(-15706,-9035), 100)
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, (-15706, -9035), 600)
+        close_array = AgentArray.Filter.ByDistance(enemy_array, (-15706, -9035), 100)
         new_target = 0
 
-        if Utils.Distance(GLOBAL_CACHE.Agent.GetXY(target_id),(-15706,-9035)) > 100 and close_array and close_array[0]:
+        if (
+            Utils.Distance(GLOBAL_CACHE.Agent.GetXY(target_id), (-15706, -9035)) > 100
+            and close_array
+            and close_array[0]
+        ):
             new_target = close_array[0]
         elif enemy_array and enemy_array[0]:
             new_target = enemy_array[0]
@@ -910,25 +1042,37 @@ def KillRotation():
         Keystroke.PressAndRelease(Key.Space.value)
         SetPendingAction(400)
         return
-    
+
     # cast crippling victory and reap impurities
     for spell in [build.cv, build.ri]:
         if combat.HasEnoughAdrenaline(spell):
-            combat.CastSkill(spell)
+            next(combat.CastSkill(spell))
             SetPendingAction(400)
             return
 
+
 def HandleSkillbar():
     global bot_vars
-    if GLOBAL_CACHE.Map.IsMapReady() and not GLOBAL_CACHE.Map.IsMapLoading() and GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded():
+    if (
+        GLOBAL_CACHE.Map.IsMapReady()
+        and not GLOBAL_CACHE.Map.IsMapLoading()
+        and GLOBAL_CACHE.Map.IsExplorable()
+        and GLOBAL_CACHE.Party.IsPartyLoaded()
+    ):
         if bot_vars.fsm.get_current_step_name() == 'waiting for enemies':
             WaitRotation()
         elif bot_vars.fsm.get_current_step_name() == 'killing enemies':
             KillRotation()
 
+
 def HandleStuck():
     global bot_vars
-    if GLOBAL_CACHE.Map.IsMapReady() and not GLOBAL_CACHE.Map.IsMapLoading() and GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded():
+    if (
+        GLOBAL_CACHE.Map.IsMapReady()
+        and not GLOBAL_CACHE.Map.IsMapLoading()
+        and GLOBAL_CACHE.Map.IsExplorable()
+        and GLOBAL_CACHE.Party.IsPartyLoaded()
+    ):
         if bot_vars.fsm.get_current_step_name() == 'going to kill spot':
             if not GLOBAL_CACHE.Agent.IsMoving(Player.GetAgentID()):
                 if not bot_vars.timers.stuck.IsRunning():
@@ -938,20 +1082,21 @@ def HandleStuck():
                     if bot_vars.opts.debug:
                         Debug('Player is stuck, moving to next state.')
 
-                    bot_vars.fsm.jump_to_state_by_name('waiting for enemies') 
+                    bot_vars.fsm.jump_to_state_by_name('waiting for enemies')
             else:
                 if bot_vars.timers.stuck.IsRunning():
                     bot_vars.timers.stuck.Stop()
 
-def WaitForSettle(range,count,timeout = 6000):
-    global bot_vars 
+
+def WaitForSettle(range, count, timeout=6000):
+    global bot_vars
 
     if GLOBAL_CACHE.Agent.IsDead(Player.GetAgentID()):
         return True
-    
+
     if GLOBAL_CACHE.Agent.GetHealth(Player.GetAgentID()) < 0.5:
         return True
-    
+
     if not bot_vars.timers.settle.IsRunning():
         bot_vars.timers.settle.Start()
 
@@ -971,6 +1116,7 @@ def WaitForSettle(range,count,timeout = 6000):
 
     return False
 
+
 def WaitForKill():
     global bot_vars
 
@@ -984,101 +1130,201 @@ def WaitForKill():
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
     enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), 600)
 
-    if not enemy_array or (len(enemy_array) < 2 and enemy_array[0] and GLOBAL_CACHE.Agent.GetHealth(enemy_array[0]) > 0.4):
+    if not enemy_array or (
+        len(enemy_array) < 2 and enemy_array[0] and GLOBAL_CACHE.Agent.GetHealth(enemy_array[0]) > 0.4
+    ):
         bot_vars.gui.stats.runs += 1
         lap_time = bot_vars.timers.lap.GetElapsedTime()
         bot_vars.timers.lap_times.append(lap_time)
         bot_vars.timers.lap.Stop()
-        bot_vars.gui.stats.avg_time = sum(bot_vars.timers.lap_times)/bot_vars.gui.stats.runs
+        bot_vars.gui.stats.avg_time = sum(bot_vars.timers.lap_times) / bot_vars.gui.stats.runs
         return True
 
     return False
+
+
 # endregion
 
 # region fsm config
 fsm_setup_states = [
-    ('mapping to outpost'    , dict(execute_fn=lambda:Travel(bot_vars.map.starting),exit_condition=lambda:ArrivedOutpost(bot_vars.map.starting),transition_delay_ms=1000)),
-    ('loading skillbar'      , dict(execute_fn=lambda:combat.LoadSkillBar(build.GetTemplate(bot_vars.opts.build_type)),transition_delay_ms=1000)),
-    ('checking requirements' , dict(execute_fn=lambda:CheckRequirements())),
-    ('setting nm'            , dict(execute_fn=lambda:GLOBAL_CACHE.Party.SetNormalMode(),transition_delay_ms=1000)),
-    ('going to npc'          , dict(execute_fn=lambda:FollowPath(bot_vars.path.npc,bot_vars.move),exit_condition=lambda:PathFinished(bot_vars.path.npc,bot_vars.move),run_once=False)),
-    ('targetting npc'        , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.V.value),transition_delay_ms=200)),
-    ('talking to npc'        , dict(run_once=False,exit_condition=lambda:InteractNPC())),
-    ('talking more'          , dict(execute_fn=lambda:Player.SendDialog(0x832105),transition_delay_ms=1000)),
-    ('entering dungeon'      , dict(execute_fn=lambda:Player.SendDialog(0x88),exit_condition=lambda:ArrivedExplorable(bot_vars.map.dungeon))),
-    ('setting up resign'     , dict(execute_fn=lambda:Player.Move(*Path.rezone[0]),exit_condition=lambda:ArrivedOutpost(bot_vars.map.starting),transition_delay_ms=200)),
-    ('resetting npc path'    , dict(execute_fn=lambda:bot_vars.path.npc.reset()))
+    (
+        'mapping to outpost',
+        dict(
+            execute_fn=lambda: Travel(bot_vars.map.starting),
+            exit_condition=lambda: ArrivedOutpost(bot_vars.map.starting),
+            transition_delay_ms=1000,
+        ),
+    ),
+    (
+        'loading skillbar',
+        dict(
+            execute_fn=lambda: combat.LoadSkillBar(build.GetTemplate(bot_vars.opts.build_type)),
+            transition_delay_ms=1000,
+        ),
+    ),
+    ('checking requirements', dict(execute_fn=lambda: CheckRequirements())),
+    ('setting nm', dict(execute_fn=lambda: GLOBAL_CACHE.Party.SetNormalMode(), transition_delay_ms=1000)),
+    (
+        'going to npc',
+        dict(
+            execute_fn=lambda: FollowPath(bot_vars.path.npc, bot_vars.move),
+            exit_condition=lambda: PathFinished(bot_vars.path.npc, bot_vars.move),
+            run_once=False,
+        ),
+    ),
+    ('take quest', dict(execute_fn=lambda: InteractNPCWithDialog(-19166.00, 17980.00, 0x832101), transition_delay_ms=500)),
+    (
+        'entering dungeon',
+        dict(
+            execute_fn=lambda: InteractNPCWithDialog(-19166.00, 17980.00, 0x88),
+            exit_condition=lambda: ArrivedExplorable(bot_vars.map.dungeon),
+        ),
+    ),
+    (
+        'setting up resign',
+        dict(
+            execute_fn=lambda: Player.Move(*Path.rezone[0]),
+            exit_condition=lambda: ArrivedOutpost(bot_vars.map.starting),
+            transition_delay_ms=2000,
+        ),
+    ),
+    ('resetting npc path', dict(execute_fn=lambda: bot_vars.path.npc.reset())),
 ]
 
 fsm_inventory_states = [
-    ('requesting names'      , dict(execute_fn=lambda:RequestInventoryNames())),
-    ('targetting merchant'   , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.V.value),transition_delay_ms=200)),
-    ('talking to merchant'   , dict(run_once=False,exit_condition=lambda:InteractNPC())),
-    ('trading'               , dict(execute_fn=lambda:Player.SendDialog(0x7F),transition_delay_ms=1000)),
-    ('IDing items'           , dict(exit_condition=lambda:inventory.IDInventory())),
-    ('salvaging items'       , dict(exit_condition=lambda:inventory.SalvageInventory())),
-    ('selling items'         , dict(execute_fn=lambda:inventory.SellItem(),run_once=False,exit_condition=lambda:inventory.SellLoop())),
-    ('calculating item sort' , dict(execute_fn=lambda:inventory.SortCalculate())),
-    ('sorting items'         , dict(execute_fn=lambda:inventory.SortItem(),run_once=False,exit_condition=lambda:inventory.SortLoop())),
+    ('requesting names', dict(execute_fn=lambda: RequestInventoryNames())),
+    (
+        'going to npc',
+        dict(
+            execute_fn=lambda: FollowPath(bot_vars.path.npc, bot_vars.move),
+            exit_condition=lambda: PathFinished(bot_vars.path.npc, bot_vars.move),
+            run_once=False,
+        ),
+    ),
+    ('start trading', dict(execute_fn=lambda: InteractNPCWithDialog(-19166.00, 17980.00, 0), transition_delay_ms=1000)),
+    ('trading', dict(execute_fn=lambda: InteractNPCWithDialog(-19166.00, 17980.00, 0x7F), transition_delay_ms=1000)),
+    ('IDing items', dict(exit_condition=lambda: inventory.IDInventory())),
+    ('salvaging items', dict(exit_condition=lambda: inventory.SalvageInventory())),
+    (
+        'selling items',
+        dict(execute_fn=lambda: inventory.SellItem(), run_once=False, exit_condition=lambda: inventory.SellLoop()),
+    ),
+    ('calculating item sort', dict(execute_fn=lambda: inventory.SortCalculate())),
+    (
+        'sorting items',
+        dict(execute_fn=lambda: inventory.SortItem(), run_once=False, exit_condition=lambda: inventory.SortLoop()),
+    ),
 ]
 
 fsm_farm_states = [
-    ('lapping'               , dict(execute_fn=lambda:StartLapTimer())),
-    ('equipping staff'       , dict(execute_fn=lambda:combat.ChangeWeaponSet(Build.staff),transition_delay_ms=1000)),
-    ('targetting npc'        , dict(execute_fn=lambda:Keystroke.PressAndRelease(Key.V.value),transition_delay_ms=200)),
-    ('talking to npc'        , dict(run_once=False,exit_condition=lambda:InteractNPC())),
-    ('talking more'          , dict(execute_fn=lambda:Player.SendDialog(0x832105),transition_delay_ms=1000)),
-    ('entering dungeon'      , dict(execute_fn=lambda:Player.SendDialog(0x88),exit_condition=lambda:ArrivedExplorable(560))),
-    ('going to prep spot'    , dict(execute_fn=lambda:FollowPath(bot_vars.path.prep,bot_vars.move),exit_condition=lambda:PathFinished(bot_vars.path.prep,bot_vars.move),run_once=False)),
-    ('waiting...'            , dict(transition_delay_ms=3000)),
-    ('prepping skills'       , dict(execute_fn=lambda:PrepSkills(),exit_condition=lambda:PrepSkills(),run_once=False)),
-    ('going to kill spot'    , dict(execute_fn=lambda:FollowPath(bot_vars.path.kill,bot_vars.exact_move),exit_condition=lambda:PathFinished(bot_vars.path.kill,bot_vars.exact_move),run_once=False)),
-    ('waiting for enemies'   , dict(exit_condition=lambda:WaitForSettle(200,3))),
-    ('equipping scythe'      , dict(execute_fn=lambda:combat.ChangeWeaponSet(build.scythe),exit_condition=lambda:GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[1]=='Scythe',run_once=False)),
-    ('killing enemies'       , dict(exit_condition=lambda:WaitForKill())),
-    ('looting items'         , dict(exit_condition=lambda:loot.Loot())),
-    ('resigning'             , dict(execute_fn=lambda:Player.SendChatCommand('resign'),exit_condition=lambda:GLOBAL_CACHE.Party.IsPartyDefeated(),transition_delay_ms=1000)),
-    ('returning'             , dict(execute_fn=lambda:GLOBAL_CACHE.Party.ReturnToOutpost(),exit_condition=lambda:ArrivedOutpost(bot_vars.map.starting),transition_delay_ms=200)),
-    ('resetting loop'        , dict(execute_fn=lambda:ResetVariables()))
+    ('lapping', dict(execute_fn=lambda: StartLapTimer())),
+    ('equipping staff', dict(execute_fn=lambda: combat.ChangeWeaponSet(Build.staff), transition_delay_ms=1000)),
+    (
+        'going to npc',
+        dict(
+            execute_fn=lambda: FollowPath(bot_vars.path.npc, bot_vars.move),
+            exit_condition=lambda: PathFinished(bot_vars.path.npc, bot_vars.move),
+            run_once=False,
+        ),
+    ),
+    ('take quest', dict(execute_fn=lambda: InteractNPCWithDialog(-19166.00, 17980.00, 0), transition_delay_ms=500)),
+    (
+        'entering dungeon',
+        dict(
+            execute_fn=lambda: InteractNPCWithDialog(-19166.00, 17980.00, 0x88),
+            exit_condition=lambda: ArrivedExplorable(bot_vars.map.dungeon),
+        ),
+    ),
+    (
+        'going to prep spot',
+        dict(
+            execute_fn=lambda: FollowPath(bot_vars.path.prep, bot_vars.move),
+            exit_condition=lambda: PathFinished(bot_vars.path.prep, bot_vars.move),
+            run_once=False,
+        ),
+    ),
+    ('waiting...', dict(transition_delay_ms=3000)),
+    ('prepping skills', dict(execute_fn=lambda: PrepSkills(), exit_condition=lambda: PrepSkills(), run_once=False)),
+    (
+        'going to kill spot',
+        dict(
+            execute_fn=lambda: FollowPath(bot_vars.path.kill, bot_vars.exact_move),
+            exit_condition=lambda: PathFinished(bot_vars.path.kill, bot_vars.exact_move),
+            run_once=False,
+        ),
+    ),
+    ('waiting for enemies', dict(exit_condition=lambda: WaitForSettle(200, 3))),
+    (
+        'equipping scythe',
+        dict(
+            execute_fn=lambda: combat.ChangeWeaponSet(build.scythe),
+            exit_condition=lambda: GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[1] == 'Scythe',
+            run_once=False,
+        ),
+    ),
+    ('killing enemies', dict(exit_condition=lambda: WaitForKill())),
+    ('looting items', dict(exit_condition=lambda: loot.Loot())),
+    (
+        'resigning',
+        dict(
+            execute_fn=lambda: Player.SendChatCommand('resign'),
+            exit_condition=lambda: GLOBAL_CACHE.Party.IsPartyDefeated(),
+            transition_delay_ms=1000,
+        ),
+    ),
+    (
+        'returning',
+        dict(
+            execute_fn=lambda: GLOBAL_CACHE.Party.ReturnToOutpost(),
+            exit_condition=lambda: ArrivedOutpost(bot_vars.map.starting),
+            transition_delay_ms=200,
+        ),
+    ),
+    ('resetting loop', dict(execute_fn=lambda: ResetVariables())),
 ]
 
-for (state, kwargs) in fsm_setup_states:
-    bot_vars.fsm_setup.AddState(state,**kwargs)
+for state, kwargs in fsm_setup_states:
+    bot_vars.fsm_setup.AddState(state, **kwargs)
 
-for (state, kwargs) in fsm_inventory_states:
-    bot_vars.fsm_inv.AddState(state,**kwargs)
+for state, kwargs in fsm_inventory_states:
+    bot_vars.fsm_inv.AddState(state, **kwargs)
 
-bot_vars.fsm.AddSubroutine(name='setting up',           sub_fsm=bot_vars.fsm_setup, condition_fn=lambda:DoSetup())
-bot_vars.fsm.AddSubroutine(name='processing inventory', sub_fsm=bot_vars.fsm_inv,   condition_fn=lambda:inventory.CheckSlots())
+bot_vars.fsm.AddSubroutine(name='setting up', sub_fsm=bot_vars.fsm_setup, condition_fn=lambda: DoSetup())
+bot_vars.fsm.AddSubroutine(
+    name='processing inventory', sub_fsm=bot_vars.fsm_inv, condition_fn=lambda: inventory.CheckSlots()
+)
 
-for (state, kwargs) in fsm_farm_states:
-    bot_vars.fsm.AddState(state,**kwargs)
+for state, kwargs in fsm_farm_states:
+    bot_vars.fsm.AddState(state, **kwargs)
 # endregion
+
 
 # region draw
 class Draw:
     global bot_vars
 
-    def SetButtonStyle(self,active):
+    def SetButtonStyle(self, active):
         if active:
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        (.15,.15,.15,1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (.20,.20,.20,1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  (.25,.25,.25,1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.15, 0.15, 0.15, 1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.20, 0.20, 0.20, 1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.25, 0.25, 0.25, 1))
         else:
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        (.13,.13,.13,1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (.3,.3,.3,1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  (.4,.4,.4,1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.13, 0.13, 0.13, 1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.3, 0.3, 0.3, 1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.4, 0.4, 0.4, 1))
 
     def PopButtonStyle(self):
         PyImGui.pop_style_color(3)
 
-    def MakeTable(self,*columns, colors = None):
+    def MakeTable(self, *columns, colors=None):
         num_cols = len(columns)
         num_rows = len(columns[0])
 
-        if PyImGui.begin_table('Info', num_cols,   PyImGui.TableFlags.Borders |
-                                                   PyImGui.TableFlags.RowBg   |
-                                                   PyImGui.TableFlags.SizingStretchSame):
+        if PyImGui.begin_table(
+            'Info',
+            num_cols,
+            PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchSame,
+        ):
             for row in range(num_rows):
                 PyImGui.table_next_row()
                 for col in range(num_cols):
@@ -1089,23 +1335,23 @@ class Draw:
                         PyImGui.text(str(columns[col][row]))
             PyImGui.end_table()
 
-    def FormatItemStack(self,count):
-        return f'{count} ({round(count/250,1)})'
+    def FormatItemStack(self, count):
+        return f'{count} ({round(count / 250, 1)})'
 
     def DebugFn(self):
         global bot_vars, mods
         Debug('running debug function', msg_type='Info')
         "NPC Bounty Dialog.Option1.Icon"
-        frame_id = UIManager.GetFrameIDByCustomLabel(frame_label = "NPC Bounty Dialog.Option2.Icon") or 0
+        frame_id = UIManager.GetFrameIDByCustomLabel(frame_label="NPC Bounty Dialog.Option2.Icon") or 0
         if frame_id:
             Debug(dir(PyUIManager.UIFrame(frame_id)))
             UIManager.FrameClick(frame_id)
         else:
             Debug('none')
-        
+
     def CreateRunButton(self):
         window_width = 240
-        button_width = (window_width-20)
+        button_width = window_width - 20
 
         self.SetButtonStyle(1)
         if bot_vars.bot_started:
@@ -1135,22 +1381,22 @@ class Draw:
                 if bot_vars.opts.debug:
                     Debug(f'Transitioning to state "{bot_vars.gui.stats.status}".')
 
-        PyImGui.text_colored(f'[{bot_vars.gui.stats.time}]', (.48, .68, 1, 1))
-        PyImGui.same_line(0.0,-1.0)
+        PyImGui.text_colored(f'[{bot_vars.gui.stats.time}]', (0.48, 0.68, 1, 1))
+        PyImGui.same_line(0.0, -1.0)
         PyImGui.text(f'{bot_vars.gui.stats.status}')
 
     def CreateTables(self):
         colors = {
-            'runs'     : [   0,   .7,    0, 1],
-            'fails'    : [   1,  .25,  .23, 1],
-            'time'     : [  .9,   .9,   .9, 1],
-            'bones'    : [ .89,  .85,  .79, 1],
-            'coins'    : [   1,  .75,    0, 1],
-            'picks'    : [  .6,   .6,   .6, 1],
-            'dust'     : [.737, .463, .455, 1],
-            'iron'     : [.631, .616, .580, 1],
-            'chalices' : [.737, .514, .365, 1],
-            'relics'   : [.839, .737, .424, 1]
+            'runs': [0, 0.7, 0, 1],
+            'fails': [1, 0.25, 0.23, 1],
+            'time': [0.9, 0.9, 0.9, 1],
+            'bones': [0.89, 0.85, 0.79, 1],
+            'coins': [1, 0.75, 0, 1],
+            'picks': [0.6, 0.6, 0.6, 1],
+            'dust': [0.737, 0.463, 0.455, 1],
+            'iron': [0.631, 0.616, 0.580, 1],
+            'chalices': [0.737, 0.514, 0.365, 1],
+            'relics': [0.839, 0.737, 0.424, 1],
         }
 
         columns = [
@@ -1168,13 +1414,13 @@ class Draw:
             'Dust',
             'Iron',
             'Chalices',
-            'Relics'
+            'Relics',
         ]
 
         values = [
             bot_vars.gui.stats.runs,
             bot_vars.gui.stats.fails,
-            FormatTime(bot_vars.gui.stats.avg_time,mask='mm:ss'),
+            FormatTime(bot_vars.gui.stats.avg_time, mask='mm:ss'),
             bot_vars.timers.lap.FormatElapsedTime("hh:mm:ss"),
             bot_vars.timers.total.FormatElapsedTime("hh:mm:ss"),
             self.FormatItemStack(bot_vars.gui.stats.bone),
@@ -1186,7 +1432,7 @@ class Draw:
             self.FormatItemStack(bot_vars.gui.stats.dust),
             self.FormatItemStack(bot_vars.gui.stats.iron),
             bot_vars.gui.stats.chalices,
-            bot_vars.gui.stats.relics
+            bot_vars.gui.stats.relics,
         ]
 
         colors = [
@@ -1204,25 +1450,27 @@ class Draw:
             colors['dust'],
             colors['iron'],
             colors['chalices'],
-            colors['relics']
+            colors['relics'],
         ]
 
-        table_nums = [1,1,2,2,2,3,3,3,3,4,4,4,4,4,4]
+        table_nums = [1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4]
 
         filter = bot_vars.gui.opts.rows.GetRows()
 
-        columns    = [item for i, item in enumerate(columns)    if filter[i]] if not bot_vars.gui.opts.show_all else columns
-        values     = [item for i, item in enumerate(values)     if filter[i]] if not bot_vars.gui.opts.show_all else values
-        colors     = [item for i, item in enumerate(colors)     if filter[i]] if not bot_vars.gui.opts.show_all else colors
-        table_nums = [item for i, item in enumerate(table_nums) if filter[i]] if not bot_vars.gui.opts.show_all else table_nums
+        columns = [item for i, item in enumerate(columns) if filter[i]] if not bot_vars.gui.opts.show_all else columns
+        values = [item for i, item in enumerate(values) if filter[i]] if not bot_vars.gui.opts.show_all else values
+        colors = [item for i, item in enumerate(colors) if filter[i]] if not bot_vars.gui.opts.show_all else colors
+        table_nums = (
+            [item for i, item in enumerate(table_nums) if filter[i]] if not bot_vars.gui.opts.show_all else table_nums
+        )
 
         if bot_vars.gui.opts.condense_tables:
-            self.MakeTable(columns,values,colors=colors if bot_vars.gui.opts.color_rows else None)
+            self.MakeTable(columns, values, colors=colors if bot_vars.gui.opts.color_rows else None)
         else:
             tables = []
             for num in list(set(table_nums)):
-                table = {'columns':[],'values':[],'colors':[]}
-                for i,table_num in enumerate(table_nums):
+                table = {'columns': [], 'values': [], 'colors': []}
+                for i, table_num in enumerate(table_nums):
                     if table_num == num:
                         table['columns'].append(columns[i])
                         table['values'].append(values[i])
@@ -1230,64 +1478,68 @@ class Draw:
                 tables.append(table)
 
             for table in tables:
-                self.MakeTable(table['columns'],table['values'],colors = table['colors'] if bot_vars.gui.opts.color_rows else None)
+                self.MakeTable(
+                    table['columns'], table['values'], colors=table['colors'] if bot_vars.gui.opts.color_rows else None
+                )
 
     def CreateSettings(self):
         # general
         if PyImGui.tree_node('General'):
-            bot_vars.opts.debug               = PyImGui.checkbox('Debug Mode',           bot_vars.opts.debug)
+            bot_vars.opts.debug = PyImGui.checkbox('Debug Mode', bot_vars.opts.debug)
 
             self.SetButtonStyle(1)
 
-            if PyImGui.button('Process Inventory',PyImGui.get_window_size()[0]-60):
+            if PyImGui.button('Process Inventory', PyImGui.get_window_size()[0] - 60):
                 bot_vars.inv.process = True
 
-            if PyImGui.button('Open Storage', PyImGui.get_window_size()[0]-60):
+            if PyImGui.button('Open Storage', PyImGui.get_window_size()[0] - 60):
                 if not Inventory.IsStorageOpen():
                     Inventory.OpenXunlaiWindow()
 
             if bot_vars.opts.debug:
-                if PyImGui.button('Run Debug Function', PyImGui.get_window_size()[0]-60):
+                if PyImGui.button('Run Debug Function', PyImGui.get_window_size()[0] - 60):
                     self.DebugFn()
 
             PyImGui.pop_style_color(3)
-            
+
             PyImGui.tree_pop()
 
         # build
         if PyImGui.tree_node('Build'):
-            items = ['iau','mb']
+            items = ['iau', 'mb']
             bot_vars.opts.build_type = items[PyImGui.radio_button("IaU", items.index(bot_vars.opts.build_type), 0)]
-            PyImGui.same_line(0.0,-1.0)
-            bot_vars.opts.build_type = items[PyImGui.radio_button("Mental Block", items.index(bot_vars.opts.build_type), 1)]
+            PyImGui.same_line(0.0, -1.0)
+            bot_vars.opts.build_type = items[
+                PyImGui.radio_button("Mental Block", items.index(bot_vars.opts.build_type), 1)
+            ]
             PyImGui.tree_pop()
 
         # loot
         if PyImGui.tree_node('Loot'):
-            bot_vars.loot.salvageables = PyImGui.checkbox('Salvageables',      bot_vars.loot.salvageables)
-            bot_vars.loot.coins        = PyImGui.checkbox('Gold Coins',        bot_vars.loot.coins)
-            bot_vars.loot.picks        = PyImGui.checkbox('Lockpicks',         bot_vars.loot.picks)
-            bot_vars.loot.dust         = PyImGui.checkbox('Glittering Dust',   bot_vars.loot.dust)
-            bot_vars.loot.chalices     = PyImGui.checkbox('Diessa Chalices',   bot_vars.loot.chalices)
-            bot_vars.loot.relics       = PyImGui.checkbox('Golden Rin Relics', bot_vars.loot.relics)
+            bot_vars.loot.salvageables = PyImGui.checkbox('Salvageables', bot_vars.loot.salvageables)
+            bot_vars.loot.coins = PyImGui.checkbox('Gold Coins', bot_vars.loot.coins)
+            bot_vars.loot.picks = PyImGui.checkbox('Lockpicks', bot_vars.loot.picks)
+            bot_vars.loot.dust = PyImGui.checkbox('Glittering Dust', bot_vars.loot.dust)
+            bot_vars.loot.chalices = PyImGui.checkbox('Diessa Chalices', bot_vars.loot.chalices)
+            bot_vars.loot.relics = PyImGui.checkbox('Golden Rin Relics', bot_vars.loot.relics)
             PyImGui.tree_pop()
 
         # gui
         if PyImGui.tree_node('User Interface  '):
-            bot_vars.gui.opts.condense_tables  = PyImGui.checkbox('Condense Tables',    bot_vars.gui.opts.condense_tables)
-            bot_vars.gui.opts.color_rows       = PyImGui.checkbox('Color Rows',         bot_vars.gui.opts.color_rows)
-            bot_vars.gui.opts.show_all         = PyImGui.checkbox('Show All',           bot_vars.gui.opts.show_all)
+            bot_vars.gui.opts.condense_tables = PyImGui.checkbox('Condense Tables', bot_vars.gui.opts.condense_tables)
+            bot_vars.gui.opts.color_rows = PyImGui.checkbox('Color Rows', bot_vars.gui.opts.color_rows)
+            bot_vars.gui.opts.show_all = PyImGui.checkbox('Show All', bot_vars.gui.opts.show_all)
             PyImGui.separator()
-            bot_vars.gui.opts.rows.lap_time    = PyImGui.checkbox('Lap Time',           bot_vars.gui.opts.rows.lap_time)
-            bot_vars.gui.opts.rows.bones_hr    = PyImGui.checkbox('Bones per Hour',     bot_vars.gui.opts.rows.bones_hr)
-            bot_vars.gui.opts.rows.start_bones = PyImGui.checkbox('Starting Bones',     bot_vars.gui.opts.rows.start_bones)
-            bot_vars.gui.opts.rows.total_bones = PyImGui.checkbox('Total Bones',        bot_vars.gui.opts.rows.total_bones)
-            bot_vars.gui.opts.rows.coins       = PyImGui.checkbox('Gold Coins ',        bot_vars.gui.opts.rows.coins)
-            bot_vars.gui.opts.rows.picks       = PyImGui.checkbox('Lockpicks ',         bot_vars.gui.opts.rows.picks)
-            bot_vars.gui.opts.rows.dust        = PyImGui.checkbox('Glittering Dust ',   bot_vars.gui.opts.rows.dust)
-            bot_vars.gui.opts.rows.iron        = PyImGui.checkbox('Iron',               bot_vars.gui.opts.rows.iron)
-            bot_vars.gui.opts.rows.chalices    = PyImGui.checkbox('Diessa Chalices ',   bot_vars.gui.opts.rows.chalices)
-            bot_vars.gui.opts.rows.relics      = PyImGui.checkbox('Golden Rin Relics ', bot_vars.gui.opts.rows.relics)
+            bot_vars.gui.opts.rows.lap_time = PyImGui.checkbox('Lap Time', bot_vars.gui.opts.rows.lap_time)
+            bot_vars.gui.opts.rows.bones_hr = PyImGui.checkbox('Bones per Hour', bot_vars.gui.opts.rows.bones_hr)
+            bot_vars.gui.opts.rows.start_bones = PyImGui.checkbox('Starting Bones', bot_vars.gui.opts.rows.start_bones)
+            bot_vars.gui.opts.rows.total_bones = PyImGui.checkbox('Total Bones', bot_vars.gui.opts.rows.total_bones)
+            bot_vars.gui.opts.rows.coins = PyImGui.checkbox('Gold Coins ', bot_vars.gui.opts.rows.coins)
+            bot_vars.gui.opts.rows.picks = PyImGui.checkbox('Lockpicks ', bot_vars.gui.opts.rows.picks)
+            bot_vars.gui.opts.rows.dust = PyImGui.checkbox('Glittering Dust ', bot_vars.gui.opts.rows.dust)
+            bot_vars.gui.opts.rows.iron = PyImGui.checkbox('Iron', bot_vars.gui.opts.rows.iron)
+            bot_vars.gui.opts.rows.chalices = PyImGui.checkbox('Diessa Chalices ', bot_vars.gui.opts.rows.chalices)
+            bot_vars.gui.opts.rows.relics = PyImGui.checkbox('Golden Rin Relics ', bot_vars.gui.opts.rows.relics)
             PyImGui.tree_pop()
 
         # general
@@ -1326,27 +1578,31 @@ class Draw:
 
     def Run(self):
         if bot_vars.gui.window_module.first_run:
-            PyImGui.set_next_window_size(bot_vars.gui.window_module.window_size[0], bot_vars.gui.window_module.window_size[1])     
-            PyImGui.set_next_window_pos(bot_vars.gui.window_module.window_pos[0], bot_vars.gui.window_module.window_pos[1])
+            PyImGui.set_next_window_size(
+                bot_vars.gui.window_module.window_size[0], bot_vars.gui.window_module.window_size[1]
+            )
+            PyImGui.set_next_window_pos(
+                bot_vars.gui.window_module.window_pos[0], bot_vars.gui.window_module.window_pos[1]
+            )
             bot_vars.gui.window_module.first_run = False
 
         try:
-            PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowBorderSize,0.0)
-            PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
-            PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameRounding,0.0)
-            
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg,        (0.15, 0.15, 0.15, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0.20, 0.20, 0.20, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive,  (0.25, 0.25, 0.25, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark,      (1.0, 1.0, 1.0, 1.0))
+            PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowBorderSize, 0.0)
+            PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
+            PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameRounding, 0.0)
 
-            PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg,         (0.0, 0.0, 0.0, 0.7))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBg,          (0.0, 0.0, 0.0, 0.7))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBgActive,    (0.0, 0.0, 0.0, 0.7))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0.15, 0.15, 0.15, 1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0.20, 0.20, 0.20, 1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0.25, 0.25, 0.25, 1))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark, (1.0, 1.0, 1.0, 1.0))
+
+            PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0.0, 0.0, 0.0, 0.7))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBg, (0.0, 0.0, 0.0, 0.7))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBgActive, (0.0, 0.0, 0.0, 0.7))
             PyImGui.push_style_color(PyImGui.ImGuiCol.TitleBgCollapsed, (0.0, 0.0, 0.0, 0.7))
 
             if PyImGui.begin(bot_vars.gui.window_module.window_name, bot_vars.gui.window_module.window_flags):
-                bot_vars.gui.window_pos  = PyImGui.get_window_pos()
+                bot_vars.gui.window_pos = PyImGui.get_window_pos()
                 bot_vars.gui.window_size = PyImGui.get_window_size()
 
                 self.CreateRunButton()
@@ -1360,10 +1616,13 @@ class Draw:
             PyImGui.pop_style_var(3)
             PyImGui.pop_style_color(8)
         except Exception as e:
-            current_function = inspect.currentframe().f_code.co_name # type: ignore
+            current_function = inspect.currentframe().f_code.co_name  # type: ignore
             Py4GW.Console.Log('BOT', f'Error in {current_function}: {str(e)}', Py4GW.Console.MessageType.Error)
             raise
+
+
 # endregion
+
 
 # region main
 def main():
@@ -1371,14 +1630,15 @@ def main():
 
     try:
         # only run when everything is loaded
-        if not GLOBAL_CACHE.Map.IsMapReady() or not GLOBAL_CACHE.Party.IsPartyLoaded(): return
+        if not GLOBAL_CACHE.Map.IsMapReady() or not GLOBAL_CACHE.Party.IsPartyLoaded():
+            return
 
         # draw gui
         Draw().Run()
 
         # throttle script calls
         ping = Py4GW.PingHandler().GetCurrentPing() + 50
-        if bot_vars.timers.throttle.HasElapsed(max(ping,bot_vars.timers.checks.throttle)):
+        if bot_vars.timers.throttle.HasElapsed(max(ping, bot_vars.timers.checks.throttle)):
             bot_vars.timers.throttle.Reset()
             # execute script
             if bot_vars.bot_started:
@@ -1411,6 +1671,7 @@ def main():
         Py4GW.Console.Log('BOT', f'Stack trace: {traceback.format_exc()}', Py4GW.Console.MessageType.Error)
     finally:
         pass
+
 
 if __name__ == '__main__':
     main()
