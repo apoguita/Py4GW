@@ -14,17 +14,10 @@ class Color:
     def _rgb_to_dx_color(self, r, g, b, a) -> int:
         return (a << 24) | (r << 16) | (g << 8) | b
         
-    def set_r(self, r: int) -> None:
-        self.r = r
-    
-    def set_g(self, g: int) -> None:
-        self.g = g
-        
-    def set_b(self, b: int) -> None:
-        self.b = b
-        
-    def set_a(self, a: int) -> None:
-        self.a = a
+    def set_r(self, r: int) -> None: self.r = r
+    def set_g(self, g: int) -> None: self.g = g
+    def set_b(self, b: int) -> None: self.b = b
+    def set_a(self, a: int) -> None: self.a = a
         
     def set_rgba(self, r: int, g: int, b: int, a: int) -> None:
         self.r = r
@@ -32,19 +25,12 @@ class Color:
         self.b = b
         self.a = a
 
-    def get_r (self) -> int:
-        return self.r
+    def get_r(self) -> int: return self.r
+    def get_g(self) -> int: return self.g
+    def get_b(self) -> int: return self.b
+    def get_a(self) -> int: return self.a
     
-    def get_g (self) -> int:
-        return self.g
-    
-    def get_b (self) -> int:
-        return self.b
-    
-    def get_a (self) -> int: 
-        return self.a
-    
-    def get_rgba (self) -> tuple:
+    def get_rgba(self) -> tuple:
         return (self.r, self.g, self.b, self.a)
 
 
@@ -59,9 +45,44 @@ class Color:
     
     def to_tuple_normalized(self) -> tuple:
         return (self.r / 255, self.g / 255, self.b / 255, self.a / 255)
+    
+    def copy(self) -> "Color":
+        return Color(self.r, self.g, self.b, self.a)
+
+    @classmethod
+    def from_tuple(cls, color: tuple[float, float, float, float]) -> "Color":
+        """Create from normalized RGBA tuple (floats 0.0–1.0)."""
+        r, g, b, a = [int(c * 255) for c in color]
+        return cls(r, g, b, a)
+
+    @property
+    def rgb_tuple(self) -> tuple[int, int, int, int]:
+        """Return integer RGBA tuple (0–255)."""
+        return self.to_tuple()
+
+    @property
+    def color_tuple(self) -> tuple[float, float, float, float]:
+        """Return normalized RGBA tuple (0.0–1.0)."""
+        return self.to_tuple_normalized()
+
+    @property
+    def color_int(self) -> int:
+        """Return packed ABGR int color."""
+        return self.to_color()
+    
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, Color) and self.to_tuple() == other.to_tuple()
+
+    def __ne__(self, other) -> bool:
+        return not self.__eq__(other)
+
+    def __hash__(self) -> int:
+        return hash(self.to_tuple())
 
     def __repr__(self) -> str:
         return f"{self.name} (RGBA: {self.r}, {self.g}, {self.b}, {self.a})"
+    
     
     def desaturate(self, amount: float = 1.0) -> "Color":
         """
@@ -117,6 +138,21 @@ class Color:
     @classmethod
     def _make(cls, r: int, g: int, b: int, a: int = 255) -> "Color":
         return cls(r, g, b, a)
+    
+    def to_json(self) -> dict[str, int]:
+        """Serialize color to a JSON-friendly dict."""
+        return {"r": self.r, "g": self.g, "b": self.b, "a": self.a}
+
+    @classmethod
+    def from_json(cls, data: dict[str, int]) -> "Color":
+        """Deserialize from a JSON dict into a Color instance."""
+        return cls(
+            data.get("r", 255),
+            data.get("g", 255),
+            data.get("b", 255),
+            data.get("a", 255)
+        )
+
     
 class ColorPalette:
     _colors: dict[str, Color] = {
