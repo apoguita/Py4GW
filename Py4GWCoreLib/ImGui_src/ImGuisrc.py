@@ -2,7 +2,7 @@ from ..Overlay import Overlay
 from ..enums import get_texture_for_model, ImguiFonts
 from ..Py4GWcorelib import Color, ColorPalette, ConsoleLog, Utils
 from typing import TypeAlias
-from .types import ImGuiStyleVar
+from .types import ImGuiStyleVar, StyleTheme
 from .Style import Style
 import PyImGui
 import Py4GW
@@ -533,7 +533,7 @@ class ImGui:
         
     #region Styles, Themes and Themed controls
 
-    Styles : dict[Style.StyleTheme, Style] = {}
+    Styles : dict[StyleTheme, Style] = {}
     __style_stack : list[Style] = []
     Selected_Style : Style
 
@@ -542,7 +542,7 @@ class ImGui:
         return ImGui.__style_stack[0] if ImGui.__style_stack else ImGui.Selected_Style
 
     @staticmethod
-    def push_theme(theme: Style.StyleTheme):
+    def push_theme(theme: StyleTheme):
         if not theme in ImGui.Styles:
             ImGui.Styles[theme] = Style.load_theme(theme)
 
@@ -559,7 +559,7 @@ class ImGui:
             ImGui.__style_stack.pop(0)
 
     @staticmethod
-    def set_theme(theme: Style.StyleTheme):
+    def set_theme(theme: StyleTheme):
         ConsoleLog("ImGui Style", f"Setting theme to {theme.name}")
 
         if not theme in ImGui.Styles:
@@ -569,7 +569,7 @@ class ImGui:
         ImGui.Selected_Style.apply_to_style_config()
 
     @staticmethod
-    def reload_theme(theme: Style.StyleTheme):
+    def reload_theme(theme: StyleTheme):
         set_style = ImGui.get_style().Theme == theme
 
         ImGui.Styles[theme] = Style.load_theme(theme)        
@@ -578,7 +578,7 @@ class ImGui:
             ImGui.Selected_Style = ImGui.Styles[theme]
 
     @staticmethod
-    def push_theme_window_style(theme: Style.StyleTheme = Style.StyleTheme.ImGui):
+    def push_theme_window_style(theme: StyleTheme = StyleTheme.ImGui):
         if not theme in ImGui.Styles:
             ImGui.Styles[theme] = Style.load_theme(theme)
 
@@ -589,7 +589,7 @@ class ImGui:
         ImGui.Styles[theme].push_style()
 
     @staticmethod
-    def pop_theme_window_style(theme: Style.StyleTheme = Style.StyleTheme.ImGui):
+    def pop_theme_window_style(theme: StyleTheme = StyleTheme.ImGui):
         if theme not in ImGui.Styles:
             return
 
