@@ -202,7 +202,7 @@ class Style:
         attributes = {name: getattr(self, name) for name in dir(self)}
         self.Colors : dict[str, Style.StyleColor] = {name: attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleColor) and attributes[name].color_type == StyleColorType.Default}
         self.TextureColors : dict[str, Style.StyleColor] = {name: attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleColor) and attributes[name].color_type == StyleColorType.Texture}
-        self.StyleColors : dict[str, Style.StyleColor] = {name: attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleColor) and  attributes[name].color_type == StyleColorType.Custom}
+        self.CustomColors : dict[str, Style.StyleColor] = {name: attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleColor) and  attributes[name].color_type == StyleColorType.Custom}
         self.StyleVars : dict[str, Style.StyleVar] = {name: attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleVar)}
 
     def copy(self):
@@ -214,7 +214,7 @@ class Style:
             if isinstance(attr, Style.StyleColor):
                 attr.set_rgba(*c.to_tuple())
 
-        for name, c in self.StyleColors.items():
+        for name, c in self.CustomColors.items():
             attr = getattr(style, name)
             if isinstance(attr, Style.StyleColor):
                 attr.set_rgba(*c.to_tuple())
@@ -259,7 +259,7 @@ class Style:
         style_data = {
             "Theme": self.Theme.name,
             "Colors": {k: c.to_json() for k, c in self.Colors.items()},
-            "StyleColors": {k: c.to_json() for k, c in self.StyleColors.items()},
+            "CustomColors": {k: c.to_json() for k, c in self.CustomColors.items()},
             "TextureColors": {k: c.to_json() for k, c in self.TextureColors.items()},
             "StyleVars": {k: v.to_json() for k, v in self.StyleVars.items()}
         }
@@ -297,7 +297,7 @@ class Style:
             if isinstance(attribute, cls.StyleColor):
                 attribute.load_from_json(color_data)
 
-        for color_name, color_data in style_data.get("StyleColors", {}).items():
+        for color_name, color_data in style_data.get("CustomColors", {}).items():
             attribute = getattr(style, color_name)
             if isinstance(attribute, cls.StyleColor):
                 attribute.load_from_json(color_data)
@@ -339,8 +339,8 @@ class Style:
             if attr.img_color_enum and isinstance(attr, Color):
                 self.pyimgui_style.set_color(attr.img_color_enum, *attr.to_tuple())
 
-        # Apply StyleColors
-        for _, attr in self.StyleColors.items():
+        # Apply CustomColors
+        for _, attr in self.CustomColors.items():
             if attr.img_color_enum and isinstance(attr, Color):
                 self.pyimgui_style.set_color(attr.img_color_enum, *attr.to_tuple())
 
