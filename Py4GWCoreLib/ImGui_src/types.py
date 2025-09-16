@@ -9,12 +9,20 @@ class ControlAppearance(Enum):
     Primary = 1
     Danger = 2
 
+class StyleTheme(IntEnum):
+    ImGui = 0
+    Guild_Wars = 1
+    Minimalus = 2
+    
+class StyleColorType(IntEnum):
+    Default = 0
+    Custom = 1
+    Texture = 2
 
 class SortDirection(Enum):
     No_Sort = 0
     Ascending = 1
-    Descending = 2
-    
+    Descending = 2    
 
 class ImGuiStyleVar(IntEnum):
     Alpha = 0
