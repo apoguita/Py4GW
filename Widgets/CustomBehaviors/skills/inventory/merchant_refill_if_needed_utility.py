@@ -1,4 +1,5 @@
 import random
+from re import DEBUG
 from typing import Any, Generator, override
 
 import PyImGui
@@ -101,7 +102,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
             lock_aquired = yield from CustomBehaviorParty().get_shared_lock_manager().wait_aquire_lock(lock_key, timeout_seconds=30)
             if not lock_aquired:
                 # todo cooldown
-                print(f"Fail acquiring lock {lock_key}.")
+                if constants.DEBUG: print(f"Fail acquiring lock {lock_key}.")
                 yield
                 return BehaviorResult.ACTION_SKIPPED
             yield from self.move_and_interract_with_merchant(agent_id)
@@ -130,10 +131,10 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
                     tolerance=150, 
                     log=constants.DEBUG, 
                     timeout=10_000, 
-                    progress_callback=lambda progress: print(f"FollowPath merchant_refill_if_needed_utility: progress: {progress}" if constants.DEBUG else None),
+                    progress_callback=lambda progress: print(f"FollowPath merchant_refill_if_needed_utility: progress: {progress}") if constants.DEBUG else None,
                     custom_pause_fn=lambda: False)
 
-        print(f"Merchant reached.")
+        if constants.DEBUG: print(f"Merchant reached.")
         GLOBAL_CACHE.Player.Interact(agent_id, call_target=False)
         yield from custom_behavior_helpers.Helpers.wait_for(1_000)
 
@@ -146,7 +147,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
         # Check if we have enough inventory space
         free_slots = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
         if free_slots < self.inventory_slot_to_keep_empty:
-            print(f"Not enough inventory space to buy {quantity_to_buy} {model_id}. Free slots: {free_slots}, required: {self.inventory_slot_to_keep_empty}")
+            if constants.DEBUG:print(f"Not enough inventory space to buy {quantity_to_buy} {model_id}. Free slots: {free_slots}, required: {self.inventory_slot_to_keep_empty}")
             ActionQueueManager().ResetQueue("MERCHANT")
             return
 
@@ -155,7 +156,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
         actual_quantity_to_buy = min(quantity_to_buy, max_can_buy)
         
         if actual_quantity_to_buy <= 0:
-            print(f"Cannot buy {model_id}: would exceed inventory space limit")
+            if constants.DEBUG:print(f"Cannot buy {model_id}: would exceed inventory space limit")
             ActionQueueManager().ResetQueue("MERCHANT")
             return
 
@@ -163,7 +164,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
         merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: GLOBAL_CACHE.Item.GetModelID(item_id) == model_id)
 
         if len(merchant_item_list) == 0:
-            print(f"Merchant doesn't sell {model_id}")
+            if constants.DEBUG:print(f"Merchant doesn't sell {model_id}")
             ActionQueueManager().ResetQueue("MERCHANT")
             return
         
@@ -175,7 +176,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
         while not ActionQueueManager().IsEmpty("MERCHANT"):
             yield from custom_behavior_helpers.Helpers.wait_for(50)
         
-        print(f"Bought {actual_quantity_to_buy} {model_id} (requested: {quantity_to_buy})")
+        if constants.DEBUG:print(f"Bought {actual_quantity_to_buy} {model_id} (requested: {quantity_to_buy})")
 
     def should_refill_some_items(self) -> bool:
         """Check if we need to refill any items based on expected quantities."""
