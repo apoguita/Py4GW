@@ -152,6 +152,7 @@ class BottingClass:
         self.helpers = BottingHelpers(self)
         #exposed Helpers
         self.States = BottingClass._STATES(self)
+        self.Properties = BottingClass._PROPERTIES(self)
         self.UI = BottingClass._UI(self)
         self.Items = BottingClass._ITEMS(self)
         self.Dialogs = BottingClass._DIALOGS(self)
@@ -161,7 +162,6 @@ class BottingClass:
         self.Interact = BottingClass._INTERACT(self)
         self.Party = BottingClass._PARTY(self)
         self.Events = BottingClass._EVENTS(self)
-        self.Properties = BottingClass._PROPERTIES(self)
         self.Target = BottingClass._TARGET(self)
         self.SkillBar = BottingClass._SKILLBAR(self)
 
@@ -445,11 +445,13 @@ class BottingClass:
             self._helpers.Map.enter_challenge(wait_for=delay)
             self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
 
-        def TravelGH(self):
-            self._helpers.Map.travel_to_gh(wait_time=8000)
+        def TravelGH(self, wait_time:int=4000):
+            self._helpers.Map.travel_to_gh(wait_time=wait_time)
+            self.parent.Wait.UntilOnOutpost()
 
-        def LeaveGH(self):
-            self._helpers.Map.leave_gh(wait_time=8000)
+        def LeaveGH(self, wait_time:int=4000):
+            self._helpers.Map.leave_gh(wait_time=wait_time)
+            self.parent.Wait.UntilOnOutpost()
 
 
     #region MOVE
@@ -619,9 +621,17 @@ class BottingClass:
 
         def AddHenchman(self, henchman_id: int):
             self._helpers.Party.add_henchman(henchman_id)
+            
+        def AddHenchmanList(self, henchman_id_list: List[int]):
+            for henchman_id in henchman_id_list:
+                self._helpers.Party.add_henchman(henchman_id)
 
         def AddHero(self, hero_id: int):
             self._helpers.Party.add_hero(hero_id)
+            
+        def AddHeroList(self, hero_id_list: List[int]):
+            for hero_id in hero_id_list:
+                self._helpers.Party.add_hero(hero_id)
 
         def InvitePlayer(self, player_name: str):
             self._helpers.Party.invite_player(player_name)
@@ -715,6 +725,16 @@ class BottingClass:
             from .Routines import Routines
             wait_condition = lambda: (Routines.Checks.Agents.InDanger(aggro_area=range))
             self._helpers.Wait.until_condition(wait_condition)
+            
+        def UntilOnOutpost(self) -> None:
+            from .Routines import Routines
+            wait_condition = lambda: Routines.Checks.Map.MapValid() and  Routines.Checks.Map.IsOutpost()
+            self._helpers.Wait.until_condition(wait_condition)
+            
+        def UntilOnExplorable(self) -> None:
+            from .Routines import Routines
+            wait_condition = lambda: Routines.Checks.Map.MapValid() and  Routines.Checks.Map.IsExplorable()
+            self._helpers.Wait.until_condition(wait_condition)
 
         def ForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
             from Py4GWCoreLib import GLOBAL_CACHE
@@ -740,7 +760,8 @@ class BottingClass:
     #region UI
     class _UI:
         def __init__(self, parent: "BottingClass"):
-            self.parent = parent
+            self.parent:BottingClass = parent
+            self._parent:BottingClass = parent
             self._config = parent.config
             self._helpers = parent.helpers
             self.draw_texture_fn: Optional[Callable[[], None]] = None
@@ -1145,37 +1166,37 @@ class BottingClass:
                             self._config.config_properties.floor_offset.set_now("value", PyImGui.slider_float("Floor Offset", self._config.config_properties.floor_offset.get("value"), -10.0, 50.0))
 
                         if PyImGui.collapsing_header("Properties"):
-                            def debug_text(self, prop_name:str, key:str):
+                            def debug_text(prop_name:str, key:str):
                                 from .Py4GWcorelib import Utils
-                                value = self.parent.Properties.get(prop_name, key)
+                                value = self._parent.Properties.Get(prop_name, key)
                                 if isinstance(value, bool):
                                     color = Utils.TrueFalseColor(value)
                                 else:
                                     color = (255, 255, 255, 255)
                                 PyImGui.text_colored(f"{prop_name} - {key}: {value}", color)
 
-                            debug_text(self, "log_actions", "active")
-                            debug_text(self, "halt_on_death", "active")
-                            debug_text(self, "pause_on_danger", "active")
-                            debug_text(self, "movement_timeout", "value")
-                            debug_text(self, "movement_tolerance", "value")
-                            debug_text(self, "draw_path", "active")
-                            debug_text(self, "use_occlusion", "active")
-                            debug_text(self, "snap_to_ground", "active")
-                            debug_text(self, "snap_to_ground_segments", "value")
-                            debug_text(self, "floor_offset", "value")
-                            debug_text(self, "follow_path_color", "value")
+                            debug_text("log_actions", "active")
+                            debug_text("halt_on_death", "active")
+                            debug_text("pause_on_danger", "active")
+                            debug_text("movement_timeout", "value")
+                            debug_text("movement_tolerance", "value")
+                            debug_text("draw_path", "active")
+                            debug_text("use_occlusion", "active")
+                            debug_text("snap_to_ground", "active")
+                            debug_text("snap_to_ground_segments", "value")
+                            debug_text("floor_offset", "value")
+                            debug_text("follow_path_color", "value")
                             PyImGui.separator()
-                            debug_text(self, "follow_path_succeeded", "value")
-                            debug_text(self, "dialog_at_succeeded", "value")
+                            debug_text("follow_path_succeeded", "value")
+                            debug_text("dialog_at_succeeded", "value")
 
                         
                         if PyImGui.collapsing_header("UpkeepData"):
                             def render_upkeep_data(parent):
                                 # ---- your exact accessor, unchanged ----
-                                def debug_text(self, prop_name: str, key: str):
+                                def debug_text(prop_name: str, key: str):
                                     from .Py4GWcorelib import Utils
-                                    value = self.parent.Properties.get(prop_name, key)
+                                    value = self._parent.Properties.Get(prop_name, key)
                                     if isinstance(value, bool):
                                         color = Utils.TrueFalseColor(value)
                                     else:
@@ -1223,7 +1244,7 @@ class BottingClass:
                                     if PyImGui.tree_node(prop):
                                         PyImGui.push_id(prop)  # avoid ID collisions for the same key labels
                                         for key in keys:
-                                            debug_text(parent, prop, key)
+                                            debug_text(prop, key)
                                         PyImGui.pop_id()
                                         PyImGui.tree_pop()
 
