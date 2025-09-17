@@ -566,7 +566,7 @@ class SplitTexture:
         self,
         texture: str,
         texture_size: tuple[float, float],
-        atlas_index : int = 0,
+        atlas_index : int = -1,
         mid: tuple[float, float, float, float] | None = None,
         left: tuple[float, float, float, float] | None = None,
         right: tuple[float, float, float, float] | None = None,
@@ -574,10 +574,12 @@ class SplitTexture:
         self.texture = texture
         self.width, self.height = texture_size
         
-        atlas_row = atlas_index // 8
-        atlas_col = atlas_index % 8
-        
-        self.atlas_offset = (atlas_col * 128, atlas_row * 128, (atlas_col) * 128, (atlas_row) * 128)
+        self.texture_size = texture_size
+        self.atlas_index = atlas_index
+        atlas_row = self.atlas_index // 8
+        atlas_col = self.atlas_index % 8
+
+        self.atlas_offset = (atlas_col * 128, atlas_row * 128, (atlas_col) * 128, (atlas_row) * 128) if self.atlas_index >= 0 else (0, 0, 0, 0)
 
         self.left = left
         self.left_width = (left[2] - left[0]) if left else 0
@@ -600,10 +602,9 @@ class SplitTexture:
         
         return (x0, y0, x1, y1)
 
-    @staticmethod
-    def _calc_uv(region: tuple[float, float, float, float], size: tuple[float, float]) -> tuple[float, float, float, float]:
+    def _calc_uv(self, region: tuple[float, float, float, float], size: tuple[float, float]) -> tuple[float, float, float, float]:
         x0, y0, x1, y1 = region
-        w, h = (1024, 1024)
+        w, h = (1024, 1024) if self.atlas_index >= 0 else self.texture_size
         return x0 / w, y0 / h, x1 / w, y1 / h
 
     def draw_in_drawlist(self, x: float, y: float, size: tuple[float, float], tint=(255, 255, 255, 255), state: TextureState = TextureState.Normal):
@@ -669,7 +670,7 @@ class MapTexture:
         texture: str,
         texture_size: tuple[float, float],
         size: tuple[float, float],
-        atlas_index : int = 0,
+        atlas_index : int = -1,
         normal: tuple[float, float] = (0, 0),
         hovered: tuple[float, float] | None = None,
         active: tuple[float, float] | None = None,
@@ -677,10 +678,12 @@ class MapTexture:
     ):
         self.texture = texture
         self.texture_size = texture_size
-        atlas_row = atlas_index // 8
-        atlas_col = atlas_index % 8
+        self.atlas_index = atlas_index
         
-        self.atlas_offset = (atlas_col * 128, atlas_row * 128)
+        atlas_row = self.atlas_index // 8
+        atlas_col = self.atlas_index % 8
+
+        self.atlas_offset = (atlas_col * 128, atlas_row * 128) if self.atlas_index >= 0 else (0, 0)
         
         self.size = size
         self.width, self.height = size
@@ -696,7 +699,7 @@ class MapTexture:
     
     def _make_uv(self, pos: tuple[float, float]) -> tuple[float, float, float, float]:
         x, y = pos
-        w, h = (1024, 1024)
+        w, h = (1024, 1024) if self.atlas_index >= 0 else self.texture_size
         sx, sy = self.size
         return x / w, y / h, (x + sx) / w, (y + sy) / h
 
