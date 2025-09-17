@@ -91,6 +91,8 @@ class BottingLoader:
         self._has_loaded = False
 
     def load_bot_list(self):
+        return
+        
         if self._has_loaded:
             return False
 

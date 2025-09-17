@@ -1,4 +1,5 @@
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer
+from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import FollowPathExecutor
 from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import AutoMover
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 
