@@ -3,7 +3,7 @@ import PyImGui
 from typing import Dict
 
 
-from Py4GWCoreLib import ImGui, get_texture_for_model
+from Py4GWCoreLib import ImGui, get_texture_for_item
 from Py4GWCoreLib import ColorPalette
 from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import Item
@@ -156,7 +156,7 @@ class IdentifyModule:
                     _tick_checkboxes("Green", False)
 
             PyImGui.table_next_column()
-            texture_file = get_texture_for_model(ModelID.Superior_Identification_Kit)
+            texture_file = get_texture_for_item(ModelID.Superior_Identification_Kit)
             if ImGui.ImageButton("##text_unique_name", texture_file, 45, 45):
                 GLOBAL_CACHE.Coroutines.append(IdentifyCheckedItems(self.id_checkboxes))
             ImGui.show_tooltip("Identify selected items.")    

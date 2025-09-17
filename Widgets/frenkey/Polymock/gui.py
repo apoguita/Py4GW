@@ -102,7 +102,7 @@ class UI:
 
                         if self.widget_state.quest.counter_pieces[i].value.item_model_id != 0:
                             ImGui.DrawTexture(
-                                get_texture_for_model(self.widget_state.quest.counter_pieces[i].value.item_model_id),
+                                get_texture_for_item(self.widget_state.quest.counter_pieces[i].value.item_model_id),
                                 20, 20,
                             )
                         else:
