@@ -1,4 +1,6 @@
-from .GlobalCache import GLOBAL_CACHE
+from .GlobalCache import GLOBAL_CACHE 
+#this import need to exists or it will break other imports
+#need to adress circular import issues, for the time being we will just import everything here
 
 from .routines_src.Agents import Agents as AgentRoutines
 from .routines_src.Party import Party as PartyRoutines

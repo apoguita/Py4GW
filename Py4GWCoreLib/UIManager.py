@@ -1,6 +1,6 @@
 
 import PyUIManager
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List
 import json
 import PyOverlay
 from collections import deque, defaultdict

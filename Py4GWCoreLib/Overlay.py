@@ -1,5 +1,5 @@
 import PyOverlay
-from typing import Tuple, overload
+from typing import Tuple
 from .Py4GWcorelib import Utils
 
 class Overlay:

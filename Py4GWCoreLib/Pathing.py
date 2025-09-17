@@ -5,13 +5,11 @@ import PyMap
 import math
 import heapq
 import pickle
-from collections import Counter
 
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from .enums import name_to_map_id
 from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
-from Py4GWCoreLib import Utils, Overlay
+from Py4GWCoreLib import Utils
 
 PathingMap = PyPathing.PathingMap
 PathingTrapezoid = PyPathing.PathingTrapezoid

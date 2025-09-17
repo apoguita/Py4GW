@@ -1,13 +1,10 @@
-import Py4GW
 import PyMap
 import PyMissionMap
 import PyPathing
 import PyOverlay
-from .enums import outposts, outpost_name_to_id, explorables, explorable_name_to_id, FlagPreference
+from .enums import outposts, explorables, explorable_name_to_id, FlagPreference
 from .UIManager import *
 from .Overlay import *
-from collections import deque
-import time
 import math
 
 class Map:

@@ -5,7 +5,7 @@ from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager
 from ..enums_src.Model_enums import ModelID
 
 
-import importlib, typing
+import importlib
 
 class _RProxy:
     def __getattr__(self, name: str):
@@ -203,6 +203,22 @@ class Yield:
 
             GLOBAL_CACHE.SkillBar.LoadSkillTemplate(skill_template)
             ConsoleLog("LoadSkillbar", f"Loading skill Template {skill_template}", log=log)
+            yield from Yield.wait(500)
+            
+        @staticmethod
+        def LoadHeroSkillbar(hero_index:int, skill_template:str, log=False):
+            """
+            Purpose: Load the specified hero skillbar.
+            Args:
+                hero_index (int): The index of the hero (1-4).
+                skill_template (str): The name of the skill template to load.
+                log (bool) Optional: Whether to log the action. Default is True.
+            Returns: None
+            """
+            
+
+            GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(hero_index, skill_template)
+            ConsoleLog("LoadHeroSkillbar", f"Loading hero {hero_index} skill Template {skill_template}", log=log)
             yield from Yield.wait(500)
         
         @staticmethod    

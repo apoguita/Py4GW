@@ -1,8 +1,7 @@
 from time import sleep
 from typing import List, Tuple, Callable
 
-
-import importlib, typing
+import importlib
 
 class _RProxy:
     def __getattr__(self, name: str):
@@ -10,8 +9,6 @@ class _RProxy:
         return getattr(root_pkg.Routines, name)
 
 Routines = _RProxy()
-
-
 
 #region Sequential
 class Sequential:
@@ -328,10 +325,11 @@ class Sequential:
         @staticmethod
         def InteractWithNearestChest():
             """Target and interact with chest and items."""
-            from Py4GWCoreLib import ActionQueueManager
-            from Py4GWCoreLib import LootConfig
+            from ..Py4GWcorelib import ActionQueueManager
+            from ..Py4GWcorelib import LootConfig
+            from ..Py4GWcorelib import Utils
             from ..GlobalCache import GLOBAL_CACHE
-            from ..Py4GWcorelib import Utils, Range
+            from ..enums_src.GameData_enums import Range
             from .Agents import Agents
             nearest_chest = Agents.GetNearestChest(2500)
             chest_x, chest_y = GLOBAL_CACHE.Agent.GetXY(nearest_chest)

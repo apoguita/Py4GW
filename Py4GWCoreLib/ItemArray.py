@@ -1,8 +1,6 @@
-import PyItem
 import Py4GW
 
 from .Item import Bag, Item
-from .Py4GWcorelib import ThrottledTimer
 import PyInventory 
 
 class ItemArray:
