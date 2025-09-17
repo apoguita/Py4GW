@@ -4,7 +4,7 @@ from Py4GWCoreLib import Timer
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import ImGui
-from Py4GWCoreLib import GameTextures
+from Py4GWCoreLib import ThemeTextures
 from Py4GWCoreLib import Style
 from Py4GWCoreLib import IconsFontAwesome5
 
@@ -196,13 +196,25 @@ def configure():
     config_module.end()
 
 def themed_floating_button(button_rect : tuple[float, float, float, float]):
-    match(ImGui.get_style().Theme):
-        case Style.StyleTheme.Guild_Wars:
-            GameTextures.Button.value.draw_in_drawlist(
+    style = ImGui.get_style()
+    
+    match(style.Theme):
+        case Style.StyleTheme.Guild_Wars:      
+            tint=style.ButtonHovered.rgb_tuple if ImGui.is_mouse_in_rect(button_rect) else style.Button.rgb_tuple  
+            ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
                 button_rect[0], 
                 button_rect[1],
                 (button_rect[2], button_rect[3]),
-                tint=(255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) else (200, 200, 200, 255),
+                tint=tint,
+            )
+            
+            
+            frame_tint=(255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) else (200, 200, 200, 255)
+            ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
+                button_rect[0], 
+                button_rect[1],
+                (button_rect[2], button_rect[3]),
+                tint=frame_tint,
             )
             
         case Style.StyleTheme.Minimalus:
@@ -278,7 +290,7 @@ def DrawWindow():
             
             icon_rect = (button_rect[0] + 8, button_rect[1] + 6, 32, 32)
 
-            GameTextures.TravelCursor.value.draw_in_drawlist(
+            ThemeTextures.TravelCursor.value.draw_in_drawlist(
                 icon_rect[0], 
                 icon_rect[1],
                 (icon_rect[2], icon_rect[3]),

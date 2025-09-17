@@ -28,6 +28,9 @@ from enum import IntEnum
 TEXTURE_FOLDER = "Textures\\Game UI\\"
 MINIMALUS_FOLDER = "Textures\\Themes\\Minimalus\\"
 
+GUILD_WARS_ATLAS = "Textures\\Game UI\\guild_wars_texture_atlas.png"
+MINIMALUS_ATLAS = "Textures\\Game UI\\minimalus_texture_atlas.png"
+
 class Style:    
     pyimgui_style = PyImGui.StyleConfig()
     
@@ -563,29 +566,44 @@ class SplitTexture:
         self,
         texture: str,
         texture_size: tuple[float, float],
+        atlas_index : int = 0,
         mid: tuple[float, float, float, float] | None = None,
         left: tuple[float, float, float, float] | None = None,
         right: tuple[float, float, float, float] | None = None,
     ):
         self.texture = texture
         self.width, self.height = texture_size
+        
+        atlas_row = atlas_index // 8
+        atlas_col = atlas_index % 8
+        
+        self.atlas_offset = (atlas_col * 128, atlas_row * 128, (atlas_col) * 128, (atlas_row) * 128)
 
         self.left = left
         self.left_width = (left[2] - left[0]) if left else 0
-        self.left_offset = self._calc_uv(left, texture_size) if left else (0, 0, 0, 0)
+        self.left_offset = self._calc_uv(self._add_regions(left, self.atlas_offset), texture_size) if left else (0, 0, 0, 0)
 
         self.mid = mid
         self.mid_width = (mid[2] - mid[0]) if mid else 0
-        self.mid_offset = self._calc_uv(mid, texture_size) if mid else (0, 0, 0, 0)
+        self.mid_offset = self._calc_uv(self._add_regions(mid, self.atlas_offset), texture_size) if mid else (0, 0, 0, 0)
 
         self.right = right
         self.right_width = (right[2] - right[0]) if right else 0
-        self.right_offset = self._calc_uv(right, texture_size) if right else (0, 0, 0, 0)
+        self.right_offset = self._calc_uv(self._add_regions(right, self.atlas_offset), texture_size) if right else (0, 0, 0, 0)
+        
+    @staticmethod
+    def _add_regions(region1: tuple[float, float, float, float], region2: tuple[float, float, float, float]) -> tuple[float, float, float, float]:
+        x0 = region1[0] + region2[0]
+        y0 = region1[1] + region2[1]
+        x1 = region1[2] + region2[2]
+        y1 = region1[3] + region2[3]
+        
+        return (x0, y0, x1, y1)
 
     @staticmethod
     def _calc_uv(region: tuple[float, float, float, float], size: tuple[float, float]) -> tuple[float, float, float, float]:
         x0, y0, x1, y1 = region
-        w, h = size
+        w, h = (1024, 1024)
         return x0 / w, y0 / h, x1 / w, y1 / h
 
     def draw_in_drawlist(self, x: float, y: float, size: tuple[float, float], tint=(255, 255, 255, 255), state: TextureState = TextureState.Normal):
@@ -651,6 +669,7 @@ class MapTexture:
         texture: str,
         texture_size: tuple[float, float],
         size: tuple[float, float],
+        atlas_index : int = 0,
         normal: tuple[float, float] = (0, 0),
         hovered: tuple[float, float] | None = None,
         active: tuple[float, float] | None = None,
@@ -658,17 +677,26 @@ class MapTexture:
     ):
         self.texture = texture
         self.texture_size = texture_size
+        atlas_row = atlas_index // 8
+        atlas_col = atlas_index % 8
+        
+        self.atlas_offset = (atlas_col * 128, atlas_row * 128)
+        
         self.size = size
         self.width, self.height = size
 
-        self.normal_offset = self._make_uv(normal)
-        self.hovered_offset = self._make_uv(hovered) if hovered else (0, 0, 1, 1)
-        self.active_offset = self._make_uv(active) if active else (0, 0, 1, 1)
-        self.disabled_offset = self._make_uv(disabled) if disabled else (0, 0, 1, 1)
+        self.normal_offset = self._make_uv(self._add_vectors(normal, self.atlas_offset))
+        self.hovered_offset = self._make_uv(self._add_vectors(hovered, self.atlas_offset)) if hovered else self.normal_offset
+        self.active_offset = self._make_uv(self._add_vectors(active, self.atlas_offset)) if active else self.normal_offset
+        self.disabled_offset = self._make_uv(self._add_vectors(disabled, self.atlas_offset)) if disabled else self.normal_offset
 
+    @staticmethod
+    def _add_vectors(vec1: tuple[float, float], vec2: tuple[float, float]) -> tuple[float, float]:
+        return vec1[0] + vec2[0], vec1[1] + vec2[1]
+    
     def _make_uv(self, pos: tuple[float, float]) -> tuple[float, float, float, float]:
         x, y = pos
-        w, h = self.texture_size
+        w, h = (1024, 1024)
         sx, sy = self.size
         return x / w, y / h, (x + sx) / w, (y + sy) / h
 
@@ -850,16 +878,18 @@ class ThemeTextures(Enum):
         
     Combo_Arrow = ThemeTexture(
         (Style.StyleTheme.Minimalus, SplitTexture(
-            texture=os.path.join(MINIMALUS_FOLDER, "ui_combo_arrow.png"),
+            texture=MINIMALUS_ATLAS,
             texture_size=(128, 32),
+            atlas_index=6,
             left=(4, 4, 14, 27),
             mid=(15, 4, 92, 27),
             right=(93, 4, 123, 27)
         )),
 
         (Style.StyleTheme.Guild_Wars, SplitTexture(
-            texture=os.path.join(TEXTURE_FOLDER, "ui_combo_arrow.png"),
+            texture=GUILD_WARS_ATLAS,
             texture_size=(128, 32),
+            atlas_index=6,
             left=(1, 4, 14, 27),
             mid=(15, 4, 92, 27),
             right=(93, 4, 126, 27),
@@ -868,17 +898,18 @@ class ThemeTextures(Enum):
     
     Combo_Background = ThemeTexture(
         (Style.StyleTheme.Minimalus, SplitTexture(
-            texture=os.path.join(MINIMALUS_FOLDER, "ui_combo_background.png"),
+            texture=MINIMALUS_ATLAS,
             texture_size=(128, 32),
+            atlas_index=7,
             left=(4, 4, 14, 27),
             mid=(15, 4, 92, 27),
             right=(93, 4, 124, 27)
         )),
 
         (Style.StyleTheme.Guild_Wars, SplitTexture(
-            texture=os.path.join(
-                TEXTURE_FOLDER, "ui_combo_background.png"),
+            texture=GUILD_WARS_ATLAS,
             texture_size=(128, 32),
+            atlas_index=7,
             left=(1, 4, 14, 27),
             mid=(15, 4, 92, 27),
             right=(93, 4, 126, 27),
@@ -887,16 +918,18 @@ class ThemeTextures(Enum):
 
     Combo_Frame = ThemeTexture(
         (Style.StyleTheme.Minimalus, SplitTexture(
-            texture=os.path.join(MINIMALUS_FOLDER, "ui_combo_frame.png"),
+            texture=MINIMALUS_ATLAS,
             texture_size=(128, 32),
+            atlas_index=8,
             left=(4, 4, 14, 27),
             mid=(15, 4, 92, 27),
             right=(93, 4, 124, 27),
         )),
         
         (Style.StyleTheme.Guild_Wars, SplitTexture(
-            texture=os.path.join(TEXTURE_FOLDER, "ui_combo_frame.png"),
+            texture=GUILD_WARS_ATLAS,
             texture_size=(128, 32),
+            atlas_index=8,
             left=(1, 4, 14, 27),
             mid=(15, 4, 92, 27),
             right=(93, 4, 126, 27),
@@ -905,16 +938,18 @@ class ThemeTextures(Enum):
     
     Button_Frame = ThemeTexture(
         (Style.StyleTheme.Minimalus, SplitTexture(
-            texture=os.path.join(MINIMALUS_FOLDER, "ui_button_frame.png"),
+            texture=MINIMALUS_ATLAS,
             texture_size=(32, 32),
+            atlas_index=3,
             left=(6, 4, 7, 25),
             mid=(8, 4, 24, 25),
             right=(25, 4, 26, 25), 
         )),
 
         (Style.StyleTheme.Guild_Wars, SplitTexture(
-            texture=os.path.join(TEXTURE_FOLDER, "ui_button_frame.png"),
+            texture=GUILD_WARS_ATLAS,
             texture_size=(32, 32),
+            atlas_index=3,
             left=(2, 4, 7, 25),
             mid=(8, 4, 24, 25),
             right=(24, 4, 30, 25), 
@@ -923,16 +958,18 @@ class ThemeTextures(Enum):
     
     Button_Background = ThemeTexture(
         (Style.StyleTheme.Minimalus, SplitTexture(
-            texture=os.path.join(MINIMALUS_FOLDER, "ui_button_background.png"),
+            texture=MINIMALUS_ATLAS,
             texture_size=(32, 32),
+            atlas_index=2,
             left=(6, 4, 7, 25),
             mid=(8, 4, 24, 25),
             right=(25, 4, 26, 25), 
         )),
 
         (Style.StyleTheme.Guild_Wars, SplitTexture(
-            texture=os.path.join(TEXTURE_FOLDER, "ui_button_background.png"),
+            texture=GUILD_WARS_ATLAS,
             texture_size=(32, 32),
+            atlas_index=2,
             left=(2, 4, 7, 25),
             mid=(8, 4, 24, 25),
             right=(24, 4, 30, 25), 
@@ -941,17 +978,19 @@ class ThemeTextures(Enum):
 
     CheckBox_Unchecked = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_checkbox.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size = (128, 32),
         size = (17, 17),
+        atlas_index=4,
         normal=(2, 2),
         active=(23, 2),
         disabled=(107, 2),
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_checkbox.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size = (128, 32),
         size = (17, 17),
+        atlas_index=4,
         normal=(2, 2),
         active=(23, 2),
         disabled=(107, 2),
@@ -960,17 +999,19 @@ class ThemeTextures(Enum):
     
     CheckBox_Checked = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_checkbox.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size = (128, 32),
         size = (17, 18),
+        atlas_index=4,
         normal=(44, 1),
         active=(65, 1),
         disabled=(86, 1),
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_checkbox.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size = (128, 32),
         size = (17, 18),
+        atlas_index=4,
         normal=(44, 1),
         active=(65, 1),
         disabled=(86, 1),
@@ -979,15 +1020,17 @@ class ThemeTextures(Enum):
     
     SliderBar = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_slider_bar.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(32, 16),
+        atlas_index=14,
         left=(0, 0, 7, 16),
         mid=(8, 0, 24, 16),
         right=(25, 0, 32, 16),   
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_slider_bar.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(32, 16),
+        atlas_index=14,
         left=(0, 0, 7, 16),
         mid=(8, 0, 24, 16),
         right=(25, 0, 32, 16),   
@@ -996,14 +1039,16 @@ class ThemeTextures(Enum):
     
     SliderGrab = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_slider_grab.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(32, 32),
+        atlas_index=15,
         size=(18, 18),
         normal=(7, 7)
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_slider_grab.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(32, 32),
+        atlas_index=15,
         size=(18, 18),
         normal=(7, 7)
     )),
@@ -1011,15 +1056,17 @@ class ThemeTextures(Enum):
     
     Input_Inactive = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_input_inactive.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(32, 16),
+        atlas_index=24,
         left= (1, 0, 6, 16),
         mid= (7, 0, 26, 16),
         right= (27, 0, 31, 16),
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_input_inactive.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(32, 16),
+        atlas_index=24,
         left= (1, 0, 6, 16),
         mid= (7, 0, 26, 16),
         right= (27, 0, 31, 16),
@@ -1028,15 +1075,17 @@ class ThemeTextures(Enum):
     
     Input_Active = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_input_active.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(32, 16),
+        atlas_index=24,
         left= (1, 1, 6, 15),
         mid= (7, 1, 26, 15),
         right= (27, 1, 31, 15),
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_input_active.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(32, 16),
+        atlas_index=24,
         left= (1, 1, 6, 15),
         mid= (7, 1, 26, 15),
         right= (27, 1, 31, 15),
@@ -1045,16 +1094,18 @@ class ThemeTextures(Enum):
     
     Expand = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_collapse_expand.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size = (32, 32),
         size = (13, 12),
+        atlas_index=5,
         normal = (0, 3),
         hovered = (16, 3),
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_collapse_expand.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size = (32, 32),
         size = (12, 12),
+        atlas_index=5,
         normal = (1, 3),
         hovered = (17, 3),
     )),
@@ -1062,15 +1113,17 @@ class ThemeTextures(Enum):
     
     Collapse = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_collapse_expand.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size = (32, 32),
         size = (13, 12),
+        atlas_index=5,
         normal = (0, 19),
         hovered = (16, 19),
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_collapse_expand.png"),
+        texture = GUILD_WARS_ATLAS  ,
         texture_size = (32, 32),
+        atlas_index=5,
         size = (12, 12),
         normal = (1, 19),
         hovered = (17, 19),
@@ -1079,15 +1132,17 @@ class ThemeTextures(Enum):
     
     Tab_Frame_Top = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_tab_bar_frame.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(32, 32),
+        atlas_index=17,
         left=(1, 1, 4, 5),
         mid=(5, 1, 26, 5),
         right=(27, 1, 31, 5),   
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_bar_frame.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(32, 32),
+        atlas_index=17,
         left=(1, 1, 4, 5),
         mid=(5, 1, 26, 5),
         right=(27, 1, 31, 5),   
@@ -1096,15 +1151,17 @@ class ThemeTextures(Enum):
     
     Tab_Frame_Body = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_tab_bar_frame.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(32, 32),
+        atlas_index=17,
         left=(1, 5, 4, 26),
         mid=(5, 5, 26, 26),
         right=(27, 5, 31, 26), 
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_bar_frame.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(32, 32),
+        atlas_index=17,
         left=(1, 5, 4, 26),
         mid=(5, 5, 26, 26),
         right=(27, 5, 31, 26),  
@@ -1113,15 +1170,17 @@ class ThemeTextures(Enum):
     
     Tab_Active = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_tab_active.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(32, 32),
+        atlas_index=16,
         left=(2, 1, 8, 32),
         mid=(9, 1, 23, 32),
         right=(24, 1, 30, 32),   
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_active.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(32, 32),
+        atlas_index=16,
         left=(2, 1, 8, 32),
         mid=(9, 1, 23, 32),
         right=(24, 1, 30, 32),   
@@ -1130,15 +1189,17 @@ class ThemeTextures(Enum):
     
     Tab_Inactive = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_tab_inactive.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(32, 32),
+        atlas_index=18,
         left=(2, 6, 8, 32),
         mid=(9, 6, 23, 32),
         right=(24, 6, 30, 32),   
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_tab_inactive.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(32, 32),
+        atlas_index=18,
         left=(2, 6, 8, 32),
         mid=(9, 6, 23, 32),
         right=(24, 6, 30, 32),    
@@ -1147,15 +1208,17 @@ class ThemeTextures(Enum):
     
     Quest_Objective_Bullet_Point = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_quest_objective_bullet_point.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size = (32, 16),
+        atlas_index=12,
         size = (13, 13),
         normal=(0, 0),
         active=(13, 0),
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_quest_objective_bullet_point.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size = (32, 16),
+        atlas_index=12,
         size = (13, 13),
         normal=(0, 0),
         active=(13, 0),
@@ -1164,17 +1227,19 @@ class ThemeTextures(Enum):
     
     Close_Button = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_close_button_atlas.png"),
+        texture = MINIMALUS_ATLAS,        
         texture_size = (64, 16),
         size = (12, 12),
+        atlas_index=0,
         normal=(1, 1),
         hovered=(17, 1),
         active=(33, 1),
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_close_button_atlas.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size = (64, 16),
         size = (12, 12),
+        atlas_index=0,
         normal=(1, 1),
         hovered=(17, 1),
         active=(33, 1),
@@ -1183,15 +1248,17 @@ class ThemeTextures(Enum):
     
     Title_Bar = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_title_frame_atlas.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(128, 32),
+        atlas_index=23,
         left=(0, 6, 18, 32),
         mid=(19, 6, 109, 32),
         right=(110, 6, 128, 32)
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_title_frame_atlas.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(128, 32),
+        atlas_index=23,
         left=(0, 6, 18, 32),
         mid=(19, 6, 109, 32),
         right=(110, 6, 128, 32)
@@ -1200,15 +1267,17 @@ class ThemeTextures(Enum):
     
     Window_Frame_Top = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_frame_atlas.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(128, 128),
+        atlas_index=20,
         left=(0, 0, 18, 40),
         right=(110, 0, 128, 40),
         mid=(19, 0, 109, 40)
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(128, 128),
+        atlas_index=20,
         left=(0, 0, 18, 40),
         right=(110, 0, 128, 40),
         mid=(19, 0, 109, 40)
@@ -1217,15 +1286,17 @@ class ThemeTextures(Enum):
     
     Window_Frame_Center = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_frame_atlas.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(128, 128),
+        atlas_index=20,
         left=(0, 40, 18, 68),
         mid=(19, 40, 109, 68),
         right=(110, 40, 128, 68),
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(128, 128),
+        atlas_index=20,
         left=(0, 40, 18, 68),
         mid=(19, 40, 109, 68),
         right=(110, 40, 128, 68),
@@ -1234,15 +1305,17 @@ class ThemeTextures(Enum):
     
     Window_Frame_Bottom = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_frame_atlas.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(128, 128),
+        atlas_index=20,
         left=(0, 68, 18, 128),
         mid=(19, 68, 77, 128),
         right=(78, 68, 128, 128),
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(128, 128),
+        atlas_index=20,
         left=(0, 68, 18, 128),
         mid=(19, 68, 77, 128),
         right=(78, 68, 128, 128),
@@ -1251,15 +1324,17 @@ class ThemeTextures(Enum):
     
     Window_Frame_Top_NoTitleBar = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_frame_atlas_no_titlebar.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(128, 128),
+        atlas_index=22,
         left=(0, 0, 18, 51),
         right=(110, 0, 128, 51),
         mid=(19, 0, 109, 51)
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas_no_titlebar.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(128, 128),
+        atlas_index=22,
         left=(0, 0, 18, 51),
         right=(110, 0, 128, 51),
         mid=(19, 0, 109, 51)
@@ -1268,15 +1343,17 @@ class ThemeTextures(Enum):
     
     Window_Frame_Bottom_No_Resize = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(MINIMALUS_FOLDER, "ui_window_frame_atlas_no_resize.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(128, 128),
+        atlas_index=21,
         left=(0, 68, 18, 128),
         mid=(19, 68, 77, 128),
         right=(78, 68, 128, 128),
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_window_frame_atlas_no_resize.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(128, 128),
+        atlas_index=21,
         left=(0, 68, 18, 128),
         mid=(19, 68, 77, 128),
         right=(78, 68, 128, 128),
@@ -1285,14 +1362,16 @@ class ThemeTextures(Enum):
     
     Separator = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_separator.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size = (32, 4),
+        atlas_index=13,
         size = (32, 4),
         normal = (0, 0),
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_separator.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size = (32, 4),
+        atlas_index=13,
         size = (32, 4),
         normal = (0, 0),
     )),
@@ -1300,15 +1379,17 @@ class ThemeTextures(Enum):
     
     ProgressBarFrame = ThemeTexture(
     (Style.StyleTheme.Minimalus,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_frame.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(16, 16),
+        atlas_index=10,
         left= (1, 1, 2, 14),
         mid= (3, 1, 12, 14),
         right= (13, 1, 14, 14),
     )),
     (Style.StyleTheme.Guild_Wars,  SplitTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_frame.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(16, 16),
+        atlas_index=10,
         left= (1, 1, 2, 14),
         mid= (3, 1, 12, 14),
         right= (13, 1, 14, 14),
@@ -1317,14 +1398,16 @@ class ThemeTextures(Enum):
     
     ProgressBarProgressCursor = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_highlight.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(16, 16),
+        atlas_index=11,
         size= (16, 16),
         normal = (0, 0)
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_highlight.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(16, 16),
+        atlas_index=11,
         size= (16, 16),
         normal = (0, 0)
     )),
@@ -1332,14 +1415,16 @@ class ThemeTextures(Enum):
     
     ProgressBarProgress = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_default.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(16, 16),
+        atlas_index=9,
         size=(6, 16),
         normal= (0, 0),
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_default.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(16, 16),
+        atlas_index=9,
         size=(6, 16),
         normal= (0, 0),
     )),
@@ -1347,14 +1432,16 @@ class ThemeTextures(Enum):
     
     ProgressBarBackground = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_default.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size=(16, 16),
+        atlas_index=9,
         size=(6, 16),
         normal= (6, 0),
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_progress_default.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size=(16, 16),
+        atlas_index=9,
         size=(6, 16),
         normal= (6, 0),
     )),
@@ -1362,14 +1449,16 @@ class ThemeTextures(Enum):
     
     BulletPoint = ThemeTexture(
     (Style.StyleTheme.Minimalus,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_bullet_point.png"),
+        texture = MINIMALUS_ATLAS,
         texture_size = (16, 16),
+        atlas_index=1,
         size = (16, 16),
         normal = (0, 0),
     )),
     (Style.StyleTheme.Guild_Wars,  MapTexture(
-        texture = os.path.join(TEXTURE_FOLDER, "ui_bullet_point.png"),
+        texture = GUILD_WARS_ATLAS,
         texture_size = (16, 16),
+        atlas_index=1,
         size = (16, 16),
         normal = (0, 0),
     )),
