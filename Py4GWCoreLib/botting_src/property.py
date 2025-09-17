@@ -225,7 +225,9 @@ class UpkeepData:
                  alcohol_disable_visual: bool = True,
                  armor_of_salvation_active: bool = False,
                  armor_of_salvation_restock: int = 0,
-                 auto_combat_active: bool = False,
+                 auto_combat_active: bool = True,
+                 auto_inventory_management_active: bool = True,
+                 auto_loot_active: bool = True,
                  birthday_cupcake_active: bool = False,
                  birthday_cupcake_restock: int = 0,
                  blue_rock_candy_active: bool = False,
@@ -249,6 +251,7 @@ class UpkeepData:
                  grail_of_might_restock: int = 0,
                  green_rock_candy_active: bool = False,
                  green_rock_candy_restock: int = 0,
+                 hero_ai_active: bool = False,
                  honeycomb_active: bool = False,
                  honeycomb_restock: int = 0,
                  imp_active: bool = False,
@@ -333,6 +336,10 @@ class UpkeepData:
 
         self.imp = Property(parent, "imp", active=imp_active)
         self.auto_combat = Property(parent, "auto_combat", active=auto_combat_active)
+        self.hero_ai = Property(parent, "hero_ai", active=hero_ai_active)
+        
+        self.auto_inventory_management = Property(parent, "auto_inventory_management", active=auto_inventory_management_active)
+        self.auto_loot = Property(parent, "auto_loot", active=auto_loot_active)
 
     def __repr__(self) -> str:
         return (

@@ -21,6 +21,28 @@ class _Upkeepers:
                 yield from self._config.build_handler.ProcessSkillCasting()
             else:
                 yield from Routines.Yield.wait(500)       
+                
+    def upkeep_hero_ai(self):
+        from ....Py4GW_widget_manager import get_widget_handler
+        from ...Routines import Routines
+        handler = get_widget_handler()
+        if self._config.upkeep.hero_ai.is_active() and not handler.is_widget_enabled("HeroAI"):
+            handler.enable_widget("HeroAI")
+        elif not self._config.upkeep.hero_ai.is_active() and handler.is_widget_enabled("HeroAI"):
+            handler.disable_widget("HeroAI")
+        yield from Routines.Yield.wait(500)
+        
+    def upkeep_auto_inventory_management(self):
+        from ...py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler
+        from ...Routines import Routines
+        inventory_handler = AutoInventoryHandler()
+        #self._parent.inventory_handler.module_active = False
+        if self._config.upkeep.auto_inventory_management.is_active() and not inventory_handler.module_active:
+            inventory_handler.module_active = True
+        elif not self._config.upkeep.auto_inventory_management.is_active() and inventory_handler.module_active:
+            inventory_handler.module_active = False
+            
+        yield from Routines.Yield.wait(500)
 
     def upkeep_armor_of_salvation(self):    
         from ...Routines import Routines
