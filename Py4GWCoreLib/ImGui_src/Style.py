@@ -94,9 +94,9 @@ class Style:
             img_color_enum = data.get("img_color_enum", None)            
             self.img_color_enum = getattr(PyImGui.ImGuiCol, img_color_enum) if img_color_enum in PyImGui.ImGuiCol.__members__ else None
 
-    def __init__(self):
+    def __init__(self, theme: StyleTheme = StyleTheme.ImGui):
         # Set the default style as base so we can push it and cover all
-        self.Theme : StyleTheme = StyleTheme.ImGui
+        self.Theme : StyleTheme = theme
 
         self.WindowPadding : Style.StyleVar = Style.StyleVar(self, 10, 10, ImGuiStyleVar.WindowPadding)
         self.CellPadding : Style.StyleVar = Style.StyleVar(self, 5, 5, ImGuiStyleVar.CellPadding)
@@ -257,7 +257,6 @@ class Style:
 
     def save_to_json(self):
         style_data = {
-            "Theme": self.Theme.name,
             "Colors": {k: c.to_json() for k, c in self.Colors.items()},
             "CustomColors": {k: c.to_json() for k, c in self.CustomColors.items()},
             "TextureColors": {k: c.to_json() for k, c in self.TextureColors.items()},
@@ -278,10 +277,11 @@ class Style:
         for _, attribute in self.Colors.items():
             if attribute.img_color_enum:
                 self.pyimgui_style.set_color(attribute.img_color_enum, *attribute.to_tuple_normalized())
+                
         self.pyimgui_style.Push()
 
     @classmethod
-    def load_from_json(cls, path: str) -> "Style":
+    def load_from_json(cls, path: str, theme : StyleTheme) -> "Style":
         style = cls()
         if not os.path.exists(path):
             return style
@@ -289,8 +289,7 @@ class Style:
         with open(path, "r") as f:
             style_data = json.load(f)
 
-        theme_name = style_data.get("Theme", StyleTheme.ImGui.name)
-        style.Theme = StyleTheme[theme_name] if theme_name in StyleTheme.__members__ else StyleTheme.ImGui
+        style.Theme = theme
 
         for color_name, color_data in style_data.get("Colors", {}).items():
             attribute = getattr(style, color_name)
@@ -318,13 +317,13 @@ class Style:
     def load_theme(cls, theme: StyleTheme) -> "Style":
         file_path = os.path.join("Styles", f"{theme.name}.json")
         default_file_path = os.path.join("Styles", f"{theme.name}.default.json")
-        path = file_path if os.path.exists(file_path) else default_file_path
-        return cls.load_from_json(path)
+        path = file_path if os.path.exists(file_path) else default_file_path if os.path.exists(default_file_path) else None
+        return cls.load_from_json(path, theme) if path else cls(theme)
 
     @classmethod
     def load_default_theme(cls, theme: StyleTheme) -> "Style":
         default_file_path = os.path.join("Styles", f"{theme.name}.default.json")
-        return cls.load_from_json(default_file_path)
+        return cls.load_from_json(default_file_path, theme) if os.path.exists(default_file_path) else cls(theme)
 
     def preview(self):
         """Temporarily apply this Style into ImGui's live StyleConfig (not permanent)."""
@@ -336,17 +335,17 @@ class Style:
 
         # Apply Colors
         for _, attr in self.Colors.items():
-            if attr.img_color_enum and isinstance(attr, Color):
+            if attr.img_color_enum and isinstance(attr, Style.StyleColor):
                 self.pyimgui_style.set_color(attr.img_color_enum, *attr.to_tuple())
 
         # Apply CustomColors
         for _, attr in self.CustomColors.items():
-            if attr.img_color_enum and isinstance(attr, Color):
+            if attr.img_color_enum and isinstance(attr, Style.StyleColor):
                 self.pyimgui_style.set_color(attr.img_color_enum, *attr.to_tuple())
 
         # Apply TextureColors
         for _, attr in self.TextureColors.items():
-            if attr.img_color_enum and isinstance(attr, Color):
+            if attr.img_color_enum and isinstance(attr, Style.StyleColor):
                 self.pyimgui_style.set_color(attr.img_color_enum, *attr.to_tuple())
 
         # StyleVars are handled separately if needed (scalars/vec2s already live in StyleConfig)
