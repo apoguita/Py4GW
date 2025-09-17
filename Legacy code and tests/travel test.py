@@ -1,148 +1,133 @@
 import random
+from time import sleep
 from Py4GWCoreLib import *
-import time
+import PyMap, PyImGui
 
-wait_time = 0
-times_to_retry_delay = 10
-delay_retries = 0
-
-
-
-map_to_travel = 253
-travel_coroutine = None  # active coroutine
-
-loading_start_time = 0.0
-loading_end_time = 0.0
-mallyx_explorable_start = 0.0
-mallyx_explorable_end = 0.0
-
+MODULE_NAME = "destroy item"
 ping_handler = Py4GW.PingHandler()
-stop = False
+map_id = 253
+retries = 45
+triggered = False
+
+travel_coroutine = None  # active coroutine
+wait_for_ping = True
+ping_target = 70
+
+started = False
 
 def wait_for_map_load():
-    global wait_time, map_to_travel, stop
-    global times_to_retry_delay, delay_retries
-
-    traveled_to_795 = False  
-
-    yield from Routines.Yield.wait(500) #time to wait for the map start loading
-    while True:
-        if Map.IsMapLoading():
-            yield from Routines.Yield.wait(1)
-
-        if Map.IsOutpost() or (Map.IsExplorable() and Map.GetMapID() == 280):
-            map_id = Map.GetMapID()
-
-            if map_id == 81 or map_id == 544 or map_id == 248 or map_id == 280:
-                traveled_to_795 = False
-                yield from Routines.Yield.wait(500) #time to wait on ascalon city
-                Map.Travel(map_to_travel)
-                yield from Routines.Yield.wait(500) #time to wait for the map start loading
-
-            elif not traveled_to_795 and map_id == map_to_travel:  # Mallyx
-                # Retry N times with 0 delay
-                while not Map.IsMapLoading() and delay_retries < times_to_retry_delay:
-                    yield from Routines.Yield.wait(0)  # zero delay between retries
-
-                    district_number = random.randint(2, 10)
-                    Map.TravelToDistrict(map_id=795, district_number=district_number)
-          
-                    delay_retries += 1
-                    ConsoleLog(
-                        "retry",
-                        f"Attempt {delay_retries}/{times_to_retry_delay} with no delay"
-                    )
-                    traveled_to_795 = True
-
-                if delay_retries >= times_to_retry_delay:
-                    ConsoleLog("retry", f"Max retries ({times_to_retry_delay}) reached")
-
-                else:
-                    ConsoleLog("travel", f"Too late, map is loading again")
-
-
-        if stop:
-            stop = False
-            return
-
+    global triggered, map_id, retries, started
+    triggered = False
+    while Map.GetMapID() != map_id:
         yield from Routines.Yield.wait(1)
-
-
+    
+    for _i in range(retries):
+        Map.TravelToDistrict(map_id=795, district_number=2)
+        yield from Routines.Yield.wait(0)
         
-        
-def DrawWindow():
-    global travel_coroutine, wait_time, map_to_travel
-    global mallyx_explorable_start, mallyx_explorable_end
-    global loading_start_time, times_to_retry_delay, delay_retries, stop
-
-    if PyImGui.begin("Travel Test", True, PyImGui.WindowFlags.AlwaysAutoResize):
-        current_ping = ping_handler.GetCurrentPing()
-        PyImGui.text(f"Current Ping: {current_ping} ms")
-        times_to_retry_delay = PyImGui.input_int("Retries on delay", times_to_retry_delay)
-        
-        
-        wait_time = PyImGui.input_int("Wait Time (ms)", wait_time)
-        map_to_travel = PyImGui.input_int("Map ID", map_to_travel)
-
-        if PyImGui.button("Travel"):
-            loading_start_time = 0.0
-            mallyx_explorable_end = 0.0
-            mallyx_explorable_start = 0.0
-            
-            Map.Travel(map_to_travel)
-
-            # Always start fresh coroutine on button press
-            travel_coroutine = wait_for_map_load()
-            
-        if PyImGui.button("Stop"):
-            stop = True  # signal coroutine to stop
-            travel_coroutine = None  # clear coroutine
-
-    PyImGui.end()
+    triggered = True
 
 def main():
-    global travel_coroutine, loading_start_time, loading_end_time
-    global mallyx_explorable_start, mallyx_explorable_end
+    global map_id, travel_coroutine, triggered, retries, wait_for_ping, ping_target, started
 
-    # Detect map loading
-    if Map.IsMapLoading():
-        # Leaving explorable -> record duration
-        if mallyx_explorable_end == 0.0 and mallyx_explorable_start != 0.0:
-            mallyx_explorable_end = time.perf_counter()
-            duration = mallyx_explorable_end - mallyx_explorable_start
-            duration_ms = (mallyx_explorable_end - mallyx_explorable_start) * 1000.0
-            ConsoleLog("map load", f"Mallyx explorable active time: {duration_ms:.1f} ms")
-
-            mallyx_explorable_start = 0.0
-            mallyx_explorable_end = 0.0
-
-        # Loading start
-        if loading_start_time == 0.0:
-            loading_start_time = time.perf_counter()
-
-    else:
-        # Entering explorable -> mark start
-        if mallyx_explorable_start == 0.0:
-            map_id = Map.GetMapID()
-            if map_id == 445:  # mallyx explorable
-                mallyx_explorable_start = time.perf_counter()
-
-        # Loading finished -> measure duration
-        if loading_start_time != 0.0 and loading_end_time == 0.0:
-            loading_end_time = time.perf_counter()
-            load_duration = loading_end_time - loading_start_time
-            map_name = Map.GetMapName()
-            load_duration_ms = (loading_end_time - loading_start_time) * 1000.0
-            #ConsoleLog("map load", f"Map loaded in {load_duration_ms:.1f} ms to {map_name}")
-
-            loading_start_time = 0.0
-            loading_end_time = 0.0
-
-    DrawWindow()
-
+    
     # Advance coroutine if running
     if travel_coroutine is not None:
         try:
             next(travel_coroutine)
         except StopIteration:
             travel_coroutine = None  # finished, ready for restart
+
+
+    if PyImGui.begin(MODULE_NAME, PyImGui.WindowFlags.AlwaysAutoResize):
+        current_ping = ping_handler.GetCurrentPing()
+        current_map = Map.GetMapName()
+        if current_map is None:
+            current_map = "Unknown"
+        
+        PyImGui.text(f"Current Map: {current_map} ({Map.GetMapID()})")
+        PyImGui.text(f"Current Ping: {current_ping} ms")
+        
+        ping_target = PyImGui.input_int("Ping Target", ping_target)
+        
+        wait_for_ping = PyImGui.checkbox("Wait for ping under target", wait_for_ping)
+        
+        if wait_for_ping and current_ping <= ping_target and started and current_ping >0:
+            started = False
+            travel_coroutine = wait_for_map_load()
+            Map.Travel(map_id)
+            
+        if not wait_for_ping and started:
+            started = False
+            travel_coroutine = wait_for_map_load()
+            Map.Travel(map_id)
+        
+        retries = PyImGui.input_int("Retries", retries)
+        
+        map_id = PyImGui.input_int("Map ID", map_id)
+
+        if PyImGui.button("travel"):
+            started = True
+
+        if started:
+            PyImGui.text("Waiting  for ping..." if wait_for_ping else "Traveling...")
+            
+        if triggered:
+            PyImGui.text("Travel complete!")
+            
+        PyImGui.separator()
+        PyImGui.text("Tested Values:")
+        PyImGui.text(f"Map ID: 253 Dwayna Vs grenth , retries = 25 to 35  ping target = 70")
+        PyImGui.same_line(0,-1) 
+        if PyImGui.button("Set Tested Values##dwayna"):
+            map_id = 253
+            retries = 27
+            ping_target = 65
+            wait_for_ping = False
+            
+        PyImGui.text(f"Map ID: 721 Costume Brawl, retries = 45 ping target = 70")
+        PyImGui.same_line(0,-1)
+        if PyImGui.button("Set Tested Values##costume"):
+            map_id = 721
+            retries = 45
+            ping_target = 70
+            wait_for_ping = False
+
+        PyImGui.text(f"Map ID: 368 Dragon Arena, retries = 25 ping target = 70")
+        PyImGui.same_line(0,-1)
+        if PyImGui.button("Set Tested Values##dragon"):
+            map_id = 368
+            retries = 25
+            ping_target = 70
+            wait_for_ping = False
+            
+        PyImGui.text(f"Map ID: 467 Rollerbleetle racing, retries = 40 ping target = 70")
+        PyImGui.same_line(0,-1)
+        if PyImGui.button("Set Tested Values##roller"):
+            map_id = 467
+            retries = 40
+            ping_target = 70
+            wait_for_ping = False
+            
+        PyImGui.text(f"Map ID: 855 Snowball Fiht, retries = 45 ping target = 70")
+        PyImGui.same_line(0,-1)
+        if PyImGui.button("Set Tested Values##snowball"):
+            map_id = 855
+            retries = 45
+            ping_target = 70
+            wait_for_ping = False
+            
+        PyImGui.text(f"Map ID: 445 Cytadfel Of Mallyx, retries = 50 ping target = 85")
+        PyImGui.same_line(0,-1)
+        if PyImGui.button("Set Tested Values##mallyx"):
+            map_id = 445
+            retries = 50
+            ping_target = 85
+            wait_for_ping = False
+        
+
+    PyImGui.end()
+
+
+if __name__ == "__main__":
+    main()

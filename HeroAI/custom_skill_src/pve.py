@@ -29,7 +29,7 @@ class PVESkills:
         skill.SkillType = SkillType.EchoRefrain.value
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.IsOutOfCombat = False
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -520,7 +520,7 @@ class PVESkills:
         skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.TargetingStrict = True
-        skill.Conditions.IsOutOfCombat = False
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
