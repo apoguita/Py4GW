@@ -13,6 +13,30 @@ class _ITEMS:
         self._config = parent.config
         self._helpers = parent.helpers
         self.Restock = _ITEMS._RESTOCK(parent)
+        
+    def AutoIdentifyItems(self):
+        "Uses the AutoLoot Handler to identify items automatically."
+        self._helpers.Items.auto_identify_items()
+
+    def AutoSalvageItems(self):
+        "Uses the AutoLoot Handler to salvage items automatically."
+        self._helpers.Items.auto_salvage_items()
+
+    def AutoDepositItems(self):
+        "Uses the AutoLoot Handler to deposit items automatically."
+        self._helpers.Items.auto_deposit_items()
+
+    def AutoDepositGold(self):
+        "Uses the AutoLoot Handler to deposit gold automatically."
+        self._helpers.Items.auto_deposit_gold()
+        
+    def AutoIDAndSalvageItems(self):
+        "Uses the AutoLoot Handler to identify and salvage items automatically."
+        self._helpers.Items.auto_id_and_salvage()
+        
+    def AutoIDAndSalvageAndDepositItems(self):
+        "Uses the AutoLoot Handler to identify, salvage, and deposit items automatically."
+        self._helpers.Items.auto_id_and_salvage_and_deposit()
 
     def Craft(self, model_id: int, value: int, trade_items_models: list[int], quantity_list: list[int]):
         self._helpers.Items.craft(model_id, value, trade_items_models, quantity_list)

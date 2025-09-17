@@ -180,6 +180,8 @@ class BottingClass:
         self.config.FSM.AddManagedCoroutine("keep_war_supplies",   H.upkeep_war_supplies())
         self.config.FSM.AddManagedCoroutine("keep_imp",            H.upkeep_imp())
         self.config.FSM.AddManagedCoroutine("keep_auto_combat",    H.upkeep_auto_combat())
+        #self.config.FSM.AddManagedCoroutine("keep_hero_ai",        H.upkeep_hero_ai())
+        self.config.FSM.AddManagedCoroutine("keep_auto_inventory_management", H.upkeep_auto_inventory_management())
         self.config.events.start()
 
         if self.States.coroutines:
