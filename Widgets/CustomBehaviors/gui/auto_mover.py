@@ -1,12 +1,15 @@
+from collections import deque
 from typing import Any, Callable, Generator
-from Py4GWCoreLib import IconsFontAwesome5, PyImGui
+from Py4GWCoreLib import IconsFontAwesome5, Map, PyImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
+from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import AutoMover
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader, MatchResult
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
+from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
 from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
 from Widgets.CustomBehaviors.skills.botting.move_to_distant_chest_if_path_exists import MoveToDistantChestIfPathExistsUtility
 from Widgets.CustomBehaviors.skills.botting.move_to_enemy_if_close_enough import MoveToEnemyIfCloseEnoughUtility
@@ -20,14 +23,13 @@ from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_too_far import 
 
 shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 coords_input_buffer = ["0, 0"]  # Mutable object to persist between frames
-generator:Generator[Any, None, Any] | None = None
 
 @staticmethod
 def render():
-    global generator, coords_input_buffer  # Tell Python we're referring to the global one
 
-    PyImGui.text(f"auto-moving from map coords [U]")
-    PyImGui.text(f"copy paste coordinate from [MissionMap+ - Widget]")
+    PyImGui.text(f"auto-moving from map coords [U] require [MissionMap+ - Widget]")
+    PyImGui.text(f"such feature will inject additionnal utility skills,")
+    PyImGui.text(f"so the leader account will be able to act as a bot - fully autonomous")
     PyImGui.separator()
 
     if not GLOBAL_CACHE.Party.IsPartyLeader():
@@ -35,51 +37,65 @@ def render():
         return
 
     # Render editable text box for coords
-    coords_input_buffer[0] = PyImGui.input_text("coords", coords_input_buffer[0])
-
-    instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
+    instance: CustomBehaviorBaseUtility | None = CustomBehaviorLoader().custom_combat_behavior
 
     if instance is None: return
-    auto_mover = AutoMover()
+    root = AutoMover()
 
-    if auto_mover.generator is None:
-        pass
+    if not root.is_movement_running():
 
-    if PyImGui.button("PLAY"):
+        if PyImGui.button("Follow path"):
+            root.follow_path()
 
-        target_position: tuple[float, float] | None = None
+    PyImGui.text_colored(f"follow path will generate a valid path to the target.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
+    PyImGui.text_colored(f"no need to precise intermediary points if not needed", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
 
-        # Try to parse the coordinates input
-        try:
-            # Attempt to split and map the input to two floats
-            coords = coords_input_buffer[0].split(",")
-            if len(coords) != 2:
-                raise ValueError("Expected two coordinates separated by a comma.")
-
-            # Try to convert each part of the split input into floats
-            target_position = tuple(map(float, coords))
-            
-        except ValueError as e:
-            print(f"Invalid coordinates format! Error: {e}")
-            target_position = None  # If there's any error, set to None
-
-        if target_position == None:
-            return
-
-        generator = auto_mover.define_destination(target_position)
-
-    if auto_mover.generator is not None:
-        PyImGui.text(f"Running {auto_mover.movement_progress}%")
+    if root.is_movement_running():
+        PyImGui.text(f"Running {root.get_movement_progress()}%")
         if PyImGui.button("STOP"):
-            generator = None
-            auto_mover.stop()
-    
-    if generator is not None:
-        try:
-            next(generator)
-        except StopIteration:
-            generator = None
+            root.stop_movement()
     
     PyImGui.separator()
-    PyImGui.text(f"such feature will inject additionnal utility skills,")
-    PyImGui.text(f"so the leader account will be able to act as a bot - fully autonomous")
+
+    # missing feature, 
+    # - edit current path
+
+    PyImGui.text(f"Path builder")
+
+    if not Map.MissionMap.IsWindowOpen():
+        PyImGui.text(f"To manage path, you must have MissionMap+ openned")
+
+    if Map.MissionMap.IsWindowOpen():
+        root.render()
+
+        if len(root.get_list_of_points()) >0:
+            if PyImGui.button("Remove last point from the list"):
+                root.remove_last_point_from_the_list()
+            PyImGui.same_line(0,5)
+            if PyImGui.button("clear list"):
+                root.clear_list()
+            if PyImGui.begin_child("x", size=(400, 200),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+                for point in root.get_list_of_points():
+                    PyImGui.text(f"{point}")
+            PyImGui.end_child()
+
+            if PyImGui.button("Copy waypoints coordinates"):
+                points = root.get_list_of_points()
+                if points:
+                    # Format coordinates as [ (xxx, xxx), (xxx, xxx), etc ]
+                    formatted_coords = ", ".join([f"({point[0]}, {point[1]})" for point in points])
+                    coordinates = f"[ {formatted_coords} ]"
+                    PyImGui.set_clipboard_text(coordinates)
+            PyImGui.same_line(0,5)
+            if PyImGui.button("Copy autopathing coordinates"):
+                points = root.get_final_path()
+                # Format coordinates as [ (xxx, xxx), (xxx, xxx), etc ]
+                formatted_coords = ", ".join([f"({point[0]}, {point[1]})" for point in points])
+                coordinates = f"[ {formatted_coords} ]"
+                PyImGui.set_clipboard_text(coordinates)
+            
+        if len(root.get_list_of_points()) ==0:
+            PyImGui.text(f"click on MissionMap+ to start build a path.")
+
+
+    
