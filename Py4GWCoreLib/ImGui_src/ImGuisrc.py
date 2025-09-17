@@ -535,7 +535,7 @@ class ImGui:
 
     Styles : dict[StyleTheme, Style] = {}
     __style_stack : list[Style] = []
-    Selected_Style : Style
+    Selected_Style : Style = Style()
 
     @staticmethod
     def get_style() -> Style:
