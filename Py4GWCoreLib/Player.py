@@ -1,6 +1,4 @@
-import Py4GW
 import PyPlayer
-
 
 from .enums import *
 from .Map import *

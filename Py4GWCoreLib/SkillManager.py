@@ -7,7 +7,6 @@ from HeroAI.combat import (UniqueSkills, _PrioritizeSkills, _IsSkillReady,
 from .Agent import Agent
 from.AgentArray import AgentArray
 from .Player import Player
-from .Skill import Skill
 from typing import Optional
 from .Py4GWcorelib import ThrottledTimer
 from .Py4GWcorelib import Console

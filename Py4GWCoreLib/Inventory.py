@@ -1,4 +1,3 @@
-import PyItem
 import PyInventory
 
 from .ItemArray import *
