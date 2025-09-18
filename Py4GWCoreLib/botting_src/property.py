@@ -6,7 +6,7 @@ from typing import Dict, Iterable, Optional, Final, Any
 from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .botconfig import BotConfig  # for type checkers only
+    from .config import BotConfig  # for type checkers only
 
 STEP_NAMES: Final[tuple[str, ...]] = (
     "ALCOHOL_COUNTER",
@@ -264,7 +264,12 @@ class UpkeepData:
                  slice_of_pumpkin_pie_active: bool = False,
                  slice_of_pumpkin_pie_restock: int = 0,
                  war_supplies_active: bool = False,
-                 war_supplies_restock: int = 0
+                 war_supplies_restock: int = 0,
+                 #merchants
+                 identify_kits_active: bool = True,
+                 identify_kits_restock: int = 2,
+                 salvage_kits_active: bool = True,
+                 salvage_kits_restock: int = 4
                  ):
         self.parent = parent
 
@@ -340,6 +345,14 @@ class UpkeepData:
         
         self.auto_inventory_management = Property(parent, "auto_inventory_management", active=auto_inventory_management_active)
         self.auto_loot = Property(parent, "auto_loot", active=auto_loot_active)
+        
+        self.identify_kits = Property(parent, "identify_kits", active=identify_kits_active,
+            extra_fields={"restock_quantity": identify_kits_restock,}
+        )
+
+        self.salvage_kits = Property(parent, "salvage_kits", active=salvage_kits_active,
+            extra_fields={"restock_quantity": salvage_kits_restock,}
+        )
 
     def __repr__(self) -> str:
         return (

@@ -179,3 +179,5 @@ class _Items:
         yield from inventory_handler.DepositItemsAuto()
         yield from Routines.Yield.Items.DepositGold(inventory_handler.keep_gold, log =False)
         inventory_handler.module_active = current_state
+        
+    

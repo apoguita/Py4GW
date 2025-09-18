@@ -1,5 +1,6 @@
 
 from collections.abc import Generator
+from typing import Any
 
 #region build
 class BuildMgr:
@@ -49,7 +50,7 @@ class BuildMgr:
         """Override this in child classes for casting logic."""
         raise NotImplementedError
     
-    def LoadSkillBar(self) -> Generator[None, None, None]:
+    def LoadSkillBar(self) -> Generator[Any, Any, None]:
         from Py4GWCoreLib import Routines
         """
         Load the skill bar with the build's template code.

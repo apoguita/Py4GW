@@ -2,7 +2,7 @@
 from typing import Any,Callable,Optional
 
 from .botting_src.helpers import BottingHelpers
-from .botting_src.botconfig import BotConfig
+from .botting_src.config import BotConfig
 from .BuildMgr import BuildMgr
 
 from .botting_src.subclases_src.STATES_src import _STATES
@@ -19,6 +19,8 @@ from .botting_src.subclases_src.TARGET_src import _TARGET
 from .botting_src.subclases_src.WAIT_src import _WAIT
 from .botting_src.subclases_src.UI_src import _UI
 from .botting_src.subclases_src.MULTIBOX_src import _MULTIBOX
+from .botting_src.subclases_src.MERCHANT_src import _MERCHANTS
+from .botting_src.subclases_src.PLAYER_src import _PLAYER
 
 
 class BottingClass:
@@ -144,12 +146,14 @@ class BottingClass:
         self.Properties = _PROPERTIES(self)
         self.UI = _UI(self)
         self.Items = _ITEMS(self)
+        self.Merchant = _MERCHANTS(self)
         self.Dialogs = _DIALOGS(self)
         self.Wait = _WAIT(self)
         self.Move = _MOVE(self)
         self.Map = _MAP(self)
         self.Interact = _INTERACT(self)
         self.Party = _PARTY(self)
+        self.Player = _PLAYER(self)
         self.Events = _EVENTS(self)
         self.Target = _TARGET(self)
         self.SkillBar = _SKILLBAR(self)
@@ -180,7 +184,7 @@ class BottingClass:
         self.config.FSM.AddManagedCoroutine("keep_war_supplies",   H.upkeep_war_supplies())
         self.config.FSM.AddManagedCoroutine("keep_imp",            H.upkeep_imp())
         self.config.FSM.AddManagedCoroutine("keep_auto_combat",    H.upkeep_auto_combat())
-        #self.config.FSM.AddManagedCoroutine("keep_hero_ai",        H.upkeep_hero_ai())
+        self.config.FSM.AddManagedCoroutine("keep_hero_ai",        H.upkeep_hero_ai())
         self.config.FSM.AddManagedCoroutine("keep_auto_inventory_management", H.upkeep_auto_inventory_management())
         self.config.events.start()
 

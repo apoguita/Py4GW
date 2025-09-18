@@ -23,8 +23,9 @@ class _Upkeepers:
                 yield from Routines.Yield.wait(500)       
                 
     def upkeep_hero_ai(self):
-        from ....Py4GW_widget_manager import get_widget_handler
         from ...Routines import Routines
+        from Py4GW_widget_manager import get_widget_handler
+
         handler = get_widget_handler()
         if self._config.upkeep.hero_ai.is_active() and not handler.is_widget_enabled("HeroAI"):
             handler.enable_widget("HeroAI")
