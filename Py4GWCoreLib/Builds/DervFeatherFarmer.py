@@ -117,10 +117,22 @@ class DervFeatherFarmer(BuildMgr):
         if self.status == DervBuildFarmStatus.Move:
             yield from self.swap_to_shield_set()
             self.spiked = False
+            dwarven_stability_buff_time_remaining = (
+                GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.dwarven_stability)
+                if has_dwarven_stability
+                else 0
+            )
+            intimidating_aura_bugg_time_remaining = (
+                GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.intimidating_aura)
+                if has_intimidating_aura
+                else 0
+            )
             if (
                 (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash))
                 and has_dwarven_stability
+                and dwarven_stability_buff_time_remaining > 5000
                 and has_intimidating_aura
+                and intimidating_aura_bugg_time_remaining > 5000
             ):
                 yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
                 return
