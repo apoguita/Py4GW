@@ -92,8 +92,9 @@ def farm_sensalis(bot, kill_immediately=False):
 
         if len(sensali_array) == 0:
             ConsoleLog(FEATHER_FARMER, 'No more Sensalis, looting')
-            bot.config.build_handler.status = DervBuildFarmStatus.Move
+            bot.config.build_handler.status = DervBuildFarmStatus.Loot
             yield from loot_items()
+            bot.config.build_handler.status = DervBuildFarmStatus.Move
             break  # all sensalis dead
 
         # Timeout check

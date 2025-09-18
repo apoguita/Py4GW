@@ -19,6 +19,7 @@ class DervBuildFarmStatus:
     Move = 'move'
     Ball = 'ball'
     Kill = 'kill'
+    Loot = 'loot'
 
 
 class DervFeatherFarmer(BuildMgr):
@@ -82,6 +83,10 @@ class DervFeatherFarmer(BuildMgr):
         return None
 
     def ProcessSkillCasting(self):
+        if self.status == DervBuildFarmStatus.Loot:
+            yield
+            return
+
         if not (
             Routines.Checks.Map.IsExplorable()
             and Routines.Checks.Player.CanAct()
