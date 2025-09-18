@@ -4,6 +4,9 @@ import PySkill
 class AgentModelID(IntEnum):
     FROST_WURM = 6491
     FROZEN_ELEMENTAL = 6478
+    SENSALI_DARKFEATHER = 3946
+    SENSALI_CLAW = 3944
+    SENSALI_CUTTER = 3948
     
 class SpiritModelID(IntEnum):
     # SPIRIT_MODEL
