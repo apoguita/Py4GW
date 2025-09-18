@@ -19,7 +19,6 @@ stuck_timer = ThrottledTimer(3000)
 movement_check_timer = ThrottledTimer(4000)
 stuck_counter = 0
 old_player_position = (0, 0)
-initial_run = True
 
 
 def return_to_outpost():
@@ -91,10 +90,12 @@ def farm_sensalis(bot, kill_immediately=False):
         ]
 
         if len(sensali_array) == 0:
-            ConsoleLog(FEATHER_FARMER, 'No more Sensalis, looting')
-            bot.config.build_handler.status = DervBuildFarmStatus.Loot
-            yield from loot_items()
             bot.config.build_handler.status = DervBuildFarmStatus.Move
+            bot.Properties.Disable("auto_combat")
+            ConsoleLog(FEATHER_FARMER, 'No more Sensalis, looting')
+            yield from loot_items()
+            yield from Routines.Yield.wait(1000)
+            bot.Properties.Enable("auto_combat")
             break  # all sensalis dead
 
         # Timeout check
@@ -120,7 +121,7 @@ def death_or_completion_callback(bot):
 def loot_items():
     yield from Routines.Yield.wait(1500)  # Wait for a second before starting to loot
 
-    loot_array = GLOBAL_CACHE.AgentArray.GetItemArray()
+    loot_array = AgentArray.GetItemArray()
     loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), Range.Spellcast.value)
 
     viable_loots = {
@@ -180,12 +181,22 @@ def buy_salvage_kits():
         yield from Routines.Yield.Merchant.BuySalvageKits(10)
 
 
+def is_inventory_ready(bot):
+    yield from Routines.Yield.wait(1500)
+    salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
+    id_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
+    free_slots = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
+    if salv_kits_in_inv + id_kits_in_inv >= 5 and free_slots >= 3:
+        bot.Interact.WithNpcAtXY(17290.00, 12426.00, "Interact with Merchant")
+        bot.States.AddCustomState(buy_id_kits, 'Buying ID Kits')
+        bot.States.AddCustomState(buy_salvage_kits, 'Buying Salvage Kits')
+
+
 def handle_stuck(bot):
     global stuck_timer
     global movement_check_timer
     global old_player_position
     global stuck_counter
-    global initial_run
 
     while True:
         # Wait until map is valid
@@ -273,12 +284,8 @@ def main_farm(bot):
         bot.Map.Travel(target_map_name=SEITUING_HARBOR)
         bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
-
-    # Merch (TODO): WIP
-    bot.Interact.WithNpcAtXY(17290.00, 12426.00, "Interact with Merchant")
-    bot.States.AddCustomState(buy_id_kits, 'Buying ID Kits')
-    bot.States.AddCustomState(buy_salvage_kits, 'Buying Salvage Kits')
-    bot.States.AddCustomState(identify_and_salvage_items, 'Buying Salvage Kits')
+    bot.States.AddCustomState(lambda: is_inventory_ready(bot), "Check inventory ready")
+    bot.States.AddCustomState(identify_and_salvage_items, 'Salvaging Items')
 
     # Resign setup
     bot.Move.XY(16570, 17713, "Exit Outpost for resign spot")
