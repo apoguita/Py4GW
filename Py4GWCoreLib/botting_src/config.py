@@ -36,6 +36,8 @@ class BotConfig:
                  upkeep_armor_of_salvation_active: bool = False,
                  upkeep_armor_of_salvation_restock: int = 0,
                  upkeep_auto_combat_active: bool = False,
+                 upkeep_auto_inventory_management_active: bool = False,
+                 upkeep_auto_loot_active: bool = False,
                  upkeep_birthday_cupcake_active: bool = False,
                  upkeep_birthday_cupcake_restock: int = 0,
                  upkeep_blue_rock_candy_active: bool = False,
@@ -72,6 +74,13 @@ class BotConfig:
                  upkeep_slice_of_pumpkin_pie_restock: int = 0,
                  upkeep_war_supplies_active: bool = False,
                  upkeep_war_supplies_restock: int = 0,
+                 #merchants
+                 upkeep_identify_kits_active: bool = False,
+                 upkeep_identify_kits_restock: int = 2,
+                 upkeep_salvage_kits_active: bool = False,
+                 upkeep_salvage_kits_restock: int = 4,
+                 
+                 
                  custom_build: Optional[BuildMgr] = None
                  ):
         self.parent:"BottingClass" = parent
@@ -119,6 +128,8 @@ class BotConfig:
                  armor_of_salvation_active=upkeep_armor_of_salvation_active,
                  armor_of_salvation_restock=upkeep_armor_of_salvation_restock,
                  auto_combat_active=upkeep_auto_combat_active,
+                 auto_inventory_management_active=upkeep_auto_inventory_management_active,
+                 auto_loot_active=upkeep_auto_loot_active,
                  birthday_cupcake_active=upkeep_birthday_cupcake_active,
                  birthday_cupcake_restock=upkeep_birthday_cupcake_restock,
                  blue_rock_candy_active=upkeep_blue_rock_candy_active,
@@ -154,7 +165,12 @@ class BotConfig:
                  slice_of_pumpkin_pie_active=upkeep_slice_of_pumpkin_pie_active,
                  slice_of_pumpkin_pie_restock=upkeep_slice_of_pumpkin_pie_restock,
                  war_supplies_active=upkeep_war_supplies_active,
-                 war_supplies_restock=upkeep_war_supplies_restock)
+                 war_supplies_restock=upkeep_war_supplies_restock,
+                 identify_kits_active=upkeep_identify_kits_active,
+                 identify_kits_restock=upkeep_identify_kits_restock,
+                 salvage_kits_active=upkeep_salvage_kits_active,
+                 salvage_kits_restock=upkeep_salvage_kits_restock,
+                    )
         self.events = Events(self)
 
 
