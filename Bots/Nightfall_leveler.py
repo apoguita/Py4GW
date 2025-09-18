@@ -57,15 +57,15 @@ def EquipSkillBar():
         elif level <= 5: #20 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OgCkkWqxqwGDCW6WdHw/Xx74FjD")
         elif level <= 6: #40 attribute points available (Ranger 2nd profession available)
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKjYRZ3aMVXxLAAAAAAAAAaDA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNpn6sKj4V6+fHwAAAAAg2A")
         elif level <= 8: #50 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNYRGuGj4N2AAAAAAAAAg2A")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNpn6sKj4V6+fHwAAAAAg2A")
         elif level <= 9: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNYRGuGj4N2AAAAAAAAAg2A")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNpn6sKj4V6+fHwAAAAAg2A")
         elif level <= 10: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNYRGuGj4N2AAAAAAAAAg2A")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNpn6sKj4V6+fHwAAAAAg2AA")
         else: #20 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNYRGuGj4N2AAAAAAAAAg2A")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNpn6sKj4V6+fHwAAAAAg2A")
     elif profession == "Paragon":
         yield from Routines.Yield.Skills.LoadSkillbar("OwJkYRZ5XMGiiBbuMAAAAAtJAA")   
 
@@ -127,7 +127,7 @@ def Quiz_the_recruits(bot: Botting):
 def Configure_first_Battle(bot: Botting):
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
     bot.States.AddCustomState(EquipHeroSkillBar, "Koss Skill Bar")
-    bot.Items.Equip(15591) #starter schythe
+    bot.Items.Equip(15591) #starter scythe
     bot.Dialogs.AtXY(3433, -5900, 0x82C707, step_name="Accept")
 
 def Enter_Chahbek_Mission(bot: Botting):
@@ -325,7 +325,7 @@ def second_profession(bot: Botting):
     bot.Wait.ForMapToChange(target_map_id=456)
     bot.States.AddHeader("Churrhir Fields")
     ConfigurePacifistEnv(bot)
-    bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
+    #bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
     bot.Move.XYAndDialog(-9498, 1426, 0x7F, step_name="Ranger Skills")
     bot.Move.XYAndDialog(-11571, -3726, 0x7F, step_name="Ranger Skills 2")
     bot.Move.XY(-11031, -3326) #get pet
