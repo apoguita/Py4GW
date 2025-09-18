@@ -57,15 +57,15 @@ def EquipSkillBar():
         elif level <= 5: #20 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OgCkkWqxqwGDCW6WdHw/Xx74FjD")
         elif level <= 6: #40 attribute points available (Ranger 2nd profession available)
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKjYRZ3aMVXFDAAAAAEv0mNDA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKjYRZ3aMVXxLAAAAAAAAAaDA")
         elif level <= 8: #50 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkKrBbMiXprAAAAAAAAAAAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNYRGuGj4N2AAAAAAAAAg2A")
         elif level <= 9: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkKrBbMiXprAAAAAAAAAAAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNYRGuGj4N2AAAAAAAAAg2A")
         elif level <= 10: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkKrBbMiXprAAAAAAAAAAAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNYRGuGj4N2AAAAAAAAAg2A")
         else: #20 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkKrBbMiXprAAAAAAAAAAAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNYRGuGj4N2AAAAAAAAAg2A")
     elif profession == "Paragon":
         yield from Routines.Yield.Skills.LoadSkillbar("OwJkYRZ5XMGiiBbuMAAAAAtJAA")   
 
@@ -82,7 +82,7 @@ def EquipHeroSkillBar():
     elif profession == "Ranger":
         yield from Routines.Yield.Skills.LoadHeroSkillbar("OggjYZZIYMKG1pvBAAAAA0GBAA")
     elif profession == "Monk":
-        yield from Routines.Yield.Skills.LoadHeroSkillbar("OwUTIkHBppkkRortEQSRIHETAA")
+        yield from Routines.Yield.Skills.LoadHeroSkillbar("OwAS0KINZEQSOhu2SiJAAAA")
     elif profession == "Necromancer":
         yield from Routines.Yield.Skills.LoadHeroSkillbar("OAJTYJckzQxw23AAAAg2CAA")
     elif profession == "Mesmer":
@@ -326,7 +326,7 @@ def second_profession(bot: Botting):
     bot.States.AddHeader("Churrhir Fields")
     ConfigurePacifistEnv(bot)
     bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
-    #bot.Move.XYAndDialog(-9498, 1426, 0x7F, step_name="Ranger Skills")
+    bot.Move.XYAndDialog(-9498, 1426, 0x7F, step_name="Ranger Skills")
     bot.Move.XYAndDialog(-11571, -3726, 0x7F, step_name="Ranger Skills 2")
     bot.Move.XY(-11031, -3326) #get pet
     bot.Target.Model(4242) #Flamingo
@@ -381,15 +381,32 @@ def after_level_5(bot: Botting):
     bot.Dialogs.AtXY(2888, 2207, 0x827901, step_name="Sounds Like Fun")
     
 def jokanur_diggings_quests(bot):
-    bot.States.AddHeader("Jokanur Diggings 2")
+    bot.States.AddHeader("Sprint to level 10")
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
-    bot.Party.AddHero(6) #Koss
-    bot.Party.AddHero(7) #Dunkoro
-    bot.States.AddCustomState(EquipHeroSkillBar, "OQgkQNVCoEGjQxvwVCAPuvp68iB")
-    bot.Party.AddHenchman(6)
+    PrepareForBattle(bot, Hero_List=[6,7], Henchman_List=[6])
+    #bot.States.AddCustomState(EquipHeroSkillBar, "OQgkQNVCoEGjQxvwVCAPuvp68iB") #I don't know how to use this yet
+    bot.Move.XYAndExitMap(-3225, -855, target_map_id=481) #Fahranur The First City
+    bot.Wait.ForMapToChange(target_map_id=481)
+    bot.States.AddHeader("Fahranur The First City")
+    bot.Move.XYAndDialog(19651, 12237, 0x85) #Blessing 
+    bot.Move.XY(15193, 5918)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(14485, 16)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(10256, -1393)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XYAndDialog(11238, -2718, 0x85) #Bounty
+    bot.Move.XY(-12666, -2666)
+    bot.Wait.UntilOutOfCombat()
+    bot.Map.Travel(target_map_id=491) #Jokanur Diggings, add more mobs before here
+    bot.Wait.ForMapToChange(target_map_id=491)
+    bot.States.JumpToStepName("[H]Sprint to level 10_24") # Will add more to the loop
 
-    # go get a pet here
+
+
+
+    
 
 #region MAIN
 selected_step = 0
