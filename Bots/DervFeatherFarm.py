@@ -11,14 +11,14 @@ FEATHER_FARMER = "Feather Farmer"
 bot = Botting(
     FEATHER_FARMER,
     custom_build=DervFeatherFarmer(),
-    config_movement_timeout=15000,
-    config_movement_tolerance=200,
+    config_movement_tolerance=600,  # Can get stuck before it reaches the point, but good enough to fight sensalis in the area
 )
 loot_singleton = LootConfig()
 stuck_timer = ThrottledTimer(3000)
 movement_check_timer = ThrottledTimer(4000)
 stuck_counter = 0
 old_player_position = (0, 0)
+is_looting = False
 
 
 def return_to_outpost():
@@ -69,6 +69,13 @@ def ball_sensalis(bot):
 
 
 def farm_sensalis(bot, kill_immediately=False):
+    global is_looting
+    # Auto detect if sensalis in the area
+    px, py = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Spellcast.value)
+    if not sum(1 for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) in SENSALI_MODEL_IDS):
+        return
+
     if kill_immediately:
         bot.config.build_handler.status = DervBuildFarmStatus.Kill
     else:
@@ -91,11 +98,15 @@ def farm_sensalis(bot, kill_immediately=False):
 
         if len(sensali_array) == 0:
             bot.config.build_handler.status = DervBuildFarmStatus.Move
-            bot.Properties.Disable("auto_combat")
-            ConsoleLog(FEATHER_FARMER, 'No more Sensalis, looting')
-            yield from loot_items()
-            yield from Routines.Yield.wait(1000)
-            bot.Properties.Enable("auto_combat")
+            if not is_looting:  # prevent calling loot_items twice on subsequent farm_sensali calls
+                is_looting = True
+                bot.Dialogs._disable_auto_combat()
+                yield from Routines.Yield.wait(2000)  # Wait for a second before starting to loot
+                ConsoleLog(FEATHER_FARMER, 'No more Sensalis, looting')
+                yield from loot_items()
+                yield from Routines.Yield.wait(2000)
+                is_looting = False
+                bot.Dialogs._restore_auto_combat()
             break  # all sensalis dead
 
         # Timeout check
@@ -112,7 +123,7 @@ def farm_sensalis(bot, kill_immediately=False):
     yield from Routines.Yield.wait(100)
 
 
-def death_or_completion_callback(bot):
+def death_callback(bot):
     bot.Party.Resign()
     bot.States.AddCustomState(return_to_outpost, "Return to Seitung Harbor")
     bot.States.JumpToStepName("[H]Farm Loop_2")
@@ -122,11 +133,13 @@ def loot_items():
     yield from Routines.Yield.wait(1500)  # Wait for a second before starting to loot
 
     loot_array = AgentArray.GetItemArray()
-    loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), Range.Spellcast.value)
+    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
 
     viable_loots = {
         ModelID.Bone,
         ModelID.Feather,
+        ModelID.Monstrous_Eye,
+        ModelID.Monstrous_Claw,
         ModelID.Feathered_Crest,
         ModelID.Bottle_Of_Rice_Wine,
         ModelID.Bottle_Of_Vabbian_Wine,
@@ -242,15 +255,10 @@ def handle_stuck(bot):
                     for _ in range(3):
                         GLOBAL_CACHE.Player.Move(sidestep_pos[0], sidestep_pos[1])
 
-                    # Pause FSM and remember where we are
-                    fsm = bot.config.FSM
-                    fsm.pause()
-                    ActionQueueManager().ResetQueue("ACTION")
-
+                    bot.Properties.Disable('pause_on_danger')
                     # Deal with local enemies before resuming
                     yield from farm_sensalis(bot, kill_immediately=True)
-
-                    fsm.resume()
+                    bot.Properties.Enable('pause_on_danger')
                     yield
                 else:
                     old_player_position = current_player_pos
@@ -275,7 +283,7 @@ def load_skill_bar(bot):
 
 def main_farm(bot):
     bot.Properties.Enable("auto_combat")
-    bot.Events.OnDeathCallback(lambda: death_or_completion_callback(bot))
+    bot.Events.OnDeathCallback(lambda: death_callback(bot))
     bot.States.AddManagedCoroutine('Stuck handler', lambda: handle_stuck(bot))
 
     bot.States.AddHeader('Starting Loop')
@@ -305,74 +313,63 @@ def main_farm(bot):
     bot.Move.XY(1540, -6995, 'Move spot 2')
 
     bot.Move.XY(-472, -4342, 'Move to Kill Spot 1')
-    bot.States.AddHeader('Kill Spot 1')
     bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=True), "Killing Sensalis Immediately")
 
     bot.Move.XY(-1536, -1686, "Move to Kill Spot 2")
-    bot.States.AddHeader('Kill Spot 2')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(586, -76, "Move to Kill Spot 3")
-    bot.States.AddHeader('Kill Spot 3')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-1556, 2786, "Move to Kill Spot 4")
-    bot.States.AddHeader('Kill Spot 4')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-2229, -815, "Move to Kill Spot 5")
-    bot.States.AddHeader('Kill Spot 5')
     bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=True), "Killing Sensalis Immediately")
 
     bot.Move.XY(-5247, -3290, "Move to Kill Spot 6")
-    bot.States.AddHeader('Kill Spot 6')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-6994, -2273, "Move to Kill Spot 7")
-    bot.States.AddHeader('Kill Spot 7')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-5042, -6638, "Move to Kill Spot 8")
-    bot.States.AddHeader('Kill Spot 8')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-11040, -8577, "Move to Kill Spot 9")
-    bot.States.AddHeader('Kill Spot 9')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-10860, -2840, "Move to Kill Spot 10")
-    bot.States.AddHeader('Kill Spot 10')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-14900, -3000, "Move to Kill Spot 11")
-    bot.States.AddHeader('Kill Spot 11')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-12200, 150, "Move to Kill Spot 12")
-    bot.States.AddHeader('Kill Spot 12')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-12500, 4000, "Move to Kill Spot 13")
-    bot.States.AddHeader('Kill Spot 13')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-12111, 1690, "Move to Kill Spot 14")
-    bot.States.AddHeader('Kill Spot 14')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-10303, 4110, "Move to Kill Spot 15")
-    bot.States.AddHeader('Kill Spot 15')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-10500, 5500, "Move to Kill Spot 16")
-    bot.States.AddHeader('Kill Spot 16')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
 
     bot.Move.XY(-9700, 2400, "Move to Kill Spot 17")
-    bot.States.AddHeader('Kill Spot 17')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
+    bot.States.AddHeader('ID and Salvage at the End')
     bot.States.AddCustomState(identify_and_salvage_items, "ID and Salvage loot")
-    bot.States.AddCustomState(lambda: death_or_completion_callback(bot), "Return to Seitung Harbor")
+
+    # Manually resign and jumpt to state, instead of lambda
+    bot.Party.Resign()
+    bot.States.AddCustomState(return_to_outpost, "Return to Seitung Harbor")
+    bot.States.JumpToStepName("[H]Farm Loop_2")
 
 
 bot.SetMainRoutine(main_farm)
