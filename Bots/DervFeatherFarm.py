@@ -35,6 +35,11 @@ def return_to_outpost():
 
 
 def ball_sensalis(bot):
+    px, py = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Spellcast.value)
+    if not sum(1 for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) in SENSALI_MODEL_IDS):
+        return False
+        
     ConsoleLog(FEATHER_FARMER, 'Balling all Sensalis...')
     bot.config.build_handler.status = DervBuildFarmStatus.Ball
     yield from Routines.Yield.wait(100)
@@ -89,7 +94,6 @@ def farm_sensalis(bot, kill_immediately=False):
             ConsoleLog(FEATHER_FARMER, 'No more Sensalis, looting')
             bot.config.build_handler.status = DervBuildFarmStatus.Move
             yield from loot_items()
-            yield from identify_and_salvage_items()
             break  # all sensalis dead
 
         # Timeout check
@@ -115,7 +119,7 @@ def death_or_completion_callback(bot):
 def loot_items():
     yield from Routines.Yield.wait(1500)  # Wait for a second before starting to loot
 
-    loot_array = AgentArray.GetItemArray()
+    loot_array = GLOBAL_CACHE.AgentArray.GetItemArray()
     loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), Range.Spellcast.value)
 
     viable_loots = {
@@ -140,35 +144,37 @@ def loot_items():
 
     filtered_agent_ids = []
     for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
-        item_data = Agent.GetItemAgent(agent_id)
+        item_data = GLOBAL_CACHE.Agent.GetItemAgent(agent_id)
         item_id = item_data.item_id
-        model_id = Item.GetModelID(item_id)
+        model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
         if model_id in viable_loots:
             # Black and White Dyes
             if model_id == ModelID.Vial_Of_Dye and (
                 GLOBAL_CACHE.Item.GetDyeColor(item_id) == 10 or GLOBAL_CACHE.Item.GetDyeColor(item_id) == 12
             ):
-                filtered_agent_ids.append(item_id)
+                filtered_agent_ids.append(agent_id)
             else:
-                filtered_agent_ids.append(item_id)
+                filtered_agent_ids.append(agent_id)
 
-    print(filtered_agent_ids)
+    filtered_agent_ids = AgentArray.Sort.ByDistance(filtered_agent_ids, Player.GetXY())
     yield from Routines.Yield.Items.LootItems(filtered_agent_ids)
 
 
 def identify_and_salvage_items():
+    yield from Routines.Yield.wait(1500)
     yield from AutoInventoryHandler().IDAndSalvageItems()
 
 
 def buy_id_kits():
+    yield from Routines.Yield.wait(1500)
     kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
     if kits_in_inv <= 2:
         yield from Routines.Yield.Merchant.BuyIDKits(3)
 
 
 def buy_salvage_kits():
+    yield from Routines.Yield.wait(1500)
     kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
-
     if kits_in_inv <= 3:
         yield from Routines.Yield.Merchant.BuySalvageKits(10)
 
@@ -267,11 +273,11 @@ def main_farm(bot):
         bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
 
-    # Merch
-    # bot.Interact.WithNpcAtXY(17290.00, 12426.00, "Interact with Merchant")
-    # bot.States.AddCustomState(buy_id_kits, 'Buying ID Kits')
-    # bot.States.AddCustomState(buy_salvage_kits, 'Buying Salvage Kits')
-    # bot.States.AddCustomState(identify_and_salvage_items, 'Buying Salvage Kits')
+    # Merch (TODO): WIP
+    bot.Interact.WithNpcAtXY(17290.00, 12426.00, "Interact with Merchant")
+    bot.States.AddCustomState(buy_id_kits, 'Buying ID Kits')
+    bot.States.AddCustomState(buy_salvage_kits, 'Buying Salvage Kits')
+    bot.States.AddCustomState(identify_and_salvage_items, 'Buying Salvage Kits')
 
     # Resign setup
     bot.Move.XY(16570, 17713, "Exit Outpost for resign spot")
@@ -357,6 +363,7 @@ def main_farm(bot):
     bot.Move.XY(-9700, 2400, "Move to Kill Spot 17")
     bot.States.AddHeader('Kill Spot 17')
     bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+    bot.States.AddCustomState(identify_and_salvage_items, "ID and Salvage loot")
     bot.States.AddCustomState(lambda: death_or_completion_callback(bot), "Return to Seitung Harbor")
 
 
