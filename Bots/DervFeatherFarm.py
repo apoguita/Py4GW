@@ -1,6 +1,6 @@
-from Bots.DervFeatherFarmer import SENSALI_MODEL_IDS
-from Bots.DervFeatherFarmer import DervBuildFarmStatus
-from Bots.DervFeatherFarmer import DervFeatherFarmer
+from Py4GWCoreLib.Builds.DervFeatherFarmer import SENSALI_MODEL_IDS
+from Py4GWCoreLib.Builds.DervFeatherFarmer import DervBuildFarmStatus
+from Py4GWCoreLib.Builds.DervFeatherFarmer import DervFeatherFarmer
 from Py4GWCoreLib import *
 
 selected_step = 0
@@ -39,7 +39,7 @@ def ball_sensalis(bot):
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Spellcast.value)
     if not sum(1 for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) in SENSALI_MODEL_IDS):
         return False
-        
+
     ConsoleLog(FEATHER_FARMER, 'Balling all Sensalis...')
     bot.config.build_handler.status = DervBuildFarmStatus.Ball
     yield from Routines.Yield.wait(100)
