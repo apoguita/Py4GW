@@ -44,11 +44,10 @@ window_module = ImGui.WindowModule(
     MODULE_NAME,
     window_name="Style Manager",
     window_size=(window_width, window_height),
+    window_pos=(window_x, window_y),
     window_flags=PyImGui.WindowFlags.NoFlag,
     collapse=window_collapsed,
 )
-
-window_module.window_pos = (window_x, window_y)
 
 py4_gw_ini_handler = IniHandler("Py4GW.ini")
 selected_theme = Style.StyleTheme[py4_gw_ini_handler.read_key(
@@ -81,11 +80,12 @@ def DrawThemeCompare():
     pass
 
 def DrawWindow():
-    global theme_compare, control_compare, style
+    global theme_compare, control_compare, style, window_width, window_height, save_throttle_timer, save_throttle_time
 
-    PyImGui.set_next_window_size((600, 400), PyImGui.ImGuiCond.Once)    
-    style.apply_to_style_config()
-            
+    # PyImGui.set_next_window_size((600, 400), PyImGui.ImGuiCond.Once)    
+    style.apply_to_style_config()            
+    window_module.initialize()
+    
     if window_module.begin():
         remaining = PyImGui.get_content_region_avail()
         button_width = (remaining[0] - 10) / 2
@@ -369,8 +369,34 @@ def DrawWindow():
 
             PyImGui.end_tab_bar()
 
+        window_module.window_size = PyImGui.get_window_size()
+        window_module.process_window()
+        
     window_module.end()
 
+    if save_throttle_timer.HasElapsed(save_throttle_time):
+        save_throttle_timer.Reset()
+        
+        if window_module.window_pos[0] != window_module.end_pos[0] or window_module.window_pos[1] != window_module.end_pos[1]:
+            window_module.window_pos = window_module.end_pos
+            ini_handler.write_key(
+                MODULE_NAME + " Config", "x", str(int(window_module.window_pos[0])))
+            ini_handler.write_key(
+                MODULE_NAME + " Config", "y", str(int(window_module.window_pos[1])))
+
+        if window_width != window_module.window_size[0] or window_height != window_module.window_size[1]:
+            ini_handler.write_key(
+                MODULE_NAME + " Config", "width", str(int(window_module.window_size[0])))
+            ini_handler.write_key(
+                MODULE_NAME + " Config", "height", str(int(window_module.window_size[1])))
+            window_width, window_height = window_module.window_size
+
+        if window_module.collapsed_status != window_module.collapse:
+            window_module.collapse = window_module.collapsed_status
+            ini_handler.write_key(
+                MODULE_NAME + " Config", "collapsed", str(window_module.collapse))
+
+        
     if control_compare:
         DrawControlCompare()
 
