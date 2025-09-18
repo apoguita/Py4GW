@@ -3,7 +3,7 @@ from Py4GWCoreLib import *
 bot = Botting("Asura by Wick Divinus")
 
 def Routine(bot: Botting) -> None:
-    bot.Properties.ApplyNow("pause_on_danger", "active", False)
+    bot.Properties.ApplyNow("pause_on_danger", "active", True)
     bot.Properties.ApplyNow("halt_on_death","active", True)
     bot.Properties.ApplyNow("movement_timeout","value", 15000)
     bot.Properties.ApplyNow("auto_combat","active", True)
@@ -204,8 +204,8 @@ def Routine(bot: Botting) -> None:
     #bot.Party.Resign()
     bot.Multibox.ResignParty()
     bot.Wait.ForMapToChange(target_map_id=640)
-    bot.UI.PrintMessageToConsole("Asura farm", "Finished routine")
-    bot.States.JumpToStepName("EXIT OUTPOST HEADER")
+    #bot.UI.PrintMessageToConsole("Asura farm", "Finished routine")
+    bot.States.JumpToStepName("[H]Travel to Ratasum_1")
 
 
     
