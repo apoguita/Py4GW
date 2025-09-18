@@ -51,9 +51,9 @@ def EquipSkillBar():
         if level <= 2: #5 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OgCjkKrBbMiXprAAAAAAAAAAAA")
         elif level <= 3: #10 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOqxqMiXpb1dA/fRwjXBAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOqxqMiXpb1dA/fBAAABAA")
         elif level <= 4: #15 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgCkkSqxqwGDCW6WdHw/Xx74FjD")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCkkSqxqwGj4V6WdHw/XAAAAjD")
         elif level <= 5: #20 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OgCkkWqxqwGDCW6WdHw/Xx74FjD")
         elif level <= 6: #40 attribute points available (Ranger 2nd profession available)
@@ -90,11 +90,10 @@ def EquipHeroSkillBar():
     elif profession == "Elementalist":
         yield from Routines.Yield.Skills.LoadHeroSkillbar("OgJUwCLhjcGKG2+GAAAA0WAA")
     elif profession == "Warrior":
-        yield from Routines.Yield.Skills.LoadHeroSkillbar("OQITQpKZlQo+lrBIw8m2bGA")
+        yield from Routines.Yield.Skills.LoadHeroSkillbar("OQgkQNVCoEGjQxvwVCAPuvp68iB")
     elif profession == "Paragon":
         yield from Routines.Yield.Skills.LoadHeroSkillbar("OwJkYRZ5XMGiiBbuMAAAAAtJAA")   
 
-    
 #region Start
 
 def skip_tutorial_dialog(bot: Botting) -> None:
@@ -127,6 +126,7 @@ def Quiz_the_recruits(bot: Botting):
 
 def Configure_first_Battle(bot: Botting):
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
+    bot.States.AddCustomState(EquipHeroSkillBar, "Koss Skill Bar")
     bot.Items.Equip(15591) #starter schythe
     bot.Dialogs.AtXY(3433, -5900, 0x82C707, step_name="Accept")
 
@@ -287,8 +287,6 @@ def SSGH_quests(bot: Botting):
     bot.Wait.UntilOutOfCombat()
     bot.Interact.WithGadgetAtXY(-6418, -3759) #Corsair Chest
     bot.Wait.ForTime(2000)
-    bot.Interact.WithNpcAtXY(-7169, -3388, step_name="Talk to Poturi")
-    bot.Dialogs.AtXY(-7169, -3388, 0x829307, step_name="Proof of Courage complete")
     bot.Move.XY(-5950, -6889) #Suwash the Pirate 1
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-10278, -7011) #Suwash the Pirate 2
@@ -313,8 +311,9 @@ def SSGH_quests(bot: Botting):
     bot.States.AddHeader("The Astralarium")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     bot.Wait.ForMapToChange(target_map_id=431)
-    bot.Move.XYAndDialog(-1835, 6505, 0x825A07, step_name="A Hidden Threat reward")
+    bot.Move.XYAndDialog(-4367, 6542, 0x829307, step_name="Proof of Courage Reward")
     bot.Move.XYAndDialog(-4558, 4693, 0x826207, step_name="Suwash the Pirate reward")
+    bot.Move.XYAndDialog(-1835, 6505, 0x825A07, step_name="A Hidden Threat reward")
 
 def second_profession(bot: Botting):  
     bot.Map.Travel(target_map_id=449) #Kamadan
@@ -347,11 +346,10 @@ def after_level_5(bot: Botting):
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC03, step_name='Rising to 1st Spear')
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC01, step_name="Sounds good to me")
-
     bot.States.AddHeader("Champions Dawn 2")
     bot.Map.Travel(target_map_id=479) #Champions Dawn
     bot.Wait.ForMapToChange(target_map_id=479)
-    PrepareForBattle(bot)
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[6,7])
     bot.Move.XYAndDialog(22884, 7641, 0x827804, step_name="Leaving A Legacy")
     bot.Move.XYAndExitMap(22483, 6115, target_map_id=432) #Cliffs of Dohjok
     bot.Wait.ForMapToChange(target_map_id=432)
@@ -388,7 +386,7 @@ def jokanur_diggings_quests(bot):
     bot.Party.LeaveParty()
     bot.Party.AddHero(6) #Koss
     bot.Party.AddHero(7) #Dunkoro
-    bot.States.AddCustomState(EquipHeroSkillBar, "Equip Hero Skill Bar")
+    bot.States.AddCustomState(EquipHeroSkillBar, "OQgkQNVCoEGjQxvwVCAPuvp68iB")
     bot.Party.AddHenchman(6)
 
     # go get a pet here
