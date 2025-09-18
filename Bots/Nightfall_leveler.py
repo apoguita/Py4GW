@@ -33,7 +33,7 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("imp")
     bot.Items.SpawnBonusItems()
-    bot.Items.DestroyBonusItems(exclude_list = [ModelID.Igneous_Summoning_Stone.value])
+    bot.Items.DestroyBonusItems(exclude_list = [ModelID.Igneous_Summoning_Stone.value, ModelID.Bonus_Nevermore_Flatbow.value])
     
 def PrepareForBattle(bot: Botting, Hero_List = [], Henchman_List = []) -> None:
     ConfigureAggressiveEnv(bot)
