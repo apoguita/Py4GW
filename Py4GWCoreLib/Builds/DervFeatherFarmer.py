@@ -84,7 +84,6 @@ class DervFeatherFarmer(BuildMgr):
 
     def ProcessSkillCasting(self):
         if self.status == DervBuildFarmStatus.Loot:
-            yield
             return
 
         if not (
