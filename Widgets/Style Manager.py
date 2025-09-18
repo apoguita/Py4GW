@@ -526,9 +526,7 @@ def get_code(func: FunctionType, *args, control_colors: list[str] = []) -> str:
     pushed_colors = theme_selector(style, func, control_colors)
 
     ImGui.Selected_Style = style
-    style.push_style_vars()
     func.__call__(*args)  # Call the function to render the control
-    style.pop_style_vars()
     ImGui.Selected_Style = org_style
 
     for _, col in pushed_colors.items():
