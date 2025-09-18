@@ -71,8 +71,8 @@ def OnLoad():
     
     if is_first_run:
         is_first_run = False            
-        ImGui.reload_theme(Style.StyleTheme(selected_theme))
-        ImGui.set_theme(selected_theme)
+        set_theme(selected_theme)
+        
 
 def DrawControlCompare():
     pass
@@ -118,13 +118,7 @@ def DrawWindow():
         PyImGui.separator()
         PyImGui.spacing()
 
-        any_changed = False
-
-        for k, col in style.Colors.items():
-            org_color = ImGui.Selected_Style.Colors.get(k, None)
-            if org_color and col.color_int != org_color.color_int:
-                any_changed = True
-                break
+        any_changed = is_style_modified()
 
         PyImGui.begin_disabled(not any_changed)
         if PyImGui.button("Save Changes", button_width):
@@ -384,6 +378,30 @@ def DrawWindow():
         DrawThemeCompare()
 
     pass
+
+def is_style_modified():
+    for k, col in style.Colors.items():
+        org_color = ImGui.Selected_Style.Colors.get(k, None)
+        if org_color and col.color_int != org_color.color_int:
+            return True
+        
+    for k, col in style.CustomColors.items():
+        org_color = ImGui.Selected_Style.CustomColors.get(k, None)
+        if org_color and col.color_int != org_color.color_int:
+            return True
+        
+    for k, col in style.TextureColors.items():
+        org_color = ImGui.Selected_Style.TextureColors.get(k, None)
+        if org_color and col.color_int != org_color.color_int:
+            return True
+        
+    for k, col in style.StyleVars.items():
+        org_var = ImGui.Selected_Style.StyleVars.get(k, None)
+        
+        if org_var and col != org_var:
+            return True
+        
+    return False
 
 def set_theme(theme):
     global style
