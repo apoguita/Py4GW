@@ -2494,11 +2494,8 @@ class ImGui:
     #region WIP
     @staticmethod
     def begin_popup(id: str, flags: PyImGui.WindowFlags = PyImGui.WindowFlags.NoFlag) -> bool:     
-        style = ImGui.get_style()
-        
-        style.push_style()
+
         open = PyImGui.begin_popup(id, PyImGui.WindowFlags(flags))
-        style.pop_style()
         
         return open
 
@@ -2508,11 +2505,7 @@ class ImGui:
 
     @staticmethod
     def begin_tooltip() -> bool:
-        style = ImGui.get_style()
-        style.push_style()
-        open = PyImGui.begin_tooltip()
-        style.pop_style()
-        
+        open = PyImGui.begin_tooltip()        
         return open
 
     @staticmethod
@@ -2586,12 +2579,8 @@ class ImGui:
 
     @staticmethod
     def begin_popup_modal(name: str, p_open: Optional[bool], flags: int) -> bool:
-        style = ImGui.get_style()
-        style.push_style()
 
         opened = PyImGui.begin_popup_modal(name, p_open, flags)
-
-        style.pop_style()
 
         return opened
 
@@ -2609,10 +2598,6 @@ class ImGui:
              
     @staticmethod
     def begin(name: str, p_open: Optional[bool] = None, flags: PyImGui.WindowFlags = PyImGui.WindowFlags.NoFlag) -> bool:
-            
-        style = ImGui.get_style()
-        
-        style.push_style()
         if name not in ImGui.WindowModule._windows:
             ImGui.WindowModule._windows[name] = ImGui.WindowModule(name, window_flags=flags)
 
@@ -2623,15 +2608,11 @@ class ImGui:
             ImGui.WindowModule._windows[name].collapse = window.collapsed if window else False
 
         open = ImGui.WindowModule._windows[name].begin(p_open, flags)
-        style.pop_style()
         
         return open
     
     @staticmethod
     def begin_with_close(name: str, p_open: Optional[bool] = None, flags: PyImGui.WindowFlags = PyImGui.WindowFlags.NoFlag) -> bool:
-        style = ImGui.get_style()
-
-        style.push_style()
         if name not in ImGui.WindowModule._windows:
             ImGui.WindowModule._windows[name] = ImGui.WindowModule(name, window_flags=flags)
 
@@ -2643,7 +2624,6 @@ class ImGui:
 
         ImGui.WindowModule._windows[name].can_close = True
         open = ImGui.WindowModule._windows[name].begin(p_open, flags)
-        style.pop_style()
         
         return open
 
@@ -2709,7 +2689,6 @@ class ImGui:
         PyImGui.begin_disabled(not enabled)
         style = ImGui.get_style()
         style.ButtonPadding.get_current().push_style_var()
-        style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -2810,7 +2789,6 @@ class ImGui:
                         button_color.pop_color()
 
         style.ButtonPadding.pop_style_var()
-        style.FrameRounding.pop_style_var()
         PyImGui.end_disabled()
 
         return clicked
@@ -2849,7 +2827,6 @@ class ImGui:
         PyImGui.begin_disabled(not enabled)
         style = ImGui.get_style()
         style.ButtonPadding.get_current().push_style_var()
-        style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -2975,7 +2952,6 @@ class ImGui:
                     button_color.pop_color()
 
         style.ButtonPadding.pop_style_var()
-        style.FrameRounding.pop_style_var()
         PyImGui.end_disabled()
         
         return clicked
@@ -2985,7 +2961,6 @@ class ImGui:
         PyImGui.begin_disabled(not enabled)
         style = ImGui.get_style()
         style.ButtonPadding.get_current().push_style_var()
-        style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -3083,7 +3058,6 @@ class ImGui:
                     
 
         style.ButtonPadding.pop_style_var()
-        style.FrameRounding.pop_style_var()
         PyImGui.end_disabled()
         
         return clicked
@@ -3093,7 +3067,6 @@ class ImGui:
         PyImGui.begin_disabled(not enabled)
         style = ImGui.get_style()
         style.ButtonPadding.get_current().push_style_var()
-        style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -3192,7 +3165,6 @@ class ImGui:
                         button_color.pop_color()
 
         style.ButtonPadding.pop_style_var()
-        style.FrameRounding.pop_style_var()
         PyImGui.end_disabled()
         
         if clicked:
@@ -3206,7 +3178,6 @@ class ImGui:
         PyImGui.begin_disabled(not enabled)
         style = ImGui.get_style()
         style.ButtonPadding.push_style_var(width / 8, height / 8)
-        style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -3325,7 +3296,6 @@ class ImGui:
                         button_color.pop_color()
 
         style.ButtonPadding.pop_style_var()
-        style.FrameRounding.pop_style_var()
         PyImGui.end_disabled()
         
         return clicked
@@ -3335,7 +3305,6 @@ class ImGui:
         PyImGui.begin_disabled(not enabled)
         style = ImGui.get_style()
         style.ButtonPadding.push_style_var(width / 8, height / 8)
-        style.FrameRounding.get_current().push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -3453,7 +3422,6 @@ class ImGui:
                         button_color.pop_color()
 
         style.ButtonPadding.pop_style_var()
-        style.FrameRounding.pop_style_var()
         PyImGui.end_disabled()
             
         if clicked:
@@ -3465,9 +3433,6 @@ class ImGui:
     def combo(label: str, current_item: int, items: list[str]) -> int:
         index = current_item
         style = ImGui.get_style()
-        style.FrameRounding.get_current().push_style_var()
-        style.FramePadding.get_current().push_style_var()
-        style.ItemInnerSpacing.get_current().push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -3548,18 +3513,12 @@ class ImGui:
             case _:
                 index = PyImGui.combo(label, current_item, items)
 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.ItemInnerSpacing.pop_style_var()
 
         return index
 
     @staticmethod
     def checkbox(label: str, is_checked: bool, enabled: bool = True) -> bool:
         style = ImGui.get_style()
-        style.FrameRounding.get_current().push_style_var()
-        style.FramePadding.get_current().push_style_var()
-        style.ItemInnerSpacing.get_current().push_style_var()
 
         new_value = is_checked
         PyImGui.begin_disabled(not enabled)
@@ -3608,18 +3567,11 @@ class ImGui:
 
         PyImGui.end_disabled()
         
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.ItemInnerSpacing.pop_style_var()
-
         return new_value
 
     @staticmethod
     def radio_button(label: str, v: int, button_index: int):
         style = ImGui.get_style()
-        style.FramePadding.get_current().push_style_var()
-        style.ItemInnerSpacing.get_current().push_style_var()
-        style.ItemSpacing.get_current().push_style_var()
         
         match style.Theme:
             case Style.StyleTheme.Guild_Wars:
@@ -3670,23 +3622,12 @@ class ImGui:
             case _:
                 value = PyImGui.radio_button(label, v, button_index)
 
-        style.FramePadding.pop_style_var()
-        style.ItemInnerSpacing.pop_style_var()
-        style.ItemSpacing.pop_style_var()
         return value
 
     @staticmethod
     def input_int(label: str, v: int, min_value: int = 0, step_fast: int = 0, flags: int = 0) -> int:
         style = ImGui.get_style()
-        style.FrameRounding.get_current().push_style_var()  
-
-        current_frame_padding = style.FramePadding.get_current()
-        current_frame_padding.push_style_var()
-
         current_inner_spacing = style.ItemInnerSpacing.get_current()
-        current_inner_spacing.push_style_var()
-        
-        style.ItemSpacing.get_current().push_style_var()
         
         if not min_value and not step_fast and not flags:
             match(style.Theme):
@@ -3823,24 +3764,13 @@ class ImGui:
                 case _:
                     new_value = PyImGui.input_int(label, v, min_value, step_fast, flags)
         
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.ItemInnerSpacing.pop_style_var()
-        style.ItemSpacing.pop_style_var()
 
         return new_value
 
     @staticmethod
     def input_text(label: str, v: str, flags: int = 0) -> str:
         style = ImGui.get_style()
-        style.FrameRounding.get_current().push_style_var()      
-        style.ItemSpacing.get_current().push_style_var()
-
-        current_frame_padding = style.FramePadding.get_current()
-        current_frame_padding.push_style_var()
-
         current_inner_spacing = style.ItemInnerSpacing.get_current()
-        current_inner_spacing.push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -3891,23 +3821,13 @@ class ImGui:
             case _: 
                 new_value = PyImGui.input_text(label, v, flags)
 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.ItemInnerSpacing.pop_style_var()
-        style.ItemSpacing.pop_style_var()
         return new_value
 
     @staticmethod
     def input_float(label: str, v: float) -> float:
         style = ImGui.get_style()
-        style.FrameRounding.get_current().push_style_var()      
-        style.ItemSpacing.get_current().push_style_var()
-
-        current_frame_padding = style.FramePadding.get_current()
-        current_frame_padding.push_style_var()
 
         current_inner_spacing = style.ItemInnerSpacing.get_current()
-        current_inner_spacing.push_style_var()
         
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -3958,23 +3878,14 @@ class ImGui:
             case _: 
                 new_value = PyImGui.input_float(label, v)
 
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-        style.ItemInnerSpacing.pop_style_var()
-        style.ItemSpacing.pop_style_var()
         
         return new_value
     
     @staticmethod
     def slider_int(label: str, v: int, v_min: int, v_max: int) -> int:
         style = ImGui.get_style()
-
-        style.FrameRounding.get_current().push_style_var()  
-        style.FramePadding.get_current().push_style_var()     
-        style.GrabRounding.get_current().push_style_var()    
-        style.GrabMinSize.get_current().push_style_var() 
-        style.ItemInnerSpacing.get_current().push_style_var()          
-        style.ItemSpacing.get_current().push_style_var()          
+  
+        current_inner_spacing = style.ItemInnerSpacing.get_current()
         
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -4055,25 +3966,13 @@ class ImGui:
                 new_value = PyImGui.slider_int(label, v, v_min, v_max)
 
 
-        style.FrameRounding.pop_style_var()  
-        style.FramePadding.pop_style_var()     
-        style.GrabRounding.pop_style_var()
-        style.GrabMinSize.pop_style_var()
-        style.ItemInnerSpacing.pop_style_var()
-        style.ItemSpacing.pop_style_var()
         return new_value
     
     @staticmethod
     def slider_float(label: str, v: float, v_min: float, v_max: float) -> float:
         style = ImGui.get_style()
-
-        style.FrameRounding.get_current().push_style_var()  
-        style.FramePadding.get_current().push_style_var()     
-        style.GrabRounding.get_current().push_style_var()    
-        style.GrabMinSize.get_current().push_style_var() 
-        style.ItemInnerSpacing.get_current().push_style_var()          
-        style.ItemSpacing.get_current().push_style_var()          
-        
+        current_inner_spacing = style.ItemInnerSpacing.get_current()
+          
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
                 pad = style.FramePadding.get_current()
@@ -4151,14 +4050,6 @@ class ImGui:
 
             case _:
                 new_value = PyImGui.slider_float(label, v, v_min, v_max)
-
-
-        style.FrameRounding.pop_style_var()  
-        style.FramePadding.pop_style_var()     
-        style.GrabRounding.pop_style_var()
-        style.GrabMinSize.pop_style_var()
-        style.ItemInnerSpacing.pop_style_var()
-        style.ItemSpacing.pop_style_var()
         
         return new_value
 
@@ -4225,13 +4116,8 @@ class ImGui:
     @staticmethod
     def search_field(label: str, text : str, placeholder: str = "Search...", flags : int = PyImGui.InputTextFlags.NoFlag) -> tuple[bool, str]:
         style = ImGui.get_style()
-        style.FrameRounding.get_current().push_style_var()
-        
         current_frame_padding = style.FramePadding.get_current()
-        current_frame_padding.push_style_var()
-
         current_inner_spacing = style.ItemInnerSpacing.get_current()
-        current_inner_spacing.push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -4317,17 +4203,13 @@ class ImGui:
                     style.Text.color_int,
                     placeholder,
                 )
-                
-        style.FrameRounding.pop_style_var()
-        style.FramePadding.pop_style_var()
-                
+                                
         return new_value != text, new_value
 
     @staticmethod
     def bullet_text(text: str):
         style = ImGui.get_style()
         frame_padding = style.FramePadding.get_current()
-        frame_padding.push_style_var()
         
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -4351,13 +4233,10 @@ class ImGui:
             case _:
                 PyImGui.bullet_text(text)
             
-        frame_padding.pop_style_var()
-
     @staticmethod
     def objective_text(text: str, completed: bool = False):
         style = ImGui.get_style()
         frame_padding = style.FramePadding.get_current()
-        frame_padding.push_style_var()
         
         if completed:
             style.TextObjectiveCompleted.get_current().push_color()
@@ -4404,9 +4283,7 @@ class ImGui:
                 1,
             )
             style.TextObjectiveCompleted.pop_color()
-            
-        frame_padding.pop_style_var()
-        
+                    
         if PyImGui.is_item_clicked(0):
             completed = not completed
         
@@ -4415,11 +4292,9 @@ class ImGui:
     @staticmethod
     def collapsing_header(label: str, flags: int = 0) -> bool:
         style = ImGui.get_style()
-        style.FrameRounding.get_current().push_style_var()
         style.TextCollapsingHeader.get_current().push_color()
         
         frame_padding = style.FramePadding.get_current()
-        frame_padding.push_style_var()
         
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -4451,19 +4326,15 @@ class ImGui:
                 new_open = PyImGui.collapsing_header(label, flags)
 
         style.TextCollapsingHeader.pop_color()
-        style.FramePadding.pop_style_var()
-        style.FrameRounding.pop_style_var()
 
         return new_open
     
     @staticmethod
     def tree_node(label: str) -> bool:
         style = ImGui.get_style()
-        style.FrameRounding.get_current().push_style_var()
         style.TextTreeNode.get_current().push_color()
         
         frame_padding = style.FramePadding.get_current()
-        frame_padding.push_style_var()
         
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -4495,9 +4366,7 @@ class ImGui:
                 new_open = PyImGui.tree_node(label)
 
         style.TextTreeNode.pop_color()
-        style.FramePadding.pop_style_var()
-        style.FrameRounding.pop_style_var()
-
+        
         return new_open
     
     @staticmethod
@@ -4507,7 +4376,6 @@ class ImGui:
     @staticmethod
     def begin_tab_bar(str_id: str) -> bool:
         style = ImGui.get_style()
-        style.TabRounding.get_current().push_style_var()
 
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:                
@@ -4540,7 +4408,6 @@ class ImGui:
             case _:
                 open = PyImGui.begin_tab_bar(str_id)
 
-        style.TabRounding.pop_style_var()
         return open
                 
     @staticmethod
@@ -4550,7 +4417,6 @@ class ImGui:
     @staticmethod
     def begin_tab_item(label: str, popen: bool | None = None, flags:int = 0) -> bool:
         style = ImGui.get_style()
-        style.TabRounding.get_current().push_style_var()
         
         if popen is None:
             match(style.Theme):
@@ -4646,7 +4512,6 @@ class ImGui:
                 case _:
                     open = PyImGui.begin_tab_item(label, popen, flags)
 
-        style.TabRounding.pop_style_var()
         return open
 
     @staticmethod
@@ -4656,13 +4521,8 @@ class ImGui:
     @staticmethod
     def begin_child(id : str, size : tuple[float, float] = (0, 0), border: bool = False, flags: int = PyImGui.WindowFlags.NoFlag) -> bool:
         style = ImGui.get_style()
-        style.ScrollbarSize.get_current().push_style_var()
-        style.ScrollbarRounding.get_current().push_style_var()
         
         open = PyImGui.begin_child(id, size, border, flags)
-        
-        style.ScrollbarSize.pop_style_var()
-        style.ScrollbarRounding.pop_style_var()
                 
         return open
 
@@ -4877,15 +4737,9 @@ class ImGui:
     @staticmethod
     def begin_table(id: str, columns: int, flags: int = PyImGui.TableFlags.NoFlag, width: float = 0, height: float = 0) -> bool:
         style = ImGui.get_style()
-        
-        style.ScrollbarSize.get_current().push_style_var()
-        style.ScrollbarRounding.get_current().push_style_var()
-        
+                
         open = PyImGui.begin_table(id, columns, flags, width, height)
-        
-        style.ScrollbarSize.pop_style_var()
-        style.ScrollbarRounding.pop_style_var()
-        
+                
         return open
 
     @staticmethod
@@ -4895,8 +4749,6 @@ class ImGui:
     @staticmethod
     def progress_bar(fraction: float, size_arg_x: float, size_arg_y: float, overlay: str = ""):
         style = ImGui.get_style()
-        style.FrameRounding.get_current().push_style_var()
-        style.ItemSpacing.get_current().push_style_var()
         
         match(style.Theme):
             case Style.StyleTheme.Guild_Wars | Style.StyleTheme.Minimalus:
@@ -4979,9 +4831,6 @@ class ImGui:
                 PyImGui.text(overlay)
                 style.Text.pop_color()
                 
-        style.FrameRounding.pop_style_var()
-        style.ItemSpacing.pop_style_var()
-
     # endregion
     
     class gw_window():
