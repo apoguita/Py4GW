@@ -13,6 +13,9 @@ class StyleTheme(IntEnum):
     ImGui = 0
     Guild_Wars = 1
     Minimalus = 2
+    Smoke = 3
+    Contrast = 4
+    Negative = 5
     
 class StyleColorType(IntEnum):
     Default = 0

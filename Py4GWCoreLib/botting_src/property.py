@@ -6,7 +6,7 @@ from typing import Dict, Iterable, Optional, Final, Any
 from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .botconfig import BotConfig  # for type checkers only
+    from .config import BotConfig  # for type checkers only
 
 STEP_NAMES: Final[tuple[str, ...]] = (
     "ALCOHOL_COUNTER",
@@ -17,7 +17,7 @@ STEP_NAMES: Final[tuple[str, ...]] = (
     "CONSETS_COUNTER",
     "CRAFT_ITEM",
     "CUPCAKES_COUNTER",
-    "CUSTOM_STEP",
+    "CUSTOM_STEP"
     "DIALOG_AT",
     "DP_REMOVAL_COUNTER",
     "ENTER_CHALLENGE",
@@ -217,51 +217,76 @@ class ConfigProperties:
         self.dialog_at_succeeded = Property(parent, "dialog_at_succeeded", extra_fields={"value": False})
 
         # more properties can be added here
-        
+    
+    
 class UpkeepData:
     def __init__(self, parent: "BotConfig",
+                 #A
                  alcohol_active: bool = False,
                  alcohol_target_drunk_level: int = 2,
                  alcohol_disable_visual: bool = True,
                  armor_of_salvation_active: bool = False,
                  armor_of_salvation_restock: int = 0,
-                 auto_combat_active: bool = False,
+                 auto_combat_active: bool = True,
+                 auto_inventory_management_active: bool = True,
+                 auto_loot_active: bool = True,
+                 #B
                  birthday_cupcake_active: bool = False,
                  birthday_cupcake_restock: int = 0,
                  blue_rock_candy_active: bool = False,
                  blue_rock_candy_restock: int = 0,
                  bowl_of_skalefin_soup_active: bool = False,
                  bowl_of_skalefin_soup_restock: int = 0,
+                 #C
                  candy_apple_active: bool = False,
                  candy_apple_restock: int = 0,
                  candy_corn_active: bool = False,
                  candy_corn_restock: int = 0,
                  city_speed_active: bool = False,
+                 #D
                  drake_kabob_active: bool = False,
                  drake_kabob_restock: int = 0,
+                 #E
                  essence_of_celerity_active: bool = False,
                  essence_of_celerity_restock: int = 0,
+                 #F
                  four_leaf_clover_active: bool = False,
                  four_leaf_clover_restock: int = 0,
+                 #G
                  golden_egg_active: bool = False,
                  golden_egg_restock: int = 0,
                  grail_of_might_active: bool = False,
                  grail_of_might_restock: int = 0,
                  green_rock_candy_active: bool = False,
                  green_rock_candy_restock: int = 0,
+                 #H
+                 hero_ai_active: bool = False,
                  honeycomb_active: bool = False,
                  honeycomb_restock: int = 0,
+                 #I
                  imp_active: bool = False,
+                 #L
+                 leave_empty_inventory_slots: int = 0,
+                 #M
                  morale_active:bool = False,
                  morale_target_level: int = 110,
+                 #P
                  pahnai_salad_active: bool = False,
                  pahnai_salad_restock: int = 0,
+                 #R
                  red_rock_candy_active: bool = False,
                  red_rock_candy_restock: int = 0,
+                 #S
                  slice_of_pumpkin_pie_active: bool = False,
                  slice_of_pumpkin_pie_restock: int = 0,
+                 #W
                  war_supplies_active: bool = False,
-                 war_supplies_restock: int = 0
+                 war_supplies_restock: int = 0,
+                 #merchants
+                 identify_kits_active: bool = True,
+                 identify_kits_restock: int = 2,
+                 salvage_kits_active: bool = True,
+                 salvage_kits_restock: int = 4
                  ):
         self.parent = parent
 
@@ -333,6 +358,22 @@ class UpkeepData:
 
         self.imp = Property(parent, "imp", active=imp_active)
         self.auto_combat = Property(parent, "auto_combat", active=auto_combat_active)
+        self.hero_ai = Property(parent, "hero_ai", active=hero_ai_active)
+        
+        self.auto_inventory_management = Property(parent, "auto_inventory_management", active=auto_inventory_management_active)
+        self.auto_loot = Property(parent, "auto_loot", active=auto_loot_active)
+        
+        self.identify_kits = Property(parent, "identify_kits", active=identify_kits_active,
+            extra_fields={"restock_quantity": identify_kits_restock,}
+        )
+
+        self.salvage_kits = Property(parent, "salvage_kits", active=salvage_kits_active,
+            extra_fields={"restock_quantity": salvage_kits_restock,}
+        )
+        
+        self.leave_empty_inventory_slots = Property(parent, "leave_empty_inventory_slots",
+            extra_fields={"value": leave_empty_inventory_slots,}
+        )
 
     def __repr__(self) -> str:
         return (

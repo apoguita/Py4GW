@@ -5,6 +5,85 @@ from HeroAI.custom_skill import CustomSkill
 
 class MesmerSkills:
     def __init__(self, skill_data):
+        # MESMER FAST CASTING
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Arcane_Languor")
+        skill.SkillType = SkillType.Hex.value
+        skill.TargetAllegiance = Skilltarget.EnemyCaster.value
+        skill.Nature = SkillNature.Offensive.value
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Keystone_Signet")
+        skill.SkillType = SkillType.Signet.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.SelfTargeted.value
+        skill.Conditions.IsOutOfCombat = True
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Mantra_of_Recovery")
+        skill.SkillType = SkillType.Stance.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsOutOfCombat = True
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Persistence_of_Memory")
+        skill.SkillType = SkillType.Enchantment.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.Buff.value
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Power_Return")
+        skill.SkillType = SkillType.Spell.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
+        skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsCasting = True
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Psychic_Instability")
+        skill.SkillType = SkillType.Spell.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
+        skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsCasting = True
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Stolen_Speed")
+        skill.SkillType = SkillType.Hex.value
+        skill.TargetAllegiance = Skilltarget.EnemyCaster.value
+        skill.Nature = SkillNature.Offensive.value
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Symbolic_Celerity")
+        skill.SkillType = SkillType.Enchantment.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.CustomA.value
+        skill.Conditions.IsOutOfCombat = True
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Symbolic_Posture")
+        skill.SkillType = SkillType.Stance.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsOutOfCombat = True
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Symbols_of_Inspiration")
+        skill.SkillType = SkillType.Skill.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.Nature = SkillNature.Offensive.value
+        skill_data[skill.SkillID] = skill
+
+
         #region DOMINATION
 
         skill = CustomSkill()

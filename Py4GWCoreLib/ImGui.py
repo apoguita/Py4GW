@@ -16,6 +16,3 @@ __all__ = ["ImGuiStyleVar",
            "ThemeTexture",
            "ThemeTextures"
         ]
-
-py4_gw_ini_handler = IniHandler("Py4GW.ini")
-ImGui.set_theme(Style.StyleTheme[py4_gw_ini_handler.read_key("settings", "style_theme", StyleTheme.ImGui.name)])

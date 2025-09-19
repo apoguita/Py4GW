@@ -442,7 +442,7 @@ class YAVB:
                     current_player_pos = GLOBAL_CACHE.Player.GetXY()
                     if self.old_player_position == current_player_pos:
                         self.LogMessage("Stuck Detection", "Player is stuck, sending stuck command.", LogConsole.LogSeverity.WARNING)
-                        GLOBAL_CACHE.Player.SendChat
+                        GLOBAL_CACHE.Player.SendChatCommand("stuck")
                         self.stuck_counter += 1
                         build.SetStuckCounter(self.stuck_counter)
                         self.stuck_timer.Reset()
