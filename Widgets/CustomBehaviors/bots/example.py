@@ -12,7 +12,7 @@ class Example(BottingAbstract):
         # Set up the FSM states properly
         bot_instance.States.AddHeader("STARTING_POINT")
         bot_instance.Party.SetHardMode(False)
-        bot_instance.Wait.ForTime(2000)
+        bot_instance.States.AddHeader("MAIN_LOOP")
         bot_instance.States.JumpToStepName("[H]STARTING_POINT_1")
 
     @property
