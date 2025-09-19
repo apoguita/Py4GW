@@ -1,78 +1,74 @@
+from typing import Any, Generator
 
-import time
-from collections.abc import Generator
-from typing import Any, List, Tuple
-
-import PyMissionMap
-
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.Pathing import AutoPathing
-from Widgets.CustomBehaviors.primitives.auto_mover.path_helper import PathHelper
 from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.primitives.auto_mover.path_helper import PathHelper
+
 
 class PathBuilder:
     def __init__(self):
-        self.list_of_points: list[tuple[float, float]] = []
-        self._last_processed_click: tuple[float, float] | None = None
-        self._last_point_add_time: float = 0.0
-        self._point_add_delay: float = 0.5  # 500ms delay between adding points
-        self._initialized_click: bool = False
+        self.final_path_2d: list[tuple[float, float]] = []
+        self.raw_path_2d: list[tuple[float, float]] = []
+        self._generator_handle = None
+        self._is_generating = False
 
-    def get_mm_last_click(self):
-        """Get the last click position from Mission Map."""
-        mm = PyMissionMap.PyMissionMap()  # singleton
-        mm.GetContext()                   # refresh this frame
-        if not mm.window_open:
-            return None
-        x = float(getattr(mm, "last_click_x", 0.0))
-        y = float(getattr(mm, "last_click_y", 0.0))
-        # some builds keep (0,0) until you click inside the MM panel
-        if x == 0.0 and y == 0.0:
-            return None
-        return (x, y)
+    def generate_autopathing(self) -> Generator[None, None, None]:
+        try:
+            path = yield from PathHelper.build_valid_path(self.raw_path_2d)
+            self.final_path_2d = path
+            if constants.DEBUG: print(f"generate_autopathing completed with {len(path)} points")
+        except Exception as e:
+            if constants.DEBUG: print(f"generate_autopathing error: {e}")
+            self.final_path_2d = []
+        return
 
-    def _process_new_clicks(self):
-        """Process new clicks and add points with delay control."""
-        current_click = self.get_mm_last_click()
-        
-        # Initialize the last processed click to current position on first run
-        if not self._initialized_click and current_click is not None:
-            self._last_processed_click = current_click
-            self._initialized_click = True
-            if constants.DEBUG: print(f"Initialized click position: {current_click}")
-            return
-        
-        if current_click is not None and current_click != self._last_processed_click:
-            current_time = time.time()
-            # Only add point if enough time has passed since last point was added
-            if current_time - self._last_point_add_time >= self._point_add_delay:
-                # Convert normalized coordinates to game coordinates and store them
-                # This way points will move correctly with zoom
-                game_x, game_y = PathHelper.normalized_to_game(current_click[0], current_click[1])
-                self.list_of_points.append((game_x, game_y))
-                self._last_processed_click = current_click
-                self._last_point_add_time = current_time
-                if constants.DEBUG: print(f"Added new point: normalized {current_click} -> game ({game_x}, {game_y})")
-                if constants.DEBUG: print(f"Total points: {len(self.list_of_points)}")
-            else:
-                # Update last processed click to prevent spam but don't add point yet
-                self._last_processed_click = current_click
+    def set_raw_path(self, path: list[tuple[float, float]]):
+        self.raw_path_2d = path
+        self.final_path_2d = []
+        # Start path generation if we have a valid path
+        if len(path) >= 2:
+            self._start_generation()
 
-    def remove_last_point_from_the_list(self):
-        """Remove the most recently added point from the list."""
-        if self.list_of_points:
-            removed_point = self.list_of_points.pop()
-            if constants.DEBUG: print(f"Removed last point: {removed_point}")
-            if constants.DEBUG: print(f"Remaining points: {len(self.list_of_points)}")
-            return removed_point
-        else:
-            if constants.DEBUG: print("No points to remove")
-            return None
+    def _start_generation(self):
+        """Start the path generation process."""
+        if not self._is_generating and len(self.raw_path_2d) >= 2:
+            self._generator_handle = self.generate_autopathing()
+            self._is_generating = True
+            if constants.DEBUG: print("Started path generation")
 
-    def clear_list(self):
-        """Clear all points from the list."""
-        self.list_of_points = []
+    def process_generation(self):
+        """Process the path generation generator. Call this in the main loop."""
+        if self._is_generating and self._generator_handle is not None:
+            try:
+                next(self._generator_handle)
+            except StopIteration:
+                if constants.DEBUG: print("Path generation completed")
+                self._is_generating = False
+                self._generator_handle = None
+            except Exception as e:
+                if constants.DEBUG: print(f"Path generation error: {e}")
+                self._is_generating = False
+                self._generator_handle = None
+                self.final_path_2d = []
 
-    def get_points(self) -> list[tuple[float, float]]:
-        """Get a copy of the current points list."""
-        return self.list_of_points.copy()
+    def get_final_path(self) -> list[tuple[float, float]]:
+        """Get the final processed path."""
+        return self.final_path_2d
+
+    def get_raw_path(self) -> list[tuple[float, float]]:
+        """Get the raw path points."""
+        return self.raw_path_2d
+
+    def has_final_path(self) -> bool:
+        """Check if a final path has been built."""
+        return len(self.final_path_2d) > 0
+
+    def has_raw_path(self) -> bool:
+        """Check if raw path points exist."""
+        return len(self.raw_path_2d) > 0
+
+    def clear(self):
+        """Clear both raw and final paths."""
+        self.final_path_2d = []
+        self.raw_path_2d = []
+        self._is_generating = False
+        self._generator_handle = None

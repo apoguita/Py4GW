@@ -1,5 +1,5 @@
-from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer
-from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import FollowPathExecutor
+from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
+from Py4GWCoreLib.py4gwcorelib_src.Lootconfig import LootConfig
 from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import AutoMover
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 
@@ -8,6 +8,9 @@ refresh_throttler = ThrottledTimer(1_000)
 
 @staticmethod
 def daemon():
+
+    LootConfig().AddToWhitelist(1682) # minotaur_horn
+    LootConfig().AddToWhitelist(1663) # pillaged_goods
 
     if loader_throttler.IsExpired(): 
         loader_throttler.Reset()
@@ -21,12 +24,9 @@ def daemon():
                 CustomBehaviorLoader().refresh_custom_behavior_candidate()
                 return
 
-    # main loop
+    # main loops
+
     if CustomBehaviorLoader().custom_combat_behavior is not None:
         CustomBehaviorLoader().custom_combat_behavior.act()
 
     AutoMover().act()
-
-    # ActionQueueManager().ProcessQueue("ACTION")
-
-

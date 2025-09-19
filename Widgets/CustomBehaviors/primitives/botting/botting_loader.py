@@ -25,6 +25,7 @@ class BottingLoader:
             self._has_loaded = False
             self.available_bots: list[AvailableBot] = []
             self._initialized = True
+            self.__current_bot_instance: BottingAbstract | None = None
 
     def __find_subclasses_in_folder(self, base_class, package_name: str) -> list[type]:
         """
@@ -91,8 +92,6 @@ class BottingLoader:
         self._has_loaded = False
 
     def load_bot_list(self):
-        return
-        
         if self._has_loaded:
             return False
 
@@ -111,7 +110,16 @@ class BottingLoader:
 
         self._has_loaded = True
         return True
-        
+    
+    def get_active_bot(self) -> BottingAbstract | None:
+        return self.__current_bot_instance
+
+    def define_bot_as_active(self, index:int|None):
+        if index is None:
+            self.__current_bot_instance = None
+        else:
+            self.__current_bot_instance = self.available_bots[index].instance
+
 
 
 
