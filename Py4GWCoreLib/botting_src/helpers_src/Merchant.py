@@ -160,10 +160,10 @@ class _Merchant:
     def restock_identification_kits(self):
         if self._config.upkeep.identify_kits.is_active():
             qty = self._config.upkeep.identify_kits.get("restock_quantity")
-            current_stacks = self._count_stacks_of_model(ModelID.Identification_Kit.value)
+            current_stacks = self._count_stacks_of_model(ModelID.Superior_Identification_Kit.value)
             needed_stacks = max(0, qty - current_stacks)
             if needed_stacks > 0:
-                yield from self._restock_item(ModelID.Identification_Kit.value, needed_stacks)
+                yield from self._restock_item(ModelID.Superior_Identification_Kit.value, needed_stacks)
 
     @_yield_step(label="RestockSalvageKits", counter_key="RESTOCK_SALVAGE_KITS")
     def restock_salvage_kits(self):

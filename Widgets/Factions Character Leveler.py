@@ -132,6 +132,7 @@ def ConfigurePacifistEnv(bot: Botting) -> None:
     SpawnBonusItems(bot)
 
     bot.Properties.Disable("auto_combat")
+    bot.Properties.Enable("auto_loot")
     bot.Properties.Disable("imp")
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Disable("honeycomb")
@@ -142,6 +143,7 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout",value=-1)
     bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("auto_loot")
     bot.Properties.Enable("imp")
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Enable("honeycomb")

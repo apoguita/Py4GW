@@ -2,21 +2,22 @@ import Py4GW
 import math
 from Py4GWCoreLib import (Routines,Botting,ActionQueueManager, ConsoleLog, GLOBAL_CACHE, AgentArray, Utils)
 from Py4GWCoreLib import ThrottledTimer
-from Py4GWCoreLib.enums import AgentModelID, Range, TitleID
+from Py4GWCoreLib.enums import ModelID, Range, TitleID
 
 from Py4GWCoreLib.BuildMgr import BuildMgr
-from Py4GWCoreLib.Builds import ShadowFormAssassinVaettir
+
 from Py4GWCoreLib.Builds import ShadowFormMesmerVaettir
+from Py4GWCoreLib.Builds import SF_Ass_vaettir
 
 from typing import List, Tuple
 
 bot = Botting("YAVB 2.0", upkeep_birthday_cupcake_restock=1)
   
 def create_bot_routine(bot: Botting) -> None:
-    InitializeBot(bot)
     TownRoutines(bot)
     TraverseBjoraMarches(bot)
     JagaMoraineFarmRoutine(bot)
+    ResetFarmLoop(bot)
     
 def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_death(bot)
@@ -28,12 +29,16 @@ def InitializeBot(bot: Botting) -> None:
     bot.Properties.Enable("auto_combat")
     bot.Properties.Disable("pause_on_danger")
     bot.Properties.Enable("halt_on_death")
-    bot.Properties.Set("movement_timeout",value=15000)
+    bot.Properties.Set("movement_timeout",value=-1)
     bot.Properties.Enable("birthday_cupcake")
+    bot.Properties.Enable("identify_kits")
+    bot.Properties.Enable("salvage_kits")
+    
     
 def TownRoutines(bot: Botting) -> None:
     bot.States.AddHeader("Town Routines")
     bot.Map.Travel(target_map_name="Longeyes Ledge")
+    InitializeBot(bot)
     bot.States.AddCustomState(lambda: EquipSkillBar(bot), "Equip SkillBar")
     HandleInventory(bot)
     bot.States.AddHeader("Exit to Bjora Marches")
@@ -43,7 +48,6 @@ def TownRoutines(bot: Botting) -> None:
 def TraverseBjoraMarches(bot: Botting) -> None:
     bot.States.AddHeader("Traverse Bjora Marches")
     bot.Player.SetTitle(TitleID.Norn.value)
-    bot.States.AddManagedCoroutine("HandleStuckBjoraMarches", lambda: HandleStuckBjoraMarches(bot))
     path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
     (17810, -17649),(17516, -17270),(17166, -16813),(16862, -16324),(16472, -15934),
     (15929, -15731),(15387, -15521),(14849, -15312),(14311, -15101),(13776, -14882),
@@ -63,15 +67,20 @@ def TraverseBjoraMarches(bot: Botting) -> None:
     (-15963, 2380) ,(-18048, 4223 ), (-19196, 4986),(-20000, 5595) ,(-20300, 5600)
     ]
     bot.Move.FollowPathAndExitMap(path_points_to_traverse_bjora_marches, target_map_name="Jaga Moraine")
-    bot.States.RemoveManagedCoroutine("HandleStuckBjoraMarches")
+    
+def printEach(bot: Botting, seconds: int):
+    while True:
+        ConsoleLog("Each", f"Each {seconds} seconds", Py4GW.Console.MessageType.Info)
+        yield from Routines.Yield.wait(seconds * 1000)
+   
     
 def JagaMoraineFarmRoutine(bot: Botting) -> None:
     bot.States.AddHeader("Jaga Moraine Farm Routine")
-    bot.Properties.Enable("auto_combat")
-    bot.Properties.Set("movement_timeout",value=-1)
-    bot.States.AddManagedCoroutine("HandleStuckJagaMoraine", lambda: HandleStuckJagaMoraine(bot))
+    InitializeBot(bot)
+    bot.States.AddCustomState(lambda: AssignBuild(bot), "Assign Build")
     bot.Move.XY(13372.44, -20758.50)
     bot.Dialogs.AtXY(13367, -20771,0x84)
+    bot.States.AddManagedCoroutine("HandleStuckJagaMoraine", lambda: HandleStuckJagaMoraine(bot))
     path_points_to_farming_route1: List[Tuple[float, float]] = [
     (11375, -22761), (10925, -23466), (10917, -24311), (10280, -24620), (9640, -23175),
     (7815, -23200), (7765, -22940), (8213, -22829), (8740, -22475), (8880, -21384),
@@ -88,18 +97,49 @@ def JagaMoraineFarmRoutine(bot: Botting) -> None:
     bot.Move.FollowPath(path_points_to_farming_route2)
     bot.States.AddHeader("Wait for Right Aggro Ball")
     bot.States.AddCustomState(lambda: WaitforRightAggroBall(bot), "Wait for Right Aggro Ball")
+    bot.Properties.Set("movement_tolerance",value=25)
     path_points_to_killing_spot: List[Tuple[float, float]] = [
         (13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220), (12703, -17239),
         (12684, -17184),]
     bot.Move.FollowPath(path_points_to_killing_spot)
+    bot.Properties.ResetTodefault("movement_tolerance")
     bot.States.AddHeader("Kill Enemies")
     bot.States.AddCustomState(lambda: KillEnemies(bot), "Kill Enemies")
+    bot.Properties.Disable("auto_combat")
+    bot.States.RemoveManagedCoroutine("HandleStuckJagaMoraine")
+    bot.States.AddHeader("Loot Items")
+    bot.Items.LootItems()
+    bot.Items.AutoIDAndSalvageItems()
+    bot.States.AddCustomState(lambda: NeedsInventoryManagement(bot), "Needs Inventory Management")
+    bot.Move.XYAndExitMap(15850,-20550, target_map_name="Bjora Marches")
+    
+    
+def NeedsInventoryManagement(bot: Botting):
+    free_slots_in_inventory = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
+    leave_empty_slots = bot.Properties.Get("leave_empty_inventory_slots", "value")
+
+    count_of_id_kits = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit.value)
+    count_of_salvage_kits = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value)
+
+    if (
+        free_slots_in_inventory < leave_empty_slots
+        or count_of_id_kits == 0
+        or count_of_salvage_kits == 0
+    ):
+        bot.States.JumpToStepName("[H]Town Routines_1")
+    yield
+    
+    
+def ResetFarmLoop(bot: Botting) -> None:
+    bot.States.AddHeader("Reset Farm Loop")
+    bot.Move.XYAndExitMap(-20300, 5600 , target_map_name="Jaga Moraine")
+    bot.States.JumpToStepName("[H]Jaga Moraine Farm Routine_6")
     
 def KillEnemies(bot: Botting):
     global in_killing_routine
     in_killing_routine = True
     build = bot.config.build_handler
-    if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
+    if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
         build.SetKillingRoutine(in_killing_routine)
         
     player_pos = GLOBAL_CACHE.Player.GetXY()
@@ -114,45 +154,48 @@ def KillEnemies(bot: Botting):
         if delta > timeout and timeout > 0:
             ConsoleLog("Killing Routine", "Timeout reached, restarting.", Py4GW.Console.MessageType.Error)
             fsm = bot.config.FSM
-            fsm.jump_to_state_by_name("[H]Initialize Bot_1") 
+            fsm.jump_to_state_by_name("[H]Town Routines_1") 
             return
   
         if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             ConsoleLog("Killing Routine", "Player is dead, restarting.", Py4GW.Console.MessageType.Warning)
             fsm = bot.config.FSM
-            fsm.jump_to_state_by_name("[H]Initialize Bot_1")   
+            fsm.jump_to_state_by_name("[H]Town Routines_1")   
         yield from Routines.Yield.wait(1000)
         enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
     
     in_killing_routine = False
     finished_routine = True
-    if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
-        build.SetKillingRoutine(in_killing_routine)
+    if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+        build.SetKillingRoutine(False)
         build.SetRoutineFinished(finished_routine)
     ConsoleLog("Killing Routine", "Finished Killing Routine", Py4GW.Console.MessageType.Info)
     yield from Routines.Yield.wait(1000)  # Wait a bit to ensure the enemies are dead
     
-    
-    
-def EquipSkillBar(bot: Botting):
+
+
+def AssignBuild(bot: Botting):
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     match profession:
         case "Assassin":
-            bot.OverrideBuild(ShadowFormAssassinVaettir())
+            bot.OverrideBuild(SF_Ass_vaettir())
         case "Mesmer":
             bot.OverrideBuild(ShadowFormMesmerVaettir())  # Placeholder for Mesmer build 
         case _:
             ConsoleLog("Unsupported Profession", f"The profession '{profession}' is not supported by this bot.", Py4GW.Console.MessageType.Error)
             bot.Stop()
             return
-    ConsoleLog("equipping skillbar", f"Equipped skill bar for profession: {profession}", Py4GW.Console.MessageType.Notice)
+    yield
+    
+def EquipSkillBar(bot: Botting):
+    yield from AssignBuild(bot)
     yield from bot.config.build_handler.LoadSkillBar()
 
 
 def HandleInventory(bot: Botting) -> None:
     bot.States.AddHeader("Inventory Handling")
     bot.Items.AutoIDAndSalvageAndDepositItems() #sort bags, auto id, salvage, deposit to bank
-    bot.Interact.WithNpcAtXY(-23110, 14942) # Merchant in Longeyes Ledge
+    bot.Move.XYAndInteractNPC(-23110, 14942) # Merchant in Longeyes Ledge
     bot.Wait.ForTime(500)
     bot.Merchant.SellMaterialsToMerchant() # Sell materials to merchant, make space in inventory
     bot.Merchant.Restock.IdentifyKits() #restock identify kits
@@ -203,7 +246,7 @@ def WaitforLeftAggroBall(bot : Botting):
     in_waiting_routine = False
 
     # Resume build
-    if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
+    if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
         yield from build.CastHeartOfShadow()
 
 def WaitforRightAggroBall(bot : Botting):
@@ -243,7 +286,7 @@ def WaitforRightAggroBall(bot : Botting):
 
 
     # Resume build
-    if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
+    if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
         yield from build.CastHeartOfShadow()
                 
 
@@ -252,7 +295,7 @@ def WaitforRightAggroBall(bot : Botting):
 def _on_death(bot: "Botting"):
     yield from Routines.Yield.wait(8000)
     fsm = bot.config.FSM
-    fsm.jump_to_state_by_name("[H]Initialize Bot_1") 
+    fsm.jump_to_state_by_name("[H]Town Routines_1") 
     fsm.resume()                           
     yield  
     
@@ -275,122 +318,80 @@ movement_check_timer = ThrottledTimer(3000)
 old_player_position = (0,0)
 in_killing_routine = False
 
-def HandleStuckBjoraMarches(bot: Botting):
-    global in_waiting_routine, finished_routine, stuck_counter
-    global stuck_timer, movement_check_timer, BJORA_MARCHES
-    global old_player_position, in_killing_routine
-    while True:
-        if not Routines.Checks.Map.MapValid():
-            yield from Routines.Yield.wait(1000)  # Wait for map to be valid
-            
-            
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-            break
-        
-        if in_waiting_routine:
-            yield from Routines.Yield.wait(1000)  # Wait for waiting routine to finish
-            continue
-
-        if finished_routine:
-            stuck_counter = 0
-            
-
-        if GLOBAL_CACHE.Map.GetMapID() == BJORA_MARCHES:
-            if stuck_timer.IsExpired():
-                GLOBAL_CACHE.Player.SendChatCommand("stuck")
-                stuck_timer.Reset()
-
-            if movement_check_timer.IsExpired():
-                current_player_pos = GLOBAL_CACHE.Player.GetXY()
-                if old_player_position == current_player_pos:
-                    ConsoleLog("Stuck Detection", "Player is stuck, sending stuck command.", Py4GW.Console.MessageType.Warning)
-                    GLOBAL_CACHE.Player.SendChatCommand("stuck")
-                    player_pos = GLOBAL_CACHE.Player.GetXY() #(x,y)
-                    facing_direction = GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
-                    left_angle = facing_direction + math.pi / 2
-                    distance = 200
-                    offset_x = math.cos(left_angle) * distance
-                    offset_y = math.sin(left_angle) * distance
-
-                    sidestep_pos = (player_pos[0] + offset_x, player_pos[1] + offset_y)
-                    for i in range(3):
-                        GLOBAL_CACHE.Player.Move(sidestep_pos[0], sidestep_pos[1])
-                    stuck_timer.Reset()
-                else:
-                    old_player_position = current_player_pos
-
-                movement_check_timer.Reset()
-
-            build: BuildMgr = bot.config.build_handler
-            
-            if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
-                yield from build.CastShroudOfDistress()
-                
-            agent_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
-            agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent: GLOBAL_CACHE.Agent.GetModelID(agent) in (AgentModelID.FROZEN_ELEMENTAL.value, AgentModelID.FROST_WURM.value))
-            agent_array = AgentArray.Filter.ByDistance(agent_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
-            if len(agent_array) > 0:
-                if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
-                    yield from build.DefensiveActions()  
-        else:
-            break  # Exit the loop if not in Bjora Marches
-                    
-        yield from Routines.Yield.wait(500)
         
 def HandleStuckJagaMoraine(bot: Botting):
     global in_waiting_routine, finished_routine, stuck_counter
     global stuck_timer, movement_check_timer, JAGA_MORAINE
     global old_player_position, in_killing_routine
+
+    ConsoleLog("Stuck Detection", "Starting Stuck Detection Coroutine.", Py4GW.Console.MessageType.Info, True)
+
     while True:
         if not Routines.Checks.Map.MapValid():
-            yield from Routines.Yield.wait(1000)  # Wait for map to be valid
-            
+            ConsoleLog("Stuck Detection", "Map is not valid, waiting...", Py4GW.Console.MessageType.Debug, False)
+            yield from Routines.Yield.wait(1000)
+            continue
+
         if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-            break
-            
+            ConsoleLog("Stuck Detection", "Player is dead, exiting stuck handler.", Py4GW.Console.MessageType.Debug, False)
+            yield from Routines.Yield.wait(1000)
+            continue
+
+
         build: BuildMgr = bot.config.build_handler
-            
 
+        # Waiting routine check
         if in_waiting_routine:
+            ConsoleLog("Stuck Detection", "In waiting routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, False)
             stuck_counter = 0
-            if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
-                build.SetStuckCounter(stuck_counter)
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+                build.SetStuckSignal(stuck_counter)
             stuck_timer.Reset()
             yield from Routines.Yield.wait(1000)
             continue
 
+        # Finished routine check
         if finished_routine:
+            ConsoleLog("Stuck Detection", "Finished routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, False)
             stuck_counter = 0
-            if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
-                build.SetStuckCounter(stuck_counter)
-            stuck_timer.Reset()
-            yield from Routines.Yield.wait(1000)
-            continue
-        
-        if in_killing_routine:
-            stuck_counter = 0
-            if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
-                build.SetStuckCounter(stuck_counter)
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+                build.SetStuckSignal(stuck_counter)
             stuck_timer.Reset()
             yield from Routines.Yield.wait(1000)
             continue
 
+        # Killing routine check
+        if in_killing_routine:
+            ConsoleLog("Stuck Detection", "In killing routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, False)
+            stuck_counter = 0
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+                build.SetStuckSignal(stuck_counter)
+            stuck_timer.Reset()
+            yield from Routines.Yield.wait(1000)
+            continue
+
+        # Jaga Moraine map check
         if GLOBAL_CACHE.Map.GetMapID() == JAGA_MORAINE:
             if stuck_timer.IsExpired():
+                ConsoleLog("Stuck Detection", "Stuck timer expired, sending /stuck command.", Py4GW.Console.MessageType.Debug, False)
                 GLOBAL_CACHE.Player.SendChatCommand("stuck")
                 stuck_timer.Reset()
 
             if movement_check_timer.IsExpired():
                 current_player_pos = GLOBAL_CACHE.Player.GetXY()
+                ConsoleLog("Stuck Detection", f"Checking movement. Old pos: {old_player_position}, Current pos: {current_player_pos}", Py4GW.Console.MessageType.Debug, False)
+
                 if old_player_position == current_player_pos:
-                    ConsoleLog("Stuck Detection", "Player is stuck, sending stuck command.", Py4GW.Console.MessageType.Warning)
-                    GLOBAL_CACHE.Player.SendChat
+                    ConsoleLog("Stuck Detection", "Player is stuck, sending /stuck command.", Py4GW.Console.MessageType.Warning)
+                    GLOBAL_CACHE.Player.SendChatCommand("stuck")
                     stuck_counter += 1
-                    if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
-                        build.SetStuckCounter(stuck_counter)
+                    ConsoleLog("Stuck Detection", f"Stuck counter incremented to {stuck_counter}.", Py4GW.Console.MessageType.Debug, False)
+                    if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+                        build.SetStuckSignal(stuck_counter)
                     stuck_timer.Reset()
                 else:
                     old_player_position = current_player_pos
+                    ConsoleLog("Stuck Detection", "Player moved, resetting stuck counter to 0.", Py4GW.Console.MessageType.Info, False)
                     stuck_counter = 0
 
                 movement_check_timer.Reset()
@@ -398,15 +399,19 @@ def HandleStuckJagaMoraine(bot: Botting):
             if stuck_counter >= 10:
                 ConsoleLog("Stuck Detection", "Unrecoverable stuck detected, resetting.", Py4GW.Console.MessageType.Error)
                 stuck_counter = 0
-                if isinstance(build, ShadowFormAssassinVaettir) or isinstance(build, ShadowFormMesmerVaettir):
-                    build.SetStuckCounter(stuck_counter)
-                bot.States.JumpToStepName("[H]Initialize Bot_1")
-                break
-
+                if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+                    build.SetStuckSignal(stuck_counter)
+                bot.States.JumpToStepName("[H]Town Routines_1")
+                continue
         else:
-            break  # Exit the loop if not in Bjora Marches
-                    
+            ConsoleLog("Stuck Detection", "Not in Jaga Moraine", Py4GW.Console.MessageType.Info, False)
+            yield from Routines.Yield.wait(1000)
+            continue
+
+        ConsoleLog("Stuck Detection", "waiting for next check.", Py4GW.Console.MessageType.Info, False)
         yield from Routines.Yield.wait(500)
+        continue
+
 
 
 

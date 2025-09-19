@@ -440,6 +440,11 @@ class _UI:
                         PyImGui.separator()
                         debug_text("follow_path_succeeded", "value")
                         debug_text("dialog_at_succeeded", "value")
+                        PyImGui.separator()
+                        debug_text("auto_combat", "active")
+                        debug_text("hero_ai", "active")
+                        debug_text("auto_loot", "active")
+                        debug_text("auto_inventory_management", "active")
 
                     
                     if PyImGui.collapsing_header("UpkeepData"):
@@ -484,6 +489,8 @@ class _UI:
                                 "red_rock_candy",
                                 "slice_of_pumpkin_pie",
                                 "war_supplies",
+                                "identify_kits",
+                                "salvage_kits",
                             ]
 
                             if not PyImGui.collapsing_header("UpkeepData"):
