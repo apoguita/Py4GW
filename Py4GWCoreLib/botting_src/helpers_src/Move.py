@@ -67,9 +67,33 @@ class _Move:
 
     def _follow_path(self) -> Generator[Any, Any, bool]:
         from ...Routines import Routines
+        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...enums import Range
         path = self._config.path
         exit_condition = lambda: Routines.Checks.Player.IsDead() or not Routines.Checks.Map.MapValid() if self._config.config_properties.halt_on_death.is_active() else not Routines.Checks.Map.MapValid()
+        
         pause_condition = self._config.pause_on_danger_fn if self._config.config_properties.pause_on_danger.is_active() else None
+        # looting
+        loot_config_enabled = self._config.upkeep.auto_loot.is_active()
+        loot_singleton = LootConfig()
+
+        def loot_condition() -> bool:
+            if not loot_config_enabled:
+                return False
+            loot_array = loot_singleton.GetfilteredLootArray(
+                distance=Range.Earshot.value,
+                multibox_loot=True,
+                allow_unasigned_loot=True,
+            )
+            return len(loot_array) > 0
+
+        # merge pause conditions
+        if pause_condition:
+            combined_pause = pause_condition
+            pause_condition = lambda: combined_pause() or loot_condition()
+        else:
+            pause_condition = loot_condition if loot_config_enabled else None
+
 
         success_movement = yield from Routines.Yield.Movement.FollowPath(
             path_points=path,
