@@ -169,7 +169,7 @@ class DervFeatherFarmer(BuildMgr):
                     )
                     and has_vow_of_strength
                     and has_sand_shards
-                    and player_current_energy >= 17
+                    and player_current_energy >= 15
                 ):
                     yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Spellcast.value)
                     yield from Routines.Yield.Skills.CastSkillID(self.staggering_force, aftercast_delay=250)
@@ -187,6 +187,7 @@ class DervFeatherFarmer(BuildMgr):
                 )
                 next_sensali = self.get_sensali_target(remaining_enemies)
                 if next_sensali:
+                    GLOBAL_CACHE.Player.Interact(next_sensali, False)
                     has_sand_shards = Routines.Checks.Effects.HasBuff(player_agent_id, self.sand_shards)
                     if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.sand_shards)) and len(
                         remaining_enemies
@@ -216,7 +217,6 @@ class DervFeatherFarmer(BuildMgr):
                             yield from Routines.Yield.Skills.CastSkillID(self.eremites_attack, aftercast_delay=250)
                             return
 
-                    GLOBAL_CACHE.Player.Interact(next_sensali, False)
                     yield
                     return
 
