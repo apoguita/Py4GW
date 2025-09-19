@@ -1,4 +1,3 @@
-import PySkill
 import PySkillbar
 
 class SkillBar:

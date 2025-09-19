@@ -132,6 +132,7 @@ def ConfigurePacifistEnv(bot: Botting) -> None:
     SpawnBonusItems(bot)
 
     bot.Properties.Disable("auto_combat")
+    bot.Properties.Enable("auto_loot")
     bot.Properties.Disable("imp")
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Disable("honeycomb")
@@ -142,6 +143,7 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout",value=-1)
     bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("auto_loot")
     bot.Properties.Enable("imp")
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Enable("honeycomb")
@@ -153,61 +155,67 @@ def EquipSkillBar():
 
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+    skillbar = ""
+    
     if profession == "Warrior":
         if level <= 3: #10 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQIRkpQxw23AAAAg2CA")
+            skillbar = "OQIRkpQxw23AAAAg2CA"
         elif level <= 4: #15 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQIRkrQxw23AAAAg2CA")
+            skillbar = "OQIRkrQxw23AAAAg2CA"
         elif level <= 5: #20 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQIUEDrgjcFKG2+GAAAA0WAA")
+            skillbar = "OQIUEDrgjcFKG2+GAAAA0WAA"
         elif level <= 6: #25 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQITEDsktQxw23AAAAg2CAA")
+            skillbar = "OQITEDsktQxw23AAAAg2CAA"
         elif level <= 7: #45 attribute points available (including 15 attribute points from quests)
-            yield from Routines.Yield.Skills.LoadSkillbar("OQIUED7gjMGKG2+GAAAA0WAA")
+            skillbar = "OQIUED7gjMGKG2+GAAAA0WAA"
         elif level <= 8: #50 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQITYDckzQxw23AAAAg2CAA")
+            skillbar = "OQITYDckzQxw23AAAAg2CAA"
         elif level <= 9: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQITYHckzQxw23AAAAg2CAA")
+            skillbar = "OQITYHckzQxw23AAAAg2CAA"
         elif level <= 10: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQIUEDLhjcGKG2+GAAAA0WAA")
+            skillbar = "OQIUEDLhjcGKG2+GAAAA0WAA"
         else: #20 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQITYN8kzQxw23AAAAg2CAA")
+            skillbar = "OQITYN8kzQxw23AAAAg2CAA"
     elif profession == "Ranger":
-        yield from Routines.Yield.Skills.LoadSkillbar("OggjYZZIYMKG1pvBAAAAA0GBAA")
+        skillbar = "OggjYZZIYMKG1pvBAAAAA0GBAA"
     elif profession == "Monk":
-        yield from Routines.Yield.Skills.LoadSkillbar("OwISYxcGKG2o03AAA0WA")
+        skillbar = "OwISYxcGKG2o03AAA0WA"
     elif profession == "Necromancer":
-        yield from Routines.Yield.Skills.LoadSkillbar("OAJTYJckzQxw23AAAAg2CAA")
+        skillbar = "OAJTYJckzQxw23AAAAg2CAA"
     elif profession == "Mesmer":
-        yield from Routines.Yield.Skills.LoadSkillbar("OQJTYJckzQxw23AAAAg2CAA")
+        skillbar = "OQJTYJckzQxw23AAAAg2CAA"
     elif profession == "Elementalist":
-        yield from Routines.Yield.Skills.LoadSkillbar("OgJUwCLhjcGKG2+GAAAA0WAA")
+        skillbar = "OgJUwCLhjcGKG2+GAAAA0WAA"
     elif profession == "Ritualist":
-        yield from Routines.Yield.Skills.LoadSkillbar("OAKkYRYRWCGjiB24b+mAAAAtRAA")
+        skillbar = "OAKkYRYRWCGjiB24b+mAAAAtRAA"
     elif profession == "Assassin":
-        yield from Routines.Yield.Skills.LoadSkillbar("OwJkYRZ5XMGiiBbuMAAAAAtJAA")
+        skillbar = "OwJkYRZ5XMGiiBbuMAAAAAtJAA"
+
+    yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
 
 
 def EquipCaptureSkillBar(): 
     global bot
-
+    skillbar = ""
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Warrior":
-        yield from Routines.Yield.Skills.LoadSkillbar("OQIAEbGAAAAAAAAAAA")
+        skillbar = "OQIAEbGAAAAAAAAAAA"
     elif profession == "Ranger":
-        yield from Routines.Yield.Skills.LoadSkillbar("OgAAEbGAAAAAAAAAAA")
+        skillbar = "OgAAEbGAAAAAAAAAAA"
     elif profession == "Monk":
-        yield from Routines.Yield.Skills.LoadSkillbar("OwIAEbGAAAAAAAAAAA")
+        skillbar = "OwIAEbGAAAAAAAAAAA"
     elif profession == "Necromancer":
-        yield from Routines.Yield.Skills.LoadSkillbar("OAJAEbGAAAAAAAAAAA")
+        skillbar = "OAJAEbGAAAAAAAAAAA"
     elif profession == "Mesmer":
-        yield from Routines.Yield.Skills.LoadSkillbar("OQJAEbGAAAAAAAAAAA")
+        skillbar = "OQJAEbGAAAAAAAAAAA"
     elif profession == "Elementalist":
-        yield from Routines.Yield.Skills.LoadSkillbar("OgJAEbGAAAAAAAAAAA")
+        skillbar = "OgJAEbGAAAAAAAAAAA"
     elif profession == "Ritualist":
-        yield from Routines.Yield.Skills.LoadSkillbar("OAKkYRYRWCGxmBAAAAAAAAAA")
+        skillbar = "OAKkYRYRWCGxmBAAAAAAAAAA"
     elif profession == "Assassin":
-        yield from Routines.Yield.Skills.LoadSkillbar("OwJkYRZ5XMGxmBAAAAAAAAAA")
+        skillbar = "OwJkYRZ5XMGxmBAAAAAAAAAA"
+
+    yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
 
 
 
@@ -220,52 +228,24 @@ def AddHenchmen():
         
     party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
 
+    henchmen_list = []
     if party_size <= 4:
-        yield from _add_henchman(1) #HEALER_ID
-        yield from _add_henchman(5) #SPIRITS_ID
-        yield from _add_henchman(2) #GUARDIAN_ID
+        henchmen_list.extend([1, 5, 2]) 
     elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor"):
-        yield from _add_henchman(2) #GUARDIAN_ID
-        yield from _add_henchman(3) #DEADLY_ID
-        yield from _add_henchman(1) #SHOCK_ID
-        yield from _add_henchman(4) #SPIRITS_ID
-        yield from _add_henchman(5) #HEALER_ID
+        henchmen_list.extend([2, 3, 1, 4, 5]) 
     elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("The Marketplace"):
-        yield from _add_henchman(6) #HEALER_ID
-        yield from _add_henchman(9) #SPIRIT_ID
-        yield from _add_henchman(5) #EARTH_ID
-        yield from _add_henchman(1) #SHOCK_ID
-        yield from _add_henchman(4) #GRAVE_ID
-        yield from _add_henchman(7) #FIGHTER_ID
-        yield from _add_henchman(3) #ILLUSION_ID
+        henchmen_list.extend([6,9,5,1,4,7,3])
     elif GLOBAL_CACHE.Map.GetMapID() == 213: #zen_daijun_map_id
-        yield from _add_henchman(3) #FIGHTER_ID
-        yield from _add_henchman(1) #EARTH_ID
-        yield from _add_henchman(6) #GRAVE_ID
-        yield from _add_henchman(8) #SPIRIT_ID
-        yield from _add_henchman(5) #HEALER_ID
+        henchmen_list.extend([3,1,6,8,5])
     elif GLOBAL_CACHE.Map.GetMapID() == 194: #kaineng_map_id
-        yield from _add_henchman(2) #WARRIOR_ID
-        yield from _add_henchman(10) #WARRIOR_ID
-        yield from _add_henchman(4) #ELEMENTALIST_ID
-        yield from _add_henchman(8) #ELEMENTALIST_ID
-        yield from _add_henchman(7) #NECROMANCER_ID
-        yield from _add_henchman(9) #MONK_ID
-        yield from _add_henchman(12) #RITUALIST_ID
+        henchmen_list.extend([2,10,4,8,7,9,12])
     elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Boreal Station"):
-        yield from _add_henchman(7) #WARRIOR_ID
-        yield from _add_henchman(9) #WARRIOR_ID
-        yield from _add_henchman(2) #NECROMANCER_ID
-        yield from _add_henchman(3) #ELEMENTALIST_ID
-        yield from _add_henchman(4) #ELEMENTALIST_ID
-        yield from _add_henchman(6) #MONK_ID
-        yield from _add_henchman(5) #MONK_ID
+        henchmen_list.extend([7,9,2,3,4,6,5])
     else:
-        yield from _add_henchman(1)
-        yield from _add_henchman(2)
-        yield from _add_henchman(3)
-        yield from _add_henchman(4)
-        yield from _add_henchman(5)
+        henchmen_list.extend([1,2,3,4,5,6,7])
+        
+    for henchman_id in henchmen_list:
+        yield from _add_henchman(henchman_id)
 
 def PrepareForBattle(bot: Botting):
     ConfigureAggressiveEnv(bot)

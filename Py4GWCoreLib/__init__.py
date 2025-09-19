@@ -29,7 +29,7 @@ import PyCamera
 import Py2DRenderer
 
 from .enums import *
-from .IconsFontAwesome5 import *
+from .ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from .Map import *
 from .ImGui import *
 from .model_data import *
@@ -68,6 +68,7 @@ dataclass = dataclass
 field = field
 
 Py4Gw = Py4GW
+Py4GW = Py4GW
 PyImGui = PyImGui
 PyMap = PyMap
 PyMissionMap = PyMissionMap
@@ -88,9 +89,7 @@ PyCamera = PyCamera
 Py2DRenderer = Py2DRenderer
 GLOBAL_CACHE = GLOBAL_CACHE
 AutoPathing = AutoPathing
-
-
-
+IconsFontAwesome5 = IconsFontAwesome5
 
 
 #redirect print output to Py4GW Console

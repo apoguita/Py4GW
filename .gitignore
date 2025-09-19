@@ -180,7 +180,9 @@ cython_debug/
 
 /Multiboxer
 .isort.cfg
-Styles/Minimalus.json
-Styles/ImGui.json
-Styles/Guild_Wars.json
-Widgets/Mission Map +.py
+
+# Ignore all json files in Styles
+/Styles/*.json
+
+# # But keep the .default.json ones
+!/Styles/*.default.json

@@ -1,4 +1,7 @@
 
+from collections.abc import Generator
+from typing import Any
+
 #region build
 class BuildMgr:
     from Py4GWCoreLib import Profession
@@ -24,7 +27,7 @@ class BuildMgr:
     def ValidateSecondary(self, profession: Profession) -> bool:
         return self.required_secondary == profession
     
-    def ValidateSkills(self):
+    def ValidateSkills(self) -> Generator[None, None, bool]:
         from Py4GWCoreLib import GLOBAL_CACHE
         from Py4GWCoreLib import Routines
         skills: list[int] = []
@@ -42,16 +45,12 @@ class BuildMgr:
         yield from Routines.Yield.wait(wait_interval)
         return all_valid
 
-    
-    def EquipBuild(self):
-        from Py4GWCoreLib import Routines
-        yield from Routines.Yield.Skills.LoadSkillbar(self.template_code,log=False)
 
     def ProcessSkillCasting(self):
         """Override this in child classes for casting logic."""
         raise NotImplementedError
     
-    def LoadSkillBar(self):
+    def LoadSkillBar(self) -> Generator[Any, Any, None]:
         from Py4GWCoreLib import Routines
         """
         Load the skill bar with the build's template code.

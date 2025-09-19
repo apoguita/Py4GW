@@ -87,12 +87,14 @@ def AuspiciousBeginnings(bot: Botting) -> None:
         bot.Properties.Disable("halt_on_death")
         bot.Properties.Set("movement_timeout",value=-1)
         bot.Properties.Enable("auto_combat")
+        bot.Properties.Enable("auto_loot")
         
     def _DisableCombat(bot: Botting) -> None:
         bot.Properties.Disable("pause_on_danger")
         bot.Properties.Enable("halt_on_death")
         bot.Properties.Set("movement_timeout",value=15000)
         bot.Properties.Disable("auto_combat")
+        bot.Properties.Enable("auto_loot")
         
     bot.States.AddHeader("Auspicious Beginnings")
     _EnableCombat(bot)

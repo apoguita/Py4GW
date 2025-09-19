@@ -8,17 +8,24 @@ ITEM_MODEL_TEXTURE_PATH = "Textures\\Item Models\\"
 Get the texture path for a given model_id.
 If not found, returns a fallback image path like '2992 not found.jpg'.
 """
-def get_texture_for_model(model_id: int|ModelID) -> str:
-    # when an external script is loaded the cwd changes, we need to load from this file's directory instead'
+def get_texture_for_model(model_id: int | ModelID) -> str:
     basepath = os.path.dirname(__file__) + "\\..\\..\\" + ITEM_MODEL_TEXTURE_PATH
-    if isinstance(model_id, int):
-        model_id = ModelID(model_id)
 
+    # Handle int case
+    if isinstance(model_id, int):
+        try:
+            model_id = ModelID(model_id)
+        except ValueError:
+            # Fallback if model_id doesn't exist in enum
+            return basepath + "0-File_Not_found.png"
+
+    # At this point it's a valid enum
     path = basepath + str(model_id.value).zfill(5) + "-" + model_id.name + ".png"
     if not os.path.isfile(path):
         return basepath + "0-File_Not_found.png"
 
     return path
+
 
 
 # region ProfessionTextures

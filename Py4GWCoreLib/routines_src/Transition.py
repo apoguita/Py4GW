@@ -3,7 +3,7 @@ from ..Py4GWcorelib import Timer
 arrived_timer = Timer()
 
 
-import importlib, typing
+import importlib
 
 class _RProxy:
     def __getattr__(self, name: str):

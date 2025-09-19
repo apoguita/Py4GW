@@ -201,7 +201,7 @@ class SkillBarPlus:
             PyImGui.pop_style_color(1)
             PyImGui.pop_style_var(3)
             
-            return result
+            #return result
 
         def Draw(self):
             for effect in GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID()):

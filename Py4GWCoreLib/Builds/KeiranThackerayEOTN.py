@@ -17,10 +17,10 @@ class KeiranThackerayEOTN(BuildMgr):
         self.terminal_velocity = GLOBAL_CACHE.Skill.GetID("Terminal_Velocity")
         self.gravestone_marker = GLOBAL_CACHE.Skill.GetID("Gravestone_Marker")
         self.rain_of_arrows = GLOBAL_CACHE.Skill.GetID("Rain_of_Arrows")
-        self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(1, False)
-        self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(3, False)
-        self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(5, False)
-        self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(6, False)
+        #self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(1, False)
+        #self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(3, False)
+        #self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(5, False)
+        #self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(6, False)
         
     def ProcessSkillCasting(self):
         def _CastSkill(target, skill_id, aftercast=750):

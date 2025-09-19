@@ -64,6 +64,12 @@ class ShadowFormMesmerVaettir(BuildMgr):
     def SetStuckCounter(self, stuck_counter: int):
         self.stuck_counter = stuck_counter
         
+    def SetStuckSignal(self, stuck_counter: int):
+        self.stuck_counter = stuck_counter
+        
+    def GetStuckSignal(self) -> int:
+        return self.stuck_counter > 0
+        
     def _CastSkillID(self, skill_id:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
         result = yield from Routines.Yield.Skills.CastSkillID(skill_id, extra_condition=extra_condition, log=log, aftercast_delay=aftercast_delay)
         return result
