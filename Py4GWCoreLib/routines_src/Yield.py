@@ -980,7 +980,7 @@ class Yield:
 
 
         @staticmethod
-        def LootItems(item_array:list[int], log=False, progress_callback: Optional[Callable[[float], None]] = None):
+        def LootItems(item_array:list[int], log=False, progress_callback: Optional[Callable[[float], None]] = None, pickup_timeout:int=5000):
             from ..AgentArray import AgentArray
             from .Checks import Checks
             
@@ -1009,7 +1009,7 @@ class Yield:
                     continue
                 
                 item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
-                item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=5000)
+                item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout)
                 if not item_reached:
                     ConsoleLog("LootItems", "Failed to reach item, stopping loot.", Console.MessageType.Warning)
                     item_array.clear()
