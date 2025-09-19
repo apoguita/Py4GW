@@ -38,8 +38,8 @@ class _ITEMS:
         "Uses the AutoLoot Handler to identify, salvage, and deposit items automatically."
         self._helpers.Items.auto_id_and_salvage_and_deposit()
         
-    def LootItems(self):
-        self._helpers.Items.loot()
+    def LootItems(self, pickup_timeout = 5000 ):
+        self._helpers.Items.loot(pickup_timeout)
 
     def Craft(self, model_id: int, value: int, trade_items_models: list[int], quantity_list: list[int]):
         self._helpers.Items.craft(model_id, value, trade_items_models, quantity_list)
