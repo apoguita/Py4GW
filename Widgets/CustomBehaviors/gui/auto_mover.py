@@ -130,15 +130,15 @@ def render():
             if PyImGui.button("Copy waypoints coordinates"):
                 points = root.get_list_of_waypoints()
                 if points:
-                    # Format coordinates as [ (xxx, xxx), (xxx, xxx), etc ]
-                    formatted_coords = ", ".join([f"({point[0]}, {point[1]})" for point in points])
+                    # Format coordinates as [ (xxx, xxx), (xxx, xxx), etc ] - cast as INT
+                    formatted_coords = ", ".join([f"({int(point[0])}, {int(point[1])})" for point in points])
                     coordinates = f"[ {formatted_coords} ]"
                     PyImGui.set_clipboard_text(coordinates)
             PyImGui.same_line(0,5)
             if PyImGui.button("Copy autopathing coordinates"):
                 points = root.get_final_path()
                 # Format coordinates as [ (xxx, xxx), (xxx, xxx), etc ]
-                formatted_coords = ", ".join([f"({point[0]}, {point[1]})" for point in points])
+                formatted_coords = ", ".join([f"({int(point[0])}, {int(point[1])})" for point in points])
                 coordinates = f"[ {formatted_coords} ]"
                 PyImGui.set_clipboard_text(coordinates)
             

@@ -21,9 +21,8 @@ class nick_pillaged_goods(BottingAbstract):
         bot_instance.UI.PrintMessageToConsole("Debug", "Added header: EXIT_OUTPOST")
         bot_instance.Move.XY(-5281, -2562, "Exit Outpost")
         bot_instance.Wait.ForMapLoad(target_map_id=397)
-        # self.bot_instance.States.AddCustomState(Helpers.MoveToXY_ExitIfMapReached(-5281, -2562,target_map_id=397))
 
-        bot_instance.States.AddHeader("MOVE_TO_FARM_AREA") #todo correct name
+        bot_instance.States.AddHeader("MOVE_TO_FARM_AREA")
         bot_instance.Move.XY(17726, 9465)
         bot_instance.Wait.ForTime(2000)
         bot_instance.Wait.ForMapLoad(target_map_id=395)
@@ -50,7 +49,6 @@ class nick_pillaged_goods(BottingAbstract):
         bot_instance.Move.XY(-15829.27600849414, -13904.416874455408)
         bot_instance.Move.XY(-18458, -16135)
 
-        # todo the farm loop
         bot_instance.Wait.ForMapLoad(target_map_id=397)
         bot_instance.Wait.ForTime(2000)
         
@@ -60,7 +58,7 @@ class nick_pillaged_goods(BottingAbstract):
     @property
     @override
     def name(self) -> str:
-        return "nick_pillaged_goods"
+        return "[NICK] pillaged_goods"
 
     @property
     @override
