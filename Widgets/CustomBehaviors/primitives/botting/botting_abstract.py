@@ -30,7 +30,7 @@ class BottingAbstract():
     def __init__(self):
         self._is_ui_visible = False
         self.is_botting_behavior_injected = False
-        self.ui_stick_position = StickPosition.Left
+        self.ui_stick_position = StickPosition.Right
 
         self.__bot_instance : Botting | None = None
 
@@ -56,10 +56,15 @@ class BottingAbstract():
         if self.__bot_instance is None:
             print(f"bot {self.name} opening.")
             self.__bot_instance = Botting(self.name)
-            self.__bot_instance.Properties.ApplyNow("halt_on_death","active", False)
-            self.__bot_instance.Properties.ApplyNow("movement_timeout","value", -1) # required as utility skills take relay when moving.
-            self.__bot_instance.Properties.Set("movement_timeout",value=-1) # required as utility skills take relay when moving.
-            # self.__bot_instance.Properties.Set("halt_on_death",value=-1) # required as utility skills take relay when moving.
+
+            # required as utility skills take relay when moving.
+            self.__bot_instance.Properties.Disable("auto_inventory_management")
+            self.__bot_instance.Properties.Disable("auto_loot")
+            self.__bot_instance.Properties.Enable("hero_ai")
+            self.__bot_instance.Properties.Disable("auto_combat")
+            self.__bot_instance.Properties.Disable("pause_on_danger")
+            self.__bot_instance.Properties.Disable("halt_on_death")
+            self.__bot_instance.Properties.Set("movement_timeout",value=-1)
 
             # Create a wrapper that calls bot_routine with the bot_instance
             def routine_wrapper(bot_self):
