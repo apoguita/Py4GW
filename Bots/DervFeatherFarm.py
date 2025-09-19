@@ -386,7 +386,6 @@ def main_farm(bot):
     bot.config.set_pause_on_danger_fn(detect_sensali_or_loot)
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("pause_on_danger")
-    bot.Events.OnDeathCallback(lambda: on_death(bot))
 
     bot.States.AddHeader('Starting Loop')
     map_id = GLOBAL_CACHE.Map.GetMapID()
@@ -411,9 +410,11 @@ def main_farm(bot):
 
     # Actual Farming Loop
     bot.States.AddHeader('Farm Loop')
+    bot.Events.OnDeathCallback(lambda: on_death(bot))
     if map_id != 250:
         bot.Party.Resign()
         bot.States.AddCustomState(return_to_outpost, "Return to Seitung Harbor")
+        bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddManagedCoroutine(HANDLE_STUCK, lambda: handle_stuck(bot))
     bot.States.AddManagedCoroutine(HANDLE_SENSALI_DANGER, lambda: handle_sensali_danger(bot))
     bot.States.AddCustomState(lambda: set_bot_to_move(bot), "Exit Outpost To Farm")
@@ -479,6 +480,7 @@ def main_farm(bot):
 
     bot.States.RemoveManagedCoroutine(HANDLE_STUCK)
     bot.States.RemoveManagedCoroutine(HANDLE_SENSALI_DANGER)
+    bot.Events.OnDeathCallback(lambda: None)
 
     bot.States.AddHeader('ID and Salvage at the End')
     bot.States.AddCustomState(identify_and_salvage_items, "ID and Salvage loot")
@@ -486,6 +488,7 @@ def main_farm(bot):
     # Manually resign and jump to state, instead of lambda
     bot.Party.Resign()
     bot.States.AddCustomState(return_to_outpost, "Return to Seitung Harbor")
+    bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.JumpToStepName("[H]Farm Loop_2")
 
 
