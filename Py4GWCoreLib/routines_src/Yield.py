@@ -1139,7 +1139,7 @@ class Yield:
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
             if item_id:
                 GLOBAL_CACHE.Inventory.DestroyItem(item_id)
-                yield from Yield.wait(500)
+                yield from Yield.wait(600)
             else:
                 return False
             return True
