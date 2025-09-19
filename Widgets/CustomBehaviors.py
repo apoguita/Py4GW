@@ -3,6 +3,7 @@ import pathlib
 import sys
 from Py4GWCoreLib.Py4GWcorelib import LootConfig, ThrottledTimer, Utils
 from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.primitives.fps_monitor import FPSMonitor
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
@@ -35,23 +36,32 @@ from Widgets.CustomBehaviors.gui.debug_eventbus import render as debug_eventbus
 from Widgets.CustomBehaviors.gui.auto_mover import render as auto_mover
 from Widgets.CustomBehaviors.gui.daemon import daemon as daemon
 from Widgets.CustomBehaviors.gui.botting import render as botting
+from Widgets.CustomBehaviors.gui.daemon_botting import daemon_botting
 
 party_forced_state_combo = 0
 current_path = pathlib.Path.cwd()
-print(f"current_path is : {current_path}")
+monitor = FPSMonitor(history=300)
+# print(f"current_path is : {current_path}")
+widget_window_size:tuple[float, float] = (0,0)
+widget_window_pos:tuple[float, float] = (0,0)
 
 def gui():
     # PyImGui.set_next_window_size(260, 650)
     # PyImGui.set_next_window_size(460, 800)
 
-    global party_forced_state_combo
+    global party_forced_state_combo, monitor, widget_window_size, widget_window_pos
     
-    window_module = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors", window_size=(0, 0), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+    window_module:ImGui.WindowModule = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors", window_size=(0, 0), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
-        PyImGui.begin_tab_bar("tabs")
+        widget_window_size = PyImGui.get_window_size()
+        widget_window_pos = PyImGui.get_window_pos()
+        
+        PyImGui.text(f"{monitor.fps_stats()[1]}")
+        PyImGui.text(f"{monitor.frame_stats()[1]}")
 
+        PyImGui.begin_tab_bar("tabs")
         if PyImGui.begin_tab_item("party"):
             party()
             PyImGui.end_tab_item()
@@ -91,8 +101,6 @@ def gui():
 
                 PyImGui.end_tab_bar()
 
-
-
         PyImGui.end_tab_bar()
     PyImGui.end()
     return
@@ -101,7 +109,10 @@ previous_map_status = False
 map_change_throttler = ThrottledTimer(250)
 
 def main():
-    global previous_map_status
+    global previous_map_status, monitor, widget_window_size, widget_window_pos
+    monitor.tick()
+
+    daemon_botting(widget_window_size, widget_window_pos) # botting deamon is fully autonomous, no throttling or map check
 
     if Routines.Checks.Map.MapValid() and previous_map_status == False:
         map_change_throttler.Reset()
