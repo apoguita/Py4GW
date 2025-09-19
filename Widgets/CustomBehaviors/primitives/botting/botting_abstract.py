@@ -6,7 +6,6 @@ from typing import Any, Generator
 import PyImGui
 
 from Py4GWCoreLib import Botting
-from Widgets.CustomBehaviors.gui import botting
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
@@ -55,11 +54,19 @@ class BottingAbstract():
 
     def open_bot(self):
         if self.__bot_instance is None:
-            # print(f"bot {self.name} opening.")
+            print(f"bot {self.name} opening.")
             self.__bot_instance = Botting(self.name)
+            self.__bot_instance.Properties.ApplyNow("halt_on_death","active", False)
+            self.__bot_instance.Properties.ApplyNow("movement_timeout","value", -1) # required as utility skills take relay when moving.
             self.__bot_instance.Properties.Set("movement_timeout",value=-1) # required as utility skills take relay when moving.
-            # bot.Properties.ApplyNow("halt_on_death","active", True) todo remove that
-            self.__bot_instance.SetMainRoutine(self.bot_routine)
+            # self.__bot_instance.Properties.Set("halt_on_death",value=-1) # required as utility skills take relay when moving.
+
+            # Create a wrapper that calls bot_routine with the bot_instance
+            def routine_wrapper(bot_self):
+                if self.__bot_instance is not None:
+                    return self.bot_routine(self.__bot_instance)
+
+            self.__bot_instance.SetMainRoutine(routine_wrapper)
 
     def close_bot(self):
         # print(f"bot {self.name} closing.")
@@ -75,11 +82,11 @@ class BottingAbstract():
         try:
             if self.__bot_instance is not None:
                 # print("State names:", [state.name for state in self.bot.config.FSM.states] if self.bot.config.FSM.states else "No states found")
+                # print(f"bot {self.name} update.")
                 self.__bot_instance.Update()
         except Exception as e:
             print(f"[Writer {id}] ERROR: {e}")
             # traceback.print_exc()
-        yield
 
     def render(self, widget_window_size:tuple[float, float], widget_window_pos:tuple[float, float]):
         if self.__bot_instance is not None:
