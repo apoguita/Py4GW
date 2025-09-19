@@ -61,6 +61,13 @@ class _ITEMS:
     def SpawnBonusItems(self):
         self._helpers.Items.spawn_bonus_items()
         
+    def SpawnAndDestroyBonusItems(self,
+                                    exclude_list: List[int] = [ModelID.Igneous_Summoning_Stone.value,
+                                                                ModelID.Bonus_Nevermore_Flatbow.value]):
+        self._helpers.Items.spawn_bonus_items()
+        self._helpers.Items.destroy_bonus_items(exclude_list)
+        
+        
         
     class _RESTOCK:
         def __init__(self, parent: "BottingClass"):

@@ -1,162 +1,72 @@
 from __future__ import annotations
 from typing import List, Tuple
 
-# REMOVE: `Botting` from the runtime import below
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui)
 
-
 bot = Botting("Factions Leveler",
               upkeep_birthday_cupcake_restock=50,
-              upkeep_honeycomb_restock=100)
+              upkeep_honeycomb_restock=100,
+              upkeep_auto_inventory_management_active=False,
+              upkeep_auto_loot_active=True)
 
 #region MainRoutine
 def create_bot_routine(bot: Botting) -> None:
-    InitializeBot(bot) #revisited
+    InitializeEventCallbacks(bot) #revisited
     ExitMonasteryOverlook(bot) #revisited
     ExitToCourtyard(bot) #revisited
     UnlockSecondaryProfession(bot) #revisited
     UnlockXunlaiStorage(bot) #revisited
     EquipWeapons(bot) #revisited
-    CapturePet(bot)
+    CapturePet(bot) #revisited
     ExitToSunquaVale(bot) #revisited
     TravelToMinisterCho(bot) #revisited
     EnterMinisterChoMission(bot) #revisited
     MinisterChoMission(bot) #revisited
     AttributePointQuest1(bot) #revisited
     TakeWarningTheTenguQuest(bot) #revisited
-    WarningTheTenguQuest(bot) #revisited
-    ExitToSunquaVale(bot) #revisited
-    ExitToTsumeiVillage(bot) #revisited
-    ExitToPanjiangPeninsula(bot) #revisited
-    TheThreatGrows(bot) #revisited
-    ExitToCourtyardAggressive(bot) #revisited
-    AdvanceToSaoshangTrail(bot) #revisited
-    TraverseSaoshangTrail(bot) #revisited
-    TakeRewardAndCraftArmor(bot) #revisited
-    ExitSeitungHarbor(bot) #revisited
-    GoToZenDaijun(bot) #revisited
-    EnterZenDaijunMission(bot) #revisited
-    ZenDaijunMission(bot) #revisited
+    WarningTheTenguQuest(bot) 
+    ExitToSunquaVale(bot) 
+    ExitToTsumeiVillage(bot) 
+    ExitToPanjiangPeninsula(bot) 
+    TheThreatGrows(bot) 
+    ExitToCourtyardAggressive(bot) 
+    AdvanceToSaoshangTrail(bot) 
+    TraverseSaoshangTrail(bot) 
+    TakeRewardAndCraftArmor(bot) 
+    ExitSeitungHarbor(bot) 
+    GoToZenDaijun(bot) 
+    EnterZenDaijunMission(bot) 
+    ZenDaijunMission(bot) 
     CraftRemainingArmorFSM(bot)
     AttributePointQuest2(bot)
-    AdvanceToMarketplace(bot) #revisited
-    AdvanceToKainengCenter(bot) #revisited
-    AdvanceToEOTN(bot) #revisited
-    ExitBorealStation(bot) #revisited
+    AdvanceToMarketplace(bot) 
+    AdvanceToKainengCenter(bot) 
+    AdvanceToEOTN(bot) 
+    ExitBorealStation(bot) 
     TraverseToEOTNOutpost(bot)
     bot.States.AddHeader("Final Step")
     bot.Stop()
 
-
-#region EVENTS
-def on_death(bot: "Botting"):
-    print("I Died")
-
-def on_party_wipe_coroutine(bot: "Botting", target_name: str):
-    # optional but typical for wipe flow:
-    GLOBAL_CACHE.Player.SendChatCommand("resign")
-    yield from Routines.Yield.wait(8000)
-
-    fsm = bot.config.FSM
-    fsm.jump_to_state_by_name(target_name)  # jump while still paused
-    fsm.resume()                            # <— important: unpause so next tick runs the target state
-    yield                                    # keep coroutine semantics
-
-
-def on_party_wipe(bot: "Botting"):
-    """
-    Clamp-jump to the nearest lower (or equal) waypoint when party is defeated.
-    Uses existing FSM API only:
-      - get_current_state_number()
-      - get_state_name_by_number(step_num)
-      - pause(), jump_to_state_by_name(), resume()
-    Returns True if a jump occurred.
-    """
-    print ("Party Wiped! Jumping to nearest waypoint...")
-    fsm = bot.config.FSM
-    current_step = fsm.get_current_state_number()
-
-    # Your distinct waypoints (as given)
-    ENTER_MINISTER_CHO_MISSION = 82
-    FIRST_ATTRIBUTE_MISSION = 126
-    TAKE_WARNING_THE_TENGU_QUEST = 161
-    EXIT_TO_PANJIANG_PENINSULA = 238
-    ADVANCE_SHAOSHANG_TRAIL = 276
-    RESTART_FROM_SEITUNG_HARBOR = 335
-    ENTER_ZEN_DAIJUN_MISSION = 362
-    SECOND_ATTRIBUTE_MISSION = 418
-    ADVANCE_TO_KAINENG_CENTER = 635
-    ADVANCE_TO_EOTN = 663
-    EXIT_BOREAL_STATION = 727
-
-    waypoints = [
-        ENTER_MINISTER_CHO_MISSION,
-        FIRST_ATTRIBUTE_MISSION,
-        TAKE_WARNING_THE_TENGU_QUEST,
-        EXIT_TO_PANJIANG_PENINSULA,
-        ADVANCE_SHAOSHANG_TRAIL,
-        RESTART_FROM_SEITUNG_HARBOR,
-        ENTER_ZEN_DAIJUN_MISSION,
-        SECOND_ATTRIBUTE_MISSION,
-        ADVANCE_TO_KAINENG_CENTER,
-        ADVANCE_TO_EOTN,
-        EXIT_BOREAL_STATION,
-    ]
-
-    # nearest <= current; if none, bail (or pick the first—your call)
-    lower_or_equal = [w for w in waypoints if w <= current_step]
-    if not lower_or_equal:
-        return   # or: target_step = waypoints[0] to always jump somewhere
-
-    target_step = max(lower_or_equal)
-    target_name = fsm.get_state_name_by_number(target_step)
-    if not target_name:
-        return 
-
-    fsm.pause()
-    fsm.AddManagedCoroutine(f"{fsm.get_state_name_by_number(current_step)}_OPD", on_party_wipe_coroutine(bot, target_name))
-
 #region Helpers
-def SpawnBonusItems(bot: Botting) -> None:
-    if ((not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Bonus_Nevermore_Flatbow.value)) or
-        (not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Igneous_Summoning_Stone.value))):
-        bot.Items.SpawnBonusItems()
-        bot.Items.DestroyBonusItems()
-    
 def ConfigurePacifistEnv(bot: Botting) -> None:
-    bot.Properties.Disable("pause_on_danger")
-    bot.Properties.Enable("halt_on_death")
-    bot.Properties.Set("movement_timeout",value=15000)
-    
-    SpawnBonusItems(bot)
-
-    bot.Properties.Disable("auto_combat")
-    bot.Properties.Enable("auto_loot")
-    bot.Properties.Disable("imp")
+    bot.ConfigTemplates.Pacifist()
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Disable("honeycomb")
+    bot.Items.SpawnAndDestroyBonusItems()
     bot.Items.Restock.BirthdayCupcake()
     
 def ConfigureAggressiveEnv(bot: Botting) -> None:
-    bot.Properties.Enable("pause_on_danger")
-    bot.Properties.Disable("halt_on_death")
-    bot.Properties.Set("movement_timeout",value=-1)
-    bot.Properties.Enable("auto_combat")
-    bot.Properties.Enable("auto_loot")
-    bot.Properties.Enable("imp")
+    bot.ConfigTemplates.Aggressive()
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Enable("honeycomb")
-    SpawnBonusItems(bot)
+    bot.Items.SpawnAndDestroyBonusItems()
 
     
-def EquipSkillBar(): 
-    global bot
-
+def EquipSkillBar(skillbar = ""): 
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-    skillbar = ""
-    
+
     if profession == "Warrior":
         if level <= 3: #10 attribute points available
             skillbar = "OQIRkpQxw23AAAAg2CA"
@@ -193,32 +103,18 @@ def EquipSkillBar():
 
     yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
 
-
-def EquipCaptureSkillBar(): 
-    global bot
-    skillbar = ""
+def EquipCaptureSkillBar(skillbar = ""): 
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    if profession == "Warrior":
-        skillbar = "OQIAEbGAAAAAAAAAAA"
-    elif profession == "Ranger":
-        skillbar = "OgAAEbGAAAAAAAAAAA"
-    elif profession == "Monk":
-        skillbar = "OwIAEbGAAAAAAAAAAA"
-    elif profession == "Necromancer":
-        skillbar = "OAJAEbGAAAAAAAAAAA"
-    elif profession == "Mesmer":
-        skillbar = "OQJAEbGAAAAAAAAAAA"
-    elif profession == "Elementalist":
-        skillbar = "OgJAEbGAAAAAAAAAAA"
-    elif profession == "Ritualist":
-        skillbar = "OAKkYRYRWCGxmBAAAAAAAAAA"
-    elif profession == "Assassin":
-        skillbar = "OwJkYRZ5XMGxmBAAAAAAAAAA"
+    if profession == "Warrior": skillbar = "OQIAEbGAAAAAAAAAAA"
+    elif profession == "Ranger": skillbar = "OgAAEbGAAAAAAAAAAA"
+    elif profession == "Monk": skillbar = "OwIAEbGAAAAAAAAAAA"
+    elif profession == "Necromancer": skillbar = "OAJAEbGAAAAAAAAAAA"
+    elif profession == "Mesmer": skillbar = "OQJAEbGAAAAAAAAAAA"
+    elif profession == "Elementalist": skillbar = "OgJAEbGAAAAAAAAAAA"
+    elif profession == "Ritualist": skillbar = "OAKkYRYRWCGxmBAAAAAAAAAA"
+    elif profession == "Assassin": skillbar = "OwJkYRZ5XMGxmBAAAAAAAAAA"
 
     yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
-
-
-
 
 def AddHenchmen():
     def _add_henchman(henchman_id: int):
@@ -408,7 +304,7 @@ def CraftRemainingArmor():
 
 
 #region Routines
-def InitializeBot(bot: Botting) -> None:
+def InitializeEventCallbacks(bot: Botting) -> None:
     bot.States.AddHeader("Initial Step")
     condition = lambda: on_party_wipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
@@ -432,7 +328,6 @@ def UnlockSecondaryProfession(bot: Botting) -> None:
             yield from bot.helpers.Interact._with_agent((-92, 9217),0x813D0A)
         else:
             yield from bot.helpers.Interact._with_agent((-92, 9217),0x813D0F)
-        yield from Routines.Yield.wait(500)
 
     bot.States.AddHeader("Unlock Secondary Profession")
     bot.Move.XY(-159, 9174)
@@ -450,10 +345,9 @@ def UnlockXunlaiStorage(bot: Botting) -> None:
     bot.Move.FollowPathAndDialog(path_to_xunlai, 0x84) #UNLOCK_XUNLAI_STORAGE
 
 def EquipWeapons(bot: Botting):
-    SpawnBonusItems(bot)
+    bot.Items.SpawnAndDestroyBonusItems()
     bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
-    
-    
+     
 def ExitToSunquaVale(bot: Botting) -> None:
     bot.States.AddHeader("Exit To Sunqua Vale")
     ConfigurePacifistEnv(bot)
@@ -464,7 +358,7 @@ def RangerCapturePet(bot: Botting) -> None:
     bot.Dialogs.AtXY(-7782.00, 6687.00,0x810401) #Accept Quest
     bot.UI.CancelSkillRewardWindow()
       
-def RqangerGetSkills(bot: Botting) -> None:
+def RangerGetSkills(bot: Botting) -> None:
     bot.Move.XYAndDialog(5103.00, -4769.00,0x810407) #accept reward
     bot.Dialogs.AtXY(5103.00, -4769.00,0x811401) #of course i will help
 
@@ -483,7 +377,7 @@ def CapturePet(bot: Botting) -> None:
     bot.Wait.ForTime(22000)
     
     if primary == "Ranger":
-        RqangerGetSkills(bot)
+        RangerGetSkills(bot)
          
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     
@@ -496,7 +390,6 @@ def TravelToMinisterCho(bot: Botting) -> None:
     
 def EnterMinisterChoMission(bot: Botting):
     bot.States.AddHeader("Enter Minister Cho Mission")
-    bot.Wait.ForTime(2000)
     PrepareForBattle(bot)
     bot.Map.EnterChallenge(delay=4500, target_map_id=214) #minister_cho_map_id
 
@@ -523,19 +416,17 @@ def AttributePointQuest1(bot: Botting):
     bot.States.AddHeader("Attribute Point Quest 1")
     bot.Move.XYAndDialog(14363.00, 19499.00, 0x815A01)  # I Like treasure
     PrepareForBattle(bot)
-    path = [(13713.27, 18504.61),(14576.15, 17817.62),(15824.60, 18817.90)]
-    bot.Move.FollowPath(path)
-    map_id = 245
-    bot.Move.XYAndExitMap(17005, 19787, target_map_id=map_id)
+    path = [(13713.27, 18504.61),(14576.15, 17817.62),(15824.60, 18817.90),(17005, 19787)]
+    bot.Move.FollowPathAndExitMap(path, target_map_id=245)
     bot.Move.XY(-17979.38, -493.08)
-    GUARD_ID= 3042
-    bot.Dialogs.WithModel(GUARD_ID, 0x815A04)
+    GUARD_MODEL= 3042
+    bot.Dialogs.WithModel(GUARD_MODEL, 0x815A04)
     exit_function = lambda: (
         not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
-        GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(GUARD_ID))
+        GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(GUARD_MODEL))
     )
-    bot.Move.FollowModel(GUARD_ID, follow_range=(Range.Area.value), exit_condition=exit_function)
-    bot.Dialogs.WithModel(GUARD_ID, 0x815A07)
+    bot.Move.FollowModel(GUARD_MODEL, follow_range=(Range.Area.value), exit_condition=exit_function)
+    bot.Dialogs.WithModel(GUARD_MODEL, 0x815A07)
     bot.Map.Travel(target_map_name="Ran Musu Gardens")
     
 def TakeWarningTheTenguQuest(bot: Botting):
@@ -569,11 +460,7 @@ def TheThreatGrows(bot: Botting):
     bot.States.AddHeader("The Threat Grows")
     bot.Move.XY(9793.73, 7470.04, "Move to The Threat Grows Killspot")
     SISTER_TAI_MODEL_ID = 3316
-    wait_function = lambda: (
-        not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
-        GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(SISTER_TAI_MODEL_ID))
-    )
-    bot.Wait.UntilCondition(wait_function)
+    bot.Wait.UntilModelHasQuest(SISTER_TAI_MODEL_ID)
     ConfigurePacifistEnv(bot)
     bot.Dialogs.WithModel(SISTER_TAI_MODEL_ID, 0x815407, step_name="Accept The Threat Grows Reward")
     bot.Dialogs.WithModel(SISTER_TAI_MODEL_ID, 0x815501, step_name="Take Go to Togo Quest")
@@ -647,9 +534,7 @@ def AttributePointQuest2(bot: Botting):
         bot.Properties.Enable("auto_combat")
         bot.Wait.ForTime(ms)
         bot.Properties.Disable("auto_combat")
-        
-        
-        
+ 
     bot.States.AddHeader("Attribute Point Quest 2")
     bot.Move.XY(19698.33, 7504.35)
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
@@ -842,6 +727,71 @@ def TraverseToEOTNOutpost(bot: Botting):
     bot.Move.XY(3607.21, -6937.32)
     bot.Move.XYAndExitMap(2557.23, -275.97, target_map_id=642) #eotn_outpost_id
     
+#region Events
+#region EVENTS
+def on_party_wipe_coroutine(bot: "Botting", target_name: str):
+    # optional but typical for wipe flow:
+    GLOBAL_CACHE.Player.SendChatCommand("resign")
+    yield from Routines.Yield.wait(8000)
+
+    fsm = bot.config.FSM
+    fsm.jump_to_state_by_name(target_name)  # jump while still paused
+    fsm.resume()                            # <— important: unpause so next tick runs the target state
+    yield                                    # keep coroutine semantics
+
+
+def on_party_wipe(bot: "Botting"):
+    """
+    Clamp-jump to the nearest lower (or equal) waypoint when party is defeated.
+    Uses existing FSM API only:
+      - get_current_state_number()
+      - get_state_name_by_number(step_num)
+      - pause(), jump_to_state_by_name(), resume()
+    Returns True if a jump occurred.
+    """
+    print ("Party Wiped! Jumping to nearest waypoint...")
+    fsm = bot.config.FSM
+    current_step = fsm.get_current_state_number()
+
+    # Your distinct waypoints (as given)
+    ENTER_MINISTER_CHO_MISSION = 82
+    FIRST_ATTRIBUTE_MISSION = 126
+    TAKE_WARNING_THE_TENGU_QUEST = 161
+    EXIT_TO_PANJIANG_PENINSULA = 238
+    ADVANCE_SHAOSHANG_TRAIL = 276
+    RESTART_FROM_SEITUNG_HARBOR = 335
+    ENTER_ZEN_DAIJUN_MISSION = 362
+    SECOND_ATTRIBUTE_MISSION = 418
+    ADVANCE_TO_KAINENG_CENTER = 635
+    ADVANCE_TO_EOTN = 663
+    EXIT_BOREAL_STATION = 727
+
+    waypoints = [
+        ENTER_MINISTER_CHO_MISSION,
+        FIRST_ATTRIBUTE_MISSION,
+        TAKE_WARNING_THE_TENGU_QUEST,
+        EXIT_TO_PANJIANG_PENINSULA,
+        ADVANCE_SHAOSHANG_TRAIL,
+        RESTART_FROM_SEITUNG_HARBOR,
+        ENTER_ZEN_DAIJUN_MISSION,
+        SECOND_ATTRIBUTE_MISSION,
+        ADVANCE_TO_KAINENG_CENTER,
+        ADVANCE_TO_EOTN,
+        EXIT_BOREAL_STATION,
+    ]
+
+    # nearest <= current; if none, bail (or pick the first—your call)
+    lower_or_equal = [w for w in waypoints if w <= current_step]
+    if not lower_or_equal:
+        return   # or: target_step = waypoints[0] to always jump somewhere
+
+    target_step = max(lower_or_equal)
+    target_name = fsm.get_state_name_by_number(target_step)
+    if not target_name:
+        return 
+
+    fsm.pause()
+    fsm.AddManagedCoroutine(f"{fsm.get_state_name_by_number(current_step)}_OPD", on_party_wipe_coroutine(bot, target_name))
 
 
 #region MAIN
