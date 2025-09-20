@@ -46,9 +46,9 @@ class BottingClass:
                  upkeep_alcohol_disable_visual: bool = True,
                  upkeep_armor_of_salvation_active: bool = False,
                  upkeep_armor_of_salvation_restock: int = 0,
-                 upkeep_auto_combat_active: bool = True,
-                 upkeep_auto_inventory_management_active = True,
-                 upkeep_auto_loot_active = True,
+                 upkeep_auto_combat_active: bool = False,
+                 upkeep_auto_inventory_management_active = False,
+                 upkeep_auto_loot_active = False,
                  #B
                  upkeep_birthday_cupcake_active: bool = False,
                  upkeep_birthday_cupcake_restock: int = 0,
@@ -102,9 +102,9 @@ class BottingClass:
                  upkeep_war_supplies_active: bool = False,
                  upkeep_war_supplies_restock: int = 0,
                     #merchants
-                 upkeep_identify_kits_active: bool = True,
+                 upkeep_identify_kits_active: bool = False,
                  upkeep_identify_kits_restock: int = 2,
-                 upkeep_salvage_kits_active: bool = True,
+                 upkeep_salvage_kits_active: bool = False,
                  upkeep_salvage_kits_restock: int = 4,
                  ):
         #internal configuration

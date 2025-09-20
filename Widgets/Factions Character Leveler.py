@@ -8,6 +8,7 @@ bot = Botting("Factions Leveler",
               upkeep_birthday_cupcake_restock=50,
               upkeep_honeycomb_restock=100,
               upkeep_auto_inventory_management_active=False,
+              upkeep_auto_combat_active=False,
               upkeep_auto_loot_active=True)
 
 #region MainRoutine
