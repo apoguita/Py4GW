@@ -18,8 +18,6 @@ def create_bot_routine(bot: Botting) -> None:
     second_profession(bot)
     after_2nd_profession(bot)
     jokanur_diggings_quests(bot)
-
-
     EOTN_Run(bot)
     ExitBorealStation(bot)
     GoToEOTN(bot)
@@ -391,7 +389,6 @@ def jokanur_diggings_quests(bot):
     bot.Wait.ForTime(2000)
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if level <= 9:
-    if level <= 9:
         bot.States.JumpToStepName("[H]Sprint to level 10_23") # Will add more to the loop
     if level >= 10:
         bot.States.JumpToStepName("[H]EOTN Run_25")
@@ -403,15 +400,8 @@ def EOTN_Run(bot: Botting):
     bot.Wait.ForMapToChange(target_map_id=431)
     bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
     bot.Wait.ForTime(2000)
-    bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    bot.Wait.ForMapToChange(target_map_id=431)
-    bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
-    bot.Wait.ForTime(2000)
     bot.Map.Travel(target_map_id=449) #Kamadan
     bot.Wait.ForMapToChange(target_map_id=449)
-    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
-    bot.Party.LeaveParty()
-    PrepareForBattle(bot, Hero_List=[6,7], Henchman_List=[6])
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[6,7], Henchman_List=[6])
@@ -448,7 +438,6 @@ def ExitBorealStation(bot: Botting):
     
 def GoToEOTN(bot: Botting): 
     bot.States.AddHeader("Goto EOTN")
-    bot.States.AddHeader("Goto EOTN")
     bot.Move.XY(3579.07, -22007.27)
     bot.Wait.ForTime(15000)
     bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
@@ -481,7 +470,6 @@ def _draw_texture():
         ImGui.DrawTextureExtended(texture_path=path, size=size,
                                   uv0=(0.25, 0.0), uv1=(0.5, 1.0),
                                   tint=tint, border_color=border_col)
-    elif level <= 9:
     elif level <= 9:
         ImGui.DrawTextureExtended(texture_path=path, size=size,
                                   uv0=(0.5, 0.0),  uv1=(0.75, 1.0),
