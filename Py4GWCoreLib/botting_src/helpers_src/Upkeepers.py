@@ -49,6 +49,7 @@ class _Upkeepers:
         from ...Routines import Routines
         from ...Py4GWcorelib import LootConfig
         from ...enums import Range
+        return True
         while True:
             if self._config.upkeep.auto_loot.is_active() and not self.parent.config.pause_on_danger_fn():
                 loot_singleton = LootConfig()
