@@ -9,8 +9,8 @@ refresh_throttler = ThrottledTimer(1_000)
 @staticmethod
 def daemon():
 
-    LootConfig().AddToWhitelist(1682) # minotaur_horn
-    LootConfig().AddToWhitelist(1663) # pillaged_goods
+    # LootConfig().AddToWhitelist(1682) # minotaur_horn
+    # LootConfig().AddToWhitelist(1663) # pillaged_goods
 
     if loader_throttler.IsExpired(): 
         loader_throttler.Reset()
