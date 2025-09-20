@@ -38,8 +38,8 @@ class _ITEMS:
         "Uses the AutoLoot Handler to identify, salvage, and deposit items automatically."
         self._helpers.Items.auto_id_and_salvage_and_deposit()
         
-    def LootItems(self):
-        self._helpers.Items.loot()
+    def LootItems(self, pickup_timeout = 5000 ):
+        self._helpers.Items.loot(pickup_timeout)
 
     def Craft(self, model_id: int, value: int, trade_items_models: list[int], quantity_list: list[int]):
         self._helpers.Items.craft(model_id, value, trade_items_models, quantity_list)
@@ -60,6 +60,13 @@ class _ITEMS:
 
     def SpawnBonusItems(self):
         self._helpers.Items.spawn_bonus_items()
+        
+    def SpawnAndDestroyBonusItems(self,
+                                    exclude_list: List[int] = [ModelID.Igneous_Summoning_Stone.value,
+                                                                ModelID.Bonus_Nevermore_Flatbow.value]):
+        self._helpers.Items.spawn_bonus_items()
+        self._helpers.Items.destroy_bonus_items(exclude_list)
+        
         
         
     class _RESTOCK:

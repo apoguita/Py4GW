@@ -1,3 +1,4 @@
+
 import Py4GW
 import math
 from typing import Tuple
@@ -11,14 +12,14 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Utils
 
 
-#region SFAssassinVaettir
-class SF_Ass_vaettir(BuildMgr):
+#region SFMesmerVaettir
+class SF_Mes_vaettir(BuildMgr):
     def __init__(self):
         super().__init__(
-            name="Shadow Form Assassin Vaettir",
-            required_primary=Profession.Assassin,
-            required_secondary=Profession.Mesmer,
-            template_code="OwVUI2h5lPP8Id2BkAiAvpLBTAA",
+            name="Shadow Form Mesmer Vaettir",
+            required_primary=Profession.Mesmer,
+            required_secondary=Profession.Assassin,
+            template_code="OQdUAQROqPP8Id2BkAiAvpLBDAA",
             skills=[
                 GLOBAL_CACHE.Skill.GetID("Deadly_Paradox"),
                 GLOBAL_CACHE.Skill.GetID("Shadow_Form"),
@@ -27,24 +28,30 @@ class SF_Ass_vaettir(BuildMgr):
                 GLOBAL_CACHE.Skill.GetID("Heart_of_Shadow"),
                 GLOBAL_CACHE.Skill.GetID("Wastrels_Demise"),
                 GLOBAL_CACHE.Skill.GetID("Arcane_Echo"),
-                GLOBAL_CACHE.Skill.GetID("Channeling"),
+                GLOBAL_CACHE.Skill.GetID("Mantra_of_Earth"),
             ]
         )
         
 
+        self.deadly_paradox_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Deadly_Paradox"))
+        self.shadow_form_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Shadow_Form"))
+        self.shroud_of_distress_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Shroud_of_Distress"))
+        self.way_of_perfection_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Way_of_Perfection"))
+        self.heart_of_shadow_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Heart_of_Shadow"))
         self.wastrels_demise_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Wastrels_Demise"))
         self.arcane_echo_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Arcane_Echo"))
+        self.mantra_of_earth_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Mantra_of_Earth"))
         
         self.shadow_form = GLOBAL_CACHE.Skill.GetID("Shadow_Form")
         self.deadly_paradox = GLOBAL_CACHE.Skill.GetID("Deadly_Paradox")
         self.shroud_of_distress = GLOBAL_CACHE.Skill.GetID("Shroud_of_Distress")
-        self.channeling = GLOBAL_CACHE.Skill.GetID("Channeling")
+        self.mantra_of_earth = GLOBAL_CACHE.Skill.GetID("Mantra_of_Earth")
         self.way_of_perfection = GLOBAL_CACHE.Skill.GetID("Way_of_Perfection")
         self.heart_of_shadow = GLOBAL_CACHE.Skill.GetID("Heart_of_Shadow")
-                     
+                
+                
         self.in_killing_routine = False
         self.routine_finished = False
-
         self.stuck_signal = False
         self.waypoint = (0,0)
         
@@ -53,15 +60,13 @@ class SF_Ass_vaettir(BuildMgr):
         
     def SetRoutineFinished(self, routine_finished: bool):
         self.routine_finished = routine_finished
-   
+        
     def SetStuckSignal(self, stuck_counter: int):
         #self.stuck_counter = stuck_counter
         self.stuck_signal = stuck_counter > 0
 
     def GetStuckSignal(self) -> bool:
         return self.stuck_signal
-
-
         
     def _CastSkillID(self, skill_id:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
         result = yield from Routines.Yield.Skills.CastSkillID(skill_id, extra_condition=extra_condition, log=log, aftercast_delay=aftercast_delay)
@@ -77,6 +82,7 @@ class SF_Ass_vaettir(BuildMgr):
         if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_form)):
             if (yield from self._CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=100)):
                 ConsoleLog(self.build_name, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=False)
+
             if (yield from self._CastSkillID(self.shadow_form, log=False, aftercast_delay=1750)):
                 ConsoleLog(self.build_name, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=False)
                 
@@ -118,7 +124,9 @@ class SF_Ass_vaettir(BuildMgr):
                 continue
             enemy_pos = GLOBAL_CACHE.Agent.GetXY(enemy)
             to_enemy = (enemy_pos[0] - player_pos[0], enemy_pos[1] - player_pos[1])
+
             angle_score = self.vector_angle(to_goal, to_enemy)  # -1 is most opposite
+
             if angle_score < most_opposite_score:
                 most_opposite_score = angle_score
                 best_enemy = enemy
@@ -126,28 +134,25 @@ class SF_Ass_vaettir(BuildMgr):
             yield from Routines.Yield.Agents.ChangeTarget(best_enemy)    
         else:
             yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
-        
-        ConsoleLog(self.build_name, f"Forced HoS", Py4GW.Console.MessageType.Info, log=False)
-        if (yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)):
-            self.stuck_signal = False
-        
+
+        yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)
             
             
     def ProcessSkillCasting(self):
         def GetNotHexedEnemy():
-            player_pos = GLOBAL_CACHE.Player.GetXY()
-            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
+            player_pos =  GLOBAL_CACHE.Player.GetXY()
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
             for enemy in enemy_array:
                 if GLOBAL_CACHE.Agent.IsDead(enemy):
                     continue
                 if Agent.IsHexed(enemy):
-                    continue
+                    continue 
                 return enemy
-
+        
         if not Routines.Checks.Map.MapValid():
             yield from Routines.Yield.wait(1000)
             return
-
+        
         if not GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine"):
             from ..AgentArray import AgentArray
             from ..enums import AgentModelID
@@ -161,108 +166,111 @@ class SF_Ass_vaettir(BuildMgr):
                 yield from self.DefensiveActions()
             yield from Routines.Yield.wait(1000)
             return
-
+        
         if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             return
-
+        
         if not Routines.Checks.Skills.CanCast():
             yield from Routines.Yield.wait(100)
             return
-
+        
         if self.routine_finished:
             yield from Routines.Yield.wait(1000)
             return
 
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id, self.shadow_form)
-        shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shadow_form) if has_shadow_form else 0
-
+        has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id,self.shadow_form)
+        shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id,self.shadow_form) if has_shadow_form else 0
         if Routines.Checks.Agents.InDanger(Range.Spellcast):
             has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
+
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_form)):
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-                if (yield from self._CastSkillID(self.deadly_paradox, extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=200)):
+                if (yield from self._CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=200)):
                     ConsoleLog(self.build_name, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=False)
-                GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
+                GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")   
                 if (yield from self._CastSkillID(self.shadow_form, log=False, aftercast_delay=1950)):
                     ConsoleLog(self.build_name, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=False)
                     return
 
-        has_shroud_of_distress = Routines.Checks.Effects.HasBuff(player_agent_id, self.shroud_of_distress)
-        if not has_shroud_of_distress:
+        
+        has_shroud_of_distress = Routines.Checks.Effects.HasBuff(player_agent_id,self.shroud_of_distress)
+        if not has_shroud_of_distress or (shadow_form_buff_time_remaining > 8000 and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shroud_of_distress))):
             ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
+            # ** Cast Shroud of Distress **
             GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-            if (yield from self._CastSkillID(self.shroud_of_distress, log=False, aftercast_delay=1950)):
+            if (yield from self._CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1950)):
                 return
-
-        has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id, self.channeling)
-        if not has_channeling:
-            ConsoleLog(self.build_name, "Casting Channeling.", Py4GW.Console.MessageType.Info, log=False)
-            if (yield from self._CastSkillID(self.channeling, log=False, aftercast_delay=1850)):
+                    
+        has_mantra_of_earth = Routines.Checks.Effects.HasBuff(player_agent_id,self.mantra_of_earth)
+        if not has_mantra_of_earth:
+            ConsoleLog(self.build_name, "Casting Mantra Of Earth.", Py4GW.Console.MessageType.Info, log=False)
+            # ** Cast mantra of earth **
+            if (yield from self._CastSkillID(self.mantra_of_earth, log =False, aftercast_delay=200)):
                 return
 
         if (yield from self._CastSkillID(self.way_of_perfection, log=False, aftercast_delay=1000)):
             ConsoleLog(self.build_name, "Casting Way of Perfection.", Py4GW.Console.MessageType.Info, log=False)
             return
 
-        if not self.in_killing_routine or GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.05:
-            health = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
-            if health < 0.35 or self.stuck_signal:
+        if not self.in_killing_routine:
+            if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.35 or self.stuck_signal:
                 center_point1 = (10980, -21532)
                 center_point2 = (11461, -17282)
                 player_pos = GLOBAL_CACHE.Player.GetXY()
-
+                
                 distance_to_center1 = Utils.Distance(player_pos, center_point1)
                 distance_to_center2 = Utils.Distance(player_pos, center_point2)
                 goal = center_point1 if distance_to_center1 < distance_to_center2 else center_point2
+                #Compute direction to goal
                 to_goal = (goal[0] - player_pos[0], goal[1] - player_pos[1])
-
+                
                 best_enemy = 0
-                most_opposite_score = 1
-
+                most_opposite_score = 1 
+                
                 enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
+                
                 for enemy in enemy_array:
                     if GLOBAL_CACHE.Agent.IsDead(enemy):
                         continue
                     enemy_pos = GLOBAL_CACHE.Agent.GetXY(enemy)
                     to_enemy = (enemy_pos[0] - player_pos[0], enemy_pos[1] - player_pos[1])
-                    angle_score = self.vector_angle(to_goal, to_enemy)
+
+                    angle_score = self.vector_angle(to_goal, to_enemy)  # -1 is most opposite
+
                     if angle_score < most_opposite_score:
                         most_opposite_score = angle_score
                         best_enemy = enemy
                 if best_enemy:
-                    yield from Routines.Yield.Agents.ChangeTarget(best_enemy)
+                    yield from Routines.Yield.Agents.ChangeTarget(best_enemy)    
                 else:
                     yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
-                
-                
+
                 if (yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)):
-                    ConsoleLog(self.build_name, f"Hos life = {health} stuck counter: {self.GetStuckSignal()}", Py4GW.Console.MessageType.Info, log=False)
-                    self.stuck_signal = False
                     return
 
-        if self.in_killing_routine and has_shadow_form and has_shroud_of_distress and has_channeling:
+        if self.in_killing_routine and has_shadow_form and has_shroud_of_distress and has_mantra_of_earth:
             both_ready = Routines.Checks.Skills.IsSkillSlotReady(self.wastrels_demise_slot) and Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot)
             target = GetNotHexedEnemy()
-            if target and shadow_form_buff_time_remaining >= 5000:
+            if target and shadow_form_buff_time_remaining >= 4000:
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                 GLOBAL_CACHE.Player.ChangeTarget(target)
-                if (yield from self._CastSkillSlot(self.arcane_echo_slot, extra_condition=both_ready, log=False, aftercast_delay=2750)):
-                    GLOBAL_CACHE.Player.Interact(target, False)
+                if (yield from self._CastSkillSlot(self.arcane_echo_slot, extra_condition=both_ready, log=False, aftercast_delay=2050)):
+                    GLOBAL_CACHE.Player.Interact(target,False)
                     ConsoleLog(self.build_name, "Casting Arcane Echo.", Py4GW.Console.MessageType.Info, log=False)
                 else:
-                    if (yield from self._CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=750)):
-                        GLOBAL_CACHE.Player.Interact(target, False)
+                    if (yield from self._CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=1000)):
+                        GLOBAL_CACHE.Player.Interact(target,False)
                         ConsoleLog(self.build_name, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=False)
-
-            target = GetNotHexedEnemy()
-            if target and not Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot):
+            
+            target = GetNotHexedEnemy()  
+            if target and not Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot): 
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                 GLOBAL_CACHE.Player.ChangeTarget(target)
-                if (yield from self._CastSkillSlot(self.wastrels_demise_slot, log=False, aftercast_delay=750)):
-                    GLOBAL_CACHE.Player.Interact(target, False)
+                if (yield from self._CastSkillSlot(self.wastrels_demise_slot, log=False, aftercast_delay=1000)):
+                    GLOBAL_CACHE.Player.Interact(target,False)
 
         yield from Routines.Yield.wait(100)
-
+            
 #endregion

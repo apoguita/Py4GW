@@ -11,6 +11,7 @@ class _EVENTS:
         self.parent = parent
         self._config = parent.config
         self._helpers = parent.helpers
+        self._events = parent.config.events
 
     def OnDeathCallback(self, callback: Callable[[], None]) -> None:
         self._config.events.on_death.set_callback(callback)
@@ -20,3 +21,6 @@ class _EVENTS:
 
     def OnPartyDefeatedCallback(self, callback: Callable[[], None]) -> None:
         self._config.events.on_party_defeated.set_callback(callback)
+        
+    def OnStuckCallback(self, callback: Callable[[], None]) -> None:
+        self._config.events.on_stuck.set_callback(callback)

@@ -18,11 +18,12 @@ class _Items:
         self._Events = parent.Events
         
     @_yield_step(label="LootItems", counter_key="LOOT_ITEMS")
-    def loot(self) -> Generator[Any, Any, None]:
+    def loot(self, pickup_timeout = 5000) -> Generator[Any, Any, None]:
         from ...Routines import Routines
         from ...Py4GWcorelib import LootConfig
         from ...enums import Range
         from ...GlobalCache import GLOBAL_CACHE
+        
         if not Routines.Checks.Map.MapValid():
             yield from Routines.Yield.wait(1000)  # Wait for map to be valid
             return
@@ -33,7 +34,7 @@ class _Items:
         
         loot_singleton = LootConfig()
         filtered_agent_ids = loot_singleton.GetfilteredLootArray(distance=Range.Earshot.value, multibox_loot=True, allow_unasigned_loot=True)
-        yield from Routines.Yield.Items.LootItems(filtered_agent_ids)
+        yield from Routines.Yield.Items.LootItems(filtered_agent_ids, pickup_timeout=pickup_timeout)
 
 
     @_yield_step(label="WithdrawItems", counter_key="WITHDRAW_ITEMS")
