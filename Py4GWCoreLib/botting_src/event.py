@@ -109,7 +109,7 @@ class OnStuck(Event):
 
     def should_trigger(self) -> bool:
         from Py4GWCoreLib import GLOBAL_CACHE, Routines
-        
+
         if not self.active:
             return False
 
@@ -118,8 +118,9 @@ class OnStuck(Event):
             self.finished_routine = False
             self.in_waiting_routine = False
             self.timer_was_expired = False
+            was_stuck = self.stuck_counter > 0   # <-- check if we were stuck
             self.stuck_counter = 0
-            return False
+            return was_stuck                     # <-- fire once when clearing
 
         if not Routines.Checks.Map.MapValid():
             return _reset_counter()
@@ -134,7 +135,7 @@ class OnStuck(Event):
         if self.stuck_timer.IsExpired():
             GLOBAL_CACHE.Player.SendChatCommand("stuck")
             self.stuck_timer.Reset()
-          
+
         if self.movement_check_timer.IsExpired():
             current_player_pos = GLOBAL_CACHE.Player.GetXY()
             self.timer_was_expired = True
@@ -142,10 +143,10 @@ class OnStuck(Event):
             if self.old_player_position == current_player_pos:
                 GLOBAL_CACHE.Player.SendChatCommand("stuck")
                 self.stuck_counter += 1
-                return True
+                return True   # stuck
             else:
                 self.old_player_position = current_player_pos
-                return _reset_counter()
+                return _reset_counter()  # clears + signals if we were stuck
 
         return False
                 

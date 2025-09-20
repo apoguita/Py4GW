@@ -239,7 +239,7 @@ class BottingClass:
         self.config.FSM.AddManagedCoroutine("keep_auto_combat",    H.upkeep_auto_combat())
         self.config.FSM.AddManagedCoroutine("keep_hero_ai",        H.upkeep_hero_ai())
         self.config.FSM.AddManagedCoroutine("keep_auto_inventory_management", H.upkeep_auto_inventory_management())
-        self.config.FSM.AddManagedCoroutine("keep_auto_loot",      H.upkeep_auto_loot())
+        #self.config.FSM.AddManagedCoroutine("keep_auto_loot",      H.upkeep_auto_loot())
         self.config.events.start()
 
         """if self.States.coroutines:
