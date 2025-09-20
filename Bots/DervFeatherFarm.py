@@ -355,7 +355,7 @@ def handle_stuck(bot):
                         offset_y = math.sin(side_angle) * side_distance
 
                     sidestep_pos = (player_pos[0] + offset_x, player_pos[1] + offset_y)  # type: ignore
-                    for _ in range(3):
+                    for _ in range(9):
                         GLOBAL_CACHE.Player.Move(sidestep_pos[0], sidestep_pos[1])
 
                     yield
