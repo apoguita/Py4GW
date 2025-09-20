@@ -47,8 +47,7 @@ class ShadowFormAssassinVaettir(BuildMgr):
         self.channeling = GLOBAL_CACHE.Skill.GetID("Channeling")
         self.way_of_perfection = GLOBAL_CACHE.Skill.GetID("Way_of_Perfection")
         self.heart_of_shadow = GLOBAL_CACHE.Skill.GetID("Heart_of_Shadow")
-                
-                
+                     
         self.in_killing_routine = False
         self.routine_finished = False
         self.stuck_counter = 0
@@ -59,6 +58,7 @@ class ShadowFormAssassinVaettir(BuildMgr):
         
     def SetRoutineFinished(self, routine_finished: bool):
         self.routine_finished = routine_finished
+
         
     def SetStuckCounter(self, stuck_counter: int):
         self.stuck_counter = stuck_counter

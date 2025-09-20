@@ -2,58 +2,58 @@
     "Colors": {
         "Border": {
             "img_color_enum": "Border",
-            "r": 204,
-            "g": 204,
-            "b": 212,
+            "r": 255,
+            "g": 255,
+            "b": 255,
             "a": 128
         },
         "BorderShadow": {
             "img_color_enum": "BorderShadow",
-            "r": 26,
-            "g": 26,
-            "b": 26,
+            "r": 255,
+            "g": 255,
+            "b": 255,
             "a": 128
         },
         "Button": {
             "img_color_enum": "Button",
-            "r": 26,
-            "g": 38,
-            "b": 51,
-            "a": 128
+            "r": 203,
+            "g": 203,
+            "b": 203,
+            "a": 255
         },
         "ButtonActive": {
             "img_color_enum": "ButtonActive",
-            "r": 102,
-            "g": 127,
-            "b": 153,
+            "r": 105,
+            "g": 105,
+            "b": 105,
             "a": 255
         },
         "ButtonHovered": {
             "img_color_enum": "ButtonHovered",
-            "r": 51,
-            "g": 76,
-            "b": 102,
-            "a": 200
+            "r": 99,
+            "g": 147,
+            "b": 189,
+            "a": 255
         },
         "CheckMark": {
             "img_color_enum": "CheckMark",
             "r": 204,
             "g": 204,
             "b": 204,
-            "a": 128
+            "a": 255
         },
         "ChildBg": {
             "img_color_enum": "ChildBg",
-            "r": 0,
-            "g": 0,
-            "b": 0,
-            "a": 0
+            "r": 255,
+            "g": 255,
+            "b": 255,
+            "a": 60
         },
         "FrameBg": {
             "img_color_enum": "FrameBg",
-            "r": 26,
-            "g": 23,
-            "b": 30,
+            "r": 99,
+            "g": 147,
+            "b": 189,
             "a": 128
         },
         "FrameBgActive": {
@@ -65,52 +65,52 @@
         },
         "FrameBgHovered": {
             "img_color_enum": "FrameBgHovered",
-            "r": 61,
-            "g": 59,
-            "b": 74,
-            "a": 200
+            "r": 204,
+            "g": 204,
+            "b": 204,
+            "a": 255
         },
         "Header": {
             "img_color_enum": "Header",
-            "r": 26,
-            "g": 38,
-            "b": 51,
-            "a": 128
+            "r": 208,
+            "g": 208,
+            "b": 208,
+            "a": 255
         },
         "HeaderActive": {
             "img_color_enum": "HeaderActive",
-            "r": 15,
-            "g": 13,
-            "b": 18,
+            "r": 255,
+            "g": 255,
+            "b": 255,
             "a": 255
         },
         "HeaderHovered": {
             "img_color_enum": "HeaderHovered",
-            "r": 143,
-            "g": 143,
-            "b": 148,
-            "a": 200
+            "r": 99,
+            "g": 147,
+            "b": 189,
+            "a": 255
         },
         "MenuBarBg": {
             "img_color_enum": "MenuBarBg",
-            "r": 26,
-            "g": 23,
-            "b": 30,
-            "a": 128
+            "r": 191,
+            "g": 205,
+            "b": 231,
+            "a": 255
         },
         "PlotHistogram": {
             "img_color_enum": "PlotHistogram",
             "r": 102,
             "g": 99,
             "b": 96,
-            "a": 128
+            "a": 160
         },
         "PlotHistogramHovered": {
             "img_color_enum": "PlotHistogramHovered",
             "r": 64,
             "g": 255,
             "b": 0,
-            "a": 128
+            "a": 255
         },
         "PlotLines": {
             "img_color_enum": "PlotLines",
@@ -128,58 +128,58 @@
         },
         "PopupBg": {
             "img_color_enum": "PopupBg",
-            "r": 2,
-            "g": 2,
-            "b": 2,
+            "r": 211,
+            "g": 208,
+            "b": 208,
             "a": 215
         },
         "ResizeGrip": {
             "img_color_enum": "ResizeGrip",
-            "r": 0,
-            "g": 0,
-            "b": 0,
+            "r": 255,
+            "g": 255,
+            "b": 255,
             "a": 0
         },
         "ResizeGripActive": {
             "img_color_enum": "ResizeGripActive",
-            "r": 15,
-            "g": 13,
-            "b": 18,
+            "r": 255,
+            "g": 255,
+            "b": 255,
             "a": 255
         },
         "ResizeGripHovered": {
             "img_color_enum": "ResizeGripHovered",
-            "r": 143,
-            "g": 143,
-            "b": 148,
+            "r": 255,
+            "g": 255,
+            "b": 255,
             "a": 255
         },
         "ScrollbarBg": {
             "img_color_enum": "ScrollbarBg",
-            "r": 2,
-            "g": 2,
-            "b": 2,
-            "a": 128
+            "r": 255,
+            "g": 255,
+            "b": 255,
+            "a": 215
         },
         "ScrollbarGrab": {
             "img_color_enum": "ScrollbarGrab",
-            "r": 51,
-            "g": 76,
-            "b": 76,
+            "r": 99,
+            "g": 147,
+            "b": 189,
             "a": 128
         },
         "ScrollbarGrabActive": {
             "img_color_enum": "ScrollbarGrabActive",
-            "r": 51,
-            "g": 76,
-            "b": 102,
-            "a": 128
+            "r": 99,
+            "g": 147,
+            "b": 189,
+            "a": 255
         },
         "ScrollbarGrabHovered": {
             "img_color_enum": "ScrollbarGrabHovered",
-            "r": 51,
-            "g": 76,
-            "b": 102,
+            "r": 95,
+            "g": 104,
+            "b": 120,
             "a": 128
         },
         "SliderGrab": {
@@ -198,73 +198,73 @@
         },
         "Tab": {
             "img_color_enum": "Tab",
-            "r": 26,
-            "g": 38,
-            "b": 51,
-            "a": 128
+            "r": 208,
+            "g": 208,
+            "b": 208,
+            "a": 255
         },
         "TabActive": {
             "img_color_enum": "TabActive",
-            "r": 102,
-            "g": 127,
-            "b": 153,
-            "a": 200
+            "r": 99,
+            "g": 147,
+            "b": 189,
+            "a": 255
         },
         "TabHovered": {
             "img_color_enum": "TabHovered",
-            "r": 51,
-            "g": 76,
-            "b": 102,
+            "r": 255,
+            "g": 255,
+            "b": 255,
             "a": 255
         },
         "Text": {
             "img_color_enum": "Text",
-            "r": 204,
-            "g": 204,
-            "b": 204,
-            "a": 200
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 255
         },
         "TextDisabled": {
             "img_color_enum": "TextDisabled",
-            "r": 51,
-            "g": 51,
-            "b": 51,
-            "a": 200
+            "r": 104,
+            "g": 185,
+            "b": 236,
+            "a": 255
         },
         "TextSelectedBg": {
             "img_color_enum": "TextSelectedBg",
-            "r": 26,
-            "g": 255,
-            "b": 26,
+            "r": 0,
+            "g": 66,
+            "b": 141,
             "a": 110
         },
         "TitleBg": {
             "img_color_enum": "TitleBg",
-            "r": 13,
-            "g": 13,
-            "b": 13,
+            "r": 144,
+            "g": 144,
+            "b": 144,
             "a": 215
         },
         "TitleBgActive": {
             "img_color_enum": "TitleBgActive",
-            "r": 51,
-            "g": 51,
-            "b": 51,
+            "r": 255,
+            "g": 255,
+            "b": 255,
             "a": 215
         },
         "TitleBgCollapsed": {
             "img_color_enum": "TitleBgCollapsed",
-            "r": 5,
-            "g": 5,
-            "b": 5,
-            "a": 90
+            "r": 255,
+            "g": 255,
+            "b": 255,
+            "a": 215
         },
         "WindowBg": {
             "img_color_enum": "WindowBg",
-            "r": 2,
-            "g": 2,
-            "b": 2,
-            "a": 90
+            "r": 255,
+            "g": 255,
+            "b": 255,
+            "a": 128
         }
     },
     "CustomColors": {

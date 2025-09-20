@@ -23,8 +23,9 @@ class _Upkeepers:
                 yield from Routines.Yield.wait(500)       
                 
     def upkeep_hero_ai(self):
-        from ....Py4GW_widget_manager import get_widget_handler
         from ...Routines import Routines
+        from Py4GW_widget_manager import get_widget_handler
+
         handler = get_widget_handler()
         if self._config.upkeep.hero_ai.is_active() and not handler.is_widget_enabled("HeroAI"):
             handler.enable_widget("HeroAI")
@@ -43,6 +44,21 @@ class _Upkeepers:
             inventory_handler.module_active = False
             
         yield from Routines.Yield.wait(500)
+        
+    def upkeep_auto_loot(self):
+        from ...Routines import Routines
+        from ...Py4GWcorelib import LootConfig
+        from ...enums import Range
+        while True:
+            if self._config.upkeep.auto_loot.is_active() and not self.parent.config.pause_on_danger_fn():
+                loot_singleton = LootConfig()
+                filtered_agent_ids = loot_singleton.GetfilteredLootArray(distance=Range.Earshot.value, multibox_loot=True, allow_unasigned_loot=True)
+                if len(filtered_agent_ids) > 0:
+                    yield from Routines.Yield.Items.LootItems(filtered_agent_ids)
+                else:
+                    yield from Routines.Yield.wait(500)
+            else:
+                yield from Routines.Yield.wait(500)
 
     def upkeep_armor_of_salvation(self):    
         from ...Routines import Routines

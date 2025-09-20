@@ -133,7 +133,7 @@ class AutoInventoryHandler():
         else:
             Inventory.SalvageItem(item_id, first_salv_kit)
             
-    def IdentifyItems(self,progress_callback: Optional[Callable[[float], None]] = None):
+    def IdentifyItems(self,progress_callback: Optional[Callable[[float], None]] = None, log: bool = False):
         from ..ItemArray import ItemArray
         from ..enums import Bags
         from ..Inventory import Inventory
@@ -173,10 +173,10 @@ class AutoInventoryHandler():
                     if item_instance.is_identified:
                         break
                     
-        if identified_items > 0:
+        if identified_items > 0 and log:
             ConsoleLog(self.module_name, f"Identified {identified_items} items", Console.MessageType.Success)
             
-    def SalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None):
+    def SalvageItems(self, progress_callback: Optional[Callable[[float], None]] = None, log: bool = False):
         from ..ItemArray import ItemArray
         from ..enums import Bags
         from ..Inventory import Inventory
@@ -274,7 +274,7 @@ class AutoInventoryHandler():
 
                 yield from Routines.Yield.wait(50)
 
-        if salvaged_items > 0:
+        if salvaged_items > 0 and log:
             ConsoleLog(self.module_name, f"Salvaged {salvaged_items} items", Console.MessageType.Success)
 
             

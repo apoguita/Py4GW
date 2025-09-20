@@ -724,6 +724,30 @@ class FSM:
 
         self._named_managed[name] = gen
         return True
+    
+    def AddManagedCoroutineStep(self, name: str, coroutine_fn, transition_delay_ms=0):
+        """
+        Add a state that will attach a managed coroutine at runtime.
+        This allows coroutines to start only when the FSM reaches this step.
+        """
+        def _starter():
+            self.AddManagedCoroutine(name, coroutine_fn)
+
+        step = FSM.State(
+            id=self.state_counter,
+            name=name,
+            execute_fn=_starter,
+            exit_condition=lambda: True,  # move on immediately
+            run_once=True
+        )
+        step.transition_delay_ms = transition_delay_ms
+
+        if self.states:
+            self.states[-1].set_next_state(step)
+
+        self.states.append(step)
+        self.state_counter += 1
+
 
     def RemoveManagedCoroutine(self, name: str) -> bool:
         """
@@ -733,6 +757,28 @@ class FSM:
         if not gen:
             return False
         return self._remove_managed(gen)
+    
+    def RemoveManagedCoroutineStep(self, name: str):
+        """
+        Add a state that will detach a managed coroutine at runtime.
+        This allows coroutines to stop only when the FSM reaches this step.
+        """
+        def _stopper():
+            self.RemoveManagedCoroutine(name)
+
+        step = FSM.State(
+            id=self.state_counter,
+            name=f"Remove-{name}",
+            execute_fn=_stopper,
+            exit_condition=lambda: True,  # move on immediately
+            run_once=True
+        )
+
+        if self.states:
+            self.states[-1].set_next_state(step)
+
+        self.states.append(step)
+        self.state_counter += 1
 
     def RemoveAllManagedCoroutines(self) -> int:
         n = len(self.managed_coroutines)

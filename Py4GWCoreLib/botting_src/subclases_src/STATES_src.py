@@ -23,13 +23,16 @@ class _STATES:
     def AddManagedCoroutine(self, name: str, coroutine_fn: Callable[[], Any]) -> None:
         """Queue a managed coroutine to be attached when the FSM is running."""
         # de-dupe against both queued and already-managed
-        if name in self.coroutines or self._config.FSM.HasManagedCoroutine(name):
+        #if name in self.coroutines or self._config.FSM.HasManagedCoroutine(name):
+        if self._config.FSM.HasManagedCoroutine(name):
             return
-        self.coroutines[name] = coroutine_fn
+        #self.coroutines[name] = coroutine_fn
+        self._config.FSM.AddManagedCoroutineStep(name, coroutine_fn)
 
     # (optional) helpers
     def RemoveManagedCoroutine(self, name: str) -> None:
-        self.coroutines.pop(name, None)
+        #self.coroutines.pop(name, None)
+        self._config.FSM.RemoveManagedCoroutineStep(name)
 
     def HasQueuedCoroutine(self, name: str) -> bool:
         return name in self.coroutines

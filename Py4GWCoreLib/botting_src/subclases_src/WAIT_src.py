@@ -33,6 +33,18 @@ class _WAIT:
         wait_condition = lambda: Routines.Checks.Map.MapValid() and  Routines.Checks.Map.IsOutpost()
         self._helpers.Wait.until_condition(wait_condition)
         
+    def UntilModelHasQuest(self, model_id: int) -> None:
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...enums import Range
+        wait_function = lambda: (
+            not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
+            GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(model_id))
+        )
+        self._helpers.Wait.until_condition(wait_function, duration=1000)
+        
+        
+        
     def UntilOnExplorable(self) -> None:
         from ...Routines import Routines
         wait_condition = lambda: Routines.Checks.Map.MapValid() and  Routines.Checks.Map.IsExplorable()

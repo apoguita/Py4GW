@@ -29,6 +29,8 @@ from .helpers_src.Party import _Party
 from .helpers_src.Restock import _Restock
 from .helpers_src.UI import _UI
 from .helpers_src.Multibox import _Multibox
+from .helpers_src.Merchant import _Merchant
+from .helpers_src.Player import _Player
 
 class BottingHelpers:
     from ..Py4GWcorelib import Color
@@ -39,9 +41,11 @@ class BottingHelpers:
         self.Interact = _Interact(self)
         self.Items = _Items(self)
         self.Map = _Map(self)
+        self.Merchant = _Merchant(self)
         self.Move = _Move(self)
         self.Multibox = _Multibox(self)
         self.Party = _Party(self)
+        self.Player = _Player(self)
         self.Restock = _Restock(self)
         self.Skills = _Skills(self)
         self.States = _States(self)

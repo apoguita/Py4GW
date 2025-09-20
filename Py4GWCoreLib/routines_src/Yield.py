@@ -935,44 +935,52 @@ class Yield:
                 
         @staticmethod
         def DepositGold(gold_amount_to_leave_on_character: int, log=False):
-
-            
-            
             gold_amount_on_character = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
             gold_amount_on_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
             
             max_allowed_gold = 1_000_000  # Max storage limit
-            available_space = max_allowed_gold - gold_amount_on_storage  # How much can be deposited
+            available_space = max_allowed_gold - gold_amount_on_storage
 
-            # Calculate how much gold we need to deposit
-            gold_to_deposit = gold_amount_on_character - gold_amount_to_leave_on_character
+            # Too much gold → deposit
+            if gold_amount_on_character > gold_amount_to_leave_on_character:
+                gold_to_deposit = gold_amount_on_character - gold_amount_to_leave_on_character
+                gold_to_deposit = min(gold_to_deposit, available_space)
 
-            # Ensure we do not deposit more than available storage space
-            gold_to_deposit = min(gold_to_deposit, available_space)
+                if gold_to_deposit > 0:
+                    GLOBAL_CACHE.Inventory.DepositGold(gold_to_deposit)
+                    yield from Yield.wait(350)
+                    if log:
+                        ConsoleLog("DepositGold", f"Deposited {gold_to_deposit} gold.", Console.MessageType.Success)
+                    return True
 
-            # If storage is full or no gold needs to be deposited, exit
-            if available_space <= 0:
                 if log:
                     ConsoleLog("DepositGold", "No gold deposited, storage full.", Console.MessageType.Warning)
                 return False
-            
-            if gold_to_deposit <= 0:
+
+            # Too little gold → withdraw
+            elif gold_amount_on_character < gold_amount_to_leave_on_character:
+                gold_needed = gold_amount_to_leave_on_character - gold_amount_on_character
+                gold_to_withdraw = min(gold_needed, gold_amount_on_storage)
+
+                if gold_to_withdraw > 0:
+                    GLOBAL_CACHE.Inventory.WithdrawGold(gold_to_withdraw)
+                    yield from Yield.wait(350)
+                    if log:
+                        ConsoleLog("DepositGold", f"Withdrew {gold_to_withdraw} gold.", Console.MessageType.Success)
+                    return True
+
                 if log:
-                    ConsoleLog("DepositGold", "No gold deposited, not enough excess gold.", Console.MessageType.Warning)
+                    ConsoleLog("DepositGold", "No gold withdrawn, storage empty.", Console.MessageType.Warning)
                 return False
 
-            # Perform the deposit
-            GLOBAL_CACHE.Inventory.DepositGold(gold_to_deposit)
-            
-            yield from Yield.wait(350)
-            
+            # Already balanced
             if log:
-                ConsoleLog("DepositGold", f"Deposited {gold_to_deposit} gold.", Console.MessageType.Success)
-            
+                ConsoleLog("DepositGold", f"Gold already balanced at {gold_amount_to_leave_on_character}.", Console.MessageType.Info)
             return True
 
+
         @staticmethod
-        def LootItems(item_array:list[int], log=False, progress_callback: Optional[Callable[[float], None]] = None):
+        def LootItems(item_array:list[int], log=False, progress_callback: Optional[Callable[[float], None]] = None, pickup_timeout:int=5000):
             from ..AgentArray import AgentArray
             from .Checks import Checks
             
@@ -1001,7 +1009,7 @@ class Yield:
                     continue
                 
                 item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
-                item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=5000)
+                item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout)
                 if not item_reached:
                     ConsoleLog("LootItems", "Failed to reach item, stopping loot.", Console.MessageType.Warning)
                     item_array.clear()
@@ -1131,7 +1139,7 @@ class Yield:
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
             if item_id:
                 GLOBAL_CACHE.Inventory.DestroyItem(item_id)
-                yield from Yield.wait(500)
+                yield from Yield.wait(600)
             else:
                 return False
             return True

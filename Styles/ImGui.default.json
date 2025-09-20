@@ -1,12 +1,11 @@
 {
-    "Theme": "ImGui",
     "Colors": {
         "Border": {
             "img_color_enum": "Border",
             "r": 204,
             "g": 204,
             "b": 212,
-            "a": 225
+            "a": 128
         },
         "BorderShadow": {
             "img_color_enum": "BorderShadow",
@@ -380,6 +379,57 @@
             "g": 166,
             "b": 46,
             "a": 200
+        }
+    },
+    "TextureColors": {
+        "ButtonTextureBackground": {
+            "img_color_enum": null,
+            "r": 26,
+            "g": 23,
+            "b": 30,
+            "a": 255
+        },
+        "ButtonTextureBackgroundActive": {
+            "img_color_enum": null,
+            "r": 143,
+            "g": 143,
+            "b": 148,
+            "a": 255
+        },
+        "ButtonTextureBackgroundDisabled": {
+            "img_color_enum": null,
+            "r": 143,
+            "g": 143,
+            "b": 148,
+            "a": 255
+        },
+        "ButtonTextureBackgroundHovered": {
+            "img_color_enum": null,
+            "r": 61,
+            "g": 59,
+            "b": 74,
+            "a": 255
+        },
+        "ComboTextureBackground": {
+            "img_color_enum": null,
+            "r": 26,
+            "g": 23,
+            "b": 30,
+            "a": 255
+        },
+        "ComboTextureBackgroundActive": {
+            "img_color_enum": null,
+            "r": 143,
+            "g": 143,
+            "b": 148,
+            "a": 255
+        },
+        "ComboTextureBackgroundHovered": {
+            "img_color_enum": null,
+            "r": 61,
+            "g": 59,
+            "b": 74,
+            "a": 255
         }
     },
     "StyleVars": {

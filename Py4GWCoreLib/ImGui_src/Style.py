@@ -273,11 +273,21 @@ class Style:
             return True
         return False
 
-    def apply_to_style_config(self):
+    def apply_to_style_config(self):        
         for _, attribute in self.Colors.items():
             if attribute.img_color_enum:
                 self.pyimgui_style.set_color(attribute.img_color_enum, *attribute.to_tuple_normalized())
                 
+        for _, attribute in self.StyleVars.items():
+            if attribute.img_style_enum:
+                pyimgui_style_attribute = getattr(self.pyimgui_style, attribute.img_style_enum.name, None)
+                
+                if pyimgui_style_attribute is not None:
+                    if attribute.value2 is not None:
+                        setattr(self.pyimgui_style, attribute.img_style_enum.name, (attribute.value1, attribute.value2))
+                    else:
+                        setattr(self.pyimgui_style, attribute.img_style_enum.name, attribute.value1)
+
         self.pyimgui_style.Push()
 
     @classmethod
