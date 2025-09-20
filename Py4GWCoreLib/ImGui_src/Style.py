@@ -234,6 +234,7 @@ class Style:
     def push_style(self):
         for var in self.Colors.values():
             var.push_color()
+            
         for var in self.StyleVars.values():
             var.push_style_var()
         pass
@@ -241,16 +242,7 @@ class Style:
     def pop_style(self):
         for var in self.Colors.values():
             var.pop_color()
-        for var in self.StyleVars.values():
-            var.pop_style_var()
-        pass
-
-    def push_style_vars(self):
-        for var in self.StyleVars.values():
-            var.push_style_var()
-        pass
-
-    def pop_style_vars(self):
+            
         for var in self.StyleVars.values():
             var.pop_style_var()
         pass

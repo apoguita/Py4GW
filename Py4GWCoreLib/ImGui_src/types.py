@@ -3,6 +3,8 @@ from enum import IntEnum, Enum
 TEXTURE_FOLDER = "Textures\\Game UI\\"
 MINIMALUS_FOLDER = "Textures\\Themes\\Minimalus\\"
 
+GUILD_WARS_ATLAS = "Textures\\Game UI\\guild_wars_texture_atlas.png"
+MINIMALUS_ATLAS = "Textures\\Game UI\\minimalus_texture_atlas.png"
 
 class ControlAppearance(Enum):
     Default = 0

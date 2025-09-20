@@ -8,7 +8,9 @@ import PyImGui
 
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, Routines
 from Py4GWCoreLib.ImGui import Style
-from Py4GWCoreLib.ImGui_src.types import StyleTheme
+from Py4GWCoreLib.ImGui_src.Utility import ImGuiIniReader
+from Py4GWCoreLib.ImGui_src.types import ControlAppearance, StyleTheme
+from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
@@ -40,13 +42,20 @@ window_height = ini_handler.read_int(
 window_collapsed = ini_handler.read_bool(
     MODULE_NAME + str(" Config"), "collapsed", False)
 
+
+imgui_ini_reader = ImGuiIniReader()
+window = imgui_ini_reader.get(MODULE_NAME)
+window_pos = window.pos if window else (100.0, 100.0)
+window_size = window.size if window else (800.0, 600.0)
+collapse = window.collapsed if window else False
+
 window_module = ImGui.WindowModule(
     MODULE_NAME,
     window_name="Style Manager",
-    window_size=(window_width, window_height),
-    window_pos=(window_x, window_y),
+    window_size=window_size,
+    window_pos=window_pos,
     window_flags=PyImGui.WindowFlags.NoFlag,
-    collapse=window_collapsed,
+    collapse=collapse,
 )
 
 py4_gw_ini_handler = IniHandler("Py4GW.ini")
@@ -63,7 +72,378 @@ search_value = ""
 window_open = False
 control_compare = False
 theme_compare = False
+match_style_vars = False
 is_first_run = True
+
+
+class preview_states:
+    def __init__(self):
+        self.input_int_value = 150
+        self.input_float_value = 150.0
+        self.input_text_value = "Text"
+        self.search_value = ""
+        self.combo = 0
+        self.toggle_button_1 = True
+        self.toggle_button_2 = False
+        self.toggle_button_3 = False
+        self.toggle_button_4 = False
+        self.image_toggle_button_1 = True
+        self.image_toggle_button_2 = False
+        self.image_toggle_button_3 = False
+        self.image_toggle_button_4 = False
+        self.objective_1 = True
+        self.objective_2 = False
+        self.checkbox = True
+        self.checkbox_2 = False
+        self.radio_button = 0
+        self.slider_int = 25
+        self.slider_float = 33.0
+        
+        self.theme_1 = Style.StyleTheme.ImGui
+        self.theme_2 = Style.StyleTheme.Guild_Wars
+        self.theme_3 = Style.StyleTheme.Minimalus
+
+
+preview = preview_states()
+
+textures = [
+    ("Textures/Item Models/17081-Battle_Commendation.png",
+     ControlAppearance.Default, True),
+    ("Textures/Item Models/00514-Molten_Heart.png",
+     ControlAppearance.Primary, True),
+    ("Textures/Item Models/00035-Bag.png", ControlAppearance.Danger, True),
+    ("Textures/Item Models/30855-Bottle_of_Grog.png",
+     ControlAppearance.Default, False),
+]
+
+
+def draw_button(theme: Style.StyleTheme):
+
+    ImGui.button("Default" + "##" + theme.name)
+    PyImGui.same_line(0, 5)
+    ImGui.button("Primary" + "##" + theme.name,
+                 appearance=ControlAppearance.Primary)
+    PyImGui.same_line(0, 5)
+    ImGui.button("Danger" + "##" + theme.name,
+                 appearance=ControlAppearance.Danger)
+    PyImGui.same_line(0, 5)
+    ImGui.button("Disabled" + "##" + theme.name, enabled=False)
+
+
+def draw_small_button(theme: Style.StyleTheme):
+    ImGui.small_button("Default" + "##" + theme.name)
+    PyImGui.same_line(0, 5)
+    ImGui.small_button("Primary" + "##" + theme.name,
+                       appearance=ControlAppearance.Primary)
+    PyImGui.same_line(0, 5)
+    ImGui.small_button("Danger" + "##" + theme.name,
+                       appearance=ControlAppearance.Danger)
+    PyImGui.same_line(0, 5)
+    ImGui.small_button("Disabled" + "##" + theme.name, enabled=False)
+
+
+def draw_icon_button(theme: Style.StyleTheme):
+    ImGui.icon_button(IconsFontAwesome5.ICON_SYNC + " With Text" + "##" + theme.name)
+    PyImGui.same_line(0, 5)
+    ImGui.icon_button(IconsFontAwesome5.ICON_SYNC + "##" + theme.name)
+    PyImGui.same_line(0, 5)
+    ImGui.icon_button(IconsFontAwesome5.ICON_SYNC + "##" +
+                      theme.name, appearance=ControlAppearance.Primary)
+    PyImGui.same_line(0, 5)
+    ImGui.icon_button(IconsFontAwesome5.ICON_SYNC + "##" +
+                      theme.name, appearance=ControlAppearance.Danger)
+    PyImGui.same_line(0, 5)
+    ImGui.icon_button(
+        IconsFontAwesome5.ICON_SYNC, enabled=False)
+
+
+def draw_toggle_button(theme: Style.StyleTheme):
+    preview.toggle_button_1 = ImGui.toggle_button_TEXTURED(
+        ("On" if preview.toggle_button_1 else "Off") + "##Toggle" + theme.name, preview.toggle_button_1)
+    PyImGui.same_line(0, 5)
+    preview.toggle_button_2 = ImGui.toggle_button_TEXTURED(
+        ("On" if preview.toggle_button_2 else "Off") + "##Toggle2" + theme.name, preview.toggle_button_2)
+    PyImGui.same_line(0, 5)
+    preview.toggle_button_3 = ImGui.toggle_button_TEXTURED(
+        "Disabled" + "##Toggle3" + theme.name, preview.toggle_button_3, enabled=False)
+
+
+def draw_image_toggle(theme: Style.StyleTheme):
+    preview.image_toggle_button_1 = ImGui.image_toggle_button_TEXTURED(
+        ("On" if preview.image_toggle_button_1 else "Off") + "##ImageToggle_1" + theme.name, textures[0][0], preview.image_toggle_button_1)
+    PyImGui.same_line(0, 5)
+    preview.image_toggle_button_2 = ImGui.image_toggle_button_TEXTURED(
+        ("On" if preview.image_toggle_button_2 else "Off") + "##ImageToggle_2" + theme.name, textures[1][0], preview.image_toggle_button_2)
+    PyImGui.same_line(0, 5)
+    preview.image_toggle_button_3 = ImGui.image_toggle_button_TEXTURED(
+        ("On" if preview.image_toggle_button_3 else "Off") + "##ImageToggle_3" + theme.name, textures[2][0], preview.image_toggle_button_3, enabled=False)
+
+
+def draw_image_button(theme: Style.StyleTheme):
+    for (texture, appearance, enabled) in textures:
+        ImGui.image_button("Image Button" + "##" + theme.name +
+                           texture, texture, appearance=appearance, enabled=enabled)
+        PyImGui.same_line(0, 5)
+
+
+def draw_combo(theme: Style.StyleTheme):
+    preview.combo = ImGui.combo("Combo##" + theme.name, preview.combo, [
+                                "Option 1", "Option 2", "Option 3"])
+
+
+def draw_checkbox(theme: Style.StyleTheme):
+    preview.checkbox_2 = ImGui.checkbox(
+        "##Checkbox 2" + "##" + theme.name, preview.checkbox_2)
+    PyImGui.same_line(0, 5)
+    preview.checkbox = ImGui.checkbox(
+        "Checkbox" + "##" + theme.name, preview.checkbox)
+
+
+def draw_radio_button(theme: Style.StyleTheme):
+    preview.radio_button = ImGui.radio_button(
+        "Option 1##Radio Button 1" + "##" + theme.name, preview.radio_button, 0)
+    preview.radio_button = ImGui.radio_button(
+        "Option 2##Radio Button 2" + "##" + theme.name, preview.radio_button, 1)
+    preview.radio_button = ImGui.radio_button(
+        "Option 3##Radio Button 3" + "##" + theme.name, preview.radio_button, 2)
+
+
+def draw_slider(theme: Style.StyleTheme):
+    preview.slider_int = ImGui.slider_int(
+        "Slider Int##" + theme.name, preview.slider_int, 0, 100)
+    preview.slider_float = ImGui.slider_float(
+        "Slider Float##" + theme.name, preview.slider_float, 0.0, 100.0)
+
+
+def draw_input(theme: Style.StyleTheme):
+    changed, preview.search_value = ImGui.search_field(
+        "Search##" + theme.name, preview.search_value)
+    preview.input_text_value = ImGui.input_text(
+        "Text##" + theme.name, preview.input_text_value)
+    preview.input_float_value = ImGui.input_float(
+        "Float##" + theme.name, preview.input_float_value)
+    preview.input_int_value = ImGui.input_int(
+        "Int##3" + theme.name, preview.input_int_value, 0, 10000, 0)
+    preview.input_int_value = ImGui.input_int(
+        "Int Buttons##2" + theme.name, preview.input_int_value)
+
+
+def draw_separator(theme: Style.StyleTheme):
+    ImGui.separator()
+
+
+def draw_progress_bar(theme: Style.StyleTheme):
+    ImGui.progress_bar(0.25, 0, 20, "25 points")
+
+
+def draw_text(theme: Style.StyleTheme):
+    ImGui.text("This is some text.")
+
+
+def draw_hyperlink(theme: Style.StyleTheme):
+    ImGui.hyperlink("Click Me")
+
+
+def draw_bullet_text(theme: Style.StyleTheme):
+    ImGui.bullet_text("Bullet Text 1")
+    ImGui.bullet_text("Bullet Text 2")
+
+
+def draw_objective_text(theme: Style.StyleTheme):
+    preview.objective_1 = ImGui.objective_text(
+        "Objective 1", preview.objective_1)
+    preview.objective_2 = ImGui.objective_text(
+        "Objective 2", preview.objective_2)
+
+
+def draw_tree_node(theme: Style.StyleTheme):
+    if ImGui.tree_node("Tree Node 1##" + theme.name):
+        if ImGui.tree_node("Tree Node 1.1##" + theme.name):
+            ImGui.text("This is a tree node content.")
+            ImGui.tree_pop()
+
+        ImGui.tree_pop()
+
+
+def draw_collapsing_header(theme: Style.StyleTheme):
+    if ImGui.collapsing_header("Collapsing Header##" + theme.name, 0):
+        ImGui.text("This is a collapsible header content.")
+
+
+def draw_child(theme: Style.StyleTheme):
+    if ImGui.begin_child("Child##" + theme.name, (0, 68), True, PyImGui.WindowFlags.AlwaysHorizontalScrollbar):
+        ImGui.text("This is a child content.")
+        ImGui.text("This is a child content.")
+        ImGui.text("This is a child content.")
+        ImGui.text("This is a child content.")
+        ImGui.text("This is a child content.")
+    ImGui.end_child()
+
+
+def draw_tab_bar(theme: Style.StyleTheme):
+    if ImGui.begin_tab_bar("Tab Bar PyImGui##" + theme.name):
+        if ImGui.begin_tab_item("Tab 1##" + theme.name):
+            ImGui.text("Content for Tab 1")
+            PyImGui.end_tab_item()
+
+        if ImGui.begin_tab_item("Tab 2##" + theme.name):
+            ImGui.text("Content for Tab 2")
+            PyImGui.end_tab_item()
+
+        ImGui.end_tab_bar()
+
+
+controls = {
+    "Button": draw_button,
+    "Small Button": draw_small_button,
+    "Icon Button": draw_icon_button,
+    "Toggle Button": draw_toggle_button,
+    "Image Toggle Button": draw_image_toggle,
+    "Image Button": draw_image_button,
+    "Combo": draw_combo,
+    "Checkbox": draw_checkbox,
+    "Radio Button": draw_radio_button,
+    "Slider": draw_slider,
+    "Input": draw_input,
+    "Separator": draw_separator,
+    "Progress Bar": draw_progress_bar,
+    "Text": draw_text,
+    "Hyperlink": draw_hyperlink,
+    "Bullet Text": draw_bullet_text,
+    "Objective Text": draw_objective_text,
+    "Tree Node": draw_tree_node,
+    "Collapsing Header": draw_collapsing_header,
+    "Child & Scrollbars": draw_child,
+    "Tab Bar": draw_tab_bar,
+}
+
+
+def DrawThemeCompare():
+    global match_style_vars, preview, themes
+
+    if ImGui.begin("Theme Compare"):
+        window_size = PyImGui.get_window_size()
+        
+        if window_size[1] > 100:
+            comparing_themes = [preview.theme_1, preview.theme_2, preview.theme_3]
+
+            PyImGui.push_item_width(150)
+            style = ImGui.get_style()
+
+            # region Header
+            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.CellPadding, 4, 8)
+            if ImGui.begin_table("Control Preview#Header", 4, PyImGui.TableFlags.BordersOuterH, 0, 30):
+                PyImGui.table_setup_column(
+                    "Control", PyImGui.TableColumnFlags.WidthFixed, 150)
+                PyImGui.table_setup_column(
+                    "ImGui", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column(
+                    "Guild Wars", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column(
+                    "Minimalus", PyImGui.TableColumnFlags.WidthStretch)
+
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+
+                checked = ImGui.checkbox("Match Style Vars", match_style_vars)
+                if checked != match_style_vars:
+                    match_style_vars = checked
+
+                    for theme in comparing_themes:
+                        ImGui.reload_theme(theme)
+
+                if match_style_vars:
+                    for theme in comparing_themes:
+                        s = ImGui.Styles[theme]
+
+                        for var_enum, var in s.StyleVars.items():
+                            var.value1 = style.StyleVars[var_enum].value1
+                            var.value2 = style.StyleVars[var_enum].value2
+
+                PyImGui.table_next_column()
+
+                theme_1 = ImGui.combo(preview.theme_1.name + "##theme_1", preview.theme_1.value, themes)
+                if theme_1 != preview.theme_1.value:
+                    preview.theme_1 = Style.StyleTheme(theme_1)
+                    ImGui.reload_theme(preview.theme_1)
+                    
+                PyImGui.table_next_column()
+
+
+                theme_2 = ImGui.combo(preview.theme_2.name + "##theme_2", preview.theme_2.value, themes)
+                if theme_2 != preview.theme_2.value:
+                    preview.theme_2 = Style.StyleTheme(theme_2)
+                    ImGui.reload_theme(preview.theme_2)
+                    
+                PyImGui.table_next_column()
+
+                theme_3 = ImGui.combo(preview.theme_3.name + "##theme_3", preview.theme_3.value, themes)
+                if theme_3 != preview.theme_3.value:
+                    preview.theme_3 = Style.StyleTheme(theme_3)
+                    ImGui.reload_theme(preview.theme_3)
+                    
+                ImGui.end_table()
+            PyImGui.pop_style_var(1)
+            # endregion
+
+            if ImGui.begin_table("Theme Compare Control Preview", len(comparing_themes) + 1, PyImGui.TableFlags.ScrollX | PyImGui.TableFlags.ScrollY):
+                PyImGui.table_setup_column(
+                    "Control", PyImGui.TableColumnFlags.WidthFixed, 150)
+                PyImGui.table_setup_column(
+                    "ImGui", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column(
+                    "Guild Wars", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column(
+                    "Minimalus", PyImGui.TableColumnFlags.WidthStretch)
+
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                
+                for control_name, control_draw_func in controls.items():
+                    ImGui.text(control_name)
+                    PyImGui.table_next_column()
+
+                    for style in comparing_themes:
+                        ImGui.push_theme(style)
+                        control_draw_func(style)
+                        ImGui.pop_theme()
+                        PyImGui.table_next_column()
+                    
+                ImGui.end_table()
+
+            PyImGui.pop_item_width()
+            
+    ImGui.end()
+
+def DrawControlCompare():
+    if PyImGui.begin("Control Compare"):
+        window_size = PyImGui.get_window_size()
+        
+        if window_size[1] > 100:
+
+            PyImGui.push_item_width(150)
+            style = ImGui.get_style()
+
+            if ImGui.begin_table("Control Compare Control Preview", 4, PyImGui.TableFlags.ScrollX):
+                PyImGui.table_setup_column(
+                    "ControlName", PyImGui.TableColumnFlags.WidthFixed, 150)
+                PyImGui.table_setup_column(
+                    "PyImgui", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column(
+                    "ImGui", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column(
+                    "ImGui Style Pushed", PyImGui.TableColumnFlags.WidthStretch)
+
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+
+                ImGui.text("Control")
+                PyImGui.table_next_column()             
+                
+                ImGui.end_table()
+            PyImGui.pop_item_width()
+            
+    PyImGui.end()
 
 def OnLoad():
     global is_first_run, selected_theme, style, themes
@@ -72,21 +452,12 @@ def OnLoad():
         is_first_run = False            
         set_theme(selected_theme)
         
-
-def DrawControlCompare():
-    pass
-
-def DrawThemeCompare():
-    pass
-
 def DrawWindow():
     global theme_compare, control_compare, style, window_width, window_height, save_throttle_timer, save_throttle_time
 
-    # PyImGui.set_next_window_size((600, 400), PyImGui.ImGuiCond.Once)    
-    style.apply_to_style_config()            
-    window_module.initialize()
-    
     if window_module.begin():
+        style.apply_to_style_config()       
+    
         remaining = PyImGui.get_content_region_avail()
         button_width = (remaining[0] - 10) / 2
 
@@ -106,29 +477,24 @@ def DrawWindow():
                 "settings", "style_theme", ImGui.Selected_Style.Theme.name)
 
         PyImGui.same_line(0, 5)
-        PyImGui.begin_disabled(True)
         PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 5)
         theme_compare = PyImGui.checkbox(
             "##show_theme_compare", theme_compare)
         ImGui.show_tooltip(
             "Show Theme Compare window\nCurrently disabled.")
-        PyImGui.end_disabled()
 
         PyImGui.spacing()
         PyImGui.separator()
         PyImGui.spacing()
 
         any_changed = is_style_modified()
-
-        PyImGui.begin_disabled(not any_changed)
-        if PyImGui.button("Save Changes", button_width):
+        if ImGui.button("Save Changes", button_width, enabled=any_changed):
             style.save_to_json()    
             set_theme(style.Theme)
 
-        PyImGui.end_disabled()
         PyImGui.same_line(0, 5)
 
-        if PyImGui.button("Reset to Default", button_width):
+        if ImGui.button("Reset to Default", button_width):
             theme = ImGui.Selected_Style.Theme
             ImGui.Selected_Style.delete()
             set_theme(theme)
@@ -166,35 +532,8 @@ def DrawWindow():
                 PyImGui.separator()
                 PyImGui.table_next_column()
 
-        def table_collapsing_header(title: str, font_size: int = 20, font_family: str = "Regular", color: Optional[tuple] = None, tooltip: Optional[str] = None):
-            PyImGui.spacing()
-            PyImGui.spacing()
-            PyImGui.table_next_row()
-            PyImGui.table_next_column()
-
-            if color:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color)
-
-            ImGui.push_font(font_family, font_size)
-            open = PyImGui.collapsing_header(title)
-
-            if tooltip:
-                ImGui.show_tooltip(tooltip)
-
-            ImGui.pop_font()
-
-            if color:
-                PyImGui.pop_style_color(1)
-
-            PyImGui.table_next_row()
-            for _ in range(4):
-                PyImGui.separator()
-                PyImGui.table_next_column()
-
-            return open
-
-        if PyImGui.begin_tab_bar("Style Customization"):
-            if PyImGui.begin_tab_item("Style Customization"):
+        if ImGui.begin_tab_bar("Style Customization"):
+            if ImGui.begin_tab_item("Style Customization"):
 
                 if PyImGui.is_rect_visible(0, 10):
                     if PyImGui.begin_table("Style Variables", 3, PyImGui.TableFlags.ScrollY):
@@ -210,7 +549,7 @@ def DrawWindow():
                         table_separator_header("Control Colors")
 
                         for col_name, col in style.Colors.items():
-                            PyImGui.text(col_name)
+                            ImGui.text(col_name)
                             PyImGui.table_next_column()
 
                             column_width = column_width or PyImGui.get_content_region_avail()[
@@ -230,7 +569,7 @@ def DrawWindow():
                                 col.color_int != org_color.color_int)
 
                             if show_button and col_name and ImGui.Selected_Style.Colors[col_name]:
-                                if PyImGui.button(IconsFontAwesome5.ICON_UNDO + "##" + col_name, 25, 25):
+                                if ImGui.icon_button(IconsFontAwesome5.ICON_UNDO + "##" + col_name, 25, 25):
                                     col.set_rgba(
                                         *ImGui.Selected_Style.Colors[col_name].rgb_tuple)
 
@@ -241,7 +580,7 @@ def DrawWindow():
                         for enum, var in style.StyleVars.items():
                             PyImGui.set_cursor_pos_y(
                                 PyImGui.get_cursor_pos_y() + 5)
-                            PyImGui.text(f"{enum}")
+                            ImGui.text(f"{enum}")
                             PyImGui.table_next_column()
 
                             column_width = column_width or PyImGui.get_content_region_avail()[
@@ -249,14 +588,14 @@ def DrawWindow():
                             item_width = item_width or (
                                 column_width - 5) / 2
                             PyImGui.push_item_width(item_width)
-                            var.value1 = PyImGui.input_float(
+                            var.value1 = ImGui.input_float(
                                 f"##{enum}_value1", var.value1)
 
                             if var.value2 is not None:
                                 PyImGui.same_line(0, 5)
 
                                 PyImGui.push_item_width(item_width)
-                                var.value2 = PyImGui.input_float(
+                                var.value2 = ImGui.input_float(
                                     f"##{enum}_value2", var.value2)
 
                             PyImGui.table_next_column()
@@ -265,7 +604,7 @@ def DrawWindow():
                                 enum].value1 != var.value1 or ImGui.Selected_Style.StyleVars[enum].value2 != var.value2
 
                             if changed:
-                                if PyImGui.button(f"{IconsFontAwesome5.ICON_UNDO}##{enum}_undo", 30):
+                                if ImGui.icon_button(f"{IconsFontAwesome5.ICON_UNDO}##{enum}_undo", 30):
                                     var.value1 = ImGui.Selected_Style.StyleVars[enum].value1
                                     var.value2 = ImGui.Selected_Style.StyleVars[enum].value2
 
@@ -274,14 +613,14 @@ def DrawWindow():
                         table_separator_header("Custom Colors")
 
                         for col_name, col in style.CustomColors.items():
-                            PyImGui.text(col_name)
+                            ImGui.text(col_name)
                             PyImGui.table_next_column()
 
                             column_width = column_width or PyImGui.get_content_region_avail()[
                                 0]
                             PyImGui.push_item_width(column_width)
 
-                            new_color = PyImGui.color_edit4(
+                            new_color = ImGui.color_edit4(
                                 col_name, col.color_tuple)
                             if new_color:
                                 col.set_tuple_color(new_color)
@@ -295,7 +634,7 @@ def DrawWindow():
                                 col.color_int != org_color.color_int)
 
                             if show_button and col_name and ImGui.Selected_Style.Colors[col_name]:
-                                if PyImGui.button(IconsFontAwesome5.ICON_UNDO + "##" + col_name, 25, 25):
+                                if ImGui.icon_button(IconsFontAwesome5.ICON_UNDO + "##" + col_name, 25, 25):
                                     col.set_rgba(
                                         *ImGui.Selected_Style.Colors[col_name].rgb_tuple)
 
@@ -304,14 +643,14 @@ def DrawWindow():
                         table_separator_header("Texture Colors")
 
                         for col_name, col in style.TextureColors.items():
-                            PyImGui.text(col_name)
+                            ImGui.text(col_name)
                             PyImGui.table_next_column()
 
                             column_width = column_width or PyImGui.get_content_region_avail()[
                                 0]
                             PyImGui.push_item_width(column_width)
 
-                            new_color = PyImGui.color_edit4(
+                            new_color = ImGui.color_edit4(
                                 col_name, col.color_tuple)
                             if new_color:
                                 col.set_tuple_color(new_color)
@@ -325,7 +664,7 @@ def DrawWindow():
                                 col.color_int != org_color.color_int)
 
                             if show_button and col_name and ImGui.Selected_Style.Colors[col_name]:
-                                if PyImGui.button(IconsFontAwesome5.ICON_UNDO + "##" + col_name, 25, 25):
+                                if ImGui.icon_button(IconsFontAwesome5.ICON_UNDO + "##" + col_name, 25, 25):
                                     col.set_rgba(
                                         *ImGui.Selected_Style.Colors[col_name].rgb_tuple)
 
@@ -333,75 +672,49 @@ def DrawWindow():
 
                         PyImGui.end_table()
 
-                PyImGui.end_tab_item()
+                ImGui.end_tab_item()
 
-            if False and PyImGui.begin_tab_item("Control Preview"):
-                
-                PyImGui.begin_disabled(True)
-                ImGui.push_font("Regular", 18)
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1, 0, 0, 1))
-                PyImGui.spacing()
-                PyImGui.spacing()
-                PyImGui.spacing()
-                PyImGui.indent(10)
-                PyImGui.text("Coming soon ...")
-                PyImGui.pop_style_color(1)
-                ImGui.pop_font()
-                PyImGui.end_disabled()
-                
-                PyImGui.end_tab_item()
+            if ImGui.begin_tab_item("Control Preview"):
+                style = ImGui.get_style()
 
-            if False and PyImGui.begin_tab_item("How to Use"):
-                
-                PyImGui.begin_disabled(True)
-                ImGui.push_font("Regular", 18)
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1, 0, 0, 1))
-                PyImGui.spacing()
-                PyImGui.spacing()
-                PyImGui.spacing()
-                PyImGui.indent(10)
-                PyImGui.text("Coming soon ...")
-                PyImGui.pop_style_color(1)
-                ImGui.pop_font()
-                PyImGui.end_disabled()
-                
-                PyImGui.end_tab_item()
+                if PyImGui.is_rect_visible(50, 50):
+                    column_width = 0
+                    item_width = 0
 
-            PyImGui.end_tab_bar()
+                    PyImGui.push_item_width(150)
+                    if ImGui.begin_table("Control Preview Tab Control Preview", 2, PyImGui.TableFlags.ScrollX):
+                        PyImGui.table_setup_column(
+                            "Control", PyImGui.TableColumnFlags.WidthFixed, 150)
+                        PyImGui.table_setup_column(
+                            "Preview", PyImGui.TableColumnFlags.WidthStretch)
 
-        window_module.window_size = PyImGui.get_window_size()
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+
+                        for control_name, control_draw_func in controls.items():
+                            ImGui.text(control_name)
+                            PyImGui.table_next_column()
+
+                            control_draw_func(style.Theme)
+                            PyImGui.table_next_column()
+
+                        ImGui.end_table()
+                    PyImGui.pop_item_width()
+                ImGui.end_tab_item()
+
+            ImGui.end_tab_bar()
+
         window_module.process_window()
+            
+        if control_compare:
+            # DrawControlCompare()
+            pass
+
+        if theme_compare:
+            DrawThemeCompare()
+            pass
         
-    window_module.end()
-
-    if save_throttle_timer.HasElapsed(save_throttle_time):
-        save_throttle_timer.Reset()
-        
-        if window_module.window_pos[0] != window_module.end_pos[0] or window_module.window_pos[1] != window_module.end_pos[1]:
-            window_module.window_pos = window_module.end_pos
-            ini_handler.write_key(
-                MODULE_NAME + " Config", "x", str(int(window_module.window_pos[0])))
-            ini_handler.write_key(
-                MODULE_NAME + " Config", "y", str(int(window_module.window_pos[1])))
-
-        if window_width != window_module.window_size[0] or window_height != window_module.window_size[1]:
-            ini_handler.write_key(
-                MODULE_NAME + " Config", "width", str(int(window_module.window_size[0])))
-            ini_handler.write_key(
-                MODULE_NAME + " Config", "height", str(int(window_module.window_size[1])))
-            window_width, window_height = window_module.window_size
-
-        if window_module.collapsed_status != window_module.collapse:
-            window_module.collapse = window_module.collapsed_status
-            ini_handler.write_key(
-                MODULE_NAME + " Config", "collapsed", str(window_module.collapse))
-
-        
-    if control_compare:
-        DrawControlCompare()
-
-    if theme_compare:
-        DrawThemeCompare()
+    window_module.end()        
 
     pass
 
@@ -440,7 +753,6 @@ def set_theme(theme):
 def configure():
     global window_open
     window_open = True
-
 
 def main():
     """Required main function for the widget"""

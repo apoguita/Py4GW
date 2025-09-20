@@ -3,6 +3,7 @@ from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
 from .ImGui_src.types import ImGuiStyleVar, StyleTheme, StyleColorType
 from .ImGui_src import Style
 from .ImGui_src.ImGuisrc import ImGui
+from .ImGui_src.Utility import ImGuiIniReader
 from .ImGui_src.Textures import TextureState, SplitTexture, MapTexture, ThemeTexture, ThemeTextures
 
 __all__ = ["ImGuiStyleVar", 
@@ -10,6 +11,7 @@ __all__ = ["ImGuiStyleVar",
            "StyleColorType",
            "Style",
            "ImGui",
+           "ImGuiIniReader",
            "TextureState",
            "SplitTexture",
            "MapTexture",
