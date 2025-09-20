@@ -20,7 +20,7 @@ class _Upkeepers:
             if self._config.upkeep.auto_combat.is_active():
                 yield from self._config.build_handler.ProcessSkillCasting()
             else:
-                yield from Routines.Yield.wait(500)       
+                yield from Routines.Yield.wait(250)       
                 
     def upkeep_hero_ai(self):
         from ...Routines import Routines
@@ -49,7 +49,6 @@ class _Upkeepers:
         from ...Routines import Routines
         from ...Py4GWcorelib import LootConfig
         from ...enums import Range
-        return True
         while True:
             if self._config.upkeep.auto_loot.is_active() and not self.parent.config.pause_on_danger_fn():
                 loot_singleton = LootConfig()

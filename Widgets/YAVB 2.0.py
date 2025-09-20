@@ -95,6 +95,7 @@ def ResetFarmLoop(bot: Botting) -> None:
 def InitializeBot(bot: Botting) -> None:
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     bot.Events.OnStuckCallback(lambda: on_stuck(bot))
+    bot.Events.SetStuckRoutineEnabled(True)
     bot.States.AddHeader("Initialize Bot")
     bot.Properties.Disable("auto_inventory_management")
     bot.Properties.Disable("auto_loot")
@@ -153,24 +154,41 @@ def NeedsInventoryManagement(bot: Botting):
         bot.States.JumpToStepName("[H]Town Routines_1")
     yield
     
+import time
+
 def WaitForAggroBall(bot: Botting):
     ConsoleLog("Waiting for Aggro Ball", "Waiting for enemies to ball up.", Py4GW.Console.MessageType.Info, False)
     event = bot.Events._events.on_stuck
     event.set_in_waiting_routine(True)
 
-    elapsed = 0
     build = bot.config.build_handler
+    elapsed = 0
+    max_ticks = 150  # 150 * 100ms = 15s max
 
-    while elapsed < 150:  # 150 * 100ms = 15s max
+    start_time = time.time()  # <-- hard time check baseline
+    max_seconds = 15          # <-- hard timeout threshold
+
+    while elapsed < max_ticks:
         yield from Routines.Yield.wait(100)
         elapsed += 1
+
+        # Extra hard timeout based on real time
+        #this was added explicitely for preventing a very rare ocurring bug where the routine would get stuck here forever
+        #do not remove this check unless you have a better solution
+        if time.time() - start_time >= max_seconds:
+            break
+
         px, py = GLOBAL_CACHE.Player.GetXY()
         enemies_ids = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Earshot.value)
+
+        if not enemies_ids:
+            continue
 
         all_in_adjacent = True
         for enemy_id in enemies_ids:
             enemy = GLOBAL_CACHE.Agent.GetAgent(enemy_id)
             if enemy is None:
+                all_in_adjacent = False
                 continue
             dx, dy = enemy.x - px, enemy.y - py
             if dx * dx + dy * dy > (Range.Adjacent.value ** 2):
@@ -178,11 +196,11 @@ def WaitForAggroBall(bot: Botting):
                 break
 
         if all_in_adjacent:
-            break  # exit early if all enemies are balled up
+            break  # success before timeout
 
     event.set_in_waiting_routine(False)
 
-    # Resume build
+    # Always proceed after success or timeout
     if isinstance(build, (SF_Ass_vaettir, SF_Mes_vaettir)):
         yield from build.CastHeartOfShadow()
 
@@ -226,6 +244,7 @@ def KillEnemies(bot: Botting):
       
 #region Events  
 def _restart(bot: "Botting"):
+    bot.Events.SetStuckRoutineEnabled(True)
     GLOBAL_CACHE.Player.SendChatCommand("resign")
     yield from Routines.Yield.wait(8000)
     fsm = bot.config.FSM
