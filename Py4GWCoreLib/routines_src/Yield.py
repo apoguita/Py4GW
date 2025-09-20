@@ -1043,7 +1043,7 @@ class Yield:
             progress_callback: Optional[Callable[[float], None]] = None,
             pickup_timeout: int = 5000,
             max_attempts: int = 5,
-            attepts_timeout_seconds: int = 3,
+            attempts_timeout_seconds: int = 3,
         ):
             from ..AgentArray import AgentArray
             from .Checks import Checks
@@ -1095,7 +1095,7 @@ class Yield:
                             yield from Yield.Player.InteractAgent(item_id)
 
                         # Wait a bit after interaction
-                        for _ in range(attepts_timeout_seconds * 10):  # default 3 seconds to pick up the loot
+                        for _ in range(attempts_timeout_seconds * 10):  # default 3 seconds to pick up the loot
                             yield from Yield.wait(100)
 
                             live_items = AgentArray.GetItemArray()
