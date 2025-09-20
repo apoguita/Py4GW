@@ -511,6 +511,32 @@ class _UI:
 
                         render_upkeep_data(self)
 
+                    if PyImGui.collapsing_header("Build"):
+                        def render_build_data(parent):
+                            build_handler = parent.config.build_handler
+
+                            def debug_text(prop_name: str, value: object):
+                                from ...Py4GWcorelib import Utils
+                                if isinstance(value, bool):
+                                    color = Utils.TrueFalseColor(value)
+                                elif isinstance(value, (int, float)):
+                                    color = (200, 200, 255, 255)  # numbers: bluish
+                                elif isinstance(value, str):
+                                    color = (200, 255, 200, 255)  # strings: greenish
+                                else:
+                                    color = (255, 255, 255, 255)  # default white
+                                PyImGui.text_colored(f"{prop_name}: {value}", color)
+
+                            # Walk over instance attributes
+                            for key, value in build_handler.__dict__.items():
+                                if PyImGui.tree_node(key):
+                                    PyImGui.push_id(key)
+                                    debug_text(key, value)
+                                    PyImGui.pop_id()
+                                    PyImGui.tree_pop()
+
+                        render_build_data(self.parent)
+
                     PyImGui.end_tab_item()
                 PyImGui.end_tab_bar()
 
