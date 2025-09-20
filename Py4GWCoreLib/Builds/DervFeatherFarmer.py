@@ -20,6 +20,7 @@ class DervBuildFarmStatus:
     Ball = 'ball'
     Kill = 'kill'
     Loot = 'loot'
+    Wait = 'wait'
 
 
 class DervFeatherFarmer(BuildMgr):
@@ -92,7 +93,7 @@ class DervFeatherFarmer(BuildMgr):
             yield from Routines.Yield.wait(1000)
             return
 
-        if self.status == DervBuildFarmStatus.Loot:
+        if self.status == DervBuildFarmStatus.Loot or self.status == DervBuildFarmStatus.Wait:
             yield from Routines.Yield.wait(100)
             return
 
@@ -121,16 +122,10 @@ class DervFeatherFarmer(BuildMgr):
         if self.status == DervBuildFarmStatus.Move:
             yield from self.swap_to_shield_set()
             self.spiked = False
-            intimidating_aura_bugg_time_remaining = (
-                GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.intimidating_aura)
-                if has_intimidating_aura
-                else 0
-            )
             if (
                 (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash))
                 and has_dwarven_stability
                 and has_intimidating_aura
-                and intimidating_aura_bugg_time_remaining > 5000
                 and GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
             ):
                 yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
