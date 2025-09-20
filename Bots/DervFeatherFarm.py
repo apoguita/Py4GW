@@ -9,6 +9,7 @@ FEATHER_FARMER = "Feather Farmer"
 SEITUING_HARBOR = "Seitung Harbor"
 JAYA_BLUFFS = "Jaya Bluffs"
 VIABLE_LOOT = {
+    ModelID.Gold_Coins,
     ModelID.Bone,
     ModelID.Feather,
     ModelID.Feathered_Crest,
