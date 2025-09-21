@@ -2,7 +2,6 @@ import math
 from tkinter.constants import N
 from typing import Any, Generator, override
 
-from HeroAI.types import PlayerStruct
 from Py4GWCoreLib import GLOBAL_CACHE, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
 from Py4GWCoreLib.enums import SharedCommandType

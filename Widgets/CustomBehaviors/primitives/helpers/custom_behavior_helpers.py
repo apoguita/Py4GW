@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Callable, Optional, Tuple
 
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
-
 
 from Py4GWCoreLib import GLOBAL_CACHE, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
 from Widgets.CustomBehaviors.primitives import constants
@@ -167,14 +167,11 @@ class Resources:
 
     @staticmethod
     def get_energy_percent_in_party(agent_id):
-        import HeroAI.shared_memory_manager as shared_memory_manager
-        shared_memory_handler = shared_memory_manager.SharedMemoryManager()
 
-        from HeroAI.constants import MAX_NUM_PLAYERS
-        for i in range(MAX_NUM_PLAYERS):
-            player_data = shared_memory_handler.get_player(i)
-            if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
-                return player_data["Energy"]
+        accounts:list[AccountData] = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            if agent_id == account.PlayerID:
+                return account.Energy
         return 1.0  # default return full energy to prevent issues
 
     @staticmethod
@@ -231,6 +228,26 @@ class Resources:
             return False
 
         return len(spirit_array) > 0
+    
+    @staticmethod
+    def is_ally_under_specific_effect(agent_id: int, skill_id: int) -> bool:
+        if agent_id == GLOBAL_CACHE.Player.GetAgentID() :
+            # if target is the player, check if the player has the effect
+            has_buff: bool = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), skill_id)
+            return has_buff
+        else:
+            # else check if the party target has the effect
+            # we should also deep dive inside player.pet
+
+            accounts:list[AccountData] = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            for account in accounts:
+                if account.PlayerID == agent_id:
+                    buff_list : list[int] = account.PlayerBuffs
+                    for buff_skill_id in account.buff_list:
+                        if buff_skill_id == skill_id:
+                            return True
+
+        return False
 
 class Actions:
 
@@ -791,19 +808,6 @@ class Targets:
 
 class Heals:
 
-    @staticmethod
-    def is_ally_under_specific_effect(agent_id: int, skill_id: int) -> bool:
-        from HeroAI.utils import CheckForEffect
-
-        if agent_id == GLOBAL_CACHE.Player.GetAgentID() :
-            # if target is the player, check if the player has the effect
-            has_buff: bool = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), skill_id)
-            return has_buff
-        else:
-            # else check if the party target has the effect
-            # not sure pet are in heroAI...
-            has_effect: bool = CheckForEffect(agent_id, skill_id)
-            return has_effect
 
     @staticmethod
     def is_party_damaged(within_range:Range, min_allies_count:int, less_health_than_percent:float) -> bool:

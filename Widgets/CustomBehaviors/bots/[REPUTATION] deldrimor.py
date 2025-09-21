@@ -13,35 +13,55 @@ class plant_fiber(BottingAbstract):
     def bot_routine(self, bot_instance: Botting):
         # Set up the FSM states properly
         bot_instance.States.AddHeader("MAIN_LOOP")
-        bot_instance.Map.Travel(target_map_id=396)
+        bot_instance.Map.Travel(target_map_id=639)
         bot_instance.Party.SetHardMode(True)
 
-        bot_instance.States.AddHeader("EXIT_OUTPOST")
+        bot_instance.States.AddHeader("ENTER_DUNGEONS")
         bot_instance.UI.PrintMessageToConsole("Debug", "Added header: EXIT_OUTPOST")
-        bot_instance.Move.XY(-1859, 6127, "Exit Outpost")
-        bot_instance.Wait.ForMapLoad(target_map_id=395)
+        bot_instance.Move.XY(-23886, 13874) #go to NPC
 
-        bot_instance.States.AddHeader("FARM LOOP")
+        bot_instance.Dialogs.AtXY(-23886, 13874, 0x84) #enter instance if quest in hand
+        bot_instance.Dialogs.AtXY(-23886, 13874, 0x10) #accept quest
+        bot_instance.Dialogs.AtXY(-23886, 13874, 0x18) #enter instance
+        bot_instance.Wait.ForMapLoad(target_map_id=701) # we are in the dungeon
 
-        for farm_coordinate in self.farm_coordinates():
-            bot_instance.Move.XY(farm_coordinate[0], farm_coordinate[1])
+        bot_instance.States.AddHeader("DUNGEON_LOOP")
+        bot_instance.UI.PrintMessageToConsole("DUNGEON_LOOP", "blessing is managed for the party by custom_behavior")
+
+        bot_instance.Wait.ForTime(200)
+        # bot_instance.Move.XY(-10480, -10938, "GO TO THE KEY")
+        # # todo interract key-chest.
+        # bot_instance.Move.XY(-8271, -19101, "GO TO THE END BOSS")
+        # todo interract with end-chest.
+
 
         bot_instance.States.AddHeader("END")
         bot_instance.Multibox.ResignParty()
+        bot_instance.Wait.ForMapLoad(target_map_id=639) # we are back in outpost
+        
+        # todo finalize quest.
+
+        bot_instance.Move.XY(-22835, 6402, "REFRESH_OUTPOST")
+        bot_instance.Map.Travel(target_map_id=566)
+
+        bot_instance.Move.XY(-23139, 8233, "ENTER_OUTPOST_AGAIN")
+        bot_instance.Map.Travel(target_map_id=639)
+
         bot_instance.UI.PrintMessageToConsole("END", "Finished routine")
 
         # Loop back to farm loop
         bot_instance.States.JumpToStepName("[H]MAIN_LOOP_1")
 
+
     @property
     @override
     def name(self) -> str:
-        return "[FARM] plant_fiber"
+        return "[REPUTATION] deldrimor"
 
     @property
     @override
     def description(self) -> str:
-        return "farm plant_fiber"
+        return "farm Secret Lair of the Snowmen - This typically results in earning approximately 1,500 points per run (2,000 in hard mode)."
 
     def farm_coordinates(self) -> list[tuple[float, float]]:
         return [
@@ -124,4 +144,3 @@ def configure():
     pass
 
 __all__ = ["main", "configure"]
-
