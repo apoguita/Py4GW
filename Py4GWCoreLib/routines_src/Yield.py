@@ -987,6 +987,12 @@ class Yield:
             if len(item_array) == 0:
                 return True
             
+            yield from Yield.wait(1000)
+            if not Checks.Map.MapValid():
+                item_array.clear()
+                ActionQueueManager().ResetAllQueues()
+                return False
+            
             total_items = len(item_array)
             while len (item_array) > 0:
                 item_id = item_array.pop(0)
