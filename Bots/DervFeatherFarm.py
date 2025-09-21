@@ -59,6 +59,7 @@ def return_to_outpost():
     is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
     is_explorable = GLOBAL_CACHE.Map.IsExplorable()
     is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated()
+    yield from Routines.Yield.wait(3000)
 
     if is_map_ready and is_party_loaded and is_explorable and is_party_defeated:
         yield from Routines.Yield.Player.Resign()
@@ -75,8 +76,8 @@ def load_skill_bar(bot: Botting):
 
 
 def ball_sensalis(bot: Botting):
-    sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
-    if not sum(1 for _ in sensali_array):
+    all_sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
+    if not sum(1 for _ in all_sensali_array):
         return False
 
     ConsoleLog(FEATHER_FARMER, 'Balling all Sensalis...')
@@ -84,16 +85,19 @@ def ball_sensalis(bot: Botting):
     yield from Routines.Yield.wait(100)
 
     elapsed = 0
-    while elapsed < 30:  # 50 * 100ms = 3s
+    while elapsed < (10 * 10):  # 100 = 10 seconds, 30 = 3 seconds
         # Enemies nearby
         player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
         if player_hp < 0.80:
+            ConsoleLog(FEATHER_FARMER, 'Dying, killing immediately!')
             return True
 
-        sensali_array = get_sensali_array(custom_range=Range.Adjacent.value)
-        ball_count = sum(1 for _ in sensali_array)
+        all_sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
+        nearby_sensali_array = get_sensali_array(custom_range=Range.Nearby.value)
+        ball_count = sum(1 for _ in nearby_sensali_array)
+        total_count = sum(1 for _ in all_sensali_array)
 
-        if ball_count >= 3:
+        if ball_count == total_count:
             ConsoleLog(FEATHER_FARMER, 'Sensalis ready to kill!')
             return True  # condition satisfied
 
