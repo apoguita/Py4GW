@@ -16,6 +16,7 @@ SENSALI_MODEL_IDS = {AgentModelID.SENSALI_CLAW, AgentModelID.SENSALI_CUTTER, Age
 
 # =================== BUILD ========================
 class DervBuildFarmStatus:
+    Setup = 'setup'
     Move = 'move'
     Ball = 'ball'
     Kill = 'kill'
@@ -97,16 +98,33 @@ class DervFeatherFarmer(BuildMgr):
             yield from Routines.Yield.wait(100)
             return
 
+        if self.status == DervBuildFarmStatus.Setup:
+            yield from self.swap_to_shield_set()
+            self.spiked = False
+            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash)) and GLOBAL_CACHE.Agent.IsMoving(
+                GLOBAL_CACHE.Player.GetAgentID()
+            ):
+                yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
+                return
+
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         has_dwarven_stability = Routines.Checks.Effects.HasBuff(player_agent_id, self.dwarven_stability)
         has_mystic_regen = Routines.Checks.Effects.HasBuff(player_agent_id, self.mystic_regen)
         has_intimidating_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.intimidating_aura)
 
-        if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.intimidating_aura)) and not has_intimidating_aura:
+        if (
+            (yield from Routines.Yield.Skills.IsSkillIDUsable(self.intimidating_aura))
+            and not has_intimidating_aura
+            and not self.status == DervBuildFarmStatus.Setup
+        ):
             yield from Routines.Yield.Skills.CastSkillID(self.intimidating_aura, aftercast_delay=750)
             return
 
-        if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dwarven_stability)) and not has_dwarven_stability:
+        if (
+            (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dwarven_stability))
+            and not has_dwarven_stability
+            and not self.status == DervBuildFarmStatus.Setup
+        ):
             yield from Routines.Yield.Skills.CastSkillID(self.dwarven_stability, aftercast_delay=250)
             return
 

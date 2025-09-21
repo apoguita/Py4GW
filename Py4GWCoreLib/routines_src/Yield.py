@@ -1049,9 +1049,11 @@ class Yield:
             from .Checks import Checks
 
             if len(item_array) == 0:
-                return True
+                return []
 
+            failed_items: list[int] = []
             total_items = len(item_array)
+
             while len(item_array) > 0:
                 item_id = item_array.pop(0)
                 if item_id == 0:
@@ -1060,63 +1062,57 @@ class Yield:
                 free_slots_in_inventory = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
                 if free_slots_in_inventory <= 0:
                     ConsoleLog("LootItems", "No free slots in inventory, stopping loot.", Console.MessageType.Warning)
-                    item_array.clear()
                     ActionQueueManager().ResetAllQueues()
-                    return False
+                    return failed_items + item_array
 
                 if not Checks.Map.MapValid():
-                    item_array.clear()
                     ActionQueueManager().ResetAllQueues()
-                    return False
+                    return failed_items + item_array
 
                 if not GLOBAL_CACHE.Agent.IsValid(item_id):
                     continue
 
+                # Try to walk to item
                 item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
                 item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout)
                 if not item_reached:
-                    ConsoleLog("LootItems", "Failed to reach item, stopping loot.", Console.MessageType.Warning)
-                    item_array.clear()
-                    ActionQueueManager().ResetAllQueues()
-                    return False
-
-                if not Checks.Map.MapValid():
-                    item_array.clear()
-                    ActionQueueManager().ResetAllQueues()
-                    return False
+                    ConsoleLog("LootItems", f"Failed to reach item {item_id}, skipping.", Console.MessageType.Warning)
+                    failed_items.append(item_id)
+                    continue
 
                 if GLOBAL_CACHE.Agent.IsValid(item_id):
                     attempts = 0
-                    picked_up = False  # track success
+                    picked_up = False
 
                     while attempts < max_attempts and not picked_up:
-                        # Try interacting again if still valid
                         if GLOBAL_CACHE.Agent.IsValid(item_id):
                             yield from Yield.Player.InteractAgent(item_id)
 
-                        # Wait a bit after interaction
-                        for _ in range(attempts_timeout_seconds * 10):  # default 3 seconds to pick up the loot
+                        for _ in range(attempts_timeout_seconds * 10):  # default 3s
                             yield from Yield.wait(100)
-
                             live_items = AgentArray.GetItemArray()
                             if item_id not in live_items:
-                                # Success! Item gone
                                 picked_up = True
-                                break  # exit the for-loop
+                                break
 
                         if not picked_up:
                             attempts += 1
 
-                    # Optional: log if item couldn’t be picked up after all attempts
                     if not picked_up:
                         ConsoleLog("Loot", f"Failed to pick up item {item_id} after {max_attempts} attempts.")
+                        failed_items.append(item_id)
 
                 if progress_callback and total_items > 0:
                     progress_callback(1 - len(item_array) / total_items)
-            if log and len(item_array) > 0:
-                ConsoleLog("LootItems", f"Looted {len(item_array)} items.", Console.MessageType.Info)
 
-            return True
+            if log:
+                ConsoleLog(
+                    "LootItems",
+                    f"Looted {total_items - len(failed_items)} items. Failed: {len(failed_items)}",
+                    Console.MessageType.Info,
+                )
+
+            return failed_items
 
         @staticmethod
         def WithdrawItems(model_id:int, quantity:int) -> Generator[Any, Any, bool]:
