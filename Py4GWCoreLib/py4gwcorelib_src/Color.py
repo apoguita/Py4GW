@@ -235,7 +235,7 @@ class ColorPalette:
         "violet": Color(238, 130, 238),
         "wheat": Color(245, 222, 179),
         "white": Color(255, 255, 255),
-        "yellow": Color(255, 255, 0)
+        "yellow": Color(200, 155, 0, 255)
     }
 
     @staticmethod

@@ -240,6 +240,7 @@ class SF_Ass_vaettir(BuildMgr):
                 if (yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)):
                     ConsoleLog(self.build_name, f"Hos life = {health} stuck counter: {self.GetStuckSignal()}", Py4GW.Console.MessageType.Info, log=False)
                     self.stuck_signal = False
+                    yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)
                     return
 
         if self.in_killing_routine and has_shadow_form and has_shroud_of_distress and has_channeling:
