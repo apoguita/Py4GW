@@ -1,15 +1,19 @@
 import os
-
-from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
-from Py4GWCoreLib.Py4GWcorelib import Utils
-from Py4GWCoreLib.enums_src.Texture_enums import get_texture_for_skill
-from Widgets.CustomBehaviors.primitives import constants
+import pathlib
+import re
+import sys
+from Py4GWCoreLib import IconsFontAwesome5, ImGui, Player, PyImGui
+from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.Py4GWcorelib import Color, Utils
+from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
-from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
+from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
 
 shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
@@ -94,8 +98,8 @@ def render():
                     return ""
 
                 score_text = f"{score[1]:06.4f}" if score[1] is not None else "Ø"
-                texture_file = get_texture_for_skill(score[0].custom_skill.skill_id)
-
+                texture_file = score[0].custom_skill.get_texture(py4gw_root_directory, project_root)
+                
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
 
