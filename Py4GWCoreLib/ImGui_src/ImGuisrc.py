@@ -10,6 +10,7 @@ import Py4GW
 #region ImGui
 class ImGui:
     ImGuiStyleVar: TypeAlias  = ImGuiStyleVar
+    style = PyImGui.StyleConfig()
 
     @staticmethod
     def DrawTexture(texture_path: str, width: float = 32.0, height: float = 32.0):
@@ -115,9 +116,13 @@ class ImGui:
         clicked = False
 
         if v:
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.153, 0.318, 0.929, 1.0))  # On color
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.6, 0.6, 0.9, 1.0))  # Hover color
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.6, 0.6, 0.6, 1.0))
+            
+            hovered_color = ImGui.style.get_color(PyImGui.ImGuiCol.ButtonHovered)
+            active_color = ImGui.style.get_color(PyImGui.ImGuiCol.ButtonActive)
+
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, active_color)  # On color
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, hovered_color)  # Hover color
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, active_color)
             if width != 0 and height != 0:
                 clicked = PyImGui.button(label, width, height)
             else:

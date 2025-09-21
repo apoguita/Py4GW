@@ -24,3 +24,6 @@ class _EVENTS:
         
     def OnStuckCallback(self, callback: Callable[[], None]) -> None:
         self._config.events.on_stuck.set_callback(callback)
+        
+    def SetStuckRoutineEnabled(self, state: bool) -> None:
+        self._config.events.set_stuck_routine_enabled(state)
