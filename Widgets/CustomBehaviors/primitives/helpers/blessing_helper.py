@@ -13,14 +13,14 @@ class BlessingNpc(Enum):
     Sunspear_Scout              = (4778, 4776)
     Wandering_Priest            = (5384, 5383)
     Vabbian_Scout               = (5632,)
-    Ghostly_Scout               = (5547,)
+    Ghostly_Scout               = (5547, 5548)
     Ghostly_Priest              = (5615,)
     Whispers_Informants         = (5218, 5683)
     Kurzick_Priest              = (593, 912, 3426)
     Luxon_Priest                = (1947, 3641)
     Beacons_of_Droknar          = (5865,)
     Ascalonian_Refugees         = (1986, 1987, 6044, 6045)
-    Asuran_Krewe                = (6755, 6756, 6775) # 6775 can cause issue as shared with many other azura npc...
+    Asuran_Krewe                = (6755, 6756, 6775, 6779) # some can cause issue as shared with many other azura npc...
     Norn_Hunters                = (6374, 6380)
 
     def __init__(self, *mids: int):
