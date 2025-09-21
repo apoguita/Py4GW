@@ -11,6 +11,7 @@ def create_bot_routine(bot: Botting) -> None:
     Enter_Chahbek_Mission(bot)
     Learn_more(bot)
     storage_quests(bot)
+    unlock_ranger_gtob(bot)
     Take_Quests(bot)
     Farm_for_quests(bot)
     SSGH_quests(bot)
@@ -18,8 +19,7 @@ def create_bot_routine(bot: Botting) -> None:
     second_profession(bot)
     after_2nd_profession(bot)
     jokanur_diggings_quests(bot)
-
-
+    bot.States.AddCustomState(level_10_checker(bot), "Level 10 Checker")
     EOTN_Run(bot)
     ExitBorealStation(bot)
     GoToEOTN(bot)
@@ -38,12 +38,13 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.Set("movement_timeout",value=-1)
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("imp")
-    bot.Items.SpawnBonusItems()
-    bot.Items.DestroyBonusItems(exclude_list = [ModelID.Igneous_Summoning_Stone.value])
+    bot.Items.SpawnAndDestroyBonusItems()
     
 def PrepareForBattle(bot: Botting, Hero_List = [], Henchman_List = []) -> None:
     ConfigureAggressiveEnv(bot)
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
+    LoadHeroSkillBar(6, "OQgSQtqMCF/CXJAEYecfzLG")
+    LoadHeroSkillBar(7, "Owgj0QQSINZEQSOhu2SKJZsLGA")
     bot.Party.LeaveParty()
     bot.Party.AddHeroList(Hero_List)
     bot.Party.AddHenchmanList(Henchman_List)
@@ -57,27 +58,29 @@ def EquipSkillBar():
         if level <= 2: #5 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OgCjkKrBbMiXprAAAAAAAAAAAA")
         elif level <= 3: #10 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOqxqMiXpb1dA/fBAAABAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYJpyqwGj4V6Og9NAAAwmh2A")
         elif level <= 4: #15 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgCkkSqxqwGj4V6WdHw/XAAAAjD")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKlYJYR6sKsxIeluDYfDAAAsZoN")
         elif level <= 5: #20 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKjYFp5aMiXp7/dADAAAAAaDA")
-        elif level <= 6: #40 attribute points available (Ranger 2nd profession available)
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKjYFp5aMiXp7/dADAAAAAaDA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYRKuGj4V6+f9NAAAAAg2A")
+        elif level <= 6: #40 attribute points available 
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYRKuGj4V6+f9NAAAAAg2A")
         elif level <= 7: #50 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKjYFp5aMiXp7/dADAAAAAaDA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYTKuGj4V6+f9NAAAAAg2A")
         elif level <= 8: #50 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKjYFp5aMiXp7/dADAAAAAaDA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYTKuGj4V6+f9NAAAAAg2A")
         elif level <= 9: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKjYFp56MiXp7/dADAAAAAaDA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYRKuGj4V6+f9NAAAAAg2A")
         elif level <= 10: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKjYFp66MiXp7/dADAAAAAaDA")
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKjYFp66MiXp7/dADAAAAAaDA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYRKuGj4V6+f9NAAAAAg2A")
         else: #20 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYNpn6sKj4V6+fHwAAAAAg2A")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYRKuGj4V6+f9NAAAAAg2A")
     elif profession == "Paragon":
         yield from Routines.Yield.Skills.LoadSkillbar("OwJkYRZ5XMGiiBbuMAAAAAtJAA")    
 
+def LoadHeroSkillBar(hero_index, skill_template):
+    global bot
+    bot.SkillBar.LoadHeroSkillBar(hero_index, skill_template) 
 #region Start
 
 def skip_tutorial_dialog(bot: Botting) -> None:
@@ -164,7 +167,19 @@ def storage_quests(bot: Botting):
     bot.Move.XYAndDialog(-9251, 11826, 0x82A101, step_name="Storage Quest 0")
     bot.Move.XYAndDialog(-7761, 14393, 0x84, step_name="50 Gold please")
     bot.Move.XYAndDialog(-9251, 11826, 0x82A107, step_name="Accept reward")
+
+def unlock_ranger_gtob(bot: Botting):
+    bot.States.AddHeader("Unlock Ranger in GToB")
+    bot.Map.Travel(target_map_id=248)
+    bot.Wait.ForMapToChange(target_map_id=248)
+    GLOBAL_CACHE.Inventory.WithdrawGold(500)
+    bot.Move.XYAndDialog(-3145, -7242, 0x0285, step_name="Unlock Ranger")
+    bot.Dialogs.AtXY(-3145, -7242, 0x0284, step_name="Yes please")
+    bot.Wait.ForTime(2000)
+    bot.Map.Travel(target_map_id=449)
+    bot.Wait.ForMapToChange(target_map_id=449)
     
+
 def Take_Quests(bot: Botting):
     bot.States.AddHeader("Quality Weapons")
     bot.Move.XYAndDialog(-11208, 8815, 0x826003, step_name="Quality Steel")
@@ -194,11 +209,23 @@ def Farm_for_quests(bot: Botting):
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(5073, -4850, step_name="Killer Plants 5")
     bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(1750, 4700)
+
     bot.Move.XYAndDialog(9292, -1220, 0x826104, step_name="Material Girl")
     bot.Move.XYAndDialog(-1782, 2790, 0x828801, step_name="Map Travel")
     bot.Move.XY(-3145, 2412)
     bot.Move.XYAndExitMap(-3236, 4503, target_map_id=431) #Sunspear Great Hall
     bot.Wait.ForMapToChange(target_map_id=431)
+    ConfigurePacifistEnv(bot)
+    bot.Party.LeaveParty()
+    bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
+    bot.Wait.ForMapToChange(target_map_id=430)
+    bot.Move.XY(322, 2292)
+
+    bot.Move.XY(2700, 8000) #Warthog location
+    bot.Target.Model(1347)
+    bot.SkillBar.UseSkill(411) #Capture Pet
+    bot.Wait.ForTime(22000)
     bot.States.AddHeader("Back to Kamadan")
     bot.Map.Travel(target_map_id=449) #Kamadan
     bot.Wait.ForMapToChange(target_map_id=449)
@@ -302,10 +329,6 @@ def second_profession(bot: Botting):
     bot.States.AddHeader("Churrhir Fields")
     ConfigurePacifistEnv(bot)
     bot.Move.XYAndDialog(-11571, -3726, 0x7F, step_name="Ranger Skills 2")
-    bot.Move.XY(-11031, -3326) #get pet
-    bot.Target.Model(4242) #Flamingo
-    bot.SkillBar.UseSkill(411) #Capture Pet
-    bot.Wait.ForTime(22000)
     bot.Move.XYAndDialog(-10549, -3350, 0x7F, step_name="Ranger Skills 3")
     bot.Move.XYAndDialog(-9498, 1426, 0x7F, step_name="Ranger Skills")
     bot.Move.XYAndDialog(-7161, 4808, 0x825907, step_name="Secondary Training complete")
@@ -388,20 +411,18 @@ def jokanur_diggings_quests(bot):
     bot.Map.Travel(target_map_id=491) #Jokanur Diggings, add more mobs before here
     bot.Wait.ForMapToChange(target_map_id=491)
     bot.Wait.ForTime(2000)
-    bot.Wait.ForTime(2000)
-    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-    if level <= 9:
-        bot.States.JumpToStepName("[H]Sprint to level 10_23") # Will add more to the loop
-    if level >= 10:
-        bot.States.JumpToStepName("[H]EOTN Run_25")
 
+def level_10_checker(bot: Botting): 
+    while True:
+        level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+        if level <= 9:
+            bot.States.JumpToStepName("[H]Sprint to level 10_24")
+        else: #level >= 10
+            bot.States.JumpToStepName("[H]EOTN Run_26")
+        return
 
 def EOTN_Run(bot: Botting): 
     bot.States.AddHeader("EOTN Run")
-    bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    bot.Wait.ForMapToChange(target_map_id=431)
-    bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
-    bot.Wait.ForTime(2000)
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     bot.Wait.ForMapToChange(target_map_id=431)
     bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
@@ -410,10 +431,7 @@ def EOTN_Run(bot: Botting):
     bot.Wait.ForMapToChange(target_map_id=449)
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
-    PrepareForBattle(bot, Hero_List=[6,7], Henchman_List=[6])
-    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
-    bot.Party.LeaveParty()
-    PrepareForBattle(bot, Hero_List=[6,7], Henchman_List=[6])
+    PrepareForBattle(bot, Hero_List=[6,7], Henchman_List=[2])
     bot.Move.XYAndDialog(-8739, 14200,0x833601) #Bendah
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) #Plains of Jarin
     bot.Wait.ForMapToChange(target_map_id=430)
@@ -446,7 +464,6 @@ def ExitBorealStation(bot: Botting):
     bot.Move.XYAndExitMap(4684, -27869, target_map_name="Ice Cliff Chasms")
     
 def GoToEOTN(bot: Botting): 
-    bot.States.AddHeader("Goto EOTN")
     bot.States.AddHeader("Goto EOTN")
     bot.Move.XY(3579.07, -22007.27)
     bot.Wait.ForTime(15000)
@@ -498,5 +515,4 @@ def main():
     bot.UI.draw_window()
 
 if __name__ == "__main__":
-
     main()
