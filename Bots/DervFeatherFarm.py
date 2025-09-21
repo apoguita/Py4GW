@@ -77,7 +77,7 @@ def load_skill_bar(bot: Botting):
 
 def ball_sensalis(bot: Botting):
     all_sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
-    if not sum(1 for _ in all_sensali_array):
+    if not len(all_sensali_array):
         return False
 
     ConsoleLog(FEATHER_FARMER, 'Balling all Sensalis...')
@@ -94,8 +94,8 @@ def ball_sensalis(bot: Botting):
 
         all_sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
         nearby_sensali_array = get_sensali_array(custom_range=Range.Nearby.value)
-        ball_count = sum(1 for _ in nearby_sensali_array)
-        total_count = sum(1 for _ in all_sensali_array)
+        ball_count = len(nearby_sensali_array)
+        total_count = len(all_sensali_array)
 
         if ball_count == total_count:
             ConsoleLog(FEATHER_FARMER, 'Sensalis ready to kill!')
@@ -119,7 +119,7 @@ def farm_sensalis(bot, kill_immediately=False):
 
     # Auto detect if sensalis in the area
     sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
-    if not sum(1 for _ in sensali_array):
+    if not len(sensali_array):
         ConsoleLog('Farm Sensalis', 'No Sensali detected!')
         return
 
