@@ -280,13 +280,13 @@ class CustomBehaviorBaseUtility():
             print("Custom behavior doesn't match in game build, you are not allowed to perform behavior.act().")
             return
 
-        if self.get_final_is_enabled():
-            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
-            hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
-            if hero_ai_options is not None:
-                hero_ai_options.Combat = False
-                hero_ai_options.Following = False
-                hero_ai_options.Looting = False
+        # if self.get_final_is_enabled():
+        #     account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        #     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+        #     if hero_ai_options is not None:
+        #         hero_ai_options.Combat = False
+        #         hero_ai_options.Following = False
+        #         hero_ai_options.Looting = False
 
         # it is interesting to compute score less often, as the execution :
         # - if we are executing with EXECUTE_THROUGH_THE_END, most of the time it take more than 300/400 ms with the aftercast.

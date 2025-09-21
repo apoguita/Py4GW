@@ -70,11 +70,12 @@ class FPSMonitor:
             "max_dt_ms": max(self.frame_times) * 1000,
         }
 
+        # Zero-padded width 7, 2 decimals (e.g., 00016.23)
         stats_str = (
-            f"Frame: {stats_dict['last_dt_ms']:.2f} ms | "
-            f"Avg: {stats_dict['avg_dt_ms']:.2f} ms | "
-            f"Min: {stats_dict['min_dt_ms']:.2f} ms | "
-            f"Max: {stats_dict['max_dt_ms']:.2f} ms"
+            f"Frame: {stats_dict['last_dt_ms']:07.2f} ms | "
+            f"Avg: {stats_dict['avg_dt_ms']:07.2f} ms | "
+            f"Min: {stats_dict['min_dt_ms']:07.2f} ms | "
+            f"Max: {stats_dict['max_dt_ms']:07.2f} ms"
         )
         return stats_dict, stats_str
 
@@ -85,8 +86,9 @@ class FPSMonitor:
             "raw_fps": self.raw_fps,
         }
 
+        # Zero-padded width 7, 2 decimals
         stats_str = (
-            f"Smoothed FPS: {stats_dict['smoothed_fps']:.2f} | "
-            f"Raw FPS: {stats_dict['raw_fps']:.2f}"
+            f"Smoothed FPS: {stats_dict['smoothed_fps']:07.2f} | "
+            f"Raw FPS: {stats_dict['raw_fps']:07.2f}"
         )
         return stats_dict, stats_str

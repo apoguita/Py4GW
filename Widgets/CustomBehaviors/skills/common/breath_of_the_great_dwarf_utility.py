@@ -43,12 +43,10 @@ class BreathOfTheGreatDwarfUtility(CustomSkillUtilityBase):
 
         burning_skill_id:int = GLOBAL_CACHE.Skill.GetID("Burning")
 
-        from HeroAI.utils import CheckForEffect
-
         allies = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority(
             within_range=Range.Spirit,
             condition= lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.85 
-                and custom_behavior_helpers.Heals.is_ally_under_specific_effect(agent_id, burning_skill_id),
+                and custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, burning_skill_id),
             sort_key= (TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
             range_to_count_enemies=None,
             range_to_count_allies=None)

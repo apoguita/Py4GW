@@ -8,6 +8,7 @@ from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorR
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.scores.healing_score import HealingScore
 from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
+from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -26,6 +27,7 @@ class MendBodyAndSoulUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
 
         self.score_definition: ScorePerHealthGravityDefinition = score_definition
+        self.cure_effect_configuration: BuffConfigurationPerProfession = BuffConfigurationPerProfession(self.custom_skill, BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
 
     @staticmethod
     def _get_lowest_hp_target() -> custom_behavior_helpers.SortableAgentData | None:
@@ -36,19 +38,17 @@ class MendBodyAndSoulUtility(CustomSkillUtilityBase):
                 sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
             return targets[0] if len(targets) > 0 else None
 
-    @staticmethod
-    def _get_melee_blind_or_crippled_if_exist() -> custom_behavior_helpers.SortableAgentData | None:
+    def _get_melee_blind_or_crippled_if_exist(self) -> custom_behavior_helpers.SortableAgentData | None:
         
-        from HeroAI.utils import CheckForEffect
         blind_skill_id = GLOBAL_CACHE.Skill.GetID("Blind")
         crippled_skill_id = GLOBAL_CACHE.Skill.GetID("Crippled")
-        allowed_classes = [Profession.Assassin.value, Profession.Ranger.value]
         
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spirit,
             condition=lambda agent_id: 
-                GLOBAL_CACHE.Agent.GetProfessionIDs(agent_id)[0] in allowed_classes and 
-                (CheckForEffect(agent_id, blind_skill_id) or CheckForEffect(agent_id, crippled_skill_id)),
+                self.cure_effect_configuration.get_agent_id_predicate()(agent_id) and
+                custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, blind_skill_id) and
+                custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, crippled_skill_id),
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
         
         return targets[0] if len(targets) > 0 else None

@@ -1,6 +1,8 @@
 
 import pathlib
 import sys
+
+import Py4GW
 from Py4GWCoreLib.Py4GWcorelib import LootConfig, ThrottledTimer, Utils
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.fps_monitor import FPSMonitor
@@ -15,12 +17,12 @@ for module_name in list(sys.modules.keys()):
     if module_name not in ("sys", "importlib", "cache_data"):
         try:
             if "behavior" in module_name.lower():
-                print(f"Reloading module: {module_name}")
+                Py4GW.Console.Log("CustomBehaviors", f"Reloading module: {module_name}")
                 del sys.modules[module_name]
                 # importlib.reload(module_name)
                 pass
         except Exception as e:
-            print(f"Error reloading module {module_name}: {e}")
+            Py4GW.Console.Log("CustomBehaviors", f"Error reloading module {module_name}: {e}")
 
 from typing import List
 from HeroAI.cache_data import CacheData
@@ -51,7 +53,7 @@ def gui():
 
     global party_forced_state_combo, monitor, widget_window_size, widget_window_pos
     
-    window_module:ImGui.WindowModule = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors", window_size=(0, 0), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+    window_module:ImGui.WindowModule = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors - Multiboxing over utility-ai algorithm.", window_size=(0, 0), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
@@ -66,11 +68,11 @@ def gui():
             party()
             PyImGui.end_tab_item()
 
-        if PyImGui.begin_tab_item("current_build"):
+        if PyImGui.begin_tab_item("player"):
             current_build_render()
             PyImGui.end_tab_item()
 
-        if PyImGui.begin_tab_item("auto_mover"):
+        if PyImGui.begin_tab_item("waypoint builder / auto_mover"):
             auto_mover()
             PyImGui.end_tab_item()
 
@@ -107,6 +109,12 @@ def gui():
 
 previous_map_status = False
 map_change_throttler = ThrottledTimer(250)
+
+from Py4GW_widget_manager import get_widget_handler
+handler = get_widget_handler()
+if handler.is_widget_enabled("HeroAI"):
+    handler.disable_widget("HeroAI")
+    Py4GW.Console.Log("CustomBehaviors", "Using CustomBehaviors - HeroAI has been disabled.", Py4GW.Console.MessageType.Error)
 
 def main():
     global previous_map_status, monitor, widget_window_size, widget_window_pos
