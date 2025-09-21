@@ -395,6 +395,14 @@ def jokanur_diggings_quests(bot):
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(11543, 6466)
     bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(11182, 14880)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(11543, 6466)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(11182, 14880)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(11543, 6466)
+    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(15193, 5918)
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(14485, 16)
@@ -403,6 +411,10 @@ def jokanur_diggings_quests(bot):
     bot.Wait.UntilOutOfCombat()
     bot.Move.XYAndDialog(11238, -2718, 0x85) #Bounty
     bot.Move.XY(-12666, -2666)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(13244, -6829)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(13244, -6829)
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(13244, -6829)
     bot.Wait.UntilOutOfCombat()
@@ -423,6 +435,10 @@ def level_10_checker(bot: Botting):
 
 def EOTN_Run(bot: Botting): 
     bot.States.AddHeader("EOTN Run")
+    bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
+    bot.Wait.ForMapToChange(target_map_id=431)
+    bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
+    bot.Wait.ForTime(2000)
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     bot.Wait.ForMapToChange(target_map_id=431)
     bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
@@ -465,6 +481,7 @@ def ExitBorealStation(bot: Botting):
     
 def GoToEOTN(bot: Botting): 
     bot.States.AddHeader("Goto EOTN")
+    bot.States.AddHeader("Goto EOTN")
     bot.Move.XY(3579.07, -22007.27)
     bot.Wait.ForTime(15000)
     bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
@@ -497,6 +514,7 @@ def _draw_texture():
         ImGui.DrawTextureExtended(texture_path=path, size=size,
                                   uv0=(0.25, 0.0), uv1=(0.5, 1.0),
                                   tint=tint, border_color=border_col)
+    elif level <= 9:
     elif level <= 9:
         ImGui.DrawTextureExtended(texture_path=path, size=size,
                                   uv0=(0.5, 0.0),  uv1=(0.75, 1.0),
