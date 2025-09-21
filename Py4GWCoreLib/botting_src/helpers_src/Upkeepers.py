@@ -20,7 +20,7 @@ class _Upkeepers:
             if self._config.upkeep.auto_combat.is_active():
                 yield from self._config.build_handler.ProcessSkillCasting()
             else:
-                yield from Routines.Yield.wait(500)       
+                yield from Routines.Yield.wait(250)       
                 
     def upkeep_hero_ai(self):
         from ...Routines import Routines

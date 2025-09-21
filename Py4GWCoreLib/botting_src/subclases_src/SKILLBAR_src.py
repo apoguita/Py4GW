@@ -1,4 +1,4 @@
-#region STATES
+#region SKILLBAR
 from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:

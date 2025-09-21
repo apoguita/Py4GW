@@ -74,7 +74,7 @@ class _Move:
         
         pause_condition = self._config.pause_on_danger_fn if self._config.config_properties.pause_on_danger.is_active() else None
         # looting
-        loot_config_enabled = self._config.upkeep.auto_loot.is_active()
+        """loot_config_enabled = self._config.upkeep.auto_loot.is_active()
         loot_singleton = LootConfig()
 
         def loot_condition() -> bool:
@@ -92,7 +92,7 @@ class _Move:
             combined_pause = pause_condition
             pause_condition = lambda: combined_pause() or loot_condition()
         else:
-            pause_condition = loot_condition if loot_config_enabled else None
+            pause_condition = loot_condition if loot_config_enabled else None"""
 
 
         success_movement = yield from Routines.Yield.Movement.FollowPath(

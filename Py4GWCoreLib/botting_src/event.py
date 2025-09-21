@@ -80,7 +80,7 @@ class OnPartyWipe(Event):
         return not Checks.Party.IsPartyWiped()
     
 class OnStuck(Event):
-    def __init__(self, parent: "BotConfig", name: str = "OnStuckEvent", *, interval_ms: int = 1000, callback=None):
+    def __init__(self, parent: "BotConfig", name: str = "OnStuckEvent", *, interval_ms: int = 1000, callback=None, active= False):
         super().__init__(parent, name, interval_ms=interval_ms, callback=callback)
 
         from Py4GWCoreLib import ThrottledTimer, BuildMgr  # local import to avoid cycles
@@ -93,6 +93,7 @@ class OnStuck(Event):
         self.in_waiting_routine = False
         self.finished_routine = False
         self.in_killing_routine = False
+        self.active = active
         
     def set_in_waiting_routine(self, value: bool):
         self.in_waiting_routine = value
@@ -102,17 +103,24 @@ class OnStuck(Event):
         
     def set_in_killing_routine(self, value: bool):
         self.in_killing_routine = value
+        
+    def set_active(self, value: bool):
+        self.active = value
 
     def should_trigger(self) -> bool:
         from Py4GWCoreLib import GLOBAL_CACHE, Routines
+
+        if not self.active:
+            return False
 
         def _reset_counter():
             self.in_killing_routine = False
             self.finished_routine = False
             self.in_waiting_routine = False
             self.timer_was_expired = False
+            was_stuck = self.stuck_counter > 0   # <-- check if we were stuck
             self.stuck_counter = 0
-            return False
+            return was_stuck                     # <-- fire once when clearing
 
         if not Routines.Checks.Map.MapValid():
             return _reset_counter()
@@ -127,7 +135,7 @@ class OnStuck(Event):
         if self.stuck_timer.IsExpired():
             GLOBAL_CACHE.Player.SendChatCommand("stuck")
             self.stuck_timer.Reset()
-          
+
         if self.movement_check_timer.IsExpired():
             current_player_pos = GLOBAL_CACHE.Player.GetXY()
             self.timer_was_expired = True
@@ -135,10 +143,10 @@ class OnStuck(Event):
             if self.old_player_position == current_player_pos:
                 GLOBAL_CACHE.Player.SendChatCommand("stuck")
                 self.stuck_counter += 1
-                return True
+                return True   # stuck
             else:
                 self.old_player_position = current_player_pos
-                return _reset_counter()
+                return _reset_counter()  # clears + signals if we were stuck
 
         return False
                 
@@ -161,7 +169,9 @@ class Events:
         self.on_death = OnDeathEvent(parent, "OnDeathEvent", interval_ms=250)
         self.on_party_defeated = OnPartyDefeated(parent, "OnPartyDefeatedEvent", interval_ms=250)
         self.on_party_wipe = OnPartyWipe(parent, "OnPartyWipeEvent", interval_ms=250)
-        self.on_stuck = OnStuck(parent, "OnStuckEvent", interval_ms=1000)
+        self.stuck_enabled = False
+        self.on_stuck = OnStuck(parent, "OnStuckEvent", interval_ms=1000, active=self.stuck_enabled)
+
 
     # Optional convenience: set callbacks
     def set_on_death_callback(self, fn: Callable[[], None]) -> None:
@@ -175,6 +185,10 @@ class Events:
         
     def set_on_stuck_callback(self, fn: Callable[[], None]) -> None:
         self.on_stuck.set_callback(fn)
+        
+    def set_stuck_routine_enabled(self, state: bool) -> None:
+        self.stuck_enabled = state
+        self.on_stuck.set_active(state)
 
     # Start/stop all (names are arbitrary; use your FSM’s dedupe)
     def start(self) -> None:

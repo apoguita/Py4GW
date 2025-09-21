@@ -659,6 +659,11 @@ class PetModelID(IntEnum):
 
 # region ItemModels
 class ModelID(IntEnum):
+    Luminous_Stone = 123456789
+    Maguuma_Spider_Web = 987654321
+    Roaring_Ether_Heart = 12345678910
+    Charr_Hide = 1234567891
+    Herring = 9876543210
     Umbral_Shell = 98765432111
     Vampiric_Fang = 987654789
     Water_Djinn_Essence = 78965412365
@@ -1353,6 +1358,7 @@ class ModelID(IntEnum):
     Skale_Polymock_Piece = 24373
     Stone_Rain_Polymock_Piece = 24374
     Wind_Rider_Polymock_Piece = 24356
+    Pillaged_Goods = 1663
     Powerstone_Of_Courage = 24862
     Primeval_Armor_Remnant = 19193
     Prince_Rurik_Mini = 13790
@@ -1418,7 +1424,6 @@ class ModelID(IntEnum):
     Sentient_Vine = 27041
     Shadowy_Crest = 520
     Shadowy_Husk = 526
-    Shadowy_Remnant = 441
     Shadowy_Remnants = 441
     Shamrock_Ale = 22190
     Shard_Wolf_Mini = 34389
