@@ -515,7 +515,6 @@ def _draw_texture():
                                   uv0=(0.25, 0.0), uv1=(0.5, 1.0),
                                   tint=tint, border_color=border_col)
     elif level <= 9:
-    elif level <= 9:
         ImGui.DrawTextureExtended(texture_path=path, size=size,
                                   uv0=(0.5, 0.0),  uv1=(0.75, 1.0),
                                   tint=tint, border_color=border_col)
