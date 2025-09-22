@@ -51,7 +51,7 @@ def return_to_outpost(bot: Botting):
     if bot.config.build_handler.status == DervBuildFarmStatus.Setup:  # type: ignore
         return
 
-    while True:
+    while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):  # type: ignore
         is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
         is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
         is_explorable = GLOBAL_CACHE.Map.IsExplorable()
@@ -107,8 +107,10 @@ def farm(bot):
         # Death check
         if GLOBAL_CACHE.Agent.IsDead(player_id):
             # handle death here
-            ConsoleLog(COF_FARMER, 'Died fighting, setting back to [Wait] status')
-            bot.config.build_handler.status = DervBuildFarmStatus.Setup
+            ConsoleLog(COF_FARMER, 'Died fighting, setting back to [Setup] status')
+            bot.config.build_handler.status = DervBuildFarmStatus.Wait
+            is_farming = False
+            yield from Routines.Yield.Player.Resign()
             yield from Routines.Yield.wait(1000)
             return
 
@@ -240,7 +242,7 @@ def _on_death(bot: Botting):
 
 
 def on_death(bot: Botting):
-    ConsoleLog(COF_FARMER, "Player is dead. Run Failed, Restarting...")
+    ConsoleLog(COF_FARMER, "Player is dead. Restarting...")
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
@@ -303,7 +305,7 @@ def main_farm(bot: Botting):
     bot.States.AddCustomState(lambda: farm(bot), "Killing Everything Immediately")
     bot.States.AddCustomState(lambda: set_bot_to_loot(bot), "Prepare skills")
     bot.States.AddCustomState(reset_looted_areas, "Reset looted areas")
-
+    bot.States.AddCustomState(identify_and_salvage_items, 'Salvaging Items')
     bot.Party.Resign()
     bot.Wait.ForTime(60000)
     bot.Wait.UntilCondition(lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))

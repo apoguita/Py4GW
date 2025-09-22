@@ -322,7 +322,7 @@ def _on_death(bot: Botting):
 
 
 def on_death(bot: Botting):
-    ConsoleLog(FEATHER_FARMER, "Player is dead. Run Failed, Restarting...")
+    ConsoleLog(FEATHER_FARMER, "Player is dead. Restarting...")
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
