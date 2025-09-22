@@ -161,11 +161,19 @@ def farm_sensalis(bot, kill_immediately=False):
         # Timeout check
         current_time = Utils.GetBaseTimestamp()
         if timeout > 0 and current_time - start_time > timeout:
+            ConsoleLog(FEATHER_FARMER, 'Fight took too long, setting back to [Move] status')
+            bot.config.build_handler.status = DervBuildFarmStatus.Move
+            yield from Routines.Yield.wait(1000)
+            yield from Routines.Yield.Player.Resign()
             return
 
         # Death check
         if GLOBAL_CACHE.Agent.IsDead(player_id):
             # handle death here
+            ConsoleLog(FEATHER_FARMER, 'Died fighting, setting back to [Move] status')
+            bot.config.build_handler.status = DervBuildFarmStatus.Move
+            yield from Routines.Yield.wait(1000)
+            yield from Routines.Yield.Player.Resign()
             return
 
         yield from Routines.Yield.wait(100)
@@ -224,7 +232,7 @@ def get_non_sensali_array(custom_range=Range.Area.value * 1.50):
 
 def get_valid_loot_array():
     loot_array = AgentArray.GetItemArray()
-    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 1.50)
+    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 2.00)
 
     def is_valid_item(item_id):
         if not Agent.IsValid(item_id):
@@ -413,6 +421,7 @@ def handle_stuck(bot: Botting):
                 stuck_counter = 0
                 unstuck_counter = 0
                 yield from Routines.Yield.Player.Resign()
+                continue
 
         if (
             GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
@@ -435,6 +444,7 @@ def handle_stuck(bot: Botting):
             if stuck_counter >= 10:
                 stuck_counter = 0
                 yield from Routines.Yield.Player.Resign()
+                continue
 
         yield from Routines.Yield.wait(500)
 
