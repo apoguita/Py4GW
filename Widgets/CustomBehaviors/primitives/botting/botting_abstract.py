@@ -55,7 +55,12 @@ class BottingAbstract():
     def open_bot(self):
         if self.__bot_instance is None:
             print(f"bot {self.name} opening.")
-            self.__bot_instance = Botting(self.name)
+            self.__bot_instance = Botting(self.name,
+                                        config_movement_timeout=-1,
+                                        upkeep_auto_inventory_management_active=True,
+                                        upkeep_auto_loot_active=False,
+                                        upkeep_hero_ai_active=False,
+                                        )
 
             # required as utility skills take relay when moving.
             self.__bot_instance.Properties.Enable("auto_inventory_management")

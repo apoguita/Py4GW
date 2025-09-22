@@ -28,8 +28,9 @@ class secret_lair_of_the_snowmen(BottingAbstract):
         bot_instance.States.AddHeader("LOOT_DUNGEON_LOCK_KEY")
         bot_instance.Move.XY(-19247, 5187, "GO TO THE KEY step1")
         bot_instance.Move.XY(-10307, -11027, "GO TO THE KEY step2")
-        key_agent_id = GLOBAL_CACHE.Item.GetAgentID(196) # ItemId=196 IsItem=true IsGadget=False
-        GLOBAL_CACHE.Player.Interact(key_agent_id, False)
+        bot_instance.Interact.WithItemAtXY(-10307, -11027)  # ItemId=196 IsItem=true IsGadget=False
+        key_agent_id = GLOBAL_CACHE.Item.GetAgentID(196)
+        # GLOBAL_CACHE.Player.Interact(key_agent_id, False)
         bot_instance.Wait.ForTime(2000)
 
         bot_instance.States.AddHeader("OPEN_DUNGEON_LOCK")
