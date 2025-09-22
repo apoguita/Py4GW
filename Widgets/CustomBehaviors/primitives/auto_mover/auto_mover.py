@@ -62,6 +62,9 @@ class AutoMover:
         '''
         return self.__waypoint_builder.get_waypoints()
 
+    def add_raw_waypoint(self, waypoint: tuple[float, float]):
+        return self.__waypoint_builder.add_raw_waypoint(waypoint)
+
     def remove_waypoint(self, index):
         return self.__waypoint_builder.remove_waypoint(index)
 
@@ -98,13 +101,6 @@ class AutoMover:
     def get_movement_progress(self) -> float:
         """Get the current movement progress percentage."""
         return self.__follow_path_executor.movement_progress
-
-    # def follow_path(self):
-    #     """Start following the built path."""
-    #     if self.__autopathing_builder.has_final_path():
-    #         self.start_movement()
-    #     else:
-    #         print("No valid path available. Build autopathing first.")
     
     # FOLLOWING -----------------------------------------
     
@@ -118,7 +114,7 @@ class AutoMover:
             # Create a simple hash of the path to detect changes
             current_waypoints_hash = hash(tuple(waypoints))
             if current_waypoints_hash != self.__last_path_hash:
-                self.__path_builder.set_raw_path(waypoints)
+                self.__path_builder.set_waypoint_list(waypoints)
                 self.__last_path_hash = current_waypoints_hash
         
         # Process path generation
@@ -151,6 +147,21 @@ class AutoMover:
 
             self.__path_renderer.draw_path(ov, self.__follow_path_executor.current_path, Color(230, 0, 0, 255))
             
+            self.__path_renderer.draw_label(ov, self.__waypoint_builder.get_waypoints())
+
+            if not self.is_waypoint_recording_activated():
+                shadow = Color(0, 0, 0, 200).to_color()
+                color = Color(255, 0, 0, 255) 
+                label_text = "WAYPOINT RECORDING IS NOT ACTIVATED"
+                ov.DrawText(left, top + height - 50, label_text, shadow, False, 3.0)       # shadow
+                ov.DrawText(left,   top + height - 50,   label_text, color.to_color(), False, 3.0) # foreground 
+            else:
+                shadow = Color(0, 0, 0, 200).to_color()
+                color = Color(0, 255, 0, 255) 
+                label_text = "WAYPOINT RECORDING IS ACTIVATED"
+                ov.DrawText(left, top + height - 50, label_text, shadow, False, 3.0)       # shadow
+                ov.DrawText(left,   top + height - 50,   label_text, color.to_color(), False, 3.0) # foreground 
+
             # Draw background overlay
             bgc = Color(0, 0, 0, int(255 * 0.3)).to_color()
             ov.DrawQuadFilled(left, top, left + width, top, left + width, top + height, left, top + height, bgc)

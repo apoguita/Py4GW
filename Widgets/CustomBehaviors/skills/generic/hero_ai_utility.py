@@ -55,8 +55,14 @@ class HeroAiUtility(CustomSkillUtilityBase):
         order = find_order()
         if order == -1: return None
 
-        is_ooc_skill = cached_data.combat_handler.IsOOCSkill(order)
-        if is_ooc_skill and current_state is BehaviorState.IN_AGGRO: return None
+        is_out_of_combat_skill = cached_data.combat_handler.IsOOCSkill(order) # skills is OK to be caster out_of_combat
+
+        can_be_casted = ((current_state == BehaviorState.IN_AGGRO) 
+                        or (current_state == BehaviorState.CLOSE_TO_AGGRO and is_out_of_combat_skill)
+                        or (current_state == BehaviorState.FAR_FROM_AGGRO and is_out_of_combat_skill)
+                        )
+
+        if not can_be_casted: return None
 
         is_ready_to_cast, target_agent_id = cached_data.combat_handler.IsReadyToCast(order)
 

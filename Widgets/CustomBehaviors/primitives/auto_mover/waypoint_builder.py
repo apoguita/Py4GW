@@ -18,7 +18,7 @@ class WaypointBuilder:
         self._last_point_add_time: float = 0.0
         self._point_add_delay: float = 0.5  # 500ms delay between adding points
         self._initialized_click: bool = False
-        self.is_new_waypoint_record_activated = True
+        self.is_new_waypoint_record_activated = False # default, we do not record waypoint.
 
     def get_mm_last_click(self):
         """Get the last click position from Mission Map."""
@@ -85,6 +85,9 @@ class WaypointBuilder:
 
     def remove_waypoint(self, index):
         return self.list_of_points.pop(index)
+
+    def add_raw_waypoint(self, waypoint: tuple[float, float]):
+        self.list_of_points.append(waypoint)
 
     def try_inject_waypoint_coordinate_from_clipboard(self, clipboard:str):
         try:

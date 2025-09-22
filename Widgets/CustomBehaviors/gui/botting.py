@@ -84,7 +84,7 @@ def render():
 
             if botting_loader.get_active_bot().is_openned_bot():
                 PyImGui.text(f"Name: {botting_loader.get_active_bot().name}")
-                PyImGui.text(f"Description: {botting_loader.get_active_bot().description}")
+                PyImGui.text_wrapped(f"Description: {botting_loader.get_active_bot().description}")
                 PyImGui.separator()
 
                 if not botting_loader.get_active_bot().is_botting_behavior_injected:

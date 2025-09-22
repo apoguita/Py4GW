@@ -6,6 +6,7 @@ from Py4GWCoreLib.Py4GWcorelib import Utils
 from Py4GWCoreLib.enums import SharedCommandType
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.primitives.parties.party_commands import PartyCommands
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
@@ -138,152 +139,190 @@ def render():
 
     PyImGui.separator()
 
+
     if GLOBAL_CACHE.Map.IsExplorable():
-        PyImGui.text(f"[EXPLORABLE] Feature across party :")
 
-        if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_FALLING} Resign"):
-            pass
-        PyImGui.same_line(0,5)
-        if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_MILITARY_POINTING} Interract with target"):
-            pass
-        PyImGui.same_line(0,5)
+        if PyImGui.tree_node_ex("[EXPLORABLE] Feature across party :", PyImGui.TreeNodeFlags.DefaultOpen):
 
-        if shared_data.party_target_id is None:
-            if PyImGui.button(f"{IconsFontAwesome5.ICON_CROSSHAIRS} SetPartyCustomTarget"):
-                CustomBehaviorParty().set_party_custom_target(GLOBAL_CACHE.Player.GetTargetID())
-        else:
-            if PyImGui.button(f"{IconsFontAwesome5.ICON_TRASH} ResetPartyCustomTarget"):
-                CustomBehaviorParty().set_party_custom_target(None)
-            PyImGui.same_line(0, 10)
-            PyImGui.text(f"id:{CustomBehaviorParty().get_party_custom_target()}")
+            if CustomBehaviorParty().is_ready_for_action():
+                if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_FALLING} Resign"):
+                    CustomBehaviorParty().schedule_action(PartyCommands.resign)
+            else:
+                if PyImGui.button(f"waiting..."):
+                    pass
+            PyImGui.same_line(0,5)
 
-        PyImGui.separator()
+            if CustomBehaviorParty().is_ready_for_action():
+                if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_MILITARY_POINTING} Interract with target"):
+                    CustomBehaviorParty().schedule_action(PartyCommands.interract_with_target)
+            else:
+                if PyImGui.button(f"waiting..."):
+                    pass
+            PyImGui.same_line(0,5)
+
+            if shared_data.party_target_id is None:
+                if PyImGui.button(f"{IconsFontAwesome5.ICON_CROSSHAIRS} SetPartyCustomTarget"):
+                    CustomBehaviorParty().set_party_custom_target(GLOBAL_CACHE.Player.GetTargetID())
+            else:
+                if PyImGui.button(f"{IconsFontAwesome5.ICON_TRASH} ResetPartyCustomTarget"):
+                    CustomBehaviorParty().set_party_custom_target(None)
+                PyImGui.same_line(0, 10)
+                PyImGui.text(f"id:{CustomBehaviorParty().get_party_custom_target()}")
+
+            PyImGui.tree_pop()
+
+            # PyImGui.separator()
 
 
     if GLOBAL_CACHE.Map.IsOutpost():
-
-        PyImGui.text(f"[OUTPOST] Feature across party :")
-
-        if PyImGui.button(f"{IconsFontAwesome5.ICON_PLANE} SummonToCurrentMap"):
+        if PyImGui.tree_node_ex("[OUTPOST] Feature across party :", PyImGui.TreeNodeFlags.DefaultOpen):
+    
+            if CustomBehaviorParty().is_ready_for_action():
+                if PyImGui.button(f"{IconsFontAwesome5.ICON_PLANE} summon all to current map"):
+                    CustomBehaviorParty().schedule_action(PartyCommands.summon_all_to_current_map)
+            else:
+                if PyImGui.button(f"waiting..."):
+                    pass
+            ImGui.show_tooltip("Ask all other open GW windows to travel to current map.")
+            ImGui.show_tooltip(f"----------------------------")
+            
             account_email = GLOBAL_CACHE.Player.GetAccountEmail()
-            self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-            for account in accounts:
-                if account.AccountEmail == account_email:
-                    continue
-                if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
-                GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.TravelToMap, (self_account.MapID, self_account.MapRegion, self_account.MapDistrict, 0))
+            self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+            count_in_map = 0
+            total_count = 0
+            if self_account is not None:
+                for account in accounts:
+                    if account.AccountEmail == account_email:
+                        continue
+                    total_count += 1
+                    is_in_map = (self_account.MapID == account.MapID and self_account.MapRegion == account.MapRegion and self_account.MapDistrict == account.MapDistrict)
+                    if is_in_map : 
+                        ImGui.show_tooltip(f"{account.CharacterName} - In the current map")
+                        count_in_map+=1
+                    else : ImGui.show_tooltip(f"{account.CharacterName} - In {GLOBAL_CACHE.Map.GetMapName(account.MapID)}")
 
-        ImGui.show_tooltip("Ask all other open GW windows to travel to current map.")
-        ImGui.show_tooltip(f"----------------------------")
+            ImGui.show_tooltip(f"----------------------------")
+            ImGui.show_tooltip(f"{count_in_map}/{total_count} in current map")
 
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
-        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
-        for account in accounts:
-            if account.AccountEmail == account_email:
-                continue
-            is_in_map = (self_account.MapID == account.MapID and self_account.MapRegion == account.MapRegion and self_account.MapDistrict == account.MapDistrict)
-            if is_in_map : ImGui.show_tooltip(f"{account.CharacterName} - In the current map")
-            else : ImGui.show_tooltip(f"{account.CharacterName} - In {GLOBAL_CACHE.Map.GetMapName(account.MapID)}")
+            PyImGui.same_line(0, 5)
 
-        PyImGui.same_line(0, 5)
+            if CustomBehaviorParty().is_ready_for_action():
+                if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_CIRCLE_PLUS} Invite all to leader party"):
+                    CustomBehaviorParty().schedule_action(PartyCommands.invite_all_to_leader_party)
+            else:
+                if PyImGui.button(f"waiting..."):
+                    pass
+            ImGui.show_tooltip("Ask all other open GW windows to current join sender party.")
 
-        if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_CIRCLE_PLUS} InviteToParty_ALL"):
+            ImGui.show_tooltip(f"--------------Eligibles--------------")
+
             account_email = GLOBAL_CACHE.Player.GetAccountEmail()
-            self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-            for account in accounts:
-                if account.AccountEmail == account_email:
-                    continue
-                if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
-                if (self_account.MapID == account.MapID and
-                    self_account.MapRegion == account.MapRegion and
-                    self_account.MapDistrict == account.MapDistrict and
-                    self_account.PartyID != account.PartyID):
-                    GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
-                    GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.InviteToParty, (0,0,0,0))
-
-        ImGui.show_tooltip("Ask all other open GW windows to current join sender party.")
-
-        PyImGui.same_line(0, 5)
-
-        if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_CIRCLE_XMARK} LeaveParty_ALL"):
-            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
             self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
-            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-            for account in accounts:
-                if account.AccountEmail == account_email:
-                    continue
-                if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
-                GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.LeaveParty, ())
-        ImGui.show_tooltip("Ask all other open GW windows to leave their current party.")
+            if self_account is not None:
+                for account in accounts:
+                    if account.AccountEmail == account_email:
+                        continue
+                    is_in_map = (self_account.MapID == account.MapID and self_account.MapRegion == account.MapRegion and self_account.MapDistrict == account.MapDistrict)
+                    if is_in_map: 
+                        ImGui.show_tooltip(f"{account.CharacterName} - In the current map")
 
-        PyImGui.separator()
+                ImGui.show_tooltip(f"--------------Not eligible--------------")
 
-    PyImGui.text(f"Enforce the main state machine for all party members :")
+                for account in accounts:
+                    if account.AccountEmail == account_email:
+                        continue
+                    is_in_map = (self_account.MapID == account.MapID and self_account.MapRegion == account.MapRegion and self_account.MapDistrict == account.MapDistrict)
+                    if not is_in_map: 
+                        ImGui.show_tooltip(f"{account.CharacterName} - Not eligible (not in the current map)")
 
-    ImGui.push_font("Italic", 12)
-    PyImGui.text(f"using such force mode manually can be usefull to pre-cast, stop the combat, fallback, ect")
-    ImGui.pop_font()
+            if CustomBehaviorParty().is_ready_for_action():
+                if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_CIRCLE_XMARK} Leave current party"):
+                    CustomBehaviorParty().schedule_action(PartyCommands.leave_current_party)
+            else:
+                if PyImGui.button(f"waiting..."):
+                    pass
+            ImGui.show_tooltip("Ask all other open GW windows to leave their current party.")
 
-    green_color = Utils.ColorToTuple(Utils.RGBToColor(41, 144, 69, 255))
+            PyImGui.same_line(0, 5)
 
-    if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IN_AGGRO:
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
-    if PyImGui.button(f"{IconsFontAwesome5.ICON_FIST_RAISED} IN_AGGRO"):
-        CustomBehaviorParty().set_party_forced_state(BehaviorState.IN_AGGRO)
-    ImGui.show_tooltip("IN_AGGRO : enemy is combat range")
-    if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IN_AGGRO:
+            if CustomBehaviorParty().is_ready_for_action():
+                if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_MILITARY_POINTING} Interract with target"):
+                    CustomBehaviorParty().schedule_action(PartyCommands.interract_with_target)
+            else:
+                if PyImGui.button(f"waiting..."):
+                    pass
+            
+            PyImGui.tree_pop()
+
+        # PyImGui.separator()
+
+    if PyImGui.tree_node_ex("[MANAGE] Enforce the main state machine for all party members :", PyImGui.TreeNodeFlags.DefaultOpen):
+
+        ImGui.push_font("Italic", 12)
+        PyImGui.text(f"using such force mode manually can be usefull to pre-cast, stop the combat, fallback, ect")
+        ImGui.pop_font()
+
+        green_color = Utils.ColorToTuple(Utils.RGBToColor(41, 144, 69, 255))
+
+        if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IN_AGGRO:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_FIST_RAISED} IN_AGGRO"):
+            CustomBehaviorParty().set_party_forced_state(BehaviorState.IN_AGGRO)
+        ImGui.show_tooltip("IN_AGGRO : enemy is combat range")
+        if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IN_AGGRO:
+            PyImGui.pop_style_color(2)
+
+
+        PyImGui.same_line(0,5)
+        if CustomBehaviorParty().get_party_forced_state() == BehaviorState.CLOSE_TO_AGGRO:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_HAMSA} CLOSE_TO_AGGRO"):
+            CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO)
+        ImGui.show_tooltip("CLOSE_TO_AGGRO : enemy close to combat range")
+        if CustomBehaviorParty().get_party_forced_state() == BehaviorState.CLOSE_TO_AGGRO:
+            PyImGui.pop_style_color(2)
+
+
+        PyImGui.same_line(0,5)
+        if CustomBehaviorParty().get_party_forced_state() == BehaviorState.FAR_FROM_AGGRO:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_HIKING} FAR_FROM_AGGRO"):
+            CustomBehaviorParty().set_party_forced_state(BehaviorState.FAR_FROM_AGGRO)
+        ImGui.show_tooltip("CLOSE_TO_AGGRO : nothing close to fight")
+        if CustomBehaviorParty().get_party_forced_state() == BehaviorState.FAR_FROM_AGGRO:
+            PyImGui.pop_style_color(2)
+
+
+        PyImGui.same_line(0,5)
+        if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IDLE:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_HOURGLASS} IDLE"):
+            CustomBehaviorParty().set_party_forced_state(BehaviorState.IDLE)
+        ImGui.show_tooltip("IDLE : town, dead, loading, ect...")
+        if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IDLE:
+            PyImGui.pop_style_color(2)
+
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, Utils.ColorToTuple(Utils.RGBToColor(200, 30, 30, 255)))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, Utils.ColorToTuple(Utils.RGBToColor(240, 10, 0, 255)))
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}"):
+            CustomBehaviorParty().set_party_forced_state(None)
+        ImGui.show_tooltip("Remove forced state")
         PyImGui.pop_style_color(2)
 
+        PyImGui.same_line(0,5)
+        PyImGui.text(f"Party forced state is ")
+        PyImGui.same_line(0,0)
+        PyImGui.text(f"{CustomBehaviorParty().get_party_forced_state()}")
 
-    PyImGui.same_line(0,5)
-    if CustomBehaviorParty().get_party_forced_state() == BehaviorState.CLOSE_TO_AGGRO:
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
-    if PyImGui.button(f"{IconsFontAwesome5.ICON_HAMSA} CLOSE_TO_AGGRO"):
-        CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO)
-    ImGui.show_tooltip("CLOSE_TO_AGGRO : enemy close to combat range")
-    if CustomBehaviorParty().get_party_forced_state() == BehaviorState.CLOSE_TO_AGGRO:
-        PyImGui.pop_style_color(2)
+        PyImGui.tree_pop()
 
-
-    PyImGui.same_line(0,5)
-    if CustomBehaviorParty().get_party_forced_state() == BehaviorState.FAR_FROM_AGGRO:
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
-    if PyImGui.button(f"{IconsFontAwesome5.ICON_HIKING} FAR_FROM_AGGRO"):
-        CustomBehaviorParty().set_party_forced_state(BehaviorState.FAR_FROM_AGGRO)
-    ImGui.show_tooltip("CLOSE_TO_AGGRO : nothing close to fight")
-    if CustomBehaviorParty().get_party_forced_state() == BehaviorState.FAR_FROM_AGGRO:
-        PyImGui.pop_style_color(2)
-
-
-    PyImGui.same_line(0,5)
-    if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IDLE:
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
-    if PyImGui.button(f"{IconsFontAwesome5.ICON_HOURGLASS} IDLE"):
-        CustomBehaviorParty().set_party_forced_state(BehaviorState.IDLE)
-    ImGui.show_tooltip("IDLE : town, dead, loading, ect...")
-    if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IDLE:
-        PyImGui.pop_style_color(2)
-
-    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, Utils.ColorToTuple(Utils.RGBToColor(200, 30, 30, 255)))
-    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, Utils.ColorToTuple(Utils.RGBToColor(240, 10, 0, 255)))
-    if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}"):
-        CustomBehaviorParty().set_party_forced_state(None)
-    ImGui.show_tooltip("Remove forced state")
-    PyImGui.pop_style_color(2)
-
-    PyImGui.same_line(0,5)
-    PyImGui.text(f"Party forced state is ")
-    PyImGui.same_line(0,0)
-    PyImGui.text(f"{CustomBehaviorParty().get_party_forced_state()}")
-
-    PyImGui.separator()
+    # PyImGui.separator()
 
     constants.DEBUG = PyImGui.checkbox("with debugging logs", constants.DEBUG)
 

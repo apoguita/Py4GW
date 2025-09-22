@@ -29,6 +29,7 @@ from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.skills.inventory.merchant_refill_if_needed_utility import MerchantRefillIfNeededUtility
 from Widgets.CustomBehaviors.skills.looting.loot_utility import LootUtility
 from Widgets.CustomBehaviors.skills.looting.open_near_chest_utility import OpenNearChestUtility
+from Widgets.CustomBehaviors.skills.looting.open_near_dungeon_chest_utility import OpenNearDungeonChestUtility
 
 class CustomBehaviorBaseUtility():
     """
@@ -138,6 +139,7 @@ class CustomBehaviorBaseUtility():
             
             LootUtility(current_build=self.in_game_build),
             OpenNearChestUtility(self.in_game_build),
+            OpenNearDungeonChestUtility(self.in_game_build),
 
             MapChangedUtility(self.in_game_build),
             StuckDetectionUtility(self.in_game_build),
@@ -308,9 +310,9 @@ class CustomBehaviorBaseUtility():
             try:
                 next(self._generator_handle)
             except StopIteration:
-                print(f"act is not expected to StopIteration.")
+                print(f"CustomBehaviorBaseUtility.act is not expected to StopIteration.")
             except Exception as e:
-                print(f"act is not expected to exit : {e}")
+                print(f"CustomBehaviorBaseUtility.act is not expected to exit : {e}")
             # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
 
     # STATES
@@ -426,7 +428,6 @@ class CustomBehaviorBaseUtility():
             history_entry.result = result
             history_entry.ended_at = ended_at
             self.__previously_attempted_skills.append(highest_score[0].custom_skill)
-
 
             yield  # ← yield control back to the main execution flow
 
