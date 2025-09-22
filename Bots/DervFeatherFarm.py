@@ -54,21 +54,24 @@ is_looting = False
 
 
 # region Direct Bot Actions
-def return_to_outpost():
-    is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
-    is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
-    is_explorable = GLOBAL_CACHE.Map.IsExplorable()
-    is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated()
-    yield from Routines.Yield.wait(3000)
+def return_to_outpost(bot: Botting):
+    if bot.config.build_handler.status == DervBuildFarmStatus.Setup:  # type: ignore
+        return
 
-    if is_map_ready and is_party_loaded and is_explorable and is_party_defeated:
+    while True:
+        is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+        is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
+        is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+        is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated()
+
         yield from Routines.Yield.Player.Resign()
-        yield from Routines.Yield.wait(2000)
-        GLOBAL_CACHE.Party.ReturnToOutpost()
-        yield from Routines.Yield.wait(4000)
-        while GLOBAL_CACHE.Map.GetMapID() != GLOBAL_CACHE.Map.GetMapIDByName(SEITUING_HARBOR):
+        yield from Routines.Yield.wait(1000)
+
+        if is_map_ready and is_party_loaded and is_explorable and is_party_defeated:
+            yield from Routines.Yield.wait(2000)
             GLOBAL_CACHE.Party.ReturnToOutpost()
             yield from Routines.Yield.wait(4000)
+            break  # exit after returning to outpost
 
 
 def load_skill_bar(bot: Botting):
@@ -126,7 +129,7 @@ def farm_sensalis(bot, kill_immediately=False):
     last_farm_epicenter = GLOBAL_CACHE.Player.GetXY()
     ConsoleLog(FEATHER_FARMER, 'Farming...')
     is_farming = True
-    if kill_immediately:
+    if kill_immediately or get_non_sensali_array(custom_range=Range.Spellcast.value):
         bot.config.build_handler.status = DervBuildFarmStatus.Kill
     else:
         yield from ball_sensalis(bot)
@@ -213,6 +216,12 @@ def get_sensali_array(custom_range=Range.Area.value * 1.50):
     return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) in SENSALI_MODEL_IDS]
 
 
+def get_non_sensali_array(custom_range=Range.Area.value * 1.50):
+    px, py = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
+    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in SENSALI_MODEL_IDS]
+
+
 def get_valid_loot_array():
     loot_array = AgentArray.GetItemArray()
     loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 1.50)
@@ -289,7 +298,7 @@ def detect_sensali_or_loot():
         return False
 
     # Apply blacklist filter
-    filtered_agent_ids = [agent_id for agent_id in filtered_agent_ids if agent_id not in item_id_blacklist]
+    filtered_agent_ids = [agent_id for agent_id in filtered_agent_ids if agent_id not in set(item_id_blacklist)]
 
     if not filtered_agent_ids:
         return False
@@ -297,7 +306,7 @@ def detect_sensali_or_loot():
     return True
 
 
-def _on_death(bot: "Botting"):
+def _on_death(bot: Botting):
     ConsoleLog(FEATHER_FARMER, "Waiting for a moment reset...")
     yield from Routines.Yield.wait(1000)
     fsm = bot.config.FSM
@@ -306,7 +315,7 @@ def _on_death(bot: "Botting"):
     yield
 
 
-def on_death(bot: "Botting"):
+def on_death(bot: Botting):
     ConsoleLog(FEATHER_FARMER, "Player is dead. Run Failed, Restarting...")
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
@@ -484,7 +493,7 @@ def main_farm(bot: Botting):
     bot.config.set_pause_on_danger_fn(detect_sensali_or_loot)
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("pause_on_danger")
-    bot.States.AddCustomState(return_to_outpost, "Return to Seitung Harbor")
+    bot.States.AddCustomState(lambda: return_to_outpost(bot), "Return to Seitung Harbor")
     bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddManagedCoroutine(HANDLE_STUCK, lambda: handle_stuck(bot))
     bot.States.AddManagedCoroutine(HANDLE_SENSALI_DANGER, lambda: handle_sensali_danger(bot))
