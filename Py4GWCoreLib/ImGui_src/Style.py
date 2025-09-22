@@ -15,6 +15,7 @@ class Style:
             self.value1: float = value1
             self.value2: float | None = value2
             self.pushed_stack = []
+            
 
         def push_style_var(self, value1: float | None = None, value2: float | None = None):
             var = Style.StyleVar(
