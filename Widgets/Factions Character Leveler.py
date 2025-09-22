@@ -486,7 +486,8 @@ def TraverseSaoshangTrail(bot: Botting):
     
 def TakeRewardAndCraftArmor(bot: Botting):
     bot.States.AddHeader("Take Reward And Craft Armor")
-    bot.Move.XYAndDialog(16368, 12011, 0x815607) #TAKE_REWARD
+    bot.Move.XY(16852, 12812)
+    bot.Move.XYAndDialog(16435, 12047, 0x815607) #TAKE_REWARD
     bot.Move.XYAndInteractNPC(17520.00, 13805.00)
     bot.States.AddCustomState(BuyMaterials, "Buy Materials")
     bot.Move.XYAndInteractNPC(20508.00, 9497.00)
@@ -537,7 +538,11 @@ def AttributePointQuest2(bot: Botting):
         bot.Properties.Disable("auto_combat")
  
     bot.States.AddHeader("Attribute Point Quest 2")
-    bot.Move.XY(19698.33, 7504.35)
+    bot.Move.XY(16602.23, 11612.10)
+    bot.Move.XY(16886.80, 9577.24)
+    bot.Move.XY(16940.28, 9860.90)
+    bot.Move.XY(19243.22, 9093.26)
+    bot.Move.XY(19840.55, 7956.64)
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
     bot.Wait.ForTime(5000)
     bot.Dialogs.WithModel(3958,0x815C01) #Take Quest from Zunraa
@@ -662,7 +667,11 @@ def AttributePointQuest2(bot: Botting):
     bot.Wait.UntilCondition(wait_function)
     
     bot.Map.Travel(target_map_name="Seitung Harbor")
-    bot.Move.XY(19698.33, 7504.35)
+    bot.Move.XY(16602.23, 11612.10)
+    bot.Move.XY(16886.80, 9577.24)
+    bot.Move.XY(16940.28, 9860.90)
+    bot.Move.XY(19243.22, 9093.26)
+    bot.Move.XY(19840.55, 7956.64)
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
     bot.Wait.ForTime(5000)
     ZUNRAA_MODEL_ID = 3958
