@@ -7,6 +7,7 @@ from Py4GWCoreLib import Player
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Skill
 from Py4GWCoreLib import Weapon
 from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
 
@@ -17,6 +18,7 @@ class DervBuildFarmStatus:
     Prepare = 'prepare'
     Kill = 'kill'
     Loot = 'loot'
+    Wait = 'wait'
 
 
 class DervBoneFarmer(BuildMgr):
@@ -44,15 +46,17 @@ class DervBoneFarmer(BuildMgr):
         self.pious_fury = self.skills[1]
         self.grenths_aura = self.skills[2]
         self.vow_of_silence = self.skills[3]
-        self.criplling_victory = self.skills[4]
+        self.crippling_victory = self.skills[4]
         self.reap_impurities = self.skills[5]
         self.vow_of_piety = self.skills[6]
         self.i_am_unstoppable = self.skills[7]
 
+        self.crippling_victory_slot = 5
+        self.reap_impurities_slot = 6
+
         # Build usage status
-        self.status = DervBuildFarmStatus.Setup
-        self.spiked = False
-        self.spiking = False
+        self.status = DervBuildFarmStatus.Wait
+        self.attacking = False
 
     def swap_to_scythe(self):
         if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Scythe:
@@ -63,6 +67,11 @@ class DervBoneFarmer(BuildMgr):
         if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] == Weapon.Scythe:
             Keystroke.PressAndRelease(Key.F2.value)
             yield from Routines.Yield.wait(750)
+
+    def has_enough_adrenaline(self, skill_slot):
+        skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot)
+
+        return GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot).adrenaline_a >= Skill.Data.GetAdrenaline(skill_id)
 
     def ProcessSkillCasting(self):
         if not (
@@ -75,13 +84,17 @@ class DervBoneFarmer(BuildMgr):
             yield from Routines.Yield.wait(1000)
             return
 
-        if self.status == DervBuildFarmStatus.Loot or self.status == DervBuildFarmStatus.Setup:
+        if (
+            self.status == DervBuildFarmStatus.Loot
+            or self.status == DervBuildFarmStatus.Setup
+            or self.status == DervBuildFarmStatus.Wait
+        ):
+            yield from self.swap_to_shield_set()
             yield from Routines.Yield.wait(100)
             return
 
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         has_signet_of_mystic_speed = Routines.Checks.Effects.HasBuff(player_agent_id, self.signet_of_mystic_speed)
-        has_pious_fury = Routines.Checks.Effects.HasBuff(player_agent_id, self.pious_fury)
         has_grenths_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.grenths_aura)
         has_vow_of_silence = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_silence)
         has_vow_of_piety = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_piety)
@@ -100,59 +113,45 @@ class DervBoneFarmer(BuildMgr):
                 and has_grenths_aura
                 and has_vow_of_piety
             ):
-                yield from Routines.Yield.Skills.CastSkillID(self.grenths_aura, aftercast_delay=100)
-                return
-
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.signet_of_mystic_speed)) and has_vow_of_silence:
-                yield from Routines.Yield.Skills.CastSkillID(self.signet_of_mystic_speed, aftercast_delay=750)
+                yield from Routines.Yield.Skills.CastSkillID(self.vow_of_silence, aftercast_delay=100)
                 return
 
         if self.status == DervBuildFarmStatus.Kill:
-            yield from self.swap_to_scythe()
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.signet_of_mystic_speed)) and has_vow_of_silence:
-                yield from Routines.Yield.Skills.CastSkillID(self.signet_of_mystic_speed, aftercast_delay=750)
+            if (
+                (yield from Routines.Yield.Skills.IsSkillIDUsable(self.signet_of_mystic_speed))
+                and has_vow_of_silence
+                and not has_signet_of_mystic_speed
+            ):
+                yield from Routines.Yield.Skills.CastSkillID(self.signet_of_mystic_speed, aftercast_delay=250)
                 return
 
-            if ((yield from Routines.Yield.Skills.IsSkillIDUsable(self.i_am_unstoppable))):
+            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.i_am_unstoppable)):
                 yield from Routines.Yield.Skills.CastSkillID(self.i_am_unstoppable, aftercast_delay=100)
                 return
 
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.pious_fury)) and has_signet_of_mystic_speed:
-                yield from Routines.Yield.Skills.CastSkillID(self.pious_fury, aftercast_delay=100)
-                return
-
             if (
-                (yield from Routines.Yield.Skills.IsSkillIDUsable(self.grenths_aura))
-                and not has_grenths_aura
-                and has_signet_of_mystic_speed
-            ):
-                yield from Routines.Yield.Skills.CastSkillID(self.grenths_aura, aftercast_delay=100)
-                return
-
-            if (
-                (yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_silence))
-                and has_grenths_aura
-                and has_signet_of_mystic_speed
-            ):
-                yield from Routines.Yield.Skills.CastSkillID(self.grenths_aura, aftercast_delay=100)
+                yield from Routines.Yield.Skills.IsSkillIDUsable(self.grenths_aura)
+                and Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_silence)
+            ) and has_signet_of_mystic_speed:
+                yield from Routines.Yield.Skills.CastSkillID(self.pious_fury, aftercast_delay=50)
+                yield from Routines.Yield.Skills.CastSkillID(self.grenths_aura, aftercast_delay=50)
+                yield from Routines.Yield.Skills.CastSkillID(self.vow_of_silence, aftercast_delay=50)
                 return
 
             nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Nearby.value)
-            if (
-                has_pious_fury
-                and has_grenths_aura
-                and has_signet_of_mystic_speed
-                and has_vow_of_silence
-                and nearest_enemy
-            ):
+            vos_buff_time_remaining = (
+                GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.vow_of_silence)
+                if has_vow_of_silence
+                else 0
+            )
+            if nearest_enemy and vos_buff_time_remaining > 1500:
+                yield from self.swap_to_scythe()
                 GLOBAL_CACHE.Player.Interact(nearest_enemy, False)
-                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.criplling_victory)):
-                    yield from Routines.Yield.Skills.CastSkillID(self.criplling_victory, aftercast_delay=100)
-                    return
+                if self.has_enough_adrenaline(self.crippling_victory_slot):
+                    yield from Routines.Yield.Skills.CastSkillID(self.crippling_victory, aftercast_delay=100)
 
-                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.reap_impurities)):
+                if self.has_enough_adrenaline(self.reap_impurities_slot):
                     yield from Routines.Yield.Skills.CastSkillID(self.reap_impurities, aftercast_delay=100)
-                    return
 
 
 # =================== BUILD END ========================

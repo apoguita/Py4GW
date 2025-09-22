@@ -172,8 +172,6 @@ def farm_sensalis(bot, kill_immediately=False):
             # handle death here
             ConsoleLog(FEATHER_FARMER, 'Died fighting, setting back to [Move] status')
             bot.config.build_handler.status = DervBuildFarmStatus.Move
-            yield from Routines.Yield.wait(1000)
-            yield from Routines.Yield.Player.Resign()
             return
 
         yield from Routines.Yield.wait(100)
