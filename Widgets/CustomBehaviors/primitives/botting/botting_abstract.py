@@ -1,7 +1,11 @@
 from abc import abstractmethod
+from enum import Enum
+from tracemalloc import stop
 from typing import Any, Generator
 
-from Widgets.CustomBehaviors.gui import botting
+import PyImGui
+
+from Py4GWCoreLib import Botting
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
@@ -16,13 +20,23 @@ from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_mana_too_low im
 from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_needs_to_loot import WaitIfPartyMemberNeedsToLootUtility
 from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
 
+class StickPosition(Enum):
+    Left        = 1,
+    Right       = 2,
+    Bottom      = 3,
+
 class BottingAbstract():
 
     def __init__(self):
-        self.__generator = self._act()
-        self.__initialized = False
-        instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
-        if instance is None: raise Exception("CustomBehavior widget is required.")
+        self._is_ui_visible = False
+        self.is_botting_behavior_injected = False
+        self.ui_stick_position = StickPosition.Right
+
+        self.__bot_instance : Botting | None = None
+
+    @abstractmethod
+    def bot_routine(self, bot_instance: Botting):
+        pass
 
     @property
     @abstractmethod
@@ -34,14 +48,66 @@ class BottingAbstract():
     def description(self) -> str:
         pass
 
-    @abstractmethod
-    def _act(self) -> Generator[Any | None, Any | None, Any | None]:
-        '''
-        the method each bot need to implement.
-        '''
-        pass
 
-    def __initialize(self):
+    def is_openned_bot(self):
+        return self.__bot_instance is not None 
+
+    def open_bot(self):
+        if self.__bot_instance is None:
+            print(f"bot {self.name} opening.")
+            self.__bot_instance = Botting(self.name)
+
+            # required as utility skills take relay when moving.
+            self.__bot_instance.Properties.Disable("auto_inventory_management")
+            self.__bot_instance.Properties.Disable("auto_loot")
+            self.__bot_instance.Properties.Enable("hero_ai")
+            self.__bot_instance.Properties.Disable("auto_combat")
+            self.__bot_instance.Properties.Disable("pause_on_danger")
+            self.__bot_instance.Properties.Disable("halt_on_death")
+            self.__bot_instance.Properties.Set("movement_timeout",value=-1)
+
+            # Create a wrapper that calls bot_routine with the bot_instance
+            def routine_wrapper(bot_self):
+                if self.__bot_instance is not None:
+                    return self.bot_routine(self.__bot_instance)
+
+            self.__bot_instance.SetMainRoutine(routine_wrapper)
+
+    def close_bot(self):
+        # print(f"bot {self.name} closing.")
+        self.__bot_instance = None
+
+    def toggle_ui(self):
+        self._is_ui_visible = not self._is_ui_visible
+
+    def act(self):
+        if self.__bot_instance is None:
+            raise Exception("Bot must be openned first.")
+
+        try:
+            if self.__bot_instance is not None:
+                # print("State names:", [state.name for state in self.bot.config.FSM.states] if self.bot.config.FSM.states else "No states found")
+                # print(f"bot {self.name} update.")
+                self.__bot_instance.Update()
+        except Exception as e:
+            print(f"[Writer {id}] ERROR: {e}")
+            # traceback.print_exc()
+
+    def render(self, widget_window_size:tuple[float, float], widget_window_pos:tuple[float, float]):
+        if self.__bot_instance is not None:
+            if self._is_ui_visible: 
+                if self.ui_stick_position == StickPosition.Left:
+                    PyImGui.set_next_window_pos(widget_window_pos[0] - 370, widget_window_pos[1])
+
+                if self.ui_stick_position == StickPosition.Right:
+                    PyImGui.set_next_window_pos(widget_window_pos[0] + widget_window_size[0], widget_window_pos[1])
+                    
+                if self.ui_stick_position == StickPosition.Bottom:
+                    PyImGui.set_next_window_pos(widget_window_pos[0], widget_window_pos[1] + widget_window_size[1])
+
+                self.__bot_instance.UI.draw_window(main_child_dimensions= (350, 275))
+
+    def inject_botting_behavior(self):
         instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: raise Exception("CustomBehavior widget is required.")
         # some are not finalized
@@ -56,19 +122,10 @@ class BottingAbstract():
         instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.in_game_build))
         instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.in_game_build))
         instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.in_game_build))
+        self.is_botting_behavior_injected = True
 
-    def act(self):
-        if not self.__initialized:
-            self.__initialize()
-            self.__initialized = True
-        try:
-            next(self.__generator)
-        except StopIteration:
-            print(f"Bot is finished.")
-        except Exception as e:
-            print(f"act is not expected to exit : {e}")
-
-    def stop(self):
+    def remove_botting_behavior(self):
         instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: raise Exception("CustomBehavior widget is required.")
         instance.clear_additionnal_utility_skills()
+        self.is_botting_behavior_injected = False

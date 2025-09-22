@@ -1,31 +1,26 @@
 from __future__ import annotations
 from typing import List, Tuple
 
+import PyImGui
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui)
 
-bot = Botting("Auto Combat Tester",
-              upkeep_birthday_cupcake_restock=50,
-              upkeep_honeycomb_restock=100,
-              upkeep_auto_inventory_management_active=False,
-              upkeep_auto_loot_active=True)
 
-def create_bot_routine(bot: Botting) -> None:
-    bot.Wait.UntilCondition(lambda: False)
     
-    
-    
-bot.SetMainRoutine(create_bot_routine)
+dialog = 0x84
+
+
 
 def main():
-    global bot
+    global dialog
 
     try:
-        bot.Update()
-        bot.UI.draw_window()
-
+        if PyImGui.begin("dialog sender"):
+            dialog = PyImGui.input_int("dialog id", dialog)
+            if PyImGui.button("send dialog"):
+                GLOBAL_CACHE.Player.SendDialog(dialog)
     except Exception as e:
-        Py4GW.Console.Log(bot.config.bot_name, f"Error: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log("send dialog", f"Error: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
 if __name__ == "__main__":

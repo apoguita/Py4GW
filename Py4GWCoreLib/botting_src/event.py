@@ -58,7 +58,10 @@ class OnDeathEvent(Event):
         return GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
 
     def should_reset(self) -> bool:
-        from Py4GWCoreLib import GLOBAL_CACHE
+        from Py4GWCoreLib import GLOBAL_CACHE, Routines
+        if not Routines.Checks.Map.MapValid():
+            return True
+        
         return not GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
 
 class OnPartyDefeated(Event):
@@ -67,7 +70,9 @@ class OnPartyDefeated(Event):
         return GLOBAL_CACHE.Party.IsPartyDefeated()
 
     def should_reset(self) -> bool:
-        from Py4GWCoreLib import GLOBAL_CACHE
+        from Py4GWCoreLib import GLOBAL_CACHE, Routines
+        if not Routines.Checks.Map.MapValid():
+            return True
         return not GLOBAL_CACHE.Party.IsPartyDefeated()
     
 class OnPartyWipe(Event):
@@ -76,7 +81,9 @@ class OnPartyWipe(Event):
         return Checks.Party.IsPartyWiped()
     
     def should_reset(self):
-        from ..Routines import Checks  # local import to avoid cycles
+        from ..Routines import Checks, Routines
+        if not Routines.Checks.Map.MapValid():
+            return True
         return not Checks.Party.IsPartyWiped()
     
 class OnStuck(Event):

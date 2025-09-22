@@ -659,7 +659,7 @@ class PetModelID(IntEnum):
 
 # region ItemModels
 class ModelID(IntEnum):
-    Luminous_Stone = 123456789
+    
     Maguuma_Spider_Web = 987654321
     Roaring_Ether_Heart = 12345678910
     Charr_Hide = 1234567891
@@ -1218,6 +1218,7 @@ class ModelID(IntEnum):
     Livia_Mini = 35129
     Lockpick = 22751
     Losaru_Mane = 448
+    Luminous_Stone = 1660
     Lump_Of_Charcoal = 922
     Lunar_Fortune_2007_Pig = 29424
     Lunar_Fortune_2008_Rat = 29425
