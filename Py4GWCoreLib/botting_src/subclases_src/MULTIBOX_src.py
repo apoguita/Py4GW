@@ -43,7 +43,23 @@ class _MULTIBOX:
 
     def UseConsumable(self, item_id, skill_id):
         self._helpers.Multibox.use_consumable((item_id, skill_id, 0, 0))
+        
+    def SummonAllAccounts(self):
+        self._helpers.Multibox.summon_all_accounts()
+        
+    def SummonAccount(self, account_email: str):
+        self._helpers.Multibox.summon_account_by_email(account_email)
+        
+    def InviteAllAccounts(self):
+        self._helpers.Multibox.invite_all_accounts()
+        
+    def InviteAccount(self, account_email: str):
+        self._helpers.Multibox.invite_account_by_email(account_email)
+        
+    def KickAllAccounts(self):
+        self._helpers.Multibox.kick_all_accounts()
 
-
+    def KickAccount(self, account_email: str):
+        self._helpers.Multibox.kick_account_by_email(account_email)
 
 #endregion

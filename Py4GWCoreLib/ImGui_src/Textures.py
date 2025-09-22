@@ -1,7 +1,5 @@
 from enum import IntEnum, Enum
 from .types import TEXTURE_FOLDER, MINIMALUS_FOLDER, StyleTheme
-from .ImGuisrc import ImGui
-from .Style import Style
 from ..Overlay import Overlay
 import os
 
@@ -48,6 +46,7 @@ class SplitTexture:
         return x0 / w, y0 / h, x1 / w, y1 / h
 
     def draw_in_drawlist(self, x: float, y: float, size: tuple[float, float], tint=(255, 255, 255, 255), state: TextureState = TextureState.Normal):
+        from .ImGuisrc import ImGui
         # Draw left part
         ImGui.DrawTextureInDrawList(
             pos=(x, y),
@@ -147,6 +146,7 @@ class MapTexture:
         state: TextureState = TextureState.Normal,
         tint=(255, 255, 255, 255)
     ):
+        from .ImGuisrc import ImGui
         uv = self.get_uv(state)
         ImGui.DrawTextureInDrawList(
             pos=(x, y),
@@ -191,6 +191,7 @@ class ThemeTexture:
             self.textures[theme] = texture
 
     def get_texture(self, theme: StyleTheme | None = None) -> SplitTexture | MapTexture:
+        from .ImGuisrc import ImGui
         theme = theme or ImGui.get_style().Theme
         return self.textures.get(theme, ThemeTexture.PlaceHolderTexture)
 
