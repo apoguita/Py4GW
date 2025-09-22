@@ -48,7 +48,7 @@ class CustomBehaviorBaseUtility():
 
         self.in_game_build: list[CustomSkill] = list(self.skillbar_management.get_in_game_build().values())
 
-        self.__memoized_ordered_scores : list[tuple[CustomSkillUtilityBase, float | None]]
+        self.__memoized_ordered_scores : list[tuple[CustomSkillUtilityBase, float | None]] = []
         self.__memoized_state : BehaviorState = BehaviorState.IDLE
         
         self.__injected_additional_utility_skills : list[CustomSkillUtilityBase] = list[CustomSkillUtilityBase]()
@@ -94,7 +94,10 @@ class CustomBehaviorBaseUtility():
         used to know if we are executing utility skills, any external bot can use it as condition to run / pause.
         '''
 
-        highest_score: tuple[CustomSkillUtilityBase, float | None] = self.get_highest_score()
+        highest_score: tuple[CustomSkillUtilityBase, float | None] | None = self.get_highest_score()
+
+        if highest_score is  None: 
+            return False
 
         if highest_score[1] is not None: 
             # any skill with positive evaluation are a condition to stop an external script
@@ -374,8 +377,9 @@ class CustomBehaviorBaseUtility():
     def get_all_scores(self) -> list[tuple[CustomSkillUtilityBase, float | None]]:
         return self.__memoized_ordered_scores
 
-    def get_highest_score(self) -> tuple[CustomSkillUtilityBase, float | None]:
+    def get_highest_score(self) -> tuple[CustomSkillUtilityBase, float | None] | None:
         utility_scores: list[tuple[CustomSkillUtilityBase, float | None]] = self.get_all_scores()
+        if len(utility_scores) == 0: return None
         highest_score : tuple[CustomSkillUtilityBase, float | None] = utility_scores[0]
         return highest_score
 
@@ -386,7 +390,11 @@ class CustomBehaviorBaseUtility():
         # if no aftercast, there is no reason to continue once the score is no more the highest.
         # so lets declare it.
         while True:
-            highest_score: tuple[CustomSkillUtilityBase, float | None] = self.get_highest_score()
+            highest_score: tuple[CustomSkillUtilityBase, float | None] | None = self.get_highest_score()
+
+            if highest_score is None: # score is None
+                yield
+                continue
 
             if highest_score[1] is None: # score is None
                 yield
@@ -436,6 +444,11 @@ class CustomBehaviorBaseUtility():
             while True:
                 # if we lost priority, stop early
                 current_highest = self.get_highest_score()
+
+                if current_highest is None: # score is None
+                    yield # required to avoid death-loop
+                    return BehaviorResult.ACTION_SKIPPED
+
                 if current_highest[0].custom_skill.skill_name != new_highest_score.custom_skill.skill_name or current_highest[1] is None:
                     yield # required to avoid death-loop
                     return BehaviorResult.ACTION_SKIPPED

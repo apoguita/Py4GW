@@ -97,7 +97,7 @@ class CustomBehaviorWidgetMemoryManager:
         mem.IsFollowingEnabled = True
         mem.IsLootingEnabled = True
         mem.IsChestingEnabled = False # we deactivate chesting by-default.
-        mem.IsBlessingEnabled = True
+        mem.IsBlessingEnabled = False # we deactivate blessing by-default (there is often wrong-positive).
         mem.IsInventoryEnabled = False # we deactivate invoentory by-default.
         
         for i in range(MAX_LOCKS):

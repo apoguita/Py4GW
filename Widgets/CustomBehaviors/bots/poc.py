@@ -3,32 +3,64 @@ from Py4GWCoreLib import Botting
 from Widgets.CustomBehaviors.primitives.botting.botting_abstract import BottingAbstract
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
-class poc(BottingAbstract):
+class poc():
     def __init__(self):
         super().__init__()
-        self.bot = Botting("qzd")
+        self.bot = Botting("fffff")
         self.bot.SetMainRoutine(self.bot_routine)
 
     def bot_routine(self):
-            self.bot.Map.Travel(target_map_id=640) #Ratasum outpost
-            self.bot.Party.SetHardMode(True)
+        # Set up the FSM states properly
+        self.bot.States.AddHeader("MAIN_LOOP")
+        self.bot.Map.Travel(target_map_id=476)
+        self.bot.Party.SetHardMode(False)
 
-            self.bot.States.AddHeader("EXIT OUTPOST HEADER")
-            self.bot.UI.PrintMessageToConsole("Debug", "Added header: EXIT OUTPOST HEADER")
-            self.bot.Move.XY(-6062, -2688,"Exit Outpost")
-            self.bot.Wait.ForMapLoad(target_map_id=569)
+        self.bot.States.AddHeader("EXIT_OUTPOST")
+        self.bot.UI.PrintMessageToConsole("Debug", "Added header: EXIT_OUTPOST")
+        self.bot.Move.XY(-6191, -2498, "Exit Outpost")
+        self.bot.Wait.ForMapLoad(target_map_id=397)
 
-            self.bot.Move.XY(15013, 13111)
-            self.bot.Wait.ForTime(2000)
+        self.bot.States.AddHeader("MOVE_TO_FARM_AREA") #todo correct name
+        self.bot.Move.XY(17360, 9436)
+        self.bot.Wait.ForTime(2000)
+        self.bot.Wait.ForMapLoad(target_map_id=xxx)
 
-            self.bot.Wait.UntilOutOfCombat()
-            self.bot.helpers.Multibox.resign_party()
-            self.bot.UI.PrintMessageToConsole("qzd farm", "Finished routine")
-            self.bot.States.JumpToStepName("EXIT OUTPOST HEADER")
+        self.bot.States.AddHeader("FARM_LOOP")
+        # self.bot.Move.XY(17432, -14629)
+        # todo the farm loop
+        self.bot.Wait.ForTime(2000)
+        self.bot.Wait.ForMapLoad(target_map_id=xxx)
+        
+        # Loop back to farm loop
+        self.bot.States.JumpToStepName("MOVE_TO_FARM_AREA")
+
+    @property
+    @override
+    def name(self) -> str:
+        return "qzdqzd"
+
+    @property
+    @override
+    def description(self) -> str:
+        return "qzidjofdgdsfg"
 
     @override
-    def  _act(self) -> Generator[Any | None, Any | None, Any | None]:
-        self.bot.Update()
-        yield
-        
+    def _act(self) -> Generator[Any | None, Any | None, Any | None]:
+        while True:
+            if self.bot.config.FSM.current_state is not None:
+                print(f"{self.bot.config.FSM.current_state.name}")
+            self.bot.Update()
+            self.bot.UI.draw_window()
+            yield
+
+qzd = poc()
+
+def main():
+    global qzd
+    qzd.act()
+
+def configure():
+    pass
+
+__all__ = ["main", "configure"]
 

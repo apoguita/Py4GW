@@ -16,16 +16,16 @@ except ImportError:
 
 class ProUnlockWindow(BasicWindow):
     PROFESSION_PRESETS = [
-        ("Mesmer", "0x585"),
-        ("Necromancer", "0x485"),
-        ("Elementalist", "0x685"),
-        ("Monk", "0x385"),
-        ("Warrior", "0x185"),
-        ("Ranger", "0x285"),
-        ("Ritualist", "0x885"),
-        ("Paragon", "0x985"),
-        ("Assassin", "0x785"),
-        ("Dervish", "0xA85"),
+        ("Mesmer", "0x584"),
+        ("Necromancer", "0x484"),
+        ("Elementalist", "0x684"),
+        ("Monk", "0x384"),
+        ("Warrior", "0x184"),
+        ("Ranger", "0x284"),
+        ("Ritualist", "0x884"),
+        ("Paragon", "0x984"),
+        ("Assassin", "0x784"),
+        ("Dervish", "0xA84"),
     ]
 
     PROFESSION_ICON_MAP = {
