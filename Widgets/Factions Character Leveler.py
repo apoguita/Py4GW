@@ -7,6 +7,7 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
 bot = Botting("Factions Leveler",
               upkeep_birthday_cupcake_restock=50,
               upkeep_honeycomb_restock=100,
+              upkeep_war_supplies_restock=10,
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
               upkeep_auto_loot_active=True)
@@ -54,13 +55,16 @@ def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.ConfigTemplates.Pacifist()
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Disable("honeycomb")
+    bot.Properties.Enable("war_supplies")
     bot.Items.SpawnAndDestroyBonusItems()
     bot.Items.Restock.BirthdayCupcake()
+    bot.Items.Restock.WarSupplies()
     
 def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.ConfigTemplates.Aggressive()
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Enable("honeycomb")
+    bot.Properties.Enable("war_supplies")
     bot.Items.SpawnAndDestroyBonusItems()
 
     
@@ -151,6 +155,7 @@ def PrepareForBattle(bot: Botting):
     bot.States.AddCustomState(AddHenchmen, "Add Henchmen")
     bot.Items.Restock.BirthdayCupcake()
     bot.Items.Restock.Honeycomb()
+    bot.Items.Restock.WarSupplies()
   
 def GetArmorMaterialPerProfession(headpiece = False) -> int:
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
@@ -853,10 +858,20 @@ def _draw_settings(bot: Botting):
     use_honeycomb = PyImGui.checkbox("Use Honeycomb", use_honeycomb)
     hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
 
+    # War Supplies controls
+    use_war_supplies = bot.Properties.Get("war_supplies", "active")
+    ws_restock_qty = bot.Properties.Get("war_supplies", "restock_quantity")
+
+    use_war_supplies = PyImGui.checkbox("Use War Supplies", use_war_supplies)
+    ws_restock_qty = PyImGui.input_int("War Supplies Restock Quantity", ws_restock_qty)
+
+    bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
+    bot.Properties.ApplyNow("war_supplies", "restock_quantity", ws_restock_qty)
     bot.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
     bot.Properties.ApplyNow("birthday_cupcake", "restock_quantity", bc_restock_qty)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
     bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
+
     
 def _draw_help():
     import PyImGui

@@ -39,3 +39,9 @@ class _Restock:
             qty = self._config.upkeep.honeycomb.get("restock_quantity")
             yield from self._restock_item(ModelID.Honeycomb.value, qty)
              
+
+    @_yield_step(label="RestockWarSupplies", counter_key="RESTOCK_WAR_SUPPLIES")
+    def restock_war_supplies(self):
+        if self._config.upkeep.war_supplies.is_active():
+            qty = self._config.upkeep.war_supplies.get("restock_quantity")
+            yield from self._restock_item(ModelID.War_Supplies.value, qty)
