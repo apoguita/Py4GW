@@ -1,4 +1,3 @@
-from click import style
 from ..Overlay import Overlay
 from ..enums import get_texture_for_model, ImguiFonts
 from ..Py4GWcorelib import Color, ColorPalette, ConsoleLog, Utils
@@ -13,6 +12,7 @@ import Py4GW
 
 #region ImGui
 class ImGui:
+    WindowModule: TypeAlias = WindowModule
     ImGuiStyleVar: TypeAlias  = ImGuiStyleVar
     style = PyImGui.StyleConfig()
     
@@ -2730,6 +2730,29 @@ class ImGui:
         if PyImGui.begin_child(f"ScrollableTextArea_{title}", size=(window_width, content_height), border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
             PyImGui.text_wrapped(text_content + "\n" + Py4GW.Console.GetCredits())
             PyImGui.end_child()
+
+    @staticmethod     
+    def PushTransparentWindow():
+        PyImGui.push_style_var(ImGuiStyleVar.WindowRounding,0.0)
+        PyImGui.push_style_var(ImGuiStyleVar.WindowPadding,0.0)
+        PyImGui.push_style_var(ImGuiStyleVar.WindowBorderSize,0.0)
+        PyImGui.push_style_var2(ImGuiStyleVar.WindowPadding,0.0,0.0)
+        
+        flags=( PyImGui.WindowFlags.NoCollapse | 
+                PyImGui.WindowFlags.NoTitleBar |
+                PyImGui.WindowFlags.NoScrollbar |
+                PyImGui.WindowFlags.NoScrollWithMouse |
+                PyImGui.WindowFlags.AlwaysAutoResize |
+                PyImGui.WindowFlags.NoResize |
+                PyImGui.WindowFlags.NoBackground 
+            ) 
+        
+        return flags
+
+    @staticmethod
+    def PopTransparentWindow():
+        PyImGui.pop_style_var(4)
+
 
         
     #region gw_window

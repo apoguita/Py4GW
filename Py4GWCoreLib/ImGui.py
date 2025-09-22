@@ -4,6 +4,7 @@ from .ImGui_src.types import ImGuiStyleVar, StyleTheme, StyleColorType
 from .ImGui_src import Style
 from .ImGui_src.ImGuisrc import ImGui
 from .ImGui_src.Textures import TextureState, SplitTexture, MapTexture, ThemeTexture, ThemeTextures
+from .ImGui_src.WindowModule import WindowModule
 
 __all__ = ["ImGuiStyleVar", 
            "StyleTheme", 
@@ -14,5 +15,6 @@ __all__ = ["ImGuiStyleVar",
            "SplitTexture",
            "MapTexture",
            "ThemeTexture",
-           "ThemeTextures"
+           "ThemeTextures",
+           "WindowModule",
         ]
