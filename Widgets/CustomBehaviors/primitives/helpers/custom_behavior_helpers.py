@@ -5,6 +5,7 @@ from functools import reduce
 from typing import Any, Callable, Optional, Tuple
 
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -171,7 +172,7 @@ class Resources:
         accounts:list[AccountData] = GLOBAL_CACHE.ShMem.GetAllAccountData()
         for account in accounts:
             if agent_id == account.PlayerID:
-                return account.Energy
+                return account.PlayerEnergy
         return 1.0  # default return full energy to prevent issues
 
     @staticmethod
@@ -242,9 +243,9 @@ class Resources:
             accounts:list[AccountData] = GLOBAL_CACHE.ShMem.GetAllAccountData()
             for account in accounts:
                 if account.PlayerID == agent_id:
-                    buff_list : list[int] = account.PlayerBuffs
-                    for buff_skill_id in account.buff_list:
-                        if buff_skill_id == skill_id:
+
+                    for buff in account.PlayerBuffs:
+                        if buff == skill_id:
                             return True
 
         return False
@@ -307,7 +308,10 @@ class Actions:
                 return BehaviorResult.ACTION_SKIPPED
             target_agent_id = selected_target
 
-        if target_agent_id is not None: Routines.Sequential.Agents.ChangeTarget(target_agent_id)
+        if target_agent_id is not None: 
+            GLOBAL_CACHE.Player.ChangeTarget(target_agent_id)
+            yield from Helpers.wait_for(50)
+            
         Routines.Sequential.Skills.CastSkillSlot(skill.skill_slot)
         if constants.DEBUG: print(f"cast_skill_to_target {skill.skill_name} to {target_agent_id}")
         yield from Helpers.delay_aftercast(skill)
@@ -329,6 +333,7 @@ class Actions:
         if cached_data.combat_handler.skills is None:
             try:
                 cached_data.combat_handler.PrioritizeSkills()
+                print(f"PrioritizeSkills")
             except Exception as e:
                 print(f"echec {e}")
         if cached_data.combat_handler.skills is None:
@@ -343,15 +348,19 @@ class Actions:
             return -1  # Return -1 if skill_id not found
 
         order = find_order()
-
         is_ready_to_cast, target_agent_id = cached_data.combat_handler.IsReadyToCast(order)
+        
 
         if not is_ready_to_cast:
             yield
             return BehaviorResult.ACTION_SKIPPED
 
         # option1
-        if target_agent_id is not None: Routines.Sequential.Agents.ChangeTarget(target_agent_id)
+        if target_agent_id is not None: 
+            GLOBAL_CACHE.Player.ChangeTarget(target_agent_id)
+            yield from Helpers.wait_for(50)
+
+
         Routines.Sequential.Skills.CastSkillID(skill.skill_id)
         # option2
         # ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, skill_slot, target_agent_id)

@@ -10,6 +10,7 @@ from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility i
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Widgets.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
 
 # Iterate through all modules in sys.modules (already imported modules)
 # Iterate over all imported modules and reload them
@@ -43,6 +44,7 @@ from Widgets.CustomBehaviors.gui.daemon_botting import daemon_botting
 party_forced_state_combo = 0
 current_path = pathlib.Path.cwd()
 monitor = FPSMonitor(history=300)
+widget_monitor = WidgetMonitor()
 # print(f"current_path is : {current_path}")
 widget_window_size:tuple[float, float] = (0,0)
 widget_window_pos:tuple[float, float] = (0,0)
@@ -110,17 +112,13 @@ def gui():
 previous_map_status = False
 map_change_throttler = ThrottledTimer(250)
 
-from Py4GW_widget_manager import get_widget_handler
-handler = get_widget_handler()
-if handler.is_widget_enabled("HeroAI"):
-    handler.disable_widget("HeroAI")
-    Py4GW.Console.Log("CustomBehaviors", "Using CustomBehaviors - HeroAI has been disabled.", Py4GW.Console.MessageType.Error)
-
 def main():
     global previous_map_status, monitor, widget_window_size, widget_window_pos
-    monitor.tick()
 
     daemon_botting(widget_window_size, widget_window_pos) # botting deamon is fully autonomous, no throttling or map check
+
+    monitor.tick()
+    widget_monitor.act()
 
     if Routines.Checks.Map.MapValid() and previous_map_status == False:
         map_change_throttler.Reset()
