@@ -51,7 +51,7 @@ def return_to_outpost(bot: Botting):
     if bot.config.build_handler.status == DervBuildFarmStatus.Setup:  # type: ignore
         return
 
-    while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):  # type: ignore
+    while True:
         is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
         is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
         is_explorable = GLOBAL_CACHE.Map.IsExplorable()
@@ -107,8 +107,8 @@ def farm(bot):
         # Death check
         if GLOBAL_CACHE.Agent.IsDead(player_id):
             # handle death here
-            ConsoleLog(COF_FARMER, 'Died fighting, setting back to [Setup] status')
-            bot.config.build_handler.status = DervBuildFarmStatus.Wait
+            ConsoleLog(COF_FARMER, 'Died fighting, setting back to [Loot], dont block going to outpost')
+            bot.config.build_handler.status = DervBuildFarmStatus.Loot
             is_farming = False
             yield from Routines.Yield.Player.Resign()
             yield from Routines.Yield.wait(1000)
@@ -163,7 +163,8 @@ def get_enemy_array(custom_range=Range.Area.value * 1.50):
     return [
         agent_id
         for agent_id in enemy_array
-        if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in {SpiritModelID.BLOODSONG, SpiritModelID.DESTRUCTION, AgentModelID.CHARR_AXEMASTER}
+        if GLOBAL_CACHE.Agent.GetModelID(agent_id)
+        not in {SpiritModelID.BLOODSONG, SpiritModelID.DESTRUCTION, AgentModelID.CHARR_AXEMASTER}
     ]
 
 
