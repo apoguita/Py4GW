@@ -47,6 +47,9 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToEOTN(bot) 
     ExitBorealStation(bot) 
     TraverseToEOTNOutpost(bot)
+    UnlockXunlaiMaterialPanel(bot)
+    UnlockEotnPool(bot)
+    AdvanceToGunnarsHold(bot)
     bot.States.AddHeader("Final Step")
     bot.Stop()
 
@@ -741,6 +744,75 @@ def TraverseToEOTNOutpost(bot: Botting):
     bot.Move.XY(8267.89, -12334.58)
     bot.Move.XY(3607.21, -6937.32)
     bot.Move.XYAndExitMap(2557.23, -275.97, target_map_id=642) #eotn_outpost_id
+
+def UnlockXunlaiMaterialPanel(bot: Botting) -> None:
+    bot.States.AddHeader("Unlock Xunlai Material Panel")
+    bot.Map.Travel(target_map_name="Shing Jea Monastery")
+    path_to_xunlai: List[Tuple[float, float]] = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
+    bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
+    bot.Dialogs.WithModel(221, 0x800001)
+    bot.Dialogs.WithModel(221, 0x800002)
+
+def UnlockEotnPool(bot: Botting):
+    bot.States.AddHeader("Unlock EOTN Pool")
+    bot.Map.Travel(target_map_id=642)  # eotn_outpost_id
+    bot.Wait.ForMapLoad(target_map_id=642)  # hall of monuments id
+    bot.Move.XY(-4416.39, 4932.36)
+    bot.Move.XY(-5198.00, 5595.00)
+    bot.Wait.ForMapLoad(target_map_id=646)  # hall of monuments id
+    bot.Move.XY(-6572.70, 6588.83)
+    bot.Dialogs.WithModel(5970, 0x800001) #eotn_pool_cinematic
+    bot.Dialogs.WithModel(5908, 0x630) #eotn_pool_cinematic
+    bot.Dialogs.WithModel(5908, 0x632) #eotn_pool_cinematic
+    bot.Wait.ForMapToChange(target_map_id=646)  # hall of monuments id
+    bot.Dialogs.WithModel(5970, 0x89) #gwen dialog
+    bot.Dialogs.WithModel(5970, 0x831904) #gwen dialog
+    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) #ogden dialog
+    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) #vekk dialog
+
+def AdvanceToGunnarsHold(bot: Botting):
+    bot.States.AddHeader("Advance To Gunnar's Hold")
+    bot.Map.Travel(target_map_id=642) # eotn_outpost_id
+    bot.Wait.ForMapLoad(target_map_id=642)  # eotn_outpost_id
+    PrepareForBattle(bot)
+    
+    # Follow outpost exit path
+    bot.Move.XY(-1814, 2917)
+    bot.Move.XY(-964, 2270)
+    bot.Move.XY(-115, 1677)
+    bot.Move.XY(718, 1060)
+    bot.Move.XYAndExitMap(1522, 464, target_map_id=499)  # Ice Cliff Chasms
+    bot.Wait.ForMapLoad(target_map_id=499)  # Ice Cliff Chasms
+    
+    # Traverse through Ice Cliff Chasms
+    bot.Move.XYAndDialog(2825, -481, 0x832801)  # Talk to Jora
+    bot.Move.XY(2233, 77)
+    bot.Move.XY(2586, 2100)
+    bot.Move.XY(2547, 4173)
+    bot.Move.XY(2588, 6226)
+    bot.Move.XY(1481, 7941)
+    bot.Move.XY(498, 9692)
+    bot.Move.XY(661, 11769)
+    bot.Move.XY(1021, 13809)
+    bot.Move.XY(800, 15865)
+    bot.Move.XY(465, 17890)
+    bot.Move.XY(375, 19935)
+    bot.Move.XY(-912, 21480)
+    bot.Move.XY(-1995, 23186)
+    bot.Move.XY(-2682, 25118)
+    bot.Move.XY(-3591, 26974)
+    bot.Move.XYAndExitMap(-4031, 27872, target_map_id=548)  # Norrhart Domains
+    bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
+    
+    # Traverse through Norrhart Domains
+    bot.Move.XY(11007, -13090)
+    bot.Move.XY(12261, -11439)
+    bot.Move.XY(11975, -9409)
+    bot.Move.XY(11775, -7333)
+    bot.Move.XY(13639, -6465)
+    bot.Move.XY(14546, -6043)
+    bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)  # Gunnar's Hold
+    bot.Wait.ForMapLoad(target_map_id=644)  # Gunnar's Hold
     
 #region Events
 #region EVENTS
