@@ -16,9 +16,12 @@ SENSALI_MODEL_IDS = {AgentModelID.SENSALI_CLAW, AgentModelID.SENSALI_CUTTER, Age
 
 # =================== BUILD ========================
 class DervBuildFarmStatus:
+    Setup = 'setup'
     Move = 'move'
     Ball = 'ball'
     Kill = 'kill'
+    Loot = 'loot'
+    Wait = 'wait'
 
 
 class DervFeatherFarmer(BuildMgr):
@@ -64,7 +67,6 @@ class DervFeatherFarmer(BuildMgr):
     def swap_to_shield_set(self):
         if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] == Weapon.Scythe:
             Keystroke.PressAndRelease(Key.F2.value)
-            self.status = DervBuildFarmStatus.Move
             yield from Routines.Yield.wait(750)
 
     def is_target_sensali(self, agent_id):
@@ -92,17 +94,38 @@ class DervFeatherFarmer(BuildMgr):
             yield from Routines.Yield.wait(1000)
             return
 
+        if self.status == DervBuildFarmStatus.Loot or self.status == DervBuildFarmStatus.Wait:
+            yield from Routines.Yield.wait(100)
+            return
+
+        if self.status == DervBuildFarmStatus.Setup:
+            yield from self.swap_to_shield_set()
+            self.spiked = False
+            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash)) and GLOBAL_CACHE.Agent.IsMoving(
+                GLOBAL_CACHE.Player.GetAgentID()
+            ):
+                yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
+                return
+
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         has_dwarven_stability = Routines.Checks.Effects.HasBuff(player_agent_id, self.dwarven_stability)
         has_mystic_regen = Routines.Checks.Effects.HasBuff(player_agent_id, self.mystic_regen)
         has_intimidating_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.intimidating_aura)
 
-        if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.intimidating_aura)) and not has_intimidating_aura:
+        if (
+            (yield from Routines.Yield.Skills.IsSkillIDUsable(self.intimidating_aura))
+            and not has_intimidating_aura
+            and not self.status == DervBuildFarmStatus.Setup
+        ):
             yield from Routines.Yield.Skills.CastSkillID(self.intimidating_aura, aftercast_delay=750)
             return
 
-        if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dwarven_stability)) and not has_dwarven_stability:
-            yield from Routines.Yield.Skills.CastSkillID(self.dwarven_stability, aftercast_delay=100)
+        if (
+            (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dwarven_stability))
+            and not has_dwarven_stability
+            and not self.status == DervBuildFarmStatus.Setup
+        ):
+            yield from Routines.Yield.Skills.CastSkillID(self.dwarven_stability, aftercast_delay=250)
             return
 
         player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
@@ -117,22 +140,11 @@ class DervFeatherFarmer(BuildMgr):
         if self.status == DervBuildFarmStatus.Move:
             yield from self.swap_to_shield_set()
             self.spiked = False
-            dwarven_stability_buff_time_remaining = (
-                GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.dwarven_stability)
-                if has_dwarven_stability
-                else 0
-            )
-            intimidating_aura_bugg_time_remaining = (
-                GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.intimidating_aura)
-                if has_intimidating_aura
-                else 0
-            )
             if (
                 (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash))
                 and has_dwarven_stability
-                and dwarven_stability_buff_time_remaining > 5000
                 and has_intimidating_aura
-                and intimidating_aura_bugg_time_remaining > 5000
+                and GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
             ):
                 yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
                 return
@@ -152,16 +164,20 @@ class DervFeatherFarmer(BuildMgr):
             if self.spiking or (not self.spiked and target_sensali):
                 self.spiking = True
                 has_sand_shards = Routines.Checks.Effects.HasBuff(player_agent_id, self.sand_shards)
+                has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
 
-                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.sand_shards)):
+                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.sand_shards)) and not has_sand_shards:
                     yield from Routines.Yield.Skills.CastSkillID(self.sand_shards, aftercast_delay=250)
                     return
 
-                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_strength)) and has_sand_shards:
+                if (
+                    (yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_strength))
+                    and has_sand_shards
+                    and not has_vow_of_strength
+                ):
                     yield from Routines.Yield.Skills.CastSkillID(self.vow_of_strength, aftercast_delay=250)
                     return
 
-                has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
                 if (
                     (
                         yield from Routines.Yield.Skills.IsSkillIDUsable(self.staggering_force)
@@ -188,14 +204,19 @@ class DervFeatherFarmer(BuildMgr):
                 next_sensali = self.get_sensali_target(remaining_enemies)
                 if next_sensali:
                     GLOBAL_CACHE.Player.Interact(next_sensali, False)
+                    has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
                     has_sand_shards = Routines.Checks.Effects.HasBuff(player_agent_id, self.sand_shards)
-                    if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.sand_shards)) and len(
-                        remaining_enemies
-                    ) >= 3:
+                    if (
+                        (yield from Routines.Yield.Skills.IsSkillIDUsable(self.sand_shards))
+                        and len(remaining_enemies) >= 2
+                        and not has_sand_shards
+                    ):
                         yield from Routines.Yield.Skills.CastSkillID(self.sand_shards, aftercast_delay=250)
                         return
 
-                    if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_strength)):
+                    if (
+                        yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_strength)
+                    ) and not has_vow_of_strength:
                         yield from Routines.Yield.Skills.CastSkillID(self.vow_of_strength, aftercast_delay=250)
                         return
                     has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
@@ -208,7 +229,7 @@ class DervFeatherFarmer(BuildMgr):
                         and has_vow_of_strength
                         and has_sand_shards
                         and player_current_energy >= 12
-                        and len(remaining_enemies) >= 3
+                        and len(remaining_enemies) >= 2
                     ):
                         yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Spellcast.value)
                         yield from Routines.Yield.Skills.CastSkillID(self.staggering_force, aftercast_delay=250)
@@ -221,7 +242,7 @@ class DervFeatherFarmer(BuildMgr):
                     return
 
                 if not next_sensali:
-                    self.status = DervBuildFarmStatus.Move
+                    self.status = DervBuildFarmStatus.Loot
                     return
 
 

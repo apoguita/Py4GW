@@ -91,7 +91,7 @@ class LootUtility(CustomSkillUtilityBase):
                 continue
 
             pos = GLOBAL_CACHE.Agent.GetXY(item_id)
-            follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=10_000)
+            follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=6_000)
             if not follow_success:
                 print("Failed to follow path to loot item, halting.")
                 LootConfig().AddItemIDToBlacklist(item_id)

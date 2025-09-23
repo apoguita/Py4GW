@@ -1,7 +1,4 @@
-from Py4GWCoreLib import (Routines, Range,ModelID, Botting,ActionQueueManager)
-
-from Py4GWCoreLib.Builds import KeiranThackerayEOTN
-
+from Py4GWCoreLib import (Routines,Botting,ActionQueueManager)
 
 bot = Botting("tihark_orchard")
      
@@ -10,7 +7,6 @@ def create_bot_routine(bot: Botting) -> None:
     EnterMission(bot)
     TiharkOrchard(bot)
 
-
 def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
     bot.Properties.ApplyNow("halt_on_death","active", True)
@@ -18,7 +14,7 @@ def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("auto_combat","active", False)
     yield from Routines.Yield.wait(8000)
     fsm = bot.config.FSM
-    fsm.jump_to_state_by_name("[H]Acquire Kieran's Bow_4") 
+    fsm.jump_to_state_by_name("[H]Initialize Bot_1") 
     fsm.resume()                           
     yield  
     
@@ -58,14 +54,11 @@ def TiharkOrchard(bot: Botting):
     bot.Move.FollowAutoPath(path)
     bot.Wait.UntilOnOutpost()
 
-
-
 bot.SetMainRoutine(create_bot_routine)
 
 def main():
     bot.Update()
     bot.UI.draw_window(icon_path="Keiran_art.png")
-
 
 if __name__ == "__main__":
     main()

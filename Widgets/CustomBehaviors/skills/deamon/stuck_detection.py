@@ -42,9 +42,9 @@ class StuckDetectionUtility(CustomSkillUtilityBase):
         self.__required_moving_samples = 2
         self.__is_currently_stuck = False
         self.__cumulative_move = 0.0
-        self.__movement_clear_threshold = 50.0
+        self.__movement_clear_threshold = 60.0
 
-        self.movement_threshold = 20.0
+        self.movement_threshold = 30.0
         
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
 

@@ -41,7 +41,8 @@ class MoveIfStuckUtility(CustomSkillUtilityBase):
     def player_critical_stuck(self, message: EventMessage):
         current_x, current_y = GLOBAL_CACHE.Player.GetXY()
         # Keep the nudge smaller than the threshold so it doesn't falsely clear stuck state
-        max_nudge = max(1.0, (message.data / 2) - 2.0)
+        threshold:float = message.data
+        max_nudge = max(1.0, (threshold / 2) - 2.0)
         offset_x = random.uniform(-max_nudge, max_nudge)
         offset_y = random.uniform(-max_nudge, max_nudge)
         GLOBAL_CACHE.Player.Move(current_x + offset_x, current_y + offset_y)

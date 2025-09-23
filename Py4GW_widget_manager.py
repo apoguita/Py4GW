@@ -127,7 +127,17 @@ class WidgetHandler:
             Py4GW.Console.Log("WidgetHandler", f'"{widget_name}" is {state}', Py4GW.Console.MessageType.Info)
             ini_handler.write_key(widget_name, "enabled", str(widget["enabled"]))
             self.widget_data_cache.setdefault(widget_name, {})["enabled"] = widget["enabled"]
-            
+
+    def get_widget_info(self, name: str):
+        return self.widgets.get(name)
+
+    def set_widget_configuring(self, name: str, value: bool = True):
+        widget = self.widgets.get(name)
+        if not widget:
+            ConsoleLog("WidgetHandler", f"Widget '{name}' not found", Py4GW.Console.MessageType.Warning)
+            return
+        widget["configuring"] = value
+        
     def enable_widget(self, name: str):
         self._set_widget_state(name, True)
 

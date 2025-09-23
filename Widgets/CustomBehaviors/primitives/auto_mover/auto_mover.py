@@ -1,22 +1,12 @@
 from typing import Any, Callable, Generator
 
-from Py4GWCoreLib import Routines
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.Pathing import AutoPathing
-from Widgets.CustomBehaviors.primitives import constants
-from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
-from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
-from Widgets.CustomBehaviors.skills.botting.move_to_distant_chest_if_path_exists import MoveToDistantChestIfPathExistsUtility
-from Widgets.CustomBehaviors.skills.botting.move_to_enemy_if_close_enough import MoveToEnemyIfCloseEnoughUtility
-from Widgets.CustomBehaviors.skills.botting.move_to_party_member_if_dead import MoveToPartyMemberIfDeadUtility
-from Widgets.CustomBehaviors.skills.botting.move_to_party_member_if_in_aggro import MoveToPartyMemberIfInAggroUtility
-from Widgets.CustomBehaviors.skills.botting.resign_if_needed import ResignIfNeededUtility
-from Widgets.CustomBehaviors.skills.botting.wait_if_in_aggro import WaitIfInAggroUtility
-from Widgets.CustomBehaviors.skills.botting.wait_if_lock_taken import WaitIfLockTakenUtility
-from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_mana_too_low import WaitIfPartyMemberManaTooLowUtility
-from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_needs_to_loot import WaitIfPartyMemberNeedsToLootUtility
-from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
+from Py4GWCoreLib import Map, Overlay
+from Py4GWCoreLib.py4gwcorelib_src.Color import Color
+from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
+from Widgets.CustomBehaviors.primitives.auto_mover.follow_path_executor import FollowPathExecutor
+from Widgets.CustomBehaviors.primitives.auto_mover.path_builder import PathBuilder
+from Widgets.CustomBehaviors.primitives.auto_mover.path_renderer import PathRenderer
+from Widgets.CustomBehaviors.primitives.auto_mover.waypoint_builder import WaypointBuilder
 
 
 class AutoMover:
@@ -31,60 +21,140 @@ class AutoMover:
     def __init__(self):
         if not self._initialized:
             self._initialized = True
-            self.generator:Generator[Any, None, Any] | None = None
-            self.movement_progress:float = 0
+            self.__waypoint_builder = WaypointBuilder()
+            self.__path_builder = PathBuilder()
+            self.__path_renderer = PathRenderer()
+            self.__follow_path_executor = FollowPathExecutor()
+            self.__last_path_hash = None  # Track path changes
+            
+            # Initialize throttle timer for click processing (200ms)
+            self.__click_throttle_timer = ThrottledTimer(200)
+
+    def render(self):
+        self._render_path()
+        # Process new clicks and update path with throttle timer (200ms)
+        if self.__click_throttle_timer.IsExpired():
+            self.__waypoint_builder._process_new_clicks()
+            self.__click_throttle_timer.Reset()
+
+    # WAYPOINTS -----------------------------------------
+
+    def remove_last_waypoint_from_the_list(self):
+        return self.__waypoint_builder.remove_last_point_from_the_list()
+
+    def is_waypoint_recording_activated(self) -> bool:
+        return self.__waypoint_builder.is_new_waypoint_record_activated
+
+    def set_waypoint_recording_activated(self, is_active):
+        self.__waypoint_builder.is_new_waypoint_record_activated = is_active
+
+    def clear_list_of_waypoints(self):
+        self.__waypoint_builder.clear_list()
+        self.__path_builder.clear()
+        self.__last_path_hash = None  # Reset path hash when clearing
+
+    def try_inject_waypoint_coordinate_from_clipboard(self, clipboard:str):
+        self.__waypoint_builder.try_inject_waypoint_coordinate_from_clipboard(clipboard)
+
+    def get_list_of_waypoints(self) -> list[tuple[float, float]]:
+        '''
+        used for copying clipboard
+        '''
+        return self.__waypoint_builder.get_waypoints()
+
+    def remove_waypoint(self, index):
+        return self.__waypoint_builder.remove_waypoint(index)
+
+    # WAYPOINTS -----------------------------------------
+
+    def get_final_path(self) -> list[tuple[float, float]]:
+        '''
+        used for copying clipboard
+        '''
+        return self.__path_builder.get_final_path()
+
+    def start_movement(self, start_at_waypoint_index:int):
+        print(f"start_movement{start_at_waypoint_index}")
+        waypoints:list[tuple[float, float]] = self.__waypoint_builder.get_waypoints()
+        waypoints_trucated = waypoints[start_at_waypoint_index:]
+        self.__follow_path_executor.start(waypoints_trucated)
+
+    def stop_movement(self):
+        self.__follow_path_executor.stop()
+    
+    def pause_movement(self):
+        self.__follow_path_executor.pause()
+
+    def resume_movement(self):
+        self.__follow_path_executor.resume()
+
+    def is_movement_paused(self) -> bool:
+        return self.__follow_path_executor.is_paused()
+
+    def is_movement_running(self) -> bool:
+        """Check if movement is currently running."""
+        return self.__follow_path_executor.is_running()
+
+    def get_movement_progress(self) -> float:
+        """Get the current movement progress percentage."""
+        return self.__follow_path_executor.movement_progress
+
+    # def follow_path(self):
+    #     """Start following the built path."""
+    #     if self.__autopathing_builder.has_final_path():
+    #         self.start_movement()
+    #     else:
+    #         print("No valid path available. Build autopathing first.")
+    
+    # FOLLOWING -----------------------------------------
+    
 
     def act(self):
-        if self.generator is not None:
-            # Run one step of the generator
-            try:
-                next(self.generator)
-            except StopIteration:
-                if constants.DEBUG: print(f"AutoMover finalized StopIteration.")
-                generator = None
+        """Main action method that coordinates path building and movement execution."""
 
-    def define_destination(self, target_position: tuple[float, float]) -> Generator[Any, None, Any]:
+        # Update autopathing builder with current points only if path has changed
+        waypoints = self.__waypoint_builder.get_waypoints()
+        if waypoints:
+            # Create a simple hash of the path to detect changes
+            current_waypoints_hash = hash(tuple(waypoints))
+            if current_waypoints_hash != self.__last_path_hash:
+                self.__path_builder.set_raw_path(waypoints)
+                self.__last_path_hash = current_waypoints_hash
+        
+        # Process path generation
+        self.__path_builder.process_generation()
+        
+        # Execute auto mover logic
+        self.__follow_path_executor.act()
 
-        instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
-        if instance is None: return
+    def _render_path(self):
+        """Render the complete path visualization with Overlay management."""
+        if not Map.MissionMap.IsWindowOpen():
+            return
+        ov = Overlay()
 
-        # instance.inject_additionnal_utility_skills(ResignIfNeededUtility(instance.in_game_build))
-        # instance.inject_additionnal_utility_skills(MoveToDistantChestIfPathExistsUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveIfStuckUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfInAggroUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToEnemyIfCloseEnoughUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfDeadUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberManaTooLowUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.in_game_build))
+        # Mission Map window rect & clip (cast to int for API)
+        l, t, r, b = Map.MissionMap.GetWindowCoords()
+        left, top, right, bottom = int(l), int(t), int(r), int(b)
+        width, height = right - left, bottom - top
 
-        path3d = yield from AutoPathing().get_path_to(target_position[0], target_position[1], smooth_by_los=True, margin=100.0, step_dist=300.0)
-        path2d:list[tuple[float, float]]  = [(x, y) for (x, y, *_ ) in path3d]
+        ov.BeginDraw("MissionMapPathViewer", left, top, width, height)
+        ov.PushClipRect(left, top, right, bottom)
 
-        custom_pause_fn: Callable[[], bool] | None = lambda: instance.is_executing_utility_skills() == True # meaning we pause moving across coords, if we have any action that is higher priority
+        try:
+            self.__path_renderer.draw_path(ov, self.__waypoint_builder.get_waypoints())
+            self.__path_renderer.draw_list_of_points(ov, self.__waypoint_builder.get_waypoints())
+            self.__path_renderer.draw_label(ov, self.__waypoint_builder.get_waypoints())
 
-        move_generator = Routines.Yield.Movement.FollowPath(
-                path_points= path2d, 
-                custom_exit_condition=lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()), # todo change to party is dead.
-                tolerance=150, 
-                log=constants.DEBUG, 
-                timeout=-1, 
-                progress_callback=self.on_progress,
-                custom_pause_fn=custom_pause_fn)
+            self.__path_renderer.draw_path(ov, self.__path_builder.get_final_path(), Color(0, 0, 175, 255))
+            self.__path_renderer.draw_list_of_points(ov, self.__path_builder.get_final_path(), radius=2, color=Color(0,0,250,255))
 
-        if constants.DEBUG: print("move generator set")
-        self.generator = move_generator
+            self.__path_renderer.draw_path(ov, self.__follow_path_executor.current_path, Color(230, 0, 0, 255))
+            
+            # Draw background overlay
+            bgc = Color(0, 0, 0, int(255 * 0.3)).to_color()
+            ov.DrawQuadFilled(left, top, left + width, top, left + width, top + height, left, top + height, bgc)
 
-    def on_progress(self, progress: float) -> None:
-        self.movement_progress = round(progress * 100, 1)
-        if constants.DEBUG: print(f"AutoMover progress {self.movement_progress}")
-
-    def stop(self):
-        self.generator = None
-        instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
-        if instance is None: return
-        instance.clear_additionnal_utility_skills()
-
-
+        finally:
+            ov.PopClipRect()
+            ov.EndDraw()
