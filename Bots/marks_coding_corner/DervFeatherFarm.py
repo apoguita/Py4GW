@@ -527,22 +527,56 @@ def main_farm(bot: Botting):
     bot.Move.XY(1540, -6995, 'Move spot 2')
 
     bot.Move.XY(-472, -4342, 'Move to Kill Spot 1')
+    bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=True), "Killing Sensalis Immediately")
+
     bot.Move.XY(-1536, -1686, "Move to Kill Spot 2")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(586, -76, "Move to Kill Spot 3")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-1556, 2786, "Move to Kill Spot 4")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-2229, -815, "Move to Kill Spot 5")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=True), "Killing Sensalis Immediately")
+
     bot.Move.XY(-5247, -3290, "Move to Kill Spot 6")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-6994, -2273, "Move to Kill Spot 7")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-5042, -6638, "Move to Kill Spot 8")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-11040, -8577, "Move to Kill Spot 9")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-10860, -2840, "Move to Kill Spot 10")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-14900, -3000, "Move to Kill Spot 11")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-12200, 150, "Move to Kill Spot 12")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-12500, 4000, "Move to Kill Spot 13")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-12111, 1690, "Move to Kill Spot 14")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-10303, 4110, "Move to Kill Spot 15")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-10500, 5500, "Move to Kill Spot 16")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.Move.XY(-9700, 2400, "Move to Kill Spot 17")
+    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+
     bot.States.AddCustomState(lambda: set_bot_to_wait(bot), "Waiting to return")
 
     bot.States.AddHeader('ID and Salvage at the End')
