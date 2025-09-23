@@ -43,7 +43,9 @@ def create_bot_routine(bot: Botting) -> None:
     CraftRemainingArmorFSM(bot)
     AttributePointQuest2(bot)
     AdvanceToMarketplace(bot) 
-    AdvanceToKainengCenter(bot) 
+    AdvanceToKainengCenter(bot)
+    AdvanceToLA(bot)
+    #AdvanceToKamadan(bot)
     AdvanceToEOTN(bot) 
     ExitBorealStation(bot) 
     TraverseToEOTNOutpost(bot)
@@ -423,6 +425,7 @@ def MinisterChoMission(bot: Botting) -> None:
     
 def AttributePointQuest1(bot: Botting):
     bot.States.AddHeader("Attribute Point Quest 1")
+    bot.Move.XY(16184.75, 19001.78)
     bot.Move.XYAndDialog(14363.00, 19499.00, 0x815A01)  # I Like treasure
     PrepareForBattle(bot)
     path = [(13713.27, 18504.61),(14576.15, 17817.62),(15824.60, 18817.90),(17005, 19787)]
@@ -705,9 +708,50 @@ def AdvanceToKainengCenter(bot: Botting):
     bot.Move.XY(-9467,14207)
     path_to_kc = [(-8601.28, 17419.64),(-6857.17, 19098.28),(-6706,20388)]
     bot.Move.FollowPathAndExitMap(path_to_kc, target_map_id=194) #Kaineng Center
+
+def AdvanceToLA(bot: Botting):
+    bot.States.AddHeader("Advance To Lion's Arch")
+    bot.Move.XY(3049.35, -2020.75)
+    bot.Move.XY(2739.30, -3710.67)
+    bot.Move.XY(-648.30, -3493.72)
+    bot.Move.XY(-1661.91, -636.09)
+    bot.Move.XYAndDialog(-1006.97, -817.63, 0x81DF01)  # Chienpo dialog la
+    bot.Move.XYAndExitMap(-2439, 1732, target_map_id=290)
+    bot.Move.XY(-2995.68, 2077.20)
+    bot.Move.XY(-6938.10, 4286.61)
+    bot.Move.XY(-6064.40, 5300.26)
+    bot.Move.XY(-2396.20, 5260.67)
+    bot.Move.XY(-5031.77, 6001.52)
+    bot.Move.XYAndDialog(-5626.17, 7017.33, 0x81DF04)  # Menhlo dialog model ID 3216
+    bot.Move.XYAndDialog(-4661.13, 7479.86, 0x84)  # Armian dialog model ID 1970
+    bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
+    bot.Move.XY(-1181, 1038)
+    bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
+    bot.Map.Travel(target_map_id=55)  # lions_arch_id)
+
+def AdvanceToKamadan(bot: Botting):
+    bot.States.AddHeader("Advance To Kamadan")
+    bot.Map.Travel(target_map_id=194) #kaineng_center_id
+    PrepareForBattle(bot)
+    bot.Move.XY(3049.35, -2020.75)
+    bot.Move.XY(2739.30, -3710.67)
+    bot.Move.XY(-648.30, -3493.72)
+    bot.Move.XY(-1661.91, -636.09)
+    bot.Move.XYAndDialog(-1131.99, 818.35, 0x82D401)  # Linro dialog la
+    bot.Move.XYAndExitMap(-2439, 1732, target_map_id=290)
+    bot.Move.XY(-2995.68, 2077.20)
+    bot.Move.XY(-6938.10, 4286.61)
+    bot.Move.XY(-6064.40, 5300.26)
+    bot.Move.XY(-2396.20, 5260.67)
+    bot.Move.XY(-5031.77, 6001.52)
+    bot.Move.XYAndDialog(-5899.57, 7240.19, 0x82D404)  # Kormir dialog kormir model ID
+    bot.Dialogs.WithModel(4863, 0x87)  # Kormir dialog model id 4863
+    bot.Wait.ForMapToChange(target_map_id=400)
+    # To be continued
     
 def AdvanceToEOTN(bot: Botting):
     bot.States.AddHeader("Advance To Eye of the North")
+    bot.Map.Travel(target_map_id=194) #kaineng_center_id
     bot.Move.XY(3444.90, -1728.31)
     bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)  # limitless monetary resources
     bot.Move.XY(3444.90, -1728.31)
