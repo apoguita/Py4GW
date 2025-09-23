@@ -9,7 +9,7 @@ def EquipSkillBar():
     if profession == "Dervish":
         yield from Routines.Yield.Skills.LoadSkillbar("OgSCU8pkcQZwnwWIAAAAAAAA")
     elif profession == "Ritualist":    
-        yield from Routines.Yield.Skills.LoadSkillbar("OASCU8pkcQZwnwWIAAAAAAAA")
+        yield from Routines.Yield.Skills.LoadSkillbar("OASjUwHKIRyBlBfCbhAAAAAAAAA")
     elif profession == "Warrior":
         yield from Routines.Yield.Skills.LoadSkillbar("OQQTU4DHHaLUOoM4TAAAAAAAAAA")
     elif profession == "Ranger":
@@ -35,6 +35,7 @@ def Routine(bot: Botting) -> None:
     bot.Properties.Set("movement_timeout",value=-1)
     bot.Properties.Enable("auto_combat")
     bot.Items.SpawnBonusItems()
+    bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value) #simple swap to prevent error
     bot.Items.Equip(6515) #Necro Bonus Staff
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.States.AddHeader("Cold As Ice")
@@ -47,8 +48,8 @@ def Routine(bot: Botting) -> None:
     bot.SkillBar.UseSkill(114)
     bot.Wait.UntilOnCombat()
     bot.Wait.UntilOutOfCombat()
-    #bot.Multibox.ResignParty()
-    bot.Wait.ForTime(30000)
+    bot.Multibox.ResignParty()
+    bot.Wait.ForTime(20000)
     bot.Wait.ForMapLoad(target_map_id=643)
     bot.Move.XYAndDialog(14380, 23968, 0x834407) #Rewards
 bot.SetMainRoutine(Routine)
