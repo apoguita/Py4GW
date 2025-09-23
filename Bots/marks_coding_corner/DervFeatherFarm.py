@@ -592,8 +592,16 @@ bot.SetMainRoutine(main_farm)
 
 
 def main():
+    try:
+        script_directory = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
+        script_directory = os.getcwd()
+    project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+    base_dir = os.path.join(project_root, "marks_coding_corner/textures")
+    texture_icon_path = os.path.join(base_dir, "feather_art.png")
     bot.Update()
-    bot.UI.draw_window(icon_path="feather_art.png")
+    bot.UI.draw_window(icon_path=texture_icon_path)
 
 
 if __name__ == "__main__":
