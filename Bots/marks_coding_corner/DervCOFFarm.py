@@ -273,6 +273,7 @@ def main_farm(bot: Botting):
     # override condition for halting movement
 
     bot.States.AddHeader('Starting Loop')
+    bot.States.AddCustomState(lambda: set_bot_to_loot(bot), "Set bot to loot")
     bot.Map.Travel(target_map_name=DOOMLORE_SHRINE)
     bot.Wait.ForMapLoad(target_map_name=DOOMLORE_SHRINE)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
@@ -309,7 +310,7 @@ def main_farm(bot: Botting):
     bot.Move.XY(-15525, -8923, 'Move spot 1')
     bot.Move.XY(-15737, -9093, 'Move spot 2')
     bot.States.AddCustomState(lambda: farm(bot), "Killing Everything Immediately")
-    bot.States.AddCustomState(lambda: set_bot_to_loot(bot), "Prepare skills")
+    bot.States.AddCustomState(lambda: set_bot_to_loot(bot), "Set bot to loot")
     bot.States.AddCustomState(reset_looted_areas, "Reset looted areas")
     bot.States.AddCustomState(identify_and_salvage_items, 'Salvaging Items')
     bot.Party.Resign()
