@@ -32,6 +32,7 @@ VIABLE_LOOT = {
 }
 # handler constants
 HANDLE_STUCK = 'handle_stuck'
+HANDLE_LOOT = 'handle_loot'
 HANDLE_SENSALI_DANGER = 'handle_sensali_danger'
 
 bot = Botting(
@@ -47,7 +48,6 @@ movement_check_timer = ThrottledTimer(3000)
 stuck_counter = 0
 unstuck_counter = 0
 old_player_position = (0, 0)
-looted_areas = []
 item_id_blacklist = []
 is_farming = False
 is_looting = False
@@ -113,7 +113,6 @@ def ball_sensalis(bot: Botting):
 
 
 def farm_sensalis(bot, kill_immediately=False):
-    global looted_areas
     global is_looting
     global is_farming
 
@@ -126,7 +125,6 @@ def farm_sensalis(bot, kill_immediately=False):
         ConsoleLog('Farm Sensalis', 'No Sensali detected!')
         return
 
-    last_farm_epicenter = GLOBAL_CACHE.Player.GetXY()
     ConsoleLog(FEATHER_FARMER, 'Farming...')
     is_farming = True
     if kill_immediately or get_non_sensali_array(custom_range=Range.Spellcast.value):
@@ -144,18 +142,7 @@ def farm_sensalis(bot, kill_immediately=False):
     while True:
         sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
         if len(sensali_array) == 0:
-            if not is_looting:
-                is_looting = True
-                ConsoleLog(FEATHER_FARMER, 'Setting to [Loot] status')
-                bot.config.build_handler.status = DervBuildFarmStatus.Loot
-                yield from Routines.Yield.wait(500)
-                yield from loot_items()
-                yield from Routines.Yield.wait(500)
-                ConsoleLog(FEATHER_FARMER, 'Setting back to [Move] status')
-                bot.config.build_handler.status = DervBuildFarmStatus.Move
-                # log from the last epicenter of the begining of the farm
-                looted_areas.append(last_farm_epicenter)
-                is_looting = False
+            bot.config.build_handler.status = DervBuildFarmStatus.Move
             break  # all sensalis dead
 
         # Timeout check
@@ -230,7 +217,7 @@ def get_non_sensali_array(custom_range=Range.Area.value * 1.50):
 
 def get_valid_loot_array():
     loot_array = AgentArray.GetItemArray()
-    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 2.00)
+    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 3.00)
 
     def is_valid_item(item_id):
         if not Agent.IsValid(item_id):
@@ -257,21 +244,8 @@ def get_valid_loot_array():
     return filtered_agent_ids
 
 
-def is_in_looted_area():
-    global looted_areas
-    px, py = GLOBAL_CACHE.Player.GetXY()
-    for lx, ly in looted_areas:
-        dist_sq = (px - lx) ** 2 + (py - ly) ** 2
-        if dist_sq <= Range.Earshot.value**2:
-            ConsoleLog('ALERT', 'Already looted area!')
-            return True
-    return False
-
-
-def reset_looted_areas():
-    global looted_areas
+def reset_item_id_blacklist():
     global item_id_blacklist
-    looted_areas = []
     item_id_blacklist = []
     yield
 
@@ -462,7 +436,6 @@ def handle_sensali_danger(bot: Botting):
 
         if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
-            yield from Routines.Yield.Player.Resign()
             continue
 
         if (
@@ -472,6 +445,38 @@ def handle_sensali_danger(bot: Botting):
             if bot.config.pause_on_danger_fn() and get_sensali_array(Range.Spellcast.value):
                 # Deal with local enemies before resuming
                 yield from farm_sensalis(bot)
+        yield from Routines.Yield.wait(500)
+
+
+def handle_loot(bot: Botting):
+    global is_looting
+    while True:
+        # Wait until map is valid
+        if not Routines.Checks.Map.MapValid() and not Routines.Checks.Map.IsExplorable():
+            yield from Routines.Yield.wait(1000)
+            continue
+
+        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            yield from Routines.Yield.wait(1000)
+            continue
+
+        if (
+            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
+            and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
+        ):
+            if bot.config.pause_on_danger_fn() and get_valid_loot_array():
+                if not is_looting:
+                    is_looting = True
+                    ConsoleLog(FEATHER_FARMER, 'Setting to [Loot] status')
+                    bot.config.build_handler.status = DervBuildFarmStatus.Loot  # type: ignore
+                    yield from Routines.Yield.wait(500)
+                    yield from loot_items()
+                    yield from Routines.Yield.wait(500)
+                    ConsoleLog(FEATHER_FARMER, 'Setting back to [Move] status')
+                    bot.config.build_handler.status = DervBuildFarmStatus.Move  # type: ignore
+                    # log from the last epicenter of the begining of the farm
+                    is_looting = False
+
         yield from Routines.Yield.wait(500)
 
 
@@ -509,6 +514,7 @@ def main_farm(bot: Botting):
     bot.States.AddCustomState(lambda: return_to_outpost(bot), "Return to Seitung Harbor")
     bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddManagedCoroutine(HANDLE_STUCK, lambda: handle_stuck(bot))
+    bot.States.AddManagedCoroutine(HANDLE_LOOT, lambda: handle_loot(bot))
     bot.States.AddManagedCoroutine(HANDLE_SENSALI_DANGER, lambda: handle_sensali_danger(bot))
     bot.States.AddCustomState(lambda: set_bot_to_move(bot), "Exit Outpost To Farm")
     bot.Move.XY(16570, 17713, "Exit Outpost To Farm")
@@ -521,61 +527,27 @@ def main_farm(bot: Botting):
     bot.Move.XY(1540, -6995, 'Move spot 2')
 
     bot.Move.XY(-472, -4342, 'Move to Kill Spot 1')
-    bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=True), "Killing Sensalis Immediately")
-
     bot.Move.XY(-1536, -1686, "Move to Kill Spot 2")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(586, -76, "Move to Kill Spot 3")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-1556, 2786, "Move to Kill Spot 4")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-2229, -815, "Move to Kill Spot 5")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=True), "Killing Sensalis Immediately")
-
     bot.Move.XY(-5247, -3290, "Move to Kill Spot 6")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-6994, -2273, "Move to Kill Spot 7")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-5042, -6638, "Move to Kill Spot 8")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-11040, -8577, "Move to Kill Spot 9")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-10860, -2840, "Move to Kill Spot 10")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-14900, -3000, "Move to Kill Spot 11")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-12200, 150, "Move to Kill Spot 12")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-12500, 4000, "Move to Kill Spot 13")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-12111, 1690, "Move to Kill Spot 14")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-10303, 4110, "Move to Kill Spot 15")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-10500, 5500, "Move to Kill Spot 16")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.Move.XY(-9700, 2400, "Move to Kill Spot 17")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
     bot.States.AddCustomState(lambda: set_bot_to_wait(bot), "Waiting to return")
 
     bot.States.AddHeader('ID and Salvage at the End')
     bot.States.AddCustomState(identify_and_salvage_items, "ID and Salvage loot")
-    bot.States.AddCustomState(reset_looted_areas, "Reset looted areas")
+    bot.States.AddCustomState(reset_item_id_blacklist, "Reset looting")
 
     bot.Party.Resign()
     bot.Wait.ForTime(3000)
