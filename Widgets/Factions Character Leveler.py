@@ -58,7 +58,7 @@ def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.ConfigTemplates.Pacifist()
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Disable("honeycomb")
-    bot.Properties.Enable("war_supplies")
+    bot.Properties.Disable("war_supplies")
     bot.Items.SpawnAndDestroyBonusItems()
     bot.Items.Restock.BirthdayCupcake()
     bot.Items.Restock.WarSupplies()
@@ -747,6 +747,7 @@ def TraverseToEOTNOutpost(bot: Botting):
 
 def UnlockXunlaiMaterialPanel(bot: Botting) -> None:
     bot.States.AddHeader("Unlock Xunlai Material Panel")
+    bot.Party.LeaveParty()
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     path_to_xunlai: List[Tuple[float, float]] = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
     bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
