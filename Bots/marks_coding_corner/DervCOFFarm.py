@@ -149,8 +149,8 @@ def buy_id_kits():
 def buy_salvage_kits():
     yield from Routines.Yield.wait(1500)
     kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
-    if kits_in_inv <= 3:
-        yield from Routines.Yield.Merchant.BuySalvageKits(10)
+    if kits_in_inv < 2:
+        yield from Routines.Yield.Merchant.BuySalvageKits(3)
 
 
 # endregion
@@ -240,7 +240,7 @@ def _on_death(bot: Botting):
     sup_ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
     salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
     fsm = bot.config.FSM
-    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0:
+    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 1:
         fsm.jump_to_state_by_name("[H]Starting Loop_1")
     else:
         fsm.jump_to_state_by_name("[H]Farm Loop_2")
