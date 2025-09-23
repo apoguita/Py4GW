@@ -144,14 +144,16 @@ class DervBoneFarmer(BuildMgr):
                 if has_vow_of_silence
                 else 0
             )
-            if nearest_enemy and vos_buff_time_remaining > 1500:
+            if nearest_enemy and vos_buff_time_remaining > 2000:
                 yield from self.swap_to_scythe()
                 GLOBAL_CACHE.Player.Interact(nearest_enemy, False)
                 if self.has_enough_adrenaline(self.crippling_victory_slot):
                     yield from Routines.Yield.Skills.CastSkillID(self.crippling_victory, aftercast_delay=100)
+                    return
 
                 if self.has_enough_adrenaline(self.reap_impurities_slot):
                     yield from Routines.Yield.Skills.CastSkillID(self.reap_impurities, aftercast_delay=100)
+                    return
 
 
 # =================== BUILD END ========================

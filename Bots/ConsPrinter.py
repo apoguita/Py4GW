@@ -243,7 +243,7 @@ def move_all_cons_to_storage():
         yield from Routines.Yield.wait(250)
 
 
-def Routine(bot: Botting) -> None:
+def main_bot(bot: Botting) -> None:
     map_id = GLOBAL_CACHE.Map.GetMapID()
     if map_id != 640:
         bot.Map.Travel(target_map_name=EMBARK_BEACH)
@@ -265,24 +265,12 @@ def Routine(bot: Botting) -> None:
     bot.States.AddCustomState(move_all_crafting_materials_to_storage, 'Attempt to move all common mats')
 
 
-bot.Routine = Routine.__get__(bot)
+bot.SetMainRoutine(main_bot)
 
 
 def main():
-
-    global selected_step
-
     bot.Update()
-
-    if PyImGui.begin(MODULE_NAME, PyImGui.WindowFlags.AlwaysAutoResize):
-
-        if PyImGui.button("Print 5 consets"):
-            bot.Start()
-
-        if PyImGui.button("Stop"):
-            bot.Stop()
-
-    PyImGui.end()
+    bot.UI.draw_window(icon_path="cof_art.png")
 
 
 if __name__ == "__main__":

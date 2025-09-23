@@ -236,8 +236,14 @@ def set_bot_to_loot(bot: Botting):
 def _on_death(bot: Botting):
     ConsoleLog(COF_FARMER, "Waiting for a moment reset...")
     yield from Routines.Yield.wait(1000)
+    ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
+    sup_ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
+    salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
     fsm = bot.config.FSM
-    fsm.jump_to_state_by_name("[H]Farm Loop_2")
+    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0:
+        fsm.jump_to_state_by_name("[H]Starting Loop_1")
+    else:
+        fsm.jump_to_state_by_name("[H]Farm Loop_2")
     fsm.resume()
     yield
 
@@ -267,9 +273,8 @@ def main_farm(bot: Botting):
     # override condition for halting movement
 
     bot.States.AddHeader('Starting Loop')
-    if GLOBAL_CACHE.Map.GetMapID() != GLOBAL_CACHE.Map.GetMapIDByName(DOOMLORE_SHRINE):
-        bot.Map.Travel(target_map_name=DOOMLORE_SHRINE)
-        bot.Wait.ForMapLoad(target_map_name=DOOMLORE_SHRINE)
+    bot.Map.Travel(target_map_name=DOOMLORE_SHRINE)
+    bot.Wait.ForMapLoad(target_map_name=DOOMLORE_SHRINE)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
 
     bot.States.AddCustomState(lambda: set_bot_to_setup(bot), "Setup Resign")
