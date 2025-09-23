@@ -14,6 +14,7 @@ def Routine(bot: Botting) -> None:
     bot.Move.XY(15159, 12506)
     bot.Wait.UntilOutOfCombat()
     bot.Multibox.ResignParty()
+    bot.Wait.ForTime(3000)
     bot.Wait.ForMapToChange(target_map_id=643)
     bot.Move.XYAndDialog(12009, 24726, 0x837E07) #Big Unfriendly Jotun Reward   
 bot.SetMainRoutine(Routine)

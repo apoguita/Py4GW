@@ -26,6 +26,7 @@ def Routine(bot: Botting) -> None:
     bot.Move.XY(13952, -23063) #Nulfastu, Earthbound
     bot.Wait.ForTime(45000) #45 seconds max to kill this guy and back to town after, if you die though it will keep going
     bot.Multibox.ResignParty()
+    bot.Wait.ForTime(3000)
     bot.Wait.ForMapLoad(target_map_id=643)
     bot.Move.XYAndDialog(14380, 23968, 0x833A07) #Rewards
 bot.SetMainRoutine(Routine)
