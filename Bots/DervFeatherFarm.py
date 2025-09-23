@@ -315,8 +315,14 @@ def detect_sensali_or_loot():
 def _on_death(bot: Botting):
     ConsoleLog(FEATHER_FARMER, "Waiting for a moment reset...")
     yield from Routines.Yield.wait(1000)
+    ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
+    sup_ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
+    salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
     fsm = bot.config.FSM
-    fsm.jump_to_state_by_name("[H]Farm Loop_2")
+    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0:
+        fsm.jump_to_state_by_name("[H]Starting Loop_1")
+    else:
+        fsm.jump_to_state_by_name("[H]Farm Loop_2")
     fsm.resume()
     yield
 
@@ -477,9 +483,8 @@ def main_farm(bot: Botting):
     # override condition for halting movement
 
     bot.States.AddHeader('Starting Loop')
-    if GLOBAL_CACHE.Map.GetMapID() != GLOBAL_CACHE.Map.GetMapIDByName(SEITUING_HARBOR):
-        bot.Map.Travel(target_map_name=SEITUING_HARBOR)
-        bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
+    bot.Map.Travel(target_map_name=SEITUING_HARBOR)
+    bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
 
     bot.Move.XY(17113, 12283, "Move close to Merch")
