@@ -12,6 +12,9 @@ class _Upkeepers:
     def __init__(self, parent: "BottingHelpers"):
         self.parent = parent.parent
         self._config = parent._config
+        self._Events = parent.Events
+        self.cancel_movement_triggered = False
+        
     
     def upkeep_auto_combat(self):
         from ...Routines import Routines
@@ -21,36 +24,50 @@ class _Upkeepers:
                 yield from self._config.build_handler.ProcessSkillCasting()
             else:
                 yield from Routines.Yield.wait(250)       
-                
+           
     def upkeep_hero_ai(self):
         from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
         from Py4GW_widget_manager import get_widget_handler
-
         handler = get_widget_handler()
-        if self._config.upkeep.hero_ai.is_active() and not handler.is_widget_enabled("HeroAI"):
-            handler.enable_widget("HeroAI")
-        elif not self._config.upkeep.hero_ai.is_active() and handler.is_widget_enabled("HeroAI"):
-            handler.disable_widget("HeroAI")
-        yield from Routines.Yield.wait(500)
+        while True:   
+            if not (self.parent.config.pause_on_danger_fn()):
+                self.cancel_movement_triggered = False
+            
+            if (self.parent.config.pause_on_danger_fn() and 
+                GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()) and
+                not self.cancel_movement_triggered):
+                yield from Routines.Yield.Movement.StopMovement()
+                self.cancel_movement_triggered = True
+                    
+            if self._config.upkeep.hero_ai.is_active() and not handler.is_widget_enabled("HeroAI"):
+                handler.enable_widget("HeroAI")
+            elif not self._config.upkeep.hero_ai.is_active() and handler.is_widget_enabled("HeroAI"):
+                handler.disable_widget("HeroAI")
+            yield from Routines.Yield.wait(500)
         
     def upkeep_auto_inventory_management(self):
         from ...py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler
         from ...Routines import Routines
         inventory_handler = AutoInventoryHandler()
-        #self._parent.inventory_handler.module_active = False
-        if self._config.upkeep.auto_inventory_management.is_active() and not inventory_handler.module_active:
-            inventory_handler.module_active = True
-        elif not self._config.upkeep.auto_inventory_management.is_active() and inventory_handler.module_active:
-            inventory_handler.module_active = False
-            
-        yield from Routines.Yield.wait(500)
+        while True:
+            if self._config.upkeep.auto_inventory_management.is_active() and not inventory_handler.module_active:
+                inventory_handler.module_active = True
+            elif not self._config.upkeep.auto_inventory_management.is_active() and inventory_handler.module_active:
+                inventory_handler.module_active = False
+                
+            yield from Routines.Yield.wait(500)
         
     def upkeep_auto_loot(self):
         from ...Routines import Routines
         from ...Py4GWcorelib import LootConfig
         from ...enums import Range
+        from Py4GW_widget_manager import get_widget_handler
+        handler = get_widget_handler()
+
         while True:
-            if self._config.upkeep.auto_loot.is_active() and not self.parent.config.pause_on_danger_fn():
+            if (self._config.upkeep.auto_loot.is_active() and not self.parent.config.pause_on_danger_fn()
+                and not handler.is_widget_enabled("HeroAI")):
                 loot_singleton = LootConfig()
                 filtered_agent_ids = loot_singleton.GetfilteredLootArray(distance=Range.Earshot.value, multibox_loot=True, allow_unasigned_loot=True)
                 if len(filtered_agent_ids) > 0:

@@ -185,7 +185,7 @@ class _Multibox:
                 player_data.MapRegion == account.MapRegion and
                 player_data.MapDistrict == account.MapDistrict and
                 player_data.PartyID != account.PartyID):
-
+                GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
                 GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.InviteToParty, (0,0,0,0))
                 yield from Routines.Yield.wait(500)
         yield
@@ -203,7 +203,7 @@ class _Multibox:
             player_data.MapRegion == account.MapRegion and
             player_data.MapDistrict == account.MapDistrict and
             player_data.PartyID != account.PartyID):
-
+            GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
             GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.InviteToParty, (0,0,0,0))
             yield from Routines.Yield.wait(500)
         yield
@@ -211,25 +211,31 @@ class _Multibox:
     def _kick_account_by_email(self, email: str):
         from ...GlobalCache import GLOBAL_CACHE
         from ...Routines import Routines
-
+        player_data = self._get_player_data()
         account = self._get_account_data_from_email(email)
-        if not account:
+        
+        if not player_data or not account:
             return
         
-        GLOBAL_CACHE.Party.Players.KickPlayer(account.CharacterName)
-        yield from Routines.Yield.wait(500)
-
+        if player_data.PartyID == account.PartyID and player_data.AccountEmail != account.AccountEmail:
+            GLOBAL_CACHE.Party.Players.KickPlayer(account.CharacterName)
+            yield from Routines.Yield.wait(500)
+        yield
         
     def _kick_all_accounts(self):
         from ...GlobalCache import GLOBAL_CACHE
         from ...Routines import Routines
-        accounts = self._get_all_account_data()
-        for account in accounts:
-            if account.IsAccount:
+        player_data = self._get_player_data()
+        all_accounts = self._get_all_account_data()
+        
+        if not player_data:
+            return
+        
+        for account in all_accounts:
+            if player_data.PartyID == account.PartyID and player_data.AccountEmail != account.AccountEmail:
                 GLOBAL_CACHE.Party.Players.KickPlayer(account.CharacterName)
                 yield from Routines.Yield.wait(500)
-        yield
-    
+        
     def _resignParty(self):
         from ...GlobalCache import GLOBAL_CACHE
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()

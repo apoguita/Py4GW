@@ -33,7 +33,7 @@ class _Wait:
     def _for_map_load(self, target_map_id):
         from ...Routines import Routines
         import Py4GW
-        wait_of_map_load = yield from Routines.Yield.Map.WaitforMapLoad(target_map_id)
+        wait_of_map_load = yield from Routines.Yield.Map.WaitforMapLoad(target_map_id, timeout=6000)
         if not wait_of_map_load:
             Py4GW.Console.Log("Wait for map load", "Map load failed.", Py4GW.Console.MessageType.Error)
             self._Events.on_unmanaged_fail()

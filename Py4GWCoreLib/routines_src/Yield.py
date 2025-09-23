@@ -105,6 +105,17 @@ class Yield:
 #region Movement
     class Movement:
         @staticmethod
+        def StopMovement():
+            from ..UIManager import UIManager
+            from ..enums import ControlAction
+            UIManager.Keydown(ControlAction.ControlAction_MoveBackward.value, 0)
+            yield from Yield.wait(125)
+            UIManager.Keyup(ControlAction.ControlAction_MoveBackward.value, 0)
+            yield from Yield.wait(125)
+            
+            
+        
+        @staticmethod
         def FollowPath(
             path_points: List[Tuple[float, float]],
             custom_exit_condition: Callable[[], bool] = lambda: False,
@@ -363,50 +374,44 @@ class Yield:
 
 
         @staticmethod
-        def WaitforMapLoad(map_id, log=False, timeout:int=10000):
+        def WaitforMapLoad(map_id, log=False, timeout: int = 10000):
             from .Checks import Checks
-            
             from ..Py4GWcorelib import ConsoleLog, Utils
-            """
-            Purpose: Positions yourself safely on the map.
-            Args:
-                outpost_id (int): The ID of the map to travel to.
-                log (bool) Optional: Whether to log the action. Default is True.
-            Returns: None
-            """
+
             yield from Yield.wait(1000)
             start_time = Utils.GetBaseTimestamp()
             waiting_for_map_load = True
+
             while waiting_for_map_load:
-                if not Checks.Map.MapValid():
-                    yield from Yield.wait(1000)
-                    ConsoleLog("WaitforMapLoad", "Map not valid, waiting...", log=log)
-                    continue
-                
                 delta = Utils.GetBaseTimestamp() - start_time
                 if delta > timeout and timeout > 0:
                     ConsoleLog("WaitforMapLoad", "Timeout reached, stopping waiting for map load.", log=log)
                     return False
-                    
+
+                if not Checks.Map.MapValid():
+                    yield from Yield.wait(1000)
+                    ConsoleLog("WaitforMapLoad", "Map not valid, waiting...", log=log)
+                    continue
+
                 current_map = GLOBAL_CACHE.Map.GetMapID()
-                
+
                 if (GLOBAL_CACHE.Map.IsExplorable() or GLOBAL_CACHE.Map.IsOutpost()) and current_map != map_id:
                     ConsoleLog("WaitforMapLoad", f"Something went wrong, halting", log=log)
                     yield from Yield.wait(1000)
                     return False
-                
-                if not current_map == map_id:
+
+                if current_map != map_id:
                     yield from Yield.wait(1000)
                     ConsoleLog("WaitforMapLoad", f"Waiting for map load {map_id} (current: {current_map})", log=log)
                     continue
-            
+
                 waiting_for_map_load = False
 
-            
             ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)}", log=log)
-            yield from Yield.wait(1000)
+            yield from Yield.wait(500)
             return True
-    
+
+
 #region Agents        
     class Agents:
         @staticmethod

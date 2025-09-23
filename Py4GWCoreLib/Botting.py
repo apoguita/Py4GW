@@ -21,7 +21,7 @@ from .botting_src.subclases_src.UI_src import _UI
 from .botting_src.subclases_src.MULTIBOX_src import _MULTIBOX
 from .botting_src.subclases_src.MERCHANT_src import _MERCHANTS
 from .botting_src.subclases_src.PLAYER_src import _PLAYER
-from .botting_src.subclases_src.CONFIG_TEMPLATES_src import _CONFIG_TEMPLATES
+from .botting_src.subclases_src.TEMPLATES_src import _TEMPLATES
 
 
 class BottingClass:
@@ -210,7 +210,7 @@ class BottingClass:
         self.Target = _TARGET(self)
         self.SkillBar = _SKILLBAR(self)
         self.Multibox = _MULTIBOX(self)
-        self.ConfigTemplates = _CONFIG_TEMPLATES(self)
+        self.Templates = _TEMPLATES(self)
 
     #region internal Helpers
     def _start_coroutines(self):
