@@ -51,6 +51,6 @@ class RawSpiritUtility(CustomSkillUtilityBase):
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
 
         if result == BehaviorResult.ACTION_PERFORMED:
-            EVENT_BUS.publish(EventType.SPIRIT_CREATED, self.owned_spirit_model_id)
+            yield from EVENT_BUS.publish(EventType.SPIRIT_CREATED, self.owned_spirit_model_id)
         
         return result

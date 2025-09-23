@@ -1,4 +1,5 @@
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union, Generator
+from collections.abc import Generator as AbcGenerator
 from collections import defaultdict
 import threading
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
@@ -24,14 +25,14 @@ class EventBus:
     def __init__(self):
         if not self._initialized:
             self._initialized = True
-            self._subscribers: Dict[EventType, List[Callable[[EventMessage], None]]] = defaultdict(list)
+            self._subscribers: Dict[EventType, List[Callable[[EventMessage], Generator[Any, Any, Any]]]] = defaultdict(list)
             self._subscriber_names: Dict[EventType, List[str]] = defaultdict(list)
             self._lock = threading.RLock()
             self._message_history: List[EventMessage] = []
             self._max_history_size = 1000
             self._debug_mode = False
     
-    def subscribe(self, event_type: EventType, callback: Callable[[EventMessage], None], subscriber_name: str = "Unknown") -> bool:
+    def subscribe(self, event_type: EventType, callback:Callable[[EventMessage], Generator[Any, Any, Any]], subscriber_name: str = "Unknown") -> bool:
         """
         Subscribe to an event type.
         
@@ -60,45 +61,7 @@ class EventBus:
                     print(f"Subscriber '{subscriber_name}' already subscribed to '{event_type.name}'")
                 return False
     
-    def unsubscribe(self, event_type: EventType, callback: Callable[[EventMessage], None], subscriber_name: str = "Unknown") -> bool:
-        """
-        Unsubscribe from an event type.
-        
-        Args:
-            event_type: The EventType enum to unsubscribe from
-            callback: Function to remove from subscribers
-            subscriber_name: Name of the subscriber for debugging
-            
-        Returns:
-            True if unsubscription was successful, False otherwise
-        """
-        if not isinstance(event_type, EventType):
-            if constants.DEBUG:
-                print(f"Invalid event type: {event_type}")
-            return False
-        
-        with self._lock:
-            if event_type in self._subscribers:
-                try:
-                    index = self._subscribers[event_type].index(callback)
-                    self._subscribers[event_type].pop(index)
-                    self._subscriber_names[event_type].pop(index)
-                    
-                    # Clean up empty event types
-                    if not self._subscribers[event_type]:
-                        del self._subscribers[event_type]
-                        del self._subscriber_names[event_type]
-                    
-                    if self._debug_mode:
-                        print(f"Unsubscribed '{subscriber_name}' from event type '{event_type.name}'")
-                    return True
-                except ValueError:
-                    if self._debug_mode:
-                        print(f"Subscriber '{subscriber_name}' not found for event type '{event_type.name}'")
-                    return False
-            return False
-    
-    def publish(self, event_type: EventType, data: Any = None, publisher_name: str = "Unknown") -> bool:
+    def publish(self, event_type: EventType, data: Any = None, publisher_name: str = "Unknown") -> Generator[Any, Any, bool]:
         """
         Publish an event message.
         
@@ -134,12 +97,30 @@ class EventBus:
         success_count = 0
         for i, callback in enumerate(subscribers):
             try:
-                callback(message)
+                gen = callback(message)
+                # Validate generator contract explicitly for clearer errors
+                if not isinstance(gen, AbcGenerator):
+                    subscriber_name = subscriber_names[i] if i < len(subscriber_names) else "Unknown"
+                    cb_name = getattr(callback, "__qualname__", repr(callback))
+                    cb_mod = getattr(callback, "__module__", "<unknown>")
+                    raise TypeError(
+                        f"Subscriber '{subscriber_name}' for event '{event_type.name}' must return a generator; "
+                        f"got {type(gen).__name__} from {cb_mod}.{cb_name}"
+                    )
+                # Iterate and propagate errors
+                yield from gen  # type: ignore[misc]
                 success_count += 1
             except Exception as e:
                 subscriber_name = subscriber_names[i] if i < len(subscriber_names) else "Unknown"
                 if constants.DEBUG:
-                    print(f"Error in subscriber '{subscriber_name}' for event '{event_type.name}': {e}")
+                    cb_name = getattr(callback, "__qualname__", repr(callback))
+                    cb_mod = getattr(callback, "__module__", "<unknown>")
+                    print(
+                        f"Error in subscriber '{subscriber_name}' for event '{event_type.name}': "
+                        f"{type(e).__name__}: {e} | callback={cb_mod}.{cb_name}"
+                    )
+                # Re-raise the original exception to preserve type and traceback
+                raise
         
         if self._debug_mode and subscribers:
             print(f"Event '{event_type.name}' delivered to {success_count}/{len(subscribers)} subscribers")
@@ -215,26 +196,6 @@ class EventBus:
             
             return history
     
-    def get_messages_by_category(self, category: str, limit: Optional[int] = None) -> List[EventMessage]:
-        """
-        Get messages by category prefix.
-        
-        Args:
-            category: Category prefix (e.g., 'PLAYER', 'COMBAT', 'LOOT')
-            limit: If provided, limit the number of messages returned
-            
-        Returns:
-            List of EventMessage objects
-        """
-        category_events = EventType.get_event_types_by_category(category)
-        with self._lock:
-            history = [msg for msg in self._message_history if msg.type in category_events]
-            
-            if limit is not None:
-                history = history[-limit:]
-            
-            return history
-    
     def set_debug_mode(self, enabled: bool):
         """Enable or disable debug logging."""
         self._debug_mode = enabled
@@ -257,47 +218,5 @@ class EventBus:
         if constants.DEBUG:
             print(f"Max history size set to {size}")
 
-
 # Global event bus instance
 EVENT_BUS = EventBus()
-
-
-# # Convenience functions for easier usage
-# def subscribe(event_type: EventType, callback: Callable[[EventMessage], None], subscriber_name: str = "Unknown") -> bool:
-#     """Subscribe to an event type using the global event bus."""
-#     return EVENT_BUS.subscribe(event_type, callback, subscriber_name)
-
-
-# def unsubscribe(event_type: EventType, callback: Callable[[EventMessage], None], subscriber_name: str = "Unknown") -> bool:
-#     """Unsubscribe from an event type using the global event bus."""
-#     return EVENT_BUS.unsubscribe(event_type, callback, subscriber_name)
-
-
-# def publish(event_type: EventType, data: Any = None, publisher_name: str = "Unknown") -> bool:
-#     """Publish an event using the global event bus."""
-#     return EVENT_BUS.publish(event_type, data, publisher_name)
-
-
-# def get_subscriber_count(event_type: EventType) -> int:
-#     """Get subscriber count for an event type."""
-#     return EVENT_BUS.get_subscriber_count(event_type)
-
-
-# def get_all_event_types() -> List[EventType]:
-#     """Get all event types with subscribers."""
-#     return EVENT_BUS.get_all_event_types()
-
-
-# def clear_subscribers(event_type: Optional[EventType] = None):
-#     """Clear subscribers for an event type or all events."""
-#     EVENT_BUS.clear_subscribers(event_type)
-
-
-# def set_debug_mode(enabled: bool):
-#     """Enable or disable debug mode."""
-#     EVENT_BUS.set_debug_mode(enabled)
-
-
-# def get_messages_by_category(category: str, limit: Optional[int] = None) -> List[EventMessage]:
-#     """Get messages by category prefix."""
-#     return EVENT_BUS.get_messages_by_category(category, limit) 

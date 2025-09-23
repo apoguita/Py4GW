@@ -44,8 +44,9 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
 
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
 
-    def map_changed(self, message: EventMessage):
+    def map_changed(self, message: EventMessage) -> Generator[Any, Any, Any]:
         self.opened_chest_agent_ids = set()
+        yield
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -100,13 +101,13 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
             yield from custom_behavior_helpers.Helpers.wait_for(1500) # we must wait until the chest closing animation is finalized
             ActionQueueManager().ResetAllQueues()
             GLOBAL_CACHE.Player.Interact(chest_agent_id, call_target=False)
-            yield from custom_behavior_helpers.Helpers.wait_for(1000)
+            yield from custom_behavior_helpers.Helpers.wait_for(1500)
             if constants.DEBUG: print("CHEST_OPENED")
             # Only mark chest as opened and publish the event upon successful interaction
             if constants.DEBUG: print(f"RELEASE Lock key {lock_key}")
             if constants.DEBUG: print(f"self.opened_chest_agent_ids {self.opened_chest_agent_ids}")
             self.opened_chest_agent_ids.add(chest_agent_id)
-            EVENT_BUS.publish(EventType.CHEST_OPENED, chest_agent_id)
+            yield from EVENT_BUS.publish(EventType.CHEST_OPENED, chest_agent_id)
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
             return BehaviorResult.ACTION_PERFORMED
 

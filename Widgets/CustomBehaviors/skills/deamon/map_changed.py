@@ -36,6 +36,14 @@ class MapChangedUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BOTTING.value)
         self.throttle_timer = ThrottledTimer(1_000)
         self.__previous_map_id = 0
+        # Initialize to current map id to avoid emitting a false-positive event on first evaluation
+        try:
+            current_map_id = GLOBAL_CACHE.Map.GetMapID()
+            if isinstance(current_map_id, int) and current_map_id != 0:
+                self.__previous_map_id = current_map_id
+        except Exception:
+            # If cache not ready yet, keep 0; evaluation guard will handle initial set
+            pass
 
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -46,11 +54,15 @@ class MapChangedUtility(CustomSkillUtilityBase):
 
         if not self.throttle_timer.IsExpired(): return None
 
-        if self.__previous_map_id == GLOBAL_CACHE.Map.GetMapID():
+        current_map_id = GLOBAL_CACHE.Map.GetMapID()
+
+        # First run: set baseline and do not emit
+        if self.__previous_map_id == 0:
+            self.__previous_map_id = current_map_id
             return None
 
-        if self.__previous_map_id != GLOBAL_CACHE.Map.GetMapID():
-            self.__previous_map_id = GLOBAL_CACHE.Map.GetMapID()
+        if self.__previous_map_id != current_map_id:
+            self.__previous_map_id = current_map_id
             return self.score_definition.get_score()
 
         return None
@@ -58,7 +70,7 @@ class MapChangedUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         
-        EVENT_BUS.publish(EventType.MAP_CHANGED)
+        yield from EVENT_BUS.publish(EventType.MAP_CHANGED)
         self.throttle_timer.Reset()
         yield
         return BehaviorResult.ACTION_PERFORMED

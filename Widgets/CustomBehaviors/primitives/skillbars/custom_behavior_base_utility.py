@@ -18,6 +18,7 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy 
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Widgets.CustomBehaviors.skills.blessing.take_near_blessing import TakeNearBlessingUtility
+from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
 from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
 from Widgets.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
 from Widgets.CustomBehaviors.skills.deamon.stuck_detection import StuckDetectionUtility
@@ -130,20 +131,29 @@ class CustomBehaviorBaseUtility():
         they are not part of the behavior, but are executed by the behavior.
         '''
         return [
+            # COMBAT
             AutoAttackUtility(current_build=self.in_game_build),
 
+            # FOLLOWING
             FollowPartyLeaderUtility(current_build=self.in_game_build),
             FollowFlagUtility(current_build=self.in_game_build),
 
+            # BLESSING
             TakeNearBlessingUtility(current_build=self.in_game_build),
             
+            # LOOT
             LootUtility(current_build=self.in_game_build),
-            OpenNearChestUtility(self.in_game_build),
             OpenNearDungeonChestUtility(self.in_game_build),
 
-            MapChangedUtility(self.in_game_build),
-            StuckDetectionUtility(self.in_game_build),
+            #CHESTING
+            OpenNearChestUtility(self.in_game_build),
 
+            #BOTTING
+            MapChangedUtility(self.in_game_build),
+            StuckDetectionUtility(self.in_game_build, threshold=60),
+            MoveIfStuckUtility(self.in_game_build),
+
+            # INVENTORY_MANAGEMENT
             MerchantRefillIfNeededUtility(self.in_game_build),
         ]
 

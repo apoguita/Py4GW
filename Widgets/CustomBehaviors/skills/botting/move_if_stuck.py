@@ -38,7 +38,7 @@ class MoveIfStuckUtility(CustomSkillUtilityBase):
         
         EVENT_BUS.subscribe(EventType.PLAYER_STUCK, self.player_critical_stuck) # we do through event as there is other skill that could subscribe to that, as heart_of_shadow
 
-    def player_critical_stuck(self, message: EventMessage):
+    def player_critical_stuck(self, message: EventMessage)-> Generator[Any, Any, Any]:
         current_x, current_y = GLOBAL_CACHE.Player.GetXY()
         # Keep the nudge smaller than the threshold so it doesn't falsely clear stuck state
         threshold:float = message.data
@@ -46,6 +46,7 @@ class MoveIfStuckUtility(CustomSkillUtilityBase):
         offset_x = random.uniform(-max_nudge, max_nudge)
         offset_y = random.uniform(-max_nudge, max_nudge)
         GLOBAL_CACHE.Player.Move(current_x + offset_x, current_y + offset_y)
+        yield from custom_behavior_helpers.Helpers.wait_for(200)
 
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:

@@ -2,7 +2,7 @@ import math
 from tkinter.constants import N
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Party, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
 from Py4GWCoreLib.enums import SharedCommandType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -46,7 +46,7 @@ class LootUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        
+
         if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1: 
             return None
 
@@ -88,27 +88,32 @@ class LootUtility(CustomSkillUtilityBase):
             if not GLOBAL_CACHE.Agent.IsValid(item_id): 
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
-
+            
+            # 1) try to loot
             pos = GLOBAL_CACHE.Agent.GetXY(item_id)
             follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=6_000)
             if not follow_success:
                 print("Failed to follow path to loot item, halting.")
-                LootConfig().AddItemIDToBlacklist(item_id)
+                real_item_id = GLOBAL_CACHE.Agent.GetItemAgent(item_id).item_id
+                LootConfig().AddItemIDToBlacklist(real_item_id)
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
             
             GLOBAL_CACHE.Player.Interact(item_id, call_target=False)
             yield from custom_behavior_helpers.Helpers.wait_for(100)
 
+            # 2) check if loot has been looted
             pickup_timer = ThrottledTimer(3_000)
             while not pickup_timer.IsExpired():
                 loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
                 if item_id not in loot_array or len(loot_array) == 0:
                     break
-                if pickup_timer.IsExpired():
-                    LootConfig().AddItemIDToBlacklist(item_id)
-                    break
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
+            
+            # 3) Check if we timed out and add to blacklist if so
+            if pickup_timer.IsExpired():
+                real_item_id = GLOBAL_CACHE.Agent.GetItemAgent(item_id).item_id
+                LootConfig().AddItemIDToBlacklist(real_item_id)
 
         yield from custom_behavior_helpers.Helpers.wait_for(100)
         return BehaviorResult.ACTION_PERFORMED

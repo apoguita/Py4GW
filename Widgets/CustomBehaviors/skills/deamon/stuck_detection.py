@@ -25,6 +25,7 @@ class StuckDetectionUtility(CustomSkillUtilityBase):
     def __init__(
             self, 
             current_build: list[CustomSkill], 
+            threshold: int = 60,
         ) -> None:
 
         super().__init__(
@@ -42,19 +43,20 @@ class StuckDetectionUtility(CustomSkillUtilityBase):
         self.__required_moving_samples = 2
         self.__is_currently_stuck = False
         self.__cumulative_move = 0.0
-        self.__movement_clear_threshold = 60.0
+        self.__movement_clear_threshold = threshold
 
-        self.movement_threshold = 30.0
+        self.movement_threshold = threshold / 2
         
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
 
-    def map_changed(self, message: EventMessage):
+    def map_changed(self, message: EventMessage) -> Generator[Any, Any, Any]:
         self.__stuck_count = 0
         self.throttle_timer.Reset()
         self.__previous_player_position = (0, 0)
         self.__moving_samples = 0
         self.__is_currently_stuck = False
         self.__cumulative_move = 0.0
+        yield
 
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -100,11 +102,12 @@ class StuckDetectionUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         
-        EVENT_BUS.publish(EventType.PLAYER_STUCK, self.movement_threshold) # we do through event as there is other skill that could subscribe to that, as heart_of_shadow
+        yield from EVENT_BUS.publish(EventType.PLAYER_STUCK, self.movement_threshold) # we do through event as there is other skill that could subscribe to that, as heart_of_shadow
         self.__stuck_count += 1
         
-        if self.__stuck_count > 20:
-            EVENT_BUS.publish(EventType.PLAYER_CRITICAL_STUCK)
+        if GLOBAL_CACHE.Party.IsPartyLeader():
+            if self.__stuck_count > 20:
+                yield from EVENT_BUS.publish(EventType.PLAYER_CRITICAL_STUCK)
 
         self.throttle_timer.Reset()
         yield

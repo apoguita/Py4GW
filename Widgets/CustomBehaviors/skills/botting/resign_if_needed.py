@@ -40,14 +40,16 @@ class ResignIfNeededUtility(CustomSkillUtilityBase):
         EVENT_BUS.subscribe(EventType.PLAYER_CRITICAL_STUCK, self.player_critical_stuck)
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
 
-    def player_critical_stuck(self, message: EventMessage):
+    def player_critical_stuck(self, message: EventMessage) -> Generator[Any, Any, Any]:
         self.__is_resign_asked = True
+        yield
 
-    def map_changed(self, message: EventMessage):
+    def map_changed(self, message: EventMessage) -> Generator[Any, Any, Any]:
         self.__is_resign_asked = False
         self.death_timer_timer.Reset()
         self.__death_timer_started = False
         self.resign_timeout_timer.Reset()
+        yield
 
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:

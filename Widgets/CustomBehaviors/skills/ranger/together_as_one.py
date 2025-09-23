@@ -58,7 +58,7 @@ class TogetherAsOneUtility(CustomSkillUtilityBase):
                         tolerance=tolerance, 
                         log=True, 
                         timeout=4000, 
-                        progress_callback=lambda progress: print(f"TogetherAsOneUtility: progress: {progress}"))
+                        progress_callback=lambda progress: print(f"TogetherAsOneUtility: progress: {progress}") if constants.DEBUG else None)
         
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
         return result
