@@ -698,9 +698,6 @@ class ModelID(IntEnum):
         123654789192  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     )
     Ghostly_Remains = 123654789193  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    Gold_Crimson_Skull_Coin = (
-        123654789194  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    )
     Igneous_Spider_leg = (
         123654789195  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     )
@@ -714,9 +711,6 @@ class ModelID(IntEnum):
     Searing_Ribcage = 123654789187  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Searing_Burrower_Jaw = (
         123654789189  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
-    )
-    Silver_Crimson_Skull_Coin = (
-        211111356  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     )
     Smoking_Remains = 8787899465  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Spiny_Seed = 74966338  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
@@ -1098,6 +1092,7 @@ class ModelID(IntEnum):
     Gloom_Seed = 523
     Glowing_Heart = 439
     Gold_Coins = 2511
+    Gold_Crimson_Skull_Coin = 807
     Gold_Doubloon = 1578
     Gold_Zaishen_Coin = 31203
     Golden_Egg = 22752
@@ -1441,6 +1436,7 @@ class ModelID(IntEnum):
     Siege_Devourer = 34387
     Siege_Turtle_Mini = 13795
     Silver_Bullion_Coin = 1579
+    Silver_Crimson_Skull_Coin = 808  
     Silver_Zaishen_Coin = 31204
     Singed_Gargoyle_Skull = 480
     Sinister_Automatonic_Tonic = 4730

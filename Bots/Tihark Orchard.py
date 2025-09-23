@@ -29,7 +29,7 @@ def InitializeBot(bot: Botting) -> None:
     bot.States.AddHeader("Initialize Bot")
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
-    bot.ConfigTemplates.Pacifist()
+    bot.Templates.Pacifist()
 
 def EnterMission(bot: Botting):
     bot.States.AddHeader("Enter Mission")
@@ -49,7 +49,7 @@ def TiharkOrchard(bot: Botting):
     bot.Move.XYAndDialog(-10880.00, 145.00, 0x84, "Amthur")
     bot.Interact.WithNpcAtXY(-10880.00, 145.00)
     bot.Wait.ForTime(5000)
-    bot.ConfigTemplates.Aggressive()
+    bot.Templates.Aggressive()
     path = [(-7808.27, 2277.65), (-5930.22, 3588.73), (-7981.76, 380.05), (-6094.06, -3301.68)]
     bot.Move.FollowAutoPath(path)
     bot.Wait.UntilOnOutpost()

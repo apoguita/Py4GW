@@ -466,7 +466,7 @@ class ImGui:
 
         if disabled: PyImGui.begin_disabled(disabled)
         style = ImGui.get_style()
-        #style.ButtonPadding.get_current().push_style_var()
+        style.ButtonPadding.get_current().push_style_var()
         
         if style.Theme not in ImGui.Textured_Themes:
             button_colors = []
@@ -496,7 +496,7 @@ class ImGui:
                 for button_color in button_colors:
                     button_color.pop_color()
                     
-            #style.ButtonPadding.pop_style_var()
+            style.ButtonPadding.pop_style_var()
             if disabled: PyImGui.end_disabled()
             
             return clicked
@@ -567,7 +567,7 @@ class ImGui:
 
         PyImGui.pop_clip_rect()
                 
-        #style.ButtonPadding.pop_style_var()
+        style.ButtonPadding.pop_style_var()
         if disabled: PyImGui.end_disabled()
         
         return clicked

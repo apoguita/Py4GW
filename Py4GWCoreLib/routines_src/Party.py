@@ -43,3 +43,5 @@ class Party:
                 return True
             
         return False
+    
+    

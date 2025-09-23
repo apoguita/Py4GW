@@ -23,7 +23,7 @@ class _MAP:
             return
 
         self._helpers.Map.travel(target_map_id)
-        self._helpers.Wait.for_time(2000)
+        self._helpers.Wait.for_time(1000)
         self.parent.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
 
     def EnterChallenge(self, delay:int= 4500, target_map_id: int = 0, target_map_name: str = "") -> None:
