@@ -44,8 +44,9 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
         self.agent_ids_already_interracted: set[int] = set()
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
 
-    def map_changed(self, message: EventMessage):
+    def map_changed(self, message: EventMessage) -> Generator[Any, Any, Any]:
         self.agent_ids_already_interracted = set()
+        yield
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:

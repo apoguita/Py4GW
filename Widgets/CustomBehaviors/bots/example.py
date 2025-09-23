@@ -25,14 +25,3 @@ class Example(BottingAbstract):
     def description(self) -> str:
         return "A bot template example"
 
-example = Example()
-example.open_bot()
-
-def main():
-    example.act()
-
-def configure():
-    pass
-
-__all__ = ["main", "configure"]
-

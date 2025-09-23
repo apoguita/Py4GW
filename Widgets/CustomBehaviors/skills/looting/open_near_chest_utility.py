@@ -45,8 +45,9 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
 
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
 
-    def map_changed(self, message: EventMessage):
+    def map_changed(self, message: EventMessage)-> Generator[Any, Any, Any]:
         self.opened_chest_agent_ids = set()
+        yield
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -110,7 +111,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
             # print(f"RELEASE Lock key {lock_key}")
             # print(f"self.opened_chest_agent_ids {self.opened_chest_agent_ids}")
             self.opened_chest_agent_ids.add(chest_agent_id)
-            EVENT_BUS.publish(EventType.CHEST_OPENED, chest_agent_id)
+            yield from EVENT_BUS.publish(EventType.CHEST_OPENED, chest_agent_id)
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
             return BehaviorResult.ACTION_PERFORMED
 

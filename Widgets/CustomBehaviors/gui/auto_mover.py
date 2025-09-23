@@ -76,6 +76,16 @@ def render():
             result:bool = PyImGui.checkbox("is waypoint recorded on map click", current_value)
             root.set_waypoint_recording_activated(result)
 
+            if len(root.get_list_of_waypoints()) == 0:
+                PyImGui.text_colored(f"click on MissionMap+ to start build a path.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
+                if PyImGui.button("or paste an array of tuple[float, float] from clipboard"):
+                    clipboard_array:str = PyImGui.get_clipboard_text()
+                    root.try_inject_waypoint_coordinates_from_clipboard(clipboard_array)
+                
+            if PyImGui.button("paste a 'float, float' from clipboard"):
+                    clipboard_tuple:str = PyImGui.get_clipboard_text()
+                    root.try_inject_waypoint_coordinate_from_clipboard(clipboard_tuple)
+
             if len(root.get_list_of_waypoints()) >0:
                 if PyImGui.button("Remove last waypoint from the list"):
                     root.remove_last_waypoint_from_the_list()
@@ -149,22 +159,15 @@ def render():
                     formatted_coords = ", ".join([f"({int(point[0])}, {int(point[1])})" for point in points])
                     coordinates = f"[ {formatted_coords} ]"
                     PyImGui.set_clipboard_text(coordinates)
-                
-            if len(root.get_list_of_waypoints()) ==0:
-                PyImGui.text_colored(f"click on MissionMap+ to start build a path.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
-                if PyImGui.button("or paste an array of tuple[float, float] from clipboard"):
-
-                    clipboard:str = PyImGui.get_clipboard_text()
-                    root.try_inject_waypoint_coordinate_from_clipboard(clipboard)
 
 
         if True:
             PyImGui.text(f"CurrentMap: {GLOBAL_CACHE.Map.GetMapID()}")
-            PyImGui.text(f"CurrentPos: {GLOBAL_CACHE.Player.GetXY()}") 
+            coordinate = GLOBAL_CACHE.Player.GetXY()
+            PyImGui.text(f"CurrentPos: {int(coordinate[0])}, {int(coordinate[1])}") 
             PyImGui.same_line(0,5)
             if PyImGui.small_button("Copy"):
-                coordinate = GLOBAL_CACHE.Player.GetXY()
-                PyImGui.set_clipboard_text(f"({coordinate[0]}, {coordinate[1]})")
+                PyImGui.set_clipboard_text(f"({int(coordinate[0])}, {int(coordinate[1])})")
 
             PyImGui.same_line(0,5)
 

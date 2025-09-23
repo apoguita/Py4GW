@@ -20,18 +20,23 @@ def render():
 
     PyImGui.text_colored(f"additionnal custom_behaviors will be injected in the party leader.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
     PyImGui.text_colored(f"it would act autonomously", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
-    PyImGui.bullet_text(f"resign_if_needed_utility")
-    PyImGui.bullet_text(f"move_to_distant_chest_if_path_exists_utility")
-    PyImGui.bullet_text(f"move_if_stuck_utility")
-    PyImGui.bullet_text(f"move_to_party_member_if_in_aggro_utility")
-    PyImGui.bullet_text(f"move_to_enemy_if_close_enough_utility")
-    PyImGui.bullet_text(f"move_to_party_member_if_dead_utility")
-    PyImGui.bullet_text(f"wait_if_party_member_mana_too_low_utility")
-    PyImGui.bullet_text(f"wait_if_party_member_too_far_utility")
-    PyImGui.bullet_text(f"wait_if_party_member_needs_to_loot_utility")
-    PyImGui.bullet_text(f"wait_if_in_aggro_utility")
-    PyImGui.bullet_text(f"wait_if_lock_taken_utility")
-    PyImGui.separator()
+    if PyImGui.tree_node("List of additionnal behaviors :"):
+        PyImGui.bullet_text(f"resign_if_needed_utility")
+        PyImGui.bullet_text(f"move_to_distant_chest_if_path_exists_utility")
+        PyImGui.bullet_text(f"move_if_stuck_utility")
+        PyImGui.bullet_text(f"move_to_party_member_if_in_aggro_utility")
+        PyImGui.bullet_text(f"move_to_enemy_if_close_enough_utility")
+        PyImGui.bullet_text(f"move_to_party_member_if_dead_utility")
+        PyImGui.bullet_text(f"wait_if_party_member_mana_too_low_utility")
+        PyImGui.bullet_text(f"wait_if_party_member_too_far_utility")
+        PyImGui.bullet_text(f"wait_if_party_member_needs_to_loot_utility")
+        PyImGui.bullet_text(f"wait_if_in_aggro_utility")
+        PyImGui.bullet_text(f"wait_if_lock_taken_utility")
+
+        PyImGui.tree_pop()
+
+    # PyImGui.separator()
+
 
 
     # Load bot list if not already loaded
