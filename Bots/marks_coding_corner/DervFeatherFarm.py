@@ -587,7 +587,7 @@ bot.SetMainRoutine(main_farm)
 
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path="Feather_art.png")
+    bot.UI.draw_window(icon_path="feather_art.png")
 
 
 if __name__ == "__main__":
