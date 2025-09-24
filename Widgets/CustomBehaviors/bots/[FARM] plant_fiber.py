@@ -113,15 +113,3 @@ class plant_fiber(BottingAbstract):
             (-9273, 8047),
             (-10373, 6902),
          ]
-
-example = plant_fiber()
-example.open_bot()
-
-def main():
-    example.act()
-
-def configure():
-    pass
-
-__all__ = ["main", "configure"]
-

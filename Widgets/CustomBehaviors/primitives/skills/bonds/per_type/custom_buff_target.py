@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import Callable
-from HeroAI.custom_skill import CustomSkillClass
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.enums import Profession, Range
@@ -73,7 +72,6 @@ class BuffConfigurationPerProfession:
         return False
 
     def __should_apply_effect_on_agent_id(self, agent_id: int, profession: Profession) -> bool:
-        from HeroAI.utils import CheckForEffect
         profession_id: int = GLOBAL_CACHE.Agent.GetProfessionIDs(agent_id)[0]
 
         if profession_id != profession.value:
@@ -85,8 +83,8 @@ class BuffConfigurationPerProfession:
             return not has_buff
         else:
             # else check if the party target has the effect
-            # not sure pet are in heroAI...
-            has_effect: bool = CheckForEffect(agent_id, self.custom_skill.skill_id)
+            # todo pets
+            has_effect: bool = custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, self.custom_skill.skill_id)
             return not has_effect
 
 

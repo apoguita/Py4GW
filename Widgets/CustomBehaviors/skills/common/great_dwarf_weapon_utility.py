@@ -32,8 +32,6 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
 
     def _get_target(self) -> int | None:
         
-        from HeroAI.utils import CheckForEffect
-
         # Check if we have a valid target
         target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
                 within_range=Range.Spellcast,

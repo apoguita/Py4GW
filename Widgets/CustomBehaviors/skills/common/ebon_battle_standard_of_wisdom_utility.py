@@ -3,6 +3,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums import Profession, Range
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -13,8 +14,6 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 class EbonBattleStandardOfWisdom(CustomSkillUtilityBase):
-    DEBUG: bool = True
-
     def __init__(self, 
         current_build: list[CustomSkill], 
         score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 65 if enemy_qte >= 3 else 50 if enemy_qte <= 2 else 25),
@@ -53,7 +52,7 @@ class EbonBattleStandardOfWisdom(CustomSkillUtilityBase):
             return None # it doesn't worth moving, we are too far
 
         if gravity_center.agent_covered_count >= 2: 
-            if self.DEBUG: print("EbonBattleStandardOfWisdomUtility: moving to a better place (gravity center).")
+            if constants.DEBUG: print("EbonBattleStandardOfWisdomUtility: moving to a better place (gravity center).")
             return self.score_definition.get_score(gravity_center.agent_covered_count)
         return None
 
@@ -68,7 +67,13 @@ class EbonBattleStandardOfWisdom(CustomSkillUtilityBase):
 
         if gravity_center is not None: # and gravity_center.distance_from_player < Range.Area.value:
             path_points: list[tuple[float, float]] = [gravity_center.coordinates]
-            yield from Routines.Yield.Movement.FollowPath(path_points=path_points, custom_exit_condition=exit_condition, tolerance=tolerance, log=True, timeout=4000, progress_callback=lambda progress: print(f"EbonBattleStandardOfWisdomUtility: progress: {progress}"))
+            yield from Routines.Yield.Movement.FollowPath(
+                path_points=path_points, 
+                custom_exit_condition=exit_condition, 
+                tolerance=tolerance, 
+                log=True, 
+                timeout=4000, 
+                progress_callback=lambda progress: print(f"EbonBattleStandardOfWisdomUtility: progress: {progress}") if constants.DEBUG else None)
         
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
         return result 

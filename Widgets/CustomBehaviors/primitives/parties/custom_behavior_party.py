@@ -1,12 +1,17 @@
 import inspect
 import importlib
 import pkgutil
-from typing import Generator, Any, List
+from typing import Callable, Generator, Any, List
 
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import SharedLockManager
+from Widgets.CustomBehaviors.primitives.parties.command_handler import CommandHandler
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 
@@ -22,6 +27,36 @@ class CustomBehaviorParty:
     def __init__(self):
         if not self._initialized:
             self._initialized = True
+            self._generator_handle = self._handle()
+            
+            self.command_handler = CommandHandler()
+            self.throttler = ThrottledTimer(50)
+
+    def _handle(self) -> Generator[Any | None, Any | None, None]:
+        while True:
+            self.command_handler.execute_next_step()
+            yield
+    
+    def act(self):
+        if not self.throttler.IsExpired(): return
+        self.throttler.Reset()
+        
+        if not Routines.Checks.Map.MapValid(): return
+
+        try:
+            next(self._generator_handle)
+        except StopIteration:
+            print(f"CustomBehaviorParty.act is not expected to StopIteration.")
+        except Exception as e:
+            print(f"CustomBehaviorParty.act is not expected to exit : {e}")
+
+    def schedule_action(self, action_gen: Callable[[], Generator]) -> bool:
+        """Schedule a generator action. Returns True if accepted, False if busy."""
+        return self.command_handler.schedule_action(action_gen)
+
+    def is_ready_for_action(self) -> bool:
+        """Check if it's safe to schedule another action."""
+        return self.command_handler.is_ready_for_action()
 
     #---
 

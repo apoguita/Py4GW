@@ -2,6 +2,7 @@ from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.py4gwcorelib_src.Lootconfig import LootConfig
 from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import AutoMover
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 
 loader_throttler = ThrottledTimer(100)
 refresh_throttler = ThrottledTimer(1_000)
@@ -29,4 +30,6 @@ def daemon():
     if CustomBehaviorLoader().custom_combat_behavior is not None:
         CustomBehaviorLoader().custom_combat_behavior.act()
 
+    CustomBehaviorParty().act()
+    
     AutoMover().act()

@@ -43,11 +43,9 @@ class HeroicRefrainUtility(CustomSkillUtilityBase):
 
         # PHASE 2 - CAST ON PARTY
 
-        from HeroAI.utils import CheckForEffect
-
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
                 within_range=Range.Spellcast,
-                condition=lambda agent_id: not CheckForEffect(agent_id, self.custom_skill.skill_id),
+                condition=lambda agent_id: not custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, self.custom_skill.skill_id),
                 sort_key=(TargetingOrder.DISTANCE_ASC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=None,
                 range_to_count_allies=None)

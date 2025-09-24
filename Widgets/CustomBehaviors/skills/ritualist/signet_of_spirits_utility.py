@@ -52,8 +52,8 @@ class SignetOfSpiritsUtility(CustomSkillUtilityBase):
 
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
         if result == BehaviorResult.ACTION_PERFORMED:
-            EVENT_BUS.publish(EventType.SPIRIT_CREATED, self.hate_spirit)
-            EVENT_BUS.publish(EventType.SPIRIT_CREATED, self.suffering_spirit)
-            EVENT_BUS.publish(EventType.SPIRIT_CREATED, self.anger_spirit)
+            yield from EVENT_BUS.publish(EventType.SPIRIT_CREATED, self.hate_spirit)
+            yield from EVENT_BUS.publish(EventType.SPIRIT_CREATED, self.suffering_spirit)
+            yield from EVENT_BUS.publish(EventType.SPIRIT_CREATED, self.anger_spirit)
 
         return result

@@ -34,8 +34,8 @@ class AssassinVaettirFarm_Running_UtilitySkillBar(CustomBehaviorBaseUtility):
 
         # how to make no coupling with hot-reload, dedicated folder for thoses ?
 
-    def player_stuck(self, heart_of_shadow_target_agent_id: int):
-        EVENT_BUS.publish(EventType.PLAYER_STUCK, heart_of_shadow_target_agent_id)
+    def player_stuck(self, heart_of_shadow_target_agent_id: int) -> Generator[Any, Any, Any]:
+        yield from EVENT_BUS.publish(EventType.PLAYER_STUCK, heart_of_shadow_target_agent_id)
 
     @property
     @override

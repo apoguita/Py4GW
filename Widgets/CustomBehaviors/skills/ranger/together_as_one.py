@@ -50,14 +50,15 @@ class TogetherAsOneUtility(CustomSkillUtilityBase):
                 if gravity_center.distance_from_player < Range.Area.value: # else it doesn't worth moving, we are too far
                     if constants.DEBUG: print("TogetherAsOneUtility: moving to a better place (gravity center).")
                     exit_condition: Callable[[], bool] = lambda: False
-                    tolerance: float = 30
+                    tolerance: float = 100
                     path_points: list[tuple[float, float]] = [gravity_center.coordinates]
                     yield from Routines.Yield.Movement.FollowPath(
                         path_points=path_points, 
                         custom_exit_condition=exit_condition, 
-                        tolerance=tolerance, log=True, 
+                        tolerance=tolerance, 
+                        log=True, 
                         timeout=4000, 
-                        progress_callback=lambda progress: print(f"TogetherAsOneUtility: progress: {progress}"))
+                        progress_callback=lambda progress: print(f"TogetherAsOneUtility: progress: {progress}") if constants.DEBUG else None)
         
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
         return result

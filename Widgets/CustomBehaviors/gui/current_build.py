@@ -43,16 +43,20 @@ def render():
 
     if CustomBehaviorLoader().custom_combat_behavior is not None:
         PyImGui.text(f"Selected template : {CustomBehaviorLoader().custom_combat_behavior.__class__.__name__}")
-        PyImGui.text(f"Account state:{CustomBehaviorLoader().custom_combat_behavior.get_state()}")
-        PyImGui.text(f"Final state:{CustomBehaviorLoader().custom_combat_behavior.get_final_state()}")
+        PyImGui.text(f"Player state:{CustomBehaviorLoader().custom_combat_behavior.get_state()}")
+        PyImGui.text(f"Final state (with party override):{CustomBehaviorLoader().custom_combat_behavior.get_final_state()}")
 
     if CustomBehaviorLoader().custom_combat_behavior.get_is_enabled():
-        if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES} Disable"):
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES} Disable ALL"):
             CustomBehaviorLoader().custom_combat_behavior.disable()
     else:
-        if PyImGui.button(f"{IconsFontAwesome5.ICON_CHECK} Enable"):
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_CHECK} Enable ALL"):
             CustomBehaviorLoader().custom_combat_behavior.enable()
     pass
+
+    PyImGui.same_line(0, 5)
+    PyImGui.same_line(0, -1)
+    WITH_DETAIL = PyImGui.checkbox("with detailled informations", WITH_DETAIL)
     
     # if current_build is not None and type(current_build).mro()[1].__name__ != CustomBehaviorBaseUtility.__name__:
     #     PyImGui.separator()
@@ -79,11 +83,9 @@ def render():
         # for utility in utilities:
         #     PyImGui.text(f"{utility.custom_skill.skill_name} {utility.additive_score_weight}")
 
-        PyImGui.text(f"Utility system : ")
-        PyImGui.same_line(0, -1)
-        WITH_DETAIL = PyImGui.checkbox("with detail", WITH_DETAIL)
 
-        if PyImGui.begin_child("x", size=(400, 600),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+
+        if PyImGui.begin_child("x", size=(500, 600),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
             scores: list[tuple[CustomSkillUtilityBase, float | None]] = instance.get_all_scores()
             if PyImGui.begin_table("skill", 2, int(PyImGui.TableFlags.SizingStretchProp)):
                 PyImGui.table_setup_column("A")

@@ -3,6 +3,7 @@ from typing import Any, Callable, Generator, override
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Utils
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
@@ -41,13 +42,15 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.area_changed)
         EVENT_BUS.subscribe(EventType.CHEST_OPENED, self.chest_opened)
 
-    def chest_opened(self, message: EventMessage):
+    def chest_opened(self, message: EventMessage)-> Generator[Any, Any, Any]:
         self.opened_chest_agent_ids.add(message.data)
         self.throttle_timer.Reset()
+        yield
 
-    def area_changed(self, message: EventMessage):
+    def area_changed(self, message: EventMessage)-> Generator[Any, Any, Any]:
         self.opened_chest_agent_ids = set()
         self.throttle_timer.Reset()
+        yield
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -112,7 +115,7 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
             tolerance=100, 
             log=True, 
             timeout=5_000, 
-            progress_callback=lambda progress: print(f"xx: progress: {progress}"))
+            progress_callback=lambda progress: print(f"MoveToCloseChestIfPathExistsUtility: progress: {progress}") if constants.DEBUG else None)
 
         if result == False:
             self.throttle_timer.Reset()

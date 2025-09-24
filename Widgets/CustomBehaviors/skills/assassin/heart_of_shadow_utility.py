@@ -35,9 +35,10 @@ class HeartofShadowUtility(CustomSkillUtilityBase):
 
         EVENT_BUS.subscribe(EventType.PLAYER_STUCK, self.on_player_stuck)
     
-    def on_player_stuck(self, message: EventMessage):
+    def on_player_stuck(self, message: EventMessage)-> Generator[Any, Any, Any]:
         self.is_player_stuck = True
         self.player_stuck_target = message.data
+        yield
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
         

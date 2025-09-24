@@ -18,6 +18,7 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy 
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Widgets.CustomBehaviors.skills.blessing.take_near_blessing import TakeNearBlessingUtility
+from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
 from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
 from Widgets.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
 from Widgets.CustomBehaviors.skills.deamon.stuck_detection import StuckDetectionUtility
@@ -29,6 +30,7 @@ from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.skills.inventory.merchant_refill_if_needed_utility import MerchantRefillIfNeededUtility
 from Widgets.CustomBehaviors.skills.looting.loot_utility import LootUtility
 from Widgets.CustomBehaviors.skills.looting.open_near_chest_utility import OpenNearChestUtility
+from Widgets.CustomBehaviors.skills.looting.open_near_dungeon_chest_utility import OpenNearDungeonChestUtility
 
 class CustomBehaviorBaseUtility():
     """
@@ -129,19 +131,29 @@ class CustomBehaviorBaseUtility():
         they are not part of the behavior, but are executed by the behavior.
         '''
         return [
+            # COMBAT
             AutoAttackUtility(current_build=self.in_game_build),
 
+            # FOLLOWING
             FollowPartyLeaderUtility(current_build=self.in_game_build),
             FollowFlagUtility(current_build=self.in_game_build),
 
+            # BLESSING
             TakeNearBlessingUtility(current_build=self.in_game_build),
             
+            # LOOT
             LootUtility(current_build=self.in_game_build),
+            OpenNearDungeonChestUtility(self.in_game_build),
+
+            #CHESTING
             OpenNearChestUtility(self.in_game_build),
 
+            #BOTTING
             MapChangedUtility(self.in_game_build),
-            StuckDetectionUtility(self.in_game_build),
+            StuckDetectionUtility(self.in_game_build, threshold=60),
+            MoveIfStuckUtility(self.in_game_build),
 
+            # INVENTORY_MANAGEMENT
             MerchantRefillIfNeededUtility(self.in_game_build),
         ]
 
@@ -280,13 +292,13 @@ class CustomBehaviorBaseUtility():
             print("Custom behavior doesn't match in game build, you are not allowed to perform behavior.act().")
             return
 
-        if self.get_final_is_enabled():
-            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
-            hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
-            if hero_ai_options is not None:
-                hero_ai_options.Combat = False
-                hero_ai_options.Following = False
-                hero_ai_options.Looting = False
+        # if self.get_final_is_enabled():
+        #     account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        #     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+        #     if hero_ai_options is not None:
+        #         hero_ai_options.Combat = False
+        #         hero_ai_options.Following = False
+        #         hero_ai_options.Looting = False
 
         # it is interesting to compute score less often, as the execution :
         # - if we are executing with EXECUTE_THROUGH_THE_END, most of the time it take more than 300/400 ms with the aftercast.
@@ -308,9 +320,9 @@ class CustomBehaviorBaseUtility():
             try:
                 next(self._generator_handle)
             except StopIteration:
-                print(f"act is not expected to StopIteration.")
+                print(f"CustomBehaviorBaseUtility.act is not expected to StopIteration.")
             except Exception as e:
-                print(f"act is not expected to exit : {e}")
+                print(f"CustomBehaviorBaseUtility.act is not expected to exit : {e}")
             # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
 
     # STATES
@@ -426,7 +438,6 @@ class CustomBehaviorBaseUtility():
             history_entry.result = result
             history_entry.ended_at = ended_at
             self.__previously_attempted_skills.append(highest_score[0].custom_skill)
-
 
             yield  # ← yield control back to the main execution flow
 
