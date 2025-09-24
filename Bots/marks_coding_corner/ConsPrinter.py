@@ -7,6 +7,7 @@ from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Py4GW
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Trading
+from Py4GWCoreLib import ConsoleLog
 
 selected_step = 0
 EMBARK_BEACH = "Embark Beach"
@@ -50,6 +51,7 @@ def sell_non_cons_material_from_inventory():
         ModelID.Tanned_Hide_Square,
         ModelID.Bolt_Of_Cloth,
         ModelID.Granite_Slab,
+        ModelID.Chitin_Fragment,
     ]
     for model_id in SELLABLE_CRAFTING_MATERIALS_MODEL_ID:
         attempts = 0
@@ -108,42 +110,53 @@ def sell_non_cons_material_from_inventory():
 
 
 def withdraw_cons_materials_from_inventory():
-    MAX_WITHDRAW_ATTEMPTS = 50
-    STACK_SIZE = 250
+    global consets_to_make
 
-    # Required quantities (in multiples of stack size)
-    REQUIRED_STACKS = {
-        ModelID.Iron_Ingot: 2,
-        ModelID.Pile_Of_Glittering_Dust: 2,
-        ModelID.Bone: 1,
-        ModelID.Feather: 1,
+    consets_to_make = 0
+    PER_CONSET = {
+        ModelID.Iron_Ingot: 100,
+        ModelID.Pile_Of_Glittering_Dust: 100,
+        ModelID.Bone: 50,
+        ModelID.Feather: 50,
     }
+    GOLD_PER_CONSET = 750
 
-    bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
+    # Step 1: Check how many we can craft
+    max_possible = 99999  # unrealistically high number
+    for model_id, req_amount in PER_CONSET.items():
+        available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        possible = available // req_amount
+        max_possible = min(max_possible, possible)
 
-    for model_id, stacks_required in REQUIRED_STACKS.items():
-        attempts = 0
+    gold_available = GLOBAL_CACHE.Inventory.GetGoldInStorage() + GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+    possible_gold = gold_available // GOLD_PER_CONSET
+    max_possible = min(max_possible, possible_gold)
 
-        while attempts < MAX_WITHDRAW_ATTEMPTS:
-            attempts += 1
+    if max_possible <= 0:
+        ConsoleLog("Conset Withdraw", "Not enough materials to craft any consets.")
+        return
 
-            # Count how many stacks we already have in bags
-            all_items = ItemArray.GetItemArray(bag_list)
-            current_total = 0
-            for item_id in all_items:
-                if GLOBAL_CACHE.Item.GetModelID(item_id) == model_id:
-                    current_total += Item.Properties.GetQuantity(item_id)
-
-            current_stacks = current_total // STACK_SIZE
-
-            # Stop if we have enough stacks
-            if current_stacks >= stacks_required:
-                break
-
-            # Try to withdraw one stack (or remaining needed amount if less than stack size)
-            withdraw_amount = STACK_SIZE
+    # Step 2: Withdraw materials
+    for model_id, req_amount in PER_CONSET.items():
+        total_needed = req_amount * max_possible
+        withdrawn = 0
+        while withdrawn < total_needed:
+            withdraw_amount = min(250, total_needed - withdrawn)
             GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, withdraw_amount)
+            withdrawn += withdraw_amount
             yield from Routines.Yield.wait(250)
+
+    # Step 3: Withdraw gold
+    needed_gold = GOLD_PER_CONSET * max_possible
+    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+    if gold_on_char < needed_gold:
+        to_withdraw = needed_gold - gold_on_char
+        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
+        yield from Routines.Yield.wait(250)
+
+    consets_to_make = max_possible
+    ConsoleLog("Conset Withdraw", f"Withdrew materials and {needed_gold}g for {max_possible} consets.")
 
 
 def craft_item(target_model_id, required_mats, per_craft_mats, crafts=5):
@@ -188,39 +201,42 @@ def craft_item(target_model_id, required_mats, per_craft_mats, crafts=5):
 
 
 def craft_armor_of_salvation():
+    global consets_to_make
     REQUIRED_MATS = {
-        ModelID.Iron_Ingot: 250,  # enough for 5 crafts
-        ModelID.Bone: 250,
+        ModelID.Iron_Ingot: 50 * consets_to_make,  # enough for 5 crafts
+        ModelID.Bone: 50 * consets_to_make,
     }
     PER_CRAFT = {
         ModelID.Iron_Ingot: 50,
         ModelID.Bone: 50,
     }
-    yield from craft_item(ModelID.Armor_Of_Salvation, REQUIRED_MATS, PER_CRAFT, crafts=5)
+    yield from craft_item(ModelID.Armor_Of_Salvation, REQUIRED_MATS, PER_CRAFT, crafts=consets_to_make)
 
 
 def craft_essence_of_celerity():
+    global consets_to_make
     REQUIRED_MATS = {
-        ModelID.Feather: 250,  # enough for 5 crafts
-        ModelID.Pile_Of_Glittering_Dust: 250,
+        ModelID.Feather: 50 * consets_to_make,  # enough for 5 crafts
+        ModelID.Pile_Of_Glittering_Dust: 50 * consets_to_make,
     }
     PER_CRAFT = {
         ModelID.Feather: 50,
         ModelID.Pile_Of_Glittering_Dust: 50,
     }
-    yield from craft_item(ModelID.Essence_Of_Celerity, REQUIRED_MATS, PER_CRAFT, crafts=5)
+    yield from craft_item(ModelID.Essence_Of_Celerity, REQUIRED_MATS, PER_CRAFT, crafts=consets_to_make)
 
 
 def craft_grail_of_might():
+    global consets_to_make
     REQUIRED_MATS = {
-        ModelID.Iron_Ingot: 250,  # enough for 5 crafts
-        ModelID.Pile_Of_Glittering_Dust: 250,
+        ModelID.Iron_Ingot: 50 * consets_to_make,  # enough for 5 crafts
+        ModelID.Pile_Of_Glittering_Dust: 50 * consets_to_make,
     }
     PER_CRAFT = {
         ModelID.Iron_Ingot: 50,
         ModelID.Pile_Of_Glittering_Dust: 50,
     }
-    yield from craft_item(ModelID.Grail_Of_Might, REQUIRED_MATS, PER_CRAFT, crafts=5)
+    yield from craft_item(ModelID.Grail_Of_Might, REQUIRED_MATS, PER_CRAFT, crafts=consets_to_make)
 
 
 def move_all_cons_to_storage():
