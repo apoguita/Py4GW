@@ -45,7 +45,7 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToMarketplace(bot) 
     AdvanceToKainengCenter(bot)
     AdvanceToLA(bot)
-    #AdvanceToKamadan(bot)
+    AdvanceToKamadan(bot)
     AdvanceToEOTN(bot) 
     ExitBorealStation(bot) 
     TraverseToEOTNOutpost(bot)
@@ -747,7 +747,25 @@ def AdvanceToKamadan(bot: Botting):
     bot.Move.XYAndDialog(-5899.57, 7240.19, 0x82D404)  # Kormir dialog kormir model ID
     bot.Dialogs.WithModel(4863, 0x87)  # Kormir dialog model id 4863
     bot.Wait.ForMapToChange(target_map_id=400)
-    # To be continued
+    bot.Move.XY(1059, -4218)
+    bot.Wait.ForTime(10000)
+    bot.Move.XY(2790.35, -3769.20)
+    bot.Move.XY(3230.09, -1497.11)
+    bot.Move.XY(4307.60, -1442.95)
+    bot.Wait.ForTime(15000)
+    bot.Move.XY(2726.32, 677.34)
+    bot.Move.XY(455.90, 562.61)
+    bot.Wait.ForTime(15000)
+    bot.Move.XY(2522.74, 555.16)
+    bot.Move.XY(1830.52, -1247.38)
+    #bot.Wait.ForTime(15000)
+    bot.Wait.ForMapToChange(target_map_id=290)
+    #bot.Dialogs.WithModel(4863, 0x82D404)  # Kormir dialog model id 4863
+    #bot.Dialogs.WithModel(4863, 0x85)  # Kormir dialog model id 4863
+    bot.Dialogs.WithModel(4863, 0x84)  # Kormir dialog model id 4863
+    bot.Wait.ForMapToChange(target_map_id=543)
+    bot.Dialogs.WithModel(4778, 0x82D407)  # Bendro take reward
+    bot.Dialogs.WithModel(4778, 0x82E101)  # Bendro battle preparation
     
 def AdvanceToEOTN(bot: Botting):
     bot.States.AddHeader("Advance To Eye of the North")
