@@ -181,8 +181,8 @@ cython_debug/
 /Multiboxer
 .isort.cfg
 
-# Ignore all json files in Styles
-/Styles/*.json
+# Ignore all files in Styles
+/Styles
 
 # # But keep the .default.json ones
 !/Styles/*.default.json

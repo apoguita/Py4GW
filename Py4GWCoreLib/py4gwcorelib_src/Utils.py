@@ -138,4 +138,9 @@ class Utils:
         SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
         return int((time.time() - SHMEM_ZERO_EPOCH) * 1000)
 
+    @staticmethod
+    def split_uppercase(s: str) -> str:
+        import re
+        return re.sub(r'(?<!^)(?=[A-Z])', ' ', s)
+
 #endregion
