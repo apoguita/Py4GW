@@ -2204,7 +2204,7 @@ def DrawDayCard():
                         PyImGui.same_line(0, -1)
                         if PyImGui.button("Load Farm"):
                             Py4GW.Console.Log("Calendar", f"Loading farm script: {farm_script}", Py4GW.Console.MessageType.Info)
-                            Py4GW.Console.defer_stop_load_and_run(farm_script)
+                            Py4GW.Console.defer_stop_load_and_run(farm_script, 500)
                         ImGui.show_tooltip(f"Load farm script for {nicholas['item']}")
 
                     

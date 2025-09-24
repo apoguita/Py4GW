@@ -278,6 +278,9 @@ class BottingClass:
     def Update(self):
         if self.config.fsm_running:
             self.config.state_description = "Running" if self.config.fsm_running else "Stopped"
+            
+        if not self.config.fsm_running:
+            self.config.FSM.stop()
 
         if not self.config.initialized:
             self.Routine()
