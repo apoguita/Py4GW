@@ -2132,6 +2132,27 @@ def draw_month(cal: Calendar, width: int = 300, height: int = 265):
             PyImGui.end_table()
     PyImGui.end_child()
 
+def get_script_path_for_model(model: int) -> Optional[str]:
+    """
+    Resolve the script filename for a given model ID.
+    Returns the full path if found, otherwise None.
+    """
+    base_path = Py4GW.Console.get_projects_path()
+    bots_path = os.path.join(base_path, "Bots", "Nicholas the Traveler")
+
+    try:
+        for file in os.listdir(bots_path):
+            if file.startswith(f"{model}-") and file.endswith(".py"):
+                return os.path.join(bots_path, file)
+    except Exception as e:
+        Py4GW.Console.Log(
+            "script loader",
+            f"Error scanning for model {model}: {str(e)}",
+            Py4GW.Console.MessageType.Error,
+        )
+
+    return None
+
 def DrawDayCard():
     selected_day = calendar.current   # 👈 use current calendar date, not today
     current_event = get_event_for_day(selected_day)
@@ -2178,6 +2199,15 @@ def DrawDayCard():
                         import webbrowser
                         webbrowser.open(nicholas["map_url"])
                     ImGui.show_tooltip("Open map in browser")
+                    farm_script = get_script_path_for_model(nicholas["model_id"])
+                    if farm_script:
+                        PyImGui.same_line(0, -1)
+                        if PyImGui.button("Load Farm"):
+                            Py4GW.Console.Log("Calendar", f"Loading farm script: {farm_script}", Py4GW.Console.MessageType.Info)
+                            Py4GW.Console.defer_stop_load_and_run(farm_script)
+                        ImGui.show_tooltip(f"Load farm script for {nicholas['item']}")
+
+                    
                              
                 PyImGui.end_table()
             PyImGui.end_table()

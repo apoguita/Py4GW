@@ -9,7 +9,6 @@ json_file_name = ".\\Py4GWCoreLib\\frame_aliases.json"
 
 overlay = Overlay()
 
-
 #region config options
 
 class ConfigOptions:
@@ -475,6 +474,9 @@ def DrawMainWindow():
     PyImGui.end()
     
 #endregion
+
+def configure():
+    pass
 
 
 def main():
