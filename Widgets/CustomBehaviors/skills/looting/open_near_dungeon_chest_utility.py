@@ -7,6 +7,7 @@ import PyImGui
 from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Inventory, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
@@ -17,13 +18,11 @@ from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import Cus
 from Widgets.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
-import time
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
-class OpenNearChestUtility(CustomSkillUtilityBase):
+class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
 
     def __init__(
             self, 
@@ -32,11 +31,11 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         ) -> None:
         
         super().__init__(
-            skill=CustomSkill("open_near_chest_utility"), 
+            skill=CustomSkill("open_near_dungeon_chest_utility"), 
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(CommonScore.LOOT.value + 0.001), 
             allowed_states=allowed_states,
-            utility_skill_typology=UtilitySkillTypology.CHESTING,
+            utility_skill_typology=UtilitySkillTypology.LOOTING,
             execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
         self.score_definition: ScoreStaticDefinition =ScoreStaticDefinition(CommonScore.LOOT.value + 0.001)
@@ -45,7 +44,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
 
         EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
 
-    def map_changed(self, message: EventMessage)-> Generator[Any, Any, Any]:
+    def map_changed(self, message: EventMessage) -> Generator[Any, Any, Any]:
         self.opened_chest_agent_ids = set()
         yield
         
@@ -58,8 +57,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1: return None #"No free slots in inventory, halting."
-        if GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Lockpick.value) < 1: return None #"No lockpicks in inventory, halting."
-        chest_agent_id = Routines.Agents.GetNearestChest(700)
+        chest_agent_id = Routines.Agents.GetNearestDungeonChest(700)
         if chest_agent_id in self.opened_chest_agent_ids: return None
         if chest_agent_id is None or chest_agent_id == 0: return None
         return self.score_definition.get_score()
@@ -73,51 +71,49 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
 
         self.cooldown_execution.Reset()
 
-        chest_agent_id = Routines.Agents.GetNearestChest(700)
+        chest_agent_id = Routines.Agents.GetNearestDungeonChest(700)
         if chest_agent_id is None or chest_agent_id == 0: 
             yield
             return BehaviorResult.ACTION_SKIPPED
 
-        # print(f"open_near_chest_utility_ STARTING")
+        if constants.DEBUG: print(f"open_near_dungeon_chest_utility STARTING")
 
         chest_x, chest_y = GLOBAL_CACHE.Agent.GetXY(chest_agent_id)
-        lock_key = f"open_near_chest_utility_{chest_agent_id}"
+        lock_key = f"open_near_dungeon_chest_utility{chest_agent_id}"
 
         result = yield from Routines.Yield.Movement.FollowPath(
             path_points=[(chest_x, chest_y)],
             timeout=10_000)
 
         if result == False:
-            # print(f"open_near_chest_utility_ FAIL FollowPath")
+            if constants.DEBUG: print(f"open_near_dungeon_chest_utility FAIL FollowPath")
             yield
             return BehaviorResult.ACTION_SKIPPED
 
         if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key) == False:
-            # print(f"open_near_chest_utility_ FAIL try_aquire_lock")
+            if constants.DEBUG: print(f"open_near_dungeon_chest_utility FAIL try_aquire_lock")
             yield
             return BehaviorResult.ACTION_SKIPPED
 
         # Use try-finally to ensure lock is always released
         try:
-            # print(f"open_near_chest_utility_ LOCK AQUIRED")
-            yield from custom_behavior_helpers.Helpers.wait_for(1000) # we must wait until the chest closing animation is finalized
+            if constants.DEBUG: print(f"open_near_dungeon_chest_utility LOCK AQUIRED")
+            yield from custom_behavior_helpers.Helpers.wait_for(1500) # we must wait until the chest closing animation is finalized
             ActionQueueManager().ResetAllQueues()
             GLOBAL_CACHE.Player.Interact(chest_agent_id, call_target=False)
-            yield from custom_behavior_helpers.Helpers.wait_for(1000)
-            GLOBAL_CACHE.Player.SendDialog(2)
-            yield from custom_behavior_helpers.Helpers.wait_for(1000)
-            # print("CHEST_OPENED")
+            yield from custom_behavior_helpers.Helpers.wait_for(1500)
+            if constants.DEBUG: print("CHEST_OPENED")
             # Only mark chest as opened and publish the event upon successful interaction
-            # print(f"RELEASE Lock key {lock_key}")
-            # print(f"self.opened_chest_agent_ids {self.opened_chest_agent_ids}")
+            if constants.DEBUG: print(f"RELEASE Lock key {lock_key}")
+            if constants.DEBUG: print(f"self.opened_chest_agent_ids {self.opened_chest_agent_ids}")
             self.opened_chest_agent_ids.add(chest_agent_id)
             yield from EVENT_BUS.publish(EventType.CHEST_OPENED, chest_agent_id)
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
             return BehaviorResult.ACTION_PERFORMED
 
         except Exception as e:
-            # print(f"ERROR in OpenNearChestUtility._execute: {type(e).__name__}: {e}")
-            # print(f"Lock key: {lock_key}, Chest agent ID: {chest_agent_id}")
+            if constants.DEBUG: print(f"ERROR in OpenNearDungeonChestUtility._execute: {type(e).__name__}: {e}")
+            if constants.DEBUG: print(f"Lock key: {lock_key}, Chest agent ID: {chest_agent_id}")
             import traceback
             traceback.print_exc()
             return BehaviorResult.ACTION_SKIPPED
@@ -128,7 +124,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text(f"GetNearestChest : {Routines.Agents.GetNearestChest(700)}")
+        PyImGui.bullet_text(f"GetNearestDungeonChest : {Routines.Agents.GetNearestDungeonChest(700)}")
         PyImGui.bullet_text(f"opened_chest_agent_ids : {self.opened_chest_agent_ids}")
         return
         # debug mode

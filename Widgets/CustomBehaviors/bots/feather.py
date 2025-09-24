@@ -68,14 +68,3 @@ class feather(BottingAbstract):
             (-9700, 2400)
          ]
 
-example = feather()
-example.open_bot()
-
-def main():
-    example.act()
-
-def configure():
-    pass
-
-__all__ = ["main", "configure"]
-

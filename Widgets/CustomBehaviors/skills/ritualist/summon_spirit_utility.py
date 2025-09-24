@@ -29,13 +29,14 @@ class SummonSpiritUtility(CustomSkillUtilityBase):
 
         EVENT_BUS.subscribe(EventType.SPIRIT_CREATED, self.on_spirit_created)
 
-    def on_spirit_created(self, message: EventMessage):
+    def on_spirit_created(self, message: EventMessage) -> Generator[Any, Any, Any]:
 
         spirit_model_id: SpiritModelID = message.data
         if spirit_model_id is None: return
 
         if spirit_model_id not in self.owned_spirits:
             self.owned_spirits.append(spirit_model_id)
+        yield
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:

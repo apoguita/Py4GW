@@ -120,8 +120,7 @@ class FollowPathExecutor:
     def on_progress(self, progress: float) -> None:
         """Callback for movement progress updates."""
         self.movement_progress = round(progress * 100, 1)
-        if constants.DEBUG: 
-            print(f"FollowPathExecutor: Progress {self.movement_progress}%")
+        if constants.DEBUG: print(f"FollowPathExecutor: Progress {self.movement_progress}%")
 
     def is_paused(self) -> bool:
         if self.generator is not None and not self.is_active:

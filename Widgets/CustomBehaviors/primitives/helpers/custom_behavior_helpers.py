@@ -4,11 +4,12 @@ from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Callable, Optional, Tuple
 
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
-
 
 from Py4GWCoreLib import GLOBAL_CACHE, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
 from Widgets.CustomBehaviors.primitives import constants
@@ -167,14 +168,11 @@ class Resources:
 
     @staticmethod
     def get_energy_percent_in_party(agent_id):
-        import HeroAI.shared_memory_manager as shared_memory_manager
-        shared_memory_handler = shared_memory_manager.SharedMemoryManager()
 
-        from HeroAI.constants import MAX_NUM_PLAYERS
-        for i in range(MAX_NUM_PLAYERS):
-            player_data = shared_memory_handler.get_player(i)
-            if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
-                return player_data["Energy"]
+        accounts:list[AccountData] = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            if agent_id == account.PlayerID:
+                return account.PlayerEnergy
         return 1.0  # default return full energy to prevent issues
 
     @staticmethod
@@ -231,6 +229,26 @@ class Resources:
             return False
 
         return len(spirit_array) > 0
+    
+    @staticmethod
+    def is_ally_under_specific_effect(agent_id: int, skill_id: int) -> bool:
+        if agent_id == GLOBAL_CACHE.Player.GetAgentID() :
+            # if target is the player, check if the player has the effect
+            has_buff: bool = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), skill_id)
+            return has_buff
+        else:
+            # else check if the party target has the effect
+            # we should also deep dive inside player.pet
+
+            accounts:list[AccountData] = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            for account in accounts:
+                if account.PlayerID == agent_id:
+
+                    for buff in account.PlayerBuffs:
+                        if buff == skill_id:
+                            return True
+
+        return False
 
 class Actions:
 
@@ -290,7 +308,10 @@ class Actions:
                 return BehaviorResult.ACTION_SKIPPED
             target_agent_id = selected_target
 
-        if target_agent_id is not None: Routines.Sequential.Agents.ChangeTarget(target_agent_id)
+        if target_agent_id is not None: 
+            GLOBAL_CACHE.Player.ChangeTarget(target_agent_id)
+            yield from Helpers.wait_for(50)
+            
         Routines.Sequential.Skills.CastSkillSlot(skill.skill_slot)
         if constants.DEBUG: print(f"cast_skill_to_target {skill.skill_name} to {target_agent_id}")
         yield from Helpers.delay_aftercast(skill)
@@ -312,6 +333,7 @@ class Actions:
         if cached_data.combat_handler.skills is None:
             try:
                 cached_data.combat_handler.PrioritizeSkills()
+                print(f"PrioritizeSkills")
             except Exception as e:
                 print(f"echec {e}")
         if cached_data.combat_handler.skills is None:
@@ -326,15 +348,19 @@ class Actions:
             return -1  # Return -1 if skill_id not found
 
         order = find_order()
-
         is_ready_to_cast, target_agent_id = cached_data.combat_handler.IsReadyToCast(order)
+        
 
         if not is_ready_to_cast:
             yield
             return BehaviorResult.ACTION_SKIPPED
 
         # option1
-        if target_agent_id is not None: Routines.Sequential.Agents.ChangeTarget(target_agent_id)
+        if target_agent_id is not None: 
+            GLOBAL_CACHE.Player.ChangeTarget(target_agent_id)
+            yield from Helpers.wait_for(50)
+
+
         Routines.Sequential.Skills.CastSkillID(skill.skill_id)
         # option2
         # ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, skill_slot, target_agent_id)
@@ -791,19 +817,6 @@ class Targets:
 
 class Heals:
 
-    @staticmethod
-    def is_ally_under_specific_effect(agent_id: int, skill_id: int) -> bool:
-        from HeroAI.utils import CheckForEffect
-
-        if agent_id == GLOBAL_CACHE.Player.GetAgentID() :
-            # if target is the player, check if the player has the effect
-            has_buff: bool = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), skill_id)
-            return has_buff
-        else:
-            # else check if the party target has the effect
-            # not sure pet are in heroAI...
-            has_effect: bool = CheckForEffect(agent_id, skill_id)
-            return has_effect
 
     @staticmethod
     def is_party_damaged(within_range:Range, min_allies_count:int, less_health_than_percent:float) -> bool:
