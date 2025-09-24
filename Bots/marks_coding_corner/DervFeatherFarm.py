@@ -32,6 +32,7 @@ VIABLE_LOOT = {
 }
 # handler constants
 HANDLE_STUCK = 'handle_stuck'
+HANDLE_LOOT = 'handle_loot'
 HANDLE_SENSALI_DANGER = 'handle_sensali_danger'
 
 bot = Botting(
@@ -47,27 +48,30 @@ movement_check_timer = ThrottledTimer(3000)
 stuck_counter = 0
 unstuck_counter = 0
 old_player_position = (0, 0)
-looted_areas = []
 item_id_blacklist = []
 is_farming = False
 is_looting = False
 
 
 # region Direct Bot Actions
-def return_to_outpost():
-    is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
-    is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
-    is_explorable = GLOBAL_CACHE.Map.IsExplorable()
-    is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated()
+def return_to_outpost(bot: Botting):
+    if bot.config.build_handler.status == DervBuildFarmStatus.Setup:  # type: ignore
+        return
 
-    if is_map_ready and is_party_loaded and is_explorable and is_party_defeated:
+    while True:
+        is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+        is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
+        is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+        is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated()
+
         yield from Routines.Yield.Player.Resign()
-        yield from Routines.Yield.wait(2000)
-        GLOBAL_CACHE.Party.ReturnToOutpost()
-        yield from Routines.Yield.wait(4000)
-        while GLOBAL_CACHE.Map.GetMapID() != GLOBAL_CACHE.Map.GetMapIDByName(SEITUING_HARBOR):
+        yield from Routines.Yield.wait(1000)
+
+        if is_map_ready and is_party_loaded and is_explorable and is_party_defeated:
+            yield from Routines.Yield.wait(2000)
             GLOBAL_CACHE.Party.ReturnToOutpost()
             yield from Routines.Yield.wait(4000)
+            break  # exit after returning to outpost
 
 
 def load_skill_bar(bot: Botting):
@@ -75,8 +79,8 @@ def load_skill_bar(bot: Botting):
 
 
 def ball_sensalis(bot: Botting):
-    sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
-    if not sum(1 for _ in sensali_array):
+    all_sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
+    if not len(all_sensali_array):
         return False
 
     ConsoleLog(FEATHER_FARMER, 'Balling all Sensalis...')
@@ -84,16 +88,19 @@ def ball_sensalis(bot: Botting):
     yield from Routines.Yield.wait(100)
 
     elapsed = 0
-    while elapsed < 30:  # 50 * 100ms = 3s
+    while elapsed < (10 * 10):  # 100 = 10 seconds, 30 = 3 seconds
         # Enemies nearby
         player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
         if player_hp < 0.80:
+            ConsoleLog(FEATHER_FARMER, 'Dying, killing immediately!')
             return True
 
-        sensali_array = get_sensali_array(custom_range=Range.Adjacent.value)
-        ball_count = sum(1 for _ in sensali_array)
+        all_sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
+        nearby_sensali_array = get_sensali_array(custom_range=Range.Nearby.value)
+        ball_count = len(nearby_sensali_array)
+        total_count = len(all_sensali_array)
 
-        if ball_count >= 3:
+        if ball_count == total_count:
             ConsoleLog(FEATHER_FARMER, 'Sensalis ready to kill!')
             return True  # condition satisfied
 
@@ -106,7 +113,6 @@ def ball_sensalis(bot: Botting):
 
 
 def farm_sensalis(bot, kill_immediately=False):
-    global looted_areas
     global is_looting
     global is_farming
 
@@ -115,14 +121,13 @@ def farm_sensalis(bot, kill_immediately=False):
 
     # Auto detect if sensalis in the area
     sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
-    if not sum(1 for _ in sensali_array):
+    if not len(sensali_array):
         ConsoleLog('Farm Sensalis', 'No Sensali detected!')
         return
 
-    last_farm_epicenter = GLOBAL_CACHE.Player.GetXY()
     ConsoleLog(FEATHER_FARMER, 'Farming...')
     is_farming = True
-    if kill_immediately:
+    if kill_immediately or get_non_sensali_array(custom_range=Range.Spellcast.value):
         bot.config.build_handler.status = DervBuildFarmStatus.Kill
     else:
         yield from ball_sensalis(bot)
@@ -137,28 +142,23 @@ def farm_sensalis(bot, kill_immediately=False):
     while True:
         sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
         if len(sensali_array) == 0:
-            if not is_looting:
-                is_looting = True
-                ConsoleLog(FEATHER_FARMER, 'Setting to [Loot] status')
-                bot.config.build_handler.status = DervBuildFarmStatus.Loot
-                yield from Routines.Yield.wait(500)
-                yield from loot_items()
-                yield from Routines.Yield.wait(500)
-                ConsoleLog(FEATHER_FARMER, 'Setting back to [Move] status')
-                bot.config.build_handler.status = DervBuildFarmStatus.Move
-                # log from the last epicenter of the begining of the farm
-                looted_areas.append(last_farm_epicenter)
-                is_looting = False
+            bot.config.build_handler.status = DervBuildFarmStatus.Move
             break  # all sensalis dead
 
         # Timeout check
         current_time = Utils.GetBaseTimestamp()
         if timeout > 0 and current_time - start_time > timeout:
+            ConsoleLog(FEATHER_FARMER, 'Fight took too long, setting back to [Move] status')
+            bot.config.build_handler.status = DervBuildFarmStatus.Move
+            yield from Routines.Yield.wait(1000)
+            yield from Routines.Yield.Player.Resign()
             return
 
         # Death check
         if GLOBAL_CACHE.Agent.IsDead(player_id):
             # handle death here
+            ConsoleLog(FEATHER_FARMER, 'Died fighting, setting back to [Move] status')
+            bot.config.build_handler.status = DervBuildFarmStatus.Move
             return
 
         yield from Routines.Yield.wait(100)
@@ -209,9 +209,15 @@ def get_sensali_array(custom_range=Range.Area.value * 1.50):
     return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) in SENSALI_MODEL_IDS]
 
 
+def get_non_sensali_array(custom_range=Range.Area.value * 1.50):
+    px, py = GLOBAL_CACHE.Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
+    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in SENSALI_MODEL_IDS]
+
+
 def get_valid_loot_array():
     loot_array = AgentArray.GetItemArray()
-    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 1.50)
+    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 3.00)
 
     def is_valid_item(item_id):
         if not Agent.IsValid(item_id):
@@ -238,21 +244,8 @@ def get_valid_loot_array():
     return filtered_agent_ids
 
 
-def is_in_looted_area():
-    global looted_areas
-    px, py = GLOBAL_CACHE.Player.GetXY()
-    for lx, ly in looted_areas:
-        dist_sq = (px - lx) ** 2 + (py - ly) ** 2
-        if dist_sq <= Range.Earshot.value**2:
-            ConsoleLog('ALERT', 'Already looted area!')
-            return True
-    return False
-
-
-def reset_looted_areas():
-    global looted_areas
+def reset_item_id_blacklist():
     global item_id_blacklist
-    looted_areas = []
     item_id_blacklist = []
     yield
 
@@ -285,7 +278,7 @@ def detect_sensali_or_loot():
         return False
 
     # Apply blacklist filter
-    filtered_agent_ids = [agent_id for agent_id in filtered_agent_ids if agent_id not in item_id_blacklist]
+    filtered_agent_ids = [agent_id for agent_id in filtered_agent_ids if agent_id not in set(item_id_blacklist)]
 
     if not filtered_agent_ids:
         return False
@@ -293,17 +286,23 @@ def detect_sensali_or_loot():
     return True
 
 
-def _on_death(bot: "Botting"):
+def _on_death(bot: Botting):
     ConsoleLog(FEATHER_FARMER, "Waiting for a moment reset...")
     yield from Routines.Yield.wait(1000)
+    ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
+    sup_ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
+    salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
     fsm = bot.config.FSM
-    fsm.jump_to_state_by_name("[H]Farm Loop_2")
+    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0:
+        fsm.jump_to_state_by_name("[H]Starting Loop_1")
+    else:
+        fsm.jump_to_state_by_name("[H]Farm Loop_2")
     fsm.resume()
     yield
 
 
-def on_death(bot: "Botting"):
-    ConsoleLog(FEATHER_FARMER, "Player is dead. Run Failed, Restarting...")
+def on_death(bot: Botting):
+    ConsoleLog(FEATHER_FARMER, "Player is dead. Restarting...")
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
@@ -400,6 +399,7 @@ def handle_stuck(bot: Botting):
                 stuck_counter = 0
                 unstuck_counter = 0
                 yield from Routines.Yield.Player.Resign()
+                continue
 
         if (
             GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
@@ -422,6 +422,7 @@ def handle_stuck(bot: Botting):
             if stuck_counter >= 10:
                 stuck_counter = 0
                 yield from Routines.Yield.Player.Resign()
+                continue
 
         yield from Routines.Yield.wait(500)
 
@@ -435,7 +436,6 @@ def handle_sensali_danger(bot: Botting):
 
         if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
-            yield from Routines.Yield.Player.Resign()
             continue
 
         if (
@@ -448,6 +448,38 @@ def handle_sensali_danger(bot: Botting):
         yield from Routines.Yield.wait(500)
 
 
+def handle_loot(bot: Botting):
+    global is_looting
+    while True:
+        # Wait until map is valid
+        if not Routines.Checks.Map.MapValid() and not Routines.Checks.Map.IsExplorable():
+            yield from Routines.Yield.wait(1000)
+            continue
+
+        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            yield from Routines.Yield.wait(1000)
+            continue
+
+        if (
+            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
+            and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
+        ):
+            if bot.config.pause_on_danger_fn() and get_valid_loot_array():
+                if not is_looting:
+                    is_looting = True
+                    ConsoleLog(FEATHER_FARMER, 'Setting to [Loot] status')
+                    bot.config.build_handler.status = DervBuildFarmStatus.Loot  # type: ignore
+                    yield from Routines.Yield.wait(500)
+                    yield from loot_items()
+                    yield from Routines.Yield.wait(500)
+                    ConsoleLog(FEATHER_FARMER, 'Setting back to [Move] status')
+                    bot.config.build_handler.status = DervBuildFarmStatus.Move  # type: ignore
+                    # log from the last epicenter of the begining of the farm
+                    is_looting = False
+
+        yield from Routines.Yield.wait(500)
+
+
 # endregion
 
 
@@ -456,9 +488,9 @@ def main_farm(bot: Botting):
     # override condition for halting movement
 
     bot.States.AddHeader('Starting Loop')
-    if GLOBAL_CACHE.Map.GetMapID() != GLOBAL_CACHE.Map.GetMapIDByName(SEITUING_HARBOR):
-        bot.Map.Travel(target_map_name=SEITUING_HARBOR)
-        bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
+    bot.Map.Travel(target_map_name=SEITUING_HARBOR)
+    bot.Wait.ForTime(2000)
+    bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
 
     bot.Move.XY(17113, 12283, "Move close to Merch")
@@ -480,9 +512,11 @@ def main_farm(bot: Botting):
     bot.config.set_pause_on_danger_fn(detect_sensali_or_loot)
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("pause_on_danger")
-    bot.States.AddCustomState(return_to_outpost, "Return to Seitung Harbor")
+    bot.States.AddCustomState(lambda: return_to_outpost(bot), "Return to Seitung Harbor")
+    bot.Wait.ForTime(2000)
     bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddManagedCoroutine(HANDLE_STUCK, lambda: handle_stuck(bot))
+    bot.States.AddManagedCoroutine(HANDLE_LOOT, lambda: handle_loot(bot))
     bot.States.AddManagedCoroutine(HANDLE_SENSALI_DANGER, lambda: handle_sensali_danger(bot))
     bot.States.AddCustomState(lambda: set_bot_to_move(bot), "Exit Outpost To Farm")
     bot.Move.XY(16570, 17713, "Exit Outpost To Farm")
@@ -549,7 +583,7 @@ def main_farm(bot: Botting):
 
     bot.States.AddHeader('ID and Salvage at the End')
     bot.States.AddCustomState(identify_and_salvage_items, "ID and Salvage loot")
-    bot.States.AddCustomState(reset_looted_areas, "Reset looted areas")
+    bot.States.AddCustomState(reset_item_id_blacklist, "Reset looting")
 
     bot.Party.Resign()
     bot.Wait.ForTime(3000)
@@ -560,8 +594,16 @@ bot.SetMainRoutine(main_farm)
 
 
 def main():
+    try:
+        script_directory = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
+        script_directory = os.getcwd()
+    project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+    base_dir = os.path.join(project_root, "marks_coding_corner/textures")
+    texture_icon_path = os.path.join(base_dir, "feather_art.png")
     bot.Update()
-    bot.UI.draw_window(icon_path="Feather_art.png")
+    bot.UI.draw_window(icon_path=texture_icon_path)
 
 
 if __name__ == "__main__":

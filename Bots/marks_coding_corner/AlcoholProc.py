@@ -43,7 +43,7 @@ except NameError:
 project_root = find_project_root(script_path, anchor_dir="Py4GW")
 first_run = True
 
-BASE_DIR = os.path.join(project_root, "Bots")
+BASE_DIR = os.path.join(project_root, "Bots/marks_coding_corner")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "AlcoholProc.ini")
 ALCOHOL_PROCS_JSON_PATH = os.path.join(BASE_DIR, "alcohol_procs.json")
 os.makedirs(BASE_DIR, exist_ok=True)
