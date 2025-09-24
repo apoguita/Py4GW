@@ -1,5 +1,6 @@
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
+from Py4GWCoreLib import AgentModelID
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import Key
 from Py4GWCoreLib import Keystroke
@@ -8,8 +9,11 @@ from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Skill
+from Py4GWCoreLib import SpiritModelID
 from Py4GWCoreLib import Weapon
 from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
+
+ENEMY_BLACKLIST = {SpiritModelID.BLOODSONG, SpiritModelID.DESTRUCTION, AgentModelID.CHARR_AXEMASTER}
 
 
 # =================== BUILD ========================
@@ -133,27 +137,40 @@ class DervBoneFarmer(BuildMgr):
                 yield from Routines.Yield.Skills.IsSkillIDUsable(self.grenths_aura)
                 and Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_silence)
             ) and has_signet_of_mystic_speed:
+                ActionQueueManager().ResetAllQueues()  # force reset so we can cast all skills without any issues
                 yield from Routines.Yield.Skills.CastSkillID(self.pious_fury, aftercast_delay=50)
                 yield from Routines.Yield.Skills.CastSkillID(self.grenths_aura, aftercast_delay=50)
                 yield from Routines.Yield.Skills.CastSkillID(self.vow_of_silence, aftercast_delay=50)
                 return
 
-            nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Nearby.value)
-            vos_buff_time_remaining = (
-                GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.vow_of_silence)
-                if has_vow_of_silence
-                else 0
-            )
-            if nearest_enemy and vos_buff_time_remaining > 2000:
-                yield from self.swap_to_scythe()
-                GLOBAL_CACHE.Player.Interact(nearest_enemy, False)
-                if self.has_enough_adrenaline(self.crippling_victory_slot):
-                    yield from Routines.Yield.Skills.CastSkillID(self.crippling_victory, aftercast_delay=100)
-                    return
+            px, py = GLOBAL_CACHE.Player.GetXY()
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Spellcast.value)
+            filtered_enemy_array = [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in ENEMY_BLACKLIST]
 
-                if self.has_enough_adrenaline(self.reap_impurities_slot):
-                    yield from Routines.Yield.Skills.CastSkillID(self.reap_impurities, aftercast_delay=100)
-                    return
+            if filtered_enemy_array:
+                nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Spellcast.value)
+                vos_buff_time_remaining = (
+                    GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.vow_of_silence)
+                    if has_vow_of_silence
+                    else 0
+                )
+                if (
+                    nearest_enemy
+                    and vos_buff_time_remaining > 2000
+                    and not (
+                        yield from Routines.Yield.Skills.IsSkillIDUsable(self.grenths_aura)
+                        and Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_silence)
+                    )
+                ):
+                    yield from self.swap_to_scythe()
+                    GLOBAL_CACHE.Player.Interact(nearest_enemy, False)
+                    if self.has_enough_adrenaline(self.crippling_victory_slot):
+                        yield from Routines.Yield.Skills.CastSkillID(self.crippling_victory, aftercast_delay=100)
+                        return
+
+                    if self.has_enough_adrenaline(self.reap_impurities_slot):
+                        yield from Routines.Yield.Skills.CastSkillID(self.reap_impurities, aftercast_delay=100)
+                        return
 
 
 # =================== BUILD END ========================
