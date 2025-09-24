@@ -489,6 +489,7 @@ def main_farm(bot: Botting):
 
     bot.States.AddHeader('Starting Loop')
     bot.Map.Travel(target_map_name=SEITUING_HARBOR)
+    bot.Wait.ForTime(3000)
     bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
 
@@ -512,6 +513,7 @@ def main_farm(bot: Botting):
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("pause_on_danger")
     bot.States.AddCustomState(lambda: return_to_outpost(bot), "Return to Seitung Harbor")
+    bot.Wait.ForTime(3000)
     bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddManagedCoroutine(HANDLE_STUCK, lambda: handle_stuck(bot))
     bot.States.AddManagedCoroutine(HANDLE_LOOT, lambda: handle_loot(bot))

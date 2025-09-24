@@ -1,3 +1,4 @@
+from Py4GWCoreLib.Builds.DervBoneFarmer import ENEMY_BLACKLIST
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBoneFarmer
 from Py4GWCoreLib import *
@@ -160,12 +161,7 @@ def buy_salvage_kits():
 def get_enemy_array(custom_range=Range.Area.value * 1.50):
     px, py = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
-    return [
-        agent_id
-        for agent_id in enemy_array
-        if GLOBAL_CACHE.Agent.GetModelID(agent_id)
-        not in {SpiritModelID.BLOODSONG, SpiritModelID.DESTRUCTION, AgentModelID.CHARR_AXEMASTER}
-    ]
+    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in ENEMY_BLACKLIST]
 
 
 def get_valid_loot_array():
@@ -288,6 +284,7 @@ def main_farm(bot: Botting):
     bot.Dialogs.AtXY(-19166.00, 17980.00, 0x88, "Enter COF Level 1")  # Enter COF Level 1
 
     # Resign setup
+    bot.Wait.ForTime(2000)
     bot.Wait.ForMapLoad(target_map_name=COF_LEVEL_1)
     bot.Move.XY(-19665, -8045, "Setup resign spot")
     bot.Wait.ForMapLoad(target_map_name=DOOMLORE_SHRINE)
@@ -296,11 +293,13 @@ def main_farm(bot: Botting):
     bot.States.AddHeader('Farm Loop')
     bot.Properties.Enable("auto_combat")
     bot.States.AddCustomState(lambda: return_to_outpost(bot), "Return to Doomlore")
+    bot.Wait.ForTime(2000)
     bot.Wait.ForMapLoad(target_map_name=DOOMLORE_SHRINE)
     bot.States.AddCustomState(lambda: set_bot_to_setup(bot), "Exit Outpost To Farm")
     bot.Dialogs.AtXY(-19166.00, 17980.00, 0x832101, "Temple of the damned Quest")  # Temple of the damned quest 0x832101
     bot.Dialogs.AtXY(-19166.00, 17980.00, 0x88, "Enter COF Level 1")  # Enter COF Level 1
     bot.Wait.ForMapLoad(target_map_name=COF_LEVEL_1)
+    bot.Wait.ForTime(2000)
     bot.Dialogs.AtXY(-18250.00, -8595.00, 0x84)
 
     bot.Move.XY(-16623, -8989, 'Move prep spot')
