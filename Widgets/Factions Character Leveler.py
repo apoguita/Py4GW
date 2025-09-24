@@ -879,9 +879,9 @@ def AdvanceToGunnarsHold(bot: Botting):
 
 def UnlockRemainingSecondaryProfessions(bot: Botting):
     bot.States.AddHeader("Unlock remaining secondary professions")
-    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     bot.Map.Travel(target_map_id=248)  # GTOB
     bot.Move.XY(-3151.22, -7255.13)  # Move to profession trainers area
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     
     if primary == "Warrior":
         bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
