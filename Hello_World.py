@@ -1,58 +1,47 @@
-from __future__ import annotations
-from typing import Optional
-import os
-
+from Py4GWCoreLib import Botting
 import PyImGui
-from Py4GWCoreLib import Py4GW
+
+#QUEST TO INCREASE SPAWNS https://wiki.guildwars.com/wiki/Lady_Mukei_Musagi
+BOT_NAME = "example to jump to step name"
 
 
-def get_script_path_for_model(model: int) -> Optional[str]:
-    """
-    Resolve the script filename for a given model ID.
-    Returns the full path if found, otherwise None.
-    """
-    base_path = Py4GW.Console.get_projects_path()
-    bots_path = os.path.join(base_path, "Bots", "Nicholas the Traveler")
+bot = Botting(BOT_NAME)
+                
+def bot_routine(bot: Botting) -> None:
+    bot.States.AddHeader("Unlock Skill #1")
+    bot.UI.PrintMessageToConsole("Skill #1","This is a fake message pretending to do something useful in skill 1")
+    bot.States.JumpToStepName("[H]End_4")
+    bot.States.AddHeader("Unlock Skill #2")
+    bot.UI.PrintMessageToConsole("Skill #2","This is a fake message pretending to do something useful in skill 2")
+    bot.States.JumpToStepName("[H]End_4")
+    bot.States.AddHeader("Unlock Skill #3")
+    bot.UI.PrintMessageToConsole("Skill #3","This is a fake message pretending to do something useful in skill 3")
+    bot.States.JumpToStepName("[H]End_4")
+    bot.States.AddHeader("End")
+    bot.UI.PrintMessageToConsole("End","This is the end of the bot routine")
 
-    try:
-        for file in os.listdir(bots_path):
-            if file.startswith(f"{model}-") and file.endswith(".py"):
-                return os.path.join(bots_path, file)
-    except Exception as e:
-        Py4GW.Console.Log(
-            "script loader",
-            f"Error scanning for model {model}: {str(e)}",
-            Py4GW.Console.MessageType.Error,
-        )
 
-    return None
 
+bot.SetMainRoutine(bot_routine)
+
+def Draw_Window():
+    if PyImGui.begin("My Skill Farmer", True, PyImGui.WindowFlags.AlwaysAutoResize):
+        PyImGui.text("This is an example bot that jumps to a step name")
+        if PyImGui.button("Start Bot  at Step 'Unlock Skill #1'"):
+            bot.StartAtStep("[H]Unlock Skill #1_1")
+            
+        if PyImGui.button("Start Bot  at Step 'Unlock Skill #2'"):
+            bot.StartAtStep("[H]Unlock Skill #2_2")
+
+        if PyImGui.button("Start Bot  at Step 'Unlock Skill #3'"):
+            bot.StartAtStep("[H]Unlock Skill #3_3")
+
+        PyImGui.end()
 
 def main():
-    try:
-        model = 807
-        if PyImGui.begin("script loader"):
-            PyImGui.text("Click the button below to load the farming script.")
-
-            if PyImGui.button("load model script"):
-                script_path = get_script_path_for_model(model)
-                if script_path:
-                    Py4GW.Console.Log(
-                        "script loader",
-                        f"Loading script from {script_path}",
-                        Py4GW.Console.MessageType.Info,
-                    )
-                    Py4GW.Console.defer_stop_load_and_run(script_path)
-                else:
-                    Py4GW.Console.Log(
-                        "script loader",
-                        f"No script found for model {model}",
-                        Py4GW.Console.MessageType.Error,
-                    )
-
-    except Exception as e:
-        Py4GW.Console.Log("script loader", f"Error: {str(e)}", Py4GW.Console.MessageType.Error)
-        raise
+    bot.Update()
+    Draw_Window()
+    bot.UI.draw_window()
 
 
 if __name__ == "__main__":

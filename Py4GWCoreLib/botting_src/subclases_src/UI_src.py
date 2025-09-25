@@ -429,6 +429,14 @@ class _UI:
                         debug_text("log_actions", "active")
                         debug_text("halt_on_death", "active")
                         debug_text("pause_on_danger", "active")
+                        PyImGui.text("InDanger(PauseOnDangerFn eval):")
+                        PyImGui.same_line(0,-1)
+                        parent = self._parent
+                        if parent.config.pause_on_danger_fn():
+                            PyImGui.text_colored(f"{parent.config.pause_on_danger_fn()}", (0, 255, 0, 255))
+                        else:
+                            PyImGui.text_colored(f"{parent.config.pause_on_danger_fn()}", (255, 0, 0, 255))
+
                         debug_text("movement_timeout", "value")
                         debug_text("movement_tolerance", "value")
                         debug_text("draw_path", "active")
