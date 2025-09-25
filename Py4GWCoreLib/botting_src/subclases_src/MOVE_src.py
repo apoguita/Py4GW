@@ -72,3 +72,9 @@ class _MOVE:
 
     def FollowModel(self, model_id: int, follow_range: float, exit_condition: Optional[Callable[[], bool]] = lambda:False) -> None:
         self._helpers.Move.follow_model(model_id, follow_range, exit_condition)
+        
+    def ToModel(self, model_id: int, step_name: str = "") -> None:
+        if step_name == "":
+            step_name = f"ToModel_{self._config.get_counter('TO_MODEL')}"
+
+        self._helpers.Move.to_model(model_id)
