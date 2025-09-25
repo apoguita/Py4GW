@@ -758,18 +758,24 @@ def AdvanceToKamadan(bot: Botting):
     bot.Move.XYAndDialog(-5899.57, 7240.19, 0x82D404)  # Kormir dialog kormir model ID
     bot.Dialogs.WithModel(4863, 0x87)  # Kormir dialog model id 4863
     bot.Wait.ForMapToChange(target_map_id=400)
-    bot.Move.XY(1059, -4218)
+    bot.Move.XY(-1712.16, -700.23)
+    bot.Move.XY(-907.97, -2862.29)
+    bot.Move.XY(742.42, -4167.73)
     bot.Wait.ForTime(10000)
-    bot.Move.XY(2790.35, -3769.20)
-    bot.Move.XY(3230.09, -1497.11)
-    bot.Move.XY(4307.60, -1442.95)
+    bot.Move.XY(1352.94, -3694.75)
+    bot.Move.XY(2547.49, -3667.82)
+    bot.Move.XY(2541.67, -2582.88) #critical part, high aggro area
+    bot.Wait.ForTime(10000)
+    bot.Move.XY(1990.27, -1636.21)
     bot.Wait.ForTime(15000)
-    bot.Move.XY(2726.32, 677.34)
-    bot.Move.XY(455.90, 562.61)
+    bot.Move.XY(2651.48, -3750.63)
+    bot.Move.XY(3355.63, -2151.82) #critical part, high aggro area
+    bot.Wait.ForTime(10000)
+    bot.Move.XY(4565.37, -1630.73)
     bot.Wait.ForTime(15000)
-    bot.Move.XY(2522.74, 555.16)
-    bot.Move.XY(1830.52, -1247.38)
-    #bot.Wait.ForTime(15000)
+    bot.Move.XY(2951.07, -723.50)
+    bot.Move.XY(2875.84, 488.42)
+    bot.Move.XY(1354.73, 583.06)
     bot.Wait.ForMapToChange(target_map_id=290)
     #bot.Dialogs.WithModel(4863, 0x82D404)  # Kormir dialog model id 4863
     #bot.Dialogs.WithModel(4863, 0x85)  # Kormir dialog model id 4863
