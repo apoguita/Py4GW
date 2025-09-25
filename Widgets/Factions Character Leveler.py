@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Tuple
+from typing import List, Tuple, Generator, Any
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui)
@@ -364,31 +364,42 @@ def ExitToSunquaVale(bot: Botting) -> None:
     ConfigurePacifistEnv(bot)
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     
-def RangerCapturePet(bot: Botting) -> None:
-    bot.Move.XYAndDialog(-7782.00, 6687.00,0x810403) #Locate Sujun
-    bot.Dialogs.AtXY(-7782.00, 6687.00,0x810401) #Accept Quest
-    bot.UI.CancelSkillRewardWindow()
-      
-def RangerGetSkills(bot: Botting) -> None:
-    bot.Move.XYAndDialog(5103.00, -4769.00,0x810407) #accept reward
-    bot.Dialogs.AtXY(5103.00, -4769.00,0x811401) #of course i will help
+def RangerCapturePet(bot: Botting) -> Generator[Any, Any, None]:
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    #ConsoleLog("RangerCapturePet", f"Primary Profession: {primary}", Py4GW.Console.MessageType.Info)
+    if primary != "Ranger": return
+    yield from bot.helpers.Move._get_path_to(-7782.00, 6687.00)
+    yield from bot.helpers.Move._follow_path()
+    yield from bot.helpers.Interact._with_agent((-7782.00, 6687.00), 0x810403) #Locate Sujun
+    yield from bot.helpers.Interact._with_agent((-7782.00, 6687.00), 0x810401) #Accept Quest
+    yield from bot.helpers.UI._cancel_skill_reward_window()
+
+def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if primary != "Ranger": return
+    yield from bot.helpers.Move._get_path_to(5103.00, -4769.00)
+    yield from bot.helpers.Move._follow_path()
+    yield from bot.helpers.Interact._with_agent((5103.00, -4769.00), 0x810407) #npc to get skills from
+    yield from bot.helpers.Interact._with_agent((5103.00, -4769.00), 0x811401) #of course i will help
+
 
 def CapturePet(bot: Botting) -> None:
     bot.States.AddHeader("Capture Pet")
-    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    if primary == "Ranger":
-        RangerCapturePet(bot)
+    bot.States.AddHeader("Ranger Pet Evaluation")
+    bot.States.AddCustomState(lambda:RangerCapturePet(bot), "Unlock Skills")
      
     bot.States.AddCustomState(EquipCaptureSkillBar, "Equip Capture Skill Bar")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
 
     bot.Move.XY(13970.94, -13085.83)
+    bot.Move.ToModel(2954) #Tiger
+    bot.Wait.ForTime(500)
     bot.Target.Model(2954) #Tiger
     bot.SkillBar.UseSkill(411) #Capture Pet
-    bot.Wait.ForTime(22000)
+    bot.Wait.ForTime(14000)
     
-    if primary == "Ranger":
-        RangerGetSkills(bot)
+    bot.States.AddHeader("Ranger Get Skills")
+    bot.States.AddCustomState(lambda: RangerGetSkills(bot), "Get Ranger Skills")
          
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     
@@ -984,16 +995,19 @@ def on_party_wipe(bot: "Botting"):
     current_step = fsm.get_current_state_number()
 
     # Your distinct waypoints (as given)
-    ENTER_MINISTER_CHO_MISSION = 82
-    FIRST_ATTRIBUTE_MISSION = 126
-    TAKE_WARNING_THE_TENGU_QUEST = 161
-    EXIT_TO_PANJIANG_PENINSULA = 238
-    ADVANCE_SHAOSHANG_TRAIL = 276
-    RESTART_FROM_SEITUNG_HARBOR = 335
-    ENTER_ZEN_DAIJUN_MISSION = 362
-    SECOND_ATTRIBUTE_MISSION = 418
-    ADVANCE_TO_KAINENG_CENTER = 635
-    ADVANCE_TO_EOTN = 663
+    ENTER_MINISTER_CHO_MISSION = 100
+    FIRST_ATTRIBUTE_MISSION = 148
+    TAKE_WARNING_THE_TENGU_QUEST = 189
+    EXIT_TO_PANJIANG_PENINSULA = 286
+    ADVANCE_SHAOSHANG_TRAIL = 357
+    RESTART_FROM_SEITUNG_HARBOR = 422
+    ENTER_ZEN_DAIJUN_MISSION = 433
+    SECOND_ATTRIBUTE_MISSION = 494
+    ADVANCE_TO_KAINENG_CENTER = 735
+    ADVANCE_TO_LA =768
+    ADVANCE_TO_KAMADAN = 814
+    
+    ADVANCE_TO_EOTN = 901
     EXIT_BOREAL_STATION = 727
 
     waypoints = [
@@ -1006,6 +1020,8 @@ def on_party_wipe(bot: "Botting"):
         ENTER_ZEN_DAIJUN_MISSION,
         SECOND_ATTRIBUTE_MISSION,
         ADVANCE_TO_KAINENG_CENTER,
+        ADVANCE_TO_LA,
+        ADVANCE_TO_KAMADAN,
         ADVANCE_TO_EOTN,
         EXIT_BOREAL_STATION,
     ]
