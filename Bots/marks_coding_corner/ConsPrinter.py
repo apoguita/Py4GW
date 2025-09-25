@@ -1,3 +1,5 @@
+import os
+
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Bags
 from Py4GWCoreLib import Botting
@@ -12,6 +14,14 @@ from Py4GWCoreLib import ConsoleLog
 selected_step = 0
 EMBARK_BEACH = "Embark Beach"
 MODULE_NAME = 'Cons Printing'
+SELLABLE_CRAFTING_MATERIALS_MODEL_ID = [
+    ModelID.Wood_Plank,
+    ModelID.Scale,
+    ModelID.Tanned_Hide_Square,
+    ModelID.Bolt_Of_Cloth,
+    ModelID.Granite_Slab,
+    ModelID.Chitin_Fragment,
+]
 
 
 bot = Botting(MODULE_NAME)
@@ -45,14 +55,6 @@ def move_all_crafting_materials_to_storage():
 def sell_non_cons_material_from_inventory():
     MAX_WITHDRAW_ATTEMPTS = 20
     REQUIRED_QUANTITY = 10
-    SELLABLE_CRAFTING_MATERIALS_MODEL_ID = [
-        ModelID.Wood_Plank,
-        ModelID.Scale,
-        ModelID.Tanned_Hide_Square,
-        ModelID.Bolt_Of_Cloth,
-        ModelID.Granite_Slab,
-        ModelID.Chitin_Fragment,
-    ]
     for model_id in SELLABLE_CRAFTING_MATERIALS_MODEL_ID:
         attempts = 0
         while GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id) and attempts < MAX_WITHDRAW_ATTEMPTS:
@@ -122,7 +124,7 @@ def withdraw_cons_materials_from_inventory():
     GOLD_PER_CONSET = 750
 
     # Step 1: Check how many we can craft
-    max_possible = 99999  # unrealistically high number
+    max_possible = 20  # Max cap so we can fit all in the inventory
     for model_id, req_amount in PER_CONSET.items():
         available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
         possible = available // req_amount
@@ -198,6 +200,13 @@ def craft_item(target_model_id, required_mats, per_craft_mats, crafts=5):
                 GLOBAL_CACHE.Trading.Crafter.CraftItem(item_id, 250, trade_item_list, quantity_list)
                 yield from Routines.Yield.wait(1000)
             break
+
+
+def merch_extra_item(item_id):
+    quantity = GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)
+    value = GLOBAL_CACHE.Item.Properties.GetValue(item_id)
+    cost = quantity * value
+    GLOBAL_CACHE.Trading.Merchant.SellItem(item_id, cost)
 
 
 def craft_armor_of_salvation():
@@ -284,8 +293,16 @@ bot.SetMainRoutine(main_bot)
 
 
 def main():
+    try:
+        script_directory = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
+        script_directory = os.getcwd()
+    project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+    base_dir = os.path.join(project_root, "marks_coding_corner/textures")
+    texture_icon_path = os.path.join(base_dir, "conset_printer.png")
     bot.Update()
-    bot.UI.draw_window(icon_path="cof_art.png")
+    bot.UI.draw_window(icon_path=texture_icon_path)
 
 
 if __name__ == "__main__":
