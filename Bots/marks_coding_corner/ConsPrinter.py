@@ -308,7 +308,6 @@ def craft_multiple_item_at_once(target_model_id, required_mats, per_craft_mats, 
 
             # === Step 4: Craft all at once ===
             GLOBAL_CACHE.Trading.Crafter.CraftItem(item_id, 250 * crafts, trade_item_list, quantity_list)
-            yield from Routines.Yield.wait(1000)
             break
 
 
