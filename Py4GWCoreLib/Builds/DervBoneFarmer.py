@@ -139,14 +139,17 @@ class DervBoneFarmer(BuildMgr):
             ) and has_signet_of_mystic_speed:
                 ActionQueueManager().ResetAllQueues()
                 yield from Routines.Yield.Skills.CastSkillID(self.pious_fury, aftercast_delay=100)
+                ActionQueueManager().ResetAllQueues()
                 has_pious_fury = Routines.Checks.Effects.HasBuff(player_agent_id, self.pious_fury)
                 if has_pious_fury:
                     ActionQueueManager().ResetAllQueues()
                     yield from Routines.Yield.Skills.CastSkillID(self.grenths_aura, aftercast_delay=100)
+                    ActionQueueManager().ResetAllQueues()
                     has_grenths_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.grenths_aura)
                     if has_grenths_aura:
                         ActionQueueManager().ResetAllQueues()
                         yield from Routines.Yield.Skills.CastSkillID(self.vow_of_silence, aftercast_delay=100)
+                        ActionQueueManager().ResetAllQueues()
                 return
 
             px, py = GLOBAL_CACHE.Player.GetXY()
