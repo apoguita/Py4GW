@@ -81,5 +81,8 @@ class _ITEMS:
         def Honeycomb(self):
             self._helpers.Restock.restock_honeycomb()
 
+        def WarSupplies(self):
+            self._helpers.Restock.restock_war_supplies()
+
 
 

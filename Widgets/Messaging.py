@@ -623,7 +623,7 @@ def PickUpLoot(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    ConsoleLog(MODULE_NAME, "Starting PickUpLoot routine", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, "Starting PickUpLoot routine", Console.MessageType.Info, False)
 
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
     yield from DisableHeroAIOptions(message.ReceiverEmail)
@@ -705,7 +705,7 @@ def PickUpLoot(index, message):
 
     yield from RestoreHeroAISnapshot(message.ReceiverEmail)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "PickUpLoot routine finished.", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, "PickUpLoot routine finished.", Console.MessageType.Info, False)
 
 
 def MessageDisableHeroAI(index, message):

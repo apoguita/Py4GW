@@ -1,6 +1,9 @@
 from functools import wraps
 from typing import TYPE_CHECKING
 
+from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib import ConsoleLog, Console
+
 if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingHelpers
     
@@ -61,21 +64,51 @@ class _Upkeepers:
     def upkeep_auto_loot(self):
         from ...Routines import Routines
         from ...Py4GWcorelib import LootConfig
-        from ...enums import Range
+        from ...enums import Range, SharedCommandType
         from Py4GW_widget_manager import get_widget_handler
+        def LootingRoutineActive():
+            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
+
+            if index == -1 or message is None:
+                return False
+
+            if message.Command != SharedCommandType.PickUpLoot:
+                return False
+            return True
+
         handler = get_widget_handler()
 
         while True:
-            if (self._config.upkeep.auto_loot.is_active() and not self.parent.config.pause_on_danger_fn()
-                and not handler.is_widget_enabled("HeroAI")):
-                loot_singleton = LootConfig()
-                filtered_agent_ids = loot_singleton.GetfilteredLootArray(distance=Range.Earshot.value, multibox_loot=True, allow_unasigned_loot=True)
-                if len(filtered_agent_ids) > 0:
-                    yield from Routines.Yield.Items.LootItems(filtered_agent_ids)
-                else:
-                    yield from Routines.Yield.wait(500)
-            else:
+            if not self._config.upkeep.auto_loot.is_active():
                 yield from Routines.Yield.wait(500)
+                continue
+            
+            if self.parent.config.pause_on_danger_fn():
+                yield from Routines.Yield.wait(500)
+                continue
+            
+            if handler.is_widget_enabled("HeroAI"):
+                yield from Routines.Yield.wait(500)
+                continue
+            
+            loot_singleton = LootConfig()
+            loot_array = loot_singleton.GetfilteredLootArray(distance=Range.Earshot.value, multibox_loot=True, allow_unasigned_loot=True)
+            if len(loot_array) == 0:
+                yield from Routines.Yield.wait(500)
+                continue
+            player_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            
+            GLOBAL_CACHE.ShMem.SendMessage(
+                player_email,
+                player_email,
+                SharedCommandType.PickUpLoot,
+                (0, 0, 0, 0),
+            )
+            yield from Routines.Yield.wait(500)
+            while LootingRoutineActive():
+                yield from Routines.Yield.wait(100)
+
 
     def upkeep_armor_of_salvation(self):    
         from ...Routines import Routines

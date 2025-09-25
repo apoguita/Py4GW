@@ -48,7 +48,7 @@ path_points_to_farming_route2: List[Tuple[float, float]] = [
 
 path_points_to_killing_spot: List[Tuple[float, float]] = [
     (13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220), (12703, -17239),
-    (12684, -17184),
+    (12684, -17184), # (12429.97, -17150.89) testing new ball end location
 ]
 
 path_points_to_exit_jaga_moraine: List[Tuple[float, float]] = [(12289, -17700) ,(13970, -18920), (15400, -20400),(15850,-20550)]
