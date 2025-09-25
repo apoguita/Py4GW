@@ -34,6 +34,10 @@ class _Upkeepers:
         from Py4GW_widget_manager import get_widget_handler
         handler = get_widget_handler()
         while True:   
+            if not self._config.upkeep.hero_ai.is_active():
+                yield from Routines.Yield.wait(500)
+                continue
+            
             if not (self.parent.config.pause_on_danger_fn()):
                 self.cancel_movement_triggered = False
             

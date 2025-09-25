@@ -15,8 +15,7 @@ class _UI:
         self._config = parent._config
         self._Events = parent.Events   
     
-    @_yield_step(label="CancelSkillRewardWindow", counter_key="CANCEL_SKILL_REWARD_WINDOW")
-    def cancel_skill_reward_window(self):
+    def _cancel_skill_reward_window(self):
         from ...Routines import Routines
         import Py4GW
         from ...UIManager import UIManager
@@ -34,6 +33,10 @@ class _UI:
         
         UIManager.FrameClick(cancel_button_frame_id)
         yield from Routines.Yield.wait(1000)
+    
+    @_yield_step(label="CancelSkillRewardWindow", counter_key="CANCEL_SKILL_REWARD_WINDOW")
+    def cancel_skill_reward_window(self):
+        yield from self._cancel_skill_reward_window()
             
             
     @_yield_step(label="SendChatMessage", counter_key="SEND_CHAT_MESSAGE")
