@@ -39,9 +39,9 @@ def Routine(bot: Botting) -> None:
     bot.Move.XY(-2034, -4512, "Move to blessing")
     bot.Wait.UntilOutOfCombat(Range.Spellcast)
 
-    bot.Wait.ForTime(2000)
+    bot.Wait.ForTime(5000)
     bot.Interact.GetBlessing()
-    bot.Wait.ForTime(6000)
+    bot.Wait.ForTime(10000)
 
     bot.Move.XY(-5278, -5771, "Aggro: Berzerker")
     bot.Wait.UntilOutOfCombat(Range.Spellcast)
