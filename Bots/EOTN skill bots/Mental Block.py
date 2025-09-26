@@ -31,7 +31,7 @@ bot.SetMainRoutine(Routine)
 
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path="IAU.png")
+    bot.UI.draw_window(icon_path="Mental Block.png")
 
 
 if __name__ == "__main__":

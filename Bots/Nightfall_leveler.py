@@ -76,7 +76,26 @@ def EquipSkillBar():
         else: #20 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYRKuGj4V6+f9NAAAAAg2A")
     elif profession == "Paragon":
-        yield from Routines.Yield.Skills.LoadSkillbar("OwJkYRZ5XMGiiBbuMAAAAAtJAA")    
+        if level <= 2: #5 attribute points available
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCkUKmxpgKDM+BXhLyAZVcMWAA")    
+        elif level <= 3: #10 attribute points available
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCkUKmxpgKDM+BXhLyAZVcMWAA")    
+        elif level <= 4: #15 attribute points available
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCkUOmypgKDM+BXhLyAZVcMWAA")    
+        elif level <= 5: #20 attribute points available
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCkUOmypgKDM+BXhLyAZVcMWAA")    
+        elif level <= 6: #40 attribute points available 
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCkUOmypgKDM+BXhLyAZVcMWAA")    
+        elif level <= 7: #50 attribute points available
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCkUOmypgKDM+BXhLyAZVcMWAA")    
+        elif level <= 8: #50 attribute points available
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCkUOmypgKDM+BXhLyAZVcMWAA")    
+        elif level <= 9: #55 attribute points available
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCkUOmypgKDM+BXhLyAZVcMWAA")    
+        elif level <= 10: #55 attribute points available
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCkUOmypgKDM+BXhLyAZVcMWAA")    
+        else: #20 attribute points available
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCkUOmypgKDM+BXhLyAZVcMWAA")    
 
 def LoadHeroSkillBar(hero_index, skill_template):
     global bot
@@ -113,7 +132,14 @@ def Quiz_the_recruits(bot: Botting):
 
 def Configure_first_Battle(bot: Botting):
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
-    bot.Items.Equip(15591) #starter scythe
+    def Equip_Weapon():
+        global bot
+        profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        if profession == "Dervish":
+            bot.Items.Equip(15591)  # starter scythe
+        elif profession == "Paragon":
+            bot.Items.Equip(15593) 
+    Equip_Weapon()
     bot.Dialogs.AtXY(3433, -5900, 0x82C707, step_name="Accept")
 
 def Enter_Chahbek_Mission(bot: Botting):
@@ -145,14 +171,25 @@ def Enter_Chahbek_Mission(bot: Botting):
     bot.Move.XY(-3938, -6315) #Boss
     bot.Wait.ForMapToChange(target_map_id=456)
 
+def Get_Skills():
+    global bot
+    ConfigurePacifistEnv(bot)
+    profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if profession == "Dervish":
+        bot.Move.XYAndDialog(-12107, -705, 0x7F, step_name="Teach me 1")
+        bot.Move.XY(-12200, 473)
+                
+    elif profession == "Paragon":
+        bot.Move.XYAndDialog(-10724, -3364, 0x7F, step_name="Teach me 1")
+        bot.Move.XY(-12200, 473)
+
 def Learn_more(bot: Botting):
     bot.States.AddHeader("First Spear Dehvad")
     ConfigurePacifistEnv(bot) #we dont want to fight, we are pascifist
     bot.Move.XY(-7158, 4894)
     bot.Move.XYAndDialog(-7158, 4894, 0x825801, step_name="Couldn't hurt to learn")
-    bot.Move.XY(-12092, -704)
-    bot.Move.XYAndDialog(-12107, -705, 0x7F, step_name="Teach me 1")
-    bot.Move.XY(-12200, 473)
+    Get_Skills()
+    ConfigurePacifistEnv(bot) #doubled for testing
     bot.Move.XYAndDialog(-7139, 4891, 0x825807, step_name="Accept reward")
     bot.States.AddHeader("Honing Your Skills")
     bot.Move.XYAndDialog(-7158, 4894, 0x828901, step_name="Honing your skills")

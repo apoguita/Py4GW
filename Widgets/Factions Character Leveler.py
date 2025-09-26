@@ -98,7 +98,7 @@ def EquipSkillBar(skillbar = ""):
         else: #20 attribute points available
             skillbar = "OQITYN8kzQxw23AAAAg2CAA"
     elif profession == "Ranger":
-        skillbar = "OggjYZZIYMKG1pvBAAAAA0GBAA"
+        skillbar = "OggkYhXXGDijiRd6bEOAAAAtRAA"
     elif profession == "Monk":
         skillbar = "OwISYxcGKG2o03AAA0WA"
     elif profession == "Necromancer":
