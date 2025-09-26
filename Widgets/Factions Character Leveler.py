@@ -516,6 +516,7 @@ def TakeRewardAndCraftArmor(bot: Botting):
     bot.Move.XYAndDialog(16435, 12047, 0x815607) #TAKE_REWARD
     bot.Move.XYAndInteractNPC(17520.00, 13805.00)
     bot.States.AddCustomState(BuyMaterials, "Buy Materials")
+    bot.Move.XY(19823.66, 9547.78)
     bot.Move.XYAndInteractNPC(20508.00, 9497.00)
     exec_fn = lambda: CraftArmor(bot)
     bot.States.AddCustomState(exec_fn, "Craft Armor")
