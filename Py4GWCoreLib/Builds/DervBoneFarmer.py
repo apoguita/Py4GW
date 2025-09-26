@@ -137,10 +137,19 @@ class DervBoneFarmer(BuildMgr):
                 yield from Routines.Yield.Skills.IsSkillIDUsable(self.grenths_aura)
                 and Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_silence)
             ) and has_signet_of_mystic_speed:
-                ActionQueueManager().ResetAllQueues()  # force reset so we can cast all skills without any issues
-                yield from Routines.Yield.Skills.CastSkillID(self.pious_fury, aftercast_delay=50)
-                yield from Routines.Yield.Skills.CastSkillID(self.grenths_aura, aftercast_delay=50)
-                yield from Routines.Yield.Skills.CastSkillID(self.vow_of_silence, aftercast_delay=50)
+                ActionQueueManager().ResetAllQueues()
+                yield from Routines.Yield.Skills.CastSkillID(self.pious_fury, aftercast_delay=100)
+                ActionQueueManager().ResetAllQueues()
+                has_pious_fury = Routines.Checks.Effects.HasBuff(player_agent_id, self.pious_fury)
+                if has_pious_fury:
+                    ActionQueueManager().ResetAllQueues()
+                    yield from Routines.Yield.Skills.CastSkillID(self.grenths_aura, aftercast_delay=100)
+                    ActionQueueManager().ResetAllQueues()
+                    has_grenths_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.grenths_aura)
+                    if has_grenths_aura:
+                        ActionQueueManager().ResetAllQueues()
+                        yield from Routines.Yield.Skills.CastSkillID(self.vow_of_silence, aftercast_delay=100)
+                        ActionQueueManager().ResetAllQueues()
                 return
 
             px, py = GLOBAL_CACHE.Player.GetXY()
