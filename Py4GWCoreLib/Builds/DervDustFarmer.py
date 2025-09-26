@@ -67,19 +67,36 @@ class DervDustFarmer(BuildMgr):
             Keystroke.PressAndRelease(Key.F2.value)
             yield from Routines.Yield.wait(750)
 
-    def is_target_fog_nightmare(self, agent_id):
+    def is_target_correct_model_id(self, agent_id, model_id):
         if not agent_id:
             return False
 
-        if GLOBAL_CACHE.Agent.GetModelID(agent_id) in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}:
+        if GLOBAL_CACHE.Agent.GetModelID(agent_id) == model_id:
             return True
         return False
 
-    def get_fog_nightmare_target(self, agent_ids):
+    def get_fog_nightmare_or_aloe_target(self, agent_ids):
+        aloe_target = None
+        fog_nightmare_target = None
+        fog_nightmare_count = 0
         for agent_id in agent_ids:
-            if self.is_target_fog_nightmare(agent_id):
-                return agent_id
-        return None
+            if self.is_target_correct_model_id(agent_id, AgentModelID.SPINED_ALOE):
+                aloe_target = agent_id
+
+        for agent_id in agent_ids:
+            if self.is_target_correct_model_id(agent_id, AgentModelID.FOG_NIGHTMARE):
+                fog_nightmare_count += 1
+                fog_nightmare_target = agent_id
+
+        if aloe_target and fog_nightmare_target and fog_nightmare_count > 1:
+            return Routines.Agents.GetNearestEnemy(Range.Earshot.value)
+        if aloe_target and fog_nightmare_count and fog_nightmare_count <= 1:
+            return aloe_target
+        if fog_nightmare_target:
+            return Routines.Agents.GetNearestEnemy(Range.Earshot.value)
+        if aloe_target:
+            return aloe_target
+        return Routines.Agents.GetNearestEnemy(Range.Earshot.value)
 
     def ProcessSkillCasting(self):
         if not (
@@ -159,11 +176,11 @@ class DervDustFarmer(BuildMgr):
             remaining_enemies = Routines.Agents.GetFilteredEnemyArray(
                 player_pos[0], player_pos[1], Range.Spellcast.value
             )
-            next_fog_nightmare = self.get_fog_nightmare_target(remaining_enemies)
+            next_target = self.get_fog_nightmare_or_aloe_target(remaining_enemies)
 
-            if next_fog_nightmare:
+            if next_target:
                 yield from self.swap_to_scythe()
-                GLOBAL_CACHE.Player.Interact(next_fog_nightmare, False)
+                GLOBAL_CACHE.Player.Interact(next_target, False)
                 has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
                 has_sand_shards = Routines.Checks.Effects.HasBuff(player_agent_id, self.sand_shards)
                 if (
@@ -174,9 +191,7 @@ class DervDustFarmer(BuildMgr):
                     yield from Routines.Yield.Skills.CastSkillID(self.sand_shards, aftercast_delay=250)
                     return
 
-                if (
-                    yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_strength)
-                ) and not has_vow_of_strength:
+                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_strength)) and not has_vow_of_strength:
                     yield from Routines.Yield.Skills.CastSkillID(self.vow_of_strength, aftercast_delay=250)
                     return
                 has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
@@ -199,10 +214,6 @@ class DervDustFarmer(BuildMgr):
                         return
 
                 yield
-                return
-
-            if not next_fog_nightmare:
-                self.status = DervBuildFarmStatus.Loot
                 return
 
 

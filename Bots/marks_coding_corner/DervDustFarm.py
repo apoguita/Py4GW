@@ -248,16 +248,22 @@ def reset_item_id_blacklist():
 
 
 def set_bot_to_move(bot: Botting):
+    global is_farming
+    is_farming = False
     bot.config.build_handler.status = DervBuildFarmStatus.Move  # type: ignore
     yield
 
 
 def set_bot_to_wait(bot: Botting):
+    global is_farming
+    is_farming = False
     bot.config.build_handler.status = DervBuildFarmStatus.Wait  # type: ignore
     yield
 
 
 def set_bot_to_setup(bot: Botting):
+    global is_farming
+    is_farming = False
     bot.config.build_handler.status = DervBuildFarmStatus.Setup  # type: ignore
     yield
 
@@ -519,12 +525,13 @@ def main_farm(bot: Botting):
     bot.Move.XY(-5265, 15913, "Exit Outpost To Farm")
     bot.Wait.ForMapLoad(target_map_name=THE_BLACK_CURTAIN)
 
+    bot.Move.XY(-4014, 13044, 'Avoid Plant Mobs')
     bot.Move.XY(-5617, 6085, 'Run to spot 1')
     bot.Move.XY(310, 1364, 'Run to spot 2')
 
     for index, location_kills in enumerate([
         (7725, -2295),
-        (7721, -1986),
+        (7704, -3418),
         (6921, -4925),
         (9625, -4173),
         (11412, -6359),
