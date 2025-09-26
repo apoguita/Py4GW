@@ -467,10 +467,6 @@ def optimize_consets(prices: dict):
     }
 
 
-def get_prices():
-
-
-
 def move_all_cons_to_storage():
     CONS = [
         ModelID.Armor_Of_Salvation,
