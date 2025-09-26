@@ -48,24 +48,23 @@ is_farming = False
 
 
 # region Direct Bot Actions
-def return_to_outpost(bot: Botting):
-    if bot.config.build_handler.status == DervBuildFarmStatus.Setup:  # type: ignore
+def return_to_outpost():
+    if GLOBAL_CACHE.Map.IsOutpost():
         return
 
-    while True:
+    is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+    while is_explorable:
         is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
         is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
-        is_explorable = GLOBAL_CACHE.Map.IsExplorable()
-        is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated()
-
-        yield from Routines.Yield.Player.Resign()
-        yield from Routines.Yield.wait(1000)
+        is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated() or GLOBAL_CACHE.Player.GetMorale() < 100
 
         if is_map_ready and is_party_loaded and is_explorable and is_party_defeated:
+            yield from Routines.Yield.Player.Resign()
             yield from Routines.Yield.wait(2000)
             GLOBAL_CACHE.Party.ReturnToOutpost()
+        else:
+            is_explorable = GLOBAL_CACHE.Map.IsExplorable()
             yield from Routines.Yield.wait(4000)
-            break  # exit after returning to outpost
 
 
 def load_skill_bar(bot: Botting):
@@ -100,16 +99,16 @@ def farm(bot):
             yield from Routines.Yield.wait(500)
             yield from loot_items()
             yield from Routines.Yield.wait(500)
-            ConsoleLog(COF_FARMER, 'Setting back to [Setup] status')
-            bot.config.build_handler.status = DervBuildFarmStatus.Setup
+            ConsoleLog(COF_FARMER, 'Setting back to [Wait] status')
+            bot.config.build_handler.status = DervBuildFarmStatus.Wait
             # log from the last epicenter of the begining of the farm
             break  # all enemies dead
 
         # Death check
         if GLOBAL_CACHE.Agent.IsDead(player_id):
             # handle death here
-            ConsoleLog(COF_FARMER, 'Died fighting, setting back to [Loot], dont block going to outpost')
-            bot.config.build_handler.status = DervBuildFarmStatus.Loot
+            ConsoleLog(COF_FARMER, 'Died fighting, setting back to [Wait], dont block going to outpost')
+            bot.config.build_handler.status = DervBuildFarmStatus.Wait
             is_farming = False
             yield from Routines.Yield.Player.Resign()
             yield from Routines.Yield.wait(1000)
@@ -292,10 +291,9 @@ def main_farm(bot: Botting):
     # Actual Farming Loop
     bot.States.AddHeader('Farm Loop')
     bot.Properties.Enable("auto_combat")
-    bot.States.AddCustomState(lambda: return_to_outpost(bot), "Return to Doomlore")
+    bot.States.AddCustomState(return_to_outpost, "Return to Doomlore if dead")
     bot.Wait.ForTime(2000)
     bot.Wait.ForMapLoad(target_map_name=DOOMLORE_SHRINE)
-    bot.States.AddCustomState(lambda: set_bot_to_setup(bot), "Exit Outpost To Farm")
     bot.Dialogs.AtXY(-19166.00, 17980.00, 0x832101, "Temple of the damned Quest")  # Temple of the damned quest 0x832101
     bot.Dialogs.AtXY(-19166.00, 17980.00, 0x88, "Enter COF Level 1")  # Enter COF Level 1
     bot.Wait.ForMapLoad(target_map_name=COF_LEVEL_1)
