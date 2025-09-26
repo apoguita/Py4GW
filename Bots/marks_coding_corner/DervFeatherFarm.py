@@ -250,16 +250,22 @@ def reset_item_id_blacklist():
 
 
 def set_bot_to_move(bot: Botting):
+    global is_farming
+    is_farming = False
     bot.config.build_handler.status = DervBuildFarmStatus.Move  # type: ignore
     yield
 
 
 def set_bot_to_wait(bot: Botting):
+    global is_farming
+    is_farming = False
     bot.config.build_handler.status = DervBuildFarmStatus.Wait  # type: ignore
     yield
 
 
 def set_bot_to_setup(bot: Botting):
+    global is_farming
+    is_farming = False
     bot.config.build_handler.status = DervBuildFarmStatus.Setup  # type: ignore
     yield
 

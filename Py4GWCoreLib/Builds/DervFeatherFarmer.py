@@ -241,9 +241,5 @@ class DervFeatherFarmer(BuildMgr):
                     yield
                     return
 
-                if not next_sensali:
-                    self.status = DervBuildFarmStatus.Loot
-                    return
-
 
 # =================== BUILD END ========================
