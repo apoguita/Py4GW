@@ -381,7 +381,7 @@ class Yield:
             yield from Yield.wait(1000)
             start_time = Utils.GetBaseTimestamp()
             waiting_for_map_load = True
-
+            yield from Yield.wait(1000)
             while waiting_for_map_load:
                 delta = Utils.GetBaseTimestamp() - start_time
                 if delta > timeout and timeout > 0:
@@ -389,21 +389,16 @@ class Yield:
                     return False
 
                 if not Checks.Map.MapValid():
-                    yield from Yield.wait(1000)
                     ConsoleLog("WaitforMapLoad", "Map not valid, waiting...", log=log)
+                    yield from Yield.wait(1000)
                     continue
 
                 current_map = GLOBAL_CACHE.Map.GetMapID()
 
-                if (GLOBAL_CACHE.Map.IsExplorable() or GLOBAL_CACHE.Map.IsOutpost()) and current_map != map_id:
+                if current_map != map_id:
                     ConsoleLog("WaitforMapLoad", f"Something went wrong, halting", log=log)
                     yield from Yield.wait(1000)
                     return False
-
-                if current_map != map_id:
-                    yield from Yield.wait(1000)
-                    ConsoleLog("WaitforMapLoad", f"Waiting for map load {map_id} (current: {current_map})", log=log)
-                    continue
 
                 waiting_for_map_load = False
 
