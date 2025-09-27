@@ -23,7 +23,7 @@ class _TEMPLATES:
         properties.Disable("auto_loot") #no waiting for loot
         properties.Disable("imp")
         
-    def Aggressive(self):
+    def Aggressive(self, enable_imp:bool=True):
         properties = self.parent.Properties
         properties.Enable("pause_on_danger") #engage in combat
         properties.Disable("halt_on_death") 
@@ -31,7 +31,8 @@ class _TEMPLATES:
         properties.Enable("auto_combat") #engage in combat
         properties.Disable("hero_ai") #hero combat     
         properties.Enable("auto_loot") #wait for loot
-        properties.Enable("imp")
+        if enable_imp:
+            properties.Enable("imp")
         
     def Multibox_Aggressive(self):
         properties = self.parent.Properties

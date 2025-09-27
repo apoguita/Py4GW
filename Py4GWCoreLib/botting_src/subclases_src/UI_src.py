@@ -383,6 +383,144 @@ class _UI:
         if PyImGui.begin("Bot Configuration", PyImGui.WindowFlags.AlwaysAutoResize):
             self._draw_settings_child()    
             PyImGui.end()  
+    
+    def draw_debug_window(self):
+        if PyImGui.collapsing_header("Map Navigation"):
+            self._config.config_properties.draw_path.set_now("active",PyImGui.checkbox("Draw Path", self._config.config_properties.draw_path.is_active()))
+            self._config.config_properties.use_occlusion.set_now("active",PyImGui.checkbox("Use Occlusion", self._config.config_properties.use_occlusion.is_active()))
+            self._config.config_properties.snap_to_ground_segments.set_now("value", PyImGui.slider_int("Snap to Ground Segments", self._config.config_properties.snap_to_ground_segments.get("value"), 1, 32))
+            self._config.config_properties.floor_offset.set_now("value", PyImGui.slider_float("Floor Offset", self._config.config_properties.floor_offset.get("value"), -10.0, 50.0))
+
+        if PyImGui.collapsing_header("Properties"):
+            def debug_text(prop_name:str, key:str):
+                from ...Py4GWcorelib import Utils
+                value = self._parent.Properties.Get(prop_name, key)
+                if isinstance(value, bool):
+                    color = Utils.TrueFalseColor(value)
+                else:
+                    color = (255, 255, 255, 255)
+                PyImGui.text_colored(f"{prop_name} - {key}: {value}", color)
+
+            debug_text("log_actions", "active")
+            debug_text("halt_on_death", "active")
+            debug_text("pause_on_danger", "active")
+            PyImGui.text("InDanger(PauseOnDangerFn eval):")
+            PyImGui.same_line(0,-1)
+            parent = self._parent
+            if parent.config.pause_on_danger_fn():
+                PyImGui.text_colored(f"{parent.config.pause_on_danger_fn()}", (0, 255, 0, 255))
+            else:
+                PyImGui.text_colored(f"{parent.config.pause_on_danger_fn()}", (255, 0, 0, 255))
+
+            debug_text("movement_timeout", "value")
+            debug_text("movement_tolerance", "value")
+            debug_text("draw_path", "active")
+            debug_text("use_occlusion", "active")
+            debug_text("snap_to_ground", "active")
+            debug_text("snap_to_ground_segments", "value")
+            debug_text("floor_offset", "value")
+            debug_text("follow_path_color", "value")
+            PyImGui.separator()
+            debug_text("follow_path_succeeded", "value")
+            debug_text("dialog_at_succeeded", "value")
+            PyImGui.separator()
+            debug_text("auto_combat", "active")
+            debug_text("hero_ai", "active")
+            debug_text("auto_loot", "active")
+            debug_text("auto_inventory_management", "active")
+
+        
+        if PyImGui.collapsing_header("UpkeepData"):
+            def render_upkeep_data(parent):
+                # ---- your exact accessor, unchanged ----
+                def debug_text(prop_name: str, key: str):
+                    from ...Py4GWcorelib import Utils
+                    value = self._parent.Properties.Get(prop_name, key)
+                    if isinstance(value, bool):
+                        color = Utils.TrueFalseColor(value)
+                    else:
+                        color = (255, 255, 255, 255)
+                    PyImGui.text_colored(f"{prop_name} - {key}: {value}", color)
+
+                # Most items: ("active", "restock_quantity")
+                DEFAULT_KEYS = ("active", "restock_quantity")
+
+                # Compact spec: either "prop" (uses DEFAULT_KEYS) or ("prop", (<custom keys>))
+                ITEMS = [
+                    ("alcohol", ("active", "target_drunk_level", "disable_visual")),
+                    "armor_of_salvation",
+                    ("auto_combat", ("active",)),
+                    ("auto_inventory_management", ("active",)),
+                    ("auto_loot", ("active",)),
+                    "birthday_cupcake",
+                    "blue_rock_candy",
+                    "bowl_of_skalefin_soup",
+                    "candy_apple",
+                    "candy_corn",
+                    ("city_speed", ("active",)),
+                    "drake_kabob",
+                    "essence_of_celerity",
+                    "four_leaf_clover",
+                    "golden_egg",
+                    "grail_of_might",
+                    "green_rock_candy",
+                    ("hero_ai", ("active",)),
+                    "honeycomb",
+                    ("imp", ("active",)),
+                    ("morale", ("active", "target_morale")),
+                    "pahnai_salad",
+                    "red_rock_candy",
+                    "slice_of_pumpkin_pie",
+                    "war_supplies",
+                    "identify_kits",
+                    "salvage_kits",
+                ]
+
+                if not PyImGui.collapsing_header("UpkeepData"):
+                    return
+
+                for item in ITEMS:
+                    if isinstance(item, str):
+                        prop, keys = item, DEFAULT_KEYS
+                    else:
+                        prop, keys = item
+
+                    if PyImGui.tree_node(prop):
+                        PyImGui.push_id(prop)  # avoid ID collisions for the same key labels
+                        for key in keys:
+                            debug_text(prop, key)
+                        PyImGui.pop_id()
+                        PyImGui.tree_pop()
+
+            render_upkeep_data(self)
+
+        if PyImGui.collapsing_header("Build"):
+            def render_build_data(parent):
+                build_handler = parent.config.build_handler
+
+                def debug_text(prop_name: str, value: object):
+                    from ...Py4GWcorelib import Utils
+                    if isinstance(value, bool):
+                        color = Utils.TrueFalseColor(value)
+                    elif isinstance(value, (int, float)):
+                        color = (200, 200, 255, 255)  # numbers: bluish
+                    elif isinstance(value, str):
+                        color = (200, 255, 200, 255)  # strings: greenish
+                    else:
+                        color = (255, 255, 255, 255)  # default white
+                    PyImGui.text_colored(f"{prop_name}: {value}", color)
+
+                # Walk over instance attributes
+                for key, value in build_handler.__dict__.items():
+                    if PyImGui.tree_node(key):
+                        PyImGui.push_id(key)
+                        debug_text(key, value)
+                        PyImGui.pop_id()
+                        PyImGui.tree_pop()
+
+            render_build_data(self.parent)
+
+        
         
     def draw_window(self, main_child_dimensions: Tuple[int, int]  = (350, 275), icon_path:str = "",iconwidth: int = 96):
 
@@ -410,142 +548,10 @@ class _UI:
                     PyImGui.end_tab_item()
 
                 if PyImGui.begin_tab_item("Debug"):
-                    if PyImGui.collapsing_header("Map Navigation"):
-                        self._config.config_properties.draw_path.set_now("active",PyImGui.checkbox("Draw Path", self._config.config_properties.draw_path.is_active()))
-                        self._config.config_properties.use_occlusion.set_now("active",PyImGui.checkbox("Use Occlusion", self._config.config_properties.use_occlusion.is_active()))
-                        self._config.config_properties.snap_to_ground_segments.set_now("value", PyImGui.slider_int("Snap to Ground Segments", self._config.config_properties.snap_to_ground_segments.get("value"), 1, 32))
-                        self._config.config_properties.floor_offset.set_now("value", PyImGui.slider_float("Floor Offset", self._config.config_properties.floor_offset.get("value"), -10.0, 50.0))
-
-                    if PyImGui.collapsing_header("Properties"):
-                        def debug_text(prop_name:str, key:str):
-                            from ...Py4GWcorelib import Utils
-                            value = self._parent.Properties.Get(prop_name, key)
-                            if isinstance(value, bool):
-                                color = Utils.TrueFalseColor(value)
-                            else:
-                                color = (255, 255, 255, 255)
-                            PyImGui.text_colored(f"{prop_name} - {key}: {value}", color)
-
-                        debug_text("log_actions", "active")
-                        debug_text("halt_on_death", "active")
-                        debug_text("pause_on_danger", "active")
-                        PyImGui.text("InDanger(PauseOnDangerFn eval):")
-                        PyImGui.same_line(0,-1)
-                        parent = self._parent
-                        if parent.config.pause_on_danger_fn():
-                            PyImGui.text_colored(f"{parent.config.pause_on_danger_fn()}", (0, 255, 0, 255))
-                        else:
-                            PyImGui.text_colored(f"{parent.config.pause_on_danger_fn()}", (255, 0, 0, 255))
-
-                        debug_text("movement_timeout", "value")
-                        debug_text("movement_tolerance", "value")
-                        debug_text("draw_path", "active")
-                        debug_text("use_occlusion", "active")
-                        debug_text("snap_to_ground", "active")
-                        debug_text("snap_to_ground_segments", "value")
-                        debug_text("floor_offset", "value")
-                        debug_text("follow_path_color", "value")
-                        PyImGui.separator()
-                        debug_text("follow_path_succeeded", "value")
-                        debug_text("dialog_at_succeeded", "value")
-                        PyImGui.separator()
-                        debug_text("auto_combat", "active")
-                        debug_text("hero_ai", "active")
-                        debug_text("auto_loot", "active")
-                        debug_text("auto_inventory_management", "active")
-
                     
-                    if PyImGui.collapsing_header("UpkeepData"):
-                        def render_upkeep_data(parent):
-                            # ---- your exact accessor, unchanged ----
-                            def debug_text(prop_name: str, key: str):
-                                from ...Py4GWcorelib import Utils
-                                value = self._parent.Properties.Get(prop_name, key)
-                                if isinstance(value, bool):
-                                    color = Utils.TrueFalseColor(value)
-                                else:
-                                    color = (255, 255, 255, 255)
-                                PyImGui.text_colored(f"{prop_name} - {key}: {value}", color)
-
-                            # Most items: ("active", "restock_quantity")
-                            DEFAULT_KEYS = ("active", "restock_quantity")
-
-                            # Compact spec: either "prop" (uses DEFAULT_KEYS) or ("prop", (<custom keys>))
-                            ITEMS = [
-                                ("alcohol", ("active", "target_drunk_level", "disable_visual")),
-                                "armor_of_salvation",
-                                ("auto_combat", ("active",)),
-                                ("auto_inventory_management", ("active",)),
-                                ("auto_loot", ("active",)),
-                                "birthday_cupcake",
-                                "blue_rock_candy",
-                                "bowl_of_skalefin_soup",
-                                "candy_apple",
-                                "candy_corn",
-                                ("city_speed", ("active",)),
-                                "drake_kabob",
-                                "essence_of_celerity",
-                                "four_leaf_clover",
-                                "golden_egg",
-                                "grail_of_might",
-                                "green_rock_candy",
-                                ("hero_ai", ("active",)),
-                                "honeycomb",
-                                ("imp", ("active",)),
-                                ("morale", ("active", "target_morale")),
-                                "pahnai_salad",
-                                "red_rock_candy",
-                                "slice_of_pumpkin_pie",
-                                "war_supplies",
-                                "identify_kits",
-                                "salvage_kits",
-                            ]
-
-                            if not PyImGui.collapsing_header("UpkeepData"):
-                                return
-
-                            for item in ITEMS:
-                                if isinstance(item, str):
-                                    prop, keys = item, DEFAULT_KEYS
-                                else:
-                                    prop, keys = item
-
-                                if PyImGui.tree_node(prop):
-                                    PyImGui.push_id(prop)  # avoid ID collisions for the same key labels
-                                    for key in keys:
-                                        debug_text(prop, key)
-                                    PyImGui.pop_id()
-                                    PyImGui.tree_pop()
-
-                        render_upkeep_data(self)
-
-                    if PyImGui.collapsing_header("Build"):
-                        def render_build_data(parent):
-                            build_handler = parent.config.build_handler
-
-                            def debug_text(prop_name: str, value: object):
-                                from ...Py4GWcorelib import Utils
-                                if isinstance(value, bool):
-                                    color = Utils.TrueFalseColor(value)
-                                elif isinstance(value, (int, float)):
-                                    color = (200, 200, 255, 255)  # numbers: bluish
-                                elif isinstance(value, str):
-                                    color = (200, 255, 200, 255)  # strings: greenish
-                                else:
-                                    color = (255, 255, 255, 255)  # default white
-                                PyImGui.text_colored(f"{prop_name}: {value}", color)
-
-                            # Walk over instance attributes
-                            for key, value in build_handler.__dict__.items():
-                                if PyImGui.tree_node(key):
-                                    PyImGui.push_id(key)
-                                    debug_text(key, value)
-                                    PyImGui.pop_id()
-                                    PyImGui.tree_pop()
-
-                        render_build_data(self.parent)
-
+                    self.draw_debug_window()
                     PyImGui.end_tab_item()
+                    
                 PyImGui.end_tab_bar()
 
         PyImGui.end()

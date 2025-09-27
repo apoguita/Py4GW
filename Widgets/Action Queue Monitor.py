@@ -15,7 +15,8 @@ def main():
             "LOOT",
             "MERCHANT",
             "SALVAGE",
-            "IDENTIFY",  
+            "IDENTIFY", 
+            "FAST", 
         }
     
     if not Routines.Checks.Map.MapValid():

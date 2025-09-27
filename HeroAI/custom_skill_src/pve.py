@@ -809,27 +809,42 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Brawling_Jab")
         skill.SkillType = SkillType.Stance.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyInjured.value
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Brawling_Straight_Right")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyInjured.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsCasting = False
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Brawling_Hook")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyInjured.value
         skill.Nature = SkillNature.OffensiveA.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Brawling_Uppercut")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyInjured.value
+        skill.Nature = SkillNature.CustomC.value
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Brawling_Headbutt_Brawling_skill")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.EnemyInjured.value
+        skill.Nature = SkillNature.CustomA.value
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Brawling_Combo_Punch")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.EnemyInjured.value
         skill.Nature = SkillNature.CustomB.value
         skill_data[skill.SkillID] = skill
