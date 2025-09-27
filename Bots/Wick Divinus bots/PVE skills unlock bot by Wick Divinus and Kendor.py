@@ -304,17 +304,20 @@ def Draw_Window():
         if PyImGui.button("Start You move like a Dwarf Quest (Skill #2)"):
             bot.StartAtStep("[H]Unlock Skill #2_2")
 
-        if PyImGui.button("Start Anything you can do Quest (Skill #3)"):
+        if PyImGui.button("Start Anything you can do Quest Pt1 (Skill #3)"):
             bot.StartAtStep("[H]Unlock Skill #3_3")
+        
+        if PyImGui.button("Start Anything you can do Quest Pt2 (Skill #3)"):
+            bot.StartAtStep("[H]Fragment of Antiquities_4")
 
         if PyImGui.button("Start I am Unstoppable Quest (Skill #4)"):
-            bot.StartAtStep("[H]Unlock Skill #4_4")
+            bot.StartAtStep("[H]Unlock Skill #4_5")
 
         if PyImGui.button("Start Smooth Criminal Quest (Skill #5)"):
-            bot.StartAtStep("[H]Unlock Skill #5_5")
+            bot.StartAtStep("[H]Unlock Skill #5_6")
 
         if PyImGui.button("Start Mental Block Quest (Skill #6)"):
-            bot.StartAtStep("[H]Unlock Skill #6_6")
+            bot.StartAtStep("[H]Unlock Skill #6_7")
 
         PyImGui.end()
 
@@ -324,7 +327,7 @@ def main():
     #you can still use the bots window or not, 
     #you can use it to see step names or debug messages
     #you can hide it if you want
-    #bot.UI.draw_window()
+    # bot.UI.draw_window()
 
 
 if __name__ == "__main__":
