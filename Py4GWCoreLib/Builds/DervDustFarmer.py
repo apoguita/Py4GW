@@ -92,11 +92,10 @@ class DervDustFarmer(BuildMgr):
             return Routines.Agents.GetNearestEnemy(Range.Earshot.value)
         if aloe_target and fog_nightmare_count and fog_nightmare_count <= 1:
             return aloe_target
+        if aloe_target:
+            return aloe_target or fog_nightmare_target
         if fog_nightmare_target:
             return Routines.Agents.GetNearestEnemy(Range.Earshot.value)
-        if aloe_target:
-            return aloe_target
-        return Routines.Agents.GetNearestEnemy(Range.Earshot.value)
 
     def ProcessSkillCasting(self):
         if not (
@@ -126,10 +125,12 @@ class DervDustFarmer(BuildMgr):
         has_dwarven_stability = Routines.Checks.Effects.HasBuff(player_agent_id, self.dwarven_stability)
         has_mystic_regen = Routines.Checks.Effects.HasBuff(player_agent_id, self.mystic_regen)
         has_mystic_vigor = Routines.Checks.Effects.HasBuff(player_agent_id, self.mystic_vigor)
+        player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
 
         if (
             (yield from Routines.Yield.Skills.IsSkillIDUsable(self.mystic_vigor))
             and not has_mystic_vigor
+            and player_hp < 0.80
             and not self.status == DervBuildFarmStatus.Setup
         ):
             yield from Routines.Yield.Skills.CastSkillID(self.mystic_vigor, aftercast_delay=750)
@@ -143,7 +144,6 @@ class DervDustFarmer(BuildMgr):
             yield from Routines.Yield.Skills.CastSkillID(self.dwarven_stability, aftercast_delay=250)
             return
 
-        player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
         if (
             (yield from Routines.Yield.Skills.IsSkillIDUsable(self.mystic_regen))
             and not has_mystic_regen
@@ -174,7 +174,7 @@ class DervDustFarmer(BuildMgr):
                 player_agent_id
             )
             remaining_enemies = Routines.Agents.GetFilteredEnemyArray(
-                player_pos[0], player_pos[1], Range.Spellcast.value
+                player_pos[0], player_pos[1], Range.Earshot.value
             )
             next_target = self.get_fog_nightmare_or_aloe_target(remaining_enemies)
 
@@ -206,7 +206,7 @@ class DervDustFarmer(BuildMgr):
                     and player_current_energy >= 12
                     and len(remaining_enemies) >= 2
                 ):
-                    yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Spellcast.value)
+                    yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
                     yield from Routines.Yield.Skills.CastSkillID(self.staggering_force, aftercast_delay=250)
                     has_staggering_force = Routines.Checks.Effects.HasBuff(player_agent_id, self.staggering_force)
                     if has_staggering_force and player_current_energy >= 10:
