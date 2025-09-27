@@ -63,7 +63,16 @@ class _Move:
     @_yield_step(label="FollowModelID", counter_key="FOLLOW_MODEL_ID")
     def follow_model(self, model_id, follow_range, exit_condition: Optional[Callable[[], bool]]=lambda:False) -> Generator[Any, Any, bool]:
         return (yield from self._follow_model(model_id, follow_range, exit_condition))
-
+    
+    @_yield_step(label="ToModelID", counter_key="TO_MODEL_ID")
+    def to_model(self, model_id: int) -> Generator[Any, Any, bool]:
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        agent_id = Routines.Agents.GetAgentIDByModelID(model_id)
+        x,y = GLOBAL_CACHE.Agent.GetXY(agent_id)
+        yield from self._get_path_to(x, y)
+        yield from self._follow_path()
+        return True
 
     def _follow_path(self) -> Generator[Any, Any, bool]:
         from ...Routines import Routines

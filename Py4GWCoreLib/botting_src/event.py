@@ -55,7 +55,10 @@ class OnDeathEvent(Event):
     
     def should_trigger(self) -> bool:
         from Py4GWCoreLib import GLOBAL_CACHE  # local import!
-        return GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
+        dead = GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
+        if dead:
+            print("OnDeathEvent triggered")
+        return dead
 
     def should_reset(self) -> bool:
         from Py4GWCoreLib import GLOBAL_CACHE, Routines
