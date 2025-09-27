@@ -15,6 +15,10 @@ selected_step = 0
 EMBARK_BEACH = "Embark Beach"
 MODULE_NAME = 'Cons Printing'
 SELLABLE_CRAFTING_MATERIALS_MODEL_ID = [
+    ModelID.Scale,
+    ModelID.Granite_Slab,
+]
+MERCHABLE_CRAFTING_MATERIALS_MODEL_ID = [
     ModelID.Wood_Plank,
     ModelID.Scale,
     ModelID.Tanned_Hide_Square,
@@ -169,7 +173,7 @@ def withdraw_cons_materials_from_inventory():
 
 def merch_non_cons_material_from_inventory():
     MAX_WITHDRAW_ATTEMPTS = 20
-    for model_id in SELLABLE_CRAFTING_MATERIALS_MODEL_ID:
+    for model_id in MERCHABLE_CRAFTING_MATERIALS_MODEL_ID:
         attempts = 0
         while GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id) and attempts < MAX_WITHDRAW_ATTEMPTS:
             attempts += 1
@@ -181,7 +185,7 @@ def merch_non_cons_material_from_inventory():
     item_ids_to_sell = []
 
     for item_id in all_items:
-        if GLOBAL_CACHE.Item.GetModelID(item_id) in SELLABLE_CRAFTING_MATERIALS_MODEL_ID:
+        if GLOBAL_CACHE.Item.GetModelID(item_id) in MERCHABLE_CRAFTING_MATERIALS_MODEL_ID:
             item_ids_to_sell.append(item_id)
 
     yield from Routines.Yield.Merchant.SellItems(item_ids_to_sell)
@@ -189,7 +193,7 @@ def merch_non_cons_material_from_inventory():
     # Store remaining non-sold sellables
     item_ids_to_store = []
     for item_id in all_items:
-        if GLOBAL_CACHE.Item.GetModelID(item_id) in SELLABLE_CRAFTING_MATERIALS_MODEL_ID:
+        if GLOBAL_CACHE.Item.GetModelID(item_id) in MERCHABLE_CRAFTING_MATERIALS_MODEL_ID:
             item_ids_to_store.append(item_id)
 
     for item_id in item_ids_to_store:
@@ -404,18 +408,9 @@ def balance_materials(target_material_model_id: ModelID, prices: dict):
             sell_income = sell * prices[model_id]["sell"]
             net_gold += sell_income
 
-        transactions[model_id] = {
-            "buy": buy,
-            "buy_cost": buy_cost,
-            "sell": sell,
-            "sell_income": sell_income
-        }
+        transactions[model_id] = {"buy": buy, "buy_cost": buy_cost, "sell": sell, "sell_income": sell_income}
 
-    return {
-        "consets_based_on_target": consets_based_on_target,
-        "transactions": transactions,
-        "net_gold": net_gold
-    }
+    return {"consets_based_on_target": consets_based_on_target, "transactions": transactions, "net_gold": net_gold}
 
 
 def optimize_consets(prices: dict):
@@ -453,9 +448,9 @@ def optimize_consets(prices: dict):
             best_result = (target, result)
         else:
             _, current_best = best_result
-            if (consets > current_best["consets_based_on_target"]) or \
-               (consets == current_best["consets_based_on_target"] and 
-                result["net_gold"] < current_best["net_gold"]):
+            if (consets > current_best["consets_based_on_target"]) or (
+                consets == current_best["consets_based_on_target"] and result["net_gold"] < current_best["net_gold"]
+            ):
                 best_result = (target, result)
 
     best_target, best_data = best_result  # type: ignore -> needs a fix
@@ -463,7 +458,7 @@ def optimize_consets(prices: dict):
         "best_target": best_target,
         "consets": best_data["consets_based_on_target"],
         "transactions": best_data["transactions"],
-        "net_gold": best_data["net_gold"]
+        "net_gold": best_data["net_gold"],
     }
 
 
