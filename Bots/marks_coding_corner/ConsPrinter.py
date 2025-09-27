@@ -15,6 +15,10 @@ selected_step = 0
 EMBARK_BEACH = "Embark Beach"
 MODULE_NAME = 'Cons Printing'
 SELLABLE_CRAFTING_MATERIALS_MODEL_ID = [
+    ModelID.Scale,
+    ModelID.Granite_Slab,
+]
+MERCHABLE_CRAFTING_MATERIALS_MODEL_ID = [
     ModelID.Wood_Plank,
     ModelID.Scale,
     ModelID.Tanned_Hide_Square,
@@ -169,7 +173,7 @@ def withdraw_cons_materials_from_inventory():
 
 def merch_non_cons_material_from_inventory():
     MAX_WITHDRAW_ATTEMPTS = 20
-    for model_id in SELLABLE_CRAFTING_MATERIALS_MODEL_ID:
+    for model_id in MERCHABLE_CRAFTING_MATERIALS_MODEL_ID:
         attempts = 0
         while GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id) and attempts < MAX_WITHDRAW_ATTEMPTS:
             attempts += 1
@@ -181,7 +185,7 @@ def merch_non_cons_material_from_inventory():
     item_ids_to_sell = []
 
     for item_id in all_items:
-        if GLOBAL_CACHE.Item.GetModelID(item_id) in SELLABLE_CRAFTING_MATERIALS_MODEL_ID:
+        if GLOBAL_CACHE.Item.GetModelID(item_id) in MERCHABLE_CRAFTING_MATERIALS_MODEL_ID:
             item_ids_to_sell.append(item_id)
 
     yield from Routines.Yield.Merchant.SellItems(item_ids_to_sell)
@@ -189,7 +193,7 @@ def merch_non_cons_material_from_inventory():
     # Store remaining non-sold sellables
     item_ids_to_store = []
     for item_id in all_items:
-        if GLOBAL_CACHE.Item.GetModelID(item_id) in SELLABLE_CRAFTING_MATERIALS_MODEL_ID:
+        if GLOBAL_CACHE.Item.GetModelID(item_id) in MERCHABLE_CRAFTING_MATERIALS_MODEL_ID:
             item_ids_to_store.append(item_id)
 
     for item_id in item_ids_to_store:
@@ -350,6 +354,114 @@ def craft_grail_of_might():
     yield from craft_item(ModelID.Grail_Of_Might, REQUIRED_MATS, PER_CRAFT, crafts=consets_to_make)
 
 
+def balance_materials(target_material_model_id: ModelID, prices: dict):
+    """
+    Balances materials around a target material by buying deficits and selling excess.
+
+    Args:
+        target_material (int): ModelID to base the balance on (the bottleneck).
+        prices (dict): {model_id: {"buy": int, "sell": int}} prices per unit.
+
+    Returns:
+        dict: {
+            "consets_based_on_target": int,
+            "transactions": {
+                model_id: {
+                    "buy": int,
+                    "buy_cost": int,
+                    "sell": int,
+                    "sell_income": int
+                }, ...
+            },
+            "net_gold": int
+        }
+    """
+    PER_CONSET = {
+        ModelID.Iron_Ingot: 100,
+        ModelID.Pile_Of_Glittering_Dust: 100,
+        ModelID.Bone: 50,
+        ModelID.Feather: 50,
+    }
+
+    # Step 1: How many consets based on the target material
+    target_available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(target_material_model_id)
+    consets_based_on_target = target_available // PER_CONSET[target_material_model_id]
+
+    # Step 2: Evaluate buy/sell for others
+    transactions = {}
+    net_gold = 0
+
+    for model_id, req_amount in PER_CONSET.items():
+        available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        required = consets_based_on_target * req_amount
+
+        buy, buy_cost, sell, sell_income = 0, 0, 0, 0
+
+        if available < required:
+            # Need to buy
+            buy = required - available
+            buy_cost = buy * prices[model_id]["buy"]
+            net_gold -= buy_cost
+        elif available > required:
+            # Can sell excess
+            sell = available - required
+            sell_income = sell * prices[model_id]["sell"]
+            net_gold += sell_income
+
+        transactions[model_id] = {"buy": buy, "buy_cost": buy_cost, "sell": sell, "sell_income": sell_income}
+
+    return {"consets_based_on_target": consets_based_on_target, "transactions": transactions, "net_gold": net_gold}
+
+
+def optimize_consets(prices: dict):
+    """
+    Finds the optimal balancing strategy across all materials:
+    - Chooses the bottleneck that gives the highest consets.
+    - Minimizes net gold spent if tied.
+    - Returns buy/sell plan.
+
+    Args:
+        prices (dict): {model_id: {"buy": int, "sell": int}}
+
+    Returns:
+        dict: {
+            "best_target": model_id,
+            "consets": int,
+            "transactions": dict,
+            "net_gold": int
+        }
+    """
+    PER_CONSET = {
+        ModelID.Iron_Ingot: 100,
+        ModelID.Pile_Of_Glittering_Dust: 100,
+        ModelID.Bone: 50,
+        ModelID.Feather: 50,
+    }
+
+    best_result = None
+
+    for target in PER_CONSET.keys():
+        result = balance_materials(target, prices)
+        consets = result["consets_based_on_target"]
+
+        if not best_result:
+            best_result = (target, result)
+        else:
+            _, current_best = best_result
+            if (consets > current_best["consets_based_on_target"]) or (
+                consets == current_best["consets_based_on_target"] and result["net_gold"] < current_best["net_gold"]
+            ):
+                best_result = (target, result)
+
+    best_target, best_data = best_result  # type: ignore -> needs a fix
+    return {
+        "best_target": best_target,
+        "consets": best_data["consets_based_on_target"],
+        "transactions": best_data["transactions"],
+        "net_gold": best_data["net_gold"],
+    }
+
+
 def move_all_cons_to_storage():
     CONS = [
         ModelID.Armor_Of_Salvation,
@@ -402,6 +514,7 @@ def main_bot(bot: Botting) -> None:
     bot.Interact.WithNpcAtXY(2158.00, -2006.00, "Interact with the Merch")
     bot.States.AddCustomState(merch_non_cons_material_from_inventory, 'Sell Non-Cons Mats')
 
+    bot.States.AddHeader('Craft consumables')
     bot.Move.XY(3254.94, 167.96, "Go to Consumables NPCs")
     bot.States.AddCustomState(withdraw_cons_materials_from_inventory, 'Take items needed for cons')
     bot.Interact.WithNpcAtXY(3743.00, -106.00, 'Talk to the dwarf')
