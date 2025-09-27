@@ -1,13 +1,13 @@
 from __future__ import annotations
-from typing import List, Tuple
+from typing import List, Tuple, Generator, Any
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui)
 
 bot = Botting("Factions Leveler",
-              upkeep_birthday_cupcake_restock=50,
-              upkeep_honeycomb_restock=100,
-              upkeep_war_supplies_restock=10,
+              upkeep_birthday_cupcake_restock=10,
+              upkeep_honeycomb_restock=20,
+              upkeep_war_supplies_restock=2,
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
               upkeep_auto_loot_active=True)
@@ -22,11 +22,11 @@ def create_bot_routine(bot: Botting) -> None:
     EquipWeapons(bot) #revisited
     CapturePet(bot) #revisited
     ExitToSunquaVale(bot) #revisited
-    TravelToMinisterCho(bot) #revisited
-    EnterMinisterChoMission(bot) #revisited
-    MinisterChoMission(bot) #revisited
-    AttributePointQuest1(bot) #revisited
-    TakeWarningTheTenguQuest(bot) #revisited
+    TravelToMinisterCho(bot) 
+    EnterMinisterChoMission(bot) 
+    MinisterChoMission(bot) 
+    AttributePointQuest1(bot) 
+    TakeWarningTheTenguQuest(bot) 
     WarningTheTenguQuest(bot) 
     ExitToSunquaVale(bot) 
     ExitToTsumeiVillage(bot) 
@@ -35,12 +35,13 @@ def create_bot_routine(bot: Botting) -> None:
     ExitToCourtyardAggressive(bot) 
     AdvanceToSaoshangTrail(bot) 
     TraverseSaoshangTrail(bot) 
-    TakeRewardAndCraftArmor(bot) 
+    TakeRewardAndCraftArmor(bot)  
     ExitSeitungHarbor(bot) 
     GoToZenDaijun(bot) 
     EnterZenDaijunMission(bot) 
     ZenDaijunMission(bot) 
     CraftRemainingArmorFSM(bot)
+    UnlockXunlaiMaterialPanel(bot)
     AttributePointQuest2(bot)
     AdvanceToMarketplace(bot) 
     AdvanceToKainengCenter(bot)
@@ -49,9 +50,9 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToEOTN(bot) 
     ExitBorealStation(bot) 
     TraverseToEOTNOutpost(bot)
-    UnlockXunlaiMaterialPanel(bot)
     UnlockEotnPool(bot)
     AdvanceToGunnarsHold(bot)
+    UnlockKillroy(bot)
     UnlockRemainingSecondaryProfessions(bot)
     bot.States.AddHeader("Final Step")
     bot.Stop()
@@ -149,7 +150,7 @@ def AddHenchmen():
     elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Boreal Station"):
         henchmen_list.extend([7,9,2,3,4,6,5])
     else:
-        henchmen_list.extend([1,2,3,4,5,6,7])
+        henchmen_list.extend([2,3,5,6,7,9,10])
         
     for henchman_id in henchmen_list:
         yield from _add_henchman(henchman_id)
@@ -320,6 +321,9 @@ def InitializeEventCallbacks(bot: Botting) -> None:
     condition = lambda: on_party_wipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
     bot.Events.OnPartyDefeatedCallback(condition)
+    
+    condition = lambda: OnDeath(bot)
+    bot.Events.OnDeathCallback(condition)
 
 def ExitMonasteryOverlook(bot: Botting) -> None:
     bot.States.AddHeader("Exit Monastery Overlook")
@@ -364,31 +368,42 @@ def ExitToSunquaVale(bot: Botting) -> None:
     ConfigurePacifistEnv(bot)
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     
-def RangerCapturePet(bot: Botting) -> None:
-    bot.Move.XYAndDialog(-7782.00, 6687.00,0x810403) #Locate Sujun
-    bot.Dialogs.AtXY(-7782.00, 6687.00,0x810401) #Accept Quest
-    bot.UI.CancelSkillRewardWindow()
-      
-def RangerGetSkills(bot: Botting) -> None:
-    bot.Move.XYAndDialog(5103.00, -4769.00,0x810407) #accept reward
-    bot.Dialogs.AtXY(5103.00, -4769.00,0x811401) #of course i will help
+def RangerCapturePet(bot: Botting) -> Generator[Any, Any, None]:
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    #ConsoleLog("RangerCapturePet", f"Primary Profession: {primary}", Py4GW.Console.MessageType.Info)
+    if primary != "Ranger": return
+    yield from bot.helpers.Move._get_path_to(-7782.00, 6687.00)
+    yield from bot.helpers.Move._follow_path()
+    yield from bot.helpers.Interact._with_agent((-7782.00, 6687.00), 0x810403) #Locate Sujun
+    yield from bot.helpers.Interact._with_agent((-7782.00, 6687.00), 0x810401) #Accept Quest
+    yield from bot.helpers.UI._cancel_skill_reward_window()
+
+def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if primary != "Ranger": return
+    yield from bot.helpers.Move._get_path_to(5103.00, -4769.00)
+    yield from bot.helpers.Move._follow_path()
+    yield from bot.helpers.Interact._with_agent((5103.00, -4769.00), 0x810407) #npc to get skills from
+    yield from bot.helpers.Interact._with_agent((5103.00, -4769.00), 0x811401) #of course i will help
+
 
 def CapturePet(bot: Botting) -> None:
     bot.States.AddHeader("Capture Pet")
-    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    if primary == "Ranger":
-        RangerCapturePet(bot)
+    bot.States.AddHeader("Ranger Pet Evaluation")
+    bot.States.AddCustomState(lambda:RangerCapturePet(bot), "Unlock Skills")
      
     bot.States.AddCustomState(EquipCaptureSkillBar, "Equip Capture Skill Bar")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
 
     bot.Move.XY(13970.94, -13085.83)
+    bot.Move.ToModel(2954) #Tiger
+    bot.Wait.ForTime(500)
     bot.Target.Model(2954) #Tiger
     bot.SkillBar.UseSkill(411) #Capture Pet
-    bot.Wait.ForTime(22000)
+    bot.Wait.ForTime(14000)
     
-    if primary == "Ranger":
-        RangerGetSkills(bot)
+    bot.States.AddHeader("Ranger Get Skills")
+    bot.States.AddCustomState(lambda: RangerGetSkills(bot), "Get Ranger Skills")
          
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     
@@ -501,6 +516,7 @@ def TakeRewardAndCraftArmor(bot: Botting):
     bot.Move.XYAndDialog(16435, 12047, 0x815607) #TAKE_REWARD
     bot.Move.XYAndInteractNPC(17520.00, 13805.00)
     bot.States.AddCustomState(BuyMaterials, "Buy Materials")
+    bot.Move.XY(19823.66, 9547.78)
     bot.Move.XYAndInteractNPC(20508.00, 9497.00)
     exec_fn = lambda: CraftArmor(bot)
     bot.States.AddCustomState(exec_fn, "Craft Armor")
@@ -513,7 +529,7 @@ def GoToZenDaijun(bot: Botting):
     bot.States.AddHeader("Go To Zen Daijun")
     bot.Move.XYAndExitMap(23616, 1587, target_map_name="Haiju Lagoon")
     bot.Move.XYAndDialog(16489, -22213, 0x80000B) # CONTINUE
-    bot.Wait.ForTime(6000)
+    bot.Wait.ForTime(7000)
     bot.Wait.ForMapLoad(target_map_id=213) #zen_daijun_map_id
     
 def EnterZenDaijunMission(bot:Botting):
@@ -549,11 +565,10 @@ def AttributePointQuest2(bot: Botting):
         bot.Properties.Disable("auto_combat")
  
     bot.States.AddHeader("Attribute Point Quest 2")
-    bot.Move.XY(16602.23, 11612.10)
-    bot.Move.XY(16886.80, 9577.24)
-    bot.Move.XY(16940.28, 9860.90)
-    bot.Move.XY(19243.22, 9093.26)
-    bot.Move.XY(19840.55, 7956.64)
+    bot.Map.Travel(target_map_name="Seitung Harbor")
+    auto_path_list = [(16602.23, 11612.10), (16886.80, 9577.24), (16940.28, 9860.90), 
+                      (19243.22, 9093.26), (19840.55, 7956.64)]
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
     bot.Wait.ForTime(5000)
     bot.Dialogs.WithModel(3958,0x815C01) #Take Quest from Zunraa
@@ -578,11 +593,9 @@ def AttributePointQuest2(bot: Botting):
     bot.Wait.ForTime(5000)
 
     bot.Properties.Disable("auto_combat")
-    player_pos = GLOBAL_CACHE.Player.GetXY()
     path =[(-8294.21, 10061.62)] #position zunraa
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    player_pos = GLOBAL_CACHE.Player.GetXY()
     path = [(-6473.26, 8771.21)] #clear miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
@@ -678,11 +691,9 @@ def AttributePointQuest2(bot: Botting):
     bot.Wait.UntilCondition(wait_function)
     
     bot.Map.Travel(target_map_name="Seitung Harbor")
-    bot.Move.XY(16602.23, 11612.10)
-    bot.Move.XY(16886.80, 9577.24)
-    bot.Move.XY(16940.28, 9860.90)
-    bot.Move.XY(19243.22, 9093.26)
-    bot.Move.XY(19840.55, 7956.64)
+    auto_path_list = [(16602.23, 11612.10), (16886.80, 9577.24), (16940.28, 9860.90),
+                      (19243.22, 9093.26), (19840.55, 7956.64)]
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
     bot.Wait.ForTime(5000)
     ZUNRAA_MODEL_ID = 3958
@@ -702,26 +713,21 @@ def AdvanceToKainengCenter(bot: Botting):
     bot.States.AddHeader("Advance To Kaineng Center")
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(16640,19882, target_map_name="Bukdek Byway")
-    bot.Move.XY(-10254,-1759)
-    bot.Move.XY(-10332,1442)
-    bot.Move.XY(-10965,9309)
-    bot.Move.XY(-9467,14207)
+    auto_path_list = [(-10254.0,-1759.0), (-10332.0,1442.0), (-10965.0,9309.0), (-9467.0,14207.0)]
+    bot.Move.FollowAutoPath(auto_path_list)
     path_to_kc = [(-8601.28, 17419.64),(-6857.17, 19098.28),(-6706,20388)]
     bot.Move.FollowPathAndExitMap(path_to_kc, target_map_id=194) #Kaineng Center
 
 def AdvanceToLA(bot: Botting):
     bot.States.AddHeader("Advance To Lion's Arch")
-    bot.Move.XY(3049.35, -2020.75)
-    bot.Move.XY(2739.30, -3710.67)
-    bot.Move.XY(-648.30, -3493.72)
-    bot.Move.XY(-1661.91, -636.09)
+    auto_path_list = [(3049.35, -2020.75), (2739.30, -3710.67), 
+                      (-648.30, -3493.72), (-1661.91, -636.09)]
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Move.XYAndDialog(-1006.97, -817.63, 0x81DF01)  # Chienpo dialog la
     bot.Move.XYAndExitMap(-2439, 1732, target_map_id=290)
-    bot.Move.XY(-2995.68, 2077.20)
-    bot.Move.XY(-6938.10, 4286.61)
-    bot.Move.XY(-6064.40, 5300.26)
-    bot.Move.XY(-2396.20, 5260.67)
-    bot.Move.XY(-5031.77, 6001.52)
+    auto_path_list =[(-2995.68, 2077.20), (-6938.10, 4286.61), (-6064.40, 5300.26),
+                     (-2396.20, 5260.67), (-5031.77, 6001.52)]
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Move.XYAndDialog(-5626.17, 7017.33, 0x81DF04)  # Menhlo dialog model ID 3216
     bot.Move.XYAndDialog(-4661.13, 7479.86, 0x84)  # Armian dialog model ID 1970
     bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
@@ -733,38 +739,35 @@ def AdvanceToKamadan(bot: Botting):
     bot.States.AddHeader("Advance To Kamadan")
     bot.Map.Travel(target_map_id=194) #kaineng_center_id
     PrepareForBattle(bot)
-    bot.Move.XY(3049.35, -2020.75)
-    bot.Move.XY(2739.30, -3710.67)
-    bot.Move.XY(-648.30, -3493.72)
-    bot.Move.XY(-1661.91, -636.09)
+    auto_path_list = [(3049.35, -2020.75), (2739.30, -3710.67), 
+                      (-648.30, -3493.72), (-1661.91, -636.09)]
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Move.XYAndDialog(-1131.99, 818.35, 0x82D401)  # Linro dialog la
     bot.Move.XYAndExitMap(-2439, 1732, target_map_id=290)
-    bot.Move.XY(-2995.68, 2077.20)
-    bot.Move.XY(-6938.10, 4286.61)
-    bot.Move.XY(-6064.40, 5300.26)
-    bot.Move.XY(-2396.20, 5260.67)
-    bot.Move.XY(-5031.77, 6001.52)
+    auto_path_list = [(-2995.68, 2077.20), (-6938.10, 4286.61), (-6064.40, 5300.26),
+                     (-2396.20, 5260.67), (-5031.77, 6001.52)]
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Move.XYAndDialog(-5899.57, 7240.19, 0x82D404)  # Kormir dialog kormir model ID
     bot.Dialogs.WithModel(4863, 0x87)  # Kormir dialog model id 4863
     bot.Wait.ForMapToChange(target_map_id=400)
-    bot.Move.XY(-1712.16, -700.23)
-    bot.Move.XY(-907.97, -2862.29)
-    bot.Move.XY(742.42, -4167.73)
+    auto_path_list = [(-1712.16, -700.23), (-907.97, -2862.29), (742.42, -4167.73)] 
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(10000)
-    bot.Move.XY(1352.94, -3694.75)
-    bot.Move.XY(2547.49, -3667.82)
-    bot.Move.XY(2541.67, -2582.88) #critical part, high aggro area
+    auto_path_list = [(1352.94, -3694.75),
+                      (2547.49, -3667.82),
+                      (2541.67, -2582.88)] #critical part, high aggro area
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(10000)
     bot.Move.XY(1990.27, -1636.21)
     bot.Wait.ForTime(15000)
-    bot.Move.XY(2651.48, -3750.63)
-    bot.Move.XY(3355.63, -2151.82) #critical part, high aggro area
+    auto_path_list = [(2651.48, -3750.63),
+                      (3355.63, -2151.82)] #critical part, high aggro area
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(10000)
     bot.Move.XY(4565.37, -1630.73)
     bot.Wait.ForTime(15000)
-    bot.Move.XY(2951.07, -723.50)
-    bot.Move.XY(2875.84, 488.42)
-    bot.Move.XY(1354.73, 583.06)
+    auto_path_list = [(2951.07, -723.50), (2875.84, 488.42), (1354.73, 583.06)]
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapToChange(target_map_id=290)
     #bot.Dialogs.WithModel(4863, 0x82D404)  # Kormir dialog model id 4863
     #bot.Dialogs.WithModel(4863, 0x85)  # Kormir dialog model id 4863
@@ -783,18 +786,14 @@ def AdvanceToEOTN(bot: Botting):
     bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
     bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)  # yes
     bot.Wait.ForMapLoad(target_map_id=692)  # tunnels_below_cantha_id
-    bot.Move.XY(16738.77, 3046.05)
-    bot.Move.XY(10968.19, 9623.72)
-    bot.Move.XY(3918.55, 10383.79)
-    bot.Move.XY(8435, 14378)
-    bot.Move.XY(10134,16742)
+    auto_path_list = [(16738.77, 3046.05), (13028.36, 6146.36), (10968.19, 9623.72),
+                      (3918.55, 10383.79), (8435, 14378), (10134,16742)]    
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(3000)
     ConfigurePacifistEnv(bot)    
-    bot.Move.XY(4523.25, 15448.03)
-    bot.Move.XY(-43.80, 18365.45)
-    bot.Move.XY(-10234.92, 16691.96)
-    bot.Move.XY(-17917.68, 18480.57)
-    bot.Move.XY(-18775, 19097)
+    auto_path_list = [(4523.25, 15448.03), (-43.80, 18365.45), (-10234.92, 16691.96),
+                      (-17917.68, 18480.57), (-18775, 19097)]
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(8000)
     bot.Wait.ForMapLoad(target_map_id=675)  # boreal_station_id
 
@@ -808,16 +807,16 @@ def TraverseToEOTNOutpost(bot: Botting):
     bot.Move.XY(3579.07, -22007.27)
     bot.Wait.ForTime(15000)
     bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
-    bot.Move.XY(3743.31, -15862.36)
-    bot.Move.XY(8267.89, -12334.58)
-    bot.Move.XY(3607.21, -6937.32)
+    auto_path_list = [(3743.31, -15862.36), (3607.21, -6937.32),(2557.23, -275.97)]
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Wait.ForMapLoad(target_map_id=642)  # eotn_outpost_id
     bot.Move.XYAndExitMap(2557.23, -275.97, target_map_id=642) #eotn_outpost_id
 
 def UnlockXunlaiMaterialPanel(bot: Botting) -> None:
     bot.States.AddHeader("Unlock Xunlai Material Panel")
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
-    path_to_xunlai: List[Tuple[float, float]] = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
+    path_to_xunlai = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
     bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
     bot.Dialogs.WithModel(221, 0x800001)
     bot.Dialogs.WithModel(221, 0x800002)
@@ -826,13 +825,16 @@ def UnlockEotnPool(bot: Botting):
     bot.States.AddHeader("Unlock EOTN Pool")
     bot.Map.Travel(target_map_id=642)  # eotn_outpost_id
     bot.Wait.ForMapLoad(target_map_id=642)  # hall of monuments id
-    bot.Move.XY(-4416.39, 4932.36)
-    bot.Move.XY(-5198.00, 5595.00)
+    auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapLoad(target_map_id=646)  # hall of monuments id
     bot.Move.XY(-6572.70, 6588.83)
     bot.Dialogs.WithModel(5970, 0x800001) #eotn_pool_cinematic
+    bot.Wait.ForTime(1000)
     bot.Dialogs.WithModel(5908, 0x630) #eotn_pool_cinematic
+    bot.Wait.ForTime(1000)
     bot.Dialogs.WithModel(5908, 0x632) #eotn_pool_cinematic
+    bot.Wait.ForTime(1000)
     bot.Wait.ForMapToChange(target_map_id=646)  # hall of monuments id
     bot.Dialogs.WithModel(5970, 0x89) #gwen dialog
     bot.Dialogs.WithModel(5970, 0x831904) #gwen dialog
@@ -842,46 +844,37 @@ def UnlockEotnPool(bot: Botting):
 def AdvanceToGunnarsHold(bot: Botting):
     bot.States.AddHeader("Advance To Gunnar's Hold")
     bot.Map.Travel(target_map_id=642) # eotn_outpost_id
-    bot.Wait.ForMapLoad(target_map_id=642)  # eotn_outpost_id
     PrepareForBattle(bot)
     
     # Follow outpost exit path
-    bot.Move.XY(-1814, 2917)
-    bot.Move.XY(-964, 2270)
-    bot.Move.XY(-115, 1677)
-    bot.Move.XY(718, 1060)
-    bot.Move.XYAndExitMap(1522, 464, target_map_id=499)  # Ice Cliff Chasms
+    path = [(-1814.0, 2917.0), (-964.0, 2270.0), (-115.0, 1677.0), (718.0, 1060.0), 
+            (1522.0, 464.0)]
+    bot.Move.FollowPath(path)
     bot.Wait.ForMapLoad(target_map_id=499)  # Ice Cliff Chasms
     
     # Traverse through Ice Cliff Chasms
     bot.Move.XYAndDialog(2825, -481, 0x832801)  # Talk to Jora
-    bot.Move.XY(2233, 77)
-    bot.Move.XY(2586, 2100)
-    bot.Move.XY(2547, 4173)
-    bot.Move.XY(2588, 6226)
-    bot.Move.XY(1481, 7941)
-    bot.Move.XY(498, 9692)
-    bot.Move.XY(661, 11769)
-    bot.Move.XY(1021, 13809)
-    bot.Move.XY(800, 15865)
-    bot.Move.XY(465, 17890)
-    bot.Move.XY(375, 19935)
-    bot.Move.XY(-912, 21480)
-    bot.Move.XY(-1995, 23186)
-    bot.Move.XY(-2682, 25118)
-    bot.Move.XY(-3591, 26974)
-    bot.Move.XYAndExitMap(-4031, 27872, target_map_id=548)  # Norrhart Domains
+    path = [(2548.84, 7266.08),
+            (1233.76, 13803.42),
+            (978.88, 21837.26),
+            (-4031.0, 27872.0),]
+    bot.Move.FollowAutoPath(path)
     bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
-    
+ 
     # Traverse through Norrhart Domains
-    bot.Move.XY(11007, -13090)
-    bot.Move.XY(12261, -11439)
-    bot.Move.XY(11975, -9409)
-    bot.Move.XY(11775, -7333)
-    bot.Move.XY(13639, -6465)
-    bot.Move.XY(14546, -6043)
+    bot.Move.XY(14546.0, -6043.0)
     bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)  # Gunnar's Hold
     bot.Wait.ForMapLoad(target_map_id=644)  # Gunnar's Hold
+    
+def UnlockKillroy(bot: Botting):
+    bot.States.AddHeader("Unlock Killroy")
+    bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
+    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
+    bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
+    bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
+    bot.Items.Equip(24897) #brass_knuckles_item_id
+    bot.Move.XY(19290.50, -11552.23)
+    bot.Wait.UntilOnOutpost()
 
 def UnlockRemainingSecondaryProfessions(bot: Botting):
     bot.States.AddHeader("Unlock remaining secondary professions")
@@ -964,7 +957,28 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
         bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
     
 #region Events
-#region EVENTS
+def _on_death(bot: "Botting"):
+    slot = 8 # slot 8 is the default "revive" skill
+    while True:
+        if not GLOBAL_CACHE.Map.GetMapID() == 703: # only use in killroy
+            break
+        
+        if not GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            break
+        
+        energy = GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
+        while energy < 1.0:
+            yield from Routines.Yield.Skills.CastSkillSlot(slot, aftercast_delay=20)
+            energy = GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
+
+        if energy >= 1.0:
+            break
+            
+    
+def OnDeath(bot: "Botting"):
+    bot.States.AddManagedCoroutine("OnDeath_OPD", lambda: _on_death(bot))
+    
+
 def on_party_wipe_coroutine(bot: "Botting", target_name: str):
     # optional but typical for wipe flow:
     GLOBAL_CACHE.Player.SendChatCommand("resign")
@@ -990,17 +1004,21 @@ def on_party_wipe(bot: "Botting"):
     current_step = fsm.get_current_state_number()
 
     # Your distinct waypoints (as given)
-    ENTER_MINISTER_CHO_MISSION = 82
-    FIRST_ATTRIBUTE_MISSION = 126
-    TAKE_WARNING_THE_TENGU_QUEST = 161
-    EXIT_TO_PANJIANG_PENINSULA = 238
-    ADVANCE_SHAOSHANG_TRAIL = 276
-    RESTART_FROM_SEITUNG_HARBOR = 335
-    ENTER_ZEN_DAIJUN_MISSION = 362
-    SECOND_ATTRIBUTE_MISSION = 418
-    ADVANCE_TO_KAINENG_CENTER = 635
-    ADVANCE_TO_EOTN = 663
+    ENTER_MINISTER_CHO_MISSION = 100
+    FIRST_ATTRIBUTE_MISSION = 148
+    TAKE_WARNING_THE_TENGU_QUEST = 189
+    EXIT_TO_PANJIANG_PENINSULA = 286
+    ADVANCE_SHAOSHANG_TRAIL = 357
+    RESTART_FROM_SEITUNG_HARBOR = 422
+    ENTER_ZEN_DAIJUN_MISSION = 433
+    SECOND_ATTRIBUTE_MISSION = 494
+    ADVANCE_TO_KAINENG_CENTER = 735
+    ADVANCE_TO_LA =768
+    ADVANCE_TO_KAMADAN = 814
+    
+    ADVANCE_TO_EOTN = 901
     EXIT_BOREAL_STATION = 727
+    UNLOCK_KILLROY = 1133
 
     waypoints = [
         ENTER_MINISTER_CHO_MISSION,
@@ -1012,8 +1030,11 @@ def on_party_wipe(bot: "Botting"):
         ENTER_ZEN_DAIJUN_MISSION,
         SECOND_ATTRIBUTE_MISSION,
         ADVANCE_TO_KAINENG_CENTER,
+        ADVANCE_TO_LA,
+        ADVANCE_TO_KAMADAN,
         ADVANCE_TO_EOTN,
         EXIT_BOREAL_STATION,
+        UNLOCK_KILLROY
     ]
 
     # nearest <= current; if none, bail (or pick the first—your call)
