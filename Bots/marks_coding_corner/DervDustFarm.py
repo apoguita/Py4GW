@@ -10,6 +10,8 @@ THE_BLACK_CURTAIN = "The Black Curtain"
 VIABLE_LOOT = {
     ModelID.Gold_Coins,
     ModelID.Bone,
+    ModelID.Plant_Fiber,
+    ModelID.Abnormal_Seed,
     ModelID.Pile_Of_Glittering_Dust,
     ModelID.Feather,
     ModelID.Feathered_Crest,
@@ -30,7 +32,6 @@ VIABLE_LOOT = {
     ModelID.Monstrous_Claw,
     ModelID.Monstrous_Eye,
     ModelID.Shadowy_Remnants,
-    ModelID.Abnormal_Seed,
 }
 # handler constants
 HANDLE_STUCK = 'handle_stuck'

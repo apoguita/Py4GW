@@ -126,29 +126,53 @@ def withdraw_cons_materials_from_inventory():
         ModelID.Feather: 50,
     }
     GOLD_PER_CONSET = 750
+    BUFFER_SLOTS = 4
+    MIN_REQUIRED_SLOTS = len(PER_CONSET) + BUFFER_SLOTS  # 4 mats + 4 buffer = 8
 
-    # Step 1: Check how many we can craft
-    max_possible = 20  # Max cap so we can fit all in the inventory
+    # Step 0: Check inventory space
+    free_slots = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
+    if free_slots < MIN_REQUIRED_SLOTS:
+        ConsoleLog("Conset Withdraw", f"Not enough free slots ({free_slots}), need at least {MIN_REQUIRED_SLOTS}.")
+        return
+
+    # Step 1: Check how many we can craft based on materials
+    max_possible = 9999
     for model_id, req_amount in PER_CONSET.items():
         available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
         possible = available // req_amount
         max_possible = min(max_possible, possible)
 
+    # Step 2: Check gold availability
     gold_available = GLOBAL_CACHE.Inventory.GetGoldInStorage() + GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
     possible_gold = gold_available // GOLD_PER_CONSET
     max_possible = min(max_possible, possible_gold)
 
+    # Step 3: Cap to what can actually fit in slots
+    def can_fit(conset_count):
+        slots_needed = 0
+        for model_id, req_amount in PER_CONSET.items():
+            total_needed = req_amount * conset_count
+            already_have = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
+            # Remaining items after filling existing stack(s)
+            remaining = max(0, total_needed - already_have)
+            # Each slot holds up to 250
+            slots_needed += (remaining + 249) // 250
+        return slots_needed + BUFFER_SLOTS <= free_slots
+
+    # Reduce max_possible if inventory can't fit
+    while max_possible > 0 and not can_fit(max_possible):
+        max_possible -= 1
+
     if max_possible <= 0:
-        ConsoleLog("Conset Withdraw", "Not enough materials to craft any consets.")
+        ConsoleLog("Conset Withdraw", "Not enough space/materials to craft any consets.")
         return
 
-    # Step 2: Withdraw materials
+    # Step 4: Withdraw materials
     for model_id, req_amount in PER_CONSET.items():
         total_needed = req_amount * max_possible
         already_have = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
         target_amount = already_have + total_needed
 
-        # Keep withdrawing until we reach the target
         while GLOBAL_CACHE.Inventory.GetModelCount(model_id) < target_amount:
             remaining = target_amount - GLOBAL_CACHE.Inventory.GetModelCount(model_id)
             withdraw_amount = min(250, remaining)
@@ -158,7 +182,7 @@ def withdraw_cons_materials_from_inventory():
 
         ConsoleLog("Withdraw", f"Got {total_needed} {model_id} for consets.")
 
-    # Step 3: Withdraw gold
+    # Step 5: Withdraw gold
     needed_gold = GOLD_PER_CONSET * max_possible
     gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
 
@@ -169,6 +193,29 @@ def withdraw_cons_materials_from_inventory():
 
     consets_to_make = max_possible
     ConsoleLog("Conset Withdraw", f"Withdrew materials and {needed_gold}g for {max_possible} consets.")
+
+
+def can_make_at_least_one_conset_from_storage():
+    PER_CONSET = {
+        ModelID.Iron_Ingot: 100,
+        ModelID.Pile_Of_Glittering_Dust: 100,
+        ModelID.Bone: 50,
+        ModelID.Feather: 50,
+    }
+    GOLD_PER_CONSET = 750
+
+    # Check mats
+    for model_id, req_amount in PER_CONSET.items():
+        available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        if available < req_amount:
+            return False
+
+    # Check gold
+    gold_available = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+    if gold_available < GOLD_PER_CONSET:
+        return False
+
+    return True
 
 
 def merch_non_cons_material_from_inventory():
@@ -501,6 +548,15 @@ def deposit_sellable_crafting_material_items():
         yield from Routines.Yield.wait(250)
 
 
+def check_reset_if_necessary(bot: Botting):
+    can_craft = can_make_at_least_one_conset_from_storage()
+    if can_craft:
+        bot.config.FSM.pause()
+        bot.config.FSM.jump_to_state_by_name('[H]Craft Consumables_1')
+        bot.config.FSM.resume()
+    return
+
+
 def main_bot(bot: Botting) -> None:
     map_id = GLOBAL_CACHE.Map.GetMapID()
     if map_id != 640:
@@ -514,7 +570,7 @@ def main_bot(bot: Botting) -> None:
     bot.Interact.WithNpcAtXY(2158.00, -2006.00, "Interact with the Merch")
     bot.States.AddCustomState(merch_non_cons_material_from_inventory, 'Sell Non-Cons Mats')
 
-    bot.States.AddHeader('Craft consumables')
+    bot.States.AddHeader('Craft Consumables')
     bot.Move.XY(3254.94, 167.96, "Go to Consumables NPCs")
     bot.States.AddCustomState(withdraw_cons_materials_from_inventory, 'Take items needed for cons')
     bot.Interact.WithNpcAtXY(3743.00, -106.00, 'Talk to the dwarf')
@@ -525,6 +581,8 @@ def main_bot(bot: Botting) -> None:
     bot.States.AddCustomState(craft_grail_of_might, 'Make Grails of of Might')
     bot.States.AddCustomState(move_all_cons_to_storage, 'Move cons to storage')
     bot.States.AddCustomState(move_all_crafting_materials_to_storage, 'Attempt to move all common mats')
+    bot.States.AddCustomState(lambda: check_reset_if_necessary(bot), 'Attempt to craft more if we can')
+    bot.Wait.ForTime(3000)
 
 
 bot.SetMainRoutine(main_bot)
