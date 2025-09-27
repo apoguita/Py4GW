@@ -79,40 +79,6 @@ def load_skill_bar(bot: Botting):
     yield from bot.config.build_handler.LoadSkillBar()
 
 
-def ball_fog_nightmares(bot: Botting):
-    all_fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Spellcast.value)
-    if not len(all_fog_nightmare_array):
-        return False
-
-    ConsoleLog(DUST_FARMER, 'Balling all Fog Nightmares...')
-    bot.config.build_handler.status = DervBuildFarmStatus.Ball  # type: ignore
-    yield from Routines.Yield.wait(100)
-
-    elapsed = 0
-    while elapsed < (10 * 10):  # 100 = 10 seconds, 30 = 3 seconds
-        # Enemies nearby
-        player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
-        if player_hp < 0.80:
-            ConsoleLog(DUST_FARMER, 'Dying, killing immediately!')
-            return True
-
-        all_fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Spellcast.value)
-        nearby_fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Nearby.value)
-        ball_count = len(nearby_fog_nightmare_array)
-        total_count = len(all_fog_nightmare_array)
-
-        if ball_count == total_count:
-            ConsoleLog(DUST_FARMER, 'Fog Nightmares ready to kill!')
-            return True  # condition satisfied
-
-        # wait 100ms
-        yield from Routines.Yield.wait(100)
-        elapsed += 1
-
-    # timeout reached
-    return False
-
-
 def farm_fog_nightmares(bot):
     global is_looting
     global is_farming
@@ -121,7 +87,7 @@ def farm_fog_nightmares(bot):
         return
 
     # Auto detect if fog_nightmares in the area
-    fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Spellcast.value)
+    fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Earshot.value)
     if not len(fog_nightmare_array):
         ConsoleLog('Farm Fog Nightmares', 'No Fog Nightmare detected!')
         return
@@ -137,7 +103,7 @@ def farm_fog_nightmares(bot):
     player_id = GLOBAL_CACHE.Player.GetAgentID()
 
     while True:
-        fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Spellcast.value)
+        fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Earshot.value)
         if len(fog_nightmare_array) == 0:
             bot.config.build_handler.status = DervBuildFarmStatus.Move
             break  # all fog_nightmares dead
@@ -445,7 +411,7 @@ def handle_fog_nightmare_danger(bot: Botting):
             GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(THE_BLACK_CURTAIN)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
-            if bot.config.pause_on_danger_fn() and get_fog_nightmare_array(Range.Spellcast.value):
+            if bot.config.pause_on_danger_fn() and get_fog_nightmare_array(Range.Earshot.value):
                 # Deal with local enemies before resuming
                 yield from farm_fog_nightmares(bot)
         yield from Routines.Yield.wait(500)
@@ -542,8 +508,10 @@ def main_farm(bot: Botting):
         (11857, -2561),
         (13267, -2115),
         (12656, -1221),
-        (10750, 1061),
+        (13773, 771),
+        (12626, 1507),
         (10832, 413),
+        (10750, 1061),
     ]):
         x, y = location_kills
         bot.Move.XY(x, y, f'Move to Kill Spot {index + 1}')
