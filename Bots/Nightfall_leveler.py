@@ -1,5 +1,9 @@
-from ast import If
-from Py4GWCoreLib import (Botting, Routines, GLOBAL_CACHE, ModelID, ImGui)
+from __future__ import annotations
+from typing import List, Tuple, Generator, Any
+
+from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
+                          AutoPathing, ImGui)
+
 
 bot = Botting("NF Leveler",
               upkeep_birthday_cupcake_restock=10,
@@ -18,13 +22,13 @@ def create_bot_routine(bot: Botting) -> None:
     Enter_Chahbek_Mission(bot)
     Learn_more(bot)
     storage_quests(bot)
-    #unlock_ranger_gtob(bot) #not needed
     Take_Quests(bot)
     Farm_for_quests(bot)
     SSGH_quests(bot)
     continue_quests(bot)
     second_profession(bot)
     after_2nd_profession(bot)
+    #TakeRewardAndCraftArmor(bot) #comment again for testing
     jokanur_diggings_quests(bot)
     LeveledUp(bot)
     EOTN_Run(bot)
@@ -83,11 +87,11 @@ def EquipSkillBar():
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Dervish":
         if level <= 2: #5 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkKrBbMiXprAAAAAAAAAAAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOrCbMiXp7AGAAAAAjXBAA")
         elif level <= 3: #10 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYJpyqwGj4V6Og9NAAAwmh2A")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOrCbMiXp7AGAAAAAjXBAA")
         elif level <= 4: #15 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKlYJYR6sKsxIeluDYfDAAAsZoN")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkSrCbMiXp7AGAAAAAjXBAA")
         elif level <= 5: #20 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYRKuGj4V6+f9NAAAAAg2A")
         elif level <= 6: #40 attribute points available 
@@ -104,23 +108,23 @@ def EquipSkillBar():
             yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYRKuGj4V6+f9NAAAAAg2A")
     elif profession == "Paragon":
         if level <= 2: #5 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKjUenF6Mw4HcFuIDkVx0mNDA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 3: #10 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKjUenF6Mw4HcFuIDkVx0mNDA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 4: #15 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKjUenF6Mw4HcFuIDkVx0mNDA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUSmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 5: #20 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKjUenF6Mw4HcFuIDkVx0mNDA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUSmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 6: #40 attribute points available 
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUSmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 7: #50 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 8: #50 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 9: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 10: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         else: #20 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
 
@@ -128,7 +132,120 @@ def LoadHeroSkillBar(hero_index, skill_template):
     if hero_index==6:
        yield from Routines.Yield.Skills.LoadHeroSkillBar(6, skill_template) 
     elif hero_index==7:
-       yield from Routines.Yield.Skills.LoadHeroSkillBar(7, skill_template) 
+       yield from Routines.Yield.Skills.LoadHeroSkillBar(7, skill_template)
+
+def GetArmorMaterialPerProfession(headpiece = False) -> int:
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if primary == "Warrior":
+        return ModelID.Bolt_Of_Cloth.value
+    elif primary == "Ranger":
+        return ModelID.Tanned_Hide_Square.value
+    elif primary == "Monk":
+        if headpiece:
+            return ModelID.Pile_Of_Glittering_Dust.value
+        return ModelID.Bolt_Of_Cloth.value
+    elif primary == "Dervish":
+        return ModelID.Tanned_Hide_Square.value
+    elif primary == "Mesmer":
+        return ModelID.Bolt_Of_Cloth.value
+    elif primary == "Necromancer":
+        if headpiece:
+            return ModelID.Pile_Of_Glittering_Dust.value
+        return ModelID.Tanned_Hide_Square.value
+    elif primary == "Ritualist":
+        return ModelID.Bolt_Of_Cloth.value
+    elif primary == "Elementalist":
+        if headpiece:
+            return ModelID.Pile_Of_Glittering_Dust.value
+        return ModelID.Bolt_Of_Cloth.value
+    else:
+        return ModelID.Tanned_Hide_Square.value
+
+def BuyMaterials():
+    for _ in range(5):
+        yield from Routines.Yield.Merchant.BuyMaterial(GetArmorMaterialPerProfession())
+
+def GetArmorPiecesByProfession(bot: Botting):
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    HEAD,CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0,0
+
+    if primary == "Warrior":
+        HEAD = 10046 #6 bolts of cloth
+        CHEST = 10164 #18 bolts of cloth
+        GLOVES = 10165 #6 bolts of cloth
+        PANTS = 10166 #12 bolts of cloth
+        BOOTS = 10163 #6 bolts of cloth
+    if primary == "Ranger":
+        HEAD = 10483 #6 tanned hides
+        CHEST = 10613 #18 tanned hides
+        GLOVES = 10614 #6 tanned hides
+        PANTS = 10615 #12 tanned hides
+        BOOTS = 10612 #6 tanned hides
+    if primary == "Monk":
+        HEAD = 9600 #6 piles of glittering dust
+        CHEST = 9619 #18 tanned hides
+        GLOVES = 9620 #6 tanned hides
+        PANTS = 9621 #12 tanned hides
+        BOOTS = 9618 #6 tanned hides
+    if primary == "Dervish":
+        HEAD = 17673 #6 tanned hides
+        CHEST = 17676 #18 tanned hides
+        GLOVES = 17677 #6 tanned hides
+        PANTS = 17678 #12 tanned hides
+        BOOTS = 17675 #6 tanned hides
+    if primary == "Mesmer":
+        HEAD = 7528 #6 bolts of cloth
+        CHEST = 7546 #18 bolts of cloth
+        GLOVES = 7547 #6 bolts of cloth
+        PANTS = 7548 #12 bolts of cloth
+        BOOTS = 7545 #6 bolts of cloth
+    if primary == "Necromancer":
+        HEAD = 8741 #6 piles of glittering dust
+        CHEST = 8757 #18 tanned hides
+        GLOVES = 8758 #6 tanned hides
+        PANTS = 8759 #12 tanned hides
+        BOOTS = 8756 #6 tanned hides
+    if primary == "Ritualist":
+        HEAD = 11203 #6 bolts of cloth
+        CHEST = 11320 #18 bolts of cloth
+        GLOVES = 11321 #6 bolts of cloth
+        PANTS = 11323 #12 bolts of cloth
+        BOOTS = 11319 #6 bolts of cloth
+    if primary == "Elementalist":
+        HEAD = 9183 #6 bolts of cloth
+        CHEST = 9202 #18 bolts of cloth
+        GLOVES = 9203 #6 bolts of cloth
+        PANTS = 9204 #12 bolts of cloth
+        BOOTS = 9201 #6 bolts of cloth
+
+    return HEAD, CHEST, GLOVES, PANTS, BOOTS
+
+
+def CraftArmor(bot: Botting):
+    HEAD, CHEST, GLOVES, PANTS, BOOTS = GetArmorPiecesByProfession(bot)
+
+    armor_pieces = [
+        (CHEST, [GetArmorMaterialPerProfession()], [18]),
+        (PANTS, [GetArmorMaterialPerProfession()], [12]),
+        (BOOTS,   [GetArmorMaterialPerProfession()], [6]),
+    ]
+
+    for item_id, mats, qtys in armor_pieces:
+        # --- Craft ---
+        result = yield from Routines.Yield.Items.CraftItem(item_id, 200, mats, qtys)
+        if not result:
+            ConsoleLog("CraftArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+
+        # --- Equip ---
+        result = yield from Routines.Yield.Items.EquipItem(item_id)
+        if not result:
+            ConsoleLog("CraftArmor", f"Failed to equip item ({item_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+    return True
 #region Start
 
 def skip_tutorial_dialog(bot: Botting) -> None:
@@ -235,18 +352,6 @@ def storage_quests(bot: Botting):
     bot.Move.XYAndDialog(-7761, 14393, 0x84, step_name="50 Gold please")
     bot.Move.XYAndDialog(-9251, 11826, 0x82A107, step_name="Accept reward")
 
-#def unlock_ranger_gtob(bot: Botting):
-    #bot.States.AddHeader("Unlock Ranger in GToB")
-    #bot.Map.Travel(target_map_id=248)
-    #bot.Wait.ForMapToChange(target_map_id=248)
-    #GLOBAL_CACHE.Inventory.WithdrawGold(500)
-    #bot.Move.XYAndDialog(-3145, -7242, 0x0285, step_name="Unlock Ranger")
-    #bot.Dialogs.AtXY(-3145, -7242, 0x0284, step_name="Yes please")
-    #bot.Wait.ForTime(2000)
-    #bot.Map.Travel(target_map_id=449)
-    #bot.Wait.ForMapToChange(target_map_id=449)
-    
-
 def Take_Quests(bot: Botting):
     bot.States.AddHeader("Quality Weapons")
     bot.Move.XYAndDialog(-11208, 8815, 0x826003, step_name="Quality Steel")
@@ -268,7 +373,7 @@ def Farm_for_quests(bot: Botting):
     bot.Wait.ForTime(2000)
     bot.Move.XY(9464, -2639, step_name="Killer Plants 1")
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(10183, -6428, step_name="Killer Plants 2")
+    bot.Move.XY(11183, -7728, step_name="Killer Plants 2")
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(9681, -9300, step_name="Killer Plants 3")
     bot.Wait.UntilOutOfCombat()
@@ -276,8 +381,6 @@ def Farm_for_quests(bot: Botting):
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(5073, -4850, step_name="Killer Plants 5")
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(1750, 4700)
-
     bot.Move.XYAndDialog(9292, -1220, 0x826104, step_name="Material Girl")
     bot.Move.XYAndDialog(-1782, 2790, 0x828801, step_name="Map Travel")
     bot.Move.XY(-3145, 2412)
@@ -443,6 +546,14 @@ def after_2nd_profession(bot: Botting):
     bot.States.AddHeader("Jokanur Diggings")
     bot.Move.XYAndDialog(2888, 2207, 0x827807, step_name="Leaving A Legacy complete")
     bot.Dialogs.AtXY(2888, 2207, 0x827901, step_name="Sounds Like Fun")
+
+def TakeRewardAndCraftArmor(bot: Botting):
+    bot.States.AddHeader("Take Reward And Craft Armor")
+    bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
+    bot.States.AddCustomState(BuyMaterials, "Buy Materials")
+    bot.Move.XYAndInteractNPC(3891.62, 2329.84)  # Armor crafter
+    exec_fn = lambda: CraftArmor(bot)
+    bot.States.AddCustomState(exec_fn, "Craft Armor")
     
 def jokanur_diggings_quests(bot):
     bot.States.AddHeader("Sprint to level 10")
