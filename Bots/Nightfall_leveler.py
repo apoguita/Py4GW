@@ -1,8 +1,14 @@
 from ast import If
 from Py4GWCoreLib import (Botting, Routines, GLOBAL_CACHE, ModelID, ImGui)
 
-bot = Botting("NF Leveler")
-     
+bot = Botting("NF Leveler",
+              upkeep_birthday_cupcake_restock=10,
+              upkeep_honeycomb_restock=20,
+              upkeep_war_supplies_restock=2,
+              upkeep_auto_inventory_management_active=False,
+              upkeep_auto_combat_active=False,
+              upkeep_auto_loot_active=True)
+
 def create_bot_routine(bot: Botting) -> None:
     skip_tutorial_dialog(bot)
     travel_to_guild_hall(bot)
@@ -39,13 +45,24 @@ def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Properties.Set("movement_timeout",value=15000)
     bot.Properties.Disable("auto_combat")
     bot.Properties.Disable("imp")
-    
+    bot.Properties.Enable("birthday_cupcake")
+    bot.Properties.Disable("honeycomb")
+    bot.Properties.Disable("war_supplies")
+    bot.Items.SpawnAndDestroyBonusItems()
+    bot.Items.Restock.BirthdayCupcake()
+    bot.Items.Restock.WarSupplies()
+
 def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout",value=-1)
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("imp")
+    bot.Properties.Enable("birthday_cupcake")
+    bot.Properties.Enable("honeycomb")
+    bot.Properties.Enable("war_supplies")
+    bot.Items.Restock.BirthdayCupcake()
+    bot.Items.Restock.WarSupplies()
     bot.Items.SpawnAndDestroyBonusItems([ModelID.Bonus_Serrated_Shield.value, ModelID.Igneous_Summoning_Stone.value])
     
     
@@ -527,10 +544,40 @@ def _draw_texture():
         ImGui.DrawTextureExtended(texture_path=path, size=size,
                                   uv0=(0.75, 0.0), uv1=(1.0, 1.0),
                                   tint=tint, border_color=border_col)
+        
+def _draw_settings(bot: Botting):
+    import PyImGui
+    PyImGui.text("Bot Settings")
+    use_birthday_cupcake = bot.Properties.Get("birthday_cupcake", "active")
+    bc_restock_qty = bot.Properties.Get("birthday_cupcake", "restock_quantity")
+
+    use_honeycomb = bot.Properties.Get("honeycomb", "active")
+    hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
+
+    use_birthday_cupcake = PyImGui.checkbox("Use Birthday Cupcake", use_birthday_cupcake)
+    bc_restock_qty = PyImGui.input_int("Birthday Cupcake Restock Quantity", bc_restock_qty)
+
+    use_honeycomb = PyImGui.checkbox("Use Honeycomb", use_honeycomb)
+    hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
+
+    # War Supplies controls
+    use_war_supplies = bot.Properties.Get("war_supplies", "active")
+    ws_restock_qty = bot.Properties.Get("war_supplies", "restock_quantity")
+
+    use_war_supplies = PyImGui.checkbox("Use War Supplies", use_war_supplies)
+    ws_restock_qty = PyImGui.input_int("War Supplies Restock Quantity", ws_restock_qty)
+
+    bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
+    bot.Properties.ApplyNow("war_supplies", "restock_quantity", ws_restock_qty)
+    bot.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
+    bot.Properties.ApplyNow("birthday_cupcake", "restock_quantity", bc_restock_qty)
+    bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
+    bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
 
 
 bot.SetMainRoutine(create_bot_routine)
 bot.UI.override_draw_texture(_draw_texture)
+bot.UI.override_draw_config(lambda: _draw_settings(bot))
 
 def main():
     bot.Update()

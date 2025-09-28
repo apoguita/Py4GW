@@ -20,6 +20,9 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
     bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("essence_of_celerity")
+    bot.Properties.Enable("grail_of_might")
+    bot.Properties.Enable("armor_of_salvation")
     
     # Talk to Big Unfriendly Jotun and take quest
     bot.Move.XYAndDialog(12009, 24726, 0x837E03) # Big Unfriendly Jotun
@@ -52,6 +55,15 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
     bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("essence_of_celerity")
+    bot.Properties.Enable("grail_of_might")
+    bot.Properties.Enable("armor_of_salvation")
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
+    bot.Multibox.UseConsumable(28431, 0) #Apple
+    bot.Multibox.UseConsumable(28432, 0) #Candy
+    bot.Multibox.UseConsumable(22752, 0) #Egg
+    bot.Multibox.UseConsumable(28436, 0) #Pies
+    bot.Multibox.UseConsumable(35121, 0) #WarSupplies
     
     # Talk to Worthy Deeds NPC and take quest
     bot.Move.XYAndDialog(14380, 23968, 0x833A01) # Worthy Deeds
@@ -103,6 +115,13 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
     bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("essence_of_celerity")
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
+    bot.Multibox.UseConsumable(28431, 0) #Apple
+    bot.Multibox.UseConsumable(28432, 0) #Candy
+    bot.Multibox.UseConsumable(22752, 0) #Egg
+    bot.Multibox.UseConsumable(28436, 0) #Pies
+    bot.Multibox.UseConsumable(35121, 0) #WarSupplies
     
     # Start "Anything you can do" quest
     bot.Move.XYAndDialog(14380, 23874, 0x833E01) # Anything you can do
@@ -135,6 +154,8 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
     bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("essence_of_celerity")
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
     
     bot.Move.XYAndExitMap(8832, 23870, target_map_id=513)
     bot.Wait.ForMapLoad(target_map_id=513)
@@ -143,10 +164,19 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=628)
     
     # Navigate to Fragment boss
+    bot.Multibox.UsePConSet() #Conset
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
+    bot.Multibox.UseConsumable(28431, 0) #Apple
+    bot.Multibox.UseConsumable(28432, 0) #Candy
+    bot.Multibox.UseConsumable(22752, 0) #Egg
+    bot.Multibox.UseConsumable(28436, 0) #Pies
+    bot.Multibox.UseConsumable(35121, 0) #WarSupplies
     bot.Move.XY(-5343, -15773) # proof of strength
-    bot.Move.XY(-6237, -9310)
-    bot.Move.XY(-7512, -8414)
-    bot.Move.XY(-12804, 1066) # Defeat the Fragment of Antiquities
+    bot.Move.XY(-6614.39, -11600.95)
+    bot.Move.XY(-5386.19, -8941.30)
+    bot.Move.XY(-8244.77, -7445.38)
+    bot.Move.XY(-11958.68, -2933.47)
+    bot.Move.XY(-12740.31, 1040.36) # Defeat the Fragment of Antiquities
     bot.Wait.ForTime(5000) # extra time here incase of party wipe
     bot.Multibox.ResignParty()
     bot.Wait.ForTime(3000)
@@ -156,7 +186,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndDialog(14380, 23968, 0x833E07) # Rewards
     bot.States.JumpToStepName("[H]End_8")
     
-    bot.States.AddHeader("Unlock Skill #4") #[H] 5
+    bot.States.AddHeader("Unlock Skill #4_5")
     bot.UI.PrintMessageToConsole("Starting", "Beginning I am Unstoppable quest routine")
     
     # Travel to Sifhalla
@@ -195,7 +225,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndDialog(14380, 23968, 0x834407) # Rewards
     bot.States.JumpToStepName("[H]End_8")
     
-    bot.States.AddHeader("Unlock Skill #5") #[H] 6
+    bot.States.AddHeader("Unlock Skill #5_6")
     bot.UI.PrintMessageToConsole("Starting", "Beginning Smooth Criminal quest routine")
     
     # Travel to Boreal Station
@@ -207,6 +237,12 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
     bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
+    bot.Multibox.UseConsumable(28431, 0) #Apple
+    bot.Multibox.UseConsumable(28432, 0) #Candy
+    bot.Multibox.UseConsumable(22752, 0) #Egg
+    bot.Multibox.UseConsumable(28436, 0) #Pies
+    bot.Multibox.UseConsumable(35121, 0) #WarSupplies
     
     # Start Melandru quest
     bot.Move.XYAndDialog(25203, -10694, 0x837C01) # Melandru
@@ -246,7 +282,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndDialog(25203, -10694, 0x837C07) # Rewards
     bot.States.JumpToStepName("[H]End_8")
     
-    bot.States.AddHeader("Unlock Skill #6") #[H] 7
+    bot.States.AddHeader("Unlock Skill #6_7")
     bot.UI.PrintMessageToConsole("Starting", "Beginning Mental Block quest routine")
     
     # Travel to Boreal Station
@@ -258,6 +294,12 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
     bot.Properties.Enable("auto_combat")
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
+    bot.Multibox.UseConsumable(28431, 0) #Apple
+    bot.Multibox.UseConsumable(28432, 0) #Candy
+    bot.Multibox.UseConsumable(22752, 0) #Egg
+    bot.Multibox.UseConsumable(28436, 0) #Pies
+    bot.Multibox.UseConsumable(35121, 0) #WarSupplies
     
     # Start Balthazar quest
     bot.Move.XYAndDialog(25203, -10694, 0x837701) # Balthazar
@@ -300,7 +342,7 @@ def Draw_Window():
         
         if PyImGui.button("Start Dwarven Stability Quest (Skill #1)"):
             bot.StartAtStep("[H]Unlock Skill #1_1")
-            
+
         if PyImGui.button("Start You move like a Dwarf Quest (Skill #2)"):
             bot.StartAtStep("[H]Unlock Skill #2_2")
 
