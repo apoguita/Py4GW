@@ -1,16 +1,16 @@
 import random
 
-from Py4GWCoreLib.Builds.DervFeatherFarmer import SENSALI_MODEL_IDS
-from Py4GWCoreLib.Builds.DervFeatherFarmer import DervBuildFarmStatus
-from Py4GWCoreLib.Builds.DervFeatherFarmer import DervFeatherFarmer
+from Py4GWCoreLib.Builds.DervDustFarmer import DervBuildFarmStatus
+from Py4GWCoreLib.Builds.DervDustFarmer import DervDustFarmer
 from Py4GWCoreLib import *
 
-FEATHER_FARMER = "Feather Farmer"
-SEITUING_HARBOR = "Seitung Harbor"
-JAYA_BLUFFS = "Jaya Bluffs"
+DUST_FARMER = "Dust Farmer"
+TOA = "Temple of the Ages"
+THE_BLACK_CURTAIN = "The Black Curtain"
 VIABLE_LOOT = {
     ModelID.Gold_Coins,
     ModelID.Bone,
+    ModelID.Pile_Of_Glittering_Dust,
     ModelID.Feather,
     ModelID.Feathered_Crest,
     ModelID.Bottle_Of_Rice_Wine,
@@ -29,22 +29,24 @@ VIABLE_LOOT = {
     ModelID.Vial_Of_Dye,
     ModelID.Monstrous_Claw,
     ModelID.Monstrous_Eye,
+    ModelID.Shadowy_Remnants,
+    ModelID.Abnormal_Seed,
 }
 # handler constants
 HANDLE_STUCK = 'handle_stuck'
 HANDLE_LOOT = 'handle_loot'
-HANDLE_SENSALI_DANGER = 'handle_sensali_danger'
+HANDLE_FOG_NIGHTMARE_DANGER = 'handle_fog_nightmare_danger'
 
 bot = Botting(
-    FEATHER_FARMER,
-    custom_build=DervFeatherFarmer(),
+    DUST_FARMER,
+    custom_build=DervDustFarmer(),
     config_movement_timeout=15000,
-    config_movement_tolerance=150,  # Can get stuck before it reaches the point, but good enough to fight sensalis in the area
+    config_movement_tolerance=150,  # Can get stuck before it reaches the point, but good enough to fight fog_nightmares in the area
     upkeep_auto_inventory_management_active=False,
     upkeep_auto_loot_active=False,
 )
 stuck_timer = ThrottledTimer(3000)
-movement_check_timer = ThrottledTimer(3000)
+movement_check_timer = ThrottledTimer(6000)
 stuck_counter = 0
 unstuck_counter = 0
 old_player_position = (0, 0)
@@ -77,77 +79,39 @@ def load_skill_bar(bot: Botting):
     yield from bot.config.build_handler.LoadSkillBar()
 
 
-def ball_sensalis(bot: Botting):
-    all_sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
-    if not len(all_sensali_array):
-        return False
-
-    ConsoleLog(FEATHER_FARMER, 'Balling all Sensalis...')
-    bot.config.build_handler.status = DervBuildFarmStatus.Ball  # type: ignore
-    yield from Routines.Yield.wait(100)
-
-    elapsed = 0
-    while elapsed < (10 * 10):  # 100 = 10 seconds, 30 = 3 seconds
-        # Enemies nearby
-        player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
-        if player_hp < 0.80:
-            ConsoleLog(FEATHER_FARMER, 'Dying, killing immediately!')
-            return True
-
-        all_sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
-        nearby_sensali_array = get_sensali_array(custom_range=Range.Nearby.value)
-        ball_count = len(nearby_sensali_array)
-        total_count = len(all_sensali_array)
-
-        if ball_count == total_count:
-            ConsoleLog(FEATHER_FARMER, 'Sensalis ready to kill!')
-            return True  # condition satisfied
-
-        # wait 100ms
-        yield from Routines.Yield.wait(100)
-        elapsed += 1
-
-    # timeout reached
-    return False
-
-
-def farm_sensalis(bot, kill_immediately=False):
+def farm_fog_nightmares(bot):
     global is_looting
     global is_farming
 
     if is_farming:
         return
 
-    # Auto detect if sensalis in the area
-    sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
-    if not len(sensali_array):
-        ConsoleLog('Farm Sensalis', 'No Sensali detected!')
+    # Auto detect if fog_nightmares in the area
+    fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Earshot.value)
+    if not len(fog_nightmare_array):
+        ConsoleLog('Farm Fog Nightmares', 'No Fog Nightmare detected!')
         return
 
-    ConsoleLog(FEATHER_FARMER, 'Farming...')
+    ConsoleLog(DUST_FARMER, 'Farming...')
     is_farming = True
-    if kill_immediately or get_non_sensali_array(custom_range=Range.Spellcast.value):
-        bot.config.build_handler.status = DervBuildFarmStatus.Kill
-    else:
-        yield from ball_sensalis(bot)
-        bot.config.build_handler.status = DervBuildFarmStatus.Kill
+    bot.config.build_handler.status = DervBuildFarmStatus.Kill
 
-    ConsoleLog(FEATHER_FARMER, 'Killing all Sensalis! None shall survive!')
+    ConsoleLog(DUST_FARMER, 'Killing all Fog Nightmares! None shall survive!')
     start_time = Utils.GetBaseTimestamp()
     timeout = 120000  # 2 minutes max
 
     player_id = GLOBAL_CACHE.Player.GetAgentID()
 
     while True:
-        sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
-        if len(sensali_array) == 0:
+        fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Earshot.value)
+        if len(fog_nightmare_array) == 0:
             bot.config.build_handler.status = DervBuildFarmStatus.Move
-            break  # all sensalis dead
+            break  # all fog_nightmares dead
 
         # Timeout check
         current_time = Utils.GetBaseTimestamp()
         if timeout > 0 and current_time - start_time > timeout:
-            ConsoleLog(FEATHER_FARMER, 'Fight took too long, setting back to [Move] status')
+            ConsoleLog(DUST_FARMER, 'Fight took too long, setting back to [Move] status')
             bot.config.build_handler.status = DervBuildFarmStatus.Move
             yield from Routines.Yield.wait(1000)
             yield from Routines.Yield.Player.Resign()
@@ -156,13 +120,13 @@ def farm_sensalis(bot, kill_immediately=False):
         # Death check
         if GLOBAL_CACHE.Agent.IsDead(player_id):
             # handle death here
-            ConsoleLog(FEATHER_FARMER, 'Died fighting, setting back to [Move] status')
+            ConsoleLog(DUST_FARMER, 'Died fighting, setting back to [Move] status')
             bot.config.build_handler.status = DervBuildFarmStatus.Move
             return
 
         yield from Routines.Yield.wait(100)
 
-    ConsoleLog(FEATHER_FARMER, 'Finished farming.')
+    ConsoleLog(DUST_FARMER, 'Finished farming.')
     is_farming = False
     yield from Routines.Yield.wait(100)
 
@@ -171,11 +135,11 @@ def loot_items():
     global item_id_blacklist
     filtered_agent_ids = get_valid_loot_array()
     yield from Routines.Yield.wait(500)  # Wait for a second before starting to loot
-    ConsoleLog(FEATHER_FARMER, 'Looting items...')
+    ConsoleLog(DUST_FARMER, 'Looting items...')
     failed_items_id = yield from Routines.Yield.Items.LootItemsWithMaxAttempts(filtered_agent_ids, log=True)
     if failed_items_id:
         item_id_blacklist = item_id_blacklist + failed_items_id
-    ConsoleLog(FEATHER_FARMER, 'Looting items finished')
+    ConsoleLog(DUST_FARMER, 'Looting items finished')
     yield
 
 
@@ -202,16 +166,16 @@ def buy_salvage_kits():
 
 
 # region Helper Methods
-def get_sensali_array(custom_range=Range.Area.value * 1.50):
+def get_fog_nightmare_array(custom_range=Range.Area.value * 1.50):
     px, py = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
-    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) in SENSALI_MODEL_IDS]
+    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}]
 
 
-def get_non_sensali_array(custom_range=Range.Area.value * 1.50):
+def get_non_fog_nightmare_array(custom_range=Range.Area.value * 1.50):
     px, py = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
-    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in SENSALI_MODEL_IDS]
+    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}]
 
 
 def get_valid_loot_array():
@@ -270,11 +234,11 @@ def set_bot_to_setup(bot: Botting):
     yield
 
 
-def detect_sensali_or_loot():
+def detect_fog_nightmare_or_loot():
     global item_id_blacklist
-    # 1. Sensali always take priority
-    sensali_array = get_sensali_array()
-    if sensali_array:
+    # 1. Fog Nightmare always take priority
+    fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Earshot.value)
+    if fog_nightmare_array:
         return True
 
     # 2. Loot check
@@ -292,7 +256,7 @@ def detect_sensali_or_loot():
 
 
 def _on_death(bot: Botting):
-    ConsoleLog(FEATHER_FARMER, "Waiting for a moment reset...")
+    ConsoleLog(DUST_FARMER, "Waiting for a moment reset...")
     yield from Routines.Yield.wait(1000)
     ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
     sup_ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
@@ -307,7 +271,7 @@ def _on_death(bot: Botting):
 
 
 def on_death(bot: Botting):
-    ConsoleLog(FEATHER_FARMER, "Player is dead. Restarting...")
+    ConsoleLog(DUST_FARMER, "Player is dead. Restarting...")
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
@@ -353,7 +317,7 @@ def handle_stuck(bot: Botting):
             continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
+            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(THE_BLACK_CURTAIN)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
             if stuck_timer.IsExpired():
@@ -365,7 +329,7 @@ def handle_stuck(bot: Botting):
                 current_player_pos = GLOBAL_CACHE.Player.GetXY()
                 if is_within_tolerance(old_player_position, current_player_pos) and not bot.config.pause_on_danger_fn():
                     unstuck_counter += 1
-                    ConsoleLog(FEATHER_FARMER, "Farmer is stuck, attempting unstuck procedure...")
+                    ConsoleLog(DUST_FARMER, "Farmer is stuck, attempting unstuck procedure...")
                     stuck_counter += 1
                     GLOBAL_CACHE.Player.SendChatCommand("stuck")
                     player_pos = GLOBAL_CACHE.Player.GetXY()
@@ -407,13 +371,13 @@ def handle_stuck(bot: Botting):
                 continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
+            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(THE_BLACK_CURTAIN)
             and bot.config.build_handler.status == DervBuildFarmStatus.Loot  # type: ignore
         ):
             if movement_check_timer.IsExpired():
                 current_player_pos = GLOBAL_CACHE.Player.GetXY()
                 if is_within_tolerance(old_player_position, current_player_pos) and not bot.config.pause_on_danger_fn():
-                    ConsoleLog(FEATHER_FARMER, "Looting is stuck, attempting unstuck procedure...")
+                    ConsoleLog(DUST_FARMER, "Looting is stuck, attempting unstuck procedure...")
                     stuck_counter += 1
                     yield
                 else:
@@ -432,7 +396,7 @@ def handle_stuck(bot: Botting):
         yield from Routines.Yield.wait(500)
 
 
-def handle_sensali_danger(bot: Botting):
+def handle_fog_nightmare_danger(bot: Botting):
     while True:
         # Wait until map is valid
         if not Routines.Checks.Map.MapValid() and not Routines.Checks.Map.IsExplorable():
@@ -444,12 +408,12 @@ def handle_sensali_danger(bot: Botting):
             continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
+            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(THE_BLACK_CURTAIN)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
-            if bot.config.pause_on_danger_fn() and get_sensali_array(Range.Spellcast.value):
+            if bot.config.pause_on_danger_fn() and get_fog_nightmare_array(Range.Earshot.value):
                 # Deal with local enemies before resuming
-                yield from farm_sensalis(bot)
+                yield from farm_fog_nightmares(bot)
         yield from Routines.Yield.wait(500)
 
 
@@ -466,18 +430,18 @@ def handle_loot(bot: Botting):
             continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
+            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(THE_BLACK_CURTAIN)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
             if bot.config.pause_on_danger_fn() and get_valid_loot_array():
                 if not is_looting:
                     is_looting = True
-                    ConsoleLog(FEATHER_FARMER, 'Setting to [Loot] status')
+                    ConsoleLog(DUST_FARMER, 'Setting to [Loot] status')
                     bot.config.build_handler.status = DervBuildFarmStatus.Loot  # type: ignore
                     yield from Routines.Yield.wait(500)
                     yield from loot_items()
                     yield from Routines.Yield.wait(500)
-                    ConsoleLog(FEATHER_FARMER, 'Setting back to [Move] status')
+                    ConsoleLog(DUST_FARMER, 'Setting back to [Move] status')
                     bot.config.build_handler.status = DervBuildFarmStatus.Move  # type: ignore
                     # log from the last epicenter of the begining of the farm
                     is_looting = False
@@ -493,13 +457,13 @@ def main_farm(bot: Botting):
     # override condition for halting movement
 
     bot.States.AddHeader('Starting Loop')
-    bot.Map.Travel(target_map_name=SEITUING_HARBOR)
+    bot.Map.Travel(target_map_name=TOA)
     bot.Wait.ForTime(2000)
-    bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
+    bot.Wait.ForMapLoad(target_map_name=TOA)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
 
-    bot.Move.XY(17113, 12283, "Move close to Merch")
-    bot.Interact.WithNpcAtXY(17290.00, 12426.00, "Interact with Merchant")
+    bot.Move.XY(-5053.52, 19196.66, "Move close to Merch")
+    bot.Interact.WithNpcAtXY(-5048.00, 19468.00, "Interact with Merchant")
     bot.States.AddCustomState(buy_id_kits, 'Buying ID Kits')
     bot.States.AddCustomState(buy_salvage_kits, 'Buying Salvage Kits')
 
@@ -507,83 +471,51 @@ def main_farm(bot: Botting):
 
     # Resign setup
     bot.States.AddCustomState(lambda: set_bot_to_setup(bot), "Setup Resign")
-    bot.Move.XY(16570, 17713, "Exit Outpost for resign spot")
-    bot.Wait.ForMapLoad(target_map_name=JAYA_BLUFFS)
-    bot.Move.XY(11962, -14017, "Setup resign spot")
-    bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
+    bot.Move.XY(-5265, 15913, "Exit Outpost for resign spot")
+    bot.Wait.ForMapLoad(target_map_name=THE_BLACK_CURTAIN)
+    bot.Move.XY(-5176, 16531, "Setup resign spot")
+    bot.Wait.ForMapLoad(target_map_name=TOA)
 
     # Actual Farming Loop
     bot.States.AddHeader('Farm Loop')
-    bot.config.set_pause_on_danger_fn(detect_sensali_or_loot)
+    bot.config.set_pause_on_danger_fn(detect_fog_nightmare_or_loot)
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("pause_on_danger")
     bot.States.AddCustomState(return_to_outpost, "Return to Seitung Harbor if Dead")
     bot.Wait.ForTime(2000)
-    bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
+    bot.Wait.ForMapLoad(target_map_name=TOA)
     bot.States.AddManagedCoroutine(HANDLE_STUCK, lambda: handle_stuck(bot))
     bot.States.AddManagedCoroutine(HANDLE_LOOT, lambda: handle_loot(bot))
-    bot.States.AddManagedCoroutine(HANDLE_SENSALI_DANGER, lambda: handle_sensali_danger(bot))
+    bot.States.AddManagedCoroutine(HANDLE_FOG_NIGHTMARE_DANGER, lambda: handle_fog_nightmare_danger(bot))
     bot.States.AddCustomState(lambda: set_bot_to_move(bot), "Exit Outpost To Farm")
-    bot.Move.XY(16570, 17713, "Exit Outpost To Farm")
-    bot.Wait.ForMapLoad(target_map_name=JAYA_BLUFFS)
+    bot.Move.XY(-5265, 15913, "Exit Outpost To Farm")
+    bot.Wait.ForMapLoad(target_map_name=THE_BLACK_CURTAIN)
 
-    bot.Move.XY(9000, -12680, 'Run 1')
-    bot.Move.XY(7588, -10609, 'Run 2')
+    bot.Move.XY(-4014, 13044, 'Avoid Plant Mobs')
+    bot.Move.XY(-5617, 6085, 'Run to spot 1')
+    bot.Move.XY(310, 1364, 'Run to spot 2')
 
-    bot.Move.XY(2900, -9700, 'Move spot 1')
-    bot.Move.XY(1540, -6995, 'Move spot 2')
-
-    bot.Move.XY(-472, -4342, 'Move to Kill Spot 1')
-    bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=True), "Killing Sensalis Immediately")
-
-    bot.Move.XY(-1536, -1686, "Move to Kill Spot 2")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(586, -76, "Move to Kill Spot 3")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-1556, 2786, "Move to Kill Spot 4")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-2229, -815, "Move to Kill Spot 5")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=True), "Killing Sensalis Immediately")
-
-    bot.Move.XY(-5247, -3290, "Move to Kill Spot 6")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-6994, -2273, "Move to Kill Spot 7")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-5042, -6638, "Move to Kill Spot 8")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-11040, -8577, "Move to Kill Spot 9")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-10860, -2840, "Move to Kill Spot 10")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-14900, -3000, "Move to Kill Spot 11")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-12200, 150, "Move to Kill Spot 12")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-12500, 4000, "Move to Kill Spot 13")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-12111, 1690, "Move to Kill Spot 14")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-10303, 4110, "Move to Kill Spot 15")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-10500, 5500, "Move to Kill Spot 16")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-9700, 2400, "Move to Kill Spot 17")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
+    for index, location_kills in enumerate([
+        (7725, -2295),
+        (7704, -3418),
+        (6921, -4925),
+        (9625, -4173),
+        (11412, -6359),
+        (12916, -7558),
+        (12211, -4925),
+        (13504, -4102),
+        (11904, -3596),
+        (11857, -2561),
+        (13267, -2115),
+        (12656, -1221),
+        (13773, 771),
+        (12626, 1507),
+        (10832, 413),
+        (10750, 1061),
+    ]):
+        x, y = location_kills
+        bot.Move.XY(x, y, f'Move to Kill Spot {index + 1}')
+        bot.States.AddCustomState(lambda: farm_fog_nightmares(bot), "Killing Fog Nightmares")
     bot.States.AddCustomState(lambda: set_bot_to_wait(bot), "Waiting to return")
 
     bot.States.AddHeader('ID and Salvage at the End')
@@ -606,7 +538,7 @@ def main():
         script_directory = os.getcwd()
     project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
     base_dir = os.path.join(project_root, "marks_coding_corner/textures")
-    texture_icon_path = os.path.join(base_dir, "feather_art.png")
+    texture_icon_path = os.path.join(base_dir, "dust_art.png")
     bot.Update()
     bot.UI.draw_window(icon_path=texture_icon_path)
 
