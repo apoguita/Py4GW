@@ -513,7 +513,7 @@ def analyze_conset_material_balance():
     yield
 
 
-def main_bot(bot: Botting) -> None:
+def cons_printer_bot(bot: Botting) -> None:
     map_id = GLOBAL_CACHE.Map.GetMapID()
     if map_id != 640:
         bot.Map.Travel(target_map_name=EMBARK_BEACH)
@@ -553,7 +553,7 @@ def additoinal_ui():
         PyImGui.end_child()
 
 
-bot.SetMainRoutine(main_bot)
+bot.SetMainRoutine(cons_printer_bot)
 
 
 def main():

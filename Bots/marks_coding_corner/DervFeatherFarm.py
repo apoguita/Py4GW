@@ -497,7 +497,7 @@ def handle_loot(bot: Botting):
 # endregion
 
 
-def main_farm(bot: Botting):
+def feather_farm_bot(bot: Botting):
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     # override condition for halting movement
 
@@ -604,7 +604,7 @@ def main_farm(bot: Botting):
     bot.Wait.UntilCondition(lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
 
 
-bot.SetMainRoutine(main_farm)
+bot.SetMainRoutine(feather_farm_bot)
 
 
 def main():
