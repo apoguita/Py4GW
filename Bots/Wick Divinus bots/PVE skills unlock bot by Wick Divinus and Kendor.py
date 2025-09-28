@@ -8,7 +8,7 @@ BOT_NAME = "PVE Skills Unlock Bot"
 bot = Botting(BOT_NAME)
                 
 def bot_routine(bot: Botting) -> None:
-    bot.States.AddHeader("Unlock Skill #1")
+    bot.States.AddHeader("Unlock Skill #1") #[H] 1
     bot.UI.PrintMessageToConsole("Starting", "Beginning Dwarven Stability quest routine")
     
     # Travel to Sifhalla
@@ -38,9 +38,9 @@ def bot_routine(bot: Botting) -> None:
     
     # Collect reward
     bot.Move.XYAndDialog(12009, 24726, 0x837E07) # Big Unfriendly Jotun Reward
-    bot.States.JumpToStepName("[H]End_7")
+    bot.States.JumpToStepName("[H]End_8")
     
-    bot.States.AddHeader("Unlock Skill #2")
+    bot.States.AddHeader("Unlock Skill #2") #[H] 2
     bot.UI.PrintMessageToConsole("Starting", "Beginning You move like a Dwarf quest routine")
     
     # Travel to Sifhalla
@@ -89,9 +89,9 @@ def bot_routine(bot: Botting) -> None:
     
     # Collect reward
     bot.Move.XYAndDialog(14380, 23968, 0x833A07) # Rewards
-    bot.States.JumpToStepName("[H]End_7")
+    bot.States.JumpToStepName("[H]End_8")
     
-    bot.States.AddHeader("Unlock Skill #3")
+    bot.States.AddHeader("Unlock Skill #3") #[H] 3
     bot.UI.PrintMessageToConsole("Starting", "Beginning Anything you can do quest routine")
     
     # Travel to Sifhalla
@@ -130,7 +130,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=643)
     
     # Fragment of Antiquities section
-    bot.States.AddHeader("Fragment of Antiquities")
+    bot.States.AddHeader("Fragment of Antiquities") #[H] 4
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
@@ -154,9 +154,9 @@ def bot_routine(bot: Botting) -> None:
     
     # Collect reward
     bot.Move.XYAndDialog(14380, 23968, 0x833E07) # Rewards
-    bot.States.JumpToStepName("[H]End_7")
+    bot.States.JumpToStepName("[H]End_8")
     
-    bot.States.AddHeader("Unlock Skill #4")
+    bot.States.AddHeader("Unlock Skill #4") #[H] 5
     bot.UI.PrintMessageToConsole("Starting", "Beginning I am Unstoppable quest routine")
     
     # Travel to Sifhalla
@@ -193,9 +193,9 @@ def bot_routine(bot: Botting) -> None:
     
     # Collect reward
     bot.Move.XYAndDialog(14380, 23968, 0x834407) # Rewards
-    bot.States.JumpToStepName("[H]End_7")
+    bot.States.JumpToStepName("[H]End_8")
     
-    bot.States.AddHeader("Unlock Skill #5")
+    bot.States.AddHeader("Unlock Skill #5") #[H] 6
     bot.UI.PrintMessageToConsole("Starting", "Beginning Smooth Criminal quest routine")
     
     # Travel to Boreal Station
@@ -244,9 +244,9 @@ def bot_routine(bot: Botting) -> None:
     
     # Collect reward
     bot.Move.XYAndDialog(25203, -10694, 0x837C07) # Rewards
-    bot.States.JumpToStepName("[H]End_7")
+    bot.States.JumpToStepName("[H]End_8")
     
-    bot.States.AddHeader("Unlock Skill #6")
+    bot.States.AddHeader("Unlock Skill #6") #[H] 7
     bot.UI.PrintMessageToConsole("Starting", "Beginning Mental Block quest routine")
     
     # Travel to Boreal Station
@@ -284,9 +284,9 @@ def bot_routine(bot: Botting) -> None:
     
     # Collect reward
     bot.Move.XYAndDialog(25203, -10694, 0x837707) # Rewards
-    bot.States.JumpToStepName("[H]End_7")
+    bot.States.JumpToStepName("[H]End_8")
     
-    bot.States.AddHeader("End")
+    bot.States.AddHeader("End") #H 8
     bot.UI.PrintMessageToConsole("End", "This is the end of the bot routine")
 
 
@@ -308,13 +308,13 @@ def Draw_Window():
             bot.StartAtStep("[H]Unlock Skill #3_3")
 
         if PyImGui.button("Start I am Unstoppable Quest (Skill #4)"):
-            bot.StartAtStep("[H]Unlock Skill #4_4")
+            bot.StartAtStep("[H]Unlock Skill #4_5")
 
         if PyImGui.button("Start Smooth Criminal Quest (Skill #5)"):
-            bot.StartAtStep("[H]Unlock Skill #5_5")
+            bot.StartAtStep("[H]Unlock Skill #5_6")
 
         if PyImGui.button("Start Mental Block Quest (Skill #6)"):
-            bot.StartAtStep("[H]Unlock Skill #6_6")
+            bot.StartAtStep("[H]Unlock Skill #6_7")
 
         PyImGui.end()
 
