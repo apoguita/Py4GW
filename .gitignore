@@ -9,7 +9,7 @@ AlcoholProc.ini
 alcohol_procs.json
 Widgets/Config/Travel.ini
 Widgets/Config/*
-Bots/**/Py4GW.ini
+Bots/marks_coding_corner/Py4GW.ini
 
 !Widgets/Config/textures/
 !Widgets/Config/textures/**
