@@ -474,10 +474,9 @@ def PressKey(index, message):
 # endregion
 # region DonateToGuild
 def DonateToGuild(index, message):
-    from Py4GWCoreLib import Player
-
     MODULE = MODULE_NAME
-    LUXON, KURZICK = 1, 2
+    KURZICK = 0
+    LUXON = 1
     CHUNK = 5000
     TITLE_MAX = 10_000_000
 
@@ -497,20 +496,29 @@ def DonateToGuild(index, message):
 
     # --- Param: faction ---
     try:
-        faction = int(message.Params[0])
+        #faction = int(message.Params[0])
+        current_map_id = GLOBAL_CACHE.Map.GetMapID()
+        if current_map_id == 77:
+            faction = KURZICK
+        elif current_map_id == 193:
+            faction = LUXON
+        else:
+            faction = 0
     except Exception:
         ConsoleLog(MODULE, "Invalid faction ID.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
+    kurzick_data = GLOBAL_CACHE.Player.GetKurzickData()
+    luxon_data   = GLOBAL_CACHE.Player.GetLuxonData()
     if faction == LUXON:
         npc_pos  = (9074, -1124)   # Cavalon
-        get_unspent = lambda: Player.player_instance().current_luxon
-        get_total   = lambda: Player.player_instance().total_earned_luxon
+        get_unspent = lambda: kurzick_data[0] if kurzick_data else 0
+        get_total   = lambda: luxon_data[0] if luxon_data else 0
     elif faction == KURZICK:
         npc_pos  = (5408, 1494)    # House zu Heltzer
-        get_unspent = lambda: Player.player_instance().current_kurzick
-        get_total   = lambda: Player.player_instance().total_earned_kurzick
+        get_unspent = lambda: kurzick_data[0] if kurzick_data else 0
+        get_total   = lambda: kurzick_data[0] if kurzick_data else 0
     else:
         ConsoleLog(MODULE, "Unknown faction ID.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -556,17 +564,17 @@ def DonateToGuild(index, message):
                 yield from Routines.Yield.wait(250)
                 if not UIManager.IsNPCDialogVisible():
                     break
-            Player.DepositFaction(faction)
+            GLOBAL_CACHE.Player.DepositFaction(faction)
             done += 1
             yield from Routines.Yield.wait(250)
 
         # Verify actual deposited by measuring unspent delta
         unspent_after = get_unspent()
         deposited = max(0, (unspent_before - unspent_after) // CHUNK) * CHUNK
-        if deposited > 0:
-            ConsoleLog(MODULE, f"Deposited {deposited} points.", Console.MessageType.Info)
-        else:
-            ConsoleLog(MODULE, "Tried to deposit, but no points were deducted (is the NPC dialog open?).", Console.MessageType.Warning)
+        #if deposited > 0:
+        #    ConsoleLog(MODULE, f"Deposited {deposited} points.", Console.MessageType.Info)
+        #else:
+        #    ConsoleLog(MODULE, "Tried to deposit, but no points were deducted (is the NPC dialog open?).", Console.MessageType.Warning)
 
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
@@ -939,11 +947,11 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(MessageEnableHeroAI(index, message))
         case SharedCommandType.PressKey:
             GLOBAL_CACHE.Coroutines.append(PressKey(index, message))
+        case SharedCommandType.DonateToGuild:
+            GLOBAL_CACHE.Coroutines.append(DonateToGuild(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by Frenkey
             pass
-        case SharedCommandType.DonateToGuild:
-            GLOBAL_CACHE.Coroutines.append(DonateToGuild(index, message))
         case _:
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
             pass
