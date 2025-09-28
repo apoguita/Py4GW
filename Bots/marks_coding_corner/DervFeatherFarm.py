@@ -5,6 +5,14 @@ from Py4GWCoreLib.Builds.DervFeatherFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervFeatherFarmer import DervFeatherFarmer
 from Py4GWCoreLib import *
 
+try:
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
+    script_directory = os.getcwd()
+project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+base_dir = os.path.join(project_root, "marks_coding_corner/textures")
+
 FEATHER_FARMER = "Feather Farmer"
 SEITUING_HARBOR = "Seitung Harbor"
 JAYA_BLUFFS = "Jaya Bluffs"
@@ -34,6 +42,7 @@ VIABLE_LOOT = {
 HANDLE_STUCK = 'handle_stuck'
 HANDLE_LOOT = 'handle_loot'
 HANDLE_SENSALI_DANGER = 'handle_sensali_danger'
+TEXTURE_ICON_PATH = os.path.join(base_dir, "feather_art.png")
 
 bot = Botting(
     FEATHER_FARMER,
@@ -599,16 +608,8 @@ bot.SetMainRoutine(main_farm)
 
 
 def main():
-    try:
-        script_directory = os.path.dirname(os.path.abspath(__file__))
-    except NameError:
-        # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
-        script_directory = os.getcwd()
-    project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
-    base_dir = os.path.join(project_root, "marks_coding_corner/textures")
-    texture_icon_path = os.path.join(base_dir, "feather_art.png")
     bot.Update()
-    bot.UI.draw_window(icon_path=texture_icon_path)
+    bot.UI.draw_window(icon_path=TEXTURE_ICON_PATH)
 
 
 if __name__ == "__main__":
