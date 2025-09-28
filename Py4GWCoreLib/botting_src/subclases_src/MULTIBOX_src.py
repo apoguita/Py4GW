@@ -17,6 +17,9 @@ class _MULTIBOX:
         
     def ResignParty(self):
         self._helpers.Multibox.resign_party()
+
+    def DonateFaction(self):
+        self._helpers.Multibox.donate_faction()
         
     def PixelStack(self):
         self._helpers.Multibox.pixel_stack()
