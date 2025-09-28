@@ -12,7 +12,6 @@ def create_bot_routine(bot: Botting) -> None:
     Enter_Chahbek_Mission(bot)
     Learn_more(bot)
     storage_quests(bot)
-    #unlock_ranger_gtob(bot) #not needed
     Take_Quests(bot)
     Farm_for_quests(bot)
     SSGH_quests(bot)
@@ -66,11 +65,11 @@ def EquipSkillBar():
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Dervish":
         if level <= 2: #5 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkKrBbMiXprAAAAAAAAAAAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOrCbMiXp7AGAAAAAjXBAA")
         elif level <= 3: #10 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKkYJpyqwGj4V6Og9NAAAwmh2A")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOrCbMiXp7AGAAAAAjXBAA")
         elif level <= 4: #15 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OgKlYJYR6sKsxIeluDYfDAAAsZoN")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkSrCbMiXp7AGAAAAAjXBAA")
         elif level <= 5: #20 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYRKuGj4V6+f9NAAAAAg2A")
         elif level <= 6: #40 attribute points available 
@@ -87,23 +86,23 @@ def EquipSkillBar():
             yield from Routines.Yield.Skills.LoadSkillbar("OgKkYFYRKuGj4V6+f9NAAAAAg2A")
     elif profession == "Paragon":
         if level <= 2: #5 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKjUenF6Mw4HcFuIDkVx0mNDA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 3: #10 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKjUenF6Mw4HcFuIDkVx0mNDA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 4: #15 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKjUenF6Mw4HcFuIDkVx0mNDA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUSmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 5: #20 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKjUenF6Mw4HcFuIDkVx0mNDA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUSmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 6: #40 attribute points available 
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUSmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 7: #50 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 8: #50 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 9: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         elif level <= 10: #55 attribute points available
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
         else: #20 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")    
 
@@ -218,18 +217,6 @@ def storage_quests(bot: Botting):
     bot.Move.XYAndDialog(-7761, 14393, 0x84, step_name="50 Gold please")
     bot.Move.XYAndDialog(-9251, 11826, 0x82A107, step_name="Accept reward")
 
-#def unlock_ranger_gtob(bot: Botting):
-    #bot.States.AddHeader("Unlock Ranger in GToB")
-    #bot.Map.Travel(target_map_id=248)
-    #bot.Wait.ForMapToChange(target_map_id=248)
-    #GLOBAL_CACHE.Inventory.WithdrawGold(500)
-    #bot.Move.XYAndDialog(-3145, -7242, 0x0285, step_name="Unlock Ranger")
-    #bot.Dialogs.AtXY(-3145, -7242, 0x0284, step_name="Yes please")
-    #bot.Wait.ForTime(2000)
-    #bot.Map.Travel(target_map_id=449)
-    #bot.Wait.ForMapToChange(target_map_id=449)
-    
-
 def Take_Quests(bot: Botting):
     bot.States.AddHeader("Quality Weapons")
     bot.Move.XYAndDialog(-11208, 8815, 0x826003, step_name="Quality Steel")
@@ -251,7 +238,7 @@ def Farm_for_quests(bot: Botting):
     bot.Wait.ForTime(2000)
     bot.Move.XY(9464, -2639, step_name="Killer Plants 1")
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(10183, -6428, step_name="Killer Plants 2")
+    bot.Move.XY(11183, -7728, step_name="Killer Plants 2")
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(9681, -9300, step_name="Killer Plants 3")
     bot.Wait.UntilOutOfCombat()
@@ -259,8 +246,6 @@ def Farm_for_quests(bot: Botting):
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(5073, -4850, step_name="Killer Plants 5")
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(1750, 4700)
-
     bot.Move.XYAndDialog(9292, -1220, 0x826104, step_name="Material Girl")
     bot.Move.XYAndDialog(-1782, 2790, 0x828801, step_name="Map Travel")
     bot.Move.XY(-3145, 2412)
