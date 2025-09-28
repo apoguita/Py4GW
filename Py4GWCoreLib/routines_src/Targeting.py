@@ -51,6 +51,12 @@ class Targeting:
         
         
         return ally_array   
+    
+    @staticmethod
+    def GetNearestSpirit(distance=Range.Earshot.value):
+        from ..Routines import Routines
+        v_target = Routines.Agents.GetNearestSpirit(distance)
+        return v_target
 
     @staticmethod
     def FilterAllyArray(array, distance, other_ally=False, filter_skill_id=0):
