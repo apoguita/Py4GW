@@ -1,9 +1,10 @@
 from Py4GWCoreLib import (Routines, Range,ModelID, Botting,ActionQueueManager)
 
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
+import Py4GW
 
 
-bot = Botting("Kieran Farm Bot",
+bot = Botting("Auspicious Beginnings",
               custom_build=KeiranThackerayEOTN())
      
 def create_bot_routine(bot: Botting) -> None:
@@ -77,44 +78,44 @@ def AcquireKieransBow(bot: Botting) -> None:
         
 def EnterQuest(bot: Botting) -> None:
     bot.States.AddHeader("Enter Quest")
-    bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63E) #enter quest with gwen
+    bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63E) #enter quest with pool
     bot.Wait.ForMapLoad(849)
     
 def AuspiciousBeginnings(bot: Botting) -> None:
     def _EnableCombat(bot: Botting) -> None:
         bot.OverrideBuild(KeiranThackerayEOTN())
-        bot.Properties.Enable("pause_on_danger")
-        bot.Properties.Disable("halt_on_death")
-        bot.Properties.Set("movement_timeout",value=-1)
-        bot.Properties.Enable("auto_combat")
-        bot.Properties.Enable("auto_loot")
-        
+        bot.Templates.Aggressive(enable_imp=False)
+ 
     def _DisableCombat(bot: Botting) -> None:
-        bot.Properties.Disable("pause_on_danger")
-        bot.Properties.Enable("halt_on_death")
-        bot.Properties.Set("movement_timeout",value=15000)
-        bot.Properties.Disable("auto_combat")
-        bot.Properties.Enable("auto_loot")
+        bot.Templates.Pacifist()
         
     bot.States.AddHeader("Auspicious Beginnings")
     _EnableCombat(bot)
     bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
     bot.Move.XY(11864.74, -4899.19)
+    bot.Properties.Enable("war_supplies")
     bot.Wait.UntilOnCombat(Range.Spirit)
-    
-    bot.Move.XY(8655.57, -8782.28, step_name="To corner")
+    bot.Properties.Disable("war_supplies")
+    bot.Move.XY(10165.07, -6181.43, step_name="First Spawn")
+    bot.Wait.UntilOutOfCombat()
+    bot.Properties.Disable("pause_on_danger")
+    path = [(8859.57, -7388.68), (9012.46, -9027.44)]
+    bot.Move.FollowAutoPath(path, step_name="To corner")
+    bot.Properties.Enable("pause_on_danger")
+    bot.Wait.UntilOutOfCombat()
+
     bot.Move.XY(4518.81, -9504.34, step_name="To safe spot 0")
-    #bot.Wait.ForTime(5000)
-    bot.Move.XY(1925.19, -10595.87, step_name="To patrol")
-    bot.Move.XY(-1342.30, -11490.80, step_name="To patrol 2")
+    bot.Wait.ForTime(4000)
+    bot.Properties.Disable("pause_on_danger")
+    bot.Move.XY(2622.71, -9575.04, step_name="To patrol")
+    bot.Properties.Enable("pause_on_danger")
+    bot.Move.XY(325.22, -11728.24)
     
+    bot.Properties.Disable("pause_on_danger")
     bot.Move.XY(-2860.21, -12198.37, step_name="To middle")
     bot.Move.XY(-5109.05, -12717.40, step_name="To patrol 3")
     bot.Move.XY(-6868.76, -12248.82, step_name="To patrol 4")
-
-
-    
-    #bot.Move.XY(-4500.21, -12811.61, step_name="To safe spot 4")
+    bot.Properties.Enable("pause_on_danger")
 
     bot.Move.XY(-15858.25, -8840.35, step_name="To End of Path")
     bot.Wait.ForMapToChange(target_map_id=646)
@@ -126,7 +127,9 @@ bot.SetMainRoutine(create_bot_routine)
 
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path="Keiran_art.png")
+    projects_path = Py4GW.Console.get_projects_path()
+    full_path = projects_path + "\\Bots\\War Supply"
+    bot.UI.draw_window(icon_path=full_path + "\\Keiran_art.png")
 
 
 if __name__ == "__main__":
