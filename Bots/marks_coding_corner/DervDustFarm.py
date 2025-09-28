@@ -4,6 +4,14 @@ from Py4GWCoreLib.Builds.DervDustFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervDustFarmer import DervDustFarmer
 from Py4GWCoreLib import *
 
+try:
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
+    script_directory = os.getcwd()
+project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+base_dir = os.path.join(project_root, "marks_coding_corner/textures")
+
 DUST_FARMER = "Dust Farmer"
 TOA = "Temple of the Ages"
 THE_BLACK_CURTAIN = "The Black Curtain"
@@ -37,6 +45,7 @@ VIABLE_LOOT = {
 HANDLE_STUCK = 'handle_stuck'
 HANDLE_LOOT = 'handle_loot'
 HANDLE_FOG_NIGHTMARE_DANGER = 'handle_fog_nightmare_danger'
+TEXTURE_ICON_PATH = os.path.join(base_dir, "dust_art.png")
 
 bot = Botting(
     DUST_FARMER,
@@ -532,16 +541,8 @@ bot.SetMainRoutine(main_farm)
 
 
 def main():
-    try:
-        script_directory = os.path.dirname(os.path.abspath(__file__))
-    except NameError:
-        # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
-        script_directory = os.getcwd()
-    project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
-    base_dir = os.path.join(project_root, "marks_coding_corner/textures")
-    texture_icon_path = os.path.join(base_dir, "dust_art.png")
     bot.Update()
-    bot.UI.draw_window(icon_path=texture_icon_path)
+    bot.UI.draw_window(icon_path=TEXTURE_ICON_PATH)
 
 
 if __name__ == "__main__":
