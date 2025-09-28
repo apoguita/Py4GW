@@ -161,6 +161,26 @@ def buy_salvage_kits():
         yield from Routines.Yield.Merchant.BuySalvageKits(3)
 
 
+def sell_non_essential_mats():
+    MERCHABLE_CRAFTING_MATERIALS_MODEL_ID = [
+        ModelID.Wood_Plank,
+        ModelID.Scale,
+        ModelID.Tanned_Hide_Square,
+        ModelID.Bolt_Of_Cloth,
+        ModelID.Granite_Slab,
+        ModelID.Chitin_Fragment,
+    ]
+    bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
+    all_items = ItemArray.GetItemArray(bag_list)
+    item_ids_to_sell = []
+
+    for item_id in all_items:
+        if GLOBAL_CACHE.Item.GetModelID(item_id) in MERCHABLE_CRAFTING_MATERIALS_MODEL_ID:
+            item_ids_to_sell.append(item_id)
+
+    yield from Routines.Yield.Merchant.SellItems(item_ids_to_sell)
+
+
 # endregion
 
 
@@ -242,8 +262,9 @@ def _on_death(bot: Botting):
     ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
     sup_ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
     salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
+    free_slot_count = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
     fsm = bot.config.FSM
-    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 1:
+    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 1 or free_slot_count < 4:
         fsm.jump_to_state_by_name("[H]Starting Loop_1")
     else:
         fsm.jump_to_state_by_name("[H]Farm Loop_2")
@@ -271,7 +292,7 @@ def is_inventory_ready():
 # endregion
 
 
-def main_farm(bot: Botting):
+def cof_farm_bot(bot: Botting):
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     # override condition for halting movement
 
@@ -284,6 +305,7 @@ def main_farm(bot: Botting):
     bot.States.AddCustomState(lambda: set_bot_to_setup(bot), "Setup Resign")
     bot.Move.XY(-18815.00, 17923.00, 'Move to NPC')
     bot.Dialogs.AtXY(-19166.00, 17980.00, 0x7F, "Open Merch")
+    bot.States.AddCustomState(sell_non_essential_mats, 'Sell mats')
     bot.States.AddCustomState(buy_id_kits, 'Buying ID Kits')
     bot.States.AddCustomState(buy_salvage_kits, 'Buying Salvage Kits')
     bot.States.AddCustomState(identify_and_salvage_items, 'Salvaging Items')
@@ -323,7 +345,7 @@ def main_farm(bot: Botting):
     bot.Wait.UntilCondition(lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
 
 
-bot.SetMainRoutine(main_farm)
+bot.SetMainRoutine(cof_farm_bot)
 
 
 def main():
