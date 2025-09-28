@@ -7,7 +7,7 @@ bot = Botting(BOT_NAME)
 
 def bot_routine(bot: Botting) -> None:
     KillroyMap(bot)
-    #UnlockKillroy(bot)
+    UnlockKillroy(bot)
     #end_routine(bot)
                 
 def KillroyMap(bot: Botting) -> None:
@@ -37,9 +37,10 @@ def KillroyMap(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=644)  # gunnars_hold_id
     bot.States.JumpToStepName("[H]Killroy Stoneskin_1")
   
-"""def UnlockKillroy(bot: Botting):
+def UnlockKillroy(bot: Botting):
     bot.States.AddHeader("Unlock Killroy and Skills")
     bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
+    bot.Templates.Aggressive(enable_imp=False)
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
@@ -48,10 +49,7 @@ def KillroyMap(bot: Botting) -> None:
     bot.Wait.UntilOnOutpost()
     bot.Move.XYAndDialog(17341.00, -4796.00,0x835A07)
     bot.UI.CancelSkillRewardWindow()
-    bot.States.JumpToStepName("[H]End Step_3")
-    
-def end_routine(bot: Botting) -> None:
-    bot.States.AddHeader("End Step")"""
+
     
 #region Events
 def _on_death(bot: "Botting"):
@@ -92,16 +90,18 @@ bot.SetMainRoutine(bot_routine)
 
 def draw_window(bot: Botting):
     if PyImGui.begin("debug data"):
-        PyImGui.text(f"IsDead: {GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())}")
-        PyImGui.text(f"Energy: {GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())}")
-        PyImGui.text(f"Max Energy: {GLOBAL_CACHE.Agent.GetMaxEnergy(GLOBAL_CACHE.Player.GetAgentID())}")
-        PyImGui.text(f"Health: {GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())}")
-        PyImGui.text(f"Max Health: {GLOBAL_CACHE.Agent.GetMaxHealth(GLOBAL_CACHE.Player.GetAgentID())}")
+        #PyImGui.text(f"IsDead: {GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())}")
+        #PyImGui.text(f"Energy: {GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())}")
+        #PyImGui.text(f"Max Energy: {GLOBAL_CACHE.Agent.GetMaxEnergy(GLOBAL_CACHE.Player.GetAgentID())}")
+        #PyImGui.text(f"Health: {GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())}")
+        #PyImGui.text(f"Max Health: {GLOBAL_CACHE.Agent.GetMaxHealth(GLOBAL_CACHE.Player.GetAgentID())}")
+        if PyImGui.button("Unlock Killroy and Skills"):
+            bot.StartAtStep("[H]Unlock Killroy and Skills_2")
     PyImGui.end()
     
 def main():
     bot.Update()
-    #draw_window(bot)
+    draw_window(bot)
     bot.UI.draw_window(icon_path="Killroy-Art.png")
 
 if __name__ == "__main__":

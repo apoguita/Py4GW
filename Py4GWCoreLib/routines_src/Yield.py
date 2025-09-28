@@ -1213,7 +1213,7 @@ class Yield:
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
             if item_id:
                 GLOBAL_CACHE.Inventory.EquipItem(item_id, GLOBAL_CACHE.Player.GetAgentID())
-                yield from Yield.wait(500)
+                yield from Yield.wait(750)
             else:
                 return False
             return True
