@@ -262,19 +262,21 @@ def set_bot_to_setup(bot: Botting):
     yield
 
 
-def detect_fog_nightmare_or_loot():
+def detect_fog_nightmare_or_loot_or_almost_dead():
     global item_id_blacklist
-    # 1. Fog Nightmare always take priority
+
+    player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+    if player_hp < 80:
+        return True
+
     fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Earshot.value)
     if fog_nightmare_array:
         return True
 
-    # 2. Loot check
     filtered_agent_ids = get_valid_loot_array()
     if not filtered_agent_ids:
         return False
 
-    # Apply blacklist filter
     filtered_agent_ids = [agent_id for agent_id in filtered_agent_ids if agent_id not in set(item_id_blacklist)]
 
     if not filtered_agent_ids:
@@ -507,7 +509,7 @@ def dust_farm_bot(bot: Botting):
 
     # Actual Farming Loop
     bot.States.AddHeader('Farm Loop')
-    bot.config.set_pause_on_danger_fn(detect_fog_nightmare_or_loot)
+    bot.config.set_pause_on_danger_fn(detect_fog_nightmare_or_loot_or_almost_dead)
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("pause_on_danger")
     bot.States.AddCustomState(return_to_outpost, "Return to Seitung Harbor if Dead")
