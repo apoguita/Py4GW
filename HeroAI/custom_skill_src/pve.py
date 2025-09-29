@@ -745,7 +745,7 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Gravestone_Marker")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyInjured.value
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 
@@ -760,14 +760,14 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Rain_of_Arrows")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyInjured.value
         skill.Nature = SkillNature.OffensiveA.value
         skill_data[skill.SkillID] = skill
         
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyInjured.value
         skill.Nature = SkillNature.Healing.value
         skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill

@@ -51,6 +51,12 @@ class Targeting:
         
         
         return ally_array   
+    
+    @staticmethod
+    def GetNearestSpirit(distance=Range.Earshot.value):
+        from ..Routines import Routines
+        v_target = Routines.Agents.GetNearestSpirit(distance)
+        return v_target
 
     @staticmethod
     def FilterAllyArray(array, distance, other_ally=False, filter_skill_id=0):
@@ -215,7 +221,8 @@ class Targeting:
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         
         clustered_agent = AgentArray.Routines.DetectLargestAgentCluster(enemy_array, area)
-        return Utils.GetFirstFromArray(clustered_agent)
+        return clustered_agent
+
 
     @staticmethod
     def GetEnemyAttacking(max_distance=4500.0, aggressive_only = False):
@@ -265,36 +272,39 @@ class Targeting:
         return Utils.GetFirstFromArray(enemy_array)
 
     @staticmethod
-    def GetEnemyInjured(max_distance=4500.0, aggressive_only = False):
-        from ..Py4GWcorelib import Utils
-        from ..AgentArray import AgentArray
-        from ..GlobalCache import GLOBAL_CACHE
-        from .Agents import Agents
-
-        player_pos = GLOBAL_CACHE.Player.GetXY()
-        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
-
-        # sort by lowest HP, then by distance
-        enemy_array = AgentArray.Sort.ByCondition(
-            enemy_array,
-            lambda agent_id: (
+    def GetEnemyInjured(max_distance=4500.0, aggressive_only = False): 
+        from ..Py4GWcorelib import Utils 
+        from ..AgentArray import AgentArray 
+        from ..GlobalCache import GLOBAL_CACHE 
+        from .Agents import Agents 
+        player_pos = GLOBAL_CACHE.Player.GetXY() 
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only) 
+        # sort by lowest HP, then by distance 
+        enemy_array = AgentArray.Sort.ByCondition( 
+            enemy_array, 
+            lambda agent_id: ( 
                 GLOBAL_CACHE.Agent.GetHealth(agent_id),
-                Utils.Distance(player_pos, GLOBAL_CACHE.Agent.GetXY(agent_id))
-            )
-        )
-
+                Utils.Distance(player_pos, GLOBAL_CACHE.Agent.GetXY(agent_id)) 
+                ) 
+        ) 
         return Utils.GetFirstFromArray(enemy_array)
 
     @staticmethod
     def GetEnemyHealthy(max_distance=4500.0, aggressive_only = False):
-        from ..Py4GWcorelib import Utils
-        from ..AgentArray import AgentArray
-        from ..GlobalCache import GLOBAL_CACHE
-        from .Agents import Agents
-        player_pos = GLOBAL_CACHE.Player.GetXY()
-        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
-        enemy_array = AgentArray.Sort.ByCondition(enemy_array, lambda agent_id: -GLOBAL_CACHE.Agent.GetHealth(agent_id))
-        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        from ..Py4GWcorelib import Utils 
+        from ..AgentArray import AgentArray 
+        from ..GlobalCache import GLOBAL_CACHE 
+        from .Agents import Agents 
+        player_pos = GLOBAL_CACHE.Player.GetXY() 
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only) 
+        # sort by lowest HP, then by distance 
+        enemy_array = AgentArray.Sort.ByCondition( 
+            enemy_array, 
+            lambda agent_id: ( 
+                -GLOBAL_CACHE.Agent.GetHealth(agent_id),
+                Utils.Distance(player_pos, GLOBAL_CACHE.Agent.GetXY(agent_id)) 
+                ) 
+        ) 
         return Utils.GetFirstFromArray(enemy_array)
 
     @staticmethod
