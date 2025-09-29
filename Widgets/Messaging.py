@@ -280,15 +280,16 @@ def PixelStack(index, message):
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
     yield from DisableHeroAIOptions(message.ReceiverEmail)
     yield from Routines.Yield.wait(100)
-    yield from Routines.Yield.Movement.FollowPath([(message.Params[0], message.Params[1])], tolerance=10)
+    result = (yield from Routines.Yield.Movement.FollowPath([(message.Params[0], message.Params[1])], tolerance=10, timeout=15000))
     yield from Routines.Yield.wait(100)
     yield from RestoreHeroAISnapshot(message.ReceiverEmail)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(
-        MODULE_NAME,
-        "PixelStack message processed and finished.",
-        Console.MessageType.Info,False
-    )
+    
+    if not result:
+        ConsoleLog(MODULE_NAME, "PixelStack movement failed or timed out.", Console.MessageType.Warning,log= True)
+    else:
+        ConsoleLog(MODULE_NAME, "PixelStack movement succeeded.", Console.MessageType.Info,log= False)
+
 
 
 # endregion

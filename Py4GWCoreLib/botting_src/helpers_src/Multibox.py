@@ -255,7 +255,7 @@ class _Multibox:
         for account in accounts:
             if sender_email == account.AccountEmail:
                 continue
-            ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail, log=False)
+            ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail, log= False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (x,y,0,0))
         yield
         
