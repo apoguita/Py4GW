@@ -241,7 +241,7 @@ class _Multibox:
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
         for account in accounts:
-            ConsoleLog("Messaging", "Resigning account: " + account.AccountEmail)
+            ConsoleLog("Messaging", "Resigning account: " + account.AccountEmail, log=False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))
         yield
         
@@ -255,7 +255,7 @@ class _Multibox:
         for account in accounts:
             if sender_email == account.AccountEmail:
                 continue
-            ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail)
+            ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail, log=False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (x,y,0,0))
         yield
         
@@ -271,7 +271,7 @@ class _Multibox:
         for account in accounts:
             if sender_email == account.AccountEmail:
                 continue
-            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}")
+            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,0,0,0))
         yield
         
@@ -297,30 +297,46 @@ class _Multibox:
         for account in accounts:
             if self_account.AccountEmail == account.AccountEmail:
                 continue
-            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}")
+            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target,1,0,0))
         yield
         
     def _use_consumable_message(self, params):
         from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
         account_email = sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
 
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         sender_email = account_email
         for account in accounts:
-            ConsoleLog("Messaging", f"Sending Consumable Message to  {account.AccountEmail}")
+            ConsoleLog("Messaging", f"Sending Consumable Message to  {account.AccountEmail}", log= False)
             
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
-        yield   
+        yield from Routines.Yield.wait(500)
         
     def _donate_faction(self):
         from ...GlobalCache import GLOBAL_CACHE
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
         for account in accounts:
-            ConsoleLog("Messaging", "Donating to guild from account: " + account.AccountEmail)
+            ConsoleLog("Messaging", "Donating to guild from account: " + account.AccountEmail, log= False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.DonateToGuild, (0,0,0,0))
         yield
+        
+    def _send_dialog_with_target(self, dialog_id: int, wait_time: int=3000):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        target = GLOBAL_CACHE.Player.GetTargetID()
+        if target == 0:
+            ConsoleLog("Messaging", "No target to interact with.")
+            return
+        sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+
+        for account in accounts:
+            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to send dialog {dialog_id} to target: {target}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.SendDialogToTarget, (target, dialog_id,0,0))
+        yield from Routines.Yield.wait(wait_time)
         
     @_yield_step(label="ResignParty", counter_key="RESIGN_PARTY")
     def resign_party(self):
@@ -329,7 +345,11 @@ class _Multibox:
     @_yield_step(label="DonateFaction", counter_key="DONATE_FACTION")
     def donate_faction(self):
         yield from self._donate_faction()
-    
+
+    @_yield_step(label="SendDialogToTarget", counter_key="SEND_DIALOG_TO_TARGET")
+    def send_dialog_to_target(self, dialog_id: int):
+        yield from self._send_dialog_with_target(dialog_id)
+
     @_yield_step(label="PixelStack", counter_key="PIXEL_STACK")
     def pixel_stack(self):
         yield from self._pixel_stack()

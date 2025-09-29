@@ -27,3 +27,12 @@ class _EVENTS:
         
     def SetStuckRoutineEnabled(self, state: bool) -> None:
         self._config.events.set_stuck_routine_enabled(state)
+        
+    def OnPartyMemberBehindCallback(self, callback: Callable[[], None]) -> None:
+        self._config.events.set_on_party_member_behind_callback(callback)
+
+    def OnPartyMemberDeadCallback(self, callback: Callable[[], None]) -> None:
+        self._config.events.set_on_party_member_dead_callback(callback)
+        
+    def OnPartyMemberDeadBehindCallback(self, callback: Callable[[], None]) -> None:
+        self._config.events.set_on_party_member_dead_behind_callback(callback)
