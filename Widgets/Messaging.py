@@ -197,9 +197,7 @@ def InviteToParty(index, message):
     ConsoleLog(
         MODULE_NAME,
         "InviteToParty message processed and finished.",
-        Console.MessageType.Info,
-    )
-
+        Console.MessageType.Info, False)
 
 # endregion
 
@@ -218,7 +216,7 @@ def LeaveParty(index, message):
     ConsoleLog(
         MODULE_NAME,
         "LeaveParty message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info, False
     )
 
 
@@ -244,7 +242,7 @@ def TravelToMap(index, message):
     ConsoleLog(
         MODULE_NAME,
         "TravelToMap message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 
 
@@ -263,7 +261,7 @@ def Resign(index, message):
     GLOBAL_CACHE.Player.SendChatCommand("resign")
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info,False)
 
 
 # endregion
@@ -289,7 +287,7 @@ def PixelStack(index, message):
     ConsoleLog(
         MODULE_NAME,
         "PixelStack message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 
 
@@ -302,7 +300,7 @@ def InteractWithTarget(index, message):
     ConsoleLog(
         MODULE_NAME,
         f"Processing InteractWithTarget message: {message}",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -326,7 +324,7 @@ def InteractWithTarget(index, message):
     ConsoleLog(
         MODULE_NAME,
         "InteractWithTarget message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 
 
@@ -338,7 +336,7 @@ def TakeDialogWithTarget(index, message):
     ConsoleLog(
         MODULE_NAME,
         f"Processing TakeDialogWithTarget message: {message}",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -366,7 +364,43 @@ def TakeDialogWithTarget(index, message):
     ConsoleLog(
         MODULE_NAME,
         "TakeDialogWithTarget message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
+    )
+
+def SendDialogToTarget(index, message):
+    ConsoleLog(
+        MODULE_NAME,
+        f"Processing SendDialogToTarget message: {message}",
+        Console.MessageType.Info,False
+    )
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        return
+    target = int(message.Params[0])
+    if target == 0:
+        ConsoleLog(MODULE_NAME, "Invalid target ID.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    
+    dialog = int(message.Params[1])
+
+    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    yield from DisableHeroAIOptions(message.ReceiverEmail)
+    yield from Routines.Yield.wait(100)
+    x, y = GLOBAL_CACHE.Agent.GetXY(target)
+    yield from Routines.Yield.Movement.FollowPath([(x, y)])
+    yield from Routines.Yield.wait(100)
+    yield from Routines.Yield.Player.InteractAgent(target)
+    yield from Routines.Yield.wait(500)
+    GLOBAL_CACHE.Player.SendDialog(dialog)
+    yield from Routines.Yield.wait(500)
+    yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(
+        MODULE_NAME,
+        "SendDialogToTarget message processed and finished.",
+        Console.MessageType.Info,False
     )
 
 
@@ -397,7 +431,7 @@ def GetBlessing(index, message):
     ConsoleLog(
         MODULE_NAME,
         "GetBlessing message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 
 
@@ -406,7 +440,7 @@ def GetBlessing(index, message):
 
 
 def UsePcon(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing UsePcon message: {message}", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, f"Processing UsePcon message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
     pcon_model_id = int(message.Params[0])
@@ -443,6 +477,7 @@ def UsePcon(index, message):
         MODULE_NAME,
         f"Using PCon model {pcon_model_to_use} with item_id {item_id}.",
         Console.MessageType.Info,
+        False
     )
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -454,7 +489,7 @@ def UsePcon(index, message):
 
 # region PressKey
 def PressKey(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info,False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
     key_id = int(message.Params[0])
@@ -469,7 +504,7 @@ def PressKey(index, message):
     ConsoleLog(
         MODULE_NAME,
         "PressKey message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 # endregion
 # region DonateToGuild
@@ -594,7 +629,7 @@ def DonateToGuild(index, message):
         swapped += 1
 
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE, f"Swapped {swapped * CHUNK} points for rare mats.", Console.MessageType.Info)
+    ConsoleLog(MODULE, f"Swapped {swapped * CHUNK} points for rare mats.", Console.MessageType.Info,False)
 
 # endregion
 
@@ -720,7 +755,7 @@ def MessageDisableHeroAI(index, message):
     ConsoleLog(
         MODULE_NAME,
         f"Processing DisableHeroAI message: {message}",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
@@ -730,7 +765,7 @@ def MessageDisableHeroAI(index, message):
     ConsoleLog(
         MODULE_NAME,
         "DisableHeroAI message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 
 
@@ -738,7 +773,7 @@ def MessageEnableHeroAI(index, message):
     ConsoleLog(
         MODULE_NAME,
         f"Processing EnableHeroAI message: {message}",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
@@ -750,7 +785,7 @@ def MessageEnableHeroAI(index, message):
     ConsoleLog(
         MODULE_NAME,
         "EnableHeroAI message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 
 
@@ -919,6 +954,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(InteractWithTarget(index, message))
         case SharedCommandType.TakeDialogWithTarget:
             GLOBAL_CACHE.Coroutines.append(TakeDialogWithTarget(index, message))
+        case SharedCommandType.SendDialogToTarget:
+            GLOBAL_CACHE.Coroutines.append(SendDialogToTarget(index, message))
         case SharedCommandType.GetBlessing:
             pass
         case SharedCommandType.OpenChest:

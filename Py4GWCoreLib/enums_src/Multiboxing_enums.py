@@ -23,6 +23,7 @@ class SharedCommandType(IntEnum):
     LeaveParty = 18
     PressKey = 19
     DonateToGuild = 20
+    SendDialogToTarget = 21
     LootEx = 999 # privately Handled Command, by Frenkey
     
 
