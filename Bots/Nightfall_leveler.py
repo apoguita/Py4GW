@@ -38,9 +38,9 @@ def create_bot_routine(bot: Botting) -> None:
 def LeveledUp(bot: Botting) -> None:
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if level <= 10:
-        yield from Routines.Yield.States.JumpToStepName("[H]Sprint to level 10_24")
+        yield from Routines.Yield.States.JumpToStepName("[H]Sprint to level 10_23")
     elif level >= 11:
-        yield from Routines.Yield.States.JumpToStepName("[H]EOTN Run_26")
+        yield from Routines.Yield.States.JumpToStepName("[H]EOTN Run_25")
             
 #region Helpers
 
