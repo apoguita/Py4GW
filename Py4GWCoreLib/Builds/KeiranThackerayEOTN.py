@@ -32,7 +32,7 @@ class KeiranThackerayEOTN(BuildMgr):
                 yield from Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=aftercast)
             yield
             
-        aftercast = 500  # ms
+        aftercast = 750  # ms
 
         if not (Routines.Checks.Map.IsExplorable() and
             Routines.Checks.Player.CanAct() and
@@ -50,17 +50,11 @@ class KeiranThackerayEOTN(BuildMgr):
 
             nearest_npc = Routines.Agents.GetNearestNPC(Range.Spirit.value)
             npc_low_on_life = False
-            nearest_NPC_life = 0.0
             if nearest_npc != 0:
-                nearest_NPC_life = GLOBAL_CACHE.Agent.GetHealth(nearest_npc)
-                if nearest_NPC_life > 0:  # only count if alive
-                    npc_low_on_life = nearest_NPC_life < life_threshold
-                    
-            all_life = player_life + nearest_NPC_life if nearest_NPC_life > 0 else player_life
-            all_life = all_life / 2.0
-            all_low_on_life = all_life < life_threshold
+                npc_life = GLOBAL_CACHE.Agent.GetHealth(nearest_npc)
+                npc_low_on_life = npc_life < life_threshold
 
-            if low_on_life or npc_low_on_life or all_low_on_life:
+            if low_on_life or npc_low_on_life:
                 yield from Routines.Yield.Skills.CastSkillID(self.natures_blessing, aftercast_delay=100)
                 return
             
@@ -95,11 +89,19 @@ class KeiranThackerayEOTN(BuildMgr):
                     yield from _CastSkill(bleeding_enemy, self.terminal_velocity, aftercast)
                 
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.gravestone_marker)):
+                spirit_enemy = Routines.Targeting.GetNearestSpirit(Range.Earshot.value)
+                if spirit_enemy != 0:
+                    yield from _CastSkill(spirit_enemy, self.gravestone_marker, aftercast)
+                    return
                 gravestone_enemy = Routines.Targeting.GetEnemyHealthy(Range.Earshot.value)
                 if gravestone_enemy != 0:
                     yield from _CastSkill(gravestone_enemy, self.gravestone_marker, aftercast)
                     
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.rain_of_arrows)):
+                spirit_enemy = Routines.Targeting.GetNearestSpirit(Range.Earshot.value)
+                if spirit_enemy != 0:
+                    yield from _CastSkill(spirit_enemy, self.rain_of_arrows, aftercast)
+                    return
                 enemy = Routines.Targeting.TargetClusteredEnemy(Range.Earshot.value)
                 if enemy != 0:
                     yield from _CastSkill(enemy, self.rain_of_arrows, aftercast)

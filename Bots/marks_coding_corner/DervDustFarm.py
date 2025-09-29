@@ -4,12 +4,22 @@ from Py4GWCoreLib.Builds.DervDustFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervDustFarmer import DervDustFarmer
 from Py4GWCoreLib import *
 
+try:
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
+    script_directory = os.getcwd()
+project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+base_dir = os.path.join(project_root, "marks_coding_corner/textures")
+
 DUST_FARMER = "Dust Farmer"
 TOA = "Temple of the Ages"
 THE_BLACK_CURTAIN = "The Black Curtain"
 VIABLE_LOOT = {
     ModelID.Gold_Coins,
     ModelID.Bone,
+    ModelID.Plant_Fiber,
+    ModelID.Abnormal_Seed,
     ModelID.Pile_Of_Glittering_Dust,
     ModelID.Feather,
     ModelID.Feathered_Crest,
@@ -30,12 +40,30 @@ VIABLE_LOOT = {
     ModelID.Monstrous_Claw,
     ModelID.Monstrous_Eye,
     ModelID.Shadowy_Remnants,
-    ModelID.Abnormal_Seed,
 }
 # handler constants
 HANDLE_STUCK = 'handle_stuck'
 HANDLE_LOOT = 'handle_loot'
 HANDLE_FOG_NIGHTMARE_DANGER = 'handle_fog_nightmare_danger'
+TEXTURE_ICON_PATH = os.path.join(base_dir, "dust_art.png")
+KILL_SPOTS = [
+    (7725, -2295),
+    (7704, -3418),
+    (6921, -4925),
+    (9625, -4173),
+    (11412, -6359),
+    (12916, -7558),
+    (12211, -4925),
+    (13504, -4102),
+    (11904, -3596),
+    (11857, -2561),
+    (13267, -2115),
+    (12656, -1221),
+    (13773, 771),
+    (12626, 1507),
+    (10832, 413),
+    (10750, 1061),
+]
 
 bot = Botting(
     DUST_FARMER,
@@ -236,17 +264,15 @@ def set_bot_to_setup(bot: Botting):
 
 def detect_fog_nightmare_or_loot():
     global item_id_blacklist
-    # 1. Fog Nightmare always take priority
+
     fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Earshot.value)
     if fog_nightmare_array:
         return True
 
-    # 2. Loot check
     filtered_agent_ids = get_valid_loot_array()
     if not filtered_agent_ids:
         return False
 
-    # Apply blacklist filter
     filtered_agent_ids = [agent_id for agent_id in filtered_agent_ids if agent_id not in set(item_id_blacklist)]
 
     if not filtered_agent_ids:
@@ -261,8 +287,9 @@ def _on_death(bot: Botting):
     ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
     sup_ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
     salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
+    free_slot_count = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
     fsm = bot.config.FSM
-    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0:
+    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0 or free_slot_count < 4:
         fsm.jump_to_state_by_name("[H]Starting Loop_1")
     else:
         fsm.jump_to_state_by_name("[H]Farm Loop_2")
@@ -414,6 +441,11 @@ def handle_fog_nightmare_danger(bot: Botting):
             if bot.config.pause_on_danger_fn() and get_fog_nightmare_array(Range.Earshot.value):
                 # Deal with local enemies before resuming
                 yield from farm_fog_nightmares(bot)
+                player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+                while player_hp < 0.99:
+                    ConsoleLog(DUST_FARMER, 'Dying, Need recovery...')
+                    player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+                    yield from Routines.Yield.wait(2000)
         yield from Routines.Yield.wait(500)
 
 
@@ -452,7 +484,7 @@ def handle_loot(bot: Botting):
 # endregion
 
 
-def main_farm(bot: Botting):
+def dust_farm_bot(bot: Botting):
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     # override condition for halting movement
 
@@ -495,24 +527,7 @@ def main_farm(bot: Botting):
     bot.Move.XY(-5617, 6085, 'Run to spot 1')
     bot.Move.XY(310, 1364, 'Run to spot 2')
 
-    for index, location_kills in enumerate([
-        (7725, -2295),
-        (7704, -3418),
-        (6921, -4925),
-        (9625, -4173),
-        (11412, -6359),
-        (12916, -7558),
-        (12211, -4925),
-        (13504, -4102),
-        (11904, -3596),
-        (11857, -2561),
-        (13267, -2115),
-        (12656, -1221),
-        (13773, 771),
-        (12626, 1507),
-        (10832, 413),
-        (10750, 1061),
-    ]):
+    for index, location_kills in enumerate(KILL_SPOTS):
         x, y = location_kills
         bot.Move.XY(x, y, f'Move to Kill Spot {index + 1}')
         bot.States.AddCustomState(lambda: farm_fog_nightmares(bot), "Killing Fog Nightmares")
@@ -527,20 +542,12 @@ def main_farm(bot: Botting):
     bot.Wait.UntilCondition(lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
 
 
-bot.SetMainRoutine(main_farm)
+bot.SetMainRoutine(dust_farm_bot)
 
 
 def main():
-    try:
-        script_directory = os.path.dirname(os.path.abspath(__file__))
-    except NameError:
-        # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
-        script_directory = os.getcwd()
-    project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
-    base_dir = os.path.join(project_root, "marks_coding_corner/textures")
-    texture_icon_path = os.path.join(base_dir, "dust_art.png")
     bot.Update()
-    bot.UI.draw_window(icon_path=texture_icon_path)
+    bot.UI.draw_window(icon_path=TEXTURE_ICON_PATH)
 
 
 if __name__ == "__main__":

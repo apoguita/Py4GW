@@ -44,4 +44,29 @@ class Party:
             
         return False
     
+    @staticmethod
+    def GetDeadPartyMemberID():
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Routines import Checks
+        if not Checks.Map.MapValid():
+            return 0
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        henchmen = GLOBAL_CACHE.Party.GetHenchmen()
+        heroes = GLOBAL_CACHE.Party.GetHeroes()
+
+        for player in players:
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            if GLOBAL_CACHE.Agent.IsDead(agent_id):
+                return agent_id
+
+        for henchman in henchmen:
+            if GLOBAL_CACHE.Agent.IsDead(henchman.agent_id):
+                return henchman.agent_id
+            
+        for hero in heroes:
+            if GLOBAL_CACHE.Agent.IsDead(hero.agent_id):
+                return hero.agent_id
+
+        return 0
+    
     
