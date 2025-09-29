@@ -22,8 +22,17 @@ class _EVENTS:
     def OnPartyDefeatedCallback(self, callback: Callable[[], None]) -> None:
         self._config.events.on_party_defeated.set_callback(callback)
         
-    def OnStuckCallback(self, callback: Callable[[], None]) -> None:
-        self._config.events.on_stuck.set_callback(callback)
+    #def OnStuckCallback(self, callback: Callable[[], None]) -> None:
+    #    self._config.events.on_stuck.set_callback(callback)
         
-    def SetStuckRoutineEnabled(self, state: bool) -> None:
-        self._config.events.set_stuck_routine_enabled(state)
+    #def SetStuckRoutineEnabled(self, state: bool) -> None:
+    #    self._config.events.set_stuck_routine_enabled(state)
+        
+    def OnPartyMemberBehindCallback(self, callback: Callable[[], None]) -> None:
+        self._config.events.set_on_party_member_behind_callback(callback)
+
+    def OnPartyMemberDeadCallback(self, callback: Callable[[], None]) -> None:
+        self._config.events.set_on_party_member_dead_callback(callback)
+        
+    def OnPartyMemberDeadBehindCallback(self, callback: Callable[[], None]) -> None:
+        self._config.events.set_on_party_member_dead_behind_callback(callback)
