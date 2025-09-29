@@ -522,13 +522,22 @@ class _UI:
 
         
         
-    def draw_window(self, main_child_dimensions: Tuple[int, int]  = (350, 275), icon_path:str = "",iconwidth: int = 96):
+    def draw_window(
+        self, 
+        main_child_dimensions: Tuple[int, int] = (350, 275),
+        icon_path: str = "",
+        iconwidth: int = 96,
+        addtional_ui: Optional[Callable[[], None]] = None
+    ):
 
         if PyImGui.begin(self._config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
             if PyImGui.begin_tab_bar(self._config.bot_name + "_tabs"):
                 if PyImGui.begin_tab_item("Main"):
                     if PyImGui.begin_child(f"{self._config.bot_name} - Main", main_child_dimensions, True, PyImGui.WindowFlags.NoFlag):
                         self._draw_main_child(main_child_dimensions, icon_path, iconwidth)
+                        if addtional_ui:
+                            PyImGui.separator()
+                            addtional_ui()
                         PyImGui.end_child()
                     PyImGui.end_tab_item()
                 

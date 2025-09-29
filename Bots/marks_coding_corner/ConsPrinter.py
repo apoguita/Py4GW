@@ -10,6 +10,15 @@ from Py4GWCoreLib import Py4GW
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Trading
 from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib import PyImGui
+
+try:
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
+    script_directory = os.getcwd()
+project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+base_dir = os.path.join(project_root, "marks_coding_corner/textures")
 
 selected_step = 0
 EMBARK_BEACH = "Embark Beach"
@@ -26,6 +35,14 @@ MERCHABLE_CRAFTING_MATERIALS_MODEL_ID = [
     ModelID.Granite_Slab,
     ModelID.Chitin_Fragment,
 ]
+PER_CONSET = {
+    ModelID.Iron_Ingot: 100,
+    ModelID.Pile_Of_Glittering_Dust: 100,
+    ModelID.Bone: 50,
+    ModelID.Feather: 50,
+}
+GOLD_PER_CONSET = 750
+TEXTURE_ICON_PATH = os.path.join(base_dir, "conset_printer.png")
 
 
 bot = Botting(MODULE_NAME)
@@ -119,36 +136,53 @@ def withdraw_cons_materials_from_inventory():
     global consets_to_make
 
     consets_to_make = 0
-    PER_CONSET = {
-        ModelID.Iron_Ingot: 100,
-        ModelID.Pile_Of_Glittering_Dust: 100,
-        ModelID.Bone: 50,
-        ModelID.Feather: 50,
-    }
-    GOLD_PER_CONSET = 750
+    BUFFER_SLOTS = 4
+    MIN_REQUIRED_SLOTS = len(PER_CONSET) + BUFFER_SLOTS  # 4 mats + 4 buffer = 8
 
-    # Step 1: Check how many we can craft
-    max_possible = 20  # Max cap so we can fit all in the inventory
+    # Step 0: Check inventory space
+    free_slots = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
+    if free_slots < MIN_REQUIRED_SLOTS:
+        ConsoleLog("Conset Withdraw", f"Not enough free slots ({free_slots}), need at least {MIN_REQUIRED_SLOTS}.")
+        return
+
+    # Step 1: Check how many we can craft based on materials
+    max_possible = 9999
     for model_id, req_amount in PER_CONSET.items():
         available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
         possible = available // req_amount
         max_possible = min(max_possible, possible)
 
+    # Step 2: Check gold availability
     gold_available = GLOBAL_CACHE.Inventory.GetGoldInStorage() + GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
     possible_gold = gold_available // GOLD_PER_CONSET
     max_possible = min(max_possible, possible_gold)
 
+    # Step 3: Cap to what can actually fit in slots
+    def can_fit(conset_count):
+        slots_needed = 0
+        for model_id, req_amount in PER_CONSET.items():
+            total_needed = req_amount * conset_count
+            already_have = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
+            # Remaining items after filling existing stack(s)
+            remaining = max(0, total_needed - already_have)
+            # Each slot holds up to 250
+            slots_needed += (remaining + 249) // 250
+        return slots_needed + BUFFER_SLOTS <= free_slots
+
+    # Reduce max_possible if inventory can't fit
+    while max_possible > 0 and not can_fit(max_possible):
+        max_possible -= 1
+
     if max_possible <= 0:
-        ConsoleLog("Conset Withdraw", "Not enough materials to craft any consets.")
+        ConsoleLog("Conset Withdraw", "Not enough space/materials to craft any consets.")
         return
 
-    # Step 2: Withdraw materials
+    # Step 4: Withdraw materials
     for model_id, req_amount in PER_CONSET.items():
         total_needed = req_amount * max_possible
         already_have = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
         target_amount = already_have + total_needed
 
-        # Keep withdrawing until we reach the target
         while GLOBAL_CACHE.Inventory.GetModelCount(model_id) < target_amount:
             remaining = target_amount - GLOBAL_CACHE.Inventory.GetModelCount(model_id)
             withdraw_amount = min(250, remaining)
@@ -158,7 +192,7 @@ def withdraw_cons_materials_from_inventory():
 
         ConsoleLog("Withdraw", f"Got {total_needed} {model_id} for consets.")
 
-    # Step 3: Withdraw gold
+    # Step 5: Withdraw gold
     needed_gold = GOLD_PER_CONSET * max_possible
     gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
 
@@ -169,6 +203,21 @@ def withdraw_cons_materials_from_inventory():
 
     consets_to_make = max_possible
     ConsoleLog("Conset Withdraw", f"Withdrew materials and {needed_gold}g for {max_possible} consets.")
+
+
+def can_make_at_least_one_conset_from_storage():
+    # Check mats
+    for model_id, req_amount in PER_CONSET.items():
+        available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        if available < req_amount:
+            return False
+
+    # Check gold
+    gold_available = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+    if gold_available < GOLD_PER_CONSET:
+        return False
+
+    return True
 
 
 def merch_non_cons_material_from_inventory():
@@ -354,114 +403,6 @@ def craft_grail_of_might():
     yield from craft_item(ModelID.Grail_Of_Might, REQUIRED_MATS, PER_CRAFT, crafts=consets_to_make)
 
 
-def balance_materials(target_material_model_id: ModelID, prices: dict):
-    """
-    Balances materials around a target material by buying deficits and selling excess.
-
-    Args:
-        target_material (int): ModelID to base the balance on (the bottleneck).
-        prices (dict): {model_id: {"buy": int, "sell": int}} prices per unit.
-
-    Returns:
-        dict: {
-            "consets_based_on_target": int,
-            "transactions": {
-                model_id: {
-                    "buy": int,
-                    "buy_cost": int,
-                    "sell": int,
-                    "sell_income": int
-                }, ...
-            },
-            "net_gold": int
-        }
-    """
-    PER_CONSET = {
-        ModelID.Iron_Ingot: 100,
-        ModelID.Pile_Of_Glittering_Dust: 100,
-        ModelID.Bone: 50,
-        ModelID.Feather: 50,
-    }
-
-    # Step 1: How many consets based on the target material
-    target_available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(target_material_model_id)
-    consets_based_on_target = target_available // PER_CONSET[target_material_model_id]
-
-    # Step 2: Evaluate buy/sell for others
-    transactions = {}
-    net_gold = 0
-
-    for model_id, req_amount in PER_CONSET.items():
-        available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
-        required = consets_based_on_target * req_amount
-
-        buy, buy_cost, sell, sell_income = 0, 0, 0, 0
-
-        if available < required:
-            # Need to buy
-            buy = required - available
-            buy_cost = buy * prices[model_id]["buy"]
-            net_gold -= buy_cost
-        elif available > required:
-            # Can sell excess
-            sell = available - required
-            sell_income = sell * prices[model_id]["sell"]
-            net_gold += sell_income
-
-        transactions[model_id] = {"buy": buy, "buy_cost": buy_cost, "sell": sell, "sell_income": sell_income}
-
-    return {"consets_based_on_target": consets_based_on_target, "transactions": transactions, "net_gold": net_gold}
-
-
-def optimize_consets(prices: dict):
-    """
-    Finds the optimal balancing strategy across all materials:
-    - Chooses the bottleneck that gives the highest consets.
-    - Minimizes net gold spent if tied.
-    - Returns buy/sell plan.
-
-    Args:
-        prices (dict): {model_id: {"buy": int, "sell": int}}
-
-    Returns:
-        dict: {
-            "best_target": model_id,
-            "consets": int,
-            "transactions": dict,
-            "net_gold": int
-        }
-    """
-    PER_CONSET = {
-        ModelID.Iron_Ingot: 100,
-        ModelID.Pile_Of_Glittering_Dust: 100,
-        ModelID.Bone: 50,
-        ModelID.Feather: 50,
-    }
-
-    best_result = None
-
-    for target in PER_CONSET.keys():
-        result = balance_materials(target, prices)
-        consets = result["consets_based_on_target"]
-
-        if not best_result:
-            best_result = (target, result)
-        else:
-            _, current_best = best_result
-            if (consets > current_best["consets_based_on_target"]) or (
-                consets == current_best["consets_based_on_target"] and result["net_gold"] < current_best["net_gold"]
-            ):
-                best_result = (target, result)
-
-    best_target, best_data = best_result  # type: ignore -> needs a fix
-    return {
-        "best_target": best_target,
-        "consets": best_data["consets_based_on_target"],
-        "transactions": best_data["transactions"],
-        "net_gold": best_data["net_gold"],
-    }
-
-
 def move_all_cons_to_storage():
     CONS = [
         ModelID.Armor_Of_Salvation,
@@ -501,7 +442,78 @@ def deposit_sellable_crafting_material_items():
         yield from Routines.Yield.wait(250)
 
 
-def main_bot(bot: Botting) -> None:
+def check_reset_if_necessary(bot: Botting):
+    can_craft = can_make_at_least_one_conset_from_storage()
+    if can_craft:
+        bot.config.FSM.pause()
+        bot.config.FSM.jump_to_state_by_name('[H]Craft Consumables_1')
+        bot.config.FSM.resume()
+    return
+
+
+def analyze_conset_material_balance():
+    # === Step 1: Consets possible per material ===
+    possible_per_mat = {}
+    for model_id, req_amount in PER_CONSET.items():
+        available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        possible_per_mat[model_id] = available // req_amount
+
+    # === Step 2: Gold constraint ===
+    gold_available = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+    possible_gold = gold_available // GOLD_PER_CONSET
+
+    # === Step 3: Actual possible = min of all ===
+    limiting_consets = min(min(possible_per_mat.values()), possible_gold)
+
+    # === Step 4: Find bottleneck material(s) ===
+    bottlenecks = [mid for mid, count in possible_per_mat.items() if count == limiting_consets]
+
+    # === Step 5: Calculate shortages relative to bottleneck ===
+    shortages = {}
+    for model_id, req_amount in PER_CONSET.items():
+        available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        target_amount = req_amount * limiting_consets
+        shortages[model_id] = max(0, target_amount - available)
+
+    # === Step 6: Suggest best farm target ===
+    farm_costs = {}
+    for model_id, req_amount in PER_CONSET.items():
+        available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        target_amount = req_amount * (limiting_consets + 1)
+        farm_costs[model_id] = max(0, target_amount - available)
+
+    best_to_farm = None
+    min_cost = float("inf")
+    for model_id, cost in farm_costs.items():
+        if cost > 0 and cost < min_cost:
+            min_cost = cost
+            best_to_farm = model_id
+
+    # === Step 7: Log results ===
+    ConsoleLog("Conset Analysis", f"Can make {limiting_consets} consets with current storage and gold.")
+
+    for model_id, possible in possible_per_mat.items():
+        name = model_id.name if hasattr(model_id, "name") else str(model_id)
+        need = shortages[model_id]
+        if model_id in bottlenecks:
+            ConsoleLog("Conset Analysis", f"- {name}: {possible} consets (BOTTLENECK)")
+        else:
+            ConsoleLog("Conset Analysis", f"- {name}: {possible} consets (need +{need} to match bottleneck)")
+
+    ConsoleLog("Conset Analysis", f"- Gold allows for {possible_gold} consets")
+
+    if best_to_farm:
+        name = best_to_farm.name if hasattr(best_to_farm, "name") else str(best_to_farm)
+        ConsoleLog(
+            "Conset Analysis", f"==> Best to farm next: {name} (+{farm_costs[best_to_farm]} needed for 1 more conset)"
+        )
+    else:
+        ConsoleLog("Conset Analysis", "==> No farming needed, all materials balanced with gold.")
+
+    yield
+
+
+def cons_printer_bot(bot: Botting) -> None:
     map_id = GLOBAL_CACHE.Map.GetMapID()
     if map_id != 640:
         bot.Map.Travel(target_map_name=EMBARK_BEACH)
@@ -514,7 +526,7 @@ def main_bot(bot: Botting) -> None:
     bot.Interact.WithNpcAtXY(2158.00, -2006.00, "Interact with the Merch")
     bot.States.AddCustomState(merch_non_cons_material_from_inventory, 'Sell Non-Cons Mats')
 
-    bot.States.AddHeader('Craft consumables')
+    bot.States.AddHeader('Craft Consumables')
     bot.Move.XY(3254.94, 167.96, "Go to Consumables NPCs")
     bot.States.AddCustomState(withdraw_cons_materials_from_inventory, 'Take items needed for cons')
     bot.Interact.WithNpcAtXY(3743.00, -106.00, 'Talk to the dwarf')
@@ -525,22 +537,28 @@ def main_bot(bot: Botting) -> None:
     bot.States.AddCustomState(craft_grail_of_might, 'Make Grails of of Might')
     bot.States.AddCustomState(move_all_cons_to_storage, 'Move cons to storage')
     bot.States.AddCustomState(move_all_crafting_materials_to_storage, 'Attempt to move all common mats')
+    bot.States.AddCustomState(lambda: check_reset_if_necessary(bot), 'Attempt to craft more if we can')
+    bot.States.AddHeader('Calculate next farm item')
+    bot.States.AddCustomState(analyze_conset_material_balance, 'Calculate final need')
+    bot.Wait.ForTime(3000)
 
 
-bot.SetMainRoutine(main_bot)
+def additoinal_ui():
+    if PyImGui.begin_child("Cons printing machine options"):
+        PyImGui.text("Cons Printing Additional Options")
+        PyImGui.separator()
+
+        if PyImGui.button("Calculate next farm item"):
+            bot.StartAtStep("[H]Calculate next farm item_2")
+        PyImGui.end_child()
+
+
+bot.SetMainRoutine(cons_printer_bot)
 
 
 def main():
-    try:
-        script_directory = os.path.dirname(os.path.abspath(__file__))
-    except NameError:
-        # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
-        script_directory = os.getcwd()
-    project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
-    base_dir = os.path.join(project_root, "marks_coding_corner/textures")
-    texture_icon_path = os.path.join(base_dir, "conset_printer.png")
     bot.Update()
-    bot.UI.draw_window(icon_path=texture_icon_path)
+    bot.UI.draw_window(main_child_dimensions=(350, 450), icon_path=TEXTURE_ICON_PATH, addtional_ui=additoinal_ui)
 
 
 if __name__ == "__main__":
