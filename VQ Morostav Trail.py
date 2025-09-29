@@ -32,7 +32,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndInteractNPC(22155.34, 12125.13)
     bot.Multibox.SendDialogToTarget(0x86) #Get Bounty
     bot.States.AddHeader("Start Combat") #3
-    bot.Multibox.UseAllConsumables()
+    #bot.Multibox.UseAllConsumables()
     bot.States.AddManagedCoroutine("Upkeep_Multibox_Consumables", lambda: _upkeep_multibox_consumables(bot))
     path = [(19283.57, 12803.82), #pack1
             (20840.22, 8834.50) , #round the corner
@@ -122,6 +122,10 @@ def _upkeep_multibox_consumables(bot: "Botting"):
         yield from bot.helpers.Wait._for_time(15000)
         if not Routines.Checks.Map.MapValid():
             continue
+        
+        if Routines.Checks.Map.IsOutpost():
+            continue
+        
         yield from bot.helpers.Multibox._use_consumable_message((ModelID.Essence_Of_Celerity.value, 
                                                GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0))  
         yield from bot.helpers.Multibox._use_consumable_message((ModelID.Grail_Of_Might.value, 
@@ -152,22 +156,30 @@ def _upkeep_multibox_consumables(bot: "Botting"):
             
 
 def _on_party_member_behind(bot: "Botting"):
-    bot.config.FSM.pause()
-    ConsoleLog("on_party_member_behind","event triggered")
+    print ("Party Member behind, emitting pixel stack")
+    yield from Routines.Yield.Movement.StopMovement()
     yield from bot.helpers.Multibox._pixel_stack()
     
     while not Routines.Checks.Party.IsAllPartyMembersInRange(Range.Earshot.value):
         yield from bot.helpers.Wait._for_time(1000)
         if not Routines.Checks.Map.MapValid():
+            bot.config.FSM.resume()
+            yield
             break
+        
+    print ("Party Member in range, resuming")
+    bot.config.FSM.resume()
+    yield
     
       
 def OnPartyMemberBehind(bot: "Botting"):
-    bot.States.AddManagedCoroutine("OnBehind_OPD", lambda: _on_party_member_behind(bot))
+    print ("Party Member behind, Triggered")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnBehind_OPD", _on_party_member_behind(bot))
+
     
 def _on_party_member_death_behind(bot: "Botting"):
-    bot.config.FSM.pause()
-    ConsoleLog("on_party_member_dead_behind","event triggered")
     dead_player = Routines.Party.GetDeadPartyMemberID()
     if dead_player == 0:
         bot.config.FSM.resume()
@@ -179,20 +191,32 @@ def _on_party_member_death_behind(bot: "Botting"):
     bot.config.FSM.resume()
 
 def OnPartyMemberDeathBehind(bot: "Botting"):
-    bot.States.AddManagedCoroutine("OnDeathBehind_OPD", lambda: _on_party_member_death_behind(bot))
+    ConsoleLog("on_party_member_dead_behind","event triggered")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnDeathBehind_OPD", lambda: _on_party_member_death_behind(bot))
     
 def _on_party_wipe(bot: "Botting"):
-    bot.config.FSM.pause()
-    ConsoleLog("on_party_wipe","event triggered")
     while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
         yield from bot.helpers.Wait._for_time(1000)
         if not Routines.Checks.Map.MapValid():
-            break
+            # Map invalid → release FSM and exit
+            bot.config.FSM.resume()
+            return
+
+    # Player revived on same map → jump to recovery step
     bot.States.JumpToStepName("[H]Start Combat_3")
     bot.config.FSM.resume()
     
 def OnPartyWipe(bot: "Botting"):
-    bot.States.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
+    ConsoleLog("on_party_wipe", "event triggered")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
+
+
+
+    
 
 bot.SetMainRoutine(bot_routine)
 

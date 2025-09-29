@@ -41,16 +41,15 @@ class Event:
         """Forever coroutine: trigger -> fire once -> wait until reset."""
         from Py4GWCoreLib import Routines  # local import to avoid cycles
         while True:
-            if self.callback is not None:
-                if not self.triggered:
-                    if self.should_trigger():
-                        self.triggered = True
-                        self._fire_once()
-                else:
-                    if self.should_reset():
-                        self.triggered = False
+
+            if not self.triggered:
+                if self.should_trigger():
+                    self.triggered = True
+                    self._fire_once()
             else:
-                self.triggered = False  # no callback means no triggering
+                if self.should_reset():
+                    self.triggered = False
+
             yield from Routines.Yield.wait(self.interval_ms)
 
 # ---------- Concrete events ----------
@@ -58,6 +57,9 @@ class OnDeathEvent(Event):
     
     def should_trigger(self) -> bool:
         from Py4GWCoreLib import GLOBAL_CACHE  # local import!
+        from Py4GWCoreLib import Routines
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+            return False
         dead = GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
         if dead:
             print("OnDeathEvent triggered")
@@ -73,18 +75,40 @@ class OnDeathEvent(Event):
 class OnPartyDefeated(Event):
     def should_trigger(self) -> bool:
         from Py4GWCoreLib import GLOBAL_CACHE  # <- you were missing this import
-        return GLOBAL_CACHE.Party.IsPartyDefeated()
+        from Py4GWCoreLib import Routines
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+            return False
+        party_defeated =  GLOBAL_CACHE.Party.IsPartyDefeated()
+        if party_defeated:
+            print("OnPartyDefeated triggered")
+        return party_defeated
 
     def should_reset(self) -> bool:
         from Py4GWCoreLib import GLOBAL_CACHE, Routines
+        from Py4GWCoreLib import Routines
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+            return False
         if not Routines.Checks.Map.MapValid():
             return True
         return not GLOBAL_CACHE.Party.IsPartyDefeated()
     
 class OnPartyWipe(Event):
     def should_trigger(self):
-        from ..Routines import Checks  # local import to avoid cycles
-        return Checks.Party.IsPartyWiped()
+        from Py4GWCoreLib import Routines, GLOBAL_CACHE
+        if not Routines.Checks.Map.MapValid():
+            return False
+        
+        if not Routines.Checks.Map.IsExplorable():
+            return False
+        
+        map_uptime = GLOBAL_CACHE.Map.GetInstanceUptime()
+        if map_uptime < 3000:
+            return False
+        
+        party_wiped = Routines.Checks.Party.IsPartyWiped()
+        if party_wiped:
+            print("OnPartyWipe triggered")
+        return party_wiped
     
     def should_reset(self):
         from ..Routines import Checks, Routines
@@ -94,8 +118,13 @@ class OnPartyWipe(Event):
     
 class OnPartyMemberDead(Event):
     def should_trigger(self):
-        from ..Routines import Checks  # local import to avoid cycles
-        return Checks.Party.IsPartyMemberDead()
+        from Py4GWCoreLib import Routines
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+            return False
+        party_member_dead = Routines.Checks.Party.IsPartyMemberDead()
+        if party_member_dead:
+            print("OnPartyMemberDead triggered")    
+        return party_member_dead
     
     def should_reset(self):
         from ..Routines import Checks, Routines
@@ -105,8 +134,14 @@ class OnPartyMemberDead(Event):
     
 class OnPartyMemberBehind(Event):
     def should_trigger(self):
-        from ..Routines import Checks  # local import to avoid cycles
-        return Checks.Party.IsPartyMemberBehind()
+        from Py4GWCoreLib import Routines
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+            return False
+        
+        party_member_behind = Routines.Checks.Party.IsPartyMemberBehind()
+        if party_member_behind:
+            print("OnPartyMemberBehind triggered")
+        return party_member_behind
     
     def should_reset(self):
         from ..Routines import Checks, Routines
@@ -116,8 +151,13 @@ class OnPartyMemberBehind(Event):
     
 class OnPartyMemberDeadBehind(Event):
     def should_trigger(self):
-        from ..Routines import Checks  # local import to avoid cycles
-        return Checks.Party.IsDeadPartyMemberBehind()
+        from Py4GWCoreLib import Routines
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+            return False
+        dead_party_member_behind = Routines.Checks.Party.IsDeadPartyMemberBehind()
+        if dead_party_member_behind:
+            print("OnPartyMemberDeadBehind triggered")
+        return dead_party_member_behind
     
     def should_reset(self):
         from ..Routines import Checks, Routines
@@ -215,11 +255,12 @@ class Events:
         self.on_death = OnDeathEvent(parent, "OnDeathEvent", interval_ms=250)
         self.on_party_defeated = OnPartyDefeated(parent, "OnPartyDefeatedEvent", interval_ms=250)
         self.on_party_wipe = OnPartyWipe(parent, "OnPartyWipeEvent", interval_ms=250)
-        self.stuck_enabled = False
-        self.on_stuck = OnStuck(parent, "OnStuckEvent", interval_ms=1000, active=self.stuck_enabled)
         self.on_party_member_behind = OnPartyMemberBehind(parent, "OnPartyMemberBehindEvent", interval_ms=1000)
         self.on_party_member_dead_behind = OnPartyMemberDeadBehind(parent, "OnPartyMemberDeadBehindEvent", interval_ms=1000)
         self.on_party_member_dead = OnPartyMemberDead(parent, "OnPartyMemberDeadEvent", interval_ms=1000)
+        
+        #self.stuck_enabled = False
+        #self.on_stuck = OnStuck(parent, "OnStuckEvent", interval_ms=1000, active=self.stuck_enabled)
 
 
     # Optional convenience: set callbacks
@@ -232,12 +273,12 @@ class Events:
     def set_on_party_wipe_callback(self, fn: Callable[[], None]) -> None:
         self.on_party_wipe.set_callback(fn)
         
-    def set_on_stuck_callback(self, fn: Callable[[], None]) -> None:
-        self.on_stuck.set_callback(fn)
+    #def set_on_stuck_callback(self, fn: Callable[[], None]) -> None:
+    #    self.on_stuck.set_callback(fn)
         
-    def set_stuck_routine_enabled(self, state: bool) -> None:
-        self.stuck_enabled = state
-        self.on_stuck.set_active(state)
+    #def set_stuck_routine_enabled(self, state: bool) -> None:
+    #    self.stuck_enabled = state
+    #    self.on_stuck.set_active(state)
         
     def set_on_party_member_behind_callback(self, fn: Callable[[], None]) -> None:
         self.on_party_member_behind.set_callback(fn)
@@ -254,16 +295,18 @@ class Events:
         fsm.AddManagedCoroutine("OnDeathEvent", self.on_death.run())
         fsm.AddManagedCoroutine("OnPartyDefeatedEvent", self.on_party_defeated.run())
         fsm.AddManagedCoroutine("OnPartyWipeEvent", self.on_party_wipe.run())
-        fsm.AddManagedCoroutine("OnStuckEvent", self.on_stuck.run())
+        #fsm.AddManagedCoroutine("OnStuckEvent", self.on_stuck.run())
         fsm.AddManagedCoroutine("OnPartyMemberBehindEvent", self.on_party_member_behind.run())
         fsm.AddManagedCoroutine("OnPartyMemberDeadBehindEvent", self.on_party_member_dead_behind.run())
+        fsm.AddManagedCoroutine("OnPartyMemberDeadEvent", self.on_party_member_dead.run())
 
     def stop(self) -> None:
         fsm = self.parent.FSM
         fsm.RemoveManagedCoroutine("OnDeathEvent")
         fsm.RemoveManagedCoroutine("OnPartyDefeatedEvent")
         fsm.RemoveManagedCoroutine("OnPartyWipeEvent")
-        fsm.RemoveManagedCoroutine("OnStuckEvent")
+        #fsm.RemoveManagedCoroutine("OnStuckEvent")
         fsm.RemoveManagedCoroutine("OnPartyMemberBehindEvent")
         fsm.RemoveManagedCoroutine("OnPartyMemberDeadBehindEvent")
+        fsm.RemoveManagedCoroutine("OnPartyMemberDeadEvent")
 
