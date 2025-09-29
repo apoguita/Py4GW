@@ -6,7 +6,7 @@ from Py4GWCoreLib.enums import ModelID, Range, TitleID
 
 from Py4GWCoreLib.BuildMgr import BuildMgr
 
-from Py4GWCoreLib.Builds import ShadowFormMesmerVaettir
+from Py4GWCoreLib.Builds import SF_Mes_vaettir
 from Py4GWCoreLib.Builds import SF_Ass_vaettir
 
 from typing import List, Tuple
@@ -139,7 +139,7 @@ def KillEnemies(bot: Botting):
     global in_killing_routine
     in_killing_routine = True
     build = bot.config.build_handler
-    if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
         build.SetKillingRoutine(in_killing_routine)
         
     player_pos = GLOBAL_CACHE.Player.GetXY()
@@ -166,7 +166,7 @@ def KillEnemies(bot: Botting):
     
     in_killing_routine = False
     finished_routine = True
-    if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
         build.SetKillingRoutine(False)
         build.SetRoutineFinished(finished_routine)
     ConsoleLog("Killing Routine", "Finished Killing Routine", Py4GW.Console.MessageType.Info)
@@ -180,7 +180,7 @@ def AssignBuild(bot: Botting):
         case "Assassin":
             bot.OverrideBuild(SF_Ass_vaettir())
         case "Mesmer":
-            bot.OverrideBuild(ShadowFormMesmerVaettir())  # Placeholder for Mesmer build 
+            bot.OverrideBuild(SF_Mes_vaettir())  # Placeholder for Mesmer build 
         case _:
             ConsoleLog("Unsupported Profession", f"The profession '{profession}' is not supported by this bot.", Py4GW.Console.MessageType.Error)
             bot.Stop()
@@ -246,7 +246,7 @@ def WaitforLeftAggroBall(bot : Botting):
     in_waiting_routine = False
 
     # Resume build
-    if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
         yield from build.CastHeartOfShadow()
 
 def WaitforRightAggroBall(bot : Botting):
@@ -286,7 +286,7 @@ def WaitforRightAggroBall(bot : Botting):
 
 
     # Resume build
-    if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
         yield from build.CastHeartOfShadow()
                 
 
@@ -344,7 +344,7 @@ def HandleStuckJagaMoraine(bot: Botting):
         if in_waiting_routine:
             ConsoleLog("Stuck Detection", "In waiting routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, False)
             stuck_counter = 0
-            if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                 build.SetStuckSignal(stuck_counter)
             stuck_timer.Reset()
             yield from Routines.Yield.wait(1000)
@@ -354,7 +354,7 @@ def HandleStuckJagaMoraine(bot: Botting):
         if finished_routine:
             ConsoleLog("Stuck Detection", "Finished routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, False)
             stuck_counter = 0
-            if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                 build.SetStuckSignal(stuck_counter)
             stuck_timer.Reset()
             yield from Routines.Yield.wait(1000)
@@ -364,7 +364,7 @@ def HandleStuckJagaMoraine(bot: Botting):
         if in_killing_routine:
             ConsoleLog("Stuck Detection", "In killing routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, False)
             stuck_counter = 0
-            if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                 build.SetStuckSignal(stuck_counter)
             stuck_timer.Reset()
             yield from Routines.Yield.wait(1000)
@@ -386,7 +386,7 @@ def HandleStuckJagaMoraine(bot: Botting):
                     GLOBAL_CACHE.Player.SendChatCommand("stuck")
                     stuck_counter += 1
                     ConsoleLog("Stuck Detection", f"Stuck counter incremented to {stuck_counter}.", Py4GW.Console.MessageType.Debug, False)
-                    if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+                    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                         build.SetStuckSignal(stuck_counter)
                     stuck_timer.Reset()
                 else:
@@ -399,7 +399,7 @@ def HandleStuckJagaMoraine(bot: Botting):
             if stuck_counter >= 10:
                 ConsoleLog("Stuck Detection", "Unrecoverable stuck detected, resetting.", Py4GW.Console.MessageType.Error)
                 stuck_counter = 0
-                if isinstance(build, SF_Ass_vaettir) or isinstance(build, ShadowFormMesmerVaettir):
+                if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                     build.SetStuckSignal(stuck_counter)
                 bot.States.JumpToStepName("[H]Town Routines_1")
                 continue
