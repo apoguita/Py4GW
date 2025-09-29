@@ -265,7 +265,7 @@ class SF_Mes_vaettir(BuildMgr):
                         ConsoleLog(self.build_name, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=False)
             
             target = GetNotHexedEnemy()  
-            if target and not Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot): 
+            if target: 
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                 GLOBAL_CACHE.Player.ChangeTarget(target)
                 if (yield from self._CastSkillSlot(self.wastrels_demise_slot, log=False, aftercast_delay=1000)):

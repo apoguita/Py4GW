@@ -5,6 +5,14 @@ from Py4GWCoreLib.Builds.DervFeatherFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervFeatherFarmer import DervFeatherFarmer
 from Py4GWCoreLib import *
 
+try:
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
+    script_directory = os.getcwd()
+project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
+base_dir = os.path.join(project_root, "marks_coding_corner/textures")
+
 FEATHER_FARMER = "Feather Farmer"
 SEITUING_HARBOR = "Seitung Harbor"
 JAYA_BLUFFS = "Jaya Bluffs"
@@ -34,6 +42,26 @@ VIABLE_LOOT = {
 HANDLE_STUCK = 'handle_stuck'
 HANDLE_LOOT = 'handle_loot'
 HANDLE_SENSALI_DANGER = 'handle_sensali_danger'
+TEXTURE_ICON_PATH = os.path.join(base_dir, "feather_art.png")
+KILL_SPOTS = [
+    (-472, -4342, True),
+    (-1536, -1686, False),
+    (586, -76, False),
+    (-1556, 2786, False),
+    (-2229, -815, True),
+    (-5247, -3290, False),
+    (-6994, -2273, False),
+    (-5042, -6638, False),
+    (-11040, -8577, False),
+    (-10860, -2840, False),
+    (-14900, -3000, False),
+    (-12200, 150, False),
+    (-12500, 4000, False),
+    (-12111, 1690, False),
+    (-10303, 4110, False),
+    (-10500, 5500, False),
+    (-9700, 2400, False),
+]
 
 bot = Botting(
     FEATHER_FARMER,
@@ -78,7 +106,7 @@ def load_skill_bar(bot: Botting):
 
 
 def ball_sensalis(bot: Botting):
-    all_sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
+    all_sensali_array = get_sensali_array(custom_range=Range.Earshot.value)
     if not len(all_sensali_array):
         return False
 
@@ -119,14 +147,14 @@ def farm_sensalis(bot, kill_immediately=False):
         return
 
     # Auto detect if sensalis in the area
-    sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
+    sensali_array = get_sensali_array(custom_range=Range.Earshot.value)
     if not len(sensali_array):
         ConsoleLog('Farm Sensalis', 'No Sensali detected!')
         return
 
     ConsoleLog(FEATHER_FARMER, 'Farming...')
     is_farming = True
-    if kill_immediately or get_non_sensali_array(custom_range=Range.Spellcast.value):
+    if kill_immediately or get_non_sensali_array(custom_range=Range.Earshot.value):
         bot.config.build_handler.status = DervBuildFarmStatus.Kill
     else:
         yield from ball_sensalis(bot)
@@ -139,7 +167,7 @@ def farm_sensalis(bot, kill_immediately=False):
     player_id = GLOBAL_CACHE.Player.GetAgentID()
 
     while True:
-        sensali_array = get_sensali_array(custom_range=Range.Spellcast.value)
+        sensali_array = get_sensali_array(custom_range=Range.Earshot.value)
         if len(sensali_array) == 0:
             bot.config.build_handler.status = DervBuildFarmStatus.Move
             break  # all sensalis dead
@@ -297,8 +325,9 @@ def _on_death(bot: Botting):
     ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
     sup_ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
     salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
+    free_slot_count = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
     fsm = bot.config.FSM
-    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0:
+    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0 or free_slot_count < 4:
         fsm.jump_to_state_by_name("[H]Starting Loop_1")
     else:
         fsm.jump_to_state_by_name("[H]Farm Loop_2")
@@ -488,7 +517,7 @@ def handle_loot(bot: Botting):
 # endregion
 
 
-def main_farm(bot: Botting):
+def feather_farm_bot(bot: Botting):
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     # override condition for halting movement
 
@@ -527,62 +556,13 @@ def main_farm(bot: Botting):
     bot.Move.XY(16570, 17713, "Exit Outpost To Farm")
     bot.Wait.ForMapLoad(target_map_name=JAYA_BLUFFS)
 
-    bot.Move.XY(9000, -12680, 'Run 1')
-    bot.Move.XY(7588, -10609, 'Run 2')
+    for index, move_location in enumerate([(9000, -12680), (7588, -10609), (2900, -9700), (1540, -6995)]):
+        x, y = move_location
+        bot.Move.XY(x, y, f'Run # {index + 1}')
 
-    bot.Move.XY(2900, -9700, 'Move spot 1')
-    bot.Move.XY(1540, -6995, 'Move spot 2')
-
-    bot.Move.XY(-472, -4342, 'Move to Kill Spot 1')
-    bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=True), "Killing Sensalis Immediately")
-
-    bot.Move.XY(-1536, -1686, "Move to Kill Spot 2")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(586, -76, "Move to Kill Spot 3")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-1556, 2786, "Move to Kill Spot 4")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-2229, -815, "Move to Kill Spot 5")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=True), "Killing Sensalis Immediately")
-
-    bot.Move.XY(-5247, -3290, "Move to Kill Spot 6")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-6994, -2273, "Move to Kill Spot 7")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-5042, -6638, "Move to Kill Spot 8")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-11040, -8577, "Move to Kill Spot 9")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-10860, -2840, "Move to Kill Spot 10")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-14900, -3000, "Move to Kill Spot 11")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-12200, 150, "Move to Kill Spot 12")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-12500, 4000, "Move to Kill Spot 13")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-12111, 1690, "Move to Kill Spot 14")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-10303, 4110, "Move to Kill Spot 15")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-10500, 5500, "Move to Kill Spot 16")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
-
-    bot.Move.XY(-9700, 2400, "Move to Kill Spot 17")
-    bot.States.AddCustomState(lambda: farm_sensalis(bot), "Killing Sensalis")
+    for index, (x, y, kill_immediately) in enumerate(KILL_SPOTS):
+        bot.Move.XY(x, y, f'Move to Kill Spot {index + 1}')
+        bot.States.AddCustomState(lambda: farm_sensalis(bot, kill_immediately=kill_immediately), 'Killing Sensalis')
 
     bot.States.AddCustomState(lambda: set_bot_to_wait(bot), "Waiting to return")
 
@@ -595,20 +575,12 @@ def main_farm(bot: Botting):
     bot.Wait.UntilCondition(lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
 
 
-bot.SetMainRoutine(main_farm)
+bot.SetMainRoutine(feather_farm_bot)
 
 
 def main():
-    try:
-        script_directory = os.path.dirname(os.path.abspath(__file__))
-    except NameError:
-        # __file__ is not defined (e.g. running in interactive mode or embedded interpreter)
-        script_directory = os.getcwd()
-    project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
-    base_dir = os.path.join(project_root, "marks_coding_corner/textures")
-    texture_icon_path = os.path.join(base_dir, "feather_art.png")
     bot.Update()
-    bot.UI.draw_window(icon_path=texture_icon_path)
+    bot.UI.draw_window(icon_path=TEXTURE_ICON_PATH)
 
 
 if __name__ == "__main__":
