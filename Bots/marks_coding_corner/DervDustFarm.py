@@ -262,12 +262,8 @@ def set_bot_to_setup(bot: Botting):
     yield
 
 
-def detect_fog_nightmare_or_loot_or_almost_dead():
+def detect_fog_nightmare_or_loot():
     global item_id_blacklist
-
-    player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
-    if player_hp < 80:
-        return True
 
     fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Earshot.value)
     if fog_nightmare_array:
@@ -445,6 +441,11 @@ def handle_fog_nightmare_danger(bot: Botting):
             if bot.config.pause_on_danger_fn() and get_fog_nightmare_array(Range.Earshot.value):
                 # Deal with local enemies before resuming
                 yield from farm_fog_nightmares(bot)
+                player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+                while player_hp < 0.99:
+                    ConsoleLog(DUST_FARMER, 'Dying, Need recovery...')
+                    player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+                    yield from Routines.Yield.wait(2000)
         yield from Routines.Yield.wait(500)
 
 
@@ -509,7 +510,7 @@ def dust_farm_bot(bot: Botting):
 
     # Actual Farming Loop
     bot.States.AddHeader('Farm Loop')
-    bot.config.set_pause_on_danger_fn(detect_fog_nightmare_or_loot_or_almost_dead)
+    bot.config.set_pause_on_danger_fn(detect_fog_nightmare_or_loot)
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("pause_on_danger")
     bot.States.AddCustomState(return_to_outpost, "Return to Seitung Harbor if Dead")
