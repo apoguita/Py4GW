@@ -53,6 +53,7 @@ stuck_timer = ThrottledTimer(3000)
 movement_check_timer = ThrottledTimer(3000)
 item_id_blacklist = []
 is_farming = False
+unmanaged_fail_counter = 0
 
 
 # region Direct Bot Actions
@@ -291,9 +292,37 @@ def is_inventory_ready():
 
 # endregion
 
+# region Handlers
+
+def _force_reset(bot: Botting):
+    global unmanaged_fail_counter
+    unmanaged_fail_counter += 1
+    ConsoleLog(COF_FARMER, f"Something went wrong forcing a reset... Attempt: {unmanaged_fail_counter}")
+    yield from Routines.Yield.wait(1000)
+    fsm = bot.config.FSM
+    fsm.jump_to_state_by_name("[H]Starting Loop_1")
+    yield
+
+
+def handle_custom_on_unmanaged_fail(bot: Botting):
+    global unmanaged_fail_counter
+
+    ConsoleLog(COF_FARMER, "Handling explorable mode unmanaged error...")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("Force Reset", _force_reset(bot))
+
+    if unmanaged_fail_counter > 5:
+        return True
+    return False
+
+
+# endregion
+
 
 def cof_farm_bot(bot: Botting):
     bot.Events.OnDeathCallback(lambda: on_death(bot))
+    bot.helpers.Events.set_custom_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     # override condition for halting movement
 
     bot.States.AddHeader('Starting Loop')
