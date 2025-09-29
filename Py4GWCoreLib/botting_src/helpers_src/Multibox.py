@@ -313,9 +313,22 @@ class _Multibox:
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
         yield   
         
+    def _donate_faction(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        for account in accounts:
+            ConsoleLog("Messaging", "Donating to guild from account: " + account.AccountEmail)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.DonateToGuild, (0,0,0,0))
+        yield
+        
     @_yield_step(label="ResignParty", counter_key="RESIGN_PARTY")
     def resign_party(self):
         yield from self._resignParty()
+        
+    @_yield_step(label="DonateFaction", counter_key="DONATE_FACTION")
+    def donate_faction(self):
+        yield from self._donate_faction()
     
     @_yield_step(label="PixelStack", counter_key="PIXEL_STACK")
     def pixel_stack(self):

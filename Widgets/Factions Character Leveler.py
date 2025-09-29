@@ -869,6 +869,7 @@ def AdvanceToGunnarsHold(bot: Botting):
 def UnlockKillroy(bot: Botting):
     bot.States.AddHeader("Unlock Killroy")
     bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
+    bot.Templates.Aggressive(enable_imp=False)
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
