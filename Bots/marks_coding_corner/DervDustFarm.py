@@ -46,6 +46,24 @@ HANDLE_STUCK = 'handle_stuck'
 HANDLE_LOOT = 'handle_loot'
 HANDLE_FOG_NIGHTMARE_DANGER = 'handle_fog_nightmare_danger'
 TEXTURE_ICON_PATH = os.path.join(base_dir, "dust_art.png")
+KILL_SPOTS = [
+    (7725, -2295),
+    (7704, -3418),
+    (6921, -4925),
+    (9625, -4173),
+    (11412, -6359),
+    (12916, -7558),
+    (12211, -4925),
+    (13504, -4102),
+    (11904, -3596),
+    (11857, -2561),
+    (13267, -2115),
+    (12656, -1221),
+    (13773, 771),
+    (12626, 1507),
+    (10832, 413),
+    (10750, 1061),
+]
 
 bot = Botting(
     DUST_FARMER,
@@ -271,8 +289,9 @@ def _on_death(bot: Botting):
     ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
     sup_ident_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
     salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
+    free_slot_count = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
     fsm = bot.config.FSM
-    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0:
+    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0 or free_slot_count < 4:
         fsm.jump_to_state_by_name("[H]Starting Loop_1")
     else:
         fsm.jump_to_state_by_name("[H]Farm Loop_2")
@@ -505,24 +524,7 @@ def dust_farm_bot(bot: Botting):
     bot.Move.XY(-5617, 6085, 'Run to spot 1')
     bot.Move.XY(310, 1364, 'Run to spot 2')
 
-    for index, location_kills in enumerate([
-        (7725, -2295),
-        (7704, -3418),
-        (6921, -4925),
-        (9625, -4173),
-        (11412, -6359),
-        (12916, -7558),
-        (12211, -4925),
-        (13504, -4102),
-        (11904, -3596),
-        (11857, -2561),
-        (13267, -2115),
-        (12656, -1221),
-        (13773, 771),
-        (12626, 1507),
-        (10832, 413),
-        (10750, 1061),
-    ]):
+    for index, location_kills in enumerate(KILL_SPOTS):
         x, y = location_kills
         bot.Move.XY(x, y, f'Move to Kill Spot {index + 1}')
         bot.States.AddCustomState(lambda: farm_fog_nightmares(bot), "Killing Fog Nightmares")
