@@ -58,13 +58,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.Enable("essence_of_celerity")
     bot.Properties.Enable("grail_of_might")
     bot.Properties.Enable("armor_of_salvation")
-    bot.Multibox.UseConsumable(22269, 0) #Cupcake
-    bot.Multibox.UseConsumable(28431, 0) #Apple
-    bot.Multibox.UseConsumable(28432, 0) #Candy
-    bot.Multibox.UseConsumable(22752, 0) #Egg
-    bot.Multibox.UseConsumable(28436, 0) #Pies
-    bot.Multibox.UseConsumable(35121, 0) #WarSupplies
-    
+
     # Talk to Worthy Deeds NPC and take quest
     bot.Move.XYAndDialog(14380, 23968, 0x833A01) # Worthy Deeds
     
@@ -73,6 +67,13 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=513)
     
     # Navigate through quest area
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
+    bot.Multibox.UseConsumable(28431, 0) #Apple
+    bot.Multibox.UseConsumable(28432, 0) #Candy
+    bot.Multibox.UseConsumable(22752, 0) #Egg
+    bot.Multibox.UseConsumable(28436, 0) #Pies
+    bot.Multibox.UseConsumable(35121, 0) #WarSupplies
+    
     bot.Move.XY(11434, 19708)
     bot.Move.XY(14164, 2682)
     bot.Move.XY(9435, -5806) # if you got here and no boss restart
@@ -102,7 +103,8 @@ def bot_routine(bot: Botting) -> None:
     # Collect reward
     bot.Move.XYAndDialog(14380, 23968, 0x833A07) # Rewards
     bot.States.JumpToStepName("[H]End_7")
-    
+
+     # Begin Quest #3
     bot.States.AddHeader("Unlock Skill #3")
     bot.UI.PrintMessageToConsole("Starting", "Beginning Anything you can do quest routine")
     
@@ -116,13 +118,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.Set("movement_timeout", value=-1)
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("essence_of_celerity")
-    bot.Multibox.UseConsumable(22269, 0) #Cupcake
-    bot.Multibox.UseConsumable(28431, 0) #Apple
-    bot.Multibox.UseConsumable(28432, 0) #Candy
-    bot.Multibox.UseConsumable(22752, 0) #Egg
-    bot.Multibox.UseConsumable(28436, 0) #Pies
-    bot.Multibox.UseConsumable(35121, 0) #WarSupplies
-    
+
     # Start "Anything you can do" quest
     bot.Move.XYAndDialog(14380, 23874, 0x833E01) # Anything you can do
     bot.Move.XY(14682, 22900)
@@ -130,6 +126,12 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=546)
     
     # Navigate to first boss area
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
+    bot.Multibox.UseConsumable(28431, 0) #Apple
+    bot.Multibox.UseConsumable(28432, 0) #Candy
+    bot.Multibox.UseConsumable(22752, 0) #Egg
+    bot.Multibox.UseConsumable(28436, 0) #Pies
+    bot.Multibox.UseConsumable(35121, 0) #WarSupplies
     bot.Move.XY(-9431, -20124)
     bot.Move.XY(-8441, -13685)
     bot.Move.XY(-9743, -6744)
@@ -154,10 +156,10 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.Set("movement_timeout", value=-1)
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("essence_of_celerity")
-    bot.Multibox.UseConsumable(22269, 0) #Cupcake
     
     bot.Move.XYAndExitMap(8832, 23870, target_map_id=513)
     bot.Wait.ForMapLoad(target_map_id=513)
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
     bot.Move.XYAndDialog(-10926, 24732, 0x832901) # Fragment of Antiquities
     bot.Move.XYAndExitMap(-12138, 26829, target_map_id=628)
     bot.Wait.ForMapLoad(target_map_id=628)
@@ -185,7 +187,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndDialog(14380, 23968, 0x833E07) # Rewards
     bot.States.JumpToStepName("[H]End_7")
     
-    bot.States.AddHeader("Unlock Skill #4_5")
+    bot.States.AddHeader("Unlock Skill #4")
     bot.UI.PrintMessageToConsole("Starting", "Beginning I am Unstoppable quest routine")
     
     # Travel to Sifhalla
@@ -224,7 +226,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndDialog(14380, 23968, 0x834407) # Rewards
     bot.States.JumpToStepName("[H]End_7")
     
-    bot.States.AddHeader("Unlock Skill #5_6")
+    bot.States.AddHeader("Unlock Skill #5")
     bot.UI.PrintMessageToConsole("Starting", "Beginning Smooth Criminal quest routine")
     
     # Travel to Boreal Station
@@ -281,7 +283,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndDialog(25203, -10694, 0x837C07) # Rewards
     bot.States.JumpToStepName("[H]End_7")
     
-    bot.States.AddHeader("Unlock Skill #6_7")
+    bot.States.AddHeader("Unlock Skill #6")
     bot.UI.PrintMessageToConsole("Starting", "Beginning Mental Block quest routine")
     
     # Travel to Boreal Station
@@ -352,10 +354,10 @@ def Draw_Window():
             bot.StartAtStep("[H]Unlock Skill #4_4")
 
         if PyImGui.button("Start Smooth Criminal Quest (Skill #5)"):
-            bot.StartAtStep("[H]Unlock Skill #5_6")
+            bot.StartAtStep("[H]Unlock Skill #5_5")
 
         if PyImGui.button("Start Mental Block Quest (Skill #6)"):
-            bot.StartAtStep("[H]Unlock Skill #6_7")
+            bot.StartAtStep("[H]Unlock Skill #6_6")
 
         PyImGui.end()
 
