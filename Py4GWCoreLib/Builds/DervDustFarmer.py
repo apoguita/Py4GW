@@ -28,9 +28,9 @@ class DervDustFarmer(BuildMgr):
             name="Derv Dust Farmer",
             required_primary=Profession.Dervish,
             required_secondary=Profession.Assassin,
-            template_code='OgejkmrMbSmXfbaXNXTQ3lfXsXA',
+            template_code='Ogekkiq5qymU333m2Vz1E0d53F7F',
             skills=[
-                GLOBAL_CACHE.Skill.GetID("Sand_Shards"),
+                GLOBAL_CACHE.Skill.GetID("Grenths_Aura"),
                 GLOBAL_CACHE.Skill.GetID("Vow_of_Strength"),
                 GLOBAL_CACHE.Skill.GetID("Staggering_Force"),
                 GLOBAL_CACHE.Skill.GetID("Eremites_Attack"),
@@ -43,7 +43,7 @@ class DervDustFarmer(BuildMgr):
 
         self.auto_combat_handler: BuildMgr = AutoCombat()
         # assign extra skill attributes from the already populated self.skills
-        self.sand_shards = self.skills[0]
+        self.grenths_aura = self.skills[0]
         self.vow_of_strength = self.skills[1]
         self.staggering_force = self.skills[2]
         self.eremites_attack = self.skills[3]
@@ -158,7 +158,6 @@ class DervDustFarmer(BuildMgr):
             if (
                 (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash))
                 and has_dwarven_stability
-                and has_mystic_vigor
                 and GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
             ):
                 yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
@@ -173,22 +172,20 @@ class DervDustFarmer(BuildMgr):
             player_current_energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id) * GLOBAL_CACHE.Agent.GetMaxEnergy(
                 player_agent_id
             )
-            remaining_enemies = Routines.Agents.GetFilteredEnemyArray(
-                player_pos[0], player_pos[1], Range.Earshot.value
-            )
+            remaining_enemies = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Earshot.value)
             next_target = self.get_fog_nightmare_or_aloe_target(remaining_enemies)
 
             if next_target:
                 yield from self.swap_to_scythe()
                 GLOBAL_CACHE.Player.Interact(next_target, False)
                 has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
-                has_sand_shards = Routines.Checks.Effects.HasBuff(player_agent_id, self.sand_shards)
+                has_grenths_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.grenths_aura)
                 if (
-                    (yield from Routines.Yield.Skills.IsSkillIDUsable(self.sand_shards))
+                    (yield from Routines.Yield.Skills.IsSkillIDUsable(self.grenths_aura))
                     and len(remaining_enemies) >= 2
-                    and not has_sand_shards
-                ):
-                    yield from Routines.Yield.Skills.CastSkillID(self.sand_shards, aftercast_delay=250)
+                    and not has_grenths_aura
+                ) or player_hp < 0.50:
+                    yield from Routines.Yield.Skills.CastSkillID(self.grenths_aura, aftercast_delay=250)
                     return
 
                 if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_strength)) and not has_vow_of_strength:
@@ -202,7 +199,7 @@ class DervDustFarmer(BuildMgr):
                         and Routines.Yield.Skills.IsSkillIDUsable(self.eremites_attack)
                     )
                     and has_vow_of_strength
-                    and has_sand_shards
+                    and has_grenths_aura
                     and player_current_energy >= 12
                     and len(remaining_enemies) >= 2
                 ):

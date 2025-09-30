@@ -1,6 +1,7 @@
 #region STATES
 from typing import TYPE_CHECKING, Callable, Optional, Tuple
 from Py4GWCoreLib import Color
+from Py4GWCoreLib import Routines
 import PyImGui
 
 if TYPE_CHECKING:
@@ -39,7 +40,7 @@ class _UI:
 
 
     def DrawPath(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
-        if self._config.config_properties.draw_path.is_active():
+        if self._config.config_properties.draw_path.is_active() and Routines.Checks.Map.MapValid():
             self._draw_path(color, use_occlusion, snap_to_ground_segments, floor_offset)
 
     def SendChatMessage(self, channel: str, message: str):
