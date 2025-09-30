@@ -122,8 +122,9 @@ def Loot(cached_data: CacheData):
         return False
 
     loot_array = LootConfig().GetfilteredLootArray(
-        Range.Earshot.value, multibox_loot=True
-    )  # Changed for LootManager - aC
+        Range.Earshot.value, multibox_loot=True,
+        allow_unasigned_loot=False,
+    )
     if len(loot_array) == 0:
         cached_data.in_looting_routine = False
         return False

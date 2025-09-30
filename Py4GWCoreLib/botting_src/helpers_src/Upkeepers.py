@@ -97,7 +97,7 @@ class _Upkeepers:
                 continue
             
             loot_singleton = LootConfig()
-            loot_array = loot_singleton.GetfilteredLootArray(distance=Range.Earshot.value, multibox_loot=True, allow_unasigned_loot=True)
+            loot_array = loot_singleton.GetfilteredLootArray(distance=Range.Earshot.value, multibox_loot=True, allow_unasigned_loot=False)
             if len(loot_array) == 0:
                 yield from Routines.Yield.wait(500)
                 continue

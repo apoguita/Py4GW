@@ -39,7 +39,9 @@ class _UI:
 
 
     def DrawPath(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
-        if self._config.config_properties.draw_path.is_active():
+        from ...Routines import Routines
+
+        if Routines.Checks.Map.MapValid() and self._config.config_properties.draw_path.is_active():
             self._draw_path(color, use_occlusion, snap_to_ground_segments, floor_offset)
 
     def SendChatMessage(self, channel: str, message: str):

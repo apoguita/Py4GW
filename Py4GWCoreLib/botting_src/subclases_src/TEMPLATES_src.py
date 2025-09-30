@@ -67,7 +67,7 @@ class _TEMPLATES:
 
             last_emit = Utils.GetBaseTimestamp()
             while not Routines.Checks.Party.IsAllPartyMembersInRange(Range.Earshot.value):
-                yield from bot.helpers.Wait._for_time(500)
+                yield from bot.helpers.Wait._for_time(1000)
 
                 # Reissue pixel stack every 10000 ms
                 now = Utils.GetBaseTimestamp()

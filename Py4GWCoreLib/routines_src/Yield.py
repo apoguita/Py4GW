@@ -1172,7 +1172,7 @@ class Yield:
 
         @staticmethod
         def CraftItem(output_model_id: int, 
-                       count: int,
+                       cost: int,
                        trade_model_ids: list[int], 
                        quantity_list: list[int])-> Generator[Any, Any, bool]:
             
@@ -1203,7 +1203,7 @@ class Yield:
                 return False
 
             # Craft, then give a short yield
-            GLOBAL_CACHE.Trading.Crafter.CraftItem(target_item_id, count, trade_item_ids, quantity_list)
+            GLOBAL_CACHE.Trading.Crafter.CraftItem(target_item_id, cost, trade_item_ids, quantity_list)
             yield from Yield.wait(500)
             return True
         
