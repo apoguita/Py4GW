@@ -29,7 +29,7 @@ def create_bot_routine(bot: Botting) -> None:
     second_profession(bot)
     after_2nd_profession(bot)
     TakeRewardAndCraftArmor(bot)
-    #TakeRewardAndCraftWeapon(bot) #comment again for testing. Work in progress.
+    TakeRewardAndCraftWeapon(bot)
     jokanur_diggings_quests(bot)
     LeveledUp(bot)
     EOTN_Run(bot)
@@ -262,11 +262,16 @@ def CraftWeapon(bot: Botting):
     weapon_ids = GetWeaponByProfession(bot)
     materials = GetWeaponMaterialPerProfession(bot)
     
-    yield from Routines.Yield.Agents.InteractWithAgentXY(3944, 2378)
+    # Structure weapon data like armor pieces - (weapon_id, materials_list, quantities_list)
+    weapon_pieces = []
+    for weapon_id in weapon_ids:
+        weapon_pieces.append((weapon_id, materials, [5]))  # 5 materials per weapon
+    
+    yield from Routines.Yield.Agents.InteractWithAgentXY(4101.25, 2194.41)
     yield
 
-    for weapon_id in weapon_ids:
-        result = yield from Routines.Yield.Items.CraftItem(weapon_id, 50, materials, [3])
+    for weapon_id, mats, qtys in weapon_pieces:
+        result = yield from Routines.Yield.Items.CraftItem(weapon_id, 50, mats, qtys)
         if not result:
             ConsoleLog("CraftWeapon", f"Failed to craft weapon ({weapon_id}).", Py4GW.Console.MessageType.Error)
             bot.helpers.Events.on_unmanaged_fail()
