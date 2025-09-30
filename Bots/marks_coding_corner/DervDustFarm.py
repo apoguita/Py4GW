@@ -467,7 +467,7 @@ def handle_custom_on_unmanaged_fail(bot: Botting):
 
 def dust_farm_bot(bot: Botting):
     bot.Events.OnDeathCallback(lambda: on_death(bot))
-    bot.helpers.Events.set_custom_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
+    bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     # override condition for halting movement
 
     bot.States.AddHeader('Starting Loop')
