@@ -102,7 +102,7 @@ class OnPartyWipe(Event):
             return False
         
         map_uptime = GLOBAL_CACHE.Map.GetInstanceUptime()
-        if map_uptime < 3000:
+        if map_uptime < 5000:
             return False
         
         party_wiped = Routines.Checks.Party.IsPartyWiped()

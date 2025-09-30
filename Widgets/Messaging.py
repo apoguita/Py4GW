@@ -265,31 +265,32 @@ def Resign(index, message):
 
 
 # endregion
-# region PixelStack
 def PixelStack(index, message):
-    ConsoleLog(
-        MODULE_NAME,
-        f"Processing PixelStack message: {message}",
-        Console.MessageType.Info,
-    )
+    ConsoleLog(MODULE_NAME, f"Processing PixelStack message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
-    yield from DisableHeroAIOptions(message.ReceiverEmail)
-    yield from Routines.Yield.wait(100)
-    result = (yield from Routines.Yield.Movement.FollowPath([(message.Params[0], message.Params[1])], tolerance=10, timeout=15000))
-    yield from Routines.Yield.wait(100)
-    yield from RestoreHeroAISnapshot(message.ReceiverEmail)
-    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    
-    if not result:
-        ConsoleLog(MODULE_NAME, "PixelStack movement failed or timed out.", Console.MessageType.Warning,log= True)
-    else:
-        ConsoleLog(MODULE_NAME, "PixelStack movement succeeded.", Console.MessageType.Info,log= False)
 
+    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    try:
+        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+        result = (yield from Routines.Yield.Movement.FollowPath(
+            [(message.Params[0], message.Params[1])],
+            tolerance=10,
+            timeout=10000,
+        ))
+        yield from Routines.Yield.wait(100)
+
+        if not result:
+            ConsoleLog(MODULE_NAME, "PixelStack movement failed or timed out.", Console.MessageType.Warning, log=True)
+        else:
+            ConsoleLog(MODULE_NAME, "PixelStack movement succeeded.", Console.MessageType.Info, log=False)
+    finally:
+        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 
 # endregion
@@ -664,6 +665,7 @@ def PickUpLoot(index, message):
 
     loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
     if len(loot_array) == 0:
+        yield from RestoreHeroAISnapshot(message.ReceiverEmail)   # <-- missing before
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -693,7 +695,7 @@ def PickUpLoot(index, message):
             continue
 
         pos = GLOBAL_CACHE.Agent.GetXY(item_id)
-        follow_success = yield from Routines.Yield.Movement.FollowPath([pos])
+        follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=10000)
         if not follow_success:
             LootConfig().AddItemIDToBlacklist(item_id)
             ConsoleLog(
@@ -708,6 +710,7 @@ def PickUpLoot(index, message):
 
         yield from Routines.Yield.wait(100)
         if (yield from _exit_if_not_map_valid()):
+            yield from RestoreHeroAISnapshot(message.ReceiverEmail)
             return
         yield from Routines.Yield.Player.InteractAgent(item_id)
         yield from Routines.Yield.wait(100)
