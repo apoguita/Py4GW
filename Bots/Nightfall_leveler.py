@@ -28,7 +28,8 @@ def create_bot_routine(bot: Botting) -> None:
     continue_quests(bot)
     second_profession(bot)
     after_2nd_profession(bot)
-    #TakeRewardAndCraftArmor(bot) #comment again for testing
+    TakeRewardAndCraftArmor(bot)
+    TakeRewardAndCraftWeapon(bot)
     jokanur_diggings_quests(bot)
     LeveledUp(bot)
     EOTN_Run(bot)
@@ -145,10 +146,28 @@ def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
         return ModelID.Bolt_Of_Cloth.value
     else:
         return ModelID.Tanned_Hide_Square.value
+    
+def GetWeaponMaterialPerProfession(bot: Botting = None):
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if primary == "Warrior":
+        return [ModelID.Iron_Ingot.value]
+    elif primary == "Ranger":
+        return [ModelID.Wood_Plank.value]
+    elif primary == "Dervish":
+        return [ModelID.Iron_Ingot.value]
+    elif primary == "Paragon":
+        return [ModelID.Iron_Ingot.value]
+    return []
 
 def BuyMaterials():
     for _ in range(5):
         yield from Routines.Yield.Merchant.BuyMaterial(GetArmorMaterialPerProfession())
+
+def BuyWeaponMaterials():
+    materials = GetWeaponMaterialPerProfession()
+    if materials:
+        for _ in range(5):
+            yield from Routines.Yield.Merchant.BuyMaterial(materials[0])
 
 def GetArmorPiecesByProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
@@ -174,10 +193,39 @@ def GetArmorPiecesByProfession(bot: Botting):
         GLOVES = 17808
         PANTS = 17809
         BOOTS = 17806
+    elif primary == "Dervish":
+        HEAD = 17705
+        CHEST = 17676
+        GLOVES = 17677
+        PANTS = 17678
+        BOOTS = 17675
     elif primary == "Elementalist":
         ...
 
     return HEAD, CHEST, GLOVES, PANTS, BOOTS
+
+def GetWeaponByProfession(bot: Botting):
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    SCYTHE = SPEAR = SHIELDPARA = SHIELDWAR = SWORD = BOW = 0
+
+    if primary == "Warrior":
+        SWORD = 18927
+        SHIELDWAR = 18911
+        return SWORD, SHIELDWAR
+    elif primary == "Ranger":
+        BOW = 18907
+        return BOW,
+    elif primary == "Paragon":
+        SPEAR = 18913
+        SHIELDPARA = 18856
+        return SPEAR, SHIELDPARA
+    elif primary == "Dervish":
+        SCYTHE = 18910
+        return SCYTHE,
+    elif primary == "Elementalist":
+        return ()
+
+    return ()
 
 
 def CraftArmor(bot: Botting):
@@ -195,7 +243,7 @@ def CraftArmor(bot: Botting):
     yield
 
     for item_id, mats, qtys in armor_pieces:
-        result = yield from Routines.Yield.Items.CraftItem(item_id, 200, mats, qtys)
+        result = yield from Routines.Yield.Items.CraftItem(item_id, 75, mats, qtys)
         if not result:
             ConsoleLog("CraftArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
             bot.helpers.Events.on_unmanaged_fail()
@@ -205,6 +253,34 @@ def CraftArmor(bot: Botting):
         result = yield from Routines.Yield.Items.EquipItem(item_id)
         if not result:
             ConsoleLog("CraftArmor", f"Failed to equip item ({item_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+    return True
+
+def CraftWeapon(bot: Botting):
+    weapon_ids = GetWeaponByProfession(bot)
+    materials = GetWeaponMaterialPerProfession(bot)
+    
+    # Structure weapon data like armor pieces - (weapon_id, materials_list, quantities_list)
+    weapon_pieces = []
+    for weapon_id in weapon_ids:
+        weapon_pieces.append((weapon_id, materials, [5]))  # 5 materials per weapon
+    
+    yield from Routines.Yield.Agents.InteractWithAgentXY(4101.25, 2194.41)
+    yield
+
+    for weapon_id, mats, qtys in weapon_pieces:
+        result = yield from Routines.Yield.Items.CraftItem(weapon_id, 50, mats, qtys)
+        if not result:
+            ConsoleLog("CraftWeapon", f"Failed to craft weapon ({weapon_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+
+        result = yield from Routines.Yield.Items.EquipItem(weapon_id)
+        if not result:
+            ConsoleLog("CraftWeapon", f"Failed to equip weapon ({weapon_id}).", Py4GW.Console.MessageType.Error)
             bot.helpers.Events.on_unmanaged_fail()
             return False
         yield
@@ -325,7 +401,7 @@ def Take_Quests(bot: Botting):
     
 def Farm_for_quests(bot: Botting):
     bot.States.AddHeader("Prepare for quests")
-    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[2,4])
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
     bot.States.AddHeader("Plains of Jarin")
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) #Plains of Jarin
     #bot.Wait.ForMapToChange(target_map_id=430)
@@ -367,7 +443,7 @@ def SSGH_quests(bot: Botting):
     bot.Move.XYAndDialog(-2888, 7024, 0x84, step_name="SS rebirth Signet")
     bot.Dialogs.AtXY(-2888, 7024, 0x82CB03, step_name="Attribute Points Quest 1")
     bot.Dialogs.AtXY(-2888, 7024, 0x82CB01)
-    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[2,4])
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
     #bot.Wait.ForMapToChange(target_map_id=430)
     bot.States.AddHeader("Plains of Jarin 2")
@@ -384,7 +460,7 @@ def SSGH_quests(bot: Botting):
 def continue_quests(bot: Botting): 
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     #bot.Wait.ForMapToChange(target_map_id=431)
-    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[2,4])
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
     #bot.Wait.ForMapToChange(target_map_id=430)
     bot.Move.XYAndDialog(-1237.25, 3188.38, 0x85) #Blessing 
@@ -520,12 +596,22 @@ def TakeRewardAndCraftArmor(bot: Botting):
     exec_fn = lambda: CraftArmor(bot)
     bot.States.AddCustomState(exec_fn, "Craft Armor")
 
+def TakeRewardAndCraftWeapon(bot: Botting):
+    bot.States.AddHeader("Take Reward And Craft Weapon")
+    bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
+    bot.States.AddCustomState(BuyWeaponMaterials, "Buy Weapon Materials")
+    bot.Move.XY(4108.39, 2211.65)
+    bot.Dialogs.WithModel(4727, 0x86)  # Weapon crafter
+    bot.Wait.ForTime(1000)  # small delay to let the window open
+    exec_fn = lambda: CraftWeapon(bot)
+    bot.States.AddCustomState(exec_fn, "Craft Weapon")
+
     
 def jokanur_diggings_quests(bot):
     bot.States.AddHeader("Sprint to level 10")
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
-    PrepareForBattle(bot, Hero_List=[6,7], Henchman_List=[6])
+    PrepareForBattle(bot, Hero_List=[6,7], Henchman_List=[1])
     bot.Move.XYAndExitMap(-3225, -855, target_map_id=481) #Fahranur The First City
     #bot.Wait.ForMapToChange(target_map_id=481)
     bot.States.AddHeader("Fahranur The First City")
