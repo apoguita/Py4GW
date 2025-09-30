@@ -74,7 +74,7 @@ class _Move:
         yield from self._follow_path()
         return True
 
-    def _follow_path(self) -> Generator[Any, Any, bool]:
+    def _follow_path(self, forced_timeout = -1) -> Generator[Any, Any, bool]:
         from ...Routines import Routines
         from ...py4gwcorelib_src.Lootconfig import LootConfig
         from ...enums import Range
@@ -120,12 +120,17 @@ class _Move:
                 return True
             return False
 
+        if forced_timeout > 0:
+            f_timeout = forced_timeout
+        else:
+            f_timeout = self._config.config_properties.movement_timeout.get("value")
+            
         success_movement = yield from Routines.Yield.Movement.FollowPath(
             path_points=path,
             custom_exit_condition=exit_condition,
             log=self._config.config_properties.log_actions.is_active(),
             custom_pause_fn=pause_condition,
-            timeout=self._config.config_properties.movement_timeout.get("value"),
+            timeout=f_timeout,
             tolerance=self._config.config_properties.movement_tolerance.get("value"),
         )
 
