@@ -24,7 +24,7 @@ def bot_routine(bot: Botting) -> None:
     
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
-    bot.Templates.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
     
     bot.Party.SetHardMode(True)
     bot.Move.XYAndExitMap(-14168,-8050,205) #Morostav Trail exit to Unwaking Waters
@@ -115,7 +115,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.UntilOutOfCombat()
     bot.Multibox.ResignParty()
     bot.Wait.UntilOnOutpost()
-    bot.Templates.PrepareForFarm(map_id_to_travel=HZH)
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=HZH)
     bot.Multibox.DonateFaction()
     bot.Wait.ForTime(15000)
     bot.States.JumpToStepName("[H]VQ Morostav Trail_1")
