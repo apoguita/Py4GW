@@ -10,7 +10,7 @@ bot = Botting(BOT_NAME)
                 
 def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader(BOT_NAME)
-    bot.Templates.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
     bot.Wait.ForTime(1000)
     bot.Multibox.DonateFaction()
     bot.Wait.UntilOnCombat()
