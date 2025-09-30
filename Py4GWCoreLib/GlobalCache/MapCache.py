@@ -131,6 +131,11 @@ class MapCache:
     def GetFoesToKill(self):
         return self._map_instance.foes_to_kill
     
+    def GetIsVanquishComplete(self):
+        if self.IsVanquishable():
+            return self._map_instance.foes_to_kill == 0
+        return False
+    
     def GetCampaign(self):
         campaign = self._map_instance.campaign
         return campaign.ToInt(), campaign.GetName()

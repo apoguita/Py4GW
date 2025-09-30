@@ -197,9 +197,7 @@ def InviteToParty(index, message):
     ConsoleLog(
         MODULE_NAME,
         "InviteToParty message processed and finished.",
-        Console.MessageType.Info,
-    )
-
+        Console.MessageType.Info, False)
 
 # endregion
 
@@ -218,7 +216,7 @@ def LeaveParty(index, message):
     ConsoleLog(
         MODULE_NAME,
         "LeaveParty message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info, False
     )
 
 
@@ -244,7 +242,7 @@ def TravelToMap(index, message):
     ConsoleLog(
         MODULE_NAME,
         "TravelToMap message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 
 
@@ -263,34 +261,37 @@ def Resign(index, message):
     GLOBAL_CACHE.Player.SendChatCommand("resign")
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info,False)
 
 
-# endregion
-# region PixelStack
+#region PixelStack
 def PixelStack(index, message):
-    ConsoleLog(
-        MODULE_NAME,
-        f"Processing PixelStack message: {message}",
-        Console.MessageType.Info,
-    )
+    ConsoleLog(MODULE_NAME, f"Processing PixelStack message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
+
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
-    yield from DisableHeroAIOptions(message.ReceiverEmail)
-    yield from Routines.Yield.wait(100)
-    yield from Routines.Yield.Movement.FollowPath([(message.Params[0], message.Params[1])], tolerance=10)
-    yield from Routines.Yield.wait(100)
-    yield from RestoreHeroAISnapshot(message.ReceiverEmail)
-    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(
-        MODULE_NAME,
-        "PixelStack message processed and finished.",
-        Console.MessageType.Info,
-    )
+    try:
+        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+        result = (yield from Routines.Yield.Movement.FollowPath(
+            [(message.Params[0], message.Params[1])],
+            tolerance=10,
+            timeout=10000,
+        ))
+        yield from Routines.Yield.wait(100)
+
+        if not result:
+            ConsoleLog(MODULE_NAME, "PixelStack movement failed or timed out.", Console.MessageType.Warning, log=True)
+        else:
+            ConsoleLog(MODULE_NAME, "PixelStack movement succeeded.", Console.MessageType.Info, log=False)
+    finally:
+        #yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        yield from EnableHeroAIOptions(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 
 # endregion
@@ -302,12 +303,14 @@ def InteractWithTarget(index, message):
     ConsoleLog(
         MODULE_NAME,
         f"Processing InteractWithTarget message: {message}",
-        Console.MessageType.Info,
+        Console.MessageType.Info, False
     )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
+
     target = int(message.Params[0])
     if target == 0:
         ConsoleLog(MODULE_NAME, "Invalid target ID.", Console.MessageType.Warning)
@@ -315,35 +318,39 @@ def InteractWithTarget(index, message):
         return
 
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
-    yield from DisableHeroAIOptions(message.ReceiverEmail)
-    yield from Routines.Yield.wait(100)
-    x, y = GLOBAL_CACHE.Agent.GetXY(target)
-    yield from Routines.Yield.Movement.FollowPath([(x, y)])
-    yield from Routines.Yield.wait(100)
-    yield from Routines.Yield.Player.InteractAgent(target)
-    yield from RestoreHeroAISnapshot(message.ReceiverEmail)
-    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(
-        MODULE_NAME,
-        "InteractWithTarget message processed and finished.",
-        Console.MessageType.Info,
-    )
+    try:
+        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+        x, y = GLOBAL_CACHE.Agent.GetXY(target)
+        yield from Routines.Yield.Movement.FollowPath([(x, y)])
+        yield from Routines.Yield.wait(100)
+        yield from Routines.Yield.Player.InteractAgent(target)
+
+        ConsoleLog(
+            MODULE_NAME,
+            "InteractWithTarget message processed and finished.",
+            Console.MessageType.Info, False
+        )
+    finally:
+        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
 
 
 # endregion
 # region TakeDialogWithTarget
-
-
 def TakeDialogWithTarget(index, message):
     ConsoleLog(
         MODULE_NAME,
         f"Processing TakeDialogWithTarget message: {message}",
-        Console.MessageType.Info,
+        Console.MessageType.Info, False
     )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
+
     target = int(message.Params[0])
     if target == 0:
         ConsoleLog(MODULE_NAME, "Invalid target ID.", Console.MessageType.Warning)
@@ -351,30 +358,77 @@ def TakeDialogWithTarget(index, message):
         return
 
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
-    yield from DisableHeroAIOptions(message.ReceiverEmail)
-    yield from Routines.Yield.wait(100)
-    x, y = GLOBAL_CACHE.Agent.GetXY(target)
-    yield from Routines.Yield.Movement.FollowPath([(x, y)])
-    yield from Routines.Yield.wait(100)
-    yield from Routines.Yield.Player.InteractAgent(target)
-    yield from Routines.Yield.wait(500)
-    if UIManager.IsNPCDialogVisible():
-        UIManager.ClickDialogButton(int(message.Params[1]))
-        yield from Routines.Yield.wait(200)
-    yield from RestoreHeroAISnapshot(message.ReceiverEmail)
-    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    try:
+        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+        x, y = GLOBAL_CACHE.Agent.GetXY(target)
+        yield from Routines.Yield.Movement.FollowPath([(x, y)])
+        yield from Routines.Yield.wait(100)
+        yield from Routines.Yield.Player.InteractAgent(target)
+        yield from Routines.Yield.wait(500)
+        if UIManager.IsNPCDialogVisible():
+            UIManager.ClickDialogButton(int(message.Params[1]))
+            yield from Routines.Yield.wait(200)
+
+        ConsoleLog(
+            MODULE_NAME,
+            "TakeDialogWithTarget message processed and finished.",
+            Console.MessageType.Info, False
+        )
+    finally:
+        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+
+def SendDialogToTarget(index, message):
     ConsoleLog(
         MODULE_NAME,
-        "TakeDialogWithTarget message processed and finished.",
-        Console.MessageType.Info,
+        f"Processing SendDialogToTarget message: {message}",
+        Console.MessageType.Info, False
     )
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
 
+    target = int(message.Params[0])
+    if target == 0:
+        ConsoleLog(MODULE_NAME, "Invalid target ID.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
 
+    dialog = int(message.Params[1])
+
+    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    try:
+        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+        x, y = GLOBAL_CACHE.Agent.GetXY(target)
+        yield from Routines.Yield.Movement.FollowPath([(x, y)])
+        yield from Routines.Yield.wait(100)
+        yield from Routines.Yield.Player.InteractAgent(target)
+        yield from Routines.Yield.wait(500)
+        GLOBAL_CACHE.Player.SendDialog(dialog)
+        yield from Routines.Yield.wait(500)
+
+        ConsoleLog(
+            MODULE_NAME,
+            "SendDialogToTarget message processed and finished.",
+            Console.MessageType.Info, False
+        )
+    finally:
+        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+#region GetBlessing
 def GetBlessing(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
+
     target = int(message.Params[0])
     if target == 0:
         ConsoleLog(MODULE_NAME, "Invalid target ID.", Console.MessageType.Warning)
@@ -382,23 +436,27 @@ def GetBlessing(index, message):
         return
 
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
-    yield from DisableHeroAIOptions(message.ReceiverEmail)
-    yield from Routines.Yield.wait(100)
-    x, y = GLOBAL_CACHE.Agent.GetXY(target)
-    yield from Routines.Yield.Movement.FollowPath([(x, y)])
-    yield from Routines.Yield.wait(100)
-    yield from Routines.Yield.Player.InteractAgent(target)
-    yield from Routines.Yield.wait(500)
-    if UIManager.IsNPCDialogVisible():
-        UIManager.ClickDialogButton(message.Params[1])
-        yield from Routines.Yield.wait(200)
-    yield from RestoreHeroAISnapshot(message.ReceiverEmail)
-    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(
-        MODULE_NAME,
-        "GetBlessing message processed and finished.",
-        Console.MessageType.Info,
-    )
+    try:
+        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+        x, y = GLOBAL_CACHE.Agent.GetXY(target)
+        yield from Routines.Yield.Movement.FollowPath([(x, y)])
+        yield from Routines.Yield.wait(100)
+        yield from Routines.Yield.Player.InteractAgent(target)
+        yield from Routines.Yield.wait(500)
+        if UIManager.IsNPCDialogVisible():
+            UIManager.ClickDialogButton(message.Params[1])
+            yield from Routines.Yield.wait(200)
+
+        ConsoleLog(
+            MODULE_NAME,
+            "GetBlessing message processed and finished.",
+            Console.MessageType.Info, False
+        )
+    finally:
+        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
 
 
 # endregion
@@ -406,7 +464,7 @@ def GetBlessing(index, message):
 
 
 def UsePcon(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing UsePcon message: {message}", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, f"Processing UsePcon message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
     pcon_model_id = int(message.Params[0])
@@ -443,6 +501,7 @@ def UsePcon(index, message):
         MODULE_NAME,
         f"Using PCon model {pcon_model_to_use} with item_id {item_id}.",
         Console.MessageType.Info,
+        False
     )
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -454,7 +513,7 @@ def UsePcon(index, message):
 
 # region PressKey
 def PressKey(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info,False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
     key_id = int(message.Params[0])
@@ -469,11 +528,71 @@ def PressKey(index, message):
     ConsoleLog(
         MODULE_NAME,
         "PressKey message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 # endregion
 # region DonateToGuild
 def DonateToGuild(index, message):
+    MODULE = "DonateFaction"
+    CHUNK = 5000
+
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    # --- Guards ---
+    if not Routines.Checks.Map.MapValid():
+        ConsoleLog(MODULE, "Invalid map, cannot donate.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    map_id = GLOBAL_CACHE.Map.GetMapID()
+    if map_id == 77:      # House zu Heltzer
+        faction = 0  # Kurzick
+        npc_pos = (5408, 1494)
+        get_unspent = lambda: GLOBAL_CACHE.Player.GetKurzickData()[0]
+    elif map_id == 193:   # Cavalon
+        faction = 1  # Luxon
+        npc_pos = (9074, -1124)
+        get_unspent = lambda: GLOBAL_CACHE.Player.GetLuxonData()[0]
+    else:
+        ConsoleLog(MODULE, "Not in a valid outpost for donation.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    # --- Move to NPC ---
+    px, py = GLOBAL_CACHE.Player.GetXY()
+    z = GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+    try:
+        path3d = yield from AutoPathing().get_path(
+            (px, py, z), (npc_pos[0], npc_pos[1], z),
+            smooth_by_los=True, margin=100.0, step_dist=500.0
+        )
+    except Exception:
+        path3d = []
+
+    path2d = [(x, y) for (x, y, *_ ) in path3d] if path3d else [npc_pos]
+    yield from Routines.Yield.Movement.FollowPath(path2d)
+
+    # --- Interact with NPC ---
+    yield from Routines.Yield.wait(400)
+    yield from Routines.Yield.Agents.InteractWithAgentXY(*npc_pos)
+    yield from Routines.Yield.wait(400)
+
+    # --- Donation loop ---
+    chunks = get_unspent() // CHUNK
+    for _ in range(chunks):
+        if not UIManager.IsNPCDialogVisible():
+            yield from Routines.Yield.Player.InteractTarget()
+            yield from Routines.Yield.wait(300)
+            if not UIManager.IsNPCDialogVisible():
+                break
+        GLOBAL_CACHE.Player.DepositFaction(faction)
+        yield from Routines.Yield.wait(300)
+
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+
+#this below function is faulty and needs manteinance, i created an alternate function above
+"""def _DonateToGuild(index, message):
     MODULE = MODULE_NAME
     KURZICK = 0
     LUXON = 1
@@ -594,9 +713,9 @@ def DonateToGuild(index, message):
         swapped += 1
 
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE, f"Swapped {swapped * CHUNK} points for rare mats.", Console.MessageType.Info)
+    ConsoleLog(MODULE, f"Swapped {swapped * CHUNK} points for rare mats.", Console.MessageType.Info,False)
 
-# endregion
+# endregion"""
 
 # region PickUpLoot
 def PickUpLoot(index, message):
@@ -628,99 +747,95 @@ def PickUpLoot(index, message):
 
     loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
     if len(loot_array) == 0:
+        yield from RestoreHeroAISnapshot(message.ReceiverEmail)   # <-- missing before
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
     ConsoleLog(MODULE_NAME, "Starting PickUpLoot routine", Console.MessageType.Info, False)
 
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
-    yield from DisableHeroAIOptions(message.ReceiverEmail)
-    yield from Routines.Yield.wait(100)
-    while True:
-        loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
-        if len(loot_array) == 0:
-            break
-        item_id = loot_array.pop(0)
-        if item_id is None or item_id == 0:
-            continue
-
-        if (yield from _exit_if_not_map_valid()):
-            LootConfig().AddItemIDToBlacklist(item_id)
-            ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
-            yield from RestoreHeroAISnapshot(message.ReceiverEmail)
-            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-            ActionQueueManager().ResetAllQueues()
-            return
-
-        if not GLOBAL_CACHE.Agent.IsValid(item_id):
-            yield from Routines.Yield.wait(100)
-            continue
-
-        pos = GLOBAL_CACHE.Agent.GetXY(item_id)
-        follow_success = yield from Routines.Yield.Movement.FollowPath([pos])
-        if not follow_success:
-            LootConfig().AddItemIDToBlacklist(item_id)
-            ConsoleLog(
-                "PickUp Loot",
-                "Failed to follow path to loot item, halting.",
-                Console.MessageType.Warning,
-            )
-            yield from RestoreHeroAISnapshot(message.ReceiverEmail)
-            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-            ActionQueueManager().ResetAllQueues()
-            return
-
+    try:
+        yield from DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
-        if (yield from _exit_if_not_map_valid()):
-            return
-        yield from Routines.Yield.Player.InteractAgent(item_id)
-        yield from Routines.Yield.wait(100)
-        start_time = _GetBaseTimestamp()
-        timeout = 3000
         while True:
-            current_time = _GetBaseTimestamp()
-
-            delta = current_time - start_time
-            if delta > timeout:
-                LootConfig().AddItemIDToBlacklist(item_id)
-                ConsoleLog(
-                    "PickUp Loot",
-                    "Timeout reached while picking up loot, halting.",
-                    Console.MessageType.Warning,
-                )
-                yield from RestoreHeroAISnapshot(message.ReceiverEmail)
-                GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-                ActionQueueManager().ResetAllQueues()
-                return
+            loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
+            if len(loot_array) == 0:
+                break
+            item_id = loot_array.pop(0)
+            if item_id is None or item_id == 0:
+                continue
 
             if (yield from _exit_if_not_map_valid()):
                 LootConfig().AddItemIDToBlacklist(item_id)
-                ConsoleLog(
-                    "PickUp Loot",
-                    "Map is not valid, halting.",
-                    Console.MessageType.Warning,
-                )
-                yield from RestoreHeroAISnapshot(message.ReceiverEmail)
-                GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+                ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
                 ActionQueueManager().ResetAllQueues()
                 return
 
-            loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
-            if item_id not in loot_array or len(loot_array) == 0:
+            if not GLOBAL_CACHE.Agent.IsValid(item_id):
                 yield from Routines.Yield.wait(100)
-                break
-            yield from Routines.Yield.wait(100)
+                continue
 
-    yield from RestoreHeroAISnapshot(message.ReceiverEmail)
-    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "PickUpLoot routine finished.", Console.MessageType.Info, False)
+            pos = GLOBAL_CACHE.Agent.GetXY(item_id)
+            follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=10000)
+            if not follow_success:
+                LootConfig().AddItemIDToBlacklist(item_id)
+                ConsoleLog(
+                    "PickUp Loot",
+                    "Failed to follow path to loot item, halting.",
+                    Console.MessageType.Warning,
+                )
+                ActionQueueManager().ResetAllQueues()
+                return
+
+            yield from Routines.Yield.wait(100)
+            if (yield from _exit_if_not_map_valid()):
+                yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+                return
+            yield from Routines.Yield.Player.InteractAgent(item_id)
+            yield from Routines.Yield.wait(100)
+            start_time = _GetBaseTimestamp()
+            timeout = 3000
+            while True:
+                current_time = _GetBaseTimestamp()
+
+                delta = current_time - start_time
+                if delta > timeout:
+                    LootConfig().AddItemIDToBlacklist(item_id)
+                    ConsoleLog(
+                        "PickUp Loot",
+                        "Timeout reached while picking up loot, halting.",
+                        Console.MessageType.Warning,
+                    )
+                    ActionQueueManager().ResetAllQueues()
+                    return
+
+                if (yield from _exit_if_not_map_valid()):
+                    LootConfig().AddItemIDToBlacklist(item_id)
+                    ConsoleLog(
+                        "PickUp Loot",
+                        "Map is not valid, halting.",
+                        Console.MessageType.Warning,
+                    )
+                    ActionQueueManager().ResetAllQueues()
+                    return
+
+                loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
+                if item_id not in loot_array or len(loot_array) == 0:
+                    yield from Routines.Yield.wait(100)
+                    break
+                yield from Routines.Yield.wait(100)
+
+        ConsoleLog(MODULE_NAME, "PickUpLoot routine finished.", Console.MessageType.Info, False)
+    finally:
+        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 
 def MessageDisableHeroAI(index, message):
     ConsoleLog(
         MODULE_NAME,
         f"Processing DisableHeroAI message: {message}",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
@@ -730,7 +845,7 @@ def MessageDisableHeroAI(index, message):
     ConsoleLog(
         MODULE_NAME,
         "DisableHeroAI message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 
 
@@ -738,7 +853,7 @@ def MessageEnableHeroAI(index, message):
     ConsoleLog(
         MODULE_NAME,
         f"Processing EnableHeroAI message: {message}",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
@@ -750,7 +865,7 @@ def MessageEnableHeroAI(index, message):
     ConsoleLog(
         MODULE_NAME,
         "EnableHeroAI message processed and finished.",
-        Console.MessageType.Info,
+        Console.MessageType.Info,False
     )
 
 
@@ -919,6 +1034,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(InteractWithTarget(index, message))
         case SharedCommandType.TakeDialogWithTarget:
             GLOBAL_CACHE.Coroutines.append(TakeDialogWithTarget(index, message))
+        case SharedCommandType.SendDialogToTarget:
+            GLOBAL_CACHE.Coroutines.append(SendDialogToTarget(index, message))
         case SharedCommandType.GetBlessing:
             pass
         case SharedCommandType.OpenChest:

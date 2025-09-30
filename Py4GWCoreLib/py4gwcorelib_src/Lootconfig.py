@@ -209,19 +209,22 @@ class LootConfig:
             item_id = item_data.item_id
             model_id = Item.GetModelID(item_id)
             
-            if self.IsItemIDWhitelisted(item_id):
-                continue
-            
+            # --- Hard block: blacklists ---
             if self.IsItemIDBlacklisted(item_id):
                 loot_array.remove(agent_id)
                 continue
-                
-            if self.IsWhitelisted(model_id):
-                continue
-            
+
             if self.IsBlacklisted(model_id):
                 loot_array.remove(agent_id)
                 continue
+
+            # --- Whitelists ---
+            if self.IsItemIDWhitelisted(item_id):
+                continue
+
+            if self.IsWhitelisted(model_id):
+                continue
+
                 
             # Rarity filtering
             if Item.Rarity.IsWhite(item_id):
