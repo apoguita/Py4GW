@@ -223,6 +223,7 @@ def _force_reset(bot: Botting):
     yield from Routines.Yield.wait(1000)
     fsm = bot.config.FSM
     fsm.jump_to_state_by_name("[H]Starting Loop_1")
+    fsm.resume()
     yield
 
 
