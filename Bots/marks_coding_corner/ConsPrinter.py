@@ -207,7 +207,10 @@ def withdraw_cons_materials_from_inventory():
         yield from Routines.Yield.wait(250)
 
     consets_to_make = max_possible
-    ConsoleLog("Conset Withdraw", f"Withdrew materials, {needed_gold}g, and reserved {max_possible*3} skill points for {max_possible} consets.")
+    ConsoleLog(
+        "Conset Withdraw",
+        f"Withdrew materials, {needed_gold}g, and reserved {max_possible * 3} skill points for {max_possible} consets.",
+    )
 
 
 def can_make_at_least_one_conset_from_storage():

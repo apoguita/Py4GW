@@ -54,6 +54,7 @@ stuck_timer = ThrottledTimer(3000)
 movement_check_timer = ThrottledTimer(6000)
 stuck_counter = 0
 unstuck_counter = 0
+unmanaged_fail_counter = 0
 old_player_position = (0, 0)
 item_id_blacklist = []
 is_farming = False
@@ -437,11 +438,36 @@ def handle_loot(bot: Botting):
         yield from Routines.Yield.wait(500)
 
 
+def _force_reset(bot: Botting):
+    global unmanaged_fail_counter
+    unmanaged_fail_counter += 1
+    ConsoleLog(DUST_FARMER, f"Something went wrong forcing a reset... Attempt: {unmanaged_fail_counter}")
+    yield from Routines.Yield.wait(1000)
+    fsm = bot.config.FSM
+    fsm.jump_to_state_by_name("[H]Starting Loop_1")
+    fsm.resume()
+    yield
+
+
+def handle_custom_on_unmanaged_fail(bot: Botting):
+    global unmanaged_fail_counter
+
+    ConsoleLog(DUST_FARMER, "Handling explorable mode unmanaged error...")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("Force Reset", _force_reset(bot))
+
+    if unmanaged_fail_counter > 5:
+        return True
+    return False
+
+
 # endregion
 
 
 def dust_farm_bot(bot: Botting):
     bot.Events.OnDeathCallback(lambda: on_death(bot))
+    bot.helpers.Events.set_custom_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     # override condition for halting movement
 
     bot.States.AddHeader('Starting Loop')
