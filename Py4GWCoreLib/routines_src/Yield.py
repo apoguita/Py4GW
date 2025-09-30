@@ -3,6 +3,7 @@ from ..GlobalCache import GLOBAL_CACHE
 from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager
 
 from ..enums_src.Model_enums import ModelID
+from ..enums_src.UI_enums import ControlAction
 
 
 import importlib
@@ -106,14 +107,31 @@ class Yield:
     class Movement:
         @staticmethod
         def StopMovement():
-            from ..UIManager import UIManager
-            from ..enums import ControlAction
-            UIManager.Keydown(ControlAction.ControlAction_MoveBackward.value, 0)
-            yield from Yield.wait(125)
-            UIManager.Keyup(ControlAction.ControlAction_MoveBackward.value, 0)
-            yield from Yield.wait(125)
-            
-            
+            yield from Yield.Movement.WalkBackwards(125)
+
+        @staticmethod   
+        def WalkBackwards(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms)
+
+        @staticmethod
+        def WalkForwards(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms)
+
+        @staticmethod
+        def StrafeLeft(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms)
+
+        @staticmethod
+        def StrafeRight(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms)
+
+        @staticmethod
+        def TurnLeft(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms)
+
+        @staticmethod
+        def TurnRight(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms)
         
         @staticmethod
         def FollowPath(
@@ -129,6 +147,8 @@ class Yield:
             from .Checks import Checks
             
             total_points = len(path_points)
+            retries = 0
+            max_retries = 20  # after this, send stuck command
 
             for idx, (target_x, target_y) in enumerate(path_points):
                 start_time = Utils.GetBaseTimestamp()
@@ -138,6 +158,7 @@ class Yield:
                     return False
 
                 GLOBAL_CACHE.Player.Move(target_x, target_y)
+                yield from Yield.wait(250)
 
                 current_x, current_y = GLOBAL_CACHE.Player.GetXY()
                 previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
@@ -182,6 +203,12 @@ class Yield:
                             ActionQueueManager().ResetAllQueues()
                             return False
                         GLOBAL_CACHE.Player.Move(target_x + offset_x, target_y + offset_y)
+                        retries += 1
+                        if retries >= max_retries:
+                            GLOBAL_CACHE.Player.SendChatCommand("stuck")
+                            retries = 0  # reset retries after stuck command"""
+                    else:
+                        retries = 0  # reset retries if making progress
 
                     previous_distance = current_distance
 
@@ -191,13 +218,14 @@ class Yield:
                         if log:
                             ConsoleLog("FollowPath", f"Current distance to target: {current_distance}, waiting...", Console.MessageType.Info)
 
-                    yield from Yield.wait(250)
+                    yield from Yield.wait(300)
 
                 #After reaching each point, report progress
                 if progress_callback:
                     progress_callback((idx + 1) / total_points)
 
             return True
+    
 
 #region Skills
     class Skills:
@@ -1520,3 +1548,283 @@ class Yield:
             yield from Yield.wait(period_ms)
 
 #endregion
+
+#region Keybinds
+    class Keybinds:
+        @staticmethod
+        def PressKeybind(keybind_index:int, duration_ms:int=125):
+            from ..UIManager import UIManager
+            UIManager.Keydown(keybind_index, 0)
+            yield from Yield.wait(duration_ms)
+            UIManager.Keyup(keybind_index, 0)
+            yield from Yield.wait(125)
+            
+        @staticmethod
+        def TakeScreenshot():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Screenshot.value, 125)
+           
+        #Panels
+        @staticmethod
+        def CloseAllPanels():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CloseAllPanels.value, 125)
+            
+        @staticmethod
+        def ToggleInventory():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ToggleInventoryWindow.value, 125)
+                
+        @staticmethod
+        def OpenScoreChart():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenScoreChart.value, 125)
+            
+        @staticmethod
+        def OpenTemplateManager():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenTemplateManager.value, 125)
+            
+        @staticmethod
+        def OpenSaveEquipmentTemplate():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSaveEquipmentTemplate.value, 125)
+            
+        @staticmethod
+        def OpenSaveSkillTemplate():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSaveSkillTemplate.value, 125)
+            
+        @staticmethod
+        def OpenParty():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenParty.value, 125)
+            
+        @staticmethod
+        def OpenGuild():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenGuild.value, 125)
+            
+        @staticmethod
+        def OpenFriends():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenFriends.value, 125)
+            
+        @staticmethod
+        def ToggleAllBags():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ToggleAllBags.value, 125)
+            
+        @staticmethod
+        def OpenMissionMap():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenMissionMap.value, 125)
+            
+        @staticmethod
+        def OpenBag2():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBag2.value, 125)
+            
+        @staticmethod
+        def OpenBag1():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBag1.value, 125)
+            
+        @staticmethod
+        def OpenBelt():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBelt.value, 125)
+            
+        @staticmethod
+        def OpenBackpack():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBackpack.value, 125)
+            
+        @staticmethod
+        def OpenSkillsAndAttributes():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSkillsAndAttributes.value, 125)
+            
+        @staticmethod
+        def OpenQuestLog():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenQuestLog.value, 125)
+            
+        @staticmethod
+        def OpenWorldMap():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenWorldMap.value, 125)
+            
+        @staticmethod
+        def OpenHeroPanel():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero.value, 125)    
+
+        #weapon sets
+        @staticmethod
+        def CycleEquipment():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CycleEquipment, 125)
+            
+        @staticmethod
+        def ActivateWeaponSet(index:int):
+            if index < 1 or index > 4:
+                return
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ActivateWeaponSet1.value + (index - 1), 125)
+
+        @staticmethod
+        def DropBundle():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_DropItem, 125)
+            
+        @staticmethod
+        def OpenChat():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenChat, 125)
+            
+        @staticmethod
+        def ReplyToChat():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ChatReply, 125)
+            
+        @staticmethod
+        def OpenAlliance():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenAlliance, 125)
+            
+        #movement 
+        @staticmethod   
+        def MoveBackwards(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms)
+
+        @staticmethod
+        def MoveForwards(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms)
+
+        @staticmethod
+        def StrafeLeft(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms)
+
+        @staticmethod
+        def StrafeRight(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms)
+
+        @staticmethod
+        def TurnLeft(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms)
+
+        @staticmethod
+        def TurnRight(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms)
+            
+        @staticmethod
+        def ReverseCamera():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ReverseCamera.value, 125)
+            
+        @staticmethod
+        def CancelAction():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CancelAction.value, 125)
+            
+        @staticmethod
+        def Interact():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Interact.value, 125)
+            
+        @staticmethod
+        def ReverseDirection():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ReverseDirection.value, 125)
+            
+        @staticmethod
+        def AutoRun():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Autorun.value, 125)
+            
+        @staticmethod
+        def Follow():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Follow.value, 125)
+            
+        #targeting     
+        @staticmethod
+        def TargetPartyMember(index:int):
+            if index < 1 or index > 12:
+                return
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMember1.value + (index - 1), 125)
+        
+        @staticmethod
+        def TargetNearestItem():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNearestItem.value, 125)
+            
+        @staticmethod
+        def TargetNextItem():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNextItem.value, 125)
+            
+        @staticmethod
+        def TargetPreviousItem():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPreviousItem.value, 125)
+            
+        @staticmethod
+        def TargetPartyMemberNext():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMemberNext.value, 125)
+            
+        @staticmethod
+        def TargetPartyMemberPrevious():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMemberPrevious.value, 125)
+            
+        @staticmethod
+        def TargetAllyNearest():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetAllyNearest.value, 125)
+            
+        @staticmethod
+        def ClearTarget():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ClearTarget.value, 125)
+            
+        @staticmethod
+        def TargetSelf():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetSelf.value, 125)
+            
+        @staticmethod
+        def TargetPriorityTarget():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPriorityTarget.value, 125)
+            
+        @staticmethod
+        def TargetNearestEnemy():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNearestEnemy.value, 125)
+            
+        @staticmethod
+        def TargetNextEnemy():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNextEnemy.value, 125)
+            
+        @staticmethod
+        def TargetPreviousEnemy():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPreviousEnemy.value, 125)
+            
+        @staticmethod
+        def ShowOthers():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ShowOthers.value, 125)
+            
+        @staticmethod
+        def ShowTargets():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ShowTargets.value, 125)
+            
+        @staticmethod
+        def CameraZoomIn():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CameraZoomIn.value, 125)
+            
+        @staticmethod
+        def CameraZoomOut():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CameraZoomOut.value, 125)
+            
+        # Party / Hero commands
+        @staticmethod
+        def ClearPartyCommands():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ClearPartyCommands.value, 125)
+            
+        @staticmethod
+        def CommandParty():
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CommandParty.value, 125)
+            
+        @staticmethod
+        def CommandHero(hero_index:int):
+            if hero_index < 1 or hero_index > 7:
+                return
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CommandHero1.value + (hero_index - 1), 125)
+        
+            
+        @staticmethod
+        def OpenHeroPetCommander(hero_index:int):
+            if hero_index < 1 or hero_index > 7:
+                return
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero1PetCommander.value + (hero_index - 1), 125)
+
+        @staticmethod
+        def OpenHeroCommander(hero_index:int):
+            if hero_index < 1 or hero_index > 7:
+                return
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHeroCommander1.value + (hero_index - 1), 125)
+            
+        @staticmethod
+        def HeroSkill(hero_index:int, skill_slot:int):
+            if hero_index < 1 or hero_index > 4:
+                return
+            if skill_slot < 1 or skill_slot > 8:
+                return
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Hero1Skill1.value + (hero_index - 1) * 8 + (skill_slot - 1), 125)
+            
+        @staticmethod
+        def UseSkill(slot:int):
+            if slot < 1 or slot > 8:
+                return
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_UseSkill1.value + (slot - 1), 125)
