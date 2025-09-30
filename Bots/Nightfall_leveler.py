@@ -401,7 +401,7 @@ def Take_Quests(bot: Botting):
     
 def Farm_for_quests(bot: Botting):
     bot.States.AddHeader("Prepare for quests")
-    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[2,4])
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
     bot.States.AddHeader("Plains of Jarin")
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) #Plains of Jarin
     #bot.Wait.ForMapToChange(target_map_id=430)
@@ -443,7 +443,7 @@ def SSGH_quests(bot: Botting):
     bot.Move.XYAndDialog(-2888, 7024, 0x84, step_name="SS rebirth Signet")
     bot.Dialogs.AtXY(-2888, 7024, 0x82CB03, step_name="Attribute Points Quest 1")
     bot.Dialogs.AtXY(-2888, 7024, 0x82CB01)
-    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[2,4])
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
     #bot.Wait.ForMapToChange(target_map_id=430)
     bot.States.AddHeader("Plains of Jarin 2")
@@ -460,7 +460,7 @@ def SSGH_quests(bot: Botting):
 def continue_quests(bot: Botting): 
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     #bot.Wait.ForMapToChange(target_map_id=431)
-    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[2,4])
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
     #bot.Wait.ForMapToChange(target_map_id=430)
     bot.Move.XYAndDialog(-1237.25, 3188.38, 0x85) #Blessing 
@@ -611,7 +611,7 @@ def jokanur_diggings_quests(bot):
     bot.States.AddHeader("Sprint to level 10")
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
-    PrepareForBattle(bot, Hero_List=[6,7], Henchman_List=[6])
+    PrepareForBattle(bot, Hero_List=[6,7], Henchman_List=[1])
     bot.Move.XYAndExitMap(-3225, -855, target_map_id=481) #Fahranur The First City
     #bot.Wait.ForMapToChange(target_map_id=481)
     bot.States.AddHeader("Fahranur The First City")
