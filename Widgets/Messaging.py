@@ -533,7 +533,7 @@ def PressKey(index, message):
 # endregion
 # region DonateToGuild
 def DonateToGuild(index, message):
-    MODULE = "DonateFactionSimple"
+    MODULE = "DonateFaction"
     CHUNK = 5000
 
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
