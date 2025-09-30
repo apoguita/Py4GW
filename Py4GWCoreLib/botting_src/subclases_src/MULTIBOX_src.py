@@ -129,5 +129,5 @@ class _MULTIBOX:
 
     def KickAccount(self, account_email: str):
         self._helpers.Multibox.kick_account_by_email(account_email)
-
+        
 #endregion
