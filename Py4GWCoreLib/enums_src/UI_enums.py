@@ -354,7 +354,7 @@ class ControlAction(IntEnum):
 
     ControlAction_DropItem = 0xCD  # drops bundle item >> flags, ashes, etc
     # Chat
-    ControlAction_CharReply = 0xBE
+    ControlAction_ChatReply = 0xBE
     ControlAction_OpenChat = 0xA1
     ControlAction_OpenAlliance = 0x88
 

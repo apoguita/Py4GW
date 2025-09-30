@@ -61,31 +61,50 @@ class _TEMPLATES:
             from ...Py4GWcorelib import Utils
             from ...enums import Range
             bot = self.parent
-            print("Party Member behind, emitting pixel stack")
-            yield from Routines.Yield.Movement.StopMovement()
-            yield from bot.helpers.Multibox._pixel_stack()
 
-            last_emit = Utils.GetBaseTimestamp()
-            while not Routines.Checks.Party.IsAllPartyMembersInRange(Range.Earshot.value):
-                yield from bot.helpers.Wait._for_time(1000)
+            try:
+                print("Party Member behind, emitting pixel stack")
+                yield from Routines.Yield.Movement.StopMovement()
 
-                # Reissue pixel stack every 10000 ms
-                now = Utils.GetBaseTimestamp()
-                if now - last_emit >= 10000:
-                    print("Re-emitting pixel stack")
+                retries = 0
+                max_retries = 3  # <-- configurable number of retries
+                while retries < max_retries:
                     yield from bot.helpers.Multibox._pixel_stack()
-                    last_emit = now
+                    last_emit = Utils.GetBaseTimestamp()
 
-                if not Routines.Checks.Agents.InDanger():
-                    yield from Routines.Yield.Movement.StopMovement()
-                if not Routines.Checks.Map.MapValid():
-                    bot.config.FSM.resume()
-                    yield
-                    break
+                    # inner wait loop for this attempt
+                    while not Routines.Checks.Party.IsAllPartyMembersInRange(Range.Earshot.value):
+                        yield from bot.helpers.Wait._for_time(1000)
 
-            print("Party Member in range, resuming")
-            bot.config.FSM.resume()
-            yield
+                        # re-emit pixel stack every 10s
+                        now = Utils.GetBaseTimestamp()
+                        if now - last_emit >= 10000:
+                            print("Re-emitting pixel stack")
+                            yield from bot.helpers.Multibox._pixel_stack()
+                            last_emit = now
+
+                        if not Routines.Checks.Agents.InDanger():
+                            yield from Routines.Yield.Movement.StopMovement()
+
+                        if not Routines.Checks.Map.MapValid():
+                            print("Map invalid, breaking pixel stack loop")
+                            return
+
+                        # success condition
+                        if Routines.Checks.Party.IsAllPartyMembersInRange(Range.Earshot.value):
+                            print("Party Member in range, resuming")
+                            return
+
+                    retries += 1
+                    print(f"Pixel stack attempt {retries} failed, retrying...")
+
+                print("Pixel stack retries exhausted, giving up")
+
+            finally:
+                # guarantee FSM resume no matter what
+                bot.config.FSM.resume()
+                yield
+
    
         def OnPartyMemberBehind(self):
             bot = self.parent
@@ -106,7 +125,7 @@ class _TEMPLATES:
             pos = GLOBAL_CACHE.Agent.GetXY(dead_player)
             path = [(pos[0], pos[1])]
             bot.helpers.Move.set_path_to(path)
-            yield from bot.helpers.Move._follow_path()
+            yield from bot.helpers.Move._follow_path(forced_timeout=30000)  # allow extra time to reach dead player
             bot.config.FSM.resume()
 
         def OnPartyMemberDeathBehind(self):
