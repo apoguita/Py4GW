@@ -41,7 +41,10 @@ class _UI:
     def DrawPath(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
         from ...Routines import Routines
 
-        if Routines.Checks.Map.MapValid() and self._config.config_properties.draw_path.is_active():
+        if not Routines.Checks.Map.MapValid():
+            return
+        
+        if self._config.config_properties.draw_path.is_active():
             self._draw_path(color, use_occlusion, snap_to_ground_segments, floor_offset)
 
     def SendChatMessage(self, channel: str, message: str):
@@ -103,6 +106,11 @@ class _UI:
     def _draw_texture(self, texture_path:str, size:Tuple[float,float]=(96.0,96.0), tint:Color=Color(255,255,255,255), border_col:Color=Color(0,0,0,0)):
         from ...ImGui import ImGui
         from ...enums import get_texture_for_model
+        from ...Routines import Routines
+        
+        if not Routines.Checks.Map.MapValid():
+            return
+        
         if self.draw_texture_fn is not None:
             self.draw_texture_fn()
             return
