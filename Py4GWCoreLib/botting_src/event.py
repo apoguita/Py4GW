@@ -139,8 +139,8 @@ class OnPartyMemberBehind(Event):
             return False
         
         party_member_behind = Routines.Checks.Party.IsPartyMemberBehind()
-        if party_member_behind:
-            print("OnPartyMemberBehind triggered")
+        #if party_member_behind:
+        #    print("OnPartyMemberBehind triggered")
         return party_member_behind
     
     def should_reset(self):
@@ -155,8 +155,8 @@ class OnPartyMemberDeadBehind(Event):
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
         dead_party_member_behind = Routines.Checks.Party.IsDeadPartyMemberBehind()
-        if dead_party_member_behind:
-            print("OnPartyMemberDeadBehind triggered")
+        #if dead_party_member_behind:
+        #    print("OnPartyMemberDeadBehind triggered")
         return dead_party_member_behind
     
     def should_reset(self):

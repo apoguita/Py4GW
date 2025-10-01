@@ -9,6 +9,7 @@ Vanquish_Path:list[tuple[float, float]] = [
         (-9358.26, 12733.01), #middle patrol
         (-11763.50, 6875.62), #bridge patrol
         (-8343.50, 10348.14), #spawn under bridge
+        (-9358.26, 12733.01), #middle patrol point
         (-11057.97, 20483.20), #mushrooms at the top
         (-5486.26, 18571.37), #up the staris
         (-5214.33, 15808.12), #bridge
@@ -25,7 +26,7 @@ Vanquish_Path:list[tuple[float, float]] = [
         (4777.39, 8038.80),
         (6225.68, 14860.03),
         (7747.10, 12009.60), #oni spawn
-        (4710.69, 15434.43), #issue!!!! stuck?
+        (4920.25, 14639.28), #issue!!!! stuck?
         (9991.06, 11601.30),
         (9188.73, 16076.83),
         (12075.11, 18961.69), #stairs
