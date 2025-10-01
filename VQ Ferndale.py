@@ -21,12 +21,12 @@ Vanquish_Path:list[tuple[float, float]] = [
         (1623.41, 11681.61),
         (2353.03, 8665.77), 
         (3497.35, 7112.98),
-        (3471.81, 13055.59), #middle part (biggest)
-        (4150.67, 15073.04),
+        (4920.25, 14639.28), #issue!!!! stuck?
+        #(3471.81, 13055.59), #middle part (biggest)
+        #(4150.67, 15073.04),
         (4777.39, 8038.80),
         (6225.68, 14860.03),
         (7747.10, 12009.60), #oni spawn
-        (4920.25, 14639.28), #issue!!!! stuck?
         (9991.06, 11601.30),
         (9188.73, 16076.83),
         (12075.11, 18961.69), #stairs
@@ -146,7 +146,6 @@ def _upkeep_multibox_consumables(bot :"Botting"):
             GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
             yield from bot.helpers.Wait._for_time(250)
             
-
 def _reverse_path():
     global Vanquish_Path
     if GLOBAL_CACHE.Map.GetIsVanquishComplete():
@@ -156,8 +155,7 @@ def _reverse_path():
     
     Vanquish_Path = list(reversed(Vanquish_Path))
     yield
-
-  
+ 
 def _on_party_wipe(bot: "Botting"):
     while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
         yield from bot.helpers.Wait._for_time(1000)
@@ -175,11 +173,7 @@ def OnPartyWipe(bot: "Botting"):
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
     fsm.pause()
-    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
-
-
-
-    
+    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot)) 
 
 bot.SetMainRoutine(bot_routine)
 
