@@ -302,7 +302,7 @@ def PixelStack(index, message):
             left_x, left_y = GLOBAL_CACHE.Player.GetXY()
             if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
                 ConsoleLog(MODULE_NAME, "No movement detected, strafing right.", Console.MessageType.Info)
-                yield from Routines.Yield.Movement.StrafeRight(1000)
+                yield from Routines.Yield.Movement.StrafeRight(3000) # we need to get away from that wall
 
         else:
             ConsoleLog(MODULE_NAME, "PixelStack movement succeeded.", Console.MessageType.Info, log=False)

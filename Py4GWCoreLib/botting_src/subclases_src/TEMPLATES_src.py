@@ -123,6 +123,13 @@ class _TEMPLATES:
         def _on_party_member_death_behind(self):
             from ...Routines import Routines
             from ...GlobalCache import GLOBAL_CACHE
+            
+            if not Routines.Checks.Agents.InDanger():
+                bot = self.parent
+                bot.config.FSM.resume()
+                return
+            
+            
             bot = self.parent
             dead_player = Routines.Party.GetDeadPartyMemberID()
             if dead_player == 0:

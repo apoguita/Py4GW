@@ -210,7 +210,7 @@ class LootConfig:
             model_id = Item.GetModelID(item_id)
             
             # --- Hard block: blacklists ---
-            if self.IsItemIDBlacklisted(item_id):
+            if self.IsItemIDBlacklisted(agent_id):
                 loot_array.remove(agent_id)
                 continue
 
