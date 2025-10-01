@@ -131,7 +131,7 @@ def EquipSkillBar():
             yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")  
 
 
-def GetArmorMaterialPerProfession(headpiece: bool = False) -> int:
+def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary == "Warrior":
         return ModelID.Bolt_Of_Cloth.value
@@ -184,26 +184,34 @@ def BuyWeaponMaterials():
 
 def GetArmorPiecesByProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0
+    HEAD,CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0,0
 
     if primary == "Warrior": 
+        HEAD = 10046
         CHEST = 10164
         GLOVES = 10165
         PANTS = 10166
         BOOTS = 10163
-    elif primary == "Paragon":
-        CHEST = 17791
-        GLOVES = 17792
-        PANTS = 17793
-        BOOTS = 17790
     elif primary == "Dervish":
+        HEAD = 17705
         CHEST = 17676
         GLOVES = 17677
         PANTS = 17678
         BOOTS = 17675
 
 
-    return  CHEST, GLOVES, PANTS, BOOTS #removed HEAD
+    return  HEAD,CHEST, GLOVES, PANTS, BOOTS 
+
+def ParagonArmor(bot: Botting):
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0
+    
+    if primary == "Paragon":
+        CHEST = 17791
+        GLOVES = 17792
+        PANTS = 17793
+        BOOTS = 17790
+    return CHEST,GLOVES ,PANTS ,BOOTS
 
 def GetWeaponByProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
@@ -230,9 +238,10 @@ def GetWeaponByProfession(bot: Botting):
 
 
 def CraftArmor(bot: Botting):
-    CHEST, GLOVES, PANTS, BOOTS = GetArmorPiecesByProfession(bot)
+    HEAD, CHEST, GLOVES, PANTS, BOOTS = GetArmorPiecesByProfession(bot)
 
     armor_pieces = [
+        (HEAD, [GetArmorMaterialPerProfession()], [2]),
         (GLOVES, [GetArmorMaterialPerProfession()], [2]),
         (CHEST,  [GetArmorMaterialPerProfession()], [6]),
         (PANTS,  [GetArmorMaterialPerProfession()], [4]),
@@ -257,6 +266,18 @@ def CraftArmor(bot: Botting):
             return False
         yield
     return True
+
+def CraftRemainingArmor(bot: Botting):
+    HEAD, CHEST, GLOVES, PANTS, BOOTS = GetArmorPiecesByProfession(bot)
+
+    armor_pieces = [
+        (HEAD,  [GetArmorMaterialPerProfession(headpiece=True)], [2]),
+        
+    ]
+    
+    if GetArmorMaterialPerProfession(headpiece=True) == ModelID.Pile_Of_Glittering_Dust.value:
+        #delete HEAD from the list
+        armor_pieces = [piece for piece in armor_pieces if piece[0] != HEAD]
 
 def CraftWeapon(bot: Botting):
     weapon_ids = GetWeaponByProfession(bot)
