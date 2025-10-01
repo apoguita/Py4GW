@@ -62,6 +62,7 @@ class _TEMPLATES:
             from ...enums import Range
             bot = self.parent
 
+            left_direction  = True
             try:
                 print("Party Member behind, emitting pixel stack")
                 yield from Routines.Yield.Movement.StopMovement()
@@ -73,25 +74,31 @@ class _TEMPLATES:
                     last_emit = Utils.GetBaseTimestamp()
 
                     # inner wait loop for this attempt
-                    while not Routines.Checks.Party.IsAllPartyMembersInRange(Range.Earshot.value):
-                        yield from bot.helpers.Wait._for_time(1000)
+                    while not Routines.Checks.Party.IsAllPartyMembersInRange(Range.Spellcast.value):
+                        yield from bot.helpers.Wait._for_time(500)
 
                         # re-emit pixel stack every 10s
                         now = Utils.GetBaseTimestamp()
                         if now - last_emit >= 10000:
-                            print("Re-emitting pixel stack")
+                            print("Re-emitting pixel stack, and spinning in place!, weeeee")
                             yield from bot.helpers.Multibox._pixel_stack()
                             last_emit = now
 
                         if not Routines.Checks.Agents.InDanger():
-                            yield from Routines.Yield.Movement.StopMovement()
+                            if left_direction:
+                                yield from Routines.Yield.Movement.TurnLeft(300)
+                                left_direction = False
+                            else:
+                                yield from Routines.Yield.Movement.TurnRight(300)
+                                left_direction = True
+
 
                         if not Routines.Checks.Map.MapValid():
                             print("Map invalid, breaking pixel stack loop")
                             return
 
                         # success condition
-                        if Routines.Checks.Party.IsAllPartyMembersInRange(Range.Earshot.value):
+                        if Routines.Checks.Party.IsAllPartyMembersInRange(Range.Spellcast.value):
                             print("Party Member in range, resuming")
                             return
 
