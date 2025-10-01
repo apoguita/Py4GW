@@ -79,7 +79,7 @@ def DrawGenericSkills():
         PyImGui.same_line(0, -1)
         PyImGui.text("Minimum energy left after a skill is used")
 
-        PyImGui.text("If generic skill use is enabled, IAU & Dont Trip, or just Help Me! will be used to maintain active refrains.")
+        PyImGui.text("If generic skill use is enabled, IAU & Dont Trip, or \n just Help Me! will be used to maintain active refrains.")
 
         box_spacing = 6
         PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark, (1, 1, 0.2, 1))
