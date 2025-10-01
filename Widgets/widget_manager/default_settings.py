@@ -1,10 +1,7 @@
 default_schema_version = "1.0"
 
 global_widget_defaults = {
-    "WidgetManager": {
-        "old_menu": "False",
-        "enable_all": "True"
-    },
+    "WidgetManager": {"old_menu": "False", "enable_all": "True"},
     "QuickDock": {
         "enable_quick_dock": "True",
         "width": "10",
@@ -12,13 +9,13 @@ global_widget_defaults = {
         "offset_y": "545",
         "edge": "left",
         "unlocked": "False",
-        "buttons_per_row": "8"
+        "buttons_per_row": "8",
     },
     "QuickDockColor": {
         "r": "0.6000000238418579",
         "g": "0.800000011920929",
         "b": "1.0",
-        "a": "1.0"
+        "a": "1.0",
     },
     "FloatingMenu": {
         "floating_attachment_index": "3",
@@ -41,192 +38,203 @@ global_widget_defaults = {
         "border_r": "0.3",
         "border_g": "0.3",
         "border_b": "0.3",
-        "border_a": "1.0"
+        "border_a": "1.0",
     },
     "HeroAI": {
         "enabled": "True",
         "category": "Bots",
         "subcategory": "Multiboxing",
         "icon": "ICON_RUNNING",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "HeroHelper": {
         "enabled": "False",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_PEOPLE_CARRY",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Pet Helper": {
         "enabled": "True",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_DOG",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Action Queue Monitor": {
         "enabled": "False",
         "category": "Coding",
         "subcategory": "Info",
         "icon": "ICON_INFO_CIRCLE",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Agent Info": {
         "enabled": "False",
         "category": "Coding",
         "subcategory": "Info",
         "icon": "ICON_BOOK",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Icon Explorer": {
         "enabled": "False",
         "category": "Coding",
         "subcategory": "ImGui",
         "icon": "ICON_EXPAND",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Py4GW_DEMO": {
         "enabled": "False",
         "category": "Coding",
         "subcategory": "Info",
         "icon": "ICON_INFO",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Environment Upkeeper": {
         "enabled": "True",
         "category": "Coding",
         "subcategory": "Environment",
         "icon": "ICON_TREE",
-        "quickdock": "False"
-    },   
+        "quickdock": "False",
+    },
     "Compass +": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_COMPASS",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Drop Unyielding Aura": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_EYE_DROPPER",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Enter character on load": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_PLAY_CIRCLE",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Instance Timer": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_CLOCK",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Get Blessed": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_HANDS",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Dialog Sync": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_EXCLAMATION_CIRCLE",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Inventory +": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_SHOPPING_BAG",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "LootManager": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_SHOPPING_CART",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Mission Map +": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_MAP",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "PCons": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_CHEVRON_UP",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Switch Character": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_PEOPLE_ARROWS",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Resign on enter Map": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_SKULL",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Return to outpost on defeat": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_HOME",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Skip Cinematics": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_FAST_FORWARD",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Titles": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_ID_BADGE",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Travel": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_PLANE",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Vanquish": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_FLAG_CHECKERED",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Survival Title Helper": {
         "enabled": "False",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_FLAG_CHECKERED",
+        "quickdock": "True",
+    },
+    "CombatPrep": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
+        "icon": "ICON_BRAIN",
+        "quickdock": "True",
+    },
+    "CustomBehaviors": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
+        "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True"
-<<<<<<< Updated upstream
-    }
-=======
     },
     "NFDialogSender": {
         "enabled": "False",
@@ -239,25 +247,17 @@ global_widget_defaults = {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
-        "icon": "ICON_PEOPLE_CARRY",
-        "quickdock": "True",
-    },
-    "EZ Cast": {
-        "enabled" : "False",
-        "category": "Bots",
-        "subcategory": "Helpers",
         "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True",
     },
     # TODO: Register your Widget here
->>>>>>> Stashed changes
 }
 
 account_widget_defaults = {
-"WidgetManager": {
+    "WidgetManager": {
         "old_menu": "False",
         "enable_all": "True",
-        "use_account_settings": "False"
+        "use_account_settings": "False",
     },
     "QuickDock": {
         "enable_quick_dock": "True",
@@ -266,13 +266,13 @@ account_widget_defaults = {
         "offset_y": "545",
         "edge": "left",
         "unlocked": "False",
-        "buttons_per_row": "8"
+        "buttons_per_row": "8",
     },
     "QuickDockColor": {
         "r": "0.6000000238418579",
         "g": "0.800000011920929",
         "b": "1.0",
-        "a": "1.0"
+        "a": "1.0",
     },
     "FloatingMenu": {
         "floating_attachment_index": "3",
@@ -295,193 +295,203 @@ account_widget_defaults = {
         "border_r": "0.3",
         "border_g": "0.3",
         "border_b": "0.3",
-        "border_a": "1.0"
+        "border_a": "1.0",
     },
     "HeroAI": {
         "enabled": "True",
         "category": "Bots",
         "subcategory": "Multiboxing",
         "icon": "ICON_RUNNING",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "HeroHelper": {
         "enabled": "False",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_PEOPLE_CARRY",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Pet Helper": {
         "enabled": "True",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_DOG",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Action Queue Monitor": {
         "enabled": "False",
         "category": "Coding",
         "subcategory": "Info",
         "icon": "ICON_INFO_CIRCLE",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Agent Info": {
         "enabled": "False",
         "category": "Coding",
         "subcategory": "Info",
         "icon": "ICON_BOOK",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Icon Explorer": {
         "enabled": "False",
         "category": "Coding",
         "subcategory": "ImGui",
         "icon": "ICON_EXPAND",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Py4GW_DEMO": {
         "enabled": "False",
         "category": "Coding",
         "subcategory": "Info",
         "icon": "ICON_INFO",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Environment Upkeeper": {
         "enabled": "True",
         "category": "Coding",
         "subcategory": "Environment",
         "icon": "ICON_TREE",
-        "quickdock": "False"
-    },   
+        "quickdock": "False",
+    },
     "Compass +": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_COMPASS",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Drop Unyielding Aura": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_EYE_DROPPER",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Enter character on load": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_PLAY_CIRCLE",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Instance Timer": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_CLOCK",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Get Blessed": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_HANDS",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Dialog Sync": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_EXCLAMATION_CIRCLE",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Inventory +": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_SHOPPING_BAG",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "LootManager": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_SHOPPING_CART",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Mission Map +": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_MAP",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "PCons": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_CHEVRON_UP",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Switch Character": {
         "enabled": "False",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_PEOPLE_ARROWS",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Resign on enter Map": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_SKULL",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Return to outpost on defeat": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_HOME",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Skip Cinematics": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_FAST_FORWARD",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Titles": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Triggers",
         "icon": "ICON_ID_BADGE",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Travel": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Utilities",
         "icon": "ICON_PLANE",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Vanquish": {
         "enabled": "True",
         "category": "Gameplay",
         "subcategory": "Overlays",
         "icon": "ICON_FLAG_CHECKERED",
-        "quickdock": "True"
+        "quickdock": "True",
     },
     "Survival Title Helper": {
         "enabled": "False",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_FLAG_CHECKERED",
+        "quickdock": "True",
+    },
+    "CombatPrep": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
+        "icon": "ICON_BRAIN",
+        "quickdock": "True",
+    },
+    "CustomBehaviors": {
+        "enabled": "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
+        "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True"
-<<<<<<< Updated upstream
-    }
-}
-=======
     },
     "NFDialogSender": {
         "enabled": "False",
@@ -498,7 +508,7 @@ account_widget_defaults = {
         "quickdock": "True",
     },
     "EZ Cast": {
-        "enabled": "True",
+        "enabled": "False",
         "category": "Bots",
         "subcategory": "Helpers",
         "icon": "ICON_BRAIN",
@@ -506,4 +516,3 @@ account_widget_defaults = {
     },
     # TODO: Register your Widget here
 }
->>>>>>> Stashed changes
