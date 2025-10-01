@@ -224,7 +224,33 @@ global_widget_defaults = {
         "subcategory": "Helpers",
         "icon": "ICON_FLAG_CHECKERED",
         "quickdock": "True"
+<<<<<<< Updated upstream
     }
+=======
+    },
+    "NFDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    "CanthaDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    "EZ Cast": {
+        "enabled" : "False",
+        "category": "Bots",
+        "subcategory": "Helpers",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    # TODO: Register your Widget here
+>>>>>>> Stashed changes
 }
 
 account_widget_defaults = {
@@ -452,5 +478,32 @@ account_widget_defaults = {
         "subcategory": "Helpers",
         "icon": "ICON_FLAG_CHECKERED",
         "quickdock": "True"
+<<<<<<< Updated upstream
     }
 }
+=======
+    },
+    "NFDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    "CanthaDialogSender": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_PEOPLE_CARRY",
+        "quickdock": "True",
+    },
+    "EZ Cast": {
+        "enabled": "True",
+        "category": "Bots",
+        "subcategory": "Helpers",
+        "icon": "ICON_BRAIN",
+        "quickdock": "True",
+    },
+    # TODO: Register your Widget here
+}
+>>>>>>> Stashed changes
