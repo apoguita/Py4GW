@@ -70,7 +70,7 @@ class Checks:
             return is_someone_dead
         
         @staticmethod
-        def IsPartyMemberBehind():
+        def IsPartyMemberBehind(range_value: int = 3500): #spirit
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import Utils
             from ..enums_src.GameData_enums import Range
@@ -86,19 +86,19 @@ class Checks:
                 agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
                 if not GLOBAL_CACHE.Agent.IsDead(agent_id):
                     agent_pos = GLOBAL_CACHE.Agent.GetXY(agent_id)
-                    if Utils.Distance(player_pos, agent_pos) > Range.Spirit.value:
+                    if Utils.Distance(player_pos, agent_pos) > range_value:
                         return True
 
             for henchman in henchmen:
                 if not GLOBAL_CACHE.Agent.IsDead(henchman.agent_id):
                     agent_pos = GLOBAL_CACHE.Agent.GetXY(henchman.agent_id)
-                    if Utils.Distance(player_pos, agent_pos) > Range.Spirit.value:
+                    if Utils.Distance(player_pos, agent_pos) > range_value:
                         return True
                 
             for hero in heroes:
                 if not GLOBAL_CACHE.Agent.IsDead(hero.agent_id):
                     agent_pos = GLOBAL_CACHE.Agent.GetXY(hero.agent_id)
-                    if Utils.Distance(player_pos, agent_pos) > Range.Spirit.value:
+                    if Utils.Distance(player_pos, agent_pos) > range_value:
                         return True
 
             return False
