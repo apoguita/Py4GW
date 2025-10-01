@@ -1,7 +1,5 @@
-from unittest import result
-import Py4GW
 import PyAgent
-import PyPlayer
+
 from .model_data import ModelData
 
 class ItemOwnerCache:
@@ -427,6 +425,31 @@ class Agent:
 
 
     @staticmethod
+    def GetProfessionsTexturePaths(agent_id):
+        """
+        Purpose: Retrieve the texture paths of the player's primary and secondary professions.
+        Args: agent_id (int): The ID of the agent.
+        Returns: tuple
+        """
+        agent_instance = Agent.agent_instance(agent_id)
+        primary = agent_instance.living_agent.profession.ToInt()
+        primary_name = agent_instance.living_agent.profession.GetName()
+        secondary = agent_instance.living_agent.secondary_profession.ToInt()
+        secondary_name = agent_instance.living_agent.secondary_profession.GetName()
+        
+        if primary == 0:
+            primary_texture = ""
+        else:
+            primary_texture = f"Textures\\Profession_Icons\\[{primary}] - {primary_name}.png"
+        if secondary == 0:
+            secondary_texture = ""
+        else:
+            secondary_texture = f"Textures\\Profession_Icons\\[{secondary}] - {secondary_name}.png"
+            
+        return primary_texture, secondary_texture
+        
+
+    @staticmethod
     def GetLevel(agent_id):
         """
         Purpose: Retrieve the level of the agent.
@@ -461,6 +484,16 @@ class Agent:
         Returns: float
         """
         return Agent.agent_instance(agent_id).living_agent.energy_regen
+    
+    @staticmethod
+    def GetEnergyPips(agent_id):
+        """
+        Purpose: Retrieve the energy pips of the agent, only works for players and heroes.
+        Args: agent_id (int): The ID of the agent.
+        Returns: int
+        """
+        pips = 3.0 / 0.99 * Agent.agent_instance(agent_id).living_agent.energy_regen * Agent.agent_instance(agent_id).living_agent.max_energy
+        return int(pips) if pips > 0 else 0
 
     @staticmethod
     def GetHealth(agent_id):
@@ -645,6 +678,8 @@ class Agent:
     @staticmethod
     def GetCastingSkill(agent_id):
         """ Purpose: Retrieve the casting skill of the agent."""
+        if not Agent.agent_instance(agent_id).living_agent.is_casting:
+            return 0    
         return Agent.agent_instance(agent_id).living_agent.casting_skill_id
 
     @staticmethod
@@ -714,11 +749,14 @@ class Agent:
     
     @staticmethod
     def GetItemAgentOwnerID(agent_id):
-        item_owner_cache = ItemOwnerCache()
+        #item_owner_cache = ItemOwnerCache()
         """Retrieve the owner ID of the item agent."""
         item_data =  Agent.GetItemAgent(agent_id)    
+        if item_data is None:
+            return 999
         current_owner_id = item_data.owner_id   
-        return item_owner_cache.check_and_cache(item_data.item_id, current_owner_id)
+        return current_owner_id
+        #return item_owner_cache.check_and_cache(item_data.item_id, current_owner_id)
         
     @staticmethod
     def GetGadgetAgent(agent_id):

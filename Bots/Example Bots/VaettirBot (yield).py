@@ -1,5 +1,17 @@
-from Py4GWCoreLib import *
-import time
+import Py4GW
+from Py4GWCoreLib import Timer
+from Py4GWCoreLib import ImGui, PyImGui
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib import ModelID, TitleID
+from Py4GWCoreLib import ItemArray
+from Py4GWCoreLib import AgentArray
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Range
+from Py4GWCoreLib import Utils, Color
+from Py4GWCoreLib import LootConfig
+
+
 from time import sleep
 from typing import Generator, List, Tuple
 
@@ -8,6 +20,7 @@ MODULE_NAME = "Apo's YAVB (yield example)"
 
 path_points_to_merchant: List[Tuple[float, float]] = [(-23041, 14939)]
 path_points_to_leave_outpost: List[Tuple[float, float]] = [(-24380, 15074), (-26375, 16180)]
+"""
 path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
     (17810, -17649), (16582, -17136), (15257, -16568), (14084, -15748), (12940, -14873),
     (11790, -14004), (10640, -13136), (9404 , -12411), (8677 , -11176), (8581 , -9742 ),
@@ -16,6 +29,87 @@ path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
     (-3122, -1771 ), (-4556, -1752 ), (-5809, -1109 ), (-6966,  -291 ), (-8390,  -142 ),
     (-9831,  -138 ), (-11272, -156 ), (-12685, -198 ), (-13933,  267 ), (-14914, 1325 ),
     (-15822, 2441 ), (-16917, 3375 ), (-18048, 4223 ), (-19196, 4986 ), (-20000, 5595 ),
+    (-20300, 5600 )
+]"""
+
+path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [(17810, -17649),
+(17516, -17270),
+(17166, -16813),
+(16862, -16324),
+(16472, -15934),
+(15929, -15731),
+(15387, -15521),
+(14849, -15312),
+(14311, -15101),
+(13776, -14882),
+(13249, -14642),
+(12729, -14386),
+(12235, -14086),
+(11748, -13776),
+(11274, -13450),
+(10839, -13065),
+(10572, -12590),
+(10412, -12036),
+(10238, -11485),
+(10125, -10918),
+(10029, -10348),
+(9909, -9778),
+(9599, -9327),
+(9121, -9009),
+(8674, -8645),
+(8215, -8289),
+(7755, -7945),
+(7339, -7542),
+(6962, -7103),
+(6587, -6666),
+(6210, -6226),
+(5834, -5788),
+(5457, -5349),
+(5081, -4911),
+(4703, -4470),
+(4379, -3990),
+(4063, -3507),
+(3773, -3031),
+(3452, -2540),
+(3117, -2070),
+(2678, -1703),
+(2115, -1593),
+(1541, -1614),
+(960, -1563),
+(388, -1491),
+(-187, -1419),
+(-770, -1426),
+(-1343, -1440),
+(-1922, -1455),
+(-2496, -1472),
+(-3073, -1535),
+(-3650, -1607),
+(-4214, -1712),
+(-4784, -1759),
+(-5278, -1492),
+(-5754, -1164),
+(-6200, -796),
+(-6632, -419),
+(-7192, -300),
+(-7770, -306),
+(-8352, -286),
+(-8932, -258),
+(-9504, -226),
+(-10086, -201),
+(-10665, -215),
+(-11247, -242),
+(-11826, -262),
+(-12400, -247),
+(-12979, -216),
+(-13529, -53),
+(-13944, 341),
+(-14358, 743),
+(-14727, 1181),
+(-15109, 1620),
+(-15539, 2010),
+(-15963, 2380),
+(-16445, 2701),
+(-18048, 4223 ), (-19196, 4986 ), (-20000, 5595 ),
     (-20300, 5600 )
 ]
 
@@ -142,7 +236,6 @@ class BOTVARIABLES:
         self.loot_config = LootConfigclass()
         
         self.skillbar = build()
-        self.coroutines: List[Generator] = []
         
 bot_variables = BOTVARIABLES()
 bot_variables.config.window_module = ImGui.WindowModule(MODULE_NAME, window_name=MODULE_NAME, window_size=(300, 300), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
@@ -155,33 +248,31 @@ def IsSkillBarLoaded():
     global bot_variables
     global skillbar
 
-    primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
-    if ((primary_profession == "Assassin" and secondary_profession != "Mesmer") or 
-        (primary_profession == "Dervish" and secondary_profession != "Assassin")):
-        frame = inspect.currentframe()
-        current_function = frame.f_code.co_name if frame else "Unknown"
-        ConsoleLog(MODULE_NAME, f"{current_function} - This bot requires A/Me to work, halting.", Py4GW.Console.MessageType.Error, log=True)
+    primary_profession, secondary_profession = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if ((primary_profession == "Assassin" and secondary_profession != "Mesmer")):
+
+        ConsoleLog(IsSkillBarLoaded, f"This bot requires A/Me to work, halting.", Py4GW.Console.MessageType.Error, log=True)
         return False
 
-    bot_variables.skillbar.deadly_paradox = Skill.GetID("Deadly_Paradox")
-    bot_variables.skillbar.shadow_form = Skill.GetID("Shadow_Form")
-    bot_variables.skillbar.shroud_of_distress = Skill.GetID("Shroud_of_Distress")
-    bot_variables.skillbar.way_of_perfection = Skill.GetID("Way_of_Perfection")
-    bot_variables.skillbar.heart_of_shadow = Skill.GetID("Heart_of_Shadow")
-    bot_variables.skillbar.wastrels_demise = Skill.GetID("Wastrel's_Demise")
-    bot_variables.skillbar.arcane_echo = Skill.GetID("Arcane_Echo")
-    bot_variables.skillbar.channeling = Skill.GetID("Channeling")
+    bot_variables.skillbar.deadly_paradox = GLOBAL_CACHE.Skill.GetID("Deadly_Paradox")
+    bot_variables.skillbar.shadow_form = GLOBAL_CACHE.Skill.GetID("Shadow_Form")
+    bot_variables.skillbar.shroud_of_distress = GLOBAL_CACHE.Skill.GetID("Shroud_of_Distress")
+    bot_variables.skillbar.way_of_perfection = GLOBAL_CACHE.Skill.GetID("Way_of_Perfection")
+    bot_variables.skillbar.heart_of_shadow = GLOBAL_CACHE.Skill.GetID("Heart_of_Shadow")
+    bot_variables.skillbar.wastrels_demise = GLOBAL_CACHE.Skill.GetID("Wastrel's_Demise")
+    bot_variables.skillbar.arcane_echo = GLOBAL_CACHE.Skill.GetID("Arcane_Echo")
+    bot_variables.skillbar.channeling = GLOBAL_CACHE.Skill.GetID("Channeling")
     #added for allowing more classes
-    bot_variables.skillbar.zealous_renewal = Skill.GetID("Zealous_Renewal")
-    bot_variables.skillbar.heart_of_holy_flame = Skill.GetID("Heart_of_Holy_Flame")
-    bot_variables.skillbar.pious_fury = Skill.GetID("Pious_Fury")
+    bot_variables.skillbar.zealous_renewal = GLOBAL_CACHE.Skill.GetID("Zealous_Renewal")
+    bot_variables.skillbar.heart_of_holy_flame = GLOBAL_CACHE.Skill.GetID("Heart_of_Holy_Flame")
+    bot_variables.skillbar.pious_fury = GLOBAL_CACHE.Skill.GetID("Pious_Fury")
     
     ConsoleLog(MODULE_NAME, f"SkillBar Loaded.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)       
     return True
 
 def SetHardMode():
     global bot_variables
-    ActionQueueManager().AddAction("ACTION",Party.SetHardMode)
+    GLOBAL_CACHE.Party.SetHardMode()
     ConsoleLog(MODULE_NAME, "Hard mode set.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)
     
 def reset_environment():
@@ -190,13 +281,13 @@ def reset_environment():
     bot_variables.config.reset_from_jaga_moraine = False
     bot_variables.config.in_killing_routine = False
     bot_variables.config.stuck_count = 0
-    ActionQueueManager().ResetAllQueues()
+    GLOBAL_CACHE._ActionQueueManager.ResetAllQueues()
 
 def NeedsToHandleInventory():
     global bot_variables
-    free_slots_in_inventory = Inventory.GetFreeSlotCount()
-    count_of_id_kits = Inventory.GetModelCount(5899) #5899 model for ID kit
-    count_of_salvage_kits = Inventory.GetModelCount(2992) #2992 model for salvage kit
+    free_slots_in_inventory = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
+    count_of_id_kits = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit.value) #5899 model for ID kit
+    count_of_salvage_kits = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value) #2992 model for salvage kit
     items_to_sell = get_filtered_materials_to_sell()
     
     needs_to_handle_inventory = False
@@ -219,56 +310,62 @@ def NeedsToHandleInventory():
 
 def GetIDKitsToBuy():
     global bot_variables
-    count_of_id_kits = Inventory.GetModelCount(5899) #5899 model for ID kit
+    count_of_id_kits = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit.value) #5899 model for ID kit
     id_kits_to_buy = bot_variables.inventory_config.keep_id_kit - count_of_id_kits
     return id_kits_to_buy
 
 def GetSalvageKitsToBuy():
     global bot_variables
-    count_of_salvage_kits = Inventory.GetModelCount(2992) #2992 model for salvage kit
+    count_of_salvage_kits = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value) #2992 model for salvage kit
     salvage_kits_to_buy = bot_variables.inventory_config.keep_salvage_kit - count_of_salvage_kits
     return salvage_kits_to_buy
 
 def IsMaterial(item_id):
-    material_model_ids = {946, 948, 929, 921, 925, 955}  # Add all known material IDs
-    return Item.GetModelID(item_id) in material_model_ids
+    material_model_ids = {ModelID.Wood_Plank.value, 
+                          ModelID.Iron_Ingot.value, 
+                          ModelID.Pile_Of_Glittering_Dust.value, 
+                          ModelID.Bone.value, 
+                          ModelID.Bolt_Of_Cloth.value, 
+                          ModelID.Granite_Slab.value}  # Add all known material IDs
+    
+    return GLOBAL_CACHE.Item.GetModelID(item_id) in material_model_ids
 	
 def IsGranite(item_id):
     """Check if the item is granite."""
-    granite_model_ids = {955}  # Granite ID
-    return Item.GetModelID(item_id) in granite_model_ids
+    granite_model_ids = {ModelID.Granite_Slab.value}  # Granite ID
+    return GLOBAL_CACHE.Item.GetModelID(item_id) in granite_model_ids
 	
 def IsWood(item_id):
     """Check if the item is wood."""
-    wood_model_ids = {946}  # Replace with the correct IDs for wood
-    return Item.GetModelID(item_id) in wood_model_ids
+    wood_model_ids = {ModelID.Wood_Plank.value}  # Replace with the correct IDs for wood
+    return GLOBAL_CACHE.Item.GetModelID(item_id) in wood_model_ids
 
 def IsIron(item_id):
     """Check if the item is iron."""
-    iron_model_ids = {948}  # Replace with the correct IDs for iron
-    return Item.GetModelID(item_id) in iron_model_ids
+    iron_model_ids = {ModelID.Iron_Ingot.value}  # Replace with the correct IDs for iron
+    return GLOBAL_CACHE.Item.GetModelID(item_id) in iron_model_ids
 
 def IsDust(item_id):
     """Check if the item is glittering dust."""
-    dust_model_ids = {929}  # Replace with the correct IDs for dust
-    return Item.GetModelID(item_id) in dust_model_ids
+    dust_model_ids = {ModelID.Pile_Of_Glittering_Dust.value}  # Replace with the correct IDs for dust
+    return GLOBAL_CACHE.Item.GetModelID(item_id) in dust_model_ids
 
 def IsBones(item_id):
     """Check if the item is bones."""
-    bone_model_ids = {921}  # Replace with the correct IDs for bones
-    return Item.GetModelID(item_id) in bone_model_ids
+    bone_model_ids = {ModelID.Bone.value}  # Replace with the correct IDs for bones
+    return GLOBAL_CACHE.Item.GetModelID(item_id) in bone_model_ids
 
 def IsCloth(item_id):
     """Check if the item is cloth."""
-    cloth_model_ids = {925}  # Replace with the correct IDs for cloth
-    return Item.GetModelID(item_id) in cloth_model_ids
+    cloth_model_ids = {ModelID.Bolt_Of_Cloth.value}  # Replace with the correct IDs for cloth
+    return GLOBAL_CACHE.Item.GetModelID(item_id) in cloth_model_ids
 
 
 def get_filtered_materials_to_sell():
     global bot_variables
     # Get items from the specified bags
-    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
-    items_to_sell = ItemArray.GetItemArray(bags_to_check)
+    bags_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    items_to_sell = GLOBAL_CACHE.ItemArray.GetItemArray(bags_to_check)
 
     # Filter materials first using the centralized definition
     items_to_sell = ItemArray.Filter.ByCondition(items_to_sell, lambda item_id: IsMaterial(item_id))
@@ -292,64 +389,64 @@ def get_filtered_materials_to_sell():
 
 def filter_identify_array():
     global bot_variables
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
-    unidentified_items = ItemArray.GetItemArray(bags_to_check)
-    unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsWhite(item_id))
-    unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Usage.IsIdentified(item_id))
+    bags_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(1,2,3,4)
+    unidentified_items = GLOBAL_CACHE.ItemArray.GetItemArray(bags_to_check)
+    unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not GLOBAL_CACHE.Item.Rarity.IsWhite(item_id))
+    unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not GLOBAL_CACHE.Item.Usage.IsIdentified(item_id))
 
     return unidentified_items
 
 def filter_salvage_array():
     global bot_variables
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
-    salvageable_items = ItemArray.GetItemArray(bags_to_check)
+    bags_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(1,2,3,4)
+    salvageable_items = GLOBAL_CACHE.ItemArray.GetItemArray(bags_to_check)
 
-    salvageable_items = ItemArray.Filter.ByCondition(salvageable_items,lambda item_id: Item.Usage.IsIdentified(item_id) or Item.Rarity.IsWhite(item_id))
+    salvageable_items = ItemArray.Filter.ByCondition(salvageable_items,lambda item_id: GLOBAL_CACHE.Item.Usage.IsIdentified(item_id) or GLOBAL_CACHE.Item.Rarity.IsWhite(item_id))
 
-    salvageable_items = ItemArray.Filter.ByCondition(salvageable_items,lambda item_id: Item.Usage.IsSalvageable(item_id))
+    salvageable_items = ItemArray.Filter.ByCondition(salvageable_items,lambda item_id: GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id))
 
     return salvageable_items
           
 def filter_items_to_deposit():
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
-    items_to_deposit = ItemArray.GetItemArray(bags_to_check)
-    banned_models = {2992,5899}
-    items_to_deposit = ItemArray.Filter.ByCondition(items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_models)
+    bags_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(1,2,3,4)
+    items_to_deposit = GLOBAL_CACHE.ItemArray.GetItemArray(bags_to_check)
+    banned_models = {ModelID.Salvage_Kit.value,ModelID.Superior_Identification_Kit.value}
+    items_to_deposit = ItemArray.Filter.ByCondition(items_to_deposit, lambda item_id: GLOBAL_CACHE.Item.GetModelID(item_id) not in banned_models)
     return items_to_deposit
 
 def player_is_dead_or_map_loading(destination_map_id=0):
-    if Map.IsMapLoading():
+    if GLOBAL_CACHE.Map.IsMapLoading():
         return True
-    if Agent.IsDead(Player.GetAgentID()):
+    if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
         return True
     
-    if Map.GetMapID() == destination_map_id:
+    if GLOBAL_CACHE.Map.GetMapID() == destination_map_id:
         return True
     return False
 
     
 def player_is_dead():
-    return Agent.IsDead(Player.GetAgentID())
+    return GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
 
 def handle_death():
-    if Agent.IsDead(Player.GetAgentID()):
-        ConsoleLog(MODULE_NAME, f"Player is dead while traversing {Map.GetMapName(Map.GetMapID())} . Reseting Environment.", Py4GW.Console.MessageType.Error, log=bot_variables.config.log_to_console)
+    if (GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()) or not bot_variables.config.is_script_running):
+        ConsoleLog(MODULE_NAME, f"Player is dead while traversing {GLOBAL_CACHE.Map.GetMapName(GLOBAL_CACHE.Map.GetMapID())} . Reseting Environment.", Py4GW.Console.MessageType.Error, log=bot_variables.config.log_to_console)
         return True
     return False
 
     
 def handle_return_inventory_check():
     global bot_variables
-    if Inventory.GetFreeSlotCount() < bot_variables.inventory_config.leave_free_slots:
+    if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < bot_variables.inventory_config.leave_free_slots:
         ConsoleLog(MODULE_NAME, f"Inventory is full, going to merchant.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)
         return True
     
-    count_of_id_kits = Inventory.GetModelCount(5899) #5899 model for ID kit
+    count_of_id_kits = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit.value) #5899 model for ID kit
     if count_of_id_kits <=0:
         ConsoleLog(MODULE_NAME, f"Need to buy ID kits, going to merchant.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)
         return True
     
-    count_of_salvage_kits = Inventory.GetModelCount(2992) #2992 model for salvage kit
+    count_of_salvage_kits = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value) #2992 model for salvage kit
     if count_of_salvage_kits <=0:
         ConsoleLog(MODULE_NAME, f"Need to buy Salvage kits, going to merchant.", Py4GW.Console.MessageType.Info, log=bot_variables.config.log_to_console)
         return True
@@ -357,9 +454,9 @@ def handle_return_inventory_check():
     return False
 
 def GetNotHexedEnemy():
-    player_pos = Player.GetXY()
+    player_pos = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
-    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id:not Agent.IsHexed(agent_id))
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id:not GLOBAL_CACHE.Agent.IsHexed(agent_id))
     if len(enemy_array) == 0:
         return 0
     
@@ -377,7 +474,7 @@ def get_escape_location(scaling_factor=50):
         tuple: The escape destination (x, y).
     """
     # Get the player's current position
-    player_x, player_y = Player.GetXY()
+    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
     
     # Initialize VectorFields with the player's position
     vector_fields = Utils.VectorFields(probe_position=(player_x, player_y))
@@ -470,16 +567,16 @@ def Handle_Stuck():
     """
     global bot_variables
     
-    longeyes_ledge = 650 #Longeyes Ledge
-    bjora_marches = 482 #Bjora Marches
-    jaga_moraine = 546 #Jaga Moraine
+    longeyes_ledge = GLOBAL_CACHE.Map.GetMapIDByName("Longeyes Ledge")
+    bjora_marches = GLOBAL_CACHE.Map.GetMapIDByName("Bjora Marches")
+    jaga_moraine = GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine")
 
-    if Map.IsMapLoading():
+    if GLOBAL_CACHE.Map.IsMapLoading():
         bot_variables.config.auto_stuck_command_timer.Reset()
         bot_variables.config.stuck_count = 0
         return
     
-    if Map.GetMapID() == longeyes_ledge:
+    if GLOBAL_CACHE.Map.GetMapID() == longeyes_ledge:
         bot_variables.config.auto_stuck_command_timer.Reset()
         bot_variables.config.non_movement_timer.Reset()
         bot_variables.config.stuck_count = 0
@@ -506,7 +603,7 @@ def Handle_Stuck():
     
     # Check for periodic "stuck" chat command
     if bot_variables.config.auto_stuck_command_timer.HasElapsed(5000):
-        Player.SendChatCommand("stuck")
+        GLOBAL_CACHE.Player.SendChatCommand("stuck")
         bot_variables.config.auto_stuck_command_timer.Reset()
 
     # Handle severe stuck situations
@@ -514,7 +611,7 @@ def Handle_Stuck():
         restart_due_to_stuck()
 
     # Detect and handle non-movement
-    if not Agent.IsMoving(Player.GetAgentID()):
+    if not GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
         handle_non_movement()
     else:
         handle_player_movement()
@@ -536,16 +633,15 @@ def handle_non_movement():
 
     if bot_variables.config.non_movement_timer.HasElapsed(3000):
         bot_variables.config.non_movement_timer.Reset()
-        Player.SendChatCommand("stuck")
+        GLOBAL_CACHE.Player.SendChatCommand("stuck")
         escape_location = get_escape_location()
-        ActionQueueManager().AddAction("ACTION",Player.Move, escape_location[0], escape_location[1]) 
+        GLOBAL_CACHE.Player.Move(escape_location[0], escape_location[1])
         bot_variables.config.stuck_count += 1
         log_stuck_attempt(escape_location)
 
 def handle_player_movement():
     """Tracks player movement and resets relevant timers if moving."""
-    global FSM_vars
-    new_player_x, new_player_y = Player.GetXY()
+    new_player_x, new_player_y = GLOBAL_CACHE.Player.GetXY()
     if bot_variables.config.old_player_x != new_player_x or bot_variables.config.old_player_y != new_player_y:
         bot_variables.config.non_movement_timer.Reset()
         bot_variables.config.old_player_x = new_player_x
@@ -554,8 +650,7 @@ def handle_player_movement():
 
 def log_stuck_attempt(escape_location):
     """Logs details of a recovery attempt."""
-    global bot_vars
-    player_x, player_y = Player.GetXY()
+    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
     distance = Utils.Distance((player_x, player_y), escape_location)
     ConsoleLog("StuckHandler", f"Player is stuck, attempting to recover to {escape_location} (distance: {distance:.2f})", Py4GW.Console.MessageType.Warning)
 
@@ -574,18 +669,19 @@ def RunBotSequentialLogic():
             yield from Routines.Yield.wait(1000)
             continue
     
-        #movement and follow objects
         log_to_console = bot_variables.config.log_to_console
         
-        longeyes_ledge = 650 #Longeyes Ledge
-        bjora_marches = 482 #Bjora Marches
-        jaga_moraine = 546 #Jaga Moraine
+        longeyes_ledge = GLOBAL_CACHE.Map.GetMapIDByName("Longeyes Ledge")
+        bjora_marches = GLOBAL_CACHE.Map.GetMapIDByName("Bjora Marches")
+        jaga_moraine = GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine")
         
-        primary_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+        primary_profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         
         if not bot_variables.config.reset_from_jaga_moraine:
             ConsoleLog(MODULE_NAME, "Entering Longeyes Ledge", Py4GW.Console.MessageType.Info, log=log_to_console)
             yield from Routines.Yield.Map.TravelToOutpost(longeyes_ledge, log_to_console)
+            
+
             ConsoleLog(MODULE_NAME, "Loading Skillbar", Py4GW.Console.MessageType.Info, log=log_to_console)
             if primary_profession == "Assassin":
                 yield from Routines.Yield.Skills.LoadSkillbar("OwVUI2h5lPP8Id2BkAiAvpLBTAA", log_to_console)
@@ -606,13 +702,13 @@ def RunBotSequentialLogic():
             yield from InventoryHandler(log_to_console)
             #exit outpost
             ConsoleLog(MODULE_NAME, "Leaving Outpost", Py4GW.Console.MessageType.Info, log=log_to_console)
-            yield from Routines.Yield.Movement.FollowPath(path_points= path_points_to_leave_outpost, custom_exit_condition=lambda: Map.IsMapLoading())
+            yield from Routines.Yield.Movement.FollowPath(path_points= path_points_to_leave_outpost, custom_exit_condition=lambda: GLOBAL_CACHE.Map.IsMapLoading() or not bot_variables.config.is_script_running, log=False)
             ConsoleLog(MODULE_NAME, "Waiting for map load", Py4GW.Console.MessageType.Info, log=log_to_console)
             yield from Routines.Yield.Map.WaitforMapLoad(bjora_marches,log_to_console)
             bot_variables.config.pause_stuck_routine = False
             #traverse bjora marches
             ConsoleLog(MODULE_NAME, "traversing bjora marches", Py4GW.Console.MessageType.Info, log=log_to_console)
-            yield from Routines.Yield.Movement.FollowPath(path_points_to_traverse_bjora_marches, custom_exit_condition=lambda: player_is_dead_or_map_loading(jaga_moraine))
+            yield from Routines.Yield.Movement.FollowPath(path_points_to_traverse_bjora_marches, custom_exit_condition=lambda: player_is_dead_or_map_loading(jaga_moraine) or not bot_variables.config.is_script_running)
             ConsoleLog(MODULE_NAME,"Finished traversing bjora marches", Py4GW.Console.MessageType.Info, log=log_to_console)
             bot_variables.config.pause_stuck_routine = True
             
@@ -627,12 +723,12 @@ def RunBotSequentialLogic():
             
         ConsoleLog(MODULE_NAME, "following npc path", Py4GW.Console.MessageType.Info, log=log_to_console)   
         
-        yield from Routines.Yield.Movement.FollowPath(path_points_to_npc, custom_exit_condition=lambda: player_is_dead())
+        yield from Routines.Yield.Movement.FollowPath(path_points_to_npc, custom_exit_condition=lambda: player_is_dead() or not bot_variables.config.is_script_running)
         #take bounty
         yield from Routines.Yield.Agents.InteractWithAgentXY(13367, -20771)
         yield from Routines.Yield.Player.SendDialog("0x84")
         bot_variables.config.pause_stuck_routine = False
-        yield from Routines.Yield.Movement.FollowPath(path_points_to_farming_route1,custom_exit_condition=lambda: player_is_dead())
+        yield from Routines.Yield.Movement.FollowPath(path_points_to_farming_route1,custom_exit_condition=lambda: player_is_dead() or not bot_variables.config.is_script_running)
         if handle_death():
             ConsoleLog(MODULE_NAME, "Player is dead while tont farming Route 1. Reseting Environment.", Py4GW.Console.MessageType.Error, log=log_to_console)
             bot_variables.config.reset_from_jaga_moraine = False
@@ -645,7 +741,7 @@ def RunBotSequentialLogic():
         ConsoleLog(MODULE_NAME,"Finished waiting for left aggro ball", Py4GW.Console.MessageType.Info, log=log_to_console)
         bot_variables.config.pause_stuck_routine = False
         
-        yield from Routines.Yield.Movement.FollowPath(path_points_to_farming_route2,custom_exit_condition=lambda: player_is_dead())
+        yield from Routines.Yield.Movement.FollowPath(path_points_to_farming_route2,custom_exit_condition=lambda: player_is_dead() or not bot_variables.config.is_script_running)
         if handle_death():
             ConsoleLog(MODULE_NAME, "Player is dead while to farming Route 2. Reseting Environment.", Py4GW.Console.MessageType.Error, log=log_to_console)
             bot_variables.config.reset_from_jaga_moraine = False
@@ -657,7 +753,7 @@ def RunBotSequentialLogic():
         ConsoleLog(MODULE_NAME,"Finished waiting for right aggro ball", Py4GW.Console.MessageType.Info, log=log_to_console)
         bot_variables.config.pause_stuck_routine = False
         
-        yield from Routines.Yield.Movement.FollowPath(path_points_to_killing_spot,custom_exit_condition=lambda: player_is_dead())
+        yield from Routines.Yield.Movement.FollowPath(path_points_to_killing_spot,custom_exit_condition=lambda: player_is_dead() or not bot_variables.config.is_script_running)
         if handle_death():
             ConsoleLog(MODULE_NAME, "Player is dead while to killing spot. Reseting Environment.", Py4GW.Console.MessageType.Error, log=log_to_console)
             bot_variables.config.reset_from_jaga_moraine = False
@@ -665,7 +761,7 @@ def RunBotSequentialLogic():
             
         ConsoleLog(MODULE_NAME, "Killing enemies", Py4GW.Console.MessageType.Info, log=log_to_console)
         bot_variables.config.in_killing_routine = True
-        player_pos = Player.GetXY()
+        player_pos = GLOBAL_CACHE.Player.GetXY()
         enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
         while len(enemy_array) > 0: #sometimes not all enemies are killed
             if handle_death():
@@ -685,6 +781,7 @@ def RunBotSequentialLogic():
             bot_variables.config.reset_from_jaga_moraine = False
             continue
         
+        yield from Routines.Yield.wait(500)
         yield from Routines.Yield.Items.LootItems(filtered_agent_ids, log_to_console)
         if handle_death():
             ConsoleLog(MODULE_NAME, "Player is dead while looting. Reseting Environment.", Py4GW.Console.MessageType.Error, log=log_to_console)
@@ -710,12 +807,13 @@ def RunBotSequentialLogic():
             continue
         
         ConsoleLog(MODULE_NAME, "Exiting to Bjora Marches", Py4GW.Console.MessageType.Info, log=log_to_console)
-        yield from Routines.Yield.Movement.FollowPath(path_points_to_exit_jaga_moraine, custom_exit_condition=lambda: player_is_dead_or_map_loading(bjora_marches))
+        yield from Routines.Yield.Movement.FollowPath(path_points_to_exit_jaga_moraine, custom_exit_condition=lambda: player_is_dead_or_map_loading(bjora_marches) or not bot_variables.config.is_script_running)
         yield from Routines.Yield.Map.WaitforMapLoad(bjora_marches, log_to_console)
         bot_variables.config.finished_routine = False
         
-        yield from Routines.Yield.Movement.FollowPath(path_points_to_return_to_jaga_moraine, custom_exit_condition=lambda: player_is_dead_or_map_loading(jaga_moraine))
-        yield from Routines.Yield.Map.WaitforMapLoad(jaga_moraine, log_to_console)
+        yield from Routines.Yield.Movement.FollowPath(path_points_to_return_to_jaga_moraine, custom_exit_condition=lambda: player_is_dead_or_map_loading(jaga_moraine) or not bot_variables.config.is_script_running)
+        yield from Routines.Yield.Map.WaitforMapLoad(jaga_moraine, log_to_console)          
+
 
         bot_variables.config.reset_from_jaga_moraine = True
         bot_variables.config.pause_stuck_routine = True
@@ -733,7 +831,7 @@ def BjoraMarchesSkillCasting():
         yield from Routines.Yield.wait(100)
         return
 
-    player_agent_id = Player.GetAgentID()
+    player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
     deadly_paradox = bot_variables.skillbar.deadly_paradox
     shadow_form = bot_variables.skillbar.shadow_form
     shroud_of_distress = bot_variables.skillbar.shroud_of_distress
@@ -744,23 +842,20 @@ def BjoraMarchesSkillCasting():
 
     #we need to cast deadly paradox and shadow form and mantain it
     has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id,shadow_form)
-    shadow_form_buff_time_remaining = Effects.GetEffectTimeRemaining(player_agent_id,shadow_form) if has_shadow_form else 0
+    shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id,shadow_form) if has_shadow_form else 0
 
     has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id,deadly_paradox)
     if shadow_form_buff_time_remaining <= 3500: #about to expire, recast
         #** Cast Deadly Paradox **
-        if Routines.Yield.Skills.CastSkillID(deadly_paradox,extra_condition=(not has_deadly_paradox), log=log_to_console):             
-            yield from Routines.Yield.wait(100)   
+        yield from Routines.Yield.Skills.CastSkillID(deadly_paradox,extra_condition=(not has_deadly_paradox), log=log_to_console, aftercast_delay=100)
         # ** Cast Shadow Form **
-        if Routines.Yield.Skills.CastSkillID(shadow_form, log=log_to_console):
-            yield from Routines.Yield.wait(1250)
+        yield from Routines.Yield.Skills.CastSkillID(shadow_form, log=log_to_console, aftercast_delay=1250)
         return 
         
     #if were hurt, we need to cast shroud of distress 
-    if Agent.GetHealth(player_agent_id) < 0.45:
+    if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
         # ** Cast Shroud of Distress **
-        if Routines.Yield.Skills.CastSkillID(shroud_of_distress, log=log_to_console):
-            yield from Routines.Yield.wait(1250)
+        if (yield from Routines.Yield.Skills.CastSkillID(shroud_of_distress, log=log_to_console, aftercast_delay=1250)):
             return
 
     #if we have an enemy behind us, we can escape with Heart of Shadow
@@ -768,14 +863,13 @@ def BjoraMarchesSkillCasting():
     if nearest_enemy:
         # ** Cast Heart of Shadow **
         is_enemy_behind = Routines.Checks.Agents.IsEnemyBehind(player_agent_id)
-        if Routines.Yield.Skills.CastSkillID(heart_of_shadow, extra_condition=is_enemy_behind, log=log_to_console):
-            yield from Routines.Yield.wait(350)
+        if (yield from Routines.Yield.Skills.CastSkillID(heart_of_shadow, extra_condition=is_enemy_behind, log=log_to_console, aftercast_delay=350)):
             return     
     yield
             
 
 def JagaMoraineSkillCasting():
-    player_agent_id = Player.GetAgentID()
+    player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
     deadly_paradox = bot_variables.skillbar.deadly_paradox
     shadow_form = bot_variables.skillbar.shadow_form
     shroud_of_distress = bot_variables.skillbar.shroud_of_distress
@@ -795,27 +889,21 @@ def JagaMoraineSkillCasting():
         ConsoleLog(MODULE_NAME, "In danger, casting skills.", Py4GW.Console.MessageType.Info, log=log_to_console)
         #we need to cast deadly paradox and shadow form and mantain it
         has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id,shadow_form)
-        shadow_form_buff_time_remaining = Effects.GetEffectTimeRemaining(player_agent_id,shadow_form) if has_shadow_form else 0
+        shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id,shadow_form) if has_shadow_form else 0
 
         has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id,deadly_paradox)
         if shadow_form_buff_time_remaining <= 3500: #about to expire, recast
             #** Cast Deadly Paradox **
-            if Routines.Yield.Skills.CastSkillID(deadly_paradox,extra_condition=(not has_deadly_paradox), log=log_to_console):
-                ConsoleLog(MODULE_NAME, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                yield from Routines.Yield.wait(100)
-            
+            yield from Routines.Yield.Skills.CastSkillID(deadly_paradox,extra_condition=(not has_deadly_paradox), log=log_to_console, aftercast_delay=100)
             # ** Cast Shadow Form **
-            if Routines.Yield.Skills.CastSkillID(shadow_form, log=log_to_console):
-                ConsoleLog(MODULE_NAME, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                yield from Routines.Yield.wait(1250)
+            yield from Routines.Yield.Skills.CastSkillID(shadow_form, log=log_to_console, aftercast_delay=1250)
             return
                 
     #if were hurt, we need to cast shroud of distress 
-    if Agent.GetHealth(player_agent_id) < 0.45:
+    if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
         ConsoleLog(MODULE_NAME, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=log_to_console)
         # ** Cast Shroud of Distress **
-        if Routines.Yield.Skills.CastSkillID(shroud_of_distress, log =log_to_console):
-            yield from Routines.Yield.wait(1250)
+        if (yield from Routines.Yield.Skills.CastSkillID(shroud_of_distress, log =log_to_console, aftercast_delay=1250)):
             return
          
     #need to keep Channeling up
@@ -823,27 +911,24 @@ def JagaMoraineSkillCasting():
     if not has_channeling:
         ConsoleLog(MODULE_NAME, "Casting Channeling.", Py4GW.Console.MessageType.Info, log=log_to_console)
         # ** Cast Channeling **
-        if Routines.Yield.Skills.CastSkillID(channeling, log =log_to_console):
-            yield from Routines.Yield.wait(1250)
+        if (yield from Routines.Yield.Skills.CastSkillID(channeling, log =log_to_console, aftercast_delay=1250)):
             return
             
     #Keep way of perfection up on recharge
     # ** Cast Way of Perfection **
-    if Routines.Yield.Skills.CastSkillID(way_of_perfection, log=log_to_console):
+    if (yield from Routines.Yield.Skills.CastSkillID(way_of_perfection, log=log_to_console, aftercast_delay=350)):
         ConsoleLog(MODULE_NAME, "Casting Way of Perfection.", Py4GW.Console.MessageType.Info, log=log_to_console)
-        yield from Routines.Yield.wait(350)
         return
         
     # ** Heart of Shadow to Stay Alive or to get out of stuck**
     if not bot_variables.config.in_killing_routine:
-        if Agent.GetHealth(player_agent_id) < 0.35 or bot_variables.config.stuck_count > 0:
+        if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.35 or bot_variables.config.stuck_count > 0:
             if bot_variables.config.pause_stuck_routine:
                 yield from Routines.Yield.Agents.ChangeTarget(player_agent_id)
             else:
                 yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
 
-            if Routines.Yield.Skills.CastSkillID(heart_of_shadow, log=log_to_console):
-                yield from Routines.Yield.wait(350)
+            if (yield from Routines.Yield.Skills.CastSkillID(heart_of_shadow, log=log_to_console, aftercast_delay=350)):
                 return
                 
     # ** Killing Routine **
@@ -854,19 +939,16 @@ def JagaMoraineSkillCasting():
         target = GetNotHexedEnemy()  
         if target:
             Routines.Yield.Agents.ChangeTarget(target)
-            if Routines.Yield.Skills.CastSkillSlot(arcane_echo_slot, extra_condition=both_ready, log=log_to_console):
+            if (yield from Routines.Yield.Skills.CastSkillSlot(arcane_echo_slot, extra_condition=both_ready, log=log_to_console, aftercast_delay=2000)):
                 ConsoleLog(MODULE_NAME, "Casting Arcane Echo.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                yield from Routines.Yield.wait(2000)
             else:
-                if Routines.Yield.Skills.CastSkillSlot(arcane_echo_slot, log=log_to_console):
+                if (yield from Routines.Yield.Skills.CastSkillSlot(arcane_echo_slot, log=log_to_console, aftercast_delay=350)):
                     ConsoleLog(MODULE_NAME, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=log_to_console)
-                    yield from Routines.Yield.wait(350)
                     return
         target = GetNotHexedEnemy()  
         if target: 
             Routines.Yield.Agents.ChangeTarget(target)
-            if Routines.Yield.Skills.CastSkillSlot(wastrels_demise_slot, log=log_to_console):
-                yield from Routines.Yield.wait(350)
+            if (yield from Routines.Yield.Skills.CastSkillSlot(wastrels_demise_slot, log=log_to_console, aftercast_delay=350)):
                 return
     yield
 
@@ -877,12 +959,19 @@ def SkillHandler():
     global bot_variables
 
     while True:
-        bjora_marches = 482 #Bjora Marches
-        jaga_moraine = 546 #Jaga Moraine
+        longeyes_ledge = GLOBAL_CACHE.Map.GetMapIDByName("Longeyes Ledge")
+        bjora_marches = GLOBAL_CACHE.Map.GetMapIDByName("Bjora Marches")
+        jaga_moraine = GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine")
+        
         
         if not Routines.Checks.Map.MapValid():
             yield from Routines.Yield.wait(1000)
             continue
+        
+        if not GLOBAL_CACHE.Map.IsExplorable():
+            yield from Routines.Yield.wait(1000)
+            continue
+        
         #if we are occupied with something else, skip this iteration
         if not Routines.Checks.Skills.CanCast():
             yield from Routines.Yield.wait(100)
@@ -892,9 +981,9 @@ def SkillHandler():
             yield from Routines.Yield.wait(1000)  
             continue
         
-        if Map.GetMapID() == bjora_marches:
+        if GLOBAL_CACHE.Map.GetMapID() == bjora_marches:
             yield from BjoraMarchesSkillCasting()
-        elif Map.GetMapID() == jaga_moraine:    
+        elif GLOBAL_CACHE.Map.GetMapID() == jaga_moraine:  
             yield from JagaMoraineSkillCasting()
         
         yield
@@ -919,16 +1008,7 @@ def DrawWindow():
             
             PyImGui.text_colored("Status:IDLE", Color(255,0,0,255).to_tuple())
             
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+
             # Control Table
             if PyImGui.begin_table("ControlTable", 2):
                 PyImGui.table_next_row()
@@ -941,9 +1021,9 @@ def DrawWindow():
                 if PyImGui.button(button_text):
                     bot_variables.config.is_script_running = not bot_variables.config.is_script_running
                     if bot_variables.config.is_script_running:
-                        bot_variables.coroutines.clear()
-                        bot_variables.coroutines.append(RunBotSequentialLogic())
-                        bot_variables.coroutines.append(SkillHandler())
+                        GLOBAL_CACHE.Coroutines.clear()
+                        GLOBAL_CACHE.Coroutines.append(RunBotSequentialLogic())
+                        GLOBAL_CACHE.Coroutines.append(SkillHandler())
                     else:
                         reset_environment()
 
@@ -1024,9 +1104,7 @@ def DrawWindow():
         PyImGui.end()
 
     except Exception as e:
-        frame = inspect.currentframe()
-        current_function = frame.f_code.co_name if frame else "Unknown"
-        Py4GW.Console.Log(MODULE_NAME, f"Error in {current_function}: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Error in DrawWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
 #endregion
@@ -1040,21 +1118,20 @@ def main():
 
         DrawWindow()
         
-        if Map.IsMapLoading():
-            ActionQueueManager().ResetAllQueues()
+        if GLOBAL_CACHE.Map.IsMapLoading():
+            GLOBAL_CACHE._ActionQueueManager.ResetAllQueues()
             bot_variables.config.auto_stuck_command_timer.Reset()
             bot_variables.config.stuck_count = 0
             return
             
-        if not Routines.Checks.Skills.InCastingProcess() and not Agent.IsKnockedDown(Player.GetAgentID()):  
+        if not Routines.Checks.Skills.InCastingProcess() and not GLOBAL_CACHE.Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID()):  
             if bot_variables.config.is_script_running:
-                for coro in bot_variables.coroutines[:]:
+                for coro in GLOBAL_CACHE.Coroutines[:]:
                     try:
                         next(coro)
                     except StopIteration:
-                        bot_variables.coroutines.remove(coro)
+                        GLOBAL_CACHE.Coroutines.remove(coro)
                         
-        ActionQueueManager().ProcessAll()
 
     except Exception as e:
         ConsoleLog(MODULE_NAME,f"Error: {str(e)}",Py4GW.Console.MessageType.Error,log=True)

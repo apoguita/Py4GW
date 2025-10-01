@@ -1,8 +1,6 @@
 
 import PyParty
-
 from .Player import Player
-
 
 class Party:
     @staticmethod

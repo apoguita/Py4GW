@@ -37,12 +37,15 @@ widget_config = Config()
 window_module = ImGui.WindowModule(
     module_name, 
     window_name="Outpost Travel", 
-    window_size=(300, 200),
-    window_flags=PyImGui.WindowFlags.AlwaysAutoResize
+    window_size=(235, 145),
+    window_flags=PyImGui.WindowFlags.NoFlag
 )
 
 
 config_module = ImGui.WindowModule(f"Config {module_name}", window_name="Travel to Outpost##Vanquish Monitor config", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+
+is_header1_expanded = False
+is_header2_expanded = False
 
 
 search_outpost = ""
@@ -66,6 +69,7 @@ config_module.collapse = config_window_collapsed
 
 def configure():
     global widget_config, config_module, ini_handler
+    global module_name, is_header1_expanded, is_header2_expanded
 
     if config_module.first_run:
         PyImGui.set_next_window_size(config_module.window_size[0], config_module.window_size[1])     
@@ -89,23 +93,27 @@ def configure():
         end_pos = PyImGui.get_window_pos()
     PyImGui.end()
     
-    if end_pos[0] != config_module.window_pos[0] or end_pos[1] != config_module.window_pos[1]:
+    """if end_pos[0] != config_module.window_pos[0] or end_pos[1] != config_module.window_pos[1]:
         config_module.window_pos = (int(end_pos[0]), int(end_pos[1]))
         ini_handler.write_key(module_name + " Config", "config_x", str(int(end_pos[0])))
         ini_handler.write_key(module_name + " Config", "config_y", str(int(end_pos[1])))
 
     if new_collapsed != config_module.collapse:
         config_module.collapse = new_collapsed
-        ini_handler.write_key(module_name + " Config", "config_collapsed", str(new_collapsed))
+        ini_handler.write_key(module_name + " Config", "config_collapsed", str(new_collapsed))"""
         
 
 def DrawWindow():
     global is_traveling, widget_config, search_outpost, window_module
-    global game_throttle_time, game_throttle_timer
+    global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
+    global is_header1_expanded, is_header2_expanded, ini_handler, module_name
+    
+    padding1 = 80 if is_header1_expanded else 0
+    padding2 = 80 if is_header2_expanded else 0
     
     try:
         if window_module.first_run:
-            PyImGui.set_next_window_size(window_module.window_size[0], window_module.window_size[1])     
+              
             PyImGui.set_next_window_pos(window_module.window_pos[0], window_module.window_pos[1])
             PyImGui.set_next_window_collapsed(window_module.collapse, 0)
             window_module.first_run = False
@@ -113,7 +121,14 @@ def DrawWindow():
         new_collapsed = True
         end_pos = window_module.window_pos
 
-        if PyImGui.begin(window_module.window_name, window_module.window_flags):
+        if ImGui.gw_window.begin( name = window_module.window_name,
+                                  pos  = (window_module.window_pos[0], window_module.window_pos[1]),
+                                  size = (window_module.window_size[0], window_module.window_size[1] + padding1 + padding2),
+                                  collapsed = window_module.collapse,
+                                  pos_cond = PyImGui.ImGuiCond.FirstUseEver,
+                                  size_cond = PyImGui.ImGuiCond.Always):
+                                 
+        #if PyImGui.begin(window_module.window_name, window_module.window_flags):
             new_collapsed = PyImGui.is_window_collapsed()
             PyImGui.push_item_width(150)
             search_outpost = PyImGui.input_text("##search outpost", search_outpost.lower())
@@ -137,6 +152,7 @@ def DrawWindow():
             ImGui.show_tooltip("Travel")
             
             if PyImGui.collapsing_header("Outposts"):
+                is_header1_expanded = True
                 if PyImGui.begin_child("OutpostList",(195, 75), True, PyImGui.WindowFlags.NoFlag):
                     for index, outpost_name in enumerate(filtered_outposts):
                         is_selected = (index == widget_config.selected_outpost_index)
@@ -147,6 +163,8 @@ def DrawWindow():
                             widget_config.travel_history.append(outpost_name)
                             is_traveling = True
                     PyImGui.end_child()
+            else:
+                is_header1_expanded = False
 
 
             # Travel when pressing Enter in the search box
@@ -159,6 +177,7 @@ def DrawWindow():
                     is_traveling = True
                     
             if PyImGui.collapsing_header("History"):
+                is_header2_expanded = True
                 if PyImGui.begin_child("TravelHistoryList", (195, 75), True, PyImGui.WindowFlags.NoFlag):
                     for index, history_name in enumerate(widget_config.travel_history[-5:]):  # Last 5 entries
                         if PyImGui.selectable(history_name, False, PyImGui.SelectableFlags.NoFlag, (0.0, 0.0)):
@@ -169,11 +188,14 @@ def DrawWindow():
                                     is_traveling = True
                                     break
                     PyImGui.end_child()
+            else:
+                is_header2_expanded = False
 
             end_pos = PyImGui.get_window_pos()
-        PyImGui.end()
+        #PyImGui.end()
+        ImGui.gw_window.end(window_module.window_name)
 
-        if save_throttle_timer.HasElapsed(save_throttle_time):
+        """if save_throttle_timer.HasElapsed(save_throttle_time):
             if end_pos[0] != window_module.window_pos[0] or end_pos[1] != window_module.window_pos[1]:
                 window_module.window_pos = (int(end_pos[0]), int(end_pos[1]))
                 ini_handler.write_key(module_name + " Config", "x", str(int(end_pos[0])))
@@ -181,9 +203,9 @@ def DrawWindow():
 
             if new_collapsed != window_module.collapse:
                 window_module.collapse = new_collapsed
-                ini_handler.write_key(module_name + " Config", "collapsed", str(new_collapsed))
+                ini_handler.write_key(module_name + " Config", "collapsed", str(new_collapsed))"""
                 
-            save_throttle_timer.Reset()
+            #save_throttle_timer.Reset()
 
     except Exception as e:
         is_traveling = False

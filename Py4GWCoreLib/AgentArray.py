@@ -1,5 +1,3 @@
-import Py4GW
-import PyPlayer
 import PyAgent
 
 from .Agent import *
@@ -168,6 +166,7 @@ class AgentArray:
 
         @staticmethod
         def ByDistance(agent_array, pos, descending=False):
+            from .GlobalCache import GLOBAL_CACHE
             """
             Sorts agents by their distance to a given (x, y) position.
             sorted_agents_by_distance = Sort.ByDistance(agent_array, (100, 200))
@@ -177,7 +176,7 @@ class AgentArray:
             return AgentArray.Sort.ByCondition(
                 agent_array,
                 condition_func=lambda agent_id: Utils.Distance(
-                    Agent.GetXY(agent_id),
+                    GLOBAL_CACHE.Agent.GetXY(agent_id),
                     (pos[0], pos[1])
                 ),
                 reverse=descending
@@ -185,6 +184,7 @@ class AgentArray:
 
         @staticmethod
         def ByHealth(agent_array, descending=False):
+            from .GlobalCache import GLOBAL_CACHE
             """
             Sorts agents by their health (HP).
             sorted_agents_by_health_desc = Sort.ByHealth(agent_array, descending=True)
@@ -193,7 +193,7 @@ class AgentArray:
                 return []
             return AgentArray.Sort.ByCondition(
                 agent_array,
-                condition_func=lambda agent_id: Agent.GetHealth(agent_id),
+                condition_func=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id),
                 reverse=descending
             )
 
@@ -238,6 +238,7 @@ class AgentArray:
 
         @staticmethod
         def ByDistance(agent_array, pos, max_distance, negate=False):
+            from .GlobalCache import GLOBAL_CACHE
             """
             Filters agents based on their distance from a given position.
             agents_within_range = AgentArray.Filter.ByDistance(agent_array, (100, 200), 500)
@@ -245,7 +246,7 @@ class AgentArray:
             if agent_array is None:
                 return []
             def distance_filter(agent_id):
-                agent_x, agent_y = Agent.GetXY(agent_id)
+                agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(agent_id)
                 distance = Utils.Distance((agent_x, agent_y), (pos[0], pos[1]))
                 return (distance > max_distance) if negate else (distance <= max_distance)
 
@@ -253,69 +254,74 @@ class AgentArray:
 
 
     class Routines:
-        @staticmethod
-        def DetectLargestAgentCluster(agent_array, cluster_radius):
-            """
-            Detects the largest cluster of agents based on proximity and returns the center of mass (XY) of the cluster
-            and the closest agent ID to the center of mass.
+            @staticmethod
+            def DetectLargestAgentCluster(agent_array, cluster_radius):
+                from .GlobalCache import GLOBAL_CACHE
+                from .Py4GWcorelib import Utils
 
-            Args:
-                agent_array (list[int]): List of agent IDs.
-                cluster_radius (float): The maximum distance between agents to consider them in the same cluster.
+                """
+                Detects the largest cluster of agents based on proximity and returns
+                the agent ID closest to the cluster's center of mass.
 
-            Returns:
-                tuple: (center_of_mass (tuple), closest_agent_id (int))
-                    - center_of_mass: (x, y) coordinates of the cluster's center of mass.
-                    - closest_agent_id: The ID of the agent closest to the center of mass.
+                Args:
+                    agent_array (list[int]): List of agent IDs.
+                    cluster_radius (float): Maximum distance between agents to consider them in the same cluster.
 
-            Example:
-                center_xy, closest_agent_id = Filters.DetectLargestAgentCluster(agent_array, cluster_radius=100)
-            """
-            clusters = []
-            ungrouped_agents = set(agent_array)
+                Returns:
+                    int: The ID of the agent closest to the center of the largest cluster.
+                """
 
-            def is_in_radius(agent1, agent2):
-                x1, y1 = Agent.GetXY(agent1)
-                x2, y2 = Agent.GetXY(agent2)
-                distance_sq = (x1 - x2) ** 2 + (y1 - y2) ** 2
-                return distance_sq <= cluster_radius ** 2
+                if not agent_array:
+                    return 0  # no agents
 
-            # Create clusters by grouping nearby agents
-            while ungrouped_agents:
-                current_agent = ungrouped_agents.pop()
-                cluster = [current_agent]
+                cluster_radius_sq = cluster_radius ** 2
 
-                # Find agents in the same cluster
-                for agent in list(ungrouped_agents):
-                    if any(is_in_radius(current_agent, other) for other in cluster):
-                        cluster.append(agent)
-                        ungrouped_agents.remove(agent)
+                def is_in_radius(agent1, agent2):
+                    x1, y1 = GLOBAL_CACHE.Agent.GetXY(agent1)
+                    x2, y2 = GLOBAL_CACHE.Agent.GetXY(agent2)
+                    dx, dy = x1 - x2, y1 - y2
+                    return (dx * dx + dy * dy) <= cluster_radius_sq
 
-                clusters.append(cluster)
+                # --- Group agents into clusters ---
+                unvisited = set(agent_array)
+                clusters = []
 
-            # Find the largest cluster
-            largest_cluster = max(clusters, key=len)
+                while unvisited:
+                    current = unvisited.pop()
+                    cluster = [current]
+                    stack = [current]
 
-            # Compute the center of mass (average position) of the largest cluster
-            total_x = total_y = 0
-            for agent_id in largest_cluster:
-                agent_x, agent_y = Agent.GetXY(agent_id)
-                total_x += agent_x
-                total_y += agent_y
+                    while stack:
+                        node = stack.pop()
+                        neighbors = [a for a in list(unvisited) if is_in_radius(node, a)]
+                        for n in neighbors:
+                            unvisited.remove(n)
+                            cluster.append(n)
+                            stack.append(n)
 
-            center_of_mass_x = total_x / len(largest_cluster)
-            center_of_mass_y = total_y / len(largest_cluster)
-            center_of_mass = (center_of_mass_x, center_of_mass_y)
+                    clusters.append(cluster)
 
-            # Find the agent closest to the center of mass
-            def distance_to_center(agent_id):
-                agent_x, agent_y = Agent.GetXY(agent_id)
-                #return (agent_x - center_of_mass_x) ** 2 + (agent_y - center_of_mass_y) ** 2  # Squared distance
-                return Utils.Distance((agent_x, agent_y), center_of_mass)
+                # --- Find largest cluster ---
+                largest_cluster = max(clusters, key=len)
 
-            closest_agent_id = min(largest_cluster, key=distance_to_center)
+                # --- Compute cluster center (average XY) ---
+                total_x = total_y = 0
+                for agent_id in largest_cluster:
+                    x, y = GLOBAL_CACHE.Agent.GetXY(agent_id)
+                    total_x += x
+                    total_y += y
+                center_x = total_x / len(largest_cluster)
+                center_y = total_y / len(largest_cluster)
+                center_pos = (center_x, center_y)
 
-            return closest_agent_id
+                # --- Find agent closest to center ---
+                def dist(agent_id):
+                    ax, ay = GLOBAL_CACHE.Agent.GetXY(agent_id)
+                    return Utils.Distance((ax, ay), center_pos)
+
+                closest_agent_id = min(largest_cluster, key=dist)
+                return closest_agent_id
+
 
 class RawAgentArray:
     _instance = None
@@ -394,6 +400,17 @@ class RawAgentArray:
                     self.owner_cache[agent_id] = agent_instance.item_agent.owner_id
             else:
                 self.agent_cache[agent_id].GetContext()
+                agent_instance = self.agent_cache[agent_id]
+
+                if agent_instance.is_item:
+                    current_owner = agent_instance.item_agent.owner_id
+                    cached_owner = self.owner_cache.get(agent_id, 0)
+
+                    # Only update if we discover the real owner (0 → non-zero)
+                    # Never overwrite a valid owner with 0
+                    if current_owner != 0 and current_owner != cached_owner:
+                        self.owner_cache[agent_id] = current_owner
+            
             agent = self.agent_cache[agent_id]
             self.agent_array.append(agent)
 
@@ -527,16 +544,7 @@ class RawAgentArray:
         If the item is not found, returns 0.
         """
         self.update()
-        agent = self.agent_dict.get(item_id) or PyAgent.PyAgent(item_id)
-        owner = agent.item_agent.owner_id if agent.is_item else 0
-        cache_owner_id = self.owner_cache.get(item_id, 0)
-        
-        if owner == 0 :
-            return cache_owner_id
-        
-        if cache_owner_id != owner:
-            # Update the cache if the owner has changed
-            self.owner_cache[item_id] = owner
-
-        return self.owner_cache.get(item_id, 0)
+        agent = PyAgent.PyAgent(item_id)
+        owner = agent.item_agent.owner_id if agent.is_item else 999
+        return owner
 

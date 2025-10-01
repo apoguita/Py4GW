@@ -1,14 +1,26 @@
-from Py4GWCoreLib import *
+from Py4GWCoreLib import GLOBAL_CACHE
+import PyImGui
 
-MODULE_NAME = "tester for everything"
 
-width, height = 0,0
+
+def Draw_Window():
+    dialog = 0x85
+    thank_you = 0x86
+    if PyImGui.begin("My Skill Farmer", True, PyImGui.WindowFlags.AlwaysAutoResize):
+        PyImGui.text("This is an example bot that jumps to a step name")
+        if PyImGui.button("dialog 0x85"):
+            GLOBAL_CACHE.Player.SendDialog(dialog)
+            
+        if PyImGui.button("dialog 0x86"):
+            GLOBAL_CACHE.Player.SendDialog(thank_you)
+
+        PyImGui.end()
+
 def main():
-    global width, height
-    
-    if PyImGui.begin("timer test"):
-        PyImGui.text(f"is dead: {Agent.IsDead(Player.GetAgentID())}")   
-    PyImGui.end()
-    
+
+    Draw_Window()
+
+
+
 if __name__ == "__main__":
     main()

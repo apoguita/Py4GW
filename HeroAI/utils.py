@@ -5,7 +5,7 @@ from .cache_data import CacheData
 
 
 def DistanceFromLeader(cached_data:CacheData):
-    return Utils.Distance(cached_data.data.party_leader_xy,cached_data.data.player_xy)
+    return Utils.Distance(GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID()),GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
 
 def DistanceFromWaypoint(posX,posY):
     distance = Utils.Distance((posX,posY), GLOBAL_CACHE.Player.GetXY())
@@ -48,10 +48,10 @@ def CheckForEffect(agent_id, skill_id):
     return result
 
 def IsHeroFlagged(cached_data:CacheData,index):
-    if  index != 0 and index <= cached_data.data.party_hero_count:
+    if  index != 0 and index <= GLOBAL_CACHE.Party.GetHeroCount():
         return GLOBAL_CACHE.Party.Heroes.IsHeroFlagged(index)
     else:
-        return cached_data.HeroAI_vars.all_player_struct[index-cached_data.data.party_hero_count].IsFlagged and cached_data.HeroAI_vars.all_player_struct[index-cached_data.data.party_hero_count].IsActive
+        return cached_data.HeroAI_vars.all_player_struct[index-GLOBAL_CACHE.Party.GetHeroCount()].IsFlagged and cached_data.HeroAI_vars.all_player_struct[index-GLOBAL_CACHE.Party.GetHeroCount()].IsActive
 
 
 def DrawFlagAll(pos_x, pos_y):

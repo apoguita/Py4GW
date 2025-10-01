@@ -950,23 +950,33 @@ def format_binary_grouped(value: int, group_size: int = 4) -> str:
     return ' '.join(binary_str[i:i + group_size] for i in range(0, len(binary_str), group_size))
 
 
-_item_name = "Not recieved"
+_item_names = {}
+
 def ShowItemDataWindow(item_id):
     global _item_name
     try: 
         width, height = 700,700
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Item: " + str(item_id)):
-
+            pass
+            
             item_type_id, item_type_name = GLOBAL_CACHE.Item.GetItemType(item_id)
-            item_name = GLOBAL_CACHE.Item.GetName(item_id)
-            if item_name != _item_name and item_name != "":
-                _item_name = item_name
+            
+            if item_id in _item_names:
+                item_name = _item_names[item_id]
+            else:
+                #item_name = GLOBAL_CACHE.Item.GetName(item_id)
+                item_name = ""
+                if item_name:  # Only cache if a valid (non-empty) name is returned
+                    _item_names[item_id] = item_name
+                else:
+                    item_name = "Not recieved"  # Show placeholder, don't cache yet
 
+                
 
             headers = ["Value","Data"]
             data = [
-                ("Item Name:", _item_name),
+                ("Item Name:", item_name),
                 ("Item Type:", f"{item_type_id} - {item_type_name}"),
                 ("Model Id:", GLOBAL_CACHE.Item.GetModelID(item_id)),
                 ("Slot(pick up to see):", GLOBAL_CACHE.Item.GetSlot(item_id)),
@@ -975,7 +985,7 @@ def ShowItemDataWindow(item_id):
             ]
 
             ImGui.table("Item common info", headers, data)
-
+            
             if PyImGui.collapsing_header("Rarity"):
             
                 rarity_id, rarity_name = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
@@ -1342,6 +1352,22 @@ def ShowPartyWindow():
                     ImGui.table("henchman info"+ str(agent_id), headers, data)
                     
                     PyImGui.separator()
+                    
+            if PyImGui.collapsing_header("Others"):
+                others = GLOBAL_CACHE.Party.GetOthers()
+                
+                for other in others:
+                    agent_id = other
+
+                    headers = ["Other:" + str(agent_id)]
+                    data = [
+                        (f"Agent ID: {agent_id}"),
+                        (f"Name: {GLOBAL_CACHE.Agent.GetName(agent_id)}"),
+                    ]
+
+                    ImGui.table("other info"+ str(agent_id), headers, data)
+                    
+                    PyImGui.separator()
 
             if PyImGui.collapsing_header("Pets"):
                 PyImGui.text("Pet Data")
@@ -1454,7 +1480,7 @@ def ShowPlayerWindow():
                 ImGui.table("PlayerData info", headers, data)
                                 
                 if PyImGui.button("Deposit Faction"):
-                    GLOBAL_CACHE.Player.DepositFaction(FactionAllegiance.Kurzick.value)
+                    GLOBAL_CACHE.Player.DepositFaction(FactionAllegiance.Kurzick.value) 
                     
             if PyImGui.collapsing_header("Titles"):
                 current_title = GLOBAL_CACHE.Player.GetActiveTitleID()
@@ -2097,7 +2123,7 @@ def ShowPyImGuiExtraMaplWindow():
                 headers = ["Info", "Value"]
                 data = [("Campaign:", GLOBAL_CACHE.Map.GetCampaign()[1]),
                         ("Continent:", GLOBAL_CACHE.Map.GetContinent()[1]),
-                        ("Region:", GLOBAL_CACHE.Map.GetRegion()[1]),
+                        ("Region:", f"{GLOBAL_CACHE.Map.GetRegion()[1]} ({GLOBAL_CACHE.Map.GetRegion()[0]})"),
                         ("District:", GLOBAL_CACHE.Map.GetDistrict()),
                         ("Language:", GLOBAL_CACHE.Map.GetLanguage()[1])]
 
@@ -2234,12 +2260,22 @@ def ShowPyMapWindow():
             instance_time_seconds = instance_time / 1000  # Convert to seconds
             formatted_time = time.strftime('%H:%M:%S', time.gmtime(instance_time_seconds))
             time_text = f"{formatted_time} - [{map_instance.instance_time}]"
+            party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+            player_size = GLOBAL_CACHE.Map.GetMaxPlayerSize()
+            min_party_size = GLOBAL_CACHE.Map.GetMinPartySize()
+            min_player_size = GLOBAL_CACHE.Map.GetMinPlayerSize()
+            
 
             headers = ["Info", "Value"]
             data = [("Instance ID:", GLOBAL_CACHE.Map.GetMapID()),
                     ("Instance Name:", GLOBAL_CACHE.Map.GetMapName()),
                     ("Instance Time:", time_text),
-                    ("Amount of Players in Instance:",GLOBAL_CACHE.Map.GetAmountOfPlayersInInstance())]
+                    ("Amount of Players in Instance:",GLOBAL_CACHE.Map.GetAmountOfPlayersInInstance()),
+                    ("Max Party Size:", party_size),
+                    ("Max Player Size:", player_size),
+                    ("Min Party Size:", min_party_size),
+                    ("Min Player Size:", min_player_size)
+                    ]
 
             ImGui.table("Instance Info Table",headers,data)
 

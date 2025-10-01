@@ -146,7 +146,7 @@ class RawItemCache:
         bag_instance.GetContext()
         return bag_instance
     
-    def get_bags(self, bag_list: List[int]):
+    def get_bags(self, bag_list: List[int]) -> List[PyInventory.Bag]:
         """
         Returns a list of Bag instances for the given bag enums.
         """
@@ -258,7 +258,7 @@ class ItemCache:
         return item.IsItemNameReady()
         
     def GetName(self, item_id: int) -> str:
-        now = time.time() * 1000  # current time in ms
+        now = time.time() * 1500  # current time in ms
         item = self.raw_item_array.get_item_by_id(item_id)
         if item is None:
             return ""
@@ -445,6 +445,16 @@ class ItemCache:
             if item is None:
                 return False
             return item.is_tome
+        
+        def IsTrophy(self, item_id: int) -> bool:
+            item = self._parent.raw_item_array.get_item_by_id(item_id)
+            if item is None:
+                return False
+            _, item_type_name = self._parent.GetItemType(item_id)
+            
+            if item_type_name == "Trophy":
+                return True
+            return False
         
     class _Usage:
         def __init__(self, parent):

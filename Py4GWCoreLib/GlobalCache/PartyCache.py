@@ -191,9 +191,17 @@ class PartyCache:
             elif isinstance(agent_id_or_name, str):
                 self._parent._action_queue_manager.AddAction("ACTION",Player.SendChatCommand,"invite " + agent_id_or_name)
                 
-        def KickPlayer(self, login_number):
-            self._parent._action_queue_manager.AddAction("ACTION", self._parent._party_instance.KickPlayer, login_number)
-            
+        def KickPlayer(self, name:str | int):
+            """
+            Kick a player by ID (int) or name (str).
+            Args: 
+                player (int or str): The player ID or player name.
+            """
+            if isinstance(name, int):
+                self._parent._action_queue_manager.AddAction("ACTION", self._parent._party_instance.KickPlayer, name)
+            elif isinstance(name, str):
+                self._parent._action_queue_manager.AddAction("ACTION", Player.SendChatCommand, "kick " + name)
+
     class _Heroes:
         def __init__(self, parent):
             self._parent = parent

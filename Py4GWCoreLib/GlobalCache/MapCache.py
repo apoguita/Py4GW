@@ -14,16 +14,20 @@ class MapCache:
         self._map_instance.GetContext()
         
     def IsMapReady(self):
-        return self._map_instance.is_map_ready
+        current_map = PyMap.PyMap()
+        return current_map.is_map_ready
     
     def IsOutpost(self):
-        return self._map_instance.instance_type.GetName() == "Outpost"
+        current_map = PyMap.PyMap()
+        return current_map.instance_type.GetName() == "Outpost"
     
     def IsExplorable(self):
-        return self._map_instance.instance_type.GetName() == "Explorable"
+        current_map = PyMap.PyMap()
+        return current_map.instance_type.GetName() == "Explorable"
     
     def IsMapLoading(self):
-        return self._map_instance.instance_type.GetName() == "Loading"
+        current_map = PyMap.PyMap()
+        return current_map.instance_type.GetName() == "Loading"
     
     def GetMapName(self, mapid=None):
         if mapid is None:
@@ -52,20 +56,17 @@ class MapCache:
         global outposts
         return list(outposts.values())
     
-    def GetMapIDByName(self, name):
+    def GetMapIDByName(self, name) -> int:
         global explorable_name_to_id
-        """Retrieve the ID of a map by its name."""
         map_id = explorable_name_to_id.get(name)
         if map_id is not None:
             return map_id
 
-        # Get outpost IDs and names, and build a reverse lookup map
         outpost_ids = self.GetOutpostIDs()
         outpost_names = self.GetOutpostNames()
-        outpost_name_to_id = {name: id for id, name in zip(outpost_names, outpost_ids)}
+        outpost_name_to_id = {name: id for name, id in zip(outpost_names, outpost_ids)}
+        return int(outpost_name_to_id.get(name, 0))
 
-        # Check if the name exists in outposts
-        return outpost_name_to_id.get(name, 0)
     
     def GetExplorableIDs(self):
         return list(explorables.keys())
@@ -106,6 +107,15 @@ class MapCache:
     def HasEnterChallengeButton(self):
         return self._map_instance.has_enter_button
     
+    def IsOnWorldMap(self):
+        return self._map_instance.is_on_world_map
+    
+    def IsPVP(self):
+        return self._map_instance.is_pvp
+    
+    def IsGuildHall(self):
+        return self._map_instance.is_guild_hall
+    
     def EnterChallenge(self):
         self._action_queue_manager.AddAction("ACTION", self._map_instance.EnterChallenge)
         
@@ -120,6 +130,11 @@ class MapCache:
     
     def GetFoesToKill(self):
         return self._map_instance.foes_to_kill
+    
+    def GetIsVanquishComplete(self):
+        if self.IsVanquishable():
+            return self._map_instance.foes_to_kill == 0
+        return False
     
     def GetCampaign(self):
         campaign = self._map_instance.campaign

@@ -1,4 +1,3 @@
-import PyItem
 import PyInventory
 
 from .ItemArray import *
@@ -126,6 +125,42 @@ class Inventory:
         Returns: int: The total number of items matching the model_id in bags 1, 2, 3, and 4.
         """
         bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+        item_array = ItemArray.GetItemArray(bags_to_check)
+        
+        # Filter items by the specified model_id using Item.GetModelID
+        matching_items = ItemArray.Filter.ByCondition(item_array, lambda item_id: Item.GetModelID(item_id) == model_id)
+        # Sum the quantity of each matching item using Item.Properties.GetQuantity
+        total_quantity = sum(Item.Properties.GetQuantity(item_id) for item_id in matching_items)
+
+        return total_quantity
+    
+    @staticmethod
+    def GetModelCountInStorage(model_id):
+        """
+        Purpose: Count the number of items with the specified model_id in storage.
+        Args:
+            model_id (int): The model ID of the item to count.
+        Returns: int: The total number of items matching the model_id in bags 1, 2, 3, and 4.
+        """
+        bags_to_check = ItemArray.CreateBagList(8,9,10,11,12,13,14,15,16,17,18,19,20,21)
+        item_array = ItemArray.GetItemArray(bags_to_check)
+        
+        # Filter items by the specified model_id using Item.GetModelID
+        matching_items = ItemArray.Filter.ByCondition(item_array, lambda item_id: Item.GetModelID(item_id) == model_id)
+        # Sum the quantity of each matching item using Item.Properties.GetQuantity
+        total_quantity = sum(Item.Properties.GetQuantity(item_id) for item_id in matching_items)
+
+        return total_quantity
+    
+    @staticmethod
+    def GetModelCountInEquipped(model_id):
+        """
+        Purpose: Count the number of items with the specified model_id in storage.
+        Args:
+            model_id (int): The model ID of the item to count.
+        Returns: int: The total number of items matching the model_id in bags 1, 2, 3, and 4.
+        """
+        bags_to_check = ItemArray.CreateBagList(22)
         item_array = ItemArray.GetItemArray(bags_to_check)
         
         # Filter items by the specified model_id using Item.GetModelID
@@ -299,7 +334,7 @@ class Inventory:
         from .UIManager import UIManager
 
         parent_hash = 140452905
-        yes_button_offsets = [6,98,6]
+        yes_button_offsets = [6,100,6]
         
         salvage_material_window = UIManager.GetChildFrameID(parent_hash, yes_button_offsets)
         UIManager.FrameClick(salvage_material_window)

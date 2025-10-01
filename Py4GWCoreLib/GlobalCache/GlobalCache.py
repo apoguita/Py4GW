@@ -61,15 +61,31 @@ class GlobalCache:
         
     def _update_cache(self):
         self.Map._update_cache()
-        if self._TrottleTimers._50ms.IsExpired():
-            self._TrottleTimers._50ms.Reset()
+        if self.Map.IsMapLoading() or self.Map.IsInCinematic():
+            self.Party._update_cache()
             self.Player._update_cache()
-            if self._TrottleTimers._100ms.IsExpired():   
+            self._RawItemCache.update()
+            self.Item._update_cache()
+            self._RawAgentArray.update()
+            self.Agent._update_cache()
+            self.AgentArray._update_cache()
+            self.SkillBar._update_cache()
+               
+        if self._TrottleTimers._75ms.IsExpired():
+            self._TrottleTimers._75ms.Reset()
+            if self._TrottleTimers._500ms.IsExpired():
+                self._TrottleTimers._500ms.Reset()
+                
+   
+            
+            if self._TrottleTimers._150ms.IsExpired():   
+                self._TrottleTimers._150ms.Reset()
                 self.Party._update_cache()
-                self._TrottleTimers._100ms.Reset()
+                self.Player._update_cache()
                 self._RawItemCache.update()
                 self.Item._update_cache()
                 self.Camera._update_cache()
+
              
             self._RawAgentArray.update()
             self.Agent._update_cache()
@@ -82,7 +98,11 @@ class GlobalCache:
     class TrottleTimers:
         def __init__(self):
             self._50ms = ThrottledTimer(50)
+            self._63ms = ThrottledTimer(63) #4 frames
+            self._75ms = ThrottledTimer(75)
             self._100ms = ThrottledTimer(100)
+            self._150ms = ThrottledTimer(150)
+            self._250ms = ThrottledTimer(250)
             self._500ms = ThrottledTimer(500)
             self._1_000ms = ThrottledTimer(1000)
             self._5_000ms = ThrottledTimer(5000)
@@ -90,7 +110,11 @@ class GlobalCache:
 
         def Reset(self):
             self._50ms.Reset()
+            self._63ms.Reset()
+            self._75ms.Reset()
             self._100ms.Reset()
+            self._150ms.Reset()
+            self._250ms.Reset()
             self._500ms.Reset()
             self._1_000ms.Reset()
             self._5_000ms.Reset()

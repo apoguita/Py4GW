@@ -4,6 +4,15 @@ import PyEffects
 from .Player import Player
 
 class Effects:
+    @staticmethod
+    def get_instance(agent_id):
+        """
+        Purpose: Get the instance of PyEffects for a specific agent.
+        Args:
+            agent_id (int): The agent ID of the party member.
+        Returns: PyEffects.PyEffects: The instance of PyEffects for the specified agent.
+        """
+        return PyEffects.PyEffects(agent_id)
 
     @staticmethod
     def DropBuff(buff_id):
@@ -91,6 +100,11 @@ class Effects:
         return effect_exists
 
     @staticmethod
+    def HasEffect(agent_id: int, skill_id: int):
+        return Effects.EffectExists(agent_id, skill_id) or Effects.BuffExists(agent_id, skill_id)
+
+
+    @staticmethod
     def EffectAttributeLevel(agent_id: int, skill_id: int):
         """
         Purpose: Get the attribute level of a specific effect.
@@ -134,3 +148,25 @@ class Effects:
             if buff.skill_id == skill_id:
                     return buff.buff_id
         return 0
+
+    @staticmethod
+    def GetAlcoholLevel() -> int:
+        """
+        Purpose: Get the alcohol level of a specific agent.
+        Args:
+            agent_id (int): The agent ID of the party member.
+        Returns: int: The alcohol level of the agent.
+        """
+        return PyEffects.PyEffects.GetAlcoholLevel()
+    
+    @staticmethod
+    def ApplyDrunkEffect(intensity: int, tint: int):
+        """
+        Purpose: Apply a drunk effect to a specific agent.
+        Args:
+            agent_id (int): The agent ID of the party member.
+            intensity (int): The intensity of the drunk effect.
+            tint (int): The tint color for the drunk effect.
+        Returns: None
+        """
+        PyEffects.PyEffects.ApplyDrunkEffect(intensity, tint)
