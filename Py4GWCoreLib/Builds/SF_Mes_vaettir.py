@@ -281,12 +281,12 @@ class SF_Mes_vaettir(BuildMgr):
                 if is_wastrels_slot_ready and is_arcane_echo_slot_ready:
                     yield from self._CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=1200)
                     GLOBAL_CACHE.Player.Interact(target, False)
-                    ConsoleLog(self.build_name, "Casting Arcane Echo.", Py4GW.Console.MessageType.Info, log=True)
+                    ConsoleLog(self.build_name, "Casting Arcane Echo.", Py4GW.Console.MessageType.Info, log=False)
                 elif is_arcane_echo_slot_ready:
                     yield from self._CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=500)
                     GLOBAL_CACHE.Player.Interact(target, False)
                     ConsoleLog(
-                        self.build_name, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=True
+                        self.build_name, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=False
                     )
 
             target = GetNotHexedEnemy()
