@@ -31,15 +31,14 @@ def create_bot_routine(bot: Botting) -> None:
     TakeRewardAndCraftArmor(bot)
     TakeRewardAndCraftWeapon(bot)
     jokanur_diggings_quests(bot)
-    bot.States.JumpToStepName("[H]jokanur_diggings_quests_25")
-    #def LeveledUp(bot: Botting) -> None:
-        #while True:
-            #level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-            #if level <= 10:
-                #bot.States.JumpToStepName("[H]jokanur_diggings_quests_25")
-            #else: 
-                #bot.States.JumpToStepName("[H]EOTN Run_27")
-    #LeveledUp(bot)
+    bot.States.JumpToStepName("[H]jokanur_diggings_quests_25") #trying this, if it loops forever thats great cause I need some sleep
+    def LeveledUp(bot: Botting) -> None:
+            level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+            if level <= 10:
+                bot.States.JumpToStepName("[H]jokanur_diggings_quests_25")
+            else: 
+                bot.States.JumpToStepName("[H]EOTN Run_27")
+    LeveledUp(bot)
     EOTN_Run(bot)
     ExitBorealStation(bot)
     GoToEOTN(bot)
