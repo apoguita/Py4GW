@@ -1,0 +1,34 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPep8Inspection" enabled="true" level="WEAK WARNING" enabled_by_default="true">
+      <option name="ignoredErrors">
+        <list>
+          <option value="E501" />
+        </list>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="PyUnresolvedReferencesInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredIdentifiers">
+        <list>
+          <option value="Py4GW" />
+          <option value="PyImGui" />
+          <option value="PyMap" />
+          <option value="PyAgent" />
+          <option value="PyPlayer" />
+          <option value="PyParty" />
+          <option value="PyItem" />
+          <option value="PyInventory" />
+          <option value="PySkill" />
+          <option value="PySkillbar" />
+          <option value="PyMerchant" />
+          <option value="PyEffects" />
+          <option value="PyKeystroke" />
+          <option value="PyOverlay" />
+          <option value="PyQuest" />
+          <option value="PyPathing" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
