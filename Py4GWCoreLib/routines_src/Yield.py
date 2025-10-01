@@ -148,7 +148,9 @@ class Yield:
             
             total_points = len(path_points)
             retries = 0
-            max_retries = 20  # after this, send stuck command
+            max_retries = 30  # after this, send stuck command
+            stuck_count = 0
+            max_stuck_commands = 2  # after this, do PixelStack recovery
 
             for idx, (target_x, target_y) in enumerate(path_points):
                 start_time = Utils.GetBaseTimestamp()
@@ -206,7 +208,27 @@ class Yield:
                         retries += 1
                         if retries >= max_retries:
                             GLOBAL_CACHE.Player.SendChatCommand("stuck")
-                            retries = 0  # reset retries after stuck command"""
+                            ConsoleLog("FollowPath", "No progress made, sending /stuck command.", Console.MessageType.Warning)
+                            retries = 0
+                            stuck_count += 1
+
+                            # --- PixelStack recovery if too many stucks ---
+                            if stuck_count >= max_stuck_commands:
+                                ConsoleLog("FollowPath", "Too many stucks, attempting strafe recovery.", Console.MessageType.Warning)
+                                start_x, start_y = GLOBAL_CACHE.Player.GetXY()
+
+                                # Backwards
+                                yield from Yield.Movement.WalkBackwards(1000)
+
+                                # Strafe left
+                                yield from Yield.Movement.StrafeLeft(1000)
+
+                                # Strafe right if no movement
+                                left_x, left_y = GLOBAL_CACHE.Player.GetXY()
+                                if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
+                                    yield from Yield.Movement.StrafeRight(1000)
+
+                                stuck_count = 0  # reset after recovery
                     else:
                         retries = 0  # reset retries if making progress
 
@@ -218,7 +240,7 @@ class Yield:
                         if log:
                             ConsoleLog("FollowPath", f"Current distance to target: {current_distance}, waiting...", Console.MessageType.Info)
 
-                    yield from Yield.wait(300)
+                    yield from Yield.wait(250)
 
                 #After reaching each point, report progress
                 if progress_callback:
