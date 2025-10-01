@@ -5,11 +5,15 @@ Py4GW_Launcher.exe
 
 imgui.ini
 Inject.au3
+AlcoholProc.ini
+alcohol_procs.json
 Widgets/Config/Travel.ini
-Widgets/Config/
+Widgets/Config/*
+Bots/marks_coding_corner/Py4GW.ini
 
-# Ignore JaborsFork
-Addons/GWToolboxdll.dll
+!Widgets/Config/textures/
+!Widgets/Config/textures/**
+
 # .tpf files, including in subfolders and ignored
 Addons/*.tpf
 Addons/**/*.tpf
@@ -173,8 +177,13 @@ cython_debug/
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+.idea/
 
-*.ini
 /Multiboxer
-*.ini
+.isort.cfg
+
+# Ignore all json files in Styles
+/Styles/*.json
+
+# # But keep the .default.json ones
+!/Styles/*.default.json

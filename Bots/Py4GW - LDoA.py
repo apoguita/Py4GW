@@ -1,10 +1,14 @@
 from Py4GWCoreLib import*
 import time
+import traceback
+from Py4GWCoreLib import Key
 
 
 #VARIABLES
 module_name = "Py4GW - LDoA"
 window_name = module_name
+
+# Original combat system - no smart combat handler
 
 class AppState :
     def __init__(self) :
@@ -108,7 +112,7 @@ red_iris_flowers_coordinate_list_5 = [(2432, -8082),(5837, -6406),(9905, -7336),
 
 #SKELETAL LIMBS
 greenhills_to_catacombs = [(-5677, 5335), (-5356, 8272), (-3150, 9200)]
-skele_limbs_coordinate_list = (-7439, 13679), (-4499, 10305), (-4468, 8420), (-6126, 8229), (-7305, 9075), (-8043, 9784), (-9305, 10684), (-11632, 10827), (-12712, 9802), (-13320, 9242), (-13514, 7688), (-13335, 6960), (-12263, 5545), (-11292, 5096), (-9862, 4795), (-8895, 5093), (-8260, 5806), (-7267, 6571)
+skele_limbs_coordinate_list = [(-7439, 13679), (-4499, 10305), (-4468, 8420), (-6126, 8229), (-7305, 9075), (-8043, 9784), (-9305, 10684), (-11632, 10827), (-12712, 9802), (-13320, 9242), (-13514, 7688), (-13335, 6960), (-12263, 5545), (-11292, 5096), (-9862, 4795), (-8895, 5093), (-8260, 5806), (-7267, 6571)]
 
 #SKALE FIN
 skale_fin_coordinate_list = [(22578, 6846),(22323, 4048),(21443, 1909),(18033, 2908),(16335, 3362),(15881, 7289),(16861, 6427),(15501, 2865),(13711, 2461),(13511, 1802),(15186, 39),(17397, 903),(19531, 946)]  
@@ -123,6 +127,15 @@ unnatural_seeds_coordinate_list = [(-7910, 1418),(-7555, -1752),(-8062, -3071),(
 
 #WORN BELTS
 worn_belts_coordinate_list = [(-7926, 1415),(-11055, 1227),(-12315, -2885),(-14281, -2275),(-15024, 1351),(-16472, 6562),(-18774, 8704),(-20803, 9038),(-20203, 7347),(-19635, 5800),(-18700, 2386),(-20420, 1201),(-21388, -174),(-18041, -1241),(-18791, -3534),(-20430, -6529),(-17984, -6975),(-21071, -8679),(-17327, -10461),(-16030, -11243),(-16017, -14750),(-14710, -15286),(-11258, -14416),(-10075, -14528),(-7392, -12948),(-5987, -15648),(-10315, -14775),(-14548, -13886),(-17675, -12879),(-18913, -11854),(-20070, -13160),(-20386, -14388),(-22363, -15209),(-22475, -12587)]
+
+#BAKED HUSKS
+baked_husk_coordinate_list = [(-10220, -5000), (-10507, -3583), (-10813, -1725), (-11045, -485), (-6711, -1690)]
+baked_husk_location_1 = [(-10220, -5000)]
+baked_husk_location_2 = [(-10507, -3583)]
+baked_husk_location_3 = [(-10813, -1725)]
+baked_husk_location_4 = [(-11045, -485)]
+baked_husk_location_5 = [(-9467, 673)]
+baked_husk_location_6 = [(-6711, -1690)]
 
 #NICHOLAS GIFTS
 nicholas_sandford_coordinate_list = [(22237, 4061),(17213, 2817),(16320, 3621),(16757, 8255),(17315, 8812),(14385, 11414),(14159, 13931),(15257, 16442)]
@@ -158,6 +171,15 @@ necro_skill_coordinate_list_2 = [(13776, 2598),(13775, 3515)]
 necro_skill_coordinate_list_3 = [(13755, 2156),(13580, -344),(10919, -230),(10595, -123),(9375, -1084),(9621, -4537),(7041, -5399),(7163, -7846),(5923, -8610),(3219, -9292),(1139, -8041),(-190, -9648),(-1397, -11243),(-3260, -9333),(-3905, -8209),(-8007, -7860),(-7836, -5523),(-6484, -3899),(-7420, -2054),(-10793, -1681),(-10772, 4092)]
 necro_skill_coordinate_list_4 = [(20635, 13722),(19086, 12838),(17482, 12210)]
 
+
+#CHARR GATE OPENER
+# Coordinates for just opening the gate and reaching The Northlands
+charr_gate_opener_coordinate_list_1 = [(6602, 4485)]
+charr_gate_opener_coordinate_list_2 = [(3220, 6900),(-1681, 11876),(-5475, 12865)]
+charr_gate_opener_fast_gate_run = [(-5390, 12810), (-5258, 12851), (-5448, 12353), (-5575, 13600), (-5535, 13800)]
+
+# Town exit coordinates for spawn points too far from exit
+ascalon_town_exit_coordinate_list = [(7465, 5461)]  # Move closer to exit before pressing R
 
 
 foible_coordinate_list = [(344, 7832), (367, 7790)]
@@ -294,6 +316,19 @@ def ResetEnvironment():
     FSM_vars.state_machine_worn_belts.reset()
     FSM_vars.worn_belts_pathing.reset()  
 
+    #BAKED HUSKS
+    FSM_vars.state_machine_baked_husks.reset()
+    FSM_vars.baked_husk_pathing.reset()
+
+    
+    #CHARR GATE OPENER
+    FSM_vars.state_machine_charr_gate_opener.reset()
+    FSM_vars.charr_gate_opener_pathing_1.reset()
+    FSM_vars.charr_gate_opener_pathing_2.reset()
+    FSM_vars.ascalon_town_exit_pathing.reset()
+    FSM_vars.charr_gate_opener_fast_gate_run.reset()
+
+
     #NICHOLAS SANDFORD
     FSM_vars.state_machine_nicholas_sandford.reset()
     FSM_vars.nicholas_sandford_pathing.reset()   
@@ -381,7 +416,7 @@ def LDoA_IsOutpost():
         return True
     if map_id == bot_vars.foible_map: #FOIBLE
         return True
-    if map_id == bot_vars.abbey_map: #ABBEY  
+    if map_id == bot_vars.abbey_map: #ABBEY
         return True
     if map_id == bot_vars.barradin_map: #BARRADIN ESTATE
         return True
@@ -487,31 +522,60 @@ def end_killing_routine_1():
 
 #SURVIVOR FUNCTION TO AVOID DEAD, SET YOUR THRESHOLD AS YOU WISH
 def Survivor():
-    max_health = Agent.GetMaxHealth(Player.GetAgentID())
-    current_health = Agent.GetHealth(Player.GetAgentID()) * max_health
-    current_health_pct = current_health / max_health * 100
-    
-    if current_health_pct < 45:
-        return True  
-    return False 
+    try:
+        # Check if game is ready before accessing health data
+        if not Map.IsMapReady() or Player.GetAgentID() <= 0:
+            return False
+            
+        max_health = Agent.GetMaxHealth(Player.GetAgentID())
+        if max_health <= 0:
+            return False  # Can't calculate health percentage if max health is 0 or negative
+        current_health = Agent.GetHealth(Player.GetAgentID()) * max_health
+        current_health_pct = current_health / max_health * 100
+        
+        if current_health_pct < 45:
+            return True  
+        return False
+    except Exception as e:
+        # If there's any error getting health info, assume we're not in danger
+        return False 
 
 def Death():
-    max_health = Agent.GetMaxHealth(Player.GetAgentID())
-    current_health = Agent.GetHealth(Player.GetAgentID()) * max_health
-    current_health_pct = current_health / max_health * 100
-    
-    if current_health < 1:
-        return True  
-    return False 
+    try:
+        # Check if game is ready before accessing health data
+        if not Map.IsMapReady() or Player.GetAgentID() <= 0:
+            return False
+            
+        max_health = Agent.GetMaxHealth(Player.GetAgentID())
+        if max_health <= 0:
+            return False  # Can't calculate health if max health is 0 or negative
+        current_health = Agent.GetHealth(Player.GetAgentID()) * max_health
+        
+        if current_health < 1:
+            return True  
+        return False
+    except Exception as e:
+        # If there's any error getting health info, assume we're not dead
+        return False 
 
 def Survivor_Hamnet():
-    max_health = Agent.GetMaxHealth(Player. GetAgentID())
-    current_health = Agent.GetHealth(Player. GetAgentID()) * max_health
-    current_health_pct = current_health / max_health * 100
-    
-    if current_health_pct < 45:
-        return True  
-    return False 
+    try:
+        # Check if game is ready before accessing health data
+        if not Map.IsMapReady() or Player.GetAgentID() <= 0:
+            return False
+            
+        max_health = Agent.GetMaxHealth(Player.GetAgentID())
+        if max_health <= 0:
+            return False  # Can't calculate health percentage if max health is 0 or negative
+        current_health = Agent.GetHealth(Player.GetAgentID()) * max_health
+        current_health_pct = current_health / max_health * 100
+        
+        if current_health_pct < 45:
+            return True  
+        return False
+    except Exception as e:
+        # If there's any error getting health info, assume we're not in danger
+        return False 
 
 #FIGHT FUNCTIONS
 def get_called_target():
@@ -566,7 +630,6 @@ def handle_map_path(map_pathing):
         Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)  
         return
 
- 
     if FSM_vars.current_target_id is None or not Agent.IsAlive(FSM_vars.current_target_id) or not FSM_vars.current_target_id == FSM_vars.last_target_id:
         FSM_vars.current_target_id = enemy_array[0]  
         FSM_vars.has_interacted = False  
@@ -701,7 +764,6 @@ def handle_map_path_loot(map_pathing):
         Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)  
         return
 
- 
     if FSM_vars.current_target_id is None or not Agent.IsAlive(FSM_vars.current_target_id) or not FSM_vars.current_target_id == FSM_vars.last_target_id:
         FSM_vars.current_target_id = enemy_array[0]  
         FSM_vars.has_interacted = False  
@@ -1121,22 +1183,417 @@ def InteractPet():
     if pet:
         Player.Interact(pet)
 
+def handle_loot_baked_husk():
+    """
+    Loot handling for Baked Husks using the same pattern as dull carapaces farm.
+    """
+    global FSM_vars
+    my_id = Player.GetAgentID()
+    my_x, my_y = Agent.GetXY(my_id)
+    item_distance = 2500  # Expanded loot vision like flower farm
+
+    try:
+        item_array = AgentArray.GetItemArray()
+        item_array = AgentArray.Filter.ByDistance(item_array, (my_x, my_y), item_distance)
+
+        agent_to_item_map = {
+            agent_id: Agent.GetItemAgent(agent_id).item_id
+            for agent_id in item_array
+        }
+
+        filtered_items = list(agent_to_item_map.values())
+        filtered_items = ItemArray.Filter.ByCondition(
+            filtered_items, lambda item_id: Item.GetItemType(item_id)[0] in {30, 10, 20, 9}
+        )
+
+        filtered_agent_ids = [
+            agent_id for agent_id, item_id in agent_to_item_map.items()
+            if item_id in filtered_items
+        ]
+
+        filtered_agent_ids = AgentArray.Sort.ByDistance(filtered_agent_ids, Agent.GetXY(my_id))
+
+        if len(filtered_agent_ids) > 0:
+            looting_item = filtered_agent_ids[0]
+
+            # Check if we're already targeting this item
+            if Player.GetTargetID() != looting_item:
+                Player.ChangeTarget(looting_item)
+                loot_timer.Reset()
+                # Store the current loot target to prevent moving away
+                FSM_vars.current_loot_target = looting_item
+                FSM_vars.loot_target_start_time = time.time()  # Track when we started targeting
+                return
+
+            # If we're targeting the item, try to loot it
+            if loot_timer.HasElapsed(800) and Player.GetTargetID() == looting_item:
+                Keystroke.PressAndRelease(Key.Space.value)
+                loot_timer.Reset()
+                # Clear the loot target after attempting to loot
+                FSM_vars.current_loot_target = None
+                return
+                
+            # Timeout check - if we've been targeting the same loot for more than 10 seconds, give up
+            if (hasattr(FSM_vars, 'loot_target_start_time') and 
+                FSM_vars.loot_target_start_time > 0 and 
+                time.time() - FSM_vars.loot_target_start_time > 10.0):
+                Py4GW.Console.Log("Baked Husk Loot", "Loot target timeout - giving up", Py4GW.Console.MessageType.Warning)
+                FSM_vars.current_loot_target = None
+                FSM_vars.loot_target_start_time = 0.0
+                return
+                
+            # If we have a loot target but it's not in range anymore, clear it
+            if hasattr(FSM_vars, 'current_loot_target') and FSM_vars.current_loot_target:
+                if FSM_vars.current_loot_target not in filtered_agent_ids:
+                    FSM_vars.current_loot_target = None
+                    
+        else:
+            # No loot items found, clear any existing loot target
+            if hasattr(FSM_vars, 'current_loot_target'):
+                FSM_vars.current_loot_target = None
+                
+    except Exception as e:
+        # Clear loot target on any error to prevent getting stuck
+        if hasattr(FSM_vars, 'current_loot_target'):
+            FSM_vars.current_loot_target = None
+        Py4GW.Console.Log("Baked Husk Loot", f"Error in loot handling: {str(e)}", Py4GW.Console.MessageType.Warning)
+
+# Removed handle_loot_worn_belts() function since loot table will automatically pick up worn belts
+
+def sweep_area_for_loot():
+    """
+    Sweep the area for any missed loot items.
+    """
+    try:
+        my_id = Player.GetAgentID()
+        my_x, my_y = Agent.GetXY(my_id)
+        
+        # Get all items in bags
+        bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+        item_array = ItemArray.GetItemArray(bags_to_check)
+        
+        if item_array:
+            for item_id in item_array:
+                if Item.Properties.GetQuantity(item_id) > 0:
+                    TargetNearestItem()
+                    time.sleep(0.1)
+                    
+    except Exception as e:
+        Py4GW.Console.Log("Baked Husk Loot", f"Error in area sweep: {str(e)}", Py4GW.Console.MessageType.Error)
+
+def comprehensive_loot_sweep():
+    """
+    Final comprehensive loot sweep with multiple attempts.
+    """
+    try:
+        for _ in range(5):  # Try 5 times for more thorough sweep
+            handle_loot()
+            time.sleep(0.3)
+            
+            # Additional targeting
+            TargetNearestItem()
+            time.sleep(0.2)
+            
+            # Also try baked husk specific loot
+            handle_loot_baked_husk()
+            time.sleep(0.2)
+            
+    except Exception as e:
+        Py4GW.Console.Log("Baked Husk Loot", f"Error in comprehensive sweep: {str(e)}", Py4GW.Console.MessageType.Error)
+
+def check_movement_stuck():
+    """
+    Check if the bot is stuck in one position and reset movement if needed.
+    """
+    global FSM_vars
+    try:
+        my_id = Player.GetAgentID()
+        current_pos = Agent.GetXY(my_id)
+        
+        # Check if we're in the same position for too long
+        if FSM_vars.last_position == current_pos:
+            if FSM_vars.position_stuck_time == 0.0:
+                FSM_vars.position_stuck_time = time.time()
+            elif time.time() - FSM_vars.position_stuck_time > 15.0:  # 15 seconds stuck
+                Py4GW.Console.Log("Movement", "Bot appears stuck - resetting movement", Py4GW.Console.MessageType.Warning)
+                FSM_vars.movement_handler.reset()
+                FSM_vars.current_loot_target = None
+                FSM_vars.position_stuck_time = 0.0
+                return True
+        else:
+            # We moved, reset stuck timer
+            FSM_vars.position_stuck_time = 0.0
+            
+        FSM_vars.last_position = current_pos
+        return False
+        
+    except Exception as e:
+        Py4GW.Console.Log("Movement", f"Error checking movement: {str(e)}", Py4GW.Console.MessageType.Warning)
+        return False
+
+
+def handle_gadget_interaction():
+    """
+    Simple lever interaction - just target with semicolon and activate with spacebar.
+    """
+    global FSM_vars
+    current_time = time.time()
+
+    # Simple interaction - just press semicolon to target closest object (the lever)
+    if not hasattr(FSM_vars, 'lever_targeted_logged'):
+        Py4GW.Console.Log("Gadget Interaction", "Targeting lever with semicolon key", Py4GW.Console.MessageType.Info)
+        FSM_vars.lever_targeted_logged = True
+    
+    # Press semicolon to target closest object
+    Keystroke.PressAndRelease(Key.Semicolon.value)
+    time.sleep(0.02)  # Small delay to ensure targeting is complete
+    
+    # Press spacebar to activate the lever
+    if not FSM_vars.has_interacted or (current_time - FSM_vars.last_interaction_time >= 3):
+        if not hasattr(FSM_vars, 'lever_activated_logged'):
+            Py4GW.Console.Log("Gadget Interaction", "Activating lever with spacebar", Py4GW.Console.MessageType.Info)
+            FSM_vars.lever_activated_logged = True
+        
+        # Press spacebar to activate lever
+        Keystroke.PressAndRelease(Key.Space.value)
+        
+        # Wait 100ms to ensure lever activation completes
+        time.sleep(0.1)
+        
+        FSM_vars.has_interacted = True
+        FSM_vars.last_interaction_time = current_time
+        
+        time.sleep(0.03)
+        return True
+    
+    return False
+
+def move_to_gate_portal():
+    """
+    Enhanced movement to gate portal with improved coordinates and timing from found code.
+    """
+    global FSM_vars
+    my_id = Player.GetAgentID()
+    my_x, my_y = Agent.GetXY(my_id)
+    current_time = time.time()
+
+    # Enhanced coordinates from found code
+    gate_portal_x, gate_portal_y = -5507, 12917  # Gate portal position
+    northlands_approach_x, northlands_approach_y = -5700, 14200  # Approach to Northlands
+    
+    # Check if we've already reached the gate portal
+    if not hasattr(FSM_vars, 'reached_gate_portal'):
+        FSM_vars.reached_gate_portal = False
+    
+    if not FSM_vars.reached_gate_portal:
+        # Move towards the gate portal
+        if current_time - FSM_vars.last_interaction_time > 5.0:
+            FSM_vars.last_interaction_time = current_time
+            
+            # Use movement to go to the gate portal
+            Routines.Movement.MoveTo(gate_portal_x, gate_portal_y)
+            
+            # Check if we're close enough to the gate portal
+            distance = ((my_x - gate_portal_x) ** 2 + (my_y - gate_portal_y) ** 2) ** 0.5
+            
+            if distance < 200:  # Close enough to consider "reached"
+                FSM_vars.reached_gate_portal = True
+    else:
+        # Now move to Northlands approach position
+        if current_time - FSM_vars.last_interaction_time > 5.0:
+            FSM_vars.last_interaction_time = current_time
+            
+            # Use movement to go to the Northlands approach position
+            Routines.Movement.MoveTo(northlands_approach_x, northlands_approach_y)
+            
+            # Check if we're close enough to the Northlands approach position
+            distance = ((my_x - northlands_approach_x) ** 2 + (my_y - northlands_approach_y) ** 2) ** 0.5
+            
+            if distance < 200:  # Close enough to consider "reached"
+                FSM_vars.reached_northlands_approach = True 
+
+def handle_map_path_gate_opener(map_pathing):
+    """
+    Optimized path handler for gate opener with minimal performance impact.
+    """
+    global FSM_vars
+    
+    # Safety check - validate game state first
+    try:
+        if not Map.IsMapReady() or Player.GetAgentID() <= 0:
+            return
+    except Exception as e:
+        return
+        
+    my_id = Player.GetAgentID()
+    my_x, my_y = Agent.GetXY(my_id)
+    
+    # Check if we're stuck and need to reset movement (reduced frequency)
+    current_time = time.time()
+    if not hasattr(FSM_vars, 'last_stuck_check_time'):
+        FSM_vars.last_stuck_check_time = 0.0
+    
+    if current_time - FSM_vars.last_stuck_check_time > 1.0:  # Only check every second
+        FSM_vars.last_stuck_check_time = current_time
+        if check_movement_stuck():
+            return  # Let the movement reset take effect
+    
+    # Optimized movement without delays
+    try:
+        # Follow the path directly without stabilization delays
+        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)
+        
+        # Log movement status periodically (reduced frequency)
+        if not hasattr(FSM_vars, 'last_debug_time'):
+            FSM_vars.last_debug_time = time.time()
+            
+    except Exception as e:
+        # Try to recover by resetting movement handler (without delays)
+        FSM_vars.movement_handler.reset()
+        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)
+
+def handle_map_path_baked_husk(map_pathing):
+    """
+    Optimized function for Baked Husks farming with reduced lag.
+    """
+    global FSM_vars
+    
+    # Safety check - validate game state first
+    try:
+        if not Map.IsMapReady() or Player.GetAgentID() <= 0:
+            return
+    except:
+        return
+        
+    my_id = Player.GetAgentID()
+    my_x, my_y = Agent.GetXY(my_id)
+    my_p_prof, my_s_prof = Agent.GetProfessionIDs(my_id)
+    current_time = time.time()
+
+    # SPECIAL HANDLING FOR 5TH COORDINATE (-9467, 673) - LAG SPIKE AREA
+    # Check if we're near the problematic coordinate
+    target_coord_x, target_coord_y = -9467, 673
+    distance_to_problem_coord = ((my_x - target_coord_x) ** 2 + (my_y - target_coord_y) ** 2) ** 0.5
+    
+    if distance_to_problem_coord < 500:  # Within 500 units of the laggy coordinate
+        # Add extra delay and reduced processing for this area
+        time.sleep(0.1)  # Extra 100ms delay
+        # Skip some processing to reduce lag
+        if hasattr(FSM_vars, 'last_problem_coord_time') and current_time - FSM_vars.last_problem_coord_time < 0.5:
+            # Only process every 500ms in the problem area
+            return
+        FSM_vars.last_problem_coord_time = current_time
+
+    # Check for enemies in a larger area to ensure we don't miss any
+    enemy_array = AgentArray.GetEnemyArray()
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (my_x, my_y), 2500)  # Increased from 1200 to 2500
+    enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
+    enemy_array = AgentArray.Sort.ByDistance(enemy_array, (my_x, my_y))
+
+    # PRIORITIZE LOOT BEFORE COMBAT
+    # Always try to loot first, regardless of enemy presence
+    # Most enemies won't attack unless provoked
+    
+    # Check if we're at the end of the path (near teleport location)
+    # If so, do a comprehensive loot sweep before teleporting
+    if map_pathing.is_finished() and not FSM_vars.final_loot_sweep_done:
+        # Final loot sweep before teleporting
+        comprehensive_loot_sweep()
+        FSM_vars.final_loot_sweep_done = True
+        time.sleep(0.5)  # Give time for loot to be picked up
+        return
+    
+    # Always try to loot first (enemies won't attack unless provoked)
+    handle_loot_baked_husk()
+    
+    # Check if we're stuck and need to reset movement
+    if check_movement_stuck():
+        return  # Let the movement reset take effect
+    
+    # Continue movement regardless of loot status - don't get stuck on loot
+    try:
+        # Add extra delay if in problem coordinate area
+        if distance_to_problem_coord < 500:
+            time.sleep(0.05)  # Extra 50ms delay for smoother movement in lag area
+        
+        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)
+        # Log movement status periodically
+        if hasattr(FSM_vars, 'last_debug_time') and time.time() - FSM_vars.last_debug_time > 30.0:
+            Py4GW.Console.Log("Baked Husk Movement", "Continuing path movement", Py4GW.Console.MessageType.Info)
+            FSM_vars.last_debug_time = time.time()
+        elif not hasattr(FSM_vars, 'last_debug_time'):
+            FSM_vars.last_debug_time = time.time()
+    except Exception as e:
+        Py4GW.Console.Log("Baked Husk Movement", f"Movement error: {str(e)}", Py4GW.Console.MessageType.Warning)
+        # Try to recover by resetting movement handler
+        FSM_vars.movement_handler.reset()
+        time.sleep(0.1)
+        Routines.Movement.FollowPath(map_pathing, FSM_vars.movement_handler)
+        
+    # Handle enemies if they exist - kill all enemies in 2500 range
+    if enemy_array:
+        if FSM_vars.current_target_id is None or not Agent.IsAlive(FSM_vars.current_target_id) or not FSM_vars.current_target_id == FSM_vars.last_target_id:
+            FSM_vars.current_target_id = enemy_array[0]  
+            FSM_vars.has_interacted = False  
+
+        if FSM_vars.current_target_id:
+            target_id = FSM_vars.current_target_id
+            target_x, target_y = Agent.GetXY(target_id)
+            distance_to_target = ((my_x - target_x) ** 2 + (my_y - target_y) ** 2) ** 0.5
+
+            if not FSM_vars.has_interacted:
+                if my_p_prof == Profession.Ranger.value or my_s_prof == Profession.Ranger.value:
+                    Party.Pets.SetPetBehavior(0, target_id)
+                Player.Interact(target_id, call_target=False)
+                FSM_vars.last_target_id = target_id
+                FSM_vars.has_interacted = True  
+            
+            if Agent.IsAlive(target_id):
+                if current_time - FSM_vars.last_skill_time >= 2.0:
+                    skill_slot = FSM_vars.current_skill_index
+                    Player.ChangeTarget(target_id)
+                    Player.Interact(target_id, call_target=False)                 
+                    SkillBar.UseSkill(skill_slot)  
+                    FSM_vars.last_skill_time = current_time  
+                    FSM_vars.current_skill_index = (skill_slot % 8) + 1  
+
+                return
+    else:
+        # No enemies, clear target variables
+        FSM_vars.current_target_id = None
+        FSM_vars.last_target_id = None
+        FSM_vars.has_interacted = False
+
 #FSM
 class StateMachineVars:
     def __init__(self):     
   
-        self.movement_handler = Routines.Movement.FollowXY()
+        self.movement_handler = Routines.Movement.FollowXY(300)  # Add 300ms delay for smoother movement
         self.last_skill_time = 0.0
         self.current_skill_index = 1
-        self.last_item_pickup_time = 0
+        self.last_item_pickup_time = 0.0
+        
+        # Loot tracking variables
+        self.current_lootable = 0
+        self.current_loot_tries = 0
+        self.current_loot_target = None
+        self.loot_target_start_time = 0.0  # Track when we started targeting loot
+        self.final_loot_sweep_done = False
         self.current_target_id = None
         self.last_target_id = None
         self.has_interacted = False 
         self.last_interaction_time = 0.0
         self.PetBehavior = 1
         
+        # Movement stuck detection
+        self.last_position = (0, 0)
+        self.position_stuck_time = 0.0
+        self.last_debug_time = 0.0
+        
         self.in_waiting_routine = True
         self.in_killing_routine = True
+        self.reached_althea_stage = False
+        self.reached_first_coordinate = False
 
         #FSM for lvl 1
         self.town_crier_pathing =  Routines.Movement.PathHandler(town_crier_coordinate_list)
@@ -1249,6 +1706,23 @@ class StateMachineVars:
         #FSM for UNNATURAL SEEDS
         self.state_machine_worn_belts = FSM("WORN BELTS")
         self.worn_belts_pathing = Routines.Movement.PathHandler(worn_belts_coordinate_list)
+
+        #FSM for BAKED HUSKS
+        self.state_machine_baked_husks = FSM("BAKED HUSKS")
+        self.baked_husk_pathing = Routines.Movement.PathHandler(baked_husk_coordinate_list)
+        self.baked_husk_location_1_pathing = Routines.Movement.PathHandler(baked_husk_location_1)
+        self.baked_husk_location_2_pathing = Routines.Movement.PathHandler(baked_husk_location_2)
+        self.baked_husk_location_3_pathing = Routines.Movement.PathHandler(baked_husk_location_3)
+        self.baked_husk_location_4_pathing = Routines.Movement.PathHandler(baked_husk_location_4)
+        self.baked_husk_location_5_pathing = Routines.Movement.PathHandler(baked_husk_location_5)
+        self.baked_husk_location_6_pathing = Routines.Movement.PathHandler(baked_husk_location_6)
+
+        #FSM for CHARR GATE OPENER
+        self.state_machine_charr_gate_opener = FSM("CHARR GATE OPENER")
+        self.charr_gate_opener_pathing_1 = Routines.Movement.PathHandler(charr_gate_opener_coordinate_list_1)
+        self.charr_gate_opener_pathing_2 = Routines.Movement.PathHandler(charr_gate_opener_coordinate_list_2)
+        self.charr_gate_opener_fast_gate_run = Routines.Movement.PathHandler(charr_gate_opener_fast_gate_run)
+        self.ascalon_town_exit_pathing = Routines.Movement.PathHandler(ascalon_town_exit_coordinate_list)
 
         #FSM for NICHOLAS SANDFORD
         self.state_machine_nicholas_sandford = FSM("NICHOLAS SANDFORD")
@@ -1887,8 +2361,8 @@ FSM_vars.state_machine_necro_noreq.AddState(name="GOING BACK TO ASCALON", execut
 
 #DULL CARAPACES
 FSM_vars.state_machine_dull_carapaces.AddState(name="ASCALON", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - DULL CARAPACES FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.ascalon_map,6,0)),  
-                       exit_condition=lambda: LDoA_IsOutpost(),
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - DULL CARAPACES FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.ascalon_map,6,0)) if not Map.IsExplorable() else None,  
+                       exit_condition=lambda: LDoA_IsOutpost() or Map.IsExplorable(),
                        transition_delay_ms=1000,
                        run_once=True)
 
@@ -1920,10 +2394,21 @@ FSM_vars.state_machine_dull_carapaces.AddState(name="COUNTER",
                        transition_delay_ms=1000,
                        run_once=True)
 
+FSM_vars.state_machine_dull_carapaces.AddState(name="RETURN TO TOWN",
+                       execute_fn=lambda: LDoA_TravelToOutpost(bot_vars.ascalon_map),
+                       exit_condition=lambda: Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(),
+                       transition_delay_ms=1000,
+                       run_once=True
+)
+FSM_vars.state_machine_dull_carapaces.AddState(name="WAITING OUTPOST MAP",
+                       exit_condition=lambda: Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(),
+                       transition_delay_ms=1500,
+                       run_once=True
+)
 #GARGOYLE SKULLS
 FSM_vars.state_machine_gargoyle_skulls.AddState(name="BARRADIN", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - GARGOYLE SKULLS FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.barradin_map,6,0)),  
-                       exit_condition=lambda: LDoA_IsOutpost(),
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - GARGOYLE SKULLS FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.barradin_map,6,0)) if not Map.IsExplorable() else None,  
+                       exit_condition=lambda: LDoA_IsOutpost() or Map.IsExplorable(),
                        transition_delay_ms=1000,
                        run_once=True)
 
@@ -1965,8 +2450,8 @@ FSM_vars.state_machine_gargoyle_skulls.AddState(name="COUNTER",
 
 #GRAWL NECKLACES
 FSM_vars.state_machine_grawl_necklaces.AddState(name="BARRADIN", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - GRAWL NECKLACES FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.barradin_map,6,0)),  
-                       exit_condition=lambda: LDoA_IsOutpost(),
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - GRAWL NECKLACES FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.barradin_map,6,0)) if not Map.IsExplorable() else None,  
+                       exit_condition=lambda: LDoA_IsOutpost() or Map.IsExplorable(),
                        transition_delay_ms=1000,
                        run_once=True)
 
@@ -1994,6 +2479,17 @@ FSM_vars.state_machine_grawl_necklaces.AddState(name="COUNTER",
                        transition_delay_ms=1000,
                        run_once=True)
 
+FSM_vars.state_machine_grawl_necklaces.AddState(name="RETURN TO TOWN",
+                       execute_fn=lambda: LDoA_TravelToOutpost(bot_vars.barradin_map),
+                       exit_condition=lambda: Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(),
+                       transition_delay_ms=1000,
+                       run_once=True
+)
+FSM_vars.state_machine_grawl_necklaces.AddState(name="WAITING OUTPOST MAP",
+                       exit_condition=lambda: Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(),
+                       transition_delay_ms=1500,
+                       run_once=True
+)
 #ICY LODESTONES
 FSM_vars.state_machine_icy_lodestones.AddState(name="ARE WE IN HOGWARTS?", 
                        execute_fn=lambda: Map.Travel(bot_vars.foible_map),
@@ -2028,8 +2524,8 @@ FSM_vars.state_machine_icy_lodestones.AddState(name="COUNTER",
 
 #ENCHANTED LODESTONES
 FSM_vars.state_machine_lodestone.AddState(name="BARRADIN", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - ENCHANTED LODESTONE FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.barradin_map,6,0)),  
-                       exit_condition=lambda: LDoA_IsOutpost(),
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - ENCHANTED LODESTONE FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.barradin_map,6,0)) if not Map.IsExplorable() else None,  
+                       exit_condition=lambda: LDoA_IsOutpost() or Map.IsExplorable(),
                        transition_delay_ms=1000,
                        run_once=True)
 
@@ -2053,23 +2549,29 @@ FSM_vars.state_machine_lodestone.AddState(name="FARMING LODESTONES",
 
 #RED IRIS FLOWERS
 FSM_vars.state_machine_red_iris_flowers.AddState(name="ARE WE IN ASCALON?", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.ascalon_map,6,0)),                                             
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.ascalon_map,6,0)) if not Map.IsExplorable() else None,                                             
+                       exit_condition=lambda: LDoA_IsOutpost() or Map.IsExplorable(),
                        transition_delay_ms=1000,
                        run_once=True)
 
 FSM_vars.state_machine_red_iris_flowers.AddState(name="GOING OUT ASCALON",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler),
+                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler) if not Map.IsExplorable() else None,
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler) or Map.IsExplorable(),
                        run_once=False)
 
 FSM_vars.state_machine_red_iris_flowers.AddState(name="RUNNING OUT OF TOWN",
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)),
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "RUNNING OUT OF TOWN", Py4GW.Console.MessageType.Info),Keystroke.PressAndRelease(Key.R.value)) if not Map.IsExplorable() else None,
+                       exit_condition=lambda: Map.IsExplorable(),
                        transition_delay_ms=100,
                        run_once=True)
 
 FSM_vars.state_machine_red_iris_flowers.AddState(name="WAITING EXPLORABLE MAP",
                        exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
                        transition_delay_ms=2000)
+
+FSM_vars.state_machine_red_iris_flowers.AddState(name="HEY THERE IS A FIRE ALLY",
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - RED IRIS FLOWERS FARM", "USING FIRE STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
+                       run_once=False)
 
 FSM_vars.state_machine_red_iris_flowers.AddState(name="PATH 1",
                        execute_fn=lambda: handle_map_path_Red_Iris_Flower(FSM_vars.red_iris_flowers_pathing_1),
@@ -2166,10 +2668,24 @@ FSM_vars.state_machine_skale_fin.AddState(name="FARMING LODESTONES",
                        run_once=False)
 
 FSM_vars.state_machine_skale_fin.AddState(name="COUNTER", 
-                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO  WORN BELTS", "ADD COUNTER", Py4GW.Console.MessageType.Info),increment_run_counter()), 
-                       exit_condition=lambda: Map.IsExplorable(),
-                       transition_delay_ms=1000,
-                       run_once=True)
+    execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO  WORN BELTS", "ADD COUNTER", Py4GW.Console.MessageType.Info),increment_run_counter()), 
+    exit_condition=lambda: Map.IsExplorable(),
+    transition_delay_ms=1000,
+    run_once=True)
+
+FSM_vars.state_machine_skale_fin.AddState(
+    name="RETURN TO TOWN",
+    execute_fn=lambda: LDoA_TravelToOutpost(bot_vars.ranik_map),  # or your desired outpost map id
+    exit_condition=lambda: Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(),
+    transition_delay_ms=1000,
+    run_once=True
+)
+FSM_vars.state_machine_skale_fin.AddState(
+    name="WAITING OUTPOST MAP",
+   exit_condition=lambda: Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(),
+   transition_delay_ms=1500,
+   run_once=True
+)
 
 #SPIDER LEGS
 FSM_vars.state_machine_spider_leg.AddState(name="FORT RANIK", 
@@ -2290,6 +2806,78 @@ FSM_vars.state_machine_worn_belts.AddState(name="COUNTER",
                        transition_delay_ms=1000,
                        run_once=True)
 
+#BAKED HUSKS
+FSM_vars.state_machine_baked_husks.AddState(name="ASHFORD ABBEY", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO BAKED HUSKS", "MOVING TO ASHFORD ABBEY", Py4GW.Console.MessageType.Info),Py4GW.Console.Log("BAKED HUSKS", "Executing travel function", Py4GW.Console.MessageType.Info),Py4GW.Console.Log("BAKED HUSKS", f"Traveling to map ID: {bot_vars.abbey_map}", Py4GW.Console.MessageType.Info),LDoA_TravelToOutpost(bot_vars.abbey_map)),  
+                       exit_condition=lambda: LDoA_IsOutpost(),
+                       transition_delay_ms=1000,
+                       run_once=True)
+
+FSM_vars.state_machine_baked_husks.AddState(name="GOING OUT IN DANGEROUS LANDS",
+                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler),
+                       run_once=False)
+
+FSM_vars.state_machine_baked_husks.AddState(name="WAITING YOUR SLOW PC TO LOAD",
+                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO BAKED HUSKS", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
+                       transition_delay_ms=3000)
+
+FSM_vars.state_machine_baked_husks.AddState(name="HEY THERE IS A FIRE ALLY",
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO BAKED HUSKS", "USING FIRE STONE", Py4GW.Console.MessageType.Info), useitem(30847)),
+                       run_once=True)
+
+FSM_vars.state_machine_baked_husks.AddState(name="FARMING BAKED HUSKS",
+                       execute_fn=lambda:handle_map_path_baked_husk(FSM_vars.baked_husk_pathing),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.baked_husk_pathing, FSM_vars.movement_handler),
+                       run_once=False)
+
+FSM_vars.state_machine_baked_husks.AddState(name="COUNTER", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO  BAKED HUSKS", "ADD COUNTER", Py4GW.Console.MessageType.Info),increment_run_counter()), 
+                       exit_condition=lambda: Map.IsExplorable(),
+                       transition_delay_ms=1000,
+                       run_once=True)
+
+#CHARR GATE OPENER
+FSM_vars.state_machine_charr_gate_opener.AddState(name="ASCALON", 
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - CHARR GATE OPENER", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.ascalon_map,6,0)) if not Map.IsExplorable() else None,  
+                       exit_condition=lambda: LDoA_IsOutpost() or Map.IsExplorable(),
+                       transition_delay_ms=2000,
+                       run_once=True)
+
+FSM_vars.state_machine_charr_gate_opener.AddState(name="GOING OUT IN DANGEROUS LANDS",
+                       execute_fn=lambda:Routines.Movement.FollowPath(FSM_vars.ascalon_pathing, FSM_vars.movement_handler) if not Map.IsExplorable() else None,
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.ascalon_pathing, FSM_vars.movement_handler) or Map.IsExplorable(),
+                       run_once=False)
+
+FSM_vars.state_machine_charr_gate_opener.AddState(name="WAITING YOUR SLOW PC TO LOAD",
+                       exit_condition=lambda: (Py4GW.Console.Log("TH3KUM1KO - CHARR GATE OPENER", "WAITING FOR EXPLORABLE MAP", Py4GW.Console.MessageType.Info),Map.IsExplorable()),
+                       transition_delay_ms=3000)
+
+FSM_vars.state_machine_charr_gate_opener.AddState(name="GOING TO LEVER",
+                       execute_fn=lambda: handle_map_path_gate_opener(FSM_vars.charr_gate_opener_pathing_2),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.charr_gate_opener_pathing_2, FSM_vars.movement_handler),
+                       run_once=False)
+
+FSM_vars.state_machine_charr_gate_opener.AddState(name="WAITING TO STABILIZE",
+                       execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO - CHARR GATE OPENER", "WAITING TO STABILIZE BEFORE LEVER INTERACTION", Py4GW.Console.MessageType.Info), None),
+                       transition_delay_ms=1000,
+                       run_once=True)
+
+FSM_vars.state_machine_charr_gate_opener.AddState(name="INTERACTING WITH LEVER",
+                       execute_fn=lambda: handle_gadget_interaction(),
+                       transition_delay_ms=50,
+                       run_once=True)
+
+FSM_vars.state_machine_charr_gate_opener.AddState(name="WALKING TO PORTAL EDGE",
+                       execute_fn=lambda: handle_map_path_gate_opener(FSM_vars.charr_gate_opener_fast_gate_run),
+                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.charr_gate_opener_fast_gate_run, FSM_vars.movement_handler),
+                       run_once=False)
+
+FSM_vars.state_machine_charr_gate_opener.AddState(name="WAITING YOUR SLOW PC TO LOAD",
+                       exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(),
+                       transition_delay_ms=3000,
+                       run_once=True)
+
 #NICHOLAS SANDFORD
 FSM_vars.state_machine_nicholas_sandford.AddState(name="BARRADIN", 
                        execute_fn=lambda: (Py4GW.Console.Log("TH3KUM1KO -  GOING TO NICHOLAS SANDFORD", "MOVING TO A SAFER DISTRICT", Py4GW.Console.MessageType.Info),LDoA_TravelToDistrict(bot_vars.ranik_map,6,0)),  
@@ -2360,62 +2948,74 @@ class InventoryTracker:
 
     def initialize(self):
         self.initial_quantities = {}
-        bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)  
-        item_array = ItemArray.GetItemArray(bags_to_check)
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)  
+            item_array = ItemArray.GetItemArray(bags_to_check)
 
-        for item_id in item_array:
-            model_id = Item.GetModelID(item_id)
-            if model_id in self.tracked_model_ids: 
-                quantity = Item.Properties.GetQuantity(item_id)
-                self.initial_quantities[model_id] = self.get_count_items().get(model_id, 0)
+            for item_id in item_array:
+                model_id = Item.GetModelID(item_id)
+                if model_id in self.tracked_model_ids: 
+                    quantity = Item.Properties.GetQuantity(item_id)
+                    self.initial_quantities[model_id] = self.get_count_items().get(model_id, 0)
+        except Exception as e:
+            Py4GW.Console.Log("INVENTORY TRACKER", f"Error initializing: {e}", Py4GW.Console.MessageType.Warning)
 
     def get_count_items(self):
         count_items = {model_id: 0 for model_id in self.tracked_model_ids}
-        bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
-        item_array = ItemArray.GetItemArray(bags_to_check)
-        
-        for item_id in item_array:
-            model_id = Item.GetModelID(item_id)
-            if model_id in self.tracked_model_ids:
-                quantity = Item.Properties.GetQuantity(item_id)
-                count_items[model_id] += max(0, quantity)
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = ItemArray.GetItemArray(bags_to_check)
+            
+            for item_id in item_array:
+                model_id = Item.GetModelID(item_id)
+                if model_id in self.tracked_model_ids:
+                    quantity = Item.Properties.GetQuantity(item_id)
+                    count_items[model_id] += max(0, quantity)
+        except Exception as e:
+            Py4GW.Console.Log("INVENTORY TRACKER", f"Error counting items: {e}", Py4GW.Console.MessageType.Warning)
 
         return count_items
 
     def get_farmed_items(self):
         farmed_items = {model_id: 0 for model_id in self.tracked_model_ids}  
-        bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
-        item_array = ItemArray.GetItemArray(bags_to_check)
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = ItemArray.GetItemArray(bags_to_check)
 
-        for item_id in item_array:
-            model_id = Item.GetModelID(item_id)
-            if model_id in self.tracked_model_ids:  
-                initial_quantity = self.initial_quantities.get(model_id, 0)
-                current_quantity = self.get_count_items().get(model_id, 0)
-                farmed_items[model_id] = max(0, current_quantity - initial_quantity)  
+            for item_id in item_array:
+                model_id = Item.GetModelID(item_id)
+                if model_id in self.tracked_model_ids:  
+                    initial_quantity = self.initial_quantities.get(model_id, 0)
+                    current_quantity = self.get_count_items().get(model_id, 0)
+                    farmed_items[model_id] = max(0, current_quantity - initial_quantity)  
+        except Exception as e:
+            Py4GW.Console.Log("INVENTORY TRACKER", f"Error getting farmed items: {e}", Py4GW.Console.MessageType.Warning)
 
         return farmed_items
 
 inventory_tracker = InventoryTracker()
 
 def show_info_table_item():
-    headers = ["ITEM NAME", "FARMED ITEMS / (COUNT)"] 
+    try:
+        headers = ["ITEM NAME", "FARMED ITEMS / (COUNT)"] 
 
-    farmed_items = inventory_tracker.get_farmed_items()  
-    count_items = inventory_tracker.get_count_items()
+        farmed_items = inventory_tracker.get_farmed_items()  
+        count_items = inventory_tracker.get_count_items()
 
-    data = []
-    
-    for model_id, name in inventory_tracker.tracked_model_ids.items():
-        farmed = farmed_items.get(model_id, 0)  
-        count = count_items.get(model_id, 0)
-        farmed_text = f"+{farmed}" if farmed > 0 else "0"
-        count_text = f"{count}" if count > 0 else "0"
-        farmed_text = f"{farmed_text} / ({count_text})"
+        data = []
+        
+        for model_id, name in inventory_tracker.tracked_model_ids.items():
+            farmed = farmed_items.get(model_id, 0)  
+            count = count_items.get(model_id, 0)
+            farmed_text = f"+{farmed}" if farmed > 0 else "0"
+            count_text = f"{count}" if count > 0 else "0"
+            farmed_text = f"{farmed_text} / ({count_text})"
 
-        data.append((name, farmed_text))
+            data.append((name, farmed_text))
 
-    ImGui.table("INVENTARY", headers, data)
+        ImGui.table("INVENTARY", headers, data)
+    except Exception as e:
+        Py4GW.Console.Log("INVENTORY DISPLAY", f"Error showing inventory: {e}", Py4GW.Console.MessageType.Warning)
 
 
 
@@ -2528,25 +3128,18 @@ def DrawWindow():
 
             if PyImGui.begin_tab_item("NIC ITEMS"): 
                     PyImGui.spacing()
-                    # state.radio_button_selected = PyImGui.radio_button("\ue599 BAKED HUSKS", state.radio_button_selected, 6)
-                    # state.radio_button_selected = PyImGui.radio_button("\uf1b0 CHARR CARVINGS", state.radio_button_selected, 7)
+                    state.radio_button_selected = PyImGui.radio_button("\ue599 BAKED HUSKS", state.radio_button_selected, 6)
                     state.radio_button_selected = PyImGui.radio_button("\uf188 DULL CARAPACES", state.radio_button_selected, 8)
-                    PyImGui.same_line(250, -1.0)
                     state.radio_button_selected = PyImGui.radio_button("\uf54c GARGOYLE SKULLS", state.radio_button_selected, 9)
                     state.radio_button_selected = PyImGui.radio_button("\uf4d6 GRAWL NECKLACES", state.radio_button_selected, 10)
-                    PyImGui.same_line(250, -1.0)
                     state.radio_button_selected = PyImGui.radio_button("\uf7ad ICY LODESTONES", state.radio_button_selected, 11)
                     state.radio_button_selected = PyImGui.radio_button("\uf3a5 ENCHANTED LODESTONES", state.radio_button_selected, 12)
-                    PyImGui.same_line(250, -1.0)
                     state.radio_button_selected = PyImGui.radio_button("\uf5bb RED IRIS FLOWERS", state.radio_button_selected, 13)
                     state.radio_button_selected = PyImGui.radio_button("\uf5d7 SKELETAL LIMBS", state.radio_button_selected, 14)
-                    PyImGui.same_line(250, -1.0)
                     state.radio_button_selected = PyImGui.radio_button("\ue4f2 SKALE FINS", state.radio_button_selected, 15)
                     state.radio_button_selected = PyImGui.radio_button("\uf717 SPIDER LEGS", state.radio_button_selected, 16)
-                    PyImGui.same_line(250, -1.0)
                     state.radio_button_selected = PyImGui.radio_button("\uf4d8 UNNATURAL SEEDS", state.radio_button_selected, 17)
                     state.radio_button_selected = PyImGui.radio_button("\ue19b WORN BELTS", state.radio_button_selected, 18)
-                    PyImGui.same_line(250, -1.0)
                     state.radio_button_selected = PyImGui.radio_button("\uf06b NICHOLAS SANDFORD", state.radio_button_selected, 26)
                     PyImGui.spacing()
 
@@ -2567,6 +3160,7 @@ def DrawWindow():
             if PyImGui.begin_tab_item("MISC"):   
                         
                     state.radio_button_selected = PyImGui.radio_button("\uf6be TAME PET", state.radio_button_selected, 27)
+                    state.radio_button_selected = PyImGui.radio_button("\uf70c CHARR GATE OPENER", state.radio_button_selected, 42)
 
                     if IsBotStarted():        
                         if PyImGui.button(" \uf04d   STOP"):
@@ -2650,6 +3244,15 @@ def DrawWindow():
 def main():
     global bot_vars, FSM_vars, inventory_tracker
     try:
+        # Global safety check - prevent any bot operation if game isn't ready
+        try:
+            if not Map.IsMapReady() or Player.GetAgentID() <= 0:
+                # Don't log every frame, just return silently
+                return
+        except Exception as e:
+            # If we can't even check basic game state, something is wrong
+            return
+            
         if Party.IsPartyLoaded() and Map.IsMapReady():
             DrawWindow()
 
@@ -2839,6 +3442,13 @@ def main():
                 else:
                     FSM_vars.state_machine_worn_belts.update()   
 
+            # BAKED HUSKS  
+            elif state.radio_button_selected == 6:  
+                if FSM_vars.state_machine_baked_husks.is_finished():
+                    ResetEnvironment()
+                else:
+                    FSM_vars.state_machine_baked_husks.update()   
+
             # NICHOLAS SANDFORD  
             elif state.radio_button_selected == 26:  
                 if FSM_vars.state_machine_nicholas_sandford.is_finished():
@@ -2854,6 +3464,14 @@ def main():
                     StopBot()
                 else:
                     FSM_vars.state_machine_TamePet.update()
+
+            # CHARR GATE OPENER (MISC TAB)
+            elif state.radio_button_selected == 42:  # (or whatever value is for Charr Gate Opener)
+                if FSM_vars.state_machine_charr_gate_opener.is_finished():
+                    ResetEnvironment()
+                    StopBot()
+                else:
+                    FSM_vars.state_machine_charr_gate_opener.update()
 
             # WARRIOR REQ 
             elif state.radio_button_selected == 28:  

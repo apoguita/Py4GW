@@ -1,13 +1,10 @@
-import Py4GW
 import PyMap
 import PyMissionMap
 import PyPathing
 import PyOverlay
-from .enums import outposts, outpost_name_to_id, explorables, explorable_name_to_id, FlagPreference
+from .enums import outposts, explorables, explorable_name_to_id, FlagPreference
 from .UIManager import *
 from .Overlay import *
-from collections import deque
-import time
 import math
 
 class Map:
@@ -76,7 +73,7 @@ class Map:
         return list(outposts.values())
     
     @staticmethod
-    def GetMapIDByName(name):
+    def GetMapIDByName(name) -> int:
         global explorable_name_to_id
         """Retrieve the ID of a map by its name."""
         map_id = explorable_name_to_id.get(name)
@@ -89,7 +86,8 @@ class Map:
         outpost_name_to_id = {name: id for id, name in zip(outpost_names, outpost_ids)}
 
         # Check if the name exists in outposts
-        return outpost_name_to_id.get(name, 0)
+        return int(outpost_name_to_id.get(name, 0))
+        
 
     @staticmethod
     def GetExplorableIDs():
@@ -180,6 +178,21 @@ class Map:
     def HasEnterChallengeButton():
         """Check if the map has an enter challenge button."""
         return Map.map_instance().has_enter_button
+    
+    @staticmethod
+    def IsOnWorldMap():
+        """Check if the map is on the world map."""
+        return Map.map_instance().is_on_world_map
+    
+    @staticmethod
+    def IsPVP():
+        """Check if the map is a PvP map."""
+        return Map.map_instance().is_pvp
+    
+    @staticmethod
+    def IsGuildHall():
+        """Check if the map is a Guild Hall."""
+        return Map.map_instance().is_guild_hall
 
     @staticmethod
     def EnterChallenge():

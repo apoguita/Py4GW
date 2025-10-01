@@ -18,7 +18,7 @@ def main():
         rgb_button_color:Color = Utils.NormalToColor(button_color)
         PyImGui.same_line(0,-1)
         if PyImGui.button("Copy To Clipboard##buttoncolor"):
-            PyImGui.set_clipboard_text(f"Color({rgb_button_color.to_tuple()})")
+            PyImGui.set_clipboard_text(f"Color{rgb_button_color.to_tuple()}")
             print("Copied to clipboard!")
        
         PyImGui.text("Hovered Color:")   
@@ -27,7 +27,7 @@ def main():
         rgb_hovered_color:Color = Utils.NormalToColor(hovered_color)
         PyImGui.same_line(0,-1)
         if PyImGui.button("Copy To Clipboard##hoveredcolor"):
-            PyImGui.set_clipboard_text(f"Color({rgb_hovered_color.to_tuple()})")
+            PyImGui.set_clipboard_text(f"Color{rgb_hovered_color.to_tuple()}")
             print("Copied to clipboard!")
         PyImGui.text("Active Color:")
         PyImGui.same_line(0,-1)
@@ -35,7 +35,7 @@ def main():
         rgb_active_color:Color = Utils.NormalToColor(active_color)
         PyImGui.same_line(0,-1)
         if PyImGui.button("Copy To Clipboard##activecolor"):
-            PyImGui.set_clipboard_text(f"Color({rgb_active_color.to_tuple()})")
+            PyImGui.set_clipboard_text(f"Color{rgb_active_color.to_tuple()}")
             print("Copied to clipboard!")  
             
             

@@ -50,6 +50,9 @@ class PlayerCache:
         chat_history = self._player_instance.GetChatHistory()
         return chat_history
     
+    def IsTyping(self):
+        return self._player_instance.Istyping()
+    
     def SendChatCommand(self, msg):
         self._action_queue_manager.AddAction("ACTION", self._player_instance.SendChatCommand,msg)
         
@@ -126,6 +129,7 @@ class PlayerCache:
         self._action_queue_manager.AddAction("ACTION", self._player_instance.SetActiveTitle, title_id)
     
     def DepositFaction(self, allegiance):
+        """0 = Kurzick, 1 = Luxon"""
         self._action_queue_manager.AddAction("ACTION", self._player_instance.DepositFaction, allegiance)
         
     def LogoutToCharacterSelect(self):

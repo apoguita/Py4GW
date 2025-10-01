@@ -158,4 +158,48 @@ class Overlay:
     def PopClipRect(self):
         self.overlay_instance.PopClipRect()
 
+    def DrawTexture(self, texture_path, width: float = 32.0, height: float = 32.0):
+        self.overlay_instance.DrawTexture(texture_path, width, height)
+        
+    def DrawTextureExtended(self, texture_path, size: Tuple[float, float],
+                    uv0: Tuple[float, float] = (0.0, 0.0),
+                    uv1: Tuple[float, float] = (1.0, 1.0),
+                    tint: Tuple[int, int, int, int] = (255, 255, 255, 255),
+                    border_color: Tuple[int, int, int, int] = (0, 0, 0, 0)):
+        self.overlay_instance.DrawTexture(texture_path, size, uv0, uv1, tint, border_color)
+        
+    def DrawTexturedRect(self, x, y, width, height, texture_path):
+        self.overlay_instance.DrawTexturedRect(x, y, width, height, texture_path)
+        
+    def DrawTexturedRectExtended(self, pos: Tuple[float, float], size: Tuple[float, float], texture_path: str,
+                                 uv0: Tuple[float, float] = (0.0, 0.0),
+                                 uv1: Tuple[float, float] = (1.0, 1.0),
+                                 tint: Tuple[int, int, int, int] = (255, 255, 255, 255)):
+        self.overlay_instance.DrawTexturedRect(pos, size, texture_path, uv0, uv1, tint)
+    
+    def UpkeepTextures(self, upkeep_timer: int = 30):
+        self.overlay_instance.UpkeepTextures(upkeep_timer)
+        
+    def ImageButton(self, caption: str, texture_path: str, width: float = 32.0, height: float = 32.0, frame_padding: int = -1) -> bool:
+        return self.overlay_instance.ImageButton(caption, texture_path, width, height, frame_padding)
+    
+    def ImageButtonExtended(self, caption: str, texture_path: str, size: Tuple[float, float],
+                          uv0: Tuple[float, float] = (0.0, 0.0),
+                          uv1: Tuple[float, float] = (1.0, 1.0),
+                          bg_color: Tuple[int, int, int, int] = (0, 0, 0, 0),
+                          tint_color: Tuple[int, int, int, int] = (255, 255, 255, 255),
+                          frame_padding: int = -1) -> bool:
+        return self.overlay_instance.ImageButton(caption, texture_path, size, uv0, uv1, bg_color, tint_color, frame_padding)
+        
+    def DrawTextureInForegound(self, pos: Tuple[float, float], size: Tuple[float, float], texture_path: str,
+                       uv0: Tuple[float, float] = (0.0, 0.0),
+                       uv1: Tuple[float, float] = (1.0, 1.0),
+                       tint: Tuple[int, int, int, int] = (255, 255, 255, 255)) -> None:
+        self.overlay_instance.DrawTextureInForegound(pos, size, texture_path, uv0, uv1, tint)
+        
+    def DrawTextureInDrawList(self, pos: Tuple[float, float], size: Tuple[float, float], texture_path: str,
+                       uv0: Tuple[float, float] = (0.0, 0.0),
+                       uv1: Tuple[float, float] = (1.0, 1.0),
+                       tint: Tuple[int, int, int, int] = (255, 255, 255, 255)) -> None:
+        self.overlay_instance.DrawTextureInDrawlist(pos, size, texture_path, uv0, uv1, tint)
     

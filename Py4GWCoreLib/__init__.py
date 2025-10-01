@@ -29,7 +29,7 @@ import PyCamera
 import Py2DRenderer
 
 from .enums import *
-from .IconsFontAwesome5 import *
+from .ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from .Map import *
 from .ImGui import *
 from .model_data import *
@@ -54,12 +54,21 @@ from .UIManager import *
 from .Routines import *
 from .SkillManager import *
 from .GlobalCache import GLOBAL_CACHE
+from .Pathing import AutoPathing
+from .BuildMgr import BuildMgr
+from .Botting import BottingClass as Botting
 
 traceback = traceback
 math = math
 Enum = Enum
+time = time
+sleep = sleep
+inspect = inspect
+dataclass = dataclass
+field = field
 
 Py4Gw = Py4GW
+Py4GW = Py4GW
 PyImGui = PyImGui
 PyMap = PyMap
 PyMissionMap = PyMissionMap
@@ -72,14 +81,16 @@ PySkill = PySkill
 PySkillbar = PySkillbar
 PyMerchant = PyMerchant
 PyEffects = PyEffects
-#PyKeystroke = PyKeystroke
+PyPathing = PyPathing
 PyOverlay = PyOverlay
 PyQuest = PyQuest
-PyPathing = PyPathing
 PyUIManager = PyUIManager
 PyCamera = PyCamera
 Py2DRenderer = Py2DRenderer
 GLOBAL_CACHE = GLOBAL_CACHE
+AutoPathing = AutoPathing
+IconsFontAwesome5 = IconsFontAwesome5
+
 
 #redirect print output to Py4GW Console
 class Py4GWLogger:

@@ -1,6 +1,4 @@
-import Py4GW
 import PyPlayer
-
 
 from .enums import *
 from .Map import *
@@ -111,6 +109,15 @@ class Player:
         Returns: bool
         """
         return Player.player_instance().IsChatHistoryReady()
+    
+    @staticmethod
+    def IsTyping():
+        """
+        Purpose: Check if the player is currently typing.
+        Args: None
+        Returns: bool
+        """
+        return Player.player_instance().Istyping()
 
     @staticmethod
     def GetChatHistory():
@@ -398,7 +405,7 @@ class Player:
         """
         Purpose: Deposit faction points. need to be talking with an embassador.
         Args:
-            faction_id (int): The ID of the faction to deposit.
+            faction_id (int): 0= Kurzick, 1= Luxon
         Returns: None
         """
         Player.player_instance().DepositFaction(faction_id)

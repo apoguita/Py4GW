@@ -1,6 +1,6 @@
 
 import PyUIManager
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List
 import json
 import PyOverlay
 from collections import deque, defaultdict
@@ -310,7 +310,7 @@ class UIManager:
         return PyUIManager.UIManager.is_world_map_showing()
     
     @staticmethod
-    def IsShiftScreebshot():
+    def IsShiftScreenshot():
         """
         Check if the shift screenshot is enabled.
 
@@ -364,6 +364,9 @@ class UIManager:
         :param frame_id: The ID of the frame.
         :return: bool: True if the frame exists, False otherwise.
         """
+        frame_aray = UIManager.GetFrameArray()
+        if frame_id not in frame_aray:
+            return False
         return UIManager.IsFrameCreated(frame_id) and UIManager.IsVisible(frame_id)
     
     @staticmethod
@@ -392,7 +395,7 @@ class UIManager:
         return left,top, right, bottom
     
         
-    def DrawFrame(self,frame_id, draw_color):
+    def DrawFrame(self,frame_id:int, draw_color:int):
         """
         Draw a frame on the UI.
 

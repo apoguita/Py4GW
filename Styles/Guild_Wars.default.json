@@ -1,0 +1,492 @@
+{
+    "Theme": "Guild_Wars",
+    "Colors": {
+        "Border": {
+            "img_color_enum": "Border",
+            "r": 204,
+            "g": 204,
+            "b": 212,
+            "a": 225
+        },
+        "BorderShadow": {
+            "img_color_enum": "BorderShadow",
+            "r": 26,
+            "g": 26,
+            "b": 26,
+            "a": 128
+        },
+        "Button": {
+            "img_color_enum": "Button",
+            "r": 29,
+            "g": 50,
+            "b": 76,
+            "a": 255
+        },
+        "ButtonActive": {
+            "img_color_enum": "ButtonActive",
+            "r": 48,
+            "g": 67,
+            "b": 89,
+            "a": 255
+        },
+        "ButtonHovered": {
+            "img_color_enum": "ButtonHovered",
+            "r": 51,
+            "g": 76,
+            "b": 102,
+            "a": 255
+        },
+        "CheckMark": {
+            "img_color_enum": "CheckMark",
+            "r": 204,
+            "g": 204,
+            "b": 204,
+            "a": 255
+        },
+        "ChildBg": {
+            "img_color_enum": "ChildBg",
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 0
+        },
+        "FrameBg": {
+            "img_color_enum": "FrameBg",
+            "r": 26,
+            "g": 23,
+            "b": 30,
+            "a": 255
+        },
+        "FrameBgActive": {
+            "img_color_enum": "FrameBgActive",
+            "r": 143,
+            "g": 143,
+            "b": 148,
+            "a": 255
+        },
+        "FrameBgHovered": {
+            "img_color_enum": "FrameBgHovered",
+            "r": 61,
+            "g": 59,
+            "b": 74,
+            "a": 255
+        },
+        "Header": {
+            "img_color_enum": "Header",
+            "r": 26,
+            "g": 38,
+            "b": 51,
+            "a": 255
+        },
+        "HeaderActive": {
+            "img_color_enum": "HeaderActive",
+            "r": 15,
+            "g": 13,
+            "b": 18,
+            "a": 255
+        },
+        "HeaderHovered": {
+            "img_color_enum": "HeaderHovered",
+            "r": 143,
+            "g": 143,
+            "b": 148,
+            "a": 255
+        },
+        "MenuBarBg": {
+            "img_color_enum": "MenuBarBg",
+            "r": 26,
+            "g": 23,
+            "b": 30,
+            "a": 255
+        },
+        "PlotHistogram": {
+            "img_color_enum": "PlotHistogram",
+            "r": 103,
+            "g": 207,
+            "b": 48,
+            "a": 255
+        },
+        "PlotHistogramHovered": {
+            "img_color_enum": "PlotHistogramHovered",
+            "r": 64,
+            "g": 255,
+            "b": 0,
+            "a": 255
+        },
+        "PlotLines": {
+            "img_color_enum": "PlotLines",
+            "r": 102,
+            "g": 99,
+            "b": 96,
+            "a": 160
+        },
+        "PlotLinesHovered": {
+            "img_color_enum": "PlotLinesHovered",
+            "r": 64,
+            "g": 255,
+            "b": 0,
+            "a": 255
+        },
+        "PopupBg": {
+            "img_color_enum": "PopupBg",
+            "r": 2,
+            "g": 2,
+            "b": 2,
+            "a": 215
+        },
+        "ResizeGrip": {
+            "img_color_enum": "ResizeGrip",
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 0
+        },
+        "ResizeGripActive": {
+            "img_color_enum": "ResizeGripActive",
+            "r": 15,
+            "g": 13,
+            "b": 18,
+            "a": 255
+        },
+        "ResizeGripHovered": {
+            "img_color_enum": "ResizeGripHovered",
+            "r": 84,
+            "g": 84,
+            "b": 188,
+            "a": 255
+        },
+        "ScrollbarBg": {
+            "img_color_enum": "ScrollbarBg",
+            "r": 2,
+            "g": 2,
+            "b": 2,
+            "a": 215
+        },
+        "ScrollbarGrab": {
+            "img_color_enum": "ScrollbarGrab",
+            "r": 71,
+            "g": 79,
+            "b": 90,
+            "a": 255
+        },
+        "ScrollbarGrabActive": {
+            "img_color_enum": "ScrollbarGrabActive",
+            "r": 91,
+            "g": 101,
+            "b": 115,
+            "a": 255
+        },
+        "ScrollbarGrabHovered": {
+            "img_color_enum": "ScrollbarGrabHovered",
+            "r": 91,
+            "g": 101,
+            "b": 115,
+            "a": 255
+        },
+        "SliderGrab": {
+            "img_color_enum": "SliderGrab",
+            "r": 51,
+            "g": 76,
+            "b": 76,
+            "a": 128
+        },
+        "SliderGrabActive": {
+            "img_color_enum": "SliderGrabActive",
+            "r": 51,
+            "g": 76,
+            "b": 102,
+            "a": 128
+        },
+        "Tab": {
+            "img_color_enum": "Tab",
+            "r": 26,
+            "g": 38,
+            "b": 51,
+            "a": 255
+        },
+        "TabActive": {
+            "img_color_enum": "TabActive",
+            "r": 102,
+            "g": 127,
+            "b": 153,
+            "a": 255
+        },
+        "TabHovered": {
+            "img_color_enum": "TabHovered",
+            "r": 51,
+            "g": 76,
+            "b": 102,
+            "a": 255
+        },
+        "Text": {
+            "img_color_enum": "Text",
+            "r": 204,
+            "g": 204,
+            "b": 204,
+            "a": 255
+        },
+        "TextDisabled": {
+            "img_color_enum": "TextDisabled",
+            "r": 173,
+            "g": 172,
+            "b": 172,
+            "a": 255
+        },
+        "TextSelectedBg": {
+            "img_color_enum": "TextSelectedBg",
+            "r": 26,
+            "g": 255,
+            "b": 26,
+            "a": 110
+        },
+        "TitleBg": {
+            "img_color_enum": "TitleBg",
+            "r": 13,
+            "g": 13,
+            "b": 13,
+            "a": 215
+        },
+        "TitleBgActive": {
+            "img_color_enum": "TitleBgActive",
+            "r": 51,
+            "g": 51,
+            "b": 51,
+            "a": 215
+        },
+        "TitleBgCollapsed": {
+            "img_color_enum": "TitleBgCollapsed",
+            "r": 5,
+            "g": 5,
+            "b": 5,
+            "a": 215
+        },
+        "WindowBg": {
+            "img_color_enum": "WindowBg",
+            "r": 2,
+            "g": 2,
+            "b": 2,
+            "a": 215
+        }
+    },
+    "CustomColors": {
+        "DangerButton": {
+            "img_color_enum": "Button",
+            "r": 115,
+            "g": 15,
+            "b": 1,
+            "a": 255
+        },
+        "DangerButtonActive": {
+            "img_color_enum": "ButtonActive",
+            "r": 102,
+            "g": 13,
+            "b": 1,
+            "a": 255
+        },
+        "DangerButtonHovered": {
+            "img_color_enum": "ButtonHovered",
+            "r": 166,
+            "g": 21,
+            "b": 2,
+            "a": 255
+        },
+        "Hyperlink": {
+            "img_color_enum": "Text",
+            "r": 102,
+            "g": 187,
+            "b": 238,
+            "a": 255
+        },
+        "PrimaryButton": {
+            "img_color_enum": "Button",
+            "r": 11,
+            "g": 93,
+            "b": 31,
+            "a": 255
+        },
+        "PrimaryButtonActive": {
+            "img_color_enum": "ButtonActive",
+            "r": 8,
+            "g": 66,
+            "b": 22,
+            "a": 255
+        },
+        "PrimaryButtonHovered": {
+            "img_color_enum": "ButtonHovered",
+            "r": 17,
+            "g": 143,
+            "b": 48,
+            "a": 255
+        },
+        "TextCollapsingHeader": {
+            "img_color_enum": "Text",
+            "r": 207,
+            "g": 191,
+            "b": 143,
+            "a": 255
+        },
+        "TextObjectiveCompleted": {
+            "img_color_enum": "Text",
+            "r": 204,
+            "g": 204,
+            "b": 204,
+            "a": 255
+        },
+        "TextTreeNode": {
+            "img_color_enum": "Text",
+            "r": 207,
+            "g": 191,
+            "b": 143,
+            "a": 255
+        },
+        "ToggleButtonDisabled": {
+            "img_color_enum": "Button",
+            "r": 115,
+            "g": 15,
+            "b": 1,
+            "a": 255
+        },
+        "ToggleButtonDisabledActive": {
+            "img_color_enum": "ButtonActive",
+            "r": 217,
+            "g": 28,
+            "b": 3,
+            "a": 255
+        },
+        "ToggleButtonDisabledHovered": {
+            "img_color_enum": "ButtonHovered",
+            "r": 166,
+            "g": 21,
+            "b": 2,
+            "a": 255
+        },
+        "ToggleButtonEnabled": {
+            "img_color_enum": "Button",
+            "r": 11,
+            "g": 93,
+            "b": 31,
+            "a": 255
+        },
+        "ToggleButtonEnabledActive": {
+            "img_color_enum": "ButtonActive",
+            "r": 23,
+            "g": 194,
+            "b": 65,
+            "a": 255
+        },
+        "ToggleButtonEnabledHovered": {
+            "img_color_enum": "ButtonHovered",
+            "r": 17,
+            "g": 143,
+            "b": 48,
+            "a": 255
+        }
+    },
+    "TextureColors": {
+        "ComboTextureBackground": {
+            "img_color_enum": null,
+            "r": 71,
+            "g": 106,
+            "b": 150,
+            "a": 255
+        },
+        "ComboTextureBackgroundHovered": {
+            "img_color_enum": null,
+            "r": 96,
+            "g": 143,
+            "b": 201,
+            "a": 255
+        },
+        "ComboTextureBackgroundActive": {
+            "img_color_enum": null,
+            "r": 120,
+            "g": 179,
+            "b": 252,
+            "a": 255
+        },
+        "ButtonTextureBackground": {
+            "img_color_enum": null,
+            "r": 47,
+            "g": 70,
+            "b": 98,
+            "a": 255
+        },
+        "ButtonTextureBackgroundHovered": {
+            "img_color_enum": null,
+            "r": 83,
+            "g": 126,
+            "b": 179,
+            "a": 255
+        },
+        "ButtonTextureBackgroundActive": {
+            "img_color_enum": null,
+            "r": 34,
+            "g": 51,
+            "b": 71,
+            "a": 255
+        },
+        "ButtonTextureBackgroundDisabled": {
+            "img_color_enum": null,
+            "r": 64,
+            "g": 64,
+            "b": 64,
+            "a": 255
+        }
+    },
+    "StyleVars": {
+        "ButtonPadding": {
+            "value1": 8.0,
+            "value2": 8.0
+        },
+        "CellPadding": {
+            "value1": 5.0,
+            "value2": 5.0
+        },
+        "ChildRounding": {
+            "value1": 0.0
+        },
+        "FramePadding": {
+            "value1": 5.0,
+            "value2": 5.0
+        },
+        "FrameRounding": {
+            "value1": 4.0
+        },
+        "GrabMinSize": {
+            "value1": 5.0
+        },
+        "GrabRounding": {
+            "value1": 3.0
+        },
+        "IndentSpacing": {
+            "value1": 20.0
+        },
+        "ItemInnerSpacing": {
+            "value1": 6.0,
+            "value2": 4.0
+        },
+        "ItemSpacing": {
+            "value1": 10.0,
+            "value2": 6.0
+        },
+        "PopupRounding": {
+            "value1": 4.0
+        },
+        "ScrollbarRounding": {
+            "value1": 9.0
+        },
+        "ScrollbarSize": {
+            "value1": 20.0
+        },
+        "TabRounding": {
+            "value1": 4.0
+        },
+        "WindowPadding": {
+            "value1": 10.0,
+            "value2": 10.0
+        },
+        "WindowRounding": {
+            "value1": 4.0
+        }
+    }
+}
