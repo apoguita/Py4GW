@@ -108,14 +108,20 @@ class Checks:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import Utils
             from ..enums_src.GameData_enums import Range
+            from ..Routines import Checks
+
             if not Checks.Map.MapValid():
+                return False
+
+            # if we're in danger, we never consider going back
+            if Checks.Agents.InDanger():
                 return False
 
             players = GLOBAL_CACHE.Party.GetPlayers()
             henchmen = GLOBAL_CACHE.Party.GetHenchmen()
             heroes = GLOBAL_CACHE.Party.GetHeroes()
             player_pos = GLOBAL_CACHE.Player.GetXY()
-    
+
             for player in players:
                 agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
                 if GLOBAL_CACHE.Agent.IsDead(agent_id):
@@ -128,7 +134,7 @@ class Checks:
                     agent_pos = GLOBAL_CACHE.Agent.GetXY(henchman.agent_id)
                     if Utils.Distance(player_pos, agent_pos) > Range.Earshot.value:
                         return True
-                
+
             for hero in heroes:
                 if GLOBAL_CACHE.Agent.IsDead(hero.agent_id):
                     agent_pos = GLOBAL_CACHE.Agent.GetXY(hero.agent_id)
@@ -136,6 +142,7 @@ class Checks:
                         return True
 
             return False
+
         
         @staticmethod
         def IsPartyWiped():

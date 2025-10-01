@@ -133,6 +133,7 @@ class Yield:
         def TurnRight(duration_ms:int):
             yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms)
         
+        #region FollowPath
         @staticmethod
         def FollowPath(
             path_points: List[Tuple[float, float]],
@@ -231,6 +232,7 @@ class Yield:
                                 stuck_count = 0  # reset after recovery
                     else:
                         retries = 0  # reset retries if making progress
+                        stuck_count = 0  # reset stuck count if making progress
 
                     previous_distance = current_distance
 
