@@ -13,6 +13,7 @@ from Py4GWCoreLib import LootConfig
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Utils
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
@@ -277,6 +278,7 @@ def PixelStack(index, message):
     try:
         yield from DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
+
         result = (yield from Routines.Yield.Movement.FollowPath(
             [(message.Params[0], message.Params[1])],
             tolerance=10,
@@ -286,12 +288,28 @@ def PixelStack(index, message):
 
         if not result:
             ConsoleLog(MODULE_NAME, "PixelStack movement failed or timed out.", Console.MessageType.Warning, log=True)
+
+            # --- Recovery sequence ---
+            start_x, start_y = GLOBAL_CACHE.Player.GetXY()
+            GLOBAL_CACHE.Player.SendChatCommand("/stuck")
+            # Step 1: Always walk backwards
+            ConsoleLog(MODULE_NAME, "Recovery: walking backwards.", Console.MessageType.Info)
+            yield from Routines.Yield.Movement.WalkBackwards(1000)
+            # Step 2: strafe left
+            ConsoleLog(MODULE_NAME, "Recovery: strafing left.", Console.MessageType.Info)
+            yield from Routines.Yield.Movement.StrafeLeft(1000)
+            # Step 3: If no movement after strafing left, strafe right
+            left_x, left_y = GLOBAL_CACHE.Player.GetXY()
+            if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
+                ConsoleLog(MODULE_NAME, "No movement detected, strafing right.", Console.MessageType.Info)
+                yield from Routines.Yield.Movement.StrafeRight(1000)
+
         else:
             ConsoleLog(MODULE_NAME, "PixelStack movement succeeded.", Console.MessageType.Info, log=False)
     finally:
-        #yield from RestoreHeroAISnapshot(message.ReceiverEmail)
         yield from EnableHeroAIOptions(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+#endregion
 
 
 # endregion
