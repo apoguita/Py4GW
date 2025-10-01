@@ -31,17 +31,21 @@ def create_bot_routine(bot: Botting) -> None:
     TakeRewardAndCraftArmor(bot)
     TakeRewardAndCraftWeapon(bot)
     jokanur_diggings_quests(bot)
-    LeveledUp(bot)
+    bot.States.JumpToStepName("[H]jokanur_diggings_quests_25")
+    #def LeveledUp(bot: Botting) -> None:
+        #while True:
+            #level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+            #if level <= 10:
+                #bot.States.JumpToStepName("[H]jokanur_diggings_quests_25")
+            #else: 
+                #bot.States.JumpToStepName("[H]EOTN Run_27")
+    #LeveledUp(bot)
     EOTN_Run(bot)
     ExitBorealStation(bot)
     GoToEOTN(bot)
     
-def LeveledUp(bot: Botting) -> None:
-    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-    if level <= 10:
-        yield from Routines.Yield.States.JumpToStepName("[H]Sprint to level 10_23")
-    elif level >= 11:
-        yield from Routines.Yield.States.JumpToStepName("[H]EOTN Run_25")
+    
+
             
 #region Helpers
 
@@ -117,15 +121,15 @@ def EquipSkillBar():
         elif level == 6:
             yield from Routines.Yield.Skills.LoadSkillbar("OQGlUFlnpcGoDBj9g5gBkdVAEKAgxB")    
         elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUFlnpcGoDBj9g5gBkdVAEKAgxB")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")    
         elif level == 8:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")    
         elif level == 9:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")    
         elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")    
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQKkUmmyZhKDM+BXhLyAZVM8m2A")  
+            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")  
 
 
 def GetArmorMaterialPerProfession(headpiece: bool = False) -> int:
@@ -612,12 +616,12 @@ def TakeRewardAndCraftWeapon(bot: Botting):
 
     
 def jokanur_diggings_quests(bot):
-    bot.States.AddHeader("Sprint to level 10")
+    bot.States.AddHeader("jokanur_diggings_quests")
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
+    bot.Move.XY(594, 43) #Step center to avoid stuck
     bot.Move.XYAndExitMap(-3225, -855, target_map_id=481) #Fahranur The First City
-    #bot.Wait.ForMapToChange(target_map_id=481)
     bot.States.AddHeader("Fahranur The First City")
     bot.Move.XYAndDialog(19651, 12237, 0x85) #Blessing 
     bot.Move.XY(11182, 14880)
