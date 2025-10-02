@@ -54,15 +54,14 @@ class FollowPathExecutor:
             return
 
         # Inject utility skills for movement
-        instance.inject_additionnal_utility_skills(MoveIfStuckUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfInAggroUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToEnemyIfCloseEnoughUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfDeadUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberManaTooLowUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.in_game_build))
+        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfInAggroUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(MoveToEnemyIfCloseEnoughUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfDeadUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfPartyMemberManaTooLowUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.event_bus, instance.in_game_build))
 
         # Create movement generator
         custom_pause_fn: Callable[[], bool] = lambda: instance.is_executing_utility_skills() == True

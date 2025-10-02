@@ -7,7 +7,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
-from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
+
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import SharedLockManager

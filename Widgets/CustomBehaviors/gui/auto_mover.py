@@ -6,6 +6,7 @@ from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import AutoMover
+from Widgets.CustomBehaviors.primitives.auto_mover.waypoint_builder import WaypointBuilder
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader, MatchResult
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
@@ -94,11 +95,12 @@ def render():
                     root.clear_list_of_waypoints()
 
                 table_flags = PyImGui.TableFlags.Sortable | PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg
-                if PyImGui.begin_table("Waypoints", 5, table_flags):
+                if PyImGui.begin_table("Waypoints", 6, table_flags):
                     # Setup columns
                     PyImGui.table_setup_column("index", PyImGui.TableColumnFlags.NoSort)
                     PyImGui.table_setup_column("coordinate", PyImGui.TableColumnFlags.WidthFixed, 90)
                     PyImGui.table_setup_column("edit", PyImGui.TableColumnFlags.WidthFixed, 150)
+                    PyImGui.table_setup_column("ctrl", PyImGui.TableColumnFlags.NoSort)
                     PyImGui.table_setup_column("remove", PyImGui.TableColumnFlags.NoSort)
                     PyImGui.table_setup_column("follow", PyImGui.TableColumnFlags.NoSort)
                     PyImGui.table_headers_row()
@@ -118,7 +120,7 @@ def render():
                             if PyImGui.button(f"HIDE_{index}"):
                                 edit_flags[index] = not edit_flags.get(index, False)
                         else:
-                            if PyImGui.button(f"EDIT_{index}"):
+                            if PyImGui.button(f"{IconsFontAwesome5.ICON_EDIT}##edit_{index}"):
                                 edit_flags[index] = not edit_flags.get(index, False)
                         
                         if edit_flags.get(index, False):
@@ -126,16 +128,71 @@ def render():
                             # sliders for X/Y (in game units)
                             edit_x = point[0]
                             edit_y = point[1]
-                            edit_x = PyImGui.slider_float(f"X_{index}", float(edit_x), float(min_x), float(max_x))
-                            edit_y = PyImGui.slider_float(f"Y_{index}", float(edit_y), float(min_y), float(max_y))
+                            edit_x = PyImGui.slider_float(f"X##X_{index}", float(edit_x), float(min_x), float(max_x))
+                            edit_y = PyImGui.slider_float(f"Y##Y_{index}", float(edit_y), float(min_y), float(max_y))
+                            PyImGui.text(f"increments")
+
                             waypoints[index] = (edit_x, edit_y)
+                            if PyImGui.small_button(f"+10 x ##+X_{index}"):
+                                waypoints[index] = waypoints[index] = (waypoints[index][0]+20, waypoints[index][1])
+                            PyImGui.same_line(0,5)
+                            if PyImGui.small_button(f"-10 x ##-X_{index}"):
+                                waypoints[index] = waypoints[index] = (waypoints[index][0]-20, waypoints[index][1])
+                            if PyImGui.small_button(f"+10 y ##+Y_{index}"):
+                                waypoints[index] = waypoints[index] = (waypoints[index][0], waypoints[index][1]+20)
+                            PyImGui.same_line(0,5)
+                            if PyImGui.small_button(f"-10 y ##-Y_{index}"):
+                                waypoints[index] = waypoints[index] = (waypoints[index][0], waypoints[index][1]-20)
+                        
+                        PyImGui.table_next_column()
+
+                        if PyImGui.button(f"{IconsFontAwesome5.ICON_COPY}##copy_{index}"):
+                            PyImGui.set_clipboard_text(f"({int(point[0])}, {int(point[1])})")
+                        PyImGui.show_tooltip("Copy waypoint coordinates")
+
+                        PyImGui.same_line(0,5)
+                        if PyImGui.button(f"{IconsFontAwesome5.ICON_PASTE}##paste_{index}"):
+                            clipboard_text = PyImGui.get_clipboard_text()
+                            coordinate = WaypointBuilder.parse_coordinate_from_text(clipboard_text)
+                            if coordinate is not None:
+                                waypoints[index] = coordinate
+                        PyImGui.show_tooltip("Paste waypoint coordinates")
+
+                        PyImGui.same_line(0,5)
+                        if PyImGui.button(f"{IconsFontAwesome5.ICON_ARROW_UP}##up_{index}"):
+                            if index > 0:
+                                waypoints[index], waypoints[index-1] = waypoints[index-1], waypoints[index]
+                                # Also swap edit flags if they exist
+                                edit_flag_current = edit_flags.get(index, False)
+                                edit_flag_above = edit_flags.get(index-1, False)
+                                edit_flags[index] = edit_flag_above
+                                edit_flags[index-1] = edit_flag_current
+                        PyImGui.show_tooltip("Move waypoint up")
+                        
+
+                        PyImGui.same_line(0,5)
+                        if PyImGui.button(f"{IconsFontAwesome5.ICON_ARROW_DOWN}##down_{index}"):
+                            if index < len(waypoints) - 1:
+                                waypoints[index], waypoints[index+1] = waypoints[index+1], waypoints[index]
+                                # Also swap edit flags if they exist
+                                edit_flag_current = edit_flags.get(index, False)
+                                edit_flag_below = edit_flags.get(index+1, False)
+                                edit_flags[index] = edit_flag_below
+                                edit_flags[index+1] = edit_flag_current
+                        PyImGui.show_tooltip("Move waypoint down")
+
+                        PyImGui.same_line(0,5)
+                        if PyImGui.button(f"{IconsFontAwesome5.ICON_PLUS}new##new_{index}"):
+                            waypoints.insert(index + 1, (0,0))
+                        PyImGui.show_tooltip("Add new waypoint just after")
 
                         PyImGui.table_next_column()
 
-                        if PyImGui.button(f"REMOVE_{index}"):
+                        if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##REMOVE_{index}"):
                             root.remove_waypoint(index)
                             edit_flags.pop(index, None)
                             pass
+                        PyImGui.show_tooltip("Remove waypoint")
                         
                         PyImGui.table_next_column()
                         if not root.is_movement_running():

@@ -110,7 +110,7 @@ def gui():
     return
 
 previous_map_status = False
-map_change_throttler = ThrottledTimer(250)
+map_change_throttler = ThrottledTimer(1_500)
 
 def main():
     global previous_map_status, monitor, widget_window_size, widget_window_pos

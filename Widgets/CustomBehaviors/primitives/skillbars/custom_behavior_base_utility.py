@@ -1,12 +1,14 @@
 from abc import abstractmethod
 from collections import deque
+import inspect
+import traceback
 from typing import List, Generator, Any, override
 import time
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
-from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
@@ -20,6 +22,7 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import Uti
 from Widgets.CustomBehaviors.skills.blessing.take_near_blessing import TakeNearBlessingUtility
 from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
 from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
+from Widgets.CustomBehaviors.skills.deamon.death_detection import DeathDetectionUtility
 from Widgets.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
 from Widgets.CustomBehaviors.skills.deamon.stuck_detection import StuckDetectionUtility
 from Widgets.CustomBehaviors.skills.following.follow_flag_utility import FollowFlagUtility
@@ -55,6 +58,37 @@ class CustomBehaviorBaseUtility():
         
         self.__injected_additional_utility_skills : list[CustomSkillUtilityBase] = list[CustomSkillUtilityBase]()
 
+        self.event_bus:EventBus = EventBus()
+
+        self.__additional_autonomous_skills: list[CustomSkillUtilityBase] = [
+            # COMBAT
+            AutoAttackUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+
+            # FOLLOWING
+            FollowPartyLeaderUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            FollowFlagUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+
+            # BLESSING
+            TakeNearBlessingUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            
+            # LOOT
+            LootUtility(current_build=self.in_game_build, event_bus=self.event_bus),
+            OpenNearDungeonChestUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+
+            #CHESTING
+            OpenNearChestUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+
+            #BOTTING
+            MapChangedUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            StuckDetectionUtility(event_bus=self.event_bus, current_build=self.in_game_build, threshold=60),
+            DeathDetectionUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            MoveIfStuckUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+
+            # INVENTORY_MANAGEMENT
+            MerchantRefillIfNeededUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+        ]
+
+
     def inject_additionnal_utility_skills(self, skill:CustomSkillUtilityBase):
         for injected_skill in self.__injected_additional_utility_skills:
             if injected_skill.custom_skill.skill_name == skill.custom_skill.skill_name:
@@ -70,7 +104,7 @@ class CustomBehaviorBaseUtility():
         self.__is_enabled = True
 
     def disable(self):
-        self.__is_enabled = False
+        self.__is_enabled = False        
 
     # computed
 
@@ -125,37 +159,7 @@ class CustomBehaviorBaseUtility():
     @property
     @abstractmethod
     def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
-        '''
-        the list of skills that are autonomous.
-        like auto-attack, movement, etc.
-        they are not part of the behavior, but are executed by the behavior.
-        '''
-        return [
-            # COMBAT
-            AutoAttackUtility(current_build=self.in_game_build),
-
-            # FOLLOWING
-            FollowPartyLeaderUtility(current_build=self.in_game_build),
-            FollowFlagUtility(current_build=self.in_game_build),
-
-            # BLESSING
-            TakeNearBlessingUtility(current_build=self.in_game_build),
-            
-            # LOOT
-            LootUtility(current_build=self.in_game_build),
-            OpenNearDungeonChestUtility(self.in_game_build),
-
-            #CHESTING
-            OpenNearChestUtility(self.in_game_build),
-
-            #BOTTING
-            MapChangedUtility(self.in_game_build),
-            StuckDetectionUtility(self.in_game_build, threshold=60),
-            MoveIfStuckUtility(self.in_game_build),
-
-            # INVENTORY_MANAGEMENT
-            MerchantRefillIfNeededUtility(self.in_game_build),
-        ]
+        return self.__additional_autonomous_skills
 
     @property
     @abstractmethod
@@ -215,7 +219,7 @@ class CustomBehaviorBaseUtility():
             if skill.skill_id in skills_allowed_in_behavior_by_skill_id.keys():
                 final_list.append(skills_allowed_in_behavior_by_skill_id[skill.skill_id])
             elif self.complete_build_with_generic_skills:
-                final_list.append(HeroAiUtility(skill=skill, current_build=list(in_game_build_by_skill_id.values()), score_definition=ScoreStaticDefinition(0)))
+                final_list.append(HeroAiUtility(event_bus=self.event_bus, skill=skill, current_build=list(in_game_build_by_skill_id.values()), score_definition=ScoreStaticDefinition(0)))
 
         for skill in self.additional_autonomous_skills:
             final_list.append(skill)
@@ -271,7 +275,7 @@ class CustomBehaviorBaseUtility():
 
     timer = Timer()
     throttler = ThrottledTimer(50)
-    compute_throttler = ThrottledTimer(250)
+    compute_throttler = ThrottledTimer(300)
     execute_throttler = ThrottledTimer(80)
 
     def act(self):
@@ -280,7 +284,7 @@ class CustomBehaviorBaseUtility():
         
         if not Routines.Checks.Map.MapValid(): return
         if not self.get_final_is_enabled(): return
-
+        self.timer.Reset()
         # if (
         # not cached_data.data.player_is_alive
         # or DistanceFromLeader(cached_data) >= Range.SafeCompass.value
@@ -305,7 +309,6 @@ class CustomBehaviorBaseUtility():
         # - if we are executing with STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST, we don't need huge responsiveness
 
         if self.compute_throttler.IsExpired():
-            
             self.compute_throttler.Reset()
             self.timer.Reset()
             self.__fetch_and_memoized_state()
@@ -324,6 +327,7 @@ class CustomBehaviorBaseUtility():
             except Exception as e:
                 print(f"CustomBehaviorBaseUtility.act is not expected to exit : {e}")
             # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
+
 
     # STATES
     
@@ -402,7 +406,11 @@ class CustomBehaviorBaseUtility():
         # if no aftercast, there is no reason to continue once the score is no more the highest.
         # so lets declare it.
         while True:
-            highest_score: tuple[CustomSkillUtilityBase, float | None] | None = self.get_highest_score()
+            highest_score: tuple[CustomSkillUtilityBase, float | None] | None = None
+            try:
+                highest_score = self.get_highest_score()
+            except:
+                raise Exception(f"WTF self.get_highest_score() FAILURE.")
 
             if highest_score is None: # score is None
                 yield
@@ -443,8 +451,14 @@ class CustomBehaviorBaseUtility():
 
     def __execute_until_the_end(self, utility: CustomSkillUtilityBase) -> Generator[Any | None, Any | None, BehaviorResult]:
         state: BehaviorState = self.get_final_state()
-        result: BehaviorResult = yield from utility.execute(state)
-        return result
+        utility_generator = utility.execute(state)
+        try:
+            result: BehaviorResult = yield from utility.execute(state)
+            return result
+        except:
+            print(f"Generator: {utility_generator}")
+            print(f"Name: {utility.custom_skill.skill_name}")
+            raise Exception(f"WTF1 utility.execute(state) FAILURE.")
 
     def __execute_until_condition(self, new_highest_score: CustomSkillUtilityBase) -> Generator[Any | None, Any | None, BehaviorResult]:
         state: BehaviorState = self.get_final_state()
@@ -454,7 +468,7 @@ class CustomBehaviorBaseUtility():
         try:
             while True:
                 # if we lost priority, stop early
-                current_highest = self.get_highest_score()
+                current_highest:tuple[CustomSkillUtilityBase, float | None] | None = self.get_highest_score()
 
                 if current_highest is None: # score is None
                     yield # required to avoid death-loop
@@ -471,6 +485,17 @@ class CustomBehaviorBaseUtility():
                 except StopIteration as e:
                     # utility completed, return its final result
                     return e.value if hasattr(e, 'value') and e.value is not None else BehaviorResult.ACTION_PERFORMED
+        except:
+            
+            print(f"Generator: {utility_generator}")
+            current_highest:tuple[CustomSkillUtilityBase, float | None] | None = self.get_highest_score()
+            if current_highest is None: # score is None
+                print("none!")
+            else:
+                print(f"Name1: {current_highest[0].custom_skill.skill_name}")
+                
+            print(f"Name2: {new_highest_score.custom_skill.skill_name}")
+            raise Exception(f"WTF2 utility.execute(state) FAILURE.")
         finally:
             # Ensure the underlying generator is closed to trigger its finally blocks (e.g., lock release)
             try:

@@ -138,7 +138,7 @@ def render():
                 PyImGui.bullet_text("score")
                 PyImGui.same_line(0, -1)
                 PyImGui.text_colored(f"{label_generic_utility(skill)}{score_text}", UtilitySkillTypologyColor.get_color_from_typology(score[0].utility_skill_typology))
-
+                
                 if WITH_DETAIL:
                     PyImGui.bullet_text("required ressource")
                     PyImGui.same_line(0, -1)
@@ -146,6 +146,7 @@ def render():
                     PyImGui.bullet_text(f"allowed in : {[x.name for x in skill.allowed_states]}")
                     PyImGui.bullet_text(f"pre_check : {skill.are_common_pre_checks_valid(instance.get_final_state())}")
                     PyImGui.bullet_text(f"Slot:{skill.custom_skill.skill_slot}")
+                    PyImGui.bullet_text(f"score max up-to:{skill.score_definition.score_definition_debug_ui()}")
 
                     buff_configuration: BuffConfigurationPerProfession | None = skill.get_buff_configuration()
                     if buff_configuration is not None:

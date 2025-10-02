@@ -59,7 +59,6 @@ class AutoMover:
     def try_inject_waypoint_coordinate_from_clipboard(self, clipboard:str):
         self.__waypoint_builder.try_inject_waypoint_coordinate_from_clipboard(clipboard)
 
-
     def get_list_of_waypoints(self) -> list[tuple[float, float]]:
         '''
         used for copying clipboard
