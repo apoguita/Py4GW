@@ -18,6 +18,32 @@ Vanquish_Path = [(19283.57, 12803.82), #pack1
 
             (7995.83, 2784.03), #shore pop up
             (6276.70, 3501.12), #shore pop up 2
+            
+            #changed loop to direct to hard stuff
+            (5180.92, 961.27), #boss
+            #big room
+            (3809.45, -1779.69), #shore pop ups
+            (7216.56, -3962.05), #patrol
+            (4233.68, -4846.76), #Dredges
+            
+            (7325.51, -7398.68), #fungus patrols  
+            #res shrine
+            (10400.24, -6050.92), #patrol
+            (10116.56, -3449.12), #multi patrols danger
+            (11055.48, -2158.53), #pop ups danger
+            (8462.69, -1815.47),  #hill patrol danger
+
+            #danger room
+            (13641.88, 165.81), 
+            (15200.67, -542.67), #around the mountain
+            (15679.82, -1033.62), #pop ups
+            (14458.41, -2669.81), #bosses danger
+            (9555.91, -765.55), #bridge base
+            (8071.68, 2811.61), #shore
+            
+            #this was the end, not anymore
+      
+            
             (9708.27, 10151.21), #back to fork
             (11146.95, 11058.01), #around the fork
 
@@ -64,25 +90,9 @@ Vanquish_Path = [(19283.57, 12803.82), #pack1
             #res shrine
             (-1099.51, -6853.82),
             (624.54, -5716.24), #stone pop ups
+            (4233.68, -4846.76), #Dredges sanity
 
-            #big room
-            (4233.68, -4846.76), #Dredges
-            (3809.45, -1779.69), #shore pop ups
-            (7325.51, -7398.68), #fungus patrols  \
-            #res shrine
-            (10400.24, -6050.92), #patrol
-            (10116.56, -3449.12), #multi patrols danger
-            (11055.48, -2158.53), #pop ups danger
-            (8462.69, -1815.47),  #hill patrol danger
 
-            #danger room
-            (13641.88, 165.81), 
-            (15200.67, -542.67), #around the mountain
-            (15679.82, -1033.62), #pop ups
-            (14458.41, -2669.81), #bosses danger
-            (9555.91, -765.55), #bridge base
-            (8071.68, 2811.61), #shore
-            (5180.92, 961.27), #boss
     ]
 
 bot = Botting(BOT_NAME,
