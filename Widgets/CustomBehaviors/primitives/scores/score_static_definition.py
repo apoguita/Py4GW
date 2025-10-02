@@ -10,3 +10,7 @@ class ScoreStaticDefinition(ScoreDefinition):
 
     def get_score(self) -> float:
         return self.score
+
+    @override
+    def score_definition_debug_ui(self) -> str:
+        return f"{self.score:06.4f}"

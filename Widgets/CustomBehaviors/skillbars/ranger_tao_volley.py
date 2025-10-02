@@ -32,29 +32,29 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # core
-        self.together_as_one_utility: CustomSkillUtilityBase = TogetherAsOneUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(95))
+        self.together_as_one_utility: CustomSkillUtilityBase = TogetherAsOneUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(95))
 
-        self.savage_shot_utility: CustomSkillUtilityBase = SavageShotUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(91))
-        self.distracting_shot_utility: CustomSkillUtilityBase = DistractingShotUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(92))
-        
-        self.volley_utility: CustomSkillUtilityBase = RawAoeAttackUtility(skill=CustomSkill("Volley"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 70 if enemy_qte >= 3 else 65 if enemy_qte <= 2 else 25))
+        self.savage_shot_utility: CustomSkillUtilityBase = SavageShotUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(91))
+        self.distracting_shot_utility: CustomSkillUtilityBase = DistractingShotUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(92))
+
+        self.volley_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Volley"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 70 if enemy_qte >= 3 else 65 if enemy_qte <= 2 else 25))
 
         #optional
-        self.never_rampage_alone_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Never_Rampage_Alone"), current_build=in_game_build, score_definition=ScoreStaticDefinition(80), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
-        self.triple_shot_utility: CustomSkillUtilityBase = RawSimpleAttackUtility(skill=CustomSkill("Triple_Shot_luxon"), current_build=in_game_build, mana_required_to_cast=10, score_definition=ScoreStaticDefinition(70))
-        self.sundering_attack_utility: CustomSkillUtilityBase = RawSimpleAttackUtility(skill=CustomSkill("Sundering_Attack"), current_build=in_game_build, mana_required_to_cast=10, score_definition=ScoreStaticDefinition(60))
+        self.never_rampage_alone_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Never_Rampage_Alone"), current_build=in_game_build, score_definition=ScoreStaticDefinition(80), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
+        self.triple_shot_utility: CustomSkillUtilityBase = RawSimpleAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Triple_Shot_luxon"), current_build=in_game_build, mana_required_to_cast=10, score_definition=ScoreStaticDefinition(70))
+        self.sundering_attack_utility: CustomSkillUtilityBase = RawSimpleAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Sundering_Attack"), current_build=in_game_build, mana_required_to_cast=10, score_definition=ScoreStaticDefinition(60))
 
-        self.jagged_strike_utility: CustomSkillUtilityBase = HeroAiUtility(skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=10)
-        self.fox_fangs_utility: CustomSkillUtilityBase = HeroAiUtility(skill=CustomSkill("Fox_Fangs"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=10)
-        self.death_blossom_utility: CustomSkillUtilityBase = HeroAiUtility(skill=CustomSkill("Death_Blossom"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=10)
+        self.jagged_strike_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40))
+        self.fox_fangs_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Fox_Fangs"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40))
+        self.death_blossom_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Death_Blossom"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40))
 
         #common
-        self.ebon_battle_standard_of_honor_utility: CustomSkillUtilityBase = EbonBattleStandardOfHonorUtility(score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 68 if enemy_qte >= 3 else 50 if enemy_qte <= 2 else 25), current_build=in_game_build,  mana_required_to_cast=15)
-        self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
-        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
-        self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(current_build=in_game_build)
-        self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
-        self.signet_of_return_utility: CustomSkillUtilityBase = GenericResurrectionUtility(skill=CustomSkill("Signet_of_Return"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
+        self.ebon_battle_standard_of_honor_utility: CustomSkillUtilityBase = EbonBattleStandardOfHonorUtility(event_bus=self.event_bus, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 68 if enemy_qte >= 3 else 50 if enemy_qte <= 2 else 25), current_build=in_game_build,  mana_required_to_cast=15)
+        self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
+        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
+        self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
+        self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
+        self.signet_of_return_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Signet_of_Return"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
 
     
     @property

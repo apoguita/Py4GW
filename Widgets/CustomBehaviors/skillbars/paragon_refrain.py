@@ -26,26 +26,26 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         #core
-        self.heroic_refrain_utility: CustomSkillUtilityBase = HeroicRefrainUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
-        self.theyre_on_fire_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Theyre_on_Fire"), current_build=in_game_build, score_definition=ScoreStaticDefinition(80), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
-        
-        #optional
-        self.theres_nothing_to_fear: CustomSkillUtilityBase = ProtectiveShoutUtility(skill=CustomSkill("Theres_Nothing_to_Fear"), current_build=in_game_build, allies_health_less_than_percent=0.9, allies_quantity_required=1,score_definition= ScoreStaticDefinition(90), allowed_states=[BehaviorState.IN_AGGRO])
-        self.save_yourselves_luxon: CustomSkillUtilityBase = ProtectiveShoutUtility(skill=CustomSkill("Save_Yourselves_luxon"), current_build=in_game_build, allies_health_less_than_percent=0.7, allies_quantity_required=1,score_definition=ScoreStaticDefinition(89), allowed_states=[BehaviorState.IN_AGGRO])
-        self.save_yourselves_kurzick: CustomSkillUtilityBase = ProtectiveShoutUtility(skill=CustomSkill("Save_Yourselves_kurzick"), current_build=in_game_build, allies_health_less_than_percent=0.7, allies_quantity_required=1,score_definition=ScoreStaticDefinition(89), allowed_states=[BehaviorState.IN_AGGRO])
-        self.never_surrender: CustomSkillUtilityBase = ProtectiveShoutUtility(skill=CustomSkill("Never_Surrender"), current_build=in_game_build, allies_health_less_than_percent=0.7,allies_quantity_required=2,score_definition=ScoreStaticDefinition(88), allowed_states=[BehaviorState.IN_AGGRO])
+        self.heroic_refrain_utility: CustomSkillUtilityBase = HeroicRefrainUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
+        self.theyre_on_fire_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Theyre_on_Fire"), current_build=in_game_build, score_definition=ScoreStaticDefinition(80), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
 
-        self.jagged_strike_utility: CustomSkillUtilityBase = HeroAiUtility(skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=13)
-        self.fox_fangs_utility: CustomSkillUtilityBase = HeroAiUtility(skill=CustomSkill("Fox_Fangs"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=13)
-        self.death_blossom_utility: CustomSkillUtilityBase = HeroAiUtility(skill=CustomSkill("Death_Blossom"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=13)
+        #optional
+        self.theres_nothing_to_fear: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Theres_Nothing_to_Fear"), current_build=in_game_build, allies_health_less_than_percent=0.9, allies_quantity_required=1,score_definition= ScoreStaticDefinition(90), allowed_states=[BehaviorState.IN_AGGRO])
+        self.save_yourselves_luxon: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Save_Yourselves_luxon"), current_build=in_game_build, allies_health_less_than_percent=0.7, allies_quantity_required=1,score_definition=ScoreStaticDefinition(89), allowed_states=[BehaviorState.IN_AGGRO])
+        self.save_yourselves_kurzick: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Save_Yourselves_kurzick"), current_build=in_game_build, allies_health_less_than_percent=0.7, allies_quantity_required=1,score_definition=ScoreStaticDefinition(89), allowed_states=[BehaviorState.IN_AGGRO])
+        self.never_surrender: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Never_Surrender"), current_build=in_game_build, allies_health_less_than_percent=0.7,allies_quantity_required=2,score_definition=ScoreStaticDefinition(88), allowed_states=[BehaviorState.IN_AGGRO])
+
+        self.jagged_strike_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=13)
+        self.fox_fangs_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Fox_Fangs"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=13)
+        self.death_blossom_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Death_Blossom"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=13)
 
         #common
-        self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
-        self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(score_definition= ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
-        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
-        self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(current_build=in_game_build)
-        self.protectors_defense_utility: CustomSkillUtilityBase = ProtectorsDefenseUtility(current_build=in_game_build,score_definition=ScoreStaticDefinition(60))
-        self.signet_of_return_utility: CustomSkillUtilityBase = GenericResurrectionUtility(skill=CustomSkill("Signet_of_Return"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
+        self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
+        self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(event_bus=self.event_bus, score_definition= ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
+        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
+        self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
+        self.protectors_defense_utility: CustomSkillUtilityBase = ProtectorsDefenseUtility(event_bus=self.event_bus, current_build=in_game_build,score_definition=ScoreStaticDefinition(60))
+        self.signet_of_return_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Signet_of_Return"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
 
     
     @property

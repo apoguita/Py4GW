@@ -3,6 +3,7 @@ from typing import Any, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -11,9 +12,10 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 
 class KeepSelfEffectUpUtility(CustomSkillUtilityBase):
-    def __init__(self, 
-    skill: CustomSkill, 
-    current_build: list[CustomSkill], 
+    def __init__(self,
+    event_bus: EventBus,
+    skill: CustomSkill,
+    current_build: list[CustomSkill],
     score_definition: ScoreStaticDefinition,
     mana_required_to_cast: int = 0,
     renew_before_expiration_in_milliseconds: int = 200,
@@ -21,10 +23,11 @@ class KeepSelfEffectUpUtility(CustomSkillUtilityBase):
     ) -> None:
 
         super().__init__(
-            skill=skill, 
-            in_game_build=current_build, 
-            score_definition=score_definition, 
-            mana_required_to_cast=mana_required_to_cast, 
+            event_bus=event_bus,
+            skill=skill,
+            in_game_build=current_build,
+            score_definition=score_definition,
+            mana_required_to_cast=mana_required_to_cast,
             allowed_states=allowed_states)
         
         self.score_definition: ScoreStaticDefinition = score_definition

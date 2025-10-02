@@ -2,6 +2,7 @@ from typing import Any, Generator, Callable, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -11,14 +12,16 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 class CryOfFrustrationUtility(CustomSkillUtilityBase):
 
-    def __init__(self, 
-                current_build: list[CustomSkill], 
+    def __init__(self,
+                event_bus: EventBus,
+                current_build: list[CustomSkill],
                 score_definition: ScoreStaticDefinition = ScoreStaticDefinition(91),
         ) -> None:
 
         super().__init__(
-            skill=CustomSkill("Cry_of_Frustration"), 
-            in_game_build=current_build, 
+            event_bus=event_bus,
+            skill=CustomSkill("Cry_of_Frustration"),
+            in_game_build=current_build,
             score_definition=score_definition)
         
         self.score_definition: ScoreStaticDefinition = score_definition

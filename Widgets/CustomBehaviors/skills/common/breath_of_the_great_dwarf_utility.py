@@ -1,6 +1,7 @@
 from typing import Any, Generator, override
 from Py4GWCoreLib import Routines, Range, GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -12,16 +13,18 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 class BreathOfTheGreatDwarfUtility(CustomSkillUtilityBase):
     def __init__(
-        self, 
-        current_build: list[CustomSkill], 
-        score_definition: ScorePerHealthGravityDefinition = ScorePerHealthGravityDefinition(1), 
+        self,
+        event_bus: EventBus,
+        current_build: list[CustomSkill],
+        score_definition: ScorePerHealthGravityDefinition = ScorePerHealthGravityDefinition(1),
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
         ) -> None:
-            
+
             super().__init__(
+                event_bus=event_bus,
                 skill=CustomSkill("Breath_of_the_Great_Dwarf"),
-                in_game_build=current_build, 
-                score_definition=score_definition, 
+                in_game_build=current_build,
+                score_definition=score_definition,
                 allowed_states=allowed_states)
             
             self.score_definition: ScorePerHealthGravityDefinition = score_definition

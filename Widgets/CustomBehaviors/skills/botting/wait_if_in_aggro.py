@@ -1,6 +1,7 @@
 from typing import Any, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -15,15 +16,17 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import Uti
 
 class WaitIfInAggroUtility(CustomSkillUtilityBase):
     def __init__(
-            self, 
-            current_build: list[CustomSkill], 
+            self,
+            event_bus: EventBus,
+            current_build: list[CustomSkill],
             mana_limit: float = 0.5,
         ) -> None:
-        
+
         super().__init__(
-            skill=CustomSkill("wait_if_in_aggro"), 
-            in_game_build=current_build, 
-            score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value + 0.0090), 
+            event_bus=event_bus,
+            skill=CustomSkill("wait_if_in_aggro"),
+            in_game_build=current_build,
+            score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value + 0.0090),
             allowed_states= [BehaviorState.IN_AGGRO],
             utility_skill_typology=UtilitySkillTypology.BOTTING)
 

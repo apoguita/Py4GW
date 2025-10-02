@@ -3,6 +3,7 @@ from typing import Any, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -18,15 +19,17 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import Uti
 
 class MoveToEnemyIfCloseEnoughUtility(CustomSkillUtilityBase):
     def __init__(
-            self, 
-            current_build: list[CustomSkill], 
+            self,
+            event_bus: EventBus,
+            current_build: list[CustomSkill],
             allowed_states: list[BehaviorState] = [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
         ) -> None:
-        
+
         super().__init__(
-            skill=CustomSkill("move_to_enemy_if_close_enough"), 
-            in_game_build=current_build, 
-            score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value), 
+            event_bus=event_bus,
+            skill=CustomSkill("move_to_enemy_if_close_enough"),
+            in_game_build=current_build,
+            score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value),
             allowed_states=allowed_states,
             utility_skill_typology=UtilitySkillTypology.BOTTING,
             execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
@@ -69,8 +72,9 @@ class MoveToEnemyIfCloseEnoughUtility(CustomSkillUtilityBase):
         enemy_id = self.__get_enemy_to_fight()
         if enemy_id is None: return BehaviorResult.ACTION_SKIPPED
 
-        ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.ChangeTarget, enemy_id)
-        ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.Interact, enemy_id, False)
+        GLOBAL_CACHE.Player.ChangeTarget(enemy_id)
+        yield from custom_behavior_helpers.Helpers.wait_for(100) 
+        GLOBAL_CACHE.Player.Interact(enemy_id, False)
         yield from custom_behavior_helpers.Helpers.wait_for(5_000)
 
         self.throttle_timer.Reset()
