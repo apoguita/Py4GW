@@ -278,7 +278,8 @@ def PixelStack(index, message):
     try:
         yield from DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
-
+        GLOBAL_CACHE.Player.SendChatCommand("stuck")
+        yield from Routines.Yield.wait(250)
         result = (yield from Routines.Yield.Movement.FollowPath(
             [(message.Params[0], message.Params[1])],
             tolerance=10,
@@ -291,7 +292,7 @@ def PixelStack(index, message):
 
             # --- Recovery sequence ---
             start_x, start_y = GLOBAL_CACHE.Player.GetXY()
-            GLOBAL_CACHE.Player.SendChatCommand("/stuck")
+            GLOBAL_CACHE.Player.SendChatCommand("stuck")
             # Step 1: Always walk backwards
             ConsoleLog(MODULE_NAME, "Recovery: walking backwards.", Console.MessageType.Info)
             yield from Routines.Yield.Movement.WalkBackwards(1000)
@@ -302,7 +303,7 @@ def PixelStack(index, message):
             left_x, left_y = GLOBAL_CACHE.Player.GetXY()
             if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
                 ConsoleLog(MODULE_NAME, "No movement detected, strafing right.", Console.MessageType.Info)
-                yield from Routines.Yield.Movement.StrafeRight(1000)
+                yield from Routines.Yield.Movement.StrafeRight(3000) # we need to get away from that wall
 
         else:
             ConsoleLog(MODULE_NAME, "PixelStack movement succeeded.", Console.MessageType.Info, log=False)
@@ -311,8 +312,62 @@ def PixelStack(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 #endregion
 
+#region BruteForceUnstuck
+def BruteForceUnstuck(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing BruteForceUnstuck message: {message}", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
 
-# endregion
+    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    try:
+        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+
+        # Initial stuck command
+        GLOBAL_CACHE.Player.SendChatCommand("stuck")
+        yield from Routines.Yield.wait(250)
+
+        # --- Recovery sequence attempts ---
+        start_x, start_y = GLOBAL_CACHE.Player.GetXY()
+
+        # --- define wiggle helpers ---
+        def wiggle_back_left():
+            for _ in range(3):
+                yield from Routines.Yield.Movement.WalkBackwards(250)
+                yield from Routines.Yield.Movement.StrafeLeft(250)
+
+        def wiggle_back_right():
+            for _ in range(3):
+                yield from Routines.Yield.Movement.WalkBackwards(250)
+                yield from Routines.Yield.Movement.StrafeRight(250)
+
+        # --- attempts dictionary ---
+        attempts = [
+            {"name": "backwards", "action": lambda: Routines.Yield.Movement.WalkBackwards(1000)},
+            {"name": "strafe_left", "action": lambda: Routines.Yield.Movement.StrafeLeft(1000)},
+            {"name": "strafe_right", "action": lambda: Routines.Yield.Movement.StrafeRight(2000)},
+            {"name": "wiggle_back_left", "action": wiggle_back_left},
+            {"name": "wiggle_back_right", "action": wiggle_back_right},
+        ]
+
+        for attempt in attempts:
+            ConsoleLog(MODULE_NAME, f"Recovery: {attempt['name']}.", Console.MessageType.Info)
+            yield from attempt["action"]()
+
+            # Check movement
+            cur_x, cur_y = GLOBAL_CACHE.Player.GetXY()
+            if Utils.Distance((start_x, start_y), (cur_x, cur_y)) > 50:
+                ConsoleLog(MODULE_NAME, f"Unstuck successful with {attempt['name']}.", Console.MessageType.Info)
+                break
+        else:
+            ConsoleLog(MODULE_NAME, "All unstuck attempts failed.", Console.MessageType.Warning)
+
+    finally:
+        yield from EnableHeroAIOptions(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 # region InteractWithTarget
 
@@ -1066,6 +1121,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(Resign(index, message))
         case SharedCommandType.PixelStack:
             GLOBAL_CACHE.Coroutines.append(PixelStack(index, message))
+        case SharedCommandType.BruteForceUnstuck:
+            GLOBAL_CACHE.Coroutines.append(BruteForceUnstuck(index, message))
         case SharedCommandType.PCon:
             GLOBAL_CACHE.Coroutines.append(UsePcon(index, message))
         case SharedCommandType.IdentifyItems:

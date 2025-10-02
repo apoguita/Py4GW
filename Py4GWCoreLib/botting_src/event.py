@@ -61,8 +61,8 @@ class OnDeathEvent(Event):
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
         dead = GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
-        if dead:
-            print("OnDeathEvent triggered")
+        #if dead:
+        #    print("OnDeathEvent triggered")
         return dead
 
     def should_reset(self) -> bool:
@@ -79,8 +79,8 @@ class OnPartyDefeated(Event):
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
         party_defeated =  GLOBAL_CACHE.Party.IsPartyDefeated()
-        if party_defeated:
-            print("OnPartyDefeated triggered")
+        #if party_defeated:
+        #    print("OnPartyDefeated triggered")
         return party_defeated
 
     def should_reset(self) -> bool:
@@ -106,8 +106,8 @@ class OnPartyWipe(Event):
             return False
         
         party_wiped = Routines.Checks.Party.IsPartyWiped()
-        if party_wiped:
-            print("OnPartyWipe triggered")
+        #if party_wiped:
+        #    print("OnPartyWipe triggered")
         return party_wiped
     
     def should_reset(self):
@@ -122,8 +122,8 @@ class OnPartyMemberDead(Event):
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
         party_member_dead = Routines.Checks.Party.IsPartyMemberDead()
-        if party_member_dead:
-            print("OnPartyMemberDead triggered")    
+        #if party_member_dead:
+        #    print("OnPartyMemberDead triggered")
         return party_member_dead
     
     def should_reset(self):
@@ -154,16 +154,27 @@ class OnPartyMemberDeadBehind(Event):
         from Py4GWCoreLib import Routines
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
-        dead_party_member_behind = Routines.Checks.Party.IsDeadPartyMemberBehind()
-        #if dead_party_member_behind:
+
+        # True only if dead party member is behind (outside earshot)
+        behind = Routines.Checks.Party.IsDeadPartyMemberBehind()
+        #if behind:
         #    print("OnPartyMemberDeadBehind triggered")
-        return dead_party_member_behind
+            
+        return behind
     
     def should_reset(self):
         from ..Routines import Checks, Routines
+
+        # reset if map is invalid
         if not Routines.Checks.Map.MapValid():
             return True
-        return not Checks.Party.IsDeadPartyMemberBehind()
+
+        # reset if no dead party member behind
+        if not Checks.Party.IsDeadPartyMemberBehind():
+            return True
+
+        return False
+
     
 class OnStuck(Event):
     def __init__(self, parent: "BotConfig", name: str = "OnStuckEvent", *, interval_ms: int = 1000, callback=None, active= False):

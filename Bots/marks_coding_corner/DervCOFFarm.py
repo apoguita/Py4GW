@@ -1,3 +1,6 @@
+from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
+from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_array
+from Bots.marks_coding_corner.utils.loot_utils import sell_non_essential_mats
 from Py4GWCoreLib.Builds.DervBoneFarmer import ENEMY_BLACKLIST
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBoneFarmer
@@ -14,27 +17,10 @@ base_dir = os.path.join(project_root, "marks_coding_corner/textures")
 COF_FARMER = "COF Farmer"
 DOOMLORE_SHRINE = "Doomlore Shrine"
 COF_LEVEL_1 = "Cathedral of Flames (level 1)"
-VIABLE_LOOT = {
-    ModelID.Gold_Coins,
-    ModelID.Bone,
-    ModelID.Pile_Of_Glittering_Dust,
-    ModelID.Bottle_Of_Rice_Wine,
-    ModelID.Bottle_Of_Vabbian_Wine,
-    ModelID.Dwarven_Ale,
-    ModelID.Eggnog,
-    ModelID.Hard_Apple_Cider,
-    ModelID.Hunters_Ale,
-    ModelID.Shamrock_Ale,
-    ModelID.Witchs_Brew,
-    ModelID.Zehtukas_Jug,
-    ModelID.Aged_Dwarven_Ale,
-    ModelID.Bottle_Of_Grog,
-    ModelID.Krytan_Brandy,
-    ModelID.Spiked_Eggnog,
-    ModelID.Vial_Of_Dye,
+
+VIABLE_LOOT |= {
     ModelID.Golden_Rin_Relic,
     ModelID.Diessa_Chalice,
-    ModelID.Lockpick,
 }
 # handler constants
 HANDLE_STUCK = 'handle_stuck'
@@ -53,6 +39,7 @@ stuck_timer = ThrottledTimer(3000)
 movement_check_timer = ThrottledTimer(3000)
 item_id_blacklist = []
 is_farming = False
+unmanaged_fail_counter = 0
 
 
 # region Direct Bot Actions
@@ -131,7 +118,7 @@ def farm(bot):
 
 def loot_items():
     global item_id_blacklist
-    filtered_agent_ids = get_valid_loot_array()
+    filtered_agent_ids = get_valid_salvagable_loot_array(viable_loot=VIABLE_LOOT)
     yield from Routines.Yield.wait(500)  # Wait for a second before starting to loot
     ConsoleLog(COF_FARMER, 'Looting items...')
     failed_items_id = yield from Routines.Yield.Items.LootItemsWithMaxAttempts(filtered_agent_ids, log=True)
@@ -161,26 +148,6 @@ def buy_salvage_kits():
         yield from Routines.Yield.Merchant.BuySalvageKits(3)
 
 
-def sell_non_essential_mats():
-    MERCHABLE_CRAFTING_MATERIALS_MODEL_ID = [
-        ModelID.Wood_Plank,
-        ModelID.Scale,
-        ModelID.Tanned_Hide_Square,
-        ModelID.Bolt_Of_Cloth,
-        ModelID.Granite_Slab,
-        ModelID.Chitin_Fragment,
-    ]
-    bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
-    all_items = ItemArray.GetItemArray(bag_list)
-    item_ids_to_sell = []
-
-    for item_id in all_items:
-        if GLOBAL_CACHE.Item.GetModelID(item_id) in MERCHABLE_CRAFTING_MATERIALS_MODEL_ID:
-            item_ids_to_sell.append(item_id)
-
-    yield from Routines.Yield.Merchant.SellItems(item_ids_to_sell)
-
-
 # endregion
 
 
@@ -189,50 +156,6 @@ def get_enemy_array(custom_range=Range.Area.value * 1.50):
     px, py = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
     return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in ENEMY_BLACKLIST]
-
-
-def get_valid_loot_array():
-    loot_array = AgentArray.GetItemArray()
-    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 2.00)
-
-    def is_valid_item(item_id):
-        if not Agent.IsValid(item_id):
-            return False
-        player_agent_id = Player.GetAgentID()
-        owner_id = Agent.GetItemAgentOwnerID(item_id)
-        if (owner_id == player_agent_id) or (owner_id == 0):
-            return True
-        return False
-
-    agent_array = AgentArray.GetItemArray()
-
-    item_array_model = AgentArray.Filter.ByCondition(
-        agent_array, lambda agent_id: Item.GetModelID(Agent.GetItemAgent(agent_id).item_id) in VIABLE_LOOT
-    )
-
-    item_array_salv = []
-    item_array_salv = AgentArray.Filter.ByCondition(
-        agent_array, lambda agent_id: Item.Usage.IsSalvageable(Agent.GetItemAgent(agent_id).item_id)
-    )
-
-    item_array = list(set(item_array_model + item_array_salv))
-    item_array = AgentArray.Sort.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY())
-
-    # return item_array
-    filtered_agent_ids = []
-    for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
-        item_data = Agent.GetItemAgent(agent_id)
-        item_id = item_data.item_id
-        model_id = Item.GetModelID(item_id)
-        if model_id in VIABLE_LOOT and is_valid_item(agent_id):
-            # Black and White Dyes
-            if (
-                model_id == ModelID.Vial_Of_Dye
-                and (GLOBAL_CACHE.Item.GetDyeColor(item_id) == 10 or GLOBAL_CACHE.Item.GetDyeColor(item_id) == 12)
-                or model_id != ModelID.Vial_Of_Dye
-            ):
-                filtered_agent_ids.append(agent_id)
-    return list(set(filtered_agent_ids + item_array_salv))
 
 
 def reset_looted_areas():
@@ -264,7 +187,7 @@ def _on_death(bot: Botting):
     salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
     free_slot_count = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
     fsm = bot.config.FSM
-    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 1 or free_slot_count < 4:
+    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 1 or free_slot_count < 2:
         fsm.jump_to_state_by_name("[H]Starting Loop_1")
     else:
         fsm.jump_to_state_by_name("[H]Farm Loop_2")
@@ -291,9 +214,38 @@ def is_inventory_ready():
 
 # endregion
 
+# region Handlers
+
+def _force_reset(bot: Botting):
+    global unmanaged_fail_counter
+    unmanaged_fail_counter += 1
+    ConsoleLog(COF_FARMER, f"Something went wrong forcing a reset... Attempt: {unmanaged_fail_counter}")
+    yield from Routines.Yield.wait(1000)
+    fsm = bot.config.FSM
+    fsm.jump_to_state_by_name("[H]Starting Loop_1")
+    fsm.resume()
+    yield
+
+
+def handle_custom_on_unmanaged_fail(bot: Botting):
+    global unmanaged_fail_counter
+
+    ConsoleLog(COF_FARMER, "Handling explorable mode unmanaged error...")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("Force Reset", _force_reset(bot))
+
+    if unmanaged_fail_counter > 5:
+        return True
+    return False
+
+
+# endregion
+
 
 def cof_farm_bot(bot: Botting):
     bot.Events.OnDeathCallback(lambda: on_death(bot))
+    bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     # override condition for halting movement
 
     bot.States.AddHeader('Starting Loop')
@@ -328,6 +280,7 @@ def cof_farm_bot(bot: Botting):
     bot.Dialogs.AtXY(-19166.00, 17980.00, 0x88, "Enter COF Level 1")  # Enter COF Level 1
     bot.Wait.ForMapLoad(target_map_name=COF_LEVEL_1)
     bot.Wait.ForTime(2000)
+    bot.Move.XY(-18295.50, -8614.49, "Move towards shrine")
     bot.Dialogs.AtXY(-18250.00, -8595.00, 0x84)
 
     bot.Move.XY(-16623, -8989, 'Move prep spot')
