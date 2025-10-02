@@ -4,6 +4,7 @@ from typing import Tuple
 import Py4GW
 from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
 from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_array
+from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
@@ -323,6 +324,7 @@ def handle_inventory(bot: Botting) -> None:
     bot.Merchant.Restock.SalvageKits()  # restock salvage kits
     bot.Items.AutoIDAndSalvageItems()  # sort bags again to make sure everything is deposited
     bot.States.AddCustomState(sell_non_essential_mats, "Sell non-essential Materials")
+    bot.States.AddCustomState(move_all_crafting_materials_to_storage, "Move materials to inventory")
     bot.Merchant.Restock.IdentifyKits()  # restock identify kits
     bot.Merchant.Restock.SalvageKits()  # restock salvage kits
     bot.Items.Restock.BirthdayCupcake()  # restock birthday cupcake
