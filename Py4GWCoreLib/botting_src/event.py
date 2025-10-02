@@ -123,7 +123,7 @@ class OnPartyMemberDead(Event):
             return False
         party_member_dead = Routines.Checks.Party.IsPartyMemberDead()
         #if party_member_dead:
-        #    print("OnPartyMemberDead triggered")    
+        #    print("OnPartyMemberDead triggered")
         return party_member_dead
     
     def should_reset(self):
@@ -150,27 +150,30 @@ class OnPartyMemberBehind(Event):
         return not Checks.Party.IsPartyMemberBehind()
     
 class OnPartyMemberDeadBehind(Event):
-    class OnPartyMemberDeadBehind(Event):
-        def should_trigger(self):
-            from Py4GWCoreLib import Routines
-            if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
-                return False
-
-            # True only if dead party member is behind (outside earshot)
-            return Routines.Checks.Party.IsDeadPartyMemberBehind()
-        
-        def should_reset(self):
-            from ..Routines import Checks, Routines
-
-            # reset if map is invalid
-            if not Routines.Checks.Map.MapValid():
-                return True
-
-            # reset if no dead party member behind
-            if not Checks.Party.IsDeadPartyMemberBehind():
-                return True
-
+    def should_trigger(self):
+        from Py4GWCoreLib import Routines
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
+
+        # True only if dead party member is behind (outside earshot)
+        behind = Routines.Checks.Party.IsDeadPartyMemberBehind()
+        #if behind:
+        #    print("OnPartyMemberDeadBehind triggered")
+            
+        return behind
+    
+    def should_reset(self):
+        from ..Routines import Checks, Routines
+
+        # reset if map is invalid
+        if not Routines.Checks.Map.MapValid():
+            return True
+
+        # reset if no dead party member behind
+        if not Checks.Party.IsDeadPartyMemberBehind():
+            return True
+
+        return False
 
     
 class OnStuck(Event):
