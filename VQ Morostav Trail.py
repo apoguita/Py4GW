@@ -3,38 +3,11 @@ import Py4GW
 
 BOT_NAME = "VQ Morostav Trail"
 TEXTURE = Py4GW.Console.get_projects_path() + "//Vanquished_Helmet.png"
-OUTPOST_TO_TRAVEL = 298 #Unwaking Waters
+UNWAKING_WATERS = 298 #Unwaking Waters
+MOROSTAV_TRAIL = 205
 HZH= 77
 
-bot = Botting(BOT_NAME,
-              upkeep_honeycomb_active=True)
-                
-def bot_routine(bot: Botting) -> None:
-    #events
-    #party member left behind
-    condition = lambda: OnPartyMemberBehind(bot)
-    bot.Events.OnPartyMemberBehindCallback(condition)
-    #party member dead behind
-    condition = lambda: OnPartyMemberDeathBehind(bot)
-    bot.Events.OnPartyMemberDeadBehindCallback(condition)
-    #party wipe
-    condition = lambda: OnPartyWipe(bot)
-    bot.Events.OnPartyWipeCallback(condition)
-    #end events
-    
-    bot.States.AddHeader(BOT_NAME)
-    bot.Templates.Multibox_Aggressive()
-    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
-    
-    bot.Party.SetHardMode(True)
-    bot.Move.XYAndExitMap(-14168,-8050,205) #Morostav Trail exit to Unwaking Waters
-    bot.Wait.ForTime(4000)
-    bot.Move.XYAndInteractNPC(22155.34, 12125.13)
-    bot.Multibox.SendDialogToTarget(0x86) #Get Bounty
-    bot.States.AddHeader("Start Combat") #3
-    #bot.Multibox.UseAllConsumables()
-    bot.States.AddManagedCoroutine("Upkeep_Multibox_Consumables", lambda: _upkeep_multibox_consumables(bot))
-    path = [(19283.57, 12803.82), #pack1
+Vanquish_Path = [(19283.57, 12803.82), #pack1
             (20840.22, 8834.50) , #round the corner
             (16449.09, 9398.16),  #hunt pack3
             (17075.29, 11542.65), #boss hole
@@ -111,13 +84,39 @@ def bot_routine(bot: Botting) -> None:
             (8071.68, 2811.61), #shore
             (5180.92, 961.27), #boss
     ]
-    bot.Move.FollowAutoPath(path, "Kill Route")
+
+bot = Botting(BOT_NAME,
+              upkeep_honeycomb_active=True)
+                
+def bot_routine(bot: Botting) -> None:
+    #events
+    global Vanquish_Path
+    #events
+    condition = lambda: OnPartyWipe(bot)
+    bot.Events.OnPartyWipeCallback(condition)
+    #end events
+    
+    bot.States.AddHeader(BOT_NAME)
+    bot.Templates.Multibox_Aggressive()
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=HZH)
+    
+    bot.Party.SetHardMode(True)
+    bot.Move.XYAndExitMap(-14168,-8050,MOROSTAV_TRAIL) #Morostav Trail exit to Unwaking Waters
+    bot.Wait.ForTime(4000)
+    bot.Move.XYAndInteractNPC(22155.34, 12125.13)
+    bot.Multibox.SendDialogToTarget(0x86) #Get Bounty
+    bot.States.AddHeader("Start Combat") #3
+    #bot.Multibox.UseAllConsumables()
+    bot.States.AddManagedCoroutine("Upkeep_Multibox_Consumables", lambda: _upkeep_multibox_consumables(bot))
+
+    bot.Move.FollowAutoPath(Vanquish_Path, "Kill Route")
     bot.Wait.UntilOutOfCombat()
+    
     bot.Multibox.ResignParty()
     bot.Wait.UntilOnOutpost()
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=HZH)
     bot.Multibox.DonateFaction()
-    bot.Wait.ForTime(15000)
+    bot.Wait.ForTime(20000)
     bot.States.JumpToStepName("[H]VQ Morostav Trail_1")
     
 def _upkeep_multibox_consumables(bot: "Botting"):
@@ -158,60 +157,8 @@ def _upkeep_multibox_consumables(bot: "Botting"):
             yield from bot.helpers.Wait._for_time(250)
             
 
-def _on_party_member_behind(bot: "Botting"):
-    print("Party Member behind, emitting pixel stack")
-    yield from Routines.Yield.Movement.StopMovement()
-    yield from bot.helpers.Multibox._pixel_stack()
 
-    last_emit = Utils.GetBaseTimestamp()
-    while not Routines.Checks.Party.IsAllPartyMembersInRange(Range.Earshot.value):
-        yield from bot.helpers.Wait._for_time(500)
 
-        # Reissue pixel stack every 10000 ms
-        now = Utils.GetBaseTimestamp()
-        if now - last_emit >= 10000:
-            print("Re-emitting pixel stack")
-            yield from bot.helpers.Multibox._pixel_stack()
-            last_emit = now
-
-        if not Routines.Checks.Agents.InDanger():
-            yield from Routines.Yield.Movement.StopMovement()
-        if not Routines.Checks.Map.MapValid():
-            bot.config.FSM.resume()
-            yield
-            break
-
-    print("Party Member in range, resuming")
-    bot.config.FSM.resume()
-    yield
-
-    
-      
-def OnPartyMemberBehind(bot: "Botting"):
-    print ("Party Member behind, Triggered")
-    fsm = bot.config.FSM
-    fsm.pause()
-    fsm.AddManagedCoroutine("OnBehind_OPD", _on_party_member_behind(bot))
-
-    
-def _on_party_member_death_behind(bot: "Botting"):
-    dead_player = Routines.Party.GetDeadPartyMemberID()
-    if dead_player == 0:
-        bot.config.FSM.resume()
-        return
-
-    pos = GLOBAL_CACHE.Agent.GetXY(dead_player)
-    path = [(pos[0], pos[1])]
-    bot.helpers.Move.set_path_to(path)
-    yield from bot.helpers.Move._follow_path()
-    bot.config.FSM.resume()
-
-def OnPartyMemberDeathBehind(bot: "Botting"):
-    ConsoleLog("on_party_member_dead_behind","event triggered")
-    fsm = bot.config.FSM
-    fsm.pause()
-    fsm.AddManagedCoroutine("OnDeathBehind_OPD", lambda: _on_party_member_death_behind(bot))
-    
 def _on_party_wipe(bot: "Botting"):
     while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
         yield from bot.helpers.Wait._for_time(1000)
@@ -230,9 +177,6 @@ def OnPartyWipe(bot: "Botting"):
     fsm.pause()
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 
-
-
-    
 
 bot.SetMainRoutine(bot_routine)
 
