@@ -98,7 +98,7 @@ def bot_routine(bot: Botting) -> None:
     
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
-    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=HZH)
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=UNWAKING_WATERS)
     
     bot.Party.SetHardMode(True)
     bot.Move.XYAndExitMap(-14168,-8050,MOROSTAV_TRAIL) #Morostav Trail exit to Unwaking Waters

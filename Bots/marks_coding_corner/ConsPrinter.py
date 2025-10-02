@@ -1,16 +1,17 @@
 import os
 
+from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Bags
 from Py4GWCoreLib import Botting
+from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Item
 from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Py4GW
+from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Trading
-from Py4GWCoreLib import ConsoleLog
-from Py4GWCoreLib import PyImGui
 
 try:
     script_directory = os.path.dirname(os.path.abspath(__file__))
@@ -46,31 +47,6 @@ TEXTURE_ICON_PATH = os.path.join(base_dir, "conset_printer.png")
 
 
 bot = Botting(MODULE_NAME)
-
-
-def move_all_crafting_materials_to_storage():
-    COMMON_FARMED_CRAFTING_MATERIALS = [
-        ModelID.Wood_Plank,
-        ModelID.Scale,
-        ModelID.Tanned_Hide_Square,
-        ModelID.Bolt_Of_Cloth,
-        ModelID.Granite_Slab,
-        ModelID.Bone,
-        ModelID.Iron_Ingot,
-        ModelID.Pile_Of_Glittering_Dust,
-        ModelID.Feather,
-    ]
-    bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
-    all_items = ItemArray.GetItemArray(bag_list)
-    # Store remaining non-sold sellables
-    item_ids_to_store = []
-    for item_id in all_items:
-        if GLOBAL_CACHE.Item.GetModelID(item_id) in COMMON_FARMED_CRAFTING_MATERIALS:
-            item_ids_to_store.append(item_id)
-
-    for item_id in item_ids_to_store:
-        GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-        yield from Routines.Yield.wait(250)
 
 
 def sell_non_cons_material_from_inventory():
