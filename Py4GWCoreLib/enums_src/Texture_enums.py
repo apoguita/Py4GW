@@ -4,7 +4,7 @@ import PySkill
 
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 
-FILE_NOT_FOUND_TEXTURE_PATH = os.path.join(Py4GW.Console.get_projects_path(), "0-File_Not_found.png")
+FILE_NOT_FOUND_TEXTURE_PATH = os.path.join(Py4GW.Console.get_projects_path(), "Textures\\0-File_Not_found.png")
 ITEM_MODEL_TEXTURE_PATH = "Textures\\Items"
 SKILL_TEXTURE_PATH = "Textures\\Skills"
 
@@ -28,6 +28,8 @@ def get_formatted_skill_name(skill: PySkill.SkillID) -> str:
     skill_name = skill.GetName()
     for i in ['_kurzick', '_luxon']:
         skill_name = skill_name.replace(i, '')
+    if skill.id == 2808:
+        skill_name = "Enraged_Smash_Pvp"
     return skill_name
 
 
