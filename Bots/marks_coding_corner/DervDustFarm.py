@@ -1,5 +1,8 @@
 import random
 
+from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
+from Bots.marks_coding_corner.utils.loot_utils import get_valid_loot_array
+from Bots.marks_coding_corner.utils.loot_utils import sell_non_essential_mats
 from Py4GWCoreLib.Builds.DervDustFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervDustFarmer import DervDustFarmer
 from Py4GWCoreLib import *
@@ -15,32 +18,6 @@ base_dir = os.path.join(project_root, "marks_coding_corner/textures")
 DUST_FARMER = "Dust Farmer"
 TOA = "Temple of the Ages"
 THE_BLACK_CURTAIN = "The Black Curtain"
-VIABLE_LOOT = {
-    ModelID.Gold_Coins,
-    ModelID.Bone,
-    ModelID.Plant_Fiber,
-    ModelID.Abnormal_Seed,
-    ModelID.Pile_Of_Glittering_Dust,
-    ModelID.Feather,
-    ModelID.Feathered_Crest,
-    ModelID.Bottle_Of_Rice_Wine,
-    ModelID.Bottle_Of_Vabbian_Wine,
-    ModelID.Dwarven_Ale,
-    ModelID.Eggnog,
-    ModelID.Hard_Apple_Cider,
-    ModelID.Hunters_Ale,
-    ModelID.Shamrock_Ale,
-    ModelID.Witchs_Brew,
-    ModelID.Zehtukas_Jug,
-    ModelID.Aged_Dwarven_Ale,
-    ModelID.Bottle_Of_Grog,
-    ModelID.Krytan_Brandy,
-    ModelID.Spiked_Eggnog,
-    ModelID.Vial_Of_Dye,
-    ModelID.Monstrous_Claw,
-    ModelID.Monstrous_Eye,
-    ModelID.Shadowy_Remnants,
-}
 # handler constants
 HANDLE_STUCK = 'handle_stuck'
 HANDLE_LOOT = 'handle_loot'
@@ -77,6 +54,7 @@ stuck_timer = ThrottledTimer(3000)
 movement_check_timer = ThrottledTimer(6000)
 stuck_counter = 0
 unstuck_counter = 0
+unmanaged_fail_counter = 0
 old_player_position = (0, 0)
 item_id_blacklist = []
 is_farming = False
@@ -161,7 +139,7 @@ def farm_fog_nightmares(bot):
 
 def loot_items():
     global item_id_blacklist
-    filtered_agent_ids = get_valid_loot_array()
+    filtered_agent_ids = get_valid_loot_array(viable_loot=VIABLE_LOOT)
     yield from Routines.Yield.wait(500)  # Wait for a second before starting to loot
     ConsoleLog(DUST_FARMER, 'Looting items...')
     failed_items_id = yield from Routines.Yield.Items.LootItemsWithMaxAttempts(filtered_agent_ids, log=True)
@@ -197,42 +175,21 @@ def buy_salvage_kits():
 def get_fog_nightmare_array(custom_range=Range.Area.value * 1.50):
     px, py = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
-    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}]
+    return [
+        agent_id
+        for agent_id in enemy_array
+        if GLOBAL_CACHE.Agent.GetModelID(agent_id) in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}
+    ]
 
 
 def get_non_fog_nightmare_array(custom_range=Range.Area.value * 1.50):
     px, py = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
-    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}]
-
-
-def get_valid_loot_array():
-    loot_array = AgentArray.GetItemArray()
-    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 3.00)
-
-    def is_valid_item(item_id):
-        if not Agent.IsValid(item_id):
-            return False
-        player_agent_id = Player.GetAgentID()
-        owner_id = Agent.GetItemAgentOwnerID(item_id)
-        if (owner_id == player_agent_id) or (owner_id == 0):
-            return True
-        return False
-
-    filtered_agent_ids = []
-    for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
-        item_data = Agent.GetItemAgent(agent_id)
-        item_id = item_data.item_id
-        model_id = Item.GetModelID(item_id)
-        if model_id in VIABLE_LOOT and is_valid_item(agent_id):
-            # Black and White Dyes
-            if (
-                model_id == ModelID.Vial_Of_Dye
-                and (GLOBAL_CACHE.Item.GetDyeColor(item_id) == 10 or GLOBAL_CACHE.Item.GetDyeColor(item_id) == 12)
-                or model_id != ModelID.Vial_Of_Dye
-            ):
-                filtered_agent_ids.append(agent_id)
-    return filtered_agent_ids
+    return [
+        agent_id
+        for agent_id in enemy_array
+        if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}
+    ]
 
 
 def reset_item_id_blacklist():
@@ -269,7 +226,7 @@ def detect_fog_nightmare_or_loot():
     if fog_nightmare_array:
         return True
 
-    filtered_agent_ids = get_valid_loot_array()
+    filtered_agent_ids = get_valid_loot_array(viable_loot=VIABLE_LOOT)
     if not filtered_agent_ids:
         return False
 
@@ -289,7 +246,7 @@ def _on_death(bot: Botting):
     salv_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
     free_slot_count = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
     fsm = bot.config.FSM
-    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0 or free_slot_count < 4:
+    if (ident_kits_in_inv + sup_ident_kits_in_inv) == 0 or salv_kits_in_inv == 0 or free_slot_count < 2:
         fsm.jump_to_state_by_name("[H]Starting Loop_1")
     else:
         fsm.jump_to_state_by_name("[H]Farm Loop_2")
@@ -465,7 +422,7 @@ def handle_loot(bot: Botting):
             GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(THE_BLACK_CURTAIN)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
-            if bot.config.pause_on_danger_fn() and get_valid_loot_array():
+            if bot.config.pause_on_danger_fn() and get_valid_loot_array(viable_loot=VIABLE_LOOT):
                 if not is_looting:
                     is_looting = True
                     ConsoleLog(DUST_FARMER, 'Setting to [Loot] status')
@@ -481,11 +438,36 @@ def handle_loot(bot: Botting):
         yield from Routines.Yield.wait(500)
 
 
+def _force_reset(bot: Botting):
+    global unmanaged_fail_counter
+    unmanaged_fail_counter += 1
+    ConsoleLog(DUST_FARMER, f"Something went wrong forcing a reset... Attempt: {unmanaged_fail_counter}")
+    yield from Routines.Yield.wait(1000)
+    fsm = bot.config.FSM
+    fsm.jump_to_state_by_name("[H]Starting Loop_1")
+    fsm.resume()
+    yield
+
+
+def handle_custom_on_unmanaged_fail(bot: Botting):
+    global unmanaged_fail_counter
+
+    ConsoleLog(DUST_FARMER, "Handling explorable mode unmanaged error...")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("Force Reset", _force_reset(bot))
+
+    if unmanaged_fail_counter > 5:
+        return True
+    return False
+
+
 # endregion
 
 
 def dust_farm_bot(bot: Botting):
     bot.Events.OnDeathCallback(lambda: on_death(bot))
+    bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     # override condition for halting movement
 
     bot.States.AddHeader('Starting Loop')
@@ -496,6 +478,7 @@ def dust_farm_bot(bot: Botting):
 
     bot.Move.XY(-5053.52, 19196.66, "Move close to Merch")
     bot.Interact.WithNpcAtXY(-5048.00, 19468.00, "Interact with Merchant")
+    bot.States.AddCustomState(sell_non_essential_mats, "Sell non-essential Materials")
     bot.States.AddCustomState(buy_id_kits, 'Buying ID Kits')
     bot.States.AddCustomState(buy_salvage_kits, 'Buying Salvage Kits')
 

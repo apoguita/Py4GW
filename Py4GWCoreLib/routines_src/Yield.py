@@ -321,6 +321,19 @@ class Yield:
             skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
             yield
             return enough_energy and skill_ready
+        
+        @staticmethod
+        def IsSkillSlotUsable(skill_slot: int):
+            from .Checks import Checks
+            if not Checks.Map.IsExplorable():
+                return False
+
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
+            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id, skill.id)
+            skill_ready = Checks.Skills.IsSkillSlotReady(skill_slot)
+            yield
+            return enough_energy and skill_ready
 
         @staticmethod
         def CastSkillSlot(slot:int,extra_condition=True, aftercast_delay=0, log=False):
@@ -335,7 +348,7 @@ class Yield:
             skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
             enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
-            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
+            skill_ready = Checks.Skills.IsSkillSlotReady(slot)
             
             if not(enough_energy and skill_ready and extra_condition):
                 yield
