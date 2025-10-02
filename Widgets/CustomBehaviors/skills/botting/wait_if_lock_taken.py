@@ -2,6 +2,7 @@ from typing import Any, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -17,15 +18,17 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import Uti
 
 class WaitIfLockTakenUtility(CustomSkillUtilityBase):
     def __init__(
-            self, 
-            current_build: list[CustomSkill], 
+            self,
+            event_bus: EventBus,
+            current_build: list[CustomSkill],
             mana_limit: float = 0.5,
         ) -> None:
-        
+
         super().__init__(
-            skill=CustomSkill("wait_if_lock_taken"), 
-            in_game_build=current_build, 
-            score_definition=ScoreStaticDefinition(0.00001), 
+            event_bus=event_bus,
+            skill=CustomSkill("wait_if_lock_taken"),
+            in_game_build=current_build,
+            score_definition=ScoreStaticDefinition(0.00001),
             allowed_states= [BehaviorState.IDLE, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO], # no need during aggro
             utility_skill_typology=UtilitySkillTypology.BOTTING)
 

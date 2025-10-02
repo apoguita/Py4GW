@@ -6,6 +6,11 @@ from typing import Any, Generator
 import PyImGui
 
 from Py4GWCoreLib import Botting
+from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Widgets.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
+
+from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
+from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
@@ -47,7 +52,6 @@ class BottingAbstract():
     @abstractmethod
     def description(self) -> str:
         pass
-
 
     def is_openned_bot(self):
         return self.__bot_instance is not None 
@@ -112,25 +116,33 @@ class BottingAbstract():
 
                 self.__bot_instance.UI.draw_window(main_child_dimensions= (350, 275))
 
+    def botting_unrecoverable_issue(self) -> Generator[Any, Any, Any]:
+        if self.__bot_instance is not None:
+            self.__bot_instance.Stop()
+        yield
+
     def inject_botting_behavior(self):
         instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: raise Exception("CustomBehavior widget is required.")
         # some are not finalized
-        # instance.inject_additionnal_utility_skills(ResignIfNeededUtility(instance.in_game_build))
-        # instance.inject_additionnal_utility_skills(MoveToDistantChestIfPathExistsUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveIfStuckUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfInAggroUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToEnemyIfCloseEnoughUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfDeadUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberManaTooLowUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.in_game_build))
+        # instance.inject_additionnal_utility_skills(MoveToDistantChestIfPathExistsUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(ResignIfNeededUtility(instance.event_bus, instance.in_game_build, on_failure=self.botting_unrecoverable_issue))
+        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfInAggroUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(MoveToEnemyIfCloseEnoughUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfDeadUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfPartyMemberManaTooLowUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.event_bus, instance.in_game_build))
+        instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.event_bus, instance.in_game_build))
+
         self.is_botting_behavior_injected = True
 
     def remove_botting_behavior(self):
         instance:CustomBehaviorBaseUtility = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: raise Exception("CustomBehavior widget is required.")
         instance.clear_additionnal_utility_skills()
+        CustomBehaviorLoader.refresh_custom_behavior_candidate
+
         self.is_botting_behavior_injected = False
+

@@ -1,9 +1,14 @@
 from abc import abstractmethod
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import Any
+import time
 
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
+from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
+from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -19,22 +24,26 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy 
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class CustomSkillUtilityBase:
-    def __init__(self, skill: CustomSkill,
+    def __init__(self, 
+                event_bus: EventBus,
+                skill: CustomSkill,
                 in_game_build: list[CustomSkill],
-                score_definition:ScoreDefinition,
-                mana_required_to_cast:float=0,
-                allowed_states:list[BehaviorState]=[BehaviorState.IN_AGGRO],
+                score_definition: ScoreDefinition,
+                mana_required_to_cast: float = 0,
+                allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO],
                 utility_skill_typology: UtilitySkillTypology = UtilitySkillTypology.COMBAT,
                 execution_strategy = UtilitySkillExecutionStrategy.EXECUTE_THROUGH_THE_END
                 ):
 
+        self.event_bus: EventBus = event_bus
         self.custom_skill: CustomSkill = skill
         self.utility_skill_typology: UtilitySkillTypology = utility_skill_typology
         self.in_game_build: list[CustomSkill] = in_game_build
         self.allowed_states: list[BehaviorState] | None = allowed_states
         self.mana_required_to_cast: float = mana_required_to_cast
-        self.is_enabled:bool = True
-        self.execution_strategy:UtilitySkillExecutionStrategy = execution_strategy
+        self.is_enabled: bool = True
+        self.execution_strategy: UtilitySkillExecutionStrategy = execution_strategy
+        self.score_definition: ScoreDefinition = score_definition
 
     @abstractmethod
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -55,6 +64,7 @@ class CustomSkillUtilityBase:
 
     def evaluate(self, current_state: BehaviorState, previously_attempted_skills:list[CustomSkill]) -> float | None:
         # print(f'Evaluating {self.custom_skill.skill_name}')
+
         if not self.is_enabled: return None
         if not self.are_common_pre_checks_valid(current_state): return None
         if self.utility_skill_typology == UtilitySkillTypology.COMBAT and not CustomBehaviorParty().get_party_is_combat_enabled(): return None
@@ -64,12 +74,13 @@ class CustomSkillUtilityBase:
         if self.utility_skill_typology == UtilitySkillTypology.BLESSING and not CustomBehaviorParty().get_party_is_blessing_enabled(): return None
         if self.utility_skill_typology == UtilitySkillTypology.INVENTORY and not CustomBehaviorParty().get_party_is_inventory_enabled(): return None
         if current_state == BehaviorState.IDLE:
-            if (self.utility_skill_typology != UtilitySkillTypology.BOTTING 
-                and self.utility_skill_typology != UtilitySkillTypology.DAEMON 
-                and self.utility_skill_typology != UtilitySkillTypology.INVENTORY): 
+            if (self.utility_skill_typology != UtilitySkillTypology.BOTTING
+                and self.utility_skill_typology != UtilitySkillTypology.DAEMON
+                and self.utility_skill_typology != UtilitySkillTypology.INVENTORY):
                 raise Exception("only botting & daemon utility_skill_typology can perform stuff in IDLE")
 
         score:float | None = self._evaluate(current_state, previously_attempted_skills)
+
         if score is None: return None
         if 0 > score > 100: raise Exception(f"{self.custom_skill.skill_name} : score must be between 0 and 100, calculated {score}.")
 
@@ -77,8 +88,10 @@ class CustomSkillUtilityBase:
 
     def execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
         if constants.DEBUG: print(f"Executing {self.custom_skill.skill_name}")
+
         gen:Generator[Any | None, Any | None, BehaviorResult] = self._execute(state)
         result:BehaviorResult = yield from gen
+
         return result
 
     def nature_has_been_attempted_last(self, previously_attempted_skills: list[CustomSkill]) -> bool:

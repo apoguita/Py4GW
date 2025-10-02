@@ -1,7 +1,7 @@
 from typing import List, Any, Generator, Callable, override
 import time
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
-from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
+
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
@@ -33,9 +33,6 @@ class AssassinVaettirFarm_Running_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.great_dwarf_armor_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(skill=CustomSkill("Great_Dwarf_Armor"), current_build=in_game_build, score_definition=ScoreStaticDefinition(50), mana_required_to_cast=10)
 
         # how to make no coupling with hot-reload, dedicated folder for thoses ?
-
-    def player_stuck(self, heart_of_shadow_target_agent_id: int) -> Generator[Any, Any, Any]:
-        yield from EVENT_BUS.publish(EventType.PLAYER_STUCK, heart_of_shadow_target_agent_id)
 
     @property
     @override

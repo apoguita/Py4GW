@@ -105,9 +105,11 @@ class WaypointBuilder:
         except Exception:
             print("Failed to parse clipboard. Use a list of tuples like [(x1, y1), (x2, y2)].")
 
-    def try_inject_waypoint_coordinate_from_clipboard(self, clipboard:str):
+    @staticmethod
+    def parse_coordinate_from_text(text: str) -> tuple[float, float] | None:
+        """Parse a coordinate from text in various formats."""
         try:
-            text = clipboard.strip()
+            text = text.strip()
             coord: tuple[float, float] | None = None
 
             # First try strict literal parsing like "(x, y)" or "[x, y]"
@@ -130,14 +132,18 @@ class WaypointBuilder:
                     y = float(parts[1])
                     coord = (x, y)
 
-            if coord is None:
-                raise ValueError("Invalid coordinate format")
+            return coord
+        except Exception:
+            return None
 
+    def try_inject_waypoint_coordinate_from_clipboard(self, clipboard: str):
+        coord = self.parse_coordinate_from_text(clipboard)
+        if coord is not None:
             self.list_of_points.append(coord)
             if constants.DEBUG:
                 print(f"Injected waypoint: {coord}")
             return coord
-        except Exception:
+        else:
             print('Failed to parse clipboard. Use "x, y" or "(x, y)".')
             return None
 

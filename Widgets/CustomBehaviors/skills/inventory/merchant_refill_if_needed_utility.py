@@ -22,16 +22,19 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 
 class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
-    def __init__(self, 
-    current_build: list[CustomSkill], 
+    def __init__(self,
+    event_bus: EventBus,
+    current_build: list[CustomSkill],
     ) -> None:
 
         super().__init__(
-            skill=CustomSkill("merchant_refill_if_needed_utility"), 
-            in_game_build=current_build, 
-            score_definition=ScoreStaticDefinition(1), 
+            event_bus=event_bus,
+            skill=CustomSkill("merchant_refill_if_needed_utility"),
+            in_game_build=current_build,
+            score_definition=ScoreStaticDefinition(1),
             allowed_states=[BehaviorState.IDLE],
             utility_skill_typology=UtilitySkillTypology.INVENTORY,
             execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)

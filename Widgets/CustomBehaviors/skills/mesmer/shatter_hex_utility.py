@@ -2,6 +2,7 @@ from typing import Any, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -13,6 +14,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 class ShatterHexUtility(CustomSkillUtilityBase):
     def __init__(self,
+                 event_bus: EventBus,
                  current_build: list[CustomSkill],
                  score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 95 if enemy_qte >= 2 else 20),
                  mana_required_to_cast: int = 15,
@@ -20,6 +22,7 @@ class ShatterHexUtility(CustomSkillUtilityBase):
                  ) -> None:
 
         super().__init__(
+            event_bus=event_bus,
             skill=CustomSkill("Shatter_Hex"),
             in_game_build=current_build,
             score_definition=score_definition,
@@ -47,7 +50,7 @@ class ShatterHexUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
         allies = self._get_targets()
-        if len(allies) == 0: return 0
+        if len(allies) == 0: return None
 
         lock_key = self._get_lock_key(allies[0].agent_id)
         if CustomBehaviorParty().get_shared_lock_manager().is_lock_taken(lock_key): return None #someone is already shattering

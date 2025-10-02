@@ -20,22 +20,25 @@ import time
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.follow_party_leader_during_aggro_strategy import FollowPartyLeaderDuringAggroStrategy
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 
 class FollowPartyLeaderUtility(CustomSkillUtilityBase):
 
     hero_formation = [ 0.0, 45.0, -45.0, 90.0, -90.0, 135.0, -135.0, 180.0 , -180.0, 225.0, -225.0, 270.0] # position on the grid of heroes
 
     def __init__(
-            self, 
-            current_build: list[CustomSkill], 
+            self,
+            event_bus: EventBus,
+            current_build: list[CustomSkill],
             allowed_states: list[BehaviorState] = [ BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO ],
             follow_party_leader_during_aggro_strategy = FollowPartyLeaderDuringAggroStrategy.STAY_FARTHEST
         ) -> None:
-        
+
         super().__init__(
-            skill=CustomSkill("follow_party_leader"), 
+            event_bus=event_bus,
+            skill=CustomSkill("follow_party_leader"),
             in_game_build=current_build,
-            score_definition=ScoreStaticDefinition(CommonScore.FOLLOW.value), 
+            score_definition=ScoreStaticDefinition(CommonScore.FOLLOW.value),
             allowed_states=allowed_states,
             utility_skill_typology=UtilitySkillTypology.FOLLOWING)
 

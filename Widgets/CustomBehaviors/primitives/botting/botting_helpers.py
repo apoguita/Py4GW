@@ -9,7 +9,7 @@ from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.FSM import FSM
 from Py4GWCoreLib.py4gwcorelib_src.Lootconfig import LootConfig
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
-from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
+
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
@@ -22,6 +22,17 @@ class BottingHelpers:
         if result is False:
             yield from on_failure()
         return result
+    
+    @staticmethod
+    def wait_until_on_map(target_map_id: int, timeout_ms: int) -> Generator[Any, Any, bool]:
+        """Wait until we are on the target map or timeout occurs."""
+        timeout = ThrottledTimer(timeout_ms)
+
+        while not timeout.IsExpired():
+            if GLOBAL_CACHE.Map.GetMapID() == target_map_id:
+                return True
+            yield from custom_behavior_helpers.Helpers.wait_for(100)
+        return False
 
     @staticmethod
     def wait_until_item_looted(item_name: str, timeout_ms: int) -> Generator[Any, Any, bool]:
