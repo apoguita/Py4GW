@@ -1,83 +1,95 @@
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Range, Utils, ConsoleLog
 import Py4GW
 
-BOT_NAME = "VQ Ferndale"
+BOT_NAME = "VQ Drazach Thicket"
 TEXTURE = Py4GW.Console.get_projects_path() + "//Vanquished_Helmet.png"
-HZH= 77
+OUTPOST_TO_START = 222 #Eternal Grove Outpost
+COORDS_TO_EXIT_OUTPOST = (-7544,14343) #to Drazach Thicket
+EXPLORABLE_TO_VANQUISH = 195 #Drazach Thicket
+COORDS_FOR_PRIEST = (-5592.00, -16263.00) #to priest
+DIALOG_FOR_PRIEST = 0x86
+HOUSE_ZU_HELZER = 77 #House Zu Helzer
 
-Vanquish_Path:list[tuple[float, float]] = [
-        (-9358.26, 12733.01), #middle patrol
-        (-11763.50, 6875.62), #bridge patrol
-        (-8343.50, 10348.14), #spawn under bridge
-        (-9358.26, 12733.01), #middle patrol point
-        (-11057.97, 20483.20), #mushrooms at the top
-        (-5486.26, 18571.37), #up the staris
-        (-5214.33, 15808.12), #bridge
-        (-3129.34, 15116.34), #around the rock
-        (-1997.73, 19808.71), 
-        (937.34, 14460.03), #floodfill
-        (-1552.20, 12181.78), #left side
-        (-418.83, 9722.58),
-        (1623.41, 11681.61),
-        (2353.03, 8665.77), 
-        (3497.35, 7112.98),
-        (4920.25, 14639.28), #issue!!!! stuck?
-        #(3471.81, 13055.59), #middle part (biggest)
-        #(4150.67, 15073.04),
-        (4777.39, 8038.80),
-        (6225.68, 14860.03),
-        (7747.10, 12009.60), #oni spawn
-        (9991.06, 11601.30),
-        (9188.73, 16076.83),
-        (12075.11, 18961.69), #stairs
-        (11635.97, 9944.48), #right side
-        (3388.01, 5963.63), #FORK MOUNTAINS
-        (-2324.46, 224.24), #engage patrols
-        (4964.69, 4695.06), #around right mountains
-        (9769.06, 3201.43),
-        (11953.75, 9212.22), #right patrol and spawns
-        (14419.30, 1311.15),
-        (8990.68, 518.77), #right pocket
-        (9532.74, -2186.87),
-        (5588.56, -1831.51),
-        (4358.47, -3596.96), #bridge stuff
-        (2391.71, -3199.59),
-        (-811.80, -2427.94), #pop ups
-        (4681.77, -12246.70), #tendrils foodfill
-        (8444.18, -11786.52),
-        (8241.50, -13956.31),
-        (10657.37, -17255.84), #right tendril
-        (14073.04, -19839.37),
-        (3291.92, -13745.13), #left tendril
-        (3629.04, -14834.70), #oni spawn
-        (-7260.26, -18284.58),
-        (1653.33, -10685.74), #garden
-        (-531.23, -10904.48), #floodfill lower garden
-        (-114.91, -9269.86), 
-        (-2798.66, -7118.50), #floodfill garden
-        (-7398.05, -6884.35),
-        (-9947.11, -8920.49), #oni spawn
-        (-8121.48, -5619.89), 
-        (-2614.03, -5811.48),
-        (-2540.95, -3791.90),
-        (-5708.50, -3462.03),
-        (-7744.69, -4578.63),
-        (-7268.23, -1897.74), 
-        (-4026.24, 152.70), #end garden floodfill
-        (-10708.04, 1472.96), #finish left side spawns
-        (-12390.78, 6997.02), 
-        (-10708.04, 1472.96),
-        (-4870.12, 3132.08),
-        (-4187.85, 6256.14), 
-        (-828.52, 8779.88), #finish right forks
-        (-6834.56, 8525.84), #bridge spawns
-        (-1292.07, 14085.61)
+Vanquish_Path = [(-9878.31, -14870.55), #ugly first corner
+                (-6024.71, -10824.51), #first room
+                (-4546.84, -9157.54), #right
+                (-6683.80, -8867.51), #ambush 
+                (-7756.96, -9672.30), #left
+
+                (-5651.87, -6857.37), #connector room
+                (-6603.41, -5635.55),
+
+                (-11036.84, -8096.66), #left ambush room
+                (-12024.07, -8840.55), #far pop ups
+
+                (-10875.07, -5594.80), #left hallway
+                (-10516.25, -2471.60), #left lower room
+                (-9792.65, -536.86), #hallway
+                (-11308.45, 3273.95), #hallway tendril
+                (-12730.60, 5712.96), #patrol hidden
+                (-7237.03, -2142.75), #oni pop ups
+
+                (-4554.99, 776.04), #next hallway
+                (-1223.03, 2129.13), #floodfill
+                (-1896.83, 5606.69), 
+                (2774.97, 3717.76),
+                (-1813.93, -2020.71), 
+                (-5234.42, -5652.45), 
+
+                (211.23, -5091.44), #rock spawn
+                (1371.50, -4038.61), 
+                (3255.87, -4785.59),
+                (1558.04, -6938.50), 
+                (668.36, -9314.83),
+                (2366.87, -9547.91), 
+
+                (5625.59, -1360.20), #room over slope
+                (4755.49, 821.61),
+                (7347.70, 311.06),
+
+                (9152.04, 4514.65), #right side
+                (13031.58, 7149.48),
+                (9152.04, 4514.65), #back to right side
+                (7016.99, 6483.00), 
+                (3104.65, 10852.02), 
+
+                (8982.88, 10737.52), #top
+                (7201.44, 13909.25), 
+                (7109.79, 12134.53), 
+                (3154.82, 11441.71), 
+
+                (1574.23, 15445.42), #snake top pop ups
+                (-1110.71, 15221.18), 
+                (-5693.68, 15871.91),
+
+                (-6212.60, 13582.10), #star road
+                (-4150.74, 12059.19),
+                (-5363.25, 10258.17),
+
+                (-2856.84, 10372.21), #to the right
+                (1247.34, 9651.55),
+                (2498.04, 11076.82),
+
+                (-2095.59, 7311.56), #to the center
+                (-3500.78, 6488.78), #oni spawn
+                (-6663.06, 4662.32), #tendril
+                (-5713.13, 8684.84), #group
+
+                (-7201.17, 9957.66), #back to star
+                (-7640.64, 12424.33), 
+                (-10422.90, 10846.65), 
+
+                (-12227.19, 7684.96), #left
+                (-10030.67, 4909.71), 
+                (-7056.59, 4837.11), 
+                
     ]
 
 bot = Botting(BOT_NAME,
               upkeep_honeycomb_active=True)
                 
 def bot_routine(bot: Botting) -> None:
+    #events
     global Vanquish_Path
     #events
     condition = lambda: OnPartyWipe(bot)
@@ -86,28 +98,28 @@ def bot_routine(bot: Botting) -> None:
     
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
-    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=HZH)
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_START)
     
     bot.Party.SetHardMode(True)
-    bot.Move.XYAndExitMap(10446, -1147,210) #Ferndale
+    bot.Move.XYAndExitMap(*COORDS_TO_EXIT_OUTPOST,EXPLORABLE_TO_VANQUISH) #Morostav Trail exit to Unwaking Waters
     bot.Wait.ForTime(4000)
-    bot.Move.XYAndInteractNPC(-12909.00, 15616.00)
-    bot.Multibox.SendDialogToTarget(0x86) #Get Bounty
+    bot.Move.XYAndInteractNPC(*COORDS_FOR_PRIEST)
+    bot.Multibox.SendDialogToTarget(DIALOG_FOR_PRIEST) #Get Bounty
     bot.States.AddHeader("Start Combat") #3
     bot.Multibox.UseAllConsumables()
-    bot.States.AddManagedCoroutine("Upkeep Multibox Consumables", lambda: _upkeep_multibox_consumables(bot))
-    
+    #bot.States.AddManagedCoroutine("Upkeep_Multibox_Consumables", lambda: _upkeep_multibox_consumables(bot))
+
     bot.Move.FollowAutoPath(Vanquish_Path, "Kill Route")
     bot.Wait.UntilOutOfCombat()
     
     bot.Multibox.ResignParty()
     bot.Wait.UntilOnOutpost()
-    
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=HOUSE_ZU_HELZER)
     bot.Multibox.DonateFaction()
     bot.Wait.ForTime(20000)
-    bot.States.JumpToStepName("[H]VQ Ferndale_1")
+    bot.States.JumpToStepName("[H]Drazach Thicket_1")
     
-def _upkeep_multibox_consumables(bot :"Botting"):
+def _upkeep_multibox_consumables(bot: "Botting"):
     while True:
         yield from bot.helpers.Wait._for_time(15000)
         if not Routines.Checks.Map.MapValid():
@@ -117,7 +129,7 @@ def _upkeep_multibox_consumables(bot :"Botting"):
             continue
         
         yield from bot.helpers.Multibox._use_consumable_message((ModelID.Essence_Of_Celerity.value, 
-                                            GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0))  
+                                               GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0))  
         yield from bot.helpers.Multibox._use_consumable_message((ModelID.Grail_Of_Might.value, 
                                                 GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect"), 0, 0))  
         yield from bot.helpers.Multibox._use_consumable_message((ModelID.Armor_Of_Salvation.value, 
@@ -144,6 +156,9 @@ def _upkeep_multibox_consumables(bot :"Botting"):
             GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
             yield from bot.helpers.Wait._for_time(250)
             
+
+
+
 def _on_party_wipe(bot: "Botting"):
     while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
         yield from bot.helpers.Wait._for_time(1000)
@@ -152,7 +167,6 @@ def _on_party_wipe(bot: "Botting"):
             bot.config.FSM.resume()
             return
 
-    GLOBAL_CACHE.Map
     # Player revived on same map → jump to recovery step
     bot.States.JumpToStepName("[H]Start Combat_3")
     bot.config.FSM.resume()
@@ -161,7 +175,8 @@ def OnPartyWipe(bot: "Botting"):
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
     fsm.pause()
-    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot)) 
+    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
+
 
 bot.SetMainRoutine(bot_routine)
 
