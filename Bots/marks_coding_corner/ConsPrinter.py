@@ -157,7 +157,12 @@ def withdraw_cons_materials_from_inventory():
     possible_gold = gold_available // GOLD_PER_CONSET
     max_possible = min(max_possible, possible_gold)
 
-    # Step 3: Cap to what can actually fit in slots
+    # Step 3: Check skill points availability
+    current_skill_points, _ = GLOBAL_CACHE.Player.GetSkillPointData()
+    possible_skillpoints = current_skill_points // 3
+    max_possible = min(max_possible, possible_skillpoints)
+
+    # Step 4: Cap to what can actually fit in slots
     def can_fit(conset_count):
         slots_needed = 0
         for model_id, req_amount in PER_CONSET.items():
@@ -174,10 +179,10 @@ def withdraw_cons_materials_from_inventory():
         max_possible -= 1
 
     if max_possible <= 0:
-        ConsoleLog("Conset Withdraw", "Not enough space/materials to craft any consets.")
+        ConsoleLog("Conset Withdraw", "Not enough space/materials/skill points to craft any consets.")
         return
 
-    # Step 4: Withdraw materials
+    # Step 5: Withdraw materials
     for model_id, req_amount in PER_CONSET.items():
         total_needed = req_amount * max_possible
         already_have = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
@@ -192,7 +197,7 @@ def withdraw_cons_materials_from_inventory():
 
         ConsoleLog("Withdraw", f"Got {total_needed} {model_id} for consets.")
 
-    # Step 5: Withdraw gold
+    # Step 6: Withdraw gold
     needed_gold = GOLD_PER_CONSET * max_possible
     gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
 
@@ -202,7 +207,10 @@ def withdraw_cons_materials_from_inventory():
         yield from Routines.Yield.wait(250)
 
     consets_to_make = max_possible
-    ConsoleLog("Conset Withdraw", f"Withdrew materials and {needed_gold}g for {max_possible} consets.")
+    ConsoleLog(
+        "Conset Withdraw",
+        f"Withdrew materials, {needed_gold}g, and reserved {max_possible * 3} skill points for {max_possible} consets.",
+    )
 
 
 def can_make_at_least_one_conset_from_storage():

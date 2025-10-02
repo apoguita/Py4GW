@@ -250,14 +250,66 @@ class _Multibox:
         sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
         x,y = GLOBAL_CACHE.Player.GetXY()
         
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        current_map = GLOBAL_CACHE.Map.GetMapID()
+        player_names = []
+        
+        for player in players:
+            agent_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(player.login_number)
+            if agent_name != "":
+                player_names.append(agent_name)
+
+
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         sender_email = sender_email
         for account in accounts:
             if sender_email == account.AccountEmail:
                 continue
+            
+            if not current_map == account.MapID:
+                continue
+            
+            account_name = account.CharacterName
+            if account_name not in player_names:
+                continue 
+            
             ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail, log= False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (x,y,0,0))
         yield
+        
+    def _brute_force_unstuck(self):
+        from ...GlobalCache import GLOBAL_CACHE
+
+        sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        x, y = GLOBAL_CACHE.Player.GetXY()
+
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        current_map = GLOBAL_CACHE.Map.GetMapID()
+        player_names = []
+
+        for player in players:
+            agent_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(player.login_number)
+            if agent_name != "":
+                player_names.append(agent_name)
+
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            if sender_email == account.AccountEmail:
+                continue
+
+            if not current_map == account.MapID:
+                continue
+
+            account_name = account.CharacterName
+            if account_name not in player_names:
+                continue
+
+            ConsoleLog("Messaging", "BruteForcing account: " + account.AccountEmail, log=False)
+            # send same-shaped payload as pixel stack (x, y, 0, 0) — adjust if your handler expects different
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.BruteForceUnstuck, (x, y, 0, 0))
+
+        yield
+
         
     def _interact_with_target(self):
         from ...GlobalCache import GLOBAL_CACHE

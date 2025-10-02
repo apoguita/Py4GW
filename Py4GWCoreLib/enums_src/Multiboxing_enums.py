@@ -24,6 +24,7 @@ class SharedCommandType(IntEnum):
     PressKey = 19
     DonateToGuild = 20
     SendDialogToTarget = 21
+    BruteForceUnstuck = 22
     LootEx = 999 # privately Handled Command, by Frenkey
     
 

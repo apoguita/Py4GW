@@ -133,6 +133,7 @@ class Yield:
         def TurnRight(duration_ms:int):
             yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms)
         
+        #region FollowPath
         @staticmethod
         def FollowPath(
             path_points: List[Tuple[float, float]],
@@ -231,6 +232,7 @@ class Yield:
                                 stuck_count = 0  # reset after recovery
                     else:
                         retries = 0  # reset retries if making progress
+                        stuck_count = 0  # reset stuck count if making progress
 
                     previous_distance = current_distance
 
@@ -319,6 +321,19 @@ class Yield:
             skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
             yield
             return enough_energy and skill_ready
+        
+        @staticmethod
+        def IsSkillSlotUsable(skill_slot: int):
+            from .Checks import Checks
+            if not Checks.Map.IsExplorable():
+                return False
+
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
+            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id, skill.id)
+            skill_ready = Checks.Skills.IsSkillSlotReady(skill_slot)
+            yield
+            return enough_energy and skill_ready
 
         @staticmethod
         def CastSkillSlot(slot:int,extra_condition=True, aftercast_delay=0, log=False):
@@ -333,7 +348,7 @@ class Yield:
             skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
             enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
-            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
+            skill_ready = Checks.Skills.IsSkillSlotReady(slot)
             
             if not(enough_energy and skill_ready and extra_condition):
                 yield
