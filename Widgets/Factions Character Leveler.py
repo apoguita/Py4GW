@@ -784,6 +784,7 @@ def AdvanceToEOTN(bot: Botting):
     bot.Move.XY(3444.90, -1728.31)
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
+    bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
     bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)  # yes
     bot.Wait.ForMapLoad(target_map_id=692)  # tunnels_below_cantha_id
     auto_path_list = [(16738.77, 3046.05), (13028.36, 6146.36), (10968.19, 9623.72),
@@ -869,13 +870,14 @@ def AdvanceToGunnarsHold(bot: Botting):
 def UnlockKillroy(bot: Botting):
     bot.States.AddHeader("Unlock Killroy")
     bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
-    bot.Templates.Aggressive(enable_imp=False)
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
+    bot.Templates.Aggressive(enable_imp=False)
     bot.Items.Equip(24897) #brass_knuckles_item_id
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
+    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
 
 def UnlockRemainingSecondaryProfessions(bot: Botting):
     bot.States.AddHeader("Unlock remaining secondary professions")
