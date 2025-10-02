@@ -1,8 +1,10 @@
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import AutoInventoryHandler
 from Py4GWCoreLib import AgentArray
+from Py4GWCoreLib import Bags
 from Py4GWCoreLib import Player
 from Py4GWCoreLib import Item
+from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib import Range
@@ -120,3 +122,28 @@ def get_valid_salvagable_loot_array(viable_loot=VIABLE_LOOT):
 def identify_and_salvage_items():
     yield from Routines.Yield.wait(1500)
     yield from AutoInventoryHandler().IDAndSalvageItems()
+
+
+def move_all_crafting_materials_to_storage():
+    COMMON_FARMED_CRAFTING_MATERIALS = [
+        ModelID.Wood_Plank,
+        ModelID.Scale,
+        ModelID.Tanned_Hide_Square,
+        ModelID.Bolt_Of_Cloth,
+        ModelID.Granite_Slab,
+        ModelID.Bone,
+        ModelID.Iron_Ingot,
+        ModelID.Pile_Of_Glittering_Dust,
+        ModelID.Feather,
+    ]
+    bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
+    all_items = ItemArray.GetItemArray(bag_list)
+    # Store remaining non-sold sellables
+    item_ids_to_store = []
+    for item_id in all_items:
+        if GLOBAL_CACHE.Item.GetModelID(item_id) in COMMON_FARMED_CRAFTING_MATERIALS:
+            item_ids_to_store.append(item_id)
+
+    for item_id in item_ids_to_store:
+        GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+        yield from Routines.Yield.wait(250)

@@ -3,6 +3,7 @@ import random
 from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
 from Bots.marks_coding_corner.utils.loot_utils import get_valid_loot_array
 from Bots.marks_coding_corner.utils.loot_utils import identify_and_salvage_items
+from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
 from Bots.marks_coding_corner.utils.merch_utils import buy_id_kits
 from Bots.marks_coding_corner.utils.merch_utils import buy_salvage_kits
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
@@ -480,6 +481,7 @@ def feather_farm_bot(bot: Botting):
     bot.States.AddCustomState(buy_salvage_kits, 'Buying Salvage Kits')
 
     bot.States.AddCustomState(identify_and_salvage_items, 'Salvaging Items')
+    bot.States.AddCustomState(move_all_crafting_materials_to_storage, "Move crafting materials to storage")
 
     # Resign setup
     bot.States.AddCustomState(lambda: set_bot_to_setup(bot), "Setup Resign")

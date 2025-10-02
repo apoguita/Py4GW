@@ -1,6 +1,7 @@
 from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
 from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_array
 from Bots.marks_coding_corner.utils.loot_utils import identify_and_salvage_items
+from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
 from Bots.marks_coding_corner.utils.merch_utils import buy_id_kits
 from Bots.marks_coding_corner.utils.merch_utils import buy_salvage_kits
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
@@ -226,6 +227,7 @@ def cof_farm_bot(bot: Botting):
     bot.States.AddCustomState(buy_id_kits, 'Buying ID Kits')
     bot.States.AddCustomState(buy_salvage_kits, 'Buying Salvage Kits')
     bot.States.AddCustomState(identify_and_salvage_items, 'Salvaging Items')
+    bot.States.AddCustomState(move_all_crafting_materials_to_storage, "Move crafting materials to storage")
     bot.Dialogs.AtXY(-19166.00, 17980.00, 0x832101, "Temple of the damned Quest")  # Temple of the damned quest 0x832101
     bot.Dialogs.AtXY(-19166.00, 17980.00, 0x88, "Enter COF Level 1")  # Enter COF Level 1
 
