@@ -28,11 +28,12 @@ Vanquish_Path = [(-9878.31, -14870.55), #ugly first corner
                 (-11308.45, 3273.95), #hallway tendril
                 (-12730.60, 5712.96), #patrol hidden
                 (-7237.03, -2142.75), #oni pop ups
+                (-7105.36, -2426.90), #oni pop ups 2
 
                 (-4554.99, 776.04), #next hallway
                 (-1223.03, 2129.13), #floodfill
                 (-1896.83, 5606.69), 
-                (2774.97, 3717.76),
+                #(2774.97, 3717.76),
                 (-1813.93, -2020.71), 
                 (-5234.42, -5652.45), 
 
@@ -70,6 +71,7 @@ Vanquish_Path = [(-9878.31, -14870.55), #ugly first corner
                 (1247.34, 9651.55),
                 (2498.04, 11076.82),
 
+                (-2488.08, 8399.15), #patrol trigger
                 (-2095.59, 7311.56), #to the center
                 (-3500.78, 6488.78), #oni spawn
                 (-6663.06, 4662.32), #tendril
@@ -80,8 +82,8 @@ Vanquish_Path = [(-9878.31, -14870.55), #ugly first corner
                 (-10422.90, 10846.65), 
 
                 (-12227.19, 7684.96), #left
+                (-12730.60, 5712.96), #patrol hidden
                 (-10030.67, 4909.71), 
-                (-7056.59, 4837.11), 
                 
     ]
 
@@ -117,7 +119,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=HOUSE_ZU_HELZER)
     bot.Multibox.DonateFaction()
     bot.Wait.ForTime(20000)
-    bot.States.JumpToStepName("[H]Drazach Thicket_1")
+    bot.States.JumpToStepName("[H]VQ Drazach Thicket_1")
     
 def _upkeep_multibox_consumables(bot: "Botting"):
     while True:
