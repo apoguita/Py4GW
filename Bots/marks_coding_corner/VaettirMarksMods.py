@@ -590,8 +590,8 @@ def main():
 
     bot.Update()
     projects_path = Py4GW.Console.get_projects_path()
-    widgets_path = projects_path + "\\Widgets\\Config\\textures\\"
-    bot.UI.draw_window(icon_path=widgets_path + "YAVB 2.0 mascot.png")
+    widgets_path = projects_path + "\\Bots\\marks_coding_corner\\textures\\"
+    bot.UI.draw_window(icon_path=widgets_path + "vaettir_icon.png")
 
 
 if __name__ == "__main__":
