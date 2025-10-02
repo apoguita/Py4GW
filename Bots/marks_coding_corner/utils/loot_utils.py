@@ -1,10 +1,9 @@
-from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import AutoInventoryHandler
 from Py4GWCoreLib import AgentArray
 from Py4GWCoreLib import Player
 from Py4GWCoreLib import Item
-from Py4GWCoreLib import ItemArray
-from Py4GWCoreLib import Bags
+from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
@@ -118,21 +117,6 @@ def get_valid_salvagable_loot_array(viable_loot=VIABLE_LOOT):
     return list(set(filtered_agent_ids + item_array_salv))
 
 
-def sell_non_essential_mats():
-    MERCHABLE_CRAFTING_MATERIALS_MODEL_ID = [
-        ModelID.Wood_Plank,
-        ModelID.Scale,
-        ModelID.Tanned_Hide_Square,
-        ModelID.Bolt_Of_Cloth,
-        ModelID.Granite_Slab,
-        ModelID.Chitin_Fragment,
-    ]
-    bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
-    all_items = ItemArray.GetItemArray(bag_list)
-    item_ids_to_sell = []
-
-    for item_id in all_items:
-        if GLOBAL_CACHE.Item.GetModelID(item_id) in MERCHABLE_CRAFTING_MATERIALS_MODEL_ID:
-            item_ids_to_sell.append(item_id)
-
-    yield from Routines.Yield.Merchant.SellItems(item_ids_to_sell)
+def identify_and_salvage_items():
+    yield from Routines.Yield.wait(1500)
+    yield from AutoInventoryHandler().IDAndSalvageItems()

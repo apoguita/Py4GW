@@ -1,10 +1,14 @@
 from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
 from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_array
-from Bots.marks_coding_corner.utils.loot_utils import sell_non_essential_mats
-from Py4GWCoreLib.Builds.DervBoneFarmer import ENEMY_BLACKLIST
-from Py4GWCoreLib.Builds.DervBoneFarmer import DervBuildFarmStatus
-from Py4GWCoreLib.Builds.DervBoneFarmer import DervBoneFarmer
+from Bots.marks_coding_corner.utils.loot_utils import identify_and_salvage_items
+from Bots.marks_coding_corner.utils.merch_utils import buy_id_kits
+from Bots.marks_coding_corner.utils.merch_utils import buy_salvage_kits
+from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
+from Bots.marks_coding_corner.utils.town_utils import return_to_outpost
 from Py4GWCoreLib import *
+from Py4GWCoreLib.Builds.DervBoneFarmer import ENEMY_BLACKLIST
+from Py4GWCoreLib.Builds.DervBoneFarmer import DervBoneFarmer
+from Py4GWCoreLib.Builds.DervBoneFarmer import DervBuildFarmStatus
 
 try:
     script_directory = os.path.dirname(os.path.abspath(__file__))
@@ -43,25 +47,6 @@ unmanaged_fail_counter = 0
 
 
 # region Direct Bot Actions
-def return_to_outpost():
-    if GLOBAL_CACHE.Map.IsOutpost():
-        return
-
-    is_explorable = GLOBAL_CACHE.Map.IsExplorable()
-    while is_explorable:
-        is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
-        is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
-        is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated() or GLOBAL_CACHE.Player.GetMorale() < 100
-
-        if is_map_ready and is_party_loaded and is_explorable and is_party_defeated:
-            yield from Routines.Yield.Player.Resign()
-            yield from Routines.Yield.wait(2000)
-            GLOBAL_CACHE.Party.ReturnToOutpost()
-        else:
-            is_explorable = GLOBAL_CACHE.Map.IsExplorable()
-            yield from Routines.Yield.wait(4000)
-
-
 def load_skill_bar(bot: Botting):
     yield from bot.config.build_handler.LoadSkillBar()
 
@@ -126,26 +111,6 @@ def loot_items():
         item_id_blacklist = item_id_blacklist + failed_items_id
     ConsoleLog(COF_FARMER, 'Looting items finished')
     yield
-
-
-def identify_and_salvage_items():
-    yield from Routines.Yield.wait(1500)
-    yield from AutoInventoryHandler().IDAndSalvageItems()
-
-
-def buy_id_kits():
-    yield from Routines.Yield.wait(1500)
-    kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
-    sup_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
-    if (kits_in_inv + sup_kits_in_inv) < 1:
-        yield from Routines.Yield.Merchant.BuyIDKits(1)
-
-
-def buy_salvage_kits():
-    yield from Routines.Yield.wait(1500)
-    kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
-    if kits_in_inv < 2:
-        yield from Routines.Yield.Merchant.BuySalvageKits(3)
 
 
 # endregion
