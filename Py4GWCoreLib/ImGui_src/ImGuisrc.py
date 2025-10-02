@@ -1,5 +1,5 @@
 from ..Overlay import Overlay
-from ..enums import get_texture_for_model, ImguiFonts
+from ..enums import get_texture_for_item, ImguiFonts
 from ..Py4GWcorelib import Color, ColorPalette, ConsoleLog, Utils
 from typing import TypeAlias, Optional
 from .types import ImGuiStyleVar, StyleTheme, ControlAppearance
@@ -2518,7 +2518,7 @@ class ImGui:
             model_id (int): The model ID to get the texture for.
         Returns: str: The texture path or a fallback image path if not found.
         """
-        return get_texture_for_model(model_id)
+        return get_texture_for_item(model_id)
         
     @staticmethod
     def show_tooltip(text: str):
