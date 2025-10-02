@@ -38,7 +38,6 @@ from .enums_src.Region_enums import (
 )
 from .enums_src.Texture_enums import (
     ProfessionTextureMap,
-    SkillTextureMap,
     get_texture_for_item,
     get_texture_for_skill,
 )
@@ -118,7 +117,6 @@ __all__ = [
 
     # Texture_enums
     "ProfessionTextureMap",
-    "SkillTextureMap",
     "get_texture_for_item",
     "get_texture_for_skill",
 
