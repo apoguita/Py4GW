@@ -673,12 +673,13 @@ def jokanur_diggings_quests(bot):
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(13244, -6829)
     bot.Wait.UntilOutOfCombat()
+    bot.States.AddHeader("Map_Travel") #test this map travel 12
     bot.Map.Travel(target_map_id=491)  
     #bot.Wait.ForMapToChange(target_map_id=91)
     
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-    if level <= 10:
-        bot.States.JumpToStepName("[H]jokanur_diggings_quests_25")
+    if level <10:
+        bot.States.JumpToStepName("[H]Map_Travel_12")
     else:
         bot.States.JumpToStepName("[H]EOTN Run_27") 
                   
