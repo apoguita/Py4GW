@@ -1,17 +1,24 @@
+from typing import List
+from typing import Tuple
+
 import Py4GW
 from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
-from Bots.marks_coding_corner.utils.loot_utils import sell_non_essential_mats
 from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_array
-from Py4GWCoreLib import Routines, Botting, ActionQueueManager, ConsoleLog, GLOBAL_CACHE, Utils
+from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
+from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import ActionQueueManager
+from Py4GWCoreLib import Botting
+from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
-from Py4GWCoreLib.enums import ModelID, Range, TitleID
-
+from Py4GWCoreLib import Utils
 from Py4GWCoreLib.BuildMgr import BuildMgr
-
-from Py4GWCoreLib.Builds import SF_Mes_vaettir
 from Py4GWCoreLib.Builds import SF_Ass_vaettir
-
-from typing import List, Tuple
+from Py4GWCoreLib.Builds import SF_Mes_vaettir
+from Py4GWCoreLib.enums import ModelID
+from Py4GWCoreLib.enums import Range
+from Py4GWCoreLib.enums import TitleID
 
 VAETTIR_FARM_BY_MARK = "Vaettir By Mark"
 HANDLE_STUCK_JAGA_MORAINE = "HandleStuckJagaMoraine"
@@ -317,6 +324,7 @@ def handle_inventory(bot: Botting) -> None:
     bot.Merchant.Restock.SalvageKits()  # restock salvage kits
     bot.Items.AutoIDAndSalvageItems()  # sort bags again to make sure everything is deposited
     bot.States.AddCustomState(sell_non_essential_mats, "Sell non-essential Materials")
+    bot.States.AddCustomState(move_all_crafting_materials_to_storage, "Move materials to inventory")
     bot.Merchant.Restock.IdentifyKits()  # restock identify kits
     bot.Merchant.Restock.SalvageKits()  # restock salvage kits
     bot.Items.Restock.BirthdayCupcake()  # restock birthday cupcake
@@ -582,8 +590,8 @@ def main():
 
     bot.Update()
     projects_path = Py4GW.Console.get_projects_path()
-    widgets_path = projects_path + "\\Widgets\\Config\\textures\\"
-    bot.UI.draw_window(icon_path=widgets_path + "YAVB 2.0 mascot.png")
+    widgets_path = projects_path + "\\Bots\\marks_coding_corner\\textures\\"
+    bot.UI.draw_window(icon_path=widgets_path + "vaettir_icon.png")
 
 
 if __name__ == "__main__":
