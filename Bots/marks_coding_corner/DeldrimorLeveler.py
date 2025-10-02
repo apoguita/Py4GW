@@ -1,6 +1,5 @@
 from Py4GWCoreLib import *
 
-
 selected_step = 0
 DOOMLORE_SHRINE = "Doomlore Shrine"
 

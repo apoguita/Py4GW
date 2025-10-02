@@ -46,7 +46,7 @@ bot = Botting(BOT_NAME)
 def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
-    bot.Templates.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
     bot.States.AddHeader(f"{BOT_NAME}_loop")
     bot.Move.XYAndExitMap(*COORD_TO_EXIT_MAP, target_map_id=EXPLORABLE_TO_TRAVEL)
     bot.Move.FollowAutoPath(KILLING_PATH)
