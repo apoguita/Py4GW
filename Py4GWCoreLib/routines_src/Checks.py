@@ -113,10 +113,6 @@ class Checks:
             if not Checks.Map.MapValid():
                 return False
 
-            # if we're in danger, we never consider going back
-            if Checks.Agents.InDanger():
-                return False
-
             players = GLOBAL_CACHE.Party.GetPlayers()
             henchmen = GLOBAL_CACHE.Party.GetHenchmen()
             heroes = GLOBAL_CACHE.Party.GetHeroes()

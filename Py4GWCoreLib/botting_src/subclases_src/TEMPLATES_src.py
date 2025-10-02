@@ -69,8 +69,15 @@ class _TEMPLATES:
 
                 retries = 0
                 max_retries = 3  # <-- configurable number of retries
+                emit_count = 0  # <--- added: count pixel-stack emits
+                
                 while retries < max_retries:
                     yield from bot.helpers.Multibox._pixel_stack()
+                    emit_count += 1
+                    # call brute-force helper every 2 emits
+                    if emit_count % 2 == 0:
+                        yield from bot.helpers.Multibox._brute_force_unstuck()
+                        
                     last_emit = Utils.GetBaseTimestamp()
 
                     # inner wait loop for this attempt
@@ -83,6 +90,11 @@ class _TEMPLATES:
                             print("Re-emitting pixel stack, and spinning in place!, weeeee")
                             yield from bot.helpers.Multibox._pixel_stack()
                             last_emit = now
+                            emit_count += 1
+                            # call brute-force helper every 2 emits
+                            if emit_count % 2 == 0:
+                                yield from bot.helpers.Multibox._brute_force_unstuck()
+
 
                         if not Routines.Checks.Agents.InDanger():
                             if left_direction:
@@ -123,24 +135,27 @@ class _TEMPLATES:
         def _on_party_member_death_behind(self):
             from ...Routines import Routines
             from ...GlobalCache import GLOBAL_CACHE
-            
-            if not Routines.Checks.Agents.InDanger():
-                bot = self.parent
-                bot.config.FSM.resume()
-                return
-            
-            
             bot = self.parent
+
+            # Find a dead party member
             dead_player = Routines.Party.GetDeadPartyMemberID()
             if dead_player == 0:
                 bot.config.FSM.resume()
                 return
 
+            # If we're in danger, end combat first (wait until safe)
+            while Routines.Checks.Agents.InDanger():
+                # You can replace with your combat reset routine if you have one
+                yield from Routines.Yield.wait(1000)  
+
+            # Now safe → move to the dead party member
             pos = GLOBAL_CACHE.Agent.GetXY(dead_player)
             path = [(pos[0], pos[1])]
             bot.helpers.Move.set_path_to(path)
-            yield from bot.helpers.Move._follow_path(forced_timeout=30000)  # allow extra time to reach dead player
+            yield from bot.helpers.Move._follow_path(forced_timeout=30000)  # allow extra time
+
             bot.config.FSM.resume()
+
 
         def OnPartyMemberDeathBehind(self):
             from ...Py4GWcorelib import ConsoleLog
