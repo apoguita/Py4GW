@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
+from Py4GWCoreLib import Botting, get_texture_for_item, ModelID
 
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Jade_Bracelet_farm"
@@ -49,7 +49,7 @@ bot.SetMainRoutine(bot_routine)
 
 def main():
     bot.Update()
-    texture = get_texture_for_model(model_id=MODEL_ID_TO_FARM)
+    texture = get_texture_for_item(model_id=MODEL_ID_TO_FARM)
     bot.UI.draw_window(icon_path=texture)
 
 if __name__ == "__main__":
