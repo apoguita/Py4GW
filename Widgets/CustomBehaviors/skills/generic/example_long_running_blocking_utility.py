@@ -5,6 +5,7 @@ from typing import List, Any, Generator, Callable, override
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -17,14 +18,16 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy 
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class ExampleLongRunningBlockingUtility(CustomSkillUtilityBase):
-    def __init__(self, 
-    current_build: list[CustomSkill], 
+    def __init__(self,
+    event_bus: EventBus,
+    current_build: list[CustomSkill],
     ) -> None:
 
         super().__init__(
-            skill=CustomSkill("example_long_running_blocking_utility"), 
-            in_game_build=current_build, 
-            score_definition=ScoreStaticDefinition(99.99), 
+            event_bus=event_bus,
+            skill=CustomSkill("example_long_running_blocking_utility"),
+            in_game_build=current_build,
+            score_definition=ScoreStaticDefinition(99.99),
             allowed_states=[BehaviorState.IDLE, BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
             utility_skill_typology=UtilitySkillTypology.DAEMON,
             execution_strategy=UtilitySkillExecutionStrategy.EXECUTE_THROUGH_THE_END)

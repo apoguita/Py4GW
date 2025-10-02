@@ -353,6 +353,8 @@ class Agents:
         for agent_id in gadget_array:
             if GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == 9274: #Secret Lair of the Snowmen
                 return agent_id
+            if GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == 8932: #Bogroot Growths
+                return agent_id
 
             # to_be_completed...
 

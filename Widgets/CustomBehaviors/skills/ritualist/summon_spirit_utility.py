@@ -3,7 +3,8 @@ from typing import Any, Generator, override
 from Py4GWCoreLib import Range
 from Py4GWCoreLib.enums import SpiritModelID
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
-from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
+
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -14,11 +15,13 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 class SummonSpiritUtility(CustomSkillUtilityBase):
     def __init__(self,
+                 event_bus: EventBus,
                  skill: CustomSkill,
                  current_build: list[CustomSkill],
                  score_definition: ScoreStaticDefinition) -> None:
 
         super().__init__(
+            event_bus=event_bus,
             skill=skill,
             in_game_build=current_build,
             score_definition=score_definition,
@@ -27,7 +30,7 @@ class SummonSpiritUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = score_definition
         self.owned_spirits: list[SpiritModelID] = []
 
-        EVENT_BUS.subscribe(EventType.SPIRIT_CREATED, self.on_spirit_created)
+        self.event_bus.subscribe(EventType.SPIRIT_CREATED, self.on_spirit_created, subscriber_name=self.custom_skill.skill_name)
 
     def on_spirit_created(self, message: EventMessage) -> Generator[Any, Any, Any]:
 

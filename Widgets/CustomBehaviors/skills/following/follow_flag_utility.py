@@ -16,20 +16,23 @@ from Widgets.CustomBehaviors.primitives.helpers.targeting_order import Targeting
 import time
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 
 class FollowFlagUtility(CustomSkillUtilityBase):
 
 
     def __init__(
-            self, 
-            current_build: list[CustomSkill], 
+            self,
+            event_bus: EventBus,
+            current_build: list[CustomSkill],
             allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
         ) -> None:
-        
+
         super().__init__(
-            skill=CustomSkill("follow_flag"), 
+            event_bus=event_bus,
+            skill=CustomSkill("follow_flag"),
             in_game_build=current_build,
-            score_definition=ScoreStaticDefinition(CommonScore.FOLLOW_FLAG.value), 
+            score_definition=ScoreStaticDefinition(CommonScore.FOLLOW_FLAG.value),
             allowed_states=allowed_states,
             utility_skill_typology=UtilitySkillTypology.FOLLOWING)
 
