@@ -1,3 +1,4 @@
+from Py4GWCoreLib import Routines
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.py4gwcorelib_src.Lootconfig import LootConfig
 from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import AutoMover
@@ -13,8 +14,10 @@ def daemon_botting(widget_window_size:tuple[float, float], widget_window_pos:tup
 
     is_executing_utility_skills:bool = False
 
-    if CustomBehaviorLoader().custom_combat_behavior is not None:
-        is_executing_utility_skills = CustomBehaviorLoader().custom_combat_behavior.is_executing_utility_skills()
+    if Routines.Checks.Map.MapValid():
+        # if map is not valid we still want to execute the botting class logic (that make it able to perform some exit conditions)
+        if CustomBehaviorLoader().custom_combat_behavior is not None:
+            is_executing_utility_skills = CustomBehaviorLoader().custom_combat_behavior.is_executing_utility_skills()
 
     bot:BottingAbstract | None = BottingLoader().get_active_bot()
     if bot is not None:

@@ -2,6 +2,7 @@ from typing import List, Any, Generator, Callable, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -12,18 +13,20 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 
 class DrainEnchantmentUtility(CustomSkillUtilityBase):
-    def __init__(self, 
-        current_build: list[CustomSkill], 
+    def __init__(self,
+        event_bus: EventBus,
+        current_build: list[CustomSkill],
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(75),
         mana_required_to_cast: int = 15,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
         ) -> None:
 
         super().__init__(
-            skill=CustomSkill("Drain_Enchantment"), 
-            in_game_build=current_build, 
+            event_bus=event_bus,
+            skill=CustomSkill("Drain_Enchantment"),
+            in_game_build=current_build,
             score_definition=score_definition,
-            mana_required_to_cast=mana_required_to_cast, 
+            mana_required_to_cast=mana_required_to_cast,
             allowed_states=allowed_states)
                 
         self.score_definition: ScoreStaticDefinition = score_definition

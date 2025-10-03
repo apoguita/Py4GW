@@ -2,6 +2,7 @@ from typing import Any, Generator, override
 
 from Py4GWCoreLib import Range, GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -12,6 +13,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 class ProtectorsDefenseUtility(CustomSkillUtilityBase):
     def __init__(self,
+        event_bus: EventBus,
         current_build: list[CustomSkill],
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(80),
         mana_required_to_cast: int = 10,
@@ -19,6 +21,7 @@ class ProtectorsDefenseUtility(CustomSkillUtilityBase):
         ) -> None:
 
         super().__init__(
+            event_bus=event_bus,
             skill=CustomSkill("Protectors_Defense"),
             in_game_build=current_build,
             score_definition=score_definition,

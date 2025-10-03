@@ -5,9 +5,10 @@ import PyImGui
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
-from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
+
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -21,19 +22,16 @@ from Widgets.CustomBehaviors.primitives.scores.score_static_definition import Sc
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class MapChangedUtility(CustomSkillUtilityBase):
-    def __init__(
-            self, 
-            current_build: list[CustomSkill], 
-        ) -> None:
-        
+    def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]) -> None:
         super().__init__(
+            event_bus=event_bus,
             skill=CustomSkill("map_changed"), 
             in_game_build=current_build, 
             score_definition=ScoreStaticDefinition(CommonScore.DEAMON.value), 
             allowed_states=[BehaviorState.IDLE, BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
             utility_skill_typology=UtilitySkillTypology.DAEMON)
 
-        self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BOTTING.value)
+        self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.DEAMON.value)
         self.throttle_timer = ThrottledTimer(1_000)
         self.__previous_map_id = 0
         # Initialize to current map id to avoid emitting a false-positive event on first evaluation
@@ -70,7 +68,7 @@ class MapChangedUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         
-        yield from EVENT_BUS.publish(EventType.MAP_CHANGED)
+        yield from self.event_bus.publish(EventType.MAP_CHANGED, state)
         self.throttle_timer.Reset()
         yield
         return BehaviorResult.ACTION_PERFORMED

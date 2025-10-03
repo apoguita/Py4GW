@@ -8,9 +8,10 @@ from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Inventory, Party, Routines, R
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Widgets.CustomBehaviors.primitives import constants
-from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
+
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -23,18 +24,14 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_strategy 
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
-
-    def __init__(
-            self, 
-            current_build: list[CustomSkill], 
-            allowed_states: list[BehaviorState] = [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
-        ) -> None:
-        
+    
+    def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]) -> None:
         super().__init__(
+            event_bus=event_bus,
             skill=CustomSkill("open_near_dungeon_chest_utility"), 
-            in_game_build=current_build,
+            in_game_build=current_build, 
             score_definition=ScoreStaticDefinition(CommonScore.LOOT.value + 0.001), 
-            allowed_states=allowed_states,
+            allowed_states = [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
             utility_skill_typology=UtilitySkillTypology.LOOTING,
             execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
@@ -42,7 +39,7 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
         self.opened_chest_agent_ids: set[int] = set()
         self.cooldown_execution = ThrottledTimer(1000)
 
-        EVENT_BUS.subscribe(EventType.MAP_CHANGED, self.map_changed)
+        self.event_bus.subscribe(EventType.MAP_CHANGED, self.map_changed, subscriber_name=self.custom_skill.skill_name)
 
     def map_changed(self, message: EventMessage) -> Generator[Any, Any, Any]:
         self.opened_chest_agent_ids = set()
@@ -107,7 +104,7 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
             if constants.DEBUG: print(f"RELEASE Lock key {lock_key}")
             if constants.DEBUG: print(f"self.opened_chest_agent_ids {self.opened_chest_agent_ids}")
             self.opened_chest_agent_ids.add(chest_agent_id)
-            yield from EVENT_BUS.publish(EventType.CHEST_OPENED, chest_agent_id)
+            yield from self.event_bus.publish(EventType.CHEST_OPENED, state, data=chest_agent_id)
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
             return BehaviorResult.ACTION_PERFORMED
 
