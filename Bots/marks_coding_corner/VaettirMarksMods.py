@@ -6,6 +6,7 @@ from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
 from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_array
 from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
+from Bots.marks_coding_corner.utils.merch_utils import withdraw_gold
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import Botting
@@ -23,8 +24,9 @@ from Py4GWCoreLib.enums import TitleID
 VAETTIR_FARM_BY_MARK = "Vaettir By Mark"
 HANDLE_STUCK_JAGA_MORAINE = "HandleStuckJagaMoraine"
 
-bot = Botting(VAETTIR_FARM_BY_MARK, upkeep_birthday_cupcake_restock=1)
+bot = Botting(VAETTIR_FARM_BY_MARK, upkeep_birthday_cupcake_restock=1, config_movement_tolerance=200)
 item_id_blacklist = []
+unmanaged_fail_counter = 0
 
 
 def create_bot_routine(bot: Botting) -> None:
@@ -35,6 +37,7 @@ def create_bot_routine(bot: Botting) -> None:
 
 
 def initialize_bot(bot: Botting) -> None:
+    bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     bot.States.AddHeader("Initialize Bot")
     bot.Properties.Disable("auto_inventory_management")
@@ -194,8 +197,9 @@ def jaga_moraine_farm_routine(bot: Botting) -> None:
     bot.States.AddHeader("Wait for Right Aggro Ball")
     bot.States.AddCustomState(lambda: wait_for_right_aggro_ball(bot), "Wait for Right Aggro Ball")
     bot.Properties.Set("movement_tolerance", value=25)
+    bot.Move.XY(13070, -16911, "Start Killing ball")
+    bot.States.AddCustomState(lambda: wait_for_right_aggro_ball(bot, use_hos_after=False), "Wait for Right Aggro Ball Again")
     path_points_to_killing_spot: List[Tuple[float, float]] = [
-        (13070, -16911),
         (12938, -17081),
         (12790, -17201),
         (12747, -17220),
@@ -319,6 +323,7 @@ def handle_inventory(bot: Botting) -> None:
     bot.Items.AutoIDAndSalvageItems()  # sort bags, auto id, salvage, deposit to bank
     bot.Move.XYAndInteractNPC(-23110, 14942)  # Merchant in Longeyes Ledge
     bot.Wait.ForTime(500)
+    bot.States.AddCustomState(withdraw_gold, "Fill inventory with gold")
     bot.States.AddCustomState(sell_non_essential_mats, "Sell non-essential Materials")
     bot.Merchant.Restock.IdentifyKits()  # restock identify kits
     bot.Merchant.Restock.SalvageKits()  # restock salvage kits
@@ -374,7 +379,7 @@ def wait_for_left_aggro_ball(bot: Botting):
         yield from build.CastHeartOfShadow()
 
 
-def wait_for_right_aggro_ball(bot: Botting):
+def wait_for_right_aggro_ball(bot: Botting, use_hos_after=True):
     global in_waiting_routine
     ConsoleLog("Waiting for Right Aggro Ball", "Waiting for enemies to ball up.", Py4GW.Console.MessageType.Info)
 
@@ -404,44 +409,44 @@ def wait_for_right_aggro_ball(bot: Botting):
                 all_in_adjacent = False
                 break
 
-        if all_in_adjacent:
+        player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+        if all_in_adjacent and player_hp > 0.45:
             break  # Exit early if enemies are balled up
 
     in_waiting_routine = False
 
     # Resume build
-    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
+    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir) and use_hos_after:
         yield from build.CastHeartOfShadow()
 
 
 # region Events
-
-
-def _on_death(bot: "Botting"):
-    yield from Routines.Yield.wait(8000)
+def _on_death(bot: Botting):
+    ConsoleLog(VAETTIR_FARM_BY_MARK, "Waiting for a moment reset...")
+    yield from Routines.Yield.wait(1000)
     fsm = bot.config.FSM
     fsm.jump_to_state_by_name("[H]Town Routines_1")
     fsm.resume()
     yield
 
 
-def on_death(bot: "Botting"):
-    ConsoleLog("Death detected", "Run Failed, Restarting...", Py4GW.Console.MessageType.Notice)
+def on_death(bot: Botting):
+    ConsoleLog(VAETTIR_FARM_BY_MARK, "Player is dead. Restarting...")
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
     fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
 
 
-# region Stuck
+# region Handlers
 in_waiting_routine = False
 finished_routine = False
 stuck_counter = 0
-stuck_timer = ThrottledTimer(5000)
+stuck_timer = ThrottledTimer(3000)
 stuck_timer.Start()
 BJORA_MARCHES = GLOBAL_CACHE.Map.GetMapIDByName("Bjora Marches")
 JAGA_MORAINE = GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine")
-movement_check_timer = ThrottledTimer(3000)
+movement_check_timer = ThrottledTimer(5000)
 old_player_position = (0, 0)
 in_killing_routine = False
 
@@ -577,8 +582,31 @@ def handle_stuck_jaga_moraine(bot: Botting):
         continue
 
 
+def _force_reset(bot: Botting):
+    global unmanaged_fail_counter
+    unmanaged_fail_counter += 1
+    ConsoleLog(VAETTIR_FARM_BY_MARK, f"Something went wrong forcing a reset... Attempt: {unmanaged_fail_counter}")
+    yield from Routines.Yield.wait(1000)
+    fsm = bot.config.FSM
+    fsm.jump_to_state_by_name("[H]Town Routines_1")
+    fsm.resume()
+    yield
+
+
+def handle_custom_on_unmanaged_fail(bot: Botting):
+    global unmanaged_fail_counter
+
+    ConsoleLog(VAETTIR_FARM_BY_MARK, "Handling explorable mode unmanaged error...")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("Force Reset", _force_reset(bot))
+
+    if unmanaged_fail_counter > 5:
+        return True
+    return False
+
+
 bot.SetMainRoutine(create_bot_routine)
-base_path = Py4GW.Console.get_projects_path()
 
 
 def configure():
@@ -587,7 +615,6 @@ def configure():
 
 
 def main():
-
     bot.Update()
     projects_path = Py4GW.Console.get_projects_path()
     widgets_path = projects_path + "\\Bots\\marks_coding_corner\\textures\\"

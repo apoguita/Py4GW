@@ -25,16 +25,30 @@ def sell_non_essential_mats():
     yield from Routines.Yield.Merchant.SellItems(item_ids_to_sell)
 
 
-def buy_id_kits():
+def buy_id_kits(custom_amount=1):
     yield from Routines.Yield.wait(1500)
     kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit)
     sup_kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit)
     if (kits_in_inv + sup_kits_in_inv) < 1:
-        yield from Routines.Yield.Merchant.BuyIDKits(1)
+        yield from Routines.Yield.Merchant.BuyIDKits(custom_amount)
 
 
-def buy_salvage_kits():
+def buy_salvage_kits(custom_amount=10):
     yield from Routines.Yield.wait(1500)
     kits_in_inv = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit)
     if kits_in_inv < 2:
-        yield from Routines.Yield.Merchant.BuySalvageKits(3)
+        yield from Routines.Yield.Merchant.BuySalvageKits(custom_amount)
+
+
+def withdraw_gold(target_gold=10000, deposit_all=True):
+    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+    if gold_on_char > target_gold and deposit_all:
+        to_deposit = gold_on_char - target_gold
+        GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
+        yield from Routines.Yield.wait(250)
+
+    if gold_on_char < target_gold:
+        to_withdraw = target_gold - gold_on_char
+        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
+        yield from Routines.Yield.wait(250)
