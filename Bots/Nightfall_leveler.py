@@ -707,7 +707,7 @@ def jokanur_diggings_quests(bot):
 def second_15_attribute_points(bot):
     bot.States.AddHeader("second_15_attribute_points")
     bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
-    bot.Move.XYAndDialog(-2864, 7031, 0x82CB07, step_name="15 more Attribute points")
+    bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
     bot.Wait.ForTime(2000)
 
 def EOTN_Run(bot: Botting): 
