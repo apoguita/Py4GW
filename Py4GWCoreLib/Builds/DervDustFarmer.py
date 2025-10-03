@@ -1,3 +1,6 @@
+import math
+import random
+
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import AgentModelID
@@ -177,6 +180,41 @@ class DervDustFarmer(BuildMgr):
 
             if next_target:
                 yield from self.swap_to_scythe()
+                if self.is_target_correct_model_id(next_target, AgentModelID.SPINED_ALOE):
+                    agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(next_target)
+                    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+
+                    # === Step 1: Calculate vector from player -> target ===
+                    dx = agent_x - player_x
+                    dy = agent_y - player_y
+                    dist = math.hypot(dx, dy)
+
+                    if dist > Range.Adjacent.value:
+                        # === Step 2: Normalize direction vector ===
+                        nx, ny = dx / dist, dy / dist
+
+                        # === Step 3: Pick sidestep direction (left or right) ===
+                        sidestep_dir = random.choice([-1, 1])  # -1 = left, +1 = right
+                        sidestep_distance = random.randint(200, 400)  # adjust to how big sidestep should be
+
+                        # perpendicular vector for sidestep
+                        sx, sy = -ny * sidestep_dir, nx * sidestep_dir
+
+                        sidestep_x = player_x + sx * sidestep_distance
+                        sidestep_y = player_y + sy * sidestep_distance
+
+                        # === Step 4: Move to sidestep position first ===
+                        GLOBAL_CACHE.Player.Move(sidestep_x, sidestep_y)
+                        yield from Routines.Yield.wait(1000)  # small wait
+
+                        # === Step 5: Move to a point within Adjacent range of target ===
+                        stop_distance = Range.Adjacent.value
+                        final_x = agent_x - nx * stop_distance
+                        final_y = agent_y - ny * stop_distance
+
+                        GLOBAL_CACHE.Player.Move(final_x, final_y)
+                        yield from Routines.Yield.wait(2000)  # allow move to finish
+
                 GLOBAL_CACHE.Player.Interact(next_target, False)
                 has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
                 has_grenths_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.grenths_aura)
