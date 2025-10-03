@@ -575,6 +575,8 @@ def handle_stuck_jaga_moraine(bot: Botting):
                         False,
                     )
                     stuck_counter = 0
+                    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
+                        build.SetStuckSignal(stuck_counter)
 
                 movement_check_timer.Reset()
 

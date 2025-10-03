@@ -156,6 +156,7 @@ class SF_Mes_vaettir(BuildMgr):
         else:
             yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
 
+        self.stuck_signal = False  # Manaully set to False, to avoid recasting in case the value doesn't reset on time.
         yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)
 
     def ProcessSkillCasting(self):

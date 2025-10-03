@@ -539,6 +539,9 @@ def additoinal_ui():
 
         if PyImGui.button("Calculate next farm item"):
             bot.StartAtStep("[H]Calculate next farm item_2")
+
+        if PyImGui.button("Craft Cons"):
+            bot.StartAtStep("[H]Craft Consumables_1")
         PyImGui.end_child()
 
 
