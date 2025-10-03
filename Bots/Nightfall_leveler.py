@@ -12,7 +12,7 @@ bot = Botting("NF Leveler",
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
               upkeep_auto_loot_active=True)
-
+ 
 def create_bot_routine(bot: Botting) -> None:
     skip_tutorial_dialog(bot)
     travel_to_guild_hall(bot)
