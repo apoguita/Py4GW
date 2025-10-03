@@ -28,20 +28,24 @@ def create_bot_routine(bot: Botting) -> None:
     continue_quests(bot)
     second_profession(bot)
     after_2nd_profession(bot)
-    TakeRewardAndCraftArmor(bot)
+    if GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())[0] == "Paragon":
+        CraftParaArmor(bot)
+    else:
+        TakeRewardAndCraftArmor(bot)
     TakeRewardAndCraftWeapon(bot)
     jokanur_diggings_quests(bot)
-    bot.States.JumpToStepName("[H]jokanur_diggings_quests_25") #trying this, if it loops forever thats great cause I need some sleep
-    #def LeveledUp(bot: Botting) -> None:
-            #level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-            #if level <= 10:
-                #bot.States.JumpToStepName("[H]jokanur_diggings_quests_25")
-            #else: 
-                #bot.States.JumpToStepName("[H]EOTN Run_27")
-    #LeveledUp(bot)
-    #EOTN_Run(bot)
-    #ExitBorealStation(bot)
-    #GoToEOTN(bot)
+    second_15_attribute_points(bot)
+    EOTN_Run(bot)
+    ExitBorealStation(bot)
+    GoToEOTN(bot)
+    UnlockEotnPool(bot)
+    AdvanceToGunnarsHold(bot)
+    UnlockKillroy(bot)
+    UnlockRemainingSecondaryProfessions(bot)
+    UnlockXunlaiMaterialPanel(bot)
+    UnlockConsulateDocks(bot)
+    UnlockKC(bot)
+    UnlockLA(bot)
     
     
 
@@ -59,6 +63,7 @@ def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Properties.Disable("war_supplies")
     bot.Items.Restock.BirthdayCupcake()
     bot.Items.Restock.WarSupplies()
+    bot.Items.Restock.Honeycomb()
 
 def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
@@ -71,6 +76,7 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.Enable("war_supplies")
     bot.Items.Restock.BirthdayCupcake()
     bot.Items.Restock.WarSupplies()
+    bot.Items.Restock.Honeycomb()
     bot.Items.SpawnAndDestroyBonusItems([ModelID.Bonus_Serrated_Shield.value, ModelID.Igneous_Summoning_Stone.value])
     
     
@@ -98,13 +104,13 @@ def EquipSkillBar():
         elif level == 6:
             yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirBbQiXSX7gDYjbaFYcCAA")    
         elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirBbQiXSX7gDYjbaFYcCAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirB7QiXSX7gDYjbaFYcCAA")    
         elif level == 8:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirBbQiXSX7gDYjbaFYcCAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirCbRiXSX7gDYjbXFYcCAA")    
         elif level == 9:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirBbQiXSX7gDYjbaFYcCAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirCbRiXSX7gDYjbXFYcCAA")    
         elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirBbQiXSX7gDYjbaFYcCAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkmrELSiXSX7gDYjbaFYcCAA")
         else:
             yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirBbQiXSX7gDYjbaFYcCAA")
 
@@ -120,7 +126,7 @@ def EquipSkillBar():
         elif level == 6:
             yield from Routines.Yield.Skills.LoadSkillbar("OQGlUFlnpcGoDBj9g5gBkdVAEKAgxB")    
         elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQGkUemzZgSEM2DmDGQ2VBQoAAGH")    
         elif level == 8:
             yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")    
         elif level == 9:
@@ -151,16 +157,15 @@ def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
         return ModelID.Tanned_Hide_Square.value
     elif primary == "Ritualist":
         return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Paragon":
-        return ModelID.Tanned_Hide_Square.value
     elif primary == "Elementalist":
         if headpiece:
             return ModelID.Pile_Of_Glittering_Dust.value
         return ModelID.Bolt_Of_Cloth.value
     else:
         return ModelID.Tanned_Hide_Square.value
-    
-def GetWeaponMaterialPerProfession(bot: Botting = None):
+
+
+def GetWeaponMaterialPerProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary == "Warrior":
         return [ModelID.Iron_Ingot.value]
@@ -177,7 +182,7 @@ def BuyMaterials():
         yield from Routines.Yield.Merchant.BuyMaterial(GetArmorMaterialPerProfession())
 
 def BuyWeaponMaterials():
-    materials = GetWeaponMaterialPerProfession()
+    materials = GetWeaponMaterialPerProfession(bot)
     if materials:
         for _ in range(1):
             yield from Routines.Yield.Merchant.BuyMaterial(materials[0])
@@ -199,23 +204,13 @@ def GetArmorPiecesByProfession(bot: Botting):
         PANTS = 17678
         BOOTS = 17675
 
+    return  HEAD, CHEST, GLOVES, PANTS, BOOTS 
 
-    return  HEAD,CHEST, GLOVES, PANTS, BOOTS 
 
-def ParagonArmor(bot: Botting):
-    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0
-    
-    if primary == "Paragon":
-        CHEST = 17791
-        GLOVES = 17792
-        PANTS = 17793
-        BOOTS = 17790
-    return CHEST,GLOVES ,PANTS ,BOOTS
 
 def GetWeaponByProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    SCYTHE = SPEAR = SHIELDWAR = SWORD = BOW = 0 #SHIELDPARA 
+    SCYTHE = SPEAR = SHIELDWAR = SWORD = BOW = SHIELDPARA = 0
 
     if primary == "Warrior":
         SWORD = 18927
@@ -226,8 +221,8 @@ def GetWeaponByProfession(bot: Botting):
         return BOW,
     elif primary == "Paragon":
         SPEAR = 18913
-        #SHIELDPARA = 18856
-        return SPEAR #SHIELDPARA
+        SHIELDPARA = 18856
+        return SPEAR, SHIELDPARA
     elif primary == "Dervish":
         SCYTHE = 18910
         return SCYTHE,
@@ -266,18 +261,50 @@ def CraftArmor(bot: Botting):
             return False
         yield
     return True
+def ParagonArmorMaterials(headpiece: bool = False):
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if primary == "Paragon":
+        return ModelID.Tanned_Hide_Square.value
+def GetParagonArmorPieces(bot: Botting):
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    HEAD, CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0,0
+    
+    if primary == "Paragon":
+        CHEST = 17791
+        GLOVES = 17792
+        PANTS = 17793
+        BOOTS = 17790
+    return  CHEST, GLOVES ,PANTS ,BOOTS
 
-def CraftRemainingArmor(bot: Botting):
-    HEAD, CHEST, GLOVES, PANTS, BOOTS = GetArmorPiecesByProfession(bot)
+
+def CraftMostParaArmor(bot: Botting):
+    CHEST, GLOVES, PANTS, BOOTS = GetParagonArmorPieces(bot)
 
     armor_pieces = [
-        (HEAD,  [GetArmorMaterialPerProfession(headpiece=True)], [2]),
-        
+        (GLOVES, [GetArmorMaterialPerProfession()], [2]),
+        (CHEST,  [GetArmorMaterialPerProfession()], [6]),
+        (PANTS,  [GetArmorMaterialPerProfession()], [4]),
+        (BOOTS,  [GetArmorMaterialPerProfession()], [2]),
     ]
     
-    if GetArmorMaterialPerProfession(headpiece=True) == ModelID.Pile_Of_Glittering_Dust.value:
-        #delete HEAD from the list
-        armor_pieces = [piece for piece in armor_pieces if piece[0] != HEAD]
+    yield from Routines.Yield.Agents.InteractWithAgentXY(3944, 2378)
+    yield
+
+    for item_id, mats, qtys in armor_pieces:
+        result = yield from Routines.Yield.Items.CraftItem(item_id, 75, mats, qtys)
+        if not result:
+            ConsoleLog("CraftArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+
+        result = yield from Routines.Yield.Items.EquipItem(item_id)
+        if not result:
+            ConsoleLog("CraftArmor", f"Failed to equip item ({item_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+    return True
 
 def CraftWeapon(bot: Botting):
     weapon_ids = GetWeaponByProfession(bot)
@@ -286,7 +313,7 @@ def CraftWeapon(bot: Botting):
     # Structure weapon data like armor pieces - (weapon_id, materials_list, quantities_list)
     weapon_pieces = []
     for weapon_id in weapon_ids:
-        weapon_pieces.append((weapon_id, materials, [1]))  # 5 materials per weapon
+        weapon_pieces.append((weapon_id, materials, [1]))  # 1 = 10 materials per weapon minimum
     
     yield from Routines.Yield.Agents.InteractWithAgentXY(4101.25, 2194.41)
     yield
@@ -559,7 +586,7 @@ def second_profession(bot: Botting):
 def after_2nd_profession(bot: Botting):    
     bot.States.AddHeader("15 Att Point")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    bot.Wait.ForMapToChange(target_map_id=431)
+    bot.Wait.ForMapLoad(target_map_id=431)
     bot.Move.XYAndDialog(-2864, 7031, 0x82CB07, step_name="Accept Attribute Points")
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Dervish":
@@ -572,22 +599,11 @@ def after_2nd_profession(bot: Botting):
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC03, step_name='Rising to 1st Spear')
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC01, step_name="Sounds good to me")
-    #ConfigurePacifistEnv(bot)
-    #bot.Party.LeaveParty()
-    #bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
-    #bot.Wait.ForMapToChange(target_map_id=430)
-    #bot.Move.XY(322, 2292)
-    #bot.Move.XY(2700, 8000) #Warthog location
-    #bot.Target.Model(1347)
-    #bot.SkillBar.UseSkill(411) #Capture Pet
-    #bot.Wait.ForTime(28000)
     bot.States.AddHeader("Leaving A Legacy")
     bot.Map.Travel(target_map_id=479) #Champions Dawn
-    #bot.Wait.ForMapToChange(target_map_id=479)
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,6,7])
     bot.Move.XYAndDialog(22884, 7641, 0x827804)
     bot.Move.XYAndExitMap(22483, 6115, target_map_id=432) #Cliffs of Dohjok
-    #bot.Wait.ForMapToChange(target_map_id=432)
     bot.Move.XY(20215, 5285)
     bot.Move.XYAndDialog(20215, 5285, 0x85) #Blessing 
     bot.Wait.ForTime(2000)
@@ -610,7 +626,6 @@ def after_2nd_profession(bot: Botting):
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-25149, 12787)
     bot.Move.XYAndExitMap(-27657, 14482, target_map_id=491) #Jokanur Diggings
-    #bot.Wait.ForMapToChange(target_map_id=491)
     bot.States.AddHeader("Jokanur Diggings")
     bot.Move.XYAndDialog(2888, 2207, 0x827807, step_name="Leaving A Legacy complete")
     bot.Dialogs.AtXY(2888, 2207, 0x827901, step_name="Sounds Like Fun")
@@ -624,6 +639,15 @@ def TakeRewardAndCraftArmor(bot: Botting):
     exec_fn = lambda: CraftArmor(bot)
     bot.States.AddCustomState(exec_fn, "Craft Armor")
 
+def CraftParaArmor(bot: Botting):
+    bot.States.AddHeader("Craft Para Armor")
+    bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
+    bot.States.AddCustomState(BuyMaterials, "Buy Materials")
+    bot.Move.XYAndInteractNPC(3891.62, 2329.84)  # Armor crafter
+    bot.Wait.ForTime(1000)  # small delay to let the window open
+    exec_fn = lambda: CraftMostParaArmor(bot)
+    bot.States.AddCustomState(exec_fn, "Craft Most Para Armor")
+
 def TakeRewardAndCraftWeapon(bot: Botting):
     bot.States.AddHeader("Take Reward And Craft Weapon")
     bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
@@ -633,79 +657,95 @@ def TakeRewardAndCraftWeapon(bot: Botting):
     bot.Wait.ForTime(1000)  # small delay to let the window open
     exec_fn = lambda: CraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapon")
-
-    
+def _jump_to_15_att_quests(bot: Botting):
+    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+    if level >= 10:
+        bot.config.FSM.pause()
+        bot.States.JumpToStepName("[H]second_15_attribute_points_26")
+        yield from Routines.Yield.wait(100)
+        bot.config.FSM.resume()
+    yield    
+# One-off no-op state used as a stable jump anchor (prevents name suffix issues)
 def jokanur_diggings_quests(bot):
     bot.States.AddHeader("jokanur_diggings_quests")
+
+    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+
+    bot.States.AddCustomState(_jump_to_15_att_quests, "Check Level for 15 Att Point Jump")
+
+    # Player is below level 10, do Jokanur Diggings quests for more XP
+    # --- State sequence for jokanur_diggings_quests ---
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
-    bot.Move.XY(594, 43) #Step center to avoid stuck
-    bot.Move.XYAndExitMap(-3225, -855, target_map_id=481) #Fahranur The First City
-    bot.States.AddHeader("Fahranur The First City")
-    bot.Move.XYAndDialog(19651, 12237, 0x85) #Blessing 
-    bot.Move.XY(11182, 14880)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(11543, 6466)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(15193, 5918)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(14485, 16)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(10256, -1393)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XYAndDialog(11238, -2718, 0x85) #Bounty
-    bot.Move.XY(10362, -2374) #away from NPC to get error to stop
-    bot.Move.XY(-12666, -2666)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(13244, -6829)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(13244, -6829)
-    bot.Wait.UntilOutOfCombat()
-    bot.Map.Travel(target_map_id=491) #Jokanur Diggings, add more mobs before here
-    #bot.Wait.ForMapToChange(target_map_id=491)
+
+    bot.Move.XY(594, 43)
+    bot.Move.XY(-2070, -1049)
+    bot.Move.XYAndExitMap(-3080, -1169, target_map_id=481) # Fahranur The First City
+
+    bot.Move.XYAndDialog(19651, 12237, 0x85) # Blessing
+    bot.Move.XY(11182, 14880); bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(11543, 6466);  bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(15193, 5918);  bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(14485, 16);    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(10256, -1393); bot.Wait.UntilOutOfCombat()
+
+    bot.Move.XYAndDialog(11238, -2718, 0x85) # Bounty
+    bot.Move.XY(10362, -2374)
+    bot.Move.XY(-12666, -2666); bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(12915, -6291);  bot.Wait.UntilOutOfCombat()
+    bot.Map.Travel(target_map_id=491)
+#After completing Jokanur quests, check level again and continue appropriately
+    level_after_quests = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+    if level_after_quests >= 10:
+        # Now we're level 10+, continue to 2nd Attribute points
+        bot.States.JumpToStepName("[H]second_15_attribute_points_26")
+    else:
+        # Still not level 10, repeat Jokanur Diggings quests for more farming
+        bot.States.JumpToStepName("[H]jokanur_diggings_quests_25")
+
+def second_15_attribute_points(bot):
+    bot.States.AddHeader("second_15_attribute_points")
+    bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
+    bot.Move.XYAndDialog(-2864, 7031, 0x82CB07, step_name="15 more Attribute points")
     bot.Wait.ForTime(2000)
 
 def EOTN_Run(bot: Botting): 
-    bot.States.AddHeader("EOTN Run")
-    bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    #bot.Wait.ForMapToChange(target_map_id=431)
-    bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
-    bot.Wait.ForTime(2000)
-    bot.Map.Travel(target_map_id=449) #Kamadan
-    #bot.Wait.ForMapToChange(target_map_id=449)
+    bot.States.AddHeader("EOTN_Run")
+    bot.Map.Travel(target_map_id=449) # Kamadan
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
-    bot.Move.XYAndDialog(-8739, 14200,0x833601) #Bendah
-    bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) #Plains of Jarin
-    #bot.Wait.ForMapToChange(target_map_id=430)
-    bot.Move.XYAndDialog(18191, 167, 0x85) #get Mox
+
+    bot.Move.XYAndDialog(-8739, 14200,0x833601) # Bendah
+    bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) # Plains of Jarin
+
+    bot.Move.XYAndDialog(18191, 167, 0x85) # get Mox
     bot.Move.XY(15407, 209)
-    bot.Move.XYAndDialog(13761, -13108, 0x86) #Explore The Fissure
-    bot.Move.XYAndDialog(13761, -13108, 0x84) #Yes
-    bot.Wait.ForTime(5000) # Cave below Cantha Load time
-    bot.Move.XY(-5475, 8166)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(-454, 10163)
-    bot.Wait.UntilOutOfCombat
-    bot.Move.XY(4450, 10950)
-    bot.Wait.UntilOutOfCombat()
+    bot.Move.XYAndDialog(13761, -13108, 0x86) # Explore The Fissure
+    bot.Move.XYAndDialog(13761, -13108, 0x84) # Yes
+    bot.Wait.ForTime(5000) # load time
+
+    bot.Move.XY(-5475, 8166);  bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-454, 10163);  bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(4450, 10950);  bot.Wait.UntilOutOfCombat()
     bot.Move.XY(8435, 14378)
     bot.Move.XY(10134,16742)
-    bot.Wait.ForTime(3000) #skip movie
-    ConfigurePacifistEnv(bot)  #run bitch run 
+    bot.Wait.ForTime(3000) # skip movie
+
+    ConfigurePacifistEnv(bot)
+
     bot.Move.XY(4523.25, 15448.03)
     bot.Move.XY(-43.80, 18365.45)
     bot.Move.XY(-10234.92, 16691.96)
     bot.Move.XY(-17917.68, 18480.57)
     bot.Move.XY(-18775, 19097)
     bot.Wait.ForTime(8000)
-    bot.Wait.ForMapLoad(target_map_id=675)  # boreal_station_id
+    bot.Wait.ForMapLoad(target_map_id=675)  # Boreal Station
     
 def ExitBorealStation(bot: Botting):
     bot.States.AddHeader("Exit Boreal Station")
-    PrepareForBattle(bot, Hero_List=[6, 7, 27, 26, 16], Henchman_List=[4, 5])
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
     bot.Move.XYAndExitMap(4684, -27869, target_map_name="Ice Cliff Chasms")
     
 def GoToEOTN(bot: Botting): 
@@ -716,7 +756,204 @@ def GoToEOTN(bot: Botting):
     bot.Move.XY(3743.31, -15862.36)
     bot.Move.XY(8267.89, -12334.58)
     bot.Move.XY(3607.21, -6937.32)
-    bot.Move.XYAndExitMap(2557.23, -275.97, target_map_id=642) #eotn_outpost_id
+    bot.Move.XY(2557.23, -275.97) #eotn_outpost_id
+    bot.Wait.ForMapLoad(target_map_id=642)
+
+def UnlockEotnPool(bot: Botting):
+    bot.States.AddHeader("Unlock EOTN Pool")
+    bot.Map.Travel(target_map_id=642)  # eotn_outpost_id
+    auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Wait.ForMapLoad(target_map_id=646)  # hall of monuments id
+    bot.Move.XY(-6572.70, 6588.83)
+    bot.Dialogs.WithModel(5970, 0x800001) #eotn_pool_cinematic
+    bot.Wait.ForTime(1000)
+    bot.Dialogs.WithModel(5908, 0x630) #eotn_pool_cinematic
+    bot.Wait.ForTime(1000)
+    bot.Dialogs.WithModel(5908, 0x632) #eotn_pool_cinematic
+    bot.Wait.ForTime(1000)
+    bot.Wait.ForMapToChange(target_map_id=646)  # hall of monuments id
+    bot.Dialogs.WithModel(5970, 0x89) #gwen dialog
+    bot.Dialogs.WithModel(5970, 0x831904) #gwen dialog
+    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) #ogden dialog
+    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) #vekk dialog
+
+def AdvanceToGunnarsHold(bot: Botting):
+    bot.States.AddHeader("Advance To Gunnar's Hold")
+    bot.Map.Travel(target_map_id=642) # eotn_outpost_id
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
+    
+    # Follow outpost exit path
+    path = [(-1814.0, 2917.0), (-964.0, 2270.0), (-115.0, 1677.0), (718.0, 1060.0), 
+            (1522.0, 464.0)]
+    bot.Move.FollowPath(path)
+    bot.Wait.ForMapLoad(target_map_id=499)  # Ice Cliff Chasms
+    
+    # Traverse through Ice Cliff Chasms
+    bot.Move.XYAndDialog(2825, -481, 0x832801)  # Talk to Jora
+    path = [(2548.84, 7266.08),
+            (1233.76, 13803.42),
+            (978.88, 21837.26),
+            (-4031.0, 27872.0),]
+    bot.Move.FollowAutoPath(path)
+    bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
+ 
+    # Traverse through Norrhart Domains
+    bot.Move.XY(14546.0, -6043.0)
+    bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)  # Gunnar's Hold
+    bot.Wait.ForMapLoad(target_map_id=644)  # Gunnar's Hold
+    
+def UnlockKillroy(bot: Botting):
+    bot.States.AddHeader("Unlock Killroy")
+    bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
+    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
+    bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
+    bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
+    bot.Templates.Aggressive(enable_imp=False)
+    bot.Items.Equip(24897) #brass_knuckles_item_id
+    bot.Move.XY(19290.50, -11552.23)
+    bot.Wait.UntilOnOutpost()
+
+def UnlockRemainingSecondaryProfessions(bot: Botting):
+    bot.States.AddHeader("Unlock remaining secondary professions")
+    bot.Map.Travel(target_map_id=248)  # GTOB
+    bot.Move.XY(-3151.22, -7255.13)  # Move to profession trainers area
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    
+    if primary == "Warrior":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Ranger":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Monk":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Assassin":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Mesmer":
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Necromancer":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Ritualist":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Elementalist":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Dervish":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+    elif primary == "Paragon":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+
+def UnlockXunlaiMaterialPanel(bot: Botting) -> None:
+    bot.States.AddHeader("Unlock Xunlai Material Panel")
+    bot.Party.LeaveParty()
+    bot.Map.Travel(target_map_id=248)  # GTOB
+    path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
+    bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
+    bot.Dialogs.WithModel(221, 0x800001)
+    bot.Dialogs.WithModel(221, 0x800002)    
+
+def UnlockConsulateDocks(bot: Botting):
+    bot.States.AddHeader("Unlock Consulate Docks")
+    bot.Map.Travel(target_map_id=449)
+    bot.Wait.ForMapLoad(target_map_id=449)  # Kamadan
+    bot.Move.XY(-8075.89, 14592.47)
+    #bot.Move.XY(-7644.99, 15526.14)
+    bot.Move.XY(-6743.29, 16663.21)
+    bot.Move.XY(-5271.00, 16740.00)
+    bot.Wait.ForMapLoad(target_map_id=429)
+    bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
+    bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks
+
+def UnlockKC(bot: Botting):
+    bot.States.AddHeader("Unlock KC")
+    bot.Map.Travel(target_map_id=493)  # Consulate Docks
+    bot.Wait.ForMapLoad(target_map_id=493)
+    bot.Move.XYAndDialog(-2546.09, 16203.26, 0x88)
+    bot.Wait.ForMapToChange(target_map_id=290)
+    bot.Move.XY(-4230.84, 8008.28)
+    bot.Move.XYAndDialog(-5134.16, 7004.48, 0x817901)
+    bot.Map.Travel(target_map_id=194)  # KC
+    bot.Wait.ForMapLoad(target_map_id=194)
+
+def UnlockLA(bot: Botting):
+    bot.States.AddHeader("Unlock LA")
+    bot.Map.Travel(target_map_id=493)  # Consulate Docks
+    bot.Wait.ForMapLoad(target_map_id=493)
+    bot.Move.XYAndDialog(-2546.09, 16203.26, 0x89)
+    bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
+    bot.Move.XY(-1181, 1038)
+    bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
+    bot.Move.XY(-1856.86, 1434.14)
+    bot.Move.XYAndExitMap(-2376, 2066, target_map_id=55) #has built in wait time now
 
 #region MAIN
 selected_step = 0
