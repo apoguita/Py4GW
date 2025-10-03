@@ -94,7 +94,7 @@ bot = Botting(
 
 
 def handle_custom_on_unmanaged_fail(bot: Botting):
-    # THis is dangeroud, but stop failures but can be unpredictable
+    # This is dangerous, but stop failures but can be unpredictable
     return False
 
 
