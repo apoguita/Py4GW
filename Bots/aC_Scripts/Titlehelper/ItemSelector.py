@@ -114,7 +114,7 @@ def draw_item_selector_window():
             for i, model_id in enumerate(model_ids):
                 PyImGui.push_id(f"{group_name}_{row_label}_{i}")
                 selected = toggle_state[group_name][model_id]
-                new_selected = ImGui.image_toggle_button(str(model_id), get_texture_for_model(model_id), selected, 32, 32)
+                new_selected = ImGui.image_toggle_button(str(model_id), get_texture_for_item(model_id), selected, 32, 32)
                 toggle_state[group_name][model_id] = new_selected
                 PyImGui.pop_id()
 
