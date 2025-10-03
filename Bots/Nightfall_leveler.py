@@ -12,7 +12,7 @@ bot = Botting("NF Leveler",
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
               upkeep_auto_loot_active=True)
-
+ 
 def create_bot_routine(bot: Botting) -> None:
     skip_tutorial_dialog(bot)
     travel_to_guild_hall(bot)
@@ -94,9 +94,9 @@ def EquipSkillBar():
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Dervish":
         if level ==2:
-           yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")
+           yield from Routines.Yield.Skills.LoadSkillbar("OgChkSj4V6KAGw/X7LCe8C")
         elif level == 3:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuIXhjxwbBAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OgChkSj4V6KAGw/X7LCe8C")    
         elif level == 4:
             yield from Routines.Yield.Skills.LoadSkillbar("OQCjUSmBqMw4HMQuIXhjxwbBAA")    
         elif level == 5:
@@ -586,7 +586,7 @@ def second_profession(bot: Botting):
 def after_2nd_profession(bot: Botting):    
     bot.States.AddHeader("15 Att Point")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    bot.Wait.ForMapLoad(target_map_id=431)
+    bot.Wait.ForMapToChange(target_map_id=431)
     bot.Move.XYAndDialog(-2864, 7031, 0x82CB07, step_name="Accept Attribute Points")
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Dervish":
@@ -657,7 +657,7 @@ def TakeRewardAndCraftWeapon(bot: Botting):
     bot.Wait.ForTime(1000)  # small delay to let the window open
     exec_fn = lambda: CraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapon")
-def _jump_to_15_att_quests(bot: Botting):
+def _jump_to_15_att_quests():
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if level >= 10:
         bot.config.FSM.pause()
@@ -953,7 +953,7 @@ def UnlockLA(bot: Botting):
     bot.Move.XY(-1181, 1038)
     bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
     bot.Move.XY(-1856.86, 1434.14)
-    bot.Move.XYAndExitMap(-2376, 2066, target_map_id=55) #has built in wait time now
+    bot.Move.XYAndExitMap(-2144, 1450, target_map_id=55) #has built in wait time now
 
 #region MAIN
 selected_step = 0
