@@ -25,7 +25,7 @@ def ReturnToOutpost():
 bot = Botting("Asura Leveler")
 
 
-def Routine(bot: Botting) -> None:
+def asura_leveler(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Enable("auto_combat")
@@ -64,23 +64,16 @@ def Routine(bot: Botting) -> None:
         bot.Party.Resign()
         bot.States.AddCustomState(ReturnToOutpost, "Return to Outpost")
 
-bot.Routine = Routine.__get__(bot)
+
+bot.SetMainRoutine(asura_leveler)
 
 
 def main():
-    global selected_step
-
     bot.Update()
-
-    if PyImGui.begin("ASURA", PyImGui.WindowFlags.AlwaysAutoResize):
-
-        if PyImGui.button("start bot"):
-            bot.Start()
-
-        if PyImGui.button("stop bot"):
-            bot.Stop()
-
-    PyImGui.end()
+    projects_path = Py4GW.Console.get_projects_path()
+    widgets_path = projects_path + "\\Bots\\marks_coding_corner\\textures\\"
+    texture_icon_path = f'{widgets_path}\\dust_art.png'
+    bot.UI.draw_window(icon_path=texture_icon_path)
 
 
 if __name__ == "__main__":

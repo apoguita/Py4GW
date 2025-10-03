@@ -25,7 +25,7 @@ def ReturnToOutpost():
 bot = Botting("Deldrimor Leveler")
 
 
-def Routine(bot: Botting) -> None:
+def deldrimor_leveler(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Enable("auto_combat")
@@ -48,6 +48,7 @@ def Routine(bot: Botting) -> None:
         bot.Dialogs.AtXY(-19166.00, 17980.00, 0x832101, "Temple of the damned Quest")  # Temple of the damned quest 0x832101
         bot.Dialogs.AtXY(-19166.00, 17980.00, 0x88, "Enter COF Level 1")  # Enter COF Level 1
         bot.Wait.ForMapLoad(target_map_name="Cathedral of Flames (level 1)")
+        bot.Move.XY(-18295.50, -8614.49, "Move towards shrine")
         bot.Dialogs.AtXY(-18250.00, -8595.00, 0x84)
         bot.Move.XY(-17734, -9195, "Fight in entrance")
         bot.Wait.UntilOutOfCombat()
@@ -73,23 +74,15 @@ def Routine(bot: Botting) -> None:
         bot.States.AddCustomState(ReturnToOutpost, "Return to Doomlore")
 
 
-bot.Routine = Routine.__get__(bot)
+bot.SetMainRoutine(deldrimor_leveler)
 
 
 def main():
-    global selected_step
-
     bot.Update()
-
-    if PyImGui.begin("DELDRIMOR", PyImGui.WindowFlags.AlwaysAutoResize):
-
-        if PyImGui.button("start bot"):
-            bot.Start()
-
-        if PyImGui.button("stop bot"):
-            bot.Stop()
-
-    PyImGui.end()
+    projects_path = Py4GW.Console.get_projects_path()
+    widgets_path = projects_path + "\\Bots\\marks_coding_corner\\textures\\"
+    texture_icon_path = f'{widgets_path}\\cof_art.png'
+    bot.UI.draw_window(icon_path=texture_icon_path)
 
 
 if __name__ == "__main__":
