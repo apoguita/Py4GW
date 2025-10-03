@@ -707,7 +707,7 @@ def jokanur_diggings_quests(bot):
 def second_15_attribute_points(bot):
     bot.States.AddHeader("second_15_attribute_points")
     bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
-    bot.Move.XYAndDialog(-2864, 7031, 0x82CB07, step_name="15 more Attribute points")
+    bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
     bot.Wait.ForTime(2000)
 
 def EOTN_Run(bot: Botting): 
@@ -805,14 +805,15 @@ def AdvanceToGunnarsHold(bot: Botting):
     
 def UnlockKillroy(bot: Botting):
     bot.States.AddHeader("Unlock Killroy")
+    bot.Templates.Aggressive(enable_imp=False)
     bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
-    bot.Templates.Aggressive(enable_imp=False)
     bot.Items.Equip(24897) #brass_knuckles_item_id
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
+    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
 
 def UnlockRemainingSecondaryProfessions(bot: Botting):
     bot.States.AddHeader("Unlock remaining secondary professions")

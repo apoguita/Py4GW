@@ -860,11 +860,11 @@ def AdvanceToGunnarsHold(bot: Botting):
     
 def UnlockKillroy(bot: Botting):
     bot.States.AddHeader("Unlock Killroy")
+    bot.Templates.Aggressive(enable_imp=False)
     bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
-    bot.Templates.Aggressive(enable_imp=False)
     bot.Items.Equip(24897) #brass_knuckles_item_id
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
