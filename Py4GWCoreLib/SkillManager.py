@@ -249,8 +249,8 @@ class SkillManager:
             elif target_allegiance == Skilltarget.EnemyKnockedDown:
                 v_target = Routines.Targeting.GetEnemyKnockedDown(self.get_combat_distance())
                 if v_target == 0 and not targeting_strict:
-                    v_target = nearest_enemy           
-            elif target_allegiance == Skilltarget.AllyMartialRanged:
+                    v_target = nearest_enemy
+            elif target_allegiance == Skilltarget.EnemyMartialRanged:
                 v_target = Routines.Agents.GetNearestEnemyRanged(self.get_combat_distance())
                 if v_target == 0 and not targeting_strict:
                     v_target = nearest_enemy
