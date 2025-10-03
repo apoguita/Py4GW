@@ -63,6 +63,7 @@ def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Properties.Disable("war_supplies")
     bot.Items.Restock.BirthdayCupcake()
     bot.Items.Restock.WarSupplies()
+    bot.Items.Restock.Honeycomb()
 
 def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
@@ -75,6 +76,7 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Properties.Enable("war_supplies")
     bot.Items.Restock.BirthdayCupcake()
     bot.Items.Restock.WarSupplies()
+    bot.Items.Restock.Honeycomb()
     bot.Items.SpawnAndDestroyBonusItems([ModelID.Bonus_Serrated_Shield.value, ModelID.Igneous_Summoning_Stone.value])
     
     
@@ -584,7 +586,7 @@ def second_profession(bot: Botting):
 def after_2nd_profession(bot: Botting):    
     bot.States.AddHeader("15 Att Point")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    bot.Wait.ForMapToChange(target_map_id=431)
+    bot.Wait.ForMapLoad(target_map_id=431)
     bot.Move.XYAndDialog(-2864, 7031, 0x82CB07, step_name="Accept Attribute Points")
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Dervish":
@@ -950,10 +952,8 @@ def UnlockLA(bot: Botting):
     bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
     bot.Move.XY(-1181, 1038)
     bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
-    #bot.Map.Travel(target_map_id=55)  # lions_arch_id
     bot.Move.XY(-1856.86, 1434.14)
-    bot.Move.XY(1069, 10459)
-    bot.Wait.ForMapLoad(target_map_name="Lion's Arch")
+    bot.Move.XYAndExitMap(-2376, 2066, target_map_id=55) #has built in wait time now
 
 #region MAIN
 selected_step = 0
