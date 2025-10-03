@@ -209,7 +209,6 @@ def cof_farm_bot(bot: Botting):
     bot.States.AddHeader('Starting Loop')
     bot.States.AddCustomState(lambda: set_bot_to_loot(bot), "Set bot to loot")
     bot.Map.Travel(target_map_name=DOOMLORE_SHRINE)
-    bot.Wait.ForMapLoad(target_map_name=DOOMLORE_SHRINE)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
 
     bot.States.AddCustomState(lambda: set_bot_to_setup(bot), "Setup Resign")
