@@ -116,6 +116,15 @@ class Resources:
         if weapon_type == 0:
             return True
         return False
+    
+    @staticmethod
+    def is_party_dead() -> bool:
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        for player in players:
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            if GLOBAL_CACHE.Agent.IsDead(agent_id) == False:
+                return False
+        return True
 
     @staticmethod
     def has_enough_resources(skill_casted: CustomSkill):
@@ -281,10 +290,9 @@ class Actions:
         if not GLOBAL_CACHE.Agent.IsValid(target_id):
             return None
 
-        ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.ChangeTarget, target_id)
-        ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.Interact, target_id, False)
-        # GLOBAL_CACHE.Player.ChangeTarget(target_id)
-
+        GLOBAL_CACHE.Player.ChangeTarget(target_id)
+        yield from Helpers.wait_for(100) 
+        GLOBAL_CACHE.Player.Interact(target_id, False)
         yield from Helpers.wait_for(100)
         return BehaviorResult.ACTION_PERFORMED
 

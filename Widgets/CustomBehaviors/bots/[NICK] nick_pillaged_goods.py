@@ -1,9 +1,7 @@
 import traceback
 from typing import Any, Generator, override
 from Py4GWCoreLib import Botting
-from Py4GWCoreLib.py4gwcorelib_src.Lootconfig import LootConfig
 from Widgets.CustomBehaviors.primitives.botting.botting_abstract import BottingAbstract
-from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
 class nick_pillaged_goods(BottingAbstract):
     def __init__(self):
@@ -70,12 +68,3 @@ class nick_pillaged_goods(BottingAbstract):
             (-15829.27600849414, -13904.416874455408),
             (-18458, -16135),
         ]
-
-example = nick_pillaged_goods()
-def main():
-    example.act()
-
-def configure():
-    pass
-
-__all__ = ["main", "configure"]

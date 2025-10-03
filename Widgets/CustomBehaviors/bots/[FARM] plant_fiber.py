@@ -2,6 +2,7 @@ from typing import Any, Generator, override
 from Py4GWCoreLib import Botting
 from Py4GWCoreLib.py4gwcorelib_src.Lootconfig import LootConfig
 from Widgets.CustomBehaviors.primitives.botting.botting_abstract import BottingAbstract
+from Widgets.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
 
@@ -27,7 +28,8 @@ class plant_fiber(BottingAbstract):
             bot_instance.Move.XY(farm_coordinate[0], farm_coordinate[1])
 
         bot_instance.States.AddHeader("END")
-        bot_instance.Multibox.ResignParty()
+        bot_instance.config.FSM.AddSelfManagedYieldStep( "wait for party resign.", lambda: BottingHelpers.wrapper(action=BottingHelpers.wait_until_party_resign(timeout_ms = 50_000), on_failure=self.botting_unrecoverable_issue))
+
         bot_instance.UI.PrintMessageToConsole("END", "Finished routine")
 
         # Loop back to farm loop
