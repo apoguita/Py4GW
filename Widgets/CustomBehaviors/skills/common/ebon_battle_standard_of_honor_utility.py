@@ -4,6 +4,7 @@ from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums import Profession, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
@@ -13,18 +14,20 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
 
-    def __init__(self, 
-        current_build: list[CustomSkill], 
+    def __init__(self,
+        event_bus: EventBus,
+        current_build: list[CustomSkill],
         score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 65 if enemy_qte >= 3 else 50 if enemy_qte <= 2 else 25),
         mana_required_to_cast: int = 20,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
         ) -> None:
 
         super().__init__(
-            skill=CustomSkill("Ebon_Battle_Standard_of_Honor"), 
-            in_game_build=current_build, 
-            score_definition=score_definition, 
-            mana_required_to_cast=mana_required_to_cast, 
+            event_bus=event_bus,
+            skill=CustomSkill("Ebon_Battle_Standard_of_Honor"),
+            in_game_build=current_build,
+            score_definition=score_definition,
+            mana_required_to_cast=mana_required_to_cast,
             allowed_states=allowed_states)
         
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition

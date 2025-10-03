@@ -2,6 +2,7 @@ from typing import Any, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -16,15 +17,17 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import Uti
 
 class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
     def __init__(
-            self, 
-            current_build: list[CustomSkill], 
+            self,
+            event_bus: EventBus,
+            current_build: list[CustomSkill],
             allowed_states: list[BehaviorState] = [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
         ) -> None:
-        
+
         super().__init__(
-            skill=CustomSkill("move_to_party_member_if_in_aggro"), 
-            in_game_build=current_build, 
-            score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value), 
+            event_bus=event_bus,
+            skill=CustomSkill("move_to_party_member_if_in_aggro"),
+            in_game_build=current_build,
+            score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value),
             allowed_states=allowed_states,
             utility_skill_typology=UtilitySkillTypology.BOTTING)
 
@@ -63,7 +66,8 @@ class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         agent_id_dead = self._get_first_party_member_in_aggro()
         agent_id_position: tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(agent_id_dead)
-        ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Player.Move, agent_id_position[0], agent_id_position[1])
+        GLOBAL_CACHE.Player.Move(agent_id_position[0], agent_id_position[1])
+        yield from custom_behavior_helpers.Helpers.wait_for(100)
         self.throttle_timer.Reset()
         yield
         return BehaviorResult.ACTION_PERFORMED

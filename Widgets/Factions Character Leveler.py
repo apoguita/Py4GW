@@ -41,7 +41,6 @@ def create_bot_routine(bot: Botting) -> None:
     EnterZenDaijunMission(bot) 
     ZenDaijunMission(bot) 
     CraftRemainingArmorFSM(bot)
-    UnlockXunlaiMaterialPanel(bot)
     AttributePointQuest2(bot)
     AdvanceToMarketplace(bot) 
     AdvanceToKainengCenter(bot)
@@ -54,6 +53,7 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToGunnarsHold(bot)
     UnlockKillroy(bot)
     UnlockRemainingSecondaryProfessions(bot)
+    UnlockXunlaiMaterialPanel(bot)
     bot.States.AddHeader("Final Step")
     bot.Stop()
 
@@ -784,6 +784,7 @@ def AdvanceToEOTN(bot: Botting):
     bot.Move.XY(3444.90, -1728.31)
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
+    bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
     bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)  # yes
     bot.Wait.ForMapLoad(target_map_id=692)  # tunnels_below_cantha_id
     auto_path_list = [(16738.77, 3046.05), (13028.36, 6146.36), (10968.19, 9623.72),
@@ -809,22 +810,13 @@ def TraverseToEOTNOutpost(bot: Botting):
     bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
     auto_path_list = [(3743.31, -15862.36), (3607.21, -6937.32),(2557.23, -275.97)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Wait.ForMapLoad(target_map_id=642)  # eotn_outpost_id
-    bot.Move.XYAndExitMap(2557.23, -275.97, target_map_id=642) #eotn_outpost_id
-
-def UnlockXunlaiMaterialPanel(bot: Botting) -> None:
-    bot.States.AddHeader("Unlock Xunlai Material Panel")
-    bot.Party.LeaveParty()
-    bot.Map.Travel(target_map_name="Shing Jea Monastery")
-    path_to_xunlai = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
-    bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
-    bot.Dialogs.WithModel(221, 0x800001)
-    bot.Dialogs.WithModel(221, 0x800002)
+    bot.Move.XY(-641.25, 2069.27)
+    bot.Wait.ForMapLoad(target_map_id=642)
 
 def UnlockEotnPool(bot: Botting):
     bot.States.AddHeader("Unlock EOTN Pool")
     bot.Map.Travel(target_map_id=642)  # eotn_outpost_id
-    bot.Wait.ForMapLoad(target_map_id=642)  # hall of monuments id
+    #bot.Wait.ForMapLoad(target_map_id=642)  # hall of monuments id
     auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapLoad(target_map_id=646)  # hall of monuments id
@@ -869,13 +861,14 @@ def AdvanceToGunnarsHold(bot: Botting):
 def UnlockKillroy(bot: Botting):
     bot.States.AddHeader("Unlock Killroy")
     bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
-    bot.Templates.Aggressive(enable_imp=False)
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
+    bot.Templates.Aggressive(enable_imp=False)
     bot.Items.Equip(24897) #brass_knuckles_item_id
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
+    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
 
 def UnlockRemainingSecondaryProfessions(bot: Botting):
     bot.States.AddHeader("Unlock remaining secondary professions")
@@ -956,7 +949,15 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
         bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
-    
+
+def UnlockXunlaiMaterialPanel(bot: Botting) -> None:
+    bot.States.AddHeader("Unlock Xunlai Material Panel")
+    bot.Party.LeaveParty()
+    bot.Map.Travel(target_map_id=248)  # GTOB
+    path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
+    bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
+    bot.Dialogs.WithModel(221, 0x800001)
+    bot.Dialogs.WithModel(221, 0x800002)    
 #region Events
 def _on_death(bot: "Botting"):
     slot = 8 # slot 8 is the default "revive" skill

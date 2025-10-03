@@ -2,6 +2,7 @@ from typing import Any, Callable, Dict, List, Optional, Union, Generator
 from collections.abc import Generator as AbcGenerator
 from collections import defaultdict
 import threading
+from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Widgets.CustomBehaviors.primitives import constants
@@ -13,24 +14,13 @@ class EventBus:
     Allows classes to subscribe to event types and publish messages.
     Uses EventType enum for type safety.
     """
-    
-    _instance = None  # Singleton instance
-    
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(EventBus, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-    
     def __init__(self):
-        if not self._initialized:
-            self._initialized = True
-            self._subscribers: Dict[EventType, List[Callable[[EventMessage], Generator[Any, Any, Any]]]] = defaultdict(list)
-            self._subscriber_names: Dict[EventType, List[str]] = defaultdict(list)
-            self._lock = threading.RLock()
-            self._message_history: List[EventMessage] = []
-            self._max_history_size = 1000
-            self._debug_mode = False
+        self._subscribers: Dict[EventType, List[Callable[[EventMessage], Generator[Any, Any, Any]]]] = defaultdict(list)
+        self._subscriber_names: Dict[EventType, List[str]] = defaultdict(list)
+        self._lock = threading.RLock()
+        self._message_history: List[EventMessage] = []
+        self._max_history_size = 1000
+        self._debug_mode = False
     
     def subscribe(self, event_type: EventType, callback:Callable[[EventMessage], Generator[Any, Any, Any]], subscriber_name: str = "Unknown") -> bool:
         """
@@ -40,28 +30,30 @@ class EventBus:
             event_type: The EventType enum to subscribe to
             callback: Function to call when event is published
             subscriber_name: Name of the subscriber for debugging
-            
+        
         Returns:
             True if subscription was successful, False otherwise
+        
+        Raises:
+            ValueError: If subscriber_name is already registered for this event_type
         """
         if not isinstance(event_type, EventType) or not callback:
-            if constants.DEBUG:
-                print(f"Invalid subscription parameters: event_type={event_type}, callback={callback}")
+            print(f"Invalid subscription parameters: event_type={event_type}, callback={callback}")
             return False
         
         with self._lock:
-            if callback not in self._subscribers[event_type]:
-                self._subscribers[event_type].append(callback)
-                self._subscriber_names[event_type].append(subscriber_name)
-                if self._debug_mode:
-                    print(f"Subscribed '{subscriber_name}' to event type '{event_type.name}'")
-                return True
-            else:
-                if self._debug_mode:
-                    print(f"Subscriber '{subscriber_name}' already subscribed to '{event_type.name}'")
-                return False
+            # Check if subscriber_name already exists for this event type
+            if subscriber_name in self._subscriber_names[event_type]:
+                raise ValueError(f"Subscriber '{subscriber_name}' is already registered for event type '{event_type.name}'")
+            
+            # Add new subscription
+            self._subscribers[event_type].append(callback)
+            self._subscriber_names[event_type].append(subscriber_name)
+            if self._debug_mode:
+                print(f"Subscribed '{subscriber_name}' to event type '{event_type.name}'")
+            return True
     
-    def publish(self, event_type: EventType, data: Any = None, publisher_name: str = "Unknown") -> Generator[Any, Any, bool]:
+    def publish(self, event_type: EventType, current_state: BehaviorState, data: Any = None, publisher_name: str = "Unknown") -> Generator[Any, Any, bool]:
         """
         Publish an event message.
         
@@ -74,11 +66,10 @@ class EventBus:
             True if publishing was successful, False otherwise
         """
         if not isinstance(event_type, EventType):
-            if constants.DEBUG:
-                print(f"Invalid event type from publisher '{publisher_name}': {event_type}")
+            print(f"Invalid event type from publisher '{publisher_name}': {event_type}")
             return False
         
-        message = EventMessage(type=event_type, data=data)
+        message = EventMessage(type=event_type, current_state=current_state, data=data)
         
         with self._lock:
             # Add to history
@@ -112,13 +103,12 @@ class EventBus:
                 success_count += 1
             except Exception as e:
                 subscriber_name = subscriber_names[i] if i < len(subscriber_names) else "Unknown"
-                if constants.DEBUG:
-                    cb_name = getattr(callback, "__qualname__", repr(callback))
-                    cb_mod = getattr(callback, "__module__", "<unknown>")
-                    print(
-                        f"Error in subscriber '{subscriber_name}' for event '{event_type.name}': "
-                        f"{type(e).__name__}: {e} | callback={cb_mod}.{cb_name}"
-                    )
+                cb_name = getattr(callback, "__qualname__", repr(callback))
+                cb_mod = getattr(callback, "__module__", "<unknown>")
+                print(
+                    f"Error in subscriber '{subscriber_name}' for event '{event_type.name}': "
+                    f"{type(e).__name__}: {e} | callback={cb_mod}.{cb_name}"
+                )
                 # Re-raise the original exception to preserve type and traceback
                 raise
         
@@ -161,8 +151,7 @@ class EventBus:
                     print(f"Cleared all event subscribers")
             else:
                 if not isinstance(event_type, EventType):
-                    if constants.DEBUG:
-                        print(f"Invalid event type: {event_type}")
+                    print(f"Invalid event type: {event_type}")
                     return
                 if event_type in self._subscribers:
                     del self._subscribers[event_type]
@@ -186,8 +175,7 @@ class EventBus:
                 history = self._message_history.copy()
             else:
                 if not isinstance(event_type, EventType):
-                    if constants.DEBUG:
-                        print(f"Invalid event type: {event_type}")
+                    print(f"Invalid event type: {event_type}")
                     return []
                 history = [msg for msg in self._message_history if msg.type == event_type]
             
@@ -217,6 +205,3 @@ class EventBus:
         
         if constants.DEBUG:
             print(f"Max history size set to {size}")
-
-# Global event bus instance
-EVENT_BUS = EventBus()
