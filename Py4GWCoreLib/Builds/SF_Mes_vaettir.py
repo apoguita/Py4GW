@@ -64,7 +64,7 @@ class SF_Mes_vaettir(BuildMgr):
 
     def SetStuckSignal(self, stuck_counter: int):
         # self.stuck_counter = stuck_counter
-        self.stuck_signal = stuck_counter > 0
+        self.stuck_signal = stuck_counter > 3
 
     def GetStuckSignal(self) -> bool:
         return self.stuck_signal
@@ -83,6 +83,7 @@ class SF_Mes_vaettir(BuildMgr):
 
     def DefensiveActions(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_hp = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
         has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
         if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_form)):
             if (
@@ -94,6 +95,17 @@ class SF_Mes_vaettir(BuildMgr):
 
             if (yield from self._CastSkillID(self.shadow_form, log=False, aftercast_delay=1750)):
                 ConsoleLog(self.build_name, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=False)
+
+        if player_hp < 0.7 and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shroud_of_distress)):
+            yield from self._CastSkillID(self.shroud_of_distress, log=False, aftercast_delay=500)
+            ConsoleLog(self.build_name, "Casting Shroud for defense.", Py4GW.Console.MessageType.Info, log=False)
+
+        if player_hp < 0.8 and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.way_of_perfection)):
+            yield from self._CastSkillID(self.way_of_perfection, log=False, aftercast_delay=500)
+            ConsoleLog(self.build_name, "Casting Way of Perfection for defense.", Py4GW.Console.MessageType.Info, log=False)
+
+        if player_hp < 0.25 and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.heart_of_shadow)):
+            yield from self.CastHeartOfShadow()
 
     def CastShroudOfDistress(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
@@ -236,7 +248,14 @@ class SF_Mes_vaettir(BuildMgr):
             return
 
         if not self.in_killing_routine:
-            if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.35 or self.stuck_signal:
+            player_hp = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
+            kill_spot_x, kill_spot_y = (12684, -17184)
+            player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+            dx = kill_spot_x - player_x
+            dy = kill_spot_y - player_y
+            distance_threshold = Range.Area.value * 1.5
+            within_range_distance = dx * dx + dy * dy <= distance_threshold * distance_threshold
+            if (player_hp < 0.35 and not within_range_distance) or self.stuck_signal:
                 center_point1 = (10980, -21532)
                 center_point2 = (11461, -17282)
                 player_pos = GLOBAL_CACHE.Player.GetXY()
@@ -285,9 +304,7 @@ class SF_Mes_vaettir(BuildMgr):
                 elif is_arcane_echo_slot_ready:
                     yield from self._CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=500)
                     GLOBAL_CACHE.Player.Interact(target, False)
-                    ConsoleLog(
-                        self.build_name, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=False
-                    )
+                    ConsoleLog(self.build_name, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=False)
 
             target = GetNotHexedEnemy()
             if target and not Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot):
