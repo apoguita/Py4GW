@@ -462,8 +462,6 @@ def feather_farm_bot(bot: Botting):
 
     bot.States.AddHeader('Starting Loop')
     bot.Map.Travel(target_map_name=SEITUING_HARBOR)
-    bot.Wait.ForTime(2000)
-    bot.Wait.ForMapLoad(target_map_name=SEITUING_HARBOR)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
 
     bot.Move.XY(17113, 12283, "Move close to Merch")
