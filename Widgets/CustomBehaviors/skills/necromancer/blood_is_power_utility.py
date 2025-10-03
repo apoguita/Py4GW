@@ -4,6 +4,7 @@ from typing import Any, Generator, override
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.enums import Profession
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -14,6 +15,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 class BloodIsPowerUtility(CustomSkillUtilityBase):
     def __init__(self, 
+        event_bus:EventBus,
         current_build: list[CustomSkill], 
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(33),
         sacrifice_life_limit_percent: float = 0.55,
@@ -24,6 +26,7 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
         ) -> None:
 
         super().__init__(
+            event_bus=event_bus,
             skill=CustomSkill("Blood_is_Power"), 
             in_game_build=current_build, 
             score_definition=score_definition, 

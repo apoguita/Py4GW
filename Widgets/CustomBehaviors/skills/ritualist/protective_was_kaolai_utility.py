@@ -2,6 +2,7 @@ from typing import Any, Generator, override
 
 from Py4GWCoreLib import Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.scores.healing_score import HealingScore
@@ -10,15 +11,17 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 class ProtectiveWasKaolaiUtility(CustomSkillUtilityBase):
-    def __init__(self, 
-        current_build: list[CustomSkill], 
+    def __init__(self,
+        event_bus: EventBus,
+        current_build: list[CustomSkill],
         score_definition: ScorePerHealthGravityDefinition = ScorePerHealthGravityDefinition(5),
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
         ) -> None:
 
         super().__init__(
-            skill=CustomSkill("Protective_Was_Kaolai"), 
-            in_game_build=current_build, 
+            event_bus=event_bus,
+            skill=CustomSkill("Protective_Was_Kaolai"),
+            in_game_build=current_build,
             score_definition=score_definition,
             allowed_states=allowed_states)
 

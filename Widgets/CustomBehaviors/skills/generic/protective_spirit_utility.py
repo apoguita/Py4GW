@@ -3,7 +3,8 @@ from typing import List, Any, Generator, Callable, override
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.enums import SpiritModelID
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
-from Widgets.CustomBehaviors.primitives.bus.event_bus import EVENT_BUS
+
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -15,9 +16,10 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 
 class ProtectiveSpiritUtility(CustomSkillUtilityBase):
-    def __init__(self, 
+    def __init__(self,
+        event_bus: EventBus,
         skill: CustomSkill,
-        current_build: list[CustomSkill], 
+        current_build: list[CustomSkill],
         owned_spirit_model_id: SpiritModelID,
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(60),
         mana_required_to_cast: int = 0,
@@ -25,8 +27,9 @@ class ProtectiveSpiritUtility(CustomSkillUtilityBase):
         ) -> None:
 
         super().__init__(
-            skill=skill, 
-            in_game_build=current_build, 
+            event_bus=event_bus,
+            skill=skill,
+            in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast, 
             allowed_states=allowed_states)
@@ -70,6 +73,6 @@ class ProtectiveSpiritUtility(CustomSkillUtilityBase):
 
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
         if result == BehaviorResult.ACTION_PERFORMED:
-            yield from EVENT_BUS.publish(EventType.SPIRIT_CREATED, self.owned_spirit_model_id)
+            yield from self.event_bus.publish(EventType.SPIRIT_CREATED, state, data=self.owned_spirit_model_id)
         
         return result

@@ -5,6 +5,7 @@ import random
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.enums import Profession, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -15,16 +16,18 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import 
 
 class FallBackUtility(CustomSkillUtilityBase):
     def __init__(
-            self, 
-            current_build: list[CustomSkill], 
-            score_definition: ScoreStaticDefinition = ScoreStaticDefinition(99.99), 
+            self,
+            event_bus: EventBus,
+            current_build: list[CustomSkill],
+            score_definition: ScoreStaticDefinition = ScoreStaticDefinition(99.99),
             allowed_states: list[BehaviorState] = [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
             ) -> None:
-        
+
         super().__init__(
-            skill=CustomSkill("Fall_Back"), 
-            in_game_build=current_build, 
-            score_definition=score_definition, 
+            event_bus=event_bus,
+            skill=CustomSkill("Fall_Back"),
+            in_game_build=current_build,
+            score_definition=score_definition,
             allowed_states=allowed_states)
         
         self.score_definition: ScoreStaticDefinition = score_definition
