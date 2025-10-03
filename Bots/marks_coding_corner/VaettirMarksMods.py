@@ -1,3 +1,4 @@
+import math
 from typing import List
 from typing import Tuple
 
@@ -24,7 +25,13 @@ from Py4GWCoreLib.enums import TitleID
 VAETTIR_FARM_BY_MARK = "Vaettir By Mark"
 HANDLE_STUCK_JAGA_MORAINE = "HandleStuckJagaMoraine"
 
-bot = Botting(VAETTIR_FARM_BY_MARK, upkeep_birthday_cupcake_restock=1, config_movement_tolerance=200)
+bot = Botting(
+    VAETTIR_FARM_BY_MARK,
+    upkeep_birthday_cupcake_restock=1,
+    config_movement_tolerance=200,
+    upkeep_salvage_kits_restock=10,
+    upkeep_identify_kits_restock=1,
+)
 item_id_blacklist = []
 unmanaged_fail_counter = 0
 
@@ -198,7 +205,9 @@ def jaga_moraine_farm_routine(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: wait_for_right_aggro_ball(bot), "Wait for Right Aggro Ball")
     bot.Properties.Set("movement_tolerance", value=25)
     bot.Move.XY(13070, -16911, "Start Killing ball")
-    bot.States.AddCustomState(lambda: wait_for_right_aggro_ball(bot, use_hos_after=False), "Wait for Right Aggro Ball Again")
+    bot.States.AddCustomState(
+        lambda: wait_for_right_aggro_ball(bot, use_hos_after=False), "Wait for Right Aggro Ball Again"
+    )
     path_points_to_killing_spot: List[Tuple[float, float]] = [
         (12938, -17081),
         (12790, -17201),
@@ -458,6 +467,12 @@ def handle_stuck_jaga_moraine(bot: Botting):
 
     ConsoleLog("Stuck Detection", "Starting Stuck Detection Coroutine.", Py4GW.Console.MessageType.Info, True)
 
+    def is_within_tolerance(pos1, pos2, tolerance=100):
+        dx = pos1[0] - pos2[0]
+        dy = pos1[1] - pos2[1]
+        distance = math.hypot(dx, dy)  # sqrt(dx^2 + dy^2)
+        return distance <= tolerance
+
     while True:
         if not Routines.Checks.Map.MapValid():
             ConsoleLog("Stuck Detection", "Map is not valid, waiting...", Py4GW.Console.MessageType.Debug, False)
@@ -536,7 +551,7 @@ def handle_stuck_jaga_moraine(bot: Botting):
                     False,
                 )
 
-                if old_player_position == current_player_pos:
+                if is_within_tolerance(old_player_position, current_player_pos, 50):
                     ConsoleLog(
                         "Stuck Detection", "Player is stuck, sending /stuck command.", Py4GW.Console.MessageType.Warning
                     )

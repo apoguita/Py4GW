@@ -1,12 +1,12 @@
 from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import AutoInventoryHandler
+from Py4GWCoreLib import Agent
 from Py4GWCoreLib import AgentArray
+from Py4GWCoreLib import AutoInventoryHandler
 from Py4GWCoreLib import Bags
-from Py4GWCoreLib import Player
 from Py4GWCoreLib import Item
 from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import ModelID
-from Py4GWCoreLib import Agent
+from Py4GWCoreLib import Player
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 

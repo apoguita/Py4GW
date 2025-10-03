@@ -13,7 +13,6 @@ from Py4GWCoreLib import *
 from Py4GWCoreLib.Builds.DervDustFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervDustFarmer import DervDustFarmer
 
-
 DUST_FARMER = "Dust Farmer"
 TOA = "Temple of the Ages"
 THE_BLACK_CURTAIN = "The Black Curtain"

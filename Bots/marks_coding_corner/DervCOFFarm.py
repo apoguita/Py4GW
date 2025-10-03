@@ -12,7 +12,6 @@ from Py4GWCoreLib.Builds.DervBoneFarmer import ENEMY_BLACKLIST
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBoneFarmer
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBuildFarmStatus
 
-
 COF_FARMER = "COF Farmer"
 DOOMLORE_SHRINE = "Doomlore Shrine"
 COF_LEVEL_1 = "Cathedral of Flames (level 1)"
