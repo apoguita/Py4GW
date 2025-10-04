@@ -163,9 +163,8 @@ def farm_scythes(bot: Botting) -> None:
     bot.Wait.UntilCondition(
         is_asterius_killed_or_time_elapsed, duration=1000
     )  # check every second until boss is killed
-
+    bot.Wait.ForTime(10000)  # allow to loot
     bot.Multibox.ResignParty()
-    bot.Wait.ForTime(10000)
     bot.States.AddCustomState(reset_farm_flags, "Reset Farm detections")
     bot.Wait.UntilOnOutpost()
     bot.Wait.ForTime(10000)
