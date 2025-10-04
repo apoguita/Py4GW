@@ -1,4 +1,5 @@
 import json
+
 from Py4GWCoreLib import *
 
 LOCATIONS_FILE = "locations.json"

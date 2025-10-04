@@ -9,11 +9,11 @@ from Bots.marks_coding_corner.utils.merch_utils import buy_salvage_kits
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
 from Bots.marks_coding_corner.utils.merch_utils import withdraw_gold
 from Bots.marks_coding_corner.utils.town_utils import return_to_outpost
+from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import *
 from Py4GWCoreLib.Builds.DervFeatherFarmer import SENSALI_MODEL_IDS
 from Py4GWCoreLib.Builds.DervFeatherFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervFeatherFarmer import DervFeatherFarmer
-from Py4GW_widget_manager import get_widget_handler
 
 FEATHER_FARMER = "Feather Farmer"
 SEITUING_HARBOR = "Seitung Harbor"

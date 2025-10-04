@@ -8,6 +8,7 @@ from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_
 from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
 from Bots.marks_coding_corner.utils.merch_utils import withdraw_gold
+from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import Botting
@@ -21,7 +22,6 @@ from Py4GWCoreLib.Builds import SF_Mes_vaettir
 from Py4GWCoreLib.enums import ModelID
 from Py4GWCoreLib.enums import Range
 from Py4GWCoreLib.enums import TitleID
-from Py4GW_widget_manager import get_widget_handler
 
 VAETTIR_FARM_BY_MARK = "Vaettir By Mark"
 HANDLE_STUCK_JAGA_MORAINE = "HandleStuckJagaMoraine"

@@ -1,6 +1,5 @@
-from Py4GWCoreLib import *
 from Py4GW_widget_manager import get_widget_handler
-
+from Py4GWCoreLib import *
 
 selected_step = 0
 RATA_SUM = "Rata Sum"

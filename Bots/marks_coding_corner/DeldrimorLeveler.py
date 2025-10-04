@@ -1,6 +1,5 @@
-from Py4GWCoreLib import *
 from Py4GW_widget_manager import get_widget_handler
-
+from Py4GWCoreLib import *
 
 UMBRAL_GROTTO = "Umbral Grotto"
 EYE_OF_THE_NORTH_MAP_ID = 642
