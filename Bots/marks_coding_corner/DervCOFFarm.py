@@ -11,6 +11,7 @@ from Py4GWCoreLib import *
 from Py4GWCoreLib.Builds.DervBoneFarmer import ENEMY_BLACKLIST
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBoneFarmer
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBuildFarmStatus
+from Py4GW_widget_manager import get_widget_handler
 
 COF_FARMER = "COF Farmer"
 DOOMLORE_SHRINE = "Doomlore Shrine"
@@ -202,6 +203,9 @@ def handle_custom_on_unmanaged_fail(bot: Botting):
 
 
 def cof_farm_bot(bot: Botting):
+    widget_handler = get_widget_handler()
+    widget_handler.disable_widget('Return to outpost on defeat')
+
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     # override condition for halting movement

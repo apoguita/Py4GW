@@ -1,4 +1,6 @@
 from Py4GWCoreLib import *
+from Py4GW_widget_manager import get_widget_handler
+
 
 selected_step = 0
 RATA_SUM = "Rata Sum"
@@ -26,6 +28,9 @@ bot = Botting("Asura Leveler")
 
 
 def asura_leveler(bot: Botting) -> None:
+    widget_handler = get_widget_handler()
+    widget_handler.disable_widget('Return to outpost on defeat')
+
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Enable("auto_combat")

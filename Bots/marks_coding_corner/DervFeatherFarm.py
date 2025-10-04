@@ -13,6 +13,7 @@ from Py4GWCoreLib import *
 from Py4GWCoreLib.Builds.DervFeatherFarmer import SENSALI_MODEL_IDS
 from Py4GWCoreLib.Builds.DervFeatherFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervFeatherFarmer import DervFeatherFarmer
+from Py4GW_widget_manager import get_widget_handler
 
 FEATHER_FARMER = "Feather Farmer"
 SEITUING_HARBOR = "Seitung Harbor"
@@ -456,6 +457,9 @@ def handle_custom_on_unmanaged_fail(bot: Botting):
 
 
 def feather_farm_bot(bot: Botting):
+    widget_handler = get_widget_handler()
+    widget_handler.disable_widget('Return to outpost on defeat')
+
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     # override condition for halting movement

@@ -30,7 +30,7 @@ def main():
         # === Buttons ===
         if PyImGui.button("RECORD"):
             x, y = GLOBAL_CACHE.Player.GetXY()
-            recorded_locations.append([x, y])
+            recorded_locations.append((x, y))
             save_locations()
             ConsoleLog('Recorder', f"Recorded location: ({x}, {y})")
 
