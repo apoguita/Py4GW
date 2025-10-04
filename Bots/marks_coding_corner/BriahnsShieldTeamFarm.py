@@ -170,6 +170,10 @@ def farm_scythes(bot: Botting) -> None:
     bot.Templates.Multibox_Aggressive()
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
     bot.Party.SetHardMode(True)
+    bot.Move.XYAndExitMap(
+        -572, 7489, target_map_id=MIRROR_OF_LYSS_MAP_ID
+    )  # setup resign
+    bot.Move.XYAndExitMap(-19366, -17899, target_map_id=OUTPOST_TO_TRAVEL)  # Enter back to Kodash
     bot.States.AddManagedCoroutine('Detect en route Briahn kill', handle_briahn_killed_en_route)
 
     bot.States.AddHeader('Exit To Farm')
