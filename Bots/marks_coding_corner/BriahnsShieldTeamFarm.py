@@ -61,8 +61,8 @@ def is_briahn_killed_or_time_elapsed():
     global elapsed
 
     elapsed += 1
-    # Cap at 3 minutes to wait for Briahn on the final spot
-    if elapsed > 180:
+    # Cap at 30 seconds to wait for Briahn on the final spot
+    if elapsed > 30:
         return True
 
     if is_briahn_killed:
