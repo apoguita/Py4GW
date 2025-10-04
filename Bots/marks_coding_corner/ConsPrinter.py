@@ -162,17 +162,17 @@ def withdraw_cons_materials_from_inventory():
     for model_id, req_amount in PER_CONSET.items():
         total_needed = req_amount * max_possible
         already_have = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
-        target_amount = already_have + total_needed
+        needed = max(0, total_needed - already_have)  # <-- only withdraw what's missing
         model_name = model_id.name if hasattr(model_id, "name") else str(model_id)
 
-        while GLOBAL_CACHE.Inventory.GetModelCount(model_id) < target_amount:
-            remaining = target_amount - GLOBAL_CACHE.Inventory.GetModelCount(model_id)
-            withdraw_amount = min(250, remaining)
-
+        while needed > 0:
+            withdraw_amount = min(250, needed)
             GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, withdraw_amount)
             yield from Routines.Yield.wait(250)
 
-        ConsoleLog("Withdraw", f"Got {total_needed} {model_name} for consets.")
+            needed -= withdraw_amount
+
+        ConsoleLog("Withdraw", f"Got {total_needed} {model_name} for consets (had {already_have} already).")
 
     # Step 6: Withdraw gold
     needed_gold = GOLD_PER_CONSET * max_possible
