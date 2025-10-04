@@ -21,6 +21,7 @@ from Py4GWCoreLib.Builds import SF_Mes_vaettir
 from Py4GWCoreLib.enums import ModelID
 from Py4GWCoreLib.enums import Range
 from Py4GWCoreLib.enums import TitleID
+from Py4GW_widget_manager import get_widget_handler
 
 VAETTIR_FARM_BY_MARK = "Vaettir By Mark"
 HANDLE_STUCK_JAGA_MORAINE = "HandleStuckJagaMoraine"
@@ -44,6 +45,8 @@ def create_bot_routine(bot: Botting) -> None:
 
 
 def initialize_bot(bot: Botting) -> None:
+    widget_handler = get_widget_handler()
+    widget_handler.disable_widget('Return to outpost on defeat')
     bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     bot.States.AddHeader("Initialize Bot")

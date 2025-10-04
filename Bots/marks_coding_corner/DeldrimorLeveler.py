@@ -1,4 +1,6 @@
 from Py4GWCoreLib import *
+from Py4GW_widget_manager import get_widget_handler
+
 
 UMBRAL_GROTTO = "Umbral Grotto"
 EYE_OF_THE_NORTH_MAP_ID = 642
@@ -99,6 +101,9 @@ def handle_custom_on_unmanaged_fail(bot: Botting):
 
 
 def deldrimor_leveler(bot: Botting) -> None:
+    widget_handler = get_widget_handler()
+    widget_handler.disable_widget('Return to outpost on defeat')
+
     bot.States.AddHeader("Farm Loop")
     bot.Map.Travel(target_map_name=UMBRAL_GROTTO)
     bot.States.AddCustomState(AddHenchies, "Add Henchmen")

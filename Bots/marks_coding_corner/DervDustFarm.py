@@ -12,6 +12,7 @@ from Bots.marks_coding_corner.utils.town_utils import return_to_outpost
 from Py4GWCoreLib import *
 from Py4GWCoreLib.Builds.DervDustFarmer import DervBuildFarmStatus
 from Py4GWCoreLib.Builds.DervDustFarmer import DervDustFarmer
+from Py4GW_widget_manager import get_widget_handler
 
 DUST_FARMER = "Dust Farmer"
 TOA = "Temple of the Ages"
@@ -425,6 +426,9 @@ def handle_custom_on_unmanaged_fail(bot: Botting):
 
 
 def dust_farm_bot(bot: Botting):
+    widget_handler = get_widget_handler()
+    widget_handler.disable_widget('Return to outpost on defeat')
+
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     # override condition for halting movement
