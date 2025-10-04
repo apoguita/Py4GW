@@ -7,11 +7,11 @@ from Bots.marks_coding_corner.utils.merch_utils import buy_salvage_kits
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
 from Bots.marks_coding_corner.utils.merch_utils import withdraw_gold
 from Bots.marks_coding_corner.utils.town_utils import return_to_outpost
+from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import *
 from Py4GWCoreLib.Builds.DervBoneFarmer import ENEMY_BLACKLIST
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBoneFarmer
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBuildFarmStatus
-from Py4GW_widget_manager import get_widget_handler
 
 COF_FARMER = "COF Farmer"
 DOOMLORE_SHRINE = "Doomlore Shrine"

@@ -1,5 +1,7 @@
 import os
 
+import Py4GW
+from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import AgentArray
 from Py4GWCoreLib import Botting
@@ -7,8 +9,6 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Utils
-from Py4GW_widget_manager import get_widget_handler
-import Py4GW
 
 BOT_NAME = "Asterius Scythe Farm"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Vanquished_Helmet.png")
