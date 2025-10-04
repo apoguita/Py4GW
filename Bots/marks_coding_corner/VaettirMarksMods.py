@@ -461,9 +461,13 @@ in_killing_routine = False
 
 
 def handle_stuck_jaga_moraine(bot: Botting):
-    global in_waiting_routine, finished_routine, stuck_counter
-    global stuck_timer, movement_check_timer, JAGA_MORAINE
-    global old_player_position, in_killing_routine
+    global in_waiting_routine
+    global finished_routine
+    global stuck_counter
+    global stuck_timer
+    global movement_check_timer
+    global old_player_position
+    global in_killing_routine
 
     ConsoleLog("Stuck Detection", "Starting Stuck Detection Coroutine.", Py4GW.Console.MessageType.Info, True)
 
@@ -575,6 +579,8 @@ def handle_stuck_jaga_moraine(bot: Botting):
                         False,
                     )
                     stuck_counter = 0
+                    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
+                        build.SetStuckSignal(stuck_counter)
 
                 movement_check_timer.Reset()
 
