@@ -431,8 +431,6 @@ def dust_farm_bot(bot: Botting):
 
     bot.States.AddHeader('Starting Loop')
     bot.Map.Travel(target_map_name=TOA)
-    bot.Wait.ForTime(2000)
-    bot.Wait.ForMapLoad(target_map_name=TOA)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
 
     bot.Move.XY(-5053.52, 19196.66, "Move close to Merch")
