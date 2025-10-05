@@ -10,25 +10,18 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Utils
 
-BOT_NAME = "Birahn's Shield Farm"
+BOT_NAME = "Briahn's Shield Farm"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Vanquished_Helmet.png")
-OUTPOST_TO_TRAVEL = GLOBAL_CACHE.Map.GetMapIDByName('The Kodash Bazaar')
+OUTPOST_TO_TRAVEL_KODASH = GLOBAL_CACHE.Map.GetMapIDByName('The Kodash Bazaar')
+OUTPOST_TO_TRAVEL_HONUR_HILL = GLOBAL_CACHE.Map.GetMapIDByName('Honur Hill')
 MIRROR_OF_LYSS_MAP_ID = 419
 BRIAHNS_MODEL_ID = 5518
 
-HONUR_HILL_TRAVEL_PATH: list[tuple[float, float]] = [
-    (21500.25390625, -15467.0126953125),
-    (18896.490234375, -15838.85546875),
-    (13516.6240234375, -13918.5712890625),
-    (10773.3056640625, -15054.142578125),
-    (4464.98046875, -12559.630859375),
-    (1649.0672607421875, -13868.5439453125),
-    (-6889.783203125, -14858.8115234375),
-    (-10354.7958984375, -12134.3203125),
-    (-13278.0712890625, -11623.4765625),
-    (-16952.267578125, -11470.740234375),
-    (-18884.419921875, -13176.1279296875),
-    (-19154.185546875, -14973.0166015625),
+HONUR_HILL_FAST_TRAVEL_PATH: list[tuple[float, float]] = [
+    (18958, -16168),
+    (15387, -15626),
+    (12662, -14341),
+    (7304, -12588),
 ]
 
 KODASH_TRAVEL_PATH: list[tuple[float, float]] = [
@@ -168,24 +161,24 @@ def farm_scythes(bot: Botting) -> None:
 
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
-    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
-    bot.Party.SetHardMode(True)
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL_HONUR_HILL)
+    # bot.Party.SetHardMode(True)
+    bot.Move.XYAndExitMap(-20980, 21010, target_map_id=MIRROR_OF_LYSS_MAP_ID)  # setup resign
     bot.Move.XYAndExitMap(
-        -572, 7489, target_map_id=MIRROR_OF_LYSS_MAP_ID
-    )  # setup resign
-    bot.Move.XYAndExitMap(-19366, -17899, target_map_id=OUTPOST_TO_TRAVEL)  # Enter back to Kodash
+        23805, -17117, target_map_id=OUTPOST_TO_TRAVEL_HONUR_HILL
+    )  # Enter back to Kodash, -19366, -17899, Enter back honur hill 23805, -17117
     bot.States.AddManagedCoroutine('Detect en route Briahn kill', handle_briahn_killed_en_route)
 
     bot.States.AddHeader('Exit To Farm')
     bot.Properties.Disable('pause_on_danger')
     bot.Move.XYAndExitMap(
-        -572, 7489, target_map_id=MIRROR_OF_LYSS_MAP_ID
+        -20980, 21010, target_map_id=MIRROR_OF_LYSS_MAP_ID
     )  # -572, 7489 Kodash exit, -20980, 21010 Honur Hill Exit
     bot.Wait.ForTime(4000)
     bot.Properties.Enable('pause_on_danger')
 
     bot.States.AddHeader("Start Combat")
-    bot.Move.FollowAutoPath(KODASH_TRAVEL_PATH, "Kill Route")
+    bot.Move.FollowAutoPath(HONUR_HILL_FAST_TRAVEL_PATH, "Kill Route")
     bot.Wait.UntilCondition(is_briahn_killed_or_time_elapsed, duration=1000)  # check every second until boss is killed
     bot.Wait.ForTime(10000)  # allow to loot
     bot.Multibox.ResignParty()
