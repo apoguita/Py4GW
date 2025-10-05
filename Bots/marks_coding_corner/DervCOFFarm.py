@@ -266,10 +266,8 @@ bot.SetMainRoutine(cof_farm_bot)
 
 def main():
     bot.Update()
-    projects_path = Py4GW.Console.get_projects_path()
-    widgets_path = projects_path + "\\Bots\\marks_coding_corner\\textures\\"
-    texture_icon_path = f'{widgets_path}\\cof_art.png'
-    bot.UI.draw_window(icon_path=texture_icon_path)
+    TEXTURE = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "marks_coding_corner", "textures" , "cof_art.png")
+    bot.UI.draw_window(icon_path=TEXTURE)
 
 
 if __name__ == "__main__":
