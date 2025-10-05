@@ -148,6 +148,8 @@ def farm_scythes(bot: Botting) -> None:
 
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
+    bot.Properties.Disable("auto_inventory_management")
+
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
     bot.Party.SetHardMode(True)
     bot.States.AddManagedCoroutine('Detect en route Asterius kill', handle_asterius_killed_en_route)

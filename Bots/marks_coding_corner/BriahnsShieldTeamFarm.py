@@ -161,6 +161,7 @@ def farm_scythes(bot: Botting) -> None:
 
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
+    bot.Properties.Disable("auto_inventory_management")
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL_HONUR_HILL)
     # bot.Party.SetHardMode(True)
     bot.Move.XYAndExitMap(-20980, 21010, target_map_id=MIRROR_OF_LYSS_MAP_ID)  # setup resign
