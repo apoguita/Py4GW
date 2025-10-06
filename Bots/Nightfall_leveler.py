@@ -577,7 +577,7 @@ def second_profession(bot: Botting):
     bot.States.AddHeader("Churrhir Fields")
     ConfigurePacifistEnv(bot)
     bot.Move.XYAndDialog(-6557, 1837, 0x7F, step_name="Closest Trainer Possible")
-    bot.UI.CancelSkillRewardWindow()
+    #bot.UI.CancelSkillRewardWindow()
     bot.Move.XYAndDialog(-7161, 4808, 0x825907, step_name="Secondary Training complete")
     bot.Dialogs.AtXY(-7161, 4808, 0x88, step_name="Warrior 2nd Profession") #change to Warrior
     bot.Dialogs.AtXY(-7161, 4808, 0x825407, step_name="Accept")
@@ -601,7 +601,7 @@ def after_2nd_profession(bot: Botting):
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC01, step_name="Sounds good to me")
     bot.States.AddHeader("Leaving A Legacy")
     bot.Map.Travel(target_map_id=479) #Champions Dawn
-    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,6,7])
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
     bot.Move.XYAndDialog(22884, 7641, 0x827804)
     bot.Move.XYAndExitMap(22483, 6115, target_map_id=432) #Cliffs of Dohjok
     bot.Move.XY(20215, 5285)
@@ -657,6 +657,7 @@ def TakeRewardAndCraftWeapon(bot: Botting):
     bot.Wait.ForTime(1000)  # small delay to let the window open
     exec_fn = lambda: CraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapon")
+
 def _jump_to_15_att_quests():
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if level >= 10:
@@ -665,7 +666,7 @@ def _jump_to_15_att_quests():
         yield from Routines.Yield.wait(100)
         bot.config.FSM.resume()
     yield    
-# One-off no-op state used as a stable jump anchor (prevents name suffix issues)
+
 def jokanur_diggings_quests(bot):
     bot.States.AddHeader("jokanur_diggings_quests")
 
@@ -805,11 +806,11 @@ def AdvanceToGunnarsHold(bot: Botting):
     
 def UnlockKillroy(bot: Botting):
     bot.States.AddHeader("Unlock Killroy")
-    bot.Templates.Aggressive(enable_imp=False)
     bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
+    bot.Templates.Aggressive(enable_imp=False)
     bot.Items.Equip(24897) #brass_knuckles_item_id
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
