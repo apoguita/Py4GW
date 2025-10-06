@@ -1,3 +1,4 @@
+from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import *
 
 selected_step = 0
@@ -26,43 +27,47 @@ bot = Botting("Asura Leveler")
 
 
 def asura_leveler(bot: Botting) -> None:
+    widget_handler = get_widget_handler()
+    widget_handler.disable_widget('Return to outpost on defeat')
+
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Enable("auto_combat")
-    map_id = GLOBAL_CACHE.Map.GetMapID()
-    if map_id != 640:
-        bot.Map.Travel(target_map_name=RATA_SUM)
-        bot.Wait.ForMapLoad(target_map_name=RATA_SUM)
+    bot.Map.Travel(target_map_name=RATA_SUM)
+    bot.Wait.ForMapLoad(target_map_name=RATA_SUM)
     bot.States.AddCustomState(AddHenchies, "Add Henchmen")
     bot.Move.XY(20340, 16899, "Exit Outpost")
     bot.Wait.ForMapLoad(target_map_name="Riven Earth")
     bot.Move.XY(-26633, -4072, "Setup Resign Spot")
 
-    for i in range(100):
-        bot.States.AddHeader("Farm Loop")
-        bot.Wait.ForMapLoad(target_map_name=RATA_SUM)
-        bot.Move.XY(20340, 16899, "Exit Outpost")
-        bot.Wait.ForMapLoad(target_map_name="Riven Earth")
-        bot.Move.XY(-24347, -5543, "Go towards the Krewe Member")
-        bot.Dialogs.AtXY(-24272.00, -5719.00, 0x84, "Grab blessing")
-        bot.Move.XY(-21018, -6969, "Fight outside the cave")
-        bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(-20884, -8497, "Move to Cave Entrace")
-        bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(-19760, -10225, "Fight in Cave 1")
-        bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(-18663, -10910, "Fight in Cave 2")
-        bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(-18635, -11925, "Fight in Cave 3")
-        bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(-20473, -11404, "Fight in Cave 4")
-        bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(-21460, -12145, "Fight in Cave 5")
-        bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(-23755, -11391, "Fight in Cave BOSS")
-        bot.Wait.UntilOutOfCombat()
-        bot.Party.Resign()
-        bot.States.AddCustomState(ReturnToOutpost, "Return to Outpost")
+    bot.States.AddHeader("Farm Loop")
+    bot.Wait.ForMapLoad(target_map_name=RATA_SUM)
+    bot.Move.XY(20340, 16899, "Exit Outpost")
+    bot.Wait.ForMapLoad(target_map_name="Riven Earth")
+    bot.Move.XY(-24347, -5543, "Go towards the Krewe Member")
+    bot.Dialogs.AtXY(-24272.00, -5719.00, 0x84, "Grab blessing")
+    bot.Move.XY(-21018, -6969, "Fight outside the cave")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-20884, -8497, "Move to Cave Entrace")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-19760, -10225, "Fight in Cave 1")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-18663, -10910, "Fight in Cave 2")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-18635, -11925, "Fight in Cave 3")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-20473, -11404, "Fight in Cave 4")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-21460, -12145, "Fight in Cave 5")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-23755, -11391, "Fight in Cave BOSS")
+    bot.Wait.UntilOutOfCombat()
+    bot.Party.Resign()
+    bot.States.AddCustomState(ReturnToOutpost, "Return to Outpost")
+
+    bot.States.JumpToStepName('[H]Farm Loop_1')
+    bot.States.AddHeader("End")
+    bot.Wait.ForTime(6000)
 
 
 bot.SetMainRoutine(asura_leveler)
@@ -72,7 +77,7 @@ def main():
     bot.Update()
     projects_path = Py4GW.Console.get_projects_path()
     widgets_path = projects_path + "\\Bots\\marks_coding_corner\\textures\\"
-    texture_icon_path = f'{widgets_path}\\dust_art.png'
+    texture_icon_path = f'{widgets_path}\\asura_art.jpg'
     bot.UI.draw_window(icon_path=texture_icon_path)
 
 
