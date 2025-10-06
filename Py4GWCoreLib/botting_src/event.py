@@ -6,6 +6,7 @@ from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .config import BotConfig  # for type checkers only
+    from Py4GWCoreLib.botting_src.helpers import BottingClass
     
 class Event:
     """
@@ -135,10 +136,18 @@ class OnPartyMemberDead(Event):
 class OnPartyMemberBehind(Event):
     def should_trigger(self):
         from Py4GWCoreLib import Routines
+        from Py4GWCoreLib import Range
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
         
-        party_member_behind = Routines.Checks.Party.IsPartyMemberBehind()
+        party_member_behind_custom_value = int(Range.Spirit.value)
+        if hasattr(self.parent, 'parent'):
+            config_parent: BottingClass = getattr(self.parent, 'parent')
+            val = config_parent.Properties.Get('party_member_behind_threshold')
+            if isinstance(val, int):
+                party_member_behind_custom_value = val
+
+        party_member_behind = Routines.Checks.Party.IsPartyMemberBehind(party_member_behind_custom_value)
         #if party_member_behind:
         #    print("OnPartyMemberBehind triggered")
         return party_member_behind

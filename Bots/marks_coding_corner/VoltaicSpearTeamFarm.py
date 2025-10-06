@@ -8,6 +8,9 @@ from Py4GWCoreLib import Botting
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
+from Widgets.CombatPrep import CombatPrep
+from HeroAI.cache_data import CacheData
+
 
 BOT_NAME = "Voltaic Spear Farm"
 TEXTURE = os.path.join(
@@ -57,6 +60,11 @@ SALVERS_EXILE_TRAVEL_PATH_2: list[tuple[float, float]] = [
 
 
 bot = Botting(BOT_NAME)
+cache_data = CacheData()
+combat_prep = CombatPrep(cache_data, '60', 'row')  # Use Widget class to flag heroes
+is_party_flagged = False
+last_flagged_x_y = (0, 0)
+last_flagged_map_id = VERDANT_CASCADES_MAP_ID
 
 
 def _on_party_wipe(bot: "Botting"):
@@ -94,8 +102,44 @@ def OnPartyWipe(bot: "Botting"):
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 
 
-def rest_of_party_claim_rewards(bot: Botting):
-    pass
+def handle_on_danger_flagging(bot: Botting):
+    global combat_prep
+    global is_party_flagged
+    global last_flagged_x_y
+    global last_flagged_map_id
+
+    spread_formation = [[-200, -200], [200, -200], [-200, 0], [200, 0], [-200, 300], [0, 300], [200, 300]]
+
+    while True:
+        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+        map_id = GLOBAL_CACHE.Map.GetMapID()
+
+        if Routines.Checks.Agents.InDanger() and bot.config.pause_on_danger_fn():
+            # If not yet flagged, or re-flagging in a new area
+            if not is_party_flagged:
+                last_flagged_x_y = (player_x, player_y)
+                last_flagged_map_id = map_id
+                combat_prep.cb_set_formation(spread_formation, False)
+                is_party_flagged = True
+            else:
+                # Check distance to last flagged location
+                if last_flagged_map_id == map_id:
+                    last_x, last_y = last_flagged_x_y
+                    dx = player_x - last_x
+                    dy = player_y - last_y
+                    dist_sq = dx * dx + dy * dy
+                    max_dist = (Range.Area.value * 1.5) ** 2
+
+                    if dist_sq > max_dist:
+                        last_flagged_x_y = (player_x, player_y)
+                        combat_prep.cb_set_formation(spread_formation, False)
+        else:
+            if is_party_flagged:
+                combat_prep.cb_set_formation([], True)
+                is_party_flagged = False
+                last_flagged_x_y = (0, 0)
+                last_flagged_map_id = VERDANT_CASCADES_MAP_ID
+        yield from Routines.Yield.wait(1000)
 
 
 def farm_dungeon(bot: Botting) -> None:
@@ -109,6 +153,8 @@ def farm_dungeon(bot: Botting) -> None:
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
+    bot.Properties.Set("party_member_behind_threshold", 1500)
+    bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
 
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
     bot.Party.SetHardMode(True)
@@ -127,7 +173,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Move.XYAndExitMap(-18300, 12527, target_map_id=JUSTICIAR_THOMMIS_ROOM_MAP_ID)
 
     bot.States.AddHeader("Make way to Justiciar Tommis part 1")
-    bot.Multibox.UsePConSet()  
+    bot.Multibox.UsePConSet()
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_1, "Part 1 killing route")
