@@ -783,7 +783,6 @@ class RangerSkills:
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
