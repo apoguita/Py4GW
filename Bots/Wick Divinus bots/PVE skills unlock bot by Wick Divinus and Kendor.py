@@ -26,7 +26,7 @@ def EquipSkillBar(skillbar = ""):
     elif profession == "Ritualist":
         skillbar = "OAKkYRYRWCGjiB24b+mAAAAtRAA"
     elif profession == "Assassin":
-        skillbar = "OwJkYRZ5XMGiiBbuMAAAAAtJAA"
+        skillbar = "OwRCU8x0WocwnQZglAAAAAAA" #done
     elif profession == "Dervish":
         skillbar = "OgSCU8x0WocwnQZglAAAAAAA" #done
 
@@ -227,7 +227,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.Set("movement_timeout", value=-1)
     bot.Properties.Enable("auto_combat")
     
-    # Equip bonus items and skill bar BEFORE starting the quest
+    # Equip bonus items and skill bar before starting the quest
     bot.Items.SpawnBonusItems()
     bot.Items.Equip(6515) # Necro Bonus Staff
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
@@ -381,10 +381,10 @@ def Draw_Window():
             bot.StartAtStep("[H]Unlock Skill #4_5")
 
         if PyImGui.button("Start Smooth Criminal Quest (Skill #5)"):
-            bot.StartAtStep("[H]Unlock Skill #5_5")
+            bot.StartAtStep("[H]Unlock Skill #5_6")
 
         if PyImGui.button("Start Mental Block Quest (Skill #6)"):
-            bot.StartAtStep("[H]Unlock Skill #6_6")
+            bot.StartAtStep("[H]Unlock Skill #6_7")
 
         PyImGui.end()
 
