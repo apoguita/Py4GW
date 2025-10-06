@@ -53,6 +53,9 @@ class _UI:
     def PrintMessageToConsole(self, source: str, message: str):
         self._helpers.UI.print_message_to_console(source, message)
 
+    def DropBundle(self):
+        self._helpers.UI.drop_bundle()
+
     def _find_current_header_step(self):
         import re
 
