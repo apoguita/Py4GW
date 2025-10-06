@@ -59,7 +59,6 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.HasCondition = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
