@@ -70,27 +70,18 @@ def _on_party_wipe(bot: "Botting"):
     player_x, player_y = GLOBAL_CACHE.Player.GetXY()
 
     shrine_1_x, shrine_1_y = (-18673, -7701)
-    shrine_2_x, shrine_2_y = (-17500, -14250)
 
     # Compute distances
     dist_to_shrine_1 = math.hypot(player_x - shrine_1_x, player_y - shrine_1_y)
-    dist_to_shrine_2 = math.hypot(player_x - shrine_2_x, player_y - shrine_2_y)
 
     # Check if within earshot
     if dist_to_shrine_1 <= Range.Earshot.value:
         ConsoleLog("Res Check", "Player is near Shrine 1 (Res Point 1)")
-        # === Do something for shrine 1 ===
-        # e.g. Respawn, call function, etc.
-        bot.States.JumpToStepName("[H]Make way to Justiciar Tommis part 1_6")
-
-    elif dist_to_shrine_2 <= Range.Earshot.value:
-        ConsoleLog("Res Check", "Player is near Shrine 2 (Res Point 2)")
-        # === Do something for shrine 2 ===
         bot.States.JumpToStepName("[H]Make way to Justiciar Tommis part 2_7")
 
     else:
         ConsoleLog("Res Check", "Player is not near any shrine.")
-        # === Optional default behavior ===
+        bot.States.JumpToStepName("[H]Make way to Justiciar Tommis part 1_6")
 
     # Player revived on same map → jump to recovery step
     bot.config.FSM.resume()
@@ -136,7 +127,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Move.XYAndExitMap(-18300, 12527, target_map_id=JUSTICIAR_THOMMIS_ROOM_MAP_ID)
 
     bot.States.AddHeader("Make way to Justiciar Tommis part 1")
-    bot.Multibox.UsePConSet()  # 
+    bot.Multibox.UsePConSet()  
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_1, "Part 1 killing route")
@@ -147,6 +138,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Properties.Disable("auto_inventory_management")
     bot.Properties.Disable('pause_on_danger')
 
+    bot.Wait.ForTime(20000)
     bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
     bot.Multibox.InteractWithTargetDungeonChest()  # Bots should auto loot
 

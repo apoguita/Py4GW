@@ -70,7 +70,7 @@ class Checks:
             return is_someone_dead
         
         @staticmethod
-        def IsPartyMemberBehind(range_value: int = 3500): #spirit
+        def IsPartyMemberBehind(range_value: int = 1350):  # Slightly larger than spell cast range
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import Utils
             from ..enums_src.GameData_enums import Range
