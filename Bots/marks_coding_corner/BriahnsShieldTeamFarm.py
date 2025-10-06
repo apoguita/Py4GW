@@ -11,7 +11,9 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Utils
 
 BOT_NAME = "Briahn's Shield Farm"
-TEXTURE = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "marks_coding_corner", "textures" , "briahns_guidance.png")
+TEXTURE = os.path.join(
+    Py4GW.Console.get_projects_path(), "Bots", "marks_coding_corner", "textures", "briahns_guidance.png"
+)
 OUTPOST_TO_TRAVEL_KODASH = GLOBAL_CACHE.Map.GetMapIDByName('The Kodash Bazaar')
 OUTPOST_TO_TRAVEL_HONUR_HILL = GLOBAL_CACHE.Map.GetMapIDByName('Honur Hill')
 MIRROR_OF_LYSS_MAP_ID = 419

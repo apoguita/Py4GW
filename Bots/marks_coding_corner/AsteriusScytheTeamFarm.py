@@ -11,7 +11,9 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Utils
 
 BOT_NAME = "Asterius Scythe Farm"
-TEXTURE = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "marks_coding_corner", "textures" , "asterius_scythe.png")
+TEXTURE = os.path.join(
+    Py4GW.Console.get_projects_path(), "Bots", "marks_coding_corner", "textures", "asterius_scythe.png"
+)
 OUTPOST_TO_TRAVEL = GLOBAL_CACHE.Map.GetMapIDByName('Olafstead')
 VARAJAR_FELLS_MAP_ID = 553
 ASTERIUS_MODEL_ID = 6458
