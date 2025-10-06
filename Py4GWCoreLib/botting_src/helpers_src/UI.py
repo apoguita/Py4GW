@@ -49,3 +49,7 @@ class _UI:
         from ...Routines import Routines
         yield from Routines.Yield.Player.PrintMessageToConsole(source, message)
         
+    @_yield_step(label="CloseAllDialogs", counter_key="CLOSE_ALL_DIALOGS")
+    def drop_bundle(self):
+        from ...Routines import Routines
+        yield from Routines.Yield.Keybinds.DropBundle()
