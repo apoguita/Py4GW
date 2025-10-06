@@ -128,8 +128,8 @@ bot.SetMainRoutine(create_bot_routine)
 def main():
     bot.Update()
     projects_path = Py4GW.Console.get_projects_path()
-    full_path = projects_path + "\\Bots\\War Supply"
-    bot.UI.draw_window(icon_path=full_path + "\\Keiran_art.png")
+    full_path = projects_path + "\\Bots\\War Supply\\"
+    bot.UI.draw_window(icon_path=full_path + "Keiran_art.png")
 
 
 if __name__ == "__main__":

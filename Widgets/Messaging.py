@@ -11,7 +11,7 @@ from Py4GWCoreLib import Console
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import LootConfig
 from Py4GWCoreLib import PyImGui
-from Py4GWCoreLib import Range
+from Py4GWCoreLib import Range, TitleID
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib import SharedCommandType
@@ -618,14 +618,20 @@ def DonateToGuild(index, message):
         return
 
     map_id = GLOBAL_CACHE.Map.GetMapID()
+    TITLE_CAP = 10_000_000
+    TOTAL_CUMULATIVE = 0
     if map_id == 77:      # House zu Heltzer
         faction = 0  # Kurzick
         npc_pos = (5408, 1494)
-        get_unspent = lambda: GLOBAL_CACHE.Player.GetKurzickData()[0]
+        CURRENT_FACTION = GLOBAL_CACHE.Player.GetKurzickData()[0]
+        title = GLOBAL_CACHE.Player.GetTitle(TitleID.Kurzick)
+        TOTAL_CUMULATIVE = title.current_points
     elif map_id == 193:   # Cavalon
         faction = 1  # Luxon
         npc_pos = (9074, -1124)
-        get_unspent = lambda: GLOBAL_CACHE.Player.GetLuxonData()[0]
+        CURRENT_FACTION = GLOBAL_CACHE.Player.GetLuxonData()[0]
+        title = GLOBAL_CACHE.Player.GetTitle(TitleID.Luxon)
+        TOTAL_CUMULATIVE = title.current_points
     else:
         ConsoleLog(MODULE, "Not in a valid outpost for donation.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -650,145 +656,34 @@ def DonateToGuild(index, message):
     yield from Routines.Yield.Agents.InteractWithAgentXY(*npc_pos)
     yield from Routines.Yield.wait(400)
 
-    # --- Donation loop ---
-    chunks = get_unspent() // CHUNK
-    for _ in range(chunks):
-        if not UIManager.IsNPCDialogVisible():
-            yield from Routines.Yield.Player.InteractTarget()
-            yield from Routines.Yield.wait(300)
-            if not UIManager.IsNPCDialogVisible():
-                break
-        GLOBAL_CACHE.Player.DepositFaction(faction)
-        yield from Routines.Yield.wait(300)
-
-    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-
-
-#this below function is faulty and needs manteinance, i created an alternate function above
-"""def _DonateToGuild(index, message):
-    MODULE = MODULE_NAME
-    KURZICK = 0
-    LUXON = 1
-    CHUNK = 5000
-    TITLE_MAX = 10_000_000
-
-    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
-
-    # --- Guards: must be valid map + in HZH or Cavalon ---
-    if not Routines.Checks.Map.MapValid():
-        ConsoleLog(MODULE, "Map is not valid, cannot donate.", Console.MessageType.Warning)
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-
-    allowed_outposts = {77, 193}  # House zu Heltzer, Cavalon
-    if GLOBAL_CACHE.Map.GetMapID() not in allowed_outposts:
-        ConsoleLog(MODULE, "Team is not in either House zu Heltzer or Cavalon, can't continue.", Console.MessageType.Warning)
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-
-    # --- Param: faction ---
-    try:
-        #faction = int(message.Params[0])
-        current_map_id = GLOBAL_CACHE.Map.GetMapID()
-        if current_map_id == 77:
-            faction = KURZICK
-        elif current_map_id == 193:
-            faction = LUXON
-        else:
-            faction = 0
-    except Exception:
-        ConsoleLog(MODULE, "Invalid faction ID.", Console.MessageType.Warning)
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-
-    kurzick_data = GLOBAL_CACHE.Player.GetKurzickData()
-    luxon_data   = GLOBAL_CACHE.Player.GetLuxonData()
-    if faction == LUXON:
-        npc_pos  = (9074, -1124)   # Cavalon
-        get_unspent = lambda: kurzick_data[0] if kurzick_data else 0
-        get_total   = lambda: luxon_data[0] if luxon_data else 0
-    elif faction == KURZICK:
-        npc_pos  = (5408, 1494)    # House zu Heltzer
-        get_unspent = lambda: kurzick_data[0] if kurzick_data else 0
-        get_total   = lambda: kurzick_data[0] if kurzick_data else 0
-    else:
-        ConsoleLog(MODULE, "Unknown faction ID.", Console.MessageType.Warning)
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-
-    # --- Move to NPC (AutoPathing -> FollowPath) ---
-    try:
-        px, py = GLOBAL_CACHE.Player.GetXY()
-        z      = GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
-        path3d = yield from AutoPathing().get_path((px, py, z), (npc_pos[0], npc_pos[1], z),smooth_by_los=True, margin=100.0, step_dist=500.0)
-    except Exception as e:
-        ConsoleLog(MODULE, f"AutoPathing failed: {e}", Console.MessageType.Warning)
-        path3d = []
-
-    path2d = [(x, y) for (x, y, *_ ) in path3d] if path3d else [npc_pos]
-    follow_ok = yield from Routines.Yield.Movement.FollowPath(path2d)
-    if not follow_ok:
-        ConsoleLog(MODULE, "Failed to follow path to NPC.", Console.MessageType.Warning)
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-    x, y = npc_pos
-    # --- Target + interact to open dialog ---
-    yield from Routines.Yield.wait(400)
-    yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
-    yield from Routines.Yield.wait(400)
-
-    # --- Compute chunks after we’re definitely at the NPC ---
-    unspent_before = get_unspent()
-    chunks = unspent_before // CHUNK
-    if chunks <= 0:
-        ConsoleLog(MODULE, "Not enough points to donate or swap.", Console.MessageType.Warning)
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-
-    # --- Branch: donate if title not maxed, else swap for mats ---
-    if get_total() < TITLE_MAX:
-        # Donation: requires NPC dialog to be open; verify each step
-        done = 0
+    if TOTAL_CUMULATIVE <= TITLE_CAP: #donate faction points if title is not maxed
+        # --- Donation loop ---
+        chunks = CURRENT_FACTION // CHUNK
         for _ in range(chunks):
             if not UIManager.IsNPCDialogVisible():
-                # Re-open dialog if it closed between iterations
+                yield from Routines.Yield.Player.InteractTarget()
+                yield from Routines.Yield.wait(300)
+                if not UIManager.IsNPCDialogVisible():
+                    break
+            GLOBAL_CACHE.Player.DepositFaction(faction)
+            yield from Routines.Yield.wait(300)
+    else: #swap faction points for mats if title is maxed
+        swapped = 0
+        chunks = CURRENT_FACTION // CHUNK
+        while swapped < chunks:
+            if not UIManager.IsNPCDialogVisible():
                 yield from Routines.Yield.Player.InteractTarget()
                 yield from Routines.Yield.wait(250)
                 if not UIManager.IsNPCDialogVisible():
                     break
-            GLOBAL_CACHE.Player.DepositFaction(faction)
-            done += 1
+            UIManager.ClickDialogButton(1)  # exchange
             yield from Routines.Yield.wait(250)
-
-        # Verify actual deposited by measuring unspent delta
-        unspent_after = get_unspent()
-        deposited = max(0, (unspent_before - unspent_after) // CHUNK) * CHUNK
-        #if deposited > 0:
-        #    ConsoleLog(MODULE, f"Deposited {deposited} points.", Console.MessageType.Info)
-        #else:
-        #    ConsoleLog(MODULE, "Tried to deposit, but no points were deducted (is the NPC dialog open?).", Console.MessageType.Warning)
-
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-
-    # Swap branch (title maxed): one item per 5k
-    swapped = 0
-    while swapped < chunks:
-        if not UIManager.IsNPCDialogVisible():
-            yield from Routines.Yield.Player.InteractTarget()
-            yield from Routines.Yield.wait(250)
-            if not UIManager.IsNPCDialogVisible():
-                break
-        UIManager.ClickDialogButton(1)  # exchange
-        yield from Routines.Yield.wait(250)
-        UIManager.ClickDialogButton(2)  # confirm
-        yield from Routines.Yield.wait(300)
-        swapped += 1
+            UIManager.ClickDialogButton(2)  # confirm
+            yield from Routines.Yield.wait(300)
+            swapped += 1
 
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE, f"Swapped {swapped * CHUNK} points for rare mats.", Console.MessageType.Info,False)
 
-# endregion"""
 
 # region PickUpLoot
 def PickUpLoot(index, message):

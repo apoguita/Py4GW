@@ -608,15 +608,20 @@ class AutoPathing:
                  chaikin_iterations: int = 1):
         from . import Routines
         
-        def _prepend_start(path2d: list[tuple[float, float]], sx: float, sy: float, tol: float = 1.0):
+        def _prepend_start(path2d: list[tuple[float, float]], sx: float, sy: float, tol: float = 250.0):
             if not path2d:
                 path2d.insert(0, (sx, sy))
                 return path2d
+
             dx = path2d[0][0] - sx
             dy = path2d[0][1] - sy
-            if dx*dx + dy*dy > tol*tol:
+
+            # prepend start only if the first point is farther than 250 units
+            if dx * dx + dy * dy > tol * tol:
                 path2d.insert(0, (sx, sy))
+
             return path2d
+
 
         map_id = PyMap.PyMap().map_id.ToInt()
         group_key = self._get_group_key(map_id)

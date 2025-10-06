@@ -322,6 +322,27 @@ def text_colored(text: str, color: Tuple[float, float, float, float]) -> None: .
 @staticmethod
 def text_disabled(text: str) -> None: ...
 @staticmethod
+def TextV(fmt: str, args: list[str]) -> None:
+    """ Displays formatted text using printf-style formatting. Example: TextV("Hello %s!", ["World"]) """
+@staticmethod
+def TextColoredV(color: Tuple[float, float, float, float], fmt: str, args: list[str]) -> None:
+    """ Displays colored formatted text. Example: TextColoredV((1.0, 0.2, 0.2, 1.0), "HP: %s / %s", ["50", "100"]) """
+@staticmethod
+def TextDisabledV(fmt: str, args: list[str]) -> None:
+    """ Displays text in a disabled (grayed out) style. """
+@staticmethod
+def TextWrappedV(fmt: str, args: list[str]) -> None:
+    """ Displays formatted text with word wrapping. """
+@staticmethod
+def LabelTextV(label: str, fmt: str, args: list[str]) -> None:
+    """ Displays a label-value pair with formatting. Example: LabelTextV("Name", "%s", ["PlayerOne"]) """
+@staticmethod
+def BulletTextV(fmt: str, args: list[str]) -> None:
+    """ Displays formatted text preceded by a bullet. """
+@staticmethod
+def InputTextMultiline(label: str,text: str,size: Tuple[float, float],flags: int = 0) -> bool:
+    """ Displays a multiline text input box. Example: InputTextMultiline("Notes", "Initial text", (200.0, 100.0)) """
+@staticmethod
 def text_unformatted(text: str) -> None: ...
 @staticmethod
 def text_scaled(text: str, color: Tuple[float, float, float, float], scale: float) -> None: ...
