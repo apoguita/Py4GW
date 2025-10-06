@@ -336,14 +336,14 @@ class _Multibox:
             return
         sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        yield from Routines.Yield.wait(3000)  # initial 3 second wait
+        yield from Routines.Yield.wait(5000)  # initial 3 second wait
 
         for account in accounts:
             if sender_email == account.AccountEmail:
                 continue
             ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,0,0,0))
-            yield from Routines.Yield.wait(3000)
+            yield from Routines.Yield.wait(5000)
         yield
         
     def _take_dialog_with_target(self):

@@ -140,14 +140,8 @@ class OnPartyMemberBehind(Event):
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
         
-        party_member_behind_custom_value = int(Range.Spirit.value)
-        if hasattr(self.parent, 'parent'):
-            config_parent: BottingClass = getattr(self.parent, 'parent')
-            val = config_parent.Properties.Get('party_member_behind_threshold')
-            if isinstance(val, int):
-                party_member_behind_custom_value = val
 
-        party_member_behind = Routines.Checks.Party.IsPartyMemberBehind(party_member_behind_custom_value)
+        party_member_behind = Routines.Checks.Party.IsPartyMemberBehind(1500)
         #if party_member_behind:
         #    print("OnPartyMemberBehind triggered")
         return party_member_behind
