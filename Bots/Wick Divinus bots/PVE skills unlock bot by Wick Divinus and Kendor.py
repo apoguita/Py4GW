@@ -244,11 +244,7 @@ def bot_routine(bot: Botting) -> None:
     bot.SkillBar.UseSkill(114)
     bot.Wait.UntilOnCombat()
     bot.Wait.UntilOutOfCombat()
-    
-    # Complete quest
-    bot.Multibox.ResignParty()
-    bot.Wait.ForTime(20000)
-    bot.Wait.ForMapLoad(target_map_id=643)
+    bot.Wait.ForMapToChange(target_map_id=643)
     
     # Collect reward
     bot.Move.XYAndDialog(14380, 23968, 0x834407) # Rewards
