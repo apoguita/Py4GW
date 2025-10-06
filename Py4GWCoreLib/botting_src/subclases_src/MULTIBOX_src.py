@@ -29,6 +29,9 @@ class _MULTIBOX:
         
     def InteractWithTarget(self):
         self._helpers.Multibox.interact_with_target()
+    
+    def InteractWithTargetDungeonChest(self):
+        self._helpers.Multibox.interact_with_target_dungeon_chest()
         
     def UseConsumable(self, item_id, skill_id):
         self._helpers.Multibox.use_consumable((item_id, skill_id, 0, 0))
