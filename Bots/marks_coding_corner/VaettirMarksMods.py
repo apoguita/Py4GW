@@ -8,6 +8,7 @@ from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_
 from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
 from Bots.marks_coding_corner.utils.merch_utils import withdraw_gold
+from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import Botting
@@ -44,6 +45,8 @@ def create_bot_routine(bot: Botting) -> None:
 
 
 def initialize_bot(bot: Botting) -> None:
+    widget_handler = get_widget_handler()
+    widget_handler.disable_widget('Return to outpost on defeat')
     bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     bot.States.AddHeader("Initialize Bot")
@@ -461,9 +464,13 @@ in_killing_routine = False
 
 
 def handle_stuck_jaga_moraine(bot: Botting):
-    global in_waiting_routine, finished_routine, stuck_counter
-    global stuck_timer, movement_check_timer, JAGA_MORAINE
-    global old_player_position, in_killing_routine
+    global in_waiting_routine
+    global finished_routine
+    global stuck_counter
+    global stuck_timer
+    global movement_check_timer
+    global old_player_position
+    global in_killing_routine
 
     ConsoleLog("Stuck Detection", "Starting Stuck Detection Coroutine.", Py4GW.Console.MessageType.Info, True)
 
@@ -575,6 +582,8 @@ def handle_stuck_jaga_moraine(bot: Botting):
                         False,
                     )
                     stuck_counter = 0
+                    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
+                        build.SetStuckSignal(stuck_counter)
 
                 movement_check_timer.Reset()
 

@@ -7,6 +7,7 @@ from Bots.marks_coding_corner.utils.merch_utils import buy_salvage_kits
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
 from Bots.marks_coding_corner.utils.merch_utils import withdraw_gold
 from Bots.marks_coding_corner.utils.town_utils import return_to_outpost
+from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import *
 from Py4GWCoreLib.Builds.DervBoneFarmer import ENEMY_BLACKLIST
 from Py4GWCoreLib.Builds.DervBoneFarmer import DervBoneFarmer
@@ -202,6 +203,9 @@ def handle_custom_on_unmanaged_fail(bot: Botting):
 
 
 def cof_farm_bot(bot: Botting):
+    widget_handler = get_widget_handler()
+    widget_handler.disable_widget('Return to outpost on defeat')
+
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     # override condition for halting movement
@@ -209,7 +213,6 @@ def cof_farm_bot(bot: Botting):
     bot.States.AddHeader('Starting Loop')
     bot.States.AddCustomState(lambda: set_bot_to_loot(bot), "Set bot to loot")
     bot.Map.Travel(target_map_name=DOOMLORE_SHRINE)
-    bot.Wait.ForMapLoad(target_map_name=DOOMLORE_SHRINE)
     bot.States.AddCustomState(lambda: load_skill_bar(bot), "Loading Skillbar")
 
     bot.States.AddCustomState(lambda: set_bot_to_setup(bot), "Setup Resign")
@@ -263,10 +266,8 @@ bot.SetMainRoutine(cof_farm_bot)
 
 def main():
     bot.Update()
-    projects_path = Py4GW.Console.get_projects_path()
-    widgets_path = projects_path + "\\Bots\\marks_coding_corner\\textures\\"
-    texture_icon_path = f'{widgets_path}\\cof_art.png'
-    bot.UI.draw_window(icon_path=texture_icon_path)
+    TEXTURE = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "marks_coding_corner", "textures" , "cof_art.png")
+    bot.UI.draw_window(icon_path=TEXTURE)
 
 
 if __name__ == "__main__":
