@@ -41,6 +41,7 @@ class PyPlayer:
     rank: int
     tournament_reward_points: int
     morale: int
+    party_morale: list[tuple[int, int]]
     experience: int
     current_kurzick: int
     total_earned_kurzick: int

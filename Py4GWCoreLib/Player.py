@@ -308,6 +308,15 @@ class Player:
         return Player.player_instance().morale
     
     @staticmethod
+    def GetPartyMorale() -> List[Tuple[int, int]]:
+        """
+        Purpose: Retrieve the player's current party morale.
+        Args: None
+        Returns: list of tuples (current_morale, max_morale)
+        """
+        return Player.player_instance().party_morale
+    
+    @staticmethod
     def GetExperience():
         """
         Purpose: Retrieve the player's current experience.
