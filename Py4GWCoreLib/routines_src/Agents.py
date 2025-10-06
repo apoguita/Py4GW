@@ -311,6 +311,18 @@ class Agents:
         gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
         gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
         return Utils.GetFirstFromArray(gadget_array)
+    
+    @staticmethod
+    def GetNearestGadgetByID(gadget_id: int, max_distance=4500.0):
+        from ..AgentArray import AgentArray
+        from ..Py4GWcorelib import Utils
+        from ..GlobalCache import GLOBAL_CACHE
+
+        gadget_array = GLOBAL_CACHE.AgentArray.GetGadgetArray()
+        gadget_array = AgentArray.Filter.ByCondition(gadget_array, lambda agent_id: GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == gadget_id)
+        gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
+        gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
+        return Utils.GetFirstFromArray(gadget_array)
         
     @staticmethod
     def GetNearestChest(max_distance=5000):
