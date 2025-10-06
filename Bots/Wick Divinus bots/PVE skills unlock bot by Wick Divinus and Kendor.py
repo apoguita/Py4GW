@@ -1,11 +1,36 @@
-from Py4GWCoreLib import Botting
-import PyImGui
+from typing import List, Tuple, Generator, Any
+from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
+                          AutoPathing, PyImGui)
 
 #QUEST TO INCREASE SPAWNS https://wiki.guildwars.com/wiki/Lady_Mukei_Musagi
 BOT_NAME = "PVE Skills Unlock Bot"
 
 
 bot = Botting(BOT_NAME)
+
+def EquipSkillBar(skillbar = ""): 
+    profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+
+    if profession == "Warrior":
+            skillbar = "OQITYN8kzQxw23AAAAg2CAA"
+    elif profession == "Ranger":
+        skillbar = "OggjYZZIYMKG1pvBAAAAA0GBAA" #done
+    elif profession == "Monk":
+        skillbar = "OwISYxcGKG2o03AAA0WA"
+    elif profession == "Necromancer":
+        skillbar = "OgQCU8x0WocwnQZglAAAAAAA"
+    elif profession == "Mesmer":
+        skillbar = "OQJTYJckzQxw23AAAAg2CAA"
+    elif profession == "Elementalist":
+        skillbar = "OgJUwCLhjcGKG2+GAAAA0WAA"
+    elif profession == "Ritualist":
+        skillbar = "OAKkYRYRWCGjiB24b+mAAAAtRAA"
+    elif profession == "Assassin":
+        skillbar = "OwRCU8x0WocwnQZglAAAAAAA" #done
+    elif profession == "Dervish":
+        skillbar = "OgSCU8x0WocwnQZglAAAAAAA" #done
+
+    yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
                 
 def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader("Unlock Skill #1") #[H] 1
@@ -182,7 +207,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(-12740.31, 1040.36) # Defeat the Fragment of Antiquities
     bot.Wait.ForTime(5000) # extra time here incase of party wipe
     bot.Multibox.ResignParty()
-    bot.Wait.ForTime(3000)
+    #bot.Wait.ForTime(3000)
     bot.Wait.ForMapLoad(target_map_id=643)
     
     # Collect reward
@@ -202,9 +227,10 @@ def bot_routine(bot: Botting) -> None:
     bot.Properties.Set("movement_timeout", value=-1)
     bot.Properties.Enable("auto_combat")
     
-    # Equip bonus items
+    # Equip bonus items and skill bar before starting the quest
     bot.Items.SpawnBonusItems()
     bot.Items.Equip(6515) # Necro Bonus Staff
+    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     
     # Start Cold As Ice quest
     bot.Move.XYAndDialog(14380, 23968, 0x834401) # Cold As Ice
@@ -218,11 +244,7 @@ def bot_routine(bot: Botting) -> None:
     bot.SkillBar.UseSkill(114)
     bot.Wait.UntilOnCombat()
     bot.Wait.UntilOutOfCombat()
-    
-    # Complete quest
-    bot.Multibox.ResignParty()
-    bot.Wait.ForTime(20000)
-    bot.Wait.ForMapLoad(target_map_id=643)
+    bot.Wait.ForMapToChange(target_map_id=643)
     
     # Collect reward
     bot.Move.XYAndDialog(14380, 23968, 0x834407) # Rewards
@@ -359,10 +381,10 @@ def Draw_Window():
             bot.StartAtStep("[H]Unlock Skill #4_5")
 
         if PyImGui.button("Start Smooth Criminal Quest (Skill #5)"):
-            bot.StartAtStep("[H]Unlock Skill #5_5")
+            bot.StartAtStep("[H]Unlock Skill #5_6")
 
         if PyImGui.button("Start Mental Block Quest (Skill #6)"):
-            bot.StartAtStep("[H]Unlock Skill #6_6")
+            bot.StartAtStep("[H]Unlock Skill #6_7")
 
         PyImGui.end()
 
