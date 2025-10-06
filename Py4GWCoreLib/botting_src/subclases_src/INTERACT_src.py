@@ -49,6 +49,18 @@ class _INTERACT:
 
         #re-enable combat
         self._restore_auto_combat()
+        
+    def WithGadgetID(self, gadget_id: int, step_name: str="") -> None:
+        if step_name == "":
+            step_name = f"InteractWithGadgetID_{self._config.get_counter('INTERACT_WITH_GADGET_ID')}"
+
+        #disable combat to prevent interference
+        self._disable_auto_combat()
+
+        self._helpers.Interact.with_gadget_id(gadget_id=gadget_id)
+
+        #re-enable combat
+        self._restore_auto_combat()
 
     def WithItemAtXY(self, x: float, y: float, step_name: str="") -> None:
         if step_name == "":

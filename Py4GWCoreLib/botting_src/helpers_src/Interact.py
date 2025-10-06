@@ -109,3 +109,10 @@ class _Interact:
         agent_id = Routines.Agents.GetAgentIDByModelID(model_id)
         x,y = GLOBAL_CACHE.Agent.GetXY(agent_id)
         return (yield from self._with_agent((x, y), dialog_id))
+    
+    @_yield_step(label="InteractWithGadgetID", counter_key="DIALOG_AT")
+    def with_gadget_id(self, gadget_id: int) -> Generator[Any, Any, bool]:
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        agent_id = Routines.Agents.GetNearestGadgetByID(gadget_id)
+        return (yield from self._with_gadget(GLOBAL_CACHE.Agent.GetXY(agent_id)))
