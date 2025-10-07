@@ -34,6 +34,10 @@ def create_bot_routine(bot: Botting) -> None:
         TakeRewardAndCraftArmor(bot)
     TakeRewardAndCraftWeapon(bot)
     jokanur_diggings_quests(bot)
+    ArmoredTransport(bot) #we can move these
+    HeroCommand(bot)      # to where every it makes the most sense
+    InkCollector(bot)     # Level 5+ quest
+    IdentityTheft(bot) #not working yet
     second_15_attribute_points(bot)
     EOTN_Run(bot)
     ExitBorealStation(bot)
@@ -125,9 +129,9 @@ def EquipSkillBar():
         if level ==2:
            yield from Routines.Yield.Skills.LoadSkillbar("OgChkSj4V6KAGw/X7LCe8C")
         elif level == 3:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgChkSj4V6KAGw/X7LCe8C")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOrCbMiXp74dADAAAAABAA")    
         elif level == 4:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUSmBqMw4HMQuIXhjxwbBAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOrCbMiXp74dADAAAAABAA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession
         elif level == 5:
             yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirBbQiXSX7gDYjbaFYcCAA")    
         elif level == 6:
@@ -149,7 +153,7 @@ def EquipSkillBar():
         elif level == 3:
             yield from Routines.Yield.Skills.LoadSkillbar("OQCjUOmBqMw4HMQuCHjBAYcBAA")    
         elif level == 4:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUSmBqMw4HMQuCHjBAYcBAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQCjUWmCaNw4HMQuCDAAAYcBAA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
         elif level == 5:
             yield from Routines.Yield.Skills.LoadSkillbar("OQGkUemyZgKEM2DmDGQ2VBQoAAGH")    
         elif level == 6:
@@ -595,18 +599,16 @@ def continue_quests(bot: Botting):
     bot.Wait.ForTime(2000)
 
 def second_profession(bot: Botting):  
+    bot.States.AddHeader("Second Profession")
     bot.Map.Travel(target_map_id=449) #Kamadan
-    #bot.Wait.ForMapToChange(target_map_id=449)
     bot.Party.LeaveParty()
     bot.Move.XYAndDialog(-7910, 9740, 0x828907, step_name="Honing Your Skills complete")
     bot.Dialogs.AtXY(-7910, 9740, 0x825901, step_name="Secondary Training")
     bot.Move.XYAndDialog(-7525, 6288, 0x81, step_name="Churrhir Fields")
     bot.Dialogs.AtXY(-7525, 6288, 0x84, step_name="We are ready")
-    #bot.Wait.ForMapToChange(target_map_id=456)
-    bot.States.AddHeader("Churrhir Fields")
+    bot.Wait.ForMapToChange(target_map_id=456) #need this to establish a path
     ConfigurePacifistEnv(bot)
-    bot.Move.XYAndDialog(-6557, 1837, 0x7F, step_name="Closest Trainer Possible")
-    #bot.UI.CancelSkillRewardWindow()
+    bot.Move.XYAndDialog(-6557.00, 1837, 0x7F, step_name="Closest Trainer Possible") #this is fine, need minimal skill bar for level 4 to avoid skill equip window
     bot.Move.XYAndDialog(-7161, 4808, 0x825907, step_name="Secondary Training complete")
     bot.Dialogs.AtXY(-7161, 4808, 0x88, step_name="Warrior 2nd Profession") #change to Warrior
     bot.Dialogs.AtXY(-7161, 4808, 0x825407, step_name="Accept")
@@ -686,6 +688,65 @@ def TakeRewardAndCraftWeapon(bot: Botting):
     bot.Wait.ForTime(1000)  # small delay to let the window open
     exec_fn = lambda: CraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapon")
+def ArmoredTransport(bot):
+    bot.States.AddHeader("Armored Transport")
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XYAndDialog(-11202, 9346,0x825F01) #+500xp protect quest
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
+    bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) # Plains of Jarin
+    bot.Move.XYAndDialog(16448, 2320,0x825F04)
+    bot.Move.XY(8701, 4156)
+    bot.Move.XY(4176, 2800); bot.Wait.UntilOnCombat() #sometimes there is a stray corsair
+    bot.Wait.ForTime(5000) #maybe enough time to aggro a loose mob
+    bot.Move.XY(-2963, 1813); bot.Wait.ForTime(10000)
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XYAndDialog(-11202, 9346,0x825F07)
+
+def InkCollector(bot):
+    bot.States.AddHeader("Missing Ink?")
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XYAndDialog(-10235, 16557, 0x827501) #need the ink crate
+    bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[2,3,4])
+    bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
+    bot.Move.XY(-3128, 2037)
+    bot.Move.XY(-7005, 2178)
+    bot.Move.XY(-9360, 16311) #gets me in range
+    bot.Interact.WithGadgetID(7458)
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XYAndDialog(-10235, 16557, 0x827507) # +500xp +30 health rune
+    #bot.Items.Equip(898) #didn't work
+
+def IdentityTheft(bot):
+    bot.States.AddHeader("Identity Theft")
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XYAndDialog(-10461, 15229, 0x827201) #take quest
+    bot.Map.Travel(target_map_id=479) #Champions Dawn
+    bot.Move.XYAndDialog(25345, 8604, 0x827204)
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,6,7])
+    bot.Move.XYAndExitMap(22483, 6115, target_map_id=432) #Cliffs of Dohjok
+    bot.Move.XYAndDialog(20215, 5285, 0x85) #Blessing 
+    bot.Move.XY(14429, 10337) #kill boss
+    bot.Interact.WithModel(15850)#not working so comment out this quest for now
+    bot.Wait.ForTime(4000)
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XYAndDialog(-10461, 15229, 0x827207) # +500xp
+
+def HeroCommand(bot):
+    bot.States.AddHeader("Hero Command")
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XYAndDialog(-7874, 9799, 0x82C801)
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
+    bot.Move.XY(-4383, -2078)
+    bot.Move.XYAndDialog(-7525, 6288, 0x81, step_name="Churrhir Fields")
+    bot.Dialogs.AtXY(-7525, 6288, 0x84, step_name="We are ready")
+    bot.Wait.ForMapToChange(target_map_id=456)
+    bot.Move.XYAndDialog(-2000, -2825,0x8B) #Command Training
+    bot.Party.FlagAllHeroes(1110, -4175); bot.Wait.ForTime(35000) #Flag 2
+    bot.Party.FlagAllHeroes(-2362, -6126); bot.Wait.ForTime(35000) #Flag 3
+    bot.Party.FlagAllHeroes(-222, -5832); bot.Wait.ForTime(7000) #Flag 1. use this order to avoid mob spawns
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XYAndDialog(-7874, 9799, 0x82C807)
 
 def _jump_to_15_att_quests():
     level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
