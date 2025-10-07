@@ -1,7 +1,8 @@
-import os
 import math
+import os
 
 import Py4GW
+from HeroAI.cache_data import CacheData
 from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Botting
@@ -9,9 +10,7 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
-from HeroAI.cache_data import CacheData
 from Widgets.CombatPrep import CombatPrep
-
 
 BOT_NAME = "Voltaic Spear Farm"
 TEXTURE = os.path.join(

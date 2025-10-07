@@ -428,6 +428,7 @@ def handle_custom_on_unmanaged_fail(bot: Botting):
 def dust_farm_bot(bot: Botting):
     widget_handler = get_widget_handler()
     widget_handler.disable_widget('Return to outpost on defeat')
+    widget_handler.disable_widget('HeroAI')
 
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
@@ -493,7 +494,7 @@ bot.SetMainRoutine(dust_farm_bot)
 
 def main():
     bot.Update()
-    TEXTURE = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "marks_coding_corner", "textures" , "dust_art.png")
+    TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "marks_coding_corner", "textures" , "dust_art.png")
     bot.UI.draw_window(icon_path=TEXTURE)
 
 
