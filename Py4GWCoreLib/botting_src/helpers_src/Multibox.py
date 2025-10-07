@@ -257,7 +257,7 @@ class _Multibox:
 
         for player in players:
             agent_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(player.login_number)
-            agent_id = GLOBAL_CACHE.Agent.GetAgentIDByName(agent_name)
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
             agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
 
             dx, dy = x - agent.x, y - agent.y
@@ -267,7 +267,6 @@ class _Multibox:
             if agent_name != "" and players_dist_sq > max_dist_sq:
                 player_names.append(agent_name)
         
-        print(player_names)
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         sender_email = sender_email
         for account in accounts:
