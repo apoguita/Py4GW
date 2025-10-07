@@ -672,8 +672,6 @@ class PetModelID(IntEnum):
 
 # region ItemModels
 class ModelID(IntEnum):
-    
-    Maguuma_Spider_Web = 987654321
     Roaring_Ether_Heart = 12345678910
     Charr_Hide = 1234567891
     Herring = 9876543210
@@ -728,6 +726,7 @@ class ModelID(IntEnum):
     Smoking_Remains = 8787899465  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Spiny_Seed = 74966338  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
     Stolen_Supplies = 66665481  # Dummy modelid's to insure no LootManager Crash - will be changed to correct value
+    
     Aatxe_Mini = 22765
     Abnormal_Seed = 442
     Abominable_Tonic = 30646
@@ -1185,7 +1184,7 @@ class ModelID(IntEnum):
     Jora_Mini = 32524
     Jotun_Pelt = 27045
     Juggernaut_Mini = 22762
-    Jungle_Skale_Fin = 70
+    Jungle_Skale_Fin = 470
     Jungle_Troll_Mini = 13794
     Jungle_Troll_Tusk = 471
     Juvenile_Termite_Leg = 1598
@@ -1249,6 +1248,7 @@ class ModelID(IntEnum):
     Mad_Kings_Guard_Mini = 32555
     Maguuma_Key = 5965
     Maguuma_Mane = 466
+    Maguuma_Spider_Web = 234
     Mahgo_Claw = 513
     Mallyx_Mini = 21229
     Mandragor_Husk = 1668
@@ -1441,6 +1441,7 @@ class ModelID(IntEnum):
     Shing_Jea_Key = 6537
     Shining_Blade_Ration = 35127
     Shining_Blade_Summon = 35126
+    Shipment_Crate = 15850
     Shiro_Mini = 13791
     Shiroken_Assassin_Mini = 22195
     Shiverpeak_Key = 5962
