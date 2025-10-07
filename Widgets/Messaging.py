@@ -911,8 +911,7 @@ def UseSkillFromMessage(index, message):
                 if not cached_data.combat_handler.IsReadyToCast(slot_number):
                     continue
 
-                if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=100):
-                    yield from Routines.Yield.wait(100)
+                yield from Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=100)
 
         except Exception as e:
             ConsoleLog(MODULE_NAME, f"Error during shout casting loop: {e}", Console.MessageType.Error)
@@ -947,8 +946,7 @@ def UseSkillFromMessage(index, message):
                     continue
 
                 if skill in spirit_skills_to_prep or skill == SUMMON_SPIRITS_LUXON or skill == SUMMON_SPIRITS_KURZICK:
-                    if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250):
-                        yield from Routines.Yield.wait(1250)
+                    yield from Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250)
 
                 if skill == ARMOR_OF_UNFEELING:
                     has_any_spirits_in_range = any(
@@ -956,8 +954,7 @@ def UseSkillFromMessage(index, message):
                         for spirit_skill in spirit_skills_to_prep
                     )
                     if has_any_spirits_in_range:
-                        if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250):
-                            yield from Routines.Yield.wait(1250)
+                        yield from Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250)
 
         except Exception as e:
             ConsoleLog(MODULE_NAME, f"Error during spirit casting loop: {e}", Console.MessageType.Error)
