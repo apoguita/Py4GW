@@ -136,14 +136,10 @@ class OnPartyMemberDead(Event):
 class OnPartyMemberBehind(Event):
     def should_trigger(self):
         from Py4GWCoreLib import Routines
-        from Py4GWCoreLib import Range
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
         
-
-        party_member_behind = Routines.Checks.Party.IsPartyMemberBehind(1500)
-        #if party_member_behind:
-        #    print("OnPartyMemberBehind triggered")
+        party_member_behind = Routines.Checks.Party.IsPartyMemberBehind(1900)
         return party_member_behind
     
     def should_reset(self):
