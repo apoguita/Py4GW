@@ -97,7 +97,10 @@ class PlayerCache:
     
     def GetMorale(self):
         return self._player_instance.morale
-    
+
+    def GetPartyMorale(self) -> list[tuple[int, int]]:
+        return self._player_instance.party_morale
+
     def GetExperience(self):
         return self._player_instance.experience
     

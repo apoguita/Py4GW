@@ -41,6 +41,12 @@ window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
 class Cache():
     def __init__(self):
+        self.busy_timer = 0
+        self.previous_time = 0
+        self.ping_buffer = 0.05 #delay added after a cast should complete to avoid actions queueing when not ready
+        self.ezcast_cast_minimum_timer = 0.1 #minimum delay between cast attempts, used for instant speed skills
+        self.dev_mode = False
+        #Generic
         self.generic_skill_use_checkbox = False
         self.reset_generic_skill_on_mapload = False
         self.generic_energy_buffer = 5
@@ -54,13 +60,21 @@ class Cache():
         self.combat_ranges_checkboxes = [False] * len(self.combat_ranges)
         self.combat_range_slider = 1000
         self.skill_array = [self.drop_skill, self.maintain_skill, self.spam_skill, self.combat_skill]
-        self.ezcast_cast_timer = 0
-        self.ezcast_cast_minimum_timer = 0.1
-        self.skill_use_delay = 0
+
         self.generic_skill_use_buffer = 0.25
+        self.combat = False
+        #Refrainer
+        self.refrainer_use_checkbox = False
         self.refrain_buffer = 1.25
         self.refrain_delay = 0.2
-        self.combat = False
+        #Aota
+        self.aota_checkbox = False
+        self.aota_threshold = 20
+        #Quick attack
+        self.qa_checkbox = False
+        self.qa_attack_time = 1
+        self.qa_percent_cancel = 0.5
+        self.qa_attack_detect = False
 cache = Cache()
 
 def DrawGenericSkills():
@@ -78,8 +92,6 @@ def DrawGenericSkills():
         PyImGui.pop_item_width()
         PyImGui.same_line(0, -1)
         PyImGui.text("Minimum energy left after a skill is used")
-
-        PyImGui.text("If generic skill use is enabled, IAU & Dont Trip, or \n just Help Me! will be used to maintain active refrains.")
 
         box_spacing = 6
         PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark, (1, 1, 0.2, 1))
@@ -155,21 +167,66 @@ def DrawGenericSkills():
                                                            cache.combat_ranges[len(cache.combat_ranges) - 1])
             PyImGui.pop_style_color(1)
 
-# Pass in whatever your widget needs as argument
+def DrawRefrainMaintainer():
+    section_header = PyImGui.collapsing_header("Refrain Maintainer", 4)
+    PyImGui.same_line(PyImGui.get_content_region_avail()[0] - 20, -1)
+    cache.refrainer_use_checkbox = PyImGui.checkbox("##RefrainerCheckbox", cache.refrainer_use_checkbox)
+    if PyImGui.is_item_hovered():
+        PyImGui.set_tooltip("Disable" if cache.refrainer_use_checkbox else "Enable")
+
+    if section_header:
+        # PyImGui.set_next_item_width(PyImGui.get_content_region_avail()[0])
+        PyImGui.text_wrapped("""This function will use "Help Me!" to maintain refrains intelligently. It will alternatively use "Dont Trip!" and "I am Unstoppable!" if both are present. If only "Don't Trip!" is available, it will require a recharge reduction such as an Essence of Celerity to work.""")
+        PyImGui.slider_float("Grace buffer", cache.refrain_buffer, 0, 10)
+        if PyImGui.is_item_hovered():
+            PyImGui.set_tooltip("The time in seconds that a refrain should have remaining when the shout ends.\nValues lower than ping will result in dropped refrains.")
+
+def DrawAuraOfTheAssassin():
+    section_header = PyImGui.collapsing_header("Aura of the Assassin", 4)
+    PyImGui.same_line(PyImGui.get_content_region_avail()[0] - 20, -1)
+    cache.aota_checkbox = PyImGui.checkbox("##AotaCheckbox", cache.aota_checkbox)
+    if PyImGui.is_item_hovered():
+        PyImGui.set_tooltip("Disable" if cache.aota_checkbox else "Enable")
+
+    if section_header:
+        PyImGui.text("NOT COMPLETE: IN DEV") #todo get rid of this
+        PyImGui.text_wrapped(
+            """This function will use Assassin's Promise and "Finish Him!" at the set health threshold to instantly kill any target within earshot that drops to low enough health.""")
+        PyImGui.slider_int("Health Percent", cache.aota_threshold, 0, 100)
+        if PyImGui.is_item_hovered():
+            PyImGui.set_tooltip(
+                "The health percent that Aota will scan for enemies to reach before casting AP.")
+
+
+def DrawQuickAttack():
+    section_header = PyImGui.collapsing_header("Quick Attack", 4)
+    PyImGui.same_line(PyImGui.get_content_region_avail()[0] - 20, -1)
+    cache.qa_checkbox = PyImGui.checkbox("##QACheckbox", cache.qa_checkbox)
+    if PyImGui.is_item_hovered():
+        PyImGui.set_tooltip("Disable" if cache.qa_checkbox else "Enable")
+
+    if section_header:
+        PyImGui.text("NOT COMPLETE: IN DEV") #todo get rid of this
+        PyImGui.text_wrapped(
+            """This function will cancel attacks as soon as they complete the damage phase and queue follow up attack skills to increase effective attack speed.""")
+
+
+
 def draw_widget(cached_data):
     global window_x, window_y, window_collapsed, first_run
 
     if first_run:
         PyImGui.set_next_window_pos(window_x, window_y)
-        PyImGui.set_next_window_collapsed(window_collapsed, 0)
+        PyImGui.set_next_window_collapsed(window_collapsed, 0) #setting flag to 0 to avoid the resize grabber being disabled, bit power 1 (2) represents this flag
         first_run = False
 
-    is_window_opened = PyImGui.begin(MODULE_NAME, PyImGui.WindowFlags.AlwaysAutoResize)
+    is_window_opened = PyImGui.begin(MODULE_NAME, 0)
     new_collapsed = PyImGui.is_window_collapsed()
     end_pos = PyImGui.get_window_pos()
 
     if is_window_opened:
         global cache
+
         # Styles for the Headers
         PyImGui.push_style_color(PyImGui.ImGuiCol.Header, (
         1, 0.1, 0.1, 0.5))  # ImGui::PushStyleColor(ImGuiCol_Header, sf::Color(0, 0, 0, 0));
@@ -179,6 +236,10 @@ def draw_widget(cached_data):
         1, 1, 1, 1))  # ImGui::PushStyleColor(ImGuiCol_Text, sf::Color(255, 255, 255, 255));
         # ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
         DrawGenericSkills()
+        DrawRefrainMaintainer()
+        if cache.dev_mode:
+            DrawAuraOfTheAssassin()
+            DrawQuickAttack()
         PyImGui.pop_style_color(3)  # ImGui::PopStyleColor(3);
         # PyImGui.pop_style_var() # ImGui::PopStyleVar();
 
@@ -199,15 +260,12 @@ def draw_widget(cached_data):
 def configure():
     pass
 
-
 def UseGenericSkills(energy, player_id, player_ag : GW.PyAgent.PyAgent, now):
     global cache
     nearest_foe_id = GW.Routines.Agents.GetNearestEnemy()
     nearest_foe : GW.PyAgent.PyAgent = GW.Agent.GetAgentByID(nearest_foe_id)
     nearest_distance = 5000 * 5000
     square_dis = cache.combat_range_slider * cache.combat_range_slider
-    if now - cache.ezcast_cast_timer < cache.skill_use_delay: return
-    if now - cache.ezcast_cast_timer < cache.ezcast_cast_minimum_timer: return
     if nearest_foe is not None:
         nearest_distance = (player_ag.x - nearest_foe.x) ** 2 + (player_ag.y - nearest_foe.y) ** 2
     cache.combat = (nearest_distance < square_dis)
@@ -227,21 +285,21 @@ def UseGenericSkills(energy, player_id, player_ag : GW.PyAgent.PyAgent, now):
             if n == 1 and effect / 1000.0 < skill_instance.activation + cache.generic_skill_use_buffer: effect_valid = True
             if n == 2: effect_valid = True
             if effect_valid:
-                cache.ezcast_cast_timer = now
-                cache.skill_use_delay = skill_instance.activation + skill_instance.aftercast
+                cast_delay = skill_instance.activation + skill_instance.aftercast
+                if cast_delay > 0:
+                    cache.busy_timer = cast_delay + cache.ping_buffer
+                else:
+                    cache.busy_timer = cache.ezcast_cast_minimum_timer
                 GW.SkillBar.UseSkill(i, GW.Player.GetTargetID())
-                return
-
+                return True
+    return False
 
 def MaintainRefrains(player_id, player_ag : GW.PyAgent, now):
     effects = GW.Effects.GetEffects(player_id)
     effect : GW.PyEffects.EffectType
     rit_lord = next((effect for effect in effects if effect.skill_id == GW.Skill.GetID("Ritual_Lord")), None)
-    #TODO check against echo spells too
-    if rit_lord is not None: return
 
     global cache
-    if now - cache.ezcast_cast_timer < cache.refrain_delay: return
     help_me_skill = GW.PySkill.Skill(GW.Skill.GetID("Help_Me"))
     heroic: GW.PyEffects.EffectType = None
     bladeturn: GW.PyEffects.EffectType = None
@@ -309,7 +367,7 @@ def MaintainRefrains(player_id, player_ag : GW.PyAgent, now):
         case 3: iau_dur = 18
         case 4: iau_dur = 19
         case _: iau_dur = 20
-    if len(refrains) < 1: return
+    if len(refrains) < 1: return False
     lowest_dur :GW.PyEffects.EffectType = sorted(refrains, key= lambda effect: effect.time_remaining)[0]
     lowest_dur = lowest_dur.time_remaining / 1000
     base_durations = [effect.duration for effect in refrains]
@@ -317,36 +375,78 @@ def MaintainRefrains(player_id, player_ag : GW.PyAgent, now):
     if help_me_slot != 0:
         if help_me is None and GW.Routines.Checks.Skills.IsSkillSlotReady(help_me_slot):
             if lowest_dur > help_me_duration > lowest_dur - cache.refrain_buffer:
-                cache.ezcast_cast_timer = now
+                cache.busy_timer = cache.ezcast_cast_minimum_timer
                 GW.SkillBar.UseSkill(help_me_slot, 0)
-                return
-    if dont_trip_slot != 0 and iau_slot != 0:
+                return True
+    if dont_trip_slot != 0:
         if dont_trip is None and GW.Routines.Checks.Skills.IsSkillSlotReady(dont_trip_slot):
             if lowest_dur > dont_trip_dur > lowest_dur - cache.refrain_buffer:
-                cache.ezcast_cast_timer = now
+                cache.busy_timer = cache.ezcast_cast_minimum_timer
                 GW.SkillBar.UseSkill(dont_trip_slot, 0)
-                return
-        if iau is None and GW.Routines.Checks.Skills.IsSkillSlotReady(iau_slot):
-            if dont_trip is not None and base_durations[0] + dont_trip.time_remaining/1000 > iau_dur > base_durations[0] + dont_trip.time_remaining/1000 - cache.refrain_buffer:
-                cache.ezcast_cast_timer = now
-                GW.SkillBar.UseSkill(iau_slot, 0)
-                return
+                return True
+        if iau_slot != 0:
+            if iau is None and GW.Routines.Checks.Skills.IsSkillSlotReady(iau_slot):
+                if dont_trip is not None and base_durations[0] + dont_trip.time_remaining/1000 > iau_dur > base_durations[0] + dont_trip.time_remaining/1000 - cache.refrain_buffer:
+                    cache.busy_timer = cache.ezcast_cast_minimum_timer
+                    GW.SkillBar.UseSkill(iau_slot, 0)
+                    return True
+    return False
 
+def AuraOfTheAssassin(energy, player_id, player_ag : GW.PyAgent, now):
+    foes = GW.Routines.Agents.GetFilteredEnemyArray(player_ag.x, player_ag.y, 1000)
+    agent : GW.PyAgent.PyAgent
+    found = False
+    for agent in foes:
+        if agent.living_agent.hp < cache.aota_threshold / 100.0:
+            found = True
+            break
+    if found:
+        ap_slot = GW.SkillBar.GetSlotBySkillID(GW.Skill.GetID("Assassins_Promise"))
+        fh_slot = GW.SkillBar.GetSlotBySkillID(GW.Skill.GetID("Finish_Him"))
+        if ap_slot != 0 and fh_slot != 0 and energy > 15:
+            # GW.SkillBar.UseSkill(, agent.id)
+            #TODO finish this
+            GW.Console.Log("","Found a target to finish. This function is incomplete")
+            cache.busy_timer = 1
+            return True
+    return False
 
+def QuickAttack(energy, played_id, player_ag : GW.PyAgent, now, delta):
+    global cache
+    player : GW.PyAgent.PyLivingAgent = player_ag.living_agent
+    if player.is_attacking:
+        if not cache.qa_attack_detect:
+            cache.qa_attack_detect = True
+            cache.qa_attack_time = player.weapon_attack_speed * player.attack_speed_modifier * cache.qa_percent_cancel
+        else:
+            cache.qa_attack_time -= delta
+            if cache.qa_attack_time < 0:
+                cache.qa_attack_detect = False
+                GW.Keystroke.PressAndRelease(27)
+                GW.Keystroke.PressAndRelease(83)
+                # GW.YieldRoutines.Keybinds.CancelAction()
+                GW.Console.Log("",f"Tried to cancel {cache.qa_attack_time}")
 
 def Update():
     global cache
-    player_id = GW.Player.GetAgentID()
-    player_ag : GW.PyAgent = GW.Player.GetAgent()
     now = time.time()
+    delta = now - cache.previous_time
+    cache.previous_time = now
+    cache.busy_timer -= delta
+    if cache.busy_timer > 0:
+        return
+    player_id = GW.Player.GetAgentID()
+    player_ag: GW.PyAgent = GW.Player.GetAgent()
+    energy = GW.Agent.GetEnergy(player_id) * GW.Agent.GetMaxEnergy(player_id)
     if cache.generic_skill_use_checkbox:
-        if now - cache.ezcast_cast_timer < cache.ezcast_cast_minimum_timer: return
-        energy = GW.Agent.GetEnergy(player_id) * GW.Agent.GetMaxEnergy(player_id)
-        UseGenericSkills(energy, player_id, player_ag, now)
+        if UseGenericSkills(energy, player_id, player_ag, now): return
     # TODO autoritlord
-    # TODO attack cancel and buffer, Quickshot
-    MaintainRefrains(player_id, player_ag, now)
-    # TODO Aura of the Assassin
+    if cache.qa_checkbox:
+        if QuickAttack(energy, player_id, player_ag, now, delta): return
+    if cache.refrainer_use_checkbox:
+        if MaintainRefrains(player_id, player_ag, now): return
+    if cache.aota_checkbox:
+        if AuraOfTheAssassin(energy, player_id, player_ag, now): return
     # TODO AutoFinishHim
 
 

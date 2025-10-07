@@ -136,22 +136,33 @@ class OnPartyMemberDead(Event):
 class OnPartyMemberBehind(Event):
     def should_trigger(self):
         from Py4GWCoreLib import Routines
+        from Py4GWCoreLib import GLOBAL_CACHE
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
-        
+
+        if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
+            return False
+
         party_member_behind = Routines.Checks.Party.IsPartyMemberBehind(1900)
+        #if party_member_behind:
+        #    print("OnPartyMemberBehind triggered")
         return party_member_behind
     
     def should_reset(self):
-        from ..Routines import Checks, Routines
+        from ..Routines import Checks, Routines, GLOBAL_CACHE
         if not Routines.Checks.Map.MapValid():
+            return True
+        if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
             return True
         return not Checks.Party.IsPartyMemberBehind()
     
 class OnPartyMemberDeadBehind(Event):
     def should_trigger(self):
-        from Py4GWCoreLib import Routines
+        from Py4GWCoreLib import Routines, GLOBAL_CACHE
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+            return False
+
+        if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
             return False
 
         # True only if dead party member is behind (outside earshot)
@@ -162,12 +173,14 @@ class OnPartyMemberDeadBehind(Event):
         return behind
     
     def should_reset(self):
-        from ..Routines import Checks, Routines
+        from ..Routines import Checks, Routines, GLOBAL_CACHE
 
         # reset if map is invalid
         if not Routines.Checks.Map.MapValid():
             return True
 
+        if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
+            return True
         # reset if no dead party member behind
         if not Checks.Party.IsDeadPartyMemberBehind():
             return True

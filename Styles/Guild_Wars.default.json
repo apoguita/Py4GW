@@ -1,5 +1,4 @@
 {
-    "Theme": "Guild_Wars",
     "Colors": {
         "Border": {
             "img_color_enum": "Border",
@@ -327,9 +326,9 @@
         },
         "TextObjectiveCompleted": {
             "img_color_enum": "Text",
-            "r": 204,
-            "g": 204,
-            "b": 204,
+            "r": 120,
+            "g": 120,
+            "b": 120,
             "a": 255
         },
         "TextTreeNode": {
@@ -383,39 +382,11 @@
         }
     },
     "TextureColors": {
-        "ComboTextureBackground": {
-            "img_color_enum": null,
-            "r": 71,
-            "g": 106,
-            "b": 150,
-            "a": 255
-        },
-        "ComboTextureBackgroundHovered": {
-            "img_color_enum": null,
-            "r": 96,
-            "g": 143,
-            "b": 201,
-            "a": 255
-        },
-        "ComboTextureBackgroundActive": {
-            "img_color_enum": null,
-            "r": 120,
-            "g": 179,
-            "b": 252,
-            "a": 255
-        },
         "ButtonTextureBackground": {
             "img_color_enum": null,
             "r": 47,
             "g": 70,
             "b": 98,
-            "a": 255
-        },
-        "ButtonTextureBackgroundHovered": {
-            "img_color_enum": null,
-            "r": 83,
-            "g": 126,
-            "b": 179,
             "a": 255
         },
         "ButtonTextureBackgroundActive": {
@@ -430,6 +401,34 @@
             "r": 64,
             "g": 64,
             "b": 64,
+            "a": 255
+        },
+        "ButtonTextureBackgroundHovered": {
+            "img_color_enum": null,
+            "r": 83,
+            "g": 126,
+            "b": 179,
+            "a": 255
+        },
+        "ComboTextureBackground": {
+            "img_color_enum": null,
+            "r": 71,
+            "g": 106,
+            "b": 150,
+            "a": 255
+        },
+        "ComboTextureBackgroundActive": {
+            "img_color_enum": null,
+            "r": 120,
+            "g": 179,
+            "b": 252,
+            "a": 255
+        },
+        "ComboTextureBackgroundHovered": {
+            "img_color_enum": null,
+            "r": 96,
+            "g": 143,
+            "b": 201,
             "a": 255
         }
     },

@@ -142,10 +142,14 @@ class Yield:
             log: bool = False,
             timeout: int = -1,
             progress_callback: Optional[Callable[[float], None]] = None,
-            custom_pause_fn: Optional[Callable[[], bool]] = None 
+            custom_pause_fn: Optional[Callable[[], bool]] = None,
+            stop_on_party_wipe: bool = True
         ):
             import random
             from .Checks import Checks
+        
+            #log = True #force logging
+            detailed_log = False #always detailed log for now
             
             total_points = len(path_points)
             retries = 0
@@ -153,37 +157,72 @@ class Yield:
             stuck_count = 0
             max_stuck_commands = 2  # after this, do PixelStack recovery
 
+            ConsoleLog("FollowPath", f"Starting path with {total_points} points.", Console.MessageType.Info, log=log)
+
+
             for idx, (target_x, target_y) in enumerate(path_points):
                 start_time = Utils.GetBaseTimestamp()
                 
+                ConsoleLog("FollowPath", f"Starting point {idx+1}/{total_points} - ({target_x}, {target_y})", Console.MessageType.Info, log=detailed_log)
+
+
                 if not Checks.Map.MapValid():
+                    ConsoleLog("FollowPath", "Map invalid before starting point, aborting.", Console.MessageType.Error, log=log)
+            
                     ActionQueueManager().ResetAllQueues()
                     return False
+                
+                if stop_on_party_wipe and (
+                        Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
+                    ):
+                        ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True  )
+                        ActionQueueManager().ResetAllQueues()
+                        return False 
 
                 GLOBAL_CACHE.Player.Move(target_x, target_y)
+                ConsoleLog("FollowPath", f"Issued move command to ({target_x}, {target_y}).", Console.MessageType.Debug, log=detailed_log)
+        
                 yield from Yield.wait(250)
 
                 current_x, current_y = GLOBAL_CACHE.Player.GetXY()
                 previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
 
                 while True:
-                    if custom_exit_condition():
-                        if log:
-                            ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info)
-                        return False
+                    ConsoleLog("FollowPath", "Movement loop iteration...", Console.MessageType.Debug, log=detailed_log)
 
                     if not Checks.Map.MapValid():
+                        ConsoleLog("FollowPath", "Map became invalid mid-run, aborting movement.", Console.MessageType.Warning, log=log)
+                
                         ActionQueueManager().ResetAllQueues()
                         return False
                     
+                    if stop_on_party_wipe and (
+                        Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
+                    ):
+                        ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True   )
+                        ActionQueueManager().ResetAllQueues()
+                        return False
+
+
+                    if custom_exit_condition():
+                        ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info, log=log)
+                        return False
+
                     if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+                        ConsoleLog("FollowPath", "Player casting detected, waiting 750ms...", Console.MessageType.Debug, log=detailed_log)
+                
                         yield from Yield.wait(750)
                         continue
                     
                     if custom_pause_fn:
                         while custom_pause_fn():
-                            if log:
-                                ConsoleLog("FollowPath", "Custom pause condition active, pausing movement...", Console.MessageType.Debug)
+                            if stop_on_party_wipe and (
+                                    Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
+                                ):
+                                    ConsoleLog("FollowPath", "Party wiped detected during pause, stopping all movement.", Console.MessageType.Warning, log=True)
+                                    ActionQueueManager().ResetAllQueues()
+                                    return False
+                            ConsoleLog("FollowPath", "Custom pause condition active, pausing movement...", Console.MessageType.Debug, log=log)
                             start_time = Utils.GetBaseTimestamp()  # Reset timeout timer
                             yield from Yield.wait(750)
                     
@@ -191,7 +230,7 @@ class Yield:
                     current_time = Utils.GetBaseTimestamp()
                     delta = current_time - start_time
                     if delta > timeout and timeout > 0:
-                        ConsoleLog("FollowPath", "Timeout reached, stopping movement.", Console.MessageType.Warning)
+                        ConsoleLog("FollowPath", "Timeout reached, stopping movement.", Console.MessageType.Warning, log=log)
                         return False
 
                     current_x, current_y = GLOBAL_CACHE.Player.GetXY()
@@ -200,8 +239,7 @@ class Yield:
                     if not (current_distance < previous_distance):
                         offset_x = random.uniform(-5, 5)
                         offset_y = random.uniform(-5, 5)
-                        if log:
-                            ConsoleLog("FollowPath", f"move to {target_x + offset_x}, {target_y + offset_y}", Console.MessageType.Info)
+                        ConsoleLog("FollowPath", f"move to {target_x + offset_x}, {target_y + offset_y}", Console.MessageType.Info, log=log)
                         if not Checks.Map.MapValid():
                             ActionQueueManager().ResetAllQueues()
                             return False
@@ -209,13 +247,15 @@ class Yield:
                         retries += 1
                         if retries >= max_retries:
                             GLOBAL_CACHE.Player.SendChatCommand("stuck")
-                            ConsoleLog("FollowPath", "No progress made, sending /stuck command.", Console.MessageType.Warning)
+                            ConsoleLog("FollowPath", "No progress made, sending /stuck command.", Console.MessageType.Warning, log=log)
+                    
                             retries = 0
                             stuck_count += 1
 
                             # --- PixelStack recovery if too many stucks ---
                             if stuck_count >= max_stuck_commands:
-                                ConsoleLog("FollowPath", "Too many stucks, attempting strafe recovery.", Console.MessageType.Warning)
+                                ConsoleLog("FollowPath", "Too many stucks, performing strafe recovery.", Console.MessageType.Warning, log=log)
+                        
                                 start_x, start_y = GLOBAL_CACHE.Player.GetXY()
 
                                 # Backwards
@@ -233,21 +273,27 @@ class Yield:
                     else:
                         retries = 0  # reset retries if making progress
                         stuck_count = 0  # reset stuck count if making progress
+                        ConsoleLog("FollowPath", "Progress detected, reset retry counters.", Console.MessageType.Debug, log=detailed_log)
+
 
                     previous_distance = current_distance
 
                     if current_distance <= tolerance:
+                        ConsoleLog("FollowPath", f"Reached target point {idx+1}/{total_points}.", Console.MessageType.Success, log=log)
                         break
                     else:
-                        if log:
-                            ConsoleLog("FollowPath", f"Current distance to target: {current_distance}, waiting...", Console.MessageType.Info)
+                        ConsoleLog("FollowPath", f"Current distance to target: {current_distance}, waiting...", Console.MessageType.Debug, log=detailed_log)
+
 
                     yield from Yield.wait(250)
 
                 #After reaching each point, report progress
                 if progress_callback:
                     progress_callback((idx + 1) / total_points)
+                    ConsoleLog("FollowPath", f"Progress callback: {((idx + 1) / total_points) * 100:.1f}% done.", Console.MessageType.Debug, log=detailed_log)
 
+
+            ConsoleLog("FollowPath", "Path traversal completed successfully.", Console.MessageType.Success, log=log)
             return True
     
 
@@ -466,6 +512,9 @@ class Yield:
                     return False
 
                 waiting_for_map_load = False
+                
+            while GLOBAL_CACHE.Map.GetInstanceUptime() < 3000:
+                yield from Yield.wait(500)
 
             ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)}", log=log)
             yield from Yield.wait(500)
@@ -1463,7 +1512,7 @@ class Yield:
             yield from Yield.Upkeepers._upkeep_consumable(ModelID.War_Supplies, "Well_Supplied")
 
         @staticmethod
-        def Upkeep_Morale(target_morale=110):
+        def Upkeep_Morale(target_morale=100):
             from .Checks import Checks
             morale_models = [
                 (m.value if hasattr(m, "value") else int(m))
@@ -1478,12 +1527,7 @@ class Yield:
                 yield from Yield.wait(500)
                 return
 
-            while True:
-                morale = GLOBAL_CACHE.Player.GetMorale()
-                if morale >= target_morale:
-                    yield from Yield.wait(500)
-                    break
-
+            while GLOBAL_CACHE.Player.GetMorale() < target_morale:
                 item_id = 0
                 for model_id in morale_models:
                     item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)

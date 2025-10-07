@@ -12,6 +12,7 @@ class Style:
         def __init__(self, style: "Style", value1: float, value2: float | None = None, img_style_enum: "ImGuiStyleVar|None" = None):
             self.style = style
             self.img_style_enum: ImGuiStyleVar | None = img_style_enum
+            self.display_name: str | None = Utils.split_uppercase(img_style_enum.name) if img_style_enum else None
             self.value1: float = value1
             self.value2: float | None = value2
             self.pushed_stack = []
@@ -57,11 +58,12 @@ class Style:
         def __ne__(self, value): return not self.__eq__(value)        
 
     class StyleColor(Color):
-        def __init__(self, style: "Style", r: int, g: int, b: int, a: int = 255, img_color_enum: PyImGui.ImGuiCol | None = None, color_type: StyleColorType = StyleColorType.Default):
+        def __init__(self, style: "Style", r: int, g: int, b: int, a: int = 255, img_color_enum: PyImGui.ImGuiCol | None = None, color_type: StyleColorType = StyleColorType.Default, display_name: str | None = None):
             super().__init__(r, g, b, a)
             self.style = style
             self.img_color_enum = img_color_enum
             self.color_type = color_type
+            self.display_name = display_name if display_name else Utils.split_uppercase(img_color_enum.name) if img_color_enum else None
             self.pushed_stack: list[Style.StyleColor] = []
 
         def __hash__(self): return hash((self.img_color_enum, self))
@@ -170,35 +172,35 @@ class Style:
         self.PlotHistogramHovered = Style.StyleColor(self, 64, 255, 0, 255, PyImGui.ImGuiCol.PlotHistogramHovered)
         # self.ModalWindowDarkening = Style.StyleColor(self, 255, 250, 242, 186, PyImGui.ImGuiCol.ModalWindowDarkening)
 
-        self.PrimaryButton = Style.StyleColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button, StyleColorType.Custom)
-        self.PrimaryButtonHovered = Style.StyleColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered, StyleColorType.Custom)
-        self.PrimaryButtonActive = Style.StyleColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive, StyleColorType.Custom)
+        self.PrimaryButton = Style.StyleColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button, StyleColorType.Custom, "Primary Button")
+        self.PrimaryButtonHovered = Style.StyleColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered, StyleColorType.Custom, "Primary Button Hovered")
+        self.PrimaryButtonActive = Style.StyleColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive, StyleColorType.Custom, "Primary Button Active")
 
-        self.DangerButton = Style.StyleColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button, StyleColorType.Custom)
-        self.DangerButtonHovered = Style.StyleColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered, StyleColorType.Custom)
-        self.DangerButtonActive = Style.StyleColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive, StyleColorType.Custom)
+        self.DangerButton = Style.StyleColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button, StyleColorType.Custom, "Danger Button")
+        self.DangerButtonHovered = Style.StyleColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered, StyleColorType.Custom, "Danger Button Hovered")
+        self.DangerButtonActive = Style.StyleColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive, StyleColorType.Custom, "Danger Button Active")
 
-        self.ToggleButtonEnabled = Style.StyleColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button, StyleColorType.Custom)
-        self.ToggleButtonEnabledHovered = Style.StyleColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered, StyleColorType.Custom)
-        self.ToggleButtonEnabledActive = Style.StyleColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive, StyleColorType.Custom)
+        self.ToggleButtonEnabled = Style.StyleColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button, StyleColorType.Custom, "Toggle Button Enabled")
+        self.ToggleButtonEnabledHovered = Style.StyleColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered, StyleColorType.Custom, "Toggle Button Enabled Hovered")
+        self.ToggleButtonEnabledActive = Style.StyleColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive, StyleColorType.Custom, "Toggle Button Enabled Active")
 
-        self.ToggleButtonDisabled = Style.StyleColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button, StyleColorType.Custom)
-        self.ToggleButtonDisabledHovered = Style.StyleColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered, StyleColorType.Custom)
-        self.ToggleButtonDisabledActive = Style.StyleColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive, StyleColorType.Custom)
+        self.ToggleButtonDisabled = Style.StyleColor(self, 26, 38, 51, 255, PyImGui.ImGuiCol.Button, StyleColorType.Custom, "Toggle Button Disabled")
+        self.ToggleButtonDisabledHovered = Style.StyleColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered, StyleColorType.Custom, "Toggle Button Disabled Hovered")
+        self.ToggleButtonDisabledActive = Style.StyleColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive, StyleColorType.Custom, "Toggle Button Disabled Active")
 
-        self.TextCollapsingHeader = Style.StyleColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom)
-        self.TextTreeNode = Style.StyleColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom)
-        self.TextObjectiveCompleted = Style.StyleColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom)
-        self.Hyperlink = Style.StyleColor(self, 102, 187, 238, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom)
+        self.TextCollapsingHeader = Style.StyleColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom, "Text Collapsing Header")
+        self.TextTreeNode = Style.StyleColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom, "Text Tree Node")
+        self.TextObjectiveCompleted = Style.StyleColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom, "Text Objective Completed")
+        self.Hyperlink = Style.StyleColor(self, 102, 187, 238, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom, "Text Hyperlink")
 
-        self.ComboTextureBackground = Style.StyleColor(self, 26, 23, 30, 255, None, StyleColorType.Texture)
-        self.ComboTextureBackgroundHovered = Style.StyleColor(self, 61, 59, 74, 255, None, StyleColorType.Texture)
-        self.ComboTextureBackgroundActive = Style.StyleColor(self, 143, 143, 148, 255, None, StyleColorType.Texture)
+        self.ComboTextureBackground = Style.StyleColor(self, 26, 23, 30, 255, None, StyleColorType.Texture, "Combo Background (Textured)")
+        self.ComboTextureBackgroundHovered = Style.StyleColor(self, 61, 59, 74, 255, None, StyleColorType.Texture, "Combo Background Hovered (Textured)")
+        self.ComboTextureBackgroundActive = Style.StyleColor(self, 143, 143, 148, 255, None, StyleColorType.Texture, "Combo Background Active (Textured)")
 
-        self.ButtonTextureBackground = Style.StyleColor(self, 26, 23, 30, 255, None, StyleColorType.Texture)
-        self.ButtonTextureBackgroundHovered = Style.StyleColor(self, 61, 59, 74, 255, None, StyleColorType.Texture)
-        self.ButtonTextureBackgroundActive = Style.StyleColor(self, 143, 143, 148, 255, None, StyleColorType.Texture)
-        self.ButtonTextureBackgroundDisabled = Style.StyleColor(self, 143, 143, 148, 255, None, StyleColorType.Texture)
+        self.ButtonTextureBackground = Style.StyleColor(self, 26, 23, 30, 255, None, StyleColorType.Texture, "Button Background (Textured)")
+        self.ButtonTextureBackgroundHovered = Style.StyleColor(self, 61, 59, 74, 255, None, StyleColorType.Texture, "Button Background Hovered (Textured)")
+        self.ButtonTextureBackgroundActive = Style.StyleColor(self, 143, 143, 148, 255, None, StyleColorType.Texture, "Button Background Active (Textured)")
+        self.ButtonTextureBackgroundDisabled = Style.StyleColor(self, 143, 143, 148, 255, None, StyleColorType.Texture, "Button Background Disabled (Textured)")
 
         attributes = {name: getattr(self, name) for name in dir(self)}
         self.Colors : dict[str, Style.StyleColor] = {name: attributes[name] for name in attributes if isinstance(attributes[name], Style.StyleColor) and attributes[name].color_type == StyleColorType.Default}
@@ -235,6 +237,7 @@ class Style:
     def push_style(self):
         for var in self.Colors.values():
             var.push_color()
+            
         for var in self.StyleVars.values():
             var.push_style_var()
         pass
@@ -242,16 +245,7 @@ class Style:
     def pop_style(self):
         for var in self.Colors.values():
             var.pop_color()
-        for var in self.StyleVars.values():
-            var.pop_style_var()
-        pass
-
-    def push_style_vars(self):
-        for var in self.StyleVars.values():
-            var.push_style_var()
-        pass
-
-    def pop_style_vars(self):
+            
         for var in self.StyleVars.values():
             var.pop_style_var()
         pass
