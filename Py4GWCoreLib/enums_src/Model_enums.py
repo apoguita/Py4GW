@@ -1185,7 +1185,7 @@ class ModelID(IntEnum):
     Jora_Mini = 32524
     Jotun_Pelt = 27045
     Juggernaut_Mini = 22762
-    Jungle_Skale_Fin = 70
+    Jungle_Skale_Fin = 470
     Jungle_Troll_Mini = 13794
     Jungle_Troll_Tusk = 471
     Juvenile_Termite_Leg = 1598
