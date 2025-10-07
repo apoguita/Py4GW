@@ -955,7 +955,8 @@ def UnlockLA(bot: Botting):
     bot.Move.XY(-1181, 1038)
     bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
     bot.Move.XY(-1856.86, 1434.14)
-    bot.Move.XYAndExitMap(-2144, 1450, target_map_id=55) #has built in wait time now
+    bot.Move.FollowPath([(-2144, 1450)])
+    bot.Wait.ForMapLoad(target_map_id=55) #has built in wait time now
 
 #region MAIN
 selected_step = 0
