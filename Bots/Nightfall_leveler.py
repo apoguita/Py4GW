@@ -1039,6 +1039,7 @@ def UnlockKC(bot: Botting):
 def AdvanceToMarketPlace(bot: Botting):
     bot.States.AddHeader("Advance To Marketplace")
     bot.Map.Travel(target_map_id=194)
+    bot.Party.LeaveParty()
     bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
     bot.Move.XY(3045, -1575)
     bot.Move.XY(3007, -2609)
