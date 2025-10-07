@@ -37,7 +37,7 @@ def create_bot_routine(bot: Botting) -> None:
     ArmoredTransport(bot) #we can move these
     HeroCommand(bot)      # to where every it makes the most sense
     InkCollector(bot)     # Level 5+ quest
-    #IdentityTheft(bot) #not working yet
+    IdentityTheft(bot) #not working yet
     second_15_attribute_points(bot)
     EOTN_Run(bot)
     ExitBorealStation(bot)
@@ -698,7 +698,7 @@ def IdentityTheft(bot):
     bot.Move.XYAndExitMap(22483, 6115, target_map_id=432) #Cliffs of Dohjok
     bot.Move.XYAndDialog(20215, 5285, 0x85) #Blessing 
     bot.Move.XY(14429, 10337) #kill boss
-    #bot.Move.ToModel(15850)#not working so comment out this quest for now
+    bot.Interact.WithModel(15850)#not working so comment out this quest for now
     bot.Wait.ForTime(4000)
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-10461, 15229, 0x827207) # +500xp
@@ -1014,8 +1014,10 @@ def UnlockLA(bot: Botting):
     bot.Move.XYAndDialog(-2546.09, 16203.26, 0x89)
     bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
     bot.Move.XY(-1181, 1038)
-    bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961, we think LA unlocks by talking to him, no need to portal
-    bot.Map.Travel(target_map_id=55)  # lions_arch
+    bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
+    bot.Move.XY(-2202, 1796)
+    bot.Move.XYAndExitMap(-2202, 1796, target_map_id=55) #has built in wait time now
+
 
 #region MAIN
 selected_step = 0
