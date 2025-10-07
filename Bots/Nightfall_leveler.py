@@ -1046,6 +1046,7 @@ def AdvanceToMarketPlace(bot: Botting):
     bot.Move.XY(3145, -4643)
     bot.Move.XY(3372, -5617)
     bot.Wait.ForMapLoad(target_map_id=240)
+    bot.Properties.Enable("birthday_cupcake")
     auto_path_list = [(-9467.0,14207.0), (-10965.0,9309.0), (-10332.0,1442.0), (-10254.0,-1759.0)]
     bot.Move.FollowAutoPath(auto_path_list)
     path_to_marketplace = [
