@@ -49,6 +49,8 @@ def create_bot_routine(bot: Botting) -> None:
     UnlockXunlaiMaterialPanel(bot)
     UnlockConsulateDocks(bot)
     UnlockKC(bot)
+    AdvanceToMarketPlace(bot)
+    AdvanceToSeitung(bot)
     UnlockLA(bot)
     
     
@@ -90,6 +92,33 @@ def PrepareForBattle(bot: Botting, Hero_List = [], Henchman_List = []) -> None:
     bot.Party.LeaveParty()
     bot.Party.AddHeroList(Hero_List)
     bot.Party.AddHenchmanList(Henchman_List)
+
+def AddHenchmenFC():
+    def _add_henchman(henchman_id: int):
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(henchman_id)
+        ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
+        yield from Routines.Yield.wait(250)
+        
+    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+
+    henchmen_list = []
+    if party_size <= 4:
+        henchmen_list.extend([1, 5, 2]) 
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor"):
+        henchmen_list.extend([2, 3, 1, 4, 5]) 
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("The Marketplace"):
+        henchmen_list.extend([6,9,5,1,4,7,3])
+    elif GLOBAL_CACHE.Map.GetMapID() == 213: #zen_daijun_map_id
+        henchmen_list.extend([3,1,6,8,5])
+    elif GLOBAL_CACHE.Map.GetMapID() == 194: #kaineng_map_id
+        henchmen_list.extend([2,10,4,8,7,9,12])
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Boreal Station"):
+        henchmen_list.extend([7,9,2,3,4,6,5])
+    else:
+        henchmen_list.extend([2,3,5,6,7,9,10])
+        
+    for henchman_id in henchmen_list:
+        yield from _add_henchman(henchman_id)
 
 def EquipSkillBar(): 
     global bot
@@ -1007,6 +1036,51 @@ def UnlockKC(bot: Botting):
     bot.Map.Travel(target_map_id=194)  # KC
     bot.Wait.ForMapLoad(target_map_id=194)
 
+def AdvanceToMarketPlace(bot: Botting):
+    bot.States.AddHeader("Advance To Marketplace")
+    bot.Map.Travel(target_map_id=194)
+    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
+    bot.Move.XY(3045, -1575)
+    bot.Move.XY(3007, -2609)
+    bot.Move.XY(2909, -3629)
+    bot.Move.XY(3145, -4643)
+    bot.Move.XY(3372, -5617)
+    bot.Wait.ForMapLoad(target_map_id=240)
+    auto_path_list = [(-9467.0,14207.0), (-10965.0,9309.0), (-10332.0,1442.0), (-10254.0,-1759.0)]
+    bot.Move.FollowAutoPath(auto_path_list)
+    path_to_marketplace = [
+        (-10324, -1213),
+        (-10402, -2217),
+        (-10704, -3213),
+        (-11051, -4206),
+        (-11483, -5143),
+        (-11382, -6149),
+        (-11024, -7085),
+        (-10720, -8042),
+        (-10404, -9039),
+        (-10950, -9913),
+        (-11937, -10246),
+        (-12922, -10476),
+        (-13745, -11050),
+        (-14565, -11622)
+    ]
+    bot.Move.FollowPathAndExitMap(path_to_marketplace, target_map_name="The Marketplace") #MarketPlace
+
+def AdvanceToSeitung(bot: Botting):
+    bot.States.AddHeader("Advance To Seitung")
+    #PrepareForBattle(bot)
+    bot.Map.Travel(target_map_id=303)
+    #bot.Move.XY(11762, 17287)
+    #bot.Move.XY(12041, 18273)
+    bot.Move.XY(12313, 19236)
+    bot.Move.XY(10343, 20329)
+    bot.Wait.ForMapLoad(target_map_id=302)
+    bot.Move.XY(8392, 20845)
+    bot.Move.XYAndDialog(6912.20, 19912.12, 0x84)
+    #bot.Dialogs.WithModel(3241, 0x81)
+    #bot.Dialogs.WithModel(3241, 0x84)
+    bot.Wait.ForMapToChange(target_map_id=250)
+
 def UnlockLA(bot: Botting):
     bot.States.AddHeader("Unlock LA")
     bot.Map.Travel(target_map_id=493)  # Consulate Docks
@@ -1015,9 +1089,9 @@ def UnlockLA(bot: Botting):
     bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
     bot.Move.XY(-1181, 1038)
     bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
-    bot.Move.XY(-2202, 1796)
-    bot.Move.XYAndExitMap(-2202, 1796, target_map_id=55) #has built in wait time now
-
+    bot.Move.XY(-1856.86, 1434.14)
+    bot.Move.FollowPath([(-2144, 1450)])
+    bot.Wait.ForMapLoad(target_map_id=55) #has built in wait time now
 
 #region MAIN
 selected_step = 0
