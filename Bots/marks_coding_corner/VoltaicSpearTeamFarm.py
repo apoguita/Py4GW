@@ -7,6 +7,7 @@ from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Botting
 from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
@@ -172,21 +173,22 @@ def handle_on_danger_flagging(bot: Botting):
 def farm_dungeon(bot: Botting) -> None:
     widget_handler = get_widget_handler()
     widget_handler.enable_widget('Return to outpost on defeat')
+    widget_handler.enable_widget('CombatPrep')
 
     # events
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     # end events
 
     bot.States.AddHeader(BOT_NAME)
-    bot.Templates.Multibox_Aggressive()
-    bot.Properties.Disable("auto_inventory_management")
-    bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
 
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
-    bot.Party.SetHardMode(True)
 
     bot.States.AddHeader('Exit To Farm')
     bot.Properties.Disable('pause_on_danger')
+    bot.Templates.Multibox_Aggressive()
+    bot.Properties.Disable("auto_inventory_management")
+    bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
+    bot.Party.SetHardMode(True)
     bot.Move.XYAndExitMap(-22735, 6339, target_map_id=VERDANT_CASCADES_MAP_ID)
     bot.Properties.Enable('pause_on_danger')
 
@@ -207,9 +209,9 @@ def farm_dungeon(bot: Botting) -> None:
 
     bot.States.AddHeader("Justiciar Tommis pt2")
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
-    bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_2, "Part 2 killing route")
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
+    bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_2, "Part 2 killing route")
 
     bot.Properties.Disable('pause_on_danger')
     bot.Wait.ForTime(20000)
@@ -223,12 +225,28 @@ def farm_dungeon(bot: Botting) -> None:
     bot.States.JumpToStepName('[H]Exit To Farm_3')
 
 
+def additoinal_ui():
+    if PyImGui.begin_child("Additional Options:"):
+        PyImGui.text("Additional Options:")
+        PyImGui.separator()
+
+        full_width = PyImGui.get_content_region_avail()[0]
+        # --- Draw two equal-width buttons on same line ---
+        if PyImGui.button("Run my custom setup [Need to be in outpost]", full_width):
+            bot.StartAtStep("[H]Exit To Farm_3")
+
+        if PyImGui.button("Start with default setup", full_width):
+            bot.StartAtStep("[H]Voltaic Spear Farm_1")
+
+        PyImGui.end_child()
+
+
 bot.SetMainRoutine(farm_dungeon)
 
 
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path=TEXTURE)
+    bot.UI.draw_window(icon_path=TEXTURE, main_child_dimensions=(350, 450), addtional_ui=additoinal_ui)
 
 
 if __name__ == "__main__":
