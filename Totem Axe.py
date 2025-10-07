@@ -1,10 +1,8 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID, GLOBAL_CACHE, Routines
-import PyImGui
-#QUEST TO INCREASE SPAWNS 
+
 BOT_NAME = "Totem Axe Farm"
 MODEL_ID_TO_FARM = ModelID.Totem_Axe
 MAP_TO_TRAVEL = 139 #ventaris refuge
-
 
 bot = Botting(BOT_NAME)
                 
@@ -19,32 +17,27 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndExitMap(-23253, -11516, 45) #reed bog
     bot.Move.XY(-2194.33, -7495.35) #corner obstacle
     bot.Move.XY(-2927.30, -6533.62) #next corner
+    bot.Move.XY(-2630.00, -6562.77) #wiggle?
     bot.Move.XY(-6298.86, -7133.81)
     bot.Move.XYAndExitMap(-6489, -8230, 46) #the falls
     bot.Move.XY(2705.70, -16301.66)
     bot.Move.XY(-6753.60, -19203.25) #intersection
-
     bot.Move.XY(-14549.87, -13156.52) #balth temple
     bot.Move.XY(-18459.97, -8492.36) #corner
     bot.Move.XY(-12080.85, -4276.94) #loop
-
-    bot.Move.XY(-13002.76, -5426.64)
+    bot.Move.XY(-13002.76, -5426.64) #bridge
     bot.Multibox.PixelStack()
     bot.Wait.ForTime(6000)
-    #bot.Properties.Disable("pause_on_danger") #disable combat
     bot.Move.XY(-11127.64, -1070.10)
-    #bot.Properties.Enable("pause_on_danger") #enable combat
     bot.Move.XY(-5447.10, -1369.62)
     
     #root behemoth locations
-    behemoth_path = [(-4478.41, -3121.69), #st fork
-            (-884.77, -7038.26),
-            (-4478.41, -3121.69),
-            (2945.17, -5985.73),
-            (3751.78, -4006.87),
-            
-            (-2383.12, -3604.00), #sanity around
-            
+    behemoth_path = [(-4378.27, -3069.98), #st fork
+            (-1975.55, -3460.72), #sanity
+            (-269.69, -7053.63), #around
+            (3633.49, -4326.72),
+            (70.69, -1777.78), #2nd fork
+            (-1975.55, -3460.72), #sanity
             (70.69, -1777.78), #2nd fork
 
             (-349.57, 2146.79), #pool
@@ -71,10 +64,16 @@ def bot_routine(bot: Botting) -> None:
     bot.Multibox.PixelStack()
     bot.Wait.ForTime(6000)
     
-    path = [(3062.96, 15896.36),
+    path = [(3062.96, 15896.36),]
+    bot.Move.FollowPath(path)
+    bot.Multibox.PixelStack()
+    bot.Wait.ForTime(4000)
+    path = [
             (2835.07, 17391.36),
     ]
     bot.Move.FollowPath(path)
+    bot.Multibox.PixelStack()
+    bot.Wait.ForTime(6000)
 
     behemoth_path2 = [(-3537.32, 19198.30),
             (-5542.02, 18472.33),
