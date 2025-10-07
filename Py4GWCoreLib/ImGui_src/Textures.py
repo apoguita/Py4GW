@@ -834,5 +834,3 @@ class ThemeTextures(Enum):
         normal = (0, 0),
     )),
     )   
-
-

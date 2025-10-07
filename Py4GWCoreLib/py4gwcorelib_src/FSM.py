@@ -371,6 +371,48 @@ class FSM:
         if self.log_actions:
             ConsoleLog("FSM", f"{self.name}: FSM has been reset.", Console.MessageType.Info)
             
+    def ResetAndStartAtStep(self, state_name: str):
+        """
+        Fully reset the FSM, clear all managed coroutines, and jump directly to the specified step.
+
+        This is especially useful for recovery situations (e.g. party wipe) where
+        the FSM must restart cleanly but resume execution at a specific entry point.
+        """
+        if not self.states:
+            raise ValueError(f"{self.name}: No states have been added to the FSM.")
+
+        # --- Step 1: Clean up all coroutine and state references ---
+        #self._cleanup_coroutines()
+        #for state in self.states:
+        #    state.reset()
+
+        # --- Step 2: Reset finished/paused flags ---
+        self.finished = False
+        self.paused = False
+
+        # --- Step 3: Find and jump to the desired state ---
+        target_state = None
+        for s in self.states:
+            if s.name == state_name:
+                target_state = s
+                break
+
+        if not target_state:
+            raise ValueError(f"{self.name}: State '{state_name}' not found.")
+
+        self.current_state = target_state
+        self.current_state.reset()
+        self.current_state.enter()
+
+        # --- Step 4: Logging and resume ---
+        if self.log_actions:
+            ConsoleLog("FSM",
+                    f"{self.name}: Reset and started at step '{state_name}'",
+                    Console.MessageType.Success)
+
+        # Ensure FSM resumes execution after being paused
+        self.paused = False
+
 
     def get_state_names(self):
         return [s.name for s in self.states]

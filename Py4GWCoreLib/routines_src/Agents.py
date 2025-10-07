@@ -311,54 +311,44 @@ class Agents:
         gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
         gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
         return Utils.GetFirstFromArray(gadget_array)
+    
+    @staticmethod
+    def GetNearestGadgetByID(gadget_id: int, max_distance=4500.0):
+        from ..AgentArray import AgentArray
+        from ..Py4GWcorelib import Utils
+        from ..GlobalCache import GLOBAL_CACHE
+
+        gadget_array = GLOBAL_CACHE.AgentArray.GetGadgetArray()
+        gadget_array = AgentArray.Filter.ByCondition(gadget_array, lambda agent_id: GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == gadget_id)
+        gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
+        gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
+        return Utils.GetFirstFromArray(gadget_array)
         
     @staticmethod
     def GetNearestChest(max_distance=5000):
         from ..AgentArray import AgentArray
         from ..GlobalCache import GLOBAL_CACHE
+        from ..enums_src.Model_enums import GadgetModelID
         """
         Purpose: Get the nearest chest within the specified range.
         Args:
             range (int): The maximum distance to search for chests.
-        Returns: Agent ID or None
+        Returns: Agent ID or 0 if no chest is found.
         """
+        # automatically collect all enum values whose names start with "CHEST_"
+        valid_chest_ids = {e.value for e in GadgetModelID if e.name.startswith("CHEST_")}
+
         gadget_array = AgentArray.GetGadgetArray()
         gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
-        gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
+        gadget_array = AgentArray.Sort.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY())
+
         for agent_id in gadget_array:
-            if GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == 9: #9 is the ID for Hidden Stash (Pre-Searing)
-                return agent_id
-            if GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == 69: #69 is the ID for Ascalonian Chest
-                return agent_id
-            if GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == 4579: #4579 is the ID for Shing Jea Chest
-                return agent_id
-            if GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == 8141: #8141 is the ID for a chest
+            gadget_id = GLOBAL_CACHE.Agent.GetGadgetID(agent_id)
+            if gadget_id in valid_chest_ids:
                 return agent_id
 
         return 0
 
-    @staticmethod
-    def GetNearestDungeonChest(max_distance=5000):
-        from ..AgentArray import AgentArray
-        from ..GlobalCache import GLOBAL_CACHE
-        """
-        Purpose: Get the nearest dungeon chest within the specified range.
-        Args:
-            range (int): The maximum distance to search for chests.
-        Returns: Agent ID or None
-        """
-        gadget_array = AgentArray.GetGadgetArray()
-        gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
-        gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
-        for agent_id in gadget_array:
-            if GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == 9274: #Secret Lair of the Snowmen
-                return agent_id
-            if GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == 8932: #Bogroot Growths
-                return agent_id
-
-            # to_be_completed...
-
-        return 0
 
     @staticmethod
     def GetBestTarget(a_range=1320, casting_only=False, no_hex_only=False, enchanted_only=False):

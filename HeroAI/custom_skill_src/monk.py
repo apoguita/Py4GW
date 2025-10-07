@@ -723,7 +723,7 @@ class MonkSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Purifying_Veil")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.AllyMartial.value
+        skill.TargetAllegiance = Skilltarget.AllyMartialMelee.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.TargetingStrict = True
         skill.Conditions.IsOutOfCombat = True
@@ -1151,7 +1151,7 @@ class MonkSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Succor")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.AllyCaster.value
+        skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.TargetingStrict = True
         skill_data[skill.SkillID] = skill

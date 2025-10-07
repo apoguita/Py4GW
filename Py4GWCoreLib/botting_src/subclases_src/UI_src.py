@@ -22,6 +22,8 @@ class _UI:
         self._FSM_SELECTED_NAME_ORIG: str | None = None   # selection persists across frames
         self._FSM_FILTER_START: int = 0
         self._FSM_FILTER_END: int = 0
+        
+        self.Keybinds = self._Keybinds(self)
 
     def CancelSkillRewardWindow(self):
         self._helpers.UI.cancel_skill_reward_window()
@@ -52,6 +54,7 @@ class _UI:
 
     def PrintMessageToConsole(self, source: str, message: str):
         self._helpers.UI.print_message_to_console(source, message)
+
 
     def _find_current_header_step(self):
         import re
@@ -579,3 +582,62 @@ class _UI:
             self._config.config_properties.use_occlusion.is_active(), 
             self._config.config_properties.snap_to_ground_segments.get("value"), 
             self._config.config_properties.floor_offset.get("value"))
+
+    class _Keybinds:
+        def __init__(self, parent: "_UI"):
+            self.parent = parent
+            self._parent = parent
+            self._helpers = parent._helpers
+            
+        def DropBundle(self):
+            self._helpers.UI.Keybinds.drop_bundle()
+            
+        def CloseAllPanels(self):
+            self._helpers.UI.Keybinds.close_all_panels()
+            
+        def CancelAction(self):
+            self._helpers.UI.Keybinds.cancel_action()
+            
+        def ClearPartycommand(self):
+            self._helpers.UI.Keybinds.clear_party_commands()
+            
+        def UseSkill(self, slot: int):
+            self._helpers.UI.Keybinds.use_skill(slot)
+            
+        def UseHeroSkill(self, hero_index: int, slot: int):
+            self._helpers.UI.Keybinds.use_hero_skill(hero_index, slot)
+            
+        def ToggleInventory(self):
+            self._helpers.UI.Keybinds.toggle_inventory()
+            
+        def ToggleAllBags(self):
+            self._helpers.UI.Keybinds.toggle_all_bags()
+            
+        def OpenMissionMap(self):
+            self._helpers.UI.Keybinds.open_mission_map()
+            
+        def CycleEquipmentSet(self):
+            self._helpers.UI.Keybinds.cycle_equipment_set()
+            
+        def ActivateWeaponSet1(self, set: int = 1):
+            self._helpers.UI.Keybinds.activate_weapon_set(set)
+            
+        def MoveForward(self, duration_ms: int = 500):
+            self._helpers.UI.Keybinds.move_forward(duration_ms)
+            
+        def MoveBackward(self, duration_ms: int = 500):
+            self._helpers.UI.Keybinds.move_backward(duration_ms)
+            
+        def StrafeLeft(self, duration_ms: int = 500):
+            self._helpers.UI.Keybinds.strafe_left(duration_ms)
+            
+        def StrafeRight(self, duration_ms: int = 500):
+            self._helpers.UI.Keybinds.strafe_right(duration_ms)
+            
+        def TurnLeft(self, duration_ms: int = 500):
+            self._helpers.UI.Keybinds.turn_left(duration_ms)
+            
+        def TurnRight(self, duration_ms: int = 500):
+            self._helpers.UI.Keybinds.turn_right(duration_ms)
+            
+        

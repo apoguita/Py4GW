@@ -324,7 +324,7 @@ class ImGui:
         
         if disabled: PyImGui.begin_disabled(disabled)
         style = ImGui.get_style()
-        #style.ButtonPadding.get_current().push_style_var()
+        style.ButtonPadding.get_current().push_style_var()
         clicked = False
         #NON THEMED
         if style.Theme not in ImGui.Textured_Themes:
@@ -354,7 +354,7 @@ class ImGui:
             for button_color in button_colors:
                 button_color.pop_color()
 
-            #style.ButtonPadding.pop_style_var()
+            style.ButtonPadding.pop_style_var()
             if disabled:PyImGui.end_disabled()
             return clicked
 
@@ -453,7 +453,7 @@ class ImGui:
 
         PyImGui.pop_clip_rect()
                 
-        #style.ButtonPadding.pop_style_var()
+        style.ButtonPadding.pop_style_var()
         if disabled:PyImGui.end_disabled()
         
         return clicked
@@ -585,7 +585,8 @@ class ImGui:
         clicked = False
         if disabled: PyImGui.begin_disabled(disabled)
         style = ImGui.get_style()
-        #style.ButtonPadding.get_current().push_style_var()
+        style.ButtonPadding.get_current().push_style_var()
+        
         #NON THEMED
         if style.Theme not in ImGui.Textured_Themes:
             
@@ -609,11 +610,12 @@ class ImGui:
                 for button_color in button_colors:
                     button_color.pop_color()
             
-            #style.ButtonPadding.pop_style_var()
             if disabled: PyImGui.end_disabled()
 
             if clicked:
                 v = not v
+                
+            style.ButtonPadding.pop_style_var()
             return v
         
         #THEMED
@@ -690,7 +692,7 @@ class ImGui:
         PyImGui.pop_clip_rect()
         style.Text.pop_color()
 
-        #style.ButtonPadding.pop_style_var()
+        style.ButtonPadding.pop_style_var()
         if disabled:PyImGui.end_disabled()
         
         if clicked:
@@ -699,7 +701,7 @@ class ImGui:
         return v
     
     @staticmethod
-    def image_button(label: str, texture_path: str, width: float=0.0, height: float=0.0, disabled: bool=False, appearance: ControlAppearance=ControlAppearance.Default) -> bool:
+    def image_button(label: str, texture_path: str, width: float=32, height: float=32, disabled: bool=False, appearance: ControlAppearance=ControlAppearance.Default) -> bool:
         #MATCHING IMGUI SIGNATURES AND USAGE
         enabled = not disabled
         clicked = False
@@ -834,7 +836,7 @@ class ImGui:
         return clicked
     
     @staticmethod
-    def image_toggle_button(label: str, texture_path: str, v: bool, width=32, height=32, disabled:bool=False) -> bool:
+    def image_toggle_button(label: str, texture_path: str, v: bool, width=32.0, height=32.0, disabled:bool=False) -> bool:
         #MATCHING IMGUI SIGNATURES AND USAGE
         enabled = not disabled
         clicked = False
@@ -1166,7 +1168,11 @@ class ImGui:
         #NON THEMED
         style = ImGui.get_style()
         if style.Theme not in ImGui.Textured_Themes:
-            return PyImGui.input_int(label, v, min_value, step_fast, flags)
+            
+            if min_value==0 and step_fast==100_000 and flags==0:
+                return PyImGui.input_int(label, v)
+            else:
+                return PyImGui.input_int(label, v, min_value, step_fast, flags)
 
         #THEMED
         current_inner_spacing = style.ItemInnerSpacing.get_current()
@@ -1405,6 +1411,90 @@ class ImGui:
         PyImGui.pop_item_width()
         PyImGui.pop_clip_rect()
         ImGui.pop_style_color(6)
+        return new_value
+    
+    @staticmethod
+    def slider_int(label: str, v: int, v_min: int, v_max: int) -> int:
+        style = ImGui.get_style()
+        if style.Theme not in ImGui.Textured_Themes:
+            return PyImGui.slider_int(label, v, v_min, v_max)
+        
+        current_inner_spacing = style.ItemInnerSpacing.get_current()
+          
+        pad = style.FramePadding.get_current()
+        grab_width = (pad.value2 or 0) + 18 - 5
+        
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.GrabMinSize, grab_width)
+        ImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0,0,0,0))
+        ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0,0,0,0))
+        ImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0,0,0,0))
+        ImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, (0,0,0,0))
+        ImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, (0,0,0,0))
+        ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0,0,0,0))
+        new_value = PyImGui.slider_int(label, v, v_min, v_max)
+
+        ImGui.pop_style_color(6)
+        PyImGui.pop_style_var(1)
+
+        display_label = label.split("##")[0]
+        label_size = PyImGui.calc_text_size(display_label)
+
+        item_rect_min = PyImGui.get_item_rect_min()
+        item_rect_max = PyImGui.get_item_rect_max()
+        
+        width = item_rect_max[0] - item_rect_min[0] - (label_size[0] + current_inner_spacing.value1 if label_size[0] > 0 else 0)
+        height = item_rect_max[1] - item_rect_min[1]
+        item_rect = (item_rect_min[0], item_rect_min[1], width, height)
+
+        ThemeTextures.SliderBar.value.get_texture().draw_in_drawlist(
+            item_rect[0],
+            item_rect[1] + 4,
+            (item_rect[2], item_rect[3] - 8),
+            tint=(255, 255, 255, 255),
+        )
+
+        percent = (new_value - v_min) / (v_max - v_min)
+        track_width = item_rect[2] - 12 - grab_width
+        grab_size = (grab_width, grab_width)
+        grab_rect = ((item_rect[0] + 6) + track_width * percent, item_rect[1] + (height - grab_size[1]) / 2, *grab_size)
+        PyImGui.draw_list_add_rect(
+            grab_rect[0] - 1,
+            grab_rect[1] - 1,
+            grab_rect[0] + grab_rect[2] + 1,
+            grab_rect[1] + grab_rect[3] + 1,
+            Utils.RGBToColor(0, 0, 0, 170),
+            0,
+            0,
+            1,
+        )
+        PyImGui.draw_list_add_rect(
+            grab_rect[0] - 2,
+            grab_rect[1] - 2,
+            grab_rect[0] + grab_rect[2] + 2,
+            grab_rect[1] + grab_rect[3] + 2,
+            Utils.RGBToColor(0, 0, 0, 100),
+            0,
+            0,
+            1,
+        )
+
+        ThemeTextures.SliderGrab.value.get_texture().draw_in_drawlist(
+            grab_rect[0],
+            grab_rect[1],
+            grab_rect[2:],
+        )
+        
+        if display_label:
+            text_x = (item_rect[0] + item_rect[2]) + current_inner_spacing.value1
+            text_y = item_rect[1] + ((height - label_size[1] - 2) / 2)
+
+            PyImGui.draw_list_add_text(
+                text_x,
+                text_y,
+                style.Text.color_int,
+                display_label,
+            )
+
         return new_value
     
     @staticmethod
@@ -1671,13 +1761,21 @@ class ImGui:
         style = ImGui.get_style()
         frame_padding = style.FramePadding.get_current()
         height = PyImGui.get_text_line_height()
-        item_rect_min = PyImGui.get_item_rect_min()
-        item_rect_max = PyImGui.get_item_rect_max()
-        item_rect = (item_rect_min[0] + 4, item_rect_min[1] -2, height, height)
+        
         if completed:
             style.TextObjectiveCompleted.get_current().push_color()
         
-        def _functions_tail(completed: bool) -> bool:
+        def _functions_tail(completed: bool) -> bool:      
+            control_rect = (item_rect[0],
+                    item_rect[1],
+                    item_rect_max[0] - item_rect[0],
+                    item_rect_max[1] - item_rect[1])  
+            
+            style.TextObjectiveCompleted.pop_color()
+                
+            if PyImGui.is_mouse_clicked(0) and ImGui.is_mouse_in_rect(control_rect):
+                completed = not completed
+                
             if completed:
                 PyImGui.draw_list_add_line(
                     item_rect[0] + item_rect[2] + (frame_padding.value1 * 2) - 5,
@@ -1687,17 +1785,17 @@ class ImGui:
                     style.TextObjectiveCompleted.color_int,
                     1,
                 )
-                style.TextObjectiveCompleted.pop_color()
-                        
-                if PyImGui.is_item_clicked(0):
-                    completed = not completed
-                
+                                        
                 return completed
             return completed
         
         #NON THEMED
         if style.Theme not in ImGui.Textured_Themes:
-            PyImGui.bullet_text(text)
+            PyImGui.bullet_text(text)            
+            item_rect_min = PyImGui.get_item_rect_min()
+            item_rect_max = PyImGui.get_item_rect_max()
+            item_rect = (item_rect_min[0] + 4, item_rect_min[1] -2, height, height)
+            
             return _functions_tail(completed)
         #THEMED
         text_size = PyImGui.calc_text_size(text)
@@ -1706,29 +1804,32 @@ class ImGui:
         PyImGui.push_clip_rect(cursor[0] + frame_padding.value1 + height, cursor[1], cursor[0] + frame_padding.value1 + text_size[0], text_size[1], True)
         PyImGui.bullet_text(text)
         PyImGui.pop_clip_rect()
+        
+        item_rect_min = PyImGui.get_item_rect_min()
+        item_rect_max = PyImGui.get_item_rect_max()
+        item_rect = (item_rect_min[0] + 4, item_rect_min[1] -2, height, height)
 
-        item_rect = (item_rect_min[0] + frame_padding.value1, item_rect_min[1] -2, height, height)
+        texture_rect = (item_rect_min[0] + frame_padding.value1, item_rect_min[1] -2, height, height)
         
         ThemeTextures.Quest_Objective_Bullet_Point.value.get_texture().draw_in_drawlist(
-            item_rect[0],
-            item_rect[1],
-            (item_rect[2], item_rect[3]),
+            texture_rect[0],
+            texture_rect[1],
+            (texture_rect[2], texture_rect[3]),
             state=TextureState.Normal if completed else TextureState.Active,
         )
-
         
         return _functions_tail(completed)
     
     @staticmethod
     def collapsing_header(label: str, flags: int = 0) -> bool:
         style = ImGui.get_style()
-        #style.TextCollapsingHeader.get_current().push_color()
+        style.TextCollapsingHeader.get_current().push_color()
         frame_padding = style.FramePadding.get_current()
         
         #NON THEMED
         if style.Theme not in ImGui.Textured_Themes:
             new_open = PyImGui.collapsing_header(label, flags)
-            #style.TextCollapsingHeader.pop_color()
+            style.TextCollapsingHeader.pop_color()
             return new_open
         
         #THEMED
@@ -1756,18 +1857,18 @@ class ImGui:
             state=TextureState.Hovered if ImGui.is_mouse_in_rect(item_rect) else TextureState.Normal,
         )                           
 
-        #style.TextCollapsingHeader.pop_color()
+        style.TextCollapsingHeader.pop_color()
         return new_open
 
     @staticmethod
     def tree_node(label: str) -> bool:
         style = ImGui.get_style()
-        #style.TextTreeNode.get_current().push_color()
+        style.TextTreeNode.get_current().push_color()
         
         #NON THEMED
         if style.Theme not in ImGui.Textured_Themes:
             new_open = PyImGui.tree_node(label)
-            #style.TextTreeNode.pop_color()
+            style.TextTreeNode.pop_color()
             return new_open
         #THEMED
         frame_padding = style.FramePadding.get_current()
@@ -1794,7 +1895,7 @@ class ImGui:
             state=TextureState.Hovered if ImGui.is_mouse_in_rect(item_rect) else TextureState.Normal,
         )
                                 
-        #style.TextTreeNode.pop_color()  
+        style.TextTreeNode.pop_color()  
         return new_open
     
     @staticmethod
@@ -1853,7 +1954,11 @@ class ImGui:
         style = ImGui.get_style()
         #NON THEMED
         if style.Theme not in ImGui.Textured_Themes:
-            return PyImGui.begin_tab_item(label, popen if popen is not None else False, flags)
+            if popen is None:
+                return PyImGui.begin_tab_item(label)
+            else:
+                return PyImGui.begin_tab_item(label, popen, flags)
+            
         #THEMED
         open = False
         if popen is None:
