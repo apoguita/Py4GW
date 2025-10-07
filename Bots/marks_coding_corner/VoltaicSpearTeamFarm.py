@@ -40,19 +40,25 @@ ENTER_DUNGEON_PATH: list[tuple[float, float]] = [
     (-17835, 12524),
 ]
 
+SLAVERS_EXILE_PATH_PRE_PATH_1 = (-12590, -17740)
 SALVERS_EXILE_TRAVEL_PATH_1: list[tuple[float, float]] = [
+    (-12590, -17740),
+    (-13480, -16570),
     (-13500, -15750),
     (-12500, -15000),
     (-10400, -14800),
+    (-10837, -13823),
     (-11500, -13300),
+    (-12175, -12211),
     (-13400, -11500),
     (-13700, -9550),
     (-14100, -8600),
     (-15000, -7500),
-    (-16500, -8000),
-    (-18500, -8000),
+    (-16000, -7112),
+    (-17347, -7438),
 ]
 
+SLAVERS_EXILE_PATH_PRE_PATH_2 = (-18781, -8064)
 SALVERS_EXILE_TRAVEL_PATH_2: list[tuple[float, float]] = [
     (-18781, -8064),
     (-19083, -10150),
@@ -79,24 +85,33 @@ def _on_party_wipe(bot: "Botting"):
             bot.config.FSM.resume()
             return
 
+    ConsoleLog("Res Check", "We ressed retrying!")
+    yield from bot.helpers.Wait._for_time(3000)
     player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-
     shrine_1_x, shrine_1_y = (-18673, -7701)
 
     # Compute distances
     dist_to_shrine_1 = math.hypot(player_x - shrine_1_x, player_y - shrine_1_y)
 
     # Check if within earshot
-    if dist_to_shrine_1 <= Range.Earshot.value:
-        ConsoleLog("Res Check", "Player is near Shrine 1 (Res Point 1)")
-        bot.States.JumpToStepName("[H]Make way to Justiciar Tommis part 2_7")
+    if GLOBAL_CACHE.Map.GetMapID() == JUSTICIAR_THOMMIS_ROOM_MAP_ID:
+        if dist_to_shrine_1 <= Range.Spellcast.value:
+            bot.config.FSM.pause()
+            ConsoleLog("Res Check", "Player is near Shrine 2 (Res Point 2)")
+            bot.States.JumpToStepName("[H]Justiciar Tommis pt1_7")
+            bot.config.FSM.resume()
+        else:
+            bot.config.FSM.pause()
+            ConsoleLog("Res Check", "Player is in beginning shrine")
+            bot.States.JumpToStepName("[H]Justiciar Tommis pt21_6")
+            bot.config.FSM.resume()
 
     else:
-        ConsoleLog("Res Check", "Player is not near any shrine.")
-        bot.States.JumpToStepName("[H]Make way to Justiciar Tommis part 1_6")
-
-    # Player revived on same map → jump to recovery step
-    bot.config.FSM.resume()
+        bot.config.FSM.pause()
+        bot.Multibox.ResignParty()
+        yield from bot.helpers.Wait._for_time(10000)  # Allow the widget to take the party back to town
+        bot.States.JumpToStepName("[H]Exit To Farm_3")
+        bot.config.FSM.resume()
 
 
 def OnPartyWipe(bot: "Botting"):
@@ -112,11 +127,7 @@ def handle_on_danger_flagging(bot: Botting):
     global last_flagged_x_y
     global last_flagged_map_id
 
-    spread_formation = [
-        [-200, -200], [200, -200],
-        [-200, 0], [200, 0],
-        [-200, 300], [0, 300], [200, 300],
-    ]
+    spread_formation = [[-200, -200], [200, -200], [-200, 0], [200, 0], [-200, 300], [0, 300], [200, 300]]
 
     while True:
         player_x, player_y = GLOBAL_CACHE.Player.GetXY()
@@ -129,22 +140,23 @@ def handle_on_danger_flagging(bot: Botting):
                 last_flagged_x_y = (player_x, player_y)
                 last_flagged_map_id = map_id
                 is_party_flagged = True
+                combat_prep.cb_shouts_prep(shouts_button_pressed=True)
+                combat_prep.cb_spirits_prep(st_button_pressed=True)
                 combat_prep.cb_set_formation(spread_formation, False)
-                yield from Routines.Yield.wait(3000)
+                yield from Routines.Yield.wait(2500)
                 combat_prep.cb_set_formation([], True)
 
-            # If already flagged, check distance to last flag position
             elif last_flagged_map_id == map_id:
                 last_x, last_y = last_flagged_x_y
                 dx, dy = player_x - last_x, player_y - last_y
                 dist_sq = dx * dx + dy * dy
-                max_dist_sq = (Range.Area.value * 2) ** 2
+                max_dist_sq = (Range.Spellcast.value * 1.25) ** 2
 
                 # Only reflag (and wait) if too far from previous position
                 if dist_sq > max_dist_sq:
                     last_flagged_x_y = (player_x, player_y)
                     combat_prep.cb_set_formation(spread_formation, False)
-                    yield from Routines.Yield.wait(3000)
+                    yield from Routines.Yield.wait(2500)
                     combat_prep.cb_set_formation([], True)
 
         # === No longer in danger ===
@@ -187,20 +199,20 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Move.FollowAutoPath(ENTER_DUNGEON_PATH, "To the dungeon room route")
     bot.Move.XYAndExitMap(-18300, 12527, target_map_id=JUSTICIAR_THOMMIS_ROOM_MAP_ID)
 
-    bot.States.AddHeader("Make way to Justiciar Tommis part 1")
+    bot.States.AddHeader("Justiciar Tommis pt1")
     bot.Multibox.UsePConSet()
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_1, "Part 1 killing route")
 
-    bot.States.AddHeader("Make way to Justiciar Tommis part 2")
+    bot.States.AddHeader("Justiciar Tommis pt2")
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_2, "Part 2 killing route")
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
-    bot.Properties.Disable('pause_on_danger')
 
+    bot.Properties.Disable('pause_on_danger')
     bot.Wait.ForTime(20000)
     bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
     bot.Multibox.InteractWithTargetDungeonChest()  # Bots should auto loot
