@@ -16,10 +16,11 @@ class BlessingNpc(Enum):
     Ghostly_Scout               = (5547, 5548)
     Ghostly_Priest              = (5615,)
     Whispers_Informants         = (5218, 5683)
+    Forgotten_Warden            = (5002,)
     Kurzick_Priest              = (593, 912, 3426)
     Luxon_Priest                = (1947, 3641)
     Beacons_of_Droknar          = (5865,)
-    Ascalonian_Refugees         = (1986, 1987, 6044, 6045)
+    Ascalonian_Refugees         = (1986, 1987, 6044, 6045, 6043)
     Asuran_Krewe                = (6755, 6756, 6775, 6779) # some can cause issue as shared with many other azura npc...
     Norn_Hunters                = (6374, 6380)
 
