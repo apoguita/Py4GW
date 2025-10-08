@@ -4,6 +4,7 @@ from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
 from Bots.marks_coding_corner.utils.loot_utils import get_valid_loot_array
 from Bots.marks_coding_corner.utils.loot_utils import identify_and_salvage_items
 from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
+from Bots.marks_coding_corner.utils.loot_utils import set_autoloot_options_for_custom_bots
 from Bots.marks_coding_corner.utils.merch_utils import buy_id_kits
 from Bots.marks_coding_corner.utils.merch_utils import buy_salvage_kits
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
@@ -457,6 +458,7 @@ def handle_custom_on_unmanaged_fail(bot: Botting):
 
 
 def feather_farm_bot(bot: Botting):
+    set_autoloot_options_for_custom_bots(salvage_golds=False, module_active=False)
     widget_handler = get_widget_handler()
     widget_handler.disable_widget('Return to outpost on defeat')
     bot.Properties.Disable('hero_ai')
