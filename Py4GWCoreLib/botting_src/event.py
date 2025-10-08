@@ -6,7 +6,6 @@ from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .config import BotConfig  # for type checkers only
-    from Py4GWCoreLib.botting_src.helpers import BottingClass
     
 class Event:
     """
