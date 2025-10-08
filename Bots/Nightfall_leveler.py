@@ -771,6 +771,7 @@ def TakeWeaponRewardAndCraft(bot: Botting):
 
 def LoopFarmInJokanurDiggins(bot):
     bot.States.AddHeader("Phase 4:Loop farm in jokanur diggings")
+    bot.States.AddCustomState(lambda: None, "LoopFarm_JumpHere")
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
@@ -796,13 +797,14 @@ def LoopFarmInJokanurDiggins(bot):
     level_after_quests = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if level_after_quests >= 10:
         # Now we're level 10+, continue to 2nd Attribute points
-        bot.States.JumpToStepName("[H]Phase 5: Gathering 15 second set of attribute points_5")
+        bot.States.JumpToStepName("SecondAttPoints_JumpHere")
     else:
         # Still not level 10, repeat Jokanur Diggings quests for more farming
-        bot.States.JumpToStepName("[H]Phase 4:Loop farm in jokanur diggings_1")
+        bot.States.JumpToStepName("LoopFarm_JumpHere")
 
 def GatherSecondSetOfAttributePoints(bot):
     bot.States.AddHeader("Phase 5: Gathering 15 second set of attribute points")
+    bot.States.AddCustomState(lambda: None, "SecondAttPoints_JumpHere")
     bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
     bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
     bot.Wait.ForTime(2000)
