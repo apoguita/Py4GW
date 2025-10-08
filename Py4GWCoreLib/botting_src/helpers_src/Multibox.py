@@ -262,7 +262,7 @@ class _Multibox:
 
             dx, dy = x - agent.x, y - agent.y
             players_dist_sq = dx * dx + dy * dy
-            max_dist_sq = Range.Spellcast.value ** 2
+            max_dist_sq = Range.Earshot.value ** 2
 
             if agent_name != "" and players_dist_sq > max_dist_sq:
                 player_names.append(agent_name)
