@@ -773,12 +773,18 @@ def LoopFarmInJokanurDiggins(bot):
     bot.States.AddHeader("Phase 4:Loop farm in jokanur diggings")
     bot.States.AddCustomState(lambda: None, "LoopFarm_JumpHere")
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
+    bot.Map.Travel(target_map_id=491) #Jokanur Diggings
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
 
-    bot.Move.XY(594, 43)
-    bot.Move.XY(-2070, -1049)
-    bot.Move.XYAndExitMap(-3080, -1169, target_map_id=481) # Fahranur The First City
+    #bot.Move.XY(282, 40)
+    bot.Move.FollowPath([
+        (1268, -311),
+        (-1618, -783),
+        (-2600, -1119),
+        (-3546, -1444)
+    ])
+    bot.Wait.ForMapLoad(target_map_id=481) # Fahranur The First City
 
     bot.Move.XYAndDialog(19651, 12237, 0x85) # Blessing
     bot.Move.XY(11182, 14880); bot.Wait.UntilOutOfCombat()
@@ -795,7 +801,7 @@ def LoopFarmInJokanurDiggins(bot):
 
     #After completing Jokanur quests, check level again and continue appropriately
     level_after_quests = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-    if level_after_quests >= 10:
+    if level_after_quests > 9:
         # Now we're level 10+, continue to 2nd Attribute points
         bot.States.JumpToStepName("SecondAttPoints_JumpHere")
     else:
