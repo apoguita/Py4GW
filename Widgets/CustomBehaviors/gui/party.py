@@ -6,10 +6,12 @@ from Py4GWCoreLib.Py4GWcorelib import Utils
 from Py4GWCoreLib.enums import SharedCommandType
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Widgets.CustomBehaviors.primitives.parties.party_commands import PartyCommands
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
+from Widgets.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
@@ -257,6 +259,209 @@ def render():
             PyImGui.tree_pop()
 
         # PyImGui.separator()
+
+    if GLOBAL_CACHE.Map.IsExplorable():
+
+        if PyImGui.tree_node_ex("[EXPLORABLE] Following settings :", 0):
+            
+                        # Get the singleton manager
+            manager = PartyFollowingManager()
+
+            # Set narrower width for sliders to make labels more readable
+            PyImGui.push_item_width(200.0)
+
+            # Debug overlay toggle
+            manager.enable_debug_overlay = PyImGui.checkbox("Enable Debug Overlay", manager.enable_debug_overlay)
+            if manager.enable_debug_overlay:
+                # Get the FollowPartyLeaderNewUtility instance and call its overlay renderer
+                behavior = CustomBehaviorLoader().custom_combat_behavior
+                if behavior is not None:
+                    skills_list = behavior.get_skills_final_list()
+                    # Find the FollowPartyLeaderNewUtility instance
+                    from Widgets.CustomBehaviors.skills.following.follow_party_leader_new_utility import FollowPartyLeaderNewUtility
+                    for skill_utility in skills_list:
+                        if isinstance(skill_utility, FollowPartyLeaderNewUtility):
+                            # Call the dedicated draw_overlay method
+                            current_state = behavior.get_final_state()
+                            skill_utility.draw_overlay(current_state)
+                            break
+
+            PyImGui.separator()
+
+            # Combat parameters
+            PyImGui.text("Combat Parameters (IN_AGGRO):")
+
+            # Follow Distance - Gold (leader)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 100)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 150)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 180)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 255)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 255)))
+            manager.combat_follow_distance = PyImGui.slider_float(
+                "Combat Follow Distance",
+                manager.combat_follow_distance,
+                50.0,
+                400.0
+            )
+            PyImGui.pop_style_color(5)
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Desired distance from leader during combat")
+
+            # Spread Threshold - Red (combat state)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 100)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 150)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 180)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
+            manager.combat_spread_threshold = PyImGui.slider_float(
+                "Combat Spread Threshold",
+                manager.combat_spread_threshold,
+                50.0,
+                400.0
+            )
+            PyImGui.pop_style_color(5)
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Distance to start repelling from allies during combat")
+
+            # Repulsion Weight - Orange (repulsion forces)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 100)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 150)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 180)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 255)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 255)))
+            manager.combat_repulsion_weight = PyImGui.slider_float(
+                "Combat Repulsion Weight",
+                manager.combat_repulsion_weight,
+                10.0,
+                300.0
+            )
+            PyImGui.pop_style_color(5)
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("How strongly to push away from allies during combat (higher = more personal space)")
+
+            PyImGui.separator()
+
+            # Non-combat parameters
+            PyImGui.text("Non-Combat Parameters (CLOSE/FAR_FROM_AGGRO):")
+
+            # Follow Distance - Gold (leader)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 100)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 150)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 180)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 255)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 255)))
+            manager.noncombat_follow_distance = PyImGui.slider_float(
+                "Non-Combat Follow Distance",
+                manager.noncombat_follow_distance,
+                50.0,
+                500.0
+            )
+            PyImGui.pop_style_color(5)
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Desired distance from leader when not in combat")
+
+            # Spread Threshold - Green (non-combat state)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(0, 255, 0, 100)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(0, 255, 0, 150)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(0, 255, 0, 180)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(0, 255, 0, 255)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(0, 255, 0, 255)))
+            manager.noncombat_spread_threshold = PyImGui.slider_float(
+                "Non-Combat Spread Threshold",
+                manager.noncombat_spread_threshold,
+                50.0,
+                300.0
+            )
+            PyImGui.pop_style_color(5)
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Distance to start repelling from allies when not in combat")
+
+            # Repulsion Weight - Orange (repulsion forces)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 100)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 150)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 180)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 255)))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 255)))
+            manager.noncombat_repulsion_weight = PyImGui.slider_float(
+                "Non-Combat Repulsion Weight",
+                manager.noncombat_repulsion_weight,
+                10.0,
+                200.0
+            )
+            PyImGui.pop_style_color(5)
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("How strongly to push away from allies when not in combat (higher = more personal space)")
+
+            PyImGui.separator()
+
+            # Common parameters
+            PyImGui.text("Common Parameters:")
+
+            manager.follow_distance_tolerance = PyImGui.slider_float(
+                "Follow Tolerance",
+                manager.follow_distance_tolerance,
+                10.0,
+                200.0
+            )
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Don't move if within this range of desired distance")
+
+            manager.max_move_distance = PyImGui.slider_float(
+                "Max Move Distance",
+                manager.max_move_distance,
+                50.0,
+                500.0
+            )
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Maximum distance to move per adjustment")
+
+            manager.min_move_threshold = PyImGui.slider_float(
+                "Min Move Threshold",
+                manager.min_move_threshold,
+                0.1,
+                5.0
+            )
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Minimum force to trigger movement")
+
+            PyImGui.separator()
+
+            # Preset buttons
+            PyImGui.text("Presets:")
+            if PyImGui.button("Tight Combat"):
+                manager.apply_preset_tight_combat()
+
+            PyImGui.same_line(0.0, -1.0)
+            if PyImGui.button("Default (Balanced)"):
+                manager.apply_preset_balanced()
+
+            PyImGui.same_line(0.0, -1.0)
+            if PyImGui.button("Loose Formation"):
+                manager.apply_preset_loose_formation()
+
+            # Pop the item width we set earlier
+            PyImGui.pop_item_width()
+
+            PyImGui.tree_pop()
+
 
     if PyImGui.tree_node_ex("[MANAGE] Enforce the main state machine for all party members :", PyImGui.TreeNodeFlags.DefaultOpen):
 

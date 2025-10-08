@@ -56,7 +56,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1: return None #"No free slots in inventory, halting."
         if GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Lockpick.value) < 1: return None #"No lockpicks in inventory, halting."
-        chest_agent_id = Routines.Agents.GetNearestChest(700)
+        chest_agent_id = custom_behavior_helpers.Resources.get_nearest_locked_chest(700)
         if chest_agent_id in self.opened_chest_agent_ids: return None
         if chest_agent_id is None or chest_agent_id == 0: return None
         return self.score_definition.get_score()
@@ -70,7 +70,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
 
         self.cooldown_execution.Reset()
 
-        chest_agent_id = Routines.Agents.GetNearestChest(700)
+        chest_agent_id = custom_behavior_helpers.Resources.get_nearest_locked_chest(700)
         if chest_agent_id is None or chest_agent_id == 0: 
             yield
             return BehaviorResult.ACTION_SKIPPED
@@ -125,7 +125,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text(f"GetNearestChest : {Routines.Agents.GetNearestChest(700)}")
+        PyImGui.bullet_text(f"get_nearest_locked_chest : {custom_behavior_helpers.Resources.get_nearest_locked_chest(700)}")
         PyImGui.bullet_text(f"opened_chest_agent_ids : {self.opened_chest_agent_ids}")
         return
         # debug mode
