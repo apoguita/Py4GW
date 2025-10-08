@@ -302,11 +302,10 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Seed_of_Life")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.AllyMartialMelee.value
+        skill.TargetAllegiance = Skilltarget.OtherAlly.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.TargetingStrict = True
         skill.Conditions.LessLife = 0.8
-        skill.Conditions.IsPartyWide = True
+        skill.Conditions.IsPartyWide = False
         skill.Conditions.PartyWideArea = Range.SafeCompass.value
         skill_data[skill.SkillID] = skill
 
