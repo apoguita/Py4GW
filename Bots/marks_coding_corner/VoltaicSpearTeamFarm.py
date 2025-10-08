@@ -42,7 +42,6 @@ ENTER_DUNGEON_PATH: list[tuple[float, float]] = [
 
 SLAVERS_EXILE_PATH_PRE_PATH_1 = (-12590, -17740)
 SALVERS_EXILE_TRAVEL_PATH_1: list[tuple[float, float]] = [
-    (-12590, -17740),
     (-13480, -16570),
     (-13500, -15750),
     (-12500, -15000),
@@ -60,7 +59,6 @@ SALVERS_EXILE_TRAVEL_PATH_1: list[tuple[float, float]] = [
 
 SLAVERS_EXILE_PATH_PRE_PATH_2 = (-18781, -8064)
 SALVERS_EXILE_TRAVEL_PATH_2: list[tuple[float, float]] = [
-    (-18781, -8064),
     (-19083, -10150),
     (-18500, -11500),
     (-17700, -12500),
@@ -205,12 +203,14 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
+    bot.Move.XY(SLAVERS_EXILE_PATH_PRE_PATH_1[0], SLAVERS_EXILE_PATH_PRE_PATH_1[1], "Part 1 pre-route")
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_1, "Part 1 killing route")
 
     bot.States.AddHeader("Justiciar Tommis pt2")
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
+    bot.Move.XY(SLAVERS_EXILE_PATH_PRE_PATH_2[0], SLAVERS_EXILE_PATH_PRE_PATH_2[1], "Part 2 pre-route")
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_2, "Part 2 killing route")
 
     bot.Properties.Disable('pause_on_danger')
