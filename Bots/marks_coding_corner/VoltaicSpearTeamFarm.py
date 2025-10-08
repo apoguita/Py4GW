@@ -90,22 +90,22 @@ def _on_party_wipe(bot: "Botting"):
     ConsoleLog("Res Check", "We ressed retrying!")
     yield from bot.helpers.Wait._for_time(3000)
     player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-    shrine_1_x, shrine_1_y = (-18673, -7701)
+    shrine_2_x, shrine_2_y = (-18673, -7701)
 
     # Compute distances
-    dist_to_shrine_1 = math.hypot(player_x - shrine_1_x, player_y - shrine_1_y)
+    dist_to_shrine_2 = math.hypot(player_x - shrine_2_x, player_y - shrine_2_y)
 
     # Check if within earshot
     if GLOBAL_CACHE.Map.GetMapID() == JUSTICIAR_THOMMIS_ROOM_MAP_ID:
-        if dist_to_shrine_1 <= Range.Spellcast.value:
+        if dist_to_shrine_2 <= Range.Spellcast.value:
             bot.config.FSM.pause()
             ConsoleLog("Res Check", "Player is near Shrine 2 (Res Point 2)")
-            bot.States.JumpToStepName("[H]Justiciar Tommis pt1_7")
+            bot.States.JumpToStepName("[H]Justiciar Tommis pt2_8")
             bot.config.FSM.resume()
         else:
             bot.config.FSM.pause()
             ConsoleLog("Res Check", "Player is in beginning shrine")
-            bot.States.JumpToStepName("[H]Justiciar Tommis pt21_6")
+            bot.States.JumpToStepName("[H]Justiciar Tommis pt1_6")
             bot.config.FSM.resume()
 
     else:
@@ -226,9 +226,11 @@ def farm_dungeon(bot: Botting) -> None:
 
     bot.States.AddHeader("Justiciar Tommis pt1")
     bot.Multibox.UsePConSet()
+    bot.Multibox.UsePumpkinPie()
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
+    bot.States.AddHeader("Justiciar Tommis pathing 1")
     bot.Move.XY(SLAVERS_EXILE_PATH_PRE_PATH_1[0], SLAVERS_EXILE_PATH_PRE_PATH_1[1], "Part 1 pre-route")
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_1, "Part 1 killing route")
 
@@ -236,6 +238,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
+    bot.States.AddHeader("Justiciar Tommis pathing 2")
     bot.Move.XY(SLAVERS_EXILE_PATH_PRE_PATH_2[0], SLAVERS_EXILE_PATH_PRE_PATH_2[1], "Part 2 pre-route")
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_2, "Part 2 killing route")
 
