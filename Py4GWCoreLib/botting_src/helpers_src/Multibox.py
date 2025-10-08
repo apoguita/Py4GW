@@ -333,25 +333,6 @@ class _Multibox:
             ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,0,0,0))
         yield
-    
-    def _interact_with_target_dungeon_chest(self):
-        from ...GlobalCache import GLOBAL_CACHE
-        from ... Routines import Routines
-        target = GLOBAL_CACHE.Player.GetTargetID()
-        if target == 0:
-            ConsoleLog("Messaging", "No target to interact with.")
-            return
-        sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
-        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        yield from Routines.Yield.wait(5000)  # initial 3 second wait
-
-        for account in accounts:
-            if sender_email == account.AccountEmail:
-                continue
-            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
-            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,0,0,0))
-            yield from Routines.Yield.wait(5000)
-        yield
         
     def _take_dialog_with_target(self):
         from ...GlobalCache import GLOBAL_CACHE
@@ -435,11 +416,6 @@ class _Multibox:
     @_yield_step(label="InteractWithTarget", counter_key="INTERACT_WITH_TARGET")
     def interact_with_target(self):
         yield from self._interact_with_target()
-    
-    @_yield_step(label="InteractWithTarget", counter_key="INTERACT_WITH_TARGET")
-    def interact_with_target_dungeon_chest(self):
-        yield from self._interact_with_target_dungeon_chest()
-    
 
     @_yield_step(label="TakeDialogWithTarget", counter_key="TAKE_DIALOG_WITH_TARGET")
     def take_dialog_with_target(self):
