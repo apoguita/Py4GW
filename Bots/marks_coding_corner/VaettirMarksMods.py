@@ -6,6 +6,7 @@ import Py4GW
 from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
 from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_array
 from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
+from Bots.marks_coding_corner.utils.loot_utils import set_autoloot_options_for_custom_bots
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
 from Bots.marks_coding_corner.utils.merch_utils import withdraw_gold
 from Py4GW_widget_manager import get_widget_handler
@@ -47,6 +48,8 @@ def create_bot_routine(bot: Botting) -> None:
 def initialize_bot(bot: Botting) -> None:
     widget_handler = get_widget_handler()
     widget_handler.disable_widget('Return to outpost on defeat')
+    set_autoloot_options_for_custom_bots(salvage_golds=True, module_active=False)
+
     bot.helpers.Events.set_on_unmanaged_fail(lambda: handle_custom_on_unmanaged_fail(bot))
     bot.Events.OnDeathCallback(lambda: on_death(bot))
     bot.States.AddHeader("Initialize Bot")

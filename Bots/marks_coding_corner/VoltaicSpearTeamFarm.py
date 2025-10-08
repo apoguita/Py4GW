@@ -2,14 +2,17 @@ import math
 import os
 
 import Py4GW
+from Bots.marks_coding_corner.utils.loot_utils import set_autoloot_options_for_custom_bots
 from HeroAI.cache_data import CacheData
 from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import AutoInventoryHandler
 from Py4GWCoreLib import Botting
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
+from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import ThrottledTimer
 from Widgets.CombatPrep import CombatPrep
 
@@ -73,6 +76,7 @@ is_party_flagged = False
 last_flagged_x_y = (0, 0)
 last_flagged_map_id = VERDANT_CASCADES_MAP_ID
 flag_timer = ThrottledTimer(3000)
+auto_inventory_handler = AutoInventoryHandler()
 
 
 def _on_party_wipe(bot: "Botting"):
@@ -117,6 +121,27 @@ def OnPartyWipe(bot: "Botting"):
     fsm = bot.config.FSM
     fsm.pause()
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
+
+
+def open_final_chest():
+    yield from Routines.Yield.Agents.TargetNearestGadgetXY(-17461.00, -14258.00, 100)
+    target = GLOBAL_CACHE.Player.GetTargetID()
+    if target == 0:
+        ConsoleLog("Messaging", "No target to interact with.")
+        return
+    sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+    yield from Routines.Yield.wait(5000)  # initial 3 second wait
+
+    for account in accounts:
+        if sender_email == account.AccountEmail:
+            continue
+        ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
+        GLOBAL_CACHE.ShMem.SendMessage(
+            sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target, 0, 0, 0)
+        )
+        yield from Routines.Yield.wait(5000)
+    yield
 
 
 def handle_on_danger_flagging(bot: Botting):
@@ -169,6 +194,7 @@ def handle_on_danger_flagging(bot: Botting):
 
 
 def farm_dungeon(bot: Botting) -> None:
+    set_autoloot_options_for_custom_bots(salvage_golds=False, module_active=True)
     widget_handler = get_widget_handler()
     widget_handler.enable_widget('Return to outpost on defeat')
     widget_handler.enable_widget('CombatPrep')
@@ -216,7 +242,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Properties.Disable('pause_on_danger')
     bot.Wait.ForTime(20000)
     bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
-    bot.Multibox.InteractWithTargetDungeonChest()  # Bots should auto loot
+    bot.States.AddCustomState(open_final_chest, "Open final chest")
 
     bot.Wait.ForTime(10000)
     bot.Multibox.ResignParty()
