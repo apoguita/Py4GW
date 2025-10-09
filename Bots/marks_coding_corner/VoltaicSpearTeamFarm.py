@@ -14,12 +14,13 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib import ChatChannel
 from Py4GWCoreLib.Builds.ShadowTheftDaggerSpammer import AssassinShadowTheftDaggerSpammer
 from Py4GWCoreLib.Builds.ShadowTheftDaggerSpammer import BuildStatus
 from Widgets.CombatPrep import CombatPrep
 
 
-BOT_NAME = "Voltaic Spear Farm"
+BOT_NAME = "Voltaic Spear Farm [BETA]"
 TEXTURE = os.path.join(
     Py4GW.Console.get_projects_path(), "Bots", "marks_coding_corner", "textures", "voltaic_spear.png"
 )
@@ -34,6 +35,7 @@ VERDANT_CASCADES_TRAVEL_PATH: list[tuple[float, float]] = [
     (-6878, -329),
     (-3041, -3446),
     (3571, -9501),
+    (4721, -10626),
     (10764, -6448),
     (13063, -4396),
     (18054, -3275),
@@ -78,6 +80,7 @@ combat_prep = CombatPrep(cache_data, '60', 'row')  # Use Widget class to flag he
 is_party_flagged = False
 last_flagged_x_y = (0, 0)
 last_flagged_map_id = VERDANT_CASCADES_MAP_ID
+use_assassin_skillbar = True
 flag_timer = ThrottledTimer(3000)
 auto_inventory_handler = AutoInventoryHandler()
 
@@ -209,6 +212,24 @@ def disable_hero_ai_leader_combat(bot: Botting):
     yield
 
 
+def setup_hero_ai_and_custom_builds(bot: Botting):
+    global use_assassin_skillbar
+
+    if not use_assassin_skillbar:
+        yield
+        return
+
+    primary_profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if primary_profession != "Assassin" and use_assassin_skillbar:
+        GLOBAL_CACHE.Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, "You are not allowed to use this skill bar! Not Assassin main")
+        yield
+        return
+
+    bot.OverrideBuild(AssassinShadowTheftDaggerSpammer())
+    yield from bot.config.build_handler.LoadSkillBar()
+    yield from disable_hero_ai_leader_combat(bot)
+
+
 def farm_dungeon(bot: Botting) -> None:
     set_autoloot_options_for_custom_bots(salvage_golds=False, module_active=True)
     widget_handler = get_widget_handler()
@@ -222,26 +243,19 @@ def farm_dungeon(bot: Botting) -> None:
     # end events
 
     bot.States.AddHeader(BOT_NAME)
-    bot.OverrideBuild(AssassinShadowTheftDaggerSpammer())
-
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
 
     bot.States.AddHeader('Exit To Farm')
-    bot.Party.SetHardMode(True)
     bot.Properties.Disable('pause_on_danger')
-    bot.Templates.Multibox_Aggressive()
-    bot.Properties.Disable("auto_inventory_management")
-    bot.Properties.Enable('auto_combat')
-    bot.States.AddCustomState(lambda: disable_hero_ai_leader_combat(bot), "Disable Leader Combat")
-    bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
+    bot.States.AddCustomState(lambda: setup_hero_ai_and_custom_builds(bot), "Set up leader combat stuff")
     bot.Party.SetHardMode(True)
     bot.Move.XYAndExitMap(-22735, 6339, target_map_id=VERDANT_CASCADES_MAP_ID)
     bot.Properties.Enable('pause_on_danger')
 
     bot.States.AddHeader("Enter Dungeon")
     bot.Templates.Multibox_Aggressive()
-    bot.Properties.Disable("auto_inventory_management")
     bot.Properties.Enable('auto_combat')
+    bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
     bot.Move.FollowAutoPath(VERDANT_CASCADES_TRAVEL_PATH, "To the dungeon route")
     bot.Move.XYAndExitMap(25729, -9360, target_map_id=SALVERS_EXILE_MAP_ID)
 
@@ -253,24 +267,25 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Multibox.UsePConSet()
     bot.Multibox.UsePumpkinPie()
     bot.Templates.Multibox_Aggressive()
-    bot.Properties.Disable("auto_inventory_management")
     bot.Properties.Enable('auto_combat')
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
+
     bot.States.AddHeader("Justiciar Tommis pathing 1")
     bot.Move.XY(SLAVERS_EXILE_PATH_PRE_PATH_1[0], SLAVERS_EXILE_PATH_PRE_PATH_1[1], "Part 1 pre-route")
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_1, "Part 1 killing route")
 
     bot.States.AddHeader("Justiciar Tommis pt2")
-    bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
+    bot.Multibox.UsePumpkinPie()
     bot.Templates.Multibox_Aggressive()
-    bot.Properties.Disable("auto_inventory_management")
     bot.Properties.Enable('auto_combat')
+    bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
+
     bot.States.AddHeader("Justiciar Tommis pathing 2")
     bot.Move.XY(SLAVERS_EXILE_PATH_PRE_PATH_2[0], SLAVERS_EXILE_PATH_PRE_PATH_2[1], "Part 2 pre-route")
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_2, "Part 2 killing route")
 
     bot.Properties.Disable('pause_on_danger')
-    bot.Wait.ForTime(20000)
+    bot.Wait.ForTime(10000)
     bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
     bot.States.AddCustomState(open_final_chest, "Open final chest")
 
@@ -281,18 +296,34 @@ def farm_dungeon(bot: Botting) -> None:
     bot.States.JumpToStepName('[H]Exit To Farm_3')
 
 
-def additoinal_ui():
+def additional_ui():
+    global use_assassin_skillbar
+
     if PyImGui.begin_child("Additional Options:"):
         PyImGui.text("Additional Options:")
         PyImGui.separator()
 
         full_width = PyImGui.get_content_region_avail()[0]
-        # --- Draw two equal-width buttons on same line ---
+
+        # --- Buttons ---
         if PyImGui.button("Run my custom setup [Need to be in outpost]", full_width):
             bot.StartAtStep("[H]Exit To Farm_3")
 
         if PyImGui.button("Start with default setup", full_width):
-            bot.StartAtStep("[H]Voltaic Spear Farm_1")
+            bot.StartAtStep("[H]Voltaic Spear Farm [BETA]_1")
+
+        PyImGui.separator()
+
+        # --- Label + Checkbox ---
+        PyImGui.text("Skill Bar Options:")
+        PyImGui.spacing()
+
+        new_value_use_assassin_skillbar = PyImGui.checkbox(
+            "[A/Any]: Shadow Theft Dagger Spammer", use_assassin_skillbar  # type: ignore
+        )
+        if new_value_use_assassin_skillbar != use_assassin_skillbar:
+            ConsoleLog(BOT_NAME, f"Use SkillBar: {new_value_use_assassin_skillbar}")
+            use_assassin_skillbar = new_value_use_assassin_skillbar
 
         PyImGui.end_child()
 
@@ -302,7 +333,7 @@ bot.SetMainRoutine(farm_dungeon)
 
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path=TEXTURE, main_child_dimensions=(350, 450), addtional_ui=additoinal_ui)
+    bot.UI.draw_window(icon_path=TEXTURE, main_child_dimensions=(400, 450), additional_ui=additional_ui)
 
 
 if __name__ == "__main__":

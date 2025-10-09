@@ -142,7 +142,7 @@ class OnPartyMemberBehind(Event):
         if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
             return False
 
-        party_member_behind = Routines.Checks.Party.IsPartyMemberBehind()
+        party_member_behind = Routines.Checks.Party.IsPartyMemberBehind(1900)
         #if party_member_behind:
         #    print("OnPartyMemberBehind triggered")
         return party_member_behind
