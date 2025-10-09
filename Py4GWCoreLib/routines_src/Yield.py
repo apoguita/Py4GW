@@ -1341,6 +1341,16 @@ class Yield:
             else:
                 return False
             return True
+        
+        @staticmethod
+        def UseItem(model_id: int) -> Generator[Any, Any, bool]:
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+            if item_id:
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                yield from Yield.wait(600)
+            else:
+                return False
+            return True
 
         @staticmethod
         def SpawnBonusItems():

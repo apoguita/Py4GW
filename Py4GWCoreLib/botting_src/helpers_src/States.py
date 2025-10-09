@@ -24,6 +24,8 @@ class _States:
     @_yield_step(label="JumpToStepName", counter_key="JUMP_TO_STEP_NAME")
     def jump_to_step_name(self, step_name: str) -> Generator[Any, Any, None]:
         self._config.FSM.pause()
+        yield
         self._config.FSM.jump_to_state_by_name(step_name)
+        yield
         self._config.FSM.resume()
         yield

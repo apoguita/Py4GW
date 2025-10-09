@@ -157,6 +157,7 @@ class FrameTree:
 
 
 #region InfoWindow
+double_action = False
 
 class InfoWindow:
     from PyUIManager import UIFrame
@@ -199,9 +200,11 @@ class InfoWindow:
         return "".join(chr(b) if 32 <= b <= 126 else "." for b in byte_values)
 
 
+    
     def Draw(self):
         global config_options
         global full_tree
+        global double_action
         if PyImGui.begin(f"{self.window_name}##{self.frame.frame_id}", True, PyImGui.WindowFlags.AlwaysAutoResize):
             if not config_options.keep_data_updated:
                 self.auto_update = PyImGui.checkbox(f"Auto Update##{self.frame.frame_id}", self.auto_update)
@@ -245,7 +248,7 @@ class InfoWindow:
                         if PyImGui.button((f"test mouse action##{self.frame.frame_id}")):
                             UIManager.TestMouseAction(self.frame.frame_id, self.current_state, self.wparam, self.lparam)
                             self.current_state += 1
-                            if self.current_state == 7:
+                            if self.current_state in (6, 10, 8):
                                 self.current_state += 1
                             if self.current_state > 10:
                                 self.current_state = 0
@@ -255,8 +258,22 @@ class InfoWindow:
                                     self.lparam += 1
                                     
                             print (f"Tested on frame {self.frame.frame_id}")
-                
-                
+                            
+                        if PyImGui.button((f"test mouse click action##{self.frame.frame_id}")):
+                            UIManager.TestMouseClickAction(self.frame.frame_id, self.current_state, self.wparam, self.lparam)
+                            self.current_state += 1
+                            #if self.current_state in (6, 10, 8):
+                            #    self.current_state += 1
+                            if self.current_state > 10:
+                                self.current_state = 0
+                                self.wparam += 1
+                                if self.wparam > 10:
+                                    self.wparam = 0
+                                    self.lparam += 1
+                                    
+                            print (f"Tested on frame {self.frame.frame_id}")
+
+
                         PyImGui.text(f"Parent ID: {self.frame.parent_id}")
                         PyImGui.text(f"Visibility Flags: {self.frame.visibility_flags}")
                         PyImGui.text(f"Is Visible: {self.frame.is_visible}")

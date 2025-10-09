@@ -2864,7 +2864,9 @@ class ImGui:
     class gw_window():
         _state = {}
         
-        TEXTURE_FOLDER = "Textures\\Game UI\\"
+        projects_path = Py4GW.Console.get_projects_path()
+        
+        TEXTURE_FOLDER = projects_path + "\\Textures\\Game UI\\"
         FRAME_ATLAS = "ui_window_frame_atlas.png"
         FRAME_ATLAS_DIMENSIONS = (128,128)
         TITLE_ATLAS = "ui_window_title_frame_atlas.png"
