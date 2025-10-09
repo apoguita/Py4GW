@@ -4,18 +4,21 @@ from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib.Builds import AutoCombat
 
 from Py4GWCoreLib import ActionQueueManager
+from Py4GWCoreLib import Keystroke
+from Py4GWCoreLib import Key
 
 from Py4GWCoreLib import Range
+from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Agent
 
 
 DUNGEON_MODEL_IDS = {
-    6493: "Stone Summit Dominator",
+    6493: "Stone Summit Dominator", #6
     6495: "Stone Summit Contaminator",  # 4
     6496: "Stone Summit Blasphemer",
-    6497: "Stone Summit Warder", # 5
-    6498: "Stone Summit Priest", # 3
+    6497: "Stone Summit Warder",  # 5
+    6498: "Stone Summit Priest",  # 3
     6499: "Stone Summit Defender",  # 1
     6500: "Stone Summit Cleaver",
     6502: "Stone Summit Pounder",
@@ -23,8 +26,8 @@ DUNGEON_MODEL_IDS = {
     6504: "Stone Summit Marksman",
     6505: "Stone Summit Distracter",
     6506: "Stone Summit Zealot",
-    6507: "Stone Summit Summoner", # 6
-    6512: "Modniir Priest", # 2
+    6507: "Stone Summit Summoner",  # 6
+    6512: "Modniir Priest",  # 2
     6514: "Modniir Berserker",
     6515: "Modniir Hunter",
     6798: "Wretched Wolf",
@@ -73,6 +76,117 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
         self.status = BuildStatus.Wait
         self.priority_target = None
 
+        self.last_asuran_scan_target = None
+        self.last_asuran_scan_time = 0
+        self.asuran_scan_throttle = ThrottledTimer(10000)  # 10 seconds
+        self.last_asuran_scan_target_id = None  # Track which target we last cast on
+
+    def acquire_priority_target(self, range_limit=Range.Earshot.value):
+        """
+        Scans nearby enemies and locks onto the nearest valid target within range_limit.
+        Returns True if a target was successfully locked, else False.
+        """
+        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+        enemy_agent_ids = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, range_limit)
+        nearest_agent_id = None
+        nearest_dist_sq = float("inf")
+
+        for agent_id in enemy_agent_ids:
+            agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
+            if not agent or not agent.is_living or agent.living_agent is None or agent.living_agent.is_spawned:
+                continue
+
+            dx, dy = agent.x - player_x, agent.y - player_y
+            dist_sq = dx * dx + dy * dy
+            if dist_sq < nearest_dist_sq:
+                nearest_dist_sq = dist_sq
+                nearest_agent_id = agent_id
+
+        if nearest_agent_id:
+            self.priority_target = nearest_agent_id
+            GLOBAL_CACHE.Player.ChangeTarget(nearest_agent_id)
+            GLOBAL_CACHE.Player.Interact(nearest_agent_id, True)
+            ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+            yield from Routines.Yield.Keybinds.TargetPriorityTarget()
+            return
+
+        self.priority_target = None
+
+    def update_priority_target_if_needed(self):
+        """
+        Checks if the current target is still valid; if dead or out of range, reacquire one.
+        """
+        if not self.priority_target:
+            yield from self.acquire_priority_target()
+            return
+
+        agent = GLOBAL_CACHE.Agent.GetAgentByID(self.priority_target)
+        if not agent or GLOBAL_CACHE.Agent.IsDead(agent.id):
+            self.priority_target = None
+            yield from self.acquire_priority_target()
+            return
+
+        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+        dx, dy = agent.x - player_x, agent.y - player_y
+        dist_sq = dx * dx + dy * dy
+        if dist_sq > Range.Earshot.value**2:
+            self.priority_target = None
+            yield from self.acquire_priority_target()
+            return
+
+    def find_shadow_theft_target(self):
+        """
+        Specifically for Shadow Theft — find a new target within Earshot range,
+        prioritizing enemies based on model ID importance, then proximity.
+        """
+
+        # === Define target priority ranking (lower number = higher priority) ===
+        priority_order = {
+            6499: 1,  # Stone Summit Defender
+            6512: 2,  # Modniir Priest
+            6498: 3,  # Stone Summit Priest
+            6495: 4,  # Stone Summit Contaminator
+            6497: 5,  # Stone Summit Warder
+            6507: 6,  # Stone Summit Summoner
+            6493: 7,  # Stone Summit Dominator
+        }
+
+        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+        enemy_agent_ids = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, Range.Earshot.value)
+
+        best_agent_id = None
+        best_priority = float("inf")
+        best_dist_sq = float("inf")
+
+        for agent_id in enemy_agent_ids:
+            agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
+            if not agent or not agent.is_living or agent.living_agent is None or agent.living_agent.is_spawned:
+                continue
+
+            model_id = GLOBAL_CACHE.Agent.GetModelID(agent.id)
+            dx, dy = agent.x - player_x, agent.y - player_y
+            dist_sq = dx * dx + dy * dy
+
+            # Determine priority rank (default = 999 if not special)
+            rank = priority_order.get(model_id, 999)
+
+            # Prefer higher-priority targets, then nearer distance as tiebreaker
+            if rank < best_priority or (rank == best_priority and dist_sq < best_dist_sq):
+                best_priority = rank
+                best_dist_sq = dist_sq
+                best_agent_id = agent_id
+
+        # === Lock and engage the chosen target ===
+        if best_agent_id:
+            self.priority_target = best_agent_id
+            GLOBAL_CACHE.Player.ChangeTarget(best_agent_id)
+            GLOBAL_CACHE.Player.Interact(best_agent_id, True)
+            ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+            yield from Routines.Yield.Keybinds.TargetPriorityTarget()
+            return True
+
+        return False
+
     def ProcessSkillCasting(self):
         if not (
             Routines.Checks.Map.IsExplorable()
@@ -95,7 +209,14 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
         has_shadow_theft = Routines.Checks.Effects.HasBuff(player_agent_id, self.shadow_theft)
 
         if self.status == BuildStatus.Kill:
-            yield from Routines.Yield.Keybinds.TargetNearestEnemy()
+            # Ensure we have a valid target locked
+            yield from self.update_priority_target_if_needed()
+
+            if not self.priority_target:
+                # Couldn’t find any enemies nearby, wait and retry
+                yield from Routines.Yield.wait(100)
+                return
+
             nearest_enemy_agent_id = GLOBAL_CACHE.Player.GetTargetID()
             nearest_enemy_agent = Agent.GetAgentByID(nearest_enemy_agent_id)
             player_x, player_y = GLOBAL_CACHE.Player.GetXY()
@@ -124,21 +245,38 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                 or (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_theft))
                 and dist_sq <= Range.Area.value**2
             ):
+                # Acquire new target specifically for Shadow Theft
+                yield from self.find_shadow_theft_target()
 
-                if nearest_enemy_agent.is_living and nearest_enemy_agent.living_agent:
-                    shadow_theft_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.shadow_theft)
-                    yield from Routines.Yield.Keybinds.UseSkill(shadow_theft_slot)
-                    return
+                if self.priority_target:
+                    nearest_enemy_agent_id = self.priority_target
+                    nearest_enemy_agent = Agent.GetAgentByID(nearest_enemy_agent_id)
 
+                    if nearest_enemy_agent and nearest_enemy_agent.is_living and nearest_enemy_agent.living_agent:
+                        shadow_theft_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.shadow_theft)
+                        yield from Routines.Yield.Keybinds.UseSkill(shadow_theft_slot)
+                        return
+
+            # === Handle Asuran Scan with per-target throttle + hex check ===
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.asuran_scan)) and nearest_enemy_agent_id:
                 if (
                     nearest_enemy_agent.is_living
                     and nearest_enemy_agent.living_agent
                     and not nearest_enemy_agent.living_agent.is_spawned
                 ):
-                    asura_scan_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.asuran_scan)
-                    yield from Routines.Yield.Keybinds.UseSkill(asura_scan_slot)
-                    return
+                    # Only cast if timer expired or target isn't hexed
+                    if (
+                        self.asuran_scan_throttle.IsExpired()
+                        or not GLOBAL_CACHE.Agent.IsHexed(nearest_enemy_agent_id)
+                        or self.last_asuran_scan_target_id != nearest_enemy_agent_id
+                    ):
+                        asura_scan_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.asuran_scan)
+                        yield from Routines.Yield.Keybinds.UseSkill(asura_scan_slot)
+
+                        # Reset throttle after casting
+                        self.asuran_scan_throttle.Reset()
+                        self.last_asuran_scan_target_id = nearest_enemy_agent_id
+                        return
 
             # --- Only proceed if within adjacent range ---
             if dist_sq <= Range.Adjacent.value**2:
@@ -176,7 +314,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                     yield from Routines.Yield.Keybinds.Interact()
 
                     # --- Cast Jagged Strike first ---
-                    yield from Routines.Yield.Keybinds.TargetNearestEnemy()
+                    yield from Routines.Yield.Keybinds.TargetPriorityTarget()
                     yield from Routines.Yield.Keybinds.UseSkill(jagged_slot)
 
                     # --- Small wait to allow animation start ---
@@ -213,7 +351,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
 
                     # Jagged Strike
                     skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(jagged)
-                    yield from Routines.Yield.Keybinds.TargetNearestEnemy()
+                    yield from Routines.Yield.Keybinds.TargetPriorityTarget()
                     yield from Routines.Yield.Keybinds.UseSkill(skill_slot)
                     yield from Routines.Yield.wait(200)  # small follow-up delay
 
