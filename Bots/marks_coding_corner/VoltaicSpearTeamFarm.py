@@ -227,6 +227,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
 
     bot.States.AddHeader('Exit To Farm')
+    bot.Party.SetHardMode(True)
     bot.Properties.Disable('pause_on_danger')
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Disable("auto_inventory_management")
