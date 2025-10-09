@@ -802,6 +802,7 @@ class MissionMap:
         self.renderer.world_space.set_zoom(zoom/100.0)
         self.mega_zoom_renderer.world_space.set_zoom(zoom/100.0)
         self.renderer.world_space.set_scale(self.scale_x)
+        self.mega_zoom_renderer.world_space.set_scale(self.scale_x)
         
         
         

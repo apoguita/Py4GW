@@ -144,6 +144,35 @@ class _Merchant:
                     break
 
 
+    def _buy_item(self, model_id: int, desired_quantity: int) -> Generator[Any, Any, None]:
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+
+        if self._merchant_frame_exists(): # and self._is_merchant(): 
+            offered_items = GLOBAL_CACHE.Trading.Merchant.GetOfferedItems()
+            for item in offered_items:
+                item_model = GLOBAL_CACHE.Item.GetModelID(item)
+                if item_model == model_id:
+                    value = GLOBAL_CACHE.Item.Properties.GetValue(item) * 2
+                    bought = 0
+                    while bought < desired_quantity:
+                        GLOBAL_CACHE.Trading.Merchant.BuyItem(item, value)
+                        bought += 1
+                        yield from Routines.Yield.wait(75)  # wait between purchases
+                    break
+                
+    def _sell_item(self, item_id: int, quantity: int) -> Generator[Any, Any, None]:
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+
+        if self._merchant_frame_exists(): # and self._is_merchant(): 
+            value = GLOBAL_CACHE.Item.Properties.GetValue(item_id)
+            sold = 0
+            while sold < quantity:
+                GLOBAL_CACHE.Trading.Merchant.SellItem(item_id, value)
+                sold += 1
+                yield from Routines.Yield.wait(75)  # wait between sales
+
                 
     @_yield_step(label="SellMaterialsToMerchant", counter_key="SELL_MATERIALS_TO_MERCHANT")
     def sell_materials_to_merchant(self) -> Generator[Any, Any, None]:
@@ -173,4 +202,11 @@ class _Merchant:
             needed_stacks = max(0, qty - current_stacks)
             if needed_stacks > 0:
                 yield from self._restock_item(ModelID.Salvage_Kit.value, needed_stacks)
-
+                
+    @_yield_step(label="BuyItem", counter_key="BUY_ITEM")
+    def buy_item(self, model_id: int, quantity: int) -> Generator[Any, Any, None]:
+        yield from self._buy_item(model_id, quantity)
+        
+    @_yield_step(label="SellItem", counter_key="SELL_ITEM")
+    def sell_item(self, item_id: int, quantity: int) -> Generator[Any, Any, None]:
+        yield from self._sell_item(item_id, quantity)

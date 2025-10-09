@@ -202,30 +202,35 @@ class NavMesh:
     def get_neighbors(self, t_id: int) -> List[int]:
         return self.portal_graph.get(t_id, [])
     
-    def find_trapezoid_id_by_coord(self, point: Tuple[float, float]) -> Optional[int]:
+    def find_trapezoid_id_by_coord(self, point: Tuple[float, float], tol: float = 5.0) -> Optional[int]:
+        """
+        Returns the trapezoid ID containing (x, y), using a small tolerance to avoid
+        floating-point misses when the point lies exactly on a border or corner.
+        """
         x, y = point
 
         # 1. Normal trapezoids (floor & standard geometry)
         for t in self.trapezoids.values():
-            if t.YB <= y <= t.YT:
+            if t.YB - tol <= y <= t.YT + tol:
                 ratio = (y - t.YB) / (t.YT - t.YB) if t.YT != t.YB else 0
                 left_x = t.XBL + (t.XTL - t.XBL) * ratio
                 right_x = t.XBR + (t.XTR - t.XBR) * ratio
-                if left_x <= x <= right_x:
+                if left_x - tol <= x <= right_x + tol:
                     return t.id
 
         # 2. Cross-layer portals (bridge, stairs, elevated geometry)
         for portal in self.portals:
             for trap in (portal.a.m_t, portal.b.m_t):
-                if trap.YB <= y <= trap.YT:
+                if trap.YB - tol <= y <= trap.YT + tol:
                     ratio = (y - trap.YB) / (trap.YT - trap.YB) if trap.YT != trap.YB else 0
                     left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
                     right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-                    if left_x <= x <= right_x:
+                    if left_x - tol <= x <= right_x + tol:
                         return trap.id
 
         # 3. Nothing found
         return None
+
 
 
     

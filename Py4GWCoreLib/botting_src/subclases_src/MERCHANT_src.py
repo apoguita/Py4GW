@@ -17,6 +17,12 @@ class _MERCHANTS:
     def SellMaterialsToMerchant(self):
         self._helpers.Merchant.sell_materials_to_merchant()
         
+    def MerchantBuyItem(self, model_id: int, quantity: int):
+        self._helpers.Merchant.buy_item(model_id, quantity)
+        
+    def MerchantSellItem(self, item_id: int, quantity: int):
+        self._helpers.Merchant.sell_item(item_id, quantity)
+        
     class _RESTOCK:
         def __init__(self, parent: "BottingClass"):
             self.parent = parent
