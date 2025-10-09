@@ -40,6 +40,7 @@ from Py4GWCoreLib import Overlay
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
+from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import Utils
@@ -48,6 +49,7 @@ MODULE_NAME = "HeroAI"
 
 FOLLOW_COMBAT_DISTANCE = 25.0  # if body blocked, we get close enough.
 LEADER_FLAG_TOUCH_RANGE_THRESHOLD_VALUE = Range.Touch.value * 1.1
+LOOT_THROTTLE_CHECK = ThrottledTimer(500)
 
 cached_data = CacheData()
 
@@ -70,13 +72,19 @@ def HandleCombatFlagging(cached_data: CacheData):
         own_follow_x = all_player_struct[party_number].FlagPosX
         own_follow_y = all_player_struct[party_number].FlagPosY
         own_flag_coords = (own_follow_x, own_follow_y)
-        if Utils.Distance(own_flag_coords, GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID())) >= FOLLOW_COMBAT_DISTANCE:
+        if (
+            Utils.Distance(own_flag_coords, GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+            >= FOLLOW_COMBAT_DISTANCE
+        ):
             return True  # Forces a reset on autoattack timer
     elif all_player_struct[0].IsFlagged:
         leader_follow_x = all_player_struct[0].FlagPosX
         leader_follow_y = all_player_struct[0].FlagPosY
         leader_flag_coords = (leader_follow_x, leader_follow_y)
-        if Utils.Distance(leader_flag_coords, GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID())) >= LEADER_FLAG_TOUCH_RANGE_THRESHOLD_VALUE:
+        if (
+            Utils.Distance(leader_flag_coords, GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+            >= LEADER_FLAG_TOUCH_RANGE_THRESHOLD_VALUE
+        ):
             return True  # Forces a reset on autoattack timer
     return False
 
@@ -109,7 +117,9 @@ def LootingRoutineActive():
 
 
 def Loot(cached_data: CacheData):
-    if not cached_data.data.is_looting_enabled:  # halt operation if looting is disabled
+    global LOOT_THROTTLE_CHECK
+
+    if not cached_data.data.is_looting_enabled:
         return False
 
     if cached_data.data.in_aggro:
@@ -118,11 +128,18 @@ def Loot(cached_data: CacheData):
     if LootingRoutineActive():
         return True
 
+    if not LOOT_THROTTLE_CHECK.IsExpired():
+        cached_data.in_looting_routine = True
+        return True
+
+    # Stop if inventory is full
     if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1:
         return False
 
+    # Build the loot array based on filtering rules
     loot_array = LootConfig().GetfilteredLootArray(
-        Range.Earshot.value, multibox_loot=True,
+        Range.Earshot.value,
+        multibox_loot=True,
         allow_unasigned_loot=False,
     )
     if len(loot_array) == 0:
@@ -135,12 +152,16 @@ def Loot(cached_data: CacheData):
         cached_data.in_looting_routine = False
         return False
 
-    GLOBAL_CACHE.ShMem.SendMessage(
-        self_account.AccountEmail,
-        self_account.AccountEmail,
-        SharedCommandType.PickUpLoot,
-        (0, 0, 0, 0),
-    )
+    # === Throttled Send ===
+    if LOOT_THROTTLE_CHECK.IsExpired():
+        GLOBAL_CACHE.ShMem.SendMessage(
+            self_account.AccountEmail,
+            self_account.AccountEmail,
+            SharedCommandType.PickUpLoot,
+            (0, 0, 0, 0),
+        )
+        LOOT_THROTTLE_CHECK.Reset()
+
     return True
 
 
@@ -228,11 +249,13 @@ def draw_Targeting_floating_buttons(cached_data: CacheData):
 
     Overlay().BeginDraw()
     for agent_id in enemy_array:
-        x,y,z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
-        screen_x,screen_y = Overlay.WorldToScreen(x,y,z+25)
-        if ImGui.floating_button(f"{IconsFontAwesome5.ICON_CROSSHAIRS}",name = agent_id, x = screen_x-12, y = screen_y-12 , width= 25, height= 25):       
-            GLOBAL_CACHE.Player.ChangeTarget (agent_id)
-            GLOBAL_CACHE.Player.Interact (agent_id, True)
+        x, y, z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
+        screen_x, screen_y = Overlay.WorldToScreen(x, y, z + 25)
+        if ImGui.floating_button(
+            f"{IconsFontAwesome5.ICON_CROSSHAIRS}", name=agent_id, x=screen_x - 12, y=screen_y - 12, width=25, height=25
+        ):
+            GLOBAL_CACHE.Player.ChangeTarget(agent_id)
+            GLOBAL_CACHE.Player.Interact(agent_id, True)
             ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
     Overlay().EndDraw()
 
