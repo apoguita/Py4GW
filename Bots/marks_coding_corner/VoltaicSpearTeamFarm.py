@@ -101,25 +101,21 @@ def _on_party_wipe(bot: "Botting"):
     # Compute distances
     dist_to_shrine_2 = math.hypot(player_x - shrine_2_x, player_y - shrine_2_y)
 
+    bot.config.FSM.pause()
     # Check if within earshot
     if GLOBAL_CACHE.Map.GetMapID() == JUSTICIAR_THOMMIS_ROOM_MAP_ID:
         if dist_to_shrine_2 <= Range.Spellcast.value:
-            bot.config.FSM.pause()
             ConsoleLog("Res Check", "Player is near Shrine 2 (Res Point 2)")
             bot.States.JumpToStepName("[H]Justiciar Tommis pt2_8")
-            bot.config.FSM.resume()
         else:
-            bot.config.FSM.pause()
             ConsoleLog("Res Check", "Player is in beginning shrine")
             bot.States.JumpToStepName("[H]Justiciar Tommis pt1_6")
-            bot.config.FSM.resume()
 
     else:
-        bot.config.FSM.pause()
         bot.Multibox.ResignParty()
         yield from bot.helpers.Wait._for_time(10000)  # Allow the widget to take the party back to town
         bot.States.JumpToStepName("[H]Exit To Farm_3")
-        bot.config.FSM.resume()
+    bot.config.FSM.resume()
 
 
 def OnPartyWipe(bot: "Botting"):
@@ -202,6 +198,7 @@ def handle_on_danger_flagging(bot: Botting):
 
 
 def disable_hero_ai_leader_combat(bot: Botting):
+    bot.OverrideBuild(AssassinShadowTheftDaggerSpammer())
     if isinstance(bot.config.build_handler, AssassinShadowTheftDaggerSpammer):
         acount_email = GLOBAL_CACHE.Player.GetAccountEmail()
         hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acount_email)
@@ -268,6 +265,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Multibox.UsePumpkinPie()
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Enable('auto_combat')
+    bot.States.AddCustomState(lambda: disable_hero_ai_leader_combat(bot), "Set up leader combat stuff")
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
 
     bot.States.AddHeader("Justiciar Tommis pathing 1")
@@ -278,6 +276,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Multibox.UsePumpkinPie()
     bot.Templates.Multibox_Aggressive()
     bot.Properties.Enable('auto_combat')
+    bot.States.AddCustomState(lambda: disable_hero_ai_leader_combat(bot), "Set up leader combat stuff")
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
 
     bot.States.AddHeader("Justiciar Tommis pathing 2")
@@ -285,11 +284,13 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_2, "Part 2 killing route")
 
     bot.Properties.Disable('pause_on_danger')
-    bot.Wait.ForTime(10000)
+    bot.Wait.ForTime(5000)
     bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
     bot.States.AddCustomState(open_final_chest, "Open final chest")
-
-    bot.Wait.ForTime(10000)
+    bot.Wait.ForTime(5000)
+    bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
+    bot.States.AddCustomState(open_final_chest, "Open final chest")
+    bot.Wait.ForTime(5000)
     bot.Multibox.ResignParty()
     bot.Wait.ForTime(3000)
     bot.Wait.UntilOnOutpost()
