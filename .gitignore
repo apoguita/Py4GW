@@ -9,7 +9,7 @@ AlcoholProc.ini
 alcohol_procs.json
 Widgets/Config/Travel.ini
 Widgets/Config/*
-Bots/marks_coding_corner/**.ini
+Bots/marks_coding_corner/alcohol_procs.ini
 Bots/marks_coding_corner/**.json
 
 !Widgets/Config/textures/
