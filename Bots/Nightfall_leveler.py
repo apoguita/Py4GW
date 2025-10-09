@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List, Tuple, Generator, Any
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui)
+                          AutoPathing, ImGui, ActionQueueManager)
 
 
 bot = Botting("NF Leveler",
@@ -66,18 +66,11 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToMarketplaceOutpost(bot)           # Advance to Marketplace
     AdvanceToSeitungHarbor(bot)                # Advance to Seitung Harbor
     UnlockLionsArch(bot)                       # Unlock LA (Lion's Arch)
-    
-    
-
-            
+                
 #region Helpers
 
 def ConfigurePacifistEnv(bot: Botting) -> None:
-    bot.Properties.Disable("pause_on_danger")
-    bot.Properties.Enable("halt_on_death")
-    bot.Properties.Set("movement_timeout",value=15000)
-    bot.Properties.Disable("auto_combat")
-    bot.Properties.Disable("imp")
+    bot.Templates.Pacifist()
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Disable("honeycomb")
     bot.Properties.Disable("war_supplies")
@@ -86,11 +79,7 @@ def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Items.Restock.Honeycomb()
 
 def ConfigureAggressiveEnv(bot: Botting) -> None:
-    bot.Properties.Enable("pause_on_danger")
-    bot.Properties.Disable("halt_on_death")
-    bot.Properties.Set("movement_timeout",value=-1)
-    bot.Properties.Enable("auto_combat")
-    bot.Properties.Enable("imp")
+    bot.Templates.Aggressive()
     bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Enable("honeycomb")
     bot.Properties.Enable("war_supplies")
@@ -223,6 +212,19 @@ def GetWeaponMaterialPerProfession(bot: Botting):
     elif primary == "Paragon":
         return [ModelID.Iron_Ingot.value]
     return []
+
+def withdraw_gold(target_gold=3000, deposit_all=True):
+    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+    if gold_on_char > target_gold and deposit_all:
+        to_deposit = gold_on_char - target_gold
+        GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
+        yield from Routines.Yield.wait(250)
+
+    if gold_on_char < target_gold:
+        to_withdraw = target_gold - gold_on_char
+        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
+        yield from Routines.Yield.wait(250)
 
 def BuyMaterials():
     for _ in range(2):
@@ -390,6 +392,12 @@ def SkipTutorialDialog(bot: Botting) -> None:
 def TravelToGuildHall(bot: Botting):
     bot.States.AddHeader("Phase 1: Traveling to Guild Hall")
     bot.Map.TravelGH()
+    bot.States.AddCustomState(withdraw_gold, "Get 3000 gold")
+    #bot.Move.XYAndInteractNPC(10275, 3114) # Guild Hall NPC
+    #bot.buy_item(35, 100) # Buy Bag 1
+    #bot.buy_item(35, 100) # Buy Bag 2
+    #bot.buy_item(34, 100) # Buy Belt Pouch  
+    bot.Wait.ForTime(1000) # Wait for equip to complete
     bot.Map.LeaveGH()
     bot.Wait.ForTime(5000) # Wait for cinematics to finish
 
@@ -706,7 +714,6 @@ def ConfigureAfterSecondProfession(bot: Botting):
     elif profession == "Paragon":
         bot.Move.XYAndDialog(-3317, 7053, 0x884003, step_name="Learn There's Nothing to Fear")
         bot.Dialogs.AtXY(-3317, 7053, 0x860E02, step_name="Learn Unblockable Throw")    
-
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC03, step_name='Rising to 1st Spear')
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC01, step_name="Sounds good to me")
@@ -740,6 +747,7 @@ def ConfigureAfterSecondProfession(bot: Botting):
     bot.States.AddHeader("Phase 3: Completing Jokanur Diggings Legacy Quest")
     bot.Move.XYAndDialog(2888, 2207, 0x827807, step_name="Leaving A Legacy complete")
     bot.Dialogs.AtXY(2888, 2207, 0x827901, step_name="Sounds Like Fun")
+
 
 def TakeArmorRewardAndCraft(bot: Botting):
     bot.States.AddHeader("Phase 4: Taking Armor Reward & Crafting Equipment")
