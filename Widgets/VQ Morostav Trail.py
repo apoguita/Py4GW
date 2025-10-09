@@ -192,8 +192,11 @@ def _on_party_wipe(bot: "Botting"):
     # Player revived on same map - jump to recovery step
     print("Player revived, jumping to recovery step")
     bot.config.FSM.pause()
+    yield
     bot.config.FSM.jump_to_state_by_name("[H]Start Combat_3")
+    yield
     bot.config.FSM.resume()
+    yield
     #bot.States.JumpToStepName("[H]Start Combat_3")
     #bot.config.FSM.resume()
     

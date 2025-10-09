@@ -55,7 +55,28 @@ class _UI:
     def PrintMessageToConsole(self, source: str, message: str):
         self._helpers.UI.print_message_to_console(source, message)
 
+    def OpenAllBags(self):
+        self._helpers.UI.open_all_bags()
+        
+    def CloseAllBags(self):
+        self._helpers.UI.close_all_bags()
+        
+    def ToggleSkillsAndAttributes(self):
+        self._helpers.UI.toggle_skills_and_attributes()
+        
+    def FrameClick(self, frame_id:int):
+        self._helpers.UI.frame_click(frame_id)
+        
+    def FrameClickOnBagSlot(self, bag_id:int, slot:int):
+        self._helpers.UI.frame_click_on_bag_slot(bag_id, slot)
+    
+    def BagItemClick(self, bag_id:int, slot:int):
+        self._helpers.UI.bag_item_click(bag_id, slot)
 
+    def BagItemDoubleClick(self, bag_id:int, slot:int):
+        self._helpers.UI.bag_item_double_click(bag_id, slot)
+
+    #region ImGui
     def _find_current_header_step(self):
         import re
 
@@ -583,6 +604,7 @@ class _UI:
             self._config.config_properties.snap_to_ground_segments.get("value"), 
             self._config.config_properties.floor_offset.get("value"))
 
+    #region Keybinds
     class _Keybinds:
         def __init__(self, parent: "_UI"):
             self.parent = parent

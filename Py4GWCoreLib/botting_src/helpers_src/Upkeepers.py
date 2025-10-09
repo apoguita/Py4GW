@@ -35,6 +35,8 @@ class _Upkeepers:
         handler = get_widget_handler()
         while True:   
             if not self._config.upkeep.hero_ai.is_active():
+                if handler.is_widget_enabled("HeroAI"):
+                    handler.disable_widget("HeroAI")
                 yield from Routines.Yield.wait(500)
                 continue
             
