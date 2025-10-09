@@ -323,7 +323,6 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                     # --- Cast Exhausting Assault right after ---
                     if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.exhausting_assault)):
                         if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
-                            self.priority_target = None
                             return
                         yield from Routines.Yield.Keybinds.UseSkill(exhausting_slot)
                         yield from Routines.Yield.wait(250)  # DB has longer aftercast
@@ -358,7 +357,6 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                     # Fox Fangs
                     if (yield from Routines.Yield.Skills.IsSkillIDUsable(fox_fangs)):
                         if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
-                            self.priority_target = None
                             return
 
                         skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(fox_fangs)
@@ -368,7 +366,6 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                         # Death Blossom
                         if (yield from Routines.Yield.Skills.IsSkillIDUsable(death_blossom)):
                             if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
-                                self.priority_target = None
                                 return
 
                             skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(death_blossom)
