@@ -269,11 +269,11 @@ def PixelStack(index, message):
         yield from Routines.Yield.wait(100)
         GLOBAL_CACHE.Player.SendChatCommand("stuck")
         yield from Routines.Yield.wait(250)
-        result = yield from Routines.Yield.Movement.FollowPath(
+        result = (yield from Routines.Yield.Movement.FollowPath(
             [(message.Params[0], message.Params[1])],
             tolerance=10,
             timeout=10000,
-        )
+        ))
         yield from Routines.Yield.wait(100)
 
         if not result:
