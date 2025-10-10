@@ -53,6 +53,8 @@ class NavMesh:
         self.create_all_local_portals()
         self.create_all_cross_layer_portals()
         self._populate_spatial_grid()
+        # Build a quick lookup for portals by trapezoid pair for fast retrieval
+        self._build_portal_map()
 
     
     def get_adjacent_side(self, a: PathingTrapezoid, b: PathingTrapezoid) -> Optional[str]:
@@ -199,10 +201,60 @@ class NavMesh:
         cy = (t.YT + t.YB) / 2
         return (cx, cy)
 
+    def _build_portal_map(self):
+        """Create a mapping from unordered trapezoid id pair -> Portal for fast lookup."""
+        self._portal_map: Dict[frozenset, Portal] = {}
+        for p in self.portals:
+            try:
+                a_id = p.a.m_t.id
+                b_id = p.b.m_t.id
+            except Exception:
+                continue
+            key = frozenset({a_id, b_id})
+            # keep the first portal found for the pair (there may be duplicates across layers)
+            if key not in self._portal_map:
+                self._portal_map[key] = p
+
+    def get_portal_between(self, a_id: int, b_id: int) -> Optional[Portal]:
+        return self._portal_map.get(frozenset({a_id, b_id}))
+
+    def smooth_path_via_portal_midpoints(self,
+                                         trap_ids: List[int],
+                                         start: Tuple[float, float],
+                                         goal: Tuple[float, float],
+                                         margin: float = 100,
+                                         step_dist: float = 200.0) -> List[Tuple[float, float]]:
+        """
+        Lightweight funnel-like smoothing: build a channel of portal midpoints between
+        successive trapezoids and then apply the existing LOS-based path simplifier.
+
+        This is cheap, incremental, and avoids full visibility graph generation.
+        """
+        if not trap_ids:
+            return [start, goal]
+
+        # build the sequence: start -> midpoints -> goal
+        pts: List[Tuple[float, float]] = [start]
+        for i in range(len(trap_ids) - 1):
+            a, b = trap_ids[i], trap_ids[i + 1]
+            portal = self.get_portal_between(a, b)
+            if portal:
+                mx = (portal.p1.x + portal.p2.x) / 2.0
+                my = (portal.p1.y + portal.p2.y) / 2.0
+                pts.append((mx, my))
+            else:
+                # fallback to trapezoid center if no portal object found
+                pts.append(self.get_position(b))
+
+        pts.append(goal)
+
+        # Use existing LOS-based simplifier to collapse straight segments
+        return self.smooth_path_by_los(pts, margin=margin, step_dist=step_dist)
+
     def get_neighbors(self, t_id: int) -> List[int]:
         return self.portal_graph.get(t_id, [])
     
-    def find_trapezoid_id_by_coord(self, point: Tuple[float, float], tol: float = 20.0) -> Optional[int]:
+    def find_trapezoid_id_by_coord(self, point: Tuple[float, float], tol: float = 5.0) -> Optional[int]:
         """
         Returns the trapezoid ID containing (x, y), using a small tolerance to avoid
         floating-point misses when the point lies exactly on a border or corner.
@@ -750,5 +802,3 @@ class AutoPathing:
                                         smooth_by_chaikin=smooth_by_chaikin,
                                         chaikin_iterations=chaikin_iterations)
         return [(x, y) for (x, y, _) in path]
-
-
