@@ -72,7 +72,7 @@ SALVERS_EXILE_TRAVEL_PATH_2: list[tuple[float, float]] = [
     (-18500, -11500),
     (-17700, -12500),
     (-17663, -13497),
-    # (-17500, -14250), <- actual chest 
+    # (-17500, -14250), <- actual chest
 ]
 
 
