@@ -57,7 +57,10 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToGunnarsHold(bot)                  # Advance to Gunnar's Hold
     UnlockKillroyStonekin(bot)
     AdvanceToLongeyeEdge(bot)
-    #AdvanceToDoomlore(bot)                   # Advance to Doomlore
+    #AdvanceToDoomlore(bot)          # Advance to Doomlore
+    AdvanceToSifhalla(bot)                   # Advance to Sifhalla
+    AdvanceToOlafstead(bot)                  # Advance to Olafstead
+    AdvanceToUmbralGrotto(bot)               # Advance to Umbral Grotto
     
     # === PHASE 7: FINAL UNLOCKS AND LOCATIONS ===
     UnlockRemainingSecondaryProfessions(bot)   # Unlock remaining secondary professions
@@ -1005,6 +1008,135 @@ def AdvanceToDoomlore(bot: Botting):
     bot.Move.XY(-14929.544921, 13145.501953)
     bot.Move.XY(-15581.598632, 13865.584960)
     bot.Wait.ForMapLoad(target_map_id=655)  # Doomlore Shrine
+
+def AdvanceToSifhalla(bot: Botting):
+    bot.States.AddHeader("Phase 6: Advancing to Sifhalla")
+    bot.Map.Travel(target_map_id=644) # Gunnar's Hold
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
+    
+    # Exit Gunnar's Hold outpost
+    bot.Move.XY(16003.853515, -6544.087402)
+    bot.Move.XY(15193.037109, -6387.140625)
+    bot.Wait.ForMapLoad(target_map_name="Norrhart Domains")
+    
+    # Traverse through Norrhart Domains to Drakkar Lake
+    bot.Move.XY(13337.167968, -3869.252929)
+    bot.Move.XY( 9826.771484,   416.337768)
+    bot.Move.XY( 6321.207031,  2398.933349)
+    bot.Move.XY( 2982.609619,  2118.243164)
+    bot.Move.XY(  176.124359,  2252.913574)
+    bot.Move.XY( -3766.605468,  3390.211669)
+    bot.Move.XY( -7325.385253,  2669.518066)
+    bot.Move.XY( -9555.996093,  5570.137695)
+    bot.Move.XY(-14153.492187,  5198.475585)
+    bot.Move.XY(-18538.169921,  7079.861816)
+    bot.Move.XY(-22717.630859,  8757.812500)
+    bot.Move.XY(-25531.134765, 10925.241210)
+    bot.Move.XY(-26333.171875, 11242.023437)
+    bot.Wait.ForMapLoad(target_map_name="Drakkar Lake")
+    
+    # Traverse through Drakkar Lake to Sifhalla
+    bot.Move.XY(14399.201171, -16963.455078)
+    bot.Move.XY(12510.431640, -13414.477539)
+    bot.Move.XY(12011.655273,  -9633.283203)
+    bot.Move.XY(11484.183593,  -5569.488769)
+    bot.Move.XY(12456.843750,  -0411.864135)
+    bot.Move.XY(13398.728515,   4328.439453)
+    bot.Move.XY(14000.825195,   8676.782226)
+    bot.Move.XY(14210.789062,  12432.768554)
+    bot.Move.XY(13846.647460,  15850.121093)
+    bot.Move.XY(13595.982421,  18950.578125)
+    bot.Move.XY(13567.612304,  19432.314453)
+    bot.Wait.ForMapLoad(target_map_name="Sifhalla")
+
+def AdvanceToOlafstead(bot: Botting):
+    bot.States.AddHeader("Phase 6: Advancing to Olafstead")
+    bot.Map.Travel(target_map_id=643) # Sifhalla
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
+    
+    # Exit Sifhalla outpost
+    bot.Move.XY(13510.718750, 19647.238281)
+    bot.Move.XY(13596.396484, 19212.427734)
+    bot.Wait.ForMapLoad(target_map_name="Drakkar Lake")
+    
+    # Traverse through Drakkar Lake to Varajar Fells
+    bot.Move.XY(13946.335937, 14286.607421)
+    bot.Move.XY(13599.999023,  6967.771484)
+    bot.Move.XY(13396.375000,  4099.683105)
+    bot.Move.XY(10782.618164,  3919.063720)
+    bot.Move.XY( 5936.016113,  3485.744873)
+    bot.Move.XY( 3749.377929,  3285.844482)
+    bot.Move.XY(  -12.388924,  -244.892211)
+    bot.Move.XY( -2623.909912, -3307.028076)
+    bot.Move.XY( -5624.512207, -4308.001953)
+    bot.Move.XY( -7885.518554, -9186.645507)
+    bot.Move.XY( -9944.139648,-13188.315429)
+    bot.Move.XY(-10946.782226,-16388.703125)
+    bot.Move.XY(-11847.703125,-19820.244140)
+    bot.Move.XY(-11442.958984,-22719.455078)
+    bot.Move.XY(-11040.512695,-25654.402343)
+    bot.Move.XY(-11019.546875,-26164.341796)
+    bot.Wait.ForMapLoad(target_map_id=553)
+    
+    # Traverse through Varajar Fells to Olafstead
+    bot.Move.XY( -1605.245239, 12837.257812)
+    bot.Move.XY( -2047.884399,  8718.327148)
+    bot.Move.XY( -2288.647216,  4162.530273)
+    bot.Move.XY( -3639.192138,  1637.482666)
+    bot.Move.XY( -4178.047851, -2814.842773)
+    bot.Move.XY( -4118.485107, -4432.247070)
+    bot.Move.XY( -3315.862060, -1716.598754)
+    bot.Move.XY( -1648.331054,  1095.387329)
+    bot.Move.XY( -1196.614624,  1241.174560)
+    bot.Wait.ForMapLoad(target_map_name="Olafstead")
+
+def AdvanceToUmbralGrotto(bot: Botting):
+    bot.States.AddHeader("Phase 6: Advancing to Umbral Grotto")
+    bot.Map.Travel(target_map_id=645) # Olafstead
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
+    
+    # Exit Olafstead outpost
+    bot.Move.XY(-883.285644, 1212.171020)
+    bot.Move.XY(-1452.154785, 1177.976684)
+    bot.Wait.ForMapLoad(target_map_id=553)
+    
+    # Traverse through Varajar Fells to Verdant Cascades
+    bot.Move.XY(-3127.843261, -2462.838867)
+    bot.Move.XY(-4055.151855, -4363.498046)
+    bot.Move.XY(-6962.863769, -3716.343017)
+    bot.Move.XY(-11109.900390, -5252.222167)
+    bot.Move.XY(-14969.330078, -6789.452148)
+    bot.Move.XY(-19738.699218, -9123.355468)
+    bot.Move.XY(-22088.320312,-10958.295898)
+    bot.Move.XY(-24810.935546,-12084.257812)
+    bot.Move.XY(-25980.177734,-13108.872070)
+    bot.Wait.ForMapLoad(target_map_name="Verdant Cascades")
+    
+    # Traverse through Verdant Cascades to Umbral Grotto
+    bot.Move.XY(22595.748046, 12731.708984)
+    bot.Move.XY(18976.330078, 11093.851562)
+    bot.Move.XY(15406.838867,  7549.499023)
+    bot.Move.XY(13416.123046,  4368.934570)
+    bot.Move.XY(13584.649414,   156.471313)
+    bot.Move.XY(14162.473632, -1488.160766)
+    bot.Move.XY(13519.756835, -3782.271240)
+    bot.Move.XY(11266.111328, -4884.791992)
+    bot.Move.XY( 7803.414550, -2783.716552)
+    bot.Move.XY( 6404.752441,  1633.880249)
+    bot.Move.XY( 6022.716796,  4174.048828)
+    bot.Move.XY( 3498.960205,  7248.467773)
+    bot.Move.XY(   49.460727,  6212.630371)
+    bot.Move.XY(-2800.293701,  4795.620117)
+    bot.Move.XY(-5035.972167,  2443.692382)
+    bot.Move.XY(-7242.780273,  1866.100219)
+    bot.Move.XY(-8373.044921,  2405.973632)
+    bot.Move.XY(-11243.640625, 3636.515625)
+    bot.Move.XY(-14829.459960, 4882.503417)
+    bot.Move.XY(-18093.113281, 5579.701660)
+    bot.Move.XY(-20726.955078, 5951.445312)
+    bot.Move.XY(-22423.933593, 6339.730468)
+    bot.Move.XY(-22984.621093, 6892.540527)
+    bot.Wait.ForMapLoad(target_map_name="Umbral Grotto")
 
 def UnlockRemainingSecondaryProfessions(bot: Botting):
     bot.States.AddHeader("Phase 7: Unlocking All Remaining Secondary Professions")
