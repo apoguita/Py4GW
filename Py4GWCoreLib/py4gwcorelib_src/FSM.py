@@ -587,6 +587,12 @@ class FSM:
                 except ValueError:
                     pass
                 
+        # It's possible that a coroutine's execution mutated the FSM (stopped/reset it)
+        # and cleared `current_state`. Re-check `current_state` before proceeding.
+        if not self.current_state:
+            if self.log_actions:
+                ConsoleLog("FSM", f"{self.name}: FSM stopped or reset during coroutine processing.", Py4GW.Console.MessageType.Warning)
+            return
         if self.paused:
             if self.log_actions:
                 ConsoleLog("FSM", f"{self.name}: FSM is paused.", Py4GW.Console.MessageType.Warning)
@@ -595,9 +601,20 @@ class FSM:
 
         if self.log_actions:
             ConsoleLog("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
-        self.current_state.execute()
+        # Execute may mutate the FSM (stop/reset/jump). After execute returns we must
+        # re-check that `current_state` is still valid before calling can_exit/exit.
+        try:
+            self.current_state.execute()
+        except Exception:
+            # If current_state became None during execution, trying to call execute
+            # would have raised earlier; guard defensively and surface a log.
+            if not self.current_state:
+                if self.log_actions:
+                    ConsoleLog("FSM", f"{self.name}: current_state became None during execute().", Py4GW.Console.MessageType.Warning)
+                return
+            raise
 
-        if not self.current_state.can_exit():
+        if not self.current_state or not self.current_state.can_exit():
             return
 
         self.current_state.exit()
