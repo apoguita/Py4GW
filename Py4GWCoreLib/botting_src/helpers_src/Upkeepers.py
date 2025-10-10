@@ -2,7 +2,7 @@ from functools import wraps
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib import ConsoleLog, Console, ThrottledTimer
+from Py4GWCoreLib import ConsoleLog, Console
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingHelpers
@@ -72,8 +72,6 @@ class _Upkeepers:
         from ...Py4GWcorelib import LootConfig
         from ...enums import Range, SharedCommandType
         from Py4GW_widget_manager import get_widget_handler
-        global LOOT_THROTTLE_CHECK
-        
         def LootingRoutineActive():
             account_email = GLOBAL_CACHE.Player.GetAccountEmail()
             index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
