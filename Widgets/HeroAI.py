@@ -49,7 +49,7 @@ MODULE_NAME = "HeroAI"
 
 FOLLOW_COMBAT_DISTANCE = 25.0  # if body blocked, we get close enough.
 LEADER_FLAG_TOUCH_RANGE_THRESHOLD_VALUE = Range.Touch.value * 1.1
-LOOT_THROTTLE_CHECK = ThrottledTimer(200)
+LOOT_THROTTLE_CHECK = ThrottledTimer(250)
 
 cached_data = CacheData()
 
