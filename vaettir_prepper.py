@@ -102,6 +102,7 @@ def bot_routine(bot: Botting) -> None:
     
 bot.SetMainRoutine(bot_routine)   
 
+
 def main():
     draw_window()
     bot.Update()
