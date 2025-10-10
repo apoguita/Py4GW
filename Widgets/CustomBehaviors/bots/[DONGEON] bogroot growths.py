@@ -11,9 +11,7 @@ class bogroot_growths(BottingAbstract):
     def __init__(self):
         super().__init__()
 
-        # todo unmanaged error ForMapToChange
-        # todo DISABLE LOOT FOR SOME PART
-        # todo botting score is sometimes too high...
+        # todo DISABLE LOOT FOR SOME PART might be interessting
     
 
     @override
@@ -80,7 +78,9 @@ class bogroot_growths(BottingAbstract):
         bot_instance.States.AddHeader("TAKE_QUEST_REWARD_AND_WAIT_DUNGEON_ENDS")
         bot_instance.Move.XY(15279, -17354, "go to npc")
         bot_instance.Dialogs.WithModel(6745, 0x832207, "accept quest reward")
-        bot_instance.config.FSM.AddSelfManagedYieldStep("ggoes out of the dungeon", lambda: BottingHelpers.wrapper(action=BottingHelpers.wait_until_on_map(558 , timeout_ms = 400_000), on_failure=self.botting_unrecoverable_issue))
+        bot_instance.Move.XY(15099, -19138, "go back to the end chest") # GadgetId=8932 IsGadget=true
+
+        bot_instance.config.FSM.AddSelfManagedYieldStep("goes out of the dungeon", lambda: BottingHelpers.wrapper(action=BottingHelpers.wait_until_on_map(558 , timeout_ms = 400_000), on_failure=self.botting_unrecoverable_issue))
 
         bot_instance.States.JumpToStepName("[H]MANAGE_NPC_QUEST_AND_ENTER_DUNGEON_4")
 

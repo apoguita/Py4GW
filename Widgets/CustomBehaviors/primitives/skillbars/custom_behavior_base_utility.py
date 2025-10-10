@@ -27,6 +27,7 @@ from Widgets.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
 from Widgets.CustomBehaviors.skills.deamon.stuck_detection import StuckDetectionUtility
 from Widgets.CustomBehaviors.skills.following.follow_flag_utility import FollowFlagUtility
 from Widgets.CustomBehaviors.skills.following.follow_party_leader_utility import FollowPartyLeaderUtility
+from Widgets.CustomBehaviors.skills.following.follow_party_leader_new_utility import FollowPartyLeaderNewUtility
 from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives import constants
@@ -66,7 +67,8 @@ class CustomBehaviorBaseUtility():
 
             # FOLLOWING
             FollowPartyLeaderUtility(event_bus=self.event_bus, current_build=self.in_game_build),
-            FollowFlagUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            # FollowPartyLeaderNewUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            # FollowFlagUtility(event_bus=self.event_bus, current_build=self.in_game_build),
 
             # BLESSING
             TakeNearBlessingUtility(event_bus=self.event_bus, current_build=self.in_game_build),
@@ -219,7 +221,7 @@ class CustomBehaviorBaseUtility():
             if skill.skill_id in skills_allowed_in_behavior_by_skill_id.keys():
                 final_list.append(skills_allowed_in_behavior_by_skill_id[skill.skill_id])
             elif self.complete_build_with_generic_skills:
-                final_list.append(HeroAiUtility(event_bus=self.event_bus, skill=skill, current_build=list(in_game_build_by_skill_id.values()), score_definition=ScoreStaticDefinition(0)))
+                final_list.append(HeroAiUtility(event_bus=self.event_bus, skill=skill, current_build=list(in_game_build_by_skill_id.values())))
 
         for skill in self.additional_autonomous_skills:
             final_list.append(skill)
