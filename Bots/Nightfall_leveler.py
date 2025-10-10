@@ -151,9 +151,9 @@ def EquipSkillBar():
         elif level == 9:
             yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirCbRiXSX7gDYjbXFYcCAA")    
         elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGikurDJeJdtDOgBAAAgxJAAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkyrM7QiXSX7gDYAAAAYcCAA")
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGikurDJeJdtDOgBAAAgxJAAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkyrM7QiXSX7gDYAAAAYcCAA")
 
     elif profession == "Paragon":
         if level == 2:
@@ -218,7 +218,7 @@ def GetWeaponMaterialPerProfession(bot: Botting):
         return [ModelID.Iron_Ingot.value]
     return []
 
-def withdraw_gold(target_gold=3000, deposit_all=True):
+def withdraw_gold(target_gold=5000, deposit_all=True):
     gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
 
     if gold_on_char > target_gold and deposit_all:
@@ -1064,19 +1064,12 @@ def AdvanceToOlafstead(bot: Botting):
     bot.Move.XY(13599.999023,  6967.771484)
     bot.Move.XY(13396.375000,  4099.683105)
     bot.Move.XY(10782.618164,  3919.063720)
-    bot.Move.XY( 5936.016113,  3485.744873)
-    bot.Move.XY( 3749.377929,  3285.844482)
-    bot.Move.XY(  -12.388924,  -244.892211)
-    bot.Move.XY( -2623.909912, -3307.028076)
-    bot.Move.XY( -5624.512207, -4308.001953)
-    bot.Move.XY( -7885.518554, -9186.645507)
-    bot.Move.XY( -9944.139648,-13188.315429)
     bot.Move.XY(-10946.782226,-16388.703125)
     bot.Move.XY(-11847.703125,-19820.244140)
     bot.Move.XY(-11442.958984,-22719.455078)
     bot.Move.XY(-11040.512695,-25654.402343)
     bot.Move.XY(-11019.546875,-26164.341796)
-    bot.Wait.ForMapLoad(target_map_id=553)
+    bot.Wait.ForMapLoad(target_map_id=553)  # Varajar Fells
     
     # Traverse through Varajar Fells to Olafstead
     bot.Move.XY( -1605.245239, 12837.257812)
