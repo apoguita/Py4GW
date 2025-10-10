@@ -241,7 +241,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                     # Reset throttle after casting
                     self.asuran_scan_throttle.Reset()
                     self.last_asuran_scan_target_id = nearest_enemy_agent_id
-            
+
             if (
                 nearest_enemy_agent_id
                 and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_theft))
@@ -311,7 +311,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                         if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
                             return
                         yield from Routines.Yield.Keybinds.UseSkill(exhausting_slot)
-                        yield from Routines.Yield.wait(250) 
+                        yield from Routines.Yield.wait(250)
 
                 if (
                     yield from Routines.Yield.Skills.IsSkillIDUsable(self.death_blossom)
