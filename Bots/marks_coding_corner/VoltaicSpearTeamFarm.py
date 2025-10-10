@@ -190,36 +190,71 @@ def handle_on_danger_flagging(bot: Botting):
     global last_flagged_x_y
     global last_flagged_map_id
 
-    spread_formation = [[-200, -200], [200, -200], [-200, 0], [200, 0], [-200, 300], [0, 300], [200, 300]]
+    base_formation = [[-200, -200], [200, -200], [-200, 0], [200, 0], [-200, 300], [0, 300], [200, 300]]
+    offset = [0, -450]
 
     while True:
         player_x, player_y = GLOBAL_CACHE.Player.GetXY()
         map_id = GLOBAL_CACHE.Map.GetMapID()
 
-        # === If currently in danger and paused ===
-        if Routines.Checks.Agents.InDanger() and bot.config.pause_on_danger_fn():
+        # === Determine nearest enemy for facing angle ===
+        enemy_agent_ids = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, Range.Earshot.value * 1.75)
+        nearest_enemy = None
+        nearest_enemy_dist_sq = float("inf")
+
+        for agent_id in enemy_agent_ids:
+            agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
+            dx, dy = agent.x - player_x, agent.y - player_y
+            dist_sq = dx * dx + dy * dy
+            if dist_sq < nearest_enemy_dist_sq:
+                nearest_enemy_dist_sq = dist_sq
+                nearest_enemy = agent
+
+        facing_angle = 0.0
+        if nearest_enemy:
+            facing_angle = math.atan2(nearest_enemy.y - player_y, nearest_enemy.x - player_x)
+        angle_rad = facing_angle - math.pi / 2
+
+        trigger_flagging = (
+            Routines.Checks.Agents.InDanger() and bot.config.pause_on_danger_fn()
+        ) or nearest_enemy_dist_sq <= (Range.Earshot.value * 1.25) ** 2
+
+        if trigger_flagging:
+            spread_formation = [[x + offset[0], y + offset[1]] for x, y in base_formation]
             bot.config.build_handler.status = BuildStatus.Kill  # type: ignore
-            # If not flagged yet, flag once
+
             if not is_party_flagged:
-                last_flagged_x_y = (player_x, player_y)
+                last_flagged_x_y = combat_prep.get_party_center()
                 last_flagged_map_id = map_id
                 is_party_flagged = True
+
                 combat_prep.cb_shouts_prep(shouts_button_pressed=True)
                 combat_prep.cb_spirits_prep(st_button_pressed=True)
-                combat_prep.cb_set_formation(spread_formation, False)
+                combat_prep.cb_set_formation(spread_formation, False, custom_angle=angle_rad)
+
                 yield from Routines.Yield.wait(2500)
                 combat_prep.cb_set_formation([], True)
 
             elif last_flagged_map_id == map_id:
-                last_x, last_y = last_flagged_x_y
-                dx, dy = player_x - last_x, player_y - last_y
-                dist_sq = dx * dx + dy * dy
-                max_dist_sq = (Range.Spellcast.value * 1.50) ** 2
+                party_center_x, party_center_y = combat_prep.get_party_center()
 
-                # Only reflag (and wait) if too far from previous position
+                last_center_x, last_center_y = last_flagged_x_y
+                dx, dy = party_center_x - last_center_x, party_center_y - last_center_y
+                dist_sq = dx * dx + dy * dy
+                max_dist_sq = (Range.Spellcast.value * 1.25) ** 2
+
                 if dist_sq > max_dist_sq:
-                    last_flagged_x_y = (player_x, player_y)
-                    combat_prep.cb_set_formation(spread_formation, False)
+                    # Compute new facing angle from last flagged point → new party center
+                    angle_rad = math.atan2(party_center_y - last_center_y, party_center_x - last_center_x) - math.pi / 2
+
+                    # Update last flagged center
+                    last_flagged_x_y = [party_center_x, party_center_y]
+
+                    combat_prep.cb_set_formation(
+                        spread_formation,
+                        False,
+                        custom_angle=angle_rad,
+                    )
                     yield from Routines.Yield.wait(2500)
                     combat_prep.cb_set_formation([], True)
 
@@ -340,7 +375,9 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
     bot.States.AddCustomState(open_final_chest, "Open final chest")
     bot.Wait.ForTime(15000)
-    bot.States.AddCustomState(lambda: toggle_hero_ai_team_combat(True), "Enable combat for rewards claim (in case of disabled)")
+    bot.States.AddCustomState(
+        lambda: toggle_hero_ai_team_combat(True), "Enable combat for rewards claim (in case of disabled)"
+    )
     bot.States.RemoveManagedCoroutine('handle_on_danger_flagging')
     bot.Multibox.ResignParty()
     bot.Wait.ForTime(3000)
