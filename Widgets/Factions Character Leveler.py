@@ -52,6 +52,7 @@ def create_bot_routine(bot: Botting) -> None:
     UnlockEotnPool(bot)
     AdvanceToGunnarsHold(bot)
     UnlockKillroy(bot)
+    AdvanceToLongeyeEdge(bot)
     UnlockRemainingSecondaryProfessions(bot)
     UnlockXunlaiMaterialPanel(bot)
     bot.States.AddHeader("Final Step")
@@ -769,10 +770,10 @@ def AdvanceToKamadan(bot: Botting):
     auto_path_list = [(2951.07, -723.50), (2875.84, 488.42), (1354.73, 583.06)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapToChange(target_map_id=290)
-    #bot.Dialogs.WithModel(4863, 0x82D404)  # Kormir dialog model id 4863
-    #bot.Dialogs.WithModel(4863, 0x85)  # Kormir dialog model id 4863
+    bot.Wait.ForTime(2000)
     bot.Dialogs.WithModel(4863, 0x84)  # Kormir dialog model id 4863
     bot.Wait.ForMapToChange(target_map_id=543)
+    bot.Wait.ForTime(2000)
     bot.Dialogs.WithModel(4778, 0x82D407)  # Bendro take reward
     bot.Dialogs.WithModel(4778, 0x82E101)  # Bendro battle preparation
     
@@ -857,6 +858,44 @@ def AdvanceToGunnarsHold(bot: Botting):
     bot.Move.XY(14546.0, -6043.0)
     bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)  # Gunnar's Hold
     bot.Wait.ForMapLoad(target_map_id=644)  # Gunnar's Hold
+
+def AdvanceToLongeyeEdge(bot: Botting):
+    bot.States.AddHeader("Advancing to Longeye's Edge")
+    bot.Map.Travel(target_map_id=644) # Gunnar's Hold
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
+    
+    # Exit Gunnar's Hold outpost
+    bot.Move.XY(15886.204101, -6687.815917)
+    bot.Move.XY(15183.199218, -6381.958984)
+    bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
+    
+    # Traverse through Norrhart Domains to Bjora Marches
+    bot.Move.XY(14233.820312, -3638.702636)
+    bot.Move.XY(14944.690429,  1197.740966)
+    bot.Move.XY(14855.548828,  4450.144531)
+    bot.Move.XY(17964.738281,  6782.413574)
+    bot.Move.XY(19127.484375,  9809.458984)
+    bot.Move.XY(21742.705078, 14057.231445)
+    bot.Move.XY(19933.869140, 15609.059570)
+    bot.Move.XY(16294.676757, 16369.736328)
+    bot.Move.XY(16392.476562, 16768.855468)
+    bot.Wait.ForMapLoad(target_map_id=482)  # Bjora Marches
+    
+    # Traverse through Bjora Marches to Longeyes Ledge
+    bot.Move.XY(-11232.550781, -16722.859375)
+    bot.Move.XY(-7655.780273 , -13250.316406)
+    bot.Move.XY(-6672.132324 , -13080.853515)
+    bot.Move.XY(-5497.732421 , -11904.576171)
+    bot.Move.XY(-3598.337646 , -11162.589843)
+    bot.Move.XY(-3013.927490 ,  -9264.664062)
+    bot.Move.XY(-1002.166198 ,  -8064.565429)
+    bot.Move.XY( 3533.099609 ,  -9982.698242)
+    bot.Move.XY( 7472.125976 , -10943.370117)
+    bot.Move.XY(12984.513671 , -15341.864257)
+    bot.Move.XY(17305.523437 , -17686.404296)
+    bot.Move.XY(19048.208984 , -18813.695312)
+    bot.Move.XY(19634.173828, -19118.777343)
+    bot.Wait.ForMapLoad(target_map_id=650)  # Longeyes Ledge
     
 def UnlockKillroy(bot: Botting):
     bot.States.AddHeader("Unlock Killroy")
