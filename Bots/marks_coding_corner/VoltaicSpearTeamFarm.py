@@ -107,7 +107,7 @@ def _on_party_wipe(bot: "Botting"):
     # Check if within earshot
     if GLOBAL_CACHE.Map.GetMapID() == JUSTICIAR_THOMMIS_ROOM_MAP_ID:
         if GLOBAL_CACHE.Party.IsPartyDefeated():
-            yield from bot.helpers.Wait._for_time(10000) 
+            yield from bot.helpers.Wait._for_time(10000)
             bot.config.FSM.jump_to_state_by_name("[H]Exit To Farm_3")
             bot.config.FSM.resume()
             return
@@ -244,7 +244,9 @@ def setup_hero_ai_and_custom_builds(bot: Botting):
 
     primary_profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary_profession != "Assassin" and use_assassin_skillbar:
-        GLOBAL_CACHE.Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, "You are not allowed to use this skill bar! Not Assassin main")
+        GLOBAL_CACHE.Player.SendFakeChat(
+            ChatChannel.CHANNEL_WARNING, "You are not allowed to use this skill bar! Not Assassin main"
+        )
         yield
         return
 
