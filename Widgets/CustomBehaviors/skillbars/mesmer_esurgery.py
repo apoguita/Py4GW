@@ -103,6 +103,4 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
             self.cry_of_pain_utility.custom_skill,
-            self.cry_of_frustration_utility.custom_skill,
-            self.energy_surge_utility.custom_skill,
         ]

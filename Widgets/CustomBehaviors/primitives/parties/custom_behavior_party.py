@@ -10,6 +10,7 @@ from Widgets.CustomBehaviors.primitives import constants
 
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
+from Widgets.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import SharedLockManager
 from Widgets.CustomBehaviors.primitives.parties.command_handler import CommandHandler
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
@@ -35,6 +36,7 @@ class CustomBehaviorParty:
     def _handle(self) -> Generator[Any | None, Any | None, None]:
         while True:
             self.command_handler.execute_next_step()
+            
             yield
     
     def act(self):
@@ -62,7 +64,7 @@ class CustomBehaviorParty:
 
     def get_shared_lock_manager(self) -> SharedLockManager:
         return CustomBehaviorWidgetMemoryManager().GetSharedLockManager()
-
+    
     def get_typology_is_enabled(self, skill_typology:UtilitySkillTypology):
         if skill_typology == UtilitySkillTypology.COMBAT:
             return self.get_party_is_combat_enabled()
