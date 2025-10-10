@@ -567,7 +567,13 @@ class FSM:
             try:
                 next(routine)
             except StopIteration:
-                self.managed_coroutines.remove(routine)
+                # The coroutine finished. It's possible the coroutine removed
+                # itself or was removed elsewhere during execution, so guard
+                # against ValueError when attempting to remove it again.
+                try:
+                    self.managed_coroutines.remove(routine)
+                except ValueError:
+                    pass
             except Exception as e:
                 state_name = self.current_state.name if self.current_state else "Unknown"
                 tb = traceback.format_exc()
@@ -840,6 +846,9 @@ class FSM:
         if routine is None:
             return False
         if remove_from_global:
+            # Removing from the global coroutine list might fail if another owner
+            # already removed the coroutine. Guard against ValueError to avoid
+            # crashing the caller.
             try:
                 GLOBAL_CACHE.Coroutines.remove(routine)
             except ValueError:
