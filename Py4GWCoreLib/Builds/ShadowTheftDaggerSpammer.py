@@ -11,7 +11,6 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Agent
-from Py4GWCoreLib import Allegiance
 
 
 DUNGEON_MODEL_IDS = {
@@ -101,7 +100,9 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                 yield from Routines.Yield.Keybinds.TargetNearestEnemy()
                 target_id = GLOBAL_CACHE.Player.GetTargetID()
                 yield from Routines.Yield.Keybinds.Interact()
-                ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+                ActionQueueManager().AddAction(
+                    "ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value]
+                )
                 self.priority_target = target_id
                 return
             self.priority_target = None
@@ -130,7 +131,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
 
     def find_shadow_theft_target(self):
         """
-        Specifically for Shadow Theft — find a new target within Earshot range,
+        Specifically for Shadow Theft — find a new target within half Earshot range,
         prioritizing enemies based on model ID importance, then proximity.
         """
 
@@ -146,7 +147,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
         }
 
         player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-        enemy_agent_ids = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, Range.Earshot.value)
+        enemy_agent_ids = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, Range.Earshot.value * 0.5)
 
         best_agent_id = None
         best_priority = float("inf")
@@ -225,16 +226,22 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
             dist_sq = dx * dx + dy * dy
 
             yield from Routines.Yield.Keybinds.Interact()
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.critical_eye)) and not has_critical_eye:
-                critical_eye_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.critical_eye)
-                yield from Routines.Yield.Keybinds.UseSkill(critical_eye_slot)
-                return
 
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.i_am_unstoppable)) and not has_i_am_unstoppable:
-                i_am_unstoppable_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.i_am_unstoppable)
-                yield from Routines.Yield.Keybinds.UseSkill(i_am_unstoppable_slot)
-                return
+            # === Handle Asuran Scan with per-target throttle + hex check ===
+            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.asuran_scan)) and nearest_enemy_agent_id:
+                if (
+                    self.asuran_scan_throttle.IsExpired()
+                    or not GLOBAL_CACHE.Agent.IsHexed(nearest_enemy_agent_id)
+                    or self.last_asuran_scan_target_id != nearest_enemy_agent_id
+                ):
+                    asura_scan_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.asuran_scan)
+                    yield from Routines.Yield.Keybinds.UseSkill(asura_scan_slot)
+                    yield from Routines.Yield.wait(250)
 
+                    # Reset throttle after casting
+                    self.asuran_scan_throttle.Reset()
+                    self.last_asuran_scan_target_id = nearest_enemy_agent_id
+            
             if (
                 nearest_enemy_agent_id
                 and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_theft))
@@ -252,30 +259,15 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                     if nearest_enemy_agent and nearest_enemy_agent.is_living and nearest_enemy_agent.living_agent:
                         shadow_theft_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.shadow_theft)
                         yield from Routines.Yield.Keybinds.UseSkill(shadow_theft_slot)
-                        return
+                        yield from Routines.Yield.wait(350)
 
-            # === Handle Asuran Scan with per-target throttle + hex check ===
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.asuran_scan)) and nearest_enemy_agent_id:
-                allegiance = nearest_enemy_agent.living_agent.allegiance.ToInt()
-                if (
-                    nearest_enemy_agent.is_living
-                    and nearest_enemy_agent.living_agent
-                ):
-                    if nearest_enemy_agent.living_agent.is_spawned and allegiance != Allegiance.Minion:
-                        return
+            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.critical_eye)) and not has_critical_eye:
+                critical_eye_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.critical_eye)
+                yield from Routines.Yield.Keybinds.UseSkill(critical_eye_slot)
 
-                    if (
-                        self.asuran_scan_throttle.IsExpired()
-                        or not GLOBAL_CACHE.Agent.IsHexed(nearest_enemy_agent_id)
-                        or self.last_asuran_scan_target_id != nearest_enemy_agent_id
-                    ):
-                        asura_scan_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.asuran_scan)
-                        yield from Routines.Yield.Keybinds.UseSkill(asura_scan_slot)
-
-                        # Reset throttle after casting
-                        self.asuran_scan_throttle.Reset()
-                        self.last_asuran_scan_target_id = nearest_enemy_agent_id
-                        return
+            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.i_am_unstoppable)) and not has_i_am_unstoppable:
+                i_am_unstoppable_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.i_am_unstoppable)
+                yield from Routines.Yield.Keybinds.UseSkill(i_am_unstoppable_slot)
 
             # --- Only proceed if within adjacent range ---
             if dist_sq <= Range.Adjacent.value**2:
@@ -312,8 +304,6 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                     # --- Cast Jagged Strike first ---
                     yield from Routines.Yield.Keybinds.TargetPriorityTarget()
                     yield from Routines.Yield.Keybinds.UseSkill(jagged_slot)
-
-                    # --- Small wait to allow animation start ---
                     yield from Routines.Yield.wait(200)
 
                     # --- Cast Exhausting Assault right after ---
@@ -321,7 +311,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                         if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
                             return
                         yield from Routines.Yield.Keybinds.UseSkill(exhausting_slot)
-                        yield from Routines.Yield.wait(250)  # DB has longer aftercast
+                        yield from Routines.Yield.wait(250) 
 
                 if (
                     yield from Routines.Yield.Skills.IsSkillIDUsable(self.death_blossom)
