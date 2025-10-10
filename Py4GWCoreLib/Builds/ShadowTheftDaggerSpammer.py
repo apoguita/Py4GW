@@ -185,12 +185,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
             return
 
     def ProcessSkillCasting(self):
-        if not (
-            Routines.Checks.Map.IsExplorable()
-            and Routines.Checks.Player.CanAct()
-            and Routines.Checks.Map.IsExplorable()
-            and Routines.Checks.Skills.CanCast()
-        ):
+        if not Routines.Checks.Map.IsExplorable():
             ActionQueueManager().ResetAllQueues()
             yield from Routines.Yield.wait(25)
             return
@@ -200,12 +195,25 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
             self.priority_target = None
             return
 
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        has_critical_eye = Routines.Checks.Effects.HasBuff(player_agent_id, self.critical_eye)
-        has_i_am_unstoppable = Routines.Checks.Effects.HasBuff(player_agent_id, self.i_am_unstoppable)
-        has_shadow_theft = Routines.Checks.Effects.HasBuff(player_agent_id, self.shadow_theft)
-
         if self.status == BuildStatus.Kill:
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            has_critical_eye = Routines.Checks.Effects.HasBuff(player_agent_id, self.critical_eye)
+            has_i_am_unstoppable = Routines.Checks.Effects.HasBuff(player_agent_id, self.i_am_unstoppable)
+            has_shadow_theft = Routines.Checks.Effects.HasBuff(player_agent_id, self.shadow_theft)
+
+            if not (Routines.Checks.Player.CanAct() and Routines.Checks.Skills.CanCast()):
+                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.critical_eye)) and not has_critical_eye:
+                    critical_eye_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.critical_eye)
+                    yield from Routines.Yield.Keybinds.UseSkill(critical_eye_slot)
+
+                if (
+                    yield from Routines.Yield.Skills.IsSkillIDUsable(self.i_am_unstoppable)
+                ) and not has_i_am_unstoppable:
+                    i_am_unstoppable_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.i_am_unstoppable)
+                    yield from Routines.Yield.Keybinds.UseSkill(i_am_unstoppable_slot)
+                yield from self.update_priority_target_if_needed()
+                return
+
             # Ensure we have a valid target locked
             yield from self.update_priority_target_if_needed()
 
@@ -227,161 +235,169 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
 
             yield from Routines.Yield.Keybinds.Interact()
 
-            # === Handle Asuran Scan with per-target throttle + hex check ===
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.asuran_scan)) and nearest_enemy_agent_id:
+            if Routines.Checks.Player.CanAct() and Routines.Checks.Skills.CanCast():
+                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.critical_eye)) and not has_critical_eye:
+                    critical_eye_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.critical_eye)
+                    yield from Routines.Yield.Keybinds.UseSkill(critical_eye_slot)
+
                 if (
-                    self.asuran_scan_throttle.IsExpired()
-                    or not GLOBAL_CACHE.Agent.IsHexed(nearest_enemy_agent_id)
-                    or self.last_asuran_scan_target_id != nearest_enemy_agent_id
-                ):
-                    asura_scan_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.asuran_scan)
-                    yield from Routines.Yield.Keybinds.UseSkill(asura_scan_slot)
-                    yield from Routines.Yield.wait(250)
+                    yield from Routines.Yield.Skills.IsSkillIDUsable(self.i_am_unstoppable)
+                ) and not has_i_am_unstoppable:
+                    i_am_unstoppable_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.i_am_unstoppable)
+                    yield from Routines.Yield.Keybinds.UseSkill(i_am_unstoppable_slot)
 
-                    # Reset throttle after casting
-                    self.asuran_scan_throttle.Reset()
-                    self.last_asuran_scan_target_id = nearest_enemy_agent_id
-
-            if (
-                nearest_enemy_agent_id
-                and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_theft))
-                and not has_shadow_theft
-                or (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_theft))
-                and dist_sq <= Range.Area.value**2
-            ):
-                # Acquire new target specifically for Shadow Theft
-                yield from self.find_shadow_theft_target()
-
-                if self.priority_target:
-                    nearest_enemy_agent_id = self.priority_target
-                    nearest_enemy_agent = Agent.GetAgentByID(nearest_enemy_agent_id)
-
-                    if nearest_enemy_agent and nearest_enemy_agent.is_living and nearest_enemy_agent.living_agent:
-                        shadow_theft_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.shadow_theft)
-                        yield from Routines.Yield.Keybinds.UseSkill(shadow_theft_slot)
-                        yield from Routines.Yield.wait(350)
-
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.critical_eye)) and not has_critical_eye:
-                critical_eye_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.critical_eye)
-                yield from Routines.Yield.Keybinds.UseSkill(critical_eye_slot)
-
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.i_am_unstoppable)) and not has_i_am_unstoppable:
-                i_am_unstoppable_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.i_am_unstoppable)
-                yield from Routines.Yield.Keybinds.UseSkill(i_am_unstoppable_slot)
-
-            # --- Only proceed if within adjacent range ---
-            if dist_sq <= Range.Adjacent.value**2:
-                player_current_energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id) * GLOBAL_CACHE.Agent.GetMaxEnergy(
-                    player_agent_id
-                )
-                if (
-                    yield from Routines.Yield.Skills.IsSkillIDUsable(self.exhausting_assault)
-                ) and player_current_energy >= 10:
-                    nearest_enemy_agent = GLOBAL_CACHE.Agent.GetAgentByID(nearest_enemy_agent_id)
-                    if not nearest_enemy_agent:
-                        return  # no valid target
-
-                    MAX_RANGE_SQ = Range.Adjacent.value**2
-
-                    # --- Wait for Jagged Strike to become usable ---
-                    while not (yield from Routines.Yield.Skills.IsSkillIDUsable(self.jagged_strike)):
-                        yield from Routines.Yield.wait(50)
-
-                    # --- Confirm target is still in range before chaining ---
-                    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-                    dx, dy = nearest_enemy_agent.x - player_x, nearest_enemy_agent.y - player_y
-                    if dx * dx + dy * dy > MAX_RANGE_SQ:
-                        yield from Routines.Yield.Keybinds.Interact()
-                        return
-
-                    # --- Queue chain execution ---
-                    jagged_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.jagged_strike)
-                    exhausting_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.exhausting_assault)
-
-                    # Interact and prepare to cast
-                    yield from Routines.Yield.Keybinds.Interact()
-
-                    # --- Cast Jagged Strike first ---
-                    yield from Routines.Yield.Keybinds.TargetPriorityTarget()
-                    yield from Routines.Yield.Keybinds.UseSkill(jagged_slot)
-                    yield from Routines.Yield.wait(200)
-
-                    # --- Cast Exhausting Assault right after ---
-                    if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.exhausting_assault)):
-                        if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
-                            return
-                        yield from Routines.Yield.Keybinds.UseSkill(exhausting_slot)
+                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.asuran_scan)) and nearest_enemy_agent_id:
+                    if (
+                        self.asuran_scan_throttle.IsExpired()
+                        or not GLOBAL_CACHE.Agent.IsHexed(nearest_enemy_agent_id)
+                        or self.last_asuran_scan_target_id != nearest_enemy_agent_id
+                    ):
+                        asura_scan_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.asuran_scan)
+                        yield from Routines.Yield.Keybinds.UseSkill(asura_scan_slot)
                         yield from Routines.Yield.wait(250)
 
-                if (
-                    yield from Routines.Yield.Skills.IsSkillIDUsable(self.death_blossom)
-                ) and player_current_energy >= 12:
-                    jagged = self.jagged_strike
-                    fox_fangs = self.fox_fangs
-                    death_blossom = self.death_blossom
-
-                    # === Check distance first ===
-                    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-                    target_x, target_y = GLOBAL_CACHE.Agent.GetXY(nearest_enemy_agent_id)
-                    dist_sq = (player_x - target_x) ** 2 + (player_y - target_y) ** 2
-                    if dist_sq > Range.Adjacent.value**2:
+                        # Reset throttle after casting
+                        self.asuran_scan_throttle.Reset()
+                        self.last_asuran_scan_target_id = nearest_enemy_agent_id
                         yield from Routines.Yield.Keybinds.Interact()
-                        return  # Too far, skip chain
 
-                    # === Execute chain sequence ===
-                    yield from Routines.Yield.Keybinds.Interact()
+                if (
+                    nearest_enemy_agent_id
+                    and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_theft))
+                    and not has_shadow_theft
+                    or (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_theft))
+                    and dist_sq <= Range.Area.value**2
+                ):
+                    # Acquire new target specifically for Shadow Theft
+                    yield from self.find_shadow_theft_target()
 
-                    # Jagged Strike
-                    skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(jagged)
-                    yield from Routines.Yield.Keybinds.TargetPriorityTarget()
-                    yield from Routines.Yield.Keybinds.UseSkill(skill_slot)
-                    yield from Routines.Yield.wait(200)  # small follow-up delay
+                    if self.priority_target:
+                        nearest_enemy_agent_id = self.priority_target
+                        nearest_enemy_agent = Agent.GetAgentByID(nearest_enemy_agent_id)
 
-                    # Fox Fangs
-                    if (yield from Routines.Yield.Skills.IsSkillIDUsable(fox_fangs)):
-                        if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
+                        if nearest_enemy_agent and nearest_enemy_agent.is_living and nearest_enemy_agent.living_agent:
+                            shadow_theft_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.shadow_theft)
+                            yield from Routines.Yield.Keybinds.UseSkill(shadow_theft_slot)
+                            yield from Routines.Yield.wait(350)
+
+                # --- Only proceed if within adjacent range ---
+                if dist_sq <= Range.Adjacent.value**2:
+                    player_current_energy = GLOBAL_CACHE.Agent.GetEnergy(
+                        player_agent_id
+                    ) * GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
+                    if (
+                        yield from Routines.Yield.Skills.IsSkillIDUsable(self.exhausting_assault)
+                    ) and player_current_energy >= 10:
+                        nearest_enemy_agent = GLOBAL_CACHE.Agent.GetAgentByID(nearest_enemy_agent_id)
+                        if not nearest_enemy_agent:
+                            return  # no valid target
+
+                        MAX_RANGE_SQ = Range.Adjacent.value**2
+
+                        # --- Wait for Jagged Strike to become usable ---
+                        while not (yield from Routines.Yield.Skills.IsSkillIDUsable(self.jagged_strike)):
+                            yield from Routines.Yield.wait(50)
+
+                        # --- Confirm target is still in range before chaining ---
+                        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+                        dx, dy = nearest_enemy_agent.x - player_x, nearest_enemy_agent.y - player_y
+                        if dx * dx + dy * dy > MAX_RANGE_SQ:
+                            yield from Routines.Yield.Keybinds.Interact()
                             return
 
-                        skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(fox_fangs)
-                        yield from Routines.Yield.Keybinds.UseSkill(skill_slot)
-                        yield from Routines.Yield.wait(200)  # roughly same cast rhythm
+                        # --- Queue chain execution ---
+                        jagged_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.jagged_strike)
+                        exhausting_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.exhausting_assault)
 
-                        # Death Blossom
-                        if (yield from Routines.Yield.Skills.IsSkillIDUsable(death_blossom)):
+                        # Interact and prepare to cast
+                        yield from Routines.Yield.Keybinds.Interact()
+
+                        # --- Cast Jagged Strike first ---
+                        yield from Routines.Yield.Keybinds.TargetPriorityTarget()
+                        yield from Routines.Yield.Keybinds.UseSkill(jagged_slot)
+                        yield from Routines.Yield.wait(200)
+
+                        # --- Cast Exhausting Assault right after ---
+                        if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.exhausting_assault)):
+                            if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
+                                return
+                            yield from Routines.Yield.Keybinds.UseSkill(exhausting_slot)
+                            yield from Routines.Yield.wait(250)
+
+                    if (
+                        yield from Routines.Yield.Skills.IsSkillIDUsable(self.death_blossom)
+                    ) and player_current_energy >= 12:
+                        # === Check distance first ===
+                        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+                        target_x, target_y = GLOBAL_CACHE.Agent.GetXY(nearest_enemy_agent_id)
+                        dist_sq = (player_x - target_x) ** 2 + (player_y - target_y) ** 2
+                        if dist_sq > Range.Adjacent.value**2:
+                            yield from Routines.Yield.Keybinds.Interact()
+                            return  # Too far, skip chain
+
+                        # === Execute chain sequence ===
+                        yield from Routines.Yield.Keybinds.Interact()
+
+                        # Jagged Strike
+                        skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.jagged_strike)
+                        yield from Routines.Yield.Keybinds.TargetPriorityTarget()
+                        yield from Routines.Yield.Keybinds.UseSkill(skill_slot)
+                        yield from Routines.Yield.wait(200)  # small follow-up delay
+
+                        # Fox Fangs
+                        if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.fox_fangs)):
                             if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
                                 return
 
-                            skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(death_blossom)
+                            skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.fox_fangs)
                             yield from Routines.Yield.Keybinds.UseSkill(skill_slot)
-                            yield from Routines.Yield.wait(250)  # DB has longer aftercast
+                            yield from Routines.Yield.wait(200)  # roughly same cast rhythm
 
-                if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.fox_fangs)) and player_current_energy >= 10:
-                    jagged = self.jagged_strike
-                    fox_fangs = self.fox_fangs
+                            # Death Blossom
+                            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.death_blossom)):
+                                if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
+                                    return
 
-                    # === Check distance first ===
-                    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-                    target_x, target_y = GLOBAL_CACHE.Agent.GetXY(nearest_enemy_agent_id)
-                    dist_sq = (player_x - target_x) ** 2 + (player_y - target_y) ** 2
-                    if dist_sq > Range.Adjacent.value**2:
+                                skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.death_blossom)
+                                yield from Routines.Yield.Keybinds.UseSkill(skill_slot)
+                                yield from Routines.Yield.wait(250)  # DB has longer aftercast
+
+                    # A slower death blossom if available before Exhausting assault is ready to deploy again
+                    if (
+                        yield from Routines.Yield.Skills.IsSkillIDUsable(self.fox_fangs)
+                    ) and player_current_energy >= 10:
+                        # === Check distance first ===
+                        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+                        target_x, target_y = GLOBAL_CACHE.Agent.GetXY(nearest_enemy_agent_id)
+                        dist_sq = (player_x - target_x) ** 2 + (player_y - target_y) ** 2
+                        if dist_sq > Range.Adjacent.value**2:
+                            yield from Routines.Yield.Keybinds.Interact()
+                            return  # Too far, skip chain
+
+                        # === Execute chain sequence ===
                         yield from Routines.Yield.Keybinds.Interact()
-                        return  # Too far, skip chain
 
-                    # === Execute chain sequence ===
-                    yield from Routines.Yield.Keybinds.Interact()
-
-                    # Jagged Strike
-                    skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(jagged)
-                    yield from Routines.Yield.Keybinds.TargetPriorityTarget()
-                    yield from Routines.Yield.Keybinds.UseSkill(skill_slot)
-                    yield from Routines.Yield.wait(200)  # small follow-up delay
-
-                    # Fox Fangs
-                    if (yield from Routines.Yield.Skills.IsSkillIDUsable(fox_fangs)):
-                        if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
-                            return
-
-                        skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(fox_fangs)
+                        # Jagged Strike
+                        skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.jagged_strike)
+                        yield from Routines.Yield.Keybinds.TargetPriorityTarget()
                         yield from Routines.Yield.Keybinds.UseSkill(skill_slot)
-                        yield from Routines.Yield.wait(200)  # roughly same cast rhythm
+                        yield from Routines.Yield.wait(200)  # small follow-up delay
+
+                        # Fox Fangs
+                        if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.fox_fangs)):
+                            if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
+                                return
+
+                            skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.fox_fangs)
+                            yield from Routines.Yield.Keybinds.UseSkill(skill_slot)
+                            yield from Routines.Yield.wait(350)  # roughly same cast rhythm
+
+                            # Death Blossom
+                            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.death_blossom)):
+                                if GLOBAL_CACHE.Agent.IsDead(nearest_enemy_agent_id):
+                                    return
+
+                                skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.death_blossom)
+                                yield from Routines.Yield.Keybinds.UseSkill(skill_slot)
+                                yield from Routines.Yield.wait(250)  # DB has longer aftercast
             return
