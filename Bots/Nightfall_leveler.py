@@ -930,7 +930,7 @@ def UnlockKillroyStonekin(bot: Botting):
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
 
 def AdvanceToLongeyeEdge(bot: Botting):
-    bot.States.AddHeader("Phase 6: Advancing to Longeye Edge")
+    bot.States.AddHeader("Phase 6: Advancing to Longeye's Edge")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
     
