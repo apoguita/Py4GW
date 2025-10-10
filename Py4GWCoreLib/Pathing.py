@@ -202,7 +202,7 @@ class NavMesh:
     def get_neighbors(self, t_id: int) -> List[int]:
         return self.portal_graph.get(t_id, [])
     
-    def find_trapezoid_id_by_coord(self, point: Tuple[float, float], tol: float = 5.0) -> Optional[int]:
+    def find_trapezoid_id_by_coord(self, point: Tuple[float, float], tol: float = 20.0) -> Optional[int]:
         """
         Returns the trapezoid ID containing (x, y), using a small tolerance to avoid
         floating-point misses when the point lies exactly on a border or corner.
@@ -210,22 +210,33 @@ class NavMesh:
         x, y = point
 
         # 1. Normal trapezoids (floor & standard geometry)
+        # Use an adaptive local tolerance derived from the trapezoid's size
+        # to avoid the global `tol` being too permissive on small traps.
         for t in self.trapezoids.values():
-            if t.YB - tol <= y <= t.YT + tol:
+            trap_height = abs(t.YT - t.YB)
+            trap_width = max(abs(t.XTR - t.XTL), abs(t.XBR - t.XBL))
+            # local tolerance: 25% of the largest dimension but clamped
+            local_tol = max(2.0, min(tol, 0.25 * max(trap_height, trap_width)))
+
+            if t.YB - local_tol <= y <= t.YT + local_tol:
                 ratio = (y - t.YB) / (t.YT - t.YB) if t.YT != t.YB else 0
                 left_x = t.XBL + (t.XTL - t.XBL) * ratio
                 right_x = t.XBR + (t.XTR - t.XBR) * ratio
-                if left_x - tol <= x <= right_x + tol:
+                if left_x - local_tol <= x <= right_x + local_tol:
                     return t.id
 
         # 2. Cross-layer portals (bridge, stairs, elevated geometry)
         for portal in self.portals:
             for trap in (portal.a.m_t, portal.b.m_t):
-                if trap.YB - tol <= y <= trap.YT + tol:
+                trap_height = abs(trap.YT - trap.YB)
+                trap_width = max(abs(trap.XTR - trap.XTL), abs(trap.XBR - trap.XBL))
+                local_tol = max(2.0, min(tol, 0.25 * max(trap_height, trap_width)))
+
+                if trap.YB - local_tol <= y <= trap.YT + local_tol:
                     ratio = (y - trap.YB) / (trap.YT - trap.YB) if trap.YT != trap.YB else 0
                     left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
                     right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-                    if left_x - tol <= x <= right_x + tol:
+                    if left_x - local_tol <= x <= right_x + local_tol:
                         return trap.id
 
         # 3. Nothing found
@@ -375,10 +386,32 @@ class AStar:
     def search(self, start_pos: Tuple[float, float], goal_pos: Tuple[float, float]) -> bool:
         start_id = self.navmesh.find_trapezoid_id_by_coord(start_pos)
         goal_id = self.navmesh.find_trapezoid_id_by_coord(goal_pos)
-
+        # If either endpoint couldn't be located in a trapezoid, try a nearest-trapezoid
+        # fallback before failing — this makes the planner more robust to boundary
+        # floating-point misses or slight coordinate mismatches.
         if start_id is None or goal_id is None:
-            Py4GW.Console.Log("A-Star", f"Invalid start or goal trapezoid: {start_id}, {goal_id}", Py4GW.Console.MessageType.Error)
-            return False
+            def _nearest_trap_id(point: Tuple[float, float]) -> Optional[int]:
+                best_id = None
+                best_dist = float('inf')
+                px, py = point
+                for t in self.navmesh.trapezoids.values():
+                    cx, cy = self.navmesh.get_position(t.id)
+                    d = math.hypot(px - cx, py - cy)
+                    if d < best_dist:
+                        best_dist = d
+                        best_id = t.id
+                return best_id
+
+            if start_id is None:
+                start_id = _nearest_trap_id(start_pos)
+            if goal_id is None:
+                goal_id = _nearest_trap_id(goal_pos)
+
+            if start_id is None or goal_id is None:
+                Py4GW.Console.Log("A-Star", f"Invalid start or goal trapezoid (and no fallback found): {start_id}, {goal_id}", Py4GW.Console.MessageType.Error)
+                return False
+            else:
+                Py4GW.Console.Log("A-Star", f"A-Star: fell back to nearest trapezoids: start={start_id}, goal={goal_id}", Py4GW.Console.MessageType.Warning)
 
         open_list: List[AStarNode] = []
         heapq.heappush(open_list, AStarNode(start_id, 0, self.heuristic(start_id, goal_id)))
