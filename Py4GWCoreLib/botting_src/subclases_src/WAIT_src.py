@@ -17,6 +17,7 @@ class _WAIT:
 
     def UntilCondition(self, condition: Callable[[], bool], duration: int=1000) -> None:
         self._helpers.Wait.until_condition(condition, duration)
+        
 
     def UntilOutOfCombat(self, range: Range = Range.Earshot) -> None:
         from ...Routines import Routines
@@ -70,3 +71,4 @@ class _WAIT:
         )
 
         self.UntilCondition(wait_condition, duration=3000)
+        self.ForTime(1000)  # ensure all map actions finish

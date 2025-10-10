@@ -11,9 +11,9 @@ import os
 import time
 module_name = "Outpost Travel"
 
-script_directory = os.path.dirname(os.path.abspath(__file__))
-root_directory = os.path.normpath(os.path.join(script_directory, ".."))
-ini_file_location = os.path.join(root_directory, "Widgets/Config/Travel.ini")
+
+projects_path = Py4GW.Console.get_projects_path()
+ini_file_location = os.path.join(projects_path, "Widgets", "Config", "Travel.ini")
 
 ini_handler = IniHandler(ini_file_location)
 save_throttle_time = 1000

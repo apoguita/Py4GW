@@ -5,6 +5,7 @@ from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib import Bags
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Item 
+from Py4GWCoreLib import WindowID
 from .ItemCache import RawItemCache, Bag_enum, ItemCache
 
 class InventoryCache:
@@ -460,6 +461,9 @@ class InventoryCache:
 
         return self._inventory_instance.GetIsStorageOpen()
     
+    def IsInventoryBagsOpen(self):
+        return UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags)
+    
     def OpenXunlaiWindow(self) -> bool:
 
         if self._inventory_instance.GetIsStorageOpen():
@@ -720,6 +724,36 @@ class InventoryCache:
             return False
         
         return self.DepositItemToStorage(item_id, Anniversary_panel, ammount)
+
+    def MoveModelToBagSlot(self, model_id: int, target_bag: int = 1, target_slot: int = 0) -> bool:
+        """
+        Finds the first item with the specified model_id and moves it
+        to the specified bag and slot.
+        Args:
+            model_id (int): Model ID of the item to move.
+            target_bag (int): Target bag ID (default = 1).
+            target_slot (int): Target slot index (default = 0).
+        Returns:
+            bool: True if moved successfully or already in place, False otherwise.
+        """
+        # Find first matching item by model_id
+        item_id = self.GetFirstModelID(model_id)
+        if item_id == 0:
+            return False  # Item not found
+
+        # Find current bag and slot of that item
+        bag_id, slot = self.FindItemBagAndSlot(item_id)
+        if bag_id is None or slot is None:
+            return False
+
+        # If already at target position, nothing to do
+        if bag_id == target_bag and slot == target_slot:
+            return True
+
+        # Queue move action
+        self.MoveItem(item_id, target_bag, target_slot)
+        return True
+
 
     
     
