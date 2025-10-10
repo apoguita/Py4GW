@@ -35,6 +35,106 @@ class _UI:
         
         UIManager.FrameClick(cancel_button_frame_id)
         yield from Routines.Yield.wait(1000)
+        
+    def _open_all_bags(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        
+        if GLOBAL_CACHE.Inventory.IsInventoryBagsOpen():
+            return
+        
+        yield from Routines.Yield.Keybinds.ToggleAllBags()
+        
+    def _close_all_bags(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        
+        if not GLOBAL_CACHE.Inventory.IsInventoryBagsOpen():
+            return
+        
+        yield from Routines.Yield.Keybinds.ToggleAllBags()
+        
+        
+    def _frame_click(self, frame_id:int):
+        from ...Routines import Routines
+        from ...UIManager import UIManager
+        from ...Py4GWcorelib import ConsoleLog, Console
+        yield from Routines.Yield.wait(500)
+        if not UIManager.FrameExists(frame_id):
+            ConsoleLog("UI Helper", f"Frame ID {frame_id} does not exist.", Console.MessageType.Error)
+            self._Events.on_unmanaged_fail()
+            return
+        UIManager.FrameClick(frame_id)
+        yield from Routines.Yield.wait(500)
+        
+    def _frame_click_on_bag_slot(self, bag_id:int, slot:int):
+        from ...Routines import Routines
+        from ...UIManager import UIManager
+        from ...Py4GWcorelib import ConsoleLog, Console
+        yield from Routines.Yield.wait(500)
+        
+        def _get_parent_hash():
+            INVENTORY_FRAME_HASH = 291586130  
+            return INVENTORY_FRAME_HASH
+
+        def _get_offsets(bag_id:int, slot:int):
+            return [0,0,0,bag_id-1,slot+2]
+
+        frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
+        if not UIManager.FrameExists(frame_id):
+            ConsoleLog("UI Helper", f"Frame does not exist for bag {bag_id} slot {slot}.", Console.MessageType.Error)
+            self._Events.on_unmanaged_fail()
+            return
+        
+        UIManager.FrameClick(frame_id)
+        yield from Routines.Yield.wait(125)
+        
+    def _bag_item_click(self, bag_id:int, slot:int):
+        from ...Routines import Routines
+        from ...UIManager import UIManager
+        from ...Py4GWcorelib import ConsoleLog, Console
+        yield from Routines.Yield.wait(500)
+        
+        def _get_parent_hash():
+            INVENTORY_FRAME_HASH = 291586130  
+            return INVENTORY_FRAME_HASH
+
+        def _get_offsets(bag_id:int, slot:int):
+            return [0,0,0,bag_id-1,slot+2]
+
+        frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
+        if not UIManager.FrameExists(frame_id):
+            ConsoleLog("UI Helper", f"Frame does not exist for bag {bag_id} slot {slot}.", Console.MessageType.Error)
+            self._Events.on_unmanaged_fail()
+            return
+        
+        UIManager.TestMouseAction(frame_id=frame_id, current_state=4, wparam_value=0, lparam_value=0)
+        yield from Routines.Yield.wait(125)
+
+        
+    def _bag_item_double_click(self, bag_id:int, slot:int):
+        from ...Routines import Routines
+        from ...UIManager import UIManager
+        from ...Py4GWcorelib import ConsoleLog, Console
+        yield from Routines.Yield.wait(500)
+        
+        def _get_parent_hash():
+            INVENTORY_FRAME_HASH = 291586130 
+            return INVENTORY_FRAME_HASH
+
+        def _get_offsets(bag_id:int, slot:int):
+            return [0,0,0,bag_id-1,slot+2]
+
+        frame_id = UIManager.GetChildFrameID(_get_parent_hash(), _get_offsets(bag_id, slot))
+        if not UIManager.FrameExists(frame_id):
+            ConsoleLog("UI Helper", f"Frame does not exist for bag {bag_id} slot {slot}.", Console.MessageType.Error)
+            self._Events.on_unmanaged_fail()
+            return
+        
+        UIManager.TestMouseAction(frame_id=frame_id, current_state=8, wparam_value=0, lparam_value=0)
+        yield from Routines.Yield.wait(125)
+        UIManager.TestMouseAction(frame_id=frame_id, current_state=4, wparam_value=0, lparam_value=0)
+        yield from Routines.Yield.wait(125)
     
     @_yield_step(label="CancelSkillRewardWindow", counter_key="CANCEL_SKILL_REWARD_WINDOW")
     def cancel_skill_reward_window(self):
@@ -50,11 +150,35 @@ class _UI:
     def print_message_to_console(self, source:str, message: str):
         from ...Routines import Routines
         yield from Routines.Yield.Player.PrintMessageToConsole(source, message)
-        
-    @_yield_step(label="OpenSkillsAndAttributes", counter_key="OPEN_SKILLS_AND_ATTRIBUTES")
-    def open_skills_and_attributes(self):
+
+    @_yield_step(label="ToggleSkillsAndAttributes", counter_key="TOGGLE_SKILLS_AND_ATTRIBUTES")
+    def toggle_skills_and_attributes(self):
         from ...Routines import Routines
         yield from Routines.Yield.Keybinds.OpenSkillsAndAttributes()
+
+
+    @_yield_step(label="OpenAllBags", counter_key="OPEN_ALL_BAGS")
+    def open_all_bags(self):
+        yield from self._open_all_bags()
+    @_yield_step(label="CloseAllBags", counter_key="CLOSE_ALL_BAGS")
+    def close_all_bags(self):
+        yield from self._close_all_bags()
+        
+    @_yield_step(label="FrameClick", counter_key="FRAME_CLICK")
+    def frame_click(self, frame_id:int):
+        yield from self._frame_click(frame_id)
+        
+    @_yield_step(label="FrameClickOnBagSlot", counter_key="FRAME_CLICK_ON_BAG_SLOT")
+    def frame_click_on_bag_slot(self, bag_id:int, slot:int):
+        yield from self._frame_click_on_bag_slot(bag_id, slot)
+        
+    @_yield_step(label="BagItemClick", counter_key="BAG_ITEM_CLICK")
+    def bag_item_click(self, bag_id:int, slot:int):
+        yield from self._bag_item_click(bag_id, slot)
+        
+    @_yield_step(label="BagItemDoubleClick", counter_key="BAG_ITEM_DOUBLE_CLICK")
+    def bag_item_double_click(self, bag_id:int, slot:int):
+        yield from self._bag_item_double_click(bag_id, slot)
         
     class _Keybinds:
         def __init__(self, parent: "_UI"):

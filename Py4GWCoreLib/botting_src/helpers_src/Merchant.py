@@ -172,6 +172,7 @@ class _Merchant:
                 GLOBAL_CACHE.Trading.Merchant.SellItem(item_id, value)
                 sold += 1
                 yield from Routines.Yield.wait(75)  # wait between sales
+                
 
                 
     @_yield_step(label="SellMaterialsToMerchant", counter_key="SELL_MATERIALS_TO_MERCHANT")
@@ -210,3 +211,4 @@ class _Merchant:
     @_yield_step(label="SellItem", counter_key="SELL_ITEM")
     def sell_item(self, item_id: int, quantity: int) -> Generator[Any, Any, None]:
         yield from self._sell_item(item_id, quantity)
+        

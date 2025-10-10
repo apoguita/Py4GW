@@ -67,7 +67,59 @@ class _ITEMS:
         self._helpers.Items.spawn_bonus_items()
         self._helpers.Items.destroy_bonus_items(exclude_list)
         
+    def MoveModelToBagSlot(self, model_id:int, target_bag:int, slot:int):
+        self._helpers.Items.move_model_to_bag_slot(model_id, target_bag, slot)
+
+    #region Lootcofigs
+    #whitelist
+    def AddModelToLootWhitelist(self, model_id:int):
+        self._helpers.Items.add_model_to_whitelist(model_id)
         
+    def RemoveModelFromLootWhitelist(self, model_id:int):
+        self._helpers.Items.remove_model_from_whitelist(model_id)
+        
+    def ClearLootWhitelist(self):
+        self._helpers.Items.clear_whitelist()
+        
+    #blacklist
+    def AddModelToLootBlacklist(self, model_id:int):
+        self._helpers.Items.add_model_to_blacklist(model_id)
+    
+    def RemoveModelFromLootBlacklist(self, model_id:int):
+        self._helpers.Items.remove_model_from_blacklist(model_id)
+    
+    def ClearLootBlacklist(self):
+        self._helpers.Items.clear_blacklist()
+        
+    #item id whitelist
+    def AddItemIDToLootWhitelist(self, item_id:int):
+        self._helpers.Items.add_item_id_to_whitelist(item_id)
+        
+    def RemoveItemIDFromLootWhitelist(self, item_id:int):
+        self._helpers.Items.remove_item_id_from_whitelist(item_id)
+        
+    def ClearItemIDLootWhitelist(self):      
+        self._helpers.Items.clear_item_id_whitelist()
+        
+    #item id blacklist
+    def AddItemIDToLootBlacklist(self, item_id:int):
+        self._helpers.Items.add_item_id_to_blacklist(item_id)
+        
+    def RemoveItemIDFromLootBlacklist(self, item_id:int):
+        self._helpers.Items.remove_item_id_from_blacklist(item_id)
+        
+    def ClearItemIDLootBlacklist(self):
+        self._helpers.Items.clear_item_id_blacklist()
+        
+    #dye whitelist
+    def AddDyeToLootWhitelist(self, model_id:int):
+        self._helpers.Items.add_dye_to_whitelist(model_id)
+        
+    def RemoveDyeFromLootWhitelist(self, model_id:int):
+        self._helpers.Items.remove_dye_from_whitelist(model_id)
+        
+    def ClearDyeLootWhitelist(self):
+        self._helpers.Items.clear_dye_whitelist()
         
     class _RESTOCK:
         def __init__(self, parent: "BottingClass"):
