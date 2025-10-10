@@ -14,6 +14,7 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import ThrottledTimer
+
 from Py4GWCoreLib import ChatChannel
 from Py4GWCoreLib.Builds.ShadowTheftDaggerSpammer import AssassinShadowTheftDaggerSpammer
 from Py4GWCoreLib.Builds.ShadowTheftDaggerSpammer import BuildStatus
@@ -70,7 +71,8 @@ SALVERS_EXILE_TRAVEL_PATH_2: list[tuple[float, float]] = [
     (-19083, -10150),
     (-18500, -11500),
     (-17700, -12500),
-    (-17500, -14250),
+    # (-17500, -14250),
+    (-17663, -13497),
 ]
 
 
@@ -104,17 +106,22 @@ def _on_party_wipe(bot: "Botting"):
     bot.config.FSM.pause()
     # Check if within earshot
     if GLOBAL_CACHE.Map.GetMapID() == JUSTICIAR_THOMMIS_ROOM_MAP_ID:
+        if GLOBAL_CACHE.Party.IsPartyDefeated():
+            yield from bot.helpers.Wait._for_time(10000) 
+            bot.config.FSM.jump_to_state_by_name("[H]Exit To Farm_3")
+            bot.config.FSM.resume()
+            return
+
         if dist_to_shrine_2 <= Range.Spellcast.value:
             ConsoleLog("Res Check", "Player is near Shrine 2 (Res Point 2)")
-            bot.States.JumpToStepName("[H]Justiciar Tommis pt2_8")
+            bot.config.FSM.jump_to_state_by_name("[H]Justiciar Tommis pt2_8")
         else:
             ConsoleLog("Res Check", "Player is in beginning shrine")
-            bot.States.JumpToStepName("[H]Justiciar Tommis pt1_6")
-
+            bot.config.FSM.jump_to_state_by_name("[H]Justiciar Tommis pt1_6")
     else:
         bot.Multibox.ResignParty()
         yield from bot.helpers.Wait._for_time(10000)  # Allow the widget to take the party back to town
-        bot.States.JumpToStepName("[H]Exit To Farm_3")
+        bot.config.FSM.jump_to_state_by_name("[H]Exit To Farm_3")
     bot.config.FSM.resume()
 
 
@@ -126,6 +133,16 @@ def OnPartyWipe(bot: "Botting"):
 
 
 def open_final_chest():
+    def command_type_routine_in_message_is_active(account_email, shared_command_type):
+        index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
+
+        if index == -1 or message is None:
+            return False
+
+        if message.Command != shared_command_type:
+            return False
+        return True
+
     yield from Routines.Yield.Agents.TargetNearestGadgetXY(-17461.00, -14258.00, 100)
     target = GLOBAL_CACHE.Player.GetTargetID()
     if target == 0:
@@ -142,7 +159,16 @@ def open_final_chest():
         GLOBAL_CACHE.ShMem.SendMessage(
             sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target, 0, 0, 0)
         )
-        yield from Routines.Yield.wait(5000)
+
+        # Interacting with chest
+        while command_type_routine_in_message_is_active(account.AccountEmail, SharedCommandType.InteractWithTarget):
+            yield from Routines.Yield.wait(250)
+
+        # Looting
+        while command_type_routine_in_message_is_active(account.AccountEmail, SharedCommandType.PickUpLoot):
+            yield from Routines.Yield.wait(250)
+
+        yield from Routines.Yield.wait(1000)
     yield
 
 
@@ -233,7 +259,6 @@ def farm_dungeon(bot: Botting) -> None:
     widget_handler.enable_widget('Return to outpost on defeat')
     widget_handler.enable_widget('CombatPrep')
     bot.Properties.Enable('auto_combat')
-    # handle turning off combat for heroAI entirely
 
     # events
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
@@ -284,9 +309,6 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_2, "Part 2 killing route")
 
     bot.Properties.Disable('pause_on_danger')
-    bot.Wait.ForTime(5000)
-    bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
-    bot.States.AddCustomState(open_final_chest, "Open final chest")
     bot.Wait.ForTime(5000)
     bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
     bot.States.AddCustomState(open_final_chest, "Open final chest")
