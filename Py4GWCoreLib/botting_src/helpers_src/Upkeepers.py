@@ -10,9 +10,6 @@ if TYPE_CHECKING:
 from .decorators import _yield_step, _fsm_step
 from typing import Any, Generator, TYPE_CHECKING, Tuple, List, Optional, Callable
 
-
-LOOT_THROTTLE_CHECK = ThrottledTimer(200)
-
 #region UPKEEPERS
 class _Upkeepers:
     def __init__(self, parent: "BottingHelpers"):
@@ -109,21 +106,18 @@ class _Upkeepers:
                 yield from Routines.Yield.wait(500)
                 continue
             player_email = GLOBAL_CACHE.Player.GetAccountEmail()
-            
+
+            GLOBAL_CACHE.ShMem.SendMessage(
+                player_email,
+                player_email,
+                SharedCommandType.PickUpLoot,
+                (0, 0, 0, 0),
+            )
+            yield from Routines.Yield.wait(500)
             while LootingRoutineActive():
                 yield from Routines.Yield.wait(100)
                 continue
             
-
-            if LOOT_THROTTLE_CHECK.IsExpired():
-                GLOBAL_CACHE.ShMem.SendMessage(
-                    player_email,
-                    player_email,
-                    SharedCommandType.PickUpLoot,
-                    (0, 0, 0, 0),
-                )
-                LOOT_THROTTLE_CHECK.Reset()
-            yield from Routines.Yield.wait(500)
 
 
     def upkeep_armor_of_salvation(self):    
