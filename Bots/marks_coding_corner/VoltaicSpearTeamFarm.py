@@ -72,7 +72,6 @@ SALVERS_EXILE_TRAVEL_PATH_2: list[tuple[float, float]] = [
     (-18500, -11500),
     (-17700, -12500),
     (-17663, -13497),
-    # (-17500, -14250), <- actual chest
 ]
 
 
@@ -123,6 +122,7 @@ def _on_party_wipe(bot: "Botting"):
         yield from bot.helpers.Wait._for_time(10000)  # Allow the widget to take the party back to town
         bot.config.FSM.jump_to_state_by_name("[H]Exit To Farm_3")
     bot.config.FSM.resume()
+    return
 
 
 def OnPartyWipe(bot: "Botting"):
@@ -150,25 +150,37 @@ def open_final_chest():
         return
     sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-    yield from Routines.Yield.wait(5000)  # initial 3 second wait
+    while command_type_routine_in_message_is_active(sender_email, SharedCommandType.InteractWithTarget):
+        yield from Routines.Yield.wait(250)
+
+    while command_type_routine_in_message_is_active(sender_email, SharedCommandType.PickUpLoot):
+        yield from Routines.Yield.wait(1000)
+    yield from Routines.Yield.wait(5000)
 
     for account in accounts:
-        if sender_email == account.AccountEmail:
+        if not account.AccountEmail or sender_email == account.AccountEmail:
             continue
         ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
+
+        hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
+        if hero_ai_options is None:
+            continue
+        hero_ai_options.Combat = False
+
         GLOBAL_CACHE.ShMem.SendMessage(
             sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target, 0, 0, 0)
         )
 
         # Interacting with chest
         while command_type_routine_in_message_is_active(account.AccountEmail, SharedCommandType.InteractWithTarget):
-            yield from Routines.Yield.wait(250)
+            yield from Routines.Yield.wait(1000)
 
         # Looting
         while command_type_routine_in_message_is_active(account.AccountEmail, SharedCommandType.PickUpLoot):
-            yield from Routines.Yield.wait(250)
+            yield from Routines.Yield.wait(1000)
 
-        yield from Routines.Yield.wait(1000)
+        yield from Routines.Yield.wait(5000)
+        hero_ai_options.Combat = True
     yield
 
 
@@ -202,7 +214,7 @@ def handle_on_danger_flagging(bot: Botting):
                 last_x, last_y = last_flagged_x_y
                 dx, dy = player_x - last_x, player_y - last_y
                 dist_sq = dx * dx + dy * dy
-                max_dist_sq = (Range.Spellcast.value * 1.25) ** 2
+                max_dist_sq = (Range.Spellcast.value * 1.50) ** 2
 
                 # Only reflag (and wait) if too far from previous position
                 if dist_sq > max_dist_sq:
@@ -235,6 +247,17 @@ def disable_hero_ai_leader_combat(bot: Botting):
     yield
 
 
+def toggle_hero_ai_team_combat(toggle_value: bool):
+    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+    for account in accounts:
+        if account.AccountEmail:
+            hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
+            if hero_ai_options is None:
+                continue
+            hero_ai_options.Combat = toggle_value
+    yield from Routines.Yield.wait(1000)
+
+
 def setup_hero_ai_and_custom_builds(bot: Botting):
     global use_assassin_skillbar
 
@@ -258,19 +281,20 @@ def setup_hero_ai_and_custom_builds(bot: Botting):
 def farm_dungeon(bot: Botting) -> None:
     set_autoloot_options_for_custom_bots(salvage_golds=False, module_active=True)
     widget_handler = get_widget_handler()
+    widget_handler.enable_widget('HeroAI')
     widget_handler.enable_widget('Return to outpost on defeat')
     widget_handler.enable_widget('CombatPrep')
     bot.Properties.Enable('auto_combat')
 
-    # events
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
-    # end events
 
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
 
     bot.States.AddHeader('Exit To Farm')
     bot.Properties.Disable('pause_on_danger')
+    bot.Templates.Multibox_Aggressive()
+    bot.Properties.Enable('auto_combat')
     bot.States.AddCustomState(lambda: setup_hero_ai_and_custom_builds(bot), "Set up leader combat stuff")
     bot.Party.SetHardMode(True)
     bot.Move.XYAndExitMap(-22735, 6339, target_map_id=VERDANT_CASCADES_MAP_ID)
@@ -310,11 +334,14 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Move.XY(SLAVERS_EXILE_PATH_PRE_PATH_2[0], SLAVERS_EXILE_PATH_PRE_PATH_2[1], "Part 2 pre-route")
     bot.Move.FollowAutoPath(SALVERS_EXILE_TRAVEL_PATH_2, "Part 2 killing route")
 
+    bot.States.AddHeader("Chest Rewards")
     bot.Properties.Disable('pause_on_danger')
     bot.Wait.ForTime(5000)
     bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
     bot.States.AddCustomState(open_final_chest, "Open final chest")
-    bot.Wait.ForTime(5000)
+    bot.Wait.ForTime(15000)
+    bot.States.AddCustomState(lambda: toggle_hero_ai_team_combat(True), "Enable combat for rewards claim (in case of disabled)")
+    bot.States.RemoveManagedCoroutine('handle_on_danger_flagging')
     bot.Multibox.ResignParty()
     bot.Wait.ForTime(3000)
     bot.Wait.UntilOnOutpost()
