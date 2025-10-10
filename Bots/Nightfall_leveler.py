@@ -46,7 +46,7 @@ def create_bot_routine(bot: Botting) -> None:
     TakeWeaponRewardAndCraft(bot)              # Take reward and craft weapon
     
     # === PHASE 5: MID-GAME QUESTS AND PROGRESSION ===
-    LoopFarmInJokanurDiggins(bot)         # Jokanur Diggings quest chain
+    LoopFarmInJokanurDiggins(bot)
     GatherSecondSetOfAttributePoints(bot)          # Get second set of 15 attribute points
     
     # === PHASE 6: EYE OF THE NORTH EXPANSION ===
@@ -55,7 +55,9 @@ def create_bot_routine(bot: Botting) -> None:
     TravelToEyeOfTheNorthOutpost(bot)          # Go to EOTN outpost
     UnlockEyeOfTheNorthPool(bot)               # Unlock EOTN resurrection pool
     AdvanceToGunnarsHold(bot)                  # Advance to Gunnar's Hold
-    UnlockKillroyStonekin(bot)                 # Unlock Killroy Stonekin
+    UnlockKillroyStonekin(bot)
+    AdvanceToLongeyeEdge(bot)
+    #AdvanceToDoomlore(bot)                   # Advance to Doomlore
     
     # === PHASE 7: FINAL UNLOCKS AND LOCATIONS ===
     UnlockRemainingSecondaryProfessions(bot)   # Unlock remaining secondary professions
@@ -146,9 +148,9 @@ def EquipSkillBar():
         elif level == 9:
             yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirCbRiXSX7gDYjbXFYcCAA")    
         elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkmrELSiXSX7gDYjbaFYcCAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgGikurDJeJdtDOgBAAAgxJAAA")
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirBbQiXSX7gDYjbaFYcCAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgGikurDJeJdtDOgBAAAgxJAAA")
 
     elif profession == "Paragon":
         if level == 2:
@@ -475,11 +477,10 @@ def Get_Skills():
 
 def CompleteLearnMore(bot: Botting):
     bot.States.AddHeader("Phase 1: Learning from First Spear Dehvad")
-    ConfigurePacifistEnv(bot) #we dont want to fight, we are pascifist
+    bot.Properties.Disable("hero_ai")
     bot.Move.XY(-7158, 4894)
     bot.Move.XYAndDialog(-7158, 4894, 0x825801, step_name="Couldn't hurt to learn")
     Get_Skills()
-    ConfigurePacifistEnv(bot) #doubled for testing
     bot.Move.XYAndDialog(-7139, 4891, 0x825807, step_name="Accept reward")
     bot.States.AddHeader("Phase 1: Honing Combat Skills")
     bot.Move.XYAndDialog(-7158, 4894, 0x828901, step_name="Honing your skills")
@@ -816,7 +817,7 @@ def LoopFarmInJokanurDiggins(bot):
         # Still not level 10, repeat Jokanur Diggings quests for more farming
         bot.States.JumpToStepName("LoopFarm_JumpHere")
 
-def GatherSecondSetOfAttributePoints(bot):
+def GatherSecondSetOfAttributePoints(bot: Botting):
     bot.States.AddHeader("Phase 5: Gathering 15 second set of attribute points")
     bot.States.AddCustomState(lambda: None, "SecondAttPoints_JumpHere")
     bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
@@ -928,6 +929,83 @@ def UnlockKillroyStonekin(bot: Botting):
     bot.Wait.UntilOnOutpost()
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
 
+def AdvanceToLongeyeEdge(bot: Botting):
+    bot.States.AddHeader("Phase 6: Advancing to Longeye Edge")
+    bot.Map.Travel(target_map_id=644) # Gunnar's Hold
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
+    
+    # Exit Gunnar's Hold outpost
+    bot.Move.XY(15886.204101, -6687.815917)
+    bot.Move.XY(15183.199218, -6381.958984)
+    bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
+    
+    # Traverse through Norrhart Domains to Bjora Marches
+    bot.Move.XY(14233.820312, -3638.702636)
+    bot.Move.XY(14944.690429,  1197.740966)
+    bot.Move.XY(14855.548828,  4450.144531)
+    bot.Move.XY(17964.738281,  6782.413574)
+    bot.Move.XY(19127.484375,  9809.458984)
+    bot.Move.XY(21742.705078, 14057.231445)
+    bot.Move.XY(19933.869140, 15609.059570)
+    bot.Move.XY(16294.676757, 16369.736328)
+    bot.Move.XY(16392.476562, 16768.855468)
+    bot.Wait.ForMapLoad(target_map_id=482)  # Bjora Marches
+    
+    # Traverse through Bjora Marches to Longeyes Ledge
+    bot.Move.XY(-11232.550781, -16722.859375)
+    bot.Move.XY(-7655.780273 , -13250.316406)
+    bot.Move.XY(-6672.132324 , -13080.853515)
+    bot.Move.XY(-5497.732421 , -11904.576171)
+    bot.Move.XY(-3598.337646 , -11162.589843)
+    bot.Move.XY(-3013.927490 ,  -9264.664062)
+    bot.Move.XY(-1002.166198 ,  -8064.565429)
+    bot.Move.XY( 3533.099609 ,  -9982.698242)
+    bot.Move.XY( 7472.125976 , -10943.370117)
+    bot.Move.XY(12984.513671 , -15341.864257)
+    bot.Move.XY(17305.523437 , -17686.404296)
+    bot.Move.XY(19048.208984 , -18813.695312)
+    bot.Move.XY(19634.173828, -19118.777343)
+    bot.Wait.ForMapLoad(target_map_id=650)  # Longeyes Ledge
+
+def AdvanceToDoomlore(bot: Botting):
+    bot.States.AddHeader("Phase 6: Advancing to Doomlore")
+    bot.Map.Travel(target_map_id=650) # Longeyes Ledge
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
+    
+    # Exit Longeyes Ledge outpost
+    bot.Move.XY(-22469.261718, 13327.513671)
+    bot.Move.XY(-21791.328125, 12595.533203)
+    bot.Wait.ForMapLoad(target_map_id=649)  # Grothmar Wardowns
+    
+    # Traverse through Grothmar Wardowns to Dalada Uplands
+    bot.Move.XY(-18582.023437, 10399.527343)
+    bot.Move.XY(-13987.378906, 10078.552734)
+    bot.Move.XY(-10700.551757,  9980.495117)
+    bot.Move.XY( -7340.849121,  9353.873046)
+    bot.Move.XY( -4436.997070,  8518.824218)
+    bot.Move.XY( -0445.930755,  8262.403320)
+    bot.Move.XY(  3324.289062,  8156.203613)
+    bot.Move.XY(  7149.326660,  8494.817382)
+    bot.Move.XY( 11733.867187,  7774.760253)
+    bot.Move.XY( 15031.326171,  9167.790039)
+    bot.Move.XY( 18174.601562, 10689.784179)
+    bot.Move.XY( 20369.773437, 12352.750000)
+    bot.Move.XY( 22427.097656, 14882.499023)
+    bot.Move.XY( 24355.289062, 15175.175781)
+    bot.Move.XY( 25188.230468, 15229.357421)
+    bot.Wait.ForMapLoad(target_map_id=647)  # Dalada Uplands
+    
+    # Traverse through Dalada Uplands to Doomlore Shrine
+    bot.Move.XY(-16292.620117,  -715.887329)
+    bot.Move.XY(-13617.916992,   405.243469)
+    bot.Move.XY(-13256.524414,  2634.142089)
+    bot.Move.XY(-15958.702148,  6655.416015)
+    bot.Move.XY(-14465.992187,  9742.127929)
+    bot.Move.XY(-13779.127929, 11591.517578)
+    bot.Move.XY(-14929.544921, 13145.501953)
+    bot.Move.XY(-15581.598632, 13865.584960)
+    bot.Wait.ForMapLoad(target_map_id=655)  # Doomlore Shrine
+
 def UnlockRemainingSecondaryProfessions(bot: Botting):
     bot.States.AddHeader("Phase 7: Unlocking All Remaining Secondary Professions")
     bot.Map.Travel(target_map_id=248)  # GTOB
@@ -936,7 +1014,7 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
     
     if primary == "Warrior":
         bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        #bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
@@ -946,7 +1024,7 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
         bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
     elif primary == "Ranger":
         bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        #bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
@@ -955,7 +1033,7 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
         bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
     elif primary == "Monk":
         bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        #bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
@@ -964,7 +1042,7 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
         bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
     elif primary == "Mesmer":
-        #bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
@@ -985,7 +1063,7 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
         bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
     elif primary == "Elementalist":
         bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        #bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
@@ -995,7 +1073,7 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
         bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
     elif primary == "Dervish":
         bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        #bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
@@ -1005,7 +1083,7 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
         bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
     elif primary == "Paragon":
         bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        #bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
