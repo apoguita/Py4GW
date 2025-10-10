@@ -11,7 +11,7 @@ from .decorators import _yield_step, _fsm_step
 from typing import Any, Generator, TYPE_CHECKING, Tuple, List, Optional, Callable
 
 
-LOOT_THROTTLE_CHECK = ThrottledTimer(500)
+LOOT_THROTTLE_CHECK = ThrottledTimer(200)
 
 #region UPKEEPERS
 class _Upkeepers:
