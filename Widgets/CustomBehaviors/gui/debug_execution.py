@@ -1,10 +1,8 @@
 import os
 from collections import deque
 from datetime import datetime
-
-from Py4GWCoreLib import ImGui, PyImGui
-from Py4GWCoreLib.enums_src.Texture_enums import get_texture_for_skill
-from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
+from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader, MatchResult
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
 
@@ -29,7 +27,7 @@ def render():
             PyImGui.table_setup_column("Name")
             for result in reversed(results):
 
-                texture_file = get_texture_for_skill(result.skill.custom_skill.skill_id)
+                texture_file = result.skill.custom_skill.get_texture(py4gw_root_directory, project_root)
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
                 ImGui.DrawTexture(texture_file, 30, 30)
