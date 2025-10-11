@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, get_texture_for_item, GLOBAL_CACHE, Routines, ActionQueueManager
+from Py4GWCoreLib import Botting, get_texture_for_model, GLOBAL_CACHE, Routines, ActionQueueManager
 import PyImGui, Py4GW
 
 BOT_NAME = "Killroy Stoneskin"
