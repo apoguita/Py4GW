@@ -6,6 +6,7 @@ from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import Cus
 
 loader_throttler = ThrottledTimer(100)
 refresh_throttler = ThrottledTimer(1_000)
+heroai_fallack_mecanism_throttler = ThrottledTimer(500)
 
 @staticmethod
 def daemon():
@@ -24,6 +25,18 @@ def daemon():
             if not CustomBehaviorLoader().custom_combat_behavior.is_custom_behavior_match_in_game_build():
                 CustomBehaviorLoader().refresh_custom_behavior_candidate()
                 return
+            
+    if heroai_fallack_mecanism_throttler.IsExpired(): 
+        heroai_fallack_mecanism_throttler.Reset()
+
+        from HeroAI.cache_data import CacheData
+        cached_data: CacheData = CacheData()
+        
+        from HeroAI.players import RegisterHeroes, RegisterPlayer, UpdatePlayers
+        RegisterPlayer(cached_data)
+        RegisterHeroes(cached_data)
+        UpdatePlayers(cached_data)
+        cached_data.UdpateCombat()
 
     # main loops
 

@@ -79,6 +79,4 @@ class NecromancerBipRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
             self.blood_is_power_utility.custom_skill,
-            self.spirit_light_utility.custom_skill,
-            self.mend_body_and_soul_utility.custom_skill,
         ]
