@@ -53,6 +53,8 @@ class NavMesh:
         self.create_all_local_portals()
         self.create_all_cross_layer_portals()
         self._populate_spatial_grid()
+        # Build a quick lookup for portals by trapezoid pair for fast retrieval
+        self._build_portal_map()
 
     
     def get_adjacent_side(self, a: PathingTrapezoid, b: PathingTrapezoid) -> Optional[str]:
@@ -199,6 +201,56 @@ class NavMesh:
         cy = (t.YT + t.YB) / 2
         return (cx, cy)
 
+    def _build_portal_map(self):
+        """Create a mapping from unordered trapezoid id pair -> Portal for fast lookup."""
+        self._portal_map: Dict[frozenset, Portal] = {}
+        for p in self.portals:
+            try:
+                a_id = p.a.m_t.id
+                b_id = p.b.m_t.id
+            except Exception:
+                continue
+            key = frozenset({a_id, b_id})
+            # keep the first portal found for the pair (there may be duplicates across layers)
+            if key not in self._portal_map:
+                self._portal_map[key] = p
+
+    def get_portal_between(self, a_id: int, b_id: int) -> Optional[Portal]:
+        return self._portal_map.get(frozenset({a_id, b_id}))
+
+    def smooth_path_via_portal_midpoints(self,
+                                         trap_ids: List[int],
+                                         start: Tuple[float, float],
+                                         goal: Tuple[float, float],
+                                         margin: float = 100,
+                                         step_dist: float = 200.0) -> List[Tuple[float, float]]:
+        """
+        Lightweight funnel-like smoothing: build a channel of portal midpoints between
+        successive trapezoids and then apply the existing LOS-based path simplifier.
+
+        This is cheap, incremental, and avoids full visibility graph generation.
+        """
+        if not trap_ids:
+            return [start, goal]
+
+        # build the sequence: start -> midpoints -> goal
+        pts: List[Tuple[float, float]] = [start]
+        for i in range(len(trap_ids) - 1):
+            a, b = trap_ids[i], trap_ids[i + 1]
+            portal = self.get_portal_between(a, b)
+            if portal:
+                mx = (portal.p1.x + portal.p2.x) / 2.0
+                my = (portal.p1.y + portal.p2.y) / 2.0
+                pts.append((mx, my))
+            else:
+                # fallback to trapezoid center if no portal object found
+                pts.append(self.get_position(b))
+
+        pts.append(goal)
+
+        # Use existing LOS-based simplifier to collapse straight segments
+        return self.smooth_path_by_los(pts, margin=margin, step_dist=step_dist)
+
     def get_neighbors(self, t_id: int) -> List[int]:
         return self.portal_graph.get(t_id, [])
     
@@ -210,22 +262,33 @@ class NavMesh:
         x, y = point
 
         # 1. Normal trapezoids (floor & standard geometry)
+        # Use an adaptive local tolerance derived from the trapezoid's size
+        # to avoid the global `tol` being too permissive on small traps.
         for t in self.trapezoids.values():
-            if t.YB - tol <= y <= t.YT + tol:
+            trap_height = abs(t.YT - t.YB)
+            trap_width = max(abs(t.XTR - t.XTL), abs(t.XBR - t.XBL))
+            # local tolerance: 25% of the largest dimension but clamped
+            local_tol = max(2.0, min(tol, 0.25 * max(trap_height, trap_width)))
+
+            if t.YB - local_tol <= y <= t.YT + local_tol:
                 ratio = (y - t.YB) / (t.YT - t.YB) if t.YT != t.YB else 0
                 left_x = t.XBL + (t.XTL - t.XBL) * ratio
                 right_x = t.XBR + (t.XTR - t.XBR) * ratio
-                if left_x - tol <= x <= right_x + tol:
+                if left_x - local_tol <= x <= right_x + local_tol:
                     return t.id
 
         # 2. Cross-layer portals (bridge, stairs, elevated geometry)
         for portal in self.portals:
             for trap in (portal.a.m_t, portal.b.m_t):
-                if trap.YB - tol <= y <= trap.YT + tol:
+                trap_height = abs(trap.YT - trap.YB)
+                trap_width = max(abs(trap.XTR - trap.XTL), abs(trap.XBR - trap.XBL))
+                local_tol = max(2.0, min(tol, 0.25 * max(trap_height, trap_width)))
+
+                if trap.YB - local_tol <= y <= trap.YT + local_tol:
                     ratio = (y - trap.YB) / (trap.YT - trap.YB) if trap.YT != trap.YB else 0
                     left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
                     right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-                    if left_x - tol <= x <= right_x + tol:
+                    if left_x - local_tol <= x <= right_x + local_tol:
                         return trap.id
 
         # 3. Nothing found
@@ -375,10 +438,32 @@ class AStar:
     def search(self, start_pos: Tuple[float, float], goal_pos: Tuple[float, float]) -> bool:
         start_id = self.navmesh.find_trapezoid_id_by_coord(start_pos)
         goal_id = self.navmesh.find_trapezoid_id_by_coord(goal_pos)
-
+        # If either endpoint couldn't be located in a trapezoid, try a nearest-trapezoid
+        # fallback before failing — this makes the planner more robust to boundary
+        # floating-point misses or slight coordinate mismatches.
         if start_id is None or goal_id is None:
-            Py4GW.Console.Log("A-Star", f"Invalid start or goal trapezoid: {start_id}, {goal_id}", Py4GW.Console.MessageType.Error)
-            return False
+            def _nearest_trap_id(point: Tuple[float, float]) -> Optional[int]:
+                best_id = None
+                best_dist = float('inf')
+                px, py = point
+                for t in self.navmesh.trapezoids.values():
+                    cx, cy = self.navmesh.get_position(t.id)
+                    d = math.hypot(px - cx, py - cy)
+                    if d < best_dist:
+                        best_dist = d
+                        best_id = t.id
+                return best_id
+
+            if start_id is None:
+                start_id = _nearest_trap_id(start_pos)
+            if goal_id is None:
+                goal_id = _nearest_trap_id(goal_pos)
+
+            if start_id is None or goal_id is None:
+                Py4GW.Console.Log("A-Star", f"Invalid start or goal trapezoid (and no fallback found): {start_id}, {goal_id}", Py4GW.Console.MessageType.Error)
+                return False
+            else:
+                Py4GW.Console.Log("A-Star", f"A-Star: fell back to nearest trapezoids: start={start_id}, goal={goal_id}", Py4GW.Console.MessageType.Warning)
 
         open_list: List[AStarNode] = []
         heapq.heappush(open_list, AStarNode(start_id, 0, self.heuristic(start_id, goal_id)))
@@ -717,5 +802,3 @@ class AutoPathing:
                                         smooth_by_chaikin=smooth_by_chaikin,
                                         chaikin_iterations=chaikin_iterations)
         return [(x, y) for (x, y, _) in path]
-
-
