@@ -397,12 +397,24 @@ def SkipTutorialDialog(bot: Botting) -> None:
 def TravelToGuildHall(bot: Botting):
     bot.States.AddHeader("Phase 1: Traveling to Guild Hall")
     bot.Map.TravelGH()
-    bot.States.AddCustomState(withdraw_gold, "Get 3000 gold")
-    #bot.Move.XYAndInteractNPC(10275, 3114) # Guild Hall NPC
-    #bot.buy_item(35, 100) # Buy Bag 1
-    #bot.buy_item(35, 100) # Buy Bag 2
-    #bot.buy_item(34, 100) # Buy Belt Pouch  
-    bot.Wait.ForTime(1000) # Wait for equip to complete
+    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
+    bot.helpers.UI.open_all_bags()
+    bot.Move.XYAndInteractNPC(10275, 3114) # Guild Hall NPC
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
+    bot.Wait.ForTime(250)
+    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
+    bot.Wait.ForTime(500) # Wait for equip to complete
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
+    bot.Wait.ForTime(500)
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
+    bot.Wait.ForTime(500)
     bot.Map.LeaveGH()
     bot.Wait.ForTime(5000) # Wait for cinematics to finish
 
@@ -1060,15 +1072,10 @@ def AdvanceToOlafstead(bot: Botting):
     bot.Wait.ForMapLoad(target_map_name="Drakkar Lake")
     
     # Traverse through Drakkar Lake to Varajar Fells
-    bot.Move.XY(13946.335937, 14286.607421)
-    bot.Move.XY(13599.999023,  6967.771484)
-    bot.Move.XY(13396.375000,  4099.683105)
-    bot.Move.XY(10782.618164,  3919.063720)
-    bot.Move.XY(-10946.782226,-16388.703125)
-    bot.Move.XY(-11847.703125,-19820.244140)
-    bot.Move.XY(-11442.958984,-22719.455078)
-    bot.Move.XY(-11040.512695,-25654.402343)
-    bot.Move.XY(-11019.546875,-26164.341796)
+    bot.Move.XY(13946, 14286)
+    bot.Move.XY(13950, 2646)
+    bot.Move.XY(10394, -3824)
+    bot.Move.XY(-11019,-26164)
     bot.Wait.ForMapLoad(target_map_id=553)  # Varajar Fells
     
     # Traverse through Varajar Fells to Olafstead
