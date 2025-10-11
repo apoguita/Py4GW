@@ -862,7 +862,7 @@ def AdvanceToGunnarsHold(bot: Botting):
 def AdvanceToLongeyeEdge(bot: Botting):
     bot.States.AddHeader("Advancing to Longeye's Edge")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
-    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
+    PrepareForBattle(bot)
     
     # Exit Gunnar's Hold outpost
     bot.Move.XY(15886.204101, -6687.815917)
