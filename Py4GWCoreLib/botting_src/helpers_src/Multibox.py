@@ -247,19 +247,26 @@ class _Multibox:
         
     def _pixel_stack(self):
         from ...GlobalCache import GLOBAL_CACHE
+        from ...import Range
         sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
-        x,y = GLOBAL_CACHE.Player.GetXY()
-        
+        x, y = GLOBAL_CACHE.Player.GetXY()
+
         players = GLOBAL_CACHE.Party.GetPlayers()
         current_map = GLOBAL_CACHE.Map.GetMapID()
         player_names = []
-        
+
         for player in players:
             agent_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(player.login_number)
-            if agent_name != "":
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
+
+            dx, dy = x - agent.x, y - agent.y
+            players_dist_sq = dx * dx + dy * dy
+            max_dist_sq = Range.Earshot.value ** 2
+
+            if agent_name != "" and players_dist_sq > max_dist_sq:
                 player_names.append(agent_name)
-
-
+        
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         sender_email = sender_email
         for account in accounts:
@@ -409,7 +416,7 @@ class _Multibox:
     @_yield_step(label="InteractWithTarget", counter_key="INTERACT_WITH_TARGET")
     def interact_with_target(self):
         yield from self._interact_with_target()
-        
+
     @_yield_step(label="TakeDialogWithTarget", counter_key="TAKE_DIALOG_WITH_TARGET")
     def take_dialog_with_target(self):
         yield from self._take_dialog_with_target()

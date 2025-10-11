@@ -10,6 +10,8 @@ from Py4GWCoreLib import Player
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 
+
+AUTOLOOT_SECTION = "AutoLootOptions"
 VIABLE_LOOT = {
     # Coin
     ModelID.Gold_Coins,
@@ -147,3 +149,50 @@ def move_all_crafting_materials_to_storage():
     for item_id in item_ids_to_store:
         GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
         yield from Routines.Yield.wait(250)
+
+
+def set_autoloot_options_for_custom_bots(salvage_golds=False, module_active=False):
+    ''' We use autohandler for most of the bots, this sets the autoloot ini to correspond to correct bot'''
+
+    auto_inventory_handler = AutoInventoryHandler()
+    ini = auto_inventory_handler.ini
+
+    # === Module State ===
+    ini.write_key(AUTOLOOT_SECTION, "module_active", "True" if module_active else "False")
+
+    # === Salvage Settings ===
+    SALVAGE_DEFAULTS = {
+        "salvage_whites": "True",
+        "salvage_rare_materials": "False",
+        "salvage_blues": "True",
+        "salvage_purples": "True",
+        "salvage_golds": "True" if salvage_golds else "False",
+    }
+    for key, value in SALVAGE_DEFAULTS.items():
+        ini.write_key(AUTOLOOT_SECTION, key, value)
+
+    # === Identification Settings ===
+    ID_DEFAULTS = {
+        "id_whites": "True",
+        "id_blues": "True",
+        "id_purples": "True",
+        "id_golds": "True",
+        "id_greens": "False",
+    }
+    for key, value in ID_DEFAULTS.items():
+        ini.write_key(AUTOLOOT_SECTION, key, value)
+
+    # === Deposit Settings ===
+    DEPOSIT_DEFAULTS = {
+        "deposit_trophies": "False",
+        "deposit_materials": "False",
+        "deposit_dyes": "False",
+        "deposit_golds": "True" if not salvage_golds else "False",
+        "deposit_greens": "True",
+        "keep_gold": "10000",
+    }
+    for key, value in DEPOSIT_DEFAULTS.items():
+        ini.write_key(AUTOLOOT_SECTION, key, value)
+
+    ini.write_key(AUTOLOOT_SECTION, "salvage_blacklist", "31202,31203,31204")  # remove glacial stones
+    auto_inventory_handler.load_from_ini(ini, AUTOLOOT_SECTION)

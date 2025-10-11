@@ -1,4 +1,3 @@
-from email.mime import message
 import time
 from datetime import datetime
 from datetime import timezone
@@ -195,10 +194,8 @@ def InviteToParty(index, message):
     GLOBAL_CACHE.Party.Players.InvitePlayer(sender_data.CharacterName)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(
-        MODULE_NAME,
-        "InviteToParty message processed and finished.",
-        Console.MessageType.Info, False)
+    ConsoleLog(MODULE_NAME, "InviteToParty message processed and finished.", Console.MessageType.Info, False)
+
 
 # endregion
 
@@ -214,11 +211,7 @@ def LeaveParty(index, message):
     GLOBAL_CACHE.Party.LeaveParty()
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(
-        MODULE_NAME,
-        "LeaveParty message processed and finished.",
-        Console.MessageType.Info, False
-    )
+    ConsoleLog(MODULE_NAME, "LeaveParty message processed and finished.", Console.MessageType.Info, False)
 
 
 # endregion
@@ -240,11 +233,7 @@ def TravelToMap(index, message):
     yield from Routines.Yield.Map.TravelToRegion(map_id, map_region, map_district, language=0, log=True)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(
-        MODULE_NAME,
-        "TravelToMap message processed and finished.",
-        Console.MessageType.Info,False
-    )
+    ConsoleLog(MODULE_NAME, "TravelToMap message processed and finished.", Console.MessageType.Info, False)
 
 
 # endregion
@@ -256,16 +245,16 @@ def Resign(index, message):
         ConsoleLog(MODULE_NAME, "Map is not valid, cannot process resign message.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-        
+
     # ConsoleLog(MODULE_NAME, f"Processing Resign message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     GLOBAL_CACHE.Player.SendChatCommand("resign")
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info,False)
+    ConsoleLog(MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info, False)
 
 
-#region PixelStack
+# region PixelStack
 def PixelStack(index, message):
     ConsoleLog(MODULE_NAME, f"Processing PixelStack message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -303,16 +292,19 @@ def PixelStack(index, message):
             left_x, left_y = GLOBAL_CACHE.Player.GetXY()
             if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
                 ConsoleLog(MODULE_NAME, "No movement detected, strafing right.", Console.MessageType.Info)
-                yield from Routines.Yield.Movement.StrafeRight(3500) # we need to get away from that wall
+                yield from Routines.Yield.Movement.StrafeRight(3500)  # we need to get away from that wall
 
         else:
             ConsoleLog(MODULE_NAME, "PixelStack movement succeeded.", Console.MessageType.Info, log=False)
     finally:
         yield from EnableHeroAIOptions(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-#endregion
 
-#region BruteForceUnstuck
+
+# endregion
+
+
+# region BruteForceUnstuck
 def BruteForceUnstuck(index, message):
     ConsoleLog(MODULE_NAME, f"Processing BruteForceUnstuck message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -369,15 +361,12 @@ def BruteForceUnstuck(index, message):
         yield from EnableHeroAIOptions(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
+
 # region InteractWithTarget
 
 
 def InteractWithTarget(index, message):
-    ConsoleLog(
-        MODULE_NAME,
-        f"Processing InteractWithTarget message: {message}",
-        Console.MessageType.Info, False
-    )
+    ConsoleLog(MODULE_NAME, f"Processing InteractWithTarget message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -399,25 +388,16 @@ def InteractWithTarget(index, message):
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
 
-        ConsoleLog(
-            MODULE_NAME,
-            "InteractWithTarget message processed and finished.",
-            Console.MessageType.Info, False
-        )
+        ConsoleLog(MODULE_NAME, "InteractWithTarget message processed and finished.", Console.MessageType.Info, False)
     finally:
         yield from RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 
-
 # endregion
 # region TakeDialogWithTarget
 def TakeDialogWithTarget(index, message):
-    ConsoleLog(
-        MODULE_NAME,
-        f"Processing TakeDialogWithTarget message: {message}",
-        Console.MessageType.Info, False
-    )
+    ConsoleLog(MODULE_NAME, f"Processing TakeDialogWithTarget message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -443,22 +423,14 @@ def TakeDialogWithTarget(index, message):
             UIManager.ClickDialogButton(int(message.Params[1]))
             yield from Routines.Yield.wait(200)
 
-        ConsoleLog(
-            MODULE_NAME,
-            "TakeDialogWithTarget message processed and finished.",
-            Console.MessageType.Info, False
-        )
+        ConsoleLog(MODULE_NAME, "TakeDialogWithTarget message processed and finished.", Console.MessageType.Info, False)
     finally:
         yield from RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 
 def SendDialogToTarget(index, message):
-    ConsoleLog(
-        MODULE_NAME,
-        f"Processing SendDialogToTarget message: {message}",
-        Console.MessageType.Info, False
-    )
+    ConsoleLog(MODULE_NAME, f"Processing SendDialogToTarget message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -485,16 +457,13 @@ def SendDialogToTarget(index, message):
         GLOBAL_CACHE.Player.SendDialog(dialog)
         yield from Routines.Yield.wait(500)
 
-        ConsoleLog(
-            MODULE_NAME,
-            "SendDialogToTarget message processed and finished.",
-            Console.MessageType.Info, False
-        )
+        ConsoleLog(MODULE_NAME, "SendDialogToTarget message processed and finished.", Console.MessageType.Info, False)
     finally:
         yield from RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
-#region GetBlessing
+
+# region GetBlessing
 def GetBlessing(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -521,15 +490,10 @@ def GetBlessing(index, message):
             UIManager.ClickDialogButton(message.Params[1])
             yield from Routines.Yield.wait(200)
 
-        ConsoleLog(
-            MODULE_NAME,
-            "GetBlessing message processed and finished.",
-            Console.MessageType.Info, False
-        )
+        ConsoleLog(MODULE_NAME, "GetBlessing message processed and finished.", Console.MessageType.Info, False)
     finally:
         yield from RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-
 
 
 # endregion
@@ -571,10 +535,7 @@ def UsePcon(index, message):
 
     GLOBAL_CACHE.Inventory.UseItem(item_id)
     ConsoleLog(
-        MODULE_NAME,
-        f"Using PCon model {pcon_model_to_use} with item_id {item_id}.",
-        Console.MessageType.Info,
-        False
+        MODULE_NAME, f"Using PCon model {pcon_model_to_use} with item_id {item_id}.", Console.MessageType.Info, False
     )
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -586,7 +547,7 @@ def UsePcon(index, message):
 
 # region PressKey
 def PressKey(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info,False)
+    ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
     key_id = int(message.Params[0])
@@ -598,11 +559,9 @@ def PressKey(index, message):
             yield from Routines.Yield.wait(100)
 
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(
-        MODULE_NAME,
-        "PressKey message processed and finished.",
-        Console.MessageType.Info,False
-    )
+    ConsoleLog(MODULE_NAME, "PressKey message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
 # region DonateToGuild
 def DonateToGuild(index, message):
@@ -620,13 +579,13 @@ def DonateToGuild(index, message):
     map_id = GLOBAL_CACHE.Map.GetMapID()
     TITLE_CAP = 10_000_000
     TOTAL_CUMULATIVE = 0
-    if map_id == 77:      # House zu Heltzer
+    if map_id == 77:  # House zu Heltzer
         faction = 0  # Kurzick
         npc_pos = (5408, 1494)
         CURRENT_FACTION = GLOBAL_CACHE.Player.GetKurzickData()[0]
         title = GLOBAL_CACHE.Player.GetTitle(TitleID.Kurzick)
         TOTAL_CUMULATIVE = title.current_points
-    elif map_id == 193:   # Cavalon
+    elif map_id == 193:  # Cavalon
         faction = 1  # Luxon
         npc_pos = (9074, -1124)
         CURRENT_FACTION = GLOBAL_CACHE.Player.GetLuxonData()[0]
@@ -642,13 +601,12 @@ def DonateToGuild(index, message):
     z = GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
     try:
         path3d = yield from AutoPathing().get_path(
-            (px, py, z), (npc_pos[0], npc_pos[1], z),
-            smooth_by_los=True, margin=100.0, step_dist=500.0
+            (px, py, z), (npc_pos[0], npc_pos[1], z), smooth_by_los=True, margin=100.0, step_dist=500.0
         )
     except Exception:
         path3d = []
 
-    path2d = [(x, y) for (x, y, *_ ) in path3d] if path3d else [npc_pos]
+    path2d = [(x, y) for (x, y, *_) in path3d] if path3d else [npc_pos]
     yield from Routines.Yield.Movement.FollowPath(path2d)
 
     # --- Interact with NPC ---
@@ -656,7 +614,7 @@ def DonateToGuild(index, message):
     yield from Routines.Yield.Agents.InteractWithAgentXY(*npc_pos)
     yield from Routines.Yield.wait(400)
 
-    if TOTAL_CUMULATIVE <= TITLE_CAP: #donate faction points if title is not maxed
+    if TOTAL_CUMULATIVE <= TITLE_CAP:  # donate faction points if title is not maxed
         # --- Donation loop ---
         chunks = CURRENT_FACTION // CHUNK
         for _ in range(chunks):
@@ -667,7 +625,7 @@ def DonateToGuild(index, message):
                     break
             GLOBAL_CACHE.Player.DepositFaction(faction)
             yield from Routines.Yield.wait(300)
-    else: #swap faction points for mats if title is maxed
+    else:  # swap faction points for mats if title is maxed
         swapped = 0
         chunks = CURRENT_FACTION // CHUNK
         while swapped < chunks:
@@ -715,7 +673,7 @@ def PickUpLoot(index, message):
 
     loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
     if len(loot_array) == 0:
-        yield from RestoreHeroAISnapshot(message.ReceiverEmail)   # <-- missing before
+        yield from RestoreHeroAISnapshot(message.ReceiverEmail)  # <-- missing before
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -800,29 +758,17 @@ def PickUpLoot(index, message):
 
 
 def MessageDisableHeroAI(index, message):
-    ConsoleLog(
-        MODULE_NAME,
-        f"Processing DisableHeroAI message: {message}",
-        Console.MessageType.Info,False
-    )
+    ConsoleLog(MODULE_NAME, f"Processing DisableHeroAI message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
     yield from SnapshotHeroAIOptions(account_email)
     yield from DisableHeroAIOptions(account_email)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
-    ConsoleLog(
-        MODULE_NAME,
-        "DisableHeroAI message processed and finished.",
-        Console.MessageType.Info,False
-    )
+    ConsoleLog(MODULE_NAME, "DisableHeroAI message processed and finished.", Console.MessageType.Info, False)
 
 
 def MessageEnableHeroAI(index, message):
-    ConsoleLog(
-        MODULE_NAME,
-        f"Processing EnableHeroAI message: {message}",
-        Console.MessageType.Info,False
-    )
+    ConsoleLog(MODULE_NAME, f"Processing EnableHeroAI message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
     if message.Params[0]:
@@ -830,11 +776,7 @@ def MessageEnableHeroAI(index, message):
     else:
         yield from RestoreHeroAISnapshot(account_email)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
-    ConsoleLog(
-        MODULE_NAME,
-        "EnableHeroAI message processed and finished.",
-        Console.MessageType.Info,False
-    )
+    ConsoleLog(MODULE_NAME, "EnableHeroAI message processed and finished.", Console.MessageType.Info, False)
 
 
 # region UseSkillFromMessage
@@ -911,8 +853,7 @@ def UseSkillFromMessage(index, message):
                 if not cached_data.combat_handler.IsReadyToCast(slot_number):
                     continue
 
-                if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=100):
-                    yield from Routines.Yield.wait(100)
+                yield from Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=100)
 
         except Exception as e:
             ConsoleLog(MODULE_NAME, f"Error during shout casting loop: {e}", Console.MessageType.Error)
@@ -947,8 +888,7 @@ def UseSkillFromMessage(index, message):
                     continue
 
                 if skill in spirit_skills_to_prep or skill == SUMMON_SPIRITS_LUXON or skill == SUMMON_SPIRITS_KURZICK:
-                    if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250):
-                        yield from Routines.Yield.wait(1250)
+                    yield from Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250)
 
                 if skill == ARMOR_OF_UNFEELING:
                     has_any_spirits_in_range = any(
@@ -956,8 +896,7 @@ def UseSkillFromMessage(index, message):
                         for spirit_skill in spirit_skills_to_prep
                     )
                     if has_any_spirits_in_range:
-                        if Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250):
-                            yield from Routines.Yield.wait(1250)
+                        yield from Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=1250)
 
         except Exception as e:
             ConsoleLog(MODULE_NAME, f"Error during spirit casting loop: {e}", Console.MessageType.Error)

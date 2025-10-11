@@ -124,7 +124,7 @@ def withdraw_cons_materials_from_inventory():
     # Step 1: Check how many we can craft based on materials
     max_possible = 9999
     for model_id, req_amount in PER_CONSET.items():
-        available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id) + GLOBAL_CACHE.Inventory.GetModelCount(model_id)
         possible = available // req_amount
         max_possible = min(max_possible, possible)
 
@@ -162,15 +162,29 @@ def withdraw_cons_materials_from_inventory():
     for model_id, req_amount in PER_CONSET.items():
         total_needed = req_amount * max_possible
         already_have = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
-        needed = max(0, total_needed - already_have)  # <-- only withdraw what's missing
+        available_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        needed = max(0, total_needed - already_have)  # only what's missing
+        target_amount = already_have + needed
+
         model_name = model_id.name if hasattr(model_id, "name") else str(model_id)
 
-        while needed > 0:
-            withdraw_amount = min(250, needed)
+        if needed == 0:
+            ConsoleLog("Withdraw", f"Already have enough {model_name} ({already_have}/{total_needed}) — skipping withdraw.")
+            continue
+
+        if available_in_storage < needed:
+            ConsoleLog(
+                "Withdraw",
+                f"Warning: Not enough {model_name} in storage ({available_in_storage}/{needed}). Will withdraw what’s available.",
+            )
+            needed = available_in_storage
+
+        while GLOBAL_CACHE.Inventory.GetModelCount(model_id) < target_amount:
+            remaining = target_amount - GLOBAL_CACHE.Inventory.GetModelCount(model_id)
+            withdraw_amount = min(250, remaining)
+
             GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, withdraw_amount)
             yield from Routines.Yield.wait(250)
-
-            needed -= withdraw_amount
 
         ConsoleLog("Withdraw", f"Got {total_needed} {model_name} for consets (had {already_have} already).")
 

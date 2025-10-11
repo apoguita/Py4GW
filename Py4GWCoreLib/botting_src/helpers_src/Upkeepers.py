@@ -104,7 +104,6 @@ class _Upkeepers:
                 yield from Routines.Yield.wait(500)
                 continue
             player_email = GLOBAL_CACHE.Player.GetAccountEmail()
-            
             GLOBAL_CACHE.ShMem.SendMessage(
                 player_email,
                 player_email,
@@ -114,6 +113,7 @@ class _Upkeepers:
             yield from Routines.Yield.wait(500)
             while LootingRoutineActive():
                 yield from Routines.Yield.wait(100)
+            
 
 
     def upkeep_armor_of_salvation(self):    

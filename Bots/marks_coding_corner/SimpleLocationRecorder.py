@@ -1,4 +1,5 @@
 import json
+
 from Py4GWCoreLib import *
 
 LOCATIONS_FILE = "locations.json"
@@ -30,7 +31,7 @@ def main():
         # === Buttons ===
         if PyImGui.button("RECORD"):
             x, y = GLOBAL_CACHE.Player.GetXY()
-            recorded_locations.append((x, y))
+            recorded_locations.append((int(x), int(y)))
             save_locations()
             ConsoleLog("Recorder", f"Recorded location: ({x}, {y})")
 
