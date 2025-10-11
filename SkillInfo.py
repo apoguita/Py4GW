@@ -2,6 +2,7 @@ import Py4GW
 import PyImGui
 from PyAgent import Profession, AttributeClass
 from Py4GWCoreLib import *
+import webbrowser
 from fractions import Fraction
 
 MODULE_NAME = "Skill Altas"
@@ -621,7 +622,7 @@ def main():
     try:
         DrawMainWindow()
         window_flags = PyImGui.WindowFlags.AlwaysAutoResize
-        if PyImGui.begin("Skill Info", window_flags):
+        if PyImGui.begin("move", window_flags):
             hovered_skill = GLOBAL_CACHE.SkillBar.GetHoveredSkillID()
             PyImGui.text(f"Hovered Skill ID: {hovered_skill}")
             if hovered_skill != 0:
@@ -632,9 +633,6 @@ def main():
             compare_skills = ImGui.toggle_button("Compare Skills", compare_skills)
             if compare_skills:
                 DrawCompareSkills()
-
-            if 0 > selected_skill or selected_skill > 3433:
-                selected_skill = 0
 
             if selected_skill != 0:
                 skill = SkillData(selected_skill)

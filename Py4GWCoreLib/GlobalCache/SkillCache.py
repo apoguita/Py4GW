@@ -1,5 +1,6 @@
 import PySkill
 from typing import Dict
+from ..enums import SkillTextureMap
 
 class SkillCache:
     def __init__(self):
@@ -405,7 +406,12 @@ class SkillCache:
             skill = self._get_skill_instance(skill_id)
             return skill.description_id
 
-        @staticmethod
-        def GetTexturePath(skill_id: int) -> str:
-            from Py4GWCoreLib.enums_src.Texture_enums import get_texture_for_skill
-            return get_texture_for_skill(skill_id)
+        def GetTexturePath(self,skill_id: int) -> str:
+            filename = SkillTextureMap.get(skill_id)
+            full_path = f"Textures\\Skill_Icons\\{filename}" if filename else ""
+            return full_path
+
+
+        
+        
+        

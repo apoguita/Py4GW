@@ -1,6 +1,7 @@
 import PySkill
 import json
 import os
+from .enums import SkillTextureMap
 
 class Skill:
     _desc_cache = None  # Cache JSON data once loaded
@@ -494,5 +495,14 @@ class Skill:
 
         @staticmethod
         def GetTexturePath(skill_id: int) -> str:
-            from Py4GWCoreLib.enums_src.Texture_enums import get_texture_for_skill
-            return get_texture_for_skill(skill_id)
+            filename = SkillTextureMap.get(skill_id)
+            full_path = f"Textures\\Skill_Icons\\{filename}" if filename else ""
+            return full_path
+
+
+        
+
+
+        
+
+        
