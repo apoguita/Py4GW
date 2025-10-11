@@ -9,10 +9,10 @@ class Style:
     pyimgui_style = PyImGui.StyleConfig()
 
     class StyleVar:
-        def __init__(self, style: "Style", value1: float, value2: float | None = None, img_style_enum: "ImGuiStyleVar|None" = None):
+        def __init__(self, style: "Style", value1: float, value2: float | None = None, img_style_enum: "ImGuiStyleVar|None" = None, display_name: str | None = None):
             self.style = style
             self.img_style_enum: ImGuiStyleVar | None = img_style_enum
-            self.display_name: str | None = Utils.split_uppercase(img_style_enum.name) if img_style_enum else None
+            self.display_name: str | None = display_name if display_name else Utils.split_uppercase(img_style_enum.name) if img_style_enum else None
             self.value1: float = value1
             self.value2: float | None = value2
             self.pushed_stack = []
@@ -81,10 +81,13 @@ class Style:
             self.pushed_stack.insert(0, col)
 
         def pop_color(self):
+            col = self.get_current()
+            
             if self.pushed_stack:
-                col = self.pushed_stack.pop(0)
-                if col.img_color_enum:
-                    PyImGui.pop_style_color(1)
+                self.pushed_stack.pop(0)
+                
+            if col.img_color_enum:
+                PyImGui.pop_style_color(1)
 
         def get_current(self): return self.pushed_stack[0] if self.pushed_stack else self
 
@@ -108,7 +111,7 @@ class Style:
         self.PopupRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGuiStyleVar.PopupRounding)
         self.WindowRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGuiStyleVar.WindowRounding)
         self.FramePadding : Style.StyleVar = Style.StyleVar(self, 5, 5, ImGuiStyleVar.FramePadding)
-        self.ButtonPadding : Style.StyleVar = Style.StyleVar(self, 5, 5, ImGuiStyleVar.FramePadding)
+        self.ButtonPadding : Style.StyleVar = Style.StyleVar(self, 5, 5, ImGuiStyleVar.FramePadding, "Button Padding")
         self.FrameRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGuiStyleVar.FrameRounding)
         self.ItemSpacing : Style.StyleVar = Style.StyleVar(self, 10, 6, ImGuiStyleVar.ItemSpacing)
         self.ItemInnerSpacing : Style.StyleVar = Style.StyleVar(self, 6, 4, ImGuiStyleVar.ItemInnerSpacing)
@@ -188,7 +191,6 @@ class Style:
         self.ToggleButtonDisabledHovered = Style.StyleColor(self, 51, 76, 102, 255, PyImGui.ImGuiCol.ButtonHovered, StyleColorType.Custom, "Toggle Button Disabled Hovered")
         self.ToggleButtonDisabledActive = Style.StyleColor(self, 102, 127, 153, 255, PyImGui.ImGuiCol.ButtonActive, StyleColorType.Custom, "Toggle Button Disabled Active")
 
-        self.TextCollapsingHeader = Style.StyleColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom, "Text Collapsing Header")
         self.TextTreeNode = Style.StyleColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom, "Text Tree Node")
         self.TextObjectiveCompleted = Style.StyleColor(self, 204, 204, 204, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom, "Text Objective Completed")
         self.Hyperlink = Style.StyleColor(self, 102, 187, 238, 255, PyImGui.ImGuiCol.Text, StyleColorType.Custom, "Text Hyperlink")
@@ -297,23 +299,23 @@ class Style:
         style.Theme = theme
 
         for color_name, color_data in style_data.get("Colors", {}).items():
-            attribute = getattr(style, color_name)
-            if isinstance(attribute, cls.StyleColor):
+            attribute = getattr(style, color_name, None)
+            if attribute and isinstance(attribute, cls.StyleColor):
                 attribute.load_from_json(color_data)
 
         for color_name, color_data in style_data.get("CustomColors", {}).items():
-            attribute = getattr(style, color_name)
-            if isinstance(attribute, cls.StyleColor):
+            attribute = getattr(style, color_name, None)
+            if attribute and isinstance(attribute, cls.StyleColor):
                 attribute.load_from_json(color_data)
 
         for color_name, color_data in style_data.get("TextureColors", {}).items():
-            attribute = getattr(style, color_name)
-            if isinstance(attribute, cls.StyleColor):
+            attribute = getattr(style, color_name, None)
+            if attribute and isinstance(attribute, cls.StyleColor):
                 attribute.load_from_json(color_data)
 
         for var_name, var_data in style_data.get("StyleVars", {}).items():
-            attribute = getattr(style, var_name)
-            if isinstance(attribute, cls.StyleVar):
+            attribute = getattr(style, var_name, None)
+            if attribute and isinstance(attribute, cls.StyleVar):
                 attribute.load_from_json(var_data)
 
         return style
