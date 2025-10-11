@@ -38,8 +38,8 @@ from .enums_src.Region_enums import (
 )
 from .enums_src.Texture_enums import (
     ProfessionTextureMap,
-    get_texture_for_item,
-    get_texture_for_skill,
+    SkillTextureMap,
+    get_texture_for_model,
 )
 from .enums_src.Title_enums import TITLE_NAME, TitleID
 from .enums_src.UI_enums import (
@@ -117,8 +117,8 @@ __all__ = [
 
     # Texture_enums
     "ProfessionTextureMap",
-    "get_texture_for_item",
-    "get_texture_for_skill",
+    "SkillTextureMap",
+    "get_texture_for_model",
 
     # Title_enums
     "TITLE_NAME",
@@ -135,3 +135,6 @@ __all__ = [
     "UIMessage",
     "WindowID",
 ]
+
+
+
