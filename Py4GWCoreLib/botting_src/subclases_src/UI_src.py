@@ -129,7 +129,7 @@ class _UI:
 
     def _draw_texture(self, texture_path:str, size:Tuple[float,float]=(96.0,96.0), tint:Color=Color(255,255,255,255), border_col:Color=Color(0,0,0,0)):
         from ...ImGui import ImGui
-        from ...enums import get_texture_for_model
+        from ...enums import get_texture_for_item
         from ...Routines import Routines
         
         if not Routines.Checks.Map.MapValid():
@@ -140,7 +140,7 @@ class _UI:
             return
 
         if not texture_path:
-            texture_path = get_texture_for_model(0)
+            texture_path = get_texture_for_item(0)
         
         ImGui.DrawTextureExtended(texture_path=texture_path, size=size,
                                 uv0=(0.0, 0.0),   uv1=(1.0, 1.0),
