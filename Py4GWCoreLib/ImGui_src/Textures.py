@@ -306,8 +306,6 @@ class ThemeTextures(Enum):
         active = (49, 0),
     )
 
-
-
     Combo_Arrow = ThemeTexture(
         (StyleTheme.Minimalus, SplitTexture(
             texture=os.path.join(MINIMALUS_FOLDER, "ui_combo_arrow.png"),
@@ -360,6 +358,72 @@ class ThemeTextures(Enum):
             left=(1, 4, 14, 27),
             mid=(15, 4, 92, 27),
             right=(93, 4, 126, 27),
+        ))
+    )
+    ArrowCollapsed = ThemeTexture(
+    (StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_arrow_collapse_expand.png"),
+        texture_size = (32, 16),
+        size = (16, 16),
+        normal = (16, 0),
+    )),
+    (StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_arrow_collapse_expand.png"),
+        texture_size = (32, 16),
+        size = (16, 16),
+        normal = (16, 0),
+    )),
+    )  
+
+    ArrowExpanded = ThemeTexture(
+    (StyleTheme.Minimalus,  MapTexture(
+        texture = os.path.join(MINIMALUS_FOLDER, "ui_arrow_collapse_expand.png"),
+        texture_size = (32, 16),
+        size = (16, 16),
+        normal = (0, 0),
+    )),
+    (StyleTheme.Guild_Wars,  MapTexture(
+        texture = os.path.join(TEXTURE_FOLDER, "ui_arrow_collapse_expand.png"),
+        texture_size = (32, 16),
+        size = (16, 16),
+        normal = (0, 0),
+    )),
+    )    
+    
+    CollapsingHeader_Background = ThemeTexture(
+        (StyleTheme.Minimalus, SplitTexture(
+            texture=os.path.join(MINIMALUS_FOLDER, "ui_collapsing_header_background.png"),
+            texture_size=(128, 32),
+            left=(4, 5, 14, 26),
+            mid=(15, 5, 92, 26),
+            right=(93, 5, 124, 26),
+        )),
+
+        (StyleTheme.Guild_Wars, SplitTexture(
+            texture=os.path.join(
+                TEXTURE_FOLDER, "ui_collapsing_header_background.png"),
+            texture_size=(128, 32),
+            left=(3, 5, 14, 26),
+            mid=(15, 5, 92, 26),
+            right=(93, 5, 125, 26),
+        ))
+    )
+
+    CollapsingHeader_Frame = ThemeTexture(
+        (StyleTheme.Minimalus, SplitTexture(
+            texture=os.path.join(MINIMALUS_FOLDER, "ui_collapsing_header_frame.png"),
+            texture_size=(128, 32),
+            left=(4, 5, 14, 26),
+            mid=(15, 5, 92, 26),
+            right=(93, 5, 124, 26),
+        )),
+
+        (StyleTheme.Guild_Wars, SplitTexture(
+            texture=os.path.join(TEXTURE_FOLDER, "ui_collapsing_header_frame.png"),
+            texture_size=(128, 32),
+            left=(3, 5, 14, 26),
+            mid=(15, 5, 92, 26),
+            right=(93, 5, 125, 26),
         ))
     )
 

@@ -340,10 +340,10 @@
         },
         "ToggleButtonDisabled": {
             "img_color_enum": "Button",
-            "r": 102,
-            "g": 127,
-            "b": 153,
-            "a": 160
+            "r": 26,
+            "g": 38,
+            "b": 51,
+            "a": 255
         },
         "ToggleButtonDisabledActive": {
             "img_color_enum": "ButtonActive",
