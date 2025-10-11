@@ -2178,7 +2178,7 @@ def DrawDayCard():
             PyImGui.table_setup_column("titles", PyImGui.TableColumnFlags.WidthFixed, child_width - iconwidth)
             PyImGui.table_next_row()
             PyImGui.table_set_column_index(0)
-            ImGui.DrawTexture(get_texture_for_model(nicholas["model_id"]), iconwidth, iconwidth)
+            ImGui.DrawTexture(get_texture_for_item(nicholas["model_id"]), iconwidth, iconwidth)
             PyImGui.table_set_column_index(1)
             if PyImGui.begin_table("Nick Info", 1, PyImGui.TableFlags.NoFlag):
                 PyImGui.table_next_row()
@@ -2226,7 +2226,7 @@ def DrawDayCard():
 
             # --- First row: textures ---
             for i, item in enumerate(current_event["dropped_items"]):
-                ImGui.DrawTexture(get_texture_for_model(item), 48, 48)
+                ImGui.DrawTexture(get_texture_for_item(item), 48, 48)
                 if i < len(current_event["dropped_items"]) - 1:
                     PyImGui.same_line(0, 5)  # spacing between textures
 
