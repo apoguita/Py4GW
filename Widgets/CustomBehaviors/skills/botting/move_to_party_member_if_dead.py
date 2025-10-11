@@ -63,6 +63,8 @@ class MoveToPartyMemberIfDeadUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         agent_id_dead = self._get_first_player_dead()
+        if agent_id_dead is None: return BehaviorResult.ACTION_SKIPPED
+
         agent_id_position: tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(agent_id_dead)
         GLOBAL_CACHE.Player.Move(agent_id_position[0], agent_id_position[1])
         yield from custom_behavior_helpers.Helpers.wait_for(100)

@@ -5,6 +5,7 @@ from functools import reduce
 from typing import Any, Callable, Optional, Tuple
 
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.enums_src.Model_enums import GadgetModelID
 from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -109,6 +110,47 @@ class Helpers:
         return action_result
 
 class Resources:
+
+    @staticmethod
+    def get_nearest_dungeon_chest(max_distance: int) -> int | None:
+        
+        valid_chest_ids = [
+            GadgetModelID.CHEST_DUNGEON_SECRET_LAIR_OF_THE_SNOWMAN.value,
+            GadgetModelID.CHEST_DUNGEON_BOGROOT_GROWTHS.value,
+        ]
+
+        gadget_array = AgentArray.GetGadgetArray()
+        gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
+        gadget_array = AgentArray.Sort.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY())
+
+        for agent_id in gadget_array:
+            gadget_id = GLOBAL_CACHE.Agent.GetGadgetID(agent_id)
+            if gadget_id in valid_chest_ids:
+                return agent_id
+
+        return None
+    
+    @staticmethod
+    def get_nearest_locked_chest(max_distance: int) -> int | None:
+        
+        valid_chest_ids = [
+            GadgetModelID.CHEST_HIDDEN_STASH.value,
+            GadgetModelID.CHEST_ASCALONIAN.value,
+            GadgetModelID.CHEST_SHING_JEA.value,
+            GadgetModelID.CHEST_GENERIC.value,
+        ]
+
+        gadget_array = AgentArray.GetGadgetArray()
+        gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
+        gadget_array = AgentArray.Sort.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY())
+
+        for agent_id in gadget_array:
+            gadget_id = GLOBAL_CACHE.Agent.GetGadgetID(agent_id)
+            if gadget_id in valid_chest_ids:
+                return agent_id
+
+        return None
+
 
     @staticmethod
     def is_player_holding_an_item() -> bool:

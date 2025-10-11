@@ -20,6 +20,27 @@ from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import (
 )
 
 
+class PartyFollowingConfigStruct(Structure):
+    """Struct for party following configuration stored in shared memory"""
+    _pack_ = 1
+    _fields_ = [
+        # Combat parameters (IN_AGGRO)
+        ("CombatFollowDistance", c_float),
+        ("CombatSpreadThreshold", c_float),
+        ("CombatRepulsionWeight", c_float),
+        # Non-combat parameters (CLOSE_TO_AGGRO, FAR_FROM_AGGRO)
+        ("NoncombatFollowDistance", c_float),
+        ("NoncombatSpreadThreshold", c_float),
+        ("NoncombatRepulsionWeight", c_float),
+        # Common parameters
+        ("FollowDistanceTolerance", c_float),
+        ("MaxMoveDistance", c_float),
+        ("MinMoveThreshold", c_float),
+        # Debug
+        ("EnableDebugOverlay", c_bool),
+    ]
+
+
 class CustomBehaviorWidgetStruct(Structure):
     _pack_ = 1
     _fields_ = [
@@ -35,6 +56,7 @@ class CustomBehaviorWidgetStruct(Structure):
         ("LockEntries", SharedLockEntryStruct * MAX_LOCKS),
         ("LockHistoryEntries", SharedLockHistoryStruct * MAX_LOCK_HISTORY),
         ("LockHistoryIdx", c_uint),
+        ("FollowingConfig", PartyFollowingConfigStruct),
     ]
 
 class CustomBehaviorWidgetData:
@@ -52,6 +74,7 @@ class CustomBehaviorWidgetData:
     # In-memory cooperative lock helpers (delegates to the singleton manager)
     def get_shared_lock_manager(self, key: str, timeout_seconds: int = 20) -> SharedLockManager:
         return CustomBehaviorWidgetMemoryManager().__shared_lock
+    
 
 SHMEM_SHARED_MEMORY_FILE_NAME = "CustomBehaviorWidgetMemoryManager"
 DEBUG = True
@@ -99,7 +122,19 @@ class CustomBehaviorWidgetMemoryManager:
         mem.IsChestingEnabled = False # we deactivate chesting by-default.
         mem.IsBlessingEnabled = False # we deactivate blessing by-default (there is often wrong-positive).
         mem.IsInventoryEnabled = False # we deactivate invoentory by-default.
-        
+
+        # Initialize following config with defaults
+        mem.FollowingConfig.CombatFollowDistance = 150.0
+        mem.FollowingConfig.CombatSpreadThreshold = 150.0
+        mem.FollowingConfig.CombatRepulsionWeight = 150.0
+        mem.FollowingConfig.NoncombatFollowDistance = 200.0
+        mem.FollowingConfig.NoncombatSpreadThreshold = 100.0
+        mem.FollowingConfig.NoncombatRepulsionWeight = 150.0
+        mem.FollowingConfig.FollowDistanceTolerance = 50.0
+        mem.FollowingConfig.MaxMoveDistance = 250.0
+        mem.FollowingConfig.MinMoveThreshold = 0.5
+        mem.FollowingConfig.EnableDebugOverlay = True
+
         for i in range(MAX_LOCKS):
             mem.LockEntries[i].Key = ""
             mem.LockEntries[i].AcquiredAt = 0
@@ -147,3 +182,14 @@ class CustomBehaviorWidgetMemoryManager:
     # --- Backwards-compatible delegates to shared_lock ---
     def GetSharedLockManager(self) -> SharedLockManager:
         return self.__shared_lock
+
+    # --- Party Following Config Methods ---
+    def GetFollowingConfig(self) -> PartyFollowingConfigStruct:
+        """Get the party following configuration from shared memory"""
+        mem = self._get_struct()
+        return mem.FollowingConfig
+
+    def SetFollowingConfig(self, config: PartyFollowingConfigStruct):
+        """Set the party following configuration in shared memory"""
+        mem = self._get_struct()
+        mem.FollowingConfig = config
