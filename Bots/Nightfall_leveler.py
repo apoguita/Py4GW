@@ -24,7 +24,8 @@ def create_bot_routine(bot: Botting) -> None:
     CompleteLearnMore(bot)                     # Learn more tutorial
     
     # === PHASE 2: INITIAL QUESTS AND PROGRESSION ===
-    CompleteStorageQuests(bot)                 # Storage-related quests
+    CompleteStorageQuests(bot)                 # Storage quests   
+    ExtendInventorySpace(bot)                  # Buy bags to extend inventory
     CompleteHeroCommandQuest(bot)              # Hero command quest
     CompleteArmoredTransportQuest(bot)         # Armored transport quest
     #CompleteIdentityTheftQuest(bot)           # Identity theft quest (not working yet)
@@ -57,10 +58,11 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToGunnarsHold(bot)                  # Advance to Gunnar's Hold
     UnlockKillroyStonekin(bot)
     AdvanceToLongeyeEdge(bot)
-    #AdvanceToDoomlore(bot)          # Advance to Doomlore
-    AdvanceToSifhalla(bot)                   # Advance to Sifhalla
-    AdvanceToOlafstead(bot)                  # Advance to Olafstead
-    AdvanceToUmbralGrotto(bot)               # Advance to Umbral Grotto
+    UnlockNPCForVaettirFarm(bot)
+    #AdvanceToDoomlore(bot)                   # Advance to Doomlore
+    #AdvanceToSifhalla(bot)                   # Advance to Sifhalla
+    #AdvanceToOlafstead(bot)                  # Advance to Olafstead
+    #AdvanceToUmbralGrotto(bot)               # Advance to Umbral Grotto
     
     # === PHASE 7: FINAL UNLOCKS AND LOCATIONS ===
     UnlockConsulateDocks(bot)                  # Unlock Consulate Docks
@@ -399,23 +401,6 @@ def SkipTutorialDialog(bot: Botting) -> None:
 def TravelToGuildHall(bot: Botting):
     bot.States.AddHeader("Phase 1: Traveling to Guild Hall")
     bot.Map.TravelGH()
-    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
-    bot.helpers.UI.open_all_bags()
-    bot.Move.XYAndInteractNPC(10275, 3114) # Guild Hall NPC
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
-    bot.Wait.ForTime(250)
-    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
-    bot.Wait.ForTime(500) # Wait for equip to complete
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
-    bot.Wait.ForTime(500)
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
     bot.Wait.ForTime(500)
     bot.Map.LeaveGH()
     bot.Wait.ForTime(5000) # Wait for cinematics to finish
@@ -513,6 +498,26 @@ def CompleteStorageQuests(bot: Botting):
     bot.Move.XYAndDialog(-7761, 14393, 0x84, step_name="50 Gold please")
     bot.Move.XYAndDialog(-9251, 11826, 0x82A107, step_name="Accept reward")
 
+def ExtendInventorySpace(bot: Botting):
+    bot.States.AddHeader("Phase 2: Extending Inventory Space")
+    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
+    bot.helpers.UI.open_all_bags()
+    bot.Move.XYAndInteractNPC(-10597.11, 8742.66) # Merchant NPC in Kamadan
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
+    bot.Wait.ForTime(250)
+    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
+    bot.Wait.ForTime(500) # Wait for equip to complete
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
+    bot.Wait.ForTime(500)
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
+
 def CompleteArmoredTransportQuest(bot):
     bot.States.AddHeader("Phase 2: Completing Armored Transport Quest")
     bot.Map.Travel(target_map_id=449) # Kamadan
@@ -605,7 +610,6 @@ def FarmQuestRequirements(bot: Botting):
     bot.Move.XYAndDialog(-11356, 9066, 0x826107, step_name="accept reward")
     bot.Wait.ForTime(2000)
    
-    
 def CompleteSunspearGreatHallQuests(bot: Botting):
     bot.States.AddHeader("Phase 2: Completing Sunspear Great Hall Quests")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
@@ -819,10 +823,10 @@ def LoopFarmInJokanurDiggins(bot):
     bot.Move.XY(14485, 16);    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(10256, -1393); bot.Wait.UntilOutOfCombat()
 
-    bot.Move.XYAndDialog(11238, -2718, 0x85) # Bounty
-    bot.Move.XY(10362, -2374)
-    bot.Move.XY(-12666, -2666); bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(12915, -6291);  bot.Wait.UntilOutOfCombat()
+    #bot.Move.XYAndDialog(11238, -2718, 0x85) # Bounty
+    #bot.Move.XY(10362, -2374)
+    #bot.Move.XY(-12666, -2666); bot.Wait.UntilOutOfCombat()
+    #bot.Move.XY(12915, -6291);  bot.Wait.UntilOutOfCombat()
     bot.Map.Travel(target_map_id=491)
 
     #After completing Jokanur quests, check level again and continue appropriately
@@ -847,6 +851,7 @@ def TravelToEyeOfTheNorth(bot: Botting):
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
+    ConfigurePacifistEnv(bot)
 
     bot.Move.XYAndDialog(-8739, 14200,0x833601) # Bendah
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) # Plains of Jarin
@@ -983,6 +988,35 @@ def AdvanceToLongeyeEdge(bot: Botting):
     bot.Move.XY(19048.208984 , -18813.695312)
     bot.Move.XY(19634.173828, -19118.777343)
     bot.Wait.ForMapLoad(target_map_id=650)  # Longeyes Ledge
+
+def UnlockNPCForVaettirFarm(bot: Botting):
+    bot.States.AddHeader("Unlocking NPC for Vaettir Farm")
+    bot.Map.Travel(target_map_id=650)  # longeyes_ledge_id
+    PrepareForBattle(bot)
+    bot.Move.XYAndExitMap(-26375, 16180, target_map_name="Bjora Marches")
+    path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
+    (17810, -17649),(17516, -17270),(17166, -16813),(16862, -16324),(16472, -15934),
+    (15929, -15731),(15387, -15521),(14849, -15312),(14311, -15101),(13776, -14882),
+    (13249, -14642),(12729, -14386),(12235, -14086),(11748, -13776),(11274, -13450),
+    (10839, -13065),(10572, -12590),(10412, -12036),(10238, -11485),(10125, -10918),
+    (10029, -10348),(9909, -9778)  ,(9599, -9327)  ,(9121, -9009)  ,(8674, -8645)  ,
+    (8215, -8289)  ,(7755, -7945)  ,(7339, -7542)  ,(6962, -7103)  ,(6587, -6666)  ,
+    (6210, -6226)  ,(5834, -5788)  ,(5457, -5349)  ,(5081, -4911)  ,(4703, -4470)  ,
+    (4379, -3990)  ,(4063, -3507)  ,(3773, -3031)  ,(3452, -2540)  ,(3117, -2070)  ,
+    (2678, -1703)  ,(2115, -1593)  ,(1541, -1614)  ,(960, -1563)   ,(388, -1491)   ,
+    (-187, -1419)  ,(-770, -1426)  ,(-1343, -1440) ,(-1922, -1455) ,(-2496, -1472) ,
+    (-3073, -1535) ,(-3650, -1607) ,(-4214, -1712) ,(-4784, -1759) ,(-5278, -1492) ,
+    (-5754, -1164) ,(-6200, -796)  ,(-6632, -419)  ,(-7192, -300)  ,(-7770, -306)  ,
+    (-8352, -286)  ,(-8932, -258)  ,(-9504, -226)  ,(-10086, -201) ,(-10665, -215) ,
+    (-11247, -242) ,(-11826, -262) ,(-12400, -247) ,(-12979, -216) ,(-13529, -53)  ,
+    (-13944, 341)  ,(-14358, 743)  ,(-14727, 1181) ,(-15109, 1620) ,(-15539, 2010) ,
+    (-15963, 2380) ,(-18048, 4223 ), (-19196, 4986),(-20000, 5595) ,(-20300, 5600)
+    ]
+    bot.Move.FollowPathAndExitMap(path_points_to_traverse_bjora_marches, target_map_name="Jaga Moraine")
+    bot.Move.XY(13372.44, -20758.50)
+    bot.Dialogs.AtXY(13367, -20771,0x84)
+    bot.Wait.UntilOutOfCombat()
+    bot.Dialogs.AtXY(13367, -20771,0x84)
 
 def AdvanceToDoomlore(bot: Botting):
     bot.States.AddHeader("Phase 6: Advancing to Doomlore")
