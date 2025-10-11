@@ -202,7 +202,7 @@ class NavMesh:
     def get_neighbors(self, t_id: int) -> List[int]:
         return self.portal_graph.get(t_id, [])
     
-    def find_trapezoid_id_by_coord(self, point: Tuple[float, float], tol: float = 5.0) -> Optional[int]:
+    def find_trapezoid_id_by_coord(self, point: Tuple[float, float], tol: float = 20.0) -> Optional[int]:
         """
         Returns the trapezoid ID containing (x, y), using a small tolerance to avoid
         floating-point misses when the point lies exactly on a border or corner.
