@@ -438,6 +438,36 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=649)
     bot.Move.XYAndDialog(-21141.81, 12378.68, 0x836007) # Rewards
     bot.States.JumpToStepName("[H]End_8")
+
+    bot.States.AddHeader("Unlock Skill #8")
+    bot.Map.Travel(target_map_id=642)
+    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x835601)
+    bot.Map.Travel(target_map_id=644)
+    bot.Move.XY(14758, -6425)
+    bot.Wait.ForMapLoad(target_map_id=548)
+
+    bot.Move.XY(12655, 409)
+    bot.Wait.ForTime(60000)
+    bot.Move.XY(11921, -2798)
+    bot.Move.XY(12102.08, -1703.92)
+    bot.Move.XY(11225.68, -7690.49)
+    bot.Wait.UntilOutOfCombat()
+    bot.Map.Travel(target_map_id=642)
+    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x835607)
+
+    bot.States.AddHeader("Unlock Skill #9")
+    bot.UI.PrintMessageToConsole("Starting", "Beginning Vanguard Ebon Sin quest routine")
+    
+    # Travel to Eotn Outpost
+    bot.Map.Travel(target_map_id=642)
+    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x836A01)
+    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x86)
+    bot.Wait.ForMapLoad(target_map_id=697) # Special Eotn Map
+    bot.Multibox.ResignParty()
+    bot.Wait.ForMapToChange(target_map_id=642)  
+    # Collect reward
+    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x836A07) # Rewards
+    bot.States.JumpToStepName("[H]End_8")
     
     bot.States.AddHeader("End") #H 8
     bot.UI.PrintMessageToConsole("End", "This is the end of the bot routine")
@@ -474,6 +504,12 @@ def Draw_Window():
 
         if PyImGui.button("Start Ebon battle standard of honor Quest (Skill #7)"):
             bot.StartAtStep("[H]Unlock Skill #7_8")
+
+        if PyImGui.button("Start Unlock Wind Skill #8"):
+            bot.StartAtStep("[H]Unlock Skill #8_9")
+
+        if PyImGui.button("Start Vanguard Ebon Sin Quest (Skill #9)"):
+            bot.StartAtStep("[H]Unlock Skill #9_10")
 
         PyImGui.end()
 
