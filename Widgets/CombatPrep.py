@@ -319,7 +319,7 @@ class CombatPrep:
         return texture_path_to_use
 
     # callback methods
-    def cb_set_formation(self, set_formations_relative_to_leader, disband_formation):
+    def cb_set_formation(self, set_formations_relative_to_leader, disband_formation, custom_angle=None):
         party_size = GLOBAL_CACHE.Party.GetPartySize()
         if len(set_formations_relative_to_leader):
             leader_follow_angle = GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())  # in radians
@@ -327,6 +327,8 @@ class CombatPrep:
             leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(party_leader_id)
             angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
 
+            if custom_angle:
+                angle_rad = custom_angle
             cos_a = math.cos(angle_rad)
             sin_a = math.sin(angle_rad)
 
