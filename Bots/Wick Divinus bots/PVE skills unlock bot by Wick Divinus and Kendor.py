@@ -38,19 +38,19 @@ def FinishHimSkillBar(skillbar = ""):
     if profession == "Warrior":
         skillbar = "OQITYN8kzQxw23AAAAg2CAA" #not done
     elif profession == "Ranger":
-        skillbar = "OggjcNgsITVTXTfTlTnN+gAAOTA" #done
+        skillbar = "OggjYNgsITVTXTfTlTnN+g0GOTA" #done
     elif profession == "Monk":
         skillbar = "OwISYxcGKG2o03AAA0WA" #not done
     elif profession == "Necromancer":
         skillbar = "OAhjYMgsITVTXTfTlTnN+gOT7iAAA" #done
     elif profession == "Mesmer":
-        skillbar = "OQJTYJckzQxw23AAAAg2CAA" #not done
+        skillbar = "OQhjAMgsITVTXTlTnNfT+g7iOTA" #done
     elif profession == "Elementalist":
         skillbar = "OgJUwCLhjcGKG2+GAAAA0WAA" #not done
     elif profession == "Ritualist":
         skillbar = "OACjAqiK5SVTXTfTlTnN+gOTAAA" #done
     elif profession == "Assassin":
-        skillbar = "OwRCU8x0WocwnQZglAAAAAAA" #not done
+        skillbar = "OwhiAyiMVNdN9NVOd2sL6D6MBA" # done
     elif profession == "Dervish":
         skillbar = "OgSCU8x0WocwnQZglAAAAAAA" #not done
 
@@ -58,9 +58,9 @@ def FinishHimSkillBar(skillbar = ""):
 
 def PreCastSkills(bot: Botting) -> None:
     bot.SkillBar.UseSkill(1239); bot.Wait.ForTime(1000) # Signet of Spirits
-    bot.SkillBar.UseSkill(1247); bot.Wait.ForTime(1250) # Pain
     bot.SkillBar.UseSkill(1253); bot.Wait.ForTime(1250) # Blood Song
     bot.SkillBar.UseSkill(871); bot.Wait.ForTime(1250) # Shadow Song
+    bot.SkillBar.UseSkill(1247); bot.Wait.ForTime(1250) # Pain
     bot.SkillBar.UseSkill(2110); bot.Wait.ForTime(1250) # Vampirism 
 
 def withdraw_gold(target_gold=500, deposit_all=True):
@@ -543,6 +543,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=700)
     
         # Fight sequence 1
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
     bot.Wait.ForTime(10000) #
     bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
     bot.Move.XY(18806, -11057)
@@ -553,6 +554,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=700)
         # Fight sequence 2
     bot.Wait.ForTime(10000) #
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
     bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
     bot.Move.XY(18806, -11057)
     PreCastSkills(bot)
@@ -562,6 +564,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=700)
         # Fight sequence 3
     bot.Wait.ForTime(10000) #
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
     bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
     bot.Move.XY(18806, -11057)
     PreCastSkills(bot)
@@ -571,6 +574,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=700)
         # Fight sequence 4
     bot.Wait.ForTime(10000) #
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
     bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
     bot.Move.XY(18806, -11057)
     PreCastSkills(bot)
@@ -580,6 +584,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=700)
         # Fight sequence 5
     bot.Wait.ForTime(10000) #
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
     bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
     bot.Move.XY(18806, -11057)
     PreCastSkills(bot)
@@ -587,8 +592,9 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.UntilOutOfCombat()
     bot.Wait.ForTime(5000)
     bot.Wait.ForMapLoad(target_map_id=700)
-        # Final Round  
+        # Final Round
     bot.Wait.ForTime(8000) # -2sec to cast Boon of Creation
+    bot.Multibox.UseConsumable(22269, 0) #Cupcake
     bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
     bot.Move.XY(18806, -11057)
     PreCastSkills(bot)
