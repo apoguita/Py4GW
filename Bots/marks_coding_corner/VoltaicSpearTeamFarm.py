@@ -14,6 +14,7 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib import LootConfig
 
 from Py4GWCoreLib import ChatChannel
 from Py4GWCoreLib.Builds.ShadowTheftDaggerSpammer import AssassinShadowTheftDaggerSpammer
@@ -78,12 +79,15 @@ SALVERS_EXILE_TRAVEL_PATH_2: list[tuple[float, float]] = [
 bot = Botting(BOT_NAME)
 cache_data = CacheData()
 combat_prep = CombatPrep(cache_data, '60', 'row')  # Use Widget class to flag heroes
-is_party_flagged = False
-last_flagged_x_y = (0, 0)
-last_flagged_map_id = VERDANT_CASCADES_MAP_ID
 use_assassin_skillbar = True
 flag_timer = ThrottledTimer(3000)
 auto_inventory_handler = AutoInventoryHandler()
+
+# Bot specific globals
+is_party_flagged = False
+last_flagged_x_y = (0, 0)
+last_flagged_map_id = VERDANT_CASCADES_MAP_ID
+at_final_chest = False
 
 
 def _on_party_wipe(bot: "Botting"):
@@ -132,22 +136,27 @@ def OnPartyWipe(bot: "Botting"):
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 
 
+def command_type_routine_in_message_is_active(account_email, shared_command_type):
+    index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
+
+    if index == -1 or message is None:
+        return False
+
+    if message.Command != shared_command_type:
+        return False
+    return True
+
+
 def open_final_chest():
-    def command_type_routine_in_message_is_active(account_email, shared_command_type):
-        index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
-
-        if index == -1 or message is None:
-            return False
-
-        if message.Command != shared_command_type:
-            return False
-        return True
+    global at_final_chest
 
     yield from Routines.Yield.Agents.TargetNearestGadgetXY(-17461.00, -14258.00, 100)
+    at_final_chest = True
     target = GLOBAL_CACHE.Player.GetTargetID()
     if target == 0:
         ConsoleLog("Messaging", "No target to interact with.")
         return
+
     sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
     while command_type_routine_in_message_is_active(sender_email, SharedCommandType.InteractWithTarget):
@@ -184,16 +193,67 @@ def open_final_chest():
     yield
 
 
+def clear_item_id_blacklist_and_attempt_loot_again():
+    LootConfig().ClearItemIDBlacklist()
+    sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+    yield from Routines.Yield.Agents.InteractWithGadgetXY(-17461.00, -14258.00, 100)
+    target = GLOBAL_CACHE.Player.GetTargetID()
+
+    if target == 0:
+        ConsoleLog("Messaging", "No target to interact with.")
+        return
+
+    # Looting again in case it wasn't looted earlier
+    while command_type_routine_in_message_is_active(sender_email, SharedCommandType.PickUpLoot):
+        yield from Routines.Yield.wait(1000)
+
+    while command_type_routine_in_message_is_active(sender_email, SharedCommandType.PickUpLoot):
+        yield from Routines.Yield.wait(1000)
+
+    for account in accounts:
+        if not account.AccountEmail or sender_email == account.AccountEmail:
+            continue
+
+        hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
+        if hero_ai_options is None:
+            continue
+        hero_ai_options.Combat = False
+
+        GLOBAL_CACHE.ShMem.SendMessage(
+            sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target, 0, 0, 0)
+        )
+
+        # Interacting with chest
+        while command_type_routine_in_message_is_active(account.AccountEmail, SharedCommandType.InteractWithTarget):
+            yield from Routines.Yield.wait(1000)
+
+        GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PickUpLoot, (0, 0, 0, 0))
+        yield from Routines.Yield.wait(1000)
+
+        # Looting
+        while command_type_routine_in_message_is_active(account.AccountEmail, SharedCommandType.PickUpLoot):
+            yield from Routines.Yield.wait(1000)
+        hero_ai_options.Combat = True
+
+
 def handle_on_danger_flagging(bot: Botting):
     global combat_prep
     global is_party_flagged
     global last_flagged_x_y
     global last_flagged_map_id
+    global at_final_chest
 
     base_formation = [[-200, -200], [200, -200], [-200, 0], [200, 0], [-200, 300], [0, 300], [200, 300]]
     offset = [0, -450]
 
     while True:
+        # Avoid fighting after the chest is already opened
+        if at_final_chest:
+            bot.config.build_handler.status = BuildStatus.Wait  # type: ignore
+            yield from Routines.Yield.wait(1000)
+            continue
+
         player_x, player_y = GLOBAL_CACHE.Player.GetXY()
         map_id = GLOBAL_CACHE.Map.GetMapID()
 
@@ -221,9 +281,9 @@ def handle_on_danger_flagging(bot: Botting):
 
         if trigger_flagging:
             spread_formation = [[x + offset[0], y + offset[1]] for x, y in base_formation]
-            bot.config.build_handler.status = BuildStatus.Kill  # type: ignore
 
             if not is_party_flagged:
+                bot.config.build_handler.status = BuildStatus.Pull  # type: ignore
                 last_flagged_x_y = combat_prep.get_party_center()
                 last_flagged_map_id = map_id
                 is_party_flagged = True
@@ -232,7 +292,7 @@ def handle_on_danger_flagging(bot: Botting):
                 combat_prep.cb_spirits_prep(st_button_pressed=True)
                 combat_prep.cb_set_formation(spread_formation, False, custom_angle=angle_rad)
 
-                yield from Routines.Yield.wait(2500)
+                yield from Routines.Yield.wait(4000)
                 combat_prep.cb_set_formation([], True)
 
             elif last_flagged_map_id == map_id:
@@ -294,8 +354,10 @@ def toggle_hero_ai_team_combat(toggle_value: bool):
 
 
 def setup_hero_ai_and_custom_builds(bot: Botting):
+    global at_final_chest
     global use_assassin_skillbar
 
+    at_final_chest = False
     if not use_assassin_skillbar:
         yield
         return
@@ -374,7 +436,8 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Wait.ForTime(5000)
     bot.Interact.WithGadgetAtXY(-17461.00, -14258.00, "Main runner claim rewards")
     bot.States.AddCustomState(open_final_chest, "Open final chest")
-    bot.Wait.ForTime(15000)
+    bot.States.AddCustomState(clear_item_id_blacklist_and_attempt_loot_again, "Clears item blacklist, to loot again")
+    bot.Wait.ForTime(10000)
     bot.States.AddCustomState(
         lambda: toggle_hero_ai_team_combat(True), "Enable combat for rewards claim (in case of disabled)"
     )
