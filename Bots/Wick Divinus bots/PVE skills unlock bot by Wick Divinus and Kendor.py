@@ -31,6 +31,50 @@ def EquipSkillBar(skillbar = ""):
         skillbar = "OgSCU8x0WocwnQZglAAAAAAA" #done
 
     yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
+
+def FinishHimSkillBar(skillbar = ""): 
+    profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+
+    if profession == "Warrior":
+        skillbar = "OQITYN8kzQxw23AAAAg2CAA" #not done
+    elif profession == "Ranger":
+        skillbar = "OggjcNgsITVTXTfTlTnN+gAAOTA" #done
+    elif profession == "Monk":
+        skillbar = "OwISYxcGKG2o03AAA0WA" #not done
+    elif profession == "Necromancer":
+        skillbar = "OAhjYMgsITVTXTfTlTnN+gOT7iAAA" #done
+    elif profession == "Mesmer":
+        skillbar = "OQJTYJckzQxw23AAAAg2CAA" #not done
+    elif profession == "Elementalist":
+        skillbar = "OgJUwCLhjcGKG2+GAAAA0WAA" #not done
+    elif profession == "Ritualist":
+        skillbar = "OACjAqiK5SVTXTfTlTnN+gOTAAA" #done
+    elif profession == "Assassin":
+        skillbar = "OwRCU8x0WocwnQZglAAAAAAA" #not done
+    elif profession == "Dervish":
+        skillbar = "OgSCU8x0WocwnQZglAAAAAAA" #not done
+
+    yield from Routines.Yield.Skills.LoadSkillbar(skillbar)   
+
+def PreCastSkills(bot: Botting) -> None:
+    bot.SkillBar.UseSkill(1239); bot.Wait.ForTime(1000) # Signet of Spirits
+    bot.SkillBar.UseSkill(1247); bot.Wait.ForTime(1250) # Pain
+    bot.SkillBar.UseSkill(1253); bot.Wait.ForTime(1250) # Blood Song
+    bot.SkillBar.UseSkill(871); bot.Wait.ForTime(1250) # Shadow Song
+    bot.SkillBar.UseSkill(2110); bot.Wait.ForTime(1250) # Vampirism 
+
+def withdraw_gold(target_gold=500, deposit_all=True):
+    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+    if gold_on_char > target_gold and deposit_all:
+        to_deposit = gold_on_char - target_gold
+        GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
+        yield from Routines.Yield.wait(250)
+
+    if gold_on_char < target_gold:
+        to_withdraw = target_gold - gold_on_char
+        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
+        yield from Routines.Yield.wait(250)
                 
 def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader("Unlock Skill #1") #[H] 1
@@ -464,9 +508,96 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndDialog(-1904.21, 3112.10, 0x86)
     bot.Wait.ForMapLoad(target_map_id=697) # Special Eotn Map
     bot.Multibox.ResignParty()
-    bot.Wait.ForMapToChange(target_map_id=642)  
+    bot.Wait.ForTime(3000)
+    bot.Map.Travel(target_map_id=642)
+    #bot.Wait.ForMapToChange(target_map_id=642)  
     # Collect reward
     bot.Move.XYAndDialog(-1904.21, 3112.10, 0x836A07) # Rewards
+    bot.States.JumpToStepName("[H]End_8")
+
+    
+    bot.States.AddHeader("Unlock Skill #10")
+    bot.UI.PrintMessageToConsole("Starting", "Beginning Finish Him quest routine")
+    
+    # Travel to Sifhalla
+    bot.Map.Travel(target_map_name="Gunnar's Hold")
+    
+    # Configure bot properties
+    bot.Properties.Enable("pause_on_danger")
+    bot.Properties.Disable("halt_on_death")
+    bot.Properties.Set("movement_timeout", value=-1)
+    bot.Properties.Enable("auto_combat")
+    
+    # Equip bonus items and skill bar before starting the quest
+    #bot.Items.SpawnBonusItems()
+    #bot.Items.Equip(6515) # Necro Bonus Staff
+    bot.States.AddCustomState(FinishHimSkillBar, "Equip Skill Bar")
+    bot.States.AddCustomState(withdraw_gold, "Get 500 gold")
+    
+    # Start Finish Him quest
+    bot.Move.XY(17266.78, -8667.82)
+    bot.Move.XY(16609.11, -10126.19)
+    bot.Move.XY(17680, -11493) #just for testing since I am not running around
+    bot.Move.XYAndDialog(17680.50, -11493.22, 0x834A01) # Finish Him
+    bot.Move.XYAndDialog(17884.19, -11921.57, 0x84)
+    bot.Wait.ForMapLoad(target_map_id=700)
+    
+        # Fight sequence 1
+    bot.Wait.ForTime(10000) #
+    bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
+    bot.Move.XY(18806, -11057)
+    PreCastSkills(bot)
+    #bot.Wait.UntilOnCombat()
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(5000)
+    bot.Wait.ForMapLoad(target_map_id=700)
+        # Fight sequence 2
+    bot.Wait.ForTime(10000) #
+    bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
+    bot.Move.XY(18806, -11057)
+    PreCastSkills(bot)
+    #bot.Wait.UntilOnCombat()
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(5000)
+    bot.Wait.ForMapLoad(target_map_id=700)
+        # Fight sequence 3
+    bot.Wait.ForTime(10000) #
+    bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
+    bot.Move.XY(18806, -11057)
+    PreCastSkills(bot)
+    #bot.Wait.UntilOnCombat()
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(5000)
+    bot.Wait.ForMapLoad(target_map_id=700)
+        # Fight sequence 4
+    bot.Wait.ForTime(10000) #
+    bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
+    bot.Move.XY(18806, -11057)
+    PreCastSkills(bot)
+    #bot.Wait.UntilOnCombat()
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(5000)
+    bot.Wait.ForMapLoad(target_map_id=700)
+        # Fight sequence 5
+    bot.Wait.ForTime(10000) #
+    bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
+    bot.Move.XY(18806, -11057)
+    PreCastSkills(bot)
+    #bot.Wait.UntilOnCombat()
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(5000)
+    bot.Wait.ForMapLoad(target_map_id=700)
+        # Final Round  
+    bot.Wait.ForTime(8000) # -2sec to cast Boon of Creation
+    bot.SkillBar.UseSkill(1230); bot.Wait.ForTime(2000) #Boon of Creation 2sec cast
+    bot.Move.XY(18806, -11057)
+    PreCastSkills(bot)
+    bot.Wait.UntilOnCombat()
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForMapToChange(target_map_id=644)
+
+    # Collect reward
+    bot.Move.XYAndDialog(17683.13, -11468.46, 0x834F07) # Rewards
     bot.States.JumpToStepName("[H]End_8")
     
     bot.States.AddHeader("End") #H 8
@@ -510,6 +641,9 @@ def Draw_Window():
 
         if PyImGui.button("Start Vanguard Ebon Sin Quest (Skill #9)"):
             bot.StartAtStep("[H]Unlock Skill #9_10")
+
+        if PyImGui.button("Start Finish Him Quest (Skill #10)"):
+            bot.StartAtStep("[H]Unlock Skill #10_11")
 
         PyImGui.end()
 
