@@ -1,5 +1,6 @@
 # Reload imports
 from datetime import datetime
+from enum import Enum
 import importlib
 import os
 from typing import Optional
@@ -9,8 +10,8 @@ import PyImGui
 
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, Routines
 from Py4GWCoreLib.ImGui import Style
-from Py4GWCoreLib.ImGui_src.Textures import TextureState, ThemeTextures
-from Py4GWCoreLib.ImGui_src.types import ControlAppearance, StyleColorType, StyleTheme
+from Py4GWCoreLib.ImGui_src.Textures import MapTexture, SplitTexture, TextureState, ThemeTexture, ThemeTextures
+from Py4GWCoreLib.ImGui_src.types import MINIMALUS_FOLDER, TEXTURE_FOLDER, ControlAppearance, StyleColorType, StyleTheme
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
 from Py4GWCoreLib import Timer
@@ -83,7 +84,7 @@ if force_theme_override:
     
     py4_gw_ini_handler.write_key("settings", "force_theme_override", "False")
 
-themes = [theme.name.replace("_", " ") for theme in Style.StyleTheme]
+themes = [theme.name.replace("_", " ") + ( f" (Textured)" if theme in ImGui.Textured_Themes else "") for theme in Style.StyleTheme]
 
 org_style: Style.Style = ImGui.Selected_Style.copy()
 mouse_down_timer = ThrottledTimer(125)
@@ -91,7 +92,6 @@ input_int_value = 150
 input_float_value = 150.0
 input_text_value = "Text"
 search_value = ""
-window_open = False
 control_compare = False
 theme_compare = False
 match_style_vars = False
@@ -115,6 +115,10 @@ class preview_states:
         self.image_toggle_button_2 = False
         self.image_toggle_button_3 = False
         self.image_toggle_button_4 = False
+        self.icon_toggle_button_1 = True
+        self.icon_toggle_button_2 = False
+        self.icon_toggle_button_3 = False
+        self.icon_toggle_button_4 = False
         self.objective_1 = True
         self.objective_2 = False
         self.checkbox = True
@@ -127,6 +131,11 @@ class preview_states:
         self.theme_2 = Style.StyleTheme.Guild_Wars
         self.theme_3 = Style.StyleTheme.Minimalus
 
+class ThemeTexturesDev(Enum):
+    pass
+    
+class ImGuiDev:
+    pass
 
 preview = preview_states()
 
@@ -165,7 +174,6 @@ def draw_small_button(theme: Style.StyleTheme):
     PyImGui.same_line(0, 5)
     ImGui.small_button("Disabled" + "##" + theme.name, disabled=True)
 
-
 def draw_icon_button(theme: Style.StyleTheme):
     ImGui.icon_button(IconsFontAwesome5.ICON_SYNC + " With Text" + "##" + theme.name)
     PyImGui.same_line(0, 5)
@@ -179,6 +187,15 @@ def draw_icon_button(theme: Style.StyleTheme):
     PyImGui.same_line(0, 5)
     ImGui.icon_button(
         IconsFontAwesome5.ICON_SYNC, disabled=True)
+
+
+def draw_icon_toggle_button(theme: Style.StyleTheme):
+    preview.icon_toggle_button_1 = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_SYNC) + " With Text" + "##toggle_icon_button" + theme.name, preview.icon_toggle_button_1)
+    PyImGui.same_line(0, 5)
+    preview.icon_toggle_button_2 = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_TOGGLE_ON if preview.icon_toggle_button_2 else IconsFontAwesome5.ICON_TOGGLE_OFF) + "##toggle_icon_button" + theme.name, preview.icon_toggle_button_2)
+    PyImGui.same_line(0, 5)
+    preview.icon_toggle_button_3 = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_EYE if preview.icon_toggle_button_3 else IconsFontAwesome5.ICON_EYE_SLASH) + "##toggle_icon_button" +
+                      theme.name, preview.icon_toggle_button_3)
 
 
 def draw_toggle_button(theme: Style.StyleTheme):
@@ -321,6 +338,7 @@ controls = {
     "Button": draw_button,
     "Small Button": draw_small_button,
     "Icon Button": draw_icon_button,
+    "Icon Toggle Button": draw_icon_toggle_button,
     "Toggle Button": draw_toggle_button,
     "Image Toggle Button": draw_image_toggle,
     "Image Button": draw_image_button,
@@ -486,64 +504,84 @@ def DrawControlCompare():
     if not ImGui.WindowModule._windows[name].open:
         control_compare = False
 
-def OnLoad():
-    global is_first_run, selected_theme, style, themes
-    
-    if is_first_run:
-        is_first_run = False            
-        set_theme(selected_theme)
+def on_enable():
+    global selected_theme
+    selected_theme = Style.StyleTheme[py4_gw_ini_handler.read_key(
+        "settings", "style_theme", Style.StyleTheme.ImGui.name)]
+    set_theme(selected_theme)
         
 def DrawWindow():
     global theme_compare, control_compare, style, window_width, window_height, save_throttle_timer, save_throttle_time, module_info, widget_handler
     
     style = ImGui.get_style()
     
-    if window_module.begin():   
-    
-        remaining = PyImGui.get_content_region_avail()
-        button_width = (remaining[0] - 10) / 2
+    if window_module.begin():       
+        is_textured = style.Theme in ImGui.Textured_Themes
+        tool_tip_visible = False
+        
+        if PyImGui.begin_child("Theme Buttons", (0, 80), True, PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
+            if PyImGui.begin_child("Theme Selector Header", (0, 24), False, PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
+                cursor_y = PyImGui.get_cursor_pos_y()
+                PyImGui.set_cursor_pos_y(cursor_y + 5)
+                ImGui.text("Selected Theme")
+                disclaimer_text = "This is a textured theme which can cause performance issues on some systems.\nIf you experience any issues please consider switching to a non-textured theme."
                 
-        PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + 5)
-        PyImGui.text("Selected Theme")
-        PyImGui.same_line(0, 5)
-        PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 5)
-        remaining = PyImGui.get_content_region_avail()
-        PyImGui.push_item_width(remaining[0] - 30)
-        value = ImGui.combo("##theme_selector",
-                              ImGui.Selected_Style.Theme.value, themes)
+                if is_textured:
+                    ImGui.push_font("Regular", 10)
+                    PyImGui.same_line(0, 5)
+                    style.Text.push_color((240, 75, 75, 255))                    
+                    ImGui.text(IconsFontAwesome5.ICON_EXCLAMATION_CIRCLE if is_textured else "")
+                    style.Text.pop_color()      
+                    ImGui.pop_font()
+                    
+                    if is_textured:
+                        ImGui.show_tooltip(disclaimer_text)
+                    
+                    
+                PyImGui.set_cursor_pos(125, cursor_y)
+                
+                # PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 5)
+                remaining = PyImGui.get_content_region_avail()
+                PyImGui.push_item_width(remaining[0] - 30)
+                value = ImGui.combo("##theme_selector",
+                                    ImGui.Selected_Style.Theme.value, themes)
 
-        if value != ImGui.Selected_Style.Theme.value:
-            theme = Style.StyleTheme(value)
-            set_theme(theme)
-            py4_gw_ini_handler.write_key(
-                "settings", "style_theme", ImGui.Selected_Style.Theme.name)
+                if is_textured:
+                    ImGui.show_tooltip(disclaimer_text)
+                
+                if value != ImGui.Selected_Style.Theme.value:
+                    theme = Style.StyleTheme(value)
+                    set_theme(theme)
+                    py4_gw_ini_handler.write_key(
+                        "settings", "style_theme", ImGui.Selected_Style.Theme.name)
 
-        PyImGui.same_line(0, 5)
-        PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 5)
-        theme_compare = ImGui.checkbox(
-            "##show_theme_compare", theme_compare)
-        ImGui.show_tooltip(
-            "Show Theme Compare window\nCurrently disabled.")
+                PyImGui.same_line(0, 5)
+                PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() + (2 if style.Theme is StyleTheme.Minimalus else 0))
+                theme_compare = ImGui.checkbox(
+                    "##show_theme_compare", theme_compare)        
+                ImGui.show_tooltip(
+                    "Show Theme Compare window")
+            
+            PyImGui.end_child()
+            
+            ImGui.separator()
+            
+            remaining = PyImGui.get_content_region_avail()
+            button_width = (remaining[0] - 7) / 2
+            
+            any_changed = is_style_modified()
+            if ImGui.button("Save Changes", button_width, disabled=not any_changed):
+                ImGui.Selected_Style.save_to_json()    
+                set_theme(ImGui.Selected_Style.Theme)
 
-        PyImGui.spacing()
-        PyImGui.separator()
-        PyImGui.spacing()
+            PyImGui.same_line(0, 5)
 
-        any_changed = is_style_modified()
-        if ImGui.button("Save Changes", button_width, disabled=not any_changed):
-            ImGui.Selected_Style.save_to_json()    
-            set_theme(ImGui.Selected_Style.Theme)
+            if ImGui.button("Reset to Default", button_width):
+                theme = ImGui.Selected_Style.Theme
+                ImGui.Selected_Style.delete()
+                set_theme(theme)
 
-        PyImGui.same_line(0, 5)
-
-        if ImGui.button("Reset to Default", button_width):
-            theme = ImGui.Selected_Style.Theme
-            ImGui.Selected_Style.delete()
-            set_theme(theme)
-
-        PyImGui.spacing()
-        PyImGui.separator()
-        PyImGui.spacing()
+        PyImGui.end_child()
 
         column_width = 0
         item_width = 0
@@ -553,7 +591,7 @@ def DrawWindow():
             PyImGui.spacing()
             PyImGui.table_next_row()
             PyImGui.table_next_column()
-            color = color or ImGui.Selected_Style.TextCollapsingHeader.color_tuple
+            color = color or ImGui.Selected_Style.TextTreeNode.color_tuple
 
             if color:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color)
@@ -757,18 +795,16 @@ def configure():
     
     if not module_info:
         module_info = widget_handler.get_widget_info(MODULE_NAME)
-        
+    
     pass
 
 def main():
     """Required main function for the widget"""
-    global game_throttle_timer, game_throttle_time, window_module, window_open, module_info
+    global game_throttle_timer, game_throttle_time, window_module, module_info
 
     window_module.open = module_info["configuring"] if module_info else False
     
     try:
-        OnLoad()
-
         if window_module.open:
             DrawWindow()
 
@@ -778,5 +814,4 @@ def main():
         return False
     return True
 
-
-__all__ = ['main', 'configure']
+__all__ = ['main', 'configure', 'on_enable']
