@@ -352,6 +352,92 @@ def bot_routine(bot: Botting) -> None:
     # Collect reward
     bot.Move.XYAndDialog(25203, -10694, 0x837707) # Rewards
     bot.States.JumpToStepName("[H]End_8")
+
+    bot.States.AddHeader("Unlock Skill #7")
+    bot.UI.PrintMessageToConsole("Starting", "Beginning Ebon battle standard of honor skill unlock quest routine")
+    
+    # Travel to Longeye's Ledge
+    bot.Map.Travel(target_map_id=650)
+    # Configure bot properties
+    bot.Properties.Enable("pause_on_danger")
+    bot.Properties.Disable("halt_on_death")
+    bot.Properties.Set("movement_timeout", value=-1)
+    bot.Properties.Enable("auto_combat")
+    #bot.Wait.ForMapLoad(target_map_id=639)
+    bot.Move.XY(-21902, 12807)
+    bot.Wait.ForMapLoad(target_map_id=649)
+    bot.Move.XYAndDialog(-21141.81, 12378.68, 0x836001) # Battle Honor Stand
+    bot.Multibox.UsePConSet() #Conset
+    # Navigate through hunting spots - Map 649
+    bot.Move.XY(-21593, 12517)
+    bot.Move.XY(-20064, 11212)
+    bot.Move.XY(-18659, 9768)
+    bot.Move.XY(-17352, 8246)
+    bot.Move.XY(-16126, 6640)
+    bot.Move.XY(-14663, 5256)
+    bot.Move.XY(-13347, 3732)
+    bot.Move.XY(-11993, 2247)
+    bot.Move.XY(-11088, 402)
+    bot.Move.XY(-9414, -699)
+    bot.Move.XY(-7532, 132)
+    bot.Move.XY(-5576, -322)
+    bot.Move.XY(-3621, -814)
+    bot.Move.XY(-1677, -1304)
+    bot.Move.XY(177, -2140)
+    bot.Move.XY(1759, -3373)
+    bot.Move.XY(3730, -3747)
+    bot.Move.XY(5650, -4349)
+    bot.Move.XY(7421, -5292)
+    bot.Move.XY(8547, -6957)
+    bot.Move.XY(10587, -6733)
+    bot.Move.XY(12591, -6583)
+    bot.Move.XY(14521, -7151)
+    bot.Move.XY(16095, -8448)
+    bot.Move.XY(17681, -9721)
+    bot.Move.XY(19282, -11005)
+    bot.Move.XY(20765, -12412)
+    bot.Move.XY(22538, -13411)
+    bot.Move.XY(23410, -13901)
+    # Navigate through hunting spots - Map 651
+    bot.Wait.ForMapLoad(target_map_id=651)
+    bot.Multibox.UseAllConsumables()
+    bot.Move.XY(-17861, 16317)
+    bot.Move.XY(-16404, 14900)
+    bot.Move.XY(-16459, 12851)
+    bot.Move.XY(-17542, 11132)
+    bot.Move.XY(-17939, 9166)
+    bot.Move.XY(-16308, 7932)
+    bot.Move.XY(-15150, 6294)
+    bot.Move.XY(-14010, 4577)
+    bot.Move.XY(-13622, 2552)
+    bot.Move.XY(-13094, 598)
+    bot.Move.XY(-11367, -490)
+    bot.Move.XY(-9393, -831)
+    bot.Move.XY(-7616, -1762)
+    bot.Move.XY(-5677, -2456)
+    bot.Move.XY(-4372, -4015)
+    bot.Move.XY(-3143, -5620)
+    bot.Move.XY(-2954, -7657)
+    bot.Move.XY(-2423, -9586)
+    bot.Move.XY(-593, -10426)
+    bot.Move.XY(1413, -10033)
+    bot.Move.XY(3432, -9958)
+    bot.Move.XY(4945, -8637)
+    bot.Move.XY(6962, -8362)
+    bot.Move.XY(8991, -8392)
+    bot.Move.XY(4471, -7294)
+    bot.Move.XY(6525, -7403)
+    bot.Move.XY(8415, -8062)
+    bot.Move.XY(10082, -9228)
+    bot.Move.XY(11715, -8045)
+    bot.Wait.UntilOutOfCombat()
+    
+    # Collect reward
+    bot.Map.Travel(target_map_id=650)
+    bot.Move.XY(-21902, 12807)
+    bot.Wait.ForMapLoad(target_map_id=649)
+    bot.Move.XYAndDialog(-21141.81, 12378.68, 0x836007) # Rewards
+    bot.States.JumpToStepName("[H]End_8")
     
     bot.States.AddHeader("End") #H 8
     bot.UI.PrintMessageToConsole("End", "This is the end of the bot routine")
@@ -385,6 +471,9 @@ def Draw_Window():
 
         if PyImGui.button("Start Mental Block Quest (Skill #6)"):
             bot.StartAtStep("[H]Unlock Skill #6_7")
+
+        if PyImGui.button("Start Ebon battle standard of honor Quest (Skill #7)"):
+            bot.StartAtStep("[H]Unlock Skill #7_8")
 
         PyImGui.end()
 
