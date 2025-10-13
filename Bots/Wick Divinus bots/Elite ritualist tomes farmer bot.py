@@ -14,6 +14,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=MAP_TO_TRAVEL)
     bot.Party.SetHardMode(True)
     bot.States.AddHeader(f"{BOT_NAME}_loop")
+    bot.Wait.ForMapLoad(target_map_id=298) #Unwaking Waters
     bot.Move.XY(-14278, -7954)
     bot.Wait.ForMapLoad(target_map_id=205) #Morostav trail
     bot.Move.XY(22553, 13212)
