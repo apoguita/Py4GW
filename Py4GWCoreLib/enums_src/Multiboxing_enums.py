@@ -25,6 +25,15 @@ class SharedCommandType(IntEnum):
     DonateToGuild = 20
     SendDialogToTarget = 21
     BruteForceUnstuck = 22
+    SetWindowGeometry = 23
+    SetWindowActive = 24
+    SetWindowTitle = 25
+    SetBorderless = 26
+    SetAlwaysOnTop = 27
+    FlashWindow = 28
+    RequestAttention = 29
+    SetTransparentClickThrough = 30
+    SetOpacity = 31
     LootEx = 999 # privately Handled Command, by Frenkey
     
 

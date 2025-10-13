@@ -8,61 +8,104 @@ class Color:
         self.b: int = b
         self.a: int = a
         
-    def _rgb_to_color(self, r, g, b, a) -> int:
-        return (a << 24) | (b << 16) | (g << 8) | r
+    # --------------- internal helpers ---------------
+    @staticmethod
+    def _clamp8(v: int) -> int:
+        return 0 if v < 0 else 255 if v > 255 else int(v)
+
+    @staticmethod
+    def _pack_abgr(r: int, g: int, b: int, a: int) -> int:
+        # ABGR = A BBBBBBBB GGGGGGGG RRRRRRRR
+        return ((a & 0xFF) << 24) | ((b & 0xFF) << 16) | ((g & 0xFF) << 8) | (r & 0xFF)
+
+    @staticmethod
+    def _pack_argb(r: int, g: int, b: int, a: int) -> int:
+        # ARGB = A R G B (DirectX D3DCOLOR)
+        return ((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF)
+
+    @staticmethod
+    def _pack_rgba(r: int, g: int, b: int, a: int) -> int:
+        # RGBA in memory (rarely used as a single int), still useful symmetry
+        return ((r & 0xFF) << 24) | ((g & 0xFF) << 16) | ((b & 0xFF) << 8) | (a & 0xFF)
+
+    @staticmethod
+    def _pack_bgra(r: int, g: int, b: int, a: int) -> int:
+        return ((b & 0xFF) << 24) | ((g & 0xFF) << 16) | ((r & 0xFF) << 8) | (a & 0xFF)
+
+    @staticmethod
+    def _unpack_abgr(v: int) -> tuple[int, int, int, int]:
+        a = (v >> 24) & 0xFF
+        b = (v >> 16) & 0xFF
+        g = (v >> 8) & 0xFF
+        r = v & 0xFF
+        return r, g, b, a
+
+    @staticmethod
+    def _unpack_argb(v: int) -> tuple[int, int, int, int]:
+        a = (v >> 24) & 0xFF
+        r = (v >> 16) & 0xFF
+        g = (v >> 8) & 0xFF
+        b = v & 0xFF
+        return r, g, b, a
     
-    def _rgb_to_dx_color(self, r, g, b, a) -> int:
-        return (a << 24) | (r << 16) | (g << 8) | b
-        
+    # --------------- existing API (routed) ---------------     
     def set_r(self, r: int) -> None: self.r = r
     def set_g(self, g: int) -> None: self.g = g
     def set_b(self, b: int) -> None: self.b = b
     def set_a(self, a: int) -> None: self.a = a
-        
     def set_rgba(self, r: int, g: int, b: int, a: int) -> None:
-        self.r = r
-        self.g = g
-        self.b = b
-        self.a = a
+        self.r, self.g, self.b, self.a = map(self._clamp8, (r, g, b, a))
 
     def get_r(self) -> int: return self.r
     def get_g(self) -> int: return self.g
     def get_b(self) -> int: return self.b
     def get_a(self) -> int: return self.a
     
-    def get_rgba(self) -> tuple:
-        return (self.r, self.g, self.b, self.a)
-
+    def get_rgba(self) -> tuple: return (self.r, self.g, self.b, self.a)
+    def to_rgba(self) -> tuple: return (self.r, self.g, self.b, self.a)
 
     def to_color(self) -> int:
-        return self._rgb_to_color(self.r, self.g, self.b, self.a)
+        # “ABGR”
+        return self._pack_abgr(self.r, self.g, self.b, self.a)
+    
+    def from_color(self, color: int) -> None:
+        #"ABGR"
+        r, g, b, a = self._unpack_abgr(color)
+        self.set_rgba(r, g, b, a)
     
     def to_dx_color(self) -> int:
-        return self._rgb_to_dx_color(self.r, self.g, self.b, self.a)
+        # DirectX D3DCOLOR (ARGB)
+        return self._pack_argb(self.r, self.g, self.b, self.a)
     
-    def to_tuple(self) -> tuple:
-        return (self.r, self.g, self.b, self.a)
+    def from_dx_color(self, color: int) -> None:
+        # DirectX D3DCOLOR (ARGB)
+        r, g, b, a = self._unpack_argb(color)
+        self.set_rgba(r, g, b, a)
+    
+    def to_tuple(self) -> tuple: return (self.r, self.g, self.b, self.a)  
+    
+    @classmethod
+    def from_tuple(cls, color: tuple[float, float, float, float]) -> "Color":
+        # Your original method: normalized floats 0..1
+        r, g, b, a = [int(c * 255) for c in color]
+        return cls(r, g, b, a)
     
     def to_tuple_normalized(self) -> tuple:
         return (self.r / 255, self.g / 255, self.b / 255, self.a / 255)
+
+    def from_tuple_normalized(self, color: tuple[float, float, float, float]) -> None:
+        r, g, b, a = [int(c * 255) for c in color]
+        self.set_rgba(r, g, b, a)
     
     def copy(self) -> "Color":
         return Color(self.r, self.g, self.b, self.a)
 
-    @classmethod
-    def from_tuple(cls, color: tuple[float, float, float, float]) -> "Color":
-        """Create from normalized RGBA tuple (floats 0.0–1.0)."""
-        r, g, b, a = [int(c * 255) for c in color]
-        return cls(r, g, b, a)
-
     @property
     def rgb_tuple(self) -> tuple[int, int, int, int]:
-        """Return integer RGBA tuple (0–255)."""
         return self.to_tuple()
 
     @property
     def color_tuple(self) -> tuple[float, float, float, float]:
-        """Return normalized RGBA tuple (0.0–1.0)."""
         return self.to_tuple_normalized()
 
     @property
@@ -70,6 +113,19 @@ class Color:
         """Return packed ABGR int color."""
         return self.to_color()
     
+    def to_abgr(self) -> int:
+        return self._pack_abgr(self.r, self.g, self.b, self.a)
+    
+    def from_abgr(self, color: int) -> None:
+        r, g, b, a = self._unpack_abgr(color)
+        self.set_rgba(r, g, b, a)
+
+    def to_argb(self) -> int:
+        return self._pack_argb(self.r, self.g, self.b, self.a)
+    
+    def from_argb(self, color: int) -> None:
+        r, g, b, a = self._unpack_argb(color)
+        self.set_rgba(r, g, b, a)
 
     def __eq__(self, other) -> bool:
         return isinstance(other, Color) and self.to_tuple() == other.to_tuple()

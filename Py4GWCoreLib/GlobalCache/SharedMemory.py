@@ -63,6 +63,7 @@ class SharedMessage(Structure):
         ("ReceiverEmail", c_wchar * SHMEM_MAX_EMAIL_LEN),
         ("Command", c_uint),
         ("Params", c_float * 4),
+        ("ExtraData", c_wchar * 4 * SHMEM_MAX_CHAR_LEN),
         ("Active", c_bool), 
         ("Running", c_bool),
         ("Timestamp", c_uint), 
@@ -760,8 +761,9 @@ class Py4GWSharedMemoryManager:
                 if delta > SHMEM_SUBSCRIBE_TIMEOUT_MILISECONDS:
                     #ConsoleLog(SMM_MODULE_NAME, f"Player {player.AccountEmail} has timed out after {delta} ms.", Py4GW.Console.MessageType.Warning)
                     self.ResetPlayerData(index)
-                    
-    def SendMessage(self, sender_email: str, receiver_email: str, command: SharedCommandType, params: tuple = (0.0, 0.0, 0.0, 0.0)):
+
+    #("ExtraData", c_wchar * 4 * SHMEM_MAX_CHAR_LEN),
+    def SendMessage(self, sender_email: str, receiver_email: str, command: SharedCommandType, params: tuple = (0.0, 0.0, 0.0, 0.0), ExtraData: tuple = ()):
         """Send a message to another player."""
         index = self.FindAccount(receiver_email)
         if index == -1:
@@ -777,6 +779,7 @@ class Py4GWSharedMemoryManager:
             message.ReceiverEmail = receiver_email
             message.Command = command.value
             message.Params = (c_float * 4)(*params)
+            message.ExtraData = (c_wchar * 4 * SHMEM_MAX_CHAR_LEN)(*ExtraData)
             message.Active = True
             message.Running = False
             message.Timestamp = self.GetBaseTimestamp()
@@ -824,6 +827,7 @@ class Py4GWSharedMemoryManager:
                 message.ReceiverEmail = ""
                 message.Command = SharedCommandType.NoCommand
                 message.Params = (c_float * 4)(0.0, 0.0, 0.0, 0.0)
+                message.ExtraData = (c_wchar * 4 * SHMEM_MAX_CHAR_LEN)()
                 message.Timestamp = self.GetBaseTimestamp()
                 message.Running = False
                 message.Active = False
