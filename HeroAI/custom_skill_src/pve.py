@@ -800,9 +800,10 @@ class PVESkills:
     #region BRAWLING
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Brawling_Block")
-        skill.SkillType = SkillType.Stance.value
-        skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Buff.value
+        skill.SkillType = SkillType.Signet.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
+        skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsAttacking = True
         skill_data[skill.SkillID] = skill
         
         skill = CustomSkill()
@@ -815,9 +816,9 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Brawling_Straight_Right")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.EnemyInjured.value
+        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Interrupt.value
-        skill.Conditions.IsCasting = False
+        skill.Conditions.IsAttacking = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

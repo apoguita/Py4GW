@@ -564,7 +564,7 @@ bot.SetMainRoutine(cons_printer_bot)
 
 def main():
     bot.Update()
-    bot.UI.draw_window(main_child_dimensions=(350, 450), icon_path=TEXTURE_ICON_PATH, addtional_ui=additoinal_ui)
+    bot.UI.draw_window(main_child_dimensions=(350, 450), icon_path=TEXTURE_ICON_PATH, additional_ui=additoinal_ui)
 
 
 if __name__ == "__main__":

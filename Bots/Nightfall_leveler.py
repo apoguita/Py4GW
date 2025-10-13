@@ -822,11 +822,6 @@ def LoopFarmInJokanurDiggins(bot):
     bot.Move.XY(15193, 5918);  bot.Wait.UntilOutOfCombat()
     bot.Move.XY(14485, 16);    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(10256, -1393); bot.Wait.UntilOutOfCombat()
-
-    #bot.Move.XYAndDialog(11238, -2718, 0x85) # Bounty
-    #bot.Move.XY(10362, -2374)
-    #bot.Move.XY(-12666, -2666); bot.Wait.UntilOutOfCombat()
-    #bot.Move.XY(12915, -6291);  bot.Wait.UntilOutOfCombat()
     bot.Map.Travel(target_map_id=491)
 
     #After completing Jokanur quests, check level again and continue appropriately
@@ -1310,7 +1305,8 @@ def AdvanceToMinisterCho(bot: Botting):
     bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     bot.Move.XY(6611.58, 15847.51)
-    bot.Move.XY(6892, 17079)
+    #bot.Move.XY(6892, 17079)
+    bot.Move.FollowPath([(6874, 16391)])
     bot.Wait.ForMapLoad(target_map_id=214) #minister_cho_map_id
 
 def UnlockLionsArch(bot: Botting):
