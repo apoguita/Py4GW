@@ -1,6 +1,6 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID, GLOBAL_CACHE, Routines
 
-BOT_NAME = "Ritualist elite tome Farm"
+BOT_NAME = "Ritualist and war elite tome Farm"
 MODEL_ID_TO_FARM = ModelID.Ritualist_Elite_Tome
 MAP_TO_TRAVEL = 298 #Unwaking Waters
 
@@ -20,6 +20,11 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(22553, 13212)
     bot.Move.XY(20697, 12435)
     bot.Move.XY(18903.56, 12656.72)
+    bot.Wait.UntilOutOfCombat()
+    bot.Multibox.PixelStack()
+    bot.Wait.ForTime(4000)
+    bot.Move.XY(17585.05, 11505.02)
+    #bot.Move.XY(16901.37, 11371.68)
     bot.Multibox.PixelStack()
     bot.Wait.ForTime(4000)
     bot.Wait.UntilOutOfCombat()
