@@ -468,7 +468,6 @@ def DrawMainWindow():
 
         if PyImGui.begin_menu_bar():
             if PyImGui.begin_menu("Edit Layouts"):
-                # Visible toggle inside the menu
                 layout_manager_window_open = PyImGui.checkbox("Layout Manager", layout_manager_window_open)
                 PyImGui.end_menu()
             PyImGui.end_menu_bar()
@@ -486,7 +485,6 @@ def DrawMainWindow():
         prev_idx = window_manager._lcw_selected_layout_idx
         window_manager._lcw_selected_layout_idx = PyImGui.combo("Layout", window_manager._lcw_selected_layout_idx, layout_names)
 
-        # reset client selection if layout changed
         if window_manager._lcw_selected_layout_idx != prev_idx:
             window_manager._lcw_selected_client_idx = -1
 
@@ -495,6 +493,8 @@ def DrawMainWindow():
         
         if 0 <= window_manager._lcw_selected_layout_idx < len(layouts):
             layout = layouts[window_manager._lcw_selected_layout_idx]
+
+            # existing clients
             if not layout.clients:
                 PyImGui.text("<no clients>")
             else:
@@ -503,8 +503,29 @@ def DrawMainWindow():
                     PyImGui.same_line(0, -1)
                     if PyImGui.button(f"Edit##{i}"):
                         window_manager.open_client_editor(window_manager._lcw_selected_layout_idx, i)
-                
+
+            # --- NEW: Add client combo ---
+            PyImGui.separator()
+            PyImGui.text("Add Client to Layout:")
+
+            # make a list of accounts that are *not already in the layout*
+            existing_emails = {c.email for c in layout.clients}
+            available_accounts = [acc for acc in window_manager.all_accounts if acc.email not in existing_emails]
+
+            if available_accounts:
+                account_labels = [f"{acc.alias} ({acc.email})" for acc in available_accounts]
+                window_manager._lcw_account_picker_idx = PyImGui.combo("Available Accounts",
+                                                                       window_manager._lcw_account_picker_idx,
+                                                                       account_labels)
+                if PyImGui.button("Add Selected Client"):
+                    sel = available_accounts[window_manager._lcw_account_picker_idx]
+                    layout.add_client(sel)
+                    window_manager.save_layouts()
+            else:
+                PyImGui.text("<no more accounts available>")
+
     PyImGui.end()
+
 
 
 
