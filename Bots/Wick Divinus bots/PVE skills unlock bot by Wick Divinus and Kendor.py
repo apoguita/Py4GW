@@ -29,6 +29,8 @@ def EquipSkillBar(skillbar = ""):
         skillbar = "OwRCU8x0WocwnQZglAAAAAAA" #done
     elif profession == "Dervish":
         skillbar = "OgSCU8x0WocwnQZglAAAAAAA" #done
+    elif profession == "Paragon":
+        skillbar = "OQSjUwHM6QbhyBfClBWCAAAAAAA" #done
 
     yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
 
@@ -50,9 +52,9 @@ def FinishHimSkillBar(skillbar = ""):
     elif profession == "Ritualist":
         skillbar = "OACjAqiK5SVTXTfTlTnN+gOTAAA" #done
     elif profession == "Assassin":
-        skillbar = "OwhiAyiMVNdN9NVOd2sL6D6MBA" # done
+        skillbar = "OwhiAyiMVNdN9NVOd2sL6D6MBA" #done
     elif profession == "Dervish":
-        skillbar = "OgSCU8x0WocwnQZglAAAAAAA" #not done
+        skillbar = "OgiiAyiMVNdNVOd28N5DCA4MBA" #done
 
     yield from Routines.Yield.Skills.LoadSkillbar(skillbar)   
 
