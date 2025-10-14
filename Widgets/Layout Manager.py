@@ -197,6 +197,30 @@ class WindowLayouts:
                 "layouts": [layout.to_dict() for layout in self.layouts]
             }
             json.dump(data, f, indent=4)
+            
+    def export_template(self, layout: LayoutConfig, filepath: str):
+        """Export layout as a template with placeholder emails."""
+        import json
+        layout_dict = layout.to_dict()
+
+        # Force template flag
+        layout_dict["is_template"] = True
+        for c in layout_dict["clients"]:
+            c["email"] = "__TEMPLATE__"
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(layout_dict, f, indent=4)
+
+    def import_template(self, filepath: str) -> LayoutConfig:
+        """Import a template file into a LayoutConfig object."""
+        import json
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        layout = LayoutConfig()
+        layout.from_dict(data)
+        layout.is_template = True
+        return layout
 
     def get_layout_by_name(self, name: str) -> LayoutConfig | None:
         for layout in self.layouts:
@@ -256,6 +280,34 @@ class WindowLayouts:
         self.save_layouts()
         print(f"Extracted {len(unique_accounts)} unique accounts.")
         
+    
+    
+
+    def pick_save_path(self,default_name="layout.json"):
+        from tkinter import filedialog
+        import tkinter as tk
+        root = tk.Tk()
+        root.withdraw()  # hide main window
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            initialfile=default_name,
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+        root.destroy()
+        return filepath or None
+
+    def pick_open_path(self):
+        import tkinter as tk
+        from tkinter import filedialog
+        root = tk.Tk()
+        root.withdraw()
+        filepath = filedialog.askopenfilename(
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+        root.destroy()
+        return filepath or None
+
+        
     def draw_window(self):
         if PyImGui.begin("Layout Management", PyImGui.WindowFlags.AlwaysAutoResize):
             PyImGui.text("Window Layouts:")
@@ -287,6 +339,20 @@ class WindowLayouts:
                     self._lcw_selected_layout_idx = -1
                     self._edit_layout_name = ""
 
+                if PyImGui.button("Export as Template"):
+                    filepath = self.pick_save_path(f"{layout.layout_name}_template.json")
+                    if filepath:
+                        self.export_template(layout, filepath)
+
+                PyImGui.same_line(0, -1)
+                if PyImGui.button("Import Template"):
+                    filepath = self.pick_open_path()
+                    if filepath:
+                        imported = self.import_template(filepath)
+                        if imported:
+                            self.add_layout(imported)
+
+
             PyImGui.separator()
             self._new_layout_name = PyImGui.input_text("New Layout Name", self._new_layout_name, 0)
             if PyImGui.button("Add Layout") and self._new_layout_name.strip():
@@ -294,7 +360,7 @@ class WindowLayouts:
                 self.add_layout(new_layout)
                 self._new_layout_name = ""
         PyImGui.end()
-        
+
     # --- add this method inside class WindowLayouts ---
     def open_client_editor(self, layout_idx: int, client_idx: int):
         # avoid duplicates
