@@ -1,11 +1,12 @@
 from cProfile import label
-from Py4GWCoreLib import IconsFontAwesome5, Color, ColorPalette, GLOBAL_CACHE, SharedCommandType, ConsoleLog
+from Py4GWCoreLib import IconsFontAwesome5, Color, ColorPalette, GLOBAL_CACHE, SharedCommandType, ConsoleLog, Utils
 import PyImGui
 import Py4GW
 import PyOverlay
 import os
+import ctypes
 
-MODULE_NAME = "Window Manipulator"
+MODULE_NAME = "Layout Manager"
 
 screen_overlay = PyOverlay.ScreenOverlay()
 screen_overlay.create_overlay(ms=100, destroy=False)
@@ -15,53 +16,6 @@ screen_width, screen_height = screen_overlay.get_desktop_size()
 
 import ctypes as ct
 
-def _pack_wchars(value: str, WCharArrayType):
-    """Pack a Python str into a fixed-size ctypes wide-char array (null-terminated)."""
-    arr = WCharArrayType()
-    if value:
-        maxlen = getattr(WCharArrayType, "_length_", 0) - 1  # leave room for terminator
-        s = value[:maxlen] if maxlen > 0 else ""
-        for i, ch in enumerate(s):
-            arr[i] = ch
-    return arr
-
-def _pack_extra_data_for_sendmessage(extra_tuple):
-    """
-    Return a 4-tuple of ctypes wide-char arrays matching SendMessage's argtypes.
-    Falls back to (c_wchar * 4) if argtypes aren't available.
-    """
-    # Try to infer the expected array types from the function signature
-    arr_types = None
-    fn = getattr(GLOBAL_CACHE.ShMem, "SendMessage", None)
-    if fn is not None:
-        argtypes = getattr(fn, "argtypes", None)
-        if argtypes:
-            # Most bindings put the 4 wchar arrays as the last 4 parameters
-            last4 = argtypes[-4:]
-            if (
-                len(last4) == 4
-                and all(isinstance(t, type) for t in last4)
-                and all(hasattr(t, "_length_") for t in last4)
-                and all(getattr(t, "_type_", None) is ct.c_wchar for t in last4)
-            ):
-                arr_types = last4
-
-    if arr_types is None:
-        # Fallback based on your error: expected c_wchar_Array_4
-        arr_types = [ct.c_wchar * 4] * 4
-
-    # Build packed tuple
-    out = []
-    for i in range(4):
-        val = extra_tuple[i] if i < len(extra_tuple) else ""
-        typ = arr_types[i]
-        if isinstance(val, typ):
-            out.append(val)
-        else:
-            out.append(_pack_wchars(str(val), typ))
-    return tuple(out)
-
-
 def _send_message_to(command: SharedCommandType, receiver_email: str, params=(0.0, 0.0, 0.0, 0.0), ExtraData=("", "", "", "")):
     sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
@@ -69,13 +23,7 @@ def _send_message_to(command: SharedCommandType, receiver_email: str, params=(0.
         ConsoleLog("Messaging", f"Account with email {receiver_email} not found. Message not sent.", log=True)
         return
 
-    packed = _pack_extra_data_for_sendmessage(ExtraData)
-
-    # Some bindings want the 4 arrays as separate args; others accept a single tuple.
-    try:
-        GLOBAL_CACHE.ShMem.SendMessage(sender_email, receiver_email, command, params, *packed)
-    except TypeError:
-        GLOBAL_CACHE.ShMem.SendMessage(sender_email, receiver_email, command, params, packed)
+    GLOBAL_CACHE.ShMem.SendMessage(sender_email, receiver_email, command, params, ExtraData)
 
     
     
@@ -230,7 +178,7 @@ class WindowLayouts:
         self.get_all_accounts_from_json()
 
     def load_layouts(self):
-        config_path = os.path.join(self.projects_path, "window_layouts.json")
+        config_path = os.path.join(self.projects_path, "Widgets", "Config", "window_layouts.json")
         if os.path.exists(config_path):
             import json
             with open(config_path, "r") as f:
@@ -242,7 +190,7 @@ class WindowLayouts:
                     self.layouts.append(layout)
 
     def save_layouts(self):
-        config_path = os.path.join(self.projects_path, "window_layouts.json")
+        config_path = os.path.join(self.projects_path, "Widgets", "Config", "window_layouts.json")
         import json
         with open(config_path, "w") as f:
             data = {
@@ -439,6 +387,7 @@ class WindowLayouts:
                         _send_message_to(SharedCommandType.SetBorderless, client.email, params=(float(client.borderless), 0.0, 0.0, 0.0))
                         _send_message_to(SharedCommandType.SetAlwaysOnTop, client.email, params=(float(client.always_on_top), 0.0, 0.0, 0.0))
                         _send_message_to(SharedCommandType.SetOpacity, client.email, params=(float(client.opacity), 0.0, 0.0, 0.0))
+    
                 
                 PyImGui.same_line(0, -1)
                 if PyImGui.button("Close"):
@@ -494,29 +443,93 @@ def DrawMainWindow():
         if 0 <= window_manager._lcw_selected_layout_idx < len(layouts):
             layout = layouts[window_manager._lcw_selected_layout_idx]
 
-            # existing clients
-            if not layout.clients:
-                PyImGui.text("<no clients>")
-            else:
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            online_emails = {acc.AccountEmail for acc in accounts}
+
+            if PyImGui.begin_table("clients_table", 6, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.Resizable):
+                # Header row
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0); PyImGui.text("Alias")
+                PyImGui.table_set_column_index(1); PyImGui.text("Email")
+                PyImGui.table_set_column_index(2)
+                label = f"{IconsFontAwesome5.ICON_EYE}" if not all(c.show_overlay for c in layout.clients) else f"{IconsFontAwesome5.ICON_EYE_SLASH}"
+                tooltip = "Show Overlays (All)" if not all(c.show_overlay for c in layout.clients) else "Hide Overlays (All)"
+                if PyImGui.button(f"{label}##all"):
+                    for c in layout.clients:
+                        c.show_overlay = not c.show_overlay
+                PyImGui.show_tooltip(tooltip)
+                PyImGui.table_set_column_index(3)
+                if PyImGui.button(f"Apply All##apply_All"):
+                    for c in layout.clients:
+                        if c.email in online_emails:
+                            if c.rename_window:
+                                _send_message_to(SharedCommandType.SetWindowTitle, c.email, ExtraData=(c.window_title, "", "", ""))
+                            _send_message_to(SharedCommandType.SetWindowGeometry, c.email, params=(int(c.x), int(c.y), int(c.width), int(c.height)))
+                            _send_message_to(SharedCommandType.SetBorderless, c.email, params=(float(c.borderless), 0.0, 0.0, 0.0))
+                            _send_message_to(SharedCommandType.SetAlwaysOnTop, c.email, params=(float(c.always_on_top), 0.0, 0.0, 0.0))
+                            _send_message_to(SharedCommandType.SetOpacity, c.email, params=(float(c.opacity), 0.0, 0.0, 0.0))
+                PyImGui.show_tooltip("Apply Settings (All)")
+                PyImGui.table_set_column_index(4); PyImGui.text(f"Edit")
+                PyImGui.table_set_column_index(5); PyImGui.text("Client State")
+
+                # Client rows
                 for i, c in enumerate(layout.clients):
-                    PyImGui.text(f"{c.alias} ({c.email})")
-                    PyImGui.same_line(0, -1)
-                    if PyImGui.button(f"Edit##{i}"):
+                    PyImGui.table_next_row()
+
+                    # Col 0: Alias
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text(f"{c.alias}")
+                    
+                    # Col 1: Email
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text(f"{c.email}")
+
+                    # Col 2: Preview toggle (button caption = state)
+                    PyImGui.table_set_column_index(2)
+                    
+                    label = f"{IconsFontAwesome5.ICON_EYE}" if not c.show_overlay else f"{IconsFontAwesome5.ICON_EYE_SLASH}"
+                    tooltip = "Show Overlay" if not c.show_overlay else "Hide Overlay"
+                    if PyImGui.button(f"{label}##{i}show_overlay"):
+                        c.show_overlay = not c.show_overlay
+                    PyImGui.show_tooltip(tooltip)
+
+                    # Col 3: Apply button
+                    PyImGui.table_set_column_index(3)
+                    if c.email in online_emails:
+                        if PyImGui.button(f"{IconsFontAwesome5.ICON_DESKTOP}##{i}apply"):
+                            if c.email in online_emails:
+                                if c.rename_window:
+                                    _send_message_to(SharedCommandType.SetWindowTitle, c.email, ExtraData=(c.window_title, "", "", ""))
+                                _send_message_to(SharedCommandType.SetWindowGeometry, c.email, params=(int(c.x), int(c.y), int(c.width), int(c.height)))
+                                _send_message_to(SharedCommandType.SetBorderless, c.email, params=(float(c.borderless), 0.0, 0.0, 0.0))
+                                _send_message_to(SharedCommandType.SetAlwaysOnTop, c.email, params=(float(c.always_on_top), 0.0, 0.0, 0.0))
+                                _send_message_to(SharedCommandType.SetOpacity, c.email, params=(float(c.opacity), 0.0, 0.0, 0.0))
+                        PyImGui.show_tooltip("Apply Settings")
+                    else:
+                        PyImGui.text_disabled(f"{IconsFontAwesome5.ICON_DESKTOP}")
+                    # Col 4: Edit
+                    PyImGui.table_set_column_index(4)
+                    if PyImGui.button(f"{IconsFontAwesome5.ICON_COG}##{i}"):
                         window_manager.open_client_editor(window_manager._lcw_selected_layout_idx, i)
 
-            # --- NEW: Add client combo ---
+                    # Col 5: Client state
+                    PyImGui.table_set_column_index(5)
+                    PyImGui.text_colored("Online" if c.email in online_emails else "Offline", Utils.TrueFalseColor(c.email in online_emails))
+
+                PyImGui.end_table()
+
+
+
+            # Add client section
             PyImGui.separator()
             PyImGui.text("Add Client to Layout:")
 
-            # make a list of accounts that are *not already in the layout*
             existing_emails = {c.email for c in layout.clients}
             available_accounts = [acc for acc in window_manager.all_accounts if acc.email not in existing_emails]
 
             if available_accounts:
                 account_labels = [f"{acc.alias} ({acc.email})" for acc in available_accounts]
-                window_manager._lcw_account_picker_idx = PyImGui.combo("Available Accounts",
-                                                                       window_manager._lcw_account_picker_idx,
-                                                                       account_labels)
+                window_manager._lcw_account_picker_idx = PyImGui.combo("Available Accounts", window_manager._lcw_account_picker_idx, account_labels)
                 if PyImGui.button("Add Selected Client"):
                     sel = available_accounts[window_manager._lcw_account_picker_idx]
                     layout.add_client(sel)
@@ -527,6 +540,8 @@ def DrawMainWindow():
     PyImGui.end()
 
 
+def configure():
+    pass
 
 
 def main():
@@ -538,6 +553,9 @@ def main():
     
     window_manager.draw_client_editors()
 
+    screen_overlay.show(True)
+    screen_overlay.begin()
+    
     for layout in window_manager.layouts:
         for c in layout.clients:
             if getattr(c, "show_overlay", False):
@@ -545,13 +563,12 @@ def main():
                 white = ColorPalette.GetColor("white").to_argb()
                 faded_argb = c.color.copy()
                 faded_argb.set_a(100)  # low alpha for filled rect
-                screen_overlay.show(True)
-                screen_overlay.begin()
 
                 screen_overlay.draw_rect_filled(int(c.x), int(c.y), int(c.width), int(c.height), faded_argb.to_argb())
                 screen_overlay.draw_rect(int(c.x), int(c.y), int(c.width), int(c.height), argb, 2.0)
-                screen_overlay.draw_text_box(int(c.x), int(c.y), int(c.width), int(c.height), "Sample Text Box", white, px_size=48.0, hcenter=True, vcenter=True)
-                screen_overlay.end()
+                screen_overlay.draw_text_box(int(c.x), int(c.y), int(c.width), int(c.height), c.alias, white, px_size=48.0, hcenter=True, vcenter=True)
+    
+    screen_overlay.end()
 
 if __name__ == "__main__":
     main()

@@ -807,41 +807,6 @@ def SetWindowActive(index, message):
     ConsoleLog(MODULE_NAME, "SetWindowActive message processed and finished.", Console.MessageType.Info, False)
 # endregion
 #region SetWindowTitle
-def _as_text(x):
-    # Normalize various ctypes buffers/pointers -> Python str
-    import ctypes as ct
-
-    if isinstance(x, str):
-        return x
-
-    # fixed-size wide-char array: c_wchar * N
-    if hasattr(x, "_type_") and getattr(x, "_type_", None) is ct.c_wchar:
-        n = getattr(x, "_length_", 0)
-        if n:
-            # join up to first NUL
-            s = ''.join(x[:n])
-            return s.split('\x00', 1)[0]
-        return ''
-
-    # fixed-size char array: c_char * N
-    if hasattr(x, "_type_") and getattr(x, "_type_", None) is ct.c_char:
-        n = getattr(x, "_length_", 0)
-        if n:
-            raw = bytes(x[:n])
-            return raw.split(b'\x00', 1)[0].decode('utf-8', errors='ignore')
-        return ''
-
-    # wide / narrow char pointers
-    if isinstance(x, ct.c_wchar_p):
-        return ct.wstring_at(x) or ''
-    if isinstance(x, ct.c_char_p):
-        b = ct.string_at(x) or b''
-        return b.decode('utf-8', errors='ignore')
-
-    # Fallback: best effort
-    return str(x)
-
-
 def SetWindowTitle(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
@@ -850,7 +815,9 @@ def SetWindowTitle(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    title = _as_text(message.ExtraData[0])  # <-- proper conversion
+    extra = tuple(GLOBAL_CACHE.ShMem._c_wchar_array_to_str(arr) for arr in message.ExtraData)
+    title = extra[0] if extra else ""
+
     Py4GW.Console.set_window_title(title)
 
     yield from Routines.Yield.wait(100)
