@@ -2,6 +2,7 @@ import Py4GW
 from Py4GWCoreLib import ConsoleLog, Map, Party, Player, Agent, Effects, SharedCommandType, ThrottledTimer
 from ctypes import Structure, c_int, c_uint, c_float, c_bool, c_wchar
 from multiprocessing import shared_memory
+import ctypes
 from ctypes import sizeof
 from datetime import datetime, timezone
 import time
@@ -63,7 +64,7 @@ class SharedMessage(Structure):
         ("ReceiverEmail", c_wchar * SHMEM_MAX_EMAIL_LEN),
         ("Command", c_uint),
         ("Params", c_float * 4),
-        ("ExtraData", c_wchar * 4 * SHMEM_MAX_CHAR_LEN),
+        ("ExtraData", (c_wchar * SHMEM_MAX_CHAR_LEN) * 4),
         ("Active", c_bool), 
         ("Running", c_bool),
         ("Timestamp", c_uint), 
@@ -131,6 +132,31 @@ class Py4GWSharedMemoryManager:
     def GetBaseTimestamp(self):
         # Return milliseconds since ZERO_EPOCH
         return int((time.time() - SHMEM_ZERO_EPOCH) * 1000)
+    
+    
+    
+    def _str_to_c_wchar_array(self,value: str, maxlen: int) -> ctypes.Array:
+        import ctypes as ct
+        """Convert Python string to c_wchar array with maxlen (including terminator)."""
+        arr = (ct.c_wchar * maxlen)()
+        if value:
+            s = value[:maxlen - 1]  # leave room for terminator
+            for i, ch in enumerate(s):
+                arr[i] = ch
+            arr[len(s)] = '\0'
+        return arr
+
+    def _c_wchar_array_to_str(self,arr: ctypes.Array) -> str:
+        """Convert c_wchar array back to Python str, stopping at null terminator."""
+        return "".join(ch for ch in arr if ch != '\0').rstrip()
+    
+    def _pack_extra_data_for_sendmessage(self, extra_tuple, maxlen=128):
+        out = []
+        for i in range(4):
+            val = extra_tuple[i] if i < len(extra_tuple) else ""
+            out.append(self._str_to_c_wchar_array(str(val), maxlen))
+        return tuple(out)
+
 
         
     def ResetAllData(self):
@@ -763,8 +789,10 @@ class Py4GWSharedMemoryManager:
                     self.ResetPlayerData(index)
 
     #("ExtraData", c_wchar * 4 * SHMEM_MAX_CHAR_LEN),
+    
     def SendMessage(self, sender_email: str, receiver_email: str, command: SharedCommandType, params: tuple = (0.0, 0.0, 0.0, 0.0), ExtraData: tuple = ()):
         """Send a message to another player."""
+        import ctypes as ct
         index = self.FindAccount(receiver_email)
         if index == -1:
             ConsoleLog(SMM_MODULE_NAME, f"Receiver account {receiver_email} not found.", Py4GW.Console.MessageType.Error)
@@ -779,23 +807,35 @@ class Py4GWSharedMemoryManager:
             message.ReceiverEmail = receiver_email
             message.Command = command.value
             message.Params = (c_float * 4)(*params)
-            message.ExtraData = (c_wchar * 4 * SHMEM_MAX_CHAR_LEN)(*ExtraData)
+            # Pack 4 strings into 4 arrays of c_wchar[SHMEM_MAX_CHAR_LEN]
+            arr_type = ct.c_wchar * SHMEM_MAX_CHAR_LEN
+            packed = [self._str_to_c_wchar_array(
+                        ExtraData[j] if j < len(ExtraData) else "",
+                        SHMEM_MAX_CHAR_LEN)
+                    for j in range(4)]
+            message.ExtraData = (arr_type * 4)(*packed)
             message.Active = True
             message.Running = False
             message.Timestamp = self.GetBaseTimestamp()
             return
      
     def GetNextMessage(self, account_email: str) -> tuple[int, SharedMessage | None]:
-        """Read the next message for the given account."""
+        """Read the next message for the given account.
+        Returns the raw SharedMessage. Use self._c_wchar_array_to_str() to read ExtraData safely.
+        """
         for index in range(self.max_num_players):
             message = self.GetStruct().SharedMessage[index]
             if message.ReceiverEmail == account_email and message.Active and not message.Running:
                 return index, message
-        return -1, None  # Return an empty message if no messages are found
+        return -1, None
+
+
     
     def PreviewNextMessage(self, account_email: str, include_running: bool = True) -> tuple[int, SharedMessage | None]:
         """Preview the next message for the given account.
-        If include_running is True, will also return a running message."""
+        If include_running is True, will also return a running message.
+        Ensures ExtraData is returned as tuple[str] using existing helpers.
+        """
         for index in range(self.max_num_players):
             message = self.GetStruct().SharedMessage[index]
             if message.ReceiverEmail != account_email or not message.Active:
@@ -803,6 +843,7 @@ class Py4GWSharedMemoryManager:
             if not message.Running or include_running:
                 return index, message
         return -1, None
+
 
     
     def MarkMessageAsRunning(self, account_email: str, message_index: int):
@@ -820,6 +861,7 @@ class Py4GWSharedMemoryManager:
             
     def MarkMessageAsFinished(self, account_email: str, message_index: int):
         """Mark a specific message as finished."""
+        import ctypes as ct
         if 0 <= message_index < self.max_num_players:
             message = self.GetStruct().SharedMessage[message_index]
             if message.ReceiverEmail == account_email:
@@ -827,14 +869,28 @@ class Py4GWSharedMemoryManager:
                 message.ReceiverEmail = ""
                 message.Command = SharedCommandType.NoCommand
                 message.Params = (c_float * 4)(0.0, 0.0, 0.0, 0.0)
-                message.ExtraData = (c_wchar * 4 * SHMEM_MAX_CHAR_LEN)()
+
+                # Reset ExtraData to 4 empty wide-char arrays
+                arr_type = ct.c_wchar * SHMEM_MAX_CHAR_LEN
+                empty = [self._str_to_c_wchar_array("", SHMEM_MAX_CHAR_LEN) for _ in range(4)]
+                message.ExtraData = (arr_type * 4)(*empty)
+
                 message.Timestamp = self.GetBaseTimestamp()
                 message.Running = False
                 message.Active = False
             else:
-                ConsoleLog(SMM_MODULE_NAME, f"Message at index {message_index} does not belong to {account_email}.", Py4GW.Console.MessageType.Error)
+                ConsoleLog(
+                    SMM_MODULE_NAME,
+                    f"Message at index {message_index} does not belong to {account_email}.",
+                    Py4GW.Console.MessageType.Error
+                )
         else:
-            ConsoleLog(SMM_MODULE_NAME, f"Invalid message index: {message_index}.", Py4GW.Console.MessageType.Error)
+            ConsoleLog(
+                SMM_MODULE_NAME,
+                f"Invalid message index: {message_index}.",
+                Py4GW.Console.MessageType.Error
+            )
+
             
     def GetAllMessages(self) -> list[tuple[int, SharedMessage]]:
         """Get all messages in shared memory with their index."""
