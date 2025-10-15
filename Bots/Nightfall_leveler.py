@@ -24,8 +24,7 @@ def create_bot_routine(bot: Botting) -> None:
     CompleteLearnMore(bot)                     # Learn more tutorial
     
     # === PHASE 2: INITIAL QUESTS AND PROGRESSION ===
-    CompleteStorageQuests(bot)                 # Storage quests   
-    ExtendInventorySpace(bot)                  # Buy bags to extend inventory
+    CompleteStorageQuests(bot)                 # Storage-related quests
     CompleteHeroCommandQuest(bot)              # Hero command quest
     CompleteArmoredTransportQuest(bot)         # Armored transport quest
     #CompleteIdentityTheftQuest(bot)           # Identity theft quest (not working yet)
@@ -47,8 +46,9 @@ def create_bot_routine(bot: Botting) -> None:
     TakeWeaponRewardAndCraft(bot)              # Take reward and craft weapon
     
     # === PHASE 5: MID-GAME QUESTS AND PROGRESSION ===
-    LoopFarmInJokanurDiggins(bot)
-    GatherSecondSetOfAttributePoints(bot)          # Get second set of 15 attribute points
+    LoopFarmInJokanurDiggings(bot)  
+    GatherSecondSetOfAttributePoints(bot)
+     
     
     # === PHASE 6: EYE OF THE NORTH EXPANSION ===
     TravelToEyeOfTheNorth(bot)                 # EOTN (Eye of the North) run
@@ -58,24 +58,21 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToGunnarsHold(bot)                  # Advance to Gunnar's Hold
     UnlockKillroyStonekin(bot)
     AdvanceToLongeyeEdge(bot)
-    UnlockNPCForVaettirFarm(bot)
-    #AdvanceToDoomlore(bot)                   # Advance to Doomlore
-    #AdvanceToSifhalla(bot)                   # Advance to Sifhalla
-    #AdvanceToOlafstead(bot)                  # Advance to Olafstead
-    #AdvanceToUmbralGrotto(bot)               # Advance to Umbral Grotto
+    #AdvanceToDoomlore(bot)          # Advance to Doomlore
+    AdvanceToSifhalla(bot)                   # Advance to Sifhalla
+    AdvanceToOlafstead(bot)                  # Advance to Olafstead
+    AdvanceToUmbralGrotto(bot)               # Advance to Umbral Grotto
     
     # === PHASE 7: FINAL UNLOCKS AND LOCATIONS ===
+    UnlockRemainingSecondaryProfessions(bot)   # Unlock remaining secondary professions
+    UnlockXunlaiMaterialStoragePanel(bot)      # Unlock material storage panel
     UnlockConsulateDocks(bot)                  # Unlock Consulate Docks
     UnlockKainengCenter(bot)                   # Unlock KC (Kaineng Center)
     AdvanceToVizunahSquareForeignQuarter(bot)  # Advance to Vizunah Square (Foreign)
-    AdvanceToMarketplaceOutpost(bot)            # Advance to Marketplace
-    AdvanceToSeitungHarbor(bot)
-    AdvanceToShinjeaMonastery(bot)
-    AdvanceToTsumeiVillage(bot)
-    AdvanceToMinisterCho(bot)                   # Advance to Minister Cho
-    UnlockLionsArch(bot)                        # Unlock LA (Lion's Arch)
-    UnlockRemainingSecondaryProfessions(bot)   # Unlock remaining secondary professions
-    UnlockXunlaiMaterialStoragePanel(bot)      # Unlock material storage panel
+    AdvanceToMarketplaceOutpost(bot)           # Advance to Marketplace
+    AdvanceToSeitungHarbor(bot)                # Advance to Seitung Harbor
+    UnlockLionsArch(bot)                       # Unlock LA (Lion's Arch)
+                
 #region Helpers
 
 def ConfigurePacifistEnv(bot: Botting) -> None:
@@ -401,6 +398,23 @@ def SkipTutorialDialog(bot: Botting) -> None:
 def TravelToGuildHall(bot: Botting):
     bot.States.AddHeader("Phase 1: Traveling to Guild Hall")
     bot.Map.TravelGH()
+    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
+    bot.helpers.UI.open_all_bags()
+    bot.Move.XYAndInteractNPC(10275, 3114) # Guild Hall NPC
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
+    bot.Wait.ForTime(250)
+    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
+    bot.Wait.ForTime(500) # Wait for equip to complete
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
+    bot.Wait.ForTime(500)
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
     bot.Wait.ForTime(500)
     bot.Map.LeaveGH()
     bot.Wait.ForTime(5000) # Wait for cinematics to finish
@@ -498,26 +512,6 @@ def CompleteStorageQuests(bot: Botting):
     bot.Move.XYAndDialog(-7761, 14393, 0x84, step_name="50 Gold please")
     bot.Move.XYAndDialog(-9251, 11826, 0x82A107, step_name="Accept reward")
 
-def ExtendInventorySpace(bot: Botting):
-    bot.States.AddHeader("Phase 2: Extending Inventory Space")
-    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
-    bot.helpers.UI.open_all_bags()
-    bot.Move.XYAndInteractNPC(-10597.11, 8742.66) # Merchant NPC in Kamadan
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
-    bot.Wait.ForTime(250)
-    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
-    bot.Wait.ForTime(500) # Wait for equip to complete
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
-    bot.Wait.ForTime(500)
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
-
 def CompleteArmoredTransportQuest(bot):
     bot.States.AddHeader("Phase 2: Completing Armored Transport Quest")
     bot.Map.Travel(target_map_id=449) # Kamadan
@@ -610,6 +604,7 @@ def FarmQuestRequirements(bot: Botting):
     bot.Move.XYAndDialog(-11356, 9066, 0x826107, step_name="accept reward")
     bot.Wait.ForTime(2000)
    
+    
 def CompleteSunspearGreatHallQuests(bot: Botting):
     bot.States.AddHeader("Phase 2: Completing Sunspear Great Hall Quests")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
@@ -799,48 +794,31 @@ def TakeWeaponRewardAndCraft(bot: Botting):
     exec_fn = lambda: CraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapon")
 
-def LoopFarmInJokanurDiggins(bot):
-    bot.States.AddHeader("Phase 4:Loop farm in jokanur diggings")
-    bot.States.AddCustomState(lambda: None, "LoopFarm_JumpHere")
-    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
-    bot.Map.Travel(target_map_id=491) #Jokanur Diggings
-    bot.Party.LeaveParty()
-    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
-
-    #bot.Move.XY(282, 40)
-    bot.Move.FollowPath([
+def LoopFarmInJokanurDiggings(bot):
+    bot.States.AddHeader(f"Farm_loop")
+    for _ in range (15):
+        bot.Map.Travel(target_map_id=491) #Jokanur Diggings
+        bot.Party.LeaveParty()
+        PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
+        bot.Move.FollowPath([
         (1268, -311),
         (-1618, -783),
         (-2600, -1119),
         (-3546, -1444)
-    ])
-    bot.Wait.ForMapLoad(target_map_id=481) # Fahranur The First City
-
-    bot.Move.XYAndDialog(19651, 12237, 0x85) # Blessing
-    bot.Move.XY(11182, 14880); bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(11543, 6466);  bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(15193, 5918);  bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(14485, 16);    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(10256, -1393); bot.Wait.UntilOutOfCombat()
-
-    #bot.Move.XYAndDialog(11238, -2718, 0x85) # Bounty
-    #bot.Move.XY(10362, -2374)
-    #bot.Move.XY(-12666, -2666); bot.Wait.UntilOutOfCombat()
-    #bot.Move.XY(12915, -6291);  bot.Wait.UntilOutOfCombat()
-    bot.Map.Travel(target_map_id=491)
-
-    #After completing Jokanur quests, check level again and continue appropriately
-    level_after_quests = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-    if level_after_quests > 9:
-        # Now we're level 10+, continue to 2nd Attribute points
-        bot.States.JumpToStepName("SecondAttPoints_JumpHere")
-    else:
-        # Still not level 10, repeat Jokanur Diggings quests for more farming
-        bot.States.JumpToStepName("LoopFarm_JumpHere")
+        ])
+        bot.Wait.ForMapLoad(target_map_id=481) # Fahranur The First City
+        bot.Move.XYAndDialog(19651, 12237, 0x85) # Blessing
+        bot.Move.XY(11182, 14880); bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(11543, 6466);  bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(15193, 5918);  bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(14485, 16);    bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(10256, -1393); bot.Wait.UntilOutOfCombat()
+        bot.Move.XYAndDialog(11238, -2718, 0x85) # Bounty
+        bot.Move.XY(13382, -6837); bot.Wait.UntilOutOfCombat()
+       
 
 def GatherSecondSetOfAttributePoints(bot: Botting):
     bot.States.AddHeader("Phase 5: Gathering 15 second set of attribute points")
-    bot.States.AddCustomState(lambda: None, "SecondAttPoints_JumpHere")
     bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
     bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
     bot.Wait.ForTime(2000)
@@ -851,7 +829,6 @@ def TravelToEyeOfTheNorth(bot: Botting):
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
-    ConfigurePacifistEnv(bot)
 
     bot.Move.XYAndDialog(-8739, 14200,0x833601) # Bendah
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) # Plains of Jarin
@@ -988,35 +965,6 @@ def AdvanceToLongeyeEdge(bot: Botting):
     bot.Move.XY(19048.208984 , -18813.695312)
     bot.Move.XY(19634.173828, -19118.777343)
     bot.Wait.ForMapLoad(target_map_id=650)  # Longeyes Ledge
-
-def UnlockNPCForVaettirFarm(bot: Botting):
-    bot.States.AddHeader("Unlocking NPC for Vaettir Farm")
-    bot.Map.Travel(target_map_id=650)  # longeyes_ledge_id
-    PrepareForBattle(bot)
-    bot.Move.XYAndExitMap(-26375, 16180, target_map_name="Bjora Marches")
-    path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
-    (17810, -17649),(17516, -17270),(17166, -16813),(16862, -16324),(16472, -15934),
-    (15929, -15731),(15387, -15521),(14849, -15312),(14311, -15101),(13776, -14882),
-    (13249, -14642),(12729, -14386),(12235, -14086),(11748, -13776),(11274, -13450),
-    (10839, -13065),(10572, -12590),(10412, -12036),(10238, -11485),(10125, -10918),
-    (10029, -10348),(9909, -9778)  ,(9599, -9327)  ,(9121, -9009)  ,(8674, -8645)  ,
-    (8215, -8289)  ,(7755, -7945)  ,(7339, -7542)  ,(6962, -7103)  ,(6587, -6666)  ,
-    (6210, -6226)  ,(5834, -5788)  ,(5457, -5349)  ,(5081, -4911)  ,(4703, -4470)  ,
-    (4379, -3990)  ,(4063, -3507)  ,(3773, -3031)  ,(3452, -2540)  ,(3117, -2070)  ,
-    (2678, -1703)  ,(2115, -1593)  ,(1541, -1614)  ,(960, -1563)   ,(388, -1491)   ,
-    (-187, -1419)  ,(-770, -1426)  ,(-1343, -1440) ,(-1922, -1455) ,(-2496, -1472) ,
-    (-3073, -1535) ,(-3650, -1607) ,(-4214, -1712) ,(-4784, -1759) ,(-5278, -1492) ,
-    (-5754, -1164) ,(-6200, -796)  ,(-6632, -419)  ,(-7192, -300)  ,(-7770, -306)  ,
-    (-8352, -286)  ,(-8932, -258)  ,(-9504, -226)  ,(-10086, -201) ,(-10665, -215) ,
-    (-11247, -242) ,(-11826, -262) ,(-12400, -247) ,(-12979, -216) ,(-13529, -53)  ,
-    (-13944, 341)  ,(-14358, 743)  ,(-14727, 1181) ,(-15109, 1620) ,(-15539, 2010) ,
-    (-15963, 2380) ,(-18048, 4223 ), (-19196, 4986),(-20000, 5595) ,(-20300, 5600)
-    ]
-    bot.Move.FollowPathAndExitMap(path_points_to_traverse_bjora_marches, target_map_name="Jaga Moraine")
-    bot.Move.XY(13372.44, -20758.50)
-    bot.Dialogs.AtXY(13367, -20771,0x84)
-    bot.Wait.UntilOutOfCombat()
-    bot.Dialogs.AtXY(13367, -20771,0x84)
 
 def AdvanceToDoomlore(bot: Botting):
     bot.States.AddHeader("Phase 6: Advancing to Doomlore")
@@ -1172,158 +1120,7 @@ def AdvanceToUmbralGrotto(bot: Botting):
     bot.Move.XY(-20726.955078, 5951.445312)
     bot.Move.XY(-22423.933593, 6339.730468)
     bot.Move.XY(-22984.621093, 6892.540527)
-    bot.Wait.ForMapLoad(target_map_name="Umbral Grotto")  
-
-def UnlockConsulateDocks(bot: Botting):
-    bot.States.AddHeader("Phase 7: Unlocking Consulate Docks Outpost")
-    bot.Map.Travel(target_map_id=449)
-    bot.Wait.ForMapLoad(target_map_id=449)  # Kamadan
-    bot.Move.XY(-8075.89, 14592.47)
-    #bot.Move.XY(-7644.99, 15526.14)
-    bot.Move.XY(-6743.29, 16663.21)
-    bot.Move.XY(-5271.00, 16740.00)
-    bot.Wait.ForMapLoad(target_map_id=429)
-    bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
-    bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks
-
-def UnlockKainengCenter(bot: Botting):
-    bot.States.AddHeader("Phase 7: Unlocking Kaineng Center Outpost")
-    bot.Map.Travel(target_map_id=493)  # Consulate Docks
-    bot.Wait.ForMapLoad(target_map_id=493)
-    bot.Move.XYAndDialog(-2546.09, 16203.26, 0x88)
-    bot.Wait.ForMapToChange(target_map_id=290)
-    bot.Move.XY(-4230.84, 8008.28)
-    bot.Move.XYAndDialog(-5134.16, 7004.48, 0x817901)
-    bot.Map.Travel(target_map_id=194)  # KC
-    bot.Wait.ForMapLoad(target_map_id=194)
-
-def AdvanceToVizunahSquareForeignQuarter(bot: Botting):
-    bot.States.AddHeader("Phase 7: Advancing to Vizunah Square Foreign Quarter")
-    bot.Map.Travel(target_map_id=194)
-    PrepareForBattle(bot)
-    bot.Party.LeaveParty()
-    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
-    bot.Move.XY(3045, -1575)
-    bot.Move.XY(3007, -2609)
-    bot.Move.XY(2909, -3629)
-    bot.Move.XY(3145, -4643)
-    bot.Move.XY(3372, -5617)
-    bot.Wait.ForMapLoad(target_map_id=240)
-    bot.Properties.Enable("birthday_cupcake")
-    bot.Move.XY(-6748, 19737)
-    bot.Move.XY(-5917, 17893)
-    bot.Move.XY(-4466, 16485)
-    bot.Move.XY(-2989, 15105)
-    bot.Move.XY(-1593, 13615)
-    bot.Move.XY(-231, 12109)
-    bot.Move.XY(938, 10443)
-    bot.Move.XY(1282, 8408)
-    bot.Move.XY(2057, 6514)
-    bot.Move.XY(4042, 6223)
-    bot.Move.XY(6052, 5848)
-    bot.Move.XY(7924, 5071)
-    bot.Move.XY(8211, 3045)
-    bot.Move.XY(6473, 1948)
-    bot.Move.XY(4437, 1648)
-    bot.Move.XY(3380, -104)
-    bot.Move.XY(5321, -696)
-    bot.Move.XY(5583, -2684)
-    bot.Move.XY(7584, -2703)
-    bot.Move.XY(9404, -1817)
-    bot.Move.XY(11278, -1107)
-    bot.Move.XY(11311, 958)
-    bot.Move.XY(11415, 2975)
-    bot.Move.XY(12366.46, 5069.94)
-    bot.Dialogs.WithModel(3228, 0x800009)
-    bot.Dialogs.WithModel(3228, 0x80000B)  # talk to the guard
-    bot.Wait.ForMapToChange(target_map_id=292) #Vizunah Square Foreign
-
-def AdvanceToMarketplaceOutpost(bot: Botting):
-    bot.States.AddHeader("Phase 7: Advancing to The Marketplace Outpost")
-    bot.Map.Travel(target_map_id=194)
-    bot.Party.LeaveParty()
-    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
-    bot.Move.XY(3045, -1575)
-    bot.Move.XY(3007, -2609)
-    bot.Move.XY(2909, -3629)
-    bot.Move.XY(3145, -4643)
-    bot.Move.XY(3372, -5617)
-    bot.Wait.ForMapLoad(target_map_id=240)
-    bot.Properties.Enable("birthday_cupcake")
-    auto_path_list = [(-9467.0,14207.0), (-10965.0,9309.0), (-10332.0,1442.0), (-10254.0,-1759.0)]
-    bot.Move.FollowAutoPath(auto_path_list)
-    path_to_marketplace = [
-        (-10324, -1213),
-        (-10402, -2217),
-        (-10704, -3213),
-        (-11051, -4206),
-        (-11483, -5143),
-        (-11382, -6149),
-        (-11024, -7085),
-        (-10720, -8042),
-        (-10404, -9039),
-        (-10950, -9913),
-        (-11937, -10246),
-        (-12922, -10476),
-        (-13745, -11050),
-        (-14565, -11622)
-    ]
-    bot.Move.FollowPathAndExitMap(path_to_marketplace, target_map_name="The Marketplace") #MarketPlace
-
-def AdvanceToSeitungHarbor(bot: Botting):
-    bot.States.AddHeader("Phase 7: Advancing to Seitung Harbor Outpost")
-    #PrepareForBattle(bot)
-    bot.Map.Travel(target_map_id=303)
-    #bot.Move.XY(11762, 17287)
-    #bot.Move.XY(12041, 18273)
-    bot.Move.XY(12313, 19236)
-    bot.Move.XY(10343, 20329)
-    bot.Wait.ForMapLoad(target_map_id=302)
-    bot.Move.XY(8392, 20845)
-    bot.Move.XYAndDialog(6912.20, 19912.12, 0x84)
-    #bot.Dialogs.WithModel(3241, 0x81)
-    #bot.Dialogs.WithModel(3241, 0x84)
-    bot.Wait.ForMapToChange(target_map_id=250)
-
-def AdvanceToShinjeaMonastery(bot: Botting):
-    bot.States.AddHeader("Phase 7: Advancing to Shinjea Monastery")
-    PrepareForBattle(bot)
-    bot.Party.LeaveParty()
-    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
-    bot.Map.Travel(target_map_id=250)
-    bot.Move.XY(17367.47, 12161.08)
-    bot.Move.XYAndExitMap(15868.00, 13455.00, target_map_id=313)
-    bot.Move.XY(574.21, 10806.26)
-    bot.Move.XYAndExitMap(382.00, 9925.00, target_map_id=252)
-    bot.Move.XYAndExitMap(-5004.50, 9410.41, target_map_id=242)
-
-def AdvanceToTsumeiVillage(bot: Botting):
-    bot.States.AddHeader("Phase 7: Advancing to Tsumei Village")
-    bot.Map.Travel(target_map_id=242) #Shinjea Monastery
-    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
-    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
-    bot.Move.XYAndExitMap(-4842, -13267, target_map_id=249) #tsumei_village_map_id
-
-def AdvanceToMinisterCho(bot: Botting):
-    bot.States.AddHeader("Phase 7: Advancing To Minister Cho")
-    bot.Map.Travel(target_map_id=242) #Shinjea Monastery
-    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
-    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
-    bot.Move.XY(6611.58, 15847.51)
-    bot.Move.XY(6892, 17079)
-    bot.Wait.ForMapLoad(target_map_id=214) #minister_cho_map_id
-
-def UnlockLionsArch(bot: Botting):
-    bot.States.AddHeader("Phase 7: Unlocking Lion's Arch Outpost")
-    bot.Map.Travel(target_map_id=493)  # Consulate Docks
-    bot.Wait.ForMapLoad(target_map_id=493)
-    bot.Move.XYAndDialog(-2546.09, 16203.26, 0x89)
-    bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
-    bot.Move.XY(-1181, 1038)
-    bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
-    bot.Move.XY(-1856.86, 1434.14)
-    bot.Move.FollowPath([(-2144, 1450)])
-    bot.Wait.ForMapLoad(target_map_id=55) #has built in wait time now
+    bot.Wait.ForMapLoad(target_map_name="Umbral Grotto")
 
 def UnlockRemainingSecondaryProfessions(bot: Botting):
     bot.States.AddHeader("Phase 7: Unlocking All Remaining Secondary Professions")
@@ -1418,7 +1215,130 @@ def UnlockXunlaiMaterialStoragePanel(bot: Botting) -> None:
     path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
     bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
     bot.Dialogs.WithModel(221, 0x800001)
-    bot.Dialogs.WithModel(221, 0x800002)  # Unlock Material Storage Panel
+    bot.Dialogs.WithModel(221, 0x800002)    
+
+def UnlockConsulateDocks(bot: Botting):
+    bot.States.AddHeader("Phase 7: Unlocking Consulate Docks Outpost")
+    bot.Map.Travel(target_map_id=449)
+    bot.Wait.ForMapLoad(target_map_id=449)  # Kamadan
+    bot.Move.XY(-8075.89, 14592.47)
+    #bot.Move.XY(-7644.99, 15526.14)
+    bot.Move.XY(-6743.29, 16663.21)
+    bot.Move.XY(-5271.00, 16740.00)
+    bot.Wait.ForMapLoad(target_map_id=429)
+    bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
+    bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks
+
+def UnlockKainengCenter(bot: Botting):
+    bot.States.AddHeader("Phase 7: Unlocking Kaineng Center Outpost")
+    bot.Map.Travel(target_map_id=493)  # Consulate Docks
+    bot.Wait.ForMapLoad(target_map_id=493)
+    bot.Move.XYAndDialog(-2546.09, 16203.26, 0x88)
+    bot.Wait.ForMapToChange(target_map_id=290)
+    bot.Move.XY(-4230.84, 8008.28)
+    bot.Move.XYAndDialog(-5134.16, 7004.48, 0x817901)
+    bot.Map.Travel(target_map_id=194)  # KC
+    bot.Wait.ForMapLoad(target_map_id=194)
+
+def AdvanceToVizunahSquareForeignQuarter(bot: Botting):
+    bot.States.AddHeader("Phase 7: Advancing to Vizunah Square Foreign Quarter")
+    bot.Map.Travel(target_map_id=194)
+    PrepareForBattle(bot)
+    bot.Party.LeaveParty()
+    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
+    bot.Move.XY(3045, -1575)
+    bot.Move.XY(3007, -2609)
+    bot.Move.XY(2909, -3629)
+    bot.Move.XY(3145, -4643)
+    bot.Move.XY(3372, -5617)
+    bot.Wait.ForMapLoad(target_map_id=240)
+    bot.Properties.Enable("birthday_cupcake")
+    bot.Move.XY(-6748, 19737)
+    bot.Move.XY(-5917, 17893)
+    bot.Move.XY(-4466, 16485)
+    bot.Move.XY(-2989, 15105)
+    bot.Move.XY(-1593, 13615)
+    bot.Move.XY(-231, 12109)
+    bot.Move.XY(938, 10443)
+    bot.Move.XY(1282, 8408)
+    bot.Move.XY(2057, 6514)
+    bot.Move.XY(4042, 6223)
+    bot.Move.XY(6052, 5848)
+    bot.Move.XY(7924, 5071)
+    bot.Move.XY(8211, 3045)
+    bot.Move.XY(6473, 1948)
+    bot.Move.XY(4437, 1648)
+    bot.Move.XY(3380, -104)
+    bot.Move.XY(5321, -696)
+    bot.Move.XY(5583, -2684)
+    bot.Move.XY(7584, -2703)
+    bot.Move.XY(9404, -1817)
+    bot.Move.XY(11278, -1107)
+    bot.Move.XY(11311, 958)
+    bot.Move.XY(11415, 2975)
+    bot.Move.XY(12366.46, 5069.94)
+    bot.Dialogs.WithModel(3228, 0x800009)
+    bot.Dialogs.WithModel(3228, 0x80000B)  # talk to the guard
+    bot.Wait.ForMapToChange(target_map_id=292) #Vizunah Square Foreign
+
+def AdvanceToMarketplaceOutpost(bot: Botting):
+    bot.States.AddHeader("Phase 7: Advancing to The Marketplace Outpost")
+    bot.Map.Travel(target_map_id=194)
+    bot.Party.LeaveParty()
+    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
+    bot.Move.XY(3045, -1575)
+    bot.Move.XY(3007, -2609)
+    bot.Move.XY(2909, -3629)
+    bot.Move.XY(3145, -4643)
+    bot.Move.XY(3372, -5617)
+    bot.Wait.ForMapLoad(target_map_id=240)
+    bot.Properties.Enable("birthday_cupcake")
+    auto_path_list = [(-9467.0,14207.0), (-10965.0,9309.0), (-10332.0,1442.0), (-10254.0,-1759.0)]
+    bot.Move.FollowAutoPath(auto_path_list)
+    path_to_marketplace = [
+        (-10324.0, -1213.0),
+        (-10402, -2217),
+        (-10704, -3213),
+        (-11051, -4206),
+        (-11483, -5143),
+        (-11382, -6149),
+        (-11024, -7085),
+        (-10720, -8042),
+        (-10404, -9039),
+        (-10950, -9913),
+        (-11937, -10246),
+        (-12922, -10476),
+        (-13745, -11050),
+        (-14565, -11622)
+    ]
+    bot.Move.FollowPathAndExitMap(path_to_marketplace, target_map_name="The Marketplace") #MarketPlace
+
+def AdvanceToSeitungHarbor(bot: Botting):
+    bot.States.AddHeader("Phase 7: Advancing to Seitung Harbor Outpost")
+    #PrepareForBattle(bot)
+    bot.Map.Travel(target_map_id=303)
+    #bot.Move.XY(11762, 17287)
+    #bot.Move.XY(12041, 18273)
+    bot.Move.XY(12313, 19236)
+    bot.Move.XY(10343, 20329)
+    bot.Wait.ForMapLoad(target_map_id=302)
+    bot.Move.XY(8392, 20845)
+    bot.Move.XYAndDialog(6912.20, 19912.12, 0x84)
+    #bot.Dialogs.WithModel(3241, 0x81)
+    #bot.Dialogs.WithModel(3241, 0x84)
+    bot.Wait.ForMapToChange(target_map_id=250)
+
+def UnlockLionsArch(bot: Botting):
+    bot.States.AddHeader("Phase 7: Unlocking Lion's Arch Outpost")
+    bot.Map.Travel(target_map_id=493)  # Consulate Docks
+    bot.Wait.ForMapLoad(target_map_id=493)
+    bot.Move.XYAndDialog(-2546.09, 16203.26, 0x89)
+    bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
+    bot.Move.XY(-1181, 1038)
+    bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
+    bot.Move.XY(-1856.86, 1434.14)
+    bot.Move.FollowPath([(-2144, 1450)])
+    bot.Wait.ForMapLoad(target_map_id=55) #has built in wait time now
 
 #region MAIN
 selected_step = 0
