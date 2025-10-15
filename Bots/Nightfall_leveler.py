@@ -932,7 +932,11 @@ def UnlockKillroyStonekin(bot: Botting):
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
-
+    profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if profession == "Dervish":
+        bot.Items.Equip(18910) #crafted Scythe
+    elif profession == "Paragon":
+        bot.Items.Equip(18913)
 def AdvanceToLongeyeEdge(bot: Botting):
     bot.States.AddHeader("Phase 6: Advancing to Longeye's Edge")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
@@ -974,7 +978,7 @@ def AdvanceToLongeyeEdge(bot: Botting):
 def UnlockNPCForVaettirFarm(bot: Botting):
     bot.States.AddHeader("Unlocking NPC for Vaettir Farm")
     bot.Map.Travel(target_map_id=650)  # longeyes_ledge_id
-    PrepareForBattle(bot)
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
     bot.Move.XYAndExitMap(-26375, 16180, target_map_name="Bjora Marches")
     path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
     (17810, -17649),(17516, -17270),(17166, -16813),(16862, -16324),(16472, -15934),
@@ -999,6 +1003,8 @@ def UnlockNPCForVaettirFarm(bot: Botting):
     bot.Dialogs.AtXY(13367, -20771,0x84)
     bot.Wait.UntilOutOfCombat()
     bot.Dialogs.AtXY(13367, -20771,0x84)
+    bot.Map.Travel(target_map_id=650)
+    bot.Party.LeaveParty()
 
 def AdvanceToDoomlore(bot: Botting):
     bot.States.AddHeader("Phase 6: Advancing to Doomlore")
@@ -1235,7 +1241,7 @@ def AdvanceToMarketplaceOutpost(bot: Botting):
     auto_path_list = [(-9467.0,14207.0), (-10965.0,9309.0), (-10332.0,1442.0), (-10254.0,-1759.0)]
     bot.Move.FollowAutoPath(auto_path_list)
     path_to_marketplace = [
-        (-10324, -1213),
+        (-10324.0, -1213),
         (-10402, -2217),
         (-10704, -3213),
         (-11051, -4206),
