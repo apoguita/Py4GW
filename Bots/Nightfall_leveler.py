@@ -1328,6 +1328,35 @@ def AdvanceToSeitungHarbor(bot: Botting):
     #bot.Dialogs.WithModel(3241, 0x84)
     bot.Wait.ForMapToChange(target_map_id=250)
 
+def AdvanceToShinjeaMonastery(bot: Botting):
+    bot.States.AddHeader("Phase 7: Advancing to Shinjea Monastery")
+    PrepareForBattle(bot)
+    bot.Party.LeaveParty()
+    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
+    bot.Map.Travel(target_map_id=250)
+    bot.Move.XY(17367.47, 12161.08)
+    bot.Move.XYAndExitMap(15868.00, 13455.00, target_map_id=313)
+    bot.Move.XY(574.21, 10806.26)
+    bot.Move.XYAndExitMap(382.00, 9925.00, target_map_id=252)
+    bot.Move.XYAndExitMap(-5004.50, 9410.41, target_map_id=242)
+
+def AdvanceToTsumeiVillage(bot: Botting):
+    bot.States.AddHeader("Phase 7: Advancing to Tsumei Village")
+    bot.Map.Travel(target_map_id=242) #Shinjea Monastery
+    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
+    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    bot.Move.XYAndExitMap(-4842, -13267, target_map_id=249) #tsumei_village_map_id
+
+def AdvanceToMinisterCho(bot: Botting):
+    bot.States.AddHeader("Phase 7: Advancing To Minister Cho")
+    bot.Map.Travel(target_map_id=242) #Shinjea Monastery
+    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
+    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    bot.Move.XY(6611.58, 15847.51)
+    #bot.Move.XY(6892, 17079)
+    bot.Move.FollowPath([(6874, 16391)])
+    bot.Wait.ForMapLoad(target_map_id=214) #minister_cho_map_id
+
 def UnlockLionsArch(bot: Botting):
     bot.States.AddHeader("Phase 7: Unlocking Lion's Arch Outpost")
     bot.Map.Travel(target_map_id=493)  # Consulate Docks
