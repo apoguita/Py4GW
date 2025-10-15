@@ -2,6 +2,8 @@ import time
 from datetime import datetime
 from datetime import timezone
 
+import Py4GW
+
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
@@ -72,6 +74,7 @@ def DrawWindow():
 
             command: SharedCommandType = message.Command
             params: tuple[float] = message.Params
+            extra_data: tuple[str] = message.ExtraData
             active = message.Active
             running = message.Running
             timestamp = message.Timestamp
@@ -80,6 +83,7 @@ def DrawWindow():
             PyImGui.text(f"Receiver: {receiver}")
             PyImGui.text(f"Command: {SharedCommandType(command).name}")
             PyImGui.text(f"Params: {', '.join(map(str, params))}")
+            PyImGui.text(f"ExtraData: {', '.join(map(str, extra_data))}")
             PyImGui.text(f"Active: {active}")
             PyImGui.text(f"Running: {running}")
             PyImGui.text(f"Timestamp: {timestamp}")
@@ -778,6 +782,121 @@ def MessageEnableHeroAI(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
     ConsoleLog(MODULE_NAME, "EnableHeroAI message processed and finished.", Console.MessageType.Info, False)
 
+# region SetWindowGeometry
+def SetWindowGeometry(index, message):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    Py4GW.Console.set_window_geometry(int(message.Params[0]), int(message.Params[1]), int(message.Params[2]), int(message.Params[3]))
+    yield from Routines.Yield.wait(1500)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetWindowGeometry message processed and finished.", Console.MessageType.Info, False)
+# endregion
+#region SetWindowActive
+def SetWindowActive(index, message):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    Py4GW.Console.set_window_active()
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetWindowActive message processed and finished.", Console.MessageType.Info, False)
+# endregion
+#region SetWindowTitle
+def SetWindowTitle(index, message):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    extra = tuple(GLOBAL_CACHE.ShMem._c_wchar_array_to_str(arr) for arr in message.ExtraData)
+    title = extra[0] if extra else ""
+
+    Py4GW.Console.set_window_title(title)
+
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetWindowTitle message processed and finished.",
+               Console.MessageType.Info, False)
+
+# endregion
+#region SetBorderless
+def SetBorderless(index, message):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    Py4GW.Console.set_borderless(bool(message.Params[0]))
+    yield from Routines.Yield.wait(1000)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetBorderless message processed and finished.", Console.MessageType.Info, False)
+# endregion
+#region SetAlwaysOnTop
+def SetAlwaysOnTop(index, message):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    Py4GW.Console.set_always_on_top(bool(message.Params[0]))
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetAlwaysOnTop message processed and finished.", Console.MessageType.Info, False)
+# endregion
+#region FlashWindow
+def FlashWindow(index, message):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    Py4GW.Console.flash_window()
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "FlashWindow message processed and finished.", Console.MessageType.Info, False)
+# endregion
+#region RequestAttention
+def RequestAttention(index, message):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    Py4GW.Console.request_attention()
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "RequestAttention message processed and finished.", Console.MessageType.Info, False)
+# endregion
+# region SetTransparentClickThrough
+def SetTransparentClickThrough(index, message):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    Py4GW.Console.transparent_click_through(bool(message.Params[0]))
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetTransparentClickThrough message processed and finished.", Console.MessageType.Info, False)
+# endregion
+# region SetTransparency
+def SetOpacity(index, message):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    Py4GW.Console.adjust_window_opacity(int(message.Params[0]))
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetOpacity message processed and finished.", Console.MessageType.Info, False)
 
 # region UseSkillFromMessage
 def UseSkillFromMessage(index, message):
@@ -975,6 +1094,24 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(PressKey(index, message))
         case SharedCommandType.DonateToGuild:
             GLOBAL_CACHE.Coroutines.append(DonateToGuild(index, message))
+        case SharedCommandType.SetWindowGeometry:
+            GLOBAL_CACHE.Coroutines.append(SetWindowGeometry(index, message))
+        case SharedCommandType.SetWindowActive:
+            GLOBAL_CACHE.Coroutines.append(SetWindowActive(index, message))
+        case SharedCommandType.SetWindowTitle:
+            GLOBAL_CACHE.Coroutines.append(SetWindowTitle(index, message))
+        case SharedCommandType.SetBorderless:
+            GLOBAL_CACHE.Coroutines.append(SetBorderless(index, message))
+        case SharedCommandType.SetAlwaysOnTop:
+            GLOBAL_CACHE.Coroutines.append(SetAlwaysOnTop(index, message))
+        case SharedCommandType.FlashWindow:
+            GLOBAL_CACHE.Coroutines.append(FlashWindow(index, message))
+        case SharedCommandType.RequestAttention:
+            GLOBAL_CACHE.Coroutines.append(RequestAttention(index, message))
+        case SharedCommandType.SetTransparentClickThrough:
+            GLOBAL_CACHE.Coroutines.append(SetTransparentClickThrough(index, message))
+        case SharedCommandType.SetOpacity:
+            GLOBAL_CACHE.Coroutines.append(SetOpacity(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by Frenkey
             pass
