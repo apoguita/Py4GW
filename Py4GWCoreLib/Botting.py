@@ -274,7 +274,7 @@ class BottingClass:
         self.config.fsm_running = True
         self.config.FSM.reset()
         self.config.FSM.jump_to_state_by_name(step_name)
-
+# That prevents the bot loop from calling into a dead FSM after Stop().
     def Update(self):
         if self.config.fsm_running:
             self.config.state_description = "Running" if self.config.fsm_running else "Stopped"
@@ -285,12 +285,8 @@ class BottingClass:
         if not self.config.initialized:
             self.Routine()
             self.config.initialized = True
-        if self.config.fsm_running:
-            self._start_coroutines()
+        if self.config.fsm_running and self.config.FSM and not self.config.FSM.is_finished():
             self.config.FSM.update()
 
     def OverrideBuild(self, build: BuildMgr) -> None:
         self.config.build_handler = build
-
-
-    
