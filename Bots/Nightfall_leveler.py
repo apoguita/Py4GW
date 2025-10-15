@@ -47,7 +47,7 @@ def create_bot_routine(bot: Botting) -> None:
     TakeWeaponRewardAndCraft(bot)              # Take reward and craft weapon
     
     # === PHASE 5: MID-GAME QUESTS AND PROGRESSION ===
-    LoopFarmInJokanurDiggins(bot)
+    LoopFarmInJokanurDiggings(bot)
     GatherSecondSetOfAttributePoints(bot)          # Get second set of 15 attribute points
     
     # === PHASE 6: EYE OF THE NORTH EXPANSION ===
@@ -799,39 +799,27 @@ def TakeWeaponRewardAndCraft(bot: Botting):
     exec_fn = lambda: CraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapon")
 
-def LoopFarmInJokanurDiggins(bot):
-    bot.States.AddHeader("Phase 4:Loop farm in jokanur diggings")
-    bot.States.AddCustomState(lambda: None, "LoopFarm_JumpHere")
-    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
-    bot.Map.Travel(target_map_id=491) #Jokanur Diggings
-    bot.Party.LeaveParty()
-    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
-
-    #bot.Move.XY(282, 40)
-    bot.Move.FollowPath([
+def LoopFarmInJokanurDiggings(bot):
+    bot.States.AddHeader(f"Farm_loop")
+    for _ in range (15):
+        bot.Map.Travel(target_map_id=491) #Jokanur Diggings
+        bot.Party.LeaveParty()
+        PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
+        bot.Move.FollowPath([
         (1268, -311),
         (-1618, -783),
         (-2600, -1119),
         (-3546, -1444)
-    ])
-    bot.Wait.ForMapLoad(target_map_id=481) # Fahranur The First City
-
-    bot.Move.XYAndDialog(19651, 12237, 0x85) # Blessing
-    bot.Move.XY(11182, 14880); bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(11543, 6466);  bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(15193, 5918);  bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(14485, 16);    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(10256, -1393); bot.Wait.UntilOutOfCombat()
-    bot.Map.Travel(target_map_id=491)
-
-    #After completing Jokanur quests, check level again and continue appropriately
-    level_after_quests = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-    if level_after_quests > 9:
-        # Now we're level 10+, continue to 2nd Attribute points
-        bot.States.JumpToStepName("SecondAttPoints_JumpHere")
-    else:
-        # Still not level 10, repeat Jokanur Diggings quests for more farming
-        bot.States.JumpToStepName("LoopFarm_JumpHere")
+        ])
+        bot.Wait.ForMapLoad(target_map_id=481) # Fahranur The First City
+        bot.Move.XYAndDialog(19651, 12237, 0x85) # Blessing
+        bot.Move.XY(11182, 14880); bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(11543, 6466);  bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(15193, 5918);  bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(14485, 16);    bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(10256, -1393); bot.Wait.UntilOutOfCombat()
+        bot.Move.XYAndDialog(11238, -2718, 0x85) # Bounty
+        bot.Move.XY(13382, -6837); bot.Wait.UntilOutOfCombat()
 
 def GatherSecondSetOfAttributePoints(bot: Botting):
     bot.States.AddHeader("Phase 5: Gathering 15 second set of attribute points")
