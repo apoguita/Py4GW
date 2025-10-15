@@ -551,12 +551,11 @@ class FSM:
             return False
 
     def update(self):
-        
-        if not self.current_state:
-            if self.log_actions:
-                ConsoleLog("FSM", f"{self.name}: FSM has not been started.", Py4GW.Console.MessageType.Warning)
+        if self.current_state is None:
+            # FSM stopped or uninitialized
+            self.finished = True
             return
-        
+
         if self.finished:
             if self.log_actions:
                 ConsoleLog("FSM", f"{self.name}: FSM has finished.", Py4GW.Console.MessageType.Warning)
@@ -567,7 +566,8 @@ class FSM:
             try:
                 next(routine)
             except StopIteration:
-                self.managed_coroutines.remove(routine)
+                if routine in self.managed_coroutines:
+                    self.managed_coroutines.remove(routine)
             except Exception as e:
                 state_name = self.current_state.name if self.current_state else "Unknown"
                 tb = traceback.format_exc()
@@ -576,16 +576,13 @@ class FSM:
                     f"Error in self-managed coroutine at state '{state_name}': {e}\nTraceback:\n{tb}",
                     Console.MessageType.Error
                 )
-                try:
+                if routine in self.managed_coroutines:
                     self.managed_coroutines.remove(routine)
-                except ValueError:
-                    pass
-                
-        if self.paused:
-            if self.log_actions:
-                ConsoleLog("FSM", f"{self.name}: FSM is paused.", Py4GW.Console.MessageType.Warning)
-            return
-        
+                        
+                if self.paused:
+                    if self.log_actions:
+                        ConsoleLog("FSM", f"{self.name}: FSM is paused.", Py4GW.Console.MessageType.Warning)
+                    return
 
         if self.log_actions:
             ConsoleLog("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
