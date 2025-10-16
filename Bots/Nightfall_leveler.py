@@ -47,7 +47,7 @@ def create_bot_routine(bot: Botting) -> None:
     TakeWeaponRewardAndCraft(bot)              # Take reward and craft weapon
     
     # === PHASE 5: MID-GAME QUESTS AND PROGRESSION ===
-    LoopFarmInJokanurDiggins(bot)
+    LoopFarmInJokanurDiggings(bot)
     GatherSecondSetOfAttributePoints(bot)          # Get second set of 15 attribute points
     
     # === PHASE 6: EYE OF THE NORTH EXPANSION ===
@@ -799,39 +799,27 @@ def TakeWeaponRewardAndCraft(bot: Botting):
     exec_fn = lambda: CraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapon")
 
-def LoopFarmInJokanurDiggins(bot):
-    bot.States.AddHeader("Phase 4:Loop farm in jokanur diggings")
-    bot.States.AddCustomState(lambda: None, "LoopFarm_JumpHere")
-    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
-    bot.Map.Travel(target_map_id=491) #Jokanur Diggings
-    bot.Party.LeaveParty()
-    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
-
-    #bot.Move.XY(282, 40)
-    bot.Move.FollowPath([
+def LoopFarmInJokanurDiggings(bot):
+    bot.States.AddHeader(f"Farm_loop")
+    for _ in range (16):
+        bot.Map.Travel(target_map_id=491) #Jokanur Diggings
+        bot.Party.LeaveParty()
+        PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
+        bot.Move.FollowPath([
         (1268, -311),
         (-1618, -783),
         (-2600, -1119),
         (-3546, -1444)
-    ])
-    bot.Wait.ForMapLoad(target_map_id=481) # Fahranur The First City
-
-    bot.Move.XYAndDialog(19651, 12237, 0x85) # Blessing
-    bot.Move.XY(11182, 14880); bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(11543, 6466);  bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(15193, 5918);  bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(14485, 16);    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(10256, -1393); bot.Wait.UntilOutOfCombat()
-    bot.Map.Travel(target_map_id=491)
-
-    #After completing Jokanur quests, check level again and continue appropriately
-    level_after_quests = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-    if level_after_quests > 9:
-        # Now we're level 10+, continue to 2nd Attribute points
-        bot.States.JumpToStepName("SecondAttPoints_JumpHere")
-    else:
-        # Still not level 10, repeat Jokanur Diggings quests for more farming
-        bot.States.JumpToStepName("LoopFarm_JumpHere")
+        ])
+        bot.Wait.ForMapLoad(target_map_id=481) # Fahranur The First City
+        bot.Move.XYAndDialog(19651, 12237, 0x85) # Blessing
+        bot.Move.XY(11182, 14880); bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(11543, 6466);  bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(15193, 5918);  bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(14485, 16);    bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(10256, -1393); bot.Wait.UntilOutOfCombat()
+        bot.Move.XYAndDialog(11238, -2718, 0x85) # Bounty
+        bot.Move.XY(13382, -6837); bot.Wait.UntilOutOfCombat()
 
 def GatherSecondSetOfAttributePoints(bot: Botting):
     bot.States.AddHeader("Phase 5: Gathering 15 second set of attribute points")
@@ -846,7 +834,6 @@ def TravelToEyeOfTheNorth(bot: Botting):
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
-    ConfigurePacifistEnv(bot)
 
     bot.Move.XYAndDialog(-8739, 14200,0x833601) # Bendah
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) # Plains of Jarin
@@ -945,7 +932,11 @@ def UnlockKillroyStonekin(bot: Botting):
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
-
+    profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if profession == "Dervish":
+        bot.Items.Equip(18910) #crafted Scythe
+    elif profession == "Paragon":
+        bot.Items.Equip(18913)
 def AdvanceToLongeyeEdge(bot: Botting):
     bot.States.AddHeader("Phase 6: Advancing to Longeye's Edge")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
@@ -987,7 +978,7 @@ def AdvanceToLongeyeEdge(bot: Botting):
 def UnlockNPCForVaettirFarm(bot: Botting):
     bot.States.AddHeader("Unlocking NPC for Vaettir Farm")
     bot.Map.Travel(target_map_id=650)  # longeyes_ledge_id
-    PrepareForBattle(bot)
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
     bot.Move.XYAndExitMap(-26375, 16180, target_map_name="Bjora Marches")
     path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
     (17810, -17649),(17516, -17270),(17166, -16813),(16862, -16324),(16472, -15934),
@@ -1012,6 +1003,8 @@ def UnlockNPCForVaettirFarm(bot: Botting):
     bot.Dialogs.AtXY(13367, -20771,0x84)
     bot.Wait.UntilOutOfCombat()
     bot.Dialogs.AtXY(13367, -20771,0x84)
+    bot.Map.Travel(target_map_id=650)
+    bot.Party.LeaveParty()
 
 def AdvanceToDoomlore(bot: Botting):
     bot.States.AddHeader("Phase 6: Advancing to Doomlore")
@@ -1248,7 +1241,7 @@ def AdvanceToMarketplaceOutpost(bot: Botting):
     auto_path_list = [(-9467.0,14207.0), (-10965.0,9309.0), (-10332.0,1442.0), (-10254.0,-1759.0)]
     bot.Move.FollowAutoPath(auto_path_list)
     path_to_marketplace = [
-        (-10324, -1213),
+        (-10324.0, -1213),
         (-10402, -2217),
         (-10704, -3213),
         (-11051, -4206),
