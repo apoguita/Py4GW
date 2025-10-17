@@ -296,6 +296,7 @@ def WarbandOfBrothers(bot):
     #Level 1
     bot.Move.XY(-13404, -2958)
     bot.Move.XY(-7696, 4576)
+    bot.Items.AddModelToLootWhitelist(25413)
     bot.Move.XY(-4608.37, 6540.96)
     bot.Move.XY(-7635.53, 6734.37)
     #bot.Interact.WithItemAtXY(-7635.53, 6734.37) #Ebon Vanguard Key
