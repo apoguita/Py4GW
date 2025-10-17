@@ -1,7 +1,7 @@
 
 from Py4GWCoreLib import *
 
-bot = Botting("Norn Story")
+bot = Botting("Eotn storyline bot")
 #region Helpers
 def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Templates.Pacifist()
@@ -22,8 +22,26 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Items.Restock.Honeycomb()
 #region Start
 def Routine(bot: Botting) -> None:
+    # === PHASE 1: INITIAL SETUP AND RESURRECTION POOL ===
+    UnlockEyeOfTheNorthPool(bot)               # Unlock EOTN resurrection pool
+    TravelToGunnarsHold(bot)                   # Travel to Gunnar's Hold
+    
+    # === PHASE 2: INITIAL NORN QUESTS ===
+    TalkToGunnar(bot)                          # Talk to Gunnar
+    TravelToSifhalla(bot)                      # Travel to Sifhalla
+    CompleteTrackingTheNornbear(bot)           # Complete tracking quest
+    CompleteCurseOfTheNornbear(bot)            # Complete curse quest
+    
+    # === PHASE 3: OLAFSTEAD MISSIONS ===
+    TravelToOlafstead(bot)                     # Travel to Olafstead
+    CompleteShrineOfRavenSpirit(bot)           # Complete shrine quest
+    CompleteAGateTooFar(bot)                   # Complete gate mission
+    
+    # === PHASE 4: ADVANCED MISSIONS ===
+    AdvanceToLongeyeEdge(bot)                  # Advance to Longeye's Edge
+    SearchForTheEbonVanguard(bot)              # Complete Ebon Vanguard mission
 
-
+def UnlockEyeOfTheNorthPool(bot) -> None:
     bot.States.AddHeader("Unlocking Eye of the North Resurrection Pool")
     bot.Map.Travel(target_map_id=642)  # eotn_outpost_id
     auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
@@ -42,7 +60,7 @@ def Routine(bot: Botting) -> None:
     bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) #ogden dialog
     bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) #vekk dialog
 
-    
+def TravelToGunnarsHold(bot) -> None:
     bot.States.AddHeader("Run to Gunnar's Hold")
     bot.Map.Travel(target_map_id=642) # eotn_outpost_id
     
@@ -62,10 +80,13 @@ def Routine(bot: Botting) -> None:
     bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)  # Gunnar's Hold
     bot.Wait.ForMapLoad(target_map_id=644)  # Gunnar's Hold
 
+def TalkToGunnar(bot) -> None:
     bot.States.AddHeader("Talk to Gunnar")
     bot.Map.Travel(target_map_name="Gunnar's Hold")
     bot.Move.XYAndDialog(24078, -7512, 0x832804) #Tracking the Nornbear
-    bot.States.AddHeader("Run To Sifhala")
+
+def TravelToSifhalla(bot) -> None:
+    bot.States.AddHeader("Run To Sifhalla")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(16003.853515, -6544.087402)
@@ -101,8 +122,8 @@ def Routine(bot: Botting) -> None:
     bot.Move.XY(13595.982421,  18950.578125)
     bot.Move.XY(13567.612304,  19432.314453)
     bot.Wait.ForMapLoad(target_map_name="Sifhalla")
-    
-    #region Tracking the Nornbear
+
+def CompleteTrackingTheNornbear(bot) -> None:
     bot.States.AddHeader("Tracking the Nornbear")
     bot.Map.Travel(target_map_name="Sifhalla") #Sifhalla
     ConfigureAggressiveEnv(bot)
@@ -112,22 +133,24 @@ def Routine(bot: Botting) -> None:
     bot.Wait.ForTime(40000)
     bot.Wait.ForMapLoad(target_map_name="Sifhalla") #Wait to be ported back to Sifhalla
     bot.Move.XYAndDialog(14353, 23905, 0x832807)
-    #region Curse of the Nornbear
+
+def CompleteCurseOfTheNornbear(bot) -> None:
     bot.States.AddHeader("Curse of the Nornbear")
     bot.Map.Travel(target_map_name="Sifhalla")
     ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(14353, 23905, 0x86) #hunting the nornbear
     bot.Wait.ForMapLoad(target_map_id=653); bot.Wait.ForTime(2000)#Special Instance Map of Drakkar Lake
+    bot.Multibox.UseAllConsumables() #Conset
     bot.Move.XY(-2638, 20433); bot.Wait.ForTime(5000)
     bot.Move.XY(-5793, 15818); bot.Wait.ForTime(2000)
     bot.Move.XY(8105, 14089); bot.Wait.ForTime(2000)
     bot.Move.XY(4940, 6551); bot.Wait.UntilOnCombat; bot.Wait.ForTime(5000)
-    bot.Wait.ForMapLoad(target_map_id=643); bot.Wait.ForTime(2000)
+    bot.Wait.ForMapToChange(target_map_id=643); bot.Wait.ForTime(2000)
     bot.Move.XYAndDialog(14353, 23905, 0x838904) #Northern Allies
     bot.Dialogs.AtXY(14353, 23905, 0x89) #Olaf Olafson
     bot.Dialogs.AtXY(14353, 23905, 0x8A) #Egil Fireteller
-    
-    #Run to Olafstead
+
+def TravelToOlafstead(bot) -> None:
     bot.States.AddHeader("Run to Olafstead")
     bot.Map.Travel(target_map_name="Sifhalla") #Sifhalla
     ConfigureAggressiveEnv(bot)	
@@ -138,24 +161,32 @@ def Routine(bot: Botting) -> None:
     bot.Move.FollowAutoPath(auto_path_list) #path to Olafstead
     bot.Wait.ForMapLoad(target_map_name="Olafstead") #Olafstead
 
-    #region Shrine of the Raven Spirit
+def CompleteShrineOfRavenSpirit(bot) -> None:
     bot.States.AddHeader("Shrine of the Raven Spirit")
     bot.Map.Travel(target_map_name="Olafstead") #Olafstead
-    bot.Move.XYAndDialog(132, -684, 0x832E01) #Talk to Olaf Olafson
+    bot.Move.FollowAutoPath([(132, -684)]) #Talk to Olaf Olafson
+    bot.Dialogs.AtXY(132, -684, 0x832E01) #Talk to Olaf Olafson
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(-1418, 1201)
+    bot.Move.FollowPath([(-1440, 1147.5)])
     bot.Wait.ForMapLoad(target_map_id=553) #Varajar Fells
+    bot.Multibox.UseAllConsumables()
     auto_path_list = [(-2252.0, 831), (-2887, -2894), (-3211, -3843), (-3940, -3155),(-4941, 728), (-5310, 3693),  (-8984, 4861), (-12866, 5695), (-13612, 6369), (-14355, 7040), (-14909, 7880), (-15520, 8680)] 
     bot.Move.XYAndDialog(-15696, 8732, 0x85) #I'm Always Ready to Talk
-    bot.Wait.UntilOutOfCombat(); bot.Wait.ForTime(5500) #wait for destroyers
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(50500) #wait for destroyers
     bot.Wait.UntilOutOfCombat()
     bot.Dialogs.WithModel(6352, 0x832E07)
-    #region A Gate Too Far
+
+def CompleteAGateTooFar(bot) -> None:
     bot.States.AddHeader("A Gate Too Far")
     bot.Map.Travel(target_map_name="Olafstead") #Olafstead
     ConfigureAggressiveEnv(bot)
-    bot.Move.XYAndDialog(132, -684, 0x86) #Let me at them!
-    bot.Wait.ForMapLoad(target_map_id=655); bot.Wait.ForTime(2000) #Special Instance Map for a Gate too far Level 1
+    bot.Move.FollowPath([(132, -684)])
+    bot.Dialogs.AtXY(132, -684, 0x81) #Let me at them!
+    bot.Dialogs.AtXY(132, -684, 0x86) #Let me at them!
+    bot.Wait.ForMapLoad(target_map_id=655)
+    bot.Wait.ForTime(2000) #Special Instance Map for a Gate too far Level 1
+    bot.Multibox.UseAllConsumables()
     bot.Move.XY(-6814, -2984)
     bot.Move.XY(-3947, -226)
     bot.Move.XY(-6545, 6730); bot.Wait.UntilOutOfCombat
@@ -171,12 +202,14 @@ def Routine(bot: Botting) -> None:
     bot.Move.XY(-18697, 9416); bot.Wait.UntilOutOfCombat #tremor 8
     bot.Move.XY(-20211, 9897)
     bot.Wait.ForMapLoad(target_map_id=656); bot.Wait.ForTime(2000) #Special Instance Map for a Gate too far Level 2
+    bot.Multibox.UseAllConsumables() 
     bot.Move.XY(17054, 6568); bot.Wait.UntilOutOfCombat
     bot.Move.XY(13357, 11594); bot.Wait.UntilOutOfCombat
     bot.Move.XY(11271, 17040); bot.Wait.UntilOutOfCombat
     bot.Move.XY(5244, 17207); bot.Wait.UntilOutOfCombat
     bot.Move.XY(3249, 17858)
     bot.Wait.ForMapLoad(target_map_id=657); bot.Wait.ForTime(2000) #Special Instance Map for a Gate too far Level 3
+    bot.Multibox.UseAllConsumables() 
     bot.Move.XY(6360, 16486); bot.Wait.UntilOutOfCombat
     bot.Move.XY(5233, 12570); bot.Wait.UntilOutOfCombat
     bot.Move.XY(6210, 10139)
@@ -184,7 +217,76 @@ def Routine(bot: Botting) -> None:
     bot.Move.XY(7702, 4015); bot.Wait.UntilOutOfCombat
     bot.Move.XY(7510, 2854); bot.Wait.UntilOutOfCombat
     bot.Wait.ForMapLoad(target_map_id=645); bot.Wait.ForTime(2000) #Olafstead
-    #Finished A Gate Too Far
+
+def AdvanceToLongeyeEdge(bot):
+    bot.States.AddHeader("Advancing to Longeye's Edge")
+    bot.Map.Travel(target_map_id=644) # Gunnar's Hold
+    
+    # Exit Gunnar's Hold outpost
+    bot.Move.XY(15886.204101, -6687.815917)
+    bot.Move.XY(15183.199218, -6381.958984)
+    bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
+    
+    # Traverse through Norrhart Domains to Bjora Marches
+    bot.Move.XY(14233.820312, -3638.702636)
+    bot.Move.XY(14944.690429,  1197.740966)
+    bot.Move.XY(14855.548828,  4450.144531)
+    bot.Move.XY(17964.738281,  6782.413574)
+    bot.Move.XY(19127.484375,  9809.458984)
+    bot.Move.XY(21742.705078, 14057.231445)
+    bot.Move.XY(19933.869140, 15609.059570)
+    bot.Move.XY(16294.676757, 16369.736328)
+    bot.Move.XY(16392.476562, 16768.855468)
+    bot.Wait.ForMapLoad(target_map_id=482)  # Bjora Marches
+    
+    # Traverse through Bjora Marches to Longeyes Ledge
+    bot.Move.XY(-11232.550781, -16722.859375)
+    bot.Move.XY(-7655.780273 , -13250.316406)
+    bot.Move.XY(-6672.132324 , -13080.853515)
+    bot.Move.XY(-5497.732421 , -11904.576171)
+    bot.Move.XY(-3598.337646 , -11162.589843)
+    bot.Move.XY(-3013.927490 ,  -9264.664062)
+    bot.Move.XY(-1002.166198 ,  -8064.565429)
+    bot.Move.XY( 3533.099609 ,  -9982.698242)
+    bot.Move.XY( 7472.125976 , -10943.370117)
+    bot.Move.XY(12984.513671 , -15341.864257)
+    bot.Move.XY(17305.523437 , -17686.404296)
+    bot.Move.XY(19048.208984 , -18813.695312)
+    bot.Move.XY(19634.173828, -19118.777343)
+    bot.Wait.ForMapLoad(target_map_id=650)  # Longeyes Ledge
+
+def SearchForTheEbonVanguard(bot):
+    """Complete Search for the Ebon Vanguard mission"""
+    bot.States.AddHeader("Search for the Ebon Vanguard")
+    bot.Map.Travel(target_map_id=650)  # Longeyes Ledge if not already here
+    bot.Move.XY(-25160, 13505)
+    bot.Dialogs.AtXY(-25160, 13505, 0x831801) #Longeyes
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XYAndExitMap(-21502, 12458, target_map_name="Grothmar Wardowns")
+    bot.Move.XY(-14000, 4297)
+    bot.Move.XY(-9580.00, -2860) #Helmet
+    bot.Dialogs.AtXY(-9580.00, -2860, 0x831807) #Helmet give a reward? ok
+    bot.Dialogs.AtXY(-9580.00, -2860, 0x84) #Examine helmet
+    bot.Wait.ForMapToChange(target_map_id=665)  # Instanced Grothmar Wardowns
+    bot.Multibox.UseAllConsumables() 
+    path = [(-10011, -2509), (5221, -3019), (18715, -3896), (20010, -66), (17938, 2493), (19705, 3742)]
+    bot.Move.FollowAutoPath(path) #Charr Explosive ModelID for later maybe is 22262
+    bot.Wait.ForMapToChange(target_map_id=649)  # Grothmar Wardowns
+    bot.Move.XYAndDialog(19106,413,0x838C01) #Pyre Dialog
+    bot.Multibox.UseAllConsumables() 
+    bot.Move.XY(11484, 1898)
+    bot.Move.XY(11388, 4143) #wall hugging
+    bot.Move.XY(23634, 15333)
+    bot.Move.XYAndExitMap(25604, 15412,target_map_id=647) #Dalada Uplands
+    bot.Multibox.UseAllConsumables() 
+    bot.Move.XY(-13181, 3067)
+    bot.Move.XY(-14576, 10999)
+    bot.Move.XY(-15193, 13347) ; bot.Interact.WithGadgetAtXY(-15369, 13087) #Charr Lock to make Pyre hold it open
+    bot.Move.XY(-17533, 14473)
+    bot.Move.XY(-16740, 17124) ; bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForMapToChange(target_map_id=648) #Doomlore Shrine
+    bot.Move.XYAndDialog(-19090.86, 18003.03, 0x838C07) #Doomlore Dialog
+
 
 bot.SetMainRoutine(Routine)
 

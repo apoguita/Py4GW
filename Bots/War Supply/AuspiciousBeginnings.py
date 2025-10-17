@@ -62,6 +62,7 @@ def ExitToHOM(bot: Botting) -> None:
 def AcquireKieransBow(bot: Botting) -> None:
     KIERANS_BOW = 35829
     bot.States.AddHeader("Acquire Kieran's Bow")
+    bot.Wait.ForMapLoad(target_map_id=646)
 
     def _acquire_keirans_bow(bot: Botting):
         if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(KIERANS_BOW):
@@ -79,7 +80,7 @@ def AcquireKieransBow(bot: Botting) -> None:
 def EnterQuest(bot: Botting) -> None:
     bot.States.AddHeader("Enter Quest")
     bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63E) #enter quest with pool
-    bot.Wait.ForMapLoad(849)
+    bot.Wait.ForMapLoad(target_map_id=849)
     
 def AuspiciousBeginnings(bot: Botting) -> None:
     def _EnableCombat(bot: Botting) -> None:
