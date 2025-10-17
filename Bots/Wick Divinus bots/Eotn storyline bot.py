@@ -273,7 +273,6 @@ def SearchForTheEbonVanguard(bot):
     bot.Move.FollowAutoPath(path) #Charr Explosive ModelID for later maybe is 22262
     bot.Wait.ForMapToChange(target_map_id=649)  # Grothmar Wardowns
     bot.Move.XYAndDialog(19106,413,0x838C01) #Pyre Dialog
-    bot.Multibox.UseAllConsumables() 
     bot.Move.XY(11484, 1898)
     bot.Move.XY(11388, 4143) #wall hugging
     bot.Move.XY(23634, 15333)
