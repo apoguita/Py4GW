@@ -310,7 +310,7 @@ def WarbandOfBrothers(bot):
     bot.Move.XY(-4608.37, 6540.96)
     bot.Move.XY(-16482.00, 1716.68)
     bot.Move.XY(-18616.02, 806.14)
-    bot.Move.FollowPath([(-7369.00, 16140.00)])
+    bot.Move.FollowAutoPath([(-19704, 318)])
     bot.Wait.ForMapLoad(target_map_id=667)
     #Level 2
 
