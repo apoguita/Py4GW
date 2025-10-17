@@ -39,7 +39,8 @@ def Routine(bot: Botting) -> None:
     
     # === PHASE 4: ADVANCED MISSIONS ===
     AdvanceToLongeyeEdge(bot)                  # Advance to Longeye's Edge
-    SearchForTheEbonVanguard(bot)              # Complete Ebon Vanguard mission
+    SearchForTheEbonVanguard(bot)
+    WarbandOfBrothers(bot)                      # Complete Ebon Vanguard mission
 
 def UnlockEyeOfTheNorthPool(bot) -> None:
     bot.States.AddHeader("Unlocking Eye of the North Resurrection Pool")
@@ -285,6 +286,29 @@ def SearchForTheEbonVanguard(bot):
     bot.Move.XY(-16740, 17124) ; bot.Wait.UntilOutOfCombat()
     bot.Wait.ForMapToChange(target_map_id=648) #Doomlore Shrine
     bot.Move.XYAndDialog(-19090.86, 18003.03, 0x838C07) #Doomlore Dialog
+
+def WarbandOfBrothers(bot):
+    bot.States.AddHeader("Warband Of Brothers Mission")
+    bot.Map.Travel(target_map_id=648)  # Doomlore Shrine
+    bot.Move.XYAndDialog(-19094, 17945, 0x84)
+    ConfigureAggressiveEnv(bot)
+    bot.Wait.ForMapToChange(target_map_id=666)
+    #Level 1
+    bot.Move.XY(-13404, -2958)
+    bot.Move.XY(-7696, 4576)
+    bot.Move.XY(-4608.37, 6540.96)
+    bot.Move.XY(-7635.53, 6734.37)
+    #bot.Interact.WithItemAtXY(-7635.53, 6734.37) #Ebon Vanguard Key
+    #bot.Interact.WithGadgetAtXY(-4043.76, 6405.57) #Open Door
+    #bot.Move.XY(-1959.15, 7955.19)
+    #bot.Move.XY(1490.38, 8409.88)
+    #bot.Move.XY(3217.90, 8404.31)
+    #bot.Move.XY(-4608.37, 6540.96)
+    #bot.Move.XY(-16482.00, 1716.68)
+    #bot.Move.XY(-18616.02, 806.14)
+    #bot.Move.FollowPath([(-7369.00, 16140.00)])
+    #bot.Wait.ForMapLoad(target_map_id=667)
+    #Level 2
 
 
 bot.SetMainRoutine(Routine)
