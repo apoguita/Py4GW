@@ -63,7 +63,8 @@ def PreCastSkills(bot: Botting) -> None:
     bot.SkillBar.UseSkill(1253); bot.Wait.ForTime(1250) # Blood Song
     bot.SkillBar.UseSkill(871); bot.Wait.ForTime(1250) # Shadow Song
     bot.SkillBar.UseSkill(1247); bot.Wait.ForTime(1250) # Pain
-    bot.SkillBar.UseSkill(2110); bot.Wait.ForTime(1250) # Vampirism 
+    bot.SkillBar.UseSkill(2110); bot.Wait.ForTime(1250) # Vampirism
+    bot.SkillBar.UseSkill(1237); bot.Wait.ForTime(1250) # Painful Bond  
 
 def withdraw_gold(target_gold=500, deposit_all=True):
     gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
@@ -517,8 +518,21 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndDialog(-1904.21, 3112.10, 0x836A07) # Rewards
     bot.States.JumpToStepName("[H]End_8")
 
-    
     bot.States.AddHeader("Unlock Skill #10")
+    bot.UI.PrintMessageToConsole("Starting", "Beginning Ebon escape quest routine")
+    
+    # Travel to Eotn Outpost
+    bot.Map.Travel(target_map_id=642)
+    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x836901)
+    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x85)
+    bot.Wait.ForMapLoad(target_map_id=695) # Special Eotn Map
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(2952.48, -754.43)
+    bot.Wait.ForMapToChange(target_map_id=642)
+    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x836907)
+    bot.States.JumpToStepName("[H]End_8")
+
+    bot.States.AddHeader("Unlock Skill #11")
     bot.UI.PrintMessageToConsole("Starting", "Beginning Finish Him quest routine")
     
     # Travel to Sifhalla
@@ -608,7 +622,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndDialog(17683.13, -11468.46, 0x834F07) # Rewards
     bot.States.JumpToStepName("[H]End_8")
 
-    bot.States.AddHeader("Unlock Skill TAO skill #11")
+    bot.States.AddHeader("Unlock Skill TAO skill #12")
     bot.UI.PrintMessageToConsole("Starting", "Together as one cap routine")
     
     bot.Properties.Enable("pause_on_danger")
@@ -680,8 +694,11 @@ def Draw_Window():
         if PyImGui.button("Start Vanguard Ebon Sin Quest (Skill #9)"):
             bot.StartAtStep("[H]Unlock Skill #9_10")
 
-        if PyImGui.button("Start Finish Him Quest (Skill #10)"):
+        if PyImGui.button("Start Ebon Escape Quest (Skill #10)"):
             bot.StartAtStep("[H]Unlock Skill #10_11")
+
+        if PyImGui.button("Start Finish Him Quest (Skill #11)"):
+            bot.StartAtStep("[H]Unlock Skill #11_12")
 
         if PyImGui.button("Start Together as One Cap Routine (Skill #11)"):
             bot.StartAtStep("[H]Unlock Skill TAO skill #11_12")
