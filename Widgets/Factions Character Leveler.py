@@ -56,6 +56,7 @@ def create_bot_routine(bot: Botting) -> None:
     UnlockNPCForVaettirFarm(bot)
     UnlockRemainingSecondaryProfessions(bot)
     UnlockXunlaiMaterialPanel(bot)
+    UnlockMercenaryHeroes(bot)
     bot.States.AddHeader("Final Step")
     bot.Stop()
 
@@ -1026,7 +1027,15 @@ def UnlockXunlaiMaterialPanel(bot: Botting) -> None:
     path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
     bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
     bot.Dialogs.WithModel(221, 0x800001)
-    bot.Dialogs.WithModel(221, 0x800002)    
+    bot.Dialogs.WithModel(221, 0x800002)
+
+def UnlockMercenaryHeroes(bot: Botting) -> None:
+    bot.States.AddHeader("Phase 7: Unlocking Mercenary Heroes")
+    bot.Party.LeaveParty()
+    bot.Map.Travel(target_map_id=248)  # GTOB
+    bot.Move.XY(-4231.87, -8965.95)
+    bot.Dialogs.WithModel(225, 0x800004) # Unlock Mercenary Heroes
+    
 #region Events
 def _on_death(bot: "Botting"):
     slot = 8 # slot 8 is the default "revive" skill
