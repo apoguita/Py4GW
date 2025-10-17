@@ -298,17 +298,20 @@ def WarbandOfBrothers(bot):
     bot.Move.XY(-7696, 4576)
     bot.Items.AddModelToLootWhitelist(25413)
     bot.Move.XY(-4608.37, 6540.96)
+    bot.Items.LootItems()
     bot.Move.XY(-7635.53, 6734.37)
-    #bot.Interact.WithItemAtXY(-7635.53, 6734.37) #Ebon Vanguard Key
-    #bot.Interact.WithGadgetAtXY(-4043.76, 6405.57) #Open Door
-    #bot.Move.XY(-1959.15, 7955.19)
-    #bot.Move.XY(1490.38, 8409.88)
-    #bot.Move.XY(3217.90, 8404.31)
-    #bot.Move.XY(-4608.37, 6540.96)
-    #bot.Move.XY(-16482.00, 1716.68)
-    #bot.Move.XY(-18616.02, 806.14)
-    #bot.Move.FollowPath([(-7369.00, 16140.00)])
-    #bot.Wait.ForMapLoad(target_map_id=667)
+    bot.Items.LootItems()
+    bot.Move.XY(-9029.55, 5824.05)
+    bot.Items.LootItems()
+    bot.Interact.WithGadgetAtXY(-4043.76, 6405.57) #Open Door
+    bot.Move.XY(-1959.15, 7955.19)
+    bot.Move.XY(1490.38, 8409.88)
+    bot.Move.XY(3217.90, 8404.31)
+    bot.Move.XY(-4608.37, 6540.96)
+    bot.Move.XY(-16482.00, 1716.68)
+    bot.Move.XY(-18616.02, 806.14)
+    bot.Move.FollowPath([(-7369.00, 16140.00)])
+    bot.Wait.ForMapLoad(target_map_id=667)
     #Level 2
 
 
