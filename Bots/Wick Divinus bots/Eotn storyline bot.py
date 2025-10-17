@@ -304,6 +304,8 @@ def WarbandOfBrothers(bot):
     bot.Items.LootItems()
     bot.Move.XY(-9029.55, 5824.05)
     bot.Items.LootItems()
+    bot.Move.XY(-6440.49, 7335.86)
+    bot.Items.LootItems()
     bot.Move.XY(-4043.76, 6405.57)
     bot.Interact.WithGadgetAtXY(-4043.76, 6405.57) #Open Door
     bot.Wait.ForTime(2000)
