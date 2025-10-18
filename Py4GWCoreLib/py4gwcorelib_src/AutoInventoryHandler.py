@@ -261,12 +261,12 @@ class AutoInventoryHandler():
                     return
 
                 ActionQueueManager().AddAction("ACTION", Inventory.SalvageItem, item_id, salvage_kit)
-
                 if require_materials_confirmation:
-                    yield from Routines.Yield.wait(100)
+                    yield from Routines.Yield.wait(150)
                     yield from Routines.Yield.Items._wait_for_salvage_materials_window()
-                    ActionQueueManager().AddAction("ACTION", Inventory.AcceptSalvageMaterialsWindow)
-                    yield from Routines.Yield.wait(50)
+                    for i in range(3):
+                        ActionQueueManager().AddAction("ACTION", Inventory.AcceptSalvageMaterialsWindow)
+                        yield from Routines.Yield.wait(50)
 
                 while True:
                     yield from Routines.Yield.wait(50)

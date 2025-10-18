@@ -517,7 +517,7 @@ class Yield:
                 yield from Yield.wait(500)
 
             ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)}", log=log)
-            yield from Yield.wait(500)
+            yield from Yield.wait(1000)
             return True
 
 
@@ -950,8 +950,10 @@ class Yield:
             from ..UIManager import UIManager
             yield from Yield.wait(150)
             salvage_materials_frame = UIManager.GetChildFrameID(140452905, [6, 100, 6])
-            while not UIManager.FrameExists(salvage_materials_frame):
+            retries = 0
+            while ((not UIManager.FrameExists(salvage_materials_frame)) and (retries < 20)):
                 yield from Yield.wait(50)
+                retries += 1
             yield from Yield.wait(50)
         
         @staticmethod
