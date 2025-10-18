@@ -521,7 +521,6 @@ def UnlockBattleHonorStandSkill(bot):
     bot.Move.XY(10082, -9228)
     bot.Move.XY(11715, -8045)
     bot.Wait.UntilOutOfCombat()
-    
     # Collect reward
     bot.Map.Travel(target_map_id=650)
     bot.Move.XY(-21902, 12807)
@@ -538,6 +537,7 @@ def FindingGadd(bot):
     bot.Move.XY(-8755, -23240) #Camp Fire to avoid stuck on Julia
     bot.Move.XYAndDialog(-8295, -23572, 0x833304) #Talk to Bartholos for right Dialog 
     bot.Move.XY(-8755, -23240) #Camp Fire to avoid stuck on Julia
+    bot.Move.XY(-9888.17, -22106.70)
     bot.Move.XYAndExitMap(-9690, -19524, target_map_id=558) #sparkfly swamp
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-6967.77, -19810.06)
@@ -561,6 +561,7 @@ def FindingTheBloodstone(bot): #started but need Finding Gadd before this
     bot.States.AddHeader("Finding the Bloodstone")
     bot.Map.Travel(target_map_id=638) #Gadd's Encampment
     ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-9888.17, -22106.70)
     bot.Move.XYAndExitMap(-9690, -19524, target_map_id=558) #sparkfly swamp
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-6967.77, -19810.06)
@@ -625,9 +626,9 @@ def LabSpace(bot):
 
 def TheElusiveGolemancer(bot):
     bot.States.AddHeader("The Elusive Golemancer")
+    #bot.Move.XY(-15946.10, 14596.89)
     bot.Dialogs.AtXY(-15946.10, 14596.89, 0x86) #The Elusive Golemancer Entry
     bot.Dialogs.AtXY(-15946.10, 14596.89, 0x84) #The Elusive Golemancer Entry
-    bot.Multibox.UseAllConsumables()
     bot.Move.XY(-17745.97, 15428.50)
     bot.Move.XY(-19058.36, 16374.06)
     bot.Move.XY(-19842.83, 14895.14)
