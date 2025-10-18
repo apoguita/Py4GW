@@ -397,6 +397,8 @@ def WarbandOfBrothers(bot):
     bot.Items.LootItems()
     bot.Move.XY(8425.21, -9845.09)
     bot.Items.LootItems()
+    bot.Move.XY(8900.77, -10740.29)
+    bot.Items.LootItems()
     bot.Move.XY(9908.98, -12902.71)
     bot.Interact.WithGadgetAtXY(10034.00, -14899.00)
     bot.Wait.ForTime(2000)
@@ -618,6 +620,7 @@ def LabSpace(bot):
     bot.Wait.UntilOutOfCombat()
     bot.Items.AddModelToLootWhitelist(24628)
     bot.Items.LootItems()
+    bot.Move.XY(-15946.10, 14596.89)
     bot.Dialogs.AtXY(-15946.10, 14596.89, 0x832C07) #Lab Space Reward
 
 def TheElusiveGolemancer(bot):
