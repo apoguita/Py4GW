@@ -519,6 +519,7 @@ def LabSpace(bot):
     bot.Dialogs.AtXY(16024.00, 18468.00, 0x832C04) #Lab Space
     bot.Move.XY(-6062, -2688,"Exit Outpost")
     bot.Wait.ForMapLoad(target_map_name="Magus Stones")
+    bot.Multibox.UseAllConsumables()
     bot.Move.XYAndDialog(10228.00, 11488.00, 0x832C04) #Lab Space
     bot.Move.XY(8329.03, 9954.58)
     bot.Move.XY(7258.69, 10987.36)
@@ -537,11 +538,13 @@ def GOLEM(bot):
     bot.States.AddHeader("G.O.L.E.M")
     bot.Dialogs.AtXY(-15946.10, 14596.89, 0x86) #GOLEM Entry
     bot.Dialogs.AtXY(-15946.10, 14596.89, 0x84) #GOLEM Entry
+    bot.Multibox.UseAllConsumables()
     bot.Move.XY(-17745.97, 15428.50)
     bot.Move.XY(-19058.36, 16374.06)
     bot.Move.XY(-19842.83, 14895.14)
     bot.Move.XY(-11381.00, 15598.00)
     bot.Wait.ForMapLoad(target_map_id=658) #G.O.L.E.M Level 1
+    bot.Multibox.UseAllConsumables()
     bot.Move.XY(-14507.94, 12302.58)
     bot.Dialogs.AtXY(-14542.00, 12237.00, 0x81) #GOLEM Activation
     bot.Move.XY(-17204.16, 8545.91)
@@ -555,6 +558,7 @@ def GOLEM(bot):
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(18755.00, -19827.00)
     bot.Wait.ForMapLoad(target_map_id=659) #G.O.L.E.M Level 2
+    bot.Multibox.UseAllConsumables()
     bot.Interact.WithGadgetAtXY(15979.00, -17531.00)
     bot.Move.XY(18031.51, -13929.63)
     bot.Interact.WithGadgetAtXY(15551.00, -13705.00)
@@ -590,6 +594,7 @@ def GOLEM(bot):
     bot.Move.XY(6966.59, -19962.61)
     bot.Move.XY(-14728.00, 8556.00)
     bot.Wait.ForMapLoad(target_map_id=660) #G.O.L.E.M Level 3
+    bot.Multibox.UseAllConsumables()
     bot.Move.XY(-12164.00, 10409.53)
     bot.Move.XY(-12584.28, 13570.28)
     bot.Move.XY(-15062.15, 16139.62)
