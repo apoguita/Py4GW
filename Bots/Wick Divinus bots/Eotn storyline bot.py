@@ -48,7 +48,7 @@ def Routine(bot: Botting) -> None:
     # === PHASE 5: ASURAN MISSIONS ===
     FindingGadd(bot)
     FindingTheBloodstone(bot)
-    GOLEM(bot)
+    TheElusiveGolemancer(bot)
     
 
 
@@ -534,8 +534,8 @@ def LabSpace(bot):
     bot.Items.LootItems()
     bot.Dialogs.AtXY(-15946.10, 14596.89, 0x832C07) #Lab Space Reward
 
-def GOLEM(bot):
-    bot.States.AddHeader("G.O.L.E.M")
+def TheElusiveGolemancer(bot):
+    bot.States.AddHeader("The Elusive Golemancer")
     bot.Dialogs.AtXY(-15946.10, 14596.89, 0x86) #GOLEM Entry
     bot.Dialogs.AtXY(-15946.10, 14596.89, 0x84) #GOLEM Entry
     bot.Multibox.UseAllConsumables()
