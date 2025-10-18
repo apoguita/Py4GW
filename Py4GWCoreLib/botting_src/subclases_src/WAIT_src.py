@@ -56,6 +56,11 @@ class _WAIT:
         if target_map_name:
             target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
 
+        wait_function = lambda: (
+            GLOBAL_CACHE.Map.IsMapLoading() == True or
+            GLOBAL_CACHE.Map.GetMapID() == target_map_id
+        )
+        self._helpers.Wait.until_condition(wait_function, duration=300)
         self._helpers.Wait.for_map_load(target_map_id)
 
     def ForMapToChange(self, target_map_id: int = 0, target_map_name: str = "") -> None:
