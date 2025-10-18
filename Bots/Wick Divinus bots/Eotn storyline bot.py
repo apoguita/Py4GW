@@ -595,12 +595,13 @@ def FindingTheBloodstone(bot): #started but need Finding Gadd before this
     bot.Move.XY(-7249, -16397)
     bot.Move.XY(-10466, -16166)
     bot.Move.XY(-15377, -16565)
-    bot.Wait.UntilOutOfCombat()
+    #bot.Wait.UntilOutOfCombat()
     bot.Wait.ForMapToChange(target_map_id=638) #Gadd's Encampment
 
 def LabSpace(bot):
     bot.States.AddHeader("Lab Space")
     bot.Map.Travel(target_map_id=624) #Vlox's Falls
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(16202.00, 16092.00)
     bot.Dialogs.AtXY(16202.00, 16092.00, 0x832C01) #Lab Space
     bot.Map.Travel(target_map_id=640) #Rata Sum
@@ -634,6 +635,7 @@ def TheElusiveGolemancer(bot):
     bot.Move.XY(-19842.83, 14895.14)
     bot.Move.XY(-11381.00, 15598.00)
     bot.Wait.ForMapLoad(target_map_id=658) #The Elusive Golemancer Level 1
+    ConfigureAggressiveEnv(bot)
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-14507.94, 12302.58)
     bot.Dialogs.AtXY(-14542.00, 12237.00, 0x81) #The Elusive Golemancer Activation
