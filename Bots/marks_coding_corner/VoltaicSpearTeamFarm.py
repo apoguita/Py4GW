@@ -292,7 +292,7 @@ def handle_on_danger_flagging(bot: Botting):
                 combat_prep.cb_spirits_prep(st_button_pressed=True)
                 combat_prep.cb_set_formation(spread_formation, False, custom_angle=angle_rad)
 
-                yield from Routines.Yield.wait(4000)
+                yield from Routines.Yield.wait(5000)
                 combat_prep.cb_set_formation([], True)
 
             elif last_flagged_map_id == map_id:
@@ -301,7 +301,7 @@ def handle_on_danger_flagging(bot: Botting):
                 last_center_x, last_center_y = last_flagged_x_y
                 dx, dy = party_center_x - last_center_x, party_center_y - last_center_y
                 dist_sq = dx * dx + dy * dy
-                max_dist_sq = (Range.Spellcast.value * 1.25) ** 2
+                max_dist_sq = Range.Earshot.value ** 2
 
                 if dist_sq > max_dist_sq:
                     # Compute new facing angle from last flagged point → new party center
