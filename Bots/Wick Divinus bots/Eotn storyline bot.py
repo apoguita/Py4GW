@@ -536,17 +536,17 @@ def LabSpace(bot):
 
 def TheElusiveGolemancer(bot):
     bot.States.AddHeader("The Elusive Golemancer")
-    bot.Dialogs.AtXY(-15946.10, 14596.89, 0x86) #GOLEM Entry
-    bot.Dialogs.AtXY(-15946.10, 14596.89, 0x84) #GOLEM Entry
+    bot.Dialogs.AtXY(-15946.10, 14596.89, 0x86) #The Elusive Golemancer Entry
+    bot.Dialogs.AtXY(-15946.10, 14596.89, 0x84) #The Elusive Golemancer Entry
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-17745.97, 15428.50)
     bot.Move.XY(-19058.36, 16374.06)
     bot.Move.XY(-19842.83, 14895.14)
     bot.Move.XY(-11381.00, 15598.00)
-    bot.Wait.ForMapLoad(target_map_id=658) #G.O.L.E.M Level 1
+    bot.Wait.ForMapLoad(target_map_id=658) #The Elusive Golemancer Level 1
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-14507.94, 12302.58)
-    bot.Dialogs.AtXY(-14542.00, 12237.00, 0x81) #GOLEM Activation
+    bot.Dialogs.AtXY(-14542.00, 12237.00, 0x81) #The Elusive Golemancer Activation
     bot.Move.XY(-17204.16, 8545.91)
     bot.Interact.WithGadgetAtXY(-17601.00, 8150.00)
     bot.Wait.ForTime(30000)
@@ -557,7 +557,7 @@ def TheElusiveGolemancer(bot):
     bot.Move.XY(-16518.94, -662.78)
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(18755.00, -19827.00)
-    bot.Wait.ForMapLoad(target_map_id=659) #G.O.L.E.M Level 2
+    bot.Wait.ForMapLoad(target_map_id=659) #The Elusive Golemancer Level 2
     bot.Multibox.UseAllConsumables()
     bot.Interact.WithGadgetAtXY(15979.00, -17531.00)
     bot.Move.XY(18031.51, -13929.63)
@@ -593,7 +593,7 @@ def TheElusiveGolemancer(bot):
     bot.UI.Keybinds.DropBundle() # third spike
     bot.Move.XY(6966.59, -19962.61)
     bot.Move.XY(-14728.00, 8556.00)
-    bot.Wait.ForMapLoad(target_map_id=660) #G.O.L.E.M Level 3
+    bot.Wait.ForMapLoad(target_map_id=660) #The Elusive Golemancer Level 3
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-12164.00, 10409.53)
     bot.Move.XY(-12584.28, 13570.28)
