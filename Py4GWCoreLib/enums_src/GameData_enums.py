@@ -105,7 +105,7 @@ class Reduced_Ailment(IntEnum):
     Weakness = 8
 
 
-# DamageType
+#region DamageType
 class DamageType(IntEnum):
     Blunt = 0
     Piercing = 1
@@ -125,7 +125,7 @@ class DamageType(IntEnum):
     unknown_15 = 15
 
 
-# WeaponType
+#region WeaponType
 class Weapon(IntEnum):
     Unknown = 0
     Bow = 1
@@ -152,7 +152,8 @@ class Weapon(IntEnum):
     Unknown8 = 22
     Unknown9 = 23
     Unknown10 = 24
-    
+   
+#region WeaporReq 
 class WeaporReq(IntEnum):
     None_ = 0
     Axe = 1
@@ -165,7 +166,7 @@ class WeaporReq(IntEnum):
     Melee = 185
     
 
-    
+#region SkillType  
 class SkillType ( IntEnum):
     None_ = 0
     Bounty = 1
@@ -199,7 +200,7 @@ class SkillType ( IntEnum):
     Disguise = 29
 
 
-# Attribute
+#region Attribute
 class Attribute(IntEnum):
     FastCasting = 0
     IllusionMagic = 1
@@ -249,7 +250,7 @@ class Attribute(IntEnum):
     None_ = 45  # Avoiding reserved keyword "None"
 
 
-# Inscription
+#region Inscription
 class Inscription(IntEnum):
     Fear_Cuts_Deeper = 0
     I_Can_See_Clearly_Now = 1
