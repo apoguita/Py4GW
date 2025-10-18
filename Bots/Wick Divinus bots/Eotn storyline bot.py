@@ -696,10 +696,12 @@ def TheElusiveGolemancer(bot):
     bot.Move.XY(6882.36, -20769.41)
     bot.Move.XY(6566, -21425)
     bot.Wait.ForMapLoad(target_map_id=660) #The Elusive Golemancer Level 3
+    ConfigureAggressiveEnv(bot)
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-12164.00, 10409.53)
     bot.Move.XY(-12584.28, 13570.28)
     bot.Move.XY(-15062.15, 16139.62)
+    bot.Move.XY(-18265, 13647)
     bot.Wait.ForMapToChange(target_map_id=640) #Rata Sum
 
 
