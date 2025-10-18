@@ -23,7 +23,8 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
 #region Start
 def Routine(bot: Botting) -> None:
     # === PHASE 1: INITIAL SETUP AND RESURRECTION POOL ===
-    UnlockEyeOfTheNorthPool(bot)               # Unlock EOTN resurrection pool
+    UnlockEyeOfTheNorthPool(bot)
+    ObtainStoryBook(bot)              # Unlock EOTN resurrection pool
     TravelToGunnarsHold(bot)                   # Travel to Gunnar's Hold
     
     # === PHASE 2: INITIAL NORN QUESTS ===
@@ -37,10 +38,19 @@ def Routine(bot: Botting) -> None:
     CompleteShrineOfRavenSpirit(bot)           # Complete shrine quest
     CompleteAGateTooFar(bot)                   # Complete gate mission
     
-    # === PHASE 4: ADVANCED MISSIONS ===
+    # === PHASE 4: VANGUARD MISSIONS ===
     AdvanceToLongeyeEdge(bot)                  # Advance to Longeye's Edge
     SearchForTheEbonVanguard(bot)
     WarbandOfBrothers(bot)                      # Complete Ebon Vanguard mission
+    WhatMustBeDone(bot)
+    AssaultOnTheStrongHold(bot)
+    
+    # === PHASE 5: ASURAN MISSIONS ===
+    FindingGadd(bot)
+    FindingTheBloodstone(bot)
+    GOLEM(bot)
+    
+
 
 def UnlockEyeOfTheNorthPool(bot) -> None:
     bot.States.AddHeader("Unlocking Eye of the North Resurrection Pool")
@@ -60,6 +70,11 @@ def UnlockEyeOfTheNorthPool(bot) -> None:
     bot.Dialogs.WithModel(5970, 0x831904) #gwen dialog
     bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) #ogden dialog
     bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) #vekk dialog
+
+def ObtainStoryBook(bot) -> None:
+    bot.States.AddHeader("Obtain Story Book")
+    bot.Move.XY(-1998.00, 2797.00)
+    bot.Dialogs.AtXY(-1998.00, 2797.00, 0x1006913) #Obtain Story Book
 
 def TravelToGunnarsHold(bot) -> None:
     bot.States.AddHeader("Run to Gunnar's Hold")
@@ -290,8 +305,8 @@ def SearchForTheEbonVanguard(bot):
 def WarbandOfBrothers(bot):
     bot.States.AddHeader("Warband Of Brothers Mission")
     bot.Map.Travel(target_map_id=648)  # Doomlore Shrine
-    bot.Move.XYAndDialog(-19094, 17945, 0x84)
     ConfigureAggressiveEnv(bot)
+    bot.Move.XYAndDialog(-19094, 17945, 0x84)
     bot.Wait.ForMapToChange(target_map_id=666)
     #Level 1
     bot.Multibox.UseAllConsumables() 
@@ -382,14 +397,217 @@ def WarbandOfBrothers(bot):
     bot.Wait.UntilOutOfCombat()
     bot.Wait.ForMapToChange(target_map_id=648) #Doomlore Shrine
 
+def WhatMustBeDone(bot): #Done!!!
+    bot.States.AddHeader("What Must Be Done")
+    bot.Map.Travel(target_map_id=648) #Doomlore Shrine
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XYAndDialog(-14185, 17040, 0x838D01) #the Dialog here
+    bot.Move.XYAndExitMap(-15479, 13484,target_map_id=647) #Dalada Upland
+    bot.Wait.ForMapToChange(target_map_id=647)
+    bot.Move.XY(-12085, 8447)
+    bot.Move.XY(-9360, -298)
+    bot.Move.XY(-6856, -7620) ; bot.Wait.UntilOutOfCombat() #Armored Saurus 
+    bot.Map.Travel(target_map_id=648)
+    bot.Move.XYAndDialog(-14185, 17040, 0x84) #Let's Rumble
+    bot.Wait.ForMapToChange(target_map_id=674) #Warband Training
+    bot.Move.XY(-16946, 17319) ; bot.Wait.UntilOnCombat() #Warband Fight
+    bot.Wait.ForTime(30000) #30 second after mission countdown
+    bot.Wait.ForMapToChange(target_map_id=648) #Doomlore Shrine
+    bot.Move.XYAndDialog(-14185, 17040, 0x838D07) 
+    #done. 
+   
+
+def AssaultOnTheStrongHold(bot): #Done!!!
+    bot.States.AddHeader("Assault on the Stronghold")
+    bot.Map.Travel(target_map_id=648) #Doomlore Shrine
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XYAndExitMap(-15479, 13484,target_map_id=647) #Dalada Upland
+    bot.Wait.ForMapToChange(target_map_id=647)
+    bot.Move.XYAndDialog(-13849, 11217, 0x84)
+    bot.Wait.ForMapToChange(target_map_id=669)
+    bot.Multibox.UseAllConsumables()
+    bot.Move.XY(5203, 12344) #Right Siege
+    bot.Move.XY(5843, 9145) #Left Siege
+    bot.Move.XYAndDialog(5843, 9145, 0x84)
+    bot.Move.XYAndDialog(5203, 12344, 0x84)
+    bot.Move.XY(936, 10709) #Gate
+    bot.Wait.ForTime(30000) #adjust as needed for gate to come down.
+    bot.Move.XY(-1671, 11103)
+    bot.Move.XY(-4202, 11045)
+    bot.Move.XY(-6271, 12087)
+    bot.Move.XY(-6896, 13899)
+    bot.Move.XY(-6393, 9770)
+    bot.Move.XY(-6895, 8102)
+    bot.Wait.ForMapToChange(target_map_id=649)
+    bot.Dialogs.AtXY(-21069.00, 12353.00, 0x831907)
+    #Done
+def FindingGadd(bot):
+    bot.States.AddHeader("Finding Gadd")
+    bot.Map.Travel(target_map_id=624) #Vlox's Falls
+    bot.Move.XYAndDialog(16363, 15909, 0x833301) #Livia
+    bot.Map.Travel(target_map_id=638) #Gadd's Encampment
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-8755, -23240) #Camp Fire to avoid stuck on Julia
+    bot.Move.XYAndDialog(-8295, -23572, 0x833304) #Talk to Bartholos for right Dialog 
+    bot.Move.XY(-8755, -23240) #Camp Fire to avoid stuck on Julia
+    bot.Move.XYAndExitMap(-9690, -19524, target_map_id=558) #sparkfly swamp
+    bot.Multibox.UseAllConsumables()
+    bot.Move.XY(-6967.77, -19810.06)
+    bot.Move.XY(11669, -23829)
+    bot.Dialogs.AtXY(11881.00, -23802.00, 0x833304)
+    bot.Move.XY(8017.92, -20124.24)
+    bot.Move.XY(11184.85, -14188.88) #Ettin 1
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(5000)
+    bot.Move.XY(-5740.47, -13723.29) #Ettin 2
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(5000)
+    bot.Move.XY(2417.11, -25444.55) #Ettin 3
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(5000)
+    bot.Move.XY(11758.78, -24063.51)
+    bot.Wait.ForTime(20000) #Return to Inscription Plate
+    bot.Dialogs.AtXY(11496.13, -23878.08, 0x833304) #Gadd Dialog model id 6721
+
+def FindingTheBloodstone(bot): #started but need Finding Gadd before this
+    bot.States.AddHeader("Finding the Bloodstone")
+    bot.Map.Travel(target_map_id=638) #Gadd's Encampment
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XYAndExitMap(-9690, -19524, target_map_id=558) #sparkfly swamp
+    bot.Multibox.UseAllConsumables()
+    bot.Move.XY(-6967.77, -19810.06)
+    bot.Move.XY(11669, -23829)
+    bot.Dialogs.AtXY(11795.00, -24125.00, 0x833307)
+    bot.Dialogs.AtXY(11795.00, -24125.00, 0x84)
+    bot.Wait.ForMapToChange(target_map_id=661) #Finding The Bloodstone Map Level 1
+    bot.Multibox.UseAllConsumables()
+    bot.Move.XY(12437, 16557)
+    bot.Move.XY(12588, 14755)
+    bot.Move.XY(15387, 6941)
+    bot.Wait.UntilOutOfCombat() #Inscribed Sentry #1
+    bot.Wait.ForTime(6000) #time to extract essence
+    bot.Move.XY(16165.77, 10441.95)
+    bot.Move.XY(17149.38, 13434.60)
+    bot.Move.XY(18529, 15977)
+    bot.Wait.ForTime(3000) #wait for Gadd to exit to level 2
+    bot.Move.XYAndExitMap(19212, 16155,target_map_id=662) #Finding The Bloodstone Map Level 2
+    bot.Multibox.UseAllConsumables()
+    bot.Move.XY(-611.51, 5115.83)
+    bot.Move.XY(3574.70, 3567.62)
+    bot.Move.XY(4827.10, 1968.97)
+    bot.Move.XY(11548.76, -2795.90)
+    bot.Move.XY(14596, -7708)
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(10000) #time to extract essence
+    bot.Move.XY(16743, -10170)
+    bot.Wait.ForTime(3000) #wait for Gadd to exit to level 3
+    bot.Move.XYAndExitMap(18450, -10273,target_map_id=663) #Finding The Bloodstone Map Level 3
+    bot.Multibox.UseAllConsumables()
+    bot.Move.XY(-7249, -16397)
+    bot.Move.XY(-10466, -16166)
+    bot.Move.XY(-15377, -16565)
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForMapToChange(target_map_id=638) #Gadd's Encampment
+
+def LabSpace(bot):
+    bot.States.AddHeader("Lab Space - Placeholder")
+    bot.Map.Travel(target_map_id=624) #Vlox's Falls
+    bot.Move.XY(16202.00, 16092.00)
+    bot.Dialogs.AtXY(16202.00, 16092.00, 0x832C01) #Lab Space
+    bot.Map.Travel(target_map_id=640) #Rata Sum
+    bot.Move.XY(16024.00, 18468.00)
+    bot.Dialogs.AtXY(16024.00, 18468.00, 0x832C04) #Lab Space
+    bot.Move.XY(-6062, -2688,"Exit Outpost")
+    bot.Wait.ForMapLoad(target_map_name="Magus Stones")
+    bot.Move.XYAndDialog(10228.00, 11488.00, 0x832C04) #Lab Space
+    bot.Move.XY(8329.03, 9954.58)
+    bot.Move.XY(7258.69, 10987.36)
+    bot.Move.XY(4812.16, 11197.93)
+    bot.Move.XY(2778.98, 13297.53)
+    bot.Move.XY(499.76, 14253.58)
+    bot.Move.XY(-4305.25, 13044.76)
+    bot.Move.XY(-11493.07, 16584.55)
+    bot.Move.XY(-17671.37, 14695.37)
+    bot.Wait.UntilOutOfCombat()
+    bot.Items.AddModelToLootWhitelist(24628)
+    bot.Items.LootItems()
+    bot.Dialogs.AtXY(-15946.10, 14596.89, 0x832C07) #Lab Space Reward
+
+def GOLEM(bot):
+    bot.States.AddHeader("G.O.L.E.M")
+    bot.Dialogs.AtXY(-15946.10, 14596.89, 0x86) #GOLEM Entry
+    bot.Dialogs.AtXY(-15946.10, 14596.89, 0x84) #GOLEM Entry
+    bot.Move.XY(-17745.97, 15428.50)
+    bot.Move.XY(-19058.36, 16374.06)
+    bot.Move.XY(-19842.83, 14895.14)
+    bot.Move.XY(-11381.00, 15598.00)
+    bot.Wait.ForMapLoad(target_map_id=658) #G.O.L.E.M Level 1
+    bot.Move.XY(-14507.94, 12302.58)
+    bot.Dialogs.AtXY(-14542.00, 12237.00, 0x81) #GOLEM Activation
+    bot.Move.XY(-17204.16, 8545.91)
+    bot.Interact.WithGadgetAtXY(-17601.00, 8150.00)
+    bot.Wait.ForTime(30000)
+    bot.Move.XY(-15960.14, 3309.37)
+    bot.Move.XY(-13369.91, -965.44)
+    bot.Interact.WithGadgetAtXY(-11737.00, -3710.00)
+    bot.Move.XY(-15108.84, -2793.48)
+    bot.Move.XY(-16518.94, -662.78)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(18755.00, -19827.00)
+    bot.Wait.ForMapLoad(target_map_id=659) #G.O.L.E.M Level 2
+    bot.Interact.WithGadgetAtXY(15979.00, -17531.00)
+    bot.Move.XY(18031.51, -13929.63)
+    bot.Interact.WithGadgetAtXY(15551.00, -13705.00)
+    bot.Move.XY(15551.00, -13705.00)
+    bot.Move.XY(9928.16, -10998.24)
+    bot.Move.XY(5953.36, -9815.89)
+    bot.Move.XY(4531.82, -9827.91)
+    bot.Move.XY(3035.53, -9450.54)
+    bot.Move.XY(3485.59, -11380.60)
+    bot.Move.XY(-229.00, -12033.00)
+    bot.Dialogs.AtXY(-229.00, -12033.00, 0x84) #Golem worker n. 1
+    bot.Move.XY(-2639.00, -15247.00)
+    bot.Dialogs.AtXY(-2639.00, -15247.00, 0x84) #Golem worker n. 2
+    bot.Move.XY(3833.00, -16855.00)
+    bot.Dialogs.AtXY(3833.00, -16855.00, 0x84) #Golem worker n. 3
+    bot.Move.XY(3042.09, -16940.08)
+    bot.Wait.ForTime(10000)
+    bot.Move.XY(3348.06, -16214.14)
+    bot.Wait.ForTime(10000)
+    bot.Move.XY(5107.97, -17710.35)
+    bot.Interact.WithItemAtXY(7701.87, -19207.43)
+    bot.Interact.WithGadgetAtXY(5356.00, -19374.00)
+    bot.Wait.ForTime(30000)
+    bot.UI.DropBundle # first spike
+    bot.Interact.WithItemAtXY(5356.00, -19374.00)
+    bot.Interact.WithGadgetAtXY(5356.00, -19374.00)
+    bot.Wait.ForTime(30000)
+    bot.UI.DropBundle # second spike
+    bot.Interact.WithItemAtXY(5356.00, -19374.00)
+    bot.Interact.WithGadgetAtXY(5356.00, -19374.00)
+    bot.Wait.ForTime(30000)
+    bot.UI.DropBundle # third spike
+    bot.Move.XY(6966.59, -19962.61)
+    bot.Move.XY(-14728.00, 8556.00)
+    bot.Wait.ForMapLoad(target_map_id=660) #G.O.L.E.M Level 3
+    bot.Move.XY(-12164.00, 10409.53)
+    bot.Move.XY(-12584.28, 13570.28)
+    bot.Move.XY(-15062.15, 16139.62)
+    bot.Wait.ForMapToChange(target_map_id=640) #Rata Sum
 
 
+
+
+
+
+
+    
 bot.SetMainRoutine(Routine)
 
 
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path="Norn Story.png")
+    bot.UI.draw_window(icon_path="EOTN.png")
 
 if __name__ == "__main__":
     main()
