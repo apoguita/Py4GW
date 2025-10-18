@@ -102,7 +102,7 @@ def JagaMoraineFarmRoutine(bot: Botting) -> None:
         (13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220), (12703, -17239),
         (12684, -17184),]
     bot.Move.FollowPath(path_points_to_killing_spot)
-    bot.Properties.ResetTodefault("movement_tolerance")
+    bot.Properties.ResetTodefault("movement_tolerance", field= "value")
     bot.States.AddHeader("Kill Enemies")
     bot.States.AddCustomState(lambda: KillEnemies(bot), "Kill Enemies")
     bot.Properties.Disable("auto_combat")

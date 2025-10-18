@@ -164,6 +164,56 @@ class EnumPreference(IntEnum):
     FrameLimiter = 7
     Count = 8  # Not meant for use as a real value; represents size
 
+class BoolPreference(IntEnum):
+    _False = 0
+    _True = 1
+
+class InterfaceSize(IntEnum):
+    Small = 4294967295  # -1 as uint32_t
+    Normal =  0
+    Large = 1
+    Larger = 2
+
+class AntiAliasing(IntEnum):
+    _None = 0
+    _2X = 1
+    _4X = 3
+    _8X = 4
+    
+class TerrainQuality(IntEnum):
+    Low = 1
+    Medium = 2
+    High = 3
+
+class Reflections(IntEnum):
+    _None = 0
+    TerrainAndSky = 1
+    Default = 2 
+    All = 3
+    
+class TextureQuality(IntEnum):
+    High = 0
+    Medium = 1
+    Low = 2
+
+class ShadowQuality(IntEnum):
+    Off = 0
+    Low = 1
+    Medium = 2
+    High = 3
+    Ultra = 4
+    
+class ShaderQuality(IntEnum):
+    Low = 1
+    Medium = 2
+    High = 3
+    
+class FrameLimiter(IntEnum):
+    _None = 0
+    _30 = 1
+    _60 = 2
+    MonitorRefreshRate = 3
+
 
 class StringPreference(IntEnum):
     Unk1 = 0
@@ -197,9 +247,9 @@ class NumberPreference(IntEnum):
     Territory = 21
     TextureQuality = 22  # TextureLod
     UseBestTextureFiltering = 23
-    EffectsVolume = 24  # Range: 0–100
+    BackgroundVolume = 24  # Range: 0–100
     DialogVolume = 25  # Range: 0–100
-    BackgroundVolume = 26  # Range: 0–100
+    EffectsVolume = 26  # Range: 0–100
     MusicVolume = 27  # Range: 0–100
     UIVolume = 28  # Range: 0–100
     Vote = 29
@@ -251,10 +301,15 @@ class FlagPreference(IntEnum):
     AlwaysShowNearbyNamesPvP = 0x3B
     FadeDistantNameTags = 0x3C
 
+    WaitForVSync = 0x41 #65
+    DoubleTapForwardToRunBackwardsToFlip = 0x42   # 66
+
     DoNotCloseWindowsOnEscape = 0x45
     ShowMinimapOnWorldMap = 0x46
+    OptimizeForStereo = 0x4E # 78
 
-    WaitForVSync = 0x54
+    UseHighResolutionTexturesInOutposts = 0x52 # 82
+    EnhancedDrawDistance = 0x54 # 84
     WhispersFromFriendsEtcOnly = 0x55
     ShowChatTimestamps = 0x56
     ShowCollapsedBags = 0x57
@@ -501,3 +556,7 @@ class ControlAction(IntEnum):
     ControlAction_UseSkill7 = 0xAA
     ControlAction_UseSkill8 = 0xAB
 
+class InGameClockMode(IntEnum):
+    Off = 0
+    LocalTime = 1
+    ServerTime = 2

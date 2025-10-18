@@ -163,6 +163,7 @@ class WidgetUI:
         elif selected_tab.icon_name == "##AutoHandlerTab":
             self.auto_handler_module.DrawAutoHandler()
             self.auto_handler_module.show_model_id_dialog_popup()
+            self.auto_handler_module.show_item_type_dialog_popup()
         elif selected_tab.icon_name == "##IDTab":
             self.identify_module.draw_id_bottom_strip()
             self.identify_module.colorize_id_masks()

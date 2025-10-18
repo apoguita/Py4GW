@@ -482,6 +482,14 @@ class UIManager:
         PyUIManager.UIManager.set_bool_preference(pref, value)
         
     @staticmethod
+    def GetKeyMappings() -> List[int]:
+        return PyUIManager.UIManager.get_key_mappings()
+    
+    @staticmethod
+    def SetKeyMappings(mappings: List[int]) -> None:
+        PyUIManager.UIManager.set_key_mappings(mappings)
+        
+    @staticmethod
     def Keydown(key:int, frame_id:int) -> None:
         PyUIManager.UIManager.key_down(key,frame_id)
         

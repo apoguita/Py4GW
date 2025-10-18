@@ -52,6 +52,17 @@ from .enums_src.UI_enums import (
     StringPreference,
     UIMessage,
     WindowID,
+    InGameClockMode,
+    InterfaceSize,
+    AntiAliasing,
+    TerrainQuality,
+    Reflections,
+    TextureQuality,
+    ShadowQuality,
+    ShaderQuality,
+    FrameLimiter,
+    BoolPreference,
+    
 )
 __all__ = [
     # GameData_enums
@@ -134,6 +145,16 @@ __all__ = [
     "StringPreference",
     "UIMessage",
     "WindowID",
+    "InGameClockMode",
+    "InterfaceSize",
+    "AntiAliasing",
+    "TerrainQuality",
+    "Reflections",
+    "TextureQuality",
+    "ShadowQuality",
+    "ShaderQuality",
+    "FrameLimiter",
+    "BoolPreference",
 ]
 
 

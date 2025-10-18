@@ -37,11 +37,15 @@ class AutoInventoryHandler():
         self.salvage_blues = True
         self.salvage_purples = True
         self.salvage_golds = False
+        self.item_type_blacklist = [] # Item types that should not be salvaged, even if they match the salvage criteria
         self.salvage_blacklist = []  # Items that should not be salvaged, even if they match the salvage criteria
         self.blacklisted_model_id = 0
         self.model_id_search = ""
+        self.item_type_search = ""
         self.model_id_search_mode = 0  # 0 = Contains, 1 = Starts With
+        self.item_type_search_mode = 0  # 0 = Contains, 1 = Starts With
         self.show_dialog_popup = False 
+        self.show_item_type_dialog = False
         
         self.deposit_trophies = True
         self.deposit_materials = True
@@ -71,6 +75,7 @@ class AutoInventoryHandler():
         self.ini.write_key(section, "salvage_purples", str(self.salvage_purples))
         self.ini.write_key(section, "salvage_golds", str(self.salvage_golds))
 
+        self.ini.write_key(section, "item_type_blacklist", ",".join(str(i) for i in sorted(set(self.item_type_blacklist))))
         self.ini.write_key(section, "salvage_blacklist", ",".join(str(i) for i in sorted(set(self.salvage_blacklist))))
 
         self.ini.write_key(section, "deposit_trophies", str(self.deposit_trophies))
@@ -101,6 +106,9 @@ class AutoInventoryHandler():
         self.salvage_blues = ini.read_bool(section, "salvage_blues", self.salvage_blues)
         self.salvage_purples = ini.read_bool(section, "salvage_purples", self.salvage_purples)
         self.salvage_golds = ini.read_bool(section, "salvage_golds", self.salvage_golds)
+
+        item_type_blacklist_str = ini.read_key(section, "item_type_blacklist", "")
+        self.item_type_blacklist = [int(x) for x in item_type_blacklist_str.split(",") if x.strip().isdigit()]
 
         blacklist_str = ini.read_key(section, "salvage_blacklist", "")
         self.salvage_blacklist = [int(x) for x in blacklist_str.split(",") if x.strip().isdigit()]
@@ -212,9 +220,12 @@ class AutoInventoryHandler():
             is_identified = GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)
             is_salvageable = GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id)
             model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
+            item_type,_ = GLOBAL_CACHE.Item.GetItemType(item_id)
 
             # Filtering logic
             if not ((is_white and is_salvageable) or (is_identified and is_salvageable)):
+                continue
+            if item_type in self.item_type_blacklist:
                 continue
             if model_id in self.salvage_blacklist:
                 continue
