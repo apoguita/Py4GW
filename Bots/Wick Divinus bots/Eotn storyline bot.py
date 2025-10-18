@@ -44,7 +44,7 @@ def Routine(bot: Botting) -> None:
     WarbandOfBrothers(bot)                      # Complete Ebon Vanguard mission
     WhatMustBeDone(bot)
     AssaultOnTheStrongHold(bot)
-    
+
     # === PHASE 5: ASURAN MISSIONS ===
     FindingGadd(bot)
     FindingTheBloodstone(bot)
@@ -578,15 +578,15 @@ def GOLEM(bot):
     bot.Interact.WithItemAtXY(7701.87, -19207.43)
     bot.Interact.WithGadgetAtXY(5356.00, -19374.00)
     bot.Wait.ForTime(30000)
-    bot.UI.DropBundle # first spike
+    bot.UI.Keybinds.DropBundle() # first spike
     bot.Interact.WithItemAtXY(5356.00, -19374.00)
     bot.Interact.WithGadgetAtXY(5356.00, -19374.00)
     bot.Wait.ForTime(30000)
-    bot.UI.DropBundle # second spike
+    bot.UI.Keybinds.DropBundle() # second spike
     bot.Interact.WithItemAtXY(5356.00, -19374.00)
     bot.Interact.WithGadgetAtXY(5356.00, -19374.00)
     bot.Wait.ForTime(30000)
-    bot.UI.DropBundle # third spike
+    bot.UI.Keybinds.DropBundle() # third spike
     bot.Move.XY(6966.59, -19962.61)
     bot.Move.XY(-14728.00, 8556.00)
     bot.Wait.ForMapLoad(target_map_id=660) #G.O.L.E.M Level 3
