@@ -1373,6 +1373,7 @@ class ModelID(IntEnum):
     Prince_Rurik_Mini = 13790
     Princess_Salma_Mini = 35130
     Prismatic_Gelatinous_Material = 22375
+    Prison_Key = 25413
     Proof_Of_Legend = 37841
     Pulsating_Growth = 824
     Pumpkin_Cookie = 28433

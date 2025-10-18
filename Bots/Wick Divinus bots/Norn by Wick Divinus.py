@@ -18,7 +18,7 @@ def Routine(bot: Botting) -> None:
     bot.Map.Travel(target_map_id=645) #Olafstead outpost
     bot.Party.SetHardMode(True)
     bot.States.AddHeader("EXIT OUTPOST HEADER")
-    bot.Move.XY(-1440, 1147.5,"Exit Outpost")
+    bot.Move.FollowPath([(-1440, 1147.5)])
     bot.Wait.ForMapLoad(target_map_id=553)
     #bot.Multibox.UsePConSet() #Conset
     bot.Multibox.UseConsumable(22269, 0) #Cupcake
