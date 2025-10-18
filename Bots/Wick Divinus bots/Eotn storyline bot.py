@@ -578,7 +578,7 @@ def FindingTheBloodstone(bot): #started but need Finding Gadd before this
     bot.Move.XY(16165.77, 10441.95)
     bot.Move.XY(17149.38, 13434.60)
     bot.Move.XY(18529, 15977)
-    bot.Wait.ForTime(10000) #wait for Gadd to exit to level 2
+    bot.Wait.ForTime(30000) #wait for Gadd to exit to level 2
     bot.Move.XYAndExitMap(19212, 16155,target_map_id=662) #Finding The Bloodstone Map Level 2
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-611.51, 5115.83)
@@ -589,7 +589,7 @@ def FindingTheBloodstone(bot): #started but need Finding Gadd before this
     bot.Wait.UntilOutOfCombat()
     bot.Wait.ForTime(10000) #time to extract essence
     bot.Move.XY(16743, -10170)
-    bot.Wait.ForTime(10000) #wait for Gadd to exit to level 3
+    bot.Wait.ForTime(30000) #wait for Gadd to exit to level 3
     bot.Move.XYAndExitMap(18450, -10273,target_map_id=663) #Finding The Bloodstone Map Level 3
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-7249, -16397)
