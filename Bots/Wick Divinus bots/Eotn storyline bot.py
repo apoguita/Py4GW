@@ -44,10 +44,12 @@ def Routine(bot: Botting) -> None:
     WarbandOfBrothers(bot)                      # Complete Ebon Vanguard mission
     WhatMustBeDone(bot)
     AssaultOnTheStrongHold(bot)
+    UnlockBattleHonorStandSkill(bot)
 
     # === PHASE 5: ASURAN MISSIONS ===
     FindingGadd(bot)
     FindingTheBloodstone(bot)
+    LabSpace(bot)
     TheElusiveGolemancer(bot)
     
 
@@ -345,11 +347,14 @@ def WarbandOfBrothers(bot):
     bot.Items.LootItems()
     bot.Move.XY(-2407.16, 14068.22)
     bot.Items.LootItems()
+    bot.Move.XY(-2030.78, 12776.65)
+    bot.Items.LootItems()
     bot.Move.XY(-2254.00, 11176.00)
     bot.Interact.WithGadgetAtXY(-2254.00, 11176.00)
     bot.Wait.ForTime(2000)
     bot.Move.XY(-2404.72, 9076.48)
-    bot.Move.XY(2683.45, 12114.46)
+    #bot.Move.XY(2683.45, 12114.46)
+    bot.Move.XY(-1563.08, 11763.31)
     bot.Move.XY(6634.50, 17973.61)
     bot.Move.XY(7429.30, 13458.01)
     bot.Move.XY(13162.54, 9219.06)
@@ -365,6 +370,8 @@ def WarbandOfBrothers(bot):
     bot.Items.LootItems()
     bot.Move.XY(16089.83, -3724.50)
     bot.Items.LootItems()
+    bot.Move.XY(17007.08, -5518.76)
+    bot.Items.LootItems()
     bot.Move.XY(17159.00, -6461.00)
     bot.Interact.WithGadgetAtXY(17159.00, -6461.00)
     bot.Wait.ForTime(2000)
@@ -376,6 +383,8 @@ def WarbandOfBrothers(bot):
     bot.Move.XY(18334.16, -13903.64)
     bot.Items.LootItems()
     bot.Move.XY(18704.73, -12773.99)
+    bot.Items.LootItems()
+    bot.Move.XY(18284.53, -14134.07)
     bot.Items.LootItems()
     bot.Interact.WithGadgetAtXY(18147.00, -14974.00)
     bot.Wait.ForTime(2000)
@@ -403,26 +412,27 @@ def WhatMustBeDone(bot): #Done!!!
     ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(-14185, 17040, 0x838D01) #the Dialog here
     bot.Move.XYAndExitMap(-15479, 13484,target_map_id=647) #Dalada Upland
-    bot.Wait.ForMapToChange(target_map_id=647)
+    bot.Multibox.UseAllConsumables()
     bot.Move.XY(-12085, 8447)
     bot.Move.XY(-9360, -298)
-    bot.Move.XY(-6856, -7620) ; bot.Wait.UntilOutOfCombat() #Armored Saurus 
+    bot.Move.XY(-6856, -7620)
+    bot.Wait.UntilOutOfCombat() #Armored Saurus 
     bot.Map.Travel(target_map_id=648)
     bot.Move.XYAndDialog(-14185, 17040, 0x84) #Let's Rumble
     bot.Wait.ForMapToChange(target_map_id=674) #Warband Training
-    bot.Move.XY(-16946, 17319) ; bot.Wait.UntilOnCombat() #Warband Fight
-    bot.Wait.ForTime(30000) #30 second after mission countdown
+    bot.Move.XY(-16946, 17319)
+    #bot.Wait.UntilOnCombat() #Warband Fight
+    #bot.Wait.ForTime(30000) #30 second after mission countdown
     bot.Wait.ForMapToChange(target_map_id=648) #Doomlore Shrine
     bot.Move.XYAndDialog(-14185, 17040, 0x838D07) 
     #done. 
    
-
 def AssaultOnTheStrongHold(bot): #Done!!!
     bot.States.AddHeader("Assault on the Stronghold")
     bot.Map.Travel(target_map_id=648) #Doomlore Shrine
     ConfigureAggressiveEnv(bot)
     bot.Move.XYAndExitMap(-15479, 13484,target_map_id=647) #Dalada Upland
-    bot.Wait.ForMapToChange(target_map_id=647)
+    #bot.Wait.ForMapToChange(target_map_id=647)
     bot.Move.XYAndDialog(-13849, 11217, 0x84)
     bot.Wait.ForMapToChange(target_map_id=669)
     bot.Multibox.UseAllConsumables()
@@ -440,7 +450,82 @@ def AssaultOnTheStrongHold(bot): #Done!!!
     bot.Move.XY(-6895, 8102)
     bot.Wait.ForMapToChange(target_map_id=649)
     bot.Dialogs.AtXY(-21069.00, 12353.00, 0x831907)
+
+def UnlockBattleHonorStandSkill(bot):
+    bot.States.AddHeader("Unlock Battle Honor Stand Skill")
+    bot.Move.XYAndDialog(-21141.81, 12378.68, 0x836001) # Battle Honor Stand
+    bot.Multibox.UsePConSet() #Conset
+    # Navigate through hunting spots - Map 649
+    bot.Move.XY(-21593, 12517)
+    bot.Move.XY(-20064, 11212)
+    bot.Move.XY(-18659, 9768)
+    bot.Move.XY(-17352, 8246)
+    bot.Move.XY(-16126, 6640)
+    bot.Move.XY(-14663, 5256)
+    bot.Move.XY(-13347, 3732)
+    bot.Move.XY(-11993, 2247)
+    bot.Move.XY(-11088, 402)
+    bot.Move.XY(-9414, -699)
+    bot.Move.XY(-7532, 132)
+    bot.Move.XY(-5576, -322)
+    bot.Move.XY(-3621, -814)
+    bot.Move.XY(-1677, -1304)
+    bot.Move.XY(177, -2140)
+    bot.Move.XY(1759, -3373)
+    bot.Move.XY(3730, -3747)
+    bot.Move.XY(5650, -4349)
+    bot.Move.XY(7421, -5292)
+    bot.Move.XY(8547, -6957)
+    bot.Move.XY(10587, -6733)
+    bot.Move.XY(12591, -6583)
+    bot.Move.XY(14521, -7151)
+    bot.Move.XY(16095, -8448)
+    bot.Move.XY(17681, -9721)
+    bot.Move.XY(19282, -11005)
+    bot.Move.XY(20765, -12412)
+    bot.Move.XY(22538, -13411)
+    bot.Move.XY(23410, -13901)
+    # Navigate through hunting spots - Map 651
+    bot.Wait.ForMapLoad(target_map_id=651)
+    bot.Multibox.UseAllConsumables()
+    bot.Move.XY(-17861, 16317)
+    bot.Move.XY(-16404, 14900)
+    bot.Move.XY(-16459, 12851)
+    bot.Move.XY(-17542, 11132)
+    bot.Move.XY(-17939, 9166)
+    bot.Move.XY(-16308, 7932)
+    bot.Move.XY(-15150, 6294)
+    bot.Move.XY(-14010, 4577)
+    bot.Move.XY(-13622, 2552)
+    bot.Move.XY(-13094, 598)
+    bot.Move.XY(-11367, -490)
+    bot.Move.XY(-9393, -831)
+    bot.Move.XY(-7616, -1762)
+    bot.Move.XY(-5677, -2456)
+    bot.Move.XY(-4372, -4015)
+    bot.Move.XY(-3143, -5620)
+    bot.Move.XY(-2954, -7657)
+    bot.Move.XY(-2423, -9586)
+    bot.Move.XY(-593, -10426)
+    bot.Move.XY(1413, -10033)
+    bot.Move.XY(3432, -9958)
+    bot.Move.XY(4945, -8637)
+    bot.Move.XY(6962, -8362)
+    bot.Move.XY(8991, -8392)
+    bot.Move.XY(4471, -7294)
+    bot.Move.XY(6525, -7403)
+    bot.Move.XY(8415, -8062)
+    bot.Move.XY(10082, -9228)
+    bot.Move.XY(11715, -8045)
+    bot.Wait.UntilOutOfCombat()
+    
+    # Collect reward
+    bot.Map.Travel(target_map_id=650)
+    bot.Move.XY(-21902, 12807)
+    bot.Wait.ForMapLoad(target_map_id=649)
+    bot.Move.XYAndDialog(-21141.81, 12378.68, 0x836007) # Rewards
     #Done
+
 def FindingGadd(bot):
     bot.States.AddHeader("Finding Gadd")
     bot.Map.Travel(target_map_id=624) #Vlox's Falls
@@ -510,7 +595,7 @@ def FindingTheBloodstone(bot): #started but need Finding Gadd before this
     bot.Wait.ForMapToChange(target_map_id=638) #Gadd's Encampment
 
 def LabSpace(bot):
-    bot.States.AddHeader("Lab Space - Placeholder")
+    bot.States.AddHeader("Lab Space")
     bot.Map.Travel(target_map_id=624) #Vlox's Falls
     bot.Move.XY(16202.00, 16092.00)
     bot.Dialogs.AtXY(16202.00, 16092.00, 0x832C01) #Lab Space
