@@ -416,6 +416,7 @@ def WhatMustBeDone(bot): #Done!!!
     bot.Move.XY(-12085, 8447)
     bot.Move.XY(-9360, -298)
     bot.Move.XY(-6856, -7620)
+    bot.Move.XY(-7908.02, -7825.38)
     bot.Wait.UntilOutOfCombat() #Armored Saurus 
     bot.Map.Travel(target_map_id=648)
     bot.Move.XYAndDialog(-14185, 17040, 0x84) #Let's Rumble
