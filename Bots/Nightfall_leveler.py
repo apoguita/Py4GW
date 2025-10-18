@@ -37,7 +37,7 @@ def create_bot_routine(bot: Botting) -> None:
     
     # === PHASE 3: PROFESSION AND CHARACTER DEVELOPMENT ===
     UnlockSecondProfession(bot)                # Unlock second profession
-    ConfigureAfterSecondProfession(bot)        # Setup after getting 2nd profession
+    ConfigureAfterSecondProfession(bot)     # Configure bot after second profession
     
     # === PHASE 4: EQUIPMENT CRAFTING ===
     if GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())[0] == "Paragon":
@@ -75,7 +75,8 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToMinisterCho(bot)                   # Advance to Minister Cho
     UnlockLionsArch(bot)                        # Unlock LA (Lion's Arch)
     UnlockRemainingSecondaryProfessions(bot)   # Unlock remaining secondary professions
-    UnlockXunlaiMaterialStoragePanel(bot)      # Unlock material storage panel
+    UnlockXunlaiMaterialStoragePanel(bot)
+    UnlockMercenaryHeroes(bot)                  # Unlock Mercenary Heroes
 #region Helpers
 
 def ConfigurePacifistEnv(bot: Botting) -> None:
@@ -1409,6 +1410,12 @@ def UnlockXunlaiMaterialStoragePanel(bot: Botting) -> None:
     bot.Dialogs.WithModel(221, 0x800001)
     bot.Dialogs.WithModel(221, 0x800002)  # Unlock Material Storage Panel
 
+def UnlockMercenaryHeroes(bot: Botting) -> None:
+    bot.States.AddHeader("Phase 7: Unlocking Mercenary Heroes")
+    bot.Party.LeaveParty()
+    bot.Map.Travel(target_map_id=248)  # GTOB
+    bot.Move.XY(-4231.87, -8965.95)
+    bot.Dialogs.WithModel(225, 0x800004) # Unlock Mercenary Heroes
 #region MAIN
 selected_step = 0
 filter_header_steps = True
