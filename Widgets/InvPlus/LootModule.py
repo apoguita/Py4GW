@@ -500,6 +500,7 @@ LootGroups = {
             ModelID.Wayfarer_Mark,
             ModelID.Candy_Cane_Shard,
             ModelID.Glob_Of_Frozen_Ectoplasm,
+            ModelID.Trick_Or_Treat_Bag,
         ],
     },
     "Quest Items": {

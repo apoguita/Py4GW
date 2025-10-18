@@ -377,6 +377,7 @@
   {"name": "Wayfarer Mark", "model_id": "ModelID.Wayfarer_Mark", "group": "Reward Trophies", "subgroup": "Special Events", "drop_info": "Dropped during Wayfarer's Reverie, randomly dropped by PvE foes"},
   {"name": "Cc Shard", "model_id": "ModelID.Candy_Cane_Shard", "group": "Reward Trophies", "subgroup": "Special Events", "drop_info": "Dropped during Wintersday, randomly dropped by PvE foes"},
   {"name": "Glob Of Frozen Ectoplasm", "model_id": "ModelID.Glob_Of_Frozen_Ectoplasm", "group": "Reward Trophies", "subgroup": "Special Events", "drop_info": "Dropped during In Grenth's Defense and You're a Mean One, Mr. Grenth"},
+  {"name": "Trick-or-treat Bag", "model_id": "ModelID.Trick_Or_Treat_Bag", "group": "Reward Trophies", "subgroup": "Special Events", "drop_info": "Dropped Halloween event. Randomly dropped by PvE foes"},
   {"name": "Map Piece (Bottom-Left)", "model_id": "ModelID.Map_Piece_Bottom_Left", "group": "Quest Items", "subgroup": "Map Pieces", "drop_info": "Dropped by data to be added"},
   {"name": "Map Piece (Bottom-Right)", "model_id": "ModelID.Map_Piece_Bottom_Right", "group": "Quest Items", "subgroup": "Map Pieces", "drop_info": "Dropped by data to be added"},
   {"name": "Map Piece (Top-Left)", "model_id": "ModelID.Map_Piece_Top_Left", "group": "Quest Items", "subgroup": "Map Pieces", "drop_info": "Dropped by data to be added"},
