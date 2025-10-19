@@ -141,7 +141,7 @@ class _Move:
         self._config.config_properties.follow_path_succeeded.set_now("value", success_movement)
         if not success_movement:
             if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
-                ConsoleLog("_follow_path", "Party wipe detected - Pausing FSM, manual or external intervention required.", Console.MessageType.Warning, log=True)
+                ConsoleLog("_follow_path", "halting movement due to party wipe", Console.MessageType.Warning, log=True)
                 self._config.FSM.pause()
                 return True  # continue FSM without halting
 
