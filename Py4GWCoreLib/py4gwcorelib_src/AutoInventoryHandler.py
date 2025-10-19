@@ -4,6 +4,7 @@ from .Console import ConsoleLog, Console
 from .IniHandler import IniHandler
 from .Timer import ThrottledTimer
 from .ActionQueue import ActionQueueManager
+from .Lootconfig_src import LootConfig
 
 class AutoInventoryHandler():
     _instance = None
@@ -347,10 +348,27 @@ class AutoInventoryHandler():
                     yield from Routines.Yield.wait(350)
                     
                 event_items = set()
-                
-                event_items.add(ModelID.Birthday_Cupcake.value)
-                event_items.add(ModelID.Victory_Token.value)
-                
+    
+                selected_filters = {
+                    "Alcohol": None,          # include ALL subcategories
+                    "Sweets": None,           # include ALL subcategories
+                    "Party": None,             # include ALL subcategories
+                    "Death Penalty Removal": None,  # include ALL subcategories
+                    "Reward Trophies" : {"Special Events"},
+                }
+
+                # apply filters flexibly
+                for category, subcats in LootConfig().LootGroups.items():
+                    if category not in selected_filters:
+                        continue  # skip whole category
+
+                    allowed_subcats = selected_filters[category]
+                    for subcat, items in subcats.items():
+                        if allowed_subcats is not None and subcat not in allowed_subcats:
+                            continue  # skip this subcategory
+
+                        event_items.update(m.value for m in items)
+                        
                 if model_id in event_items and self.deposit_event_items:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)

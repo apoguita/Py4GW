@@ -76,7 +76,7 @@ class _Move:
 
     def _follow_path(self, forced_timeout = -1) -> Generator[Any, Any, bool]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         from ...enums import Range
         from ...GlobalCache import GLOBAL_CACHE
         from ...Py4GWcorelib import ConsoleLog, Console
