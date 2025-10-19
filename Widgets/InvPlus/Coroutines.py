@@ -86,7 +86,19 @@ def SalvageCheckedItems(salvage_checkboxes: Dict[int, bool], keep_salvage_kits: 
     salvaged_items = 0
     items_to_salvage = list(salvage_checkboxes.items())
 
+    # Timing constants
+    POLL_MS = 50
+    POST_ACTION_MS = 75
+    CONSUME_TIMEOUT_MS = 8000
+    WINDOW_WAIT_BUDGET_MS = 3000
+
+    total_to_salvage = sum(1 for _, checked in salvage_checkboxes.items() if checked)
+    ConsoleLog(MODULE_NAME, f"Starting salvage for {total_to_salvage} items.", Py4GW.Console.MessageType.Info)
+
     for item_id, checked in items_to_salvage:
+        if not checked:
+            continue
+
         while checked:
             first_salv_kit = Inventory.GetFirstSalvageKit(use_lesser=True)
             if first_salv_kit == 0:
@@ -104,12 +116,32 @@ def SalvageCheckedItems(salvage_checkboxes: Dict[int, bool], keep_salvage_kits: 
             wait_for_consumption = quantity == 1
 
             ActionQueueManager().AddAction("ACTION", Inventory.SalvageItem, item_id, first_salv_kit)
+            yield from Routines.Yield.wait(POLL_MS)
 
             if require_materials_confirmation:
-                yield from Routines.Yield.Items._wait_for_salvage_materials_window()
-                ActionQueueManager().AddAction("ACTION", Inventory.AcceptSalvageMaterialsWindow)
-                yield from Routines.Yield.wait(50)
+                elapsed_confirm = 0
+                last_qty = quantity
+                while elapsed_confirm < WINDOW_WAIT_BUDGET_MS:
+                    ActionQueueManager().AddAction("ACTION", Inventory.AcceptSalvageMaterialsWindow)
 
+                    yield from Routines.Yield.wait(POLL_MS)
+                    elapsed_confirm += POLL_MS
+
+                    if wait_for_consumption:
+                        bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
+                        if item_id not in ItemArray.GetItemArray(bag_list):
+                            break
+                    else:
+                        inst = PyItem.PyItem(item_id)
+                        inst.GetContext()
+                        if inst.quantity < last_qty:
+                            break
+                        last_qty = inst.quantity
+            else:
+                ActionQueueManager().AddAction("ACTION", Inventory.AcceptSalvageMaterialsWindow)
+                yield from Routines.Yield.wait(POLL_MS)
+
+            elapsed = 0
             if wait_for_consumption:
                 while True:
                     bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
@@ -118,22 +150,32 @@ def SalvageCheckedItems(salvage_checkboxes: Dict[int, bool], keep_salvage_kits: 
                         salvage_checkboxes[item_id] = False
                         salvaged_items += 1
                         break
-                    yield from Routines.Yield.wait(50)
+                    yield from Routines.Yield.wait(POLL_MS)
+                    elapsed += POLL_MS
+                    if elapsed >= CONSUME_TIMEOUT_MS:
+                        break
             else:
                 item_instance = PyItem.PyItem(item_id)
                 while True:
-                    yield from Routines.Yield.wait(50)
+                    yield from Routines.Yield.wait(POLL_MS)
                     item_instance.GetContext()
                     if item_instance.quantity < quantity:
                         salvaged_items += 1
                         break
-                    
+                    elapsed += POLL_MS
+                    if elapsed >= CONSUME_TIMEOUT_MS:
+                        break
+
             #deposit Full Material Stacks
             if deposit_materials:
-                first_stack = get_first_full_material_stack()
-                if first_stack:
+                deposited = 0
+                while True:
+                    first_stack = get_first_full_material_stack()
+                    if not first_stack:
+                        break
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(first_stack)
-                    yield from Routines.Yield.wait(75)
+                    deposited += 1
+                    yield from Routines.Yield.wait(POST_ACTION_MS)
 
 
             if keep_salvage_kits > 0:
@@ -148,11 +190,11 @@ def SalvageCheckedItems(salvage_checkboxes: Dict[int, bool], keep_salvage_kits: 
                     for item in offered_items:
                         item_model = GLOBAL_CACHE.Item.GetModelID(item)
                         if item_model == salvage_kit_model:
-                            GLOBAL_CACHE.Trading.Merchant.BuyItem(item,100)
-                            yield from Routines.Yield.wait(75)
+                            GLOBAL_CACHE.Trading.Merchant.BuyItem(item, 100)
+                            yield from Routines.Yield.wait(POST_ACTION_MS)
                             break
 
-            yield from Routines.Yield.wait(75)
+            yield from Routines.Yield.wait(POST_ACTION_MS)
             # Refresh status for the next iteration
             checked = salvage_checkboxes.get(item_id, False)
 
