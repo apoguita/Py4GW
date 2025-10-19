@@ -158,14 +158,14 @@ def KillEnemies(bot: Botting):
         delta = current_time - start_time
         if delta > timeout and timeout > 0:
             ConsoleLog("Killing Routine", "Timeout reached, restarting.", Py4GW.Console.MessageType.Error)
-            fsm = bot.config.FSM
-            fsm.jump_to_state_by_name("[H]Town Routines_1") 
+            GLOBAL_CACHE.Player.SendChatCommand("resign") 
+            yield from Routines.Yield.wait(500)
             return
   
         if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             ConsoleLog("Killing Routine", "Player is dead, restarting.", Py4GW.Console.MessageType.Warning)
-            fsm = bot.config.FSM
-            fsm.jump_to_state_by_name("[H]Town Routines_1")   
+            yield from Routines.Yield.wait(500)
+            return 
         yield from Routines.Yield.wait(1000)
         enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
     
@@ -392,7 +392,7 @@ def HandleStuckJagaMoraine(bot: Botting):
         # Jaga Moraine map check
         if GLOBAL_CACHE.Map.GetMapID() == JAGA_MORAINE:
             if stuck_timer.IsExpired():
-                ConsoleLog("HandleStuck", "Issuing scheduled /stuck command.", Py4GW.Console.MessageType.Debug, forced_log)
+                ConsoleLog("HandleStuck", "Issuing scheduled /stuck command.", Py4GW.Console.MessageType.Debug, log_actions)
                 GLOBAL_CACHE.Player.SendChatCommand("stuck")
                 stuck_timer.Reset()
 
@@ -401,7 +401,7 @@ def HandleStuckJagaMoraine(bot: Botting):
                 ConsoleLog("HandleStuck", f"Checking movement. Old pos: {old_player_position}, Current pos: {current_player_pos}", Py4GW.Console.MessageType.Debug, log_actions)
 
                 if old_player_position == current_player_pos:
-                    ConsoleLog("HandleStuck", "Player is stuck, sending /stuck command.", Py4GW.Console.MessageType.Warning, log_actions)
+                    ConsoleLog("HandleStuck", "Player is stuck, sending /stuck command.", Py4GW.Console.MessageType.Warning, forced_log)
                     GLOBAL_CACHE.Player.SendChatCommand("stuck")
                     stuck_counter += 1
                     ConsoleLog("HandleStuck", f"Stuck counter incremented to {stuck_counter}.", Py4GW.Console.MessageType.Debug, log_actions)
