@@ -1,5 +1,6 @@
 
 from Py4GWCoreLib import *
+from Py4GWCoreLib.enums import FactionAllegiance
 
 #This script is intended to be a showcase of every Methos and all the data that can be accessed from Py4GW
 #current status, not complete
