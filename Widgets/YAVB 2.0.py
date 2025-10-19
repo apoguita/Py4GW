@@ -301,12 +301,11 @@ def _on_death(bot: "Botting"):
     yield from Routines.Yield.wait(10000)
     fsm = bot.config.FSM
     fsm.jump_to_state_by_name("[H]Town Routines_1") 
-    yield
     fsm.resume()                           
     yield  
     
 def on_death(bot: "Botting"):
-    ConsoleLog("Death detected", "Run Failed, Restarting...", Py4GW.Console.MessageType.Notice)
+    ConsoleLog("Death detected", "Player Died - Run Failed, Restarting...", Py4GW.Console.MessageType.Notice)
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
@@ -329,41 +328,40 @@ def HandleStuckJagaMoraine(bot: Botting):
     global in_waiting_routine, finished_routine, stuck_counter
     global stuck_timer, movement_check_timer, JAGA_MORAINE
     global old_player_position, in_killing_routine
+    
+    log_actions = False
+    forced_log = True
 
-    ConsoleLog("Stuck Detection", "Starting Stuck Detection Coroutine.", Py4GW.Console.MessageType.Info, True)
+    ConsoleLog("Stuck Detection", "Starting Stuck Detection Coroutine.", Py4GW.Console.MessageType.Info, forced_log)
 
     while True:
         if not Routines.Checks.Map.MapValid():
-            ConsoleLog("Stuck Detection", "Map is not valid, waiting...", Py4GW.Console.MessageType.Debug, False)
+            ConsoleLog("HandleStuck", "Map is not valid, halting...", Py4GW.Console.MessageType.Debug, forced_log)
             yield from Routines.Yield.wait(1000)
-            continue
+            return
 
         if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-            ConsoleLog("Stuck Detection", "Player is dead, exiting stuck handler.", Py4GW.Console.MessageType.Debug, False)
+            ConsoleLog("HandleStuck", "Player is dead, exiting stuck handler.", Py4GW.Console.MessageType.Debug, forced_log)
             yield from Routines.Yield.wait(1000)
-            continue
+            return
 
 
         build: BuildMgr = bot.config.build_handler
         
         instance_time = GLOBAL_CACHE.Map.GetInstanceUptime() / 1000  # Convert ms to seconds
         if instance_time > 7 * 60:  # 7 minutes in seconds
-            ConsoleLog("Stuck Detection", "Instance time exceeded 7 minutes, resetting.", Py4GW.Console.MessageType.Debug, False)
+            ConsoleLog("HandleStuck", "Instance time exceeded 7 minutes, force resigning.", Py4GW.Console.MessageType.Debug, forced_log)
             stuck_counter = 0
             if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                 build.SetStuckSignal(stuck_counter)
                 
-            fsm = bot.config.FSM
-            fsm.pause()
+            GLOBAL_CACHE.Player.SendChatCommand("resign") 
             yield from Routines.Yield.wait(500)
-            fsm.jump_to_state_by_name("[H]Town Routines_1")
-            yield from Routines.Yield.wait(500)
-            fsm.resume()
-            
+            return
 
         # Waiting routine check
         if in_waiting_routine:
-            ConsoleLog("Stuck Detection", "In waiting routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, False)
+            ConsoleLog("HandleStuck", "In waiting routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, log_actions)
             stuck_counter = 0
             if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                 build.SetStuckSignal(stuck_counter)
@@ -373,7 +371,7 @@ def HandleStuckJagaMoraine(bot: Botting):
 
         # Finished routine check
         if finished_routine:
-            ConsoleLog("Stuck Detection", "Finished routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, False)
+            ConsoleLog("HandleStuck", "Finished routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, log_actions)
             stuck_counter = 0
             if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                 build.SetStuckSignal(stuck_counter)
@@ -383,7 +381,7 @@ def HandleStuckJagaMoraine(bot: Botting):
 
         # Killing routine check
         if in_killing_routine:
-            ConsoleLog("Stuck Detection", "In killing routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, False)
+            ConsoleLog("HandleStuck", "In killing routine, resetting stuck counter.", Py4GW.Console.MessageType.Debug, log_actions)
             stuck_counter = 0
             if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                 build.SetStuckSignal(stuck_counter)
@@ -394,49 +392,45 @@ def HandleStuckJagaMoraine(bot: Botting):
         # Jaga Moraine map check
         if GLOBAL_CACHE.Map.GetMapID() == JAGA_MORAINE:
             if stuck_timer.IsExpired():
-                ConsoleLog("Stuck Detection", "Stuck timer expired, sending /stuck command.", Py4GW.Console.MessageType.Debug, False)
+                ConsoleLog("HandleStuck", "Issuing scheduled /stuck command.", Py4GW.Console.MessageType.Debug, forced_log)
                 GLOBAL_CACHE.Player.SendChatCommand("stuck")
                 stuck_timer.Reset()
 
             if movement_check_timer.IsExpired():
                 current_player_pos = GLOBAL_CACHE.Player.GetXY()
-                ConsoleLog("Stuck Detection", f"Checking movement. Old pos: {old_player_position}, Current pos: {current_player_pos}", Py4GW.Console.MessageType.Debug, False)
+                ConsoleLog("HandleStuck", f"Checking movement. Old pos: {old_player_position}, Current pos: {current_player_pos}", Py4GW.Console.MessageType.Debug, log_actions)
 
                 if old_player_position == current_player_pos:
-                    ConsoleLog("Stuck Detection", "Player is stuck, sending /stuck command.", Py4GW.Console.MessageType.Warning)
+                    ConsoleLog("HandleStuck", "Player is stuck, sending /stuck command.", Py4GW.Console.MessageType.Warning, log_actions)
                     GLOBAL_CACHE.Player.SendChatCommand("stuck")
                     stuck_counter += 1
-                    ConsoleLog("Stuck Detection", f"Stuck counter incremented to {stuck_counter}.", Py4GW.Console.MessageType.Debug, False)
+                    ConsoleLog("HandleStuck", f"Stuck counter incremented to {stuck_counter}.", Py4GW.Console.MessageType.Debug, log_actions)
                     if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                         build.SetStuckSignal(stuck_counter)
                     stuck_timer.Reset()
                 else:
                     old_player_position = current_player_pos
-                    ConsoleLog("Stuck Detection", "Player moved, resetting stuck counter to 0.", Py4GW.Console.MessageType.Info, False)
+                    if stuck_counter > 0:
+                        ConsoleLog("HandleStuck", "Player moved, resetting stuck counter to 0.", Py4GW.Console.MessageType.Info, log_actions)
                     stuck_counter = 0
 
                 movement_check_timer.Reset()
 
             if stuck_counter >= 10:
-                ConsoleLog("Stuck Detection", "Unrecoverable stuck detected, resetting.", Py4GW.Console.MessageType.Error)
+                ConsoleLog("HandleStuck", "Unrecoverable stuck detected, force resigning.", Py4GW.Console.MessageType.Error, forced_log)
                 stuck_counter = 0
                 if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                     build.SetStuckSignal(stuck_counter)
                 
-                fsm = bot.config.FSM
-                fsm.pause()
+                GLOBAL_CACHE.Player.SendChatCommand("resign") 
                 yield from Routines.Yield.wait(500)
-                fsm.jump_to_state_by_name("[H]Town Routines_1")
-                yield from Routines.Yield.wait(500)
-                fsm.resume()
-
-                continue
+                return
         else:
-            ConsoleLog("Stuck Detection", "Not in Jaga Moraine", Py4GW.Console.MessageType.Info, False)
+            ConsoleLog("HandleStuck", "Not in Jaga Moraine, halting.", Py4GW.Console.MessageType.Info, forced_log)
             yield from Routines.Yield.wait(1000)
-            continue
+            return
 
-        ConsoleLog("Stuck Detection", "waiting for next check.", Py4GW.Console.MessageType.Info, False)
+        ConsoleLog("HandleStuck", "waiting for next check.", Py4GW.Console.MessageType.Info, log_actions)
         yield from Routines.Yield.wait(500)
         continue
 
