@@ -2,6 +2,7 @@
 from typing import TYPE_CHECKING, Callable, Optional, Tuple
 from Py4GWCoreLib import Color
 import PyImGui
+import PyMap
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingClass
@@ -24,28 +25,49 @@ class _UI:
         self._FSM_FILTER_END: int = 0
         
         self.Keybinds = self._Keybinds(self)
+        
+        # cache for 3D path
+        self._cached_path_3d: list[tuple[float, float, float]] = []
+        self._cached_source_path: list[tuple[float, float]] = []
 
     def CancelSkillRewardWindow(self):
         self._helpers.UI.cancel_skill_reward_window()
+        
+    def _update_path_cache(self) -> None:
+        """Rebuild cached 3D path if path_to_draw changed."""
+        from ...DXOverlay import DXOverlay
+
+        if self._config.path_to_draw != self._cached_source_path:
+            self._cached_source_path = list(self._config.path_to_draw)
+            self._cached_path_3d.clear()
+            for x, y in self._cached_source_path:
+                z = DXOverlay.FindZ(x, y)
+                self._cached_path_3d.append((x, y, z))
+
 
     def _draw_path(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
         from ...DXOverlay import DXOverlay
-        path = self._config.path_to_draw
-
-        for i in range(len(path) - 1):
-            x1, y1 = path[i]
-            x2, y2 = path[i + 1]
-            z1 = DXOverlay.FindZ(x1, y1)
-            z2 = DXOverlay.FindZ(x2, y2)
-            DXOverlay().DrawLine3D(x1, y1, z1, x2, y2, z2, color.to_color(), use_occlusion, snap_to_ground_segments, floor_offset)
-
-
-    def DrawPath(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
         from ...Routines import Routines
 
         if not Routines.Checks.Map.MapValid():
             return
-        
+
+        self._update_path_cache()
+
+        for i in range(len(self._cached_path_3d) - 1):
+            x1, y1, z1 = self._cached_path_3d[i]
+            x2, y2, z2 = self._cached_path_3d[i + 1]
+            DXOverlay().DrawLine3D(
+                x1, y1, z1,
+                x2, y2, z2,
+                color.to_color(),
+                use_occlusion,
+                snap_to_ground_segments,
+                floor_offset,
+            )
+
+
+    def DrawPath(self, color:Color=Color(255, 255, 0, 255), use_occlusion: bool = False, snap_to_ground_segments: int = 1, floor_offset: float = 0) -> None:
         if self._config.config_properties.draw_path.is_active():
             self._draw_path(color, use_occlusion, snap_to_ground_segments, floor_offset)
 
@@ -598,11 +620,14 @@ class _UI:
                 PyImGui.end_tab_bar()
 
         PyImGui.end()
-        self.parent.UI.DrawPath(
-            self._config.config_properties.follow_path_color.get("value"), 
-            self._config.config_properties.use_occlusion.is_active(), 
-            self._config.config_properties.snap_to_ground_segments.get("value"), 
-            self._config.config_properties.floor_offset.get("value"))
+        map_instance = PyMap.PyMap()
+        
+        if map_instance.is_map_ready:
+            self.parent.UI.DrawPath(
+                self._config.config_properties.follow_path_color.get("value"), 
+                self._config.config_properties.use_occlusion.is_active(), 
+                self._config.config_properties.snap_to_ground_segments.get("value"), 
+                self._config.config_properties.floor_offset.get("value"))
 
     #region Keybinds
     class _Keybinds:
