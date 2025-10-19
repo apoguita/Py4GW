@@ -485,41 +485,53 @@ class Yield:
 
 
         @staticmethod
-        def WaitforMapLoad(map_id, log=False, timeout: int = 10000):
+        def WaitforMapLoad(map_id, log=False, timeout: int = 10000, map_name: str =""):
             from .Checks import Checks
             from ..Py4GWcorelib import ConsoleLog, Utils
-
-            yield from Yield.wait(1000)
+            
+            if map_name:
+                map_id = GLOBAL_CACHE.Map.GetMapIDByName(map_name)
+                
+            #same map, no need to wait
+            if not GLOBAL_CACHE.Map.IsMapLoading() and Checks.Map.MapValid():
+                current_map = GLOBAL_CACHE.Map.GetMapID()
+                if current_map == map_id:
+                    ConsoleLog("WaitforMapLoad", f"Already in {GLOBAL_CACHE.Map.GetMapName(current_map)}", log=log)
+                    yield from Yield.wait(500)
+                    return True
+            
             start_time = Utils.GetBaseTimestamp()
-            waiting_for_map_load = True
-            yield from Yield.wait(1000)
-            while waiting_for_map_load:
+
+            # --- Case 2: wait for load phase to actually begin ---
+            while not GLOBAL_CACHE.Map.IsMapLoading():
+                base_timestamp = Utils.GetBaseTimestamp()
+                if ((timeout > 0) and (base_timestamp - start_time) > timeout):
+                    ConsoleLog("WaitforMapLoad", "Timeout: loading never started",message_type=Console.MessageType.Error, log=True)
+                    return False
+                yield from Yield.wait(200)  # poll quickly
+                
+                
+            # --- Case 3: wait for loading phase to complete ---   
+            while GLOBAL_CACHE.Map.IsMapLoading() or not Checks.Map.MapValid():
                 delta = Utils.GetBaseTimestamp() - start_time
                 if delta > timeout and timeout > 0:
-                    ConsoleLog("WaitforMapLoad", "Timeout reached, stopping waiting for map load.", log=log)
+                    ConsoleLog("WaitforMapLoad", "Timeout reached during loading phase.", message_type=Console.MessageType.Error, log=True)
                     return False
-
-                if not Checks.Map.MapValid():
-                    ConsoleLog("WaitforMapLoad", "Map not valid, waiting...", log=log)
-                    yield from Yield.wait(1000)
-                    continue
-
-                current_map = GLOBAL_CACHE.Map.GetMapID()
-
-                if current_map != map_id:
-                    ConsoleLog("WaitforMapLoad", f"Something went wrong, halting", log=log)
-                    yield from Yield.wait(1000)
-                    return False
-
-                waiting_for_map_load = False
-                
-            while GLOBAL_CACHE.Map.GetInstanceUptime() < 3000:
                 yield from Yield.wait(500)
-
-            ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)}", log=log)
+                
+            current_map = GLOBAL_CACHE.Map.GetMapID()
+            if current_map != map_id:
+                ConsoleLog("WaitforMapLoad", f"we arrived to {GLOBAL_CACHE.Map.GetMapName(current_map)}, when we should be in {GLOBAL_CACHE.Map.GetMapName(map_id)}. exiting...", log=True)
+                yield from Yield.wait(1000)
+                return False
+            
+            while GLOBAL_CACHE.Map.GetInstanceUptime() < 2000:
+                yield from Yield.wait(200)
+    
             yield from Yield.wait(1000)
+            ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)}", log=log)
             return True
-
+            
 
 #region Agents        
     class Agents:
