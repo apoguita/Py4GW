@@ -10,7 +10,7 @@ from .py4gwcorelib_src.ActionQueue import ActionQueue, ActionQueueNode, ActionQu
 from .py4gwcorelib_src.BehaviorTree import BehaviorTree
 from .py4gwcorelib_src.FSM import FSM
 from .py4gwcorelib_src.MultiThreading import MultiThreading
-from .py4gwcorelib_src.Lootconfig import LootConfig
+from .py4gwcorelib_src.Lootconfig_src import LootConfig
 from .py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler
 
 __all__ = ["IniHandler", #IniHandler

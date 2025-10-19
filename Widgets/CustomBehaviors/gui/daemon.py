@@ -1,5 +1,5 @@
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
-from Py4GWCoreLib.py4gwcorelib_src.Lootconfig import LootConfig
+from Py4GWCoreLib.py4gwcorelib_src.Lootconfig_src import LootConfig
 from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import AutoMover
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
@@ -13,7 +13,7 @@ def daemon():
 
     # LootConfig().AddToWhitelist(1682) # minotaur_horn
     # LootConfig().AddToWhitelist(1663) # pillaged_goods
-
+    cb = CustomBehaviorLoader().custom_combat_behavior
     if loader_throttler.IsExpired(): 
         loader_throttler.Reset()
         loaded = CustomBehaviorLoader().initialize_custom_behavior_candidate()
@@ -21,8 +21,8 @@ def daemon():
 
     if refresh_throttler.IsExpired(): 
         refresh_throttler.Reset()
-        if CustomBehaviorLoader().custom_combat_behavior is not None:
-            if not CustomBehaviorLoader().custom_combat_behavior.is_custom_behavior_match_in_game_build():
+        if cb is not None:
+            if not cb.is_custom_behavior_match_in_game_build():
                 CustomBehaviorLoader().refresh_custom_behavior_candidate()
                 return
             
@@ -39,9 +39,8 @@ def daemon():
         cached_data.UdpateCombat()
 
     # main loops
-
-    if CustomBehaviorLoader().custom_combat_behavior is not None:
-        CustomBehaviorLoader().custom_combat_behavior.act()
+    if cb is not None:
+        cb.act()
 
     CustomBehaviorParty().act()
     

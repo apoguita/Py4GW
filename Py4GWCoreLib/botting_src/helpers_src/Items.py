@@ -39,7 +39,7 @@ class _Items:
     @_yield_step(label="AddModelToBlacklist", counter_key="ADD_MODEL_TO_BLACKLIST")
     def add_model_to_blacklist(self, model_id:int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.AddToBlacklist(model_id)
         yield from Routines.Yield.wait(100)  # Small wait to ensure the item is added
@@ -47,7 +47,7 @@ class _Items:
     @_yield_step(label="RemoveModelFromBlacklist", counter_key="REMOVE_MODEL_FROM_BLACKLIST")
     def remove_model_from_blacklist(self, model_id:int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.RemoveFromBlacklist(model_id)
         yield from Routines.Yield.wait(100)  # Small wait to ensure the item is removed
@@ -55,7 +55,7 @@ class _Items:
     @_yield_step(label="AddModelToWhitelist", counter_key="ADD_MODEL_TO_WHITELIST")
     def add_model_to_whitelist(self, model_id:int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.AddToWhitelist(model_id)
         yield from Routines.Yield.wait(100)  # Small wait to ensure the item is added
@@ -63,7 +63,7 @@ class _Items:
     @_yield_step(label="RemoveModelFromWhitelist", counter_key="REMOVE_MODEL_FROM_WHITELIST")
     def remove_model_from_whitelist(self, model_id:int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.RemoveFromWhitelist(model_id)
         yield from Routines.Yield.wait(100)  # Small wait to ensure the item is removed
@@ -71,7 +71,7 @@ class _Items:
     @_yield_step(label="ClearWhitelist", counter_key="CLEAR_WHITELIST")
     def clear_whitelist(self) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.ClearWhitelist()
         yield from Routines.Yield.wait(100)  # Small wait to ensure the whitelist is cleared
@@ -79,7 +79,7 @@ class _Items:
     @_yield_step(label="ClearBlacklist", counter_key="CLEAR_BLACKLIST") 
     def clear_blacklist(self) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.ClearBlacklist()
         yield from Routines.Yield.wait(100)  # Small wait to ensure the blacklist is cleared
@@ -88,7 +88,7 @@ class _Items:
     @_yield_step(label="AddItemIDToWhitelist", counter_key="ADD_ITEM_ID_TO_WHITELIST")
     def add_item_id_to_whitelist(self, item_id:int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.item_id_whitelist.add(item_id)
         yield from Routines.Yield.wait(100)  # Small wait to ensure the item is added
@@ -96,7 +96,7 @@ class _Items:
     @_yield_step(label="RemoveItemIDFromWhitelist", counter_key="REMOVE_ITEM_ID_FROM_WHITELIST")
     def remove_item_id_from_whitelist(self, item_id:int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.item_id_whitelist.discard(item_id)
         yield from Routines.Yield.wait(100)  # Small wait to ensure the item is removed
@@ -104,7 +104,7 @@ class _Items:
     @_yield_step(label="ClearItemIDWhitelist", counter_key="CLEAR_ITEM_ID_WHITELIST")
     def clear_item_id_whitelist(self) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.item_id_whitelist.clear()
         yield from Routines.Yield.wait(100)  # Small wait to ensure the whitelist is cleared
@@ -112,7 +112,7 @@ class _Items:
     @_yield_step(label="AddItemIDToBlacklist", counter_key="ADD_ITEM_ID_TO_BLACKLIST")
     def add_item_id_to_blacklist(self, item_id:int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.item_id_blacklist.add(item_id)
         yield from Routines.Yield.wait(100)  # Small wait to ensure the item is added
@@ -120,7 +120,7 @@ class _Items:
     @_yield_step(label="RemoveItemIDFromBlacklist", counter_key="REMOVE_ITEM_ID_FROM_BLACKLIST")
     def remove_item_id_from_blacklist(self, item_id:int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.item_id_blacklist.discard(item_id)
         yield from Routines.Yield.wait(100)  # Small wait to ensure the item is removed
@@ -128,7 +128,7 @@ class _Items:
     @_yield_step(label="ClearItemIDBlacklist", counter_key="CLEAR_ITEM_ID_BLACKLIST")
     def clear_item_id_blacklist(self) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.item_id_blacklist.clear()
         yield from Routines.Yield.wait(100)  # Small wait to ensure the blacklist is cleared
@@ -137,7 +137,7 @@ class _Items:
     @_yield_step(label="AddDyeToWhitelist", counter_key="ADD_DYE_TO_WHITELIST")
     def add_dye_to_whitelist(self, dye_id:int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.dye_whitelist.add(dye_id)
         yield from Routines.Yield.wait(100)  # Small wait to ensure the dye is added
@@ -145,7 +145,7 @@ class _Items:
     @_yield_step(label="RemoveDyeFromWhitelist", counter_key="REMOVE_DYE_FROM_WHITELIST")
     def remove_dye_from_whitelist(self, dye_id:int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.dye_whitelist.discard(dye_id)
         yield from Routines.Yield.wait(100)  # Small wait to ensure the dye is removed
@@ -153,7 +153,7 @@ class _Items:
     @_yield_step(label="ClearDyeWhitelist", counter_key="CLEAR_DYE_WHITELIST")
     def clear_dye_whitelist(self) -> Generator[Any, Any, None]:
         from ...Routines import Routines
-        from ...py4gwcorelib_src.Lootconfig import LootConfig
+        from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         loot_singleton = LootConfig()
         loot_singleton.dye_whitelist.clear()
         yield from Routines.Yield.wait(100)  # Small wait to ensure the whitelist is cleared

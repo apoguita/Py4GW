@@ -126,7 +126,12 @@ def NeedsInventoryManagement(bot: Botting):
         or count_of_id_kits == 0
         or count_of_salvage_kits == 0
     ):
-        bot.States.JumpToStepName("[H]Town Routines_1")
+        fsm = bot.config.FSM
+        fsm.pause()
+        yield from Routines.Yield.wait(500)
+        fsm.jump_to_state_by_name("[H]Town Routines_1")
+        yield from Routines.Yield.wait(500)
+        fsm.resume()
     yield
     
     
@@ -293,9 +298,10 @@ def WaitforRightAggroBall(bot : Botting):
 #region Events
     
 def _on_death(bot: "Botting"):
-    yield from Routines.Yield.wait(8000)
+    yield from Routines.Yield.wait(10000)
     fsm = bot.config.FSM
     fsm.jump_to_state_by_name("[H]Town Routines_1") 
+    yield
     fsm.resume()                           
     yield  
     
@@ -339,6 +345,21 @@ def HandleStuckJagaMoraine(bot: Botting):
 
 
         build: BuildMgr = bot.config.build_handler
+        
+        instance_time = GLOBAL_CACHE.Map.GetInstanceUptime() / 1000  # Convert ms to seconds
+        if instance_time > 7 * 60:  # 7 minutes in seconds
+            ConsoleLog("Stuck Detection", "Instance time exceeded 7 minutes, resetting.", Py4GW.Console.MessageType.Debug, False)
+            stuck_counter = 0
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
+                build.SetStuckSignal(stuck_counter)
+                
+            fsm = bot.config.FSM
+            fsm.pause()
+            yield from Routines.Yield.wait(500)
+            fsm.jump_to_state_by_name("[H]Town Routines_1")
+            yield from Routines.Yield.wait(500)
+            fsm.resume()
+            
 
         # Waiting routine check
         if in_waiting_routine:
@@ -401,7 +422,14 @@ def HandleStuckJagaMoraine(bot: Botting):
                 stuck_counter = 0
                 if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                     build.SetStuckSignal(stuck_counter)
-                bot.States.JumpToStepName("[H]Town Routines_1")
+                
+                fsm = bot.config.FSM
+                fsm.pause()
+                yield from Routines.Yield.wait(500)
+                fsm.jump_to_state_by_name("[H]Town Routines_1")
+                yield from Routines.Yield.wait(500)
+                fsm.resume()
+
                 continue
         else:
             ConsoleLog("Stuck Detection", "Not in Jaga Moraine", Py4GW.Console.MessageType.Info, False)

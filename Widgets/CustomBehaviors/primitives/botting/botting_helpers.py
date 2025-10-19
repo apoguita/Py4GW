@@ -7,7 +7,7 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums_src.GameData_enums import Range
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.FSM import FSM
-from Py4GWCoreLib.py4gwcorelib_src.Lootconfig import LootConfig
+from Py4GWCoreLib.py4gwcorelib_src.Lootconfig_src import LootConfig
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType

@@ -2,7 +2,7 @@ from collections.abc import Callable
 from typing import Any, Generator, override
 from Py4GWCoreLib import Botting, Item
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.py4gwcorelib_src.Lootconfig import LootConfig
+from Py4GWCoreLib.py4gwcorelib_src.Lootconfig_src import LootConfig
 from Widgets.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Widgets.CustomBehaviors.primitives.botting.botting_abstract import BottingAbstract
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty

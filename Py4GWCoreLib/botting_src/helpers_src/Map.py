@@ -14,20 +14,28 @@ class _Map:
         self._config = parent._config
         self._Events = parent.Events      
 
-    def _travel(self, target_map_id):
+    def _travel(self, target_map_id:int =0, target_map_name:str ="") -> Generator:
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
         
+        if GLOBAL_CACHE.Map.IsMapLoading():
+            yield from Routines.Yield.wait(1000)
+            return
+        
+        if target_map_name:
+            target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+        
         current_map_id = GLOBAL_CACHE.Map.GetMapID()
         if current_map_id == target_map_id:
+            yield from Routines.Yield.wait(1000)
             return
         
         GLOBAL_CACHE.Map.Travel(target_map_id)
         yield from Routines.Yield.wait(1000)
         
     @_yield_step(label="Travel", counter_key="TRAVEL")
-    def travel(self, target_map_id):
-        yield from self._travel(target_map_id)
+    def travel(self, target_map_id, target_map_name) -> Generator:
+        yield from self._travel(target_map_id, target_map_name)
     
     @_yield_step(label="TravelToGH", counter_key="TRAVEL") 
     def travel_to_gh(self, wait_time:int= 1000):
