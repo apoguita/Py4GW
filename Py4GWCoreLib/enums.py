@@ -4,6 +4,7 @@ from .enums_src.GameData_enums import (
     Attribute,
     DamageType,
     DyeColor,
+    FactionAllegiance,
     Inscription,
     Profession,
     ProfessionShort,
@@ -68,6 +69,7 @@ __all__ = [
     # GameData_enums
     "Ailment",
     "Allegiance",
+    "FactionAllegiance",
     "Attribute",
     "DamageType",
     "DyeColor",

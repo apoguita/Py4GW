@@ -339,6 +339,17 @@ def HandleStuckJagaMoraine(bot: Botting):
 
 
         build: BuildMgr = bot.config.build_handler
+        
+        instance_time = GLOBAL_CACHE.Map.GetInstanceUptime() / 1000  # Convert ms to seconds
+        if instance_time > 7 * 60:  # 7 minutes in seconds
+            ConsoleLog("Stuck Detection", "Instance time exceeded 7 minutes, resetting.", Py4GW.Console.MessageType.Debug, False)
+            stuck_counter = 0
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
+                build.SetStuckSignal(stuck_counter)
+            fsm = bot.config.FSM
+            fsm.jump_to_state_by_name("[H]Town Routines_1")
+            continue
+            
 
         # Waiting routine check
         if in_waiting_routine:
@@ -401,7 +412,9 @@ def HandleStuckJagaMoraine(bot: Botting):
                 stuck_counter = 0
                 if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                     build.SetStuckSignal(stuck_counter)
-                bot.States.JumpToStepName("[H]Town Routines_1")
+                fsm = bot.config.FSM
+                fsm.jump_to_state_by_name("[H]Town Routines_1") 
+
                 continue
         else:
             ConsoleLog("Stuck Detection", "Not in Jaga Moraine", Py4GW.Console.MessageType.Info, False)
