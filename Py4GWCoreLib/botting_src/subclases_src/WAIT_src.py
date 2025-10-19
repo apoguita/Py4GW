@@ -52,27 +52,19 @@ class _WAIT:
         self._helpers.Wait.until_condition(wait_condition)
 
     def ForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
-        from Py4GWCoreLib import GLOBAL_CACHE
-        if target_map_name:
-            target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
-
-        wait_function = lambda: (
-            GLOBAL_CACHE.Map.IsMapLoading() == True or
-            GLOBAL_CACHE.Map.GetMapID() == target_map_id
-        )
-        self._helpers.Wait.until_condition(wait_function, duration=300)
-        self._helpers.Wait.for_map_load(target_map_id)
+        self._helpers.Wait.for_map_load(target_map_id, target_map_name=target_map_name)
 
     def ForMapToChange(self, target_map_id: int = 0, target_map_name: str = "") -> None:
         """Waits until all action finishes in current map and game sends you to a new one"""
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
-        if target_map_name:
-            target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
 
         wait_condition = lambda: (
-            Routines.Checks.Map.MapValid() and
-            GLOBAL_CACHE.Map.GetMapID() == target_map_id
+            not GLOBAL_CACHE.Map.IsMapLoading()
+            and Routines.Checks.Map.MapValid()
+            and GLOBAL_CACHE.Map.GetMapID() == (
+                target_map_id if target_map_id else GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+            )
         )
 
         self.UntilCondition(wait_condition, duration=3000)
