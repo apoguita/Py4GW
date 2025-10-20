@@ -1,4 +1,6 @@
 from typing import List, Tuple, Callable, Optional, Generator, Any
+
+from Py4GWCoreLib.routines_src import Checks
 from ..GlobalCache import GLOBAL_CACHE
 from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager
 
@@ -495,13 +497,18 @@ class Yield:
             start_time = Utils.GetBaseTimestamp()
             
             current_map = GLOBAL_CACHE.Map.GetMapID()
+            minimum_instance_uptime = 3000
             
             # --- Case 1: We are already in the map ---
             if current_map == map_id:
                 # --- Subcase: Map is already valid ---
-                if not GLOBAL_CACHE.Map.IsMapLoading() and Checks.Map.MapValid():
+                if current_map == map_id:
+                    if not GLOBAL_CACHE.Map.IsMapLoading() and Checks.Map.MapValid():
+                        # enforce instance uptime requirement
+                        while GLOBAL_CACHE.Map.GetInstanceUptime() < minimum_instance_uptime:
+                            yield from Yield.wait(200)
                         ConsoleLog("WaitforMapLoad", f"Already in {GLOBAL_CACHE.Map.GetMapName(current_map)}", log=log)
-                        yield from Yield.wait(500)
+                        yield from Yield.wait(100)
                         return True
                 
                 # --- Subcase: Map is not yet valid and we are not loading anymore ---
@@ -516,8 +523,11 @@ class Yield:
                     
                     # --- Map is now loading or valid, proceed to case 3 ---
                     if Checks.Map.MapValid():
+                        # enforce instance uptime requirement
+                        while GLOBAL_CACHE.Map.GetInstanceUptime() < minimum_instance_uptime:
+                            yield from Yield.wait(200)
                         ConsoleLog("WaitforMapLoad", f"We were already in {GLOBAL_CACHE.Map.GetMapName(current_map)} but had to wait for the map to load.", log=log)
-                        yield from Yield.wait(500)
+                        yield from Yield.wait(100)
                         return True
                 
             # --- Case 2: wait for load phase to actually begin ---
@@ -543,11 +553,11 @@ class Yield:
                 yield from Yield.wait(1000)
                 return False
             
-            while GLOBAL_CACHE.Map.GetInstanceUptime() < 2000:
+            while GLOBAL_CACHE.Map.GetInstanceUptime() < minimum_instance_uptime:
                 yield from Yield.wait(200)
     
-            yield from Yield.wait(1000)
             ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)}", log=log)
+            yield from Yield.wait(100)
             return True
             
 

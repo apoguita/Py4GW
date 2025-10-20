@@ -2,7 +2,7 @@ import PyMap
 from PyMap import MapID
 
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
-from Py4GWCoreLib.enums import outposts, explorables, explorable_name_to_id
+from Py4GWCoreLib.enums import outposts, explorables, name_to_map_id
 
 class MapCache:
     def __init__(self, action_queue_manager: ActionQueueManager):
@@ -29,19 +29,26 @@ class MapCache:
         current_map = PyMap.PyMap()
         return current_map.instance_type.GetName() == "Loading"
     
-    def GetMapName(self, mapid=None):
+    def GetMapName(self, mapid: int | None = None) -> str:
         if mapid is None:
             map_id = self._map_instance.map_id.ToInt()
         else:
             map_id = mapid
 
+        # direct dict lookups
         if map_id in outposts:
             return outposts[map_id]
         if map_id in explorables:
             return explorables[map_id]
 
+        # fallback: try combined dictionary
+        if map_id in {**outposts, **explorables}:
+            return {**outposts, **explorables}[map_id]
+
+        # final fallback: ask the game instance
         map_id_instance = MapID(map_id)
         return map_id_instance.GetName()
+
     
     def GetMapID(self):
         return self._map_instance.map_id.ToInt()
@@ -56,16 +63,27 @@ class MapCache:
         global outposts
         return list(outposts.values())
     
-    def GetMapIDByName(self, name) -> int:
-        global explorable_name_to_id
-        map_id = explorable_name_to_id.get(name)
-        if map_id is not None:
+    def GetMapIDByName(self, name: str) -> int:
+        # normalize
+        key = name.strip().lower()
+
+        # try combined dict first
+        map_id = name_to_map_id.get(name)
+        if map_id:
             return map_id
 
-        outpost_ids = self.GetOutpostIDs()
-        outpost_names = self.GetOutpostNames()
-        outpost_name_to_id = {name: id for name, id in zip(outpost_names, outpost_ids)}
-        return int(outpost_name_to_id.get(name, 0))
+        # fallback: normalized lookup
+        for k, v in name_to_map_id.items():
+            if k.lower() == key:
+                return v
+
+        # fallback: partial match (to catch "outpost", seasonal tags)
+        for k, v in name_to_map_id.items():
+            if key in k.lower():
+                return v
+
+        return 0
+
 
     
     def GetExplorableIDs(self):
