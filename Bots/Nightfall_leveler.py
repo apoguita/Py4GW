@@ -48,12 +48,12 @@ def create_bot_routine(bot: Botting) -> None:
     
     # === PHASE 5: MID-GAME QUESTS AND PROGRESSION ===
     LoopFarmInJokanurDiggings(bot)
-    GatherSecondSetOfAttributePoints(bot)          # Get second set of 15 attribute points
-    
+    GatherSecondSetOfAttributePoints(bot)    # Gather second set of attribute points
+    UnlockSunspearSkills(bot)          # Unlock Sunspear skills
     # === PHASE 6: EYE OF THE NORTH EXPANSION ===
     TravelToEyeOfTheNorth(bot)                 # EOTN (Eye of the North) run
     ExitBorealStation(bot)                     # Exit Boreal Station
-    TravelToEyeOfTheNorthOutpost(bot)          # Go to EOTN outpost
+    TravelToEyeOfTheNorthOutpost(bot)          # Go to  EOTN outpost
     UnlockEyeOfTheNorthPool(bot)               # Unlock EOTN resurrection pool
     AdvanceToGunnarsHold(bot)                  # Advance to Gunnar's Hold
     UnlockKillroyStonekin(bot)
@@ -828,6 +828,28 @@ def GatherSecondSetOfAttributePoints(bot: Botting):
     bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
     bot.Move.XYAndDialog(-2864, 7031, 0x82CC07, step_name="15 more Attribute points")
     bot.Wait.ForTime(2000)
+
+def UnlockSunspearSkills(bot: Botting):
+    bot.States.AddHeader("Phase 5: Unlocking Sunspear Skills")
+    bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x801101) # Sunspear Skills Trainer
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883503) # Learn Sunspear Assassin Skill
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883603) # Learn Sunspear Mesmer Skill
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883703) # Learn Sunspear Necromancer Skill
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883803) # Learn Sunspear Elementalist Skill
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883903) # Learn Sunspear Monk Skill
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883B03) # Learn Sunspear Warrior Skill
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883C03) # Learn Sunspear Ranger Skill
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883D03) # Learn Sunspear Dervish Skill
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883E03) # Learn Sunspear Ritualist Skill
+    bot.Dialogs.AtXY(-3307.00, 6997.56, 0x884003) # Learn Sunspear Paragon Skill
+
+
+
+
+
+
+
 
 def TravelToEyeOfTheNorth(bot: Botting): 
     bot.States.AddHeader("Phase 6: Starting Eye of the North Journey")
