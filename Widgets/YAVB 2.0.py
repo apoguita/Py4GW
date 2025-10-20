@@ -11,7 +11,9 @@ from Py4GWCoreLib.Builds import SF_Ass_vaettir
 
 from typing import List, Tuple
 
-bot = Botting("YAVB 2.0", upkeep_birthday_cupcake_restock=1)
+bot = Botting("YAVB 2.0", 
+              config_draw_path=False,
+              upkeep_birthday_cupcake_restock=1)
   
 def create_bot_routine(bot: Botting) -> None:
     TownRoutines(bot)
@@ -37,13 +39,13 @@ def InitializeBot(bot: Botting) -> None:
     
 def TownRoutines(bot: Botting) -> None:
     bot.States.AddHeader("Town Routines")
-    bot.Map.Travel(target_map_name="Longeyes Ledge")
+    bot.Map.Travel(target_map_id=650) #target_map_name="Longeyes Ledge")
     InitializeBot(bot)
     bot.States.AddCustomState(lambda: EquipSkillBar(bot), "Equip SkillBar")
     HandleInventory(bot)
     bot.States.AddHeader("Exit to Bjora Marches")
     bot.Party.SetHardMode(True) #set hard mode on
-    bot.Move.XYAndExitMap(-26375, 16180, target_map_name="Bjora Marches")
+    bot.Move.XYAndExitMap(-26375, 16180, target_map_id=482) # target_map_name="Bjora Marches")
     
 def TraverseBjoraMarches(bot: Botting) -> None:
     bot.States.AddHeader("Traverse Bjora Marches")
@@ -66,7 +68,7 @@ def TraverseBjoraMarches(bot: Botting) -> None:
     (-13944, 341)  ,(-14358, 743)  ,(-14727, 1181) ,(-15109, 1620) ,(-15539, 2010) ,
     (-15963, 2380) ,(-18048, 4223 ), (-19196, 4986),(-20000, 5595) ,(-20300, 5600)
     ]
-    bot.Move.FollowPathAndExitMap(path_points_to_traverse_bjora_marches, target_map_name="Jaga Moraine")
+    bot.Move.FollowPathAndExitMap(path_points_to_traverse_bjora_marches, target_map_id=546) #target_map_name="Jaga Moraine")
     
 def printEach(bot: Botting, seconds: int):
     while True:
@@ -111,7 +113,7 @@ def JagaMoraineFarmRoutine(bot: Botting) -> None:
     bot.Items.LootItems()
     bot.Items.AutoIDAndSalvageItems()
     bot.States.AddCustomState(lambda: NeedsInventoryManagement(bot), "Needs Inventory Management")
-    bot.Move.XYAndExitMap(15850,-20550, target_map_name="Bjora Marches")
+    bot.Move.XYAndExitMap(15850,-20550, target_map_id=482) # target_map_name="Bjora Marches")
     
     
 def NeedsInventoryManagement(bot: Botting):
@@ -137,7 +139,7 @@ def NeedsInventoryManagement(bot: Botting):
     
 def ResetFarmLoop(bot: Botting) -> None:
     bot.States.AddHeader("Reset Farm Loop")
-    bot.Move.XYAndExitMap(-20300, 5600 , target_map_name="Jaga Moraine")
+    bot.Move.XYAndExitMap(-20300, 5600 , target_map_id=546) #target_map_name="Jaga Moraine")
     bot.States.JumpToStepName("[H]Jaga Moraine Farm Routine_6")
     
 def KillEnemies(bot: Botting):
@@ -187,7 +189,7 @@ def AssignBuild(bot: Botting):
         case "Mesmer":
             bot.OverrideBuild(SF_Mes_vaettir())  # Placeholder for Mesmer build 
         case _:
-            ConsoleLog("Unsupported Profession", f"The profession '{profession}' is not supported by this bot.", Py4GW.Console.MessageType.Error)
+            ConsoleLog("Unsupported Profession", f"The profession '{profession}' is not supported by this bot.", Py4GW.Console.MessageType.Error, True)
             bot.Stop()
             return
     yield
