@@ -174,7 +174,7 @@ class ElementalistSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Gust")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.OtherAlly.value
+        skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Buff.value
         skill_data[skill.SkillID] = skill
 
