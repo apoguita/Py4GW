@@ -492,16 +492,34 @@ class Yield:
             if map_name:
                 map_id = GLOBAL_CACHE.Map.GetMapIDByName(map_name)
                 
-            #same map, no need to wait
-            if not GLOBAL_CACHE.Map.IsMapLoading() and Checks.Map.MapValid():
-                current_map = GLOBAL_CACHE.Map.GetMapID()
-                if current_map == map_id:
-                    ConsoleLog("WaitforMapLoad", f"Already in {GLOBAL_CACHE.Map.GetMapName(current_map)}", log=log)
-                    yield from Yield.wait(500)
-                    return True
-            
             start_time = Utils.GetBaseTimestamp()
-
+            
+            current_map = GLOBAL_CACHE.Map.GetMapID()
+            
+            # --- Case 1: We are already in the map ---
+            if current_map == map_id:
+                # --- Subcase: Map is already valid ---
+                if not GLOBAL_CACHE.Map.IsMapLoading() and Checks.Map.MapValid():
+                        ConsoleLog("WaitforMapLoad", f"Already in {GLOBAL_CACHE.Map.GetMapName(current_map)}", log=log)
+                        yield from Yield.wait(500)
+                        return True
+                
+                # --- Subcase: Map is not yet valid and we are not loading anymore ---
+                while not GLOBAL_CACHE.Map.IsMapLoading() and not Checks.Map.MapValid():
+                    base_timestamp = Utils.GetBaseTimestamp()
+                    if ((timeout > 0) and (base_timestamp - start_time) > timeout):
+                        ConsoleLog("WaitforMapLoad", f"Timeout: Map not getting valid within {timeout} ms",message_type=Console.MessageType.Error, log=True)
+                        return False
+                    
+                    ConsoleLog("WaitforMapLoad", "Waiting for map to become valid...", log=log)
+                    yield from Yield.wait(200)  # poll quickly
+                    
+                    # --- Map is now loading or valid, proceed to case 3 ---
+                    if Checks.Map.MapValid():
+                        ConsoleLog("WaitforMapLoad", f"We were already in {GLOBAL_CACHE.Map.GetMapName(current_map)} but had to wait for the map to load.", log=log)
+                        yield from Yield.wait(500)
+                        return True
+                
             # --- Case 2: wait for load phase to actually begin ---
             while not GLOBAL_CACHE.Map.IsMapLoading():
                 base_timestamp = Utils.GetBaseTimestamp()
@@ -521,7 +539,7 @@ class Yield:
                 
             current_map = GLOBAL_CACHE.Map.GetMapID()
             if current_map != map_id:
-                ConsoleLog("WaitforMapLoad", f"we arrived to {GLOBAL_CACHE.Map.GetMapName(current_map)}, when we should be in {GLOBAL_CACHE.Map.GetMapName(map_id)}. exiting...", log=True)
+                ConsoleLog("WaitforMapLoad", f"We arrived to {GLOBAL_CACHE.Map.GetMapName(current_map)}, when we should be in {GLOBAL_CACHE.Map.GetMapName(map_id)}. exiting...", log=True)
                 yield from Yield.wait(1000)
                 return False
             
