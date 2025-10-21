@@ -158,12 +158,19 @@ def CompleteCurseOfTheNornbear(bot) -> None:
     ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(14353, 23905, 0x86) #hunting the nornbear
     bot.Wait.ForMapLoad(target_map_id=653); bot.Wait.ForTime(2000)#Special Instance Map of Drakkar Lake
-    bot.Multibox.UseAllConsumables() #Conset
-    bot.Move.XY(-2638, 20433); bot.Wait.ForTime(5000)
-    bot.Move.XY(-5793, 15818); bot.Wait.ForTime(2000)
-    bot.Move.XY(8105, 14089); bot.Wait.ForTime(2000)
-    bot.Move.XY(4940, 6551); bot.Wait.UntilOnCombat; bot.Wait.ForTime(5000)
-    bot.Wait.ForMapToChange(target_map_id=643); bot.Wait.ForTime(2000)
+    bot.Multibox.UseAllConsumables() #Conset and pcons
+    bot.Move.XY(2687.04, 22060.65)
+    bot.Move.XY(-2638, 20433)
+    bot.Move.XY(-5793, 15818)
+    ConfigurePacifistEnv(bot)
+    bot.Wait.ForTime(2000)
+    bot.Move.XY(8105, 14089)
+    ConfigurePacifistEnv(bot)
+    bot.Wait.ForTime(2000)
+    bot.Move.XY(4940, 6551)
+    ConfigureAggressiveEnv(bot)
+    bot.Wait.ForMapToChange(target_map_id=643)
+    #bot.Wait.ForTime(2000)
     bot.Move.XYAndDialog(14353, 23905, 0x838904) #Northern Allies
     bot.Dialogs.AtXY(14353, 23905, 0x89) #Olaf Olafson
     bot.Dialogs.AtXY(14353, 23905, 0x8A) #Egil Fireteller
@@ -585,6 +592,7 @@ def FindingTheBloodstone(bot): #started but need Finding Gadd before this
     bot.Wait.ForTime(10000) #time to extract essence
     bot.Move.XY(16165.77, 10441.95)
     bot.Move.XY(17149.38, 13434.60)
+    bot.Wait.ForTime(3000)
     bot.Move.XY(18529, 15977)
     bot.Move.XY(18170.14, 15771.52)
     bot.Wait.ForTime(30000) #wait for Gadd to exit to level 2
