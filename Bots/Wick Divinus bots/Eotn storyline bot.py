@@ -541,10 +541,12 @@ def FindingGadd(bot):
     bot.Move.XYAndExitMap(-9690, -19524, target_map_id=558) #sparkfly swamp
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-6967.77, -19810.06)
+    bot.Move.XY(-4466.15, -21025.91)
     bot.Move.XY(11669, -23829)
     bot.Dialogs.AtXY(11881.00, -23802.00, 0x833304)
     bot.Move.XY(8017.92, -20124.24)
     bot.Move.XY(11184.85, -14188.88) #Ettin 1
+    bot.Move.XY(10907.74, -12916.42) #Ettin 1
     bot.Wait.UntilOutOfCombat()
     bot.Wait.ForTime(5000)
     bot.Move.XY(-5740.47, -13723.29) #Ettin 2
@@ -555,7 +557,12 @@ def FindingGadd(bot):
     bot.Wait.ForTime(5000)
     bot.Move.XY(11758.78, -24063.51)
     bot.Wait.ForTime(20000) #Return to Inscription Plate
-    bot.Dialogs.AtXY(11496.13, -23878.08, 0x833304) #Gadd Dialog model id 6721
+    bot.Move.XY(12236.58, -24474.01)
+    bot.Move.XY(11675.35, -23909.45)
+    bot.Dialogs.WithModel(6721, 0x833304) #Gadd Dialog model id 6721
+    bot.Wait.ForTime(10000)
+    bot.Move.XY(11795.00, -24125.00)
+    bot.Dialogs.WithModel(15, 0x833307)
 
 def FindingTheBloodstone(bot): #started but need Finding Gadd before this
     bot.States.AddHeader("Finding the Bloodstone")
@@ -565,6 +572,7 @@ def FindingTheBloodstone(bot): #started but need Finding Gadd before this
     bot.Move.XYAndExitMap(-9690, -19524, target_map_id=558) #sparkfly swamp
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-6967.77, -19810.06)
+    bot.Move.XY(-4466.15, -21025.91)
     bot.Move.XY(11669, -23829)
     bot.Dialogs.AtXY(11795.00, -24125.00, 0x833307)
     bot.Dialogs.AtXY(11795.00, -24125.00, 0x84)
@@ -578,6 +586,7 @@ def FindingTheBloodstone(bot): #started but need Finding Gadd before this
     bot.Move.XY(16165.77, 10441.95)
     bot.Move.XY(17149.38, 13434.60)
     bot.Move.XY(18529, 15977)
+    bot.Move.XY(18170.14, 15771.52)
     bot.Wait.ForTime(30000) #wait for Gadd to exit to level 2
     bot.Move.XYAndExitMap(19212, 16155,target_map_id=662) #Finding The Bloodstone Map Level 2
     bot.Multibox.UseAllConsumables()
@@ -595,7 +604,6 @@ def FindingTheBloodstone(bot): #started but need Finding Gadd before this
     bot.Move.XY(-7249, -16397)
     bot.Move.XY(-10466, -16166)
     bot.Move.XY(-15377, -16565)
-    #bot.Wait.UntilOutOfCombat()
     bot.Wait.ForMapToChange(target_map_id=638) #Gadd's Encampment
 
 def LabSpace(bot):
@@ -620,25 +628,32 @@ def LabSpace(bot):
     bot.Move.XY(-11493.07, 16584.55)
     bot.Move.XY(-17671.37, 14695.37)
     bot.Wait.UntilOutOfCombat()
-    #bot.Items.AddModelToLootWhitelist(24628)
-    #bot.Move.XY(-17671.37, 14695.37)
-    #bot.Interact.WithNpcAtXY(-17671.37, 14695.37)
-    #bot.Items.LootItems()
+    bot.Items.AddModelToLootWhitelist(24628)
+    bot.Move.XY(-17671.37, 14695.37)
+    bot.Items.LootItems()
+    bot.Wait.UntilModelHasQuest(6725)
     bot.Move.XY(-17597.36, 15027.91)
     bot.Interact.WithNpcAtXY(-17597.36, 15027.91)
-    #bot.Items.LootItems()
-    bot.Move.XY(-15946.10, 14596.89)
-    bot.Dialogs.AtXY(-15946.10, 14596.89, 0x832C07) #Lab Space Reward
+    bot.Items.LootItems()
+    bot.Move.XY(-15851.13, 14795.02)
+    bot.Dialogs.WithModel(6725, 0x832C07) #Lab Space turn in
+    #bot.Dialogs.WithModel(6725, 0x86) #Lab Space turn in
+    bot.Dialogs.WithModel(6725, 0x84) #Lab Space turn in
+    bot.Wait.ForMapToChange(target_map_name="Magus Stones")
+    bot.Move.XY(-18608.72, 16541.34) #just to get over the vine bridge    bot.Move.XY(-18794.00, 16287.00)
+    bot.Dialogs.AtXY(-18794.00, 16287.00, 0x832C07) #Lab Space Reward
+    bot.Move.XY(-20599, 14444) #portal to level 1
+    bot.Wait.ForMapLoad(target_map_id=658)
 
 def TheElusiveGolemancer(bot):
     bot.States.AddHeader("The Elusive Golemancer")
     #bot.Move.XY(-15946.10, 14596.89)
-    bot.Dialogs.AtXY(-15946.10, 14596.89, 0x86) #The Elusive Golemancer Entry
-    bot.Dialogs.AtXY(-15946.10, 14596.89, 0x84) #The Elusive Golemancer Entry
-    bot.Move.XY(-17745.97, 15428.50)
-    bot.Move.XY(-19058.36, 16374.06)
-    bot.Move.XY(-19842.83, 14895.14)
-    bot.Move.XY(-11381.00, 15598.00)
+    #bot.Dialogs.AtXY(-15946.10, 14596.89, 0x86) #The Elusive Golemancer Entry
+    #bot.Dialogs.AtXY(-15946.10, 14596.89, 0x84) #The Elusive Golemancer Entry
+    #bot.Move.XY(-17745.97, 15428.50)
+    #bot.Move.XY(-19058.36, 16374.06)
+    #bot.Move.XY(-19842.83, 14895.14)
+    #bot.Move.XY(-11381.00, 15598.00)
     bot.Wait.ForMapLoad(target_map_id=658) #The Elusive Golemancer Level 1
     ConfigureAggressiveEnv(bot)
     bot.Multibox.UseAllConsumables()
@@ -646,7 +661,7 @@ def TheElusiveGolemancer(bot):
     bot.Dialogs.AtXY(-14542.00, 12237.00, 0x81) #The Elusive Golemancer Activation
     bot.Move.XY(-17204.16, 8545.91)
     bot.Interact.WithGadgetAtXY(-17601.00, 8150.00)
-    bot.Wait.ForTime(30000)
+    bot.Wait.ForTime(20000)
     bot.Move.XY(-15960.14, 3309.37)
     bot.Move.XY(-13369.91, -965.44)
     bot.Interact.WithGadgetAtXY(-11737.00, -3710.00)
@@ -659,7 +674,9 @@ def TheElusiveGolemancer(bot):
     ConfigureAggressiveEnv(bot)
     bot.Multibox.UseAllConsumables()
     bot.Interact.WithGadgetAtXY(15979.00, -17531.00)
+    ConfigurePacifistEnv(bot)
     bot.Move.XY(18031.51, -13929.63)
+    bot.Move.XY(17886.86, -13218.39) #added 1 more to help prevent time out
     bot.Interact.WithGadgetAtXY(15551.00, -13705.00)
     bot.Wait.ForTime(3000)
     bot.Move.XY(15551.00, -13705.00)
@@ -669,35 +686,42 @@ def TheElusiveGolemancer(bot):
     bot.Move.XY(3035.53, -9450.54)
     bot.Move.XY(3485.59, -11380.60)
     bot.Move.XY(-229.00, -12033.00)
+    ConfigureAggressiveEnv(bot)
     bot.Dialogs.AtXY(-229.00, -12033.00, 0x84) #Golem worker n. 1
     bot.Move.XY(-2639.00, -15247.00)
     bot.Dialogs.AtXY(-2639.00, -15247.00, 0x84) #Golem worker n. 2
     bot.Move.XY(3833.00, -16855.00)
     bot.Dialogs.AtXY(3833.00, -16855.00, 0x84) #Golem worker n. 3
     bot.Move.XY(3042.09, -16940.08)
+    bot.Move.XY(2763.47, -17007.67)
     bot.Wait.ForTime(10000)
     bot.Move.XY(3348.06, -16214.14)
     bot.Wait.ForTime(10000)
+    ConfigurePacifistEnv(bot)
     bot.Move.XY(5107.97, -17710.35)
-    bot.Interact.WithItemAtXY(7701.87, -19207.43)
+    bot.Party.FlagAllHeroes(5413.07, -19400.44)
+    bot.Interact.WithItemAtXY(7701.87, -19207.43) #Flux Matrix ModelID is 22782 for when the Interact.WithModelID ever gets fixed.
     bot.Interact.WithGadgetAtXY(5356.00, -19374.00)
+    bot.Multibox.PixelStack()
     bot.Wait.ForTime(10000)
     bot.UI.Keybinds.DropBundle() # first spike
     bot.Interact.WithItemAtXY(5356.00, -19374.00)
     bot.Wait.ForTime(1000)
     bot.Interact.WithGadgetAtXY(5356.00, -19374.00)
+    bot.Multibox.PixelStack()
     bot.Wait.ForTime(10000)
     bot.UI.Keybinds.DropBundle() # second spike
     bot.Interact.WithItemAtXY(5356.00, -19374.00)
     bot.Wait.ForTime(1000)
     bot.Interact.WithGadgetAtXY(5356.00, -19374.00)
+    bot.Multibox.PixelStack()
     bot.Wait.ForTime(10000)
     bot.UI.Keybinds.DropBundle() # third spike
     bot.Move.XY(6882.36, -20769.41)
     bot.Move.XY(6566, -21425)
     bot.Wait.ForMapLoad(target_map_id=660) #The Elusive Golemancer Level 3
     ConfigureAggressiveEnv(bot)
-    bot.Multibox.UseAllConsumables()
+    bot.Multibox.UseAllConsumables() 
     bot.Move.XY(-12164.00, 10409.53)
     bot.Move.XY(-12584.28, 13570.28)
     bot.Move.XY(-15062.15, 16139.62)
