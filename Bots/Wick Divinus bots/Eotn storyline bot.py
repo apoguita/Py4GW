@@ -146,10 +146,13 @@ def CompleteTrackingTheNornbear(bot) -> None:
     bot.Map.Travel(target_map_name="Sifhalla") #Sifhalla
     ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(14353, 23905, 0x84) #Tracking the Nornbear
-    bot.Wait.ForMapLoad(target_map_id=678); bot.Wait.ForTime(2000) #Special Sifhalla Instance
-    bot.Move.XY(10388, 23888); bot.Wait.ForTime(8500); bot.Wait.UntilOnCombat #Fight the bear
+    bot.Wait.ForMapLoad(target_map_id=678)
+    bot.Wait.ForTime(2000) #Special Sifhalla Instance
+    bot.Move.XY(10388, 23888)
+    bot.Wait.ForTime(8500)
+    bot.Wait.UntilOnCombat() #Fight the bear
     bot.Wait.ForTime(40000)
-    bot.Wait.ForMapLoad(target_map_name="Sifhalla") #Wait to be ported back to Sifhalla
+    bot.Wait.ForMapToChange(target_map_name="Sifhalla") #Wait to be ported back to Sifhalla
     bot.Move.XYAndDialog(14353, 23905, 0x832807)
 
 def CompleteCurseOfTheNornbear(bot) -> None:
@@ -160,16 +163,18 @@ def CompleteCurseOfTheNornbear(bot) -> None:
     bot.Wait.ForMapLoad(target_map_id=653); bot.Wait.ForTime(2000)#Special Instance Map of Drakkar Lake
     bot.Multibox.UseAllConsumables() #Conset and pcons
     bot.Move.XY(2687.04, 22060.65)
-    bot.Move.XY(-2638, 20433)
-    bot.Move.XY(-5793, 15818)
+    bot.Move.XY(-4219.09, 15753.65)
+    bot.Move.XY(-5847.55, 15983.54) # spawn n. 1
     ConfigurePacifistEnv(bot)
     bot.Wait.ForTime(2000)
-    bot.Move.XY(8105, 14089)
-    ConfigurePacifistEnv(bot)
-    bot.Wait.ForTime(2000)
-    bot.Move.XY(4940, 6551)
+    bot.Move.XY(5057.13, 11991.58)
     ConfigureAggressiveEnv(bot)
-    bot.Wait.ForMapToChange(target_map_id=643)
+    bot.Move.XY(8105, 14089) # spawn n. 2
+    ConfigurePacifistEnv(bot)
+    bot.Wait.ForTime(2000)
+    bot.Move.XY(4940, 6551) # last spawn
+    ConfigureAggressiveEnv(bot)
+    bot.Wait.ForMapToChange(target_map_name="Sifhalla")
     #bot.Wait.ForTime(2000)
     bot.Move.XYAndDialog(14353, 23905, 0x838904) #Northern Allies
     bot.Dialogs.AtXY(14353, 23905, 0x89) #Olaf Olafson
@@ -200,6 +205,7 @@ def CompleteShrineOfRavenSpirit(bot) -> None:
     bot.Wait.UntilOutOfCombat()
     bot.Wait.ForTime(50500) #wait for destroyers
     bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-15390.30, 8431.98)
     bot.Dialogs.WithModel(6352, 0x832E07)
 
 def CompleteAGateTooFar(bot) -> None:
@@ -213,40 +219,58 @@ def CompleteAGateTooFar(bot) -> None:
     bot.Wait.ForTime(2000) #Special Instance Map for a Gate too far Level 1
     bot.Multibox.UseAllConsumables()
     bot.Move.XY(-6814, -2984)
-    bot.Move.XY(-3947, -226)
-    bot.Move.XY(-6545, 6730); bot.Wait.UntilOutOfCombat
-    bot.Move.XY(-7653, 5072); bot.Wait.UntilOutOfCombat
-    bot.Move.XY(-6282, 6545) #don't even waste time with the spirits
-    bot.Move.XY(-6334, -1712); bot.Wait.UntilOutOfCombat #tremor 1
-    bot.Move.XY(-8244, 576); bot.Wait.UntilOutOfCombat #tremor 2
-    bot.Move.XY(-10132, 807); bot.Wait.UntilOutOfCombat #tremor 3
-    bot.Move.XY(-13368, 1995); bot.Wait.UntilOutOfCombat #tremor 4
-    bot.Move.XY(-14761, 3282); bot.Wait.UntilOutOfCombat #tremor 5
-    bot.Move.XY(-15036, 5711); bot.Wait.UntilOutOfCombat #tremor 6
-    bot.Move.XY(-15976, 7767); bot.Wait.UntilOutOfCombat #tremor 7
-    bot.Move.XY(-18697, 9416); bot.Wait.UntilOutOfCombat #tremor 8
+    #bot.Move.XY(-3947, -226)
+    bot.Move.XY(-6210.46, 2775.17)
+    bot.Wait.ForTime(3000)
+    bot.Move.XY(-6290.02, 6468.10)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-7653, 5072)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-5552.50, 4293.89)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-6238.40, 6423.05)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-5155.56, 7489.18)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-6238.40, 6423.05)
+    bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForTime(30000) #ensure destroyers are dead
+    bot.Move.XY(-6282, 6545)
+    bot.Move.XY(-6334, -1712) #tremor 1
+    bot.Move.XY(-8244, 576) #tremor 2
+    bot.Move.XY(-10132, 807) #tremor 3
+    bot.Move.XY(-13368, 1995) #tremor 4
+    bot.Move.XY(-14761, 3282) #tremor 5
+    bot.Move.XY(-15036, 5711) #tremor 6
+    bot.Move.XY(-15976, 7767) #tremor 7
+    bot.Move.XY(-18697, 9416) #tremor 8
+    bot.Wait.ForTime(20000)
     bot.Move.XY(-20211, 9897)
-    bot.Wait.ForMapLoad(target_map_id=656); bot.Wait.ForTime(2000) #Special Instance Map for a Gate too far Level 2
-    bot.Multibox.UseAllConsumables() 
-    bot.Move.XY(17054, 6568); bot.Wait.UntilOutOfCombat
-    bot.Move.XY(13357, 11594); bot.Wait.UntilOutOfCombat
-    bot.Move.XY(11271, 17040); bot.Wait.UntilOutOfCombat
-    bot.Move.XY(5244, 17207); bot.Wait.UntilOutOfCombat
+    bot.Wait.ForMapLoad(target_map_id=656) #Special Instance Map for a Gate too far Level 2
+    bot.Multibox.UseAllConsumables()
+    bot.Move.XY(17054, 6568)
+    bot.Move.XY(13357, 11594)
+    bot.Move.XY(11271, 17040)
+    bot.Move.XY(5244, 17207)
     bot.Move.XY(3249, 17858)
-    bot.Wait.ForMapLoad(target_map_id=657); bot.Wait.ForTime(2000) #Special Instance Map for a Gate too far Level 3
-    bot.Multibox.UseAllConsumables() 
-    bot.Move.XY(6360, 16486); bot.Wait.UntilOutOfCombat
-    bot.Move.XY(5233, 12570); bot.Wait.UntilOutOfCombat
+    bot.Wait.ForMapLoad(target_map_id=657) #Special Instance Map for a Gate too far Level 3
+    bot.Multibox.UseAllConsumables()
+    bot.Move.XY(6360, 16486)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(5233, 12570)
+    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(6210, 10139)
-    bot.Move.XY(6716, 6344); bot.Wait.UntilOutOfCombat
-    bot.Move.XY(7702, 4015); bot.Wait.UntilOutOfCombat
-    bot.Move.XY(7510, 2854); bot.Wait.UntilOutOfCombat
-    bot.Wait.ForMapLoad(target_map_id=645); bot.Wait.ForTime(2000) #Olafstead
+    bot.Move.XY(6716, 6344)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(7702, 4015)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(7510, 2854)
+    #bot.Wait.UntilOutOfCombat()
+    bot.Wait.ForMapToChange(target_map_id=645) #Olafstead
 
 def AdvanceToLongeyeEdge(bot):
     bot.States.AddHeader("Advancing to Longeye's Edge")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
-    
     # Exit Gunnar's Hold outpost
     bot.Move.XY(15886.204101, -6687.815917)
     bot.Move.XY(15183.199218, -6381.958984)
