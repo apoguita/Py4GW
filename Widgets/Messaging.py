@@ -252,8 +252,9 @@ def Resign(index, message):
 
     # ConsoleLog(MODULE_NAME, f"Processing Resign message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
-    GLOBAL_CACHE.Player.SendChatCommand("resign")
-    yield from Routines.Yield.wait(100)
+    for i in range(2):
+        GLOBAL_CACHE.Player.SendChatCommand("resign")
+        yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info, False)
 
