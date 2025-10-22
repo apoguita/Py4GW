@@ -298,6 +298,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRangeArea = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -457,6 +459,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRangeArea = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -685,6 +689,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRangeArea = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -699,6 +705,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRangeArea = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
