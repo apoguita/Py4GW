@@ -174,7 +174,7 @@ class ElementalistSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Gust")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.OtherAlly.value
+        skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Buff.value
         skill_data[skill.SkillID] = skill
 
@@ -298,6 +298,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRangeArea = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -457,6 +459,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRangeArea = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -685,6 +689,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRangeArea = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -699,6 +705,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRangeArea = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
