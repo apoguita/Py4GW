@@ -1,47 +1,50 @@
-from Py4GWCoreLib import ImGui, GLOBAL_CACHE, TitleID
-import PyImGui, Py4GW
-import os
+from Py4GWCoreLib import *
+import PyImGui
+from Py4GW import Console
 
-MODULE_NAME = "Window Manipulator"
 
-title = "Hello World"
-def Draw_Window():  
-    global title
+
+MODULE_NAME = "Gw config Manager"
+class Preferences:
+    def __init__(self):
+        self.TextLanguage = ServerLanguage.English.value
+        self.AudioLanguage = ServerLanguage.English.value
+        self.ChatFilterLevel = 0  # setting not working
+        
+    def Load(self):
+        self.TextLanguage = UIManager.GetIntPreference(NumberPreference.TextLanguage.value)
+        self.AudioLanguage = UIManager.GetIntPreference(NumberPreference.AudioLanguage.value)
+        self.ChatFilterLevel = UIManager.GetIntPreference(NumberPreference.ChatFilterLevel.value)
+        
+    def GetTextLanguage(self) -> tuple[int, str]:
+        return self.TextLanguage, ServerLanguage(self.TextLanguage).name
+    
+    def SetTextLanguage(self, language: int):
+        self.TextLanguage = language
+        UIManager.SetIntPreference(NumberPreference.TextLanguage.value, language)
+        
+    def GetAudioLanguage(self) -> tuple[int, str]:
+        return self.AudioLanguage, ServerLanguage(self.AudioLanguage).name
+
+    def SetAudioLanguage(self, language: int):
+        self.AudioLanguage = language
+        UIManager.SetIntPreference(NumberPreference.AudioLanguage.value, language)
+        
+
+GwPreferences = Preferences()
+
+
+def Draw_Window():
+    GwPreferences.Load()
     if PyImGui.begin(MODULE_NAME, PyImGui.WindowFlags.AlwaysAutoResize):
-        # Free input field
-        title = PyImGui.input_text("Window Title", title, 0)
-        if PyImGui.button(f"set title to {title}"):
-            Py4GW.Console.set_window_title(title)
+        PyImGui.text(GwPreferences.GetTextLanguage()[1])
+        PyImGui.text(GwPreferences.GetAudioLanguage()[1])
+        
+        chat_filter_level = UIManager.GetEnumPreference(NumberPreference.ChatFilterLevel.value)
+        PyImGui.text("Chat Filter Level: " + str(chat_filter_level))
 
-        PyImGui.separator()
-        PyImGui.text("Quick test buttons:")
-
-        if PyImGui.button("Spanish José"):
-            Py4GW.Console.set_window_title("José")
-
-        if PyImGui.button("French élève"):
-            Py4GW.Console.set_window_title("Français – élève")
-
-        if PyImGui.button("German München"):
-            Py4GW.Console.set_window_title("München")
-
-        if PyImGui.button("Russian Москва"):
-            Py4GW.Console.set_window_title("Москва")
-
-        if PyImGui.button("Chinese 标题测试"):
-            Py4GW.Console.set_window_title("标题测试")
-
-        if PyImGui.button("Japanese 日本語テスト"):
-            Py4GW.Console.set_window_title("日本語テスト")
-
-        if PyImGui.button("Korean 한글 테스트"):
-            Py4GW.Console.set_window_title("한글 테스트")
-
-        if PyImGui.button("Emoji 🌍🚀🔥"):
-            Py4GW.Console.set_window_title("Hello 🌍🚀🔥")
 
     PyImGui.end()
-
 
 
 def main():

@@ -33,7 +33,7 @@ class BottingClass:
                  config_pause_on_danger: bool = False,
                  config_movement_timeout: int = 15000,
                  config_movement_tolerance: int = 150,
-                 config_draw_path: bool = True,
+                 config_draw_path: bool = False,
                  config_use_occlusion: bool = True,
                  config_snap_to_ground: bool = True,
                  config_snap_to_ground_segments: int = 8,
