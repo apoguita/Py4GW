@@ -13,9 +13,11 @@ def create_bot_routine(bot: Botting) -> None:
     free_slots_in_inventory = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
 
     iterations = free_slots_in_inventory * 83
-    bot.States.AddHeader(f"Collecting Mobstoppers: {iterations} Cycles")
+    bot.States.AddHeader(f"Mobstoppers {iterations} Cycles")
     for _ in range(iterations):
+        bot.States.AddHeader(f"Take and Abandon Quest")
         TakeQuest(bot)
+        bot.Wait.ForTime(1)
         AbandonQuest(bot)
 
     bot.States.AddHeader("Done")
@@ -36,7 +38,9 @@ def TakeQuest(bot: Botting) -> None:
 def AbandonQuest(bot: Botting):
     def _abandon_gen():
         bot.Quests.Abandon(QUEST_ID)
+
     bot.States.AddCustomState(_abandon_gen, "AbandonQuestState")
+
 
 bot.SetMainRoutine(create_bot_routine)
 
