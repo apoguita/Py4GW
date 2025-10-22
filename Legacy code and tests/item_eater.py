@@ -12,7 +12,17 @@ def eat_items(model_id: int, quantity: int):
         item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
         if item_id:
             GLOBAL_CACHE.Inventory.UseItem(item_id)
-            yield from Yield.wait(50)
+            yield from Routines.Yield.wait(50)
+            
+def exchange_pumpkins_for_pie(quantity: int):
+    for _ in range(quantity):
+        target = GLOBAL_CACHE.Player.GetTargetID()
+        GLOBAL_CACHE.Player.Interact(target, False)
+        yield from Routines.Yield.wait(250)
+        UIManager.ClickDialogButton(int(2))
+        yield from Routines.Yield.wait(100)
+        UIManager.ClickDialogButton(int(1))
+        yield from Routines.Yield.wait(100)
 
 
 
@@ -21,12 +31,20 @@ def main():
 
     if PyImGui.begin("item eater", PyImGui.WindowFlags.AlwaysAutoResize):
         quantity_to_consume = PyImGui.input_int("Quantity to eat", quantity_to_consume)
-        if PyImGui.button("eat hunters ale"):
-            GLOBAL_CACHE.Coroutines.append(eat_items(hunters_ale, quantity_to_consume))
+        if PyImGui.button("open tot bags"):
+            GLOBAL_CACHE.Coroutines.append(eat_items(ModelID.Trick_Or_Treat_Bag.value, quantity_to_consume))
+            
+        if PyImGui.button("exchange pumpkins for pie"):
+            GLOBAL_CACHE.Coroutines.append(exchange_pumpkins_for_pie(quantity_to_consume))
+            
         if PyImGui.button("eat sugary blue drink"):
             GLOBAL_CACHE.Coroutines.append(eat_items(sugary_blue_drink, quantity_to_consume))
-        if PyImGui.button("eat champagne popper"):
-            GLOBAL_CACHE.Coroutines.append(eat_items(champagne_popper, quantity_to_consume))
+            
+        if PyImGui.button("eat creme brulee"):
+            GLOBAL_CACHE.Coroutines.append(eat_items(ModelID.Creme_Brulee.value, quantity_to_consume))
+            
+        if PyImGui.button("eat fruitcake"):
+            GLOBAL_CACHE.Coroutines.append(eat_items(ModelID.Fruitcake.value, quantity_to_consume))
 
     PyImGui.end()
 

@@ -12,7 +12,6 @@ from Py4GWCoreLib.Builds import SF_Ass_vaettir
 from typing import List, Tuple
 
 bot = Botting("YAVB 2.0", 
-              config_draw_path=False,
               upkeep_birthday_cupcake_restock=1)
   
 def create_bot_routine(bot: Botting) -> None:
