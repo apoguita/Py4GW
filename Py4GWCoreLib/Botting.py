@@ -22,8 +22,6 @@ from .botting_src.subclases_src.MULTIBOX_src import _MULTIBOX
 from .botting_src.subclases_src.MERCHANT_src import _MERCHANTS
 from .botting_src.subclases_src.PLAYER_src import _PLAYER
 from .botting_src.subclases_src.TEMPLATES_src import _TEMPLATES
-from .botting_src.subclases_src.QUESTS_src import _QUESTS
-
 
 class BottingClass:
     def __init__(self, bot_name="DefaultBot",
