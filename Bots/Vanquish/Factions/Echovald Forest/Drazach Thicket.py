@@ -1,8 +1,9 @@
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Range, Utils, ConsoleLog
 import Py4GW
+import os
 
 BOT_NAME = "VQ Drazach Thicket"
-TEXTURE = Py4GW.Console.get_projects_path() + "//Vanquished_Helmet.png"
+TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "Vanquish", "VQ_Helmet.png")
 OUTPOST_TO_START = 222 #Eternal Grove Outpost
 COORDS_TO_EXIT_OUTPOST = (-7544,14343) #to Drazach Thicket
 EXPLORABLE_TO_VANQUISH = 195 #Drazach Thicket
