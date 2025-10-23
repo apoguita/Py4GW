@@ -1,8 +1,8 @@
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Range, Utils, ConsoleLog
 import Py4GW
-
+import os
 BOT_NAME = "VQ Ferndale"
-TEXTURE = Py4GW.Console.get_projects_path() + "//Vanquished_Helmet.png"
+TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "Vanquish", "VQ_Helmet.png")
 HZH= 77
 
 Vanquish_Path:list[tuple[float, float]] = [

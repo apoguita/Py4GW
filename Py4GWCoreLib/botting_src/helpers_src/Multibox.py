@@ -238,12 +238,13 @@ class _Multibox:
         
     def _resignParty(self):
         from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
         for account in accounts:
             ConsoleLog("Messaging", "Resigning account: " + account.AccountEmail, log=False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))
-        yield
+        yield from Routines.Yield.wait(500)
         
     def _pixel_stack(self):
         from ...GlobalCache import GLOBAL_CACHE
