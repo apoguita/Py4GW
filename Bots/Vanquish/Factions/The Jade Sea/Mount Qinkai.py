@@ -1,8 +1,8 @@
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Range, Utils, ConsoleLog
 import Py4GW
-
+import os
 BOT_NAME = "VQ Mount Qinkai"
-TEXTURE = Py4GW.Console.get_projects_path() + "//Vanquished_Helmet.png"
+TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "Vanquish", "VQ_Helmet.png")
 OUTPOST_TO_TRAVEL = 389 # Mount Qinkai outpost
 HZH= 193 # Cavalon for faction donation
 
