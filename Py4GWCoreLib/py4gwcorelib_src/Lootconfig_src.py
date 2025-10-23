@@ -264,6 +264,7 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
             ModelID.Feathered_Crest,
             ModelID.Feathered_Scalp,
             ModelID.Fetid_Carapace,
+            ModelID.Fetid_Mass,
             ModelID.Fibrous_Mandragor_Root,
             ModelID.Fiery_Crest,
             ModelID.Fledglin_Skree_Wing,
@@ -345,6 +346,7 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
             ModelID.Leather_Belt,
             ModelID.Leathery_Claw,
             ModelID.Losaru_Mane,
+            ModelID.Lustrous_Stone,
             ModelID.Luxon_Pendant,
         ],
         "M": [
@@ -427,6 +429,7 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
             ModelID.Spiked_Crest,
             ModelID.Spiny_Seed,
             ModelID.Stolen_Provisions,
+            ModelID.Stolen_Shipment,
             ModelID.Stolen_Supplies,
             ModelID.Stone_Carving,
             ModelID.Stone_Claw,

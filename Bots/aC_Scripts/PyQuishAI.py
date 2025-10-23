@@ -1,3 +1,10 @@
+import Py4GW
+import os
+projects_base_path = Py4GW.Console.get_projects_path()
+ac_folder_path = os.path.join(projects_base_path, "Bots", "aC_Scripts")
+os.chdir(ac_folder_path)
+#Py4GW.Console.change_working_directory(ac_folder_path)
+
 from Py4GWCoreLib import *
 from Widgets.Blessed import Get_Blessed
 from aC_api import *
@@ -341,6 +348,9 @@ def load_map_script():
         return
 
     spec = importlib.util.spec_from_file_location(bot_vars.selected_map, map_file)
+    if spec is None or spec.loader is None:
+        ConsoleLog(module_name, f"[ERROR] Failed to load map script: {map_file}", Console.MessageType.Error)
+        return
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 

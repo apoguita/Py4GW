@@ -1038,6 +1038,7 @@ class ModelID(IntEnum):
     Feathered_Scalp = 836
     Festival_Prize = 15478
     Fetid_Carapace = 479
+    Fetid_Mass = 1665
     Fiery_Crest = 508
     Fire_Drake_Mini = 34390
     Fire_Imp_Mini = 22764
@@ -1240,6 +1241,7 @@ class ModelID(IntEnum):
     Lunar_Fortune_2017_Rooster = 29434
     Lunar_Fortune_2018_Dog = 29435
     Lunar_Token = 21833
+    Lustrous_Stone = 1661
     Luxon_Key = 6538
     Luxon_Pendant = 810
     Luxon_Totem = 6048
@@ -1488,6 +1490,7 @@ class ModelID(IntEnum):
     Steel_Ingot = 949
     Steel_Key = 5967
     Stolen_Provisions = 851
+    Stolen_Shipment = 1424
     Stolen_Sunspear_Armor = 19191
     Stone_Carving = 820
     Stone_Claw = 27057

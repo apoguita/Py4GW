@@ -4,47 +4,39 @@ import PyImGui
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Silver_Bullion_Coin Farmer"
 MODEL_ID_TO_FARM = ModelID.Silver_Bullion_Coin
-OUTPOST_TO_TRAVEL = 376 # Camp Hojanur 
-COORD_TO_EXIT_MAP = (-13433, 17852) #Barbarous  shore
-EXPLORABLE_TO_TRAVEL =375 # Barbarous Shore             
+OUTPOST_TO_TRAVEL = 489 #kodlonu hamlet
+COORD_TO_EXIT_MAP = (4682, -3499)
+EXPLORABLE_TO_TRAVEL =488 #mehtani keys           
                 
-KILLING_PATH = [(-12032.38, 16223.01),
-                (-1282.05, 16592.38), #right corner
-                (206.77, 8098.54), #fork
-                (-3533.88, 10546.35), #around the rock to the left
-                (-4739.70, 6106.03), #res shrine
-                (196.85, 7709.82), #to fork road
-                (2310.37, 4956.57), #mesa
-                (3618.70, 4255.12), #mesa floodfill
-                (1313.10, 3630.13), #ff2
-                (3181.63, 1412.95), #ff3
-                (502.33, -215.21), #ff exit
-                (-3369.37, 537.74), #patrol
-                (-4430.59, 2131.17), #snake patrol 
-                (-7883.52, -1381.38), #fork betreen rocks
-                (-12002.93, -6489.35), #unavoidable rest
-                (-12751.13, -8924.20), #unavoidable 2
-                (-13193.59, -11212.24), #res shrine
-                (-12966.85, -13007.42),
-                (-17546.62, -15103.07), #corsair floodfill
-                (-17408.27, -18450.41),
-                (-13281.60, -18272.45),
-                (-13008.40, -16677.63), #bridge
-                (-15311.79, -15939.08),
-                (-12668.85, -15105.11),
-                (-8789.26, -13026.13), #next area
-                (-6526.41, -10307.15),
-                (-7327.67, -7865.69),
-                (-9237.68, -8668.41),
-                (-10193.92, -11620.16),
+KILLING_PATH = [(-15263.63, 8165.77),
+                (-14399.33, 4530.90),
+                (-10802.99, 1653.46),
+                (-6692.22, -1549.79),
+                (649.73, -3253.13), #nick location
+                (3150.80, -7789.69),
+                (6314.76, -8436.42), #in the middle
+                (7349.34, -9001.34),
+                
+                (4491.12, -4043.92),
+                (7491.48, -4150.04),
+                (8367.56, -8672.04),
+                (8469.15, -10911.50), #peninsula
+                (9045.15, -13585.27),
+                (6043.60, -12071.96),
+                (2907.86, -8912.01),
+                (-2650.41, -11715.51), #island
+                (-6825.53, -12234.29),
+                (-9029.79, -11572.72),
                 ]
 
-NICK_OUTPOST = 155 #Camp Rankor
-COORDS_TO_EXIT_OUTPOST =(5435, -40809)
-EXPLORABLE_AREA = 91 #snake dance
-NICK_COORDS = (-7176.39, -2448.33)
-
-
+NICK_OUTPOST = 489 #kodlonu hamlet
+COORDS_TO_EXIT_OUTPOST =(4682, -3499)
+EXPLORABLE_AREA = 488 #mehtani keys
+NICK_COORDS = [(-15263.63, 8165.77),
+                (-14399.33, 4530.90),
+                (-10802.99, 1653.46),
+                (-6692.22, -1549.79),
+                (649.73, -3253.13), ]
 
 bot = Botting(BOT_NAME)
                 
@@ -64,7 +56,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Templates.Multibox_Aggressive()
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=NICK_OUTPOST)
     bot.Move.XYAndExitMap(*COORDS_TO_EXIT_OUTPOST, EXPLORABLE_AREA)
-    bot.Move.XY(*NICK_COORDS)
+    bot.Move.FollowAutoPath(NICK_COORDS, step_name="Nicholas_the_Traveler_Location")
     bot.Wait.UntilOnOutpost()
 
 bot.SetMainRoutine(bot_routine)
