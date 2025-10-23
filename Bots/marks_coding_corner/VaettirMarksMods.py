@@ -498,6 +498,18 @@ def handle_stuck_jaga_moraine(bot: Botting):
 
         build: BuildMgr = bot.config.build_handler
 
+        instance_time = GLOBAL_CACHE.Map.GetInstanceUptime() / 1000  # Convert ms to seconds
+        if instance_time > 7 * 60:  # 7 minutes in seconds
+            ConsoleLog("HandleStuck", "Instance time exceeded 7 minutes, force resigning.", Py4GW.Console.MessageType.Debug, True)
+            stuck_counter = 0
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
+                build.SetStuckSignal(stuck_counter)
+
+            GLOBAL_CACHE.Player.SendChatCommand("resign")
+
+            yield from Routines.Yield.wait(500)
+            return
+
         # Waiting routine check
         if in_waiting_routine:
             ConsoleLog(

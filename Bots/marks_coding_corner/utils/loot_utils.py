@@ -45,6 +45,14 @@ VIABLE_LOOT = {
     ModelID.Monstrous_Eye,
     # Lockpick
     ModelID.Lockpick,
+    # Halloween
+    ModelID.Candy_Apple,
+    ModelID.Pumpkin_Cookie,
+    ModelID.Candy_Corn,
+    ModelID.Squash_Serum,
+    ModelID.Trick_Or_Treat_Bag,
+    ModelID.Vial_Of_Absinthe,
+    ModelID.Witchs_Brew,
 }
 
 
