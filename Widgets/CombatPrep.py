@@ -402,7 +402,7 @@ class CombatPrep:
                         GLOBAL_CACHE.ShMem.SendMessage(
                             sender_email,
                             account.AccountEmail,
-                            SharedCommandType.UseSkill,
+                            SharedCommandType.UseSkillCombatPrep,
                             (CombatPrepSkillsType.SpiritsPrep, 0, 0, 0),
                         )
 
@@ -450,7 +450,7 @@ class CombatPrep:
                         GLOBAL_CACHE.ShMem.SendMessage(
                             sender_email,
                             account.AccountEmail,
-                            SharedCommandType.UseSkill,
+                            SharedCommandType.UseSkillCombatPrep,
                             (CombatPrepSkillsType.ShoutsPrep, 0, 0, 0),
                         )
 

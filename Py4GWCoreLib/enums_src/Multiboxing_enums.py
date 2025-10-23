@@ -34,6 +34,7 @@ class SharedCommandType(IntEnum):
     RequestAttention = 29
     SetTransparentClickThrough = 30
     SetOpacity = 31
+    UseSkillCombatPrep = 998 #handled in CombatPrep only by Mark
     LootEx = 999 # privately Handled Command, by Frenkey
     
 
