@@ -899,6 +899,42 @@ def SetOpacity(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "SetOpacity message processed and finished.", Console.MessageType.Info, False)
 
+#region UseSkill
+def UseSkill(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing UseSkill message: {message}", Console.MessageType.Info, False)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    target = int(message.Params[0])
+    if target == 0:
+        ConsoleLog(MODULE_NAME, "Invalid target ID.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    
+    skill_id = int(message.Params[1])
+    skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id) 
+    
+    if skill_slot < 1 or skill_slot > 8:
+        ConsoleLog(MODULE_NAME, "Invalid skill slot.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    try:
+        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        is_skill_slot_usable = yield from Routines.Yield.Skills.IsSkillSlotUsable(skill_slot)
+        if is_skill_slot_usable:
+            yield from Routines.Yield.Skills.CastSkillSlot(slot=skill_slot, aftercast_delay=100)
+
+        ConsoleLog(MODULE_NAME, "UseSkill message processed and finished.", Console.MessageType.Info, False)
+    finally:
+        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+
 # region UseSkillFromMessage
 def UseSkillFromMessage(index, message):
     global combat_prep_first_skills_check
@@ -1070,7 +1106,7 @@ def ProcessMessages():
         case SharedCommandType.PickUpLoot:
             GLOBAL_CACHE.Coroutines.append(PickUpLoot(index, message))
         case SharedCommandType.UseSkill:
-            GLOBAL_CACHE.Coroutines.append(UseSkillFromMessage(index, message))
+            GLOBAL_CACHE.Coroutines.append(UseSkill(index, message))
         case SharedCommandType.Resign:
             GLOBAL_CACHE.Coroutines.append(Resign(index, message))
         case SharedCommandType.PixelStack:
@@ -1113,6 +1149,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(SetTransparentClickThrough(index, message))
         case SharedCommandType.SetOpacity:
             GLOBAL_CACHE.Coroutines.append(SetOpacity(index, message))
+        case SharedCommandType.UseSkillCombatPrep:
+            GLOBAL_CACHE.Coroutines.append(UseSkillFromMessage(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by Frenkey
             pass
