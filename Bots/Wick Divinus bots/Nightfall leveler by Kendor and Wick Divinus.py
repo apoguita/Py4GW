@@ -5,7 +5,7 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
                           AutoPathing, ImGui, ActionQueueManager)
 
 
-bot = Botting("NF Leveler",
+bot = Botting("Nightfall leveler by Kendor and Wick Divinus",
               upkeep_birthday_cupcake_restock=10,
               upkeep_honeycomb_restock=20,
               upkeep_war_supplies_restock=2,
