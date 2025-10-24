@@ -86,6 +86,15 @@ def on_imgui_render(me: int):
     global _running, _last_flag, _consumed
     global first_run_window, win_x, win_y, win_collapsed
 
+    # Show the widget only if HR is equipped
+    heroic_refrain_skill_id = GLOBAL_CACHE.Skill.GetID("Heroic_Refrain")
+    try:
+        slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(heroic_refrain_skill_id)
+    except IndexError:
+        pass
+    if not slot_number:
+        return
+
     # Restore window position & collapsed state on first run
     if first_run_window:
         PyImGui.set_next_window_pos(win_x, win_y)
