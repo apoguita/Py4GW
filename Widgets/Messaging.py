@@ -936,7 +936,7 @@ def UseSkill(index, message):
 
 
 # region UseSkillFromMessage
-def UseSkillFromMessage(index, message):
+def UseSkillCombatPrep(index, message):
     global combat_prep_first_skills_check
     global hero_ai_has_paragon_skills
     global hero_ai_has_ritualist_skills
@@ -1150,7 +1150,7 @@ def ProcessMessages():
         case SharedCommandType.SetOpacity:
             GLOBAL_CACHE.Coroutines.append(SetOpacity(index, message))
         case SharedCommandType.UseSkillCombatPrep:
-            GLOBAL_CACHE.Coroutines.append(UseSkillFromMessage(index, message))
+            GLOBAL_CACHE.Coroutines.append(UseSkillCombatPrep(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by Frenkey
             pass
