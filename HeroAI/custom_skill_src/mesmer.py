@@ -155,8 +155,9 @@ class MesmerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Empathy")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.EnemyMartial.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.IsAttacking = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -183,8 +184,9 @@ class MesmerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Guilt")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
-        skill.Nature = SkillNature.Offensive.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
+        skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -297,8 +299,9 @@ class MesmerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Shame")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
-        skill.Nature = SkillNature.Offensive.value
+        skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
+        skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -382,6 +385,7 @@ class MesmerSkills:
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.IsCasting = False
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -926,8 +930,9 @@ class MesmerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Spirit_Shackles")
         skill.SkillType = SkillType.Hex.value
-        skill.TargetAllegiance = Skilltarget.EnemyMartial.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.IsAttacking = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
