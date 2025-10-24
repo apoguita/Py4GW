@@ -1,6 +1,6 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, GLOBAL_CACHE, Routines, ActionQueueManager
 import PyImGui, Py4GW
-
+import os
 BOT_NAME = "Killroy Stoneskin"
 
 bot = Botting(BOT_NAME)
@@ -107,9 +107,8 @@ def configure():
 def main():
     bot.Update()
     draw_window(bot)
-    projects_path = Py4GW.Console.get_projects_path()
-    full_path = projects_path + "\\Widgets\\Config\\textures\\"
-    bot.UI.draw_window(icon_path=full_path + "Killroy-Art.png")
+    path = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "Leveling", "KillroyStoneskin","Kilroy Stonekins Punch-Out Extravaganza-art.png")
+    bot.UI.draw_window(icon_path=path)
 
 if __name__ == "__main__":
     main()

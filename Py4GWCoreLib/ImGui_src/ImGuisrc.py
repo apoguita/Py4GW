@@ -2804,7 +2804,20 @@ class ImGui:
         
     @staticmethod
     def ImageButton(caption: str, texture_path: str, width: float = 32.0, height: float = 32.0, disabled: bool = False, appearance: ControlAppearance = ControlAppearance.Default) -> bool:
-        return ImGui.image_button(caption, texture_path, width, height, disabled, appearance)
+        if disabled: 
+            PyImGui.begin_disabled(disabled)
+            
+        result = ImGui.overlay_instance.ImageButton(caption, texture_path, width, height, frame_padding=-1)
+        if PyImGui.is_item_hovered():
+            ImGui.show_tooltip(caption)
+            
+
+        if disabled:
+            PyImGui.end_disabled()
+            
+        return result
+    
+        #return ImGui.image_button(caption, texture_path, width, height, disabled, appearance)
 
     @staticmethod
     def ImageButtonExtended(caption: str, texture_path: str, size: tuple[float, float],
