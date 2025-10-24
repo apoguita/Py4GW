@@ -17,6 +17,12 @@ class StyleTheme(IntEnum):
     Contrast = 4
     Negative = 5
     
+class TextDecorator(IntEnum):
+    None_ = 0
+    Underline = 1
+    Strikethrough = 2
+    Highlight = 3
+    
 class StyleColorType(IntEnum):
     Default = 0
     Custom = 1
