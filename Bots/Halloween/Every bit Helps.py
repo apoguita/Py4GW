@@ -132,9 +132,17 @@ def draw_settings_ui():
 
 bot.UI.override_draw_config(lambda: draw_settings_ui())
 
+def withdraw_gold(target_gold=1000):
+    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+    if gold_on_char < target_gold:
+        to_withdraw = target_gold - gold_on_char
+        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
+        yield from Routines.Yield.wait(250)
 
 def GoToGrenthStatue():
     bot.States.AddHeader("Moving to Grenth Statue")
+    bot.States.AddCustomState(withdraw_gold, "Withdraw Gold")
     bot.Move.XY(*GRENTH_STATUE_POSITON, "Move to Grenth Statue")
 
 
