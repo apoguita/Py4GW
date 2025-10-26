@@ -3,7 +3,7 @@ from ..Overlay import Overlay
 from ..enums import get_texture_for_model, ImguiFonts
 from ..Py4GWcorelib import Color, ColorPalette, ConsoleLog, Utils
 from typing import TypeAlias, Optional
-from .types import ImGuiStyleVar, StyleTheme, ControlAppearance
+from .types import ImGuiStyleVar, StyleTheme, ControlAppearance, TextDecorator
 from .Style import Style
 from .Textures import ThemeTextures, TextureState
 from .WindowModule import WindowModule
@@ -103,6 +103,93 @@ class ImGui:
                 rect[1] <= mouse_pos[1] <= rect[1] + rect[3])
 
     @staticmethod
+    def get_clamped_to_displayport(
+        pos: tuple[float, float],
+        size: tuple[float, float],
+        min_visible_x: float | None = None,
+        min_visible_y: float | None = None,
+        *,
+        relative: bool = False,
+    ) -> tuple[float, float]:
+        """
+        Clamp a position and size so that it stays (mostly) visible within displayport bounds.
+        Optionally specify how much of the window must remain visible.
+
+        Args:
+            min_visible_x: minimal visible width in pixels or fraction (0–1).
+            min_visible_y: minimal visible height in pixels or fraction (0–1).
+            relative: if True, interpret min_visible_* as relative (0–1 of window size).
+
+        Returns:
+            New clamped (x, y) position tuple.
+        """        
+        x, y = pos
+        w, h = size
+        
+        py_io = PyImGui.get_io()
+        display_size_x = py_io.display_size_x
+        display_size_y = py_io.display_size_y
+
+        # Compute required visible margin in pixels
+        if min_visible_x is None:
+            min_visible_x = 0
+        if min_visible_y is None:
+            min_visible_y = 0
+
+        if relative:
+            min_visible_x = w * min_visible_x
+            min_visible_y = h * min_visible_y
+
+        # Ensure the window remains at least partially visible
+        min_x = -w + min_visible_x
+        min_y = -h + min_visible_y
+        max_x = display_size_x - min_visible_x
+        max_y = display_size_y - min_visible_y
+
+        # Clamp position
+        clamped_x = max(min_x, min(x, max_x))
+        clamped_y = max(min_y, min(y, max_y))
+        
+        return (clamped_x, clamped_y)
+            
+    @staticmethod
+    def is_window_within_displayport() -> bool:
+        pos = PyImGui.get_window_pos()
+        size = PyImGui.get_window_size()
+        
+        clamped_x, clamped_y = ImGui.get_clamped_to_displayport(pos=pos, size=size)        
+        return (clamped_x, clamped_y) != pos
+            
+    @staticmethod
+    def set_window_within_displayport(
+        min_visible_x: float | None = None,
+        min_visible_y: float | None = None,
+        cond: PyImGui.ImGuiCond = PyImGui.ImGuiCond.Always,
+        *,
+        relative: bool = False,
+    ):
+        """
+        Set a window position so that it stays (mostly) visible within display bounds.
+        Optionally specify how much of the window must remain visible.
+
+        Args:
+            min_visible_x: minimal visible width in pixels or fraction (0–1).
+            min_visible_y: minimal visible height in pixels or fraction (0–1).
+            relative: if True, interpret min_visible_* as relative (0–1 of window size).
+
+        Returns:
+            New clamped (x, y) position tuple.
+        """
+        
+        pos = PyImGui.get_window_pos()
+        size = PyImGui.get_window_size()
+        clamped_x, clamped_y = ImGui.get_clamped_to_displayport(pos=pos, size=size, min_visible_x=min_visible_x, min_visible_y=min_visible_y, relative=relative)
+        
+        if (clamped_x, clamped_y) != pos:
+            PyImGui.set_window_pos(clamped_x, clamped_y, cond)
+    
+
+    @staticmethod
     def _is_textured_theme() -> bool: return ImGui.get_style().Theme in ImGui.Textured_Themes
     
     @staticmethod
@@ -149,6 +236,60 @@ class ImGui:
     @staticmethod
     def new_line(): PyImGui.new_line()
     
+    
+    @staticmethod
+    def _draw_decorator(decorator : TextDecorator, color_int : int | None = None) -> None:
+        if decorator is TextDecorator.None_:
+            return
+        
+        item_rect_min = PyImGui.get_item_rect_min()
+        item_rect_max = PyImGui.get_item_rect_max()
+        font_size = PyImGui.get_text_line_height()
+        height = item_rect_max[1] - item_rect_min[1]
+        
+        match decorator:
+            case TextDecorator.Underline:
+                thickness = math.ceil(font_size / 14)
+                offset = thickness * 1.5
+                
+                PyImGui.draw_list_add_rect_filled(
+                    item_rect_min[0],
+                    item_rect_max[1] - offset,
+                    item_rect_max[0],
+                    item_rect_max[1] - offset + thickness,
+                    color_int if color_int else ImGui.get_style().Text.color_int,
+                    0,
+                    0,
+                )
+                
+            case TextDecorator.Strikethrough:
+                thickness = math.ceil(font_size / 14)
+                offset = thickness * 1.5
+                
+                PyImGui.draw_list_add_rect_filled(
+                    item_rect_min[0],
+                    item_rect_min[1] + (height / 2) - offset,
+                    item_rect_max[0],
+                    item_rect_min[1] + (height / 2) - offset + thickness,
+                    color_int if color_int else ImGui.get_style().Text.color_int,
+                    0,
+                    0,
+                )
+                
+            case TextDecorator.Highlight:
+                offset = math.ceil(font_size / 14)
+                
+                PyImGui.draw_list_add_rect_filled(
+                    item_rect_min[0] - offset,
+                    item_rect_min[1] - offset,
+                    item_rect_max[0] + offset,
+                    item_rect_max[1] + offset,
+                    color_int if color_int else ImGui.get_style().Text.opacify(0.2).color_int,
+                    0,
+                    0,
+                )
+                
+    
     @staticmethod
     def _with_font(fn, text: str, font_size: int | None = None, font_style: str | None = None) -> None:
         if font_style is None: font_style = "Regular"
@@ -159,6 +300,25 @@ class ImGui:
     @staticmethod
     def text(text: str, font_size: int | None = None, font_style: str | None = None) -> None:
         ImGui._with_font(PyImGui.text, text, font_size, font_style)
+
+    @staticmethod
+    def text_centered(text: str, width: float = 0, height: float = 0, font_size: int | None = None, font_style: str | None = None) -> None:
+        width = PyImGui.get_content_region_avail()[0] if width == 0 else width
+        
+        def _centered_text(text: str):
+            text_size = PyImGui.calc_text_size(text)
+            
+            if height > 0:
+                cursor_y = (height - text_size[1]) / 2
+                PyImGui.set_cursor_pos_y(cursor_y)
+                
+            if width >= 0:
+                cursor_x = (width - text_size[0]) / 2
+                PyImGui.set_cursor_pos_x(cursor_x)
+            
+            PyImGui.text(text)
+            
+        ImGui._with_font(_centered_text, text, font_size, font_style)        
 
     @staticmethod
     def text_disabled(text: str, font_size: int | None = None, font_style: str | None = None) -> None:
@@ -172,6 +332,25 @@ class ImGui:
     def text_colored(text : str, color: tuple[float, float, float, float], font_size : int | None = None, font_style: str | None = None):
         ImGui._with_font(lambda t: PyImGui.text_colored(t, color), text, font_size, font_style)
 
+    @staticmethod
+    def text_decorated(text: str, decorator : TextDecorator = TextDecorator.None_, font_size: int | None = None, font_style: str | None = None, color: tuple[float, float, float, float] | None = None) -> None:
+        decorator_color = Color.from_tuple(color) if color else (ImGui.get_style().TextSelectedBg if decorator == TextDecorator.Highlight else ImGui.get_style().Text)
+        is_highlight = decorator is TextDecorator.Highlight
+                              
+        if is_highlight:
+            ImGui._with_font(lambda t: PyImGui.text_colored(t, (1,0,0,1)), text, font_size, font_style)
+            ImGui._draw_decorator(decorator, decorator_color.color_int)
+            item_rect_min = PyImGui.get_item_rect_min()
+            PyImGui.set_cursor_screen_pos(item_rect_min[0], item_rect_min[1])
+                  
+        if color is not None:
+            ImGui._with_font(lambda t: PyImGui.text_colored(t, color), text, font_size, font_style)
+        else:
+            ImGui._with_font(PyImGui.text, text, font_size, font_style)
+            
+        if decorator is not TextDecorator.Highlight:
+            ImGui._draw_decorator(decorator, decorator_color.color_int)
+            
     @staticmethod
     def text_unformatted(text : str, font_size : int | None = None, font_style: str | None = None):
         ImGui._with_font(PyImGui.text_unformatted, text, font_size, font_style)
@@ -912,7 +1091,7 @@ class ImGui:
         x,y = item_rect_min
         display_label = label.split("##")[0]
 
-        button_rect = (x, y, width, height)
+        button_rect = (round(x), round(y), round(width), round(height))
         
         if not v:
             style.Text.push_color((180, 180, 180, 200))
@@ -975,7 +1154,16 @@ class ImGui:
             v = not v
         
         return v
-                                   
+               
+    @staticmethod
+    def image(texture_path: str, size: tuple[float, float],
+                            uv0: tuple[float, float] = (0.0, 0.0),
+                            uv1: tuple[float, float] = (1.0, 1.0),
+                            tint: tuple[int, int, int, int] = (255, 255, 255, 255),
+                            border_color: tuple[int, int, int, int] = (0, 0, 0, 0)):
+        
+        return ImGui.DrawTextureExtended(texture_path, size, uv0, uv1, tint, border_color)
+                         
     @staticmethod
     def image_button(label: str, texture_path: str, width: float=32, height: float=32, disabled: bool=False, appearance: ControlAppearance=ControlAppearance.Default) -> bool:
         #MATCHING IMGUI SIGNATURES AND USAGE
@@ -1916,10 +2104,20 @@ class ImGui:
     @staticmethod
     def search_field(label: str, text : str, placeholder: str = "Search...", flags : int = PyImGui.InputTextFlags.NoFlag) -> tuple[bool, str]:
         def _functions_tail():
-            if not PyImGui.is_item_active() and not PyImGui.is_item_focused() and not text:
+            if not PyImGui.is_item_active() and not PyImGui.is_item_focused() and not text:    
                 search_font_size = int(height * 0.25) + 1
                 padding = (height - search_font_size) / 2
                                     
+                                    
+                placeholder_rect = (item_rect[0] + current_frame_padding.value1, item_rect[1], inputfield_size[0] - (current_frame_padding.value1 * 2), inputfield_size[1])
+                PyImGui.push_clip_rect(
+                    placeholder_rect[0],
+                    placeholder_rect[1],
+                    placeholder_rect[2],
+                    placeholder_rect[3],
+                    False,
+                )
+                
                 ImGui.push_font("Regular", search_font_size)
                 search_icon_size = PyImGui.calc_text_size(IconsFontAwesome5.ICON_SEARCH)
                 PyImGui.draw_list_add_text(
@@ -1940,6 +2138,8 @@ class ImGui:
                         style.Text.color_int,
                         placeholder,
                     )
+                    
+                PyImGui.pop_clip_rect()
         #NON THEMED
         style = ImGui.get_style()
         current_frame_padding = style.FramePadding.get_current()
@@ -1956,6 +2156,10 @@ class ImGui:
             width = item_rect_max[0] - item_rect_min[0] - (label_size[0] + 8 if label_size[0] > 0 else 0)
             height = item_rect_max[1] - item_rect_min[1]
             item_rect = (item_rect_min[0], item_rect_min[1], width, height - 4)
+            
+            label_rect = (item_rect_max[0] - (label_size[0] if label_size[0] > 0 else 0), item_rect_min[1] + ((height - label_size[1]) / 2) + 2, label_size[0], label_size[1])
+            inputfield_size = ((label_rect[0] - current_inner_spacing.value1) - item_rect_min[0] , item_rect[3])
+        
             _functions_tail()
             return new_value != text, new_value
            
