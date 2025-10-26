@@ -913,10 +913,10 @@ def UseSkill(index, message):
         ConsoleLog(MODULE_NAME, "Invalid target ID.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    
+    yield from Routines.Yield.Agents.ChangeTarget(target)
     skill_id = int(message.Params[1])
-    skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id) 
-    
+    skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+
     if skill_slot < 1 or skill_slot > 8:
         ConsoleLog(MODULE_NAME, "Invalid skill slot.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -925,15 +925,64 @@ def UseSkill(index, message):
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
         yield from DisableHeroAIOptions(message.ReceiverEmail)
-        is_skill_slot_usable = yield from Routines.Yield.Skills.IsSkillSlotUsable(skill_slot)
-        if is_skill_slot_usable:
-            yield from Routines.Yield.Skills.CastSkillSlot(slot=skill_slot, aftercast_delay=100)
+        yield from Routines.Yield.Agents.ChangeTarget(target)
+        yield from Routines.Yield.Skills.CastSkillSlot(slot=skill_slot, aftercast_delay=0)
 
         ConsoleLog(MODULE_NAME, "UseSkill message processed and finished.", Console.MessageType.Info, False)
     finally:
         yield from RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
+# region UseItem (generic)
+def UseItem(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing UseItem message: {message}", Console.MessageType.Info, False)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    if len(message.Params) < 1:
+        ConsoleLog(MODULE_NAME, "UseItem: missing model_id param.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    try:
+        model_id = int(message.Params[0])
+    except Exception:
+        ConsoleLog(MODULE_NAME, "UseItem: invalid model_id.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    repeat = 1
+    if len(message.Params) > 1:
+        try:
+            repeat = max(1, int(message.Params[1]))
+        except Exception:
+            repeat = 1
+
+    count = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
+    if count < 1:
+        ConsoleLog(MODULE_NAME, f"UseItem: no items with model_id {model_id} in inventory.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    used = 0
+    for _ in range(repeat):
+        if GLOBAL_CACHE.Inventory.GetModelCount(model_id) < 1:
+            ConsoleLog(MODULE_NAME, "UseItem: out of items mid-loop, stopping.", Console.MessageType.Info)
+            break
+
+        item_id = GLOBAL_CACHE.Item.GetItemIdFromModelID(model_id)
+        if not item_id:
+            ConsoleLog(MODULE_NAME, f"UseItem: could not resolve item_id for model_id {model_id}.", Console.MessageType.Warning)
+            break
+
+        GLOBAL_CACHE.Inventory.UseItem(item_id)
+        used += 1
+        ConsoleLog(MODULE_NAME, f"UseItem: used item_id {item_id} (model {model_id}).", Console.MessageType.Info, False)
+
+        yield from Routines.Yield.wait(150)
+
+    ConsoleLog(MODULE_NAME, f"UseItem: finished. Requested {repeat}, actually used {used}.", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+# endregion
 
 # region UseSkillFromMessage
 def UseSkillCombatPrep(index, message):
@@ -1141,6 +1190,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(SetBorderless(index, message))
         case SharedCommandType.SetAlwaysOnTop:
             GLOBAL_CACHE.Coroutines.append(SetAlwaysOnTop(index, message))
+        case SharedCommandType.UseItem:
+            GLOBAL_CACHE.Coroutines.append(UseItem(index, message))
         case SharedCommandType.FlashWindow:
             GLOBAL_CACHE.Coroutines.append(FlashWindow(index, message))
         case SharedCommandType.RequestAttention:
