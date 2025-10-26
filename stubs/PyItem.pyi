@@ -138,6 +138,7 @@ class PyItem:
     value: int
     interaction: int
     model_id: int
+    model_file_id: int
     item_formula: int
     is_material_salvageable: int
     quantity: int

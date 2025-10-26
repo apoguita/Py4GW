@@ -1799,6 +1799,7 @@ class StateMachineVars:
 
 FSM_vars = StateMachineVars()
 
+#region Warrior
 #___________________________ WARRIOR LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
 FSM_vars.state_machine_warrior.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
@@ -1843,6 +1844,7 @@ FSM_vars.state_machine_warrior.AddState(name="CHECK NPC", execute_fn=lambda: han
 FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
 #END COMMON ROUTINE PART TWO
 
+#region Ranger
 #___________________________ RANGER LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
 FSM_vars.state_machine_ranger.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
@@ -1888,7 +1890,7 @@ FSM_vars.state_machine_ranger.AddState(name="TAKING QUEST", execute_fn=lambda: P
 FSM_vars.state_machine_ranger.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 #END COMMON ROUTINE PART TWO
 
-
+#region Monk
 #___________________________ MONK LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
 FSM_vars.state_machine_monk.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
@@ -1929,6 +1931,7 @@ FSM_vars.state_machine_monk.AddState(name="CHECK NPC", execute_fn=lambda: handle
 FSM_vars.state_machine_monk.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
 #END COMMON ROUTINE PART TWO
 
+#region Necromancer
 #___________________________ NECROMANCER LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
 FSM_vars.state_machine_necromancer.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
@@ -1973,6 +1976,7 @@ FSM_vars.state_machine_necromancer.AddState(name="CHECK NPC", execute_fn=lambda:
 FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
 #END COMMON ROUTINE PART TW0
 
+#region Mesmer
 #___________________________ MESMER LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
 FSM_vars.state_machine_mesmer.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
@@ -2017,6 +2021,7 @@ FSM_vars.state_machine_mesmer.AddState(name="CHECK NPC", execute_fn=lambda: hand
 FSM_vars.state_machine_mesmer.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
 #END COMMON ROUTINE PART TWO
 
+#region Elementalist
 #___________________________ ELEMENTALIST LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
 FSM_vars.state_machine_elementalist.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
