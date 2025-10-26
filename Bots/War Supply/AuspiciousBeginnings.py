@@ -67,10 +67,7 @@ def AcquireKieransBow(bot: Botting) -> None:
     def _acquire_keirans_bow(bot: Botting):
         if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(KIERANS_BOW):
             # Direct coroutine: interact with Gwen to take the bow
-            yield from bot.helpers.Move._get_path_to(-6583.00, 6672.00)
-            yield from bot.helpers.Move._follow_path()
-            yield from bot.helpers.Interact._with_agent((-6583.00, 6672.00), dialog_id=0x0000008A)
-
+            yield from bot.Move._coro_xy_and_dialog(-6583.00, 6672.00, dialog_id=0x0000008A)
         if not Routines.Checks.Inventory.IsModelEquipped(KIERANS_BOW):
             yield from bot.helpers.Items._equip(KIERANS_BOW)
 

@@ -344,9 +344,9 @@ def UnlockSecondaryProfession(bot: Botting) -> None:
         global bot
         primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         if primary == "Ranger":
-            yield from bot.helpers.Interact._with_agent((-92, 9217),0x813D0A)
+            yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0A)
         else:
-            yield from bot.helpers.Interact._with_agent((-92, 9217),0x813D0F)
+            yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0F)
 
     bot.States.AddHeader("Unlock Secondary Profession")
     bot.Move.XY(-159, 9174)
@@ -376,19 +376,19 @@ def RangerCapturePet(bot: Botting) -> Generator[Any, Any, None]:
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     #ConsoleLog("RangerCapturePet", f"Primary Profession: {primary}", Py4GW.Console.MessageType.Info)
     if primary != "Ranger": return
-    yield from bot.helpers.Move._get_path_to(-7782.00, 6687.00)
-    yield from bot.helpers.Move._follow_path()
-    yield from bot.helpers.Interact._with_agent((-7782.00, 6687.00), 0x810403) #Locate Sujun
-    yield from bot.helpers.Interact._with_agent((-7782.00, 6687.00), 0x810401) #Accept Quest
+    yield from bot.Move._coro_get_path_to(-7782.00, 6687.00)
+    yield from bot.Move._coro_follow_path_to()
+    yield from bot.Interact._coro_with_agent((-7782.00, 6687.00), 0x810403) #Locate Sujun
+    yield from bot.Interact._coro_with_agent((-7782.00, 6687.00), 0x810401) #Accept Quest
     yield from bot.helpers.UI._cancel_skill_reward_window()
 
 def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary != "Ranger": return
-    yield from bot.helpers.Move._get_path_to(5103.00, -4769.00)
-    yield from bot.helpers.Move._follow_path()
-    yield from bot.helpers.Interact._with_agent((5103.00, -4769.00), 0x810407) #npc to get skills from
-    yield from bot.helpers.Interact._with_agent((5103.00, -4769.00), 0x811401) #of course i will help
+    yield from bot.Move._coro_get_path_to(5103.00, -4769.00)
+    yield from bot.Move._coro_follow_path_to()
+    yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x810407) #npc to get skills from
+    yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x811401) #of course i will help
 
 
 def CapturePet(bot: Botting) -> None:

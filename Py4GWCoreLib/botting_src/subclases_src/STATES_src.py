@@ -12,7 +12,7 @@ class _STATES:
         self.coroutines: Dict[str, Callable[[], Any]] = {}   # queued, name -> factory or generator
 
     def AddCustomState(self, execute_fn, name: str) -> None:
-        self._config.FSM.AddYieldRoutineStep(name=name, coroutine_fn=execute_fn)
+        self._config.FSM.AddSelfManagedYieldStep(name=name, coroutine_fn=execute_fn)
 
     def AddHeader(self, step_name: str) -> None:
         self._helpers.States.insert_header_step(step_name)

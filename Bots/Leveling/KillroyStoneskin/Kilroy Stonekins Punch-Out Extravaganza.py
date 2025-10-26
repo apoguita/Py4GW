@@ -65,8 +65,7 @@ def _on_death(bot: "Botting"):
         max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(GLOBAL_CACHE.Player.GetAgentID())
         if max_energy >= 80: #we can go much higher but were dying too much, not worth the time
             bot.config.FSM.pause()
-            yield from bot.helpers.Map._travel(644)
-            yield from bot.helpers.Wait._for_map_load(644)
+            yield from bot.Map._coro_travel(644)
             bot.config.FSM.jump_to_state_by_name("[H]Killroy Stoneskin_1")
             bot.config.FSM.resume()
             yield from Routines.Yield.wait(1000)
