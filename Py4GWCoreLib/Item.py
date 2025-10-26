@@ -110,6 +110,11 @@ class Item:
         def GetModelID(item_id):
             """Purpose: Retrieve the model ID of an item by its ID."""
             return Item.item_instance(item_id).model_id
+        
+        @staticmethod
+        def GetModelFileID(item_id):
+            """Purpose: Retrieve the model file ID of an item by its ID."""
+            return Item.item_instance(item_id).model_file_id
 
         @staticmethod
         def GetSlot(item_id):

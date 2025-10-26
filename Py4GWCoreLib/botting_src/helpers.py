@@ -17,13 +17,10 @@ from functools import wraps
 from .helpers_src.decorators import _yield_step, _fsm_step
 from .helpers_src.States import _States
 from .helpers_src.Events import _Events
-from .helpers_src.Interact import _Interact
 from .helpers_src.Target import _Target
 from .helpers_src.Skills import _Skills
 from .helpers_src.Move import _Move
 from .helpers_src.Upkeepers import _Upkeepers
-from .helpers_src.Map import _Map
-from .helpers_src.Wait import _Wait
 from .helpers_src.Items import _Items
 from .helpers_src.Party import _Party
 from .helpers_src.Restock import _Restock
@@ -38,9 +35,7 @@ class BottingHelpers:
         self.parent = parent
         self._config = parent.config
         self.Events = _Events(self)
-        self.Interact = _Interact(self)
         self.Items = _Items(self)
-        self.Map = _Map(self)
         self.Merchant = _Merchant(self)
         self.Move = _Move(self)
         self.Multibox = _Multibox(self)
@@ -52,6 +47,5 @@ class BottingHelpers:
         self.Target = _Target(self)
         self.UI = _UI(self)
         self.Upkeepers = _Upkeepers(self)
-        self.Wait = _Wait(self)
 
     

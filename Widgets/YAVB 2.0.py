@@ -96,7 +96,6 @@ def JagaMoraineFarmRoutine(bot: Botting) -> None:
     (8684, -20833), (8982, -20576),]
     bot.States.AddHeader("Wait for Left Aggro Ball")
     _follow_and_wait(path, "Left Aggro Ball")
-    bot.Move.FollowPath(path)
 
     path: List[Tuple[float, float]] = [(10196, -20124), (10123, -19529),(10049, -18933), ]
     _follow_and_wait(path, "log side packs", cycle_timeout=75)
