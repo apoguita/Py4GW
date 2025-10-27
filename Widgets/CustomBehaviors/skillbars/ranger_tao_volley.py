@@ -9,6 +9,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
 from Widgets.CustomBehaviors.skills.common.breath_of_the_great_dwarf_utility import BreathOfTheGreatDwarfUtility
+from Widgets.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
 from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_honor_utility import EbonBattleStandardOfHonorUtility
 from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
 from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
@@ -55,6 +56,7 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
         self.signet_of_return_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Signet_of_Return"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
+        self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
 
     
     @property
@@ -74,7 +76,8 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.jagged_strike_utility,
             self.fox_fangs_utility,
             self.death_blossom_utility,
-            self.signet_of_return_utility
+            self.signet_of_return_utility,
+            self.by_urals_hammer_utility,
         ]
 
     @property

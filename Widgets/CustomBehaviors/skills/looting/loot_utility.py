@@ -2,6 +2,8 @@ import math
 from tkinter.constants import N
 from typing import Any, Generator, override
 
+import PyImGui
+
 from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
 from Py4GWCoreLib.enums import SharedCommandType
@@ -137,3 +139,9 @@ class LootUtility(CustomSkillUtilityBase):
 
         yield from custom_behavior_helpers.Helpers.wait_for(100)
         return BehaviorResult.ACTION_PERFORMED
+
+    @override
+    def customized_debug_ui(self, current_state: BehaviorState) -> None:
+        PyImGui.bullet_text(f"is_in_stuck_cooldown : {self.stuck_cooldown_timer.IsInCooldown()}")
+        PyImGui.bullet_text(f"loot_array : {LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)}")
+        return

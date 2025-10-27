@@ -117,6 +117,7 @@ class Resources:
         valid_chest_ids = [
             GadgetModelID.CHEST_DUNGEON_SECRET_LAIR_OF_THE_SNOWMAN.value,
             GadgetModelID.CHEST_DUNGEON_BOGROOT_GROWTHS.value,
+            GadgetModelID.CHEST_DUNGEON_SLAVERS_EXILE_JUSTICIAR_THOMMIS_ROOM.value,
         ]
 
         gadget_array = AgentArray.GetGadgetArray()
@@ -767,8 +768,8 @@ class Targets:
             range_to_count_enemies: float | None = None) -> list[SortableAgentData]:
         
         agent_ids: list[int] = GLOBAL_CACHE.AgentArray.GetEnemyArray()
-        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         agent_ids = AgentArray.Filter.ByDistance(agent_ids, source_agent_pos, within_range)
+        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         if condition is not None: agent_ids = AgentArray.Filter.ByCondition(agent_ids, condition)
 
         def build_sortable_array(agent_id):

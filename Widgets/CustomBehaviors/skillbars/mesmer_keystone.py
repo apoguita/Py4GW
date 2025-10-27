@@ -1,5 +1,7 @@
 from typing import override
 
+from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -13,61 +15,58 @@ from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utilit
 from Widgets.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
 from Widgets.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
 from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
+from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Widgets.CustomBehaviors.skills.generic.raw_aoe_attack_utility import RawAoeAttackUtility
-from Widgets.CustomBehaviors.skills.mesmer.arcane_echo_utility import ArcaneEchoUtility
 from Widgets.CustomBehaviors.skills.mesmer.cry_of_frustration_utility import CryOfFrustrationUtility
 from Widgets.CustomBehaviors.skills.mesmer.cry_of_pain_utility import CryOfPainUtility
 from Widgets.CustomBehaviors.skills.mesmer.drain_enchantment_utility import DrainEnchantmentUtility
+from Widgets.CustomBehaviors.skills.mesmer.keystone_signet_utility import KeystoneSignetUtility
 from Widgets.CustomBehaviors.skills.mesmer.mistrust_utility import MistrustUtility
 from Widgets.CustomBehaviors.skills.mesmer.power_drain_utility import PowerDrainUtility
 from Widgets.CustomBehaviors.skills.mesmer.shatter_enchantment_utility import ShatterEnchantmentUtility
 from Widgets.CustomBehaviors.skills.mesmer.shatter_hex_utility import ShatterHexUtility
-from Widgets.CustomBehaviors.skills.mesmer.spiritual_pain_utility import SpiritualPainUtility
+from Widgets.CustomBehaviors.skills.mesmer.signet_under_keystone_utility import SignetUnderKeystoneUtility
 from Widgets.CustomBehaviors.skills.mesmer.unnatural_signet_utility import UnnaturalSignetUtility
 from Widgets.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
+from Widgets.CustomBehaviors.skills.mesmer.spiritual_pain_utility import SpiritualPainUtility
 
-class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
+class MesmerKeystone_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     def __init__(self):
         super().__init__()
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
-        # interrupt
-        self.cry_of_pain_utility: CustomSkillUtilityBase = CryOfPainUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(90))
-        self.cry_of_frustration_utility: CustomSkillUtilityBase = CryOfFrustrationUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(91))
-        self.power_drain_utility: CustomSkillUtilityBase = PowerDrainUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(92))
+        # core
+        self.symbolic_celerity_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Symbolic_Celerity"), current_build=in_game_build, score_definition=ScoreStaticDefinition(85), renew_before_expiration_in_milliseconds=1500, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
+        self.symabolic_posture_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Symbolic_Posture"), current_build=in_game_build, score_definition=ScoreStaticDefinition(84), renew_before_expiration_in_milliseconds=1500, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
+        self.keystone_signet_utility: CustomSkillUtilityBase = KeystoneSignetUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(83))
 
-        # hex
-        self.mistrust_utility: CustomSkillUtilityBase = MistrustUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 70 if enemy_qte >= 3 else 40 if enemy_qte <= 2 else 0), mana_required_to_cast=10)
-        self.unnatural_signet_utility: CustomSkillUtilityBase = UnnaturalSignetUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 90 if enemy_qte >= 2 else 40 if enemy_qte <= 2 else 0))
+        # signets
 
-        #shatter/drain
-        self.shatter_hex_utility: CustomSkillUtilityBase = ShatterHexUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 95 if enemy_qte >= 2 else 20))
-        self.shatter_enchantment_utility: CustomSkillUtilityBase = ShatterEnchantmentUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.drain_enchantment_utility: CustomSkillUtilityBase = DrainEnchantmentUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(89))
+        self.unnatural_signet_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
+            event_bus=self.event_bus, skill=CustomSkill("Unnatural_Signet"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 75 if enemy_qte >= 2 else 40 if enemy_qte <= 2 else 0),
+            condition = lambda agent_id: GLOBAL_CACHE.Agent.IsHexed(agent_id))
+        
+        self.signet_of_clumsiness_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
+            event_bus=self.event_bus, skill=CustomSkill("Signet_of_Clumsiness"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 76 if enemy_qte >= 2 else 41 if enemy_qte <= 2 else 0),
+            condition = lambda agent_id: GLOBAL_CACHE.Agent.IsAttacking(agent_id))
+        
+        self.signet_of_disruption_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
+            event_bus=self.event_bus, skill=CustomSkill("Signet_of_Disruption"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 77 if enemy_qte >= 2 else 42 if enemy_qte <= 2 else 0),
+            condition = lambda agent_id: 
+            (
+                (GLOBAL_CACHE.Agent.IsCasting(agent_id) and GLOBAL_CACHE.Skill.Flags.IsSpell(GLOBAL_CACHE.Agent.GetCastingSkill(agent_id) and GLOBAL_CACHE.Skill.Data.GetActivation(GLOBAL_CACHE.Agent.GetCastingSkill(agent_id)) >= 0.200))
+                or
+                (GLOBAL_CACHE.Agent.IsCasting(agent_id) and GLOBAL_CACHE.Agent.IsHexed(agent_id) and GLOBAL_CACHE.Skill.Data.GetActivation(GLOBAL_CACHE.Agent.GetCastingSkill(agent_id)) >= 0.200))
+            )
 
         # aoe
-        self.energy_surge_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Energy_Surge"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 80 if enemy_qte >= 3 else 52 if enemy_qte <= 2 else 0), mana_required_to_cast=12)
-        self.overload_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Overload"), current_build=in_game_build, mana_required_to_cast=15)
-        self.chaos_storm_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Chaos_Storm"), current_build=in_game_build, mana_required_to_cast=15)
-        self.wastrels_demise_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Wastrels_Demise"), current_build=in_game_build, mana_required_to_cast=15)
+        self.wastrels_demise_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Wastrels_Demise"), current_build=in_game_build, mana_required_to_cast=10)
         self.spiritual_pain_utility: CustomSkillUtilityBase = SpiritualPainUtility(event_bus=self.event_bus, current_build=in_game_build, mana_required_to_cast=10)
 
         # utilities
-        self.energy_tap_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Energy_Tap"), current_build=in_game_build, score_definition=ScoreStaticDefinition(85))
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
-        
-        self.arcane_echo_utility: CustomSkillUtilityBase = ArcaneEchoUtility(
-            event_bus=self.event_bus, 
-            current_build=in_game_build, 
-            original_skill_to_copy= self.energy_surge_utility, 
-            new_copied_instance= RawAoeAttackUtility(
-                event_bus=self.event_bus, 
-                skill=CustomSkill("Energy_Surge"), 
-                current_build=in_game_build, 
-                score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 80 if enemy_qte >= 3 else 50 if enemy_qte <= 2 else 0), 
-                mana_required_to_cast=12),
-            arcane_echo_score_definition=ScoreStaticDefinition(82))
+        self.drain_enchantment_utility: CustomSkillUtilityBase = DrainEnchantmentUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(89))
 
         #common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
@@ -82,29 +81,14 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
     @override
     def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
-            self.cry_of_pain_utility,
-            self.cry_of_frustration_utility,
-
-            self.shatter_hex_utility,
-            self.shatter_enchantment_utility,
-            self.drain_enchantment_utility,
-
-            self.mistrust_utility,
-            self.unnatural_signet_utility,
-
-            self.energy_surge_utility,
-            self.overload_utility,
-            self.chaos_storm_utility,
             self.wastrels_demise_utility,
             self.spiritual_pain_utility,
-
-            self.power_drain_utility,
-
-            self.energy_tap_utility,
-            self.overload_utility,
-
-            self.fall_back_utility,
-            self.arcane_echo_utility,
+            self.symbolic_celerity_utility,
+            self.symabolic_posture_utility,
+            self.keystone_signet_utility,
+            self.signet_of_clumsiness_utility,
+            self.unnatural_signet_utility,
+            self.signet_of_disruption_utility,
 
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
@@ -113,11 +97,12 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.by_urals_hammer_utility,
             self.flesh_of_my_flesh_utility,
             self.signet_of_return_utility,
+            self.fall_back_utility,
         ]
 
     @property
     @override
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
-            self.energy_surge_utility.custom_skill,
+            self.keystone_signet_utility.custom_skill,
         ]

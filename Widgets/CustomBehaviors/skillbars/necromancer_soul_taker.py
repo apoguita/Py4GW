@@ -13,34 +13,24 @@ from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utilit
 from Widgets.CustomBehaviors.skills.common.great_dwarf_weapon_utility import GreatDwarfWeaponUtility
 from Widgets.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
 from Widgets.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
+from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Widgets.CustomBehaviors.skills.necromancer.blood_bond_utility import BloodBondUtility
-from Widgets.CustomBehaviors.skills.necromancer.blood_is_power_utility import BloodIsPowerUtility
 from Widgets.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import SignetOfLostSoulsUtility
 from Widgets.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
-from Widgets.CustomBehaviors.skills.ritualist.mend_body_and_soul_utility import MendBodyAndSoulUtility
-from Widgets.CustomBehaviors.skills.ritualist.life_utility import LifeUtility
-from Widgets.CustomBehaviors.skills.ritualist.protective_was_kaolai_utility import ProtectiveWasKaolaiUtility
-from Widgets.CustomBehaviors.skills.ritualist.soothing_memories_utility import SoothingMemoriesUtility
-from Widgets.CustomBehaviors.skills.ritualist.spirit_light_utility import SpiritLightUtility
-from Widgets.CustomBehaviors.skills.ritualist.spirit_transfer_utility import SpiritTransferUtility
 
 
-class NecromancerBipRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
+class NecromancerSoulTaker_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     def __init__(self):
         super().__init__()
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # core skills
-        self.blood_is_power_utility: CustomSkillUtilityBase = BloodIsPowerUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(33))
-        self.spirit_light_utility: CustomSkillUtilityBase = SpiritLightUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
-        self.mend_body_and_soul_utility: CustomSkillUtilityBase = MendBodyAndSoulUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(7))
-        self.soothing_memories_utility: CustomSkillUtilityBase = SoothingMemoriesUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(6))
-        self.protective_was_kaolai_utility: CustomSkillUtilityBase = ProtectiveWasKaolaiUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(7))
+        self.soul_taker_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Soul_Taker"), current_build=in_game_build, score_definition=ScoreStaticDefinition(90))
+        self.masochism_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Masochism"), current_build=in_game_build, score_definition=ScoreStaticDefinition(89))
+        self.dark_aura: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Dark_Aura"), current_build=in_game_build, score_definition=ScoreStaticDefinition(88))
 
         # optional
-        self.life_utility: CustomSkillUtilityBase = LifeUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(5))
-        self.spirit_transfer_utility: CustomSkillUtilityBase = SpiritTransferUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
         self.great_dwarf_weapon_utility: CustomSkillUtilityBase = GreatDwarfWeaponUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(30))
         self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
         self.blood_bond_utility: CustomSkillUtilityBase = BloodBondUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 25 if enemy_qte >= 2 else 0), mana_required_to_cast=15)
@@ -54,20 +44,12 @@ class NecromancerBipRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.signet_of_lost_souls_utility: CustomSkillUtilityBase = SignetOfLostSoulsUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
 
-
     @property
     @override
     def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
-            self.blood_is_power_utility,
             self.great_dwarf_weapon_utility,
             self.breath_of_the_great_dwarf_utility,
-            self.spirit_light_utility,
-            self.mend_body_and_soul_utility,
-            self.soothing_memories_utility,
-            self.protective_was_kaolai_utility,
-            self.life_utility,
-            self.spirit_transfer_utility,
             self.flesh_of_my_flesh_utility,
             self.blood_bond_utility,
             self.ebon_vanguard_assassin_support,
@@ -76,11 +58,14 @@ class NecromancerBipRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.fall_back_utility,
             self.signet_of_lost_souls_utility,
             self.by_urals_hammer_utility,
+            self.soul_taker_utility,
+            self.masochism_utility,
+            self.dark_aura,
         ]
 
     @property
     @override
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
-            self.blood_is_power_utility.custom_skill,
+            self.dark_aura.custom_skill,
         ]

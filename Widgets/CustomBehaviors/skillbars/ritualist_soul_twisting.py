@@ -10,6 +10,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
 from Widgets.CustomBehaviors.skills.common.breath_of_the_great_dwarf_utility import BreathOfTheGreatDwarfUtility
+from Widgets.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
 from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
 from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
 from Widgets.CustomBehaviors.skills.common.great_dwarf_weapon_utility import GreatDwarfWeaponUtility
@@ -50,11 +51,7 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.spirits_gift_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Spirits_Gift"), current_build=in_game_build, score_definition=ScoreStaticDefinition(75), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
-    
-    @property
-    @override
-    def complete_build_with_generic_skills(self) -> bool:
-        return False # because I'm playing it myself
+        self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
     
     @property
     @override
@@ -77,6 +74,7 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.fall_back_utility,
             self.great_dwarf_weapon_utility,
             self.spirits_gift_utility,
+            self.by_urals_hammer_utility,
         ]
 
     @property

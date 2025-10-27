@@ -8,6 +8,7 @@ from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.skills.assassin.disrupting_dagger_utility import DisruptingDaggerUtility
 from Widgets.CustomBehaviors.skills.assassin.shroud_of_distress_utility import ShroudOfDistressUtility
+from Widgets.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
 from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_honor_utility import EbonBattleStandardOfHonorUtility
 from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
 from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
@@ -38,12 +39,8 @@ class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.ebon_battle_standard_of_honor_utility: CustomSkillUtilityBase = EbonBattleStandardOfHonorUtility(event_bus=self.event_bus, score_definition=ScorePerAgentQuantityDefinition(lambda agent_qte: 45 if agent_qte >= 3 else 35 if agent_qte <= 2 else 25), current_build=in_game_build,  mana_required_to_cast=15)
         self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(event_bus=self.event_bus, score_definition=ScorePerAgentQuantityDefinition(lambda agent_qte: 45 if agent_qte >= 3 else 35 if agent_qte <= 2 else 25), current_build=in_game_build, mana_required_to_cast=18)
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
+        self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
 
-    @property
-    @override
-    def complete_build_with_generic_skills(self) -> bool:
-        return True # because I'm playing it myself
-    
     @property
     @override
     def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
@@ -62,6 +59,7 @@ class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.jagged_strike_utility,
             self.fox_fangs_utility,
             self.death_blossom_utility,
+            self.by_urals_hammer_utility,
         ]
 
     @property

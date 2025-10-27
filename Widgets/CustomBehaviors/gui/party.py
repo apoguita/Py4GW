@@ -1,21 +1,64 @@
 import os
 import pathlib
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
+from Py4GWCoreLib.Overlay import Overlay
+
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import Utils
 from Py4GWCoreLib.enums import SharedCommandType
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-from Widgets.CustomBehaviors.primitives.parties.party_commands import PartyCommands
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
-from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
+from Widgets.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
 from Widgets.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
+from Widgets.CustomBehaviors.primitives.parties.party_flagging_manager import PartyFlaggingManager
+from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
 py4gw_root_directory = project_root + f"\\..\\..\\"
+
+def draw_party_target_vertical_line() -> None:
+    """Draw a vertical indicator for the Party Custom Target only:
+    - 3D pillar at the target position (world-space)
+    - Screen-space vertical line aligned with the target's screen X, clamped to screen edges
+    Draws nothing if no party custom target is set or it's invalid.
+    """
+    try:
+        target_id = CustomBehaviorParty().get_party_custom_target()
+        if not target_id or not GLOBAL_CACHE.Agent.IsValid(target_id):
+            return
+
+        tx, ty, _ = GLOBAL_CACHE.Agent.GetXYZ(target_id)
+
+        ov = Overlay()
+        ov.BeginDraw()
+        color = Utils.RGBToColor(255, 255, 0, 200)  # semi-opaque yellow
+
+        # 1) 3D vertical pillar (from ground Z upwards)
+        gz = Overlay().FindZ(tx, ty, 0)
+        ov.DrawLine3D(tx, ty, gz, tx, ty, gz - 250, color, thickness=3.0)
+
+        # 2) Screen-space vertical line.
+        sx, _ = Overlay.WorldToScreen(tx, ty, gz)
+        disp_w, disp_h = ov.GetDisplaySize()
+        try:
+            sx_i = int(sx)
+        except Exception:
+            sx_i = 0
+        if disp_w is None or disp_h is None:
+            disp_w, disp_h = 1920, 1080  # fallback
+        if sx_i < 0:
+            sx_i = 0
+        elif sx_i >= disp_w:
+            sx_i = disp_w - 1
+        ov.DrawLine(sx_i, 0, sx_i, disp_h, color, thickness=3.0)
+
+        ov.EndDraw()
+    except Exception:
+        pass
 
 @staticmethod
 def render():
@@ -70,7 +113,7 @@ def render():
         ImGui.show_tooltip("enable following")
     PyImGui.pop_style_var(1)
     PyImGui.pop_style_color(1)
-    
+
     PyImGui.same_line(0, 10)
 
     if shared_data.is_looting_enabled:
@@ -141,14 +184,13 @@ def render():
 
     PyImGui.separator()
 
-
     if GLOBAL_CACHE.Map.IsExplorable():
 
         if PyImGui.tree_node_ex("[EXPLORABLE] Feature across party :", PyImGui.TreeNodeFlags.DefaultOpen):
 
             if CustomBehaviorParty().is_ready_for_action():
                 if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_FALLING} Resign"):
-                    CustomBehaviorParty().schedule_action(PartyCommands.resign)
+                    CustomBehaviorParty().schedule_action(PartyCommandConstants.resign)
             else:
                 if PyImGui.button(f"waiting..."):
                     pass
@@ -156,7 +198,7 @@ def render():
 
             if CustomBehaviorParty().is_ready_for_action():
                 if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_MILITARY_POINTING} Interract with target"):
-                    CustomBehaviorParty().schedule_action(PartyCommands.interract_with_target)
+                    CustomBehaviorParty().schedule_action(PartyCommandConstants.interract_with_target)
             else:
                 if PyImGui.button(f"waiting..."):
                     pass
@@ -171,23 +213,24 @@ def render():
                 PyImGui.same_line(0, 10)
                 PyImGui.text(f"id:{CustomBehaviorParty().get_party_custom_target()}")
 
+
+
             PyImGui.tree_pop()
 
             # PyImGui.separator()
 
-
     if GLOBAL_CACHE.Map.IsOutpost():
         if PyImGui.tree_node_ex("[OUTPOST] Feature across party :", PyImGui.TreeNodeFlags.DefaultOpen):
-    
+
             if CustomBehaviorParty().is_ready_for_action():
                 if PyImGui.button(f"{IconsFontAwesome5.ICON_PLANE} summon all to current map"):
-                    CustomBehaviorParty().schedule_action(PartyCommands.summon_all_to_current_map)
+                    CustomBehaviorParty().schedule_action(PartyCommandConstants.summon_all_to_current_map)
             else:
                 if PyImGui.button(f"waiting..."):
                     pass
             ImGui.show_tooltip("Ask all other open GW windows to travel to current map.")
             ImGui.show_tooltip(f"----------------------------")
-            
+
             account_email = GLOBAL_CACHE.Player.GetAccountEmail()
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
@@ -199,7 +242,7 @@ def render():
                         continue
                     total_count += 1
                     is_in_map = (self_account.MapID == account.MapID and self_account.MapRegion == account.MapRegion and self_account.MapDistrict == account.MapDistrict)
-                    if is_in_map : 
+                    if is_in_map :
                         ImGui.show_tooltip(f"{account.CharacterName} - In the current map")
                         count_in_map+=1
                     else : ImGui.show_tooltip(f"{account.CharacterName} - In {GLOBAL_CACHE.Map.GetMapName(account.MapID)}")
@@ -211,7 +254,7 @@ def render():
 
             if CustomBehaviorParty().is_ready_for_action():
                 if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_CIRCLE_PLUS} Invite all to leader party"):
-                    CustomBehaviorParty().schedule_action(PartyCommands.invite_all_to_leader_party)
+                    CustomBehaviorParty().schedule_action(PartyCommandConstants.invite_all_to_leader_party)
             else:
                 if PyImGui.button(f"waiting..."):
                     pass
@@ -227,7 +270,7 @@ def render():
                     if account.AccountEmail == account_email:
                         continue
                     is_in_map = (self_account.MapID == account.MapID and self_account.MapRegion == account.MapRegion and self_account.MapDistrict == account.MapDistrict)
-                    if is_in_map: 
+                    if is_in_map:
                         ImGui.show_tooltip(f"{account.CharacterName} - In the current map")
 
                 ImGui.show_tooltip(f"--------------Not eligible--------------")
@@ -236,12 +279,12 @@ def render():
                     if account.AccountEmail == account_email:
                         continue
                     is_in_map = (self_account.MapID == account.MapID and self_account.MapRegion == account.MapRegion and self_account.MapDistrict == account.MapDistrict)
-                    if not is_in_map: 
+                    if not is_in_map:
                         ImGui.show_tooltip(f"{account.CharacterName} - Not eligible (not in the current map)")
 
             if CustomBehaviorParty().is_ready_for_action():
                 if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_CIRCLE_XMARK} Leave current party"):
-                    CustomBehaviorParty().schedule_action(PartyCommands.leave_current_party)
+                    CustomBehaviorParty().schedule_action(PartyCommandConstants.leave_current_party)
             else:
                 if PyImGui.button(f"waiting..."):
                     pass
@@ -251,217 +294,288 @@ def render():
 
             if CustomBehaviorParty().is_ready_for_action():
                 if PyImGui.button(f"{IconsFontAwesome5.ICON_PERSON_MILITARY_POINTING} Interract with target"):
-                    CustomBehaviorParty().schedule_action(PartyCommands.interract_with_target)
+                    CustomBehaviorParty().schedule_action(PartyCommandConstants.interract_with_target)
             else:
                 if PyImGui.button(f"waiting..."):
                     pass
-            
+
             PyImGui.tree_pop()
 
         # PyImGui.separator()
 
-    if GLOBAL_CACHE.Map.IsExplorable():
+    if GLOBAL_CACHE.Map.IsExplorable() and True:
 
-        if PyImGui.tree_node_ex("[EXPLORABLE] Following settings :", 0):
-            
-                        # Get the singleton manager
+        if PyImGui.tree_node_ex("[EXPLORABLE] Following & Spreading settings :", 0):
+
+            # Get the singleton manager
             manager = PartyFollowingManager()
 
             # Set narrower width for sliders to make labels more readable
             PyImGui.push_item_width(200.0)
 
             # Debug overlay toggle
-            manager.enable_debug_overlay = PyImGui.checkbox("Enable Debug Overlay", manager.enable_debug_overlay)
+            new_overlay_value = PyImGui.checkbox("Enable Debug Overlay", manager.enable_debug_overlay)
+            if new_overlay_value != manager.enable_debug_overlay:
+                manager.enable_debug_overlay = new_overlay_value
+
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Show visual overlay with formation circles, distances, and movement vectors")
+
+            # Force overlay rendering when enabled - this ensures overlays are always drawn
             if manager.enable_debug_overlay:
-                # Get the FollowPartyLeaderNewUtility instance and call its overlay renderer
+                    # Get the behavior instance and call overlay renderers
+                    behavior = CustomBehaviorLoader().custom_combat_behavior
+                    if behavior is not None:
+                        skills_list = behavior.get_skills_final_list()
+                        current_state = behavior.get_final_state()
+
+                        # Import the utilities
+                        from Widgets.CustomBehaviors.skills.following.follow_party_leader_only_utility import FollowPartyLeaderOnlyUtility
+                        from Widgets.CustomBehaviors.skills.following.spread_during_combat_utility import SpreadDuringCombatUtility
+
+                        # Render overlays for both utilities if they exist
+                        for skill_utility in skills_list:
+                            if isinstance(skill_utility, FollowPartyLeaderOnlyUtility):
+                                skill_utility.draw_overlay(current_state)
+                            elif isinstance(skill_utility, SpreadDuringCombatUtility):
+                                skill_utility.draw_overlay(current_state)
+
+            PyImGui.separator()
+
+            # Configuration is now handled by individual utilities
+            PyImGui.text_colored("Following & Spreading Configuration:", (0.0, 1.0, 1.0, 1.0))
+            PyImGui.text_colored("Note: Configuration is managed by individual utilities", (0.7, 0.7, 0.7, 1.0))
+            PyImGui.bullet_text("Follow Party Leader: Configured in follow_party_leader_only_utility")
+            PyImGui.bullet_text("Spread During Combat: Configured in spread_during_combat_utility")
+            PyImGui.text_colored("Enable debug overlay above to see detailed configuration panels", (0.7, 0.7, 0.7, 1.0))
+
+            PyImGui.tree_pop()
+
+    if GLOBAL_CACHE.Map.IsExplorable():
+        if PyImGui.tree_node_ex("[FORMATION] Manage party flag formation :", 0):
+
+            # Get the singleton manager
+            flag_manager = PartyFlaggingManager()
+
+            # Configuration sliders
+            PyImGui.text_colored("Formation Configuration:", (0.0, 1.0, 1.0, 1.0))
+
+            # Spacing radius slider
+            new_spacing = PyImGui.slider_float("Spacing Radius", flag_manager.spacing_radius, 50.0, 300.0)
+            if new_spacing != flag_manager.spacing_radius:
+                flag_manager.spacing_radius = new_spacing
+
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Distance between flag positions in the formation (game units)")
+
+            PyImGui.separator()
+
+            # Button 1: Set flags at leader position
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_FLAG} Set Flags at Leader Position"):
+                # Update positions for currently assigned flags without changing assignments
+                leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
+                leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+                leader_angle = GLOBAL_CACHE.Agent.GetRotationAngle(leader_agent_id)
+                flag_manager.update_formation_positions(leader_x, leader_y, leader_angle, "preset_1")
+
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Update flag positions based on leader's current position and facing direction (keeps current assignments)")
+
+            PyImGui.same_line(0, 10)
+
+            # Button 2: Clear all flag positions
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_TRASH} Clear Flag Positions"):
+                flag_manager.clear_all_flag_positions()
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Remove flags from map (keeps dropdown assignments)")
+
+            PyImGui.separator()
+
+            # Debug overlay toggle
+            new_overlay_value = PyImGui.checkbox("Enable Flag Overlay", flag_manager.enable_debug_overlay)
+            if new_overlay_value != flag_manager.enable_debug_overlay:
+                flag_manager.enable_debug_overlay = new_overlay_value
+
+            PyImGui.same_line(0.0, -1.0)
+            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Show visual overlay with flag positions on the map")
+
+            # Force overlay rendering when enabled - this ensures overlays are always drawn
+            if flag_manager.enable_debug_overlay:
+                # Get the behavior instance and call overlay renderer
                 behavior = CustomBehaviorLoader().custom_combat_behavior
                 if behavior is not None:
                     skills_list = behavior.get_skills_final_list()
-                    # Find the FollowPartyLeaderNewUtility instance
-                    from Widgets.CustomBehaviors.skills.following.follow_party_leader_new_utility import FollowPartyLeaderNewUtility
+                    current_state = behavior.get_final_state()
+
+                    # Import the utility
+                    from Widgets.CustomBehaviors.skills.following.follow_flag_utility_new import FollowFlagUtilityNew
+
+                    # Render overlay if the utility exists
                     for skill_utility in skills_list:
-                        if isinstance(skill_utility, FollowPartyLeaderNewUtility):
-                            # Call the dedicated draw_overlay method
-                            current_state = behavior.get_final_state()
+                        if isinstance(skill_utility, FollowFlagUtilityNew):
                             skill_utility.draw_overlay(current_state)
                             break
 
             PyImGui.separator()
 
-            # Combat parameters
-            PyImGui.text("Combat Parameters (IN_AGGRO):")
+            # Manual flag assignment grid
+            PyImGui.text_colored("Manual Flag Assignment Grid:", (0.0, 1.0, 1.0, 1.0))
+            PyImGui.text_colored("(Leader facing forward, flags behind)", (0.7, 0.7, 0.7, 1.0))
 
-            # Follow Distance - Gold (leader)
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 100)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 150)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 180)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 255)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 255)))
-            manager.combat_follow_distance = PyImGui.slider_float(
-                "Combat Follow Distance",
-                manager.combat_follow_distance,
-                50.0,
-                400.0
-            )
-            PyImGui.pop_style_color(5)
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
+            # Leader position indicator (centered above grid)
+            PyImGui.spacing()
+            PyImGui.indent(220)  # Center the leader indicator
+            PyImGui.text_colored(f"{IconsFontAwesome5.ICON_USER} LEADER", (0.0, 1.0, 0.0, 1.0))
+            PyImGui.unindent(220)
+            PyImGui.text_colored("        |", (0.5, 0.5, 0.5, 1.0))
+            PyImGui.text_colored("        v", (0.5, 0.5, 0.5, 1.0))
+            PyImGui.spacing()
+
+            # Get all party members for dropdown
+            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+
+            # Build list of available party members (same map)
+            # Store both display names and emails
+            available_members_display = ["<None>"]  # Display names
+            available_members_emails = [""]  # Corresponding emails (empty for <None>)
+
+            my_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+            if my_account is not None:
+                for account in all_accounts:
+                    if account.AccountEmail == account_email:
+                        continue  # Skip leader
+                    is_in_map = (my_account.MapID == account.MapID and
+                               my_account.MapRegion == account.MapRegion and
+                               my_account.MapDistrict == account.MapDistrict)
+                    if is_in_map:
+                        # Use character name for display, store email for lookup
+                        char_name = account.CharacterName if account.CharacterName else account.AccountEmail
+                        available_members_display.append(char_name)
+                        available_members_emails.append(account.AccountEmail)
+
+            # Auto-assign button
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_MAGIC} Auto-Assign Characters to Grid"):
+                # Auto-assign party members to flags in order (Flag 1, 2, 3, ...)
+                for i, email in enumerate(available_members_emails[1:]):  # Skip <None> at index 0
+                    if i >= 12:  # Max 12 flags
+                        break
+                    flag_manager.set_flag_account_email(i, email)
+                # Also place flags at leader position so overlay updates immediately
+                leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
+                leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+                leader_angle = GLOBAL_CACHE.Agent.GetRotationAngle(leader_agent_id)
+                flag_manager.update_formation_positions(leader_x, leader_y, leader_angle, "preset_1")
             if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("Desired distance from leader during combat")
+                PyImGui.set_tooltip("Automatically assign all party members to flags in order (Flag 1 → first member, Flag 2 → second member, etc.)")
 
-            # Spread Threshold - Red (combat state)
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 100)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 150)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 180)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(255, 0, 0, 255)))
-            manager.combat_spread_threshold = PyImGui.slider_float(
-                "Combat Spread Threshold",
-                manager.combat_spread_threshold,
-                50.0,
-                400.0
-            )
-            PyImGui.pop_style_color(5)
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("Distance to start repelling from allies during combat")
+            PyImGui.spacing()
 
-            # Repulsion Weight - Orange (repulsion forces)
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 100)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 150)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 180)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 255)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 255)))
-            manager.combat_repulsion_weight = PyImGui.slider_float(
-                "Combat Repulsion Weight",
-                manager.combat_repulsion_weight,
-                10.0,
-                300.0
-            )
-            PyImGui.pop_style_color(5)
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("How strongly to push away from allies during combat (higher = more personal space)")
+            # Grid layout: Perfect 3x4 grid (12 flags)
+            # Flag positions in formation (leader at top, flags below):
+            # Row 1 (closest to leader): Flag 1, Flag 2, Flag 3
+            # Row 2: Flag 4, Flag 5, Flag 6
+            # Row 3: Flag 7, Flag 8, Flag 9
+            # Row 4 (furthest from leader): Flag 10, Flag 11, Flag 12
 
-            PyImGui.separator()
+            grid_layout = [
+                [0, 1, 2],     # Row 1: Flag 1, Flag 2, Flag 3 (closest)
+                [3, 4, 5],     # Row 2: Flag 4, Flag 5, Flag 6
+                [6, 7, 8],     # Row 3: Flag 7, Flag 8, Flag 9
+                [9, 10, 11],   # Row 4: Flag 10, Flag 11, Flag 12 (furthest)
+            ]
 
-            # Non-combat parameters
-            PyImGui.text("Non-Combat Parameters (CLOSE/FAR_FROM_AGGRO):")
+            # Get current leader position for applying changes
+            leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
+            leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            leader_angle = GLOBAL_CACHE.Agent.GetRotationAngle(leader_agent_id)
 
-            # Follow Distance - Gold (leader)
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 100)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 150)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 180)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 255)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(255, 215, 0, 255)))
-            manager.noncombat_follow_distance = PyImGui.slider_float(
-                "Non-Combat Follow Distance",
-                manager.noncombat_follow_distance,
-                50.0,
-                500.0
-            )
-            PyImGui.pop_style_color(5)
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("Desired distance from leader when not in combat")
+            # Draw the grid
+            for row_idx, row in enumerate(grid_layout):
+                for col_idx, flag_index in enumerate(row):
+                    if flag_index == -1:
+                        # Empty slot
+                        PyImGui.text("     ")
+                    else:
+                        flag_number = flag_index + 1
 
-            # Spread Threshold - Green (non-combat state)
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(0, 255, 0, 100)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(0, 255, 0, 150)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(0, 255, 0, 180)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(0, 255, 0, 255)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(0, 255, 0, 255)))
-            manager.noncombat_spread_threshold = PyImGui.slider_float(
-                "Non-Combat Spread Threshold",
-                manager.noncombat_spread_threshold,
-                50.0,
-                300.0
-            )
-            PyImGui.pop_style_color(5)
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("Distance to start repelling from allies when not in combat")
+                        # Get current assignment
+                        current_email = flag_manager.get_flag_account_email(flag_index)
 
-            # Repulsion Weight - Orange (repulsion forces)
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 100)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 150)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 180)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 255)))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, Utils.ColorToTuple(Utils.RGBToColor(255, 100, 0, 255)))
-            manager.noncombat_repulsion_weight = PyImGui.slider_float(
-                "Non-Combat Repulsion Weight",
-                manager.noncombat_repulsion_weight,
-                10.0,
-                200.0
-            )
-            PyImGui.pop_style_color(5)
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("How strongly to push away from allies when not in combat (higher = more personal space)")
+                        # Find current selection index by matching email
+                        if current_email:
+                            try:
+                                current_idx = available_members_emails.index(current_email)
+                            except ValueError:
+                                current_idx = 0  # Not found, default to <None>
+                        else:
+                            current_idx = 0
 
-            PyImGui.separator()
+                        # Draw flag number label
+                        PyImGui.text(f"Flag {flag_number}:")
+                        PyImGui.same_line(0, 5)
 
-            # Common parameters
-            PyImGui.text("Common Parameters:")
+                        # Draw combo box with display names
+                        PyImGui.push_item_width(150)
+                        new_idx = PyImGui.combo(f"##{flag_number}", current_idx, available_members_display)
+                        PyImGui.pop_item_width()
 
-            manager.follow_distance_tolerance = PyImGui.slider_float(
-                "Follow Tolerance",
-                manager.follow_distance_tolerance,
-                10.0,
-                200.0
-            )
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("Don't move if within this range of desired distance")
+                        # Handle selection change
+                        if new_idx != current_idx:
+                            if new_idx == 0:
+                                # Clear this flag
+                                flag_manager.clear_flag(flag_index)
+                            else:
+                                # Assign this flag - calculate position based on formation
+                                selected_email = available_members_emails[new_idx]
 
-            manager.max_move_distance = PyImGui.slider_float(
-                "Max Move Distance",
-                manager.max_move_distance,
-                50.0,
-                500.0
-            )
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("Maximum distance to move per adjustment")
+                                # Calculate formation position for this specific flag
+                                import math
+                                spacing = flag_manager.spacing_radius
+                                if spacing == 0.0:
+                                    spacing = 100.0
 
-            manager.min_move_threshold = PyImGui.slider_float(
-                "Min Move Threshold",
-                manager.min_move_threshold,
-                0.1,
-                5.0
-            )
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("Minimum force to trigger movement")
+                                # Formation offsets (same as in assign_formation_preset_1)
+                                formation_offsets = [
+                                    (-spacing, -spacing),      # Flag 1
+                                    (-spacing, 0),             # Flag 2
+                                    (-spacing, spacing),       # Flag 3
+                                    (-spacing * 2, -spacing),  # Flag 4
+                                    (-spacing * 2, 0),         # Flag 5
+                                    (-spacing * 2, spacing),   # Flag 6
+                                    (-spacing * 3, -spacing),  # Flag 7
+                                    (-spacing * 3, 0),         # Flag 8
+                                    (-spacing * 3, spacing),   # Flag 9
+                                    (-spacing * 4, -spacing),  # Flag 10
+                                    (-spacing * 4, 0),         # Flag 11
+                                    (-spacing * 4, spacing),   # Flag 12
+                                ]
 
-            PyImGui.separator()
+                                forward_offset, right_offset = formation_offsets[flag_index]
 
-            # Preset buttons
-            PyImGui.text("Presets:")
-            if PyImGui.button("Tight Combat"):
-                manager.apply_preset_tight_combat()
+                                # Transform to world coordinates
+                                cos_angle = math.cos(leader_angle)
+                                sin_angle = math.sin(leader_angle)
+                                world_x = leader_x + (forward_offset * cos_angle + right_offset * sin_angle)
+                                world_y = leader_y + (forward_offset * sin_angle - right_offset * cos_angle)
 
-            PyImGui.same_line(0.0, -1.0)
-            if PyImGui.button("Default (Balanced)"):
-                manager.apply_preset_balanced()
+                                # Set this specific flag without clearing others
+                                flag_manager.set_flag_data(flag_index, selected_email, world_x, world_y)
 
-            PyImGui.same_line(0.0, -1.0)
-            if PyImGui.button("Loose Formation"):
-                manager.apply_preset_loose_formation()
+                    # Add spacing between columns (except last column)
+                    if col_idx < len(row) - 1:
+                        PyImGui.same_line(0, 10)
 
-            # Pop the item width we set earlier
-            PyImGui.pop_item_width()
+                # Add small vertical spacing between rows
+                PyImGui.spacing()
 
             PyImGui.tree_pop()
-
 
     if PyImGui.tree_node_ex("[MANAGE] Enforce the main state machine for all party members :", PyImGui.TreeNodeFlags.DefaultOpen):
 
@@ -527,17 +641,26 @@ def render():
 
         PyImGui.tree_pop()
 
-    # PyImGui.separator()
+    PyImGui.separator()
 
     constants.DEBUG = PyImGui.checkbox("with debugging logs", constants.DEBUG)
+    PyImGui.same_line(0,5)
+
+    if CustomBehaviorParty().is_ready_for_action():
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_HOUSE_CHIMNEY_WINDOW} Rename GW windows"):
+            CustomBehaviorParty().schedule_action(PartyCommandConstants.rename_gw_windows)
+    else:
+        if PyImGui.button(f"waiting..."):
+            pass
 
     PyImGui.separator()
-    
+
     for entry in CustomBehaviorParty().get_shared_lock_manager().get_current_locks():
         PyImGui.text(f"entry={entry.key}-{entry.acquired_at_seconds}-{entry.expires_at_seconds}")
 
 
 
-    
 
+    # Always draw a vertical indicator for the (custom or current) target
+    draw_party_target_vertical_line()
 
