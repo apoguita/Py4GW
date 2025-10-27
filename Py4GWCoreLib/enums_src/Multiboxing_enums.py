@@ -35,6 +35,12 @@ class SharedCommandType(IntEnum):
     SetTransparentClickThrough = 30
     SetOpacity = 31
     UseItem = 32
+    PauseWidgets = 33
+    ResumeWidgets = 34
+    SwitchCharacter = 35
+    LoadSkillTemplate = 36
+
+    MultiBoxing = 990 # privately Handled Command, by Frenkey
     UseSkillCombatPrep = 998 #handled in CombatPrep only by Mark
     LootEx = 999 # privately Handled Command, by Frenkey
     
