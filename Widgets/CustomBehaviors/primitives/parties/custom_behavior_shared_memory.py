@@ -9,6 +9,7 @@ from typing import Generator
 
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
+
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import (
     SharedLockEntry,
     SharedLockEntryStruct,
@@ -19,25 +20,74 @@ from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import (
     MAX_LOCK_HISTORY,
 )
 
+# Constants for flagging
+MAX_FLAG_POSITIONS = 12  # Support up to 12 flag positions (perfect 3x4 grid)
+MAX_EMAIL_LEN = 64  # Maximum email length (same as SHMEM_MAX_EMAIL_LEN)
+
+# Constants for team builds
+MAX_TEMPLATE_SLOTS = 12  # Support up to 12 party members
+MAX_TEMPLATE_LEN = 128  # Maximum skillbar template length
+
 
 class PartyFollowingConfigStruct(Structure):
     """Struct for party following configuration stored in shared memory"""
     _pack_ = 1
     _fields_ = [
-        # Combat parameters (IN_AGGRO)
-        ("CombatFollowDistance", c_float),
-        ("CombatSpreadThreshold", c_float),
-        ("CombatRepulsionWeight", c_float),
-        # Non-combat parameters (CLOSE_TO_AGGRO, FAR_FROM_AGGRO)
-        ("NoncombatFollowDistance", c_float),
-        ("NoncombatSpreadThreshold", c_float),
-        ("NoncombatRepulsionWeight", c_float),
-        # Common parameters
-        ("FollowDistanceTolerance", c_float),
-        ("MaxMoveDistance", c_float),
-        ("MinMoveThreshold", c_float),
+        # Follow distance for follow_party_leader_only_utility
+        ("FollowDistance", c_float),
+
+        # Enemy repulsion configuration (spread_during_combat_utility)
+        ("EnemyRepulsionThreshold", c_float),  # Distance to start repelling from enemies
+        ("EnemyRepulsionWeight", c_float),  # How strongly to push away from enemies
+
+        # Leader attraction configuration (spread_during_combat_utility)
+        ("LeaderAttractionThreshold", c_float),  # Distance to start attracting to leader
+        ("LeaderAttractionWeight", c_float),  # How strongly to pull toward leader
+
+        # Allies repulsion configuration (spread_during_combat_utility)
+        ("AlliesRepulsionThreshold", c_float),  # Distance to start repelling from allies
+        ("AlliesRepulsionWeight", c_float),  # How strongly to push away from allies
+
+        # Movement parameters (spread_during_combat_utility)
+        ("MinMoveThreshold", c_float),  # Minimum vector magnitude to trigger movement
+        ("MaxMoveDistance", c_float),  # Maximum distance to move in one step
+
         # Debug
         ("EnableDebugOverlay", c_bool),
+    ]
+
+
+class PartyFlaggingConfigStruct(Structure):
+    """Struct for party flagging configuration stored in shared memory"""
+    _pack_ = 1
+    _fields_ = [
+        # Flag assignments: account email for each of 12 flag positions ("" = unassigned)
+        ("FlagAccountEmails", (c_wchar * MAX_EMAIL_LEN) * MAX_FLAG_POSITIONS),
+
+        # Flag positions: X coordinates for each of 12 flags
+        ("FlagPositionsX", c_float * MAX_FLAG_POSITIONS),
+
+        # Flag positions: Y coordinates for each of 12 flags
+        ("FlagPositionsY", c_float * MAX_FLAG_POSITIONS),
+
+        # Configuration parameters
+        ("SpacingRadius", c_float),  # Radius for spacing between flag positions
+        ("MovementThreshold", c_float),  # How much players can move from flag before repositioning
+
+        # Debug
+        ("EnableDebugOverlay", c_bool),
+    ]
+
+
+class PartyTeamBuildConfigStruct(Structure):
+    """Struct for party team build configuration stored in shared memory"""
+    _pack_ = 1
+    _fields_ = [
+        # Template assignments: account email for each of 12 template slots ("" = unassigned)
+        ("TemplateAccountEmails", (c_wchar * MAX_EMAIL_LEN) * MAX_TEMPLATE_SLOTS),
+
+        # Skillbar templates: template code for each of 12 slots
+        ("SkillbarTemplates", (c_wchar * MAX_TEMPLATE_LEN) * MAX_TEMPLATE_SLOTS),
     ]
 
 
@@ -57,6 +107,8 @@ class CustomBehaviorWidgetStruct(Structure):
         ("LockHistoryEntries", SharedLockHistoryStruct * MAX_LOCK_HISTORY),
         ("LockHistoryIdx", c_uint),
         ("FollowingConfig", PartyFollowingConfigStruct),
+        ("FlaggingConfig", PartyFlaggingConfigStruct),
+        ("TeamBuildConfig", PartyTeamBuildConfigStruct),
     ]
 
 class CustomBehaviorWidgetData:
@@ -124,16 +176,35 @@ class CustomBehaviorWidgetMemoryManager:
         mem.IsInventoryEnabled = False # we deactivate invoentory by-default.
 
         # Initialize following config with defaults
-        mem.FollowingConfig.CombatFollowDistance = 150.0
-        mem.FollowingConfig.CombatSpreadThreshold = 150.0
-        mem.FollowingConfig.CombatRepulsionWeight = 150.0
-        mem.FollowingConfig.NoncombatFollowDistance = 200.0
-        mem.FollowingConfig.NoncombatSpreadThreshold = 100.0
-        mem.FollowingConfig.NoncombatRepulsionWeight = 150.0
-        mem.FollowingConfig.FollowDistanceTolerance = 50.0
-        mem.FollowingConfig.MaxMoveDistance = 250.0
-        mem.FollowingConfig.MinMoveThreshold = 0.5
+        mem.FollowingConfig.FollowDistance = 100.0
         mem.FollowingConfig.EnableDebugOverlay = True
+
+        # Initialize spread_during_combat_utility config with defaults
+        mem.FollowingConfig.EnemyRepulsionThreshold = 250.0
+        mem.FollowingConfig.EnemyRepulsionWeight = 100.0
+        mem.FollowingConfig.LeaderAttractionThreshold = 550.0
+        mem.FollowingConfig.LeaderAttractionWeight = 150.0
+        mem.FollowingConfig.AlliesRepulsionThreshold = 130.0
+        mem.FollowingConfig.AlliesRepulsionWeight = 180.0
+        mem.FollowingConfig.MinMoveThreshold = 0.5
+        mem.FollowingConfig.MaxMoveDistance = 300.0
+
+        # Initialize flagging config with defaults
+        for i in range(MAX_FLAG_POSITIONS):
+            # Clear email by setting first character to null terminator
+            mem.FlaggingConfig.FlagAccountEmails[i][0] = '\0'
+            mem.FlaggingConfig.FlagPositionsX[i] = 0.0
+            mem.FlaggingConfig.FlagPositionsY[i] = 0.0
+
+        mem.FlaggingConfig.SpacingRadius = 150.0  # Default spacing between flags
+        mem.FlaggingConfig.MovementThreshold = 50.0  # Default movement threshold
+        mem.FlaggingConfig.EnableDebugOverlay = True  # Debug overlay on by default
+
+        # Initialize team build config with defaults
+        for i in range(MAX_TEMPLATE_SLOTS):
+            # Clear email by setting first character to null terminator
+            mem.TeamBuildConfig.TemplateAccountEmails[i][0] = '\0'
+            mem.TeamBuildConfig.SkillbarTemplates[i][0] = '\0'
 
         for i in range(MAX_LOCKS):
             mem.LockEntries[i].Key = ""
@@ -193,3 +264,25 @@ class CustomBehaviorWidgetMemoryManager:
         """Set the party following configuration in shared memory"""
         mem = self._get_struct()
         mem.FollowingConfig = config
+
+    # --- Party Flagging Config Methods ---
+    def GetFlaggingConfig(self) -> PartyFlaggingConfigStruct:
+        """Get the party flagging configuration from shared memory"""
+        mem = self._get_struct()
+        return mem.FlaggingConfig
+
+    def SetFlaggingConfig(self, config: PartyFlaggingConfigStruct):
+        """Set the party flagging configuration in shared memory"""
+        mem = self._get_struct()
+        mem.FlaggingConfig = config
+
+    # --- Party Team Build Config Methods ---
+    def GetTeamBuildConfig(self) -> PartyTeamBuildConfigStruct:
+        """Get the party team build configuration from shared memory"""
+        mem = self._get_struct()
+        return mem.TeamBuildConfig
+
+    def SetTeamBuildConfig(self, config: PartyTeamBuildConfigStruct):
+        """Set the party team build configuration in shared memory"""
+        mem = self._get_struct()
+        mem.TeamBuildConfig = config

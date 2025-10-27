@@ -6,6 +6,7 @@ from typing import List, Generator, Any, override
 import time
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -26,8 +27,11 @@ from Widgets.CustomBehaviors.skills.deamon.death_detection import DeathDetection
 from Widgets.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
 from Widgets.CustomBehaviors.skills.deamon.stuck_detection import StuckDetectionUtility
 from Widgets.CustomBehaviors.skills.following.follow_flag_utility import FollowFlagUtility
+from Widgets.CustomBehaviors.skills.following.follow_flag_utility_new import FollowFlagUtilityNew
+from Widgets.CustomBehaviors.skills.following.follow_party_leader_only_utility import FollowPartyLeaderOnlyUtility
 from Widgets.CustomBehaviors.skills.following.follow_party_leader_utility import FollowPartyLeaderUtility
 from Widgets.CustomBehaviors.skills.following.follow_party_leader_new_utility import FollowPartyLeaderNewUtility
+from Widgets.CustomBehaviors.skills.following.spread_during_combat_utility import SpreadDuringCombatUtility
 from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives import constants
@@ -69,6 +73,10 @@ class CustomBehaviorBaseUtility():
             FollowPartyLeaderUtility(event_bus=self.event_bus, current_build=self.in_game_build),
             # FollowPartyLeaderNewUtility(event_bus=self.event_bus, current_build=self.in_game_build),
             # FollowFlagUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            FollowFlagUtilityNew(event_bus=self.event_bus, current_build=self.in_game_build),
+            # SpreadDuringCombatUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            # FollowPartyLeaderOnlyUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            # FollowPartyLeaderUtility(event_bus=self.event_bus, current_build=self.in_game_build),
 
             # BLESSING
             TakeNearBlessingUtility(event_bus=self.event_bus, current_build=self.in_game_build),
@@ -404,7 +412,7 @@ class CustomBehaviorBaseUtility():
     # HANDLING 
 
     def _handle(self) -> Generator[Any | None, Any | None, None]:
-
+        
         # if no aftercast, there is no reason to continue once the score is no more the highest.
         # so lets declare it.
         while True:

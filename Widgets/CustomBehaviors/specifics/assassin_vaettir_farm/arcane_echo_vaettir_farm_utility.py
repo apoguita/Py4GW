@@ -6,6 +6,7 @@ import PyImGui
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -17,6 +18,7 @@ from Widgets.CustomBehaviors.skills.mesmer.arcane_echo_utility import ArcaneEcho
 class ArcaneEchoVaettirFarmUtility(ArcaneEchoUtility):
 
     def __init__(self, 
+                    event_bus: EventBus,
                     current_build: list[CustomSkill], 
                     original_skill_to_copy: CustomSkillUtilityBase,
                     new_copied_instance: CustomSkillUtilityBase,
@@ -25,6 +27,7 @@ class ArcaneEchoVaettirFarmUtility(ArcaneEchoUtility):
             ) -> None:
 
             super().__init__(
+                event_bus=event_bus,
                 current_build=current_build, 
                 original_skill_to_copy=original_skill_to_copy,
                 new_copied_instance=new_copied_instance,

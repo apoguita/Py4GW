@@ -1,7 +1,7 @@
 from typing import Callable, Generator, Any
 
 
-class CommandHandler:
+class PartyCommandHandlerManager:
     """
     Handles command execution with generator-based actions.
     Provides a safe way to schedule and execute generator actions with proper
@@ -15,10 +15,10 @@ class CommandHandler:
     def schedule_action(self, action_gen: Callable[[], Generator]) -> bool:
         """
         Schedule a generator action. Returns True if accepted, False if busy.
-        
+
         Args:
             action_gen: A callable that returns a generator when called
-            
+
         Returns:
             True if the action was scheduled successfully, False if already busy
         """

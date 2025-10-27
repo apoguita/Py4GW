@@ -8,13 +8,15 @@ from Py4GWCoreLib.Overlay import Overlay
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Widgets.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
 from Widgets.CustomBehaviors.primitives.scores.comon_score import CommonScore
+from Widgets.CustomBehaviors.primitives.scores.score_per_status_definition import ScorePerStatusDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
-from Widgets.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
 
 class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
     """
@@ -41,15 +43,20 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
             event_bus=event_bus,
             skill=CustomSkill("follow_party_leader_new"),
             in_game_build=current_build,
-            score_definition=ScoreStaticDefinition(CommonScore.FOLLOW_FLAG.value),
+            score_definition= ScorePerStatusDefinition(lambda state: CommonScore.FOLLOW_FLAG_REQUIRED.value if state == BehaviorState.IN_AGGRO else CommonScore.FOLLOW.value),
             allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
             utility_skill_typology=UtilitySkillTypology.FOLLOWING)
 
         self.throttle_timer = ThrottledTimer(800)
-        self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.FOLLOW_FLAG.value)
+        self.score_definition : ScorePerStatusDefinition = ScorePerStatusDefinition(lambda state: CommonScore.FOLLOW_FLAG_REQUIRED.value if state == BehaviorState.IN_AGGRO else CommonScore.FOLLOW.value)
 
         # Use singleton manager for all configuration
         self.manager = PartyFollowingManager()
+
+        # Hard-coded movement parameters (removed from shared memory)
+        self.follow_distance_tolerance = 50.0  # Tolerance for follow distance
+        self.min_move_threshold = 0.5  # Minimum vector magnitude to trigger movement
+        self.max_move_distance = 250.0  # Maximum distance to move in one step
 
         # Debug
         self.last_target_pos = None
@@ -60,6 +67,8 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
+        # Don't follow leader if this player has a defined flag position (should follow flag instead)
+        if CustomBehaviorParty().party_flagging_manager.is_flag_defined(GLOBAL_CACHE.Player.GetAccountEmail()): return False
         return True
 
     def _get_party_leader_position(self) -> tuple[float, float] | None:
@@ -85,29 +94,15 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
         return GLOBAL_CACHE.Party.IsPartyLeader()
 
     def _get_party_member_positions(self) -> list[tuple[float, float]]:
-        """Get positions of all party members except self"""
         positions = []
-        try:
-            my_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            if my_agent_id is None:
-                return positions
-            
-            party_players = GLOBAL_CACHE.Party.GetPlayers()
-            if party_players is None:
-                return positions
-            
-            for slot in party_players:
-                if slot is None or not hasattr(slot, 'login_number'):
-                    continue
-                agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(slot.login_number)
-                if agent_id and agent_id != my_agent_id:
-                    if GLOBAL_CACHE.Agent.IsAlive(agent_id):
-                        pos = GLOBAL_CACHE.Agent.GetXY(agent_id)
-                        if pos is not None and len(pos) == 2:
-                            positions.append(pos)
-        except Exception as e:
-            print(f"FollowPartyLeaderNewUtility._get_party_member_positions error: {e}")
-        
+        for agent_id in GLOBAL_CACHE.AgentArray.GetAllyArray():
+            if GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id):
+                positions.append(GLOBAL_CACHE.Agent.GetXY(agent_id))
+
+        for agent_id in GLOBAL_CACHE.AgentArray.GetSpiritPetArray():
+            if GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id):
+                positions.append(GLOBAL_CACHE.Agent.GetXY(agent_id))
+
         return positions
 
     def _get_parameters_for_state(self, state: BehaviorState) -> tuple[float, float, float]:
@@ -146,7 +141,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
         far_threshold = follow_distance * 2.0  # 2x the follow distance
 
         # Initialize result vector with leader following component
-        if abs(distance_error) > self.manager.follow_distance_tolerance:
+        if abs(distance_error) > self.follow_distance_tolerance:
             # Need to adjust distance to leader
             if distance_to_leader > 0:
                 # Direction toward leader
@@ -180,7 +175,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
 
         # Step 2: Add spreading forces using VectorFields (only if not too far from leader)
         if distance_to_leader <= far_threshold and len(party_positions) > 0:
-            vf = VectorFields(my_pos, custom_repulsion_radius=spread_threshold)
+            vf = VectorFields(my_pos, custom_repulsion_radius=int(spread_threshold))
 
             # Add repulsion from nearby allies
             for ally_pos in party_positions:
@@ -201,7 +196,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
         self.last_result_vector = (result_vector_x, result_vector_y, vector_magnitude)
 
         # Only move if vector is significant
-        if vector_magnitude < self.manager.min_move_threshold:
+        if vector_magnitude < self.min_move_threshold:
             return None
 
         # Limit movement distance to prevent overshooting
@@ -209,9 +204,9 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
         far_threshold = follow_distance * 2.0
         is_far = distance_to_leader > far_threshold
 
-        if not is_far and vector_magnitude > self.manager.max_move_distance:
+        if not is_far and vector_magnitude > self.max_move_distance:
             # Only clamp when NOT in far mode
-            scale = self.manager.max_move_distance / vector_magnitude
+            scale = self.max_move_distance / vector_magnitude
             result_vector_x *= scale
             result_vector_y *= scale
         # When in far mode, don't clamp - move the full distance in one go!
@@ -400,7 +395,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
                 break
         
         if outside_tolerance or is_clustered:
-            return self.score_definition.get_score()
+            return self.score_definition.get_score(current_state)
         
         return None
 
