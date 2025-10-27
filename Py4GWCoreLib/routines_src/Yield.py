@@ -1,5 +1,8 @@
 from typing import List, Tuple, Callable, Optional, Generator, Any
 
+from Py4GWCoreLib.enums_src.IO_enums import Key
+from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
+from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
 from Py4GWCoreLib.routines_src import Checks
 from ..GlobalCache import GLOBAL_CACHE
 from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager
@@ -1157,7 +1160,6 @@ class Yield:
                 
                 free_slots_in_inventory = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
                 if free_slots_in_inventory <= 0:
-                    ConsoleLog("LootItems", "No free slots in inventory, stopping loot.", Console.MessageType.Warning)
                     item_array.clear()
                     ActionQueueManager().ResetAllQueues()
                     return False
@@ -1173,7 +1175,6 @@ class Yield:
                 item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
                 item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout)
                 if not item_reached:
-                    ConsoleLog("LootItems", "Failed to reach item, stopping loot.", Console.MessageType.Warning)
                     item_array.clear()
                     ActionQueueManager().ResetAllQueues()
                     return False
@@ -1189,13 +1190,10 @@ class Yield:
                         live_items  = AgentArray.GetItemArray()
                         if item_id not in live_items :
                             break
-
                     
                 if progress_callback and total_items > 0:
                     progress_callback(1 - len(item_array) / total_items)
-            if log and len(item_array) > 0:
-                ConsoleLog("LootItems", f"Looted {len(item_array)} items.", Console.MessageType.Info)
-                
+                        
             return True
 
         @staticmethod
@@ -1961,3 +1959,91 @@ class Yield:
             if slot < 1 or slot > 8:
                 return
             yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_UseSkill1.value + (slot - 1), 125)
+
+#region Character Reroll
+    class RerollCharacter:
+        @staticmethod
+        def Reroll(target_character_name: str, timeout_ms: int = 10000, log: bool = False) -> Generator[Any, Any, None]:            
+            ActionQueueManager().ResetAllQueues()
+            
+            timer = Timer()
+            timer.Start()
+            
+            def _timeout_reached() -> bool:
+                return timer.GetElapsedTime() >= timeout_ms
+            
+            def _is_char_select_context_ready() -> bool:
+                """Checks if character select is active and context is available."""
+                if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
+                    return False
+                pregame = GLOBAL_CACHE.Player.GetPreGameContext()
+                return pregame is not None and pregame.chars is not None
+            
+            def _failed() -> bool:
+                return _timeout_reached() or not _is_char_select_context_ready()
+            
+            character_names = [char.player_name for char in GLOBAL_CACHE.Player.GetLoginCharacters()]
+            
+            if target_character_name not in character_names:
+                ConsoleLog("Reroll", f"Character '{target_character_name}' not found among login characters.", Console.MessageType.Error)
+                return
+            
+            if GLOBAL_CACHE.Player.GetName() == target_character_name and not GLOBAL_CACHE.Player.InCharacterSelectScreen():
+                ConsoleLog("Reroll", f"Already logged in as '{target_character_name}'. No reroll needed.", Console.MessageType.Info)
+                return
+            
+            if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
+                ConsoleLog("Reroll", "Logging out to character select screen.", Console.MessageType.Info)
+                GLOBAL_CACHE.Player.LogoutToCharacterSelect()                        
+                        
+        
+            # Wait until we reach character select screen
+            while not _is_char_select_context_ready() and not _timeout_reached():
+                yield from Yield.wait(250)
+                
+            if _failed():
+                if _timeout_reached():
+                    ConsoleLog("Reroll", "Timeout reached while waiting for character select screen.", Console.MessageType.Error)
+                return
+                        
+            pregame = GLOBAL_CACHE.Player.GetPreGameContext()
+            character_index = pregame.chars.index(target_character_name) if target_character_name in pregame.chars else -1
+            last_known_index = pregame.index_1
+            
+            if character_index == -1:
+                ConsoleLog("Reroll", f"Character '{target_character_name}' not found in character list.", Console.MessageType.Error)
+                return
+                
+            while last_known_index != character_index and not _failed():    
+                distance = character_index - last_known_index
+                
+                if distance != 0:
+                    key = Key.RightArrow.value if distance > 0 else Key.LeftArrow.value
+                    ConsoleLog("Reroll", f"Navigating {'Right' if distance > 0 else 'Left'} (Current: {last_known_index}, Target: {character_index})", Console.MessageType.Debug, log)
+                    Keystroke.PressAndRelease(key)
+                    yield from Yield.wait(50)
+                    pregame = GLOBAL_CACHE.Player.GetPreGameContext()
+                    last_known_index = pregame.index_1
+
+            if _failed():
+                if _timeout_reached():
+                    ConsoleLog("Reroll", "Timeout reached while navigating to target character.", Console.MessageType.Error)
+                    
+                elif not _is_char_select_context_ready():
+                    ConsoleLog("Reroll", "Character select context lost while navigating to target character.", Console.MessageType.Error)
+
+                return
+
+            ConsoleLog("Reroll", f"Selecting character '{target_character_name}'.", Console.MessageType.Info)
+            Keystroke.PressAndRelease(Key.P.value)
+            yield from Yield.wait(50)
+            
+            while not GLOBAL_CACHE.Map.IsMapReady() and not _timeout_reached():
+                yield from Yield.wait(250)
+                
+            if _timeout_reached():
+                ConsoleLog("Reroll", "Timeout reached while waiting for map to load.", Console.MessageType.Error)
+                return
+                
+            ConsoleLog("Reroll", f"Successfully logged in as '{target_character_name}'.", Console.MessageType.Info)
+            return                    
