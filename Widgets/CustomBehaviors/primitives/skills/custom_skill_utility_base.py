@@ -14,7 +14,9 @@ from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_target import CustomBuffTarget
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_nature import CustomSkillNature
@@ -116,7 +118,7 @@ class CustomSkillUtilityBase:
         pass
 
     @abstractmethod
-    def get_buff_configuration(self) -> BuffConfigurationPerProfession | None:
+    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
         '''
         This method is used to get the buff configuration for the skill.
         Can be overridden by the skill itself to return the buff configuration.

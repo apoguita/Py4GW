@@ -11,7 +11,8 @@ from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
-from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -34,7 +35,7 @@ class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
 
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition
-        self.buff_configuration: BuffConfigurationPerProfession = BuffConfigurationPerProfession(self.custom_skill, BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
+        self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
 
         # Combat start timer - 5 second delay when combat begins
         self.combat_start_timer = ThrottledTimer(5000)  # 5 seconds
@@ -105,5 +106,5 @@ class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
         return result 
     
     @override
-    def get_buff_configuration(self) -> BuffConfigurationPerProfession | None:
+    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
         return self.buff_configuration
