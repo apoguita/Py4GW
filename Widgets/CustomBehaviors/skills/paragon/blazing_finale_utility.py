@@ -9,7 +9,8 @@ from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfiguration, BuffConfigurationPerProfession
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import ProfessionConfiguration, BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -32,12 +33,14 @@ class BlazingFinaleUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
         
         self.score_definition: ScoreStaticDefinition = score_definition
-        # self.buff_configuration: BuffConfigurationPerProfession = BuffConfigurationPerProfession(self.custom_skill, BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
-        self.buff_configuration: BuffConfigurationPerProfession = BuffConfigurationPerProfession(self.custom_skill, [
-            BuffConfiguration(Profession.Ranger, True),
-            BuffConfiguration(Profession.Warrior, True),
-            BuffConfiguration(Profession.Assassin, True),
-            BuffConfiguration(Profession.Dervish, True)])
+        profession_list: list[ProfessionConfiguration] =[
+            ProfessionConfiguration(Profession.Ranger, True),
+            ProfessionConfiguration(Profession.Warrior, True),
+            ProfessionConfiguration(Profession.Assassin, True),
+            ProfessionConfiguration(Profession.Dervish, True)]
+        
+        self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(self.event_bus, self.custom_skill, buff_configuration_per_profession= profession_list)
+
 
     def _get_target(self) -> int | None:
  
@@ -66,5 +69,5 @@ class BlazingFinaleUtility(CustomSkillUtilityBase):
         return result
 
     @override
-    def get_buff_configuration(self) -> BuffConfigurationPerProfession | None:
+    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
         return self.buff_configuration
