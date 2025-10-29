@@ -262,6 +262,7 @@ class WarriorSkills:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsMoving = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -741,6 +742,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Shout.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsMoving = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
