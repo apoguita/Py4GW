@@ -289,14 +289,11 @@ class PartyTeamBuildManager:
         sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
         if constants.DEBUG: print(f"SendMessage {account_email} to {account_email}")
         extra_data: tuple[str, str, str, str] = self.__build_extra_data(template_code)
-        GLOBAL_CACHE.ShMem.SendMessage(sender_email, account_email, SharedCommandType.ApplySkillbarTemplate, ExtraData = extra_data)
+        GLOBAL_CACHE.ShMem.SendMessage(sender_email, account_email, SharedCommandType.LoadSkillTemplate, ExtraData = extra_data)
 
     def __build_extra_data(self, template_code: str) -> tuple[str, str, str, str]:
-        # Split template into chunks of 19 characters (avoid truncation issues)
-
-        # split template code into 4 chunks of 20 characters each
-        # Split template into chunks of 19 characters (avoid truncation issues)
-        chunk_size = 19  # Reduced from 20 to avoid string truncation
+        # Split template into chunks of X characters (avoid truncation issues)
+        chunk_size = 29
         chunks = []
         if template_code:  # Check if template_code is not empty
             chunks = [template_code[i:i+chunk_size] for i in range(0, len(template_code), chunk_size)]
