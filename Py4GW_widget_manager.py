@@ -30,7 +30,8 @@ class WidgetHandler:
         base_dir = os.path.dirname(os.path.abspath(module_file)) if module_file else os.getcwd()
         resolved_path = widgets_path or os.path.join(base_dir, "Widgets")
         self.widgets_path = os.path.abspath(resolved_path)
-        self.show_widget_ui = True
+        self.__show_widget_ui = True
+        self.__pause_non_env_widgets = False
         
         self.widgets = {}
         self.widget_data_cache = {}
@@ -38,6 +39,14 @@ class WidgetHandler:
         self.last_write_time.Start()
         self._load_widget_cache()
         self._initialized = True
+    
+    @property
+    def pause_non_env_widgets(self):
+        return self.__pause_non_env_widgets
+    
+    @property
+    def show_widget_ui(self):
+        return self.__show_widget_ui
 
     def _load_widget_cache(self):
         for section in ini_handler.list_sections():
@@ -115,23 +124,34 @@ class WidgetHandler:
     def execute_enabled_widgets(self):
         style = ImGui.Selected_Style.pyimgui_style
         alpha = style.Alpha
-        
-        if not self.show_widget_ui:
+        ui_enabled = self.__show_widget_ui
+                
+        if not ui_enabled:
             style.Alpha = 0.0
             style.Push()
         
         for widget_name, widget_info in self.widgets.items():
             if not widget_info["enabled"]:
                 continue
+                
+            data = self.widget_data_cache.get(widget_name, {})
+            cat = data.get("category", "Miscellaneous")
+            
+            if self.__pause_non_env_widgets and cat != "Environment":
+                continue
+            
             try:
                 widget_info["module"].main()
             except Exception as e:
                 ConsoleLog("WidgetHandler", f"Error executing widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                 ConsoleLog("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
 
-        if not self.show_widget_ui:
+        if not ui_enabled:
             style.Alpha = alpha
             style.Push()
+    
+    def set_widget_ui_visibility(self, visible: bool):
+        self.__show_widget_ui = visible
             
     def execute_configuring_widgets(self):
         for widget_name, widget_info in self.widgets.items():
@@ -160,6 +180,12 @@ class WidgetHandler:
             ConsoleLog("WidgetHandler", f"Widget '{name}' not found", Py4GW.Console.MessageType.Warning)
             return
         widget["configuring"] = value
+        
+    def pause_widgets(self):
+        self.__pause_non_env_widgets = True
+        
+    def resume_widgets(self):
+        self.__pause_non_env_widgets = False
         
     def enable_widget(self, name: str):
         self._set_widget_state(name, True)
@@ -205,11 +231,11 @@ if "_Py4GW_GLOBAL_WIDGET_HANDLER" not in sys.modules:
     mod = types.ModuleType("_Py4GW_GLOBAL_WIDGET_HANDLER")  # actual module type
     mod.handler = WidgetHandler()  # type: ignore[attr-defined]
     sys.modules["_Py4GW_GLOBAL_WIDGET_HANDLER"] = mod
-handler = sys.modules["_Py4GW_GLOBAL_WIDGET_HANDLER"].handler
+handler : WidgetHandler = sys.modules["_Py4GW_GLOBAL_WIDGET_HANDLER"].handler
 enable_all = ini_handler.read_bool(module_name, "enable_all", True)
 old_enable_all = enable_all
 
-window_module = ImGui.WindowModule(module_name, window_name="Widgets", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+window_module = ImGui.WindowModule(module_name, window_name="Widgets", window_size=(130, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
 window_x = ini_handler.read_int(module_name, "x", 100)
 window_y = ini_handler.read_int(module_name, "y", 100)
@@ -269,13 +295,32 @@ def draw_widget_ui():
     ImGui.show_tooltip(f"{("Run" if not enable_all else "Pause")} all widgets")
     
     PyImGui.same_line(0, 5)
-    handler.show_widget_ui = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_EYE if handler.show_widget_ui else IconsFontAwesome5.ICON_EYE_SLASH) + "##Show Widget UIs", handler.show_widget_ui)
+    show_widget_ui = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_EYE if handler.show_widget_ui else IconsFontAwesome5.ICON_EYE_SLASH) + "##Show Widget UIs", handler.show_widget_ui)
+    if show_widget_ui != handler.show_widget_ui:
+        handler.set_widget_ui_visibility(show_widget_ui)
     ImGui.show_tooltip(f"{("Show" if not handler.show_widget_ui else "Hide")} all widget UIs")
+    
+    PyImGui.same_line(0, 5)
+    pause_non_env = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_PAUSE if handler.pause_non_env_widgets else IconsFontAwesome5.ICON_PLAY) + "##Pause Non-Env Widgets", not handler.pause_non_env_widgets)
+    if pause_non_env != (not handler.pause_non_env_widgets):
+        if not handler.pause_non_env_widgets:
+            handler.pause_widgets()
+        else:
+            handler.resume_widgets()
+            
+        own_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            if acc.AccountEmail == own_email:
+                continue
+            
+            GLOBAL_CACHE.ShMem.SendMessage(own_email, acc.AccountEmail, SharedCommandType.PauseWidgets if handler.pause_non_env_widgets else SharedCommandType.ResumeWidgets)
+        
+    ImGui.show_tooltip(f"{("Pause" if not handler.pause_non_env_widgets else "Resume")} all non-environmental widgets")
     ImGui.separator()
     
     categorized_widgets = {}
     for name, info in handler.widgets.items():
-        data = handler.widget_data_cache.get(name, {})
+        data = handler.widget_data_cache.get(name, {})        
         cat = data.get("category", "Miscellaneous")
         sub = data.get("subcategory", "")
         categorized_widgets.setdefault(cat, {}).setdefault(sub, []).append(name)
@@ -321,6 +366,7 @@ def draw_widget_ui():
 
             ImGui.end_table()
             ImGui.tree_pop()
+
 
 def main():
     global initialized, enable_all, old_enable_all, current_window_pos, current_window_collapsed
