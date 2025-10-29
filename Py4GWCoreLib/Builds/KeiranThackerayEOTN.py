@@ -43,7 +43,7 @@ class KeiranThackerayEOTN(BuildMgr):
             yield from Routines.Yield.wait(1000) 
             return 
         
-        life_threshold = 0.70
+        life_threshold = 0.80
         if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.natures_blessing)):
             player_life = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
             low_on_life = player_life < life_threshold
