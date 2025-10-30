@@ -12,13 +12,13 @@ from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 import time
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Widgets.CustomBehaviors.primitives.skills.follow_party_leader_during_aggro_strategy import FollowPartyLeaderDuringAggroStrategy
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 
@@ -30,8 +30,7 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
             self,
             event_bus: EventBus,
             current_build: list[CustomSkill],
-            allowed_states: list[BehaviorState] = [ BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO ],
-            follow_party_leader_during_aggro_strategy = FollowPartyLeaderDuringAggroStrategy.STAY_FARTHEST
+            allowed_states: list[BehaviorState] = [ BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO ],
         ) -> None:
 
         super().__init__(
@@ -43,14 +42,16 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
             utility_skill_typology=UtilitySkillTypology.FOLLOWING)
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.FOLLOW.value)
-        self.throttle_timer = ThrottledTimer(1000)
+        self.throttle_timer = ThrottledTimer(700)
         self.old_angle = 0
-        self.follow_party_leader_strategy = follow_party_leader_during_aggro_strategy
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
+        # Don't follow leader if this player has a defined flag position (should follow flag instead)
+        if CustomBehaviorParty().party_flagging_manager.is_flag_defined(GLOBAL_CACHE.Player.GetAccountEmail()): return False
+
         return True
 
     @override
@@ -149,15 +150,3 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
         return
-        PyImGui.bullet_text("Strategy")
-        PyImGui.same_line(0, -1)
-
-        members = list(FollowPartyLeaderDuringAggroStrategy)
-        names = [m.name for m in members]
-
-        cur_index = members.index(self.follow_party_leader_strategy)
-        new_index = PyImGui.combo("", cur_index, names)
-
-        self.follow_party_leader_strategy = members[new_index]
-       
-

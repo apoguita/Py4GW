@@ -7,7 +7,8 @@ from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Widgets.CustomBehaviors.primitives.skills.bonds.per_type.custom_buff_target import BuffConfigurationPerProfession
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -30,8 +31,7 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
                 
         self.score_definition: ScoreStaticDefinition = score_definition
-        self.buff_configuration: BuffConfigurationPerProfession = BuffConfigurationPerProfession(self.custom_skill, BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
-
+        self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
 
     def _get_target(self) -> int | None:
         
@@ -63,5 +63,5 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
         return result 
 
     @override
-    def get_buff_configuration(self) -> BuffConfigurationPerProfession | None:
+    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
         return self.buff_configuration

@@ -40,6 +40,7 @@ from Widgets.CustomBehaviors.gui.auto_mover import render as auto_mover
 from Widgets.CustomBehaviors.gui.daemon import daemon as daemon
 from Widgets.CustomBehaviors.gui.botting import render as botting
 from Widgets.CustomBehaviors.gui.daemon_botting import daemon_botting
+from Widgets.CustomBehaviors.gui.teambuild import render as teambuild
 
 party_forced_state_combo = 0
 current_path = pathlib.Path.cwd()
@@ -76,6 +77,10 @@ def gui():
 
         if PyImGui.begin_tab_item("waypoint builder / auto_mover"):
             auto_mover()
+            PyImGui.end_tab_item()
+
+        if PyImGui.begin_tab_item("teambuild"):
+            teambuild()
             PyImGui.end_tab_item()
 
         if PyImGui.begin_tab_item("botting"):

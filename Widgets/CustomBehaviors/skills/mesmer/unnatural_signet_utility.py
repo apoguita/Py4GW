@@ -40,14 +40,12 @@ class UnnaturalSignetUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-
         targets = self._get_targets()
         if len(targets) == 0: return None
         return self.score_definition.get_score(targets[0].enemy_quantity_within_range)
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-
         enemies = self._get_targets()
         if len(enemies) == 0: return BehaviorResult.ACTION_SKIPPED
         target = enemies[0]

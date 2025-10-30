@@ -1,11 +1,11 @@
 from typing import Generator, Any
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
+from Py4GWCoreLib.routines_src.Yield import Yield
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
-
-class PartyCommands:
+class PartyCommandConstants:
 
     @staticmethod    
     def summon_all_to_current_map() -> Generator[Any, None, None]:
@@ -72,5 +72,15 @@ class PartyCommands:
                 continue
             if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
             GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,0,0,0))
+            yield from custom_behavior_helpers.Helpers.wait_for(100)
+        yield
+
+    @staticmethod
+    def rename_gw_windows() -> Generator[Any, None, None]:
+        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
+            GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.SetWindowTitle, ExtraData=(account.CharacterName, "", "", ""))
             yield from custom_behavior_helpers.Helpers.wait_for(100)
         yield

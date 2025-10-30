@@ -87,7 +87,3 @@ class DeathDetectionUtility(CustomSkillUtilityBase):
         pass
         # PyImGui.bullet_text(f"__stuck_count : {self.__stuck_count}")
         # PyImGui.bullet_text(f"__stuck_timer : {self.throttle_timer.GetTimeRemaining()}")
-
-    @override
-    def get_buff_configuration(self):
-        return None

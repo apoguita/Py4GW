@@ -19,6 +19,7 @@ class GadgetModelID(IntEnum):
     
     CHEST_DUNGEON_SECRET_LAIR_OF_THE_SNOWMAN = 9274 #ID for Secret Lair of the Snowman
     CHEST_DUNGEON_BOGROOT_GROWTHS = 8932 #ID for Bogroot Growths
+    CHEST_DUNGEON_SLAVERS_EXILE_JUSTICIAR_THOMMIS_ROOM = 9284 #ID for Slavers Exile (Justiciar Thommis room)
     
     
 class SpiritModelID(IntEnum):
