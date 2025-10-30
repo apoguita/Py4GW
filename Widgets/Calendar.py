@@ -2224,17 +2224,22 @@ def DrawDayCard():
             PyImGui.separator()
             PyImGui.text_colored("Event Drops", (0.8, 0.8, 0.2, 1))  # yellowish
 
-            # --- First row: textures ---
-            for i, item in enumerate(current_event["dropped_items"]):
-                ImGui.DrawTexture(get_texture_for_model(item), 48, 48)
-                if i < len(current_event["dropped_items"]) - 1:
-                    PyImGui.same_line(0, 5)  # spacing between textures
+            #Prevents crashes of Imgui if the  table is to small
+            item_amount = max(len(current_event["dropped_items"]), 1)
+            if PyImGui.is_rect_visible(0, 20):
+                if PyImGui.begin_table("event_drops_table", item_amount, PyImGui.TableFlags.NoFlag):
+                    for _ in range(item_amount):
+                        PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthFixed, 48)
+                        
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
 
-            # --- Second row: names ---
-            for i, item in enumerate(current_event["dropped_items"]):
-                PyImGui.text(str(item.name))
-                if i < len(current_event["dropped_items"]) - 1:
-                    PyImGui.same_line(0, 40)  # spacing between names (match texture width)
+                    for _, item in enumerate(current_event["dropped_items"]):
+                        ImGui.DrawTexture(get_texture_for_model(item), 48, 48)                        
+                        ImGui.show_tooltip(str(item.name))                        
+                        PyImGui.table_next_column()
+                        
+                    PyImGui.end_table()
 
             PyImGui.separator()
     else:
