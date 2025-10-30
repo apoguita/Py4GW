@@ -1,4 +1,3 @@
-from turtle import st
 from typing import List, Tuple, Callable, Optional, Generator, Any
 
 from Py4GWCoreLib.enums_src.IO_enums import Key
