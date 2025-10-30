@@ -1,21 +1,35 @@
+import ctypes
+from dataclasses import dataclass
 import inspect
 import importlib
 import pkgutil
 from typing import Callable, Generator, Any, List
 
+from PyAgent import AttributeClass
+
 from Py4GWCoreLib import Routines
+from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
+
+
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
 
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
+from Widgets.CustomBehaviors.primitives.parties.party_command_handler_manager import PartyCommandHandlerManager
+from Widgets.CustomBehaviors.primitives.parties.party_flagging_manager import PartyFlaggingManager
 from Widgets.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import SharedLockManager
-from Widgets.CustomBehaviors.primitives.parties.command_handler import CommandHandler
+from Widgets.CustomBehaviors.primitives.parties.party_teambuild_manager import PartyTeamBuildManager
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
-
+@dataclass
+class PartyData:
+    account_email: str
+    skillbar_template: str
+    
 class CustomBehaviorParty:
     _instance = None  # Singleton instance
 
@@ -30,13 +44,19 @@ class CustomBehaviorParty:
             self._initialized = True
             self._generator_handle = self._handle()
             
-            self.command_handler = CommandHandler()
+            self.party_command_handler_manager = PartyCommandHandlerManager()
+            self.party_teambuild_manager = PartyTeamBuildManager()
+            self.party_following_manager = PartyFollowingManager()
+            self.party_shared_lock_manager = CustomBehaviorWidgetMemoryManager().GetSharedLockManager()
+            self.party_flagging_manager = PartyFlaggingManager()
+
             self.throttler = ThrottledTimer(50)
 
     def _handle(self) -> Generator[Any | None, Any | None, None]:
         while True:
-            self.command_handler.execute_next_step()
-            
+            self.party_command_handler_manager.execute_next_step()
+            self.messaging_process()
+            self.party_teambuild_manager.act() # todo only if idle ?
             yield
     
     def act(self):
@@ -54,16 +74,31 @@ class CustomBehaviorParty:
 
     def schedule_action(self, action_gen: Callable[[], Generator]) -> bool:
         """Schedule a generator action. Returns True if accepted, False if busy."""
-        return self.command_handler.schedule_action(action_gen)
+        return self.party_command_handler_manager.schedule_action(action_gen)
 
     def is_ready_for_action(self) -> bool:
         """Check if it's safe to schedule another action."""
-        return self.command_handler.is_ready_for_action()
+        return self.party_command_handler_manager.is_ready_for_action()
+
+    #---
+
+
+    def messaging_process(self):
+
+        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        index, message = GLOBAL_CACHE.ShMem.GetNextMessage(account_email)
+
+        if index == -1 or message is None:
+            return
+
+        match message.Command:
+            case SharedCommandType.CustomBehaviors:
+                pass
 
     #---
 
     def get_shared_lock_manager(self) -> SharedLockManager:
-        return CustomBehaviorWidgetMemoryManager().GetSharedLockManager()
+        return self.party_shared_lock_manager
     
     def get_typology_is_enabled(self, skill_typology:UtilitySkillTypology):
         if skill_typology == UtilitySkillTypology.COMBAT:

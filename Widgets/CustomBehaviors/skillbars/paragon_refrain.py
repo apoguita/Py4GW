@@ -7,6 +7,7 @@ from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility i
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
+from Widgets.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
 from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
 from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
 from Widgets.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
@@ -14,8 +15,10 @@ from Widgets.CustomBehaviors.skills.generic.generic_resurrection_utility import 
 from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
 from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Widgets.CustomBehaviors.skills.generic.protective_shout_utility import ProtectiveShoutUtility
+from Widgets.CustomBehaviors.skills.paragon.blazing_finale_utility import BlazingFinaleUtility
 from Widgets.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Widgets.CustomBehaviors.skills.paragon.heroic_refrain_utility import HeroicRefrainUtility
+from Widgets.CustomBehaviors.skills.paragon.holy_spear_utility import HolySpearUtility
 from Widgets.CustomBehaviors.skills.warrior.protectors_defense_utility import ProtectorsDefenseUtility
 
 
@@ -35,6 +38,9 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.save_yourselves_kurzick: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Save_Yourselves_kurzick"), current_build=in_game_build, allies_health_less_than_percent=0.7, allies_quantity_required=1,score_definition=ScoreStaticDefinition(89), allowed_states=[BehaviorState.IN_AGGRO])
         self.never_surrender: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Never_Surrender"), current_build=in_game_build, allies_health_less_than_percent=0.7,allies_quantity_required=2,score_definition=ScoreStaticDefinition(88), allowed_states=[BehaviorState.IN_AGGRO])
 
+        self.blazing_finale_utility: CustomSkillUtilityBase = BlazingFinaleUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(33))
+        self.holy_spear_utility: CustomSkillUtilityBase = HolySpearUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 70 if enemy_qte >= 2 else 35 if enemy_qte <= 2 else 0))
+
         self.jagged_strike_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=13)
         self.fox_fangs_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Fox_Fangs"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=13)
         self.death_blossom_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Death_Blossom"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40), mana_required_to_cast=13)
@@ -46,6 +52,7 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.protectors_defense_utility: CustomSkillUtilityBase = ProtectorsDefenseUtility(event_bus=self.event_bus, current_build=in_game_build,score_definition=ScoreStaticDefinition(60))
         self.signet_of_return_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Signet_of_Return"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
+        self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
 
     
     @property
@@ -58,6 +65,8 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.save_yourselves_luxon,
             self.save_yourselves_kurzick,
             self.never_surrender,
+            self.blazing_finale_utility,
+            self.holy_spear_utility,
 
             self.jagged_strike_utility,
             self.fox_fangs_utility,
@@ -69,7 +78,7 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.fall_back_utility,
             self.protectors_defense_utility,
             self.signet_of_return_utility,
-
+            self.by_urals_hammer_utility,
             self.jagged_strike_utility,
             self.fox_fangs_utility,
             self.death_blossom_utility,

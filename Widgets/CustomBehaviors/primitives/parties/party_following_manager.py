@@ -29,93 +29,76 @@ class PartyFollowingManager:
         self._memory_manager = CustomBehaviorWidgetMemoryManager()
 
     @property
-    def combat_follow_distance(self) -> float:
-        return self._memory_manager.GetFollowingConfig().CombatFollowDistance
+    def follow_distance(self) -> float:
+        return self._memory_manager.GetFollowingConfig().FollowDistance
 
-    @combat_follow_distance.setter
-    def combat_follow_distance(self, value: float):
+    @follow_distance.setter
+    def follow_distance(self, value: float):
         config = self._memory_manager.GetFollowingConfig()
-        config.CombatFollowDistance = value
+        config.FollowDistance = value
+        self._memory_manager.SetFollowingConfig(config)
+
+    # Enemy repulsion configuration
+    @property
+    def enemy_repulsion_threshold(self) -> float:
+        return self._memory_manager.GetFollowingConfig().EnemyRepulsionThreshold
+
+    @enemy_repulsion_threshold.setter
+    def enemy_repulsion_threshold(self, value: float):
+        config = self._memory_manager.GetFollowingConfig()
+        config.EnemyRepulsionThreshold = value
         self._memory_manager.SetFollowingConfig(config)
 
     @property
-    def combat_spread_threshold(self) -> float:
-        return self._memory_manager.GetFollowingConfig().CombatSpreadThreshold
+    def enemy_repulsion_weight(self) -> float:
+        return self._memory_manager.GetFollowingConfig().EnemyRepulsionWeight
 
-    @combat_spread_threshold.setter
-    def combat_spread_threshold(self, value: float):
+    @enemy_repulsion_weight.setter
+    def enemy_repulsion_weight(self, value: float):
         config = self._memory_manager.GetFollowingConfig()
-        config.CombatSpreadThreshold = value
+        config.EnemyRepulsionWeight = value
+        self._memory_manager.SetFollowingConfig(config)
+
+    # Leader attraction configuration
+    @property
+    def leader_attraction_threshold(self) -> float:
+        return self._memory_manager.GetFollowingConfig().LeaderAttractionThreshold
+
+    @leader_attraction_threshold.setter
+    def leader_attraction_threshold(self, value: float):
+        config = self._memory_manager.GetFollowingConfig()
+        config.LeaderAttractionThreshold = value
         self._memory_manager.SetFollowingConfig(config)
 
     @property
-    def combat_repulsion_weight(self) -> float:
-        return self._memory_manager.GetFollowingConfig().CombatRepulsionWeight
+    def leader_attraction_weight(self) -> float:
+        return self._memory_manager.GetFollowingConfig().LeaderAttractionWeight
 
-    @combat_repulsion_weight.setter
-    def combat_repulsion_weight(self, value: float):
+    @leader_attraction_weight.setter
+    def leader_attraction_weight(self, value: float):
         config = self._memory_manager.GetFollowingConfig()
-        config.CombatRepulsionWeight = value
+        config.LeaderAttractionWeight = value
+        self._memory_manager.SetFollowingConfig(config)
+
+    # Allies repulsion configuration
+    @property
+    def allies_repulsion_threshold(self) -> float:
+        return self._memory_manager.GetFollowingConfig().AlliesRepulsionThreshold
+
+    @allies_repulsion_threshold.setter
+    def allies_repulsion_threshold(self, value: float):
+        config = self._memory_manager.GetFollowingConfig()
+        config.AlliesRepulsionThreshold = value
         self._memory_manager.SetFollowingConfig(config)
 
     @property
-    def noncombat_follow_distance(self) -> float:
-        return self._memory_manager.GetFollowingConfig().NoncombatFollowDistance
+    def allies_repulsion_weight(self) -> float:
+        return self._memory_manager.GetFollowingConfig().AlliesRepulsionWeight
 
-    @noncombat_follow_distance.setter
-    def noncombat_follow_distance(self, value: float):
+    @allies_repulsion_weight.setter
+    def allies_repulsion_weight(self, value: float):
         config = self._memory_manager.GetFollowingConfig()
-        config.NoncombatFollowDistance = value
-        self._memory_manager.SetFollowingConfig(config)
-
-    @property
-    def noncombat_spread_threshold(self) -> float:
-        return self._memory_manager.GetFollowingConfig().NoncombatSpreadThreshold
-
-    @noncombat_spread_threshold.setter
-    def noncombat_spread_threshold(self, value: float):
-        config = self._memory_manager.GetFollowingConfig()
-        config.NoncombatSpreadThreshold = value
-        self._memory_manager.SetFollowingConfig(config)
-
-    @property
-    def noncombat_repulsion_weight(self) -> float:
-        return self._memory_manager.GetFollowingConfig().NoncombatRepulsionWeight
-
-    @noncombat_repulsion_weight.setter
-    def noncombat_repulsion_weight(self, value: float):
-        config = self._memory_manager.GetFollowingConfig()
-        config.NoncombatRepulsionWeight = value
-        self._memory_manager.SetFollowingConfig(config)
-
-    @property
-    def follow_distance_tolerance(self) -> float:
-        return self._memory_manager.GetFollowingConfig().FollowDistanceTolerance
-
-    @follow_distance_tolerance.setter
-    def follow_distance_tolerance(self, value: float):
-        config = self._memory_manager.GetFollowingConfig()
-        config.FollowDistanceTolerance = value
-        self._memory_manager.SetFollowingConfig(config)
-
-    @property
-    def max_move_distance(self) -> float:
-        return self._memory_manager.GetFollowingConfig().MaxMoveDistance
-
-    @max_move_distance.setter
-    def max_move_distance(self, value: float):
-        config = self._memory_manager.GetFollowingConfig()
-        config.MaxMoveDistance = value
-        self._memory_manager.SetFollowingConfig(config)
-
-    @property
-    def min_move_threshold(self) -> float:
-        return self._memory_manager.GetFollowingConfig().MinMoveThreshold
-
-    @min_move_threshold.setter
-    def min_move_threshold(self, value: float):
-        config = self._memory_manager.GetFollowingConfig()
-        config.MinMoveThreshold = value
+        config.AlliesRepulsionWeight = value
         self._memory_manager.SetFollowingConfig(config)
 
     @property
@@ -128,30 +111,27 @@ class PartyFollowingManager:
         config.EnableDebugOverlay = value
         self._memory_manager.SetFollowingConfig(config)
 
-    def apply_preset_tight_combat(self):
-        """Apply tight combat formation preset"""
-        self.combat_follow_distance = 100.0
-        self.combat_spread_threshold = 120.0
-        self.combat_repulsion_weight = 120.0
-        self.noncombat_follow_distance = 150.0
-        self.noncombat_spread_threshold = 80.0
-        self.noncombat_repulsion_weight = 120.0
+    # Movement parameters configuration
+    @property
+    def min_move_threshold(self) -> float:
+        return self._memory_manager.GetFollowingConfig().MinMoveThreshold
 
-    def apply_preset_balanced(self):
-        """Apply balanced formation preset (default)"""
-        self.combat_follow_distance = 150.0
-        self.combat_spread_threshold = 150.0
-        self.combat_repulsion_weight = 150.0
-        self.noncombat_follow_distance = 200.0
-        self.noncombat_spread_threshold = 100.0
-        self.noncombat_repulsion_weight = 150.0
+    @min_move_threshold.setter
+    def min_move_threshold(self, value: float):
+        config = self._memory_manager.GetFollowingConfig()
+        config.MinMoveThreshold = value
+        self._memory_manager.SetFollowingConfig(config)
 
-    def apply_preset_loose_formation(self):
-        """Apply loose formation preset"""
-        self.combat_follow_distance = 200.0
-        self.combat_spread_threshold = 180.0
-        self.combat_repulsion_weight = 180.0
-        self.noncombat_follow_distance = 300.0
-        self.noncombat_spread_threshold = 120.0
-        self.noncombat_repulsion_weight = 180.0
+    @property
+    def max_move_distance(self) -> float:
+        return self._memory_manager.GetFollowingConfig().MaxMoveDistance
+
+    @max_move_distance.setter
+    def max_move_distance(self, value: float):
+        config = self._memory_manager.GetFollowingConfig()
+        config.MaxMoveDistance = value
+        self._memory_manager.SetFollowingConfig(config)
+
+
+
 

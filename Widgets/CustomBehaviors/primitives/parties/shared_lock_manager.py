@@ -35,6 +35,7 @@ class SharedLockEntryStruct(Structure):
         ("Key", c_wchar * MAX_LOCK_KEY_LEN),
         ("AcquiredAt", c_uint),
         ("ReleasedAt", c_uint),
+        ("TTLSeconds", c_uint),
         ("SenderEmail", c_wchar * MAX_SENDER_EMAIL_LEN),
     ]
 
@@ -131,6 +132,8 @@ class SharedLockManager:
 
         mem.LockEntries[slot_index].Key = ""
         mem.LockEntries[slot_index].AcquiredAt = 0
+        if hasattr(mem.LockEntries[slot_index], "TTLSeconds"):
+            mem.LockEntries[slot_index].TTLSeconds = 0
 
     def __dedupe_locks(self):
         """
@@ -150,7 +153,8 @@ class SharedLockManager:
                 continue
 
             # 1) Evict expired entries
-            if SharedLockEntry(key, acquired_at, sender_email=mem.LockEntries[slot_index].SenderEmail).is_expired(now_s):
+            ttl_seconds = getattr(mem.LockEntries[slot_index], 'TTLSeconds', LOCK_TTL_SECONDS)
+            if SharedLockEntry(key, acquired_at, sender_email=mem.LockEntries[slot_index].SenderEmail, ttl_seconds=ttl_seconds).is_expired(now_s):
                 self.__release_and_clear_slot(mem, slot_index, int(time.time()))
                 continue
 
@@ -175,7 +179,8 @@ class SharedLockManager:
         now_s = int(time.time())
         for i in range(MAX_LOCKS):
             if mem.LockEntries[i].Key != "" and mem.LockEntries[i].AcquiredAt != 0:
-                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail)
+                ttl_seconds = getattr(mem.LockEntries[i], 'TTLSeconds', LOCK_TTL_SECONDS)
+                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail, ttl_seconds=ttl_seconds)
                 if entry.is_expired(now_s):
                     released_at_now = int(time.time())
                     mem.LockEntries[i].Key = ""
@@ -196,15 +201,18 @@ class SharedLockManager:
         now_s = int(time.time())
         for i in range(MAX_LOCKS):
             if mem.LockEntries[i].Key != "" and mem.LockEntries[i].AcquiredAt != 0:
-                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail)
+                ttl_seconds = getattr(mem.LockEntries[i], 'TTLSeconds', LOCK_TTL_SECONDS)
+                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail, ttl_seconds=ttl_seconds)
                 if entry.is_expired(now_s):
                     mem.LockEntries[i].Key = ""
                     mem.LockEntries[i].AcquiredAt = 0
+                    if hasattr(mem.LockEntries[i], "TTLSeconds"):
+                        mem.LockEntries[i].TTLSeconds = 0
             if mem.LockEntries[i].Key == "":
                 return i
         return None
 
-    def try_aquire_lock(self, key: str) -> bool:
+    def try_aquire_lock(self, key: str, timeout_seconds: int = LOCK_TTL_SECONDS) -> bool:
         if key is None or key == "":
             return False
         self.__dedupe_locks()
@@ -217,6 +225,7 @@ class SharedLockManager:
         mem.LockEntries[idx].Key = key
         mem.LockEntries[idx].AcquiredAt = int(time.time())
         mem.LockEntries[idx].ReleasedAt = 0
+        mem.LockEntries[idx].TTLSeconds = timeout_seconds
         mem.LockEntries[idx].SenderEmail = f"{GLOBAL_CACHE.Player.GetAccountEmail()} | {GLOBAL_CACHE.Player.GetName()}"
         # final dedupe to collapse any rare duplicates due to races
         self.__dedupe_locks()
@@ -244,6 +253,8 @@ class SharedLockManager:
             mem.LockEntries[idx].Key = ""
             mem.LockEntries[idx].AcquiredAt = 0
             mem.LockEntries[idx].ReleasedAt = released_at_now
+            if hasattr(mem.LockEntries[idx], "TTLSeconds"):
+                mem.LockEntries[idx].TTLSeconds = 0
             # update existing history row instead of appending
             self.__update_history_on_release(key, acquired_at_before, sender_before, released_at_now)
             self.__update_shared_history_on_release(mem, key, acquired_at_before, sender_before, released_at_now)
@@ -284,12 +295,15 @@ class SharedLockManager:
         now_s = int(time.time())
         for i in range(MAX_LOCKS):
             if mem.LockEntries[i].Key == key and mem.LockEntries[i].AcquiredAt != 0:
-                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail)
+                ttl_seconds = getattr(mem.LockEntries[i], 'TTLSeconds', LOCK_TTL_SECONDS)
+                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail, ttl_seconds=ttl_seconds)
                 if entry.is_expired(now_s):
                     mem.LockEntries[i].Key = ""
                     mem.LockEntries[i].AcquiredAt = 0
                     mem.LockEntries[i].ReleasedAt = int(time.time())
                     mem.LockEntries[i].SenderEmail = ""
+                    if hasattr(mem.LockEntries[i], "TTLSeconds"):
+                        mem.LockEntries[i].TTLSeconds = 0
                     return False
                 return True
         return False
@@ -311,10 +325,12 @@ class SharedLockManager:
         result: list[SharedLockEntry] = []
         for i in range(MAX_LOCKS):
             if mem.LockEntries[i].Key != "" and mem.LockEntries[i].AcquiredAt != 0:
+                ttl_seconds = getattr(mem.LockEntries[i], 'TTLSeconds', LOCK_TTL_SECONDS)
                 entry = SharedLockEntry(
                     mem.LockEntries[i].Key,
                     mem.LockEntries[i].AcquiredAt,
                     mem.LockEntries[i].SenderEmail,
+                    ttl_seconds=ttl_seconds,
                 )
                 if not entry.is_expired(now_s):
                     result.append(entry)
@@ -327,10 +343,12 @@ class SharedLockManager:
         now_s = int(time.time())
         for i in range(MAX_LOCKS):
             if mem.LockEntries[i].Key != "" and mem.LockEntries[i].AcquiredAt != 0:
+                ttl_seconds = getattr(mem.LockEntries[i], 'TTLSeconds', LOCK_TTL_SECONDS)
                 entry = SharedLockEntry(
                     mem.LockEntries[i].Key,
                     mem.LockEntries[i].AcquiredAt,
                     mem.LockEntries[i].SenderEmail,
+                    ttl_seconds=ttl_seconds,
                 )
                 if not entry.is_expired(now_s):
                     return True

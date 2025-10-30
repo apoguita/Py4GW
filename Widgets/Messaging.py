@@ -1301,8 +1301,13 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(SkipCutscene(index, message))
         case SharedCommandType.UseSkillCombatPrep:
             GLOBAL_CACHE.Coroutines.append(UseSkillCombatPrep(index, message))
+        case SharedCommandType.ApplySkillbarTemplate:
+            GLOBAL_CACHE.Coroutines.append(ApplySkillbarTemplate(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by Frenkey
+            pass
+        case SharedCommandType.CustomBehaviors:
+            # privately Handled Command, used in CustomBehaviors widget
             pass
         case _:
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
