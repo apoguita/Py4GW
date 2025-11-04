@@ -146,118 +146,7 @@ class Utils:
         import re
         return re.sub(r'(?<!^)(?=[A-Z])', ' ', s)
     
-<<<<<<< Updated upstream
-    @staticmethod  
-    def base64_to_bin64(char : str) -> str:
-        """Convert base64 character to 6-bit binary string (Guild Wars LSB-first order)"""
-        match char:
-            case 'A': return '000000'
-            case 'B': return '100000'
-            case 'C': return '010000'
-            case 'D': return '110000'
-            case 'E': return '001000'
-            case 'F': return '101000'
-            case 'G': return '011000'
-            case 'H': return '111000'
-            case 'I': return '000100'
-            case 'J': return '100100'
-            case 'K': return '010100'
-            case 'L': return '110100'
-            case 'M': return '001100'
-            case 'N': return '101100'
-            case 'O': return '011100'
-            case 'P': return '111100'
-            case 'Q': return '000010'
-            case 'R': return '100010'
-            case 'S': return '010010'
-            case 'T': return '110010'
-            case 'U': return '001010'
-            case 'V': return '101010'
-            case 'W': return '011010'
-            case 'X': return '111010'
-            case 'Y': return '000110'
-            case 'Z': return '100110'
-            case 'a': return '010110'
-            case 'b': return '110110'
-            case 'c': return '001110'
-            case 'd': return '101110'
-            case 'e': return '011110'
-            case 'f': return '111110'
-            case 'g': return '000001'
-            case 'h': return '100001'
-            case 'i': return '010001'
-            case 'j': return '110001'
-            case 'k': return '001001'
-            case 'l': return '101001'
-            case 'm': return '011001'
-            case 'n': return '111001'
-            case 'o': return '000101'
-            case 'p': return '100101'
-            case 'q': return '010101'
-            case 'r': return '110101'
-            case 's': return '001101'
-            case 't': return '101101'
-            case 'u': return '011101'
-            case 'v': return '111101'
-            case 'w': return '000011'
-            case 'x': return '100011'
-            case 'y': return '010011'
-            case 'z': return '110011'
-            case '0': return '001011'
-            case '1': return '101011'
-            case '2': return '011011'
-            case '3': return '111011'
-            case '4': return '000111'
-            case '5': return '100111'
-            case '6': return '010111'
-            case '7': return '110111'
-            case '8': return '001111'
-            case '9': return '101111'
-            case '+': return '011111'
-            case '/': return '111111'
-        return '000000'  # Default to 'A' if character is not found
-
-    @staticmethod
-    def dec_to_bin64(decimal : int, bits : int) -> str:
-        """Convert decimal to binary string with specified number of bits (LSB first order)"""
-        binary = bin(decimal)[2:]  # Remove '0b' prefix
-        binary = binary.zfill(bits)  # Pad with zeros to reach desired length
-        return binary[::-1]  # Reverse to match LSB-first order used in Guild Wars
-
-    @staticmethod
-    def bin64_to_base64(binary : str) -> str:
-        """Convert binary string to base64 character using Guild Wars specific mapping"""
-        # Pad binary to multiple of 6 bits
-        while len(binary) % 6 != 0:
-            binary += '0'
-
-        # Create reverse mapping from the existing base64_to_bin64 function
-        bin_to_char = {}
-        chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-        for char in chars:
-            bin_pattern = Utils.base64_to_bin64(char)
-            bin_to_char[bin_pattern] = char
-
-        result = ''
-        for i in range(0, len(binary), 6):
-            chunk = binary[i:i+6]
-            if chunk in bin_to_char:
-                result += bin_to_char[chunk]
-            else:
-                # Fallback - this shouldn't happen if encoding is correct
-                result += 'A'
-
-        return result
-
-    @staticmethod
-    def bin64_to_dec(binary):
-        """Convert binary string to decimal (LSB-first order)"""
-        decimal = 0
-        for i in range(0, len(binary)):
-            if binary[i] == '1':
-                decimal += 2**(i)
-        return decimal
-=======
+     
     @staticmethod
     def GetExperienceProgression(xp: int) -> float:
         """
@@ -415,6 +304,116 @@ class Utils:
         style.Push()
 
         return tokenized_lines
->>>>>>> Stashed changes
+    
+    @staticmethod  
+    def base64_to_bin64(char : str) -> str:
+        """Convert base64 character to 6-bit binary string (Guild Wars LSB-first order)"""
+        match char:
+            case 'A': return '000000'
+            case 'B': return '100000'
+            case 'C': return '010000'
+            case 'D': return '110000'
+            case 'E': return '001000'
+            case 'F': return '101000'
+            case 'G': return '011000'
+            case 'H': return '111000'
+            case 'I': return '000100'
+            case 'J': return '100100'
+            case 'K': return '010100'
+            case 'L': return '110100'
+            case 'M': return '001100'
+            case 'N': return '101100'
+            case 'O': return '011100'
+            case 'P': return '111100'
+            case 'Q': return '000010'
+            case 'R': return '100010'
+            case 'S': return '010010'
+            case 'T': return '110010'
+            case 'U': return '001010'
+            case 'V': return '101010'
+            case 'W': return '011010'
+            case 'X': return '111010'
+            case 'Y': return '000110'
+            case 'Z': return '100110'
+            case 'a': return '010110'
+            case 'b': return '110110'
+            case 'c': return '001110'
+            case 'd': return '101110'
+            case 'e': return '011110'
+            case 'f': return '111110'
+            case 'g': return '000001'
+            case 'h': return '100001'
+            case 'i': return '010001'
+            case 'j': return '110001'
+            case 'k': return '001001'
+            case 'l': return '101001'
+            case 'm': return '011001'
+            case 'n': return '111001'
+            case 'o': return '000101'
+            case 'p': return '100101'
+            case 'q': return '010101'
+            case 'r': return '110101'
+            case 's': return '001101'
+            case 't': return '101101'
+            case 'u': return '011101'
+            case 'v': return '111101'
+            case 'w': return '000011'
+            case 'x': return '100011'
+            case 'y': return '010011'
+            case 'z': return '110011'
+            case '0': return '001011'
+            case '1': return '101011'
+            case '2': return '011011'
+            case '3': return '111011'
+            case '4': return '000111'
+            case '5': return '100111'
+            case '6': return '010111'
+            case '7': return '110111'
+            case '8': return '001111'
+            case '9': return '101111'
+            case '+': return '011111'
+            case '/': return '111111'
+        return '000000'  # Default to 'A' if character is not found
+
+    @staticmethod
+    def dec_to_bin64(decimal : int, bits : int) -> str:
+        """Convert decimal to binary string with specified number of bits (LSB first order)"""
+        binary = bin(decimal)[2:]  # Remove '0b' prefix
+        binary = binary.zfill(bits)  # Pad with zeros to reach desired length
+        return binary[::-1]  # Reverse to match LSB-first order used in Guild Wars
+
+    @staticmethod
+    def bin64_to_base64(binary : str) -> str:
+        """Convert binary string to base64 character using Guild Wars specific mapping"""
+        # Pad binary to multiple of 6 bits
+        while len(binary) % 6 != 0:
+            binary += '0'
+
+        # Create reverse mapping from the existing base64_to_bin64 function
+        bin_to_char = {}
+        chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+        for char in chars:
+            bin_pattern = Utils.base64_to_bin64(char)
+            bin_to_char[bin_pattern] = char
+
+        result = ''
+        for i in range(0, len(binary), 6):
+            chunk = binary[i:i+6]
+            if chunk in bin_to_char:
+                result += bin_to_char[chunk]
+            else:
+                # Fallback - this shouldn't happen if encoding is correct
+                result += 'A'
+
+        return result
+
+    @staticmethod
+    def bin64_to_dec(binary):
+        """Convert binary string to decimal (LSB-first order)"""
+        decimal = 0
+        for i in range(0, len(binary)):
+            if binary[i] == '1':
+                decimal += 2**(i)
+        return decimal
 
 #endregion
