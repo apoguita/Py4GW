@@ -15,6 +15,9 @@ class SkillbarCache:
     def LoadHeroSkillTemplate (self, hero_index, skill_template):
         self._action_queue_manager.AddAction("ACTION", self._skillbar_instance.LoadHeroSkillTemplate, hero_index, skill_template)
         
+    def GetSkillBySlot(self, slot):
+        return self._skillbar_instance.GetSkill(slot)
+    
     def GetSkillIDBySlot(self, slot):
         return self._skillbar_instance.GetSkill(slot).id.id
     

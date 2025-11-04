@@ -46,7 +46,7 @@ class _EVENTS:
 
                     # inner wait loop for this attempt
                     while not Routines.Checks.Party.IsAllPartyMembersInRange(Range.Spellcast.value):
-                        yield from bot.helpers.Wait._for_time(500)
+                        yield from bot.Wait._coro_for_time(500)
 
                         # re-emit pixel stack every 10s
                         now = Utils.GetBaseTimestamp()

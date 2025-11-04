@@ -103,7 +103,7 @@ def main():
         elif map_name in norn_map_names:
             GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Norn.value)
         elif map_name in vanguard_map_names:
-            GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Vanguard.value)
+            GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Ebon_Vanguard.value)
         elif map_name in lightbringer_map_names:
             GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Lightbringer.value)
         widget_config.title_applied = True

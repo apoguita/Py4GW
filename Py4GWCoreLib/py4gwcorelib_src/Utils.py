@@ -2,8 +2,11 @@
 # Utils
 import math
 import time
+import PyImGui
+import re
 from .Color import Color
 from datetime import datetime, timezone
+from ..enums import CAP_EXPERIENCE, CAP_STEP, EXPERIENCE_PROGRESSION
 class Utils:
     from typing import Tuple
     @staticmethod
@@ -143,6 +146,7 @@ class Utils:
         import re
         return re.sub(r'(?<!^)(?=[A-Z])', ' ', s)
     
+<<<<<<< Updated upstream
     @staticmethod  
     def base64_to_bin64(char : str) -> str:
         """Convert base64 character to 6-bit binary string (Guild Wars LSB-first order)"""
@@ -253,5 +257,164 @@ class Utils:
             if binary[i] == '1':
                 decimal += 2**(i)
         return decimal
+=======
+    @staticmethod
+    def GetExperienceProgression(xp: int) -> float:
+        """
+        Given total XP, return (level, percent_in_level, skill_points_from_xp).
+        https://wiki.guildwars.com/wiki/Experience
+        """
+        # Before overflow
+        for lvl, base, req in EXPERIENCE_PROGRESSION:
+            if xp < base + req:
+                pct = (xp - base) / req * 100.0
+                # skill points only after level 20
+                skill_points = max(0, lvl - 20)
+                return pct
+
+        # Overflow past 182,600
+        overflow = xp - CAP_EXPERIENCE
+        extra_levels = overflow // CAP_STEP
+        remainder = overflow % CAP_STEP
+        lvl = 23 + extra_levels
+        pct = remainder / CAP_STEP * 100.0
+
+        # Skill points: from 21 onward
+        # Level 21 = +1, Level 22 = +2, then +1 per 15k chunk
+        skill_points = (22 - 20)  # 2 from reaching 21 & 22
+        skill_points += extra_levels + (1 if remainder > 0 else 0)
+
+        return pct
+
+    @staticmethod
+    def TokenizeMarkupText(text: str, max_width: float):
+        """Return tokenized lines of markup-ready text (no rendering)."""
+        # Identify atomic blocks
+        style = PyImGui.StyleConfig()
+        style.Pull()
+        _orig_cell = style.CellPadding
+        _orig_item = style.ItemSpacing
+        style.CellPadding = (_orig_cell[0], 0.0)   # ↓ vertical padding inside table rows
+        style.ItemSpacing = (_orig_item[0], 0.0)   # ↓ spacing between stacked rows
+        style.Push()
+
+        atomic_blocks = re.findall(r"<c=@[^>]+>.*?</c>", text, flags=re.IGNORECASE)
+        tmp_placeholder = text
+        block_map = {}
+        for i, block in enumerate(atomic_blocks):
+            key = f"@@BLOCK{i}@@"
+            block_map[key] = block
+            tmp_placeholder = tmp_placeholder.replace(block, key)
+
+        tag_or_text = re.compile(r"(<[^>]+>|\{[^}]+\}|@@BLOCK\d+@@|[^\{\}<@\n\r]+|\n+|\r+)")
+        parts = tag_or_text.findall(tmp_placeholder)
+        lines, current_line, visible = [], [], ""
+        inside_bullet = False
+
+        def flush_line():
+            nonlocal current_line, visible
+            if current_line:
+                lines.append("".join(current_line).rstrip())
+                current_line = []
+                visible = ""
+
+        for part in parts:
+            low = part.lower()
+            # --- Handle newlines ---
+            if part == "\n" or part == "\r" or part == "\r\n" or "\n" in part:
+                flush_line()
+                lines.append("")
+                inside_bullet = False
+                continue
+            # --- Handle breaks ---
+            if low in ("<brx>", "<br>", "<brx/>"):
+                flush_line()
+                inside_bullet = False
+                continue
+            if low in ("<p>", "</p>"):
+                flush_line()
+                lines.append("")  # paragraph break
+                inside_bullet = False
+                continue
+            # --- Bullet start ---
+            if low in ("{s}", "{sc}"):
+                inside_bullet = True
+                current_line.append(part)
+                continue
+            # --- Protected atomic color blocks ---
+            if part.startswith("@@BLOCK"):
+                block = block_map[part]
+                inner_text = re.sub(r"^<c=@[^>]+>|</c>$", "", block, flags=re.IGNORECASE)
+                visible_width = PyImGui.calc_text_size(visible + inner_text)[0]
+                if visible_width > max_width and visible and not inside_bullet:
+                    flush_line()
+                current_line.append(block)
+                visible += inner_text
+                continue
+            # --- Tags (non-visible markup) ---
+            if part.startswith("<") or part.startswith("{"):
+                current_line.append(part)
+                continue
+            # --- Word-based wrapping (disabled for bullets) ---
+            if inside_bullet:
+                # append directly without wrapping logic
+                current_line.append(part)
+                visible += part
+                continue
+            
+            words = part.split(" ")
+            for w in words:
+                if not w:
+                    #current_line.append(" ")
+                    visible += ""
+                    continue
+                test = (visible + " " + w).strip() if visible else w
+                if PyImGui.calc_text_size(test)[0] > max_width and visible:
+                    flush_line()
+                    current_line.append(w)
+                    visible = w
+                else:
+                    if visible:
+                        current_line.append(" ")
+                    current_line.append(w)
+                    visible = test
+
+        if current_line:
+            flush_line()
+        
+        # --- Tokenize each split line into markup tokens ---
+        pattern = re.compile(r"(<[^>]+>|\{[^}]+\})")
+        tokenized_lines = []
+        for line in lines:
+            tokens, pos = [], 0
+            for match in pattern.finditer(line):
+                start, end = match.span()
+                if start > pos:
+                    tokens.append({"type": "text", "value": line[pos:start]})
+                tag = match.group(0).strip()
+
+                if tag.lower().startswith("<c=@"):
+                    tokens.append({"type": "color_start", "value": tag[3:-1].strip()})
+                elif tag.lower() == "</c>":
+                    tokens.append({"type": "color_end"})
+                elif tag.lower() in ("<brx>", "<br>", "<brx/>"):
+                    tokens.append({"type": "line_break"})
+                elif tag.lower() in ("<p>", "</p>"):
+                    tokens.append({"type": "paragraph"})
+                elif tag.lower() == "{sc}":
+                    tokens.append({"type": "bullet", "gray": True})
+                elif tag.lower() == "{s}":
+                    tokens.append({"type": "bullet", "gray": False})
+                pos = end
+            if pos < len(line):
+                tokens.append({"type": "text", "value": line[pos:]})
+            tokenized_lines.append(tokens)
+            
+        style.CellPadding = _orig_cell
+        style.ItemSpacing = _orig_item
+        style.Push()
+
+        return tokenized_lines
+>>>>>>> Stashed changes
 
 #endregion

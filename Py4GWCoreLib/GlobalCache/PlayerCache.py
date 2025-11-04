@@ -1,17 +1,38 @@
 import PyPlayer
 from Py4GWCoreLib.Agent import AgentName
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
+from Py4GWCoreLib import ThrottledTimer
 
 class PlayerCache:
     def __init__(self, action_queue_manager):
         self._player_instance = PyPlayer.PyPlayer()
+        self._title_instances: dict[int, PyPlayer.PyTitle] = {}
+        self._title_throttle_timer = ThrottledTimer(250)
+        self._title_array: list[int] = []
+        self._active_title_id: int = -1
         self._name_object = AgentName(self._player_instance.id,1000)
         self._name = ""
         self._action_queue_manager:ActionQueueManager = action_queue_manager
+        self.login_characters = []
         
     def _update_cache(self):
         self._player_instance.GetContext()
         self._name_object.agent_id = self._player_instance.id
+        if self._title_throttle_timer.IsExpired():
+            self._title_throttle_timer.Reset()
+            self._active_title_id = self._player_instance.GetActiveTitleId()
+            self._title_array = self._player_instance.GetTitleArray()
+            for title_id in self._title_array:
+                if title_id in self._title_instances:
+                    self._title_instances[title_id].GetContext()
+                    continue
+                title = PyPlayer.PyTitle(title_id)
+                if title:
+                    self._title_instances[title_id] = title
+            #using same timer to update login characters
+            self.login_characters = self._player_instance.GetAvailableCharacters()
+                
+                
         
     def GetAgentID(self):
         return self._player_instance.id
@@ -88,6 +109,9 @@ class PlayerCache:
     
     def GetAccountEmail(self):
         return self._player_instance.account_email
+    
+    def GetPlayerUUID(self):
+        return self._player_instance.player_uuid
 
     def GetRankData(self):
         return self._player_instance.rank, self._player_instance.rating, self._player_instance.qualifier_points, self._player_instance.wins, self._player_instance.losses
@@ -104,8 +128,32 @@ class PlayerCache:
     def GetExperience(self):
         return self._player_instance.experience
     
+    def GetLevel(self):
+        return self._player_instance.level
+    
     def GetSkillPointData(self):
         return self._player_instance.current_skill_points, self._player_instance.total_earned_skill_points
+    
+    def GetMissionsCompleted(self):
+        return self._player_instance.missions_completed
+    
+    def GetMissionsBonusCompleted(self):
+        return self._player_instance.missions_bonus
+    
+    def GetMissionsCompletedHM(self):
+        return self._player_instance.missions_completed_hm
+    
+    def GetMissionsBonusCompletedHM(self):
+        return self._player_instance.missions_bonus_hm
+    
+    def GetControlledMinions(self):
+        return self._player_instance.controlled_minions
+    
+    def GetLearnableCharacterSkills(self):
+        return self._player_instance.learnable_character_skills
+    
+    def GetUnlockedCharacterSkills(self):
+        return self._player_instance.unlocked_character_skills
     
     def GetKurzickData(self):
         return self._player_instance.current_kurzick, self._player_instance.total_earned_kurzick, self._player_instance.max_kurzick
@@ -120,10 +168,13 @@ class PlayerCache:
         return self._player_instance.current_balth, self._player_instance.total_earned_balth, self._player_instance.max_balth
     
     def GetActiveTitleID(self):
-        return self._player_instance.GetActiveTitleId()
+        return self._active_title_id
     
-    def GetTitle(self, title_id):
-        return PyPlayer.PyTitle(title_id)
+    def GetTitleArray(self):
+        return self._title_array
+    
+    def GetTitle(self, title_id) -> PyPlayer.PyTitle | None:
+        return self._title_instances.get(title_id, None)
     
     def RemoveActiveTitle(self):
         self._action_queue_manager.AddAction("ACTION", self._player_instance.RemoveActiveTitle)
@@ -142,7 +193,7 @@ class PlayerCache:
         return self._player_instance.GetIsCharacterSelectReady()
         
     def GetLoginCharacters(self):
-        return self._player_instance.GetAvailableCharacters()
+        return self.login_characters
     
     def GetPreGameContext(self):
         return self._player_instance.GetPreGameContext()

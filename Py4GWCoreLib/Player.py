@@ -282,6 +282,15 @@ class Player:
         return Player.player_instance().account_email
     
     @staticmethod
+    def GetPlayerUUID():
+        """
+        Purpose: Retrieve the player's UUID.
+        Args: None
+        Returns: tuple[int,int,int,int]
+        """
+        return Player.player_instance().player_uuid
+    
+    @staticmethod
     def GetRankData():
         """
         Purpose: Retrieve the player's current rank data.
@@ -326,6 +335,15 @@ class Player:
         return Player.player_instance().experience
     
     @staticmethod
+    def GetLevel():
+        """
+        Purpose: Retrieve the player's current level.
+        Args: None
+        Returns: int
+        """
+        return Player.player_instance().level
+    
+    @staticmethod
     def GetSkillPointData():
         """
         Purpose: Retrieve the player's current skill point data.
@@ -333,6 +351,69 @@ class Player:
         Returns: int
         """
         return Player.player_instance().current_skill_points, Player.player_instance().total_earned_skill_points
+    
+    @staticmethod
+    def GetMissionsCompleted():
+        """
+        Purpose: Retrieve the player's completed missions.
+        Args: None
+        Returns: list
+        """
+        return Player.player_instance().missions_completed
+    
+    @staticmethod
+    def GetMissionsBonusCompleted():
+        """
+        Purpose: Retrieve the player's mission bonus data.
+        Args: None
+        Returns: list
+        """
+        return Player.player_instance().missions_bonus
+    
+    @staticmethod
+    def GetMissionsCompletedHM():
+        """
+        Purpose: Retrieve the player's completed hard mode missions.
+        Args: None
+        Returns: list
+        """
+        return Player.player_instance().missions_completed_hm
+    
+    @staticmethod
+    def GetMissionsBonusCompletedHM():
+        """
+        Purpose: Retrieve the player's hard mode mission bonus data.
+        Args: None
+        Returns: list
+        """
+        return Player.player_instance().missions_bonus_hm
+    
+    @staticmethod
+    def GetControlledMinions():
+        """
+        Purpose: Retrieve the player's controlled minions.
+        Args: None
+        Returns: tuple (agent_id, minion_count)
+        """
+        return Player.player_instance().controlled_minions
+    
+    @staticmethod
+    def GetLearnableCharacterSkills():
+        """
+        Purpose: populated at skill trainer and when using signet of capture
+        Args: None
+        Returns: list
+        """
+        return Player.player_instance().learnable_character_skills
+    
+    @staticmethod
+    def GetUnlockedCharacterSkills():
+        """
+        Purpose: Retrieve the player's unlocked character skills.
+        Args: None
+        Returns: list
+        """
+        return Player.player_instance().unlocked_character_skills
     
     @staticmethod
     def GetKurzickData():
@@ -379,6 +460,15 @@ class Player:
         Returns: int
         """
         return Player.player_instance().GetActiveTitleId()
+    
+    @staticmethod
+    def GetTitleArray():
+        """
+        Purpose: Retrieve the player's title array.
+        Args: None
+        Returns: list
+        """
+        return Player.player_instance().GetTitleArray()
     
     @staticmethod
     def GetTitle(title_id):
