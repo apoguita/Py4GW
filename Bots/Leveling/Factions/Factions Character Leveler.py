@@ -3,7 +3,7 @@ from typing import List, Tuple, Generator, Any
 import os
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui)
+                          AutoPathing, ImGui, ActionQueueManager)
 
 bot = Botting("Factions Leveler",
               upkeep_birthday_cupcake_restock=10,
@@ -15,7 +15,7 @@ bot = Botting("Factions Leveler",
 
 #region MainRoutine
 def create_bot_routine(bot: Botting) -> None:
-    InitializeEventCallbacks(bot) #revisited
+    InitializeBot(bot) #revisited
     ExitMonasteryOverlook(bot) #revisited
     ExitToCourtyard(bot) #revisited
     UnlockSecondaryProfession(bot) #revisited
@@ -55,8 +55,8 @@ def create_bot_routine(bot: Botting) -> None:
     UnlockKillroy(bot)
     AdvanceToLongeyeEdge(bot)
     UnlockNPCForVaettirFarm(bot)
-    UnlockRemainingSecondaryProfessions(bot)
     UnlockXunlaiMaterialPanel(bot)
+    UnlockRemainingSecondaryProfessions(bot)
     UnlockMercenaryHeroes(bot)
     bot.States.AddHeader("Final Step")
     bot.Stop()
@@ -320,13 +320,26 @@ def CraftRemainingArmor():
     return True
 
 #region Routines
-def InitializeEventCallbacks(bot: Botting) -> None:
-    bot.States.AddHeader("Initial Step")
-    condition = lambda: on_party_wipe(bot)
-    bot.Events.OnPartyWipeCallback(condition)
-    bot.Events.OnPartyDefeatedCallback(condition)
+def _on_death(bot: "Botting"):
+    bot.Properties.ApplyNow("pause_on_danger", "active", False)
+    bot.Properties.ApplyNow("halt_on_death","active", True)
+    bot.Properties.ApplyNow("movement_timeout","value", 15000)
+    bot.Properties.ApplyNow("auto_combat","active", False)
+    yield from Routines.Yield.wait(8000)
+    fsm = bot.config.FSM
+    fsm.jump_to_state_by_name("[H]Acquire Kieran's Bow_4") 
+    fsm.resume()                           
+    yield  
     
-    condition = lambda: OnDeath(bot)
+def on_death(bot: "Botting"):
+    print ("Player is dead. Run Failed, Restarting...")
+    ActionQueueManager().ResetAllQueues()
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
+    
+def InitializeBot(bot: Botting) -> None:
+    condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
 
 def ExitMonasteryOverlook(bot: Botting) -> None:
@@ -425,6 +438,7 @@ def EnterMinisterChoMission(bot: Botting):
 
 def MinisterChoMission(bot: Botting) -> None:
     bot.States.AddHeader("Minister Cho Mission")
+    ConfigureAggressiveEnv(bot)
     auto_path_list:List[Tuple[float, float]] = [
             (6358, -7348),   # Move to Activate Mission
             (507, -8910),    # Move to First Door
@@ -543,6 +557,7 @@ def EnterZenDaijunMission(bot:Botting):
     
 def ZenDaijunMission(bot: Botting):
     bot.States.AddHeader("Zen Daijun Mission")
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(11775.22, 11310.60)
     bot.Interact.WithGadgetAtXY(11665, 11386)
     auto_path_list:List[Tuple[float, float]] = [(10549,8070),(10945,3436),(7551,3810),(4855.66, 1521.21)]
@@ -862,10 +877,23 @@ def AdvanceToGunnarsHold(bot: Botting):
     bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)  # Gunnar's Hold
     bot.Wait.ForMapLoad(target_map_id=644)  # Gunnar's Hold
 
+def UnlockKillroy(bot: Botting):
+    bot.States.AddHeader("Unlock Killroy")
+    bot.Templates.Aggressive(enable_imp=False)
+    bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
+    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
+    bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
+    bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
+    bot.Items.Equip(24897) #brass_knuckles_item_id
+    bot.Move.XY(19290.50, -11552.23)
+    bot.Wait.UntilOnOutpost()
+    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
+
 def AdvanceToLongeyeEdge(bot: Botting):
     bot.States.AddHeader("Advancing to Longeye's Edge")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
     PrepareForBattle(bot)
+    bot.Items.Equip(5831)
     
     # Exit Gunnar's Hold outpost
     bot.Move.XY(15886.204101, -6687.815917)
@@ -929,21 +957,33 @@ def UnlockNPCForVaettirFarm(bot: Botting):
     bot.Wait.UntilOutOfCombat()
     bot.Dialogs.AtXY(13367, -20771,0x84)
     
-def UnlockKillroy(bot: Botting):
-    bot.States.AddHeader("Unlock Killroy")
-    bot.Templates.Aggressive(enable_imp=False)
-    bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
-    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
-    bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
-    bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
-    bot.Items.Equip(24897) #brass_knuckles_item_id
-    bot.Move.XY(19290.50, -11552.23)
-    bot.Wait.UntilOnOutpost()
-    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
+def UnlockXunlaiMaterialPanel(bot: Botting) -> None:
+    bot.States.AddHeader("Unlock Xunlai Material Panel")
+    bot.Party.LeaveParty()
+    bot.Map.Travel(target_map_id=248)  # GTOB
+    path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
+    bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
+    bot.Dialogs.WithModel(221, 0x800001)
+    bot.Dialogs.WithModel(221, 0x800002)
+
+def withdraw_gold(target_gold=5000, deposit_all=True):
+    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+    if gold_on_char > target_gold and deposit_all:
+        to_deposit = gold_on_char - target_gold
+        GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
+        yield from Routines.Yield.wait(250)
+
+    if gold_on_char < target_gold:
+        to_withdraw = target_gold - gold_on_char
+        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
+        yield from Routines.Yield.wait(250)
 
 def UnlockRemainingSecondaryProfessions(bot: Botting):
     bot.States.AddHeader("Unlock remaining secondary professions")
     bot.Map.Travel(target_map_id=248)  # GTOB
+    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
+    bot.Move.XY(-5540.40, -5733.11)
     bot.Move.XY(-3151.22, -7255.13)  # Move to profession trainers area
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     
@@ -1020,15 +1060,6 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
         bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
         bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
-
-def UnlockXunlaiMaterialPanel(bot: Botting) -> None:
-    bot.States.AddHeader("Unlock Xunlai Material Panel")
-    bot.Party.LeaveParty()
-    bot.Map.Travel(target_map_id=248)  # GTOB
-    path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
-    bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
-    bot.Dialogs.WithModel(221, 0x800001)
-    bot.Dialogs.WithModel(221, 0x800002)
 
 def UnlockMercenaryHeroes(bot: Botting) -> None:
     bot.States.AddHeader("Phase 7: Unlocking Mercenary Heroes")
