@@ -27,46 +27,40 @@ from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import Uti
 class LootUtility(CustomSkillUtilityBase):
 
     def __init__(
-            self, 
+            self,
             event_bus:EventBus,
-            current_build: list[CustomSkill], 
-            allowed_states: list[BehaviorState] = [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO] 
+            current_build: list[CustomSkill],
+            allowed_states: list[BehaviorState] = [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
             # CLOSE_TO_AGGRO is required to avoid infinite-loop, if when approching an item to loot, player is aggroing.
             # otherwise once approching enemies, player will infinitely loop between loot & follow_party_leader
         ) -> None:
-        
+
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("loot"), 
+            skill=CustomSkill("loot"),
             in_game_build=current_build,
-            score_definition=ScoreStaticDefinition(CommonScore.LOOT.value), 
+            score_definition=ScoreStaticDefinition(CommonScore.LOOT.value),
             allowed_states=allowed_states,
             utility_skill_typology=UtilitySkillTypology.LOOTING,
             execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.LOOT.value)
         self.throttle_timer: ThrottledTimer = ThrottledTimer(1_000)
-        self.stuck_cooldown_timer:CooldownTimer = CooldownTimer(20_000)  # 20 second cooldown when player is stuck
-        self.event_bus.subscribe(EventType.PLAYER_STUCK, self.player_stuck, subscriber_name=self.custom_skill.skill_name)
+        self.loot_cooldown_timer:CooldownTimer = CooldownTimer(10_000)  # 10s cooldown after blacklist
 
-    def player_stuck(self, message: EventMessage)-> Generator[Any, Any, Any]:
-        if not self.are_common_pre_checks_valid(message.current_state): return
-        self.stuck_cooldown_timer.Restart()
-        if constants.DEBUG: print(f"[LootUtility] Player stuck detected - activating 20s loot scoring cooldown")
-        yield
-        return
-        
+
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
         return True
 
+
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        # Check if we're in cooldown due to player being stuck
-        if self.stuck_cooldown_timer.IsInCooldown():
+        # Check cooldown after blacklist
+        if self.loot_cooldown_timer.IsInCooldown():
             return None
 
         if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1:
@@ -90,27 +84,27 @@ class LootUtility(CustomSkillUtilityBase):
         if not self.throttle_timer.IsExpired():
             yield
             return BehaviorResult.ACTION_SKIPPED
-        
+
         loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
-        if len(loot_array) == 0: 
+        if len(loot_array) == 0:
             yield
             return BehaviorResult.ACTION_SKIPPED
 
         self.throttle_timer.Reset()
-        
+
         while True:
 
             if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1: break
             loot_array:list[int] = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
             if len(loot_array) == 0: break
             item_id = loot_array.pop(0)
-            if item_id is None or item_id == 0: 
+            if item_id is None or item_id == 0:
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
-            if not GLOBAL_CACHE.Agent.IsValid(item_id): 
+            if not GLOBAL_CACHE.Agent.IsValid(item_id):
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
-            
+
             # 1) try to loot
             pos = GLOBAL_CACHE.Agent.GetXY(item_id)
             follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=6_000)
@@ -118,9 +112,10 @@ class LootUtility(CustomSkillUtilityBase):
                 print("Failed to follow path to loot item, halting.")
                 real_item_id = GLOBAL_CACHE.Agent.GetItemAgent(item_id).item_id
                 LootConfig().AddItemIDToBlacklist(real_item_id)
+                self.loot_cooldown_timer.Restart()
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
-            
+
             GLOBAL_CACHE.Player.Interact(item_id, call_target=False)
             yield from custom_behavior_helpers.Helpers.wait_for(100)
 
@@ -131,17 +126,19 @@ class LootUtility(CustomSkillUtilityBase):
                 if item_id not in loot_array or len(loot_array) == 0:
                     break
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
-            
+
             # 3) Check if we timed out and add to blacklist if so
             if pickup_timer.IsExpired():
                 real_item_id = GLOBAL_CACHE.Agent.GetItemAgent(item_id).item_id
                 LootConfig().AddItemIDToBlacklist(real_item_id)
+                self.loot_cooldown_timer.Restart()
 
         yield from custom_behavior_helpers.Helpers.wait_for(100)
         return BehaviorResult.ACTION_PERFORMED
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text(f"is_in_stuck_cooldown : {self.stuck_cooldown_timer.IsInCooldown()}")
+        PyImGui.bullet_text(f"is_in_loot_cooldown : {self.loot_cooldown_timer.IsInCooldown()}")
+        PyImGui.bullet_text(f"loot_cd_remaining_ms: {int(self.loot_cooldown_timer.GetTimeRemaining())}")
         PyImGui.bullet_text(f"loot_array : {LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)}")
         return
