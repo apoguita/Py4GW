@@ -49,7 +49,8 @@ class SharedMemoryManager:
                 Py4GW.Console.Log(SMM_MODULE_NAME, "Shared memory area created.", Py4GW.Console.MessageType.Info)
 
             # Attach the shared memory structure
-            self.game_struct = GameStruct.from_buffer(self.shm.buf)
+            if self.shm.buf:
+                self.game_struct = GameStruct.from_buffer(self.shm.buf)
 
             # Initialize default values
             for i in range(self.num_players):

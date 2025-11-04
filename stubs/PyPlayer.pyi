@@ -34,6 +34,7 @@ class PyPlayer:
     observing_id: int
     account_name: str
     account_email: str
+    player_uuid: tuple[int,int,int,int]
     wins: int
     losses: int
     rating: int
@@ -43,6 +44,7 @@ class PyPlayer:
     morale: int
     party_morale: list[tuple[int, int]]
     experience: int
+    level : int
     current_kurzick: int
     total_earned_kurzick: int
     max_kurzick: int
@@ -57,6 +59,13 @@ class PyPlayer:
     max_balth: int
     current_skill_points: int
     total_earned_skill_points: int
+    missions_completed: list[int]
+    missions_bonus: list[int]
+    missions_completed_hm: list[int]
+    missions_bonus_hm: list[int]
+    controlled_minions: list[tuple[int, int]] #agent_id, minion count
+    learnable_character_skills: list[int] #populated at skill trainer and when using signet of capture
+    unlocked_character_skills: list[int]
 
     def __init__(self) -> None: ...
     def GetContext(self) -> None: ...
@@ -93,6 +102,7 @@ class PyPlayer:
     def RemoveActiveTitle(self) -> bool: ...
     def DepositFaction(self, allegiance: int) -> bool: ...
     def GetActiveTitleId(self) -> int: ...
+    def GetTitleArray(self) -> list[int]: ...
     @staticmethod
     def LogouttoCharacterSelect() -> None: ...
     @staticmethod
