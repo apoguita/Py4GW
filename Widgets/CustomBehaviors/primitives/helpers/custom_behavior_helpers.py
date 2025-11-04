@@ -118,6 +118,8 @@ class Resources:
             GadgetModelID.CHEST_DUNGEON_SECRET_LAIR_OF_THE_SNOWMAN.value,
             GadgetModelID.CHEST_DUNGEON_BOGROOT_GROWTHS.value,
             GadgetModelID.CHEST_DUNGEON_SLAVERS_EXILE_JUSTICIAR_THOMMIS_ROOM.value,
+
+            GadgetModelID.BURIED_TREASURE_THE_MIRROR_OF_LYSS.value,
         ]
 
         gadget_array = AgentArray.GetGadgetArray()
