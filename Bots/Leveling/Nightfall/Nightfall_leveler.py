@@ -844,13 +844,6 @@ def UnlockSunspearSkills(bot: Botting):
     bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883E03) # Learn Sunspear Ritualist Skill
     bot.Dialogs.AtXY(-3307.00, 6997.56, 0x884003) # Learn Sunspear Paragon Skill
 
-
-
-
-
-
-
-
 def TravelToEyeOfTheNorth(bot: Botting): 
     bot.States.AddHeader("Phase 6: Starting Eye of the North Journey")
     bot.Map.Travel(target_map_id=449) # Kamadan
