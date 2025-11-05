@@ -47,6 +47,7 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToKainengCenter(bot)
     AdvanceToLA(bot)
     AdvanceToKamadan(bot)
+    AdvanceToConsulateDocks(bot)
     AdvanceToEOTN(bot) 
     ExitBorealStation(bot) 
     TraverseToEOTNOutpost(bot)
@@ -794,6 +795,24 @@ def AdvanceToKamadan(bot: Botting):
     bot.Wait.ForTime(2000)
     bot.Dialogs.WithModel(4778, 0x82D407)  # Bendro take reward
     bot.Dialogs.WithModel(4778, 0x82E101)  # Bendro battle preparation
+
+def AdvanceToConsulateDocks(bot: Botting):
+    bot.States.AddHeader("Advance To Consulate Docks")
+    bot.Map.Travel(target_map_id=449)
+    bot.Wait.ForMapLoad(target_map_id=449)  # Kamadan
+    bot.Move.XY(-8075.89, 14592.47)
+    bot.Move.XY(-6743.29, 16663.21)
+    bot.Move.XY(-5271.00, 16740.00)
+    bot.Wait.ForMapLoad(target_map_id=429)
+    bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
+    bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks    bot.Map.Travel(target_map_id=449)
+    bot.Wait.ForMapLoad(target_map_id=449)  # Kamadan
+    bot.Move.XY(-8075.89, 14592.47)
+    bot.Move.XY(-6743.29, 16663.21)
+    bot.Move.XY(-5271.00, 16740.00)
+    bot.Wait.ForMapLoad(target_map_id=429)
+    bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
+    bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks
     
 def AdvanceToEOTN(bot: Botting):
     bot.States.AddHeader("Advance To Eye of the North")
