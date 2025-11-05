@@ -807,12 +807,34 @@ def AdvanceToConsulateDocks(bot: Botting):
     bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
     bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks
 
+def AddHenchmenLA():
+    def _add_henchman(henchman_id: int):
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(henchman_id)
+        ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
+        yield from Routines.Yield.wait(250)
+        
+    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+
+    henchmen_list = []
+    if party_size <= 4:
+        henchmen_list.extend([2, 3, 1]) 
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Lions Arch"):
+        henchmen_list.extend([7, 2, 5, 3, 1]) 
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Ascalon City"):
+        henchmen_list.extend([2, 3, 1])
+    else:
+        henchmen_list.extend([2,8,6,7,3,5,1])
+
+    for henchman_id in henchmen_list:
+        yield from _add_henchman(henchman_id)
+
 def UnlockOlias(bot:Botting):
     bot.States.AddHeader("Unlock Olias")
     bot.Map.Travel(target_map_id=493)  # Consulate Docks
     bot.Move.XYAndDialog(-2367.00, 16796.00, 0x830E01)
     bot.Map.Travel(target_map_id=55)
     ConfigureAggressiveEnv(bot)
+    bot.States.AddCustomState(AddHenchmenLA, "Add Henchmen")
     bot.Move.XY(1413.11, 9255.51)
     bot.Move.XY(242.96, 6130.82)
     bot.Move.XYAndDialog(-1137.00, 2501.00, 0x84)
