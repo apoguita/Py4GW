@@ -48,6 +48,7 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToLA(bot)
     AdvanceToKamadan(bot)
     AdvanceToConsulateDocks(bot)
+    UnlockOlias(bot)
     AdvanceToEOTN(bot) 
     ExitBorealStation(bot) 
     TraverseToEOTNOutpost(bot)
@@ -799,21 +800,35 @@ def AdvanceToKamadan(bot: Botting):
 def AdvanceToConsulateDocks(bot: Botting):
     bot.States.AddHeader("Advance To Consulate Docks")
     bot.Map.Travel(target_map_id=449)
-    bot.Wait.ForMapLoad(target_map_id=449)  # Kamadan
-    bot.Move.XY(-8075.89, 14592.47)
-    bot.Move.XY(-6743.29, 16663.21)
-    bot.Move.XY(-5271.00, 16740.00)
-    bot.Wait.ForMapLoad(target_map_id=429)
-    bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
-    bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks    bot.Map.Travel(target_map_id=449)
-    bot.Wait.ForMapLoad(target_map_id=449)  # Kamadan
     bot.Move.XY(-8075.89, 14592.47)
     bot.Move.XY(-6743.29, 16663.21)
     bot.Move.XY(-5271.00, 16740.00)
     bot.Wait.ForMapLoad(target_map_id=429)
     bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
     bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks
-    
+
+def UnlockOlias(bot:Botting):
+    bot.States.AddHeader("Unlock Olias")
+    bot.Map.Travel(target_map_id=493)  # Consulate Docks
+    bot.Move.XYAndDialog(-2367.00, 16796.00, 0x830E01)
+    bot.Map.Travel(target_map_id=55)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(1413.11, 9255.51)
+    bot.Move.XY(242.96, 6130.82)
+    bot.Move.XYAndDialog(-1137.00, 2501.00, 0x84)
+    bot.Wait.ForMapToChange(target_map_id=471)
+    bot.Move.XYAndDialog(5117.00, 10515.00, 0x830E04)
+    bot.Move.XY(8518.10, 9309.66)
+    bot.Move.XY(8067.40, 5703.23)
+    bot.Move.XY(5657.20, 4485.55)
+    bot.Move.XY(4461.65, -710.88)
+    bot.Move.XY(9973.11, 1581.00)
+    bot.Wait.ForTime(20000)
+    bot.Wait.ForMapToChange(target_map_id=55)
+    bot.Party.LeaveParty()
+    bot.Map.Travel(target_map_id=449)
+    bot.Move.XYAndDialog(-6480.00, 16331.00, 0x830E07)
+
 def AdvanceToEOTN(bot: Botting):
     bot.States.AddHeader("Advance To Eye of the North")
     bot.Map.Travel(target_map_id=194) #kaineng_center_id
