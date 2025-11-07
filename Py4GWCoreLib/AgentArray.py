@@ -417,6 +417,10 @@ class RawAgentArray:
         # === Step 4: Remove stale agents and name data ===
         
         for agent_id in list(self.agent_cache.keys()):
+            if not Agent.IsValid(agent_id):
+                self.agent_name_map.pop(agent_id, None)
+                self.name_requested.discard(agent_id)
+                
             if agent_id not in current_agent_ids:
                 agent_instance = self.agent_cache[agent_id]
                 if agent_instance.is_item:
@@ -544,6 +548,8 @@ class RawAgentArray:
         If the item is not found, returns 0.
         """
         self.update()
+        if Agent.IsValid(item_id) is False:
+            return 999
         agent = PyAgent.PyAgent(item_id)
         owner = agent.item_agent.owner_id if agent.is_item else 999
         return owner
