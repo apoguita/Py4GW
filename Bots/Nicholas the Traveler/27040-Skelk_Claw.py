@@ -49,8 +49,7 @@ KILLING_PATH = [#(-16090.61, 4796.22),
 NICK_OUTPOST = 639 #Umbral grotto
 COORDS_TO_EXIT_OUTPOST = (-22646, 6289)
 EXPLORABLE_AREA = 566 #verdant cascades
-NICK_COORDS = [(-10685.96, 3025.99),
-               (-984.28, -2503.44), ]
+NICK_COORDS = [(-5367.88, -13457.16),]
 
 bot = Botting(BOT_NAME)
                 
