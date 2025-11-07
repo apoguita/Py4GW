@@ -717,7 +717,11 @@ class LootConfig:
                 loot_array, lambda item_id: IsValidFollowerItem(item_id)
             )
 
-
+        """loot_array = AgentArray.Filter.ByCondition(
+            loot_array,
+            lambda item_id: IsValidItem(item_id)
+        )
+        """
 
         for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
             item_data = Agent.GetItemAgent(agent_id)
