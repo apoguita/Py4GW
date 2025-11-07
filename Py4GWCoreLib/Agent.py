@@ -35,7 +35,22 @@ class Agent:
         return PyAgent.PyAgent(agent_id).IsValid(agent_id)
     
     @staticmethod
-    def agent_instance(agent_id):
+    def require_valid(default=None):
+        """
+        Decorator for safe agent access.
+        Ensures the agent_id is valid before calling the function.
+        """
+        def decorator(func):
+            def wrapper(agent_id, *args, **kwargs):
+                if not Agent.IsValid(agent_id):
+                    return default
+                return func(agent_id, *args, **kwargs)
+            return wrapper
+        return decorator
+
+    
+    @staticmethod
+    def agent_instance(agent_id) -> PyAgent.PyAgent:
         """
         Helper method to create and return a PyAgent instance.
         Args:

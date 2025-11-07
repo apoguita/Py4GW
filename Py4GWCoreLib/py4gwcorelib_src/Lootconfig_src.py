@@ -705,7 +705,7 @@ class LootConfig:
         loot_array = AgentArray.GetItemArray()
         loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), distance)
 
-        party_leader_id = Party.GetPartyLeaderID()
+        """party_leader_id = Party.GetPartyLeaderID()
         player_agent_id = Player.GetAgentID()
 
         if party_leader_id == player_agent_id:  # Leader or solo
@@ -715,13 +715,13 @@ class LootConfig:
         else:  # Follower
             loot_array = AgentArray.Filter.ByCondition(
                 loot_array, lambda item_id: IsValidFollowerItem(item_id)
-            )
+            )"""
 
-        """loot_array = AgentArray.Filter.ByCondition(
+        loot_array = AgentArray.Filter.ByCondition(
             loot_array,
             lambda item_id: IsValidItem(item_id)
         )
-        """
+        
 
         for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
             item_data = Agent.GetItemAgent(agent_id)

@@ -453,6 +453,8 @@ class Py4GWSharedMemoryManager:
             agent_id = hero_data.agent_id
             map_region = self.map_instance.region_type.ToInt()
             
+            if not Agent.IsValid(agent_id):
+                return
             hero_agent_instance = Agent.agent_instance(agent_id)
             
             playerx, playery, playerz = hero_agent_instance.x, hero_agent_instance.y, hero_agent_instance.z
@@ -541,6 +543,8 @@ class Py4GWSharedMemoryManager:
                 return
             
             agent_id = pet_info.agent_id
+            if not Agent.IsValid(agent_id):
+                return
             agent_instance = Agent.agent_instance(agent_id)
             map_region = self.map_instance.region_type.ToInt()
             playerx, playery, playerz = agent_instance.x, agent_instance.y, agent_instance.z

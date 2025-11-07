@@ -394,6 +394,8 @@ class AgentCache:
         agent = Agent.agent_instance(agent_id)
         if agent is None:
             return 999
+        if not agent.IsValid(agent_id):
+            return 999
         item_owner = agent.item_agent.owner_id
         if item_owner is None or item_owner <0:
             return 999
