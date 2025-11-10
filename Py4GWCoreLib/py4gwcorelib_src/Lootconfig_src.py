@@ -405,6 +405,7 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
             ModelID.Ruby_Djinn_Essence,
         ],
         "S": [
+            ModelID.Sandblasted_Lodestone,
             ModelID.Shadowy_Husk,
             ModelID.Shadowy_Remnants,
             ModelID.Shiverpeak_Mane,
