@@ -848,3 +848,92 @@ class PVESkills:
         skill.TargetAllegiance = Skilltarget.EnemyInjured.value
         skill.Nature = SkillNature.CustomB.value
         skill_data[skill.SkillID] = skill
+    
+    #region JUNUNDU
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Junundu_Strike")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.Nature = SkillNature.Offensive.value
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Junundu_Smash")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.EnemyClustered.value
+        skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 2
+        skill.Conditions.EnemiesInRangeArea = Range.Adjacent.value
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Junundu_Bite")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.EnemyKnockedDown.value
+        skill.Nature = SkillNature.Offensive.value
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.UniqueProperty = True
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Leave_Junundu")
+        skill.SkillType = SkillType.Skill.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.UniqueProperty = True
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Junundu_Tunnel")
+        skill.SkillType = SkillType.Stance.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.UniqueProperty = True
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Junundu_Wail")
+        skill.SkillType = SkillType.Skill.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.Buff.value
+        skill.Conditions.LessLife = 0.9
+        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.UniqueProperty = True
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Junundu_Feast")
+        skill.SkillType = SkillType.Skill.value
+        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.IsAlive = False
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Blinding_Breath")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.Nature = SkillNature.Offensive.value
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Burning_Breath")
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.EnemyHealthy.value
+        skill.Nature = SkillNature.Offensive.value
+        skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Choking_Breath")
+        skill.SkillType = SkillType.Skill.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
+        skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.IsCasting = True
+        skill_data[skill.SkillID] = skill

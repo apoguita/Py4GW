@@ -102,6 +102,7 @@ class Skilltarget (IntEnum):
     EnemyBleeding = 33
     EnemyPoisoned = 34
     EnemyCrippled = 35
+    EnemyHealthy = 36
 
 
 
