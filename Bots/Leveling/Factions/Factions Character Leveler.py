@@ -832,6 +832,7 @@ def UnlockOlias(bot:Botting):
     bot.States.AddHeader("Unlock Olias")
     bot.Map.Travel(target_map_id=493)  # Consulate Docks
     bot.Move.XYAndDialog(-2367.00, 16796.00, 0x830E01)
+    bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=55)
     ConfigureAggressiveEnv(bot)
     bot.States.AddCustomState(AddHenchmenLA, "Add Henchmen")
