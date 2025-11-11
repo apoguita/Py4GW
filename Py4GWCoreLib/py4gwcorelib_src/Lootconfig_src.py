@@ -781,3 +781,4 @@ class LootConfig:
 
         return loot_array
 #endregion
+

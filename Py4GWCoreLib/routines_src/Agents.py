@@ -79,6 +79,83 @@ class Agents:
 
         return best_id
 
+    @staticmethod
+    def GetAgentIDByItemExtraType(extra_type: list[int]) -> int:
+        """
+        Purpose: Get the closest item agent ID with the given extra type (closest to the player).
+        Args:
+            extra_type (int): The extra type of the item.
+        Returns:
+            int: The closest matching item agent ID, or 0 if none found.
+        """
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Py4GWcorelib import Utils
+
+        item_ids = GLOBAL_CACHE.AgentArray.GetItemArray()
+        px, py = GLOBAL_CACHE.Player.GetXY()
+
+        best_id = 0
+        best_dist = float("inf")
+
+        for item_id in item_ids:
+            item_agent = GLOBAL_CACHE.Agent.GetItemAgent(item_id)
+            if item_agent.extra_type in extra_type:
+                ix, iy = GLOBAL_CACHE.Agent.GetXY(item_id)
+                d = Utils.Distance((px, py), (ix, iy))
+                if d < best_dist:
+                    best_dist = d
+                    best_id = item_id
+
+        return best_id
+    
+    @staticmethod
+    def GetClosestKeyByBitMask() -> int:
+        """
+        Purpose:
+            Returns the closest ground item whose extra_type matches the
+            discovered key pattern:
+                - bit 22 must be 1
+                - bits 0, 1, 31 must be 0
+
+        Returns:
+            int: The closest matching item agent ID, or 0 if none found.
+        """
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Py4GWcorelib import Utils
+
+        # Required bit rules
+        BIT22 = 1 << 22
+        ZERO_BITS = (1 << 0) | (1 << 1) | (1 << 31)   # bits 0,1,31 must be 0
+
+        item_ids = GLOBAL_CACHE.AgentArray.GetItemArray()
+        px, py = GLOBAL_CACHE.Player.GetXY()
+
+        best_id = 0
+        best_dist = float("inf")
+
+        for item_id in item_ids:
+            item_agent = GLOBAL_CACHE.Agent.GetItemAgent(item_id)
+            et = item_agent.extra_type
+
+            # --- Required bit must be 1 ---
+            if (et & BIT22) == 0:
+                continue
+
+            # --- Required zero-bits must be 0 ---
+            if (et & ZERO_BITS) != 0:
+                continue
+
+            # --- Distance comparison ---
+            ix, iy = GLOBAL_CACHE.Agent.GetXY(item_id)
+            d = Utils.Distance((px, py), (ix, iy))
+
+            if d < best_dist:
+                best_dist = d
+                best_id = item_id
+
+        return best_id
+
+
         
     @staticmethod
     def GetFilteredEnemyArray(x, y, max_distance=4500.0, aggressive_only = False):

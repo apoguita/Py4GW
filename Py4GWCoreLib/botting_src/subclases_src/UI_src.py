@@ -73,6 +73,9 @@ class _UI:
 
     def SendChatMessage(self, channel: str, message: str):
         self._helpers.UI.send_chat_message(channel, message)
+        
+    def SendChatCommand(self, command: str):
+        self._helpers.UI.send_chat_command(command)
 
     def PrintMessageToConsole(self, source: str, message: str):
         self._helpers.UI.print_message_to_console(source, message)
