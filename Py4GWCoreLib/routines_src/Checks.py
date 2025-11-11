@@ -145,6 +145,9 @@ class Checks:
             from ..GlobalCache import GLOBAL_CACHE
             if not Checks.Map.MapValid():
                 return False
+            
+            if not Checks.Party.IsPartyLoaded():
+                return False
 
             all_dead = True
             players = GLOBAL_CACHE.Party.GetPlayers()
