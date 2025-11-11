@@ -40,8 +40,8 @@ def create_bot_routine(bot: Botting) -> None:
     ConfigureAfterSecondProfession(bot)     # Configure bot after second profession
     
     # === PHASE 4: EQUIPMENT CRAFTING ===
-    if GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())[0] == "Paragon":
-        CraftParagonArmor(bot)                 # Craft Paragon-specific armor
+    if GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())[0] == "Paragon" or "Elementalist":
+        CraftNoHeadArmor(bot)                 # Craft No Head specific armor
     else:
         TakeArmorRewardAndCraft(bot)           # Take reward and craft armor
     TakeWeaponRewardAndCraft(bot)              # Take reward and craft weapon
@@ -96,7 +96,7 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Items.Restock.BirthdayCupcake()
     bot.Items.Restock.WarSupplies()
     bot.Items.Restock.Honeycomb()
-    bot.Items.SpawnAndDestroyBonusItems([ModelID.Bonus_Serrated_Shield.value, ModelID.Igneous_Summoning_Stone.value])
+    bot.Items.SpawnBonusItems()
     
     
 def PrepareForBattle(bot: Botting, Hero_List = [], Henchman_List = []) -> None:
@@ -182,6 +182,27 @@ def EquipSkillBar():
         else:
             yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")  
 
+    elif profession == "Elementalist":
+        if level == 2:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDozGsAGTrwFbNAAIA")    
+        elif level == 3:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDozGsAGTrwFbNAAIA")    
+        elif level == 4:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo0GsMGDahwoYYNAAAAMO") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
+        elif level == 5:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMNGDahwoYYNAAAAMO")    
+        elif level == 6:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMRGD0CCDFDWD4ggVYcA")    
+        elif level == 7:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMRGD0CCDFDWD4ggVYcA")    
+        elif level == 8:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMRGD0CCDFDWD4ggVYcA")    
+        elif level == 9:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMRGD0CCDFDWD4ggVYcA")    
+        elif level == 10:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMRGD0CCDFDWD4ggVYcA")    
+        else:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMRGD0CCDFDWD4ggVYcA")  
 
 def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
@@ -190,22 +211,16 @@ def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
     elif primary == "Ranger":
         return ModelID.Tanned_Hide_Square.value
     elif primary == "Monk":
-        if headpiece:
-            return ModelID.Pile_Of_Glittering_Dust.value
         return ModelID.Bolt_Of_Cloth.value
     elif primary == "Dervish":
         return ModelID.Tanned_Hide_Square.value
     elif primary == "Mesmer":
         return ModelID.Bolt_Of_Cloth.value
     elif primary == "Necromancer":
-        if headpiece:
-            return ModelID.Pile_Of_Glittering_Dust.value
         return ModelID.Tanned_Hide_Square.value
     elif primary == "Ritualist":
         return ModelID.Bolt_Of_Cloth.value
     elif primary == "Elementalist":
-        if headpiece:
-            return ModelID.Pile_Of_Glittering_Dust.value
         return ModelID.Bolt_Of_Cloth.value
     else:
         return ModelID.Tanned_Hide_Square.value
@@ -221,6 +236,8 @@ def GetWeaponMaterialPerProfession(bot: Botting):
         return [ModelID.Iron_Ingot.value]
     elif primary == "Paragon":
         return [ModelID.Iron_Ingot.value]
+    elif primary == "Elementalist":
+        return [ModelID.Wood_Plank.value]
     return []
 
 def withdraw_gold(target_gold=5000, deposit_all=True):
@@ -269,7 +286,7 @@ def GetArmorPiecesByProfession(bot: Botting):
 
 def GetWeaponByProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    SCYTHE = SPEAR = SHIELDWAR = SWORD = BOW = SHIELDPARA = 0
+    SCYTHE = SPEAR = SHIELDWAR = SWORD = BOW = SHIELDPARA = FIRESTAFF = DOMSTAFF = MONKSTAFF = 0
 
     if primary == "Warrior":
         SWORD = 18927
@@ -286,9 +303,16 @@ def GetWeaponByProfession(bot: Botting):
         SCYTHE = 18910
         return SCYTHE,
     elif primary == "Elementalist":
-        return ()
-
+        FIRESTAFF = 18921
+        return FIRESTAFF,
+    elif primary == "Mesmer":
+        DOMSTAFF = 18914
+        return DOMSTAFF,
+    elif primary == "Monk":
+        MONKSTAFF = 18926
+        return MONKSTAFF,
     return ()
+
 
 
 def CraftArmor(bot: Botting):
@@ -320,11 +344,13 @@ def CraftArmor(bot: Botting):
             return False
         yield
     return True
-def ParagonArmorMaterials(headpiece: bool = False):
+def NoHeadArmorMaterials(headpiece: bool = False):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary == "Paragon":
         return ModelID.Tanned_Hide_Square.value
-def GetParagonArmorPieces(bot: Botting):
+    elif primary == "Elementalist":
+        return ModelID.Bolt_Of_Cloth.value
+def GetNoHeadArmorPieces(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     HEAD, CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0,0
     
@@ -333,11 +359,16 @@ def GetParagonArmorPieces(bot: Botting):
         GLOVES = 17792
         PANTS = 17793
         BOOTS = 17790
+    elif primary == "Elementalist":
+        CHEST = 17350
+        GLOVES = 17351
+        PANTS = 17352
+        BOOTS = 17349
     return  CHEST, GLOVES ,PANTS ,BOOTS
 
 
-def CraftMostParaArmor(bot: Botting):
-    CHEST, GLOVES, PANTS, BOOTS = GetParagonArmorPieces(bot)
+def CraftMostNoHeadArmor(bot: Botting):
+    CHEST, GLOVES, PANTS, BOOTS = GetNoHeadArmorPieces(bot)
 
     armor_pieces = [
         (GLOVES, [GetArmorMaterialPerProfession()], [2]),
@@ -432,8 +463,23 @@ def ConfigureFirstBattle(bot: Botting):
         if profession == "Dervish":
             bot.Items.Equip(15591)  # starter scythe
         elif profession == "Paragon":
-            bot.Items.Equip(15593) 
+            bot.Items.Equip(15593) #Starter Spear
             bot.Items.Equip(6514) #Bonus Shield
+        elif profession == "Elementalist":
+            bot.Items.Equip(6508) #Luminescent Scepter
+            bot.Items.Equip(6036) #Tigers Roar
+        elif profession == "Mesmer":
+            bot.Items.Equip(6508) #Luminescent Scepter
+        elif profession == "Necromancer":
+            bot.Items.Equip(6515) #Soul Shrieker   
+        elif profession == "Ranger":
+            bot.Items.Equip(5831) #Nevermore Flatbow 
+        elif profession == "Warrior":
+            bot.Items.Equip(3) #Starter Sword  
+            bot.Items.Equip(6514) #Bonus Shield  
+        elif profession == "Monk":
+            bot.Items.Equip(6508) #Luminescent Scepter 
+            bot.Items.Equip(6058) #Wolf's Favor   
     Equip_Weapon()
     bot.Dialogs.AtXY(3433, -5900, 0x82C707, step_name="Accept")
 
@@ -477,6 +523,30 @@ def Get_Skills():
     elif profession == "Paragon":
         bot.Move.XYAndDialog(-10724, -3364, 0x7F, step_name="Teach me 1")
         bot.Move.XY(-12200, 473)
+
+    elif profession == "Elementalist":
+        bot.Move.XYAndDialog(-12011.00, -639.00, 0x7F, step_name="Teach me 1")
+        bot.Move.XY(-12200, 473)
+
+    elif profession == "Mesmer":
+        bot.Move.XYAndDialog(-7149.00, 1830.00, 0x7F, step_name="Teach me 1")
+        bot.Move.XY(-12200, 473)
+
+    elif profession == "Necromancer":
+        bot.Move.XYAndDialog(-6557.00, 1837.00, 0x7F, step_name="Teach me 1")
+        bot.Move.XY(-12200, 473)
+
+    elif profession == "Ranger":
+        bot.Move.XYAndDialog(-9498.00, 1426.00, 0x7F, step_name="Teach me 1")
+        bot.Move.XY(-12200, 473)
+
+    elif profession == "Warrior":
+        bot.Move.XYAndDialog(-9663.00, 1506.00, 0x7F, step_name="Teach me 1")
+        bot.Move.XY(-12200, 473)
+
+    elif profession == "Monk":
+        bot.Move.XYAndDialog(-11658.00, -1414.00, 0x7F, step_name="Teach me 1")
+        bot.Move.XY(-12200, 473)    
 
 def CompleteLearnMore(bot: Botting):
     bot.States.AddHeader("Phase 1: Learning from First Spear Dehvad")
@@ -736,7 +806,10 @@ def ConfigureAfterSecondProfession(bot: Botting):
         bot.Dialogs.AtXY(-3317, 7053, 0x86E302, step_name="Learn Zealous Renewal")
     elif profession == "Paragon":
         bot.Move.XYAndDialog(-3317, 7053, 0x884003, step_name="Learn There's Nothing to Fear")
-        bot.Dialogs.AtXY(-3317, 7053, 0x860E02, step_name="Learn Unblockable Throw")    
+        bot.Dialogs.AtXY(-3317, 7053, 0x860E02, step_name="Learn Unblockable Throw") 
+    elif profession == "Elementalist":
+        bot.Move.XYAndDialog(-3317, 7053, 0x883803, step_name="Learn Intensity")
+        bot.Dialogs.AtXY(-3317, 7053, 0x856002, step_name="Learn Glyph of Restoration") 
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC03, step_name='Rising to 1st Spear')
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC01, step_name="Sounds good to me")
@@ -781,14 +854,14 @@ def TakeArmorRewardAndCraft(bot: Botting):
     exec_fn = lambda: CraftArmor(bot)
     bot.States.AddCustomState(exec_fn, "Craft Armor")
 
-def CraftParagonArmor(bot: Botting):
-    bot.States.AddHeader("Phase 4: Crafting Paragon-Specific Armor")
+def CraftNoHeadArmor(bot: Botting):
+    bot.States.AddHeader("Phase 4: Crafting No Head Specific Armor")
     bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
     bot.States.AddCustomState(BuyMaterials, "Buy Materials")
     bot.Move.XYAndInteractNPC(3891.62, 2329.84)  # Armor crafter
     bot.Wait.ForTime(1000)  # small delay to let the window open
-    exec_fn = lambda: CraftMostParaArmor(bot)
-    bot.States.AddCustomState(exec_fn, "Craft Most Para Armor")
+    exec_fn = lambda: CraftMostNoHeadArmor(bot)
+    bot.States.AddCustomState(exec_fn, "Craft Most No Head Armor")
 
 def TakeWeaponRewardAndCraft(bot: Botting):
     bot.States.AddHeader("Phase 4: Taking Weapon Reward & Crafting Weapons")
