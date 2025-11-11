@@ -821,6 +821,7 @@ class ModelID(IntEnum):
     Bonus_Wolfs_Favor = 6058
     Book_Of_Secrets = 19197
     Boreal_Tonic = 30638
+    Boss_Key = 25416
     Bottle_Of_Grog = 30855
     Bottle_Of_Juniberry_Gin = 19172
     Bottle_Of_Rice_Wine = 15477
@@ -944,6 +945,7 @@ class ModelID(IntEnum):
     Dryder_Web = 27070
     Dull_Carapace = 425
     Dune_Burrower_Jaw = 447
+    Dungeon_Key = 25410
     Dusty_Insect_Carapace = 1588
     Dwarven_Ale = 5585
     Ebon_Spider_Leg = 463
@@ -1352,6 +1354,7 @@ class ModelID(IntEnum):
     Pile_Of_Elemental_Dust = 27050
     Pile_Of_Glittering_Dust = 929
     Plant_Fiber = 934
+    Prison_Key = 25413
     Polar_Bear_Mini = 21439
     Aloe_Seed_Polymock_Piece = 24355
     Earth_Elemental_Polymock_Piece = 24357
@@ -1376,7 +1379,6 @@ class ModelID(IntEnum):
     Prince_Rurik_Mini = 13790
     Princess_Salma_Mini = 35130
     Prismatic_Gelatinous_Material = 22375
-    Prison_Key = 25413
     Proof_Of_Legend = 37841
     Pulsating_Growth = 824
     Pumpkin_Cookie = 28433
