@@ -131,6 +131,18 @@ class _INTERACT:
         agent_id = Routines.Agents.GetNearestGadgetByID(gadget_id)
         yield from self._coro_with_gadget(GLOBAL_CACHE.Agent.GetXY(agent_id))
         
+    def _coro_with_item_extra_type(self, extra_type: list[int]):
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        agent_id = Routines.Agents.GetAgentIDByItemExtraType(extra_type)
+        yield from self._coro_with_item(GLOBAL_CACHE.Agent.GetXY(agent_id))
+        
+    def _coro_with_key_by_bitmask(self):
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        agent_id = Routines.Agents.GetClosestKeyByBitMask()
+        yield from self._coro_with_item(GLOBAL_CACHE.Agent.GetXY(agent_id))
+        
     def _coro_get_blessing(self):
         from Widgets.Blessed import Get_Blessed  # delayed import to avoid circular dependencies
         yield from self._coro_disable_auto_combat()
@@ -162,7 +174,15 @@ class _INTERACT:
     @_yield_step("WithGadgetID","INTERACT_WITH_GADGET_ID")
     def ys_with_gadget_id(self, gadget_id: int, step_name: str=""):
         yield from self._coro_with_gadget_id(gadget_id)
+
+    @_yield_step("WithItemExtraType","INTERACT_WITH_ITEM_EXTRA_TYPE")
+    def ys_with_item_extra_type(self, extra_type: list[int], step_name: str=""):
+        yield from self._coro_with_item_extra_type(extra_type)
         
+    @_yield_step("WithKeyByBitmask","INTERACT_WITH_KEY_BY_BITMASK")
+    def ys_with_key_by_bitmask(self, step_name: str=""):
+        yield from self._coro_with_key_by_bitmask()
+
     @_yield_step("WithModel","INTERACT_WITH_MODEL")
     def ys_with_model(self, model_id: int, step_name: str=""):
         yield from self._coro_with_model(model_id)
@@ -181,6 +201,12 @@ class _INTERACT:
         
     def WithGadgetID(self, gadget_id: int, step_name: str="") -> None:
         self.ys_with_gadget_id(gadget_id, step_name=step_name)
+        
+    def WithItemExtraType(self, extra_type: list[int], step_name: str="") -> None:
+        self.ys_with_item_extra_type(extra_type, step_name=step_name)
+        
+    def WithKeyByBitmask(self, step_name: str="") -> None:
+        self.ys_with_key_by_bitmask(step_name=step_name)
 
     def WithItemAtXY(self, x: float, y: float, step_name: str="") -> None:
         self.ys_with_item_at_xy(x, y, step_name=step_name)

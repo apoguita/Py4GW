@@ -145,6 +145,11 @@ class _UI:
     def send_chat_message(self, channel: str, message: str):
         from ...Routines import Routines
         yield from Routines.Yield.Player.SendChatMessage(channel, message)
+        
+    @_yield_step(label="SendChatCommand", counter_key="SEND_CHAT_COMMAND")
+    def send_chat_command(self, command: str):
+        from ...Routines import Routines
+        yield from Routines.Yield.Player.SendChatCommand(command)
 
     @_yield_step(label="PrintMessageToConsole", counter_key="SEND_CHAT_MESSAGE")
     def print_message_to_console(self, source:str, message: str):
