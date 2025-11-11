@@ -821,6 +821,7 @@ class ModelID(IntEnum):
     Bonus_Wolfs_Favor = 6058
     Book_Of_Secrets = 19197
     Boreal_Tonic = 30638
+    Boss_Key = 25416
     Bottle_Of_Grog = 30855
     Bottle_Of_Juniberry_Gin = 19172
     Bottle_Of_Rice_Wine = 15477
@@ -944,6 +945,7 @@ class ModelID(IntEnum):
     Dryder_Web = 27070
     Dull_Carapace = 425
     Dune_Burrower_Jaw = 447
+    Dungeon_Key = 25410
     Dusty_Insect_Carapace = 1588
     Dwarven_Ale = 5585
     Ebon_Spider_Leg = 463
