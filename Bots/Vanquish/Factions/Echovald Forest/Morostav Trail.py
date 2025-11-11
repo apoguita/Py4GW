@@ -141,7 +141,7 @@ def bot_routine(bot: Botting) -> None:
     
 def _upkeep_multibox_consumables(bot: "Botting"):
     while True:
-        yield from bot.helpers.Wait._for_time(15000)
+        yield from bot.Wait._coro_for_time(15000)
         if not Routines.Checks.Map.MapValid():
             continue
         
@@ -150,7 +150,7 @@ def _upkeep_multibox_consumables(bot: "Botting"):
         
         for _ in range(1, 5): 
             GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
-            yield from bot.helpers.Wait._for_time(250)
+            yield from bot.Wait._coro_for_time(250)
             
         yield from bot.helpers.Multibox._use_consumable_message((ModelID.Essence_Of_Celerity.value, 
                                                GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0))  
@@ -183,7 +183,7 @@ def _on_party_wipe(bot: "Botting"):
     global party_wiped
     party_wiped = True
     while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-        yield from bot.helpers.Wait._for_time(1000)
+        yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalid - release FSM and exit
             bot.config.FSM.resume()
