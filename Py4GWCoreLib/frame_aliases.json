@@ -1154,5 +1154,6 @@
     "1725534410": "Equip Skill Window.Equip Now",
     "140452905,12,4": "No Leave your party button",
     "140452905,12,6": "Yes Leave your party Button",
-    "140452905,12": "Leave your party Dialog"
+    "140452905,12": "Leave your party Dialog",
+    "140452905,6,1,0": "Skip Cutscene Button"
 }

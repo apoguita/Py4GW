@@ -30,6 +30,13 @@ class SkillbarCache:
                 
         return skill_ids
     
+    def GetZeroFilledSkillbar(self):
+        skill_ids = {}
+        for slot in range(1, 9):  # Loop through skill slots 1 to 8
+            skill_ids[slot] = self.GetSkillIDBySlot(slot)
+
+        return skill_ids
+    
     def GetHeroSkillbar(self, hero_index):
         hero_skillbar = self._skillbar_instance.GetHeroSkillbar(hero_index)
         return hero_skillbar

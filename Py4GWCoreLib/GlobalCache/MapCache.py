@@ -119,8 +119,8 @@ class MapCache:
     def IsInCinematic(self):
         return self._map_instance.is_in_cinematic
     
-    def SkipCinematic(self):
-        self._action_queue_manager.AddAction("ACTION", self._map_instance.SkipCinematic)
+    def SkipCinematic(self):        
+        self._action_queue_manager.AddAction("TRANSITION", self._map_instance.SkipCinematic)
         
     def HasEnterChallengeButton(self):
         return self._map_instance.has_enter_button

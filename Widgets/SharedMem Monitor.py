@@ -1,3 +1,4 @@
+from datetime import datetime
 from Py4GWCoreLib import *
 from ctypes import Structure, c_uint, c_float, c_bool, c_wchar
 from multiprocessing import shared_memory
@@ -20,17 +21,17 @@ def main():
 
         maps = SMM.GetMapsFromPlayers()
 
-        for map_id, map_region, map_district in maps:
+        for map_id, map_region, map_district, map_language in maps:
             map_name = GLOBAL_CACHE.Map.GetMapName(map_id)
-            map_label = f"Map: {map_name} - Region: {map_region} - District: {map_district}"
+            map_label = f"Map: {map_name} - Region: {map_region} - District: {map_district} - Language: {map_language}"
             if PyImGui.tree_node(map_label):
                 PyImGui.text("Parties in this map:")
 
-                party_ids = SMM.GetPartiesFromMaps(map_id, map_region, map_district)
+                party_ids = SMM.GetPartiesFromMaps(map_id, map_region, map_district, map_language)
                 for party_id in party_ids:
                     party_label = f"Party ID: {party_id}"
                     if PyImGui.tree_node(party_label):
-                        players = SMM.GetPlayersFromParty(party_id, map_id, map_region, map_district)
+                        players = SMM.GetPlayersFromParty(party_id, map_id, map_region, map_district, map_language)
                         players.sort(key=lambda p: p.PartyPosition)
 
                         for player in players:
@@ -50,6 +51,7 @@ def main():
                                     PyImGui.text(f"MapID: {player.MapID}")
                                     PyImGui.text(f"Map Region: {player.MapRegion}")
                                     PyImGui.text(f"Map District: {player.MapDistrict}")
+                                    PyImGui.text(f"Map Language: {player.MapLanguage}")
                                     PyImGui.text(f"Player HP: {int(player.PlayerHP*player.PlayerMaxHP)} / {player.PlayerMaxHP} Regen Pips: {player.PlayerHealthRegen:.2f}")
                                     PyImGui.text(f"Player Energy: {int(player.PlayerEnergy*player.PlayerMaxEnergy)} / {player.PlayerMaxEnergy} Regen Pips: {player.PlayerEnergyRegen:.2f}")
                                     PyImGui.text(f"Player XYZ: ({player.PlayerPosX:.2f}, {player.PlayerPosY:.2f}, {player.PlayerPosZ:.2f})")
@@ -59,7 +61,7 @@ def main():
                                     PyImGui.text(f"Player Is Ticked: {player.PlayerIsTicked}")
                                     PyImGui.text(f"Party ID: {player.PartyID}")
                                     PyImGui.text(f"Party Position: {player.PartyPosition}")
-                                    PyImGui.text(f"Party Is Leader: {player.PatyIsPartyLeader}")
+                                    PyImGui.text(f"Party Is Leader: {player.PlayerIsPartyLeader}")
                                     timestamp = datetime.fromtimestamp(player.LastUpdated / 1000)
                                     milliseconds = int(timestamp.microsecond / 1000)
                                     PyImGui.text(f"Last Updated: {timestamp.strftime('%H:%M:%S')}.{milliseconds:03d}")

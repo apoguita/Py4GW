@@ -416,4 +416,16 @@ class Utils:
                 decimal += 2**(i)
         return decimal
 
+    @staticmethod
+    def calculate_energy_pips(max_energy: float, energy_regen: float) -> int:
+        """Calculate the number of energy pips based on max energy and regeneration rate."""
+        pips = 3.0 / 0.99 * energy_regen * max_energy
+        return int(pips)
+    
+    @staticmethod
+    def calculate_health_pips(max_health: float, health_regen: float) -> int:
+        """Calculate the number of health pips based on max health and regeneration rate."""
+        pips = (max_health * health_regen) / 2
+        return int(pips)
+
 #endregion
