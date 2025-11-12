@@ -878,6 +878,7 @@ class ModelID(IntEnum):
     Celestial_Snake_Mini = 29418
     Celestial_Summon = 34176
     Celestial_Tiger_Mini = 29415
+    Cell_Key = 15565
     Ceratadon_Mini = 28416
     Cerebral_Tonic = 30626
     Ceremonial_Daggers = 15166
@@ -933,6 +934,7 @@ class ModelID(IntEnum):
     Dhuum_Mini = 32822
     Diamond = 935
     Diamond_Djinn_Essence = 19186
+    Diamond_Key = 19175
     Diessa_Chalice = 24353
     Disco_Ball = 29543
     Dragon_Mask = 15481
@@ -1406,6 +1408,7 @@ class ModelID(IntEnum):
     Royal_Gift = 35120
     Ruby = 937
     Ruby_Djinn_Essence = 19187
+    Ruby_Key = 19177
     Rune_Of_Holding = 2988
     Rune_Of_Superior_Vigor = 5551
     Sack_Of_Random_Junk = 34213
@@ -1413,6 +1416,7 @@ class ModelID(IntEnum):
     Sandblasted_Lodestone = 1584
     Sapphire = 938
     Sapphire_Djinn_Essence = 19188
+    Sapphire_Key = 19176
     Saurian_Bone = 27035
     Scale = 953
     Scar_Behemoth_Jaw = 478
