@@ -738,10 +738,18 @@ class Yield:
             # --- Case 2: wait for load phase to actually begin ---
             while not GLOBAL_CACHE.Map.IsMapLoading():
                 base_timestamp = Utils.GetBaseTimestamp()
+
+                #detect that map became valid without showing loading state
+                if Checks.Map.MapValid() and GLOBAL_CACHE.Map.GetMapID() == map_id:
+                    ConsoleLog("WaitforMapLoad", "Map became valid instantly (no loading state).", log=True)
+                    yield from Yield.wait(100)
+                    return True
+
                 if ((timeout > 0) and (base_timestamp - start_time) > timeout):
-                    ConsoleLog("WaitforMapLoad", "Timeout: loading never started",message_type=Console.MessageType.Error, log=True)
+                    ConsoleLog("WaitforMapLoad", "Timeout: loading never started", message_type=Console.MessageType.Error, log=True)
                     return False
-                yield from Yield.wait(200)  # poll quickly
+
+                yield from Yield.wait(200)
                 
                 
             # --- Case 3: wait for loading phase to complete ---   
