@@ -85,6 +85,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OLAFSTEAD)
     
     bot.Party.SetHardMode(True)
+    bot.Move.XY(-545.71, 576.63)
     bot.Move.FollowPath([(-1576, 1208)])
     bot.Wait.ForMapLoad(target_map_id=553)
     bot.States.AddHeader("Start Combat")
@@ -169,10 +170,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(-411, 5874, "Aggro: Modniir")
     bot.Move.XY(2859, 3982, "Aggro: Ice Imp")
     bot.Move.XY(4909, -4259, "Aggro: Ice Imp")
-    bot.Move.XY(7514, -6587, "Aggro: Berserker")
     bot.Move.XY(3800, -6182, "Aggro: Berserker")
-    bot.Move.XY(7755, -11467, "Aggro: Elementals and Griffins")
-    bot.Move.XY(15403, -4243, "Aggro: Elementals and Griffins")
     
     # # Path to blessing 7
     # bot.Move.XY(21597, -6798)
@@ -241,7 +239,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.UntilOnOutpost()
     
     bot.Wait.ForTime(5000)
-    bot.States.JumpToStepName("[H]Norn by Wick Divinus_1")
+    bot.States.JumpToStepName("[H]Norn title farm by Wick Divinus_1")
     
 def _upkeep_multibox_consumables(bot: "Botting"):
     while True:
