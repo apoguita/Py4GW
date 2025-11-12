@@ -696,12 +696,15 @@ class Yield:
             from .Checks import Checks
             from ..Py4GWcorelib import ConsoleLog, Utils
             
+            yield from Yield.wait(500) #dirty fix for unknown, hard to test cases, allows for fast loading screens to hit first check
+            
             if map_name:
                 map_id = GLOBAL_CACHE.Map.GetMapIDByName(map_name)
                 
             start_time = Utils.GetBaseTimestamp()
             
-            current_map = GLOBAL_CACHE.Map.GetMapID()
+            current_map = GLOBAL_CACHE.Map.GetMapID() if not Checks.Map.IsLoading() else 0 
+
             minimum_instance_uptime = 3000
             
             # --- Case 1: We are already in the map ---
@@ -741,7 +744,7 @@ class Yield:
 
                 #detect that map became valid without showing loading state
                 if Checks.Map.MapValid() and GLOBAL_CACHE.Map.GetMapID() == map_id:
-                    ConsoleLog("WaitforMapLoad", "Map became valid instantly (no loading state).", log=True)
+                    ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)} (fast load)", log=True)
                     yield from Yield.wait(100)
                     return True
 
