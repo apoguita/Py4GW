@@ -1,3 +1,5 @@
+from typing import Callable
+from types import ModuleType
 from PyImGui import StyleConfig
 from Py4GWCoreLib import *
 import importlib.util
@@ -8,6 +10,57 @@ import sys
 module_name = "Widget Manager"
 ini_file_location = "Py4GW.ini"
 ini_handler = IniHandler(ini_file_location)
+
+class Widget:
+    def __init__(self, name : str, module: ModuleType, widget_data: dict):
+        self.name : str = name
+        self.module : ModuleType = module
+        self.configuring : bool = False
+        self.enabled : bool = bool(widget_data.get("enabled", True))
+        self.optional : bool = bool(widget_data.get("optional", True))
+        self.category : str = str(widget_data.get("category", "Miscellaneous"))
+        self.subcategory : str = str(widget_data.get("subcategory", "Others"))
+
+        self.main : Callable  = lambda: None
+        self.minimal : Callable  = lambda: None
+        self.configure : Callable  = lambda: None
+        self.on_enable : Callable  = lambda: None
+        self.on_disable : Callable  = lambda: None
+
+        main = getattr(module, "main", None)
+        if callable(main):
+            self.main = main
+            
+        minimal = getattr(module, "minimal", None)
+        if callable(minimal):
+            self.minimal = minimal
+            
+        configure = getattr(module, "configure", None)
+        if callable(configure):
+            self.configure = configure
+
+        on_enable = getattr(module, "on_enable", None)
+        if callable(on_enable):
+            self.on_enable = on_enable
+            
+        on_disable = getattr(module, "on_disable", None)
+        if callable(on_disable):
+            self.on_disable = on_disable
+            
+    def __getitem__(self, item):
+        if item in self.__dict__:
+            return self.__dict__[item]
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
+    
+    def __setitem__(self, key, value):
+        if key in self.__dict__:
+            self.__dict__[key] = value
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{key}'")
+    
+    def save_widget_state(self):
+        ini_handler.write_key(self.name, "enabled", str(self.enabled))
+        ini_handler.write_key(self.name, "optional", str(self.optional))
 
 class WidgetHandler:
     _instance = None
@@ -31,9 +84,9 @@ class WidgetHandler:
         resolved_path = widgets_path or os.path.join(base_dir, "Widgets")
         self.widgets_path = os.path.abspath(resolved_path)
         self.__show_widget_ui = True
-        self.__pause_non_env_widgets = False
-        
-        self.widgets = {}
+        self.__pause_optional_widgets = False
+
+        self.widgets : dict[str, Widget] = {}
         self.widget_data_cache = {}
         self.last_write_time = Timer()
         self.last_write_time.Start()
@@ -41,8 +94,8 @@ class WidgetHandler:
         self._initialized = True
     
     @property
-    def pause_non_env_widgets(self):
-        return self.__pause_non_env_widgets
+    def pause_optional_widgets(self):
+        return self.__pause_optional_widgets
     
     @property
     def show_widget_ui(self):
@@ -52,10 +105,12 @@ class WidgetHandler:
         for section in ini_handler.list_sections():
             if section in self.widget_data_cache:
                 continue
+            
             self.widget_data_cache[section] = {
                 "category": ini_handler.read_key(section, "category", "Miscellaneous"),
                 "subcategory": ini_handler.read_key(section, "subcategory", "Others"),
-                "enabled": ini_handler.read_bool(section, "enabled", True)
+                "enabled": ini_handler.read_bool(section, "enabled", True),
+                "optional": ini_handler.read_bool(section, "optional", True),
             }
 
     def _load_all_from_dir(self):
@@ -70,25 +125,22 @@ class WidgetHandler:
 
             try:
                 module = self.load_widget(widgets_path)
-                enabled = self.widget_data_cache.get(widget_name, {}).get("enabled", True)
-                on_enable = getattr(module, "on_enable", None)
+                widget = self.widgets[widget_name] = Widget(
+                    name=widget_name,
+                    module=module,
+                    widget_data=self.widget_data_cache.get(widget_name, {})
+                )
 
-                self.widgets[widget_name] = {
-                    "module": module,
-                    "enabled": enabled,
-                    "configuring": False
-                }
-                
-                if enabled and on_enable:
+                if widget.enabled and widget.on_enable is not None:
                     try:
-                        on_enable()
-                        
+                        widget.on_enable()
+
                     except Exception as e:
-                        ConsoleLog("WidgetHandler", f"Error during on_enable of widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
+                        ConsoleLog("WidgetHandler", f"Error during on_enable of widget {widget.name}: {str(e)}", Py4GW.Console.MessageType.Error)
                         ConsoleLog("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
 
-                ConsoleLog("WidgetHandler", f"Loaded widget: {widget_name}", Py4GW.Console.MessageType.Info)
-                
+                ConsoleLog("WidgetHandler", f"Loaded widget: {widget.name}", Py4GW.Console.MessageType.Info)
+
             except Exception as e:
                 ConsoleLog("WidgetHandler", f"Failed to load widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                 ConsoleLog("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
@@ -125,23 +177,30 @@ class WidgetHandler:
         style = ImGui.Selected_Style.pyimgui_style
         alpha = style.Alpha
         ui_enabled = self.__show_widget_ui
+        pause_optional = self.__pause_optional_widgets
                 
         if not ui_enabled:
             style.Alpha = 0.0
             style.Push()
         
         for widget_name, widget_info in self.widgets.items():
-            if not widget_info["enabled"]:
+            if not widget_info.enabled:
                 continue
-                
-            data = self.widget_data_cache.get(widget_name, {})
-            cat = data.get("category", "Miscellaneous")
-            
-            if self.__pause_non_env_widgets and cat != "Environment":
+        
+            if widget_info.minimal:
+                try:
+                    widget_info.minimal()
+                except Exception as e:
+                    ConsoleLog("WidgetHandler", f"Error executing minimal of widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
+                    ConsoleLog("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+                    
+            if pause_optional and widget_info.optional:                        
                 continue
             
             try:
-                widget_info["module"].main()
+                if widget_info.main:
+                    widget_info.main()
+                    
             except Exception as e:
                 ConsoleLog("WidgetHandler", f"Error executing widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                 ConsoleLog("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
@@ -149,43 +208,37 @@ class WidgetHandler:
         if not ui_enabled:
             style.Alpha = alpha
             style.Push()
-    
+        
     def set_widget_ui_visibility(self, visible: bool):
         self.__show_widget_ui = visible
             
     def execute_configuring_widgets(self):
         for widget_name, widget_info in self.widgets.items():
-            if not widget_info["configuring"]:
+            if not widget_info.configuring:
                 continue
             try:
-                widget_info["module"].configure() 
+                if widget_info.configure:
+                    widget_info.configure()
+                    
             except Exception as e:
                 ConsoleLog("WidgetHandler", f"Error executing widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                 ConsoleLog("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
 
-    def save_widget_state(self, widget_name):
-        widget = self.widgets.get(widget_name)
-        if widget:
-            state = "Enabled" if widget["enabled"] else "Disabled"
-            Py4GW.Console.Log("WidgetHandler", f'"{widget_name}" is {state}', Py4GW.Console.MessageType.Info)
-            ini_handler.write_key(widget_name, "enabled", str(widget["enabled"]))
-            self.widget_data_cache.setdefault(widget_name, {})["enabled"] = widget["enabled"]
-
-    def get_widget_info(self, name: str):
-        return self.widgets.get(name)
+    def get_widget_info(self, name: str) -> Widget | None:
+        return self.widgets.get(name, None)
 
     def set_widget_configuring(self, name: str, value: bool = True):
         widget = self.widgets.get(name)
         if not widget:
             ConsoleLog("WidgetHandler", f"Widget '{name}' not found", Py4GW.Console.MessageType.Warning)
             return
-        widget["configuring"] = value
+        widget.configuring = value
         
     def pause_widgets(self):
-        self.__pause_non_env_widgets = True
+        self.__pause_optional_widgets = True
         
     def resume_widgets(self):
-        self.__pause_non_env_widgets = False
+        self.__pause_optional_widgets = False
         
     def enable_widget(self, name: str):
         self._set_widget_state(name, True)
@@ -198,32 +251,33 @@ class WidgetHandler:
         if not widget:
             ConsoleLog("WidgetHandler", f"Widget '{name}' not found", Py4GW.Console.MessageType.Warning)
             return
-        widget["enabled"] = state
+        
+        widget.enabled = state
 
         if state:
-            if hasattr(widget["module"], "on_enable"):
+            if widget.on_enable:
                 try:
-                    widget["module"].on_enable()
+                    widget.on_enable()
                 except Exception as e:
                     ConsoleLog("WidgetHandler", f"Error during on_enable of widget {name}: {str(e)}", Py4GW.Console.MessageType.Error)
                     ConsoleLog("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
                                 
         elif not state:
-            if hasattr(widget["module"], "on_disable"):
+            if widget.on_disable:
                 try:
-                    widget["module"].on_disable()
+                    widget.on_disable()
                 except Exception as e:
                     ConsoleLog("WidgetHandler", f"Error during on_disable of widget {name}: {str(e)}", Py4GW.Console.MessageType.Error)
                     ConsoleLog("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
             
-        self.save_widget_state(name)
+        widget.save_widget_state()
 
     def is_widget_enabled(self, name: str) -> bool:
         widget = self.widgets.get(name)
-        return bool(widget and widget["enabled"])
+        return bool(widget and widget.enabled)
 
     def list_enabled_widgets(self) -> list[str]:
-        return [name for name, info in self.widgets.items() if info["enabled"]]
+        return [name for name, info in self.widgets.items() if info.enabled]
 
 initialized = False
 
@@ -231,6 +285,7 @@ if "_Py4GW_GLOBAL_WIDGET_HANDLER" not in sys.modules:
     mod = types.ModuleType("_Py4GW_GLOBAL_WIDGET_HANDLER")  # actual module type
     mod.handler = WidgetHandler()  # type: ignore[attr-defined]
     sys.modules["_Py4GW_GLOBAL_WIDGET_HANDLER"] = mod
+handler : WidgetHandler = sys.modules["_Py4GW_GLOBAL_WIDGET_HANDLER"].handler
 handler : WidgetHandler = sys.modules["_Py4GW_GLOBAL_WIDGET_HANDLER"].handler
 enable_all = ini_handler.read_bool(module_name, "enable_all", True)
 old_enable_all = enable_all
@@ -243,31 +298,25 @@ window_module.window_pos = (window_x, window_y)
 
 window_module.collapse = ini_handler.read_bool(module_name, "collapsed", True)
 current_window_collapsed = window_module.collapse
-
+current_window_pos = window_module.window_pos
 
 write_timer = Timer()
 write_timer.Start()
 
-current_window_pos = window_module.window_pos
 
 def write_ini():
     if not write_timer.HasElapsed(1000):
         return
-    global enable_all
+    global enable_all, current_window_collapsed, current_window_pos, old_enable_all
     
-    if current_window_pos != window_module.window_pos:
+    if window_module.window_pos != current_window_pos:
         x, y = map(int, current_window_pos)
-        window_module.window_pos = (x, y)
+        current_window_pos = window_module.window_pos = (x, y)
         ini_handler.write_key(module_name, "x", str(x))
         ini_handler.write_key(module_name, "y", str(y))
-    
-    # if current_window_pos[0] != window_module.window_pos[0] or current_window_pos[1] != window_module.window_pos[1]:
-    #     window_module.window_pos = (int(current_window_pos[0]), int(current_window_pos[1]))
-    #     ini_handler.write_key(module_name, "x", str(int(current_window_pos[0])))
-    #     ini_handler.write_key(module_name, "y", str(int(current_window_pos[1])))
-        
-    if current_window_collapsed != window_module.collapse:
-        window_module.collapse = current_window_collapsed
+            
+    if window_module.collapse != current_window_collapsed:
+        current_window_collapsed = window_module.collapse
         ini_handler.write_key(module_name, "collapsed", str(current_window_collapsed))
             
     if old_enable_all != enable_all:
@@ -280,7 +329,7 @@ def draw_widget_ui():
     global enable_all, initialized
     style = ImGui.get_style()
     
-    if ImGui.icon_button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets"):
+    if ImGui.icon_button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets", 40):
         ConsoleLog(module_name, "Reloading Widgets...", Py4GW.Console.MessageType.Info)
         initialized = False
         handler.discover_widgets()
@@ -288,22 +337,22 @@ def draw_widget_ui():
     ImGui.show_tooltip("Reload all widgets")
     PyImGui.same_line(0, 5)
 
-    new_enable_all = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_TOGGLE_ON if enable_all else IconsFontAwesome5.ICON_TOGGLE_OFF) + "##widget_disable", enable_all)
+    new_enable_all = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_TOGGLE_ON if enable_all else IconsFontAwesome5.ICON_TOGGLE_OFF) + "##widget_disable", enable_all, 40)
     if new_enable_all != enable_all:
         enable_all = new_enable_all
         ini_handler.write_key(module_name, "enable_all", str(enable_all))        
     ImGui.show_tooltip(f"{("Run" if not enable_all else "Pause")} all widgets")
     
     PyImGui.same_line(0, 5)
-    show_widget_ui = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_EYE if handler.show_widget_ui else IconsFontAwesome5.ICON_EYE_SLASH) + "##Show Widget UIs", handler.show_widget_ui)
+    show_widget_ui = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_EYE if handler.show_widget_ui else IconsFontAwesome5.ICON_EYE_SLASH) + "##Show Widget UIs", handler.show_widget_ui, 40)
     if show_widget_ui != handler.show_widget_ui:
         handler.set_widget_ui_visibility(show_widget_ui)
     ImGui.show_tooltip(f"{("Show" if not handler.show_widget_ui else "Hide")} all widget UIs")
     
     PyImGui.same_line(0, 5)
-    pause_non_env = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_PAUSE if handler.pause_non_env_widgets else IconsFontAwesome5.ICON_PLAY) + "##Pause Non-Env Widgets", not handler.pause_non_env_widgets)
-    if pause_non_env != (not handler.pause_non_env_widgets):
-        if not handler.pause_non_env_widgets:
+    pause_non_env = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_PAUSE if handler.pause_optional_widgets else IconsFontAwesome5.ICON_PLAY) + "##Pause Non-Env Widgets", not handler.pause_optional_widgets, 40)
+    if pause_non_env != (not handler.pause_optional_widgets):
+        if not handler.pause_optional_widgets:
             handler.pause_widgets()
         else:
             handler.resume_widgets()
@@ -313,13 +362,14 @@ def draw_widget_ui():
             if acc.AccountEmail == own_email:
                 continue
             
-            GLOBAL_CACHE.ShMem.SendMessage(own_email, acc.AccountEmail, SharedCommandType.PauseWidgets if handler.pause_non_env_widgets else SharedCommandType.ResumeWidgets)
+            GLOBAL_CACHE.ShMem.SendMessage(own_email, acc.AccountEmail, SharedCommandType.PauseWidgets if handler.pause_optional_widgets else SharedCommandType.ResumeWidgets)
         
-    ImGui.show_tooltip(f"{("Pause" if not handler.pause_non_env_widgets else "Resume")} all non-environmental widgets")
+    ImGui.show_tooltip(f"{("Pause" if not handler.pause_optional_widgets else "Resume")} all non-environmental widgets")
     ImGui.separator()
     
     categorized_widgets = {}
     for name, info in handler.widgets.items():
+        data = handler.widget_data_cache.get(name, {})        
         data = handler.widget_data_cache.get(name, {})        
         cat = data.get("category", "Miscellaneous")
         sub = data.get("subcategory", "")
@@ -351,45 +401,39 @@ def draw_widget_ui():
                 continue
             
             for name in names:
-                info = handler.widgets[name]
+                widget = handler.widgets[name]
                 PyImGui.table_next_row()
                 PyImGui.table_set_column_index(0)
-                                    
-                new_enabled = ImGui.checkbox(name, info["enabled"])
-                    
-                if new_enabled != info["enabled"]:
+
+                new_enabled = ImGui.checkbox(name, widget.enabled)
+
+                if new_enabled != widget.enabled:
                     handler._set_widget_state(name, new_enabled)
-                    
-                PyImGui.table_set_column_index(1)                    
-                info["configuring"] = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COG + f"##Configure{name}", info["configuring"])
+
+                PyImGui.table_set_column_index(1)
+                widget.configuring = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COG + f"##Configure{name}", widget.configuring)
                 
 
             ImGui.end_table()
             ImGui.tree_pop()
 
 
+
 def main():
-    global initialized, enable_all, old_enable_all, current_window_pos, current_window_collapsed
+    global initialized, enable_all, old_enable_all
 
     try:
         if not initialized:
             handler.discover_widgets()
             initialized = True
 
-        if window_module.first_run:
-            PyImGui.set_next_window_size(*window_module.window_size)
-            PyImGui.set_next_window_pos(*window_module.window_pos)
-            PyImGui.set_next_window_collapsed(window_module.collapse, 0)
-            window_module.first_run = False
-
-        current_window_collapsed = True
         old_enable_all = enable_all
 
-        if ImGui.begin(window_module.window_name, None, window_module.window_flags):
-            current_window_pos = PyImGui.get_window_pos()
-            current_window_collapsed = False
+        if window_module.begin():
             draw_widget_ui()
-        ImGui.end()
+            
+        window_module.process_window()
+        window_module.end()
 
         write_ini()
 
