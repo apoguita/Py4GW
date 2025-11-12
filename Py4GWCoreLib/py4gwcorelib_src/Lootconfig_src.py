@@ -508,6 +508,7 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
         "Keys": [
             ModelID.Dungeon_Key,
             ModelID.Boss_Key,
+            ModelID.Prison_Key,
         ],
         "Dungeon quest items": [
             ModelID.Spectral_Crystal,
@@ -780,3 +781,4 @@ class LootConfig:
 
         return loot_array
 #endregion
+

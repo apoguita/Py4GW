@@ -1354,6 +1354,7 @@ class ModelID(IntEnum):
     Pile_Of_Elemental_Dust = 27050
     Pile_Of_Glittering_Dust = 929
     Plant_Fiber = 934
+    Prison_Key = 25413
     Polar_Bear_Mini = 21439
     Aloe_Seed_Polymock_Piece = 24355
     Earth_Elemental_Polymock_Piece = 24357
@@ -1378,7 +1379,6 @@ class ModelID(IntEnum):
     Prince_Rurik_Mini = 13790
     Princess_Salma_Mini = 35130
     Prismatic_Gelatinous_Material = 22375
-    Prison_Key = 25413
     Proof_Of_Legend = 37841
     Pulsating_Growth = 824
     Pumpkin_Cookie = 28433
