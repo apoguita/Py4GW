@@ -509,6 +509,12 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
             ModelID.Dungeon_Key,
             ModelID.Boss_Key,
         ],
+        "Keys": [
+            ModelID.Dungeon_Key,
+            ModelID.Boss_Key,
+            ModelID.Cell_Key,
+            ModelID.Prison_Key,
+        ],
         "Dungeon quest items": [
             ModelID.Spectral_Crystal,
             ModelID.Shimmering_Essence,

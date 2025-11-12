@@ -878,6 +878,7 @@ class ModelID(IntEnum):
     Celestial_Snake_Mini = 29418
     Celestial_Summon = 34176
     Celestial_Tiger_Mini = 29415
+    Cell_Key = 15565
     Ceratadon_Mini = 28416
     Cerebral_Tonic = 30626
     Ceremonial_Daggers = 15166
@@ -1355,6 +1356,7 @@ class ModelID(IntEnum):
     Pile_Of_Glittering_Dust = 929
     Plant_Fiber = 934
     Polar_Bear_Mini = 21439
+    Prison_Key = 25413
     Aloe_Seed_Polymock_Piece = 24355
     Earth_Elemental_Polymock_Piece = 24357
     Fire_Elemental_Polymock_Piece = 24358
