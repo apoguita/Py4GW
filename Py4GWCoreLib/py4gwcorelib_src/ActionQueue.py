@@ -201,6 +201,7 @@ class ActionQueueManager:
             "SALVAGE": ActionQueueNode(125),
             "IDENTIFY": ActionQueueNode(150),
             "FAST": ActionQueueNode(20),
+            "TRANSITION": ActionQueueNode(50),
             # Add more queues here if needed
         }
         
