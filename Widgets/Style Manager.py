@@ -1,27 +1,32 @@
 # Reload imports
 from datetime import datetime
 from enum import Enum
-import importlib
 import os
 from typing import Optional
 
 import Py4GW
 import PyImGui
 
-from Py4GWCoreLib import IconsFontAwesome5, ImGui, Routines
-from Py4GWCoreLib.ImGui import Style
-from Py4GWCoreLib.ImGui_src.Textures import MapTexture, SplitTexture, TextureState, ThemeTexture, ThemeTextures
-from Py4GWCoreLib.ImGui_src.types import MINIMALUS_FOLDER, TEXTURE_FOLDER, ControlAppearance, StyleColorType, StyleTheme
-from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
+from Py4GWCoreLib import IconsFontAwesome5, ImGui
+from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
+from Py4GWCoreLib.ImGui_src.Style import Style 
+from Py4GWCoreLib.ImGui_src.types import ControlAppearance, StyleColorType, StyleTheme
 from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 
-import sys
 
 from Py4GW_widget_manager import WidgetHandler
+  
 
 MODULE_NAME = "Style Manager"
+
+class ThemeTexturesDev(Enum):
+ pass
+    
+class ImGuiDev:
+    pass
+   
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 root_directory = os.path.normpath(os.path.join(script_directory, ".."))
@@ -56,8 +61,8 @@ window_size = window.size if window else (800.0, 600.0)
 window_pos = (screen_width / 2 - window_size[0] / 2, screen_height / 2 - window_size[1] / 2)
 window_pos = window.pos if window else window_pos
 collapse = window.collapsed if window else False
-
-window_module = ImGui.WindowModule(
+         
+window_module = WindowModule(
     MODULE_NAME,
     window_name="Style Manager",
     window_size=window_size,
@@ -66,16 +71,26 @@ window_module = ImGui.WindowModule(
     window_flags=PyImGui.WindowFlags.NoFlag,
     can_close=True,
 )
+       
+theme_compare_window = WindowModule(
+    MODULE_NAME + " Theme Compare",
+    window_name="Theme Compare",
+    window_size=(1400.0, 800.0),
+    window_pos=(100.0, 100.0),
+    collapse=collapse,
+    window_flags=PyImGui.WindowFlags.NoFlag,
+    can_close=True,
+)
 
 py4_gw_ini_handler = IniHandler("Py4GW.ini")
-selected_theme = Style.StyleTheme[py4_gw_ini_handler.read_key(
-    "settings", "style_theme", Style.StyleTheme.ImGui.name)]
+selected_theme = StyleTheme[py4_gw_ini_handler.read_key(
+    "settings", "style_theme", StyleTheme.ImGui.name)]
 
 force_theme_override = py4_gw_ini_handler.read_bool(
     "settings", "force_theme_override", False)
 
 if force_theme_override:
-    for theme in Style.StyleTheme:
+    for theme in StyleTheme:
         file_path = os.path.join("Styles", f"{theme.name}.json")
         if os.path.exists(file_path):
             time_stamp = datetime.now().strftime("%Y-%m-%d")
@@ -84,9 +99,9 @@ if force_theme_override:
     
     py4_gw_ini_handler.write_key("settings", "force_theme_override", "False")
 
-themes = [theme.name.replace("_", " ") + ( f" (Textured)" if theme in ImGui.Textured_Themes else "") for theme in Style.StyleTheme]
+themes = [theme.name.replace("_", " ") + ( f" (Textured)" if theme in ImGui.Textured_Themes else "") for theme in StyleTheme]
 
-org_style: Style.Style = ImGui.Selected_Style.copy()
+org_style: Style = ImGui.Selected_Style.copy()
 mouse_down_timer = ThrottledTimer(125)
 input_int_value = 150
 input_float_value = 150.0
@@ -127,15 +142,10 @@ class preview_states:
         self.slider_int = 25
         self.slider_float = 33.0
         
-        self.theme_1 = Style.StyleTheme.ImGui
-        self.theme_2 = Style.StyleTheme.Guild_Wars
-        self.theme_3 = Style.StyleTheme.Minimalus
+        self.theme_1 = StyleTheme.ImGui
+        self.theme_2 = StyleTheme.Minimalus
+        self.theme_3 = StyleTheme.Guild_Wars
 
-class ThemeTexturesDev(Enum):
-    pass
-    
-class ImGuiDev:
-    pass
 
 preview = preview_states()
 
@@ -150,9 +160,10 @@ textures = [
 ]
 
 
-def draw_button(theme: Style.StyleTheme):
+def draw_button(theme: StyleTheme):
+    width = 50
 
-    ImGui.button("Default" + "##" + theme.name)
+    ImGui.button(f"With Text" + "##" + theme.name)
     PyImGui.same_line(0, 5)
     ImGui.button("Primary" + "##" + theme.name,
                  appearance=ControlAppearance.Primary)
@@ -162,8 +173,7 @@ def draw_button(theme: Style.StyleTheme):
     PyImGui.same_line(0, 5)
     ImGui.button("Disabled" + "##" + theme.name, disabled=True)
 
-
-def draw_small_button(theme: Style.StyleTheme):
+def draw_small_button(theme: StyleTheme):
     ImGui.small_button("Default" + "##" + theme.name)
     PyImGui.same_line(0, 5)
     ImGui.small_button("Primary" + "##" + theme.name,
@@ -174,7 +184,7 @@ def draw_small_button(theme: Style.StyleTheme):
     PyImGui.same_line(0, 5)
     ImGui.small_button("Disabled" + "##" + theme.name, disabled=True)
 
-def draw_icon_button(theme: Style.StyleTheme):
+def draw_icon_button(theme: StyleTheme):
     ImGui.icon_button(IconsFontAwesome5.ICON_SYNC + " With Text" + "##" + theme.name)
     PyImGui.same_line(0, 5)
     ImGui.icon_button(IconsFontAwesome5.ICON_SYNC + "##" + theme.name)
@@ -189,7 +199,7 @@ def draw_icon_button(theme: Style.StyleTheme):
         IconsFontAwesome5.ICON_SYNC, disabled=True)
 
 
-def draw_icon_toggle_button(theme: Style.StyleTheme):
+def draw_icon_toggle_button(theme: StyleTheme):
     preview.icon_toggle_button_1 = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_SYNC) + " With Text" + "##toggle_icon_button" + theme.name, preview.icon_toggle_button_1)
     PyImGui.same_line(0, 5)
     preview.icon_toggle_button_2 = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_TOGGLE_ON if preview.icon_toggle_button_2 else IconsFontAwesome5.ICON_TOGGLE_OFF) + "##toggle_icon_button" + theme.name, preview.icon_toggle_button_2)
@@ -198,7 +208,7 @@ def draw_icon_toggle_button(theme: Style.StyleTheme):
                       theme.name, preview.icon_toggle_button_3)
 
 
-def draw_toggle_button(theme: Style.StyleTheme):
+def draw_toggle_button(theme: StyleTheme):
     preview.toggle_button_1 = ImGui.toggle_button(
         ("On" if preview.toggle_button_1 else "Off") + "##Toggle" + theme.name, preview.toggle_button_1)
     PyImGui.same_line(0, 5)
@@ -209,7 +219,7 @@ def draw_toggle_button(theme: Style.StyleTheme):
         "Disabled" + "##Toggle3" + theme.name, preview.toggle_button_3, disabled=True)
 
 
-def draw_image_toggle(theme: Style.StyleTheme):
+def draw_image_toggle(theme: StyleTheme):
     preview.image_toggle_button_1 = ImGui.image_toggle_button(
         ("On" if preview.image_toggle_button_1 else "Off") + "##ImageToggle_1" + theme.name, texture_path=textures[0][0], v=preview.image_toggle_button_1)
     PyImGui.same_line(0, 5)
@@ -220,19 +230,19 @@ def draw_image_toggle(theme: Style.StyleTheme):
         ("On" if preview.image_toggle_button_3 else "Off") + "##ImageToggle_3" + theme.name, texture_path=textures[2][0], v=preview.image_toggle_button_3, disabled=True)
 
 
-def draw_image_button(theme: Style.StyleTheme):
+def draw_image_button(theme: StyleTheme):
     for (texture, appearance, enabled) in textures:
         ImGui.image_button("Image Button" + "##" + theme.name +
                            texture, texture, appearance=appearance, disabled=not enabled)
         PyImGui.same_line(0, 5)
 
 
-def draw_combo(theme: Style.StyleTheme):
+def draw_combo(theme: StyleTheme):
     preview.combo = ImGui.combo("Combo##" + theme.name, preview.combo, [
                                 "Option 1", "Option 2", "Option 3"])
 
 
-def draw_checkbox(theme: Style.StyleTheme):
+def draw_checkbox(theme: StyleTheme):
     preview.checkbox_2 = ImGui.checkbox(
         "##Checkbox 2" + "##" + theme.name, preview.checkbox_2)
     PyImGui.same_line(0, 5)
@@ -240,7 +250,7 @@ def draw_checkbox(theme: Style.StyleTheme):
         "Checkbox" + "##" + theme.name, preview.checkbox)
 
 
-def draw_radio_button(theme: Style.StyleTheme):
+def draw_radio_button(theme: StyleTheme):
     preview.radio_button = ImGui.radio_button(
         "Option 1##Radio Button 1" + "##" + theme.name, preview.radio_button, 0)
     preview.radio_button = ImGui.radio_button(
@@ -249,14 +259,14 @@ def draw_radio_button(theme: Style.StyleTheme):
         "Option 3##Radio Button 3" + "##" + theme.name, preview.radio_button, 2)
 
 
-def draw_slider(theme: Style.StyleTheme):
+def draw_slider(theme: StyleTheme):
     preview.slider_int = ImGui.slider_int(
         "Slider Int##" + theme.name, preview.slider_int, 0, 100)
     preview.slider_float = ImGui.slider_float(
         "Slider Float##" + theme.name, preview.slider_float, 0.0, 100.0)
 
 
-def draw_input(theme: Style.StyleTheme):
+def draw_input(theme: StyleTheme):
     changed, preview.search_value = ImGui.search_field(
         "Search##" + theme.name, preview.search_value)
     preview.input_text_value = ImGui.input_text(
@@ -269,35 +279,35 @@ def draw_input(theme: Style.StyleTheme):
         "Int Buttons##2" + theme.name, preview.input_int_value)
 
 
-def draw_separator(theme: Style.StyleTheme):
+def draw_separator(theme: StyleTheme):
     ImGui.separator()
 
 
-def draw_progress_bar(theme: Style.StyleTheme):
+def draw_progress_bar(theme: StyleTheme):
     ImGui.progress_bar(0.25, 0, 20, "25 points")
 
 
-def draw_text(theme: Style.StyleTheme):
+def draw_text(theme: StyleTheme):
     ImGui.text("This is some text.")
 
 
-def draw_hyperlink(theme: Style.StyleTheme):
+def draw_hyperlink(theme: StyleTheme):
     ImGui.hyperlink("Click Me")
 
 
-def draw_bullet_text(theme: Style.StyleTheme):
+def draw_bullet_text(theme: StyleTheme):
     ImGui.bullet_text("Bullet Text 1")
     ImGui.bullet_text("Bullet Text 2")
 
 
-def draw_objective_text(theme: Style.StyleTheme):
+def draw_objective_text(theme: StyleTheme):
     preview.objective_1 = ImGui.objective_text(
         "Objective 1", preview.objective_1)
     preview.objective_2 = ImGui.objective_text(
         "Objective 2", preview.objective_2)
 
 
-def draw_tree_node(theme: Style.StyleTheme):
+def draw_tree_node(theme: StyleTheme):
     if ImGui.tree_node("Tree Node 1##" + theme.name):
         if ImGui.tree_node("Tree Node 1.1##" + theme.name):
             ImGui.text("This is a tree node content.")
@@ -306,12 +316,12 @@ def draw_tree_node(theme: Style.StyleTheme):
         ImGui.tree_pop()
 
 
-def draw_collapsing_header(theme: Style.StyleTheme):
+def draw_collapsing_header(theme: StyleTheme):
     if ImGui.collapsing_header("Collapsing Header##" + theme.name, 0):
         ImGui.text("This is a collapsible header content.")
 
 
-def draw_child(theme: Style.StyleTheme):
+def draw_child(theme: StyleTheme):
     if ImGui.begin_child("Child##" + theme.name, (0, 68), True, PyImGui.WindowFlags.AlwaysHorizontalScrollbar):
         ImGui.text("This is a child content.")
         ImGui.text("This is a child content.")
@@ -321,7 +331,7 @@ def draw_child(theme: Style.StyleTheme):
     ImGui.end_child()
 
 
-def draw_tab_bar(theme: Style.StyleTheme):
+def draw_tab_bar(theme: StyleTheme):
     if ImGui.begin_tab_bar("Tab Bar PyImGui##" + theme.name):
         if ImGui.begin_tab_item("Tab 1##" + theme.name):
             ImGui.text("Content for Tab 1")
@@ -346,7 +356,7 @@ controls = {
     "Checkbox": draw_checkbox,
     "Radio Button": draw_radio_button,
     "Slider": draw_slider,
-    "Input": draw_input,
+    "Input": draw_input, ##TODO: Fix input text clipping issue
     "Separator": draw_separator,
     "Progress Bar": draw_progress_bar,
     "Text": draw_text,
@@ -361,13 +371,13 @@ controls = {
 
 
 def DrawThemeCompare():
-    global match_style_vars, preview, themes, theme_compare
+    global match_style_vars, preview, themes, theme_compare, theme_compare_window
     name = "Theme Compare"
+
+    if theme_compare_window and not theme_compare_window.open:
+        theme_compare_window.open = True
     
-    if theme_compare and ImGui.WindowModule._windows.get(name, None) and not ImGui.WindowModule._windows[name].open:
-        ImGui.WindowModule._windows[name].open = True
-    
-    if ImGui.begin_with_close(name):
+    if theme_compare_window.begin():
         window_size = PyImGui.get_window_size()
         
         if window_size[1] > 100:
@@ -410,7 +420,7 @@ def DrawThemeCompare():
 
                 theme_1 = ImGui.combo(preview.theme_1.name + "##theme_1", preview.theme_1.value, themes)
                 if theme_1 != preview.theme_1.value:
-                    preview.theme_1 = Style.StyleTheme(theme_1)
+                    preview.theme_1 = StyleTheme(theme_1)
                     ImGui.reload_theme(preview.theme_1)
                     
                 PyImGui.table_next_column()
@@ -418,14 +428,14 @@ def DrawThemeCompare():
 
                 theme_2 = ImGui.combo(preview.theme_2.name + "##theme_2", preview.theme_2.value, themes)
                 if theme_2 != preview.theme_2.value:
-                    preview.theme_2 = Style.StyleTheme(theme_2)
+                    preview.theme_2 = StyleTheme(theme_2)
                     ImGui.reload_theme(preview.theme_2)
                     
                 PyImGui.table_next_column()
 
                 theme_3 = ImGui.combo(preview.theme_3.name + "##theme_3", preview.theme_3.value, themes)
                 if theme_3 != preview.theme_3.value:
-                    preview.theme_3 = Style.StyleTheme(theme_3)
+                    preview.theme_3 = StyleTheme(theme_3)
                     ImGui.reload_theme(preview.theme_3)
                     
                 ImGui.end_table()
@@ -459,9 +469,9 @@ def DrawThemeCompare():
 
             PyImGui.pop_item_width()
             
-    ImGui.end()
+    theme_compare_window.end()
 
-    if not ImGui.WindowModule._windows[name].open:
+    if not theme_compare_window.open:
         theme_compare = False
 
 def DrawControlCompare():
@@ -506,8 +516,8 @@ def DrawControlCompare():
 
 def on_enable():
     global selected_theme
-    selected_theme = Style.StyleTheme[py4_gw_ini_handler.read_key(
-        "settings", "style_theme", Style.StyleTheme.ImGui.name)]
+    selected_theme = StyleTheme[py4_gw_ini_handler.read_key(
+        "settings", "style_theme", StyleTheme.ImGui.name)]
     set_theme(selected_theme)
         
 def DrawWindow():
@@ -550,7 +560,7 @@ def DrawWindow():
                     ImGui.show_tooltip(disclaimer_text)
                 
                 if value != ImGui.Selected_Style.Theme.value:
-                    theme = Style.StyleTheme(value)
+                    theme = StyleTheme(value)
                     set_theme(theme)
                     py4_gw_ini_handler.write_key(
                         "settings", "style_theme", ImGui.Selected_Style.Theme.name)

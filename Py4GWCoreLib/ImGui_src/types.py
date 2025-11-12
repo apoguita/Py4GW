@@ -17,6 +17,17 @@ class StyleTheme(IntEnum):
     Contrast = 4
     Negative = 5
     
+class Alignment(IntEnum):
+    TopLeft = 0
+    TopCenter = 1
+    TopRight = 2
+    MidLeft = 3
+    MidCenter = 4
+    MidRight = 5
+    BottomLeft = 6
+    BottomCenter = 7
+    BottomRight = 8
+
 class TextDecorator(IntEnum):
     None_ = 0
     Underline = 1
