@@ -93,13 +93,9 @@ def bot_routine(bot: Botting) -> None:
     
     # Initial path to first blessing
     bot.Move.XY(-2484.73, 118.55, "Start")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-3059.12, -419.00, "Move to bridge")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-3301.01, -2008.23, "Move to shrine")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-2034, -4512, "Move to blessing 1")
-    bot.Wait.UntilOutOfCombat()
     bot.Wait.ForTime(5000)
     bot.Move.XYAndInteractNPC(-1892.00, -4505.00)
     bot.Multibox.SendDialogToTarget(0x84) #Get Blessing 1
@@ -107,17 +103,11 @@ def bot_routine(bot: Botting) -> None:
     
     # Path to blessing 2
     bot.Move.XY(-5278, -5771, "Aggro: Berzerker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-5456, -7921, "Aggro: Berzerker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-8793, -5837, "Aggro: Berzerker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-14092, -9662, "Aggro: Vaettir and Berzerker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-17260, -7906, "Aggro: Vaettir and Berzerker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-21964, -12877, "Aggro: Jotun")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-25341.00, -11957.00)
     bot.Wait.ForTime(5000)
     bot.Move.XYAndInteractNPC(-25341.00, -11957.00) 
@@ -126,15 +116,10 @@ def bot_routine(bot: Botting) -> None:
     
     # Path to blessing 3
     bot.Move.XY(-22275, -12462, "Move to area 2")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-21671, -2163, "Aggro: Berzerker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-19592, 772, "Aggro: Berzerker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-13795, -751, "Aggro: Berzerker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-17012, -5376, "Aggro: Berzerker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-10606.23, -1625.26)
     bot.Move.XY(-12158.00, -4277.00)
     bot.Wait.ForTime(5000)
@@ -144,15 +129,10 @@ def bot_routine(bot: Botting) -> None:
     
     # Path to blessing 4
     bot.Move.XY(-12071, -4274, "Aggro: Berzerker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-8351, -2633, "Move to regroup")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-4362, -1610, "Aggro: Lake")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-4316, 4033, "Aggro: Lake")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-8809, 5639, "Aggro: Lake")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-14916, 2475)
     bot.Move.XY(-11204.00, 5479.00)
     bot.Wait.ForTime(5000)
@@ -162,11 +142,8 @@ def bot_routine(bot: Botting) -> None:
     
     # Path to blessing 5
     bot.Move.XY(-11282, 5466, "Aggro: Elemental")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-16051, 6492, "Aggro: Elemental")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-16934, 11145, "Aggro: Elemental")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-19378, 14555)
     bot.Move.XY(-22889.00, 14165.00)
     bot.Wait.ForTime(5000)
@@ -176,11 +153,8 @@ def bot_routine(bot: Botting) -> None:
     
     # Path to blessing 6
     bot.Move.XY(-22751, 14163, "Aggro: Elemental")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-15932, 9386, "Move to camp")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-13777, 8097, "Aggro: Lake")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-2217.00, 14914.00)
     bot.Wait.ForTime(5000)
     bot.Move.XYAndInteractNPC(-2217.00, 14914.00)
@@ -189,27 +163,16 @@ def bot_routine(bot: Botting) -> None:
     
     # Continue route
     bot.Move.XY(-2290, 14879, "Aggro: Modnir")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-1810, 4679, "Move to boss")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-6911, 5240, "Aggro: Boss")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-15471, 6384, "Move to regroup")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-411, 5874, "Aggro: Modniir")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(2859, 3982, "Aggro: Ice Imp")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(4909, -4259, "Aggro: Ice Imp")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(7514, -6587, "Aggro: Berserker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(3800, -6182, "Aggro: Berserker")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(7755, -11467, "Aggro: Elementals and Griffins")
-    bot.Wait.UntilOutOfCombat()
     bot.Move.XY(15403, -4243, "Aggro: Elementals and Griffins")
-    bot.Wait.UntilOutOfCombat()
     
     # # Path to blessing 7
     # bot.Move.XY(21597, -6798)
