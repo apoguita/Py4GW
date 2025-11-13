@@ -1,5 +1,6 @@
 from typing import override
 
+from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -13,8 +14,10 @@ from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utilit
 from Widgets.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
 from Widgets.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
 from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
+from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Widgets.CustomBehaviors.skills.generic.raw_aoe_attack_utility import RawAoeAttackUtility
 from Widgets.CustomBehaviors.skills.mesmer.arcane_echo_utility import ArcaneEchoUtility
+from Widgets.CustomBehaviors.skills.mesmer.auspicious_incantation_utility import AuspiciousIncantationUtility
 from Widgets.CustomBehaviors.skills.mesmer.cry_of_frustration_utility import CryOfFrustrationUtility
 from Widgets.CustomBehaviors.skills.mesmer.cry_of_pain_utility import CryOfPainUtility
 from Widgets.CustomBehaviors.skills.mesmer.drain_enchantment_utility import DrainEnchantmentUtility
@@ -68,6 +71,13 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
                 score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 80 if enemy_qte >= 3 else 50 if enemy_qte <= 2 else 0), 
                 mana_required_to_cast=12),
             arcane_echo_score_definition=ScoreStaticDefinition(82))
+        self.auspicious_incantation_utility: CustomSkillUtilityBase = AuspiciousIncantationUtility(
+            event_bus=self.event_bus,
+            current_build=in_game_build,
+            original_skill_to_cast=self.arcane_echo_utility,
+            auspicious_score_definition=ScoreStaticDefinition(82)
+        )
+
 
         #common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
@@ -77,6 +87,7 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.flesh_of_my_flesh_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Flesh_of_My_Flesh"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
         self.signet_of_return_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Signet_of_Return"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
         self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
+        self.air_of_superiority_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Air_of_Superiority"), mana_required_to_cast=5, current_build=in_game_build, score_definition=ScoreStaticDefinition(50), allowed_states= [BehaviorState.IN_AGGRO])
 
     @property
     @override
@@ -105,6 +116,7 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
 
             self.fall_back_utility,
             self.arcane_echo_utility,
+            self.auspicious_incantation_utility,
 
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
@@ -113,6 +125,7 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.by_urals_hammer_utility,
             self.flesh_of_my_flesh_utility,
             self.signet_of_return_utility,
+            self.air_of_superiority_utility,
         ]
 
     @property
