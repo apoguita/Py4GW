@@ -1019,8 +1019,17 @@ class Py4GWSharedMemoryManager:
         
         import ctypes as ct
         index = self.FindAccount(receiver_email)
+        
         if index == -1:
             ConsoleLog(SMM_MODULE_NAME, f"Receiver account {receiver_email} not found.", Py4GW.Console.MessageType.Error)
+            return -1
+        
+        if not receiver_email:
+            ConsoleLog(SMM_MODULE_NAME, "Receiver email is empty.", Py4GW.Console.MessageType.Error)
+            return -1
+        
+        if not sender_email:
+            ConsoleLog(SMM_MODULE_NAME, "Sender email is empty.", Py4GW.Console.MessageType.Error)
             return -1
         
         for i in range(self.max_num_players):
