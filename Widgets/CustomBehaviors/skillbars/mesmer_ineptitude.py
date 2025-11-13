@@ -79,6 +79,12 @@ class MesmeIneptitude_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.flesh_of_my_flesh_utility,
             self.signet_of_return_utility,
             self.fall_back_utility,
+            self.ineptitude_utility,
+            self.cry_of_pain_utility,
+            self.power_drain_utility,
+            self.wandering_eye_utility,
+            self.arcane_conundrum_utility,
+            self.drain_enchantment_utility,
         ]
 
     @property
