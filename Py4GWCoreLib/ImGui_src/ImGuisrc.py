@@ -344,11 +344,10 @@ class ImGui:
     ):
         """Draws text aligned inside a given width/height box."""
         width = PyImGui.get_content_region_avail()[0] if width == 0 else width
-        x0, y0 = PyImGui.get_cursor_pos()
-
+        
         def _draw(text: str):
             text_w, text_h = PyImGui.calc_text_size(text)
-            x, y = x0, y0
+            x, y = PyImGui.get_cursor_pos()
 
             horiz = alignment % 3
             vert = alignment // 3
@@ -365,8 +364,15 @@ class ImGui:
             elif vert == 2:  # bottom
                 y += height - text_h
 
+            x0, y0 = PyImGui.get_cursor_pos()
+            
             PyImGui.set_cursor_pos(x, y)
             PyImGui.text(text)
+            item_rect_min, item_rect_max, item_rect_size = ImGui.get_item_rect()
+            
+            #Restore cursor position
+            PyImGui.set_cursor_pos(x0, y0)
+            ImGui.dummy(*item_rect_size)
 
         ImGui._with_font(_draw, text, font_size, font_style)
         
