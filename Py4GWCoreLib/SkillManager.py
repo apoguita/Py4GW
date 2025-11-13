@@ -1273,7 +1273,7 @@ class SkillManager:
         
         def GetAppropiateTarget(self, slot):
             
-            return _GetAppropiateTarget(self, slot, Routines.Agents, Routines.Targeting)
+            #return _GetAppropiateTarget(self, slot, Routines.Agents, Routines.Targeting)
  
             v_target = 0
 
