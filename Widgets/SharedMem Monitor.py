@@ -104,7 +104,7 @@ def main():
                                             PyImGui.end_table()
 
                                 if PyImGui.tree_node("Buffs"):
-                                    buffs = [buff for buff in player.PlayerBuffs if buff != 0]
+                                    buffs = [buff.SkillId for buff in player.PlayerBuffs if buff.SkillId != 0]
                                     PyImGui.text(f"Number of Buffs: {len(buffs)}")
                                     if len(buffs) == 0:
                                         PyImGui.text("No buffs found for this player.")
@@ -138,7 +138,7 @@ def main():
                                                     PyImGui.separator()
 
                                                 if PyImGui.tree_node("Buffs"):
-                                                    hero_buffs = [buff for buff in hero.PlayerBuffs if buff != 0]
+                                                    hero_buffs = [buff.SkillId for buff in hero.PlayerBuffs if buff.SkillId != 0]
                                                     PyImGui.text(f"Number of Buffs: {len(hero_buffs)}")
                                                     if len(hero_buffs) == 0:
                                                         PyImGui.text("No buffs found for this hero.")
@@ -174,7 +174,7 @@ def main():
                                                     PyImGui.separator()
 
                                                 if PyImGui.tree_node("Buffs"):
-                                                    pet_buffs = [buff for buff in pet.PlayerBuffs if buff != 0]
+                                                    pet_buffs = [buff.SkillId for buff in pet.PlayerBuffs if buff.SkillId != 0]
                                                     PyImGui.text(f"Number of Buffs: {len(pet_buffs)}")
                                                     if len(pet_buffs) == 0:
                                                         PyImGui.text("No buffs found for this pet.")
