@@ -362,8 +362,8 @@ class SkillBar:
         """
         Purpose: Retrieve the data of a skill by its ID.
         Args:
-            skill_id (int): The ID of the skill to retrieve.
-        Returns: dict: A dictionary containing skill details like ID, adrenaline, recharge, and event data.
+            slot (int): The slot number of the skill to retrieve (1-8).
+        Returns: dict: A SkillbarSkill object containing skill details.
         """
         skill_instance = PySkillbar.Skillbar()
         return skill_instance.GetSkill(slot)
