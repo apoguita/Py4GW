@@ -73,9 +73,9 @@ def DrawWindow():
                 PyImGui.end()
                 return
 
-            command: SharedCommandType = message.Command
-            params: tuple[float] = message.Params
-            extra_data: tuple[str] = message.ExtraData
+            command: SharedCommandType = SharedCommandType(message.Command)
+            params: tuple[float, ...] = tuple(message.Params)
+            extra_data: tuple[str, ...] = tuple(message.ExtraData)
             active = message.Active
             running = message.Running
             timestamp = message.Timestamp
@@ -108,8 +108,8 @@ def DrawWindow():
                 if sender is None or receiver is None:
                     continue
 
-                command: SharedCommandType = message.Command
-                params: tuple[float] = message.Params
+                command: SharedCommandType = SharedCommandType(message.Command)
+                params: tuple[float, ...] = tuple(message.Params)
                 running = message.Running
                 timestamp = message.Timestamp
 
@@ -231,11 +231,13 @@ def TravelToMap(index, message):
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    map_id = sender_data.MapID
-    map_region = sender_data.MapRegion
-    map_district = sender_data.MapDistrict
 
-    yield from Routines.Yield.Map.TravelToRegion(map_id, map_region, map_district, language=0, log=True)
+    map_id = int(message.Params[0])
+    map_region = int(message.Params[1])
+    map_district = int(message.Params[2])
+    language = int(message.Params[3])
+
+    yield from Routines.Yield.Map.TravelToRegion(map_id, map_region, map_district, language=language, log=True)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "TravelToMap message processed and finished.", Console.MessageType.Info, False)
@@ -469,6 +471,22 @@ def SendDialogToTarget(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
+# region SendDialog
+def SendDialog(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing SendDialog message: {message}", Console.MessageType.Info, False)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    if UIManager.IsNPCDialogVisible():
+        UIManager.ClickDialogButton(int(message.Params[0]))
+        
+    yield from Routines.Yield.wait(500)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+# endregion
+
 # region GetBlessing
 def GetBlessing(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -590,13 +608,13 @@ def DonateToGuild(index, message):
         npc_pos = (5408, 1494)
         CURRENT_FACTION = GLOBAL_CACHE.Player.GetKurzickData()[0]
         title = GLOBAL_CACHE.Player.GetTitle(TitleID.Kurzick)
-        TOTAL_CUMULATIVE = title.current_points
+        TOTAL_CUMULATIVE = title.current_points if title else 0
     elif map_id == 193:  # Cavalon
         faction = 1  # Luxon
         npc_pos = (9074, -1124)
         CURRENT_FACTION = GLOBAL_CACHE.Player.GetLuxonData()[0]
         title = GLOBAL_CACHE.Player.GetTitle(TitleID.Luxon)
-        TOTAL_CUMULATIVE = title.current_points
+        TOTAL_CUMULATIVE = title.current_points if title else 0
     else:
         ConsoleLog(MODULE, "Not in a valid outpost for donation.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -922,6 +940,7 @@ def UseSkill(index, message):
     yield from Routines.Yield.Agents.ChangeTarget(target)
     skill_id = int(message.Params[1])
     skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+    
 
     if skill_slot < 1 or skill_slot > 8:
         ConsoleLog(MODULE_NAME, "Invalid skill slot.", Console.MessageType.Warning)
@@ -930,9 +949,12 @@ def UseSkill(index, message):
 
     yield from SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
+        ConsoleLog(MODULE_NAME, f"Disable HERO AI.", Console.MessageType.Info)
         yield from DisableHeroAIOptions(message.ReceiverEmail)
+        ConsoleLog(MODULE_NAME, f"Changing target to {target}.", Console.MessageType.Info)
         yield from Routines.Yield.Agents.ChangeTarget(target)
-        yield from Routines.Yield.Skills.CastSkillSlot(slot=skill_slot, aftercast_delay=0)
+        ConsoleLog(MODULE_NAME, f"Casting skill in slot {skill_slot}.", Console.MessageType.Info)
+        yield from Routines.Yield.Skills.CastSkillSlotAtTarget(slot=skill_slot, target_id=target, aftercast_delay=0, log=True)
 
         ConsoleLog(MODULE_NAME, "UseSkill message processed and finished.", Console.MessageType.Info, False)
     finally:
@@ -1237,6 +1259,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(TakeDialogWithTarget(index, message))
         case SharedCommandType.SendDialogToTarget:
             GLOBAL_CACHE.Coroutines.append(SendDialogToTarget(index, message))
+        case SharedCommandType.SendDialog:
+            GLOBAL_CACHE.Coroutines.append(SendDialog(index, message))
         case SharedCommandType.GetBlessing:
             pass
         case SharedCommandType.OpenChest:
@@ -1301,8 +1325,6 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(SkipCutscene(index, message))
         case SharedCommandType.UseSkillCombatPrep:
             GLOBAL_CACHE.Coroutines.append(UseSkillCombatPrep(index, message))
-        case SharedCommandType.ApplySkillbarTemplate:
-            GLOBAL_CACHE.Coroutines.append(ApplySkillbarTemplate(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by Frenkey
             pass
