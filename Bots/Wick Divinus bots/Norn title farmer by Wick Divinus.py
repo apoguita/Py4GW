@@ -85,9 +85,14 @@ def bot_routine(bot: Botting) -> None:
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OLAFSTEAD)
     
     bot.Party.SetHardMode(True)
-    bot.Move.FollowPath([((-609, 1372))])
-    bot.Move.FollowPath([(-1440, 1170)])
-    #bot.Move.FollowPath([(-2382.69, 461.66)])
+    auto_path_list = [
+        (204, -562),
+        (95, 460),
+        (-514, 1267),
+        (-1116, 2066),
+        (-2252, 831)
+    ]
+    bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapLoad(target_map_id=553)
     bot.States.AddHeader("Start Combat")
     bot.Multibox.UseAllConsumables()
