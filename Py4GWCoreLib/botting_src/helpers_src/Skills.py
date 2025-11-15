@@ -18,6 +18,7 @@ class _Skills:
         from ...Routines import Routines
         return (yield from Routines.Yield.Skills.LoadSkillbar(skill_template, log=False))
     
+    @_yield_step(label="LoadHeroSkillbar", counter_key="LOAD_HERO_SKILLBAR")
     def load_hero_skillbar(self, hero_index: int, skill_template: str) -> Generator[Any, Any, None]:
         from ...Routines import Routines
         return (yield from Routines.Yield.Skills.LoadHeroSkillbar(hero_index, skill_template, log=False))
