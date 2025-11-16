@@ -11,6 +11,7 @@ from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager
 
 from ..enums_src.Model_enums import ModelID
 from ..enums_src.UI_enums import ControlAction
+from .BehaviourTrees import BT
 
 
 import importlib
@@ -636,30 +637,19 @@ class Yield:
             Purpose: Positions yourself safely on the outpost.
             Args:
                 outpost_id (int): The ID of the outpost to travel to.
-                log (bool) Optional: Whether to log the action. Default is True.
+                log (bool) Optional: Whether to log the action. Default is False.
             Returns: None
             """
             
-            from ..Py4GWcorelib import ConsoleLog, Utils
-            start_time = Utils.GetBaseTimestamp()
-            if GLOBAL_CACHE.Map.GetMapID() != outpost_id:
-                ConsoleLog("TravelToOutpost", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
-                GLOBAL_CACHE.Map.Travel(outpost_id)
-                yield from Yield.wait(3000)
-                waiting_for_map_load = True
-                while waiting_for_map_load:
-                    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.GetMapID() == outpost_id:
-                        waiting_for_map_load = False
-                        break
-                    delta = Utils.GetBaseTimestamp() - start_time
-                    if delta > timeout and timeout > 0:
-                        ConsoleLog("TravelToOutpost", "Timeout reached, stopping waiting for map load.", log=log)
-                        return False
-                    yield from Yield.wait(1000)
-                yield from Yield.wait(1000)
-            
-            ConsoleLog("TravelToOutpost", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
-            return True
+            tree = BT.Map.TravelToOutpost(outpost_id, log, timeout)
+            while True:
+                state = tree.tick()
+                if state == BT.NodeState.SUCCESS:
+                    return True
+                elif state == BT.NodeState.FAILURE:
+                    return False
+                yield from Yield.wait(100)
+
 
         @staticmethod
         def TravelToRegion(outpost_id, region, district, language=0, log=False):
