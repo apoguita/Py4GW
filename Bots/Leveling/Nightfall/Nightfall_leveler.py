@@ -48,6 +48,9 @@ def create_bot_routine(bot: Botting) -> None:
     
     # === PHASE 5: MID-GAME QUESTS AND PROGRESSION ===
     LoopFarmInJokanurDiggings(bot)
+    UnlockRemainingSecondaryProfessions(bot)   # Unlock remaining secondary professions
+    UnlockMercenaryHeroes(bot)                  # Unlock Mercenary Heroes
+    UnlockXunlaiMaterialStoragePanel(bot)
     GatherSecondSetOfAttributePoints(bot)    # Gather second set of attribute points
     UnlockSunspearSkills(bot)          # Unlock Sunspear skills
     # === PHASE 6: EYE OF THE NORTH EXPANSION ===
@@ -74,9 +77,6 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToTsumeiVillage(bot)
     AdvanceToMinisterCho(bot)                   # Advance to Minister Cho
     UnlockLionsArch(bot)                        # Unlock LA (Lion's Arch)
-    UnlockRemainingSecondaryProfessions(bot)   # Unlock remaining secondary professions
-    UnlockXunlaiMaterialStoragePanel(bot)
-    UnlockMercenaryHeroes(bot)                  # Unlock Mercenary Heroes
 #region Helpers
 
 def ConfigurePacifistEnv(bot: Botting) -> None:
@@ -844,7 +844,6 @@ def ConfigureAfterSecondProfession(bot: Botting):
     bot.Move.XYAndDialog(2888, 2207, 0x827807, step_name="Leaving A Legacy complete")
     bot.Dialogs.AtXY(2888, 2207, 0x827901, step_name="Sounds Like Fun")
 
-
 def TakeArmorRewardAndCraft(bot: Botting):
     bot.States.AddHeader("Phase 4: Taking Armor Reward & Crafting Equipment")
     bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
@@ -874,7 +873,7 @@ def TakeWeaponRewardAndCraft(bot: Botting):
     bot.States.AddCustomState(exec_fn, "Craft Weapon")
 
 def LoopFarmInJokanurDiggings(bot):
-    bot.States.AddHeader(f"Farm_loop")
+    bot.States.AddHeader(f" Phase 4: Farm_loop")
     for _ in range (16):
         bot.Map.Travel(target_map_id=491) #Jokanur Diggings
         bot.Party.LeaveParty()
@@ -887,13 +886,117 @@ def LoopFarmInJokanurDiggings(bot):
         ])
         bot.Wait.ForMapLoad(target_map_id=481) # Fahranur The First City
         bot.Move.XYAndDialog(19651, 12237, 0x85) # Blessing
-        bot.Move.XY(11182, 14880); bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(11543, 6466);  bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(15193, 5918);  bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(14485, 16);    bot.Wait.UntilOutOfCombat()
-        bot.Move.XY(10256, -1393); bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(11182, 14880)
+        bot.Move.XY(11543, 6466)
+        bot.Move.XY(15193, 5918)
+        bot.Move.XY(14485, 16)
+        bot.Move.XY(10256, -1393)
         bot.Move.XYAndDialog(11238, -2718, 0x85) # Bounty
-        bot.Move.XY(13382, -6837); bot.Wait.UntilOutOfCombat()
+        bot.Move.XY(13382, -6837)
+        bot.Wait.UntilOutOfCombat()
+
+def UnlockRemainingSecondaryProfessions(bot: Botting):
+    bot.States.AddHeader("Phase 4: Unlocking All Remaining Secondary Professions")
+    bot.Map.Travel(target_map_id=248)  # GTOB
+    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
+    bot.Move.XY(-3151.22, -7255.13)  # Move to profession trainers area
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    
+    if primary == "Warrior":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Ranger":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Monk":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Mesmer":
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Necromancer":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Elementalist":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+    elif primary == "Dervish":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
+    elif primary == "Paragon":
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
+
+def UnlockMercenaryHeroes(bot: Botting) -> None:
+    bot.States.AddHeader("Phase 4: Unlocking Mercenary Heroes")
+    bot.Party.LeaveParty()
+    bot.Map.Travel(target_map_id=248)  # GTOB
+    bot.Move.XY(-4231.87, -8965.95)
+    bot.Dialogs.WithModel(225, 0x800004) # Unlock Mercenary Heroes
+
+def UnlockXunlaiMaterialStoragePanel(bot: Botting) -> None:
+    bot.States.AddHeader("Phase 4: Unlocking Xunlai Material Storage Panel")
+    bot.Party.LeaveParty()
+    bot.Map.Travel(target_map_id=248)  # GTOB
+    path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
+    bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
+    bot.Dialogs.WithModel(221, 0x800001)
+    bot.Dialogs.WithModel(221, 0x800002)  # Unlock Material Storage Panel
 
 def GatherSecondSetOfAttributePoints(bot: Botting):
     bot.States.AddHeader("Phase 5: Gathering 15 second set of attribute points")
@@ -923,25 +1026,20 @@ def TravelToEyeOfTheNorth(bot: Botting):
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
-
     bot.Move.XYAndDialog(-8739, 14200,0x833601) # Bendah
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) # Plains of Jarin
-
     bot.Move.XYAndDialog(18191, 167, 0x85) # get Mox
     bot.Move.XY(15407, 209)
     bot.Move.XYAndDialog(13761, -13108, 0x86) # Explore The Fissure
     bot.Move.XYAndDialog(13761, -13108, 0x84) # Yes
     bot.Wait.ForTime(5000) # load time
-
-    bot.Move.XY(-5475, 8166);  bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(-454, 10163);  bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(4450, 10950);  bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-5475, 8166)
+    bot.Move.XY(-454, 10163)
+    bot.Move.XY(4450, 10950)
     bot.Move.XY(8435, 14378)
     bot.Move.XY(10134,16742)
     bot.Wait.ForTime(3000) # skip movie
-
     ConfigurePacifistEnv(bot)
-
     bot.Move.XY(4523.25, 15448.03)
     bot.Move.XY(-43.80, 18365.45)
     bot.Move.XY(-10234.92, 16691.96)
@@ -1026,6 +1124,7 @@ def UnlockKillroyStonekin(bot: Botting):
         bot.Items.Equip(18910) #crafted Scythe
     elif profession == "Paragon":
         bot.Items.Equip(18913)
+        
 def AdvanceToLongeyeEdge(bot: Botting):
     bot.States.AddHeader("Phase 6: Advancing to Longeye's Edge")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
@@ -1349,17 +1448,12 @@ def AdvanceToMarketplaceOutpost(bot: Botting):
 
 def AdvanceToSeitungHarbor(bot: Botting):
     bot.States.AddHeader("Phase 7: Advancing to Seitung Harbor Outpost")
-    #PrepareForBattle(bot)
     bot.Map.Travel(target_map_id=303)
-    #bot.Move.XY(11762, 17287)
-    #bot.Move.XY(12041, 18273)
     bot.Move.XY(12313, 19236)
     bot.Move.XY(10343, 20329)
     bot.Wait.ForMapLoad(target_map_id=302)
     bot.Move.XY(8392, 20845)
     bot.Move.XYAndDialog(6912.20, 19912.12, 0x84)
-    #bot.Dialogs.WithModel(3241, 0x81)
-    #bot.Dialogs.WithModel(3241, 0x84)
     bot.Wait.ForMapToChange(target_map_id=250)
 
 def AdvanceToShinjeaMonastery(bot: Botting):
@@ -1377,6 +1471,7 @@ def AdvanceToShinjeaMonastery(bot: Botting):
 def AdvanceToTsumeiVillage(bot: Botting):
     bot.States.AddHeader("Phase 7: Advancing to Tsumei Village")
     bot.Map.Travel(target_map_id=242) #Shinjea Monastery
+    bot.Party.LeaveParty()
     bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     bot.Move.XYAndExitMap(-4842, -13267, target_map_id=249) #tsumei_village_map_id
@@ -1384,6 +1479,7 @@ def AdvanceToTsumeiVillage(bot: Botting):
 def AdvanceToMinisterCho(bot: Botting):
     bot.States.AddHeader("Phase 7: Advancing To Minister Cho")
     bot.Map.Travel(target_map_id=242) #Shinjea Monastery
+    bot.Party.LeaveParty()
     bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     bot.Move.XY(6611.58, 15847.51)
@@ -1403,107 +1499,6 @@ def UnlockLionsArch(bot: Botting):
     bot.Move.FollowPath([(-2144, 1450)])
     bot.Wait.ForMapLoad(target_map_id=55) #has built in wait time now
 
-def UnlockRemainingSecondaryProfessions(bot: Botting):
-    bot.States.AddHeader("Phase 7: Unlocking All Remaining Secondary Professions")
-    bot.Map.Travel(target_map_id=248)  # GTOB
-    bot.Move.XY(-3151.22, -7255.13)  # Move to profession trainers area
-    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    
-    if primary == "Warrior":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
-    elif primary == "Ranger":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
-    elif primary == "Monk":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
-    elif primary == "Mesmer":
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
-    elif primary == "Necromancer":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
-    elif primary == "Elementalist":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
-    elif primary == "Dervish":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201
-    elif primary == "Paragon":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201
-
-def UnlockXunlaiMaterialStoragePanel(bot: Botting) -> None:
-    bot.States.AddHeader("Phase 7: Unlocking Xunlai Material Storage Panel")
-    bot.Party.LeaveParty()
-    bot.Map.Travel(target_map_id=248)  # GTOB
-    path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
-    bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
-    bot.Dialogs.WithModel(221, 0x800001)
-    bot.Dialogs.WithModel(221, 0x800002)  # Unlock Material Storage Panel
-
-def UnlockMercenaryHeroes(bot: Botting) -> None:
-    bot.States.AddHeader("Phase 7: Unlocking Mercenary Heroes")
-    bot.Party.LeaveParty()
-    bot.Map.Travel(target_map_id=248)  # GTOB
-    bot.Move.XY(-4231.87, -8965.95)
-    bot.Dialogs.WithModel(225, 0x800004) # Unlock Mercenary Heroes
 #region MAIN
 selected_step = 0
 filter_header_steps = True
