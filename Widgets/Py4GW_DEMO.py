@@ -980,6 +980,7 @@ def ShowItemDataWindow(item_id):
                 ("Item Name:", item_name),
                 ("Item Type:", f"{item_type_id} - {item_type_name}"),
                 ("Model Id:", GLOBAL_CACHE.Item.GetModelID(item_id)),
+                ("Model File Id:", GLOBAL_CACHE.Item.GetModelFileID(item_id)),
                 ("Slot(pick up to see):", GLOBAL_CACHE.Item.GetSlot(item_id)),
                 ("AgentId(drop in ground to see)",GLOBAL_CACHE.Item.GetAgentID(item_id)),
                 ("AgentItemID",GLOBAL_CACHE.Item.GetAgentItemID(item_id)),

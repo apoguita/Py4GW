@@ -74,6 +74,17 @@ class PartyCache:
                 return i
         return -1
     
+    def IsPartyMember(self, agent_id):
+        if not self.IsPartyLoaded():
+            return False
+        
+        players = self.GetPlayers()
+        for i in range(self.GetPlayerCount()):
+            player_id = self.Players.GetAgentIDByLoginNumber(players[i].login_number)
+            if player_id == agent_id:
+                return True
+        return False
+    
     def IsHardModeUnlocked(self):
         return self._party_instance.is_hard_mode_unlocked
     
