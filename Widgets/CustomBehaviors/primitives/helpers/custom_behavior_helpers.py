@@ -299,7 +299,7 @@ class Resources:
                 if account.PlayerID == agent_id:
 
                     for buff in account.PlayerBuffs:
-                        if buff == skill_id:
+                        if buff.SkillId == skill_id:
                             return True
 
         return False

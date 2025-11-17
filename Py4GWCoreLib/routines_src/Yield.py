@@ -3,6 +3,9 @@ from typing import List, Tuple, Callable, Optional, Generator, Any
 from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
 from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
+from Py4GWCoreLib.enums_src.IO_enums import Key
+from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
+from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
 from Py4GWCoreLib.routines_src import Checks
 
 from ..GlobalCache import GLOBAL_CACHE
@@ -481,7 +484,6 @@ class Yield:
             result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=aftercast_delay)
             return result
             
-
 #region Map      
     class Map:  
         @staticmethod
@@ -524,7 +526,7 @@ class Yield:
             
             from ..Py4GWcorelib import ConsoleLog
             
-            if GLOBAL_CACHE.Map.GetMapID() != outpost_id:
+            if GLOBAL_CACHE.Map.GetMapID() != outpost_id or GLOBAL_CACHE.Map.GetRegion() != region or GLOBAL_CACHE.Map.GetDistrict() != district or GLOBAL_CACHE.Map.GetLanguage() != language:
                 ConsoleLog("TravelToRegion", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
                 GLOBAL_CACHE.Map.TravelToRegion(outpost_id, region, district, language)
                 yield from Yield.wait(2000)
@@ -1254,6 +1256,7 @@ class Yield:
                     
                 if progress_callback and total_items > 0:
                     progress_callback(1 - len(item_array) / total_items)
+                        
                         
             return True
 

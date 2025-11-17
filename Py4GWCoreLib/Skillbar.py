@@ -1,6 +1,9 @@
+from PyAgent import AttributeClass
 import PySkillbar
 
-class SkillBar:
+from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+
+class SkillBar:   
     @staticmethod
     def LoadSkillTemplate(skill_template):
         """
@@ -36,6 +39,14 @@ class SkillBar:
                 skill_ids.append(skill_id)
         return skill_ids
 
+    @staticmethod
+    def GetZeroFilledSkillbar():
+        skill_ids : dict[int, int] = {}
+        for slot in range(1, 9):  # Loop through skill slots 1 to 8
+            skill_ids[slot] = SkillBar.GetSkillIDBySlot(slot)
+
+        return skill_ids
+    
     @staticmethod
     def GetHeroSkillbar(hero_index):
         """
@@ -129,8 +140,8 @@ class SkillBar:
         """
         Purpose: Retrieve the data of a skill by its ID.
         Args:
-            skill_id (int): The ID of the skill to retrieve.
-        Returns: dict: A dictionary containing skill details like ID, adrenaline, recharge, and event data.
+            slot (int): The slot number of the skill to retrieve (1-8).
+        Returns: dict: A SkillbarSkill object containing skill details.
         """
         skill_instance = PySkillbar.Skillbar()
         return skill_instance.GetSkill(slot)

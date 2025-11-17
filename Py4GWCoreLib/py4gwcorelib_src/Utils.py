@@ -417,6 +417,107 @@ class Utils:
         return decimal
     
     @staticmethod
+    def encode_skill_template(prof_primary : int, prof_secondary : int, attributes : dict[int, int], skills : list[int]) -> str:
+        """Encode skill template data into template string"""
+        binary_data = ''
+
+        # Template type (4 bits) - 14 for skill template
+        binary_data += Utils.dec_to_bin64(14, 4)
+
+        # Version number (4 bits) - 0
+        binary_data += Utils.dec_to_bin64(0, 4)
+
+        # Determine profession bits needed
+        max_prof = max(prof_primary, prof_secondary)
+        if max_prof <= 15:  # 4 bits
+            prof_bits_code = 0
+            prof_bits = 4
+        elif max_prof <= 63:  # 6 bits
+            prof_bits_code = 1
+            prof_bits = 6
+        elif max_prof <= 255:  # 8 bits
+            prof_bits_code = 2
+            prof_bits = 8
+        else:  # 10 bits
+            prof_bits_code = 3
+            prof_bits = 10
+
+        # Profession bits code (2 bits)
+        binary_data += Utils.dec_to_bin64(prof_bits_code, 2)
+
+        # Primary profession
+        binary_data += Utils.dec_to_bin64(prof_primary, prof_bits)
+
+        # Secondary profession
+        binary_data += Utils.dec_to_bin64(prof_secondary, prof_bits)
+
+        # Attributes count (4 bits)
+        binary_data += Utils.dec_to_bin64(len(attributes), 4)
+
+        # Determine attribute bits needed
+        max_attr = max(attributes.keys()) if attributes else 0
+        if max_attr <= 15:  # 4 bits
+            attr_bits_code = 0
+            attr_bits = 4
+        elif max_attr <= 31:  # 5 bits
+            attr_bits_code = 1
+            attr_bits = 5
+        elif max_attr <= 63:  # 6 bits
+            attr_bits_code = 2
+            attr_bits = 6
+        elif max_attr <= 127:  # 7 bits
+            attr_bits_code = 3
+            attr_bits = 7
+        elif max_attr <= 255:  # 8 bits
+            attr_bits_code = 4
+            attr_bits = 8
+        else:  # More bits as needed
+            attr_bits_code = min(15, max_attr.bit_length() - 4)
+            attr_bits = attr_bits_code + 4
+
+        # Attribute bits code (4 bits)
+        binary_data += Utils.dec_to_bin64(attr_bits_code, 4)
+
+        # Attributes
+        for attr_id, attr_value in attributes.items():
+            binary_data += Utils.dec_to_bin64(attr_id, attr_bits)
+            binary_data += Utils.dec_to_bin64(attr_value, 4)
+
+        # Determine skill bits needed
+        max_skill = max(skills) if skills else 0
+        if max_skill <= 255:  # 8 bits
+            skill_bits_code = 0
+            skill_bits = 8
+        elif max_skill <= 511:  # 9 bits
+            skill_bits_code = 1
+            skill_bits = 9
+        elif max_skill <= 1023:  # 10 bits
+            skill_bits_code = 2
+            skill_bits = 10
+        elif max_skill <= 2047:  # 11 bits
+            skill_bits_code = 3
+            skill_bits = 11
+        elif max_skill <= 4095:  # 12 bits
+            skill_bits_code = 4
+            skill_bits = 12
+        else:  # More bits as needed
+            skill_bits_code = min(15, max_skill.bit_length() - 8)
+            skill_bits = skill_bits_code + 8
+
+        # Skill bits code (4 bits)
+        binary_data += Utils.dec_to_bin64(skill_bits_code, 4)
+
+        # Skills (8 skills)
+        for skill in skills:
+            binary_data += Utils.dec_to_bin64(skill, skill_bits)
+
+        # Tail (1 bit) - always 0
+        binary_data += '0'
+
+        # Convert binary to base64
+        return Utils.bin64_to_base64(binary_data)
+
+    @staticmethod
     def GenerateSkillbarTemplate() -> str:
         """
         Purpose: Generate template code for player's skillbar
@@ -424,106 +525,6 @@ class Utils:
         Returns: str: The current skillbar template.
         """
         
-        def encode_skill_template(prof_primary, prof_secondary, attributes, skills):
-            """Encode skill template data into template string"""
-            binary_data = ''
-
-            # Template type (4 bits) - 14 for skill template
-            binary_data += Utils.dec_to_bin64(14, 4)
-
-            # Version number (4 bits) - 0
-            binary_data += Utils.dec_to_bin64(0, 4)
-
-            # Determine profession bits needed
-            max_prof = max(prof_primary, prof_secondary)
-            if max_prof <= 15:  # 4 bits
-                prof_bits_code = 0
-                prof_bits = 4
-            elif max_prof <= 63:  # 6 bits
-                prof_bits_code = 1
-                prof_bits = 6
-            elif max_prof <= 255:  # 8 bits
-                prof_bits_code = 2
-                prof_bits = 8
-            else:  # 10 bits
-                prof_bits_code = 3
-                prof_bits = 10
-
-            # Profession bits code (2 bits)
-            binary_data += Utils.dec_to_bin64(prof_bits_code, 2)
-
-            # Primary profession
-            binary_data += Utils.dec_to_bin64(prof_primary, prof_bits)
-
-            # Secondary profession
-            binary_data += Utils.dec_to_bin64(prof_secondary, prof_bits)
-
-            # Attributes count (4 bits)
-            binary_data += Utils.dec_to_bin64(len(attributes), 4)
-
-            # Determine attribute bits needed
-            max_attr = max(attributes.keys()) if attributes else 0
-            if max_attr <= 15:  # 4 bits
-                attr_bits_code = 0
-                attr_bits = 4
-            elif max_attr <= 31:  # 5 bits
-                attr_bits_code = 1
-                attr_bits = 5
-            elif max_attr <= 63:  # 6 bits
-                attr_bits_code = 2
-                attr_bits = 6
-            elif max_attr <= 127:  # 7 bits
-                attr_bits_code = 3
-                attr_bits = 7
-            elif max_attr <= 255:  # 8 bits
-                attr_bits_code = 4
-                attr_bits = 8
-            else:  # More bits as needed
-                attr_bits_code = min(15, max_attr.bit_length() - 4)
-                attr_bits = attr_bits_code + 4
-
-            # Attribute bits code (4 bits)
-            binary_data += Utils.dec_to_bin64(attr_bits_code, 4)
-
-            # Attributes
-            for attr_id, attr_value in attributes.items():
-                binary_data += Utils.dec_to_bin64(attr_id, attr_bits)
-                binary_data += Utils.dec_to_bin64(attr_value, 4)
-
-            # Determine skill bits needed
-            max_skill = max(skills) if skills else 0
-            if max_skill <= 255:  # 8 bits
-                skill_bits_code = 0
-                skill_bits = 8
-            elif max_skill <= 511:  # 9 bits
-                skill_bits_code = 1
-                skill_bits = 9
-            elif max_skill <= 1023:  # 10 bits
-                skill_bits_code = 2
-                skill_bits = 10
-            elif max_skill <= 2047:  # 11 bits
-                skill_bits_code = 3
-                skill_bits = 11
-            elif max_skill <= 4095:  # 12 bits
-                skill_bits_code = 4
-                skill_bits = 12
-            else:  # More bits as needed
-                skill_bits_code = min(15, max_skill.bit_length() - 8)
-                skill_bits = skill_bits_code + 8
-
-            # Skill bits code (4 bits)
-            binary_data += Utils.dec_to_bin64(skill_bits_code, 4)
-
-            # Skills (8 skills)
-            for skill in skills:
-                binary_data += Utils.dec_to_bin64(skill, skill_bits)
-
-            # Tail (1 bit) - always 0
-            binary_data += '0'
-
-            # Convert binary to base64
-            return Utils.bin64_to_base64(binary_data)
-
         try:
             from ..GlobalCache import GLOBAL_CACHE
             from PyAgent import AttributeClass
@@ -548,7 +549,27 @@ class Utils:
                     attributes[attr_id] = attr_level
 
             # Encode template
-            template = encode_skill_template(prof_primary, prof_secondary, attributes, skills)
+            template = Utils.encode_skill_template(prof_primary, prof_secondary, attributes, skills)
+            return template
+
+        except Exception as e:
+            # Return empty string if encoding fails
+            print(f"Failed to encode skillbar template: {e}")
+            return ""
+                
+    @staticmethod
+    def GenerateSkillbarTemplateFrom(prof_primary : int, prof_secondary : int, attributes : dict[int, int], skills : list[int]) -> str:
+        """
+        Purpose: Generate template code for a specified skillbar from given data
+        Args:
+            prof_primary (int): The primary profession ID.
+            prof_secondary (int): The secondary profession ID.
+            attributes (dict[int, int]): A dictionary of attribute IDs and levels.
+            skills (list[int]): A list of skill IDs.
+        """
+        try:
+            # Encode template
+            template = Utils.encode_skill_template(prof_primary, prof_secondary, attributes, skills)
             return template
 
         except Exception as e:
@@ -617,5 +638,17 @@ class Utils:
         return (prof_primary, prof_secondary, attributes, skills)
 
 
+
+    @staticmethod
+    def calculate_energy_pips(max_energy: float, energy_regen: float) -> int:
+        """Calculate the number of energy pips based on max energy and regeneration rate."""
+        pips = 3.0 / 0.99 * energy_regen * max_energy
+        return int(pips)
+    
+    @staticmethod
+    def calculate_health_pips(max_health: float, health_regen: float) -> int:
+        """Calculate the number of health pips based on max health and regeneration rate."""
+        pips = (max_health * health_regen) / 2
+        return int(pips)
 
 #endregion
