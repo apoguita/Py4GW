@@ -119,13 +119,14 @@ class _MOVE:
         yield from self._coro_get_path_to(x, y)
         yield from self._coro_follow_path_to()
         return True
-        
-    def _coro_xy(self, x: float, y: float, step_name: str="") -> Generator[Any, Any, None]:
+
+    def _coro_xy(self, x: float, y: float, step_name: str = "", forced_timeout: int = -1) -> Generator[Any, Any, None]:
         if step_name == "":
             step_name = f"MoveTo_{self._config.get_counter('MOVE_TO')}"
-            
+
         yield from self._coro_get_path_to(x, y)
-        yield from self._coro_follow_path_to()
+        # pass forced_timeout through to the follow-path stage
+        yield from self._coro_follow_path_to(forced_timeout)
         
     def _coro_xy_and_exit_map(self, x: float, y: float, target_map_id: int = 0, target_map_name: str = "", step_name: str="") -> Generator[Any, Any, None]:
         if step_name == "":
@@ -217,8 +218,8 @@ class _MOVE:
         return result
     
     @_yield_step(label="XY", counter_key="MOVE_TO")
-    def ys_xy(self, x: float, y: float, step_name: str="") -> Generator[Any, Any, None]:
-        yield from self._coro_xy(x, y, step_name)
+    def ys_xy(self, x: float, y: float, step_name: str="", forced_timeout: int = -1) -> Generator[Any, Any, None]:
+        yield from self._coro_xy(x, y, step_name, forced_timeout)
         
     @_yield_step(label="XYAndExitMap", counter_key="MOVE_AND_EXIT_MAP_TO")
     def ys_xy_and_exit_map(self, x: float, y: float, target_map_id: int = 0, target_map_name: str = "", step_name: str="") -> Generator[Any, Any, None]:
@@ -250,9 +251,10 @@ class _MOVE:
 
 
     #region public Helpers
-    def XY(self, x:float, y:float, step_name: str=""):
-        self.ys_xy(x, y, step_name=step_name)
-        
+    def XY(self, x:float, y:float, step_name: str="", forced_timeout: int = -1):
+        # keep original calling style: step_name is optional; forced_timeout can be provided by name
+        self.ys_xy(x, y, step_name=step_name, forced_timeout=forced_timeout)
+
     def XYAndDialog(self, x: float, y: float, dialog_id: int, step_name: str="") -> None:
         self.ys_xy_and_dialog(x, y, dialog_id, step_name=step_name)
 

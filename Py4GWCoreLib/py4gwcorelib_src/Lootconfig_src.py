@@ -1,3 +1,7 @@
+from typing import Callable
+
+from Py4GWCoreLib.enums_src.Item_enums import ItemType
+from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from ..enums_src.GameData_enums import Range
 from ..enums_src.Model_enums import ModelID
 from typing import Dict, List
@@ -508,6 +512,16 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
         "Keys": [
             ModelID.Dungeon_Key,
             ModelID.Boss_Key,
+            ModelID.Prison_Key,
+        ],
+        "Keys": [
+            ModelID.Dungeon_Key,
+            ModelID.Boss_Key,
+            ModelID.Cell_Key,
+            ModelID.Prison_Key,
+            ModelID.Diamond_Key,
+            ModelID.Ruby_Key,
+            ModelID.Sapphire_Key,
         ],
         "Dungeon quest items": [
             ModelID.Spectral_Crystal,
@@ -523,18 +537,21 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
 #region ConfigCalsses
 class LootConfig:
     _instance = None
+    _initialized = False
 
-    def __new__(cls):
+    def __new__(cls):        
         if cls._instance is None:
-            cls._instance = super(LootConfig, cls).__new__(cls)
-            cls._instance._initialized = False
+            cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
+        # only initialize once
         if self._initialized:
             return
-        self.reset()
+        
         self._initialized = True
+        
+        self.reset()
         self.LootGroups: Dict[str, Dict[str, List[ModelID]]] = LootGroups
 
     def reset(self):
@@ -550,6 +567,7 @@ class LootConfig:
         self.item_id_whitelist = set()  # For items that are whitelisted by ID
         self.dye_whitelist = set()
         self.dye_blacklist = set()
+        self.custom_item_checks : list[Callable[[int], bool | None]] = []
 
     def SetProperties(self, loot_whites=False, loot_blues=False, loot_purples=False, loot_golds=False, loot_greens=False, loot_gold_coins=False):
         self.loot_gold_coins = loot_gold_coins
@@ -652,7 +670,51 @@ class LootConfig:
 
     def GetDyeBlacklist(self):
         return list(self.dye_blacklist)
+    
+    # ------- Custom Item Checks -------
+    def AddCustomItemCheck(self, check_function: Callable[[int], bool | None]):
+        ''' Adds a custom item check function.
+            The function should take an item_id (int) as input and return:
+            - True if the item should be picked up
+            - False if the item should not be picked up
+            - None if the check is inconclusive
+            
+            Multiple functions can be added; they will be evaluated in the order they were added.
+            
+            <u>Example:<br></u>
+            >>> def custom_check(item_id: int) -> bool | None:
+                # Custom logic here
+                if item_id == 12345:
+                    return True  # Always pick up item with ID 12345
+                elif item_id == 67890:
+                    return False  # Never pick up item with ID 67890
+                return None  # Inconclusive for other items
 
+            >>> LootConfig().AddCustomItemCheck(custom_check)
+            '''
+            
+        if check_function in self.custom_item_checks:
+            self.custom_item_checks.remove(check_function)
+            
+        if check_function not in self.custom_item_checks:
+            self.custom_item_checks.append(check_function)
+            
+    def RemoveCustomItemCheck(self, check_function: Callable[[int], bool | None]):
+        if check_function in self.custom_item_checks:
+            self.custom_item_checks.remove(check_function)
+            
+    def CustomItemChecks(self, item_id: int) -> bool:
+        from ..Item import Item
+        
+        for check in self.custom_item_checks:
+            pick_up = check(item_id)
+            if pick_up is not None:
+                # ConsoleLog("Custom Item Check", f"Item {item_id} | Model Id {Item.GetModelID(item_id)}: {pick_up} ({check.__name__})")
+                return pick_up
+            
+        return False
+    
+    # ------- Loot Filtering Logic -------
     def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value, multibox_loot: bool = False, allow_unasigned_loot=False) -> list[int]:
         from ..AgentArray import AgentArray
         from ..GlobalCache import GLOBAL_CACHE
@@ -683,8 +745,8 @@ class LootConfig:
             # Always pick up gold coins (if unassigned)
             agent = Agent.agent_instance(item_id)
             item_agent_id = agent.item_agent.item_id
-            model_id = Item.GetModelID(item_agent_id)
-            if model_id == ModelID.Gold_Coins.value and owner_id == 0:
+            item_type, _ = Item.GetItemType(item_agent_id)
+            if item_type == ItemType.Gold_Coin and owner_id == 0:
                 return True
 
             # If allowed, pick up other unassigned items
@@ -727,6 +789,7 @@ class LootConfig:
             lambda item_id: IsValidItem(item_id)
         )
         
+        pick_up_array = []
 
         for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
             item_data = Agent.GetItemAgent(agent_id)
@@ -735,48 +798,52 @@ class LootConfig:
             
             # --- Hard block: blacklists ---
             if self.IsItemIDBlacklisted(agent_id):
-                loot_array.remove(agent_id)
                 continue
 
             if self.IsBlacklisted(model_id):
-                loot_array.remove(agent_id)
                 continue
 
             # --- Whitelists ---
             if self.IsItemIDWhitelisted(item_id):
+                pick_up_array.append(agent_id)
                 continue
 
             if self.IsWhitelisted(model_id):
-                continue
-
-                
-            # Rarity filtering
+                pick_up_array.append(agent_id)
+                continue               
+            
+            # --- Rarity-based filtering ---
             if Item.Rarity.IsWhite(item_id):
-                if not self.loot_whites:
-                    loot_array.remove(agent_id)
+                if self.loot_whites:
+                    pick_up_array.append(agent_id)
                     continue
 
             if Item.Rarity.IsBlue(item_id):
-                if not self.loot_blues:
-                    loot_array.remove(agent_id)
+                if self.loot_blues:
+                    pick_up_array.append(agent_id)
                     continue
 
             if Item.Rarity.IsPurple(item_id):
-                if not self.loot_purples:
-                    loot_array.remove(agent_id)
+                if self.loot_purples:
+                    pick_up_array.append(agent_id)
                     continue
 
             if Item.Rarity.IsGold(item_id):
-                if not self.loot_golds:
-                    loot_array.remove(agent_id)
+                if self.loot_golds:
+                    pick_up_array.append(agent_id)
                     continue
 
             if Item.Rarity.IsGreen(item_id):
-                if not self.loot_greens:
-                    loot_array.remove(agent_id)
+                if self.loot_greens:
+                    pick_up_array.append(agent_id)
                     continue
+                
+            # --- Custom filtering ---
+            if self.CustomItemChecks(item_id):
+                pick_up_array.append(agent_id)
+                continue
+            
+        pick_up_array = AgentArray.Sort.ByDistance(pick_up_array, Player.GetXY())
 
-        loot_array = AgentArray.Sort.ByDistance(loot_array, Player.GetXY())
-
-        return loot_array
+        return pick_up_array
 #endregion

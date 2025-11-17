@@ -1272,6 +1272,8 @@ class SkillManager:
             return Range.Spellcast.value if self.InAggro() else Range.Earshot.value
         
         def GetAppropiateTarget(self, slot):
+            
+            #return _GetAppropiateTarget(self, slot, Routines.Agents, Routines.Targeting)
  
             v_target = 0
 
