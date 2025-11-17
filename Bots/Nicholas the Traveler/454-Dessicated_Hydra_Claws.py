@@ -91,10 +91,10 @@ KILLING_PATH = [
 
                 ]
 
-NICK_OUTPOST = 639 #Umbral grotto
-COORDS_TO_EXIT_OUTPOST = (-22646, 6289)
-EXPLORABLE_AREA = 566 #verdant cascades
-NICK_COORDS = [(-5367.88, -13457.16),]
+NICK_OUTPOST = 117 #Thirsty River
+COORDS_TO_EXIT_OUTPOST = (13104,13755)
+EXPLORABLE_AREA = 108 #the scar
+NICK_COORDS = [(-4510.0, -6737.0),] #Nicholas the Traveler Location
 
 bot = Botting(BOT_NAME)
                 

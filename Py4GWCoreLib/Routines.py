@@ -10,9 +10,11 @@ from .routines_src.Targeting import Targeting as TargetingRoutines
 from .routines_src.Transition import Transition as TransitionRoutines
 from .routines_src.Sequential import Sequential as SequentialRoutines
 from .routines_src.Yield import Yield as YieldRoutines
+from .routines_src.BehaviourTrees import BT
 
 
 class Routines:
+    BT = BT
     Agents = AgentRoutines
     Party = PartyRoutines
     Checks = Checks
@@ -21,3 +23,4 @@ class Routines:
     Targeting = TargetingRoutines
     Sequential = SequentialRoutines
     Yield = YieldRoutines
+    

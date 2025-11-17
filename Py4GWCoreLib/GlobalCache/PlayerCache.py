@@ -58,8 +58,15 @@ class PlayerCache:
     def GetObservingID(self):
         return self._player_instance.observing_id
     
-    def SendDialog(self, dialog_id):
-        self._action_queue_manager.AddAction("ACTION", self._player_instance.SendDialog,dialog_id)
+    def SendDialog(self, dialog_id: str | int):
+        if isinstance(dialog_id, int):
+            dialog = dialog_id
+        else:
+            # clean 0x or 0X and convert
+            cleaned = dialog_id.strip().lower().replace("0x", "")
+            dialog = int(cleaned, 16)
+                            
+        self._action_queue_manager.AddAction("ACTION", self._player_instance.SendDialog,dialog)
         
     def RequestChatHistory(self):
         self._action_queue_manager.AddAction("ACTION", self._player_instance.RequestChatHistory)
