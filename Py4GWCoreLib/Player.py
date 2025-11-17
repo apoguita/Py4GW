@@ -83,14 +83,21 @@ class Player:
         return Player.player_instance().observing_id
 
     @staticmethod
-    def SendDialog(dialog_id):
+    def SendDialog(dialog_id: str | int):
         """
         Purpose: Send a dialog response.
         Args:
             dialog_id (int): The ID of the dialog.
         Returns: None
         """
-        Player.player_instance().SendDialog(dialog_id)
+        if isinstance(dialog_id, int):
+            dialog = dialog_id
+        else:
+            # clean 0x or 0X and convert
+            cleaned = dialog_id.strip().lower().replace("0x", "")
+            dialog = int(cleaned, 16)
+            
+        Player.player_instance().SendDialog(dialog)
         
     @staticmethod
     def RequestChatHistory():

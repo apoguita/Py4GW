@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Generator, List, Optional
+from typing import Callable, List, Optional
 import uuid
+import inspect
 
 import PyImGui
 from .Color import Color, ColorPalette
 from .Utils import Utils
+from ..Py4GWcorelib import ConsoleLog, Console
 from ..ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 
 
@@ -44,6 +46,7 @@ class BehaviorTree:
             self.color: Color = color
             self.last_state: Optional[BehaviorTree.NodeState] = None
             self.tick_count: int = 0
+            self.blackboard: dict = {}
 
         @abstractmethod
         def tick(self) -> BehaviorTree.NodeState:
@@ -175,45 +178,133 @@ class BehaviorTree:
 
         
     # --------------------------------------------------------
-    #region Leaf Nodes
-    # --------------------------------------------------------
+    #region ActionNode
+    # -------------------------------------------------------- 
     class ActionNode(Node):
         """
-        Executes a function each tick.
-        The function must return BehaviorTree.NodeState.SUCCESS, FAILURE, or RUNNING.
+        Runs an action_fn once (must return SUCCESS/FAILURE/RUNNING),
+        then waits duration_ms before returning SUCCESS.
+        Useful when every action needs a delay after execution.
         """
 
-        def __init__(self, action_fn, name: str = "Action"):
-            super().__init__(name=name, node_type="Action", 
-                             icon=IconsFontAwesome5.ICON_PLAY,
-                             color = ColorPalette.GetColor("dark_orange"))
+        def __init__(self, action_fn, aftercast_ms: int = 0,
+                    name: str = "Action"):
+            super().__init__(name=name,
+                            node_type="Action",
+                            icon=IconsFontAwesome5.ICON_PLAY,
+                            color=ColorPalette.GetColor("dark_orange"))
             self.action_fn = action_fn
+            self.aftercast_ms = aftercast_ms
+    
+            self._action_done = False
+            self._action_result = None
+            self._start_time = None
+            
+            # --- blackboard support: detect if action_fn wants the node ---
+            try:
+                sig = inspect.signature(action_fn)
+                self._accepts_node = (len(sig.parameters) >= 1)
+            except (TypeError, ValueError):
+                self._accepts_node = False
+            # --- end blackboard support ---
 
         def tick(self) -> BehaviorTree.NodeState:
-            result = self.action_fn()
-            self._update_metadata(result)
-            return result
+            if self._start_time is None:
+                self._start_time = Utils.GetBaseTimestamp()
+                
+            # 1) Run the action first
+            if not self._action_done:
+                # --- blackboard support: call with node if requested ---
+                if getattr(self, "_accepts_node", False):
+                    result = self.action_fn(self)
+                else:
+                    result = self.action_fn()
+                # --- end blackboard support ---
+                
+                self._update_metadata(result)
 
+                # If action still running → return RUNNING
+                if result == BehaviorTree.NodeState.RUNNING:
+                    return BehaviorTree.NodeState.RUNNING
+
+                # Action completed (SUCCESS or FAILURE)
+                self._action_done = True
+                self._action_result = result
+                self._start_time = Utils.GetBaseTimestamp()
+                return BehaviorTree.NodeState.RUNNING
+
+            # 2) Action finished → now wait
+            now = Utils.GetBaseTimestamp()
+            elapsed = now - self._start_time
+
+            if elapsed >= self.aftercast_ms:
+                # Reset state so node is re-usable
+                final = self._action_result
+                if final is None:
+                    final = BehaviorTree.NodeState.FAILURE  # Safety fallback
+                self._update_metadata(final)
+                self._action_done = False
+                self._action_result = None
+                self._start_time = None
+                return final  # SUCCESS or FAILURE (propagates action result)
+
+            self._update_metadata(BehaviorTree.NodeState.RUNNING)
+            return BehaviorTree.NodeState.RUNNING
+        
+    # --------------------------------------------------------
+    #region ConditionNode
+    # --------------------------------------------------------     
 
     class ConditionNode(Node):
         """
-        Executes a boolean function.
-        SUCCESS if True, FAILURE if False.
+        Evaluates a condition function.
+        
+        - If the condition_fn returns a boolean → convert to SUCCESS/FAILURE.
+        - If it returns a NodeState → use it directly.
+        - Supports condition_fn() and condition_fn(node).
         """
 
         def __init__(self, condition_fn, name: str = "Condition"):
-            super().__init__(name=name, node_type="Condition", 
-                             icon=IconsFontAwesome5.ICON_QUESTION,
-                             color= ColorPalette.GetColor("teal"))
+            super().__init__(name=name, node_type="Condition",
+                            icon=IconsFontAwesome5.ICON_QUESTION,
+                            color=ColorPalette.GetColor("teal"))
             self.condition_fn = condition_fn
+            
+            try:
+                sig = inspect.signature(condition_fn)
+                self._accepts_node = (len(sig.parameters) >= 1)
+            except (TypeError, ValueError):
+                self._accepts_node = False
 
         def tick(self) -> BehaviorTree.NodeState:
-            result = BehaviorTree.NodeState.SUCCESS if self.condition_fn() else BehaviorTree.NodeState.FAILURE
-            self._update_metadata(result)
-            return result
+            # Call with or without node depending on signature
+            if self._accepts_node:
+                result = self.condition_fn(self)
+            else:
+                result = self.condition_fn()
+
+            # ----- CASE 1: result is a NodeState -----
+            if isinstance(result, BehaviorTree.NodeState):
+                final = result
+
+            # ----- CASE 2: result is boolean -----
+            elif isinstance(result, bool):
+                final = (BehaviorTree.NodeState.SUCCESS
+                        if result
+                        else BehaviorTree.NodeState.FAILURE)
+
+            # ----- CASE 3: invalid return type -----
+            else:
+                raise TypeError(
+                    f"ConditionNode expected bool or NodeState, got: {type(result).__name__}"
+                )
+
+            self._update_metadata(final)
+            return final
+
          
     # --------------------------------------------------------
-    #region Composite Nodes
+    #region SequenceNode
     # --------------------------------------------------------
     class SequenceNode(Node):
         """
@@ -236,7 +327,19 @@ class BehaviorTree:
 
         def tick(self) -> BehaviorTree.NodeState:
             while self.current < len(self.children):
+                # --- BLACKBOARD SUPPORT (added) ---
+                child = self.children[self.current]
+                child.blackboard = self.blackboard
+                # ----------------------------------
+                
                 result = self.children[self.current].tick()
+                
+                if result is None:
+                    # Illegal state: node did not return a valid NodeState
+                    ConsoleLog("BT", f"ERROR: Node '{self.children[self.current].name}' returned None!", Console.MessageType.Error)
+                    self.current = 0
+                    self._update_metadata(BehaviorTree.NodeState.FAILURE)
+                    return BehaviorTree.NodeState.FAILURE
 
                 if result == BehaviorTree.NodeState.RUNNING:
                     self._update_metadata(BehaviorTree.NodeState.RUNNING)
@@ -255,7 +358,9 @@ class BehaviorTree:
             self._update_metadata(BehaviorTree.NodeState.SUCCESS)
             return BehaviorTree.NodeState.SUCCESS
 
-
+    # --------------------------------------------------------
+    #region SelectorNode
+    # --------------------------------------------------------
     class SelectorNode(Node):
         """
         Selector:
@@ -277,7 +382,19 @@ class BehaviorTree:
 
         def tick(self) -> BehaviorTree.NodeState:
             while self.current < len(self.children):
+                # --- BLACKBOARD SUPPORT (added) ---
+                child = self.children[self.current]
+                child.blackboard = self.blackboard
+                # ----------------------------------
+                
                 result = self.children[self.current].tick()
+                
+                if result is None:
+                    # Illegal state: node did not return a valid NodeState
+                    ConsoleLog("BT", f"ERROR: Node '{self.children[self.current].name}' returned None!", Console.MessageType.Error)
+                    self.current = 0
+                    self._update_metadata(BehaviorTree.NodeState.FAILURE)
+                    return BehaviorTree.NodeState.FAILURE
 
                 if result == BehaviorTree.NodeState.RUNNING:
                     self._update_metadata(BehaviorTree.NodeState.RUNNING)
@@ -295,7 +412,10 @@ class BehaviorTree:
             self.current = 0
             self._update_metadata(BehaviorTree.NodeState.FAILURE)
             return BehaviorTree.NodeState.FAILURE
-        
+      
+    # --------------------------------------------------------
+    #region ChoiceNode
+    # --------------------------------------------------------  
     class ChoiceNode(Node):
         """
         Choice:
@@ -315,7 +435,17 @@ class BehaviorTree:
 
         def tick(self) -> BehaviorTree.NodeState:
             for child in self.children:
+                # --- BLACKBOARD SUPPORT (added) ---
+                child.blackboard = self.blackboard
+                # ----------------------------------
                 result = child.tick()
+                
+                if result is None:
+                    # Illegal state: node did not return a valid NodeState
+                    ConsoleLog("BT", f"ERROR: Node '{self.children[self.current].name}' returned None!", Console.MessageType.Error)
+                    self.current = 0
+                    self._update_metadata(BehaviorTree.NodeState.FAILURE)
+                    return BehaviorTree.NodeState.FAILURE
 
                 if result != BehaviorTree.NodeState.FAILURE:
                     self._update_metadata(result)
@@ -326,9 +456,8 @@ class BehaviorTree:
             return BehaviorTree.NodeState.FAILURE
         
     # --------------------------------------------------------
-    #region Repeater Nodes
+    #region RepeaterNode
     # --------------------------------------------------------
-    
     class RepeaterNode(Node):   
         """
         Repeater:
@@ -348,8 +477,19 @@ class BehaviorTree:
             return [self.child]
 
         def tick(self) -> BehaviorTree.NodeState:
+            # --- blackboard support ---
+            if self.blackboard is not None:
+                self.child.blackboard = self.blackboard
+            # --------------------------
             while self.current_count < self.repeat_count:
                 result = self.child.tick()
+                
+                if result is None:
+                    # Illegal state: node did not return a valid NodeState
+                    ConsoleLog("BT", f"ERROR: Node '{self.child.name}' returned None!", Console.MessageType.Error)
+                    self.current_count = 0
+                    self._update_metadata(BehaviorTree.NodeState.FAILURE)
+                    return BehaviorTree.NodeState.FAILURE
 
                 if result == BehaviorTree.NodeState.RUNNING:
                     self._update_metadata(BehaviorTree.NodeState.RUNNING)
@@ -363,6 +503,9 @@ class BehaviorTree:
             self._update_metadata(BehaviorTree.NodeState.SUCCESS)
             return BehaviorTree.NodeState.SUCCESS
         
+    # --------------------------------------------------------
+    #region RepeaterUntilSuccessNode
+    # --------------------------------------------------------
     class RepeaterUntilSuccessNode(Node):
         """
         Repeater Until Success:
@@ -380,8 +523,18 @@ class BehaviorTree:
             return [self.child]
 
         def tick(self) -> BehaviorTree.NodeState:
+            # --- blackboard support ---
+            if self.blackboard is not None:
+                self.child.blackboard = self.blackboard
+            # --------------------------
             while True:
                 result = self.child.tick()
+                
+                if result is None:
+                    # Illegal state: node did not return a valid NodeState
+                    ConsoleLog("BT", f"ERROR: Node '{self.child.name}' returned None!", Console.MessageType.Error)
+                    self._update_metadata(BehaviorTree.NodeState.FAILURE)
+                    return BehaviorTree.NodeState.FAILURE
 
                 if result == BehaviorTree.NodeState.RUNNING:
                     self._update_metadata(BehaviorTree.NodeState.RUNNING)
@@ -392,7 +545,10 @@ class BehaviorTree:
                     return BehaviorTree.NodeState.SUCCESS
 
                 # On FAILURE, repeat indefinitely
-                
+      
+    # --------------------------------------------------------
+    #region RepeaterUntilFailureNode
+    # --------------------------------------------------------          
     class RepeaterUntilFailureNode(Node):
         """
         Repeater Until Failure:
@@ -410,8 +566,18 @@ class BehaviorTree:
             return [self.child]
 
         def tick(self) -> BehaviorTree.NodeState:
+            # --- blackboard support ---
+            if self.blackboard is not None:
+                self.child.blackboard = self.blackboard
+            # --------------------------
             while True:
                 result = self.child.tick()
+                
+                if result is None:
+                    # Illegal state: node did not return a valid NodeState
+                    ConsoleLog("BT", f"ERROR: Node '{self.child.name}' returned None!", Console.MessageType.Error)
+                    self._update_metadata(BehaviorTree.NodeState.FAILURE)
+                    return BehaviorTree.NodeState.FAILURE
 
                 if result == BehaviorTree.NodeState.RUNNING:
                     self._update_metadata(BehaviorTree.NodeState.RUNNING)
@@ -422,7 +588,10 @@ class BehaviorTree:
                     return BehaviorTree.NodeState.SUCCESS
 
                 # On SUCCESS, repeat indefinitely
-                
+     
+    # --------------------------------------------------------
+    #region RepeaterForeverNode
+    # --------------------------------------------------------           
     class RepeaterForeverNode(Node):
         """
         Repeater Forever:
@@ -440,12 +609,17 @@ class BehaviorTree:
             return [self.child]
 
         def tick(self) -> BehaviorTree.NodeState:
+            # --- blackboard support ---
+            if self.blackboard is not None:
+                self.child.blackboard = self.blackboard
+            # --------------------------
+            
             self.child.tick()
             self._update_metadata(BehaviorTree.NodeState.RUNNING)
             return BehaviorTree.NodeState.RUNNING
 
     # --------------------------------------------------------
-    #region Parallel Node
+    #region ParallelNode
     # --------------------------------------------------------
     
     class ParallelNode(Node):
@@ -467,10 +641,22 @@ class BehaviorTree:
             return self.children
 
         def tick(self) -> BehaviorTree.NodeState:
+            # --- blackboard support ---
+            if self.blackboard is not None:
+                for child in self.children:
+                    child.blackboard = self.blackboard
+            # ---------------------------
+            
             all_success = True
 
             for child in self.children:
                 result = child.tick()
+                
+                if result is None:
+                    # Illegal state: node did not return a valid NodeState
+                    ConsoleLog("BT", f"ERROR: Node '{child.name}' returned None!", Console.MessageType.Error)
+                    self._update_metadata(BehaviorTree.NodeState.FAILURE)
+                    return BehaviorTree.NodeState.FAILURE
 
                 if result == BehaviorTree.NodeState.FAILURE:
                     self._update_metadata(BehaviorTree.NodeState.FAILURE)
@@ -487,33 +673,70 @@ class BehaviorTree:
                 return BehaviorTree.NodeState.RUNNING
             
     # --------------------------------------------------------
-    #region Subtree Nodes
+    #region SubtreeNode
     # --------------------------------------------------------
     
     class SubtreeNode(Node):
         """
-        Subtree:
-        - Contains a whole BehaviorTree as a child.
-        - Ticks the subtree's root node.
+        A subtree node that constructs its subtree lazily and **correctly at tick time**.
+        subtree_fn receives this node as an argument, so it can read:
+            - node.blackboard
+            - external shared dict
+            - dynamic data
         """
 
-        def __init__(self, subtree: "BehaviorTree", name: str = "Subtree"):
-            super().__init__(name=name, node_type="Subtree", 
-                             icon=IconsFontAwesome5.ICON_SITEMAP,
-                             color= ColorPalette.GetColor("light_gray"))
-            self.subtree = subtree
+        def __init__(self, subtree_fn: Callable[["BehaviorTree.Node"], "BehaviorTree"], name: str = "Subtree"):
+            if not callable(subtree_fn):
+                raise TypeError("SubtreeNode requires a callable returning a BehaviorTree.")
+
+            super().__init__(
+                name=name,
+                node_type="SubtreeNode",
+                icon=IconsFontAwesome5.ICON_SITEMAP,
+                color=ColorPalette.GetColor("light_green")
+            )
+
+            self._factory = subtree_fn
+            self._subtree: "BehaviorTree | None" = None
+
+        def _ensure_subtree(self):
+            """
+            Create the subtree only when the node is ticked for the first time,
+            and pass THIS node to the factory, allowing dynamic values.
+            """
+            if self._subtree is None:
+                tree = self._factory(self)   # <-- PASS THE NODE
+                if tree is None:
+                    raise ValueError("subtree_fn() returned None; expected a BehaviorTree.")
+                self._subtree = tree
 
         def get_children(self) -> List["BehaviorTree.Node"]:
-            return [self.subtree.root]
+            # Return children *only after subtree is created*
+            if self._subtree is not None:
+                return [self._subtree.root]
+            return []  # before ticking subtree isn't created yet
 
         def tick(self) -> BehaviorTree.NodeState:
-            result = self.subtree.root.tick()
+            self._ensure_subtree()
+
+            # --- guard + local var to satisfy Pylance and runtime ---
+            tree = self._subtree
+            if tree is None:
+                raise RuntimeError("SubtreeNode: _subtree is None after _ensure_subtree().")
+            # --------------------------------------------------------
+
+            # --- blackboard support ---
+            if self.blackboard is not None:
+                tree.root.blackboard = self.blackboard
+            # --------------------------
+
+            result = tree.root.tick()
             self._update_metadata(result)
             return result
-        
+
  
     # --------------------------------------------------------
-    #region Decorator Nodes
+    #region InverterNode
     # --------------------------------------------------------
     class InverterNode(Node):
         """
@@ -533,7 +756,18 @@ class BehaviorTree:
             return [self.child]
 
         def tick(self) -> BehaviorTree.NodeState:
+            # --- blackboard support ---
+            if self.blackboard is not None:
+                self.child.blackboard = self.blackboard
+            # --------------------------
+        
             child_result = self.child.tick()
+            
+            if child_result is None:
+                # Illegal state: node did not return a valid NodeState
+                ConsoleLog("BT", f"ERROR: Node '{self.child.name}' returned None!", Console.MessageType.Error)
+                self._update_metadata(BehaviorTree.NodeState.FAILURE)
+                return BehaviorTree.NodeState.FAILURE
 
             if child_result == BehaviorTree.NodeState.SUCCESS:
                 result = BehaviorTree.NodeState.FAILURE
@@ -546,7 +780,7 @@ class BehaviorTree:
             return result
         
     # --------------------------------------------------------
-    # Wait Nodes
+    # Wait WaitNode
     # --------------------------------------------------------
     class WaitNode(Node):
         """
@@ -568,12 +802,24 @@ class BehaviorTree:
             self.start_time: Optional[int] = None
 
         def tick(self) -> BehaviorTree.NodeState:
+            # --- blackboard support ---
+            # Leaf node: no children to propagate to, nothing else needed.
+            # node.blackboard is already available for check_fn via closure.
+            # ---------------------------------------
+        
             # Start timing on first tick
             if self.start_time is None:
                 self.start_time = Utils.GetBaseTimestamp()
 
             # Execute the condition function
             result = self.check_fn()
+            
+            if result is None:
+                # Illegal state: node did not return a valid NodeState
+                ConsoleLog("BT", f"ERROR: Node '{self.name}' returned None!", Console.MessageType.Error)
+                self.start_time = None
+                self._update_metadata(BehaviorTree.NodeState.FAILURE)
+                return BehaviorTree.NodeState.FAILURE
 
             # If SUCCESS or FAILURE → pass through immediately
             if result == BehaviorTree.NodeState.SUCCESS:
@@ -615,6 +861,11 @@ class BehaviorTree:
             self.start_time: Optional[int] = base_timestamp if base_timestamp > 0 else None
 
         def tick(self) -> BehaviorTree.NodeState:
+            # --- blackboard support ---
+            # Leaf node: no children to propagate to, nothing else needed.
+            # node.blackboard is already available for check_fn via closure.
+            # ---------------------------------------
+            
             # First tick → capture start timestamp
             if self.start_time is None:
                 self.start_time = Utils.GetBaseTimestamp()
@@ -640,11 +891,22 @@ class BehaviorTree:
         for ticking and drawing the whole tree.
         """
         self.root: BehaviorTree.Node = root
+        self.blackboard = {} # Shared data storage for the tree
+        
+    def _propagate_blackboard(self, node: "BehaviorTree.Node"):
+        """
+        Assign this tree's blackboard to the given node and all its children.
+        This ensures every node can read/write self.blackboard.
+        """
+        node.blackboard = self.blackboard
+        for child in node.get_children():
+            self._propagate_blackboard(child)
 
     def tick(self) -> BehaviorTree.NodeState:
         """
         Tick the root node once and return its BehaviorTree.NodeState.
         """
+        self._propagate_blackboard(self.root)
         return self.root.tick()
 
     # -------- tree-level debug helpers --------
@@ -656,10 +918,10 @@ class BehaviorTree:
         for L in lines:
             print(repr(L))
 
-    def draw(self) -> None:
+    def draw(self, indent: int = 0) -> None:
         """
         Draw the whole tree using PyImGui.
         """
-        self.root.draw(indent=0)
+        self.root.draw(indent=indent)
         
         
