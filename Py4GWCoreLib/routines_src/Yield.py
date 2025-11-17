@@ -5,7 +5,6 @@ from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
 from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
 from Py4GWCoreLib.routines_src import Checks
 
-from PyAgent import AttributeClass
 from ..GlobalCache import GLOBAL_CACHE
 from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager
 
@@ -13,7 +12,7 @@ from ..enums_src.Model_enums import ModelID
 from ..enums_src.UI_enums import ControlAction
 from .BehaviourTrees import BT
 
-
+import functools
 import importlib
 
 class _RProxy:
@@ -23,6 +22,25 @@ class _RProxy:
 
 Routines = _RProxy()
 
+def _run_bt_tree(tree, return_bool: bool=False, throttle_ms: int = 100):
+    """
+    Drives a BT tree until SUCCESS / FAILURE, yielding periodically.
+    If return_bool is True -> returns True/False.
+    If return_bool is False -> just exits.
+    """
+    while True:
+        state = tree.tick()
+
+        if state == BT.NodeState.SUCCESS:
+            if return_bool:
+                return True
+            break
+        elif state == BT.NodeState.FAILURE:
+            if return_bool:
+                return False
+            break
+
+        yield from Yield.wait(throttle_ms)
 
 
 
@@ -37,54 +55,71 @@ class Yield:
 #region Player
     class Player:
         @staticmethod
-        def InteractAgent(agent_id:int):
-            GLOBAL_CACHE.Player.Interact(agent_id, False)
-            yield from Yield.wait(100)
-            
+        def InteractAgent(agent_id:int, log:bool=False):
+            """
+            Purpose: Interact with the specified agent.
+            Args:
+                agent_id (int): The ID of the agent to interact with.
+                log (bool) Optional: Whether to log the action. Default is False.
+            """
+            tree = BT.Player.InteractAgent(agent_id=agent_id, log=log)
+            yield from _run_bt_tree(tree , throttle_ms=100)
         @staticmethod
-        def InteractTarget():
-            
-            target_id = GLOBAL_CACHE.Player.GetTargetID()
-            if target_id != 0:
-                yield from Yield.Player.InteractAgent(target_id)
+        def InteractTarget(log:bool=False):
+            """
+            Purpose: Interact with the currently selected target.
+            Args:
+                log (bool) Optional: Whether to log the action. Default is False.
+            """
+            tree = BT.Player.InteractTarget(log=log)
+            yield from _run_bt_tree(tree , throttle_ms=100)
 
         @staticmethod
-        def SendDialog(dialog_id:str):
-            
-            GLOBAL_CACHE.Player.SendDialog(int(dialog_id, 16))
-            yield from Yield.wait(300)
+        def SendDialog(dialog_id:str, log:bool=False):
+            """
+            Purpose: Send a dialog to the specified dialog ID.
+            Args:
+                dialog_id (str): The ID of the dialog to send.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.SendDialog(dialog_id, log=log)
+            yield from _run_bt_tree(tree,throttle_ms=300)
 
         @staticmethod
-        def SetTitle(title_id:int, log=False):
-            
-
-            GLOBAL_CACHE.Player.SetActiveTitle(title_id)
-            yield from Yield.wait(300)   
-            if log:
-                ConsoleLog("SetTitle", f"Setting title to {title_id}", Console.MessageType.Info) 
+        def SetTitle(title_id:int, log:bool=False):
+            """
+            Purpose: Set the player's title to the specified title ID.
+            Args:
+                title_id (int): The ID of the title to set.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.SetTitle(title_id, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=300)
 
         @staticmethod
         def SendChatCommand(command:str, log=False):
-            
-
-            GLOBAL_CACHE.Player.SendChatCommand(command)
-            yield from Yield.wait(300)
-            if log:
-                ConsoleLog("SendChatCommand", f"Sending chat command {command}", Console.MessageType.Info)
-
-        @staticmethod
-        def Move(x:float, y:float, log=False):
-            
-
-            GLOBAL_CACHE.Player.Move(x, y)
-            yield from Yield.wait(100)
-            if log:
-                ConsoleLog("MoveTo", f"Moving to {x}, {y}", Console.MessageType.Info)
+            """
+            Purpose: Send a chat command.
+            Args:
+                command (str): The chat command to send.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.SendChatCommand(command, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=300)  
 
         @staticmethod
-        def Resign():
-            GLOBAL_CACHE.Player.SendChatCommand("resign")
-            yield from Yield.wait(250)
+        def Resign(log:bool=False):
+            """
+            Purpose: Resign from the current map.
+            Args:
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.SendChatCommand("resign", log=log)
+            yield from _run_bt_tree(tree, throttle_ms=250)
             
         @staticmethod
         def SendChatMessage(channel:str, message:str, log=False):
@@ -96,20 +131,47 @@ class Yield:
                 log (bool) Optional: Whether to log the action. Default is True.
             Returns: None
             """
-            
-            GLOBAL_CACHE.Player.SendChat(channel, message)
-            yield from Yield.wait(300)
+            tree = BT.Player.SendChatMessage(channel, message, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=300)
             
         @staticmethod
-        def PrintMessageToConsole(source:str, message: str):
+        def PrintMessageToConsole(source:str, message: str, message_type: int = Console.MessageType.Info):
             """
             Purpose: Print a message to the console.
             Args:
                 message (str): The message to print.
             Returns: None
             """
-            ConsoleLog(source, message, Console.MessageType.Info)
-            yield from Yield.wait(100)
+            tree = BT.Player.PrintMessageToConsole(source, message, message_type)
+            yield from _run_bt_tree(tree , throttle_ms=100)
+
+            
+        @staticmethod
+        def Move(x:float, y:float, log=False):
+            """
+            Purpose: Move the player to the specified coordinates.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.Move(x, y, log=log)
+            yield from _run_bt_tree(tree , throttle_ms=100)
+            
+        @staticmethod
+        def MoveXYZ(x:float, y:float, zplane:int, log=False):
+            """
+            Purpose: Move the player to the specified coordinates and z-plane.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                zplane (int): The z-plane.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.MoveXYZ(x, y, zplane, log=log)
+            yield from _run_bt_tree(tree , throttle_ms=100)
 
 #region Movement
     class Movement:
@@ -306,148 +368,20 @@ class Yield:
     
 
 #region Skills
-    class Skills:
-            
+    class Skills:       
         @staticmethod
-        def GenerateSkillbarTemplate() -> str:
+        def GenerateSkillbarTemplate():
             """
             Purpose: Generate template code for player's skillbar
             Args: None
             Returns: str: The current skillbar template.
             """
-            
-            def encode_skill_template(prof_primary, prof_secondary, attributes, skills):
-                """Encode skill template data into template string"""
-                binary_data = ''
-
-                # Template type (4 bits) - 14 for skill template
-                binary_data += Utils.dec_to_bin64(14, 4)
-
-                # Version number (4 bits) - 0
-                binary_data += Utils.dec_to_bin64(0, 4)
-
-                # Determine profession bits needed
-                max_prof = max(prof_primary, prof_secondary)
-                if max_prof <= 15:  # 4 bits
-                    prof_bits_code = 0
-                    prof_bits = 4
-                elif max_prof <= 63:  # 6 bits
-                    prof_bits_code = 1
-                    prof_bits = 6
-                elif max_prof <= 255:  # 8 bits
-                    prof_bits_code = 2
-                    prof_bits = 8
-                else:  # 10 bits
-                    prof_bits_code = 3
-                    prof_bits = 10
-
-                # Profession bits code (2 bits)
-                binary_data += Utils.dec_to_bin64(prof_bits_code, 2)
-
-                # Primary profession
-                binary_data += Utils.dec_to_bin64(prof_primary, prof_bits)
-
-                # Secondary profession
-                binary_data += Utils.dec_to_bin64(prof_secondary, prof_bits)
-
-                # Attributes count (4 bits)
-                binary_data += Utils.dec_to_bin64(len(attributes), 4)
-
-                # Determine attribute bits needed
-                max_attr = max(attributes.keys()) if attributes else 0
-                if max_attr <= 15:  # 4 bits
-                    attr_bits_code = 0
-                    attr_bits = 4
-                elif max_attr <= 31:  # 5 bits
-                    attr_bits_code = 1
-                    attr_bits = 5
-                elif max_attr <= 63:  # 6 bits
-                    attr_bits_code = 2
-                    attr_bits = 6
-                elif max_attr <= 127:  # 7 bits
-                    attr_bits_code = 3
-                    attr_bits = 7
-                elif max_attr <= 255:  # 8 bits
-                    attr_bits_code = 4
-                    attr_bits = 8
-                else:  # More bits as needed
-                    attr_bits_code = min(15, max_attr.bit_length() - 4)
-                    attr_bits = attr_bits_code + 4
-
-                # Attribute bits code (4 bits)
-                binary_data += Utils.dec_to_bin64(attr_bits_code, 4)
-
-                # Attributes
-                for attr_id, attr_value in attributes.items():
-                    binary_data += Utils.dec_to_bin64(attr_id, attr_bits)
-                    binary_data += Utils.dec_to_bin64(attr_value, 4)
-
-                # Determine skill bits needed
-                max_skill = max(skills) if skills else 0
-                if max_skill <= 255:  # 8 bits
-                    skill_bits_code = 0
-                    skill_bits = 8
-                elif max_skill <= 511:  # 9 bits
-                    skill_bits_code = 1
-                    skill_bits = 9
-                elif max_skill <= 1023:  # 10 bits
-                    skill_bits_code = 2
-                    skill_bits = 10
-                elif max_skill <= 2047:  # 11 bits
-                    skill_bits_code = 3
-                    skill_bits = 11
-                elif max_skill <= 4095:  # 12 bits
-                    skill_bits_code = 4
-                    skill_bits = 12
-                else:  # More bits as needed
-                    skill_bits_code = min(15, max_skill.bit_length() - 8)
-                    skill_bits = skill_bits_code + 8
-
-                # Skill bits code (4 bits)
-                binary_data += Utils.dec_to_bin64(skill_bits_code, 4)
-
-                # Skills (8 skills)
-                for skill in skills:
-                    binary_data += Utils.dec_to_bin64(skill, skill_bits)
-
-                # Tail (1 bit) - always 0
-                binary_data += '0'
-
-                # Convert binary to base64
-                return Utils.bin64_to_base64(binary_data)
-
-            try:
-                # Get skill IDs for all 8 slots
-                skills = []
-                for slot in range(1, 9):  # Slots 1-8
-                    skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
-                    skills.append(skill_id if skill_id else 0)
-
-                # Get profession IDs
-                prof_primary, prof_secondary = GLOBAL_CACHE.Agent.GetProfessionIDs(GLOBAL_CACHE.Player.GetAgentID())
-
-                # Get attributes
-                attributes_raw:list[AttributeClass] = GLOBAL_CACHE.Agent.GetAttributes(GLOBAL_CACHE.Player.GetAgentID())
-                attributes = {}
-
-                # Convert attributes to dictionary format
-                for attr in attributes_raw:
-                    attr_id = int(attr.attribute_id)  # Convert enum to integer
-                    attr_level = attr.level_base  # Get attribute level
-                    if attr_level > 0:  # Only include attributes with points
-                        attributes[attr_id] = attr_level
-
-                # Encode template
-                template = encode_skill_template(prof_primary, prof_secondary, attributes, skills)
-                return template
-
-            except Exception as e:
-                # Return empty string if encoding fails
-                print(f"Failed to encode skillbar template: {e}")
-                return ""
+            skillbar_template = Utils.GenerateSkillbarTemplate()
+            yield
+            return skillbar_template
 
         @staticmethod
-        def ParseSkillbarTemplate(template:str) -> tuple[int, int, dict, list]:
+        def ParseSkillbarTemplate(template:str):
             '''
             Purpose: Parse a skillbar template into its components.
             Args:
@@ -459,53 +393,9 @@ class Yield:
                 skills (list): A list of skill IDs.
             '''
 
-            
-            enc_template = ''
-
-            for char in template:
-                enc_template = f'{enc_template}{Utils.base64_to_bin64(char)}'
-        
-            template_type = Utils.bin64_to_dec(enc_template[:4])
-            # if template_type != 14:
-            #     return (None, None, None, None)
-            enc_template = enc_template[4:]
-
-            version_number = Utils.bin64_to_dec(enc_template[:4])
-            enc_template = enc_template[4:]
-
-            prof_bits = Utils.bin64_to_dec(enc_template[:2]) * 2 + 4
-            enc_template = enc_template[2:]
-
-            prof_primary = Utils.bin64_to_dec(enc_template[:prof_bits])
-            enc_template = enc_template[prof_bits:]
-
-            prof_secondary = Utils.bin64_to_dec(enc_template[:prof_bits])
-            enc_template = enc_template[prof_bits:]
-
-            attributes_count = Utils.bin64_to_dec(enc_template[:4])
-            enc_template = enc_template[4:]
-
-            attributes_bits = Utils.bin64_to_dec(enc_template[:4]) + 4
-            enc_template = enc_template[4:]
-            
-            attributes = {}
-            for i in range(attributes_count):
-                attr = Utils.bin64_to_dec(enc_template[:attributes_bits])
-                enc_template = enc_template[attributes_bits:]
-                value = Utils.bin64_to_dec(enc_template[:4])
-                enc_template = enc_template[4:]
-                attributes[attr] = value
-            
-            skill_bits = Utils.bin64_to_dec(enc_template[:4]) + 8
-            enc_template = enc_template[4:]
-
-            skills = []
-            for i in range(8):
-                skill = Utils.bin64_to_dec(enc_template[:skill_bits])
-                enc_template = enc_template[skill_bits:]
-                skills.append(skill)
-
-            return (prof_primary, prof_secondary, attributes, skills)
+            result = Utils.ParseSkillbarTemplate(template)
+            yield
+            return result
 
         @staticmethod
         def LoadSkillbar(skill_template:str, log=False):
@@ -516,12 +406,9 @@ class Yield:
                 log (bool) Optional: Whether to log the action. Default is True.
             Returns: None
             """
-            
+            tree = BT.Skills.LoadSkillbar(skill_template, log)
+            yield from _run_bt_tree(tree, throttle_ms=500)
 
-            GLOBAL_CACHE.SkillBar.LoadSkillTemplate(skill_template)
-            ConsoleLog("LoadSkillbar", f"Loading skill Template {skill_template}", log=log)
-            yield from Yield.wait(500)
-            
         @staticmethod
         def LoadHeroSkillbar(hero_index:int, skill_template:str, log=False):
             """
@@ -532,89 +419,69 @@ class Yield:
                 log (bool) Optional: Whether to log the action. Default is True.
             Returns: None
             """
-            
-
-            GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(hero_index, skill_template)
-            ConsoleLog("LoadHeroSkillbar", f"Loading hero {hero_index} skill Template {skill_template}", log=log)
-            yield from Yield.wait(500)
+            tree = BT.Skills.LoadHeroSkillbar(hero_index, skill_template, log)
+            yield from _run_bt_tree(tree, throttle_ms=500)
         
-        @staticmethod    
-        def CastSkillID (skill_id:int,extra_condition=True, aftercast_delay=0,  log=False):
-            from .Checks import Checks
-            if not Checks.Map.IsExplorable():
-                return False
-
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
-            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
             
-            if not(enough_energy and skill_ready and extra_condition):
-                yield
-                return False
-            slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
-            if slot <= 0 or slot > 8:
-                yield
-                return False
-            
-            GLOBAL_CACHE.SkillBar.UseSkill(GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id), aftercast_delay=aftercast_delay)
-            if log:
-                ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
-            
-            if aftercast_delay > 0:
-                yield from Yield.wait(aftercast_delay)
-            return True
-        
         @staticmethod
         def IsSkillIDUsable(skill_id: int):
-            from .Checks import Checks
-            if not Checks.Map.IsExplorable():
-                return False
+            """
+            Purpose: Check if a skill by its ID is usable using a Behavior Tree.
+            Args:
+                skill_id (int): The ID of the skill to check.
+            Returns: bool: True if the skill is usable, False otherwise.
+            """
+            tree = BT.Skills.IsSkillIDUsable(skill_id)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=0)
+            return result
 
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
-            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
-            yield
-            return enough_energy and skill_ready
         
         @staticmethod
         def IsSkillSlotUsable(skill_slot: int):
-            from .Checks import Checks
-            if not Checks.Map.IsExplorable():
-                return False
-
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
-            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id, skill.id)
-            skill_ready = Checks.Skills.IsSkillSlotReady(skill_slot)
-            yield
-            return enough_energy and skill_ready
+            """
+            Purpose: Check if a skill in a specific slot is usable using a Behavior Tree.
+            Args:
+                skill_slot (int): The slot number of the skill to check.
+            Returns: A Behavior Tree that checks if the skill in the slot is usable.
+            """
+            tree = BT.Skills.IsSkillSlotUsable(skill_slot)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=0)
+            return result
+        
+        @staticmethod    
+        def CastSkillID (skill_id:int,target_agent_id:int =0, extra_condition=True, aftercast_delay=0,  log=False):
+            """
+            Purpose: Cast a skill by its ID using a coroutine.
+            Args:
+                skill_id (int): The ID of the skill to cast.
+                target_agent_id (int) Optional: The ID of the target agent. Default is 0.
+                extra_condition (bool) Optional: An extra condition to check before casting. Default is True.
+                aftercast_delay (int) Optional: Delay in milliseconds after casting the skill. Default is 0.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: bool: True if the skill was cast successfully, False otherwise.
+            """
+            tree = BT.Skills.CastSkillID(skill_id, target_agent_id, extra_condition, aftercast_delay, log)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=aftercast_delay)
+            return result
+            
 
         @staticmethod
         def CastSkillSlot(slot:int,extra_condition=True, aftercast_delay=0, log=False):
-            from .Checks import Checks
-            if not Checks.Map.IsExplorable():
-                return False
-            
-            if slot <= 0 or slot > 8:
-                yield
-                return False
-            
-            skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
-            skill_ready = Checks.Skills.IsSkillSlotReady(slot)
-            
-            if not(enough_energy and skill_ready and extra_condition):
-                yield
-                return False
+            """
+            purpose: Cast a skill in a specific slot using a coroutine.
 
-            GLOBAL_CACHE.SkillBar.UseSkill(slot, aftercast_delay=aftercast_delay)
-            if log:
-                ConsoleLog("CastSkillSlot", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
+            Args:
+                slot (int): The slot number of the skill to cast.
+                extra_condition (bool) Optional: An extra condition to check before casting. Default is True.
+                aftercast_delay (int) Optional: Delay in milliseconds after casting the skill. Default is 0.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: bool: True if the skill was cast successfully, False otherwise.
+            """
+            tree = BT.Skills.CastSkillSlot(slot=slot, extra_condition=extra_condition, aftercast_delay=aftercast_delay, log=log)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=aftercast_delay)
+            return result
             
-            yield from Yield.wait(aftercast_delay)
-            return True
-      
+
 #region Map      
     class Map:  
         @staticmethod
@@ -624,13 +491,9 @@ class Yield:
             Args: None
             Returns: None
             """
-            if not hard_mode:
-                GLOBAL_CACHE.Party.SetNormalMode()
-            else:
-                GLOBAL_CACHE.Party.SetHardMode()
-            yield from Yield.wait(500)
-            ConsoleLog("SetHardMode", "Hard mode set.", Console.MessageType.Info, log=log)
-
+            tree = BT.Map.SetHardMode(hard_mode, log)
+            yield from _run_bt_tree(tree, return_bool=False, throttle_ms=100)
+                
         @staticmethod
         def TravelToOutpost(outpost_id, log=False, timeout:int=10000):
             """
@@ -642,13 +505,8 @@ class Yield:
             """
             
             tree = BT.Map.TravelToOutpost(outpost_id, log, timeout)
-            while True:
-                state = tree.tick()
-                if state == BT.NodeState.SUCCESS:
-                    return True
-                elif state == BT.NodeState.FAILURE:
-                    return False
-                yield from Yield.wait(100)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=100)
+            return result
 
 
         @staticmethod
