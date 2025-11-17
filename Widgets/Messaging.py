@@ -954,7 +954,7 @@ def UseSkill(index, message):
         ConsoleLog(MODULE_NAME, f"Changing target to {target}.", Console.MessageType.Info)
         yield from Routines.Yield.Agents.ChangeTarget(target)
         ConsoleLog(MODULE_NAME, f"Casting skill in slot {skill_slot}.", Console.MessageType.Info)
-        yield from Routines.Yield.Skills.CastSkillSlotAtTarget(slot=skill_slot, target_id=target, aftercast_delay=0, log=True)
+        yield from Routines.Yield.Skills.CastSkillSlot(slot=skill_slot, aftercast_delay=0, log=True)
 
         ConsoleLog(MODULE_NAME, "UseSkill message processed and finished.", Console.MessageType.Info, False)
     finally:
