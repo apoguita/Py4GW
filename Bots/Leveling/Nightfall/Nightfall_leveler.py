@@ -40,7 +40,7 @@ def create_bot_routine(bot: Botting) -> None:
     ConfigureAfterSecondProfession(bot)     # Configure bot after second profession
     
     # === PHASE 4: EQUIPMENT CRAFTING ===
-    if GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())[0] == "Paragon" or "Elementalist":
+    if GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())[0] in ["Paragon", "Elementalist"]:
         CraftNoHeadArmor(bot)                 # Craft No Head specific armor
     else:
         TakeArmorRewardAndCraft(bot)           # Take reward and craft armor
