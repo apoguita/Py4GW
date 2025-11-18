@@ -176,200 +176,6 @@ class Yield:
             tree = BT.Player.MoveXYZ(x, y, zplane, log=log)
             yield from _run_bt_tree(tree , throttle_ms=100)
 
-#region Movement
-    class Movement:
-        @staticmethod
-        def StopMovement():
-            yield from Yield.Movement.WalkBackwards(125)
-
-        @staticmethod   
-        def WalkBackwards(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms)
-
-        @staticmethod
-        def WalkForwards(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms)
-
-        @staticmethod
-        def StrafeLeft(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms)
-
-        @staticmethod
-        def StrafeRight(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms)
-
-        @staticmethod
-        def TurnLeft(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms)
-
-        @staticmethod
-        def TurnRight(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms)
-        
-        #region FollowPath
-        @staticmethod
-        def FollowPath(
-            path_points: List[Tuple[float, float]],
-            custom_exit_condition: Callable[[], bool] = lambda: False,
-            tolerance: float = 150,
-            log: bool = False,
-            timeout: int = -1,
-            progress_callback: Optional[Callable[[float], None]] = None,
-            custom_pause_fn: Optional[Callable[[], bool]] = None,
-            stop_on_party_wipe: bool = True
-        ):
-            import random
-            from .Checks import Checks
-        
-            #log = True #force logging
-            detailed_log = False #always detailed log for now
-            
-            total_points = len(path_points)
-            retries = 0
-            max_retries = 30  # after this, send stuck command
-            stuck_count = 0
-            max_stuck_commands = 2  # after this, do PixelStack recovery
-
-            ConsoleLog("FollowPath", f"Starting path with {total_points} points.", Console.MessageType.Info, log=log)
-
-
-            for idx, (target_x, target_y) in enumerate(path_points):
-                start_time = Utils.GetBaseTimestamp()
-                
-                ConsoleLog("FollowPath", f"Starting point {idx+1}/{total_points} - ({target_x}, {target_y})", Console.MessageType.Info, log=detailed_log)
-
-
-                if not Checks.Map.MapValid():
-                    ConsoleLog("FollowPath", "Map invalid before starting point, aborting.", Console.MessageType.Error, log=log)
-            
-                    ActionQueueManager().ResetAllQueues()
-                    return False
-                
-                if stop_on_party_wipe and (
-                        Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
-                    ):
-                        ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True  )
-                        ActionQueueManager().ResetAllQueues()
-                        return False 
-
-                GLOBAL_CACHE.Player.Move(target_x, target_y)
-                ConsoleLog("FollowPath", f"Issued move command to ({target_x}, {target_y}).", Console.MessageType.Debug, log=detailed_log)
-        
-                yield from Yield.wait(250)
-
-                current_x, current_y = GLOBAL_CACHE.Player.GetXY()
-                previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
-
-                while True:
-                    ConsoleLog("FollowPath", "Movement loop iteration...", Console.MessageType.Debug, log=detailed_log)
-
-                    if not Checks.Map.MapValid():
-                        ConsoleLog("FollowPath", "Map became invalid mid-run, aborting movement.", Console.MessageType.Warning, log=log)
-                
-                        ActionQueueManager().ResetAllQueues()
-                        return False
-                    
-                    if stop_on_party_wipe and (
-                        Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
-                    ):
-                        ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True   )
-                        ActionQueueManager().ResetAllQueues()
-                        return False
-
-
-                    if custom_exit_condition():
-                        ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info, log=log)
-                        return False
-
-                    if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
-                        ConsoleLog("FollowPath", "Player casting detected, waiting 750ms...", Console.MessageType.Debug, log=detailed_log)
-                
-                        yield from Yield.wait(750)
-                        continue
-                    
-                    if custom_pause_fn:
-                        while custom_pause_fn():
-                            if stop_on_party_wipe and (
-                                    Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
-                                ):
-                                    ConsoleLog("FollowPath", "Party wiped detected during pause, stopping all movement.", Console.MessageType.Warning, log=True)
-                                    ActionQueueManager().ResetAllQueues()
-                                    return False
-                            ConsoleLog("FollowPath", "Custom pause condition active, pausing movement...", Console.MessageType.Debug, log=log)
-                            start_time = Utils.GetBaseTimestamp()  # Reset timeout timer
-                            yield from Yield.wait(750)
-                    
-
-                    current_time = Utils.GetBaseTimestamp()
-                    delta = current_time - start_time
-                    if delta > timeout and timeout > 0:
-                        ConsoleLog("FollowPath", "Timeout reached, stopping movement.", Console.MessageType.Warning, log=log)
-                        return False
-
-                    current_x, current_y = GLOBAL_CACHE.Player.GetXY()
-                    current_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
-
-                    if not (current_distance < previous_distance):
-                        offset_x = random.uniform(-5, 5)
-                        offset_y = random.uniform(-5, 5)
-                        ConsoleLog("FollowPath", f"move to {target_x + offset_x}, {target_y + offset_y}", Console.MessageType.Info, log=log)
-                        if not Checks.Map.MapValid():
-                            ActionQueueManager().ResetAllQueues()
-                            return False
-                        GLOBAL_CACHE.Player.Move(target_x + offset_x, target_y + offset_y)
-                        retries += 1
-                        if retries >= max_retries:
-                            GLOBAL_CACHE.Player.SendChatCommand("stuck")
-                            ConsoleLog("FollowPath", "No progress made, sending /stuck command.", Console.MessageType.Warning, log=log)
-                    
-                            retries = 0
-                            stuck_count += 1
-
-                            # --- PixelStack recovery if too many stucks ---
-                            if stuck_count >= max_stuck_commands:
-                                ConsoleLog("FollowPath", "Too many stucks, performing strafe recovery.", Console.MessageType.Warning, log=log)
-                        
-                                start_x, start_y = GLOBAL_CACHE.Player.GetXY()
-
-                                # Backwards
-                                yield from Yield.Movement.WalkBackwards(1000)
-
-                                # Strafe left
-                                yield from Yield.Movement.StrafeLeft(1000)
-
-                                # Strafe right if no movement
-                                left_x, left_y = GLOBAL_CACHE.Player.GetXY()
-                                if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
-                                    yield from Yield.Movement.StrafeRight(1000)
-
-                                stuck_count = 0  # reset after recovery
-                    else:
-                        retries = 0  # reset retries if making progress
-                        stuck_count = 0  # reset stuck count if making progress
-                        ConsoleLog("FollowPath", "Progress detected, reset retry counters.", Console.MessageType.Debug, log=detailed_log)
-
-
-                    previous_distance = current_distance
-
-                    if current_distance <= tolerance:
-                        ConsoleLog("FollowPath", f"Reached target point {idx+1}/{total_points}.", Console.MessageType.Success, log=log)
-                        break
-                    else:
-                        ConsoleLog("FollowPath", f"Current distance to target: {current_distance}, waiting...", Console.MessageType.Debug, log=detailed_log)
-
-
-                    yield from Yield.wait(250)
-
-                #After reaching each point, report progress
-                if progress_callback:
-                    progress_callback((idx + 1) / total_points)
-                    ConsoleLog("FollowPath", f"Progress callback: {((idx + 1) / total_points) * 100:.1f}% done.", Console.MessageType.Debug, log=detailed_log)
-
-
-            ConsoleLog("FollowPath", "Path traversal completed successfully.", Console.MessageType.Success, log=log)
-            return True
-    
-
 #region Skills
     class Skills:       
         @staticmethod
@@ -524,113 +330,36 @@ class Yield:
             Returns: None
             """
             
-            from ..Py4GWcorelib import ConsoleLog
-            
-            if GLOBAL_CACHE.Map.GetMapID() != outpost_id or GLOBAL_CACHE.Map.GetRegion() != region or GLOBAL_CACHE.Map.GetDistrict() != district or GLOBAL_CACHE.Map.GetLanguage() != language:
-                ConsoleLog("TravelToRegion", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
-                GLOBAL_CACHE.Map.TravelToRegion(outpost_id, region, district, language)
-                yield from Yield.wait(2000)
-                waiting_for_map_load = True
-                while waiting_for_map_load:
-                    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.GetMapID() == outpost_id:
-                        waiting_for_map_load = False
-                        break
-                    yield from Yield.wait(1000)
-                yield from Yield.wait(1000)
-            
-            ConsoleLog("TravelToRegion", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
+            tree = BT.Map.TravelToRegion(outpost_id, region, district, language, log)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=100)
+            return result
 
 
         @staticmethod
         def WaitforMapLoad(map_id, log=False, timeout: int = 10000, map_name: str =""):
-            from .Checks import Checks
-            from ..Py4GWcorelib import ConsoleLog, Utils
+            """
+            Purpose: Wait for the map to load completely.
+            Args:
+                map_id (int): The ID of the map to wait for.
+                log (bool) Optional: Whether to log the action. Default is False.
+                timeout (int) Optional: Timeout in milliseconds. Default is 10000.
+                map_name (str) Optional: The name of the map to wait for. Default is "".
+            Returns: bool: True if the map loaded successfully, False if timed out.
+            """
             
-            yield from Yield.wait(500) #dirty fix for unknown, hard to test cases, allows for fast loading screens to hit first check
-            
-            if map_name:
-                map_id = GLOBAL_CACHE.Map.GetMapIDByName(map_name)
-                
-            start_time = Utils.GetBaseTimestamp()
-            
-            current_map = GLOBAL_CACHE.Map.GetMapID() if not Checks.Map.IsLoading() else 0 
-
-            minimum_instance_uptime = 3000
-            
-            # --- Case 1: We are already in the map ---
-            if current_map == map_id:
-                # --- Subcase: Map is already valid ---
-                if current_map == map_id:
-                    if not GLOBAL_CACHE.Map.IsMapLoading() and Checks.Map.MapValid():
-                        # enforce instance uptime requirement
-                        while GLOBAL_CACHE.Map.GetInstanceUptime() < minimum_instance_uptime:
-                            yield from Yield.wait(200)
-                        ConsoleLog("WaitforMapLoad", f"Already in {GLOBAL_CACHE.Map.GetMapName(current_map)}", log=log)
-                        yield from Yield.wait(100)
-                        return True
-                
-                # --- Subcase: Map is not yet valid and we are not loading anymore ---
-                while not GLOBAL_CACHE.Map.IsMapLoading() and not Checks.Map.MapValid():
-                    base_timestamp = Utils.GetBaseTimestamp()
-                    if ((timeout > 0) and (base_timestamp - start_time) > timeout):
-                        ConsoleLog("WaitforMapLoad", f"Timeout: Map not getting valid within {timeout} ms",message_type=Console.MessageType.Error, log=True)
-                        return False
-                    
-                    ConsoleLog("WaitforMapLoad", "Waiting for map to become valid...", log=log)
-                    yield from Yield.wait(200)  # poll quickly
-                    
-                    # --- Map is now loading or valid, proceed to case 3 ---
-                    if Checks.Map.MapValid():
-                        # enforce instance uptime requirement
-                        while GLOBAL_CACHE.Map.GetInstanceUptime() < minimum_instance_uptime:
-                            yield from Yield.wait(200)
-                        ConsoleLog("WaitforMapLoad", f"We were already in {GLOBAL_CACHE.Map.GetMapName(current_map)} but had to wait for the map to load.", log=log)
-                        yield from Yield.wait(100)
-                        return True
-                
-            # --- Case 2: wait for load phase to actually begin ---
-            while not GLOBAL_CACHE.Map.IsMapLoading():
-                base_timestamp = Utils.GetBaseTimestamp()
-
-                #detect that map became valid without showing loading state
-                if Checks.Map.MapValid() and GLOBAL_CACHE.Map.GetMapID() == map_id:
-                    ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)} (fast load)", log=True)
-                    yield from Yield.wait(100)
-                    return True
-
-                if ((timeout > 0) and (base_timestamp - start_time) > timeout):
-                    ConsoleLog("WaitforMapLoad", "Timeout: loading never started", message_type=Console.MessageType.Error, log=True)
-                    return False
-
-                yield from Yield.wait(200)
-                
-                
-            # --- Case 3: wait for loading phase to complete ---   
-            while GLOBAL_CACHE.Map.IsMapLoading() or not Checks.Map.MapValid():
-                delta = Utils.GetBaseTimestamp() - start_time
-                if delta > timeout and timeout > 0:
-                    ConsoleLog("WaitforMapLoad", "Timeout reached during loading phase.", message_type=Console.MessageType.Error, log=True)
-                    return False
-                yield from Yield.wait(500)
-                
-            current_map = GLOBAL_CACHE.Map.GetMapID()
-            if current_map != map_id:
-                ConsoleLog("WaitforMapLoad", f"We arrived to {GLOBAL_CACHE.Map.GetMapName(current_map)}, when we should be in {GLOBAL_CACHE.Map.GetMapName(map_id)}. exiting...", log=True)
-                yield from Yield.wait(1000)
-                return False
-            
-            while GLOBAL_CACHE.Map.GetInstanceUptime() < minimum_instance_uptime:
-                yield from Yield.wait(200)
-    
-            ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)}", log=log)
-            yield from Yield.wait(100)
-            return True
-            
+            tree = BT.Map.WaitforMapLoad(map_id, log, timeout, map_name)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=500)
+            return result
 
 #region Agents        
     class Agents:
         @staticmethod
         def GetAgentIDByName(agent_name):
+            tree = BT.Agents.GetAgentIDByName(agent_name)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+            agent = tree.blackboard.get("result", 0)
+            return agent
+            
             
             agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
             agent_names = {}
@@ -1461,6 +1190,200 @@ class Yield:
             GLOBAL_CACHE.Player.SendChatCommand("bonus")
             yield from Yield.wait(250)
                 
+#region Movement
+    class Movement:
+        @staticmethod
+        def StopMovement():
+            yield from Yield.Movement.WalkBackwards(125)
+
+        @staticmethod   
+        def WalkBackwards(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms)
+
+        @staticmethod
+        def WalkForwards(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms)
+
+        @staticmethod
+        def StrafeLeft(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms)
+
+        @staticmethod
+        def StrafeRight(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms)
+
+        @staticmethod
+        def TurnLeft(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms)
+
+        @staticmethod
+        def TurnRight(duration_ms:int):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms)
+        
+        #region FollowPath
+        @staticmethod
+        def FollowPath(
+            path_points: List[Tuple[float, float]],
+            custom_exit_condition: Callable[[], bool] = lambda: False,
+            tolerance: float = 150,
+            log: bool = False,
+            timeout: int = -1,
+            progress_callback: Optional[Callable[[float], None]] = None,
+            custom_pause_fn: Optional[Callable[[], bool]] = None,
+            stop_on_party_wipe: bool = True
+        ):
+            import random
+            from .Checks import Checks
+        
+            #log = True #force logging
+            detailed_log = False #always detailed log for now
+            
+            total_points = len(path_points)
+            retries = 0
+            max_retries = 30  # after this, send stuck command
+            stuck_count = 0
+            max_stuck_commands = 2  # after this, do PixelStack recovery
+
+            ConsoleLog("FollowPath", f"Starting path with {total_points} points.", Console.MessageType.Info, log=log)
+
+
+            for idx, (target_x, target_y) in enumerate(path_points):
+                start_time = Utils.GetBaseTimestamp()
+                
+                ConsoleLog("FollowPath", f"Starting point {idx+1}/{total_points} - ({target_x}, {target_y})", Console.MessageType.Info, log=detailed_log)
+
+
+                if not Checks.Map.MapValid():
+                    ConsoleLog("FollowPath", "Map invalid before starting point, aborting.", Console.MessageType.Error, log=log)
+            
+                    ActionQueueManager().ResetAllQueues()
+                    return False
+                
+                if stop_on_party_wipe and (
+                        Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
+                    ):
+                        ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True  )
+                        ActionQueueManager().ResetAllQueues()
+                        return False 
+
+                GLOBAL_CACHE.Player.Move(target_x, target_y)
+                ConsoleLog("FollowPath", f"Issued move command to ({target_x}, {target_y}).", Console.MessageType.Debug, log=detailed_log)
+        
+                yield from Yield.wait(250)
+
+                current_x, current_y = GLOBAL_CACHE.Player.GetXY()
+                previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
+
+                while True:
+                    ConsoleLog("FollowPath", "Movement loop iteration...", Console.MessageType.Debug, log=detailed_log)
+
+                    if not Checks.Map.MapValid():
+                        ConsoleLog("FollowPath", "Map became invalid mid-run, aborting movement.", Console.MessageType.Warning, log=log)
+                
+                        ActionQueueManager().ResetAllQueues()
+                        return False
+                    
+                    if stop_on_party_wipe and (
+                        Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
+                    ):
+                        ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True   )
+                        ActionQueueManager().ResetAllQueues()
+                        return False
+
+
+                    if custom_exit_condition():
+                        ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info, log=log)
+                        return False
+
+                    if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+                        ConsoleLog("FollowPath", "Player casting detected, waiting 750ms...", Console.MessageType.Debug, log=detailed_log)
+                
+                        yield from Yield.wait(750)
+                        continue
+                    
+                    if custom_pause_fn:
+                        while custom_pause_fn():
+                            if stop_on_party_wipe and (
+                                    Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
+                                ):
+                                    ConsoleLog("FollowPath", "Party wiped detected during pause, stopping all movement.", Console.MessageType.Warning, log=True)
+                                    ActionQueueManager().ResetAllQueues()
+                                    return False
+                            ConsoleLog("FollowPath", "Custom pause condition active, pausing movement...", Console.MessageType.Debug, log=log)
+                            start_time = Utils.GetBaseTimestamp()  # Reset timeout timer
+                            yield from Yield.wait(750)
+                    
+
+                    current_time = Utils.GetBaseTimestamp()
+                    delta = current_time - start_time
+                    if delta > timeout and timeout > 0:
+                        ConsoleLog("FollowPath", "Timeout reached, stopping movement.", Console.MessageType.Warning, log=log)
+                        return False
+
+                    current_x, current_y = GLOBAL_CACHE.Player.GetXY()
+                    current_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
+
+                    if not (current_distance < previous_distance):
+                        offset_x = random.uniform(-5, 5)
+                        offset_y = random.uniform(-5, 5)
+                        ConsoleLog("FollowPath", f"move to {target_x + offset_x}, {target_y + offset_y}", Console.MessageType.Info, log=log)
+                        if not Checks.Map.MapValid():
+                            ActionQueueManager().ResetAllQueues()
+                            return False
+                        GLOBAL_CACHE.Player.Move(target_x + offset_x, target_y + offset_y)
+                        retries += 1
+                        if retries >= max_retries:
+                            GLOBAL_CACHE.Player.SendChatCommand("stuck")
+                            ConsoleLog("FollowPath", "No progress made, sending /stuck command.", Console.MessageType.Warning, log=log)
+                    
+                            retries = 0
+                            stuck_count += 1
+
+                            # --- PixelStack recovery if too many stucks ---
+                            if stuck_count >= max_stuck_commands:
+                                ConsoleLog("FollowPath", "Too many stucks, performing strafe recovery.", Console.MessageType.Warning, log=log)
+                        
+                                start_x, start_y = GLOBAL_CACHE.Player.GetXY()
+
+                                # Backwards
+                                yield from Yield.Movement.WalkBackwards(1000)
+
+                                # Strafe left
+                                yield from Yield.Movement.StrafeLeft(1000)
+
+                                # Strafe right if no movement
+                                left_x, left_y = GLOBAL_CACHE.Player.GetXY()
+                                if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
+                                    yield from Yield.Movement.StrafeRight(1000)
+
+                                stuck_count = 0  # reset after recovery
+                    else:
+                        retries = 0  # reset retries if making progress
+                        stuck_count = 0  # reset stuck count if making progress
+                        ConsoleLog("FollowPath", "Progress detected, reset retry counters.", Console.MessageType.Debug, log=detailed_log)
+
+
+                    previous_distance = current_distance
+
+                    if current_distance <= tolerance:
+                        ConsoleLog("FollowPath", f"Reached target point {idx+1}/{total_points}.", Console.MessageType.Success, log=log)
+                        break
+                    else:
+                        ConsoleLog("FollowPath", f"Current distance to target: {current_distance}, waiting...", Console.MessageType.Debug, log=detailed_log)
+
+
+                    yield from Yield.wait(250)
+
+                #After reaching each point, report progress
+                if progress_callback:
+                    progress_callback((idx + 1) / total_points)
+                    ConsoleLog("FollowPath", f"Progress callback: {((idx + 1) / total_points) * 100:.1f}% done.", Console.MessageType.Debug, log=detailed_log)
+
+
+            ConsoleLog("FollowPath", "Path traversal completed successfully.", Console.MessageType.Success, log=log)
+            return True
+    
+
 
 #region Upkeepers
     class Upkeepers:

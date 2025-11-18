@@ -58,7 +58,7 @@ class BT:
             tree = BehaviorTree.SequenceNode(children=[
                 BehaviorTree.ActionNode(
                     name="GetTargetID",
-                    action_fn=_get_target_id,
+                    action_fn=lambda node:_get_target_id(node),
                     aftercast_ms=0
                 ),
 
@@ -405,8 +405,155 @@ class BT:
                         BehaviorTree.ConditionNode(name="ArrivedEarly", condition_fn=lambda: arrived_early(outpost_id)),
                         BehaviorTree.SequenceNode(name="TravelSequence", children=[ 
                             BehaviorTree.ActionNode(name="TravelAction", action_fn=lambda: travel_action(outpost_id), aftercast_ms=3000),
-                            BehaviorTree.WaitNode(name="MapArrival", check_fn=lambda: map_arrival(outpost_id), timeout_ms=timeout) 
+                            BehaviorTree.WaitNode(name="MapArrival", check_fn=lambda: map_arrival(outpost_id), timeout_ms=timeout),
+                            BehaviorTree.WaitForTimeNode(name="PostArrivalWait", duration_ms=1000)
                         ]) 
                 ]) 
             
+            return BehaviorTree(tree)
+
+        @staticmethod
+        def TravelToRegion(outpost_id, region, district, language=0, log:bool=False, timeout: int = 10000):
+            # 1. EARLY ARRIVAL CHECK
+            def arrived_early() -> bool:
+                if (GLOBAL_CACHE.Map.GetMapID() == outpost_id and
+                    GLOBAL_CACHE.Map.GetRegion() == region and
+                    GLOBAL_CACHE.Map.GetDistrict() == district and
+                    GLOBAL_CACHE.Map.GetLanguage() == language):
+
+                    ConsoleLog("TravelToRegion",
+                            f"Already at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}",
+                            log=log)
+                    return True
+                
+                return False
+            # 2. TRAVEL ACTION
+            def travel_action() -> BehaviorTree.NodeState:
+                ConsoleLog("TravelToRegion",
+                        f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}",
+                        log=log)
+                GLOBAL_CACHE.Map.TravelToRegion(outpost_id, region, district, language)
+                return BehaviorTree.NodeState.SUCCESS
+            # 3. ARRIVAL CHECK
+            def map_arrival() -> BehaviorTree.NodeState:
+                if (GLOBAL_CACHE.Map.IsMapReady() and
+                    GLOBAL_CACHE.Party.IsPartyLoaded() and
+                    GLOBAL_CACHE.Map.GetMapID() == outpost_id and
+                    GLOBAL_CACHE.Map.GetRegion() == region and
+                    GLOBAL_CACHE.Map.GetDistrict() == district and
+                    GLOBAL_CACHE.Map.GetLanguage() == language):
+
+                    ConsoleLog("TravelToRegion",
+                            f"Arrived at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}",
+                            log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+
+                return BehaviorTree.NodeState.RUNNING
+                
+
+            tree = BehaviorTree.SelectorNode(children=[
+                BehaviorTree.ConditionNode(name="ArrivedEarly",condition_fn=lambda: arrived_early()),
+                BehaviorTree.SequenceNode(name="TravelSequence", children=[
+                    BehaviorTree.ActionNode(name="TravelToRegionAction", action_fn=lambda: travel_action(), aftercast_ms=2000),
+                    BehaviorTree.WaitNode(name="WaitForMapArrival", check_fn=lambda: map_arrival(), timeout_ms=timeout),
+                    BehaviorTree.WaitForTimeNode(name="PostArrivalWait", duration_ms=1000)
+                ])
+            ])
+
+            return BehaviorTree(tree)
+        
+        @staticmethod
+        def WaitforMapLoad(map_id:int=0, log:bool=False, timeout: int = 10000, map_name: str =""):   
+            def _map_arrival_check(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+                nonlocal map_id, map_name, log
+                
+                if map_name:
+                    map_id = GLOBAL_CACHE.Map.GetMapIDByName(map_name)
+                
+                
+                if (GLOBAL_CACHE.Map.IsMapReady() and
+                    GLOBAL_CACHE.Party.IsPartyLoaded() and
+                    GLOBAL_CACHE.Map.GetMapID() == map_id and
+                    GLOBAL_CACHE.Map.GetInstanceUptime() >= 2000):
+                    ConsoleLog("WaitforMapLoad", f"Map {GLOBAL_CACHE.Map.GetMapName(map_id)} loaded successfully.", log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+                return BehaviorTree.NodeState.FAILURE
+
+            tree = BehaviorTree.SequenceNode(name="WaitforMapLoadRoot",
+                        children=[
+                            BehaviorTree.RepeaterUntilSuccessNode(name="WaitForMapLoadLoop",timeout_ms=timeout,
+                                child=
+                                    BehaviorTree.SelectorNode(name="WaitForMapLoad",
+                                        children=[
+                                            BehaviorTree.ConditionNode(name="MapArrivalCheck",condition_fn=_map_arrival_check),
+                                            BehaviorTree.SequenceNode(name="WaitForThrottle",
+                                                children=[
+                                                    BehaviorTree.WaitForTimeNode(500), 
+                                                    BehaviorTree.FailureNode("FailToRepeat")
+                                                ]
+                                            )     
+                                        ]
+                                    )
+                                ),
+                            BehaviorTree.WaitForTimeNode(name="PostArrivalWait", duration_ms=1000)
+                        ]
+                    )
+            
+            return tree
+
+    #region Agents        
+    class Agents:
+        agent_ids = None
+        @staticmethod
+        def GetAgentIDByName(agent_name: str) -> BehaviorTree:
+            def _request_names(node):
+                ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+                node.blackboard["agent_ids"] = ids
+
+                for aid in ids:
+                    GLOBAL_CACHE.Agent.RequestName(aid)
+
+                return BehaviorTree.NodeState.SUCCESS
+
+            def _check_names_ready(node):
+                for aid in node.blackboard["agent_ids"]:
+                    if not GLOBAL_CACHE.Agent.IsNameReady(aid):
+                        return BehaviorTree.NodeState.FAILURE
+                return BehaviorTree.NodeState.SUCCESS
+            
+            def _search_name(node):
+                search_lower = agent_name.lower()
+                found = 0
+
+                for aid in node.blackboard["agent_ids"]:
+                    if GLOBAL_CACHE.Agent.IsNameReady(aid):
+                        name = GLOBAL_CACHE.Agent.GetName(aid)
+                        if search_lower in name.lower():
+                            found = aid
+                            break
+
+                node.blackboard["result"] = found
+                return (BehaviorTree.NodeState.SUCCESS
+                        if found != 0
+                        else BehaviorTree.NodeState.FAILURE)
+
+            tree = BehaviorTree.SequenceNode(name="GetAgentIDByNameRoot",
+                children=[
+                    BehaviorTree.ActionNode(name="RequestAllNames",action_fn=_request_names),
+                    BehaviorTree.RepeaterUntilSuccessNode(name="WaitUntilAllNamesReadyRepeater",timeout_ms=2000,
+                        child=BehaviorTree.SelectorNode(name="WaitUntilAllNamesReadySelector",
+                            children=[
+                                BehaviorTree.ConditionNode(name="AllNamesReadyCheck",condition_fn=_check_names_ready),
+                                BehaviorTree.SequenceNode(name="WaitForThrottle",
+                                    children=[
+                                        BehaviorTree.WaitForTimeNode(name="Throttle100ms",duration_ms=100),
+                                        BehaviorTree.FailureNode(name="FailToRepeat")
+                                    ]
+                                ),
+                            ]
+                        )
+                    ),
+                    BehaviorTree.ActionNode(name="SearchName",action_fn=_search_name)
+                ]
+            )
             return BehaviorTree(tree)
