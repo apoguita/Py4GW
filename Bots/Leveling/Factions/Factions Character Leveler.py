@@ -799,6 +799,8 @@ def AdvanceToKamadan(bot: Botting):
 
 def AdvanceToConsulateDocks(bot: Botting):
     bot.States.AddHeader("Advance To Consulate Docks")
+    bot.Map.Travel(target_map_id=194) #kaineng_center_id
+    bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=449)
     bot.Move.XY(-8075.89, 14592.47)
     bot.Move.XY(-6743.29, 16663.21)
