@@ -17,6 +17,14 @@ from ..ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 # Behavior Tree
 # --------------------------------------------------------
 class BehaviorTree:
+    """
+    BehaviorTree:
+        - Wraps a root node and manages blackboard propagation.
+        - Provides a single `tick()` entry point for running the whole tree.
+        - Owns a shared blackboard dictionary accessible by all nodes.
+        - Includes optional helpers for printing/drawing the structure.
+    """
+    
     class NodeState(Enum):
         RUNNING = auto()
         SUCCESS = auto()
@@ -30,17 +38,31 @@ class BehaviorTree:
         """
         Base class for all Behaviour Tree nodes.
 
-        Metadata:
-        - id:        unique identifier (stable per node instance)
-        - name:      user-friendly label (can be passed in or default to class name)
-        - node_type: logical kind of node (Action, Condition, Sequence, Selector, etc.)
-        - last_state: last BehaviorTree.NodeState returned by tick()
-        - tick_count: how many times this node was ticked
-        - blackboard: shared dict for passing data between nodes
-        - timing metrics 
-            • last_tick_time_ms
-            • total_time_ms
-            • avg_time_ms
+        Responsibilities:
+            - Provides a unified tick() wrapper around `_tick_impl()`.
+            - Tracks timing, tick count, and the last returned state.
+            - Stores and propagates a shared blackboard dict.
+            - Allows subclasses to implement custom behavior via `_tick_impl()`.
+
+        Behavior:
+            - tick() handles timing and metadata, then calls `_tick_impl()`.
+            - `_tick_impl()` must return a NodeState (SUCCESS / FAILURE / RUNNING).
+            - `reset()` clears transient execution state; subclasses may override it.
+            - `get_children()` returns child nodes (leaf nodes return an empty list).
+
+        Common Data:
+            - id: unique identifier for this node instance.
+            - name: display-friendly name (defaults to class name).
+            - node_type: logical category (Action, Sequence, Selector, etc.).
+            - icon/color: used for UI rendering.
+            - last_state: state returned by the most recent tick().
+            - tick_count: number of tick() calls processed.
+            - blackboard: shared dictionary for passing values between nodes.
+
+        Timing Metrics:
+            - last_tick_time_ms: execution time of the last `_tick_impl()` call.
+            - run_last_duration_ms: duration of the most recent RUNNING stretch.
+            - run_accumulated_ms: total time spent in RUNNING.
         """
 
         def __init__(self, name: str = "", node_type: str = "",icon: str = "", color: Color = ColorPalette.GetColor("white")):
@@ -261,9 +283,17 @@ class BehaviorTree:
     # -------------------------------------------------------- 
     class ActionNode(Node):
         """
-        Runs an action_fn once (must return SUCCESS/FAILURE/RUNNING),
-        then waits duration_ms before returning SUCCESS.
-        Useful when every action needs a delay after execution.
+        ActionNode:
+            - Executes a user-provided function once (action_fn).
+            - The function must return a NodeState (SUCCESS / FAILURE / RUNNING).
+            - If the function returns RUNNING → ActionNode returns RUNNING and
+            will call the function again on the next tick.
+            - If the function returns SUCCESS or FAILURE:
+                • The node enters an optional wait period (aftercast_ms ms).
+                • During the wait, the node returns RUNNING.
+                • After the wait completes → returns the action's final state.
+            - Supports action functions with signature action_fn() or action_fn(node).
+            - After returning a final state, internal state resets so the node can be re-used.
         """
 
         def __init__(self, action_fn, aftercast_ms: int = 0,
@@ -332,11 +362,19 @@ class BehaviorTree:
 
     class ConditionNode(Node):
         """
-        Evaluates a condition function.
-        
-        - If the condition_fn returns a boolean → convert to SUCCESS/FAILURE.
-        - If it returns a NodeState → use it directly.
-        - Supports condition_fn() and condition_fn(node).
+        ConditionNode:
+            - Evaluates a user-provided condition function (condition_fn).
+            - The function may return:
+                • bool        → converted to SUCCESS (True) or FAILURE (False)
+                • NodeState   → used directly
+            - Supports both signatures:
+                • condition_fn()
+                • condition_fn(node)
+            - Returns:
+                • SUCCESS → condition true
+                • FAILURE → condition false
+                • (never returns RUNNING)
+            - Any invalid return type raises a TypeError.
         """
 
         def __init__(self, condition_fn, name: str = "Condition"):
@@ -379,11 +417,15 @@ class BehaviorTree:
     # --------------------------------------------------------
     class SequenceNode(Node):
         """
-        Sequence:
-        - Ticks children in order.
-        - If a child FAILS -> whole sequence FAILS.
-        - If a child RUNS  -> sequence RUNNING and will resume from that child.
-        - Only when all children SUCCESS -> sequence SUCCESS.
+        SequenceNode:
+            - Ticks its children in order (left to right).
+            - Behavior:
+                • If a child returns FAILURE → Sequence returns FAILURE immediately.
+                • If a child returns RUNNING → Sequence returns RUNNING and will
+                resume from that same child on the next tick.
+                • If a child returns SUCCESS → Sequence advances to the next child.
+            - Only when ALL children return SUCCESS → Sequence returns SUCCESS.
+            - Resets its child index after SUCCESS or FAILURE.
         """
 
         def __init__(self, children=None, name: str = "Sequence"):
@@ -433,11 +475,15 @@ class BehaviorTree:
     # --------------------------------------------------------
     class SelectorNode(Node):
         """
-        Selector:
-        - Ticks children in order.
-        - If a child SUCCEEDS -> whole selector SUCCEEDS.
-        - If a child RUNS     -> selector RUNNING and will resume from that child.
-        - Only when all children FAIL -> selector FAILURE.
+        SelectorNode:
+            - Ticks its children in order (left to right).
+            - Behavior:
+                • If a child returns SUCCESS → Selector returns SUCCESS immediately.
+                • If a child returns RUNNING → Selector returns RUNNING and will
+                resume from the same child on the next tick.
+                • If a child returns FAILURE → tries the next child.
+            - Only when ALL children return FAILURE → Selector returns FAILURE.
+            - Resets its child index after SUCCESS or FAILURE.
         """
 
         def __init__(self, children=None, name: str = "Selector"):
@@ -487,10 +533,15 @@ class BehaviorTree:
     # --------------------------------------------------------  
     class ChoiceNode(Node):
         """
-        Choice:
-        - Ticks children in order.
-        - Returns the state of the first child that is not FAILURE (RUNNING or SUCCESS).
-        - If all children FAIL -> choice FAILURE.
+        ChoiceNode:
+            - Ticks its children in order.
+            - Returns the first result that is NOT FAILURE (i.e., SUCCESS or RUNNING).
+            - Behavior:
+                • If a child returns SUCCESS → ChoiceNode returns SUCCESS.
+                • If a child returns RUNNING → ChoiceNode returns RUNNING.
+                • If a child returns FAILURE → tries the next child.
+            - Only when ALL children return FAILURE → ChoiceNode returns FAILURE.
+            - Does not resume from a specific child; each tick reevaluates from the top.
         """
 
         def __init__(self, children=None, name: str = "Choice"):
@@ -530,9 +581,15 @@ class BehaviorTree:
     # --------------------------------------------------------
     class RepeaterNode(Node):   
         """
-        Repeater:
-        - Ticks its child a fixed number of times.
-        - Always returns SUCCESS when done.
+        RepeaterNode:
+            - Executes its child a fixed number of times (repeat_count).
+            - Behavior:
+                • If the child returns RUNNING → Repeater returns RUNNING and
+                will resume from the same child without advancing the count.
+                • If the child returns SUCCESS or FAILURE → the repetition count
+                increases and the next repetition begins.
+            - When all repetitions are completed → Repeater returns SUCCESS.
+            - Internal counter resets after completion or failure.
         """
 
         def __init__(self, child: "BehaviorTree.Node", repeat_count: int = 1, name: str = "Repeater"):
@@ -579,10 +636,16 @@ class BehaviorTree:
     # --------------------------------------------------------
     class RepeaterUntilSuccessNode(Node):
         """
-        Repeater Until Success:
-        - Ticks its child until it returns SUCCESS.
-        - Returns FAILURE if timeout reached.
-        - Returns SUCCESS when done.
+        RepeaterUntilSuccessNode:
+            - Repeatedly ticks its child until the child returns SUCCESS.
+            - Behavior:
+                • If the child returns RUNNING → returns RUNNING.
+                • If the child returns FAILURE → immediately tries again.
+                • If the child returns SUCCESS → node returns SUCCESS.
+            - Optional timeout:
+                • If timeout_ms > 0 and the total elapsed time exceeds it →
+                node returns FAILURE.
+            - Internal timing resets once SUCCESS or timeout occurs.
         """
 
         def __init__(self, child: "BehaviorTree.Node", timeout_ms: int = 0, name: str = "RepeaterUntilSuccess"):
@@ -639,10 +702,16 @@ class BehaviorTree:
     # --------------------------------------------------------          
     class RepeaterUntilFailureNode(Node):
         """
-        Repeater Until Failure:
-        - Ticks its child until it returns FAILURE.
-        - Returns FAILURE if timeout reached.
-        - Returns SUCCESS once failure occurs.
+        RepeaterUntilFailureNode:
+            - Repeatedly ticks its child until the child returns FAILURE.
+            - Behavior:
+                • If the child returns RUNNING → node returns RUNNING.
+                • If the child returns SUCCESS → immediately repeats.
+                • If the child returns FAILURE → node returns SUCCESS.
+            - Optional timeout:
+                • If timeout_ms > 0 and total elapsed time exceeds it →
+                node returns FAILURE.
+            - Internal timing resets once the stop condition or timeout occurs.
         """
 
         def __init__(self, child: "BehaviorTree.Node", timeout_ms: int = 0, name: str = "RepeaterUntilFailure"):
@@ -700,21 +769,41 @@ class BehaviorTree:
     # --------------------------------------------------------           
     class RepeaterForeverNode(Node):
         """
-        Repeater Forever:
-        - Ticks its child indefinitely.
-        - Always returns RUNNING.
+        RepeaterForeverNode:
+            - Continuously ticks its child with no stop condition.
+            - Behavior:
+                • The child is ticked every cycle.
+                • The child’s returned state is ignored.
+                • The node itself always returns RUNNING.
+            - Optional timeout:
+                • If timeout_ms > 0 and elapsed time exceeds it →
+                node returns FAILURE.
+            - Timing resets after timeout.
         """
 
-        def __init__(self, child: "BehaviorTree.Node", name: str = "RepeaterForever"):
+        def __init__(self, child: "BehaviorTree.Node", timeout_ms: int = 0, name: str = "RepeaterForever"):
             super().__init__(name=name, node_type="RepeaterForever", 
                              icon=IconsFontAwesome5.ICON_INFINITY,
                              color= ColorPalette.GetColor("creme"))
             self.child = child
-
+            self.timeout_ms = timeout_ms
+            self.start_time = None
+            
         def get_children(self) -> List["BehaviorTree.Node"]:
             return [self.child]
 
         def _tick_impl(self) -> BehaviorTree.NodeState:
+            # ---------- INIT TIME ----------
+            if self.start_time is None:
+                self.start_time = Utils.GetBaseTimestamp()
+                
+            # ---------- TIMEOUT CHECK ----------
+            if self.timeout_ms > 0:
+                elapsed = Utils.GetBaseTimestamp() - self.start_time
+                if elapsed >= self.timeout_ms:
+                    self.start_time = None
+                    return BehaviorTree.NodeState.FAILURE
+                    
             # --- blackboard support ---
             if self.blackboard is not None:
                 self.child.blackboard = self.blackboard
@@ -725,6 +814,221 @@ class BehaviorTree:
 
             # Always RUNNING
             return BehaviorTree.NodeState.RUNNING
+        
+    # --------------------------------------------------------
+    #region ForEachNode
+    # -------------------------------------------------------- 
+    class ForEachNode(Node):
+        """
+        ForEachNode:
+            - Iterates over a list stored in blackboard[list_key].
+            - For each item:
+                • Sets blackboard['current_item'] to that value.
+                • Ticks the child node once for that item.
+            - REQUIREMENT:
+                You MUST set blackboard[list_key] = [...] before the first tick().
+            - Behavior:
+                • If the child returns RUNNING → ForEach returns RUNNING and resumes on the same item.
+                • If the child returns FAILURE → ForEach returns FAILURE immediately.
+                • If the child returns SUCCESS → move to the next item.
+            - When all items have succeeded → ForEach returns SUCCESS.
+        """
+
+
+        def __init__(self, child: "BehaviorTree.Node", list_key: str, name: str = "ForEach"):
+            super().__init__(name=name, node_type="ForEach", 
+                             icon=IconsFontAwesome5.ICON_LIST_OL,
+                             color= ColorPalette.GetColor("light_cyan"))
+            self.child = child
+            self.list_key = list_key
+            self.current_index: int = 0
+
+
+        def get_children(self) -> List["BehaviorTree.Node"]:
+            return [self.child]
+        
+        def reset(self) -> None:
+            super().reset()
+            self.current_index = 0
+
+        def _tick_impl(self) -> BehaviorTree.NodeState:
+            # Retrieve the list from blackboard
+            items = self.blackboard.get(self.list_key, [])
+            total_items = len(items)
+
+            while self.current_index < total_items:
+                # Set current item in blackboard for the child to use
+                self.blackboard['current_item'] = items[self.current_index]
+
+                # ----- BLACKBOARD -----
+                self.child.blackboard = self.blackboard
+                # -----------------------
+
+                result = self.child.tick()
+
+                if result is None:
+                    ConsoleLog(
+                        "BT",
+                        f"ERROR: Node '{self.child.name}' returned None!",
+                        Console.MessageType.Error
+                    )
+                    self.current_index = 0
+                    return BehaviorTree.NodeState.FAILURE
+
+                if result == BehaviorTree.NodeState.RUNNING:
+                    return BehaviorTree.NodeState.RUNNING
+
+                if result == BehaviorTree.NodeState.FAILURE:
+                    self.current_index = 0
+                    return BehaviorTree.NodeState.FAILURE
+
+                # SUCCESS → continue to next item
+                self.current_index += 1
+
+            # Completed all items
+            self.current_index = 0
+            return BehaviorTree.NodeState.SUCCESS
+        
+    # --------------------------------------------------------
+    #region IteratorNode
+    # -------------------------------------------------------- 
+    class IteratorNode(Node):
+        """
+        IteratorNode:
+            - Iterates over a list stored in blackboard[list_key].
+            - On each tick:
+                • Sets blackboard['current_item'] to the list item at current_index.
+                • Ticks the child once for that item.
+            - Behavior:
+                • If the child returns RUNNING → Iterator returns RUNNING and stays on the same item.
+                • If the child returns FAILURE → Iterator returns FAILURE immediately.
+                • If the child returns SUCCESS → advance to the next item.
+            - Completion:
+                • When all items have been processed → Iterator returns SUCCESS.
+            - REQUIREMENT:
+                You MUST set blackboard[list_key] = [...] before ticking this node.
+        """
+
+        def __init__(self, child: "BehaviorTree.Node", list_key: str, name: str = "Iterator"):
+            super().__init__(name=name, node_type="Iterator", 
+                             icon=IconsFontAwesome5.ICON_LIST_UL,
+                             color= ColorPalette.GetColor("light_orange"))
+            self.child = child
+            self.list_key = list_key
+            self.current_index: int = 0
+
+        def get_children(self) -> List["BehaviorTree.Node"]:
+            return [self.child]
+        
+        def reset(self) -> None:
+            super().reset()
+            self.current_index = 0
+
+        def _tick_impl(self) -> BehaviorTree.NodeState:
+            # Retrieve the list from blackboard
+            items = self.blackboard.get(self.list_key, [])
+            total_items = len(items)
+
+            if self.current_index >= total_items:
+                # All items processed
+                self.current_index = 0
+                return BehaviorTree.NodeState.SUCCESS
+
+            # Set current item in blackboard for the child to use
+            self.blackboard['current_item'] = items[self.current_index]
+
+            # ----- BLACKBOARD -----
+            self.child.blackboard = self.blackboard
+            # -----------------------
+
+            result = self.child.tick()
+
+            if result is None:
+                ConsoleLog(
+                    "BT",
+                    f"ERROR: Node '{self.child.name}' returned None!",
+                    Console.MessageType.Error
+                )
+                self.current_index = 0
+                return BehaviorTree.NodeState.FAILURE
+
+            if result == BehaviorTree.NodeState.RUNNING:
+                return BehaviorTree.NodeState.RUNNING
+
+            if result == BehaviorTree.NodeState.FAILURE:
+                self.current_index = 0
+                return BehaviorTree.NodeState.FAILURE
+
+            # SUCCESS → move to next item
+            self.current_index += 1
+            return BehaviorTree.NodeState.RUNNING
+        
+    # --------------------------------------------------------
+    #region IndexedLoopNode
+    # -------------------------------------------------------- 
+    class IndexedLoopNode(Node):
+        """
+        IndexedLoopNode:
+            - Executes the child once for each index from 0 to count-1.
+            - On each iteration:
+                • Sets blackboard['current_index'] to the current index.
+                • Ticks the child for that index.
+            - Behavior:
+                • If the child returns RUNNING → IndexedLoop returns RUNNING and resumes at the same index.
+                • If the child returns FAILURE → IndexedLoop returns FAILURE immediately.
+                • If the child returns SUCCESS → advance to the next index.
+            - Completion:
+                • When all indices have succeeded → IndexedLoop returns SUCCESS.
+        """
+
+        def __init__(self, child: "BehaviorTree.Node", count: int, name: str = "IndexedLoop"):
+            super().__init__(name=name, node_type="IndexedLoop", 
+                             icon=IconsFontAwesome5.ICON_REPEAT,
+                             color= ColorPalette.GetColor("light_gray"))
+            self.child = child
+            self.count = count
+            self.current_index: int = 0
+
+        def get_children(self) -> List["BehaviorTree.Node"]:
+            return [self.child]
+        
+        def reset(self) -> None:
+            super().reset()
+            self.current_index = 0
+
+        def _tick_impl(self) -> BehaviorTree.NodeState:
+            while self.current_index < self.count:
+                # Set current index in blackboard for the child to use
+                self.blackboard['current_index'] = self.current_index
+
+                # ----- BLACKBOARD -----
+                self.child.blackboard = self.blackboard
+                # -----------------------
+
+                result = self.child.tick()
+
+                if result is None:
+                    ConsoleLog(
+                        "BT",
+                        f"ERROR: Node '{self.child.name}' returned None!",
+                        Console.MessageType.Error
+                    )
+                    self.current_index = 0
+                    return BehaviorTree.NodeState.FAILURE
+
+                if result == BehaviorTree.NodeState.RUNNING:
+                    return BehaviorTree.NodeState.RUNNING
+
+                if result == BehaviorTree.NodeState.FAILURE:
+                    self.current_index = 0
+                    return BehaviorTree.NodeState.FAILURE
+
+                # SUCCESS → continue to next index
+                self.current_index += 1
+
+            # Completed all iterations
+            self.current_index = 0
+            return BehaviorTree.NodeState.SUCCESS
 
     # --------------------------------------------------------
     #region ParallelNode
@@ -732,11 +1036,15 @@ class BehaviorTree:
     
     class ParallelNode(Node):
         """
-        Parallel:
-        - Ticks all children every tick.
-        - SUCCESS if all children SUCCESS.
-        - FAILURE if any child FAILS.
-        - RUNNING otherwise.
+        ParallelNode:
+            - Ticks all children on every tick().
+            - Behavior:
+                • If ANY child returns FAILURE → ParallelNode returns FAILURE immediately.
+                • If ALL children return SUCCESS → ParallelNode returns SUCCESS.
+                • Otherwise (at least one RUNNING, none FAILED) → ParallelNode returns RUNNING.
+            - Notes:
+                • All children execute every tick, regardless of their previous result.
+                • Blackboard is propagated to all children before execution.
         """
 
         def __init__(self, children=None, name: str = "Parallel"):
@@ -785,11 +1093,21 @@ class BehaviorTree:
     
     class SubtreeNode(Node):
         """
-        A subtree node that constructs its subtree lazily and **correctly at tick time**.
-        subtree_fn receives this node as an argument, so it can read:
-            - node.blackboard
-            - external shared dict
-            - dynamic data
+        SubtreeNode:
+            - Dynamically constructs a full BehaviorTree when ticked.
+            - The subtree is created lazily by calling `subtree_fn(self)`:
+                • Allows the factory to read this node’s blackboard.
+                • Supports dynamic data, runtime state, and external context.
+            - Behavior:
+                • On first tick, builds the subtree and stores it.
+                • On every tick, forwards the tick() to the subtree’s root.
+                • If the parent has a blackboard, it is propagated to the subtree root.
+            - reset():
+                • Resets both this node and the subtree (if already created).
+            - Typical Use:
+                • When a tree must be generated at runtime, based on live data.
+                • When you need a “tree factory” instead of a static tree structure.
+                • When you need to run another BehaviorTree as a child node.
         """
 
         def __init__(self, subtree_fn: Callable[["BehaviorTree.Node"], "BehaviorTree"], name: str = "Subtree"):
@@ -848,9 +1166,12 @@ class BehaviorTree:
     class InverterNode(Node):
         """
         Inverter:
-        - SUCCESS -> FAILURE
-        - FAILURE -> SUCCESS
-        - RUNNING -> RUNNING
+            - Flips the child’s result:
+                • SUCCESS → FAILURE
+                • FAILURE → SUCCESS
+                • RUNNING → RUNNING (unchanged)
+            - Propagates the blackboard to the child.
+            - Useful when a condition must be logically negated.
         """
 
         def __init__(self, child: "BehaviorTree.Node", name: str = "Inverter"):
@@ -894,13 +1215,14 @@ class BehaviorTree:
     # --------------------------------------------------------
     class WaitNode(Node):
         """
-        A node that repeatedly checks a function until it reports SUCCESS,
-        or until timeout expires (if timeout_ms != 0).
-
-        check_fn must return one of:
-            BehaviorTree.NodeState.RUNNING
-            BehaviorTree.NodeState.SUCCESS
-            BehaviorTree.NodeState.FAILURE
+        WaitNode:
+            - Repeatedly calls check_fn() each tick until:
+                • check_fn returns SUCCESS → WaitNode returns SUCCESS.
+                • check_fn returns FAILURE → WaitNode returns FAILURE.
+                • timeout_ms is reached      → WaitNode returns FAILURE.
+            - If check_fn returns RUNNING → WaitNode stays RUNNING.
+            - If timeout_ms = 0 → no timeout (wait indefinitely).
+            - check_fn must return a NodeState (SUCCESS / FAILURE / RUNNING).
         """
 
         def __init__(self, check_fn, timeout_ms: int = 0, name: str = "Wait"):
@@ -951,10 +1273,14 @@ class BehaviorTree:
     # --------------------------------------------------------
     class WaitForTimeNode(Node):
         """
-        Waits until a given amount of time (in milliseconds) has passed.
-        Returns:
-            RUNNING until time has elapsed
-            SUCCESS once elapsed
+        WaitForTimeNode:
+            - Waits for a fixed duration in milliseconds.
+            - Behavior:
+                • Returns RUNNING until the elapsed time >= duration_ms.
+                • Returns SUCCESS once the duration has fully passed.
+            - Notes:
+                • On first tick(), the node records a start timestamp.
+                • After SUCCESS, the start time is reset so the node can be reused.
         """
 
         def __init__(self, duration_ms: int, base_timestamp: int = 0, name: str = "WaitForTime"):
@@ -979,13 +1305,15 @@ class BehaviorTree:
             return BehaviorTree.NodeState.RUNNING
     
     # --------------------------------------------------------
-    #region WaitForTimeNode
+    #region SuccessNode
     # --------------------------------------------------------
     class SuccessNode(Node):
         """
-        A leaf node that always returns SUCCESS.
-        Useful as a fallback in Selector nodes.
-        """
+        SuccessNode:
+            - A simple leaf node that always returns SUCCESS.
+            - Useful as a fallback or default branch inside Selector or Choice nodes.
+            - Has no children and performs no action.
+    """
 
         def __init__(self, name: str = "Success"):
             super().__init__(
@@ -1001,10 +1329,16 @@ class BehaviorTree:
         def _tick_impl(self) -> BehaviorTree.NodeState:
             return BehaviorTree.NodeState.SUCCESS
         
+    # --------------------------------------------------------
+    #region FailureNode
+    # --------------------------------------------------------
+        
     class FailureNode(Node):
         """
-        A leaf node that always returns FAILURE.
-        Useful for forcing failure in certain BT paths.
+        FailureNode:
+            - A simple leaf node that always returns FAILURE.
+            - Useful for explicitly forcing a failure branch inside Selector or Choice nodes.
+            - Has no children and performs no action.
         """
 
         def __init__(self, name: str = "Failure"):
@@ -1025,19 +1359,22 @@ class BehaviorTree:
     # --------------------------------------------------------
     #region BehaviorTree Class
     # --------------------------------------------------------
+    """
+    BehaviorTree:
+        - Wraps a root node and manages blackboard propagation.
+        - Provides a single `tick()` entry point for running the whole tree.
+        - Owns a shared blackboard dictionary accessible by all nodes.
+        - Includes optional helpers for printing/drawing the structure.
+    """
 
     def __init__(self, root: Node):
-        """
-        A BehaviorTree is just a root node plus helpers
-        for ticking and drawing the whole tree.
-        """
         self.root: BehaviorTree.Node = root
         self.blackboard = {} # Shared data storage for the tree
         
     def _propagate_blackboard(self, node: "BehaviorTree.Node"):
         """
-        Assign this tree's blackboard to the given node and all its children.
-        This ensures every node can read/write self.blackboard.
+        Assigns this tree’s blackboard to `node` and all its descendants.
+        Ensures every node reads/writes the same shared dictionary.
         """
         node.blackboard = self.blackboard
         for child in node.get_children():
@@ -1045,7 +1382,7 @@ class BehaviorTree:
 
     def tick(self) -> BehaviorTree.NodeState:
         """
-        Tick the root node once and return its BehaviorTree.NodeState.
+        Ticks the root node once and returns its resulting NodeState.
         """
         self._propagate_blackboard(self.root)
         return self.root.tick()
@@ -1053,7 +1390,7 @@ class BehaviorTree:
     # -------- tree-level debug helpers --------
     def print(self) -> None:
         """
-        Print a text-based representation of the whole tree.
+        Prints a plain-text representation of the behavior tree.
         """
         lines = self.root.print()
         for L in lines:
@@ -1061,7 +1398,7 @@ class BehaviorTree:
 
     def draw(self, indent: int = 0) -> None:
         """
-        Draw the whole tree using PyImGui.
+        Draws the behavior tree using PyImGui for debugging or visualization.
         """
         self.root.draw(indent=indent)
         

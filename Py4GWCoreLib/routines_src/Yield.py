@@ -76,6 +76,18 @@ class Yield:
             """
             tree = BT.Player.InteractTarget(log=log)
             yield from _run_bt_tree(tree , throttle_ms=100)
+            
+        @staticmethod
+        def ChangeTarget(agent_id:int, log:bool=False):
+            """
+            Purpose: Change the player's target to the specified agent ID.
+            Args:
+                agent_id (int): The ID of the agent to target.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.ChangeTarget(agent_id, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=250)
 
         @staticmethod
         def SendDialog(dialog_id:str, log:bool=False):
@@ -350,6 +362,199 @@ class Yield:
             tree = BT.Map.WaitforMapLoad(map_id, log, timeout, map_name)
             result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=500)
             return result
+        
+#region Movement
+    class Movement:
+        @staticmethod
+        def StopMovement(log=False):
+            yield from Yield.Movement.WalkBackwards(125, log=log)
+
+        @staticmethod   
+        def WalkBackwards(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms, log=log)
+
+        @staticmethod
+        def WalkForwards(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms, log=log)
+        @staticmethod
+        def StrafeLeft(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms, log=log)
+
+        @staticmethod
+        def StrafeRight(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms, log=log)
+        @staticmethod
+        def TurnLeft(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms, log=log)
+
+        @staticmethod
+        def TurnRight(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms, log=log)
+        
+        #region FollowPath
+        @staticmethod
+        def FollowPath(
+            path_points: List[Tuple[float, float]],
+            custom_exit_condition: Callable[[], bool] = lambda: False,
+            tolerance: float = 150,
+            log: bool = False,
+            timeout: int = -1,
+            progress_callback: Optional[Callable[[float], None]] = None,
+            custom_pause_fn: Optional[Callable[[], bool]] = None,
+            stop_on_party_wipe: bool = True
+        ):
+            import random
+            from .Checks import Checks
+        
+            #log = True #force logging
+            detailed_log = False #always detailed log for now
+            
+            total_points = len(path_points)
+            retries = 0
+            max_retries = 30  # after this, send stuck command
+            stuck_count = 0
+            max_stuck_commands = 2  # after this, do PixelStack recovery
+
+            ConsoleLog("FollowPath", f"Starting path with {total_points} points.", Console.MessageType.Info, log=log)
+
+
+            for idx, (target_x, target_y) in enumerate(path_points):
+                start_time = Utils.GetBaseTimestamp()
+                
+                ConsoleLog("FollowPath", f"Starting point {idx+1}/{total_points} - ({target_x}, {target_y})", Console.MessageType.Info, log=detailed_log)
+
+
+                if not Checks.Map.MapValid():
+                    ConsoleLog("FollowPath", "Map invalid before starting point, aborting.", Console.MessageType.Error, log=log)
+            
+                    ActionQueueManager().ResetAllQueues()
+                    return False
+                
+                if stop_on_party_wipe and (
+                        Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
+                    ):
+                        ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True  )
+                        ActionQueueManager().ResetAllQueues()
+                        return False 
+
+                GLOBAL_CACHE.Player.Move(target_x, target_y)
+                ConsoleLog("FollowPath", f"Issued move command to ({target_x}, {target_y}).", Console.MessageType.Debug, log=detailed_log)
+        
+                yield from Yield.wait(250)
+
+                current_x, current_y = GLOBAL_CACHE.Player.GetXY()
+                previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
+
+                while True:
+                    ConsoleLog("FollowPath", "Movement loop iteration...", Console.MessageType.Debug, log=detailed_log)
+
+                    if not Checks.Map.MapValid():
+                        ConsoleLog("FollowPath", "Map became invalid mid-run, aborting movement.", Console.MessageType.Warning, log=log)
+                
+                        ActionQueueManager().ResetAllQueues()
+                        return False
+                    
+                    if stop_on_party_wipe and (
+                        Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
+                    ):
+                        ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True   )
+                        ActionQueueManager().ResetAllQueues()
+                        return False
+
+
+                    if custom_exit_condition():
+                        ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info, log=log)
+                        return False
+
+                    if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+                        ConsoleLog("FollowPath", "Player casting detected, waiting 750ms...", Console.MessageType.Debug, log=detailed_log)
+                
+                        yield from Yield.wait(750)
+                        continue
+                    
+                    if custom_pause_fn:
+                        while custom_pause_fn():
+                            if stop_on_party_wipe and (
+                                    Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
+                                ):
+                                    ConsoleLog("FollowPath", "Party wiped detected during pause, stopping all movement.", Console.MessageType.Warning, log=True)
+                                    ActionQueueManager().ResetAllQueues()
+                                    return False
+                            ConsoleLog("FollowPath", "Custom pause condition active, pausing movement...", Console.MessageType.Debug, log=log)
+                            start_time = Utils.GetBaseTimestamp()  # Reset timeout timer
+                            yield from Yield.wait(750)
+                    
+
+                    current_time = Utils.GetBaseTimestamp()
+                    delta = current_time - start_time
+                    if delta > timeout and timeout > 0:
+                        ConsoleLog("FollowPath", "Timeout reached, stopping movement.", Console.MessageType.Warning, log=log)
+                        return False
+
+                    current_x, current_y = GLOBAL_CACHE.Player.GetXY()
+                    current_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
+
+                    if not (current_distance < previous_distance):
+                        offset_x = random.uniform(-5, 5)
+                        offset_y = random.uniform(-5, 5)
+                        ConsoleLog("FollowPath", f"move to {target_x + offset_x}, {target_y + offset_y}", Console.MessageType.Info, log=log)
+                        if not Checks.Map.MapValid():
+                            ActionQueueManager().ResetAllQueues()
+                            return False
+                        GLOBAL_CACHE.Player.Move(target_x + offset_x, target_y + offset_y)
+                        retries += 1
+                        if retries >= max_retries:
+                            GLOBAL_CACHE.Player.SendChatCommand("stuck")
+                            ConsoleLog("FollowPath", "No progress made, sending /stuck command.", Console.MessageType.Warning, log=log)
+                    
+                            retries = 0
+                            stuck_count += 1
+
+                            # --- PixelStack recovery if too many stucks ---
+                            if stuck_count >= max_stuck_commands:
+                                ConsoleLog("FollowPath", "Too many stucks, performing strafe recovery.", Console.MessageType.Warning, log=log)
+                        
+                                start_x, start_y = GLOBAL_CACHE.Player.GetXY()
+
+                                # Backwards
+                                yield from Yield.Movement.WalkBackwards(1000)
+
+                                # Strafe left
+                                yield from Yield.Movement.StrafeLeft(1000)
+
+                                # Strafe right if no movement
+                                left_x, left_y = GLOBAL_CACHE.Player.GetXY()
+                                if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
+                                    yield from Yield.Movement.StrafeRight(1000)
+
+                                stuck_count = 0  # reset after recovery
+                    else:
+                        retries = 0  # reset retries if making progress
+                        stuck_count = 0  # reset stuck count if making progress
+                        ConsoleLog("FollowPath", "Progress detected, reset retry counters.", Console.MessageType.Debug, log=detailed_log)
+
+
+                    previous_distance = current_distance
+
+                    if current_distance <= tolerance:
+                        ConsoleLog("FollowPath", f"Reached target point {idx+1}/{total_points}.", Console.MessageType.Success, log=log)
+                        break
+                    else:
+                        ConsoleLog("FollowPath", f"Current distance to target: {current_distance}, waiting...", Console.MessageType.Debug, log=detailed_log)
+
+
+                    yield from Yield.wait(250)
+
+                #After reaching each point, report progress
+                if progress_callback:
+                    progress_callback((idx + 1) / total_points)
+                    ConsoleLog("FollowPath", f"Progress callback: {((idx + 1) / total_points) * 100:.1f}% done.", Console.MessageType.Debug, log=detailed_log)
+
+
+            ConsoleLog("FollowPath", "Path traversal completed successfully.", Console.MessageType.Success, log=log)
+            return True
+    
+
 
 #region Agents        
     class Agents:
@@ -360,44 +565,7 @@ class Yield:
             agent = tree.blackboard.get("result", 0)
             return agent
             
-            
-            agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
-            agent_names = {}
 
-            # Request all names
-            for agent_id in agent_ids:
-                GLOBAL_CACHE.Agent.RequestName(agent_id)
-
-            # Wait until all names are ready (with timeout safeguard)
-            timeout = 2.0  # seconds
-            poll_interval = 0.1
-            elapsed = 0.0
-
-            while elapsed < timeout:
-                all_ready = True
-                for agent_id in agent_ids:
-                    if not GLOBAL_CACHE.Agent.IsNameReady(agent_id):
-                        all_ready = False
-                        break  # no need to check further
-
-                if all_ready:
-                    break  # exit early, all names ready
-
-                yield from Yield.wait(int(poll_interval) * 1000)
-                elapsed += poll_interval
-
-            # Populate agent_names dictionary
-            for agent_id in agent_ids:
-                if GLOBAL_CACHE.Agent.IsNameReady(agent_id):
-                    agent_names[agent_id] = GLOBAL_CACHE.Agent.GetName(agent_id)
-
-            # Partial, case-insensitive match
-            search_lower = agent_name.lower()
-            for agent_id, name in agent_names.items():
-                if search_lower in name.lower():
-                    return agent_id
-
-            return 0  # Not found
 
         @staticmethod
         def GetAgentIDByModelID(model_id:int):
@@ -407,81 +575,127 @@ class Yield:
                 model_id (int): The model ID of the agent.
             Returns: int: The agent ID or 0 if not found.
             """
-            
-            agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
-            for agent_id in agent_ids:
-                if GLOBAL_CACHE.Agent.GetModelID(agent_id) == model_id:
-                    return agent_id
-            return 0
+            tree = BT.Agents.GetAgentIDByModelID(model_id)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+            agent = tree.blackboard.get("result", 0)
+            return agent
 
         @staticmethod
-        def ChangeTarget(agent_id):
-            if agent_id != 0: 
-                GLOBAL_CACHE.Player.ChangeTarget(agent_id)
-                yield from Yield.wait(250)   
+        def ChangeTarget(agent_id, log=False):
+            """
+            Purpose: Change the player's target to the specified agent ID.
+            Args:
+                agent_id (int): The ID of the agent to target.
+            Returns: None
+            """
+            yield from Yield.Player.ChangeTarget(agent_id, log=log)
                 
         @staticmethod
-        def InteractAgent(agent_id:int):
-            
-            if agent_id != 0:
-                GLOBAL_CACHE.Player.Interact(agent_id, False)
-                yield from Yield.wait(100) 
+        def InteractAgent(agent_id:int, log:bool=False):
+            """
+            Purpose: Interact with the specified agent.
+            Args:
+                agent_id (int): The ID of the agent to interact with.
+                log (bool) Optional: Whether to log the action. Default is False.
+            """
+            yield from Yield.Player.InteractAgent(agent_id, log=log)
             
         @staticmethod
-        def TargetAgentByName(agent_name:str):
-            agent_id =  yield from Yield.Agents.GetAgentIDByName(agent_name)
-            if agent_id != 0:
-                yield from Yield.Agents.ChangeTarget(agent_id)
+        def TargetAgentByName(agent_name:str, log:bool=False):
+            """
+            Purpose: Target an agent by name.
+            Args:
+                agent_name (str): The name of the agent to target.
+            Returns: None
+            """
+            tree = BT.Agents.TargetAgentByName(agent_name, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
 
         @staticmethod
-        def TargetNearestNPC(distance:float = 4500.0):
-            from .Agents import Agents
-            nearest_npc = Agents.GetNearestNPC(distance)
-            if nearest_npc != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_npc)
-
+        def TargetNearestNPC(distance:float = 4500.0, log:bool=False):
+            """
+            Purpose: Target the nearest NPC within a specified distance.
+            Args:
+                distance (float) Optional: The maximum distance to search for an NPC. Default is 4500.0.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestNPC(distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+            
         @staticmethod
-        def TargetNearestNPCXY(x,y,distance):
-            from .Agents import Agents
-            nearest_npc = Agents.GetNearestNPCXY(x,y, distance)
-            if nearest_npc != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_npc)
+        def TargetNearestNPCXY(x,y,distance, log:bool=False):
+            """
+            Purpose: Target the nearest NPC to specified coordinates within a certain distance.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                distance (float): The maximum distance to search for an NPC.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestNPCXY(x,y,distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
                 
         @staticmethod
-        def TargetNearestGadgetXY(x,y,distance):
-            from .Agents import Agents
-            nearest_gadget = Agents.GetNearestGadgetXY(x,y, distance)
-            if nearest_gadget != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_gadget)
-                
-        @staticmethod
-        def TargetNearestItemXY(x,y,distance):
-            from .Agents import Agents
-            nearest_item = Agents.GetNearestItemXY(x,y, distance)
-            if nearest_item != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_item)
+        def TargetNearestGadgetXY(x,y,distance, log:bool=False):
+            """
+            Purpose: Target the nearest gadget to specified coordinates within a certain distance.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                distance (float): The maximum distance to search for a gadget.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestGadgetXY(x,y,distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
 
         @staticmethod
-        def TargetNearestEnemy(distance):
-            from .Agents import Agents
-            nearest_enemy = Agents.GetNearestEnemy(distance)
-            if nearest_enemy != 0: 
-                yield from Yield.Agents.ChangeTarget(nearest_enemy)
+        def TargetNearestItemXY(x,y,distance, log:bool=False):
+            """
+            Purpose: Target the nearest item to specified coordinates within a certain distance.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                distance (float): The maximum distance to search for an item.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestItemXY(x,y,distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
+        @staticmethod
+        def TargetNearestEnemy(distance, log:bool=False):
+            """
+            Purpose: Target the nearest enemy within a specified distance.
+            Args:
+                distance (float): The maximum distance to search for an enemy.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestEnemy(distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
         
         @staticmethod
-        def TargetNearestItem(distance):
-            from .Agents import Agents
-            nearest_item = Agents.GetNearestItem(distance)
-            if nearest_item != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_item)
+        def TargetNearestItem(distance, log:bool=False):
+            """
+            Purpose: Target the nearest item within a specified distance.
+            Args:
+                distance (float): The maximum distance to search for an item.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestItem(distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
                 
         @staticmethod
-        def TargetNearestChest(distance):
-            from .Agents import Agents
-            nearest_chest = Agents.GetNearestChest(distance)
-            if nearest_chest != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_chest)
-                
+        def TargetNearestChest(distance, log:bool=False):
+            """
+            Purpose: Target the nearest chest within a specified distance.
+            Args:
+                distance (float): The maximum distance to search for a chest.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestChest(distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+            
         @staticmethod
         def InteractWithNearestChest():
             """Target and interact with chest and items."""
@@ -1189,201 +1403,7 @@ class Yield:
         def SpawnBonusItems():
             GLOBAL_CACHE.Player.SendChatCommand("bonus")
             yield from Yield.wait(250)
-                
-#region Movement
-    class Movement:
-        @staticmethod
-        def StopMovement():
-            yield from Yield.Movement.WalkBackwards(125)
-
-        @staticmethod   
-        def WalkBackwards(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms)
-
-        @staticmethod
-        def WalkForwards(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms)
-
-        @staticmethod
-        def StrafeLeft(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms)
-
-        @staticmethod
-        def StrafeRight(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms)
-
-        @staticmethod
-        def TurnLeft(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms)
-
-        @staticmethod
-        def TurnRight(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms)
-        
-        #region FollowPath
-        @staticmethod
-        def FollowPath(
-            path_points: List[Tuple[float, float]],
-            custom_exit_condition: Callable[[], bool] = lambda: False,
-            tolerance: float = 150,
-            log: bool = False,
-            timeout: int = -1,
-            progress_callback: Optional[Callable[[float], None]] = None,
-            custom_pause_fn: Optional[Callable[[], bool]] = None,
-            stop_on_party_wipe: bool = True
-        ):
-            import random
-            from .Checks import Checks
-        
-            #log = True #force logging
-            detailed_log = False #always detailed log for now
             
-            total_points = len(path_points)
-            retries = 0
-            max_retries = 30  # after this, send stuck command
-            stuck_count = 0
-            max_stuck_commands = 2  # after this, do PixelStack recovery
-
-            ConsoleLog("FollowPath", f"Starting path with {total_points} points.", Console.MessageType.Info, log=log)
-
-
-            for idx, (target_x, target_y) in enumerate(path_points):
-                start_time = Utils.GetBaseTimestamp()
-                
-                ConsoleLog("FollowPath", f"Starting point {idx+1}/{total_points} - ({target_x}, {target_y})", Console.MessageType.Info, log=detailed_log)
-
-
-                if not Checks.Map.MapValid():
-                    ConsoleLog("FollowPath", "Map invalid before starting point, aborting.", Console.MessageType.Error, log=log)
-            
-                    ActionQueueManager().ResetAllQueues()
-                    return False
-                
-                if stop_on_party_wipe and (
-                        Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
-                    ):
-                        ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True  )
-                        ActionQueueManager().ResetAllQueues()
-                        return False 
-
-                GLOBAL_CACHE.Player.Move(target_x, target_y)
-                ConsoleLog("FollowPath", f"Issued move command to ({target_x}, {target_y}).", Console.MessageType.Debug, log=detailed_log)
-        
-                yield from Yield.wait(250)
-
-                current_x, current_y = GLOBAL_CACHE.Player.GetXY()
-                previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
-
-                while True:
-                    ConsoleLog("FollowPath", "Movement loop iteration...", Console.MessageType.Debug, log=detailed_log)
-
-                    if not Checks.Map.MapValid():
-                        ConsoleLog("FollowPath", "Map became invalid mid-run, aborting movement.", Console.MessageType.Warning, log=log)
-                
-                        ActionQueueManager().ResetAllQueues()
-                        return False
-                    
-                    if stop_on_party_wipe and (
-                        Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
-                    ):
-                        ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True   )
-                        ActionQueueManager().ResetAllQueues()
-                        return False
-
-
-                    if custom_exit_condition():
-                        ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info, log=log)
-                        return False
-
-                    if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
-                        ConsoleLog("FollowPath", "Player casting detected, waiting 750ms...", Console.MessageType.Debug, log=detailed_log)
-                
-                        yield from Yield.wait(750)
-                        continue
-                    
-                    if custom_pause_fn:
-                        while custom_pause_fn():
-                            if stop_on_party_wipe and (
-                                    Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
-                                ):
-                                    ConsoleLog("FollowPath", "Party wiped detected during pause, stopping all movement.", Console.MessageType.Warning, log=True)
-                                    ActionQueueManager().ResetAllQueues()
-                                    return False
-                            ConsoleLog("FollowPath", "Custom pause condition active, pausing movement...", Console.MessageType.Debug, log=log)
-                            start_time = Utils.GetBaseTimestamp()  # Reset timeout timer
-                            yield from Yield.wait(750)
-                    
-
-                    current_time = Utils.GetBaseTimestamp()
-                    delta = current_time - start_time
-                    if delta > timeout and timeout > 0:
-                        ConsoleLog("FollowPath", "Timeout reached, stopping movement.", Console.MessageType.Warning, log=log)
-                        return False
-
-                    current_x, current_y = GLOBAL_CACHE.Player.GetXY()
-                    current_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
-
-                    if not (current_distance < previous_distance):
-                        offset_x = random.uniform(-5, 5)
-                        offset_y = random.uniform(-5, 5)
-                        ConsoleLog("FollowPath", f"move to {target_x + offset_x}, {target_y + offset_y}", Console.MessageType.Info, log=log)
-                        if not Checks.Map.MapValid():
-                            ActionQueueManager().ResetAllQueues()
-                            return False
-                        GLOBAL_CACHE.Player.Move(target_x + offset_x, target_y + offset_y)
-                        retries += 1
-                        if retries >= max_retries:
-                            GLOBAL_CACHE.Player.SendChatCommand("stuck")
-                            ConsoleLog("FollowPath", "No progress made, sending /stuck command.", Console.MessageType.Warning, log=log)
-                    
-                            retries = 0
-                            stuck_count += 1
-
-                            # --- PixelStack recovery if too many stucks ---
-                            if stuck_count >= max_stuck_commands:
-                                ConsoleLog("FollowPath", "Too many stucks, performing strafe recovery.", Console.MessageType.Warning, log=log)
-                        
-                                start_x, start_y = GLOBAL_CACHE.Player.GetXY()
-
-                                # Backwards
-                                yield from Yield.Movement.WalkBackwards(1000)
-
-                                # Strafe left
-                                yield from Yield.Movement.StrafeLeft(1000)
-
-                                # Strafe right if no movement
-                                left_x, left_y = GLOBAL_CACHE.Player.GetXY()
-                                if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
-                                    yield from Yield.Movement.StrafeRight(1000)
-
-                                stuck_count = 0  # reset after recovery
-                    else:
-                        retries = 0  # reset retries if making progress
-                        stuck_count = 0  # reset stuck count if making progress
-                        ConsoleLog("FollowPath", "Progress detected, reset retry counters.", Console.MessageType.Debug, log=detailed_log)
-
-
-                    previous_distance = current_distance
-
-                    if current_distance <= tolerance:
-                        ConsoleLog("FollowPath", f"Reached target point {idx+1}/{total_points}.", Console.MessageType.Success, log=log)
-                        break
-                    else:
-                        ConsoleLog("FollowPath", f"Current distance to target: {current_distance}, waiting...", Console.MessageType.Debug, log=detailed_log)
-
-
-                    yield from Yield.wait(250)
-
-                #After reaching each point, report progress
-                if progress_callback:
-                    progress_callback((idx + 1) / total_points)
-                    ConsoleLog("FollowPath", f"Progress callback: {((idx + 1) / total_points) * 100:.1f}% done.", Console.MessageType.Debug, log=detailed_log)
-
-
-            ConsoleLog("FollowPath", "Path traversal completed successfully.", Console.MessageType.Success, log=log)
-            return True
-    
-
 
 #region Upkeepers
     class Upkeepers:
@@ -1670,282 +1690,276 @@ class Yield:
 #region Keybinds
     class Keybinds:
         @staticmethod
-        def PressKeybind(keybind_index:int, duration_ms:int=125):
-            from ..UIManager import UIManager
-            UIManager.Keydown(keybind_index, 0)
-            yield from Yield.wait(duration_ms)
-            UIManager.Keyup(keybind_index, 0)
-            yield from Yield.wait(125)
-            
+        def PressKeybind(keybind_index:int, duration_ms:int=125, log=False):
+            tree = BT.Keybinds.PressKeybind(keybind_index, duration_ms, log)
+            yield from _run_bt_tree(tree)
+  
         @staticmethod
-        def TakeScreenshot():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Screenshot.value, 125)
+        def TakeScreenshot(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Screenshot.value, 75, log=log)
            
         #Panels
         @staticmethod
-        def CloseAllPanels():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CloseAllPanels.value, 125)
+        def CloseAllPanels(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CloseAllPanels.value, 75, log=log)
             
         @staticmethod
-        def ToggleInventory():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ToggleInventoryWindow.value, 125)
+        def ToggleInventory(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ToggleInventoryWindow.value, 75, log=log)
                 
         @staticmethod
-        def OpenScoreChart():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenScoreChart.value, 125)
+        def OpenScoreChart(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenScoreChart.value, 75, log=log)
             
         @staticmethod
-        def OpenTemplateManager():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenTemplateManager.value, 125)
+        def OpenTemplateManager(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenTemplateManager.value, 75, log=log)
             
         @staticmethod
-        def OpenSaveEquipmentTemplate():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSaveEquipmentTemplate.value, 125)
+        def OpenSaveEquipmentTemplate(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSaveEquipmentTemplate.value, 75, log=log)
             
         @staticmethod
-        def OpenSaveSkillTemplate():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSaveSkillTemplate.value, 125)
+        def OpenSaveSkillTemplate(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSaveSkillTemplate.value, 75, log=log)
             
         @staticmethod
-        def OpenParty():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenParty.value, 125)
+        def OpenParty(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenParty.value, 75, log=log)
             
         @staticmethod
-        def OpenGuild():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenGuild.value, 125)
+        def OpenGuild(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenGuild.value, 75, log=log)
             
         @staticmethod
-        def OpenFriends():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenFriends.value, 125)
+        def OpenFriends(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenFriends.value, 75, log=log)
             
         @staticmethod
-        def ToggleAllBags():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ToggleAllBags.value, 125)
+        def ToggleAllBags(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ToggleAllBags.value, 75, log=log)
             
         @staticmethod
-        def OpenMissionMap():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenMissionMap.value, 125)
+        def OpenMissionMap(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenMissionMap.value, 75, log=log)
             
         @staticmethod
-        def OpenBag2():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBag2.value, 125)
+        def OpenBag2(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBag2.value, 75, log=log)
             
         @staticmethod
-        def OpenBag1():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBag1.value, 125)
+        def OpenBag1(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBag1.value, 75, log=log)
             
         @staticmethod
-        def OpenBelt():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBelt.value, 125)
+        def OpenBelt(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBelt.value, 75, log=log)
             
         @staticmethod
-        def OpenBackpack():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBackpack.value, 125)
+        def OpenBackpack(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBackpack.value, 75, log=log)
             
         @staticmethod
-        def OpenSkillsAndAttributes():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSkillsAndAttributes.value, 125)
+        def OpenSkillsAndAttributes(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSkillsAndAttributes.value, 75, log=log)
             
         @staticmethod
-        def OpenQuestLog():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenQuestLog.value, 125)
+        def OpenQuestLog(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenQuestLog.value, 75, log=log)
             
         @staticmethod
-        def OpenWorldMap():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenWorldMap.value, 125)
+        def OpenWorldMap(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenWorldMap.value, 75, log=log)
             
         @staticmethod
-        def OpenHeroPanel():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero.value, 125)    
-
+        def OpenHeroPanel(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero.value, 75, log=log)    
         #weapon sets
         @staticmethod
-        def CycleEquipment():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CycleEquipment, 125)
+        def CycleEquipment(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CycleEquipment, 75, log=log)
             
         @staticmethod
-        def ActivateWeaponSet(index:int):
+        def ActivateWeaponSet(index:int, log=False):
             if index < 1 or index > 4:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ActivateWeaponSet1.value + (index - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ActivateWeaponSet1.value + (index - 1), 75, log=log)
 
         @staticmethod
-        def DropBundle():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_DropItem, 125)
+        def DropBundle(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_DropItem, 75, log=log)
             
         @staticmethod
-        def OpenChat():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenChat, 125)
+        def OpenChat(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenChat, 75, log=log)
             
         @staticmethod
-        def ReplyToChat():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ChatReply, 125)
+        def ReplyToChat(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ChatReply, 75, log=log)
             
         @staticmethod
-        def OpenAlliance():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenAlliance, 125)
+        def OpenAlliance(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenAlliance, 75, log=log)
             
         #movement 
         @staticmethod   
-        def MoveBackwards(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms)
+        def MoveBackwards(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms, log=log)
 
         @staticmethod
-        def MoveForwards(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms)
+        def MoveForwards(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms, log=log)
 
         @staticmethod
-        def StrafeLeft(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms)
+        def StrafeLeft(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms, log=log)
+        @staticmethod
+        def StrafeRight(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms, log=log)
 
         @staticmethod
-        def StrafeRight(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms)
-
+        def TurnLeft(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms, log=log)
         @staticmethod
-        def TurnLeft(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms)
-
-        @staticmethod
-        def TurnRight(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms)
+        def TurnRight(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms, log=log)
             
         @staticmethod
-        def ReverseCamera():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ReverseCamera.value, 125)
+        def ReverseCamera(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ReverseCamera.value, 75, log=log)
             
         @staticmethod
-        def CancelAction():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CancelAction.value, 125)
+        def CancelAction(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CancelAction.value, 75, log=log)
             
         @staticmethod
-        def Interact():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Interact.value, 125)
+        def Interact(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Interact.value, 75, log=log)
             
         @staticmethod
-        def ReverseDirection():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ReverseDirection.value, 125)
+        def ReverseDirection(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ReverseDirection.value, 75, log=log)
             
         @staticmethod
-        def AutoRun():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Autorun.value, 125)
+        def AutoRun(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Autorun.value, 75, log=log)
             
         @staticmethod
-        def Follow():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Follow.value, 125)
+        def Follow(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Follow.value, 75, log=log)
             
         #targeting     
         @staticmethod
-        def TargetPartyMember(index:int):
+        def TargetPartyMember(index:int, log=False):
             if index < 1 or index > 12:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMember1.value + (index - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMember1.value + (index - 1), 75, log=log)
         
         @staticmethod
-        def TargetNearestItem():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNearestItem.value, 125)
+        def TargetNearestItem(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNearestItem.value, 75, log=log)
             
         @staticmethod
-        def TargetNextItem():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNextItem.value, 125)
+        def TargetNextItem(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNextItem.value, 75, log=log)
             
         @staticmethod
-        def TargetPreviousItem():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPreviousItem.value, 125)
+        def TargetPreviousItem(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPreviousItem.value, 75, log=log)
             
         @staticmethod
-        def TargetPartyMemberNext():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMemberNext.value, 125)
+        def TargetPartyMemberNext(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMemberNext.value, 75, log=log)
             
         @staticmethod
-        def TargetPartyMemberPrevious():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMemberPrevious.value, 125)
+        def TargetPartyMemberPrevious(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMemberPrevious.value, 75, log=log)
             
         @staticmethod
-        def TargetAllyNearest():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetAllyNearest.value, 125)
+        def TargetAllyNearest(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetAllyNearest.value, 75, log=log)
             
         @staticmethod
-        def ClearTarget():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ClearTarget.value, 125)
+        def ClearTarget(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ClearTarget.value, 75, log=log)
             
         @staticmethod
-        def TargetSelf():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetSelf.value, 125)
+        def TargetSelf(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetSelf.value, 75, log=log)
             
         @staticmethod
-        def TargetPriorityTarget():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPriorityTarget.value, 125)
+        def TargetPriorityTarget(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPriorityTarget.value, 75, log=log)
             
         @staticmethod
-        def TargetNearestEnemy():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNearestEnemy.value, 125)
+        def TargetNearestEnemy(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNearestEnemy.value, 75, log=log)
             
         @staticmethod
-        def TargetNextEnemy():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNextEnemy.value, 125)
+        def TargetNextEnemy(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNextEnemy.value, 75, log=log)
             
         @staticmethod
-        def TargetPreviousEnemy():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPreviousEnemy.value, 125)
+        def TargetPreviousEnemy(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPreviousEnemy.value, 75, log=log)
             
         @staticmethod
-        def ShowOthers():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ShowOthers.value, 125)
+        def ShowOthers(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ShowOthers.value, 75, log=log)
             
         @staticmethod
-        def ShowTargets():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ShowTargets.value, 125)
+        def ShowTargets(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ShowTargets.value, 75, log=log)
             
         @staticmethod
-        def CameraZoomIn():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CameraZoomIn.value, 125)
+        def CameraZoomIn(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CameraZoomIn.value, 75, log=log)
             
         @staticmethod
-        def CameraZoomOut():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CameraZoomOut.value, 125)
+        def CameraZoomOut(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CameraZoomOut.value, 75, log=log)
             
         # Party / Hero commands
         @staticmethod
-        def ClearPartyCommands():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ClearPartyCommands.value, 125)
+        def ClearPartyCommands(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ClearPartyCommands.value, 75, log=log)
             
         @staticmethod
-        def CommandParty():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CommandParty.value, 125)
+        def CommandParty(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CommandParty.value, 75, log=log)
             
         @staticmethod
-        def CommandHero(hero_index:int):
+        def CommandHero(hero_index:int, log=False):
             if hero_index < 1 or hero_index > 7:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CommandHero1.value + (hero_index - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CommandHero1.value + (hero_index - 1), 75, log=log)
         
             
         @staticmethod
-        def OpenHeroPetCommander(hero_index:int):
+        def OpenHeroPetCommander(hero_index:int, log=False):
             if hero_index < 1 or hero_index > 7:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero1PetCommander.value + (hero_index - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero1PetCommander.value + (hero_index - 1), 75, log=log)
 
         @staticmethod
-        def OpenHeroCommander(hero_index:int):
+        def OpenHeroCommander(hero_index:int, log=False):
             if hero_index < 1 or hero_index > 7:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHeroCommander1.value + (hero_index - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHeroCommander1.value + (hero_index - 1), 75, log=log)
             
         @staticmethod
-        def HeroSkill(hero_index:int, skill_slot:int):
+        def HeroSkill(hero_index:int, skill_slot:int, log=False):
             if hero_index < 1 or hero_index > 4:
                 return
             if skill_slot < 1 or skill_slot > 8:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Hero1Skill1.value + (hero_index - 1) * 8 + (skill_slot - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Hero1Skill1.value + (hero_index - 1) * 8 + (skill_slot - 1), 75, log=log)
             
         @staticmethod
-        def UseSkill(slot:int):
+        def UseSkill(slot:int, log=False):
             if slot < 1 or slot > 8:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_UseSkill1.value + (slot - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_UseSkill1.value + (slot - 1), 75, log=log)
 
 #region Character Reroll
     class RerollCharacter:
