@@ -14,6 +14,24 @@ class _PARTY:
     def LeaveParty(self):
         self._helpers.Party.leave_party()
 
+    def FlagHero(self, hero_index: int, x: float, y: float):
+        """
+        Flag a specific hero to a location by hero index.
+        Args:
+            hero_index (int): The 0-based index of the hero in the party (0 = first hero, 1 = second hero, etc.)
+            x (float): The X coordinate
+            y (float): The Y coordinate
+        """
+        self._helpers.Party.flag_hero(hero_index, x, y)
+
+    def UnflagHero(self, hero_index: int):
+        """
+        Unflag a specific hero by hero index.
+        Args:
+            hero_index (int): The 0-based index of the hero in the party (0 = first hero, 1 = second hero, etc.)
+        """
+        self._helpers.Party.unflag_hero(hero_index)
+
     def FlagAllHeroes(self, x: float, y: float):
         self._helpers.Party.flag_all_heroes(x, y)
 
