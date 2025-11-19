@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import List, Tuple, Generator, Any
+import PyImGui
 import os
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
@@ -1125,28 +1126,7 @@ def UnlockMercenaryHeroes(bot: Botting) -> None:
     bot.Move.XY(-4231.87, -8965.95)
     bot.Dialogs.WithModel(225, 0x800004) # Unlock Mercenary Heroes
     
-#region Events
-def _on_death(bot: "Botting"):
-    slot = 8 # slot 8 is the default "revive" skill
-    while True:
-        if not GLOBAL_CACHE.Map.GetMapID() == 703: # only use in killroy
-            break
-        
-        if not GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-            break
-        
-        energy = GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
-        while energy < 1.0:
-            yield from Routines.Yield.Skills.CastSkillSlot(slot, aftercast_delay=20)
-            energy = GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
-
-        if energy >= 1.0:
-            break
-            
-    
-def OnDeath(bot: "Botting"):
-    bot.States.AddManagedCoroutine("OnDeath_OPD", lambda: _on_death(bot))
-    
+#region event handlers
 
 def on_party_wipe_coroutine(bot: "Botting", target_name: str):
     # optional but typical for wipe flow:
@@ -1157,6 +1137,34 @@ def on_party_wipe_coroutine(bot: "Botting", target_name: str):
     fsm.jump_to_state_by_name(target_name)  # jump while still paused
     fsm.resume()                            # <— important: unpause so next tick runs the target state
     yield                                    # keep coroutine semantics
+
+
+class WaypointData:
+    def __init__(self, label: str, MapID: int,step_name: str):
+        self.step_name = step_name
+        self.MapID = MapID
+        self.label = label
+        
+WAYPOINTS: dict[int, WaypointData] = {
+    # step_name: WaypointData(step_name, MapID, step_num, label, description)
+    19: WaypointData(label="Unlock Secondary Mission", MapID=242, step_name="[H]Unlock Secondary Profession_3"),
+    27: WaypointData(label="Unlock Xunlai Storage", MapID=242, step_name="[H]Unlock Xunlai Storage_4"),
+    32: WaypointData(label="Capture Pet", MapID=242, step_name="[H]Capture Pet_5"),
+    67: WaypointData(label="Enter Minister Cho Mission", MapID=214, step_name="[H]Enter Minister Cho Mission_10"),
+    103: WaypointData(label="First Attribute Mission", MapID=251, step_name="[H]Attibute Point Quest 1_12"),
+    130: WaypointData(label="Warning the Tengu Quest", MapID=251, step_name="[H]Take 'Warning the Tengu' Quest_13"),
+    203: WaypointData(label="The Threat Grows", MapID=249, step_name="[H]Exit to Panjiang Peninsula_17"),
+    249: WaypointData(label="Traverse Shaoshang Trail", MapID=242, step_name="[H]Exit To Courtyard_19"),
+    271: WaypointData(label="Take reward and Craft Armor", MapID=250, step_name="[H]Take Reward And Craft Armor_22"),
+    298: WaypointData(label="Go to Zen Daijun", MapID=250, step_name="[H]Go To Zen Daijun_23"),
+    303: WaypointData(label="Enter Zen Daijun Mission", MapID=213, step_name="[H]Enter Zen Daijun Mission_24"),
+    348: WaypointData(label="Second Attribute Mission", MapID=250, step_name="[H]Attribute Point Quest 2_27"),
+    465: WaypointData(label="Advance to Marketplace", MapID=250, step_name="[H]Advance To Marketplace_28"),
+    472: WaypointData(label="Advance to Kaineng Center", MapID=303, step_name="[H]Advance To Kaineng Center_29"),
+    494: WaypointData(label="Advance to LA", MapID=303, step_name="[H]Advance To Lion's Arch_30"),
+    505: WaypointData(label="Advance to Kamadan", MapID=303, step_name="[H]Advance To Kamadan_31"),
+    550: WaypointData(label="Advance to Consulate Docks", MapID=303, step_name="[H]Advance To Consulate Docks_32"),
+}
 
 
 def on_party_wipe(bot: "Botting"):
@@ -1172,52 +1180,30 @@ def on_party_wipe(bot: "Botting"):
     fsm = bot.config.FSM
     current_step = fsm.get_current_state_number()
 
-    # Your distinct waypoints (as given)
-    ENTER_MINISTER_CHO_MISSION = 100
-    FIRST_ATTRIBUTE_MISSION = 148
-    TAKE_WARNING_THE_TENGU_QUEST = 189
-    EXIT_TO_PANJIANG_PENINSULA = 286
-    ADVANCE_SHAOSHANG_TRAIL = 357
-    RESTART_FROM_SEITUNG_HARBOR = 422
-    ENTER_ZEN_DAIJUN_MISSION = 433
-    SECOND_ATTRIBUTE_MISSION = 494
-    ADVANCE_TO_KAINENG_CENTER = 735
-    ADVANCE_TO_LA =768
-    ADVANCE_TO_KAMADAN = 814
-    
-    ADVANCE_TO_EOTN = 901
-    EXIT_BOREAL_STATION = 727
-    UNLOCK_KILLROY = 1133
 
-    waypoints = [
-        ENTER_MINISTER_CHO_MISSION,
-        FIRST_ATTRIBUTE_MISSION,
-        TAKE_WARNING_THE_TENGU_QUEST,
-        EXIT_TO_PANJIANG_PENINSULA,
-        ADVANCE_SHAOSHANG_TRAIL,
-        RESTART_FROM_SEITUNG_HARBOR,
-        ENTER_ZEN_DAIJUN_MISSION,
-        SECOND_ATTRIBUTE_MISSION,
-        ADVANCE_TO_KAINENG_CENTER,
-        ADVANCE_TO_LA,
-        ADVANCE_TO_KAMADAN,
-        ADVANCE_TO_EOTN,
-        EXIT_BOREAL_STATION,
-        UNLOCK_KILLROY
-    ]
+    # --- 1) Find all waypoint step numbers <= current ---
+    lower_or_equal_steps = [step for step in WAYPOINTS.keys() if step <= current_step]
 
-    # nearest <= current; if none, bail (or pick the first—your call)
-    lower_or_equal = [w for w in waypoints if w <= current_step]
-    if not lower_or_equal:
-        return   # or: target_step = waypoints[0] to always jump somewhere
+    if not lower_or_equal_steps:
+        return  # Nothing to jump to
 
-    target_step = max(lower_or_equal)
+    # --- 2) Pick the nearest lower step ---
+    target_step = max(lower_or_equal_steps)
+
+    # --- 3) Convert step number → FSM state name ---
     target_name = fsm.get_state_name_by_number(target_step)
     if not target_name:
-        return 
+        # The waypoint exists, but the FSM doesn’t have a state for it
+        return
 
+    # --- 4) Perform jump using your existing coroutine system ---
     fsm.pause()
-    fsm.AddManagedCoroutine(f"{fsm.get_state_name_by_number(current_step)}_OPD", on_party_wipe_coroutine(bot, target_name))
+    fsm.AddManagedCoroutine(
+        f"{fsm.get_state_name_by_number(current_step)}_OPD",
+        on_party_wipe_coroutine(bot, target_name)
+    )
+
+    return True
 
 
 #region MAIN
@@ -1324,10 +1310,40 @@ def configure():
     
 def main():
     global bot
-
+    main_child_dimensions: Tuple[int, int] = (350, 275)
     try:
         bot.Update()
         bot.UI.draw_window()
+        if PyImGui.begin(bot.config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
+            if PyImGui.begin_tab_bar(bot.config.bot_name + "_tabs"):
+                if PyImGui.begin_tab_item("Main"):
+                    PyImGui.dummy(*main_child_dimensions)
+                    if PyImGui.collapsing_header("Direct Navigation"):
+                        for step_num, waypoint in WAYPOINTS.items():
+
+                            map_name = GLOBAL_CACHE.Map.GetMapName(waypoint.MapID)
+
+                            # Tree node: visible label is waypoint.label, ID is unique
+                            if PyImGui.tree_node(f"{waypoint.label}##wp_{step_num}"):
+
+                                # Travel button
+                                if PyImGui.button(f"Travel##travel_{step_num}"):
+                                    GLOBAL_CACHE.Map.Travel(waypoint.MapID)
+
+                                PyImGui.same_line(0,-1)
+
+                                # Jump to FSM step button
+                                if PyImGui.button(f"Go to Step##step_{step_num}"):
+               
+                                    bot.config.fsm_running = True
+                                    bot.config.FSM.reset()
+                                    bot.config.FSM.jump_to_state_by_name(waypoint.step_name)
+
+                                PyImGui.tree_pop()
+                    PyImGui.end_tab_item()
+                PyImGui.end_tab_bar()
+        PyImGui.end()
+        
 
     except Exception as e:
         Py4GW.Console.Log(bot.config.bot_name, f"Error: {str(e)}", Py4GW.Console.MessageType.Error)
