@@ -63,6 +63,24 @@ class _Party:
         GLOBAL_CACHE.Party.Players.KickPlayer(player_name)
         yield from Routines.Yield.wait(250)
 
+    @_yield_step(label="FlagHero", counter_key="FLAG_HERO")
+    def flag_hero(self, hero_index, x, y):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        # Convert hero_index to agent_id to ensure we only flag heroes
+        agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(hero_index)
+        if agent_id:
+            GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
+        yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="UnflagHero", counter_key="UNFLAG_HERO")
+    def unflag_hero(self, hero_index):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        # UnflagHero takes hero_index directly, not agent_id
+        GLOBAL_CACHE.Party.Heroes.UnflagHero(hero_index)
+        yield from Routines.Yield.wait(500)
+
     @_yield_step(label="FlagAllHeroes", counter_key="FLAG_ALL_HEROES")
     def flag_all_heroes(self, x, y):
         from ...GlobalCache import GLOBAL_CACHE
@@ -74,6 +92,11 @@ class _Party:
     def unflag_all_heroes(self):
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
+        # Unflag each hero individually to ensure heroes flagged with FlagHero are also unflagged
+        hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+        for i in range(hero_count):
+            GLOBAL_CACHE.Party.Heroes.UnflagHero(i)
+        # Also call UnflagAllHeroes to clear the "all heroes" flag
         GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
         yield from Routines.Yield.wait(500)
 
