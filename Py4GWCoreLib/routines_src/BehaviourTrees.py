@@ -1,7 +1,10 @@
 
+from Py4GWCoreLib.routines_src.Agents import Agents
 from ..GlobalCache import GLOBAL_CACHE
 from ..Py4GWcorelib import ConsoleLog, Console
 from ..enums_src.Title_enums import TITLE_NAME
+from ..UIManager import UIManager
+from ..enums_src.UI_enums import ControlAction
 
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from enum import Enum, auto
@@ -74,7 +77,25 @@ class BT:
 
             return BehaviorTree(tree)
 
-
+        @staticmethod
+        def ChangeTarget(agent_id, log:bool=False):
+            """
+            Purpose: Change the player's target to the specified agent ID.
+            Args:
+                agent_id (int): The ID of the agent to target.
+            Returns: None
+            """
+            def _change_target():
+                if agent_id != 0:
+                    GLOBAL_CACHE.Player.ChangeTarget(agent_id)
+                    ConsoleLog("ChangeTarget", f"Changed target to agent {agent_id}.", Console.MessageType.Info, log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+                
+                ConsoleLog("ChangeTarget", "Invalid agent ID provided for targeting.", Console.MessageType.Error, log=log)
+                return BehaviorTree.NodeState.FAILURE
+            
+            tree = BehaviorTree.ActionNode(name="ChangeTarget", action_fn=lambda: _change_target(), aftercast_ms=250)
+            return BehaviorTree(tree)
         
         @staticmethod
         def SendDialog(dialog_id:str | int, log:bool=False):
@@ -557,3 +578,297 @@ class BT:
                 ]
             )
             return BehaviorTree(tree)
+        
+        @staticmethod
+        def GetAgentIDByModelID(model_id:int, log:bool=False) -> BehaviorTree:
+            """
+            Purpose: Get the agent ID by model ID.
+            Args:
+                model_id (int): The model ID of the agent.
+            Returns: int: The agent ID or 0 if not found.
+            """
+            def _search_model_id(node):
+                ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+                found = 0
+
+                for aid in ids:
+                    if GLOBAL_CACHE.Agent.GetModelID(aid) == model_id:
+                        found = aid
+                        break
+
+                node.blackboard["result"] = found
+                if found != 0:
+                    ConsoleLog("GetAgentIDByModelID", f"Found agent ID {found} for model ID {model_id}.", Console.MessageType.Info, log=log)
+                    BehaviorTree.NodeState.SUCCESS
+                else:
+                    ConsoleLog("GetAgentIDByModelID", f"No agent found for model ID {model_id}.", Console.MessageType.Warning, log=log) 
+                    BehaviorTree.NodeState.FAILURE
+                
+                return (BehaviorTree.NodeState.SUCCESS
+                        if found != 0
+                        else BehaviorTree.NodeState.FAILURE)
+
+            tree = BehaviorTree.ActionNode(name="GetAgentIDByModelID",
+                action_fn=_search_model_id)
+            return BehaviorTree(tree)
+        
+        @staticmethod
+        def TargetAgentByName(agent_name:str, log:bool=False):
+            """
+            Purpose: Target an agent by name.
+            Args:
+                agent_name (str): The name of the agent to target.
+            Returns: None
+            """
+            tree = BehaviorTree.SequenceNode(name="TargetAgentByName",
+                children=[
+                    BehaviorTree.SubtreeNode(name="GetAgentIDByNameSubtree",
+                                             subtree_fn=lambda node: BT.Agents.GetAgentIDByName(agent_name)),
+                    BehaviorTree.SubtreeNode(name="ChangeTargetSubtree",
+                                             subtree_fn=lambda node: BT.Player.ChangeTarget(node.blackboard.get("result", 0),log=log))
+                ]
+            )
+            return BehaviorTree(tree)
+        
+        @staticmethod
+        def TargetNearestNPC(distance:float = 4500.0, log:bool=False):
+            """
+            Purpose: Target the nearest NPC within a specified distance.
+            Args:
+                distance (float) Optional: The maximum distance to search for an NPC. Default is 4500.0.
+            Returns: None
+            """
+            def _find_nearest_npc(node):
+                from .Agents import Agents
+                nearest_npc = Agents.GetNearestNPC(distance)
+                node.blackboard["nearest_npc_id"] = nearest_npc
+                if nearest_npc != 0:
+                    ConsoleLog("TargetNearestNPC", f"Found nearest NPC with ID {nearest_npc} within distance {distance}.", Console.MessageType.Info, log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+                ConsoleLog("TargetNearestNPC", f"No NPC found within distance {distance}.", Console.MessageType.Warning, log=log)
+                return BehaviorTree.NodeState.FAILURE
+
+            tree = BehaviorTree.SequenceNode(name="TargetNearestNPCRoot",
+                children=[
+                    BehaviorTree.ActionNode(name="FindNearestNPC", action_fn=_find_nearest_npc),
+                    BehaviorTree.SubtreeNode(name="ChangeTargetSubtree",
+                                             subtree_fn=lambda node: BT.Player.ChangeTarget(node.blackboard.get("nearest_npc_id", 0), log=log))
+                ]
+            )
+            return BehaviorTree(tree)
+        
+        @staticmethod
+        def TargetNearestNPCXY(x,y,distance, log:bool=False):
+            """
+            Purpose: Target the nearest NPC to specified coordinates within a certain distance.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                distance (float): The maximum distance to search for an NPC.
+            Returns: None
+            """
+            def _find_nearest_npc_xy(node):
+                from .Agents import Agents
+                nearest_npc = Agents.GetNearestNPCXY(x,y,distance)
+                node.blackboard["nearest_npc_id"] = nearest_npc
+                if nearest_npc != 0:
+                    ConsoleLog("TargetNearestNPCXY", f"Found nearest NPC with ID {nearest_npc} near ({x}, {y}) within distance {distance}.", Console.MessageType.Info, log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+                ConsoleLog("TargetNearestNPCXY", f"No NPC found near ({x}, {y}) within distance {distance}.", Console.MessageType.Warning, log=log)
+                return BehaviorTree.NodeState.FAILURE
+
+            tree = BehaviorTree.SequenceNode(name="TargetNearestNPCXYRoot",
+                children=[
+                    BehaviorTree.ActionNode(name="FindNearestNPCXY", action_fn=_find_nearest_npc_xy),
+                    BehaviorTree.SubtreeNode(name="ChangeTargetSubtree",
+                                             subtree_fn=lambda node: BT.Player.ChangeTarget(node.blackboard.get("nearest_npc_id", 0), log=log))
+                ]
+            )
+            return BehaviorTree(tree)
+        
+        @staticmethod
+        def TargetNearestGadgetXY(x,y,distance, log:bool=False):
+            """
+            Purpose: Target the nearest gadget to specified coordinates within a certain distance.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                distance (float): The maximum distance to search for a gadget.
+            Returns: None
+            """
+            def _find_nearest_gadget_xy(node):
+                from .Agents import Agents
+                nearest_gadget = Agents.GetNearestGadgetXY(x,y, distance)
+                node.blackboard["nearest_gadget_id"] = nearest_gadget
+                if nearest_gadget != 0:
+                    ConsoleLog("TargetNearestGadgetXY", f"Found nearest gadget with ID {nearest_gadget} near ({x}, {y}) within distance {distance}.", Console.MessageType.Info, log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+                ConsoleLog("TargetNearestGadgetXY", f"No gadget found near ({x}, {y}) within distance {distance}.", Console.MessageType.Warning, log=log)
+                return BehaviorTree.NodeState.FAILURE
+
+            tree = BehaviorTree.SequenceNode(name="TargetNearestGadgetXYRoot",
+                children=[
+                    BehaviorTree.ActionNode(name="FindNearestGadgetXY", action_fn=_find_nearest_gadget_xy),
+                    BehaviorTree.SubtreeNode(name="ChangeTargetSubtree",
+                                             subtree_fn=lambda node: BT.Player.ChangeTarget(node.blackboard.get("nearest_gadget_id", 0), log=log))
+                ]
+            )
+            return BehaviorTree(tree)
+        
+        @staticmethod
+        def TargetNearestItemXY(x,y,distance, log:bool=False):
+            """
+            Purpose: Target the nearest item to specified coordinates within a certain distance.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                distance (float): The maximum distance to search for an item.
+            Returns: None
+            """
+            def _find_nearest_item_xy(node):
+                from .Agents import Agents
+                nearest_item = Agents.GetNearestItemXY(x,y, distance)
+                node.blackboard["nearest_item_id"] = nearest_item
+                if nearest_item != 0:
+                    ConsoleLog("TargetNearestItemXY", f"Found nearest item with ID {nearest_item} near ({x}, {y}) within distance {distance}.", Console.MessageType.Info, log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+                ConsoleLog("TargetNearestItemXY", f"No item found near ({x}, {y}) within distance {distance}.", Console.MessageType.Warning, log=log)
+                return BehaviorTree.NodeState.FAILURE
+
+            tree = BehaviorTree.SequenceNode(name="TargetNearestItemXYRoot",
+                children=[
+                    BehaviorTree.ActionNode(name="FindNearestItemXY", action_fn=_find_nearest_item_xy),
+                    BehaviorTree.SubtreeNode(name="ChangeTargetSubtree",
+                                             subtree_fn=lambda node: BT.Player.ChangeTarget(node.blackboard.get("nearest_item_id", 0), log=log))
+                ]
+            )
+            return BehaviorTree(tree)
+        
+        @staticmethod
+        def TargetNearestEnemy(distance, log:bool=False):
+            """
+            Purpose: Target the nearest enemy within a specified distance.
+            Args:
+                distance (float): The maximum distance to search for an enemy.
+            Returns: None
+            """
+            def _find_nearest_enemy(node):
+                from .Agents import Agents
+                nearest_enemy = Agents.GetNearestEnemy(distance)
+                node.blackboard["nearest_enemy_id"] = nearest_enemy
+                if nearest_enemy != 0:
+                    ConsoleLog("TargetNearestEnemy", f"Found nearest enemy with ID {nearest_enemy} within distance {distance}.", Console.MessageType.Info, log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+                ConsoleLog("TargetNearestEnemy", f"No enemy found within distance {distance}.", Console.MessageType.Warning, log=log)
+                return BehaviorTree.NodeState.FAILURE
+
+            tree = BehaviorTree.SequenceNode(name="TargetNearestEnemyRoot",
+                children=[
+                    BehaviorTree.ActionNode(name="FindNearestEnemy", action_fn=_find_nearest_enemy),
+                    BehaviorTree.SubtreeNode(name="ChangeTargetSubtree",
+                                             subtree_fn=lambda node: BT.Player.ChangeTarget(node.blackboard.get("nearest_enemy_id", 0), log=log))
+                ]
+            )
+            return BehaviorTree(tree)
+        
+        @staticmethod
+        def TargetNearestItem(distance, log:bool=False):
+            """
+            Purpose: Target the nearest item within a specified distance.
+            Args:
+                distance (float): The maximum distance to search for an item.
+            Returns: None
+            """
+            def _find_nearest_item(node):
+                from .Agents import Agents
+                nearest_item = Agents.GetNearestItem(distance)
+                node.blackboard["nearest_item_id"] = nearest_item
+                if nearest_item != 0:
+                    ConsoleLog("TargetNearestItem", f"Found nearest item with ID {nearest_item} within distance {distance}.", Console.MessageType.Info, log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+                ConsoleLog("TargetNearestItem", f"No item found within distance {distance}.", Console.MessageType.Warning, log=log)
+                return BehaviorTree.NodeState.FAILURE
+
+            tree = BehaviorTree.SequenceNode(name="TargetNearestItemRoot",
+                children=[
+                    BehaviorTree.ActionNode(name="FindNearestItem", action_fn=_find_nearest_item),
+                    BehaviorTree.SubtreeNode(name="ChangeTargetSubtree",
+                                             subtree_fn=lambda node: BT.Player.ChangeTarget(node.blackboard.get("nearest_item_id", 0), log=log))
+                ]
+            )
+            return BehaviorTree(tree)
+        
+        @staticmethod
+        def TargetNearestChest(distance, log:bool=False):
+            """
+            Purpose: Target the nearest chest within a specified distance.
+            Args:
+                distance (float): The maximum distance to search for a chest.
+            Returns: None
+            """
+            def _find_nearest_chest(node):
+                from .Agents import Agents
+                nearest_chest = Agents.GetNearestChest(distance)
+                node.blackboard["nearest_chest_id"] = nearest_chest
+                if nearest_chest != 0:
+                    ConsoleLog("TargetNearestChest", f"Found nearest chest with ID {nearest_chest} within distance {distance}.", Console.MessageType.Info, log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+                ConsoleLog("TargetNearestChest", f"No chest found within distance {distance}.", Console.MessageType.Warning, log=log)
+                return BehaviorTree.NodeState.FAILURE
+
+            tree = BehaviorTree.SequenceNode(name="TargetNearestChestRoot",
+                children=[
+                    BehaviorTree.ActionNode(name="FindNearestChest", action_fn=_find_nearest_chest),
+                    BehaviorTree.SubtreeNode(name="ChangeTargetSubtree",
+                                             subtree_fn=lambda node: BT.Player.ChangeTarget(node.blackboard.get("nearest_chest_id", 0), log=log))
+                ]
+            )
+            return BehaviorTree(tree)
+        
+        
+        
+#region Keybinds
+    class Keybinds:
+        @staticmethod
+        def PressKeybind(keybind_index:int, duration_ms:int=125, log:bool=False):
+            """
+            Purpose: Press a keybind for a specified duration using a Behavior Tree.
+            Args:
+                keybind_index (int): The index of the keybind to press.
+                duration_ms (int) Optional: The duration in milliseconds to hold the keybind. Default is 125ms.
+            Returns: A Behavior Tree that performs the keybind press.
+            """ 
+            def _keydown():
+                UIManager.Keydown(keybind_index,0)
+                return BehaviorTree.NodeState.SUCCESS
+            
+            def _keyup():
+                UIManager.Keyup(keybind_index,0)
+                return BehaviorTree.NodeState.SUCCESS
+            
+            def _log_action():
+                ConsoleLog("PressKeybind", f"Pressed keybind index {keybind_index} for {duration_ms}ms.", log=log)
+                return BehaviorTree.NodeState.SUCCESS
+            
+            tree = BehaviorTree.SequenceNode(
+                    children=[
+                        BehaviorTree.ActionNode(name="KeyDown", action_fn=_keydown, aftercast_ms=duration_ms),
+                        BehaviorTree.ActionNode(name="KeyUp", action_fn=_keyup, aftercast_ms=50 ),#duration_ms),
+                        BehaviorTree.ActionNode(name="LogAction", action_fn=_log_action)
+                    ]
+            )
+            bt = BehaviorTree(root=tree)
+            return bt
+        
+  
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
