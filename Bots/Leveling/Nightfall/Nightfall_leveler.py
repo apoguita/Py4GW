@@ -40,7 +40,7 @@ def create_bot_routine(bot: Botting) -> None:
     ConfigureAfterSecondProfession(bot)     # Configure bot after second profession
     
     # === PHASE 4: EQUIPMENT CRAFTING ===
-    if GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())[0] == "Paragon" or "Elementalist":
+    if GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())[0] in ["Paragon", "Elementalist"]:
         CraftNoHeadArmor(bot)                 # Craft No Head specific armor
     else:
         TakeArmorRewardAndCraft(bot)           # Take reward and craft armor
@@ -77,6 +77,9 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToTsumeiVillage(bot)
     AdvanceToMinisterCho(bot)                   # Advance to Minister Cho
     UnlockLionsArch(bot)                        # Unlock LA (Lion's Arch)
+    
+    # === PHASE 8: TEMPLE OF THE AGES ===
+    UnlockTempleOfAges(bot)                     # Unlock Temple of the Ages
 #region Helpers
 
 def ConfigurePacifistEnv(bot: Botting) -> None:
@@ -130,6 +133,27 @@ def AddHenchmenFC():
     else:
         henchmen_list.extend([2,3,5,6,7,9,10])
         
+    for henchman_id in henchmen_list:
+        yield from _add_henchman(henchman_id)
+
+def AddHenchmenLA():
+    def _add_henchman(henchman_id: int):
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(henchman_id)
+        ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
+        yield from Routines.Yield.wait(250)
+        
+    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+
+    henchmen_list = []
+    if party_size <= 4:
+        henchmen_list.extend([2, 3, 1]) 
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Lions Arch"):
+        henchmen_list.extend([7, 2, 5, 3, 1]) 
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Ascalon City"):
+        henchmen_list.extend([2, 3, 1])
+    else:
+        henchmen_list.extend([2,8,6,7,3,5,1])
+
     for henchman_id in henchmen_list:
         yield from _add_henchman(henchman_id)
 
@@ -1498,6 +1522,138 @@ def UnlockLionsArch(bot: Botting):
     bot.Move.XY(-1856.86, 1434.14)
     bot.Move.FollowPath([(-2144, 1450)])
     bot.Wait.ForMapLoad(target_map_id=55) #has built in wait time now
+
+def UnlockTempleOfAges(bot: Botting):
+    bot.States.AddHeader("Phase 8: Unlocking Temple of the Ages")
+    bot.Map.Travel(target_map_id=55)  # Lion's Arch
+    bot.Party.LeaveParty()
+    PrepareForBattle(bot)
+    bot.States.AddCustomState(AddHenchmenLA, "Add Henchmen")
+    
+    # Exit Lion's Arch towards D'Alessio Seaboard
+    bot.Move.XY(1219, 7222)
+    bot.Move.XY(1021, 10651)
+    bot.Move.XY(250, 12350)
+    bot.Wait.ForMapLoad(target_map_id=58)  # North Kryta Province
+    
+    # Path to D'Alessio Seaboard outpost
+    bot.Move.XY(5116.0, -17415.0)
+    bot.Move.XY(2346.0, -17307.0)
+    bot.Move.XY(757.0, -16768.0)
+    bot.Move.XY(-1521.0, -16726.0)
+    bot.Move.XY(-3246.0, -16407.0)
+    bot.Move.XY(-6042.0, -16126.0)
+    bot.Move.XY(-7706.0, -17248.0)
+    bot.Move.XY(-8910.0, -17561.0)
+    bot.Move.XY(-9893.0, -17625.0)
+    bot.Move.XY(-11325.0, -18358.0)
+    bot.Move.XY(-11553.0, -19246.0)
+    bot.Move.XY(-11600.0, -19500.0)
+    bot.Move.XY(-11708, -19957)
+    bot.Wait.ForMapLoad(target_map_id=15)  # D'Alessio Seaboard outpost
+    
+    # Exit D'Alessio Seaboard towards Bergen Hot Springs
+    bot.Move.XY(16000, 17080)
+    bot.Move.XY(16030, 17200)
+    bot.Wait.ForMapLoad(target_map_id=58)  # North Kryta Province
+    
+    # Path through North Kryta Province to Nebo Terrace
+    bot.Move.XY(-11453.0, -18065.0)
+    bot.Move.XY(-10991.0, -16776.0)
+    bot.Move.XY(-10791.0, -15737.0)
+    bot.Move.XY(-10130.0, -14138.0)
+    bot.Move.XY(-10106.0, -13005.0)
+    bot.Move.XY(-10558.0, -9708.0)
+    bot.Move.XY(-10319.0, -7888.0)
+    bot.Move.XY(-10798.0, -5941.0)
+    bot.Move.XY(-10958.0, -1009.0)
+    bot.Move.XY(-10572.0, 2332.0)
+    bot.Move.XY(-10784.0, 3710.0)
+    bot.Move.XY(-11125.0, 4650.0)
+    bot.Move.XY(-11690.0, 5496.0)
+    bot.Move.XY(-12931.0, 6726.0)
+    bot.Move.XY(-13340.0, 7971.0)
+    bot.Move.XY(-13932.0, 9091.0)
+    bot.Move.XY(-13937.0, 11521.0)
+    bot.Move.XY(-14639.0, 13496.0)
+    bot.Move.XY(-15090.0, 14734.0)
+    bot.Move.XY(-16653.0, 16226.0)
+    bot.Move.XY(-18944.0, 14799.0)
+    bot.Move.XY(-19468.0, 15449.0)
+    bot.Move.XY(-19550.0, 15625.0)
+    bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    
+    # Path through Nebo Terrace
+    bot.Move.XY(19271.0, 5207.0)
+    bot.Move.XY(18307.0, 5369.0)
+    bot.Move.XY(17704.0, 4786.0)
+    bot.Move.XY(17801.0, 2710.0)
+    bot.Move.XY(18221.0, 506.0)
+    bot.Move.XY(18133.0, -1406.0)
+    bot.Move.XY(16546.0, -4102.0)
+    bot.Move.XY(15434.0, -6217.0)
+    bot.Move.XY(14927.0, -8731.0)
+    bot.Move.XY(14297.0, -10366.0)
+    bot.Move.XY(14347.0, -12097.0)
+    bot.Move.XY(15373.0, -14769.0)
+    bot.Move.XY(15425.0, -15035.0)
+    bot.Wait.ForMapLoad(target_map_id=57)  # Bergen Hot Springs
+    
+    # Exit Bergen Hot Springs
+    bot.Move.XY(15521, -15378)
+    bot.Move.XY(15450, -15050)
+    bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    bot.Party.AddHenchmanList([5, 7])
+    bot.Move.XY(15378, -14794)
+    bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    
+    # Path through Nebo Terrace to Cursed Lands
+    bot.Move.XY(13276.0, -14317.0)
+    bot.Move.XY(10761.0, -14522.0)
+    bot.Move.XY(8660.0, -12109.0)
+    bot.Move.XY(6637.0, -9216.0)
+    bot.Move.XY(4995.0, -7951.0)
+    bot.Move.XY(1522.0, -7990.0)
+    bot.Move.XY(-924.0, -10670.0)
+    bot.Move.XY(-3489.0, -11607.0)
+    bot.Move.XY(-4086.0, -11692.0)
+    bot.Move.XY(-4290.0, -11599.0)
+    bot.Wait.ForMapLoad(target_map_id=56)  # Cursed Lands
+    
+    # Path through Cursed Lands to The Black Curtain
+    bot.Move.XY(-4523.0, -9755.0)
+    bot.Move.XY(-4067.0, -8786.0)
+    bot.Move.XY(-4207.0, -7806.0)
+    bot.Move.XY(-5497.0, -6137.0)
+    bot.Move.XY(-7331.0, -6178.0)
+    bot.Move.XY(-8784.0, -4598.0)
+    bot.Move.XY(-9053.0, -2929.0)
+    bot.Move.XY(-9610.0, -2136.0)
+    bot.Move.XY(-10879.0, -1685.0)
+    bot.Move.XY(-10731.0, -760.0)
+    bot.Move.XY(-12517.0, 5459.0)
+    bot.Move.XY(-15510.0, 7154.0)
+    bot.Move.XY(-18010.0, 7033.0)
+    bot.Move.XY(-18717.0, 7537.0)
+    bot.Move.XY(-19896.0, 8964.0)
+    bot.Move.XY(-20100.0, 9025.0)
+    bot.Wait.ForMapLoad(target_map_id=18)  # The Black Curtain
+    
+    # Path through The Black Curtain to Temple of the Ages
+    bot.Move.XY(8716.0, 18587.0)
+    bot.Move.XY(5616.0, 17732.0)
+    bot.Move.XY(3795.0, 17750.0)
+    bot.Move.XY(1938.0, 16994.0)
+    bot.Move.XY(592.0, 16243.0)
+    bot.Move.XY(-686.0, 14967.0)
+    bot.Move.XY(-1968.0, 14407.0)
+    bot.Move.XY(-3398.0, 14730.0)
+    bot.Move.XY(-4340.0, 14938.0)
+    bot.Move.XY(-5004.0, 15424.0)
+    bot.Move.XY(-5207.0, 15882.0)
+    bot.Move.XY(-5180.0, 16000.0)
+    bot.Wait.ForMapLoad(target_map_id=138)  # Temple of the Ages
+    
 
 #region MAIN
 selected_step = 0
