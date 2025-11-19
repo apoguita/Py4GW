@@ -1021,12 +1021,11 @@ def TraverseToEOTNOutpost(bot: Botting):
     auto_path_list = [(3743.31, -15862.36), (3607.21, -6937.32),(2557.23, -275.97)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Move.XY(-641.25, 2069.27)
-    bot.Wait.ForMapLoad(target_map_id=642)
+    bot.Wait.ForMapToChange(target_map_id=642)
 
 def UnlockEotnPool(bot: Botting):
     bot.States.AddHeader("Unlock EOTN Pool")
     bot.Map.Travel(target_map_id=642)  # eotn_outpost_id
-    #bot.Wait.ForMapLoad(target_map_id=642)  # hall of monuments id
     auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapLoad(target_map_id=646)  # hall of monuments id
