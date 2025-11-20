@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, ActionQueueManager, ConsoleLog
+from Py4GWCoreLib import Botting, Routines, ConsoleLog
 
 # https://wiki.guildwars.com/wiki/The_Shadow_Nexus
 BOT_NAME = "The Shadow Nexus"
