@@ -249,7 +249,6 @@ def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
     else:
         return ModelID.Tanned_Hide_Square.value
 
-
 def GetWeaponMaterialPerProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary == "Warrior":
@@ -306,8 +305,6 @@ def GetArmorPiecesByProfession(bot: Botting):
 
     return  HEAD, CHEST, GLOVES, PANTS, BOOTS 
 
-
-
 def GetWeaponByProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     SCYTHE = SPEAR = SHIELDWAR = SWORD = BOW = SHIELDPARA = FIRESTAFF = DOMSTAFF = MONKSTAFF = 0
@@ -336,8 +333,6 @@ def GetWeaponByProfession(bot: Botting):
         MONKSTAFF = 18926
         return MONKSTAFF,
     return ()
-
-
 
 def CraftArmor(bot: Botting):
     HEAD, CHEST, GLOVES, PANTS, BOOTS = GetArmorPiecesByProfession(bot)
@@ -368,12 +363,14 @@ def CraftArmor(bot: Botting):
             return False
         yield
     return True
+
 def NoHeadArmorMaterials(headpiece: bool = False):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary == "Paragon":
         return ModelID.Tanned_Hide_Square.value
     elif primary == "Elementalist":
         return ModelID.Bolt_Of_Cloth.value
+    
 def GetNoHeadArmorPieces(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     HEAD, CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0,0
@@ -389,7 +386,6 @@ def GetNoHeadArmorPieces(bot: Botting):
         PANTS = 17352
         BOOTS = 17349
     return  CHEST, GLOVES ,PANTS ,BOOTS
-
 
 def CraftMostNoHeadArmor(bot: Botting):
     CHEST, GLOVES, PANTS, BOOTS = GetNoHeadArmorPieces(bot)
