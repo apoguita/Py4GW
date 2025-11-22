@@ -123,7 +123,7 @@ class Yield:
             Returns: None
             """
             tree = BT.Player.SendChatCommand(command, log=log)
-            yield from _run_bt_tree(tree, throttle_ms=300)
+            yield from _run_bt_tree(tree, throttle_ms=300)  
 
         @staticmethod
         def Resign(log:bool=False):
@@ -160,7 +160,7 @@ class Yield:
             tree = BT.Player.PrintMessageToConsole(source, message, message_type)
             yield from _run_bt_tree(tree , throttle_ms=100)
 
-
+            
         @staticmethod
         def Move(x:float, y:float, log=False):
             """
@@ -173,7 +173,7 @@ class Yield:
             """
             tree = BT.Player.Move(x, y, log=log)
             yield from _run_bt_tree(tree , throttle_ms=100)
-
+            
         @staticmethod
         def MoveXYZ(x:float, y:float, zplane:int, log=False):
             """
@@ -189,7 +189,7 @@ class Yield:
             yield from _run_bt_tree(tree , throttle_ms=100)
 
 #region Skills
-    class Skills:
+    class Skills:       
         @staticmethod
         def GenerateSkillbarTemplate():
             """
@@ -242,8 +242,8 @@ class Yield:
             """
             tree = BT.Skills.LoadHeroSkillbar(hero_index, skill_template, log)
             yield from _run_bt_tree(tree, throttle_ms=500)
-
-
+        
+            
         @staticmethod
         def IsSkillIDUsable(skill_id: int):
             """
@@ -256,7 +256,7 @@ class Yield:
             result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=0)
             return result
 
-
+        
         @staticmethod
         def IsSkillSlotUsable(skill_slot: int):
             """
@@ -268,8 +268,8 @@ class Yield:
             tree = BT.Skills.IsSkillSlotUsable(skill_slot)
             result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=0)
             return result
-
-        @staticmethod
+        
+        @staticmethod    
         def CastSkillID (skill_id:int,target_agent_id:int =0, extra_condition=True, aftercast_delay=0,  log=False):
             """
             Purpose: Cast a skill by its ID using a coroutine.
@@ -284,7 +284,7 @@ class Yield:
             tree = BT.Skills.CastSkillID(skill_id, target_agent_id, extra_condition, aftercast_delay, log)
             result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=aftercast_delay)
             return result
-
+            
 
         @staticmethod
         def CastSkillSlot(slot:int,extra_condition=True, aftercast_delay=0, log=False):
@@ -301,9 +301,9 @@ class Yield:
             tree = BT.Skills.CastSkillSlot(slot=slot, extra_condition=extra_condition, aftercast_delay=aftercast_delay, log=log)
             result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=aftercast_delay)
             return result
-
-#region Map
-    class Map:
+            
+#region Map      
+    class Map:  
         @staticmethod
         def SetHardMode(hard_mode=True, log=False):
             """
@@ -313,7 +313,7 @@ class Yield:
             """
             tree = BT.Map.SetHardMode(hard_mode, log)
             yield from _run_bt_tree(tree, return_bool=False, throttle_ms=100)
-
+                
         @staticmethod
         def TravelToOutpost(outpost_id, log=False, timeout:int=10000):
             """
@@ -323,7 +323,7 @@ class Yield:
                 log (bool) Optional: Whether to log the action. Default is False.
             Returns: None
             """
-
+            
             tree = BT.Map.TravelToOutpost(outpost_id, log, timeout)
             result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=100)
             return result
@@ -341,7 +341,7 @@ class Yield:
                 log (bool) Optional: Whether to log the action. Default is True.
             Returns: None
             """
-
+            
             tree = BT.Map.TravelToRegion(outpost_id, region, district, language, log)
             result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=100)
             return result
@@ -358,11 +358,11 @@ class Yield:
                 map_name (str) Optional: The name of the map to wait for. Default is "".
             Returns: bool: True if the map loaded successfully, False if timed out.
             """
-
+            
             tree = BT.Map.WaitforMapLoad(map_id, log, timeout, map_name)
             result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=500)
             return result
-
+        
 #region Movement
     class Movement:
         @staticmethod
@@ -556,7 +556,7 @@ class Yield:
     
 
 
-#region Agents
+#region Agents        
     class Agents:
         @staticmethod
         def GetAgentIDByName(agent_name):
@@ -564,7 +564,7 @@ class Yield:
             yield from _run_bt_tree(tree, throttle_ms=100)
             agent = tree.blackboard.get("result", 0)
             return agent
-
+            
 
 
         @staticmethod
@@ -583,12 +583,69 @@ class Yield:
         @staticmethod
         def ChangeTarget(agent_id, log=False):
             """
-            Purpose: Change the player's target to the specified agent ID.
+            Purpose: Load the specified hero skillbar by party position.
             Args:
-                agent_id (int): The ID of the agent to target.
+                hero_index (int): The 1-based party position of the hero (1 = first hero, 2 = second, etc.).
+                skill_template (str): The skill template code to load.
+                log (bool) Optional: Whether to log the action. Default is False.
             Returns: None
             """
-            yield from Yield.Player.ChangeTarget(agent_id, log=log)
+            
+
+            GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(hero_index, skill_template)
+            ConsoleLog("LoadHeroSkillbar", f"Loading hero at party position {hero_index} with template {skill_template}", log=log)
+            yield from Yield.wait(500)
+        
+        @staticmethod    
+        def CastSkillID (skill_id:int,extra_condition=True, aftercast_delay=0,  log=False):
+            from .Checks import Checks
+            if not Checks.Map.IsExplorable():
+                return False
+
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
+            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
+            
+            if not(enough_energy and skill_ready and extra_condition):
+                yield
+                return False
+            slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+            if slot <= 0 or slot > 8:
+                yield
+                return False
+            
+            GLOBAL_CACHE.SkillBar.UseSkill(GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id), aftercast_delay=aftercast_delay)
+            if log:
+                ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
+            
+            if aftercast_delay > 0:
+                yield from Yield.wait(aftercast_delay)
+            return True
+        
+        @staticmethod
+        def IsSkillIDUsable(skill_id: int):
+            from .Checks import Checks
+            if not Checks.Map.IsExplorable():
+                return False
+
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
+            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
+            yield
+            return enough_energy and skill_ready
+        
+        @staticmethod
+        def IsSkillSlotUsable(skill_slot: int):
+            from .Checks import Checks
+            if not Checks.Map.IsExplorable():
+                return False
+
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
+            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id, skill.id)
+            skill_ready = Checks.Skills.IsSkillSlotReady(skill_slot)
+            yield
+            return enough_energy and skill_ready
 
         @staticmethod
         def InteractAgent(agent_id:int, log:bool=False):
@@ -599,7 +656,7 @@ class Yield:
                 log (bool) Optional: Whether to log the action. Default is False.
             """
             yield from Yield.Player.InteractAgent(agent_id, log=log)
-
+            
         @staticmethod
         def TargetAgentByName(agent_name:str, log:bool=False):
             """
@@ -622,7 +679,7 @@ class Yield:
             """
             tree = BT.Agents.TargetNearestNPC(distance, log=log)
             yield from _run_bt_tree(tree, throttle_ms=100)
-
+            
         @staticmethod
         def TargetNearestNPCXY(x,y,distance, log:bool=False):
             """
@@ -636,7 +693,7 @@ class Yield:
             tree = BT.Agents.TargetNearestNPCXY(x,y,distance, log=log)
             yield from _run_bt_tree(tree, throttle_ms=100)
 
-
+                
         @staticmethod
         def TargetNearestGadgetXY(x,y,distance, log:bool=False):
             """
@@ -673,7 +730,7 @@ class Yield:
             """
             tree = BT.Agents.TargetNearestEnemy(distance, log=log)
             yield from _run_bt_tree(tree, throttle_ms=100)
-
+        
         @staticmethod
         def TargetNearestItem(distance, log:bool=False):
             """
@@ -684,7 +741,7 @@ class Yield:
             """
             tree = BT.Agents.TargetNearestItem(distance, log=log)
             yield from _run_bt_tree(tree, throttle_ms=100)
-
+                
         @staticmethod
         def TargetNearestChest(distance, log:bool=False):
             """
@@ -695,7 +752,7 @@ class Yield:
             """
             tree = BT.Agents.TargetNearestChest(distance, log=log)
             yield from _run_bt_tree(tree, throttle_ms=100)
-
+            
         @staticmethod
         def InteractWithNearestChest():
             """Target and interact with chest and items."""
@@ -1200,7 +1257,7 @@ class Yield:
                 if progress_callback and total_items > 0:
                     progress_callback(1 - len(item_array) / total_items)
                         
-
+                        
             return True
 
         @staticmethod
@@ -1403,7 +1460,7 @@ class Yield:
         def SpawnBonusItems():
             GLOBAL_CACHE.Player.SendChatCommand("bonus")
             yield from Yield.wait(250)
-
+            
 
 #region Upkeepers
     class Upkeepers:
@@ -1693,7 +1750,7 @@ class Yield:
         def PressKeybind(keybind_index:int, duration_ms:int=125, log=False):
             tree = BT.Keybinds.PressKeybind(keybind_index, duration_ms, log)
             yield from _run_bt_tree(tree)
-
+  
         @staticmethod
         def TakeScreenshot(log=False):
             yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Screenshot.value, 75, log=log)
@@ -1773,7 +1830,7 @@ class Yield:
             
         @staticmethod
         def OpenHeroPanel(log=False):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero.value, 75, log=log)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero.value, 75, log=log)    
         #weapon sets
         @staticmethod
         def CycleEquipment(log=False):
@@ -2047,4 +2104,4 @@ class Yield:
                 return
                 
             ConsoleLog("Reroll", f"Successfully logged in as '{target_character_name}'.", Console.MessageType.Info)
-            return
+            return                    
